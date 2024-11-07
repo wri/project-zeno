@@ -8,3 +8,4 @@ Language Interface for Maps & WRI/LCL data APIs.
 2. Clone the repository: `git clone git@github.com:wri/project-zeno.git'
 3. Change into the project directory: `cd project-zeno`
 4. Install dependencies: `uv sync`
+5. Activate the environment: `source .venv/bin/activate`
