@@ -4,6 +4,7 @@ Language Interface for Maps & WRI/LCL data APIs.
 
 ## Dependencies
 - uv: https://docs.astral.sh/uv/getting-started/installation/
+- ollama: https://ollama.com/
 
 ## Getting Started
 
