@@ -27,8 +27,8 @@ class GladAlertsInput(BaseModel):
         le=52
     )
 
-@tool("glad-alerts", args_schema=GladAlertsInput, return_direct=True)
-def get_glad_alerts(
+@tool("glad-weekly-alerts-tool", args_schema=GladAlertsInput, return_direct=True)
+def glad_weekly_alerts_tool(
     iso: str,
     adm1: str,
     adm2: str,
@@ -111,5 +111,5 @@ if __name__ == "__main__":
         "year": 2021
     }
 
-    result = get_glad_alerts.invoke(test_query)
+    result = glad_weekly_alerts_tool.invoke(test_query)
     print(result)
