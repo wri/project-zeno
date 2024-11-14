@@ -4,7 +4,7 @@ from langchain_ollama import OllamaEmbeddings
 
 # Vector store
 vectorstore = Chroma(
-    persist_directory="../data/chroma_gfw",
+    persist_directory="data/chroma_gfw",
     embedding_function=OllamaEmbeddings(model="nomic-embed-text"),
     create_collection_if_not_exists=False,
 )

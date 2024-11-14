@@ -14,6 +14,7 @@ dependencies = [
     "langfuse>=2.53.9",
     "langchain-chroma>=0.1.4",
     "langgraph>=0.2.45",
+    "fastapi[standard]>=0.115.4",
 ]
 
 [dependency-groups]
