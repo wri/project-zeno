@@ -18,6 +18,14 @@ Language Interface for Maps & WRI/LCL data APIs.
 
 The following example shows how the streaming response can be obtained.
 
+Run fastapi
+
+```bash
+PYTHONPATH=src fastapi dev main.py
+```
+
+Call api
+
 ```python
 import requests
 
