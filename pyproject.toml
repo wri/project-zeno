@@ -15,6 +15,7 @@ dependencies = [
     "langchain-chroma>=0.1.4",
     "langgraph>=0.2.45",
     "thefuzz>=0.22.1",
+    "fastapi[standard]>=0.115.4",
 ]
 
 [dependency-groups]
