@@ -4,6 +4,7 @@ from fastapi import FastAPI, Body
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage, ToolMessage
 from rag.agent import graph
+from rag.utils.tools import retriever_tool
 
 
 app = FastAPI()
@@ -24,6 +25,16 @@ def event_stream(query: str):
                     yield message.content
 
 
+# @app.post("/test_rag")
+# async def test_retriever(query: Annotated[str, Body(embed=True)]):
+#     print("PINGPONGPING")
+#     query = "What is the mission of WRI?"
+#     response = retriever_tool.run(query)
+
+#     return f"Retriever Tool Output: {response}"
+
+
 @app.post("/stream")
 async def stream(query: Annotated[str, Body(embed=True)]):
+
     return StreamingResponse(event_stream(query), media_type="text/event-stream")

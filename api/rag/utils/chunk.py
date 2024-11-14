@@ -12,6 +12,8 @@ from langchain_community.document_loaders import CSVLoader
 from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+import os
+
 # Open blog posts from WordPress export
 with open("data/gfw-blog-and-help-center-posts.xml") as fl:
     soup = BeautifulSoup(fl, "xml")
@@ -47,6 +49,8 @@ splits = text_splitter.split_documents(docs)
 
 vectorstore = Chroma.from_documents(
     documents=splits,
-    embedding=OllamaEmbeddings(model="nomic-embed-text"),
+    embedding=OllamaEmbeddings(
+        model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
+    ),
     persist_directory="data/chroma_gfw",
 )
