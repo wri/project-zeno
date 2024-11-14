@@ -20,4 +20,17 @@ dependencies = [
 [dependency-groups]
 dev = [
     "jupyterlab>=4.3.0",
+    "pre-commit>=4.0.1",
+    "ruff>=0.7.3",
 ]
+
+[tool.ruff]
+# Set the maximum line length to 79.
+line-length = 79
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "Q", "I"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
