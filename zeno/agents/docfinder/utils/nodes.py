@@ -7,7 +7,9 @@ from langchain_core.prompts import PromptTemplate
 from langchain_ollama import ChatOllama
 from pydantic import BaseModel, Field
 
-from rag.utils.tools import retriever_tool
+from zeno.tools.docretrieve.document_retrieve_tool import retriever_tool
+
+llm = ChatOllama(model="llama3.2", temperature=0, streaming=True)
 
 
 def grade_documents(state) -> Literal["generate", "rewrite"]:
@@ -29,11 +31,6 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
 
         binary_score: str = Field(description="Relevance score 'yes' or 'no'")
 
-    # LLM
-    model = ChatOllama(model="llama3.2", temperature=0, streaming=True)
-
-    # LLM with tool and validation
-    llm_with_tool = model.with_structured_output(grade)
 
     # Prompt
     prompt = PromptTemplate(
@@ -44,6 +41,9 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
         Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question.""",
         input_variables=["context", "question"],
     )
+
+    # LLM with tool and validation
+    llm_with_tool = llm.with_structured_output(grade)
 
     # Chain
     chain = prompt | llm_with_tool
@@ -81,8 +81,7 @@ def agent(state):
     """
     print("---CALL AGENT---")
     messages = state["messages"]
-    model = ChatOllama(model="llama3.2", temperature=0, streaming=True)
-    model = model.bind_tools([retriever_tool])
+    model = llm.bind_tools([retriever_tool])
     response = model.invoke(messages)
     # We return a list, because this will get added to the existing list
     return {"messages": [response]}
@@ -116,8 +115,7 @@ def rewrite(state):
     ]
 
     # Grader
-    model = ChatOllama(model="llama3.2", temperature=0, streaming=True)
-    response = model.invoke(msg)
+    response = llm.invoke(msg)
     return {"messages": [response]}
 
 
@@ -142,7 +140,6 @@ def generate(state):
     prompt = hub.pull("rlm/rag-prompt")
 
     # LLM
-    llm = ChatOllama(model="llama3.2", temperature=0, streaming=True)
 
     # Chain
     rag_chain = prompt | llm

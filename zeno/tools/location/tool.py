@@ -1,7 +1,7 @@
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
-from src.tools.location.location_matcher import LocationMatcher
+from zeno.tools.location.location_matcher import LocationMatcher
 
 GADM_CSV_PATH = "../data/gadm.csv"
 location_matcher = LocationMatcher(GADM_CSV_PATH)

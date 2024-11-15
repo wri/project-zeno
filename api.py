@@ -3,7 +3,9 @@ from typing import Annotated
 from fastapi import FastAPI, Body
 from fastapi.responses import Response, StreamingResponse, JSONResponse
 from langchain_core.messages import HumanMessage, ToolMessage
-from rag.agent import graph
+# from zeno.agents.docfinder.agent import graph
+from zeno.agents.layerfinder.agent import graph
+from zeno.agents.layerfinder.utils.state import GraphState
 import json
 
 app = FastAPI()
@@ -13,14 +15,15 @@ app = FastAPI()
 
 def event_stream(query: str):
 
-    initial_state = {"messages": [HumanMessage(content=query)]}
+    initial_state = GraphState(question=query)
 
     for output in graph.stream(initial_state):
         for node_name, node_results in output.items():
-            for message in node_results.get("messages", []):
-                if hasattr(message, "content"):
-                    # result[node_name] = message.content
-                    yield json.dumps({node_name: message.content}) + "\n"
+            for key, data in node_results.items():
+                if hasattr(data, "content"):
+                    yield json.dumps({node_name: data.content}) + "\n"
+                else:
+                    yield json.dumps({node_name: str(data)}) + "\n"
 
 
 @app.post("/stream")
