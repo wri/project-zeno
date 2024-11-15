@@ -3,6 +3,9 @@ import json
 import streamlit as st
 
 import requests
+import os
+
+API_BASE_URL = os.environ["API_BASE_URL"]
 
 st.set_page_config(page_icon="images/resource-racoon.jpg")
 st.header("Resource Raccoon")
@@ -31,8 +34,11 @@ with st.sidebar:
 if user_input := st.chat_input("Type your message here..."):
     st.chat_message("user").write(user_input)
 
-    with requests.post("http://127.0.0.1:8000/stream", json=dict(query=user_input), stream=True, ) as stream:
+    with requests.post(
+        f"{API_BASE_URL}/stream",
+        json=dict(query=user_input),
+        stream=True,
+    ) as stream:
         for chunk in stream.iter_lines():
             data = json.loads(chunk.decode("utf-8"))
             st.write(data)
-

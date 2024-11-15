@@ -14,13 +14,9 @@ dependencies = [
     "langfuse>=2.53.9",
     "langchain-chroma>=0.1.4",
     "langgraph>=0.2.45",
-<<<<<<< HEAD
-    "fastapi[standard]>=0.115.4",
-=======
     "thefuzz>=0.22.1",
     "fastapi[standard]>=0.115.4",
     "watchdog>=5.0.3",
->>>>>>> 413d2a5a1ac933fb26224db464c37cc51ac7a65a
 ]
 
 [dependency-groups]
