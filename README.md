@@ -21,7 +21,7 @@ The following example shows how the streaming response can be obtained.
 Run fastapi
 
 ```bash
-PYTHONPATH=src fastapi dev main.py
+PYTHONPATH=src fastapi dev api.py
 ```
 
 Call api
@@ -34,4 +34,10 @@ response = requests.post("http://127.0.0.1:8000/stream", json=dict(query=msg), s
 for line in response:
     if line:
         print(line.decode())
+```
+
+Run streamlit
+
+```bash
+streamlit run app.py
 ```
