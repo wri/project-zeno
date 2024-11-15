@@ -322,6 +322,18 @@ wheels = [
 ]
 
 [[package]]
+name = "branca"
+version = "0.8.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jinja2" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/13/76/7eade90b7002d4bb38fde9043bcdcb80f5d4ccdb9b8c2b975a214ca37727/branca-0.8.0.tar.gz", hash = "sha256:1f8fd0d2f3b7548f2c146093932be5d3064ba21eee6cebf92d416b7f9092324f", size = 27899 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fc/be/720f85abacd654ec86f1431bc7c004eae74417bd9d0e7a2bc43601062627/branca-0.8.0-py3-none-any.whl", hash = "sha256:e78d5be39c8799a42e5c2dd1145a797a3cefc099537907bc1e4c43b6b55f7fa4", size = 25922 },
+]
+
+[[package]]
 name = "build"
 version = "1.2.2.post1"
 source = { registry = "https://pypi.org/simple" }
@@ -754,6 +766,22 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a9/74/2df95ef84b214d2bee0886d572775a6f38793f5ca6d7630c3239c91104ac/flatbuffers-24.3.25.tar.gz", hash = "sha256:de2ec5b203f21441716617f38443e0a8ebf3d25bf0d9c0bb0ce68fa00ad546a4", size = 22139 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/41/f0/7e988a019bc54b2dbd0ad4182ef2d53488bb02e58694cd79d61369e85900/flatbuffers-24.3.25-py2.py3-none-any.whl", hash = "sha256:8dbdec58f935f3765e4f7f3cf635ac3a77f83568138d6a2311f524ec96364812", size = 26784 },
+]
+
+[[package]]
+name = "folium"
+version = "0.18.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "branca" },
+    { name = "jinja2" },
+    { name = "numpy" },
+    { name = "requests" },
+    { name = "xyzservices" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d8/75/4ffc50fac2a881f07c48232d6200d50ca040a83e2e0e96f523610eec27a7/folium-0.18.0.tar.gz", hash = "sha256:39655dacb600fb1f614793575c5d352b90f28a7a9c9540ed6b7f46e43b428df8", size = 104985 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/03/12/45a714482b9aa23cf708c5d07810d8133c4277b9d28db55e51352a0cb2da/folium-0.18.0-py2.py3-none-any.whl", hash = "sha256:4e85f2b10166d5208bb65cdf4a072e239a923647dca4dee7c1d2dbe100af56b1", size = 108893 },
 ]
 
 [[package]]
@@ -2513,6 +2541,7 @@ dependencies = [
     { name = "langfuse" },
     { name = "langgraph" },
     { name = "streamlit" },
+    { name = "streamlit-folium" },
     { name = "thefuzz" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "watchdog" },
@@ -2537,6 +2566,7 @@ requires-dist = [
     { name = "langfuse", specifier = ">=2.53.9" },
     { name = "langgraph", specifier = ">=0.2.45" },
     { name = "streamlit", specifier = ">=1.40.0" },
+    { name = "streamlit-folium", specifier = ">=0.23.2" },
     { name = "thefuzz", specifier = ">=0.22.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
     { name = "watchdog", specifier = ">=5.0.3" },
@@ -3451,6 +3481,21 @@ wheels = [
 ]
 
 [[package]]
+name = "streamlit-folium"
+version = "0.23.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "branca" },
+    { name = "folium" },
+    { name = "jinja2" },
+    { name = "streamlit" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/56/45/7c8589f607fa92c57607815f29fd0e3dbc267fb4df1ae27c7b7e002a805b/streamlit_folium-0.23.2.tar.gz", hash = "sha256:12a1d3a4e054b8dae4e24b7a66ba24667d2232a335bf9327025a6777128cc0ba", size = 330365 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/39/b4992da1f548c76c3a6014c61d3ae76d9afc75b0f8e1a79f667c2b4e25b6/streamlit_folium-0.23.2-py3-none-any.whl", hash = "sha256:649755df88810bd565fb2f38d884ff2ffe65a0157fd665ad925638ea4442e8f3", size = 328064 },
+]
+
+[[package]]
 name = "sympy"
 version = "1.13.3"
 source = { registry = "https://pypi.org/simple" }
@@ -3952,6 +3997,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a2/5b/4660897233eb2c8c4de3dc7cefed114c61bacb3c28327e64150dc44ee2f6/wrapt-1.16.0-cp312-cp312-win32.whl", hash = "sha256:685f568fa5e627e93f3b52fda002c7ed2fa1800b50ce51f6ed1d572d8ab3e7fc", size = 35568 },
     { url = "https://files.pythonhosted.org/packages/5c/cc/8297f9658506b224aa4bd71906447dea6bb0ba629861a758c28f67428b91/wrapt-1.16.0-cp312-cp312-win_amd64.whl", hash = "sha256:dcdba5c86e368442528f7060039eda390cc4091bfd1dca41e8046af7c910dda8", size = 37653 },
     { url = "https://files.pythonhosted.org/packages/ff/21/abdedb4cdf6ff41ebf01a74087740a709e2edb146490e4d9beea054b0b7a/wrapt-1.16.0-py3-none-any.whl", hash = "sha256:6906c4100a8fcbf2fa735f6059214bb13b97f75b1a61777fcf6432121ef12ef1", size = 23362 },
+]
+
+[[package]]
+name = "xyzservices"
+version = "2024.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a0/16/ae87cbd2d6bfc40a419077521c35aadf5121725b7bee3d7c51b56f50958b/xyzservices-2024.9.0.tar.gz", hash = "sha256:68fb8353c9dbba4f1ff6c0f2e5e4e596bb9e1db7f94f4f7dfbcb26e25aa66fde", size = 1131900 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/d3/e07ce413d16ef64e885bea37551eac4c5ca3ddd440933f9c94594273d0d9/xyzservices-2024.9.0-py3-none-any.whl", hash = "sha256:776ae82b78d6e5ca63dd6a94abb054df8130887a4a308473b54a6bd364de8644", size = 85130 },
 ]
 
 [[package]]

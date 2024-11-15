@@ -18,6 +18,7 @@ dependencies = [
     "fastapi[standard]>=0.115.4",
     "watchdog>=5.0.3",
     "uvicorn[standard]>=0.32.0",
+    "streamlit-folium>=0.23.2",
 ]
 
 [dependency-groups]
