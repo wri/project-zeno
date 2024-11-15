@@ -16,6 +16,7 @@ dependencies = [
     "langgraph>=0.2.45",
     "thefuzz>=0.22.1",
     "fastapi[standard]>=0.115.4",
+    "watchdog>=5.0.3",
 ]
 
 [dependency-groups]
