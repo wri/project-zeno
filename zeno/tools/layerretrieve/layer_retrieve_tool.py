@@ -15,6 +15,6 @@ retriever = db.as_retriever(k=4)
 
 retriever_tool = create_retriever_tool(
     retriever,
-    "retrieve_blog_posts",
-    "Search and return information about the World Resources Institute (WRI).",
+    "retrieve_data_layers",
+    "Search and return layers about from the World Resources Institute and Land and Carbon Lab.",
 )
