@@ -1,13 +1,11 @@
 from langchain_ollama import ChatOllama
 from langchain_anthropic import ChatAnthropic
-from langchain_ollama.embeddings import OllamaEmbeddings
-from langchain_chroma import Chroma
 import json
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from zeno.tools.layerretrieve.layer_retrieve_tool import retriever, retriever_tool
 from zeno.tools.glad.weekly_alerts_tool import glad_weekly_alerts_tool
-# from zeno.tools.location.tool import location_tool
+from zeno.tools.location.tool import location_tool
 from langgraph.prebuilt import ToolNode
 
 

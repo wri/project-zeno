@@ -6,7 +6,7 @@ from langchain_chroma import Chroma
 
 embedder = OllamaEmbeddings(model="nomic-embed-text")
 db = Chroma(
-        persist_directory="zeno/tools/layerretrieve/chroma_db", 
+        persist_directory="data/chroma_layers",
         embedding_function=embedder,
         create_collection_if_not_exists=False,
 )
