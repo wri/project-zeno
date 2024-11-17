@@ -24,6 +24,11 @@ with st.sidebar:
     - What is happening with Gold Mining Deforestation?
     - What do you know about Forest Protection in remote islands in Indonesia?
     - How many users are using GFW and how long did it take to get there?
+    - I am interested in biodiversity conservation in Argentina
+    - I would like to explore helping with forest loss in Amazon
+    - Show datasets related to mangrooves
+    - Find forest fires in milan for the year 2022
+    - Show stats on forest fires over Ihorombe for 2022
     """
     )
 

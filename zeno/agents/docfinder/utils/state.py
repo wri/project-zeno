@@ -1,11 +1,14 @@
-from typing import Annotated, Sequence
-
-from langchain_core.messages import BaseMessage
-from langgraph.graph.message import add_messages
+import operator
 from typing_extensions import TypedDict
+from typing import List, Annotated
+from langgraph.graph import add_messages
+from langchain_core.messages import AnyMessage
 
 
-class AgentState(TypedDict):
-    # The add_messages function defines how an update should be processed
-    # Default is to replace. add_messages says "append"
-    messages: Annotated[Sequence[BaseMessage], add_messages]
+class GraphState(TypedDict):
+    messages: Annotated[List[AnyMessage], add_messages]
+    question: str  # User question
+    generation: str  # LLM generation
+    answers: int  # Number of answers generated
+    loop_step: Annotated[int, operator.add]
+    documents: List[str]  # List of retrieved documents

@@ -9,9 +9,7 @@ from zeno.tools.location.tool import location_tool
 from langgraph.prebuilt import ToolNode
 
 
-# tools = [location_tool, glad_weekly_alerts_tool]
-tools = [glad_weekly_alerts_tool]
-# tools = [location_tool, glad_weekly_alerts_tool, retriever_tool]
+tools = [location_tool, glad_weekly_alerts_tool]
 
 local_llm = "qwen2.5:7b"
 # llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
@@ -69,7 +67,7 @@ def generate(state):
     docs_txt = make_context(documents)
     rag_prompt_fmt = rag_prompt.format(context=docs_txt, question=question)
     generation = llm.invoke([HumanMessage(content=rag_prompt_fmt)])
-    return {"messages": generation, "loop_step": loop_step + 1}
+    return {"messages": [generation], "loop_step": loop_step + 1}
 
 def assistant(state):
     sys_msg = SystemMessage(content="""You are a helpful assistant tasked with answering the user queries for WRI data API.

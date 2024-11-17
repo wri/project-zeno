@@ -50,9 +50,9 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
 
     messages = state["messages"]
     last_message = messages[-1]
-
-    question = messages[0].content
     docs = last_message.content
+
+    question = state["question"]
 
     scored_result = chain.invoke({"question": question, "context": docs})
 
@@ -79,8 +79,9 @@ def agent(state):
     Returns:
         dict: The updated state with the agent response appended to messages
     """
-    print("---CALL AGENT---")
-    messages = state["messages"]
+    print("---CALL DOCFINDER---")
+    messages = [HumanMessage(content=state["question"])]
+
     model = llm.bind_tools([retriever_tool])
     response = model.invoke(messages)
     # We return a list, because this will get added to the existing list
@@ -99,8 +100,7 @@ def rewrite(state):
     """
 
     print("---TRANSFORM QUERY---")
-    messages = state["messages"]
-    question = messages[0].content
+    question = state["question"]
 
     msg = [
         HumanMessage(
@@ -116,7 +116,7 @@ def rewrite(state):
 
     # Grader
     response = llm.invoke(msg)
-    return {"messages": [response]}
+    return {"question": response.content}
 
 
 def generate(state):
@@ -131,15 +131,14 @@ def generate(state):
     """
     print("---GENERATE---")
     messages = state["messages"]
-    question = messages[0].content
+    question = state["question"]
     last_message = messages[-1]
+    print("GENERATING FROM", last_message.content)
 
     docs = last_message.content
 
     # Prompt
     prompt = hub.pull("rlm/rag-prompt")
-
-    # LLM
 
     # Chain
     rag_chain = prompt | llm
