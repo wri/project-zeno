@@ -2514,6 +2514,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "streamlit" },
     { name = "thefuzz" },
+    { name = "uvicorn", extra = ["standard"] },
     { name = "watchdog" },
 ]
 
@@ -2537,6 +2538,7 @@ requires-dist = [
     { name = "langgraph", specifier = ">=0.2.45" },
     { name = "streamlit", specifier = ">=1.40.0" },
     { name = "thefuzz", specifier = ">=0.22.1" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
     { name = "watchdog", specifier = ">=5.0.3" },
 ]
 
