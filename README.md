@@ -39,5 +39,5 @@ for line in response:
 Run streamlit
 
 ```bash
-uc run streamlit run app.py
+uv run streamlit run app.py
 ```
