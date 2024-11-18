@@ -21,6 +21,10 @@ with st.sidebar:
     """
     )
 
+    st.subheader("Select a model:")
+    available_models = requests.get(f"{API_BASE_URL}/models").json()["models"]
+    model = st.selectbox("Model", available_models)
+
     st.subheader("🧐 Try asking:")
     st.write(
         """
@@ -36,7 +40,7 @@ if user_input := st.chat_input("Type your message here..."):
 
     with requests.post(
         f"{API_BASE_URL}/stream",
-        json=dict(query=user_input),
+        json=dict(query=user_input, model=model),
         stream=True,
     ) as stream:
         for chunk in stream.iter_lines():

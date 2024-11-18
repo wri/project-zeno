@@ -4,14 +4,15 @@ from langchain import hub
 from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
-from langchain_ollama import ChatOllama
 from pydantic import BaseModel, Field
+from langchain_core.runnables.config import RunnableConfig
 
 from rag.utils.tools import retriever_tool
+from rag.utils.models import models
 import os
 
 
-def grade_documents(state) -> Literal["generate", "rewrite"]:
+def grade_documents(state, config: RunnableConfig) -> Literal["generate", "rewrite"]:
     """
     Determines whether the retrieved documents are relevant to the question.
 
@@ -31,12 +32,8 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
         binary_score: str = Field(description="Relevance score 'yes' or 'no'")
 
     # LLM
-    model = ChatOllama(
-        model="llama3.2",
-        base_url=os.environ["OLLAMA_BASE_URL"],
-        temperature=0,
-        streaming=True,
-    )
+    model_name = config["configurable"].get("model", "llama32")
+    model = models[model_name]
 
     # LLM with tool and validation
     llm_with_tool = model.with_structured_output(grade)
@@ -74,7 +71,7 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
         return "rewrite"
 
 
-def agent(state):
+def agent(state, config: RunnableConfig):
     """
     Invokes the agent model to generate a response based on the current state. Given
     the question, it will decide to retrieve using the retriever tool, or simply end.
@@ -87,19 +84,18 @@ def agent(state):
     """
     print("---CALL AGENT---")
     messages = state["messages"]
-    model = ChatOllama(
-        model="llama3.2",
-        base_url=os.environ["OLLAMA_BASE_URL"],
-        temperature=0,
-        streaming=True,
-    )
+
+    model_name = config["configurable"].get("model", "llama32")
+    print("MODEL NAME: ", model_name)
+    model = models[model_name]
     model = model.bind_tools([retriever_tool])
+
     response = model.invoke(messages)
     # We return a list, because this will get added to the existing list
     return {"messages": [response]}
 
 
-def rewrite(state):
+def rewrite(state, config: RunnableConfig):
     """
     Transform the query to produce a better question.
 
@@ -126,18 +122,14 @@ def rewrite(state):
         )
     ]
 
-    # Grader
-    model = ChatOllama(
-        model="llama3.2",
-        base_url=os.environ["OLLAMA_BASE_URL"],
-        temperature=0,
-        streaming=True,
-    )
+    model_name = config["configurable"].get("model", "llama32")
+    model = models[model_name]
+
     response = model.invoke(msg)
     return {"messages": [response]}
 
 
-def generate(state):
+def generate(state, config: RunnableConfig):
     """
     Generate answer
 
@@ -158,15 +150,11 @@ def generate(state):
     prompt = hub.pull("rlm/rag-prompt")
 
     # LLM
-    llm = ChatOllama(
-        model="llama3.2",
-        base_url=os.environ["OLLAMA_BASE_URL"],
-        temperature=0,
-        streaming=True,
-    )
+    model_name = config["configurable"].get("model", "llama32")
+    model = models[model_name]
 
     # Chain
-    rag_chain = prompt | llm
+    rag_chain = prompt | model
 
     # Run
     response = rag_chain.invoke({"context": docs, "question": question})

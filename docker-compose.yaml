@@ -9,6 +9,10 @@ services:
       - LANGFUSE_HOST=http://langfuse-server:3000
       - LANGFUSE_PUBLIC_KEY=lf_pk_1234567890
       - LANGFUSE_SECRET_KEY=lf_sk_1234567890
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    env_file:
+      - .env
     
     volumes:
       - ./api:/app
