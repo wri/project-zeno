@@ -1,12 +1,12 @@
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
-from rag.utils.nodes import agent, generate, grade_documents, rewrite
-from rag.utils.state import AgentState
-from rag.utils.tools import retriever_tool
+from zeno.agents.docfinder.utils.nodes import agent, generate, grade_documents, rewrite
+from zeno.tools.docretrieve.document_retrieve_tool import retriever_tool
+from zeno.agents.docfinder.utils.state import GraphState
 
 # Define a new graph
-workflow = StateGraph(AgentState)
+workflow = StateGraph(GraphState)
 
 # Define the nodes we will cycle between
 workflow.add_node("agent", agent)  # agent

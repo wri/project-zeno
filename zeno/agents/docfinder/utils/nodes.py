@@ -7,7 +7,9 @@ from langchain_core.prompts import PromptTemplate
 from langchain_ollama import ChatOllama
 from pydantic import BaseModel, Field
 
-from rag.utils.tools import retriever_tool
+from zeno.tools.docretrieve.document_retrieve_tool import retriever_tool
+
+llm = ChatOllama(model="llama3.2", temperature=0, streaming=True)
 
 
 def grade_documents(state) -> Literal["generate", "rewrite"]:
@@ -29,11 +31,6 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
 
         binary_score: str = Field(description="Relevance score 'yes' or 'no'")
 
-    # LLM
-    model = ChatOllama(model="llama3.2", temperature=0, streaming=True)
-
-    # LLM with tool and validation
-    llm_with_tool = model.with_structured_output(grade)
 
     # Prompt
     prompt = PromptTemplate(
@@ -45,14 +42,17 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
         input_variables=["context", "question"],
     )
 
+    # LLM with tool and validation
+    llm_with_tool = llm.with_structured_output(grade)
+
     # Chain
     chain = prompt | llm_with_tool
 
     messages = state["messages"]
     last_message = messages[-1]
-
-    question = messages[0].content
     docs = last_message.content
+
+    question = state["question"]
 
     scored_result = chain.invoke({"question": question, "context": docs})
 
@@ -79,10 +79,10 @@ def agent(state):
     Returns:
         dict: The updated state with the agent response appended to messages
     """
-    print("---CALL AGENT---")
-    messages = state["messages"]
-    model = ChatOllama(model="llama3.2", temperature=0, streaming=True)
-    model = model.bind_tools([retriever_tool])
+    print("---CALL DOCFINDER---")
+    messages = [HumanMessage(content=state["question"])]
+
+    model = llm.bind_tools([retriever_tool])
     response = model.invoke(messages)
     # We return a list, because this will get added to the existing list
     return {"messages": [response]}
@@ -100,8 +100,7 @@ def rewrite(state):
     """
 
     print("---TRANSFORM QUERY---")
-    messages = state["messages"]
-    question = messages[0].content
+    question = state["question"]
 
     msg = [
         HumanMessage(
@@ -116,9 +115,8 @@ def rewrite(state):
     ]
 
     # Grader
-    model = ChatOllama(model="llama3.2", temperature=0, streaming=True)
-    response = model.invoke(msg)
-    return {"messages": [response]}
+    response = llm.invoke(msg)
+    return {"question": response.content}
 
 
 def generate(state):
@@ -133,16 +131,14 @@ def generate(state):
     """
     print("---GENERATE---")
     messages = state["messages"]
-    question = messages[0].content
+    question = state["question"]
     last_message = messages[-1]
+    print("GENERATING FROM", last_message.content)
 
     docs = last_message.content
 
     # Prompt
     prompt = hub.pull("rlm/rag-prompt")
-
-    # LLM
-    llm = ChatOllama(model="llama3.2", temperature=0, streaming=True)
 
     # Chain
     rag_chain = prompt | llm
