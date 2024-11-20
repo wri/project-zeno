@@ -14,17 +14,17 @@ Language Interface for Maps & WRI/LCL data APIs.
 4. Activate the environment: `source .venv/bin/activate`
 5. Run `cp .env.example .env` and replace values appropriately in the .env file
 
-## Fastapi testing
+## Start the agent API
 
 The following example shows how the streaming response can be obtained.
 
-Run fastapi
+Run fastapi server
 
 ```bash
-PYTHONPATH=src fastapi dev api.py
+uv run uvicorn api:app --reload
 ```
 
-Call api
+Test the API
 
 ```python
 import requests
@@ -39,5 +39,5 @@ for line in response:
 Run streamlit
 
 ```bash
-streamlit run app.py
+uv run streamlit run app.py
 ```

@@ -4,12 +4,13 @@ from langchain import hub
 from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
-from pydantic import BaseModel, Field
+from langchain_ollama import ChatOllama
 from langchain_core.runnables.config import RunnableConfig
 
-from rag.utils.tools import retriever_tool
-from rag.utils.models import models
-import os
+from pydantic import BaseModel, Field
+
+from tools.docretrieve.document_retrieve_tool import retriever_tool
+from agents.maingraph.models import ModelFactory
 
 
 def grade_documents(state, config: RunnableConfig) -> Literal["generate", "rewrite"]:
@@ -31,13 +32,6 @@ def grade_documents(state, config: RunnableConfig) -> Literal["generate", "rewri
 
         binary_score: str = Field(description="Relevance score 'yes' or 'no'")
 
-    # LLM
-    model_name = config["configurable"].get("model", "llama32")
-    model = models[model_name]
-
-    # LLM with tool and validation
-    llm_with_tool = model.with_structured_output(grade)
-
     # Prompt
     prompt = PromptTemplate(
         template="""You are a grader assessing relevance of a retrieved document to a user question. \n 
@@ -48,14 +42,20 @@ def grade_documents(state, config: RunnableConfig) -> Literal["generate", "rewri
         input_variables=["context", "question"],
     )
 
+    model_name = config["configurable"].get("model")
+    model = ModelFactory(model_name).llm
+
+    # LLM with tool and validation
+    llm_with_tool = model.with_structured_output(grade)
+
     # Chain
     chain = prompt | llm_with_tool
 
     messages = state["messages"]
     last_message = messages[-1]
-
-    question = messages[0].content
     docs = last_message.content
+
+    question = state["question"]
 
     scored_result = chain.invoke({"question": question, "context": docs})
 
@@ -82,14 +82,13 @@ def agent(state, config: RunnableConfig):
     Returns:
         dict: The updated state with the agent response appended to messages
     """
-    print("---CALL AGENT---")
-    messages = state["messages"]
+    print("---CALL DOCFINDER---")
+    messages = [HumanMessage(content=state["question"])]
 
-    model_name = config["configurable"].get("model", "llama32")
-    print("MODEL NAME: ", model_name)
-    model = models[model_name]
+    model_name = config["configurable"].get("model")
+    model = ModelFactory(model_name).llm
+
     model = model.bind_tools([retriever_tool])
-
     response = model.invoke(messages)
     # We return a list, because this will get added to the existing list
     return {"messages": [response]}
@@ -107,8 +106,7 @@ def rewrite(state, config: RunnableConfig):
     """
 
     print("---TRANSFORM QUERY---")
-    messages = state["messages"]
-    question = messages[0].content
+    question = state["question"]
 
     msg = [
         HumanMessage(
@@ -121,12 +119,12 @@ def rewrite(state, config: RunnableConfig):
     Formulate an improved question: """,
         )
     ]
+    model_name = config["configurable"].get("model")
+    model = ModelFactory(model_name).llm
 
-    model_name = config["configurable"].get("model", "llama32")
-    model = models[model_name]
-
+    # Grader
     response = model.invoke(msg)
-    return {"messages": [response]}
+    return {"question": response.content}
 
 
 def generate(state, config: RunnableConfig):
@@ -141,17 +139,17 @@ def generate(state, config: RunnableConfig):
     """
     print("---GENERATE---")
     messages = state["messages"]
-    question = messages[0].content
+    question = state["question"]
     last_message = messages[-1]
+    print("GENERATING FROM", last_message.content)
 
     docs = last_message.content
 
     # Prompt
     prompt = hub.pull("rlm/rag-prompt")
 
-    # LLM
-    model_name = config["configurable"].get("model", "llama32")
-    model = models[model_name]
+    model_name = config["configurable"].get("model")
+    model = ModelFactory(model_name).llm
 
     # Chain
     rag_chain = prompt | model
