@@ -9,7 +9,7 @@ from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
 # Load environment variables
-load_dotenv("../.env")
+load_dotenv(".env")
 
 
 class GladAlertsInput(BaseModel):
@@ -38,6 +38,7 @@ def glad_weekly_alerts_tool(
     iso: str, adm1: str, adm2: str, year: int, week: Optional[int] = None
 ) -> str:
     """Fetch forest fire alerts for a specific administrative region and time period."""
+    print("---GLAD-WEEKLY-ALERTS-TOOL---")
 
     # Get credentials from environment variables
     headers = {
@@ -76,6 +77,8 @@ def glad_weekly_alerts_tool(
                 f"Country: {iso}, ADM1: {adm1}, ADM2: {adm2}, Year: {year}"
                 + (f", Week: {week}" if week else "")
             )
+        else:
+            return data
 
         # Process the data
         alerts_data = pd.DataFrame(data["data"])

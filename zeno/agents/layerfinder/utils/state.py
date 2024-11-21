@@ -1,8 +1,9 @@
 import operator
-from typing_extensions import TypedDict
-from typing import List, Annotated
-from langgraph.graph import add_messages
+from typing import Annotated, List
+
 from langchain_core.messages import AnyMessage
+from langgraph.graph import add_messages
+from typing_extensions import TypedDict
 
 
 class GraphState(TypedDict):
@@ -12,3 +13,4 @@ class GraphState(TypedDict):
     answers: int  # Number of answers generated
     loop_step: Annotated[int, operator.add]
     documents: List[str]  # List of retrieved documents
+    route: str  # Route to agent
