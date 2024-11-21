@@ -20,7 +20,6 @@ with open("data/gfw-blog-and-help-center-posts.xml") as fl:
 bodies = []
 titles = []
 for item in soup.channel.find_all("item"):
-
     html = item.find_all("content:encoded")[0]
     sopa = BeautifulSoup(html.contents[0], "html.parser").get_text()
     txt = unicodedata.normalize("NFKC", sopa)
@@ -42,7 +41,9 @@ loader = CSVLoader(
 docs = loader.load()
 
 # Split into chunks
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=200)
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1024, chunk_overlap=200
+)
 splits = text_splitter.split_documents(docs)
 
 vectorstore = Chroma.from_documents(

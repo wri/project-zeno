@@ -1,15 +1,18 @@
+from dotenv import load_dotenv
+
+_ = load_dotenv(".env")
 from typing import Literal
 
 from langchain import hub
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
-from langchain_ollama import ChatOllama
 from pydantic import BaseModel, Field
 
 from zeno.tools.docretrieve.document_retrieve_tool import retriever_tool
 
-llm = ChatOllama(model="llama3.2", temperature=0, streaming=True)
+# llm = ChatOllama(model="llama3.2", temperature=0, streaming=True)
+llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
 
 
 def grade_documents(state) -> Literal["generate", "rewrite"]:
@@ -31,10 +34,9 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
 
         binary_score: str = Field(description="Relevance score 'yes' or 'no'")
 
-
     # Prompt
     prompt = PromptTemplate(
-        template="""You are a grader assessing relevance of a retrieved document to a user question. \n 
+        template="""You are a grader assessing relevance of a retrieved document to a user question. \n
         Here is the retrieved document: \n\n {context} \n\n
         Here is the user question: {question} \n
         If the document contains keyword(s) or semantic meaning related to the user question, grade it as relevant. \n
@@ -104,11 +106,11 @@ def rewrite(state):
 
     msg = [
         HumanMessage(
-            content=f""" \n 
-    Look at the input and try to reason about the underlying semantic intent / meaning. \n 
+            content=f""" \n
+    Look at the input and try to reason about the underlying semantic intent / meaning. \n
     Here is the initial question:
     \n ------- \n
-    {question} 
+    {question}
     \n ------- \n
     Formulate an improved question: """,
         )
@@ -145,4 +147,4 @@ def generate(state):
 
     # Run
     response = rag_chain.invoke({"context": docs, "question": question})
-    return {"messages": [response]}
+    return {"messages": [response], "route": "docfinder"}
