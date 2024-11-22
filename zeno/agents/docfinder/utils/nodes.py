@@ -42,8 +42,8 @@ def grade_documents(state, config: RunnableConfig) -> Literal["generate", "rewri
         input_variables=["context", "question"],
     )
 
-    model_name = config["configurable"].get("model")
-    model = ModelFactory(model_name).llm
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id)
 
     # LLM with tool and validation
     llm_with_tool = model.with_structured_output(grade)
@@ -85,8 +85,8 @@ def agent(state, config: RunnableConfig):
     print("---CALL DOCFINDER---")
     messages = [HumanMessage(content=state["question"])]
 
-    model_name = config["configurable"].get("model")
-    model = ModelFactory(model_name).llm
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id)
 
     model = model.bind_tools([retriever_tool])
     response = model.invoke(messages)
@@ -119,8 +119,8 @@ def rewrite(state, config: RunnableConfig):
     Formulate an improved question: """,
         )
     ]
-    model_name = config["configurable"].get("model")
-    model = ModelFactory(model_name).llm
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id)
 
     # Grader
     response = model.invoke(msg)
@@ -148,8 +148,8 @@ def generate(state, config: RunnableConfig):
     # Prompt
     prompt = hub.pull("rlm/rag-prompt")
 
-    model_name = config["configurable"].get("model")
-    model = ModelFactory(model_name).llm
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id)
 
     # Chain
     rag_chain = prompt | model

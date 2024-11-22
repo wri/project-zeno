@@ -1,7 +1,7 @@
 import json
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
-from zeno.agents.maingraph.models import ModelFactory
+from agents.maingraph.models import ModelFactory
 
 
 # llm_json_mode = ChatOllama(model="qwen2.5:7b", temperature=0, format="json")
@@ -20,8 +20,8 @@ def maingraph(state, config: RunnableConfig):
         Return JSON with single key, route, that is 'layerfinder' or 'docfinder' depending on the question."""
     )
 
-    model_name = config["configurable"].get("model")
-    model = ModelFactory(model_name).json_llm
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id, json_mode=True)
 
     response = model.invoke([sys_msg] + [HumanMessage(content=state["question"])])
     route = json.loads(response.content)["route"]

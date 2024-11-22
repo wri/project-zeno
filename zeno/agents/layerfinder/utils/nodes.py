@@ -8,7 +8,7 @@ from tools.glad.weekly_alerts_tool import glad_weekly_alerts_tool
 from tools.location.tool import location_tool
 from langgraph.prebuilt import ToolNode
 from langchain_core.runnables.config import RunnableConfig
-from zeno.agents.maingraph.models import ModelFactory
+from agents.maingraph.models import ModelFactory
 
 
 tools = [location_tool, glad_weekly_alerts_tool]
@@ -68,8 +68,8 @@ def generate(state, config: RunnableConfig):
     documents = state["documents"]
     loop_step = state.get("loop_step", 0)
 
-    model_name = config["configurable"].get("model")
-    model = ModelFactory(model_name).llm
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id)
 
     # RAG generation
     docs_txt = make_context(documents)
@@ -93,9 +93,10 @@ def assistant(state, config: RunnableConfig):
     if not state["messages"]:
         state["messages"] = [HumanMessage(state["question"])]
 
-    model_name = config["configurable"].get("model")
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id)
 
-    llm_with_tools = ModelFactory(model_name).llm.bind_tools(tools)
+    llm_with_tools = model.bind_tools(tools)
 
     return {"messages": [llm_with_tools.invoke([sys_msg] + state["messages"])]}
 
@@ -103,10 +104,10 @@ def assistant(state, config: RunnableConfig):
 def router(state, config: RunnableConfig):
     print("---ROUTER---")
 
-    model_name = config["configurable"].get("model")
-    llm_json_mode = ModelFactory(model_name).json_llm
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id, json_mode=True)
 
-    response = llm_json_mode.invoke(
+    response = model.invoke(
         [SystemMessage(content=router_instructions)]
         + [HumanMessage(content=state["question"])]
     )
