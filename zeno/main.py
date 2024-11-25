@@ -48,6 +48,7 @@ async def stream(
     model_id: Annotated[str, Body(embed=True)] = "llama3.2",
 ):
     available_models = ModelFactory().available_models
+
     if not available_models.get(model_id):
         return HTTPException(
             status_code=404,
