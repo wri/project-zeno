@@ -5,9 +5,7 @@ from langchain_ollama import ChatOllama  # noqa
 from langchain_anthropic import ChatAnthropic
 
 # llm_json_mode = ChatOllama(model="qwen2.5:7b", temperature=0, format="json")
-llm_json_mode = ChatAnthropic(
-    model="claude-3-5-sonnet-20241022", temperature=0, format="json"
-)
+llm_json_mode = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
 
 
 def generate(state):
