@@ -2565,7 +2565,6 @@ requires-dist = [
     { name = "langfuse", specifier = ">=2.53.9" },
     { name = "langgraph", specifier = ">=0.2.45" },
     { name = "streamlit", specifier = ">=1.40.0" },
-    { name = "watchdog", specifier = ">=5.0.3" },
     { name = "thefuzz", specifier = ">=0.22.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
     { name = "watchdog", specifier = ">=5.0.3" },
