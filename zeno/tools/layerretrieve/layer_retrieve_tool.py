@@ -2,13 +2,16 @@ from langchain.tools.retriever import create_retriever_tool
 
 from langchain_ollama.embeddings import OllamaEmbeddings
 from langchain_chroma import Chroma
+import os
 
 
-embedder = OllamaEmbeddings(model="nomic-embed-text")
+embedder = OllamaEmbeddings(
+    model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
+)
 db = Chroma(
-        persist_directory="data/chroma_layers",
-        embedding_function=embedder,
-        create_collection_if_not_exists=False,
+    persist_directory="data/chroma_layers",
+    embedding_function=embedder,
+    create_collection_if_not_exists=False,
 )
 
 retriever = db.as_retriever(k=4)

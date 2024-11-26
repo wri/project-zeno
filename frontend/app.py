@@ -3,6 +3,9 @@ import json
 import streamlit as st
 
 import requests
+import os
+
+API_BASE_URL = os.environ["API_BASE_URL"]
 
 st.set_page_config(page_icon="images/resource-racoon.jpg")
 st.header("Resource Raccoon")
@@ -16,6 +19,13 @@ with st.sidebar:
         """
     **Resource Raccoon** is your AI sidekick at WRI, trained on all your blog posts! It is a concious consumer and is consuming a local produce only. It can help you with questions about your blog posts. Give it a try!
     """
+    )
+
+    st.subheader("Select a model:")
+    available_models = requests.get(f"{API_BASE_URL}/models").json()["models"]
+
+    model = st.selectbox(
+        "Model", format_func=lambda x: x["model_name"], options=available_models
     )
 
     st.subheader("🧐 Try asking:")
@@ -35,9 +45,11 @@ with st.sidebar:
 # Chat input
 if user_input := st.chat_input("Type your message here..."):
     st.chat_message("user").write(user_input)
-
-    with requests.post("http://127.0.0.1:8000/stream", json=dict(query=user_input), stream=True, ) as stream:
+    with requests.post(
+        f"{API_BASE_URL}/stream",
+        json=dict(query=user_input, model_id=model["model_id"]),
+        stream=True,
+    ) as stream:
         for chunk in stream.iter_lines():
             data = json.loads(chunk.decode("utf-8"))
             st.write(data)
-
