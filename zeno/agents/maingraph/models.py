@@ -28,13 +28,13 @@ MODELS_CONFIG = [
             "base_url": os.environ.get("OLLAMA_BASE_URL"),
         },
     },
-    # {
-    #     "required_env_var": "ANTHROPIC_API_KEY",
-    #     "model_id": "claude-3-5-sonnet-latest",
-    #     "model_name": "Anthropic claude3.5 sonnet",
-    #     "constructor_class": ChatAnthropic,
-    #     "additional_params": {},
-    # },
+    {
+        "required_env_var": "ANTHROPIC_API_KEY",
+        "model_id": "claude-3-5-sonnet-latest",
+        "model_name": "Anthropic claude3.5 sonnet",
+        "constructor_class": ChatAnthropic,
+        "additional_params": {},
+    },
     {
         "required_env_var": "OPENAI_API_KEY",
         "model_id": "gpt-3.5-turbo",
@@ -87,6 +87,9 @@ class ModelFactory:
             )
         model_config = self.available_models[model_id]
         params = model_config["additional_params"]
+
+        if json_mode and not model_config.get("json_mode"):
+            raise ValueError(f"Request model {model_id} does not support json mode")
 
         if json_mode:
             params.update(

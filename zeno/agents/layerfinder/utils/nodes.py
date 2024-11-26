@@ -1,17 +1,15 @@
-from langchain_ollama import ChatOllama
-from langchain_anthropic import ChatAnthropic
+from dotenv import load_dotenv
+
 import json
-from langchain_core.messages import HumanMessage, SystemMessage
 
 from tools.layerretrieve.layer_retrieve_tool import retriever, retriever_tool
-from tools.glad.weekly_alerts_tool import glad_weekly_alerts_tool
-from tools.location.tool import location_tool
 from langgraph.prebuilt import ToolNode
 from langchain_core.runnables.config import RunnableConfig
 from agents.maingraph.models import ModelFactory
+from langchain_core.messages import HumanMessage
 
 
-tools = [location_tool, glad_weekly_alerts_tool]
+from zeno.tools.layerretrieve.layer_retrieve_tool import retriever
 
 # local_llm = "qwen2.5:7b"
 # llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
@@ -30,28 +28,35 @@ Instructions:
 2. User Question:
 {question}
 
-3. Response Format:
-   - Only use information from the provided context
-   - For each recommended dataset:
-     - Dataset URL
-     - Two-line explanation of why this dataset is relevant to the user's problem
+3. Response Format to be a valid JSON with list of datasets in the following format:
+    {{
+        "datasets": [
+            {{
+                "dataset": The slug of the dataset,
+                "explanation": A two-line explanation of why this dataset is relevant to the user's problem
+            }},
+            ...
+        ]
+    }}
 """
 
-router_instructions = """You are an expert at routing a user question to a vectorstore or tool call.
-The vectorstore contains details about datasets from World Resource Institute(WRI).
-Use the vectorstore for questions on topics related to searching datasets. 
-For specific question on forest fires use the tool call.
-Return JSON with single key, route, that is 'vectorstore' or 'glad-tool' depending on the question."""
+
+def clean_json_response(response: str) -> dict:
+    """Clean JSON response from LLM by removing any markdown formatting."""
+    # Remove markdown code block indicators if present
+    cleaned = response.strip().replace("```json", "").replace("```", "")
+    # Parse the cleaned string into a dict
+    return json.loads(cleaned)
 
 
 def make_context(docs):
     fmt_docs = []
     for doc in docs:
-        url = (
-            f"https://data-api.globalforestwatch.org/dataset/{doc.metadata['dataset']}"
-        )
-        content = "URL: " + url + "\n" + doc.page_content
+        dataset = doc.metadata["dataset"]
+        content = f"Dataset: {dataset}\n{doc.page_content}"
         fmt_docs.append(content)
+
+    # Join all formatted documents with double newlines
     return "\n\n".join(fmt_docs)
 
 
@@ -74,50 +79,68 @@ def generate(state, config: RunnableConfig):
     # RAG generation
     docs_txt = make_context(documents)
     rag_prompt_fmt = rag_prompt.format(context=docs_txt, question=question)
+
     generation = model.invoke([HumanMessage(content=rag_prompt_fmt)])
-    return {"messages": [generation], "loop_step": loop_step + 1}
+    print("\n\n")
+    print(generation.content)
+    generation_content = clean_json_response(generation.content)
+    print(generation_content)
+    datasets = clean_json_response(generation.content)["datasets"]
+    for dataset in datasets:
+        dataset["uri"] = (
+            f"https://data-api.globalforestwatch.org/dataset/{dataset['dataset']}"
+        )
+        dataset["tilelayer"] = (
+            f"https://tiles.globalforestwatch.org/{dataset['dataset']}/latest/dynamic/{{z}}/{{x}}/{{y}}.png"
+        )
+
+    return {
+        "messages": json.dumps(datasets),
+        "loop_step": loop_step + 1,
+        "route": "layerfinder",
+    }
 
 
-def assistant(state, config: RunnableConfig):
-    sys_msg = SystemMessage(
-        content="""You are a helpful assistant tasked with answering the user queries for WRI data API.
-        Use the `location-tool` to get iso, adm1 & adm2 of any region or place.
-        Use the `glad-weekly-alerts-tool` to get forest fire information for a particular year. Think through the solution step-by-step first and then execute.
-        
-        For eg: If the query is "Find forest fires in Milan for the year 2024"
-        Steps
-        1. Use the `location_tool` to get iso, adm1, adm2 for place `Milan` by passing `query=Milan`
-        2. Pass iso, adm1, adm2 along with year `2024` as args to `glad-weekly-alerts-tool` to get information about forest fire alerts.
-        """
-    )
-    if not state["messages"]:
-        state["messages"] = [HumanMessage(state["question"])]
+# def assistant(state, config: RunnableConfig):
+#     sys_msg = SystemMessage(
+#         content="""You are a helpful assistant tasked with answering the user queries for WRI data API.
+#         Use the `location-tool` to get iso, adm1 & adm2 of any region or place.
+#         Use the `glad-weekly-alerts-tool` to get forest fire information for a particular year. Think through the solution step-by-step first and then execute.
 
-    model_id = config["configurable"].get("model_id")
-    model = ModelFactory().get(model_id)
+#         For eg: If the query is "Find forest fires in Milan for the year 2024"
+#         Steps
+#         1. Use the `location_tool` to get iso, adm1, adm2 for place `Milan` by passing `query=Milan`
+#         2. Pass iso, adm1, adm2 along with year `2024` as args to `glad-weekly-alerts-tool` to get information about forest fire alerts.
+#         """
+#     )
+#     if not state["messages"]:
+#         state["messages"] = [HumanMessage(state["question"])]
 
-    llm_with_tools = model.bind_tools(tools)
+#     model_id = config["configurable"].get("model_id")
+#     model = ModelFactory().get(model_id)
 
-    return {"messages": [llm_with_tools.invoke([sys_msg] + state["messages"])]}
+#     llm_with_tools = model.bind_tools(tools)
 
-
-def router(state, config: RunnableConfig):
-    print("---ROUTER---")
-
-    model_id = config["configurable"].get("model_id")
-    model = ModelFactory().get(model_id, json_mode=True)
-
-    response = model.invoke(
-        [SystemMessage(content=router_instructions)]
-        + [HumanMessage(content=state["question"])]
-    )
-    route = json.loads(response.content)["route"]
-    if route == "vectorstore":
-        print("---ROUTING-TO-RAG---")
-        return "retrieve"
-    elif route == "glad-tool":
-        print("---ROUTING-TO-TOOLS---")
-        return "assistant"
+#     return {"messages": [llm_with_tools.invoke([sys_msg] + state["messages"])]}
 
 
-tool_node = ToolNode(tools)
+# def router(state, config: RunnableConfig):
+#     print("---ROUTER---")
+
+#     model_id = config["configurable"].get("model_id")
+#     model = ModelFactory().get(model_id, json_mode=True)
+
+#     response = model.invoke(
+#         [SystemMessage(content=router_instructions)]
+#         + [HumanMessage(content=state["question"])]
+#     )
+#     route = json.loads(response.content)["route"]
+#     if route == "vectorstore":
+#         print("---ROUTING-TO-RAG---")
+#         return "retrieve"
+#     elif route == "glad-tool":
+#         print("---ROUTING-TO-TOOLS---")
+#         return "assistant"
+
+
+# tool_node = ToolNode(tools)

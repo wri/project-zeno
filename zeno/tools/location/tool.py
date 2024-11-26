@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 from tools.location.location_matcher import LocationMatcher
 
-GADM_CSV_PATH = "data/gadm.csv"
+GADM_CSV_PATH = "../data/gadm.csv"
 location_matcher = LocationMatcher(GADM_CSV_PATH)
 
 
@@ -33,6 +33,7 @@ def location_tool(query: str, threshold: int = 70) -> dict:
     Returns:
         dict: matching locations
     """
+    print("---LOCATION-TOOL---")
     try:
         matches = location_matcher.find_matches(query, threshold=threshold)
         return matches

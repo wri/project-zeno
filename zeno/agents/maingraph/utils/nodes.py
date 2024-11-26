@@ -1,4 +1,5 @@
 import json
+
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
 from agents.maingraph.models import ModelFactory
@@ -14,10 +15,11 @@ def generate(state):
 def maingraph(state, config: RunnableConfig):
     sys_msg = SystemMessage(
         content="""You are a helpful chatbot tasked with answering the user queries for WRI data API.
-        You have two assistants that you can choose from.
-        Use the "layerfinder" assistant if someone asks for available data
-        Use the "docfinder" assistant for general questions related to the World Resources Institute
-        Return JSON with single key, route, that is 'layerfinder' or 'docfinder' depending on the question."""
+        You have 3 agents to choose from.
+        Use the "layerfinder" agent if someone asks for available data
+        Use the "docfinder" agent for general questions related to the World Resources Institute
+        Use the "firealert" agent for questions related to forest fires
+        Return JSON with single key, route, that is 'layerfinder', 'docfinder' or 'firealert' depending on the question."""
     )
 
     model_id = config["configurable"].get("model_id")
@@ -29,6 +31,8 @@ def maingraph(state, config: RunnableConfig):
         print("---ROUTING-TO-LAYERFINDER---")
     elif route == "docfinder":
         print("---ROUTING-TO-DOCFINDER---")
+    elif route == "firealert":
+        print("---ROUTING-TO-FIREALERT---")
     else:
         raise ValueError(f"Route to {route} not found")
 

@@ -1,9 +1,8 @@
 from langchain.tools.retriever import create_retriever_tool
-
-from langchain_ollama.embeddings import OllamaEmbeddings
 from langchain_chroma import Chroma
 import os
 
+from langchain_ollama.embeddings import OllamaEmbeddings
 
 embedder = OllamaEmbeddings(
     model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
