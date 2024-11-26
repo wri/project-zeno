@@ -2,6 +2,7 @@ import os
 from langchain_ollama import ChatOllama
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
+from functools import lru_cache
 
 # TODO: combine the defintions for the OpenAI models
 # TODO: ChatAnthropic doesn't have a generic "json" type output. We can instead create an output parser class,
@@ -77,6 +78,7 @@ class ModelFactory:
             if model["required_env_var"] in os.environ
         }
 
+    @lru_cache
     def get(self, model_id, json_mode=False):
 
         if not self.available_models.get(model_id):
