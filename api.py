@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import Body, FastAPI
 from fastapi.responses import StreamingResponse
 
-from zeno.agents.layerfinder.utils.state import GraphState
+from zeno.agents.maingraph.utils.state import GraphState
 from zeno.agents.maingraph.agent import graph
 
 app = FastAPI()
