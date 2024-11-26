@@ -25,9 +25,5 @@ WORKDIR /app
 # Install the dependencies
 RUN uv sync --frozen
 
-# Create a non-root user and switch to it
-RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
-
 # Command to run the application.
 CMD ["uv", "run", "uvicorn", "api:app", "--reload"]
