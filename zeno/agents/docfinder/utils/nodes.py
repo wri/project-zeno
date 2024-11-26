@@ -85,14 +85,10 @@ def agent(state, config: RunnableConfig):
     print("---CALL DOCFINDER---")
     messages = [HumanMessage(content=state["question"])]
 
-<<<<<<< HEAD
     model_id = config["configurable"].get("model_id")
     model = ModelFactory().get(model_id)
 
     model = model.bind_tools([retriever_tool])
-=======
-    model = llm.bind_tools([retriever_tool])
->>>>>>> unify-agents
     response = model.invoke(messages)
     # We return a list, because this will get added to the existing list
     return {"messages": [response]}
