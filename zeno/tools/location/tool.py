@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 from zeno.tools.location.location_matcher import LocationMatcher
 
-GADM_CSV_PATH = "../data/gadm.csv"
+GADM_CSV_PATH = "data/gadm.csv"
 location_matcher = LocationMatcher(GADM_CSV_PATH)
 
 
