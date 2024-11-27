@@ -87,12 +87,11 @@ with col1:
         msg.get("user", "") for msg in st.session_state["messages"]
     ]:
         response = requests.post(
-            f"{API_BASE_URL}/query",
+            f"{API_BASE_URL}/stream",
             json={"query": user_input, "model_id": model["model_id"]},
         )
         data = response.json()
         st.session_state["route"] = data["route"]
-        print(data)
         # datasets = json.loads(data["messages"][0]["content"])
 
         try:

@@ -1,23 +1,24 @@
 from dotenv import load_dotenv
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.prebuilt import ToolNode
+from langchain_core.runnables.config import RunnableConfig
 
-from zeno.tools.charts.basic import barchart_tool
-from zeno.tools.glad.weekly_alerts_tool import glad_weekly_alerts_tool
-from zeno.tools.location.tool import location_tool
 
-_ = load_dotenv(".env")
+from tools.charts.basic import barchart_tool
+from tools.glad.weekly_alerts_tool import glad_weekly_alerts_tool
+from tools.location.tool import location_tool
+
+from agents.maingraph.models import ModelFactory
+
 
 tools = [location_tool, glad_weekly_alerts_tool, barchart_tool]
 
 # local_llm = "qwen2.5:7b"
 # llm = ChatOllama(model=local_llm, temperature=0)
-llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
-llm_with_tools = llm.bind_tools(tools)
+# llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
 
 
-def assistant(state):
+def assistant(state, config: RunnableConfig):
     sys_msg = SystemMessage(
         content="""You are a helpful assistant tasked with answering the user queries for WRI data API.
 Use the `location-tool` to get iso, adm1 & adm2 of any region or place.
@@ -33,8 +34,13 @@ Steps
     )
     if not state["messages"]:
         state["messages"] = [HumanMessage(state["question"])]
+
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id)
+    model_with_tools = model.bind_tools(tools)
+
     return {
-        "messages": [llm_with_tools.invoke([sys_msg] + state["messages"])],
+        "messages": [model_with_tools.invoke([sys_msg] + state["messages"])],
         "route": "firealert",
     }
 

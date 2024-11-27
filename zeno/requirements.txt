@@ -10,3 +10,4 @@ langgraph>=0.2.45
 fastapi[standard]>=0.115.4
 pandas==2.2.3
 thefuzz==0.22.1
+matplotlib==3.9.2
