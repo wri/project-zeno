@@ -166,3 +166,6 @@ cython_debug/
 data/
 # API backup
 .api/ 
+
+# OSX
+.DS_Store
