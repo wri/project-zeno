@@ -1,10 +1,9 @@
 from langgraph.graph import END, StateGraph
-
-from zeno.agents.docfinder.agent import graph as docfinder
-from zeno.agents.firealert.agent import graph as firealert
-from zeno.agents.layerfinder.agent import graph as layerfinder
-from zeno.agents.layerfinder.utils.state import GraphState
-from zeno.agents.maingraph.utils.nodes import maingraph
+from agents.layerfinder.utils.state import GraphState
+from agents.docfinder.agent import graph as docfinder
+from agents.layerfinder.agent import graph as layerfinder
+from agents.maingraph.utils.nodes import maingraph
+from agents.firealert.agent import graph as firealert
 
 # Define a new graph
 workflow = StateGraph(GraphState)

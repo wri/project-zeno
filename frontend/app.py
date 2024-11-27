@@ -2,14 +2,17 @@ import json
 
 import folium
 import requests
+import os
+
 import streamlit as st
 from streamlit_folium import st_folium
 
+API_BASE_URL = os.environ["API_BASE_URL"]
+
+
 st.set_page_config(page_icon="images/resource-racoon.jpg", layout="wide")
 st.header("Resource Raccoon")
-st.caption(
-    "Your intelligent EcoBot, saving the forest faster than a 🐼 eats bamboo"
-)
+st.caption("Your intelligent EcoBot, saving the forest faster than a 🐼 eats bamboo")
 
 # Sidebar content
 with st.sidebar:
@@ -19,6 +22,13 @@ with st.sidebar:
         """
     **Resource Raccoon** is your AI sidekick at WRI, trained on all your blog posts! It is a concious consumer and is consuming a local produce only. It can help you with questions about your blog posts. Give it a try!
     """
+    )
+
+    st.subheader("Select a model:")
+    available_models = requests.get(f"{API_BASE_URL}/models").json()["models"]
+
+    model = st.selectbox(
+        "Model", format_func=lambda x: x["model_name"], options=available_models
     )
 
     st.subheader("🧐 Try asking:")
@@ -35,6 +45,23 @@ with st.sidebar:
     - Show stats on forest fires over Ihorombe for 2021
     """
     )
+
+# Note: the following section is commented to preseve the work that @DanielW has
+# done to enable the streaming response of the chat messages.
+
+# =========== BEGIN STREAMING RESPONSE ===============
+# Chat input
+# if user_input := st.chat_input("Type your message here..."):
+# st.chat_message("user").write(user_input)
+# with requests.post(
+#     f"{API_BASE_URL}/stream",
+#     json=dict(query=user_input, model_id=model["model_id"]),
+#     stream=True,
+# ) as stream:
+#     for chunk in stream.iter_lines():
+#         data = json.loads(chunk.decode("utf-8"))
+#         st.write(data)
+# =========== /END STREAMING RESPONSE ===============
 
 # Initialize session state for messages and selected dataset
 if "messages" not in st.session_state:
@@ -60,7 +87,8 @@ with col1:
         msg.get("user", "") for msg in st.session_state["messages"]
     ]:
         response = requests.post(
-            "http://127.0.0.1:8000/query", json={"query": user_input}
+            f"{API_BASE_URL}/query",
+            json={"query": user_input, "model_id": model["model_id"]},
         )
         data = response.json()
         st.session_state["route"] = data["route"]
@@ -86,22 +114,16 @@ with col1:
                     case "layerfinder":
                         datasets = json.loads(data["messages"][0]["content"])
                         for idx, dataset in enumerate(datasets):
-                            st.write(
-                                f"**Dataset {idx+1}:** {dataset['explanation']}"
-                            )
+                            st.write(f"**Dataset {idx+1}:** {dataset['explanation']}")
                             st.write(f"**URL**: {dataset['uri']}")
 
                             # Generate a unique key for each button that includes both message and dataset index
                             button_key = f"dataset_{msg_idx}_{idx}"
-                            if st.button(
-                                f"Show Dataset {idx+1}", key=button_key
-                            ):
+                            if st.button(f"Show Dataset {idx+1}", key=button_key):
                                 st.session_state["selected_dataset"] = dataset[
                                     "tilelayer"
                                 ]
-                                print(
-                                    f"changed state to: {dataset['tilelayer']}"
-                                )
+                                print(f"changed state to: {dataset['tilelayer']}")
                     case "firealert":
                         for msg in data["messages"]:
                             if (

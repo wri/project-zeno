@@ -1,21 +1,21 @@
 from dotenv import load_dotenv
 
-_ = load_dotenv(".env")
 from typing import Literal
 
 from langchain import hub
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import PromptTemplate
+from langchain_ollama import ChatOllama
+from langchain_core.runnables.config import RunnableConfig
+
 from pydantic import BaseModel, Field
 
-from zeno.tools.docretrieve.document_retrieve_tool import retriever_tool
-
-# llm = ChatOllama(model="llama3.2", temperature=0, streaming=True)
-llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
+from tools.docretrieve.document_retrieve_tool import retriever_tool
+from agents.maingraph.models import ModelFactory
 
 
-def grade_documents(state) -> Literal["generate", "rewrite"]:
+def grade_documents(state, config: RunnableConfig) -> Literal["generate", "rewrite"]:
     """
     Determines whether the retrieved documents are relevant to the question.
 
@@ -44,8 +44,11 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
         input_variables=["context", "question"],
     )
 
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id)
+
     # LLM with tool and validation
-    llm_with_tool = llm.with_structured_output(grade)
+    llm_with_tool = model.with_structured_output(grade)
 
     # Chain
     chain = prompt | llm_with_tool
@@ -70,7 +73,7 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
         return "rewrite"
 
 
-def agent(state):
+def agent(state, config: RunnableConfig):
     """
     Invokes the agent model to generate a response based on the current state. Given
     the question, it will decide to retrieve using the retriever tool, or simply end.
@@ -84,13 +87,16 @@ def agent(state):
     print("---CALL DOCFINDER---")
     messages = [HumanMessage(content=state["question"])]
 
-    model = llm.bind_tools([retriever_tool])
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id)
+
+    model = model.bind_tools([retriever_tool])
     response = model.invoke(messages)
     # We return a list, because this will get added to the existing list
     return {"messages": [response]}
 
 
-def rewrite(state):
+def rewrite(state, config: RunnableConfig):
     """
     Transform the query to produce a better question.
 
@@ -115,13 +121,15 @@ def rewrite(state):
     Formulate an improved question: """,
         )
     ]
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id)
 
     # Grader
-    response = llm.invoke(msg)
+    response = model.invoke(msg)
     return {"question": response.content}
 
 
-def generate(state):
+def generate(state, config: RunnableConfig):
     """
     Generate answer
 
@@ -142,8 +150,11 @@ def generate(state):
     # Prompt
     prompt = hub.pull("rlm/rag-prompt")
 
+    model_id = config["configurable"].get("model_id")
+    model = ModelFactory().get(model_id)
+
     # Chain
-    rag_chain = prompt | llm
+    rag_chain = prompt | model
 
     # Run
     response = rag_chain.invoke({"context": docs, "question": question})
