@@ -19,9 +19,8 @@ dependencies = [
     "watchdog>=5.0.3",
     "uvicorn[standard]>=0.32.0",
     "streamlit-folium>=0.23.2",
-    "matplotlib>=3.9.2",
     "earthengine-api>=1.4.0",
-    "geopandas>=1.0.1",
+    "geojson-pydantic>=1.1.2",
 ]
 
 [dependency-groups]
@@ -29,6 +28,9 @@ dev = [
     "jupyterlab>=4.3.0",
     "pre-commit>=4.0.1",
     "ruff>=0.7.3",
+    "pytest>=8.3.3",
+    "matplotlib>=3.9.2",
+    "geopandas>=1.0.1",
 ]
 
 [tool.ruff]

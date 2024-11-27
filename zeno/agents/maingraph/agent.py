@@ -5,6 +5,13 @@ from agents.layerfinder.agent import graph as layerfinder
 from agents.maingraph.utils.nodes import maingraph
 from agents.firealert.agent import graph as firealert
 
+from zeno.agents.docfinder.agent import graph as docfinder
+from zeno.agents.firealert.agent import graph as firealert
+from zeno.agents.layerfinder.agent import graph as layerfinder
+from zeno.agents.distalert.agent import graph as distalert
+from zeno.agents.maingraph.utils.state import GraphState
+from zeno.agents.maingraph.utils.nodes import maingraph
+
 # Define a new graph
 workflow = StateGraph(GraphState)
 
@@ -12,6 +19,7 @@ workflow = StateGraph(GraphState)
 workflow.add_node("docfinder", docfinder)
 workflow.add_node("layerfinder", layerfinder)
 workflow.add_node("firealert", firealert)
+workflow.add_node("distalert", distalert)
 
 workflow.set_conditional_entry_point(
     maingraph,
@@ -19,10 +27,12 @@ workflow.set_conditional_entry_point(
         "layerfinder": "layerfinder",
         "docfinder": "docfinder",
         "firealert": "firealert",
+        "distalert": "distalert"
     },
 )
 workflow.add_edge("docfinder", END)
 workflow.add_edge("layerfinder", END)
 workflow.add_edge("firealert", END)
+workflow.add_edge("distalert", END)
 
 graph = workflow.compile()
