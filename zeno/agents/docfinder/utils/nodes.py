@@ -1,12 +1,13 @@
 from typing import Literal
 
-from agents.maingraph.models import ModelFactory
 from langchain import hub
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables.config import RunnableConfig
 from pydantic import BaseModel, Field
-from tools.docretrieve.document_retrieve_tool import retriever_tool
+
+from zeno.agents.maingraph.models import ModelFactory
+from zeno.tools.docretrieve.document_retrieve_tool import retriever_tool
 
 
 def grade_documents(state, config: RunnableConfig) -> Literal["generate", "rewrite"]:
@@ -38,7 +39,7 @@ def grade_documents(state, config: RunnableConfig) -> Literal["generate", "rewri
         input_variables=["context", "question"],
     )
 
-    model_id = config["configurable"].get("model_id")
+    model_id = config["configurable"].get("model_id", "gpt-4o-mini")
     model = ModelFactory().get(model_id)
 
     # LLM with tool and validation
@@ -81,7 +82,7 @@ def agent(state, config: RunnableConfig):
     print("---CALL DOCFINDER---")
     messages = [HumanMessage(content=state["question"])]
 
-    model_id = config["configurable"].get("model_id")
+    model_id = config["configurable"].get("model_id", "claude-3-5-sonnet-latest")
     model = ModelFactory().get(model_id)
 
     model = model.bind_tools([retriever_tool])
@@ -115,7 +116,7 @@ def rewrite(state, config: RunnableConfig):
     Formulate an improved question: """,
         )
     ]
-    model_id = config["configurable"].get("model_id")
+    model_id = config["configurable"].get("model_id", "gpt-4o-mini")
     model = ModelFactory().get(model_id)
 
     # Grader
@@ -144,7 +145,7 @@ def generate(state, config: RunnableConfig):
     # Prompt
     prompt = hub.pull("rlm/rag-prompt")
 
-    model_id = config["configurable"].get("model_id")
+    model_id = config["configurable"].get("model_id", "gpt-4o-mini")
     model = ModelFactory().get(model_id)
 
     # Chain

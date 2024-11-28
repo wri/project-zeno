@@ -13,23 +13,31 @@ app = FastAPI()
 # https://www.workfall.com/learning/blog/how-to-stream-json-data-using-server-sent-events-and-fastapi-in-python-over-http/
 
 
+def pack(data):
+    return json.dumps(data) + "\n"
+
+
 # Streams the response from the graph
 def event_stream(query: str):
+
     initial_state = GraphState(question=query)
 
-    for namespace, output in graph.stream(
+    for namespace, data in graph.stream(
         initial_state, stream_mode="updates", subgraphs=True
     ):
-        print(list(output.keys()))
-        for node_name, node_results in output.items():
-            for key, data in node_results.items():
-                if key == "messages":
-                    msg = data[0].content
-                    if msg:
-                        yield (
-                            json.dumps({f"{namespace} | {node_name}": msg})
-                            + "\n"
-                        )
+        print(f"Namespace {namespace}")
+        for key, val in data.items():
+            print(f"Messager is {key}")
+            for key2, val2 in val.items():
+                if key2 == "messages":
+                    for msg in val.get("messages", []):
+                        yield pack({"message": msg.content})
+                        if hasattr(msg, "tool_calls"):
+                            yield pack({"tool_calls": msg.tool_calls})
+                        if hasattr(msg, "artifact"):
+                            yield pack({"artifact": msg.artifact})
+                else:
+                    yield pack({key2: val2})
 
 
 @app.post("/stream")
