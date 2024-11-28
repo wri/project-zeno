@@ -1,8 +1,9 @@
 import os
-from langchain_ollama import ChatOllama
-from langchain_anthropic import ChatAnthropic
-from langchain_openai import ChatOpenAI
 from functools import lru_cache
+
+from langchain_anthropic import ChatAnthropic
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 
 # TODO: combine the defintions for the OpenAI models
 # TODO: ChatAnthropic doesn't have a generic "json" type output. We can instead create an output parser class,
@@ -25,7 +26,7 @@ MODELS_CONFIG = [
         "constructor_class": ChatOllama,
         "json_mode": {"param_name": "format", "param_value": "json"},
         "additional_params": {
-            "base_url": os.environ.get("OLLAMA_BASE_URL"),
+            # "base_url": os.environ.get("OLLAMA_BASE_URL"),
         },
     },
     {
@@ -75,7 +76,7 @@ class ModelFactory:
         self.available_models = {
             model["model_id"]: model
             for model in MODELS_CONFIG
-            if model["required_env_var"] in os.environ
+            # if model["required_env_var"] in os.environ
         }
 
     @lru_cache

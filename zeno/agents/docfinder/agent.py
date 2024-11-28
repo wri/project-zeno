@@ -1,9 +1,8 @@
+from agents.docfinder.utils.nodes import agent, generate, grade_documents, rewrite
+from agents.docfinder.utils.state import GraphState
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
-
-from agents.docfinder.utils.nodes import agent, generate, grade_documents, rewrite
 from tools.docretrieve.document_retrieve_tool import retriever_tool
-from agents.docfinder.utils.state import GraphState
 
 # Define a new graph
 workflow = StateGraph(GraphState)

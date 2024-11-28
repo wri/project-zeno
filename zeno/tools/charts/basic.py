@@ -20,9 +20,7 @@ class BarChartInput(BaseModel):
         default=None,
         description="Optional list of labels for each bar. If not provided, indices will be used.",
     )
-    title: str = Field(
-        default="Bar Chart", description="Title of the bar chart"
-    )
+    title: str = Field(default="Bar Chart", description="Title of the bar chart")
 
 
 @tool("barchart-tool", args_schema=BarChartInput, return_direct=True)

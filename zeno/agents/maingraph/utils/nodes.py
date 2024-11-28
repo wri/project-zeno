@@ -1,11 +1,10 @@
 import json
 
+from agents.maingraph.models import ModelFactory
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
 from langchain_ollama import ChatOllama  # noqa
-
-from agents.maingraph.models import ModelFactory
 
 # llm_json_mode = ChatOllama(model="qwen2.5:7b", temperature=0, format="json")
 llm_json_mode = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)

@@ -1,8 +1,8 @@
+import os
+
 from langchain.tools.retriever import create_retriever_tool
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
-import os
-
 
 # Vector store
 vectorstore = Chroma(

@@ -1,7 +1,7 @@
-from langchain.tools.retriever import create_retriever_tool
-from langchain_chroma import Chroma
 import os
 
+from langchain.tools.retriever import create_retriever_tool
+from langchain_chroma import Chroma
 from langchain_ollama.embeddings import OllamaEmbeddings
 
 embedder = OllamaEmbeddings(
