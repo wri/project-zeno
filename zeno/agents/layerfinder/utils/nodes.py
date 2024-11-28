@@ -1,14 +1,9 @@
-from dotenv import load_dotenv
-
 import json
 
-from tools.layerretrieve.layer_retrieve_tool import retriever, retriever_tool
-from langgraph.prebuilt import ToolNode
-from langchain_core.runnables.config import RunnableConfig
-from agents.maingraph.models import ModelFactory
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables.config import RunnableConfig
 
-
+from zeno.agents.maingraph.models import ModelFactory
 from zeno.tools.layerretrieve.layer_retrieve_tool import retriever
 
 # local_llm = "qwen2.5:7b"
@@ -73,7 +68,7 @@ def generate(state, config: RunnableConfig):
     documents = state["documents"]
     loop_step = state.get("loop_step", 0)
 
-    model_id = config["configurable"].get("model_id")
+    model_id = config["configurable"].get("model_id", "gpt-4o-mini")
     model = ModelFactory().get(model_id)
 
     # RAG generation
@@ -116,7 +111,7 @@ def generate(state, config: RunnableConfig):
 #     if not state["messages"]:
 #         state["messages"] = [HumanMessage(state["question"])]
 
-#     model_id = config["configurable"].get("model_id")
+#     model_id = config["configurable"].get("model_id", "gpt-4o-mini")
 #     model = ModelFactory().get(model_id)
 
 #     llm_with_tools = model.bind_tools(tools)
@@ -127,7 +122,7 @@ def generate(state, config: RunnableConfig):
 # def router(state, config: RunnableConfig):
 #     print("---ROUTER---")
 
-#     model_id = config["configurable"].get("model_id")
+#     model_id = config["configurable"].get("model_id", "gpt-4o-mini")
 #     model = ModelFactory().get(model_id, json_mode=True)
 
 #     response = model.invoke(

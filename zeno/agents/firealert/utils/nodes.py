@@ -5,7 +5,7 @@ from langgraph.prebuilt import ToolNode
 
 from zeno.tools.charts.basic import barchart_tool
 from zeno.tools.glad.weekly_alerts_tool import glad_weekly_alerts_tool
-from zeno.tools.location.tool import location_tool
+from zeno.tools.location.location_tool import location_tool
 
 _ = load_dotenv(".env")
 
