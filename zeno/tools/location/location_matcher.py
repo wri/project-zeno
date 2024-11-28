@@ -8,6 +8,7 @@ from thefuzz import fuzz
 NAME_COLS = ["NAME_1", "NAME_2", "NAME_3"]
 NR_OF_RESULTS = 3
 
+
 def fuzz_search(row: gpd.GeoSeries, query: str):
     return sum([fuzz.ratio(row[name].lower(), query) for name in NAME_COLS])
 

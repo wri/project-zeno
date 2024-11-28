@@ -17,7 +17,6 @@ tools = [dist_alerts_tool, context_layer_tool, location_tool]
 model = ModelFactory().get("gpt-4o-mini").bind_tools(tools)
 
 
-
 def assistant(state):
     sys_msg = SystemMessage(
         content="""You are a helpful assistant tasked with answering the user queries for vegetation disturbance, tree cover loss, or deforestation.

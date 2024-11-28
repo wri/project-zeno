@@ -1,5 +1,5 @@
-from typing import List
 import json
+from typing import List
 
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
@@ -17,7 +17,12 @@ class LocationInput(BaseModel):
     )
 
 
-@tool("location-tool", args_schema=LocationInput, return_direct=False, response_format="content_and_artifact")
+@tool(
+    "location-tool",
+    args_schema=LocationInput,
+    return_direct=False,
+    response_format="content_and_artifact",
+)
 def location_tool(query: str) -> List[str]:
     """Find locations and their administrative hierarchies given a place name.
       Returns a list of IDs with matches at different administrative levels
