@@ -13,7 +13,7 @@ def test_location_matcher():
 
     for query, expected in test_queries.items():
         matches = matcher.find_matches(query)
-        assert matches == expected
+        assert list(matches.GID_3) == expected
 
 
 def test_location_matcher_bbox():

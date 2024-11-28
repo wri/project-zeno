@@ -11,10 +11,17 @@ def test_distalert_agent():
     ):
         print(f"Level {level}")
         for key, val in data.items():
-            print(f"Messager {key}")
-            if "messages" in val:
-                for msg in val.get("messages", []):
-                    print(msg.content[:1000])
-                    if hasattr(msg, "tool_calls"):
-                        print(msg.tool_calls)
-                    pass
+            print(f"Messager is {key}")
+            for key2, val2 in val.items():
+                if key2 == "messages":
+                    for msg in val.get("messages", []):
+                        print(msg.content)
+                        if hasattr(msg, "tool_calls"):
+                            print(msg.tool_calls)
+                        if hasattr(msg, "artifact"):
+                            print(str(msg.artifact)[:500])
+                else:
+                    print(key2, val2)
+                pass
+
+test_distalert_agent()

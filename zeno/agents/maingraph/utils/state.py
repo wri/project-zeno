@@ -9,6 +9,7 @@ from typing_extensions import TypedDict
 class GraphState(TypedDict):
     messages: Annotated[List[AnyMessage], add_messages]
     question: str  # User question
+    data: dict  # Data populated by tools
     generation: str  # LLM generation
     answers: int  # Number of answers generated
     loop_step: Annotated[int, operator.add]

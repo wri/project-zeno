@@ -6,7 +6,7 @@ from shapely import box
 from thefuzz import fuzz
 
 NAME_COLS = ["NAME_1", "NAME_2", "NAME_3"]
-
+NR_OF_RESULTS = 3
 
 def fuzz_search(row: gpd.GeoSeries, query: str):
     return sum([fuzz.ratio(row[name].lower(), query) for name in NAME_COLS])
@@ -32,7 +32,7 @@ class LocationMatcher:
         """
         query = query.lower().strip()
         self.df["score"] = self.df.apply(lambda x: fuzz_search(x, query), axis=1)
-        return list(self.df.sort_values("score", ascending=False).GID_3[:3])
+        return self.df.sort_values("score", ascending=False)[:NR_OF_RESULTS]
 
     def find_by_bbox(
         self, xmin: float, ymin: float, xmax: float, ymax: float

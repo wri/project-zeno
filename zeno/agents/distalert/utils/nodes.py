@@ -11,9 +11,11 @@ _ = load_dotenv(".env")
 
 tools = [dist_alerts_tool, context_layer_tool, location_tool]
 
-model = ModelFactory().get("claude-3-5-sonnet-latest").bind_tools(tools)
+# model = ModelFactory().get("claude-3-5-sonnet-latest").bind_tools(tools)
 # model = ModelFactory().get("qwen2.5:7b").bind_tools(tools)
 # model = ModelFactory().get("gpt-3.5-turbo").bind_tools(tools)
+model = ModelFactory().get("gpt-4o-mini").bind_tools(tools)
+
 
 
 def assistant(state):
