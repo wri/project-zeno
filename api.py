@@ -32,14 +32,17 @@ def event_stream(query: str):
     ):
         print(f"Namespace {namespace}")
         for key, val in data.items():
-            print(f"Messager is {key}")
+            print(f"Messenger is {key}")
+            if key == "agent":
+                continue
             for key2, val2 in val.items():
                 if key2 == "messages":
-                    for msg in val.get("messages", []):
-                        yield pack({"message": msg.content})
-                        if hasattr(msg, "tool_calls"):
+                    for msg in val2:
+                        if msg.content:
+                            yield pack({"message": msg.content})
+                        if hasattr(msg, "tool_calls") and msg.tool_calls:
                             yield pack({"tool_calls": msg.tool_calls})
-                        if hasattr(msg, "artifact"):
+                        if hasattr(msg, "artifact") and msg.artifact:
                             yield pack({"artifact": msg.artifact})
 
 

@@ -6,8 +6,6 @@ from pydantic import BaseModel, Field
 
 from zeno.agents.maingraph.models import ModelFactory
 
-# init_gee()
-
 
 class grade(BaseModel):
     """Binary score for relevance check."""
