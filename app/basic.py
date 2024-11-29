@@ -2,18 +2,17 @@ import json
 import operator
 from typing import Annotated, List, TypedDict
 
-from dotenv import load_dotenv
-
-_ = load_dotenv()
-
 import folium
 import streamlit as st
+from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langchain_chroma import Chroma
 from langchain_core.messages import HumanMessage
 from langchain_ollama.embeddings import OllamaEmbeddings
 from langgraph.graph import StateGraph
 from streamlit_folium import st_folium
+
+_ = load_dotenv()
 
 
 def make_context(docs):
