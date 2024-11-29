@@ -1,7 +1,7 @@
 services:
   api:
     build:
-      context: ./zeno
+      context: .
     ports:
       - "8000:8000"
     environment:
@@ -15,8 +15,7 @@ services:
       - .env
     
     volumes:
-      - ./zeno:/app
-      - ./data:/app/data
+      - .:/app
 
   frontend: 
     build: 

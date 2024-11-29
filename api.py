@@ -2,6 +2,7 @@ import json
 from typing import Annotated
 
 from fastapi import Body, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from zeno.agents.maingraph.utils.state import GraphState
@@ -9,9 +10,13 @@ from zeno.agents.maingraph.agent import graph
 
 app = FastAPI()
 
-# https://www.softgrade.org/sse-with-fastapi-react-langgraph/
-# https://www.workfall.com/learning/blog/how-to-stream-json-data-using-server-sent-events-and-fastapi-in-python-over-http/
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def pack(data):
     return json.dumps(data) + "\n"
@@ -36,8 +41,6 @@ def event_stream(query: str):
                             yield pack({"tool_calls": msg.tool_calls})
                         if hasattr(msg, "artifact"):
                             yield pack({"artifact": msg.artifact})
-                else:
-                    yield pack({key2: val2})
 
 
 @app.post("/stream")
