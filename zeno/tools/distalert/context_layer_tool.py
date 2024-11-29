@@ -1,28 +1,21 @@
+from typing import Literal, Optional
 
-import ee
-import googleapiclient
-from typing import Union
-from shapely import Polygon
-import pydantic
-import os
-from typing import Optional, Literal
-from urllib.parse import quote
-import pandas as pd
-import requests
-from dotenv import load_dotenv
+from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
-from zeno.tools.dist.gee import init_gee
-from geojson_pydantic import FeatureCollection
+
 from zeno.agents.maingraph.models import ModelFactory
-from langchain_core.prompts import PromptTemplate
 
 # init_gee()
+
 
 class grade(BaseModel):
     """Binary score for relevance check."""
 
-    binary_score: Literal["yes", "no"] = Field(description="Relevance score 'yes' or 'no'")
+    binary_score: Literal["yes", "no"] = Field(
+        description="Relevance score 'yes' or 'no'"
+    )
+
 
 prompt = PromptTemplate(
     template="""You are a deciding if a context layer is required for analysing disturbance alerts. \n
@@ -32,18 +25,19 @@ prompt = PromptTemplate(
     input_variables=["question"],
 )
 
+
 class ContextLayerInput(BaseModel):
     """Input schema for context layer tool"""
+
     question: str = Field(description="The question from the user")
-    
+
+
 model = ModelFactory().get("claude-3-5-sonnet-latest").with_structured_output(grade)
 
 chain = prompt | model
 
 
-@tool(
-    "context-layer-tool", args_schema=ContextLayerInput, return_direct=False
-)
+@tool("context-layer-tool", args_schema=ContextLayerInput, return_direct=False)
 def context_layer_tool(question: str) -> Optional[str]:
     """
     Determines whether the question asks for summarizing by land cover.

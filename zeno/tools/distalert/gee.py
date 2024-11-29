@@ -1,9 +1,11 @@
 import os
+
 import ee
-from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
+from google.oauth2.service_account import Credentials
 
 _ = load_dotenv()
+
 
 def init_gee() -> None:
     """Initialize and authenticate gee"""
@@ -28,7 +30,7 @@ def init_gee() -> None:
     ]
 
     credentials = Credentials.from_service_account_info(
-        service_account_info, scopes=scopes)
-
+        service_account_info, scopes=scopes
+    )
 
     ee.Initialize(credentials)
