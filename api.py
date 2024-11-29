@@ -5,10 +5,12 @@ from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from zeno.agents.maingraph.utils.state import GraphState
+from langfuse.callback import CallbackHandler
 from zeno.agents.maingraph.agent import graph
+from zeno.agents.maingraph.utils.state import GraphState
 
 app = FastAPI()
+langfuse_handler = CallbackHandler()
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,6 +19,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 def pack(data):
     return json.dumps(data) + "\n"
@@ -28,7 +31,12 @@ def event_stream(query: str):
     initial_state = GraphState(question=query)
 
     for namespace, data in graph.stream(
-        initial_state, stream_mode="updates", subgraphs=True
+        initial_state,
+        stream_mode="updates",
+        subgraphs=True,
+        config={
+            "callbacks": [langfuse_handler],
+        },
     ):
         print(f"Namespace {namespace}")
         for key, val in data.items():
