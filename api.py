@@ -42,9 +42,7 @@ def event_stream(query: str):
 
 @app.post("/stream")
 async def stream(query: Annotated[str, Body(embed=True)]):
-    return StreamingResponse(
-        event_stream(query), media_type="application/x-ndjson"
-    )
+    return StreamingResponse(event_stream(query), media_type="application/x-ndjson")
 
 
 # Processes the query and returns the response
