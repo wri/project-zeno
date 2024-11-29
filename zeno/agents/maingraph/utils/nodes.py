@@ -27,15 +27,13 @@ def maingraph(state, config: RunnableConfig):
         print(f"---SLASH COMMAND {route} DETECTED---")
         if route not in ["layerfinder", "docfinder", "firealert", "distalert"]:
             raise ValueError(f"Slash-command {route} not valid")
-        # Remove slash command
-        question = state["question"].replace(f"/{route} ", "")
     else:
         model_id = config["configurable"].get("model_id", "gpt-4o-mini")
         model = ModelFactory().get(model_id, json_mode=True)
 
-        response = model.invoke([sys_msg] + [HumanMessage(content=state["question"])])        
+        response = model.invoke([sys_msg] + [HumanMessage(content=state["question"])])
         route = json.loads(response.content)["route"]
-    
+
     if route == "layerfinder":
         print("---ROUTING-TO-LAYERFINDER---")
     elif route == "docfinder":

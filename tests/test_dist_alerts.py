@@ -1,5 +1,4 @@
-
-from zeno.tools.dist.dist_alerts_tool import dist_alerts_tool
+from zeno.tools.distalert.dist_alerts_tool import dist_alerts_tool
 
 
 def test_dist_alert_tool():

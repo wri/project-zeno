@@ -133,12 +133,8 @@ with col1:
                     st.write(f"**Dataset {idx+1}:** {dataset['explanation']}")
                     st.write(f"**URL**: {dataset['url']}")
                     st.write(f"**Tilelayer**: {dataset['tilelayer']}")
-                    if st.button(
-                        f"Show Dataset {idx+1}", key=f"dataset_{idx}"
-                    ):
-                        st.session_state["selected_dataset"] = dataset[
-                            "tilelayer"
-                        ]
+                    if st.button(f"Show Dataset {idx+1}", key=f"dataset_{idx}"):
+                        st.session_state["selected_dataset"] = dataset["tilelayer"]
             except Exception as e:
                 st.error(f"Error processing response: {str(e)}")
 
