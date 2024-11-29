@@ -9,13 +9,11 @@ from streamlit_folium import folium_static
 API_BASE_URL = os.environ.get("API_BASE_URL")
 
 
-st.set_page_config(page_icon="images/zeno.jpg", layout="wide")
 st.header("Zeno")
 st.caption("Your intelligent EcoBot, saving the forest faster than a 🐼 eats bamboo")
 
 # Sidebar content
 with st.sidebar:
-    st.image("images/zeno.jpg")
     st.header("Meet Zeno!")
     st.write(
         """
