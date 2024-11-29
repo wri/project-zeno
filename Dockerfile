@@ -26,4 +26,4 @@ WORKDIR /app
 RUN uv sync --frozen
 
 # Command to run the application.
-CMD ["uv", "run", "uvicorn", "api:app", "--reload"]
+CMD ["uv", "run", "uvicorn", "api:app", "--reload", "--host", "0.0.0.0"]
