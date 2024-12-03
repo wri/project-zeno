@@ -50,7 +50,7 @@ def event_stream(query: str, thread_id: Optional[str]=None):
             print(f"Messenger is {key}")
             if key in ["agent", "assistant"]:
                 continue
-            if val is None:
+            if not val:
                 continue
             for key2, val2 in val.items():
                 if key2 == "messages":
