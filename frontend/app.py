@@ -1,6 +1,6 @@
 import json
 import os
-
+import uuid 
 import folium
 import requests
 import streamlit as st
@@ -8,6 +8,8 @@ from streamlit_folium import folium_static
 
 API_BASE_URL = os.environ.get("API_BASE_URL")
 
+if 'zeno_session_id' not in st.session_state:
+    st.session_state.zeno_session_id = str(uuid.uuid4())
 
 st.header("Zeno")
 st.caption("Your intelligent EcoBot, saving the forest faster than a 🐼 eats bamboo")
@@ -42,7 +44,7 @@ if user_input := st.chat_input("Type your message here..."):
     st.chat_message("user").write(user_input)
     with requests.post(
         f"{API_BASE_URL}/stream",
-        json=dict(query=user_input, model_id="gpt-4o-mini"),
+        json=dict(query=user_input, session_id=st.session_state.zeno_session_id),
         stream=True,
     ) as stream:
         for chunk in stream.iter_lines():
