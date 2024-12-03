@@ -1,5 +1,6 @@
 import json
-from typing import Annotated
+from typing import Annotated, Optional
+import uuid
 
 from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,22 +27,30 @@ def pack(data):
 
 
 # Streams the response from the graph
-def event_stream(query: str):
+def event_stream(query: str, thread_id: Optional[str]=None):
+
+    if not thread_id:
+        thread_id = uuid.uuid4()
 
     initial_state = GraphState(question=query)
+
+    config = {
+        "callbacks": [langfuse_handler],
+        "configurable": {"thread_id": thread_id},
+    }
 
     for namespace, data in graph.stream(
         initial_state,
         stream_mode="updates",
         subgraphs=True,
-        config={
-            "callbacks": [langfuse_handler],
-        },
+        config=config,
     ):
         print(f"Namespace {namespace}")
         for key, val in data.items():
             print(f"Messenger is {key}")
-            if key == "agent":
+            if key in ["agent", "assistant"]:
+                continue
+            if not val:
                 continue
             for key2, val2 in val.items():
                 if key2 == "messages":
@@ -55,17 +64,27 @@ def event_stream(query: str):
 
 
 @app.post("/stream")
-async def stream(query: Annotated[str, Body(embed=True)]):
-    return StreamingResponse(event_stream(query), media_type="application/x-ndjson")
+async def stream(query: Annotated[str, Body(embed=True)], thread_id: Optional[str]=None):
+    return StreamingResponse(event_stream(query, thread_id), media_type="application/x-ndjson")
 
 
 # Processes the query and returns the response
-def process_query(query: str):
+def process_query(query: str, thread_id: Optional[str]=None):
+
+    if not thread_id:
+        thread_id = uuid.uuid4()
+
     initial_state = GraphState(question=query)
-    response = graph.invoke(initial_state)
+
+    config = {
+        "callbacks": [langfuse_handler],
+        "configurable": {"thread_id": thread_id},
+    }
+    initial_state = GraphState(question=query)
+    response = graph.invoke(initial_state, config=config)
     return response
 
 
 @app.post("/query")
-async def query(query: Annotated[str, Body(embed=True)]):
-    return process_query(query)
+async def query(query: Annotated[str, Body(embed=True)], thread_id: Optional[str]=None):
+    return process_query(query, thread_id)
