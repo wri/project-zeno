@@ -10,8 +10,7 @@ from pydantic import BaseModel, Field
 gadm = fiona.open("data/gadm_410_small.gpkg")
 
 vectorstore = Chroma(
-    # persist_directory="data/chroma_gadm",
-    persist_directory="/Users/tam/Desktop/chroma_gadm",
+    persist_directory="data/chroma_gadm",
     embedding_function=OllamaEmbeddings(
         model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
     ),
