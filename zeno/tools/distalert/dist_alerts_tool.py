@@ -1,13 +1,13 @@
 from typing import List, Literal, Optional, Union
 
 import ee
+import fiona
 import googleapiclient
 from dotenv import load_dotenv
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
 from zeno.tools.distalert.gee import init_gee
-from zeno.tools.location.location_matcher import LocationMatcher
 
 # Load environment variables
 load_dotenv(".env")
@@ -15,7 +15,32 @@ load_dotenv(".env")
 # Initialize gee
 init_gee()
 
-location_matcher = LocationMatcher("data/gadm41_PRT.gpkg")
+gadm = fiona.open("data/gadm_410_small.gpkg")
+
+classtables = {
+    "WRI/SBTN/naturalLands/v1/2020": {
+        2: {"color": "#246E24", "description": "natural forests"},
+        3: {"color": "#B9B91E", "description": "natural short vegetation"},
+        4: {"color": "#6BAED6", "description": "natural water"},
+        5: {"color": "#06A285", "description": "mangroves"},
+        6: {"color": "#FEFECC", "description": "bare"},
+        7: {"color": "#ACD1E8", "description": "snow"},
+        8: {"color": "#589558", "description": "wet natural forests"},
+        9: {"color": "#093D09", "description": "natural peat forests"},
+        10: {"color": "#DBDB7B", "description": "wet natural short vegetation"},
+        11: {"color": "#99991A", "description": "natural peat short vegetation"},
+        12: {"color": "#D3D3D3", "description": "crop"},
+        13: {"color": "#D3D3D3", "description": "built"},
+        14: {"color": "#D3D3D3", "description": "non-natural tree cover"},
+        15: {"color": "#D3D3D3", "description": "non-natural short vegetation"},
+        16: {"color": "#D3D3D3", "description": "non-natural water"},
+        17: {"color": "#D3D3D3", "description": "wet non-natural tree cover"},
+        18: {"color": "#D3D3D3", "description": "non-natural peat tree cover"},
+        19: {"color": "#D3D3D3", "description": "wet non-natural short vegetation"},
+        20: {"color": "#D3D3D3", "description": "non-natural peat short vegetation"},
+        21: {"color": "#D3D3D3", "description": "non-natural bare"},
+    }
+}
 
 
 class DistAlertsInput(BaseModel):
@@ -71,13 +96,13 @@ def dist_alerts_tool(
     ).mosaic()
 
     gee_features = ee.FeatureCollection(
-        [ee.FeatureCollection(location_matcher.get_by_id(id)) for id in features]
+        [ee.Feature(gadm[int(id)].__geo_interface__) for id in features]
     )
-    gee_features = gee_features.flatten()
 
     combo = distalerts.gte(threshold)
 
     if landcover:
+        class_table = classtables[landcover]
         landcover_layer = ee.Image(landcover).select("classification")
         combo = combo.addBands(landcover_layer)
         zone_stats = combo.reduceRegions(
@@ -85,10 +110,12 @@ def dist_alerts_tool(
             reducer=ee.Reducer.count().group(groupField=1, groupName="classification"),
             scale=30,
         ).getInfo()
-        zone_stats_result = {
-            feat["properties"]["GID_3"]: feat["properties"]["groups"]
-            for feat in zone_stats["features"]
-        }
+        zone_stats_result = {}
+        for feat in zone_stats["features"]:
+            zone_stats_result[feat["properties"]["gadmid"]] = {
+                class_table[dat["classification"]]["description"]: dat["count"]
+                for dat in feat["properties"]["groups"]
+            }
         vectorize = landcover_layer.updateMask(distalerts.gte(threshold).selfMask())
     else:
         zone_stats = (
@@ -102,9 +129,7 @@ def dist_alerts_tool(
             .getInfo()
         )
         zone_stats_result = {
-            feat["properties"]["GID_3"]: [
-                {"classification": 1, "count": feat["properties"]["count"]}
-            ]
+            feat["properties"]["gadmid"]: {"disturbances": feat["properties"]["count"]}
             for feat in zone_stats["features"]
         }
         vectorize = distalerts.gte(threshold).selfMask()

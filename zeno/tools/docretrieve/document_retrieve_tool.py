@@ -4,7 +4,6 @@ from langchain.tools.retriever import create_retriever_tool
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 
-# Vector store
 vectorstore = Chroma(
     persist_directory="data/chroma_gfw",
     embedding_function=OllamaEmbeddings(

@@ -21,6 +21,7 @@ dependencies = [
     "streamlit-folium>=0.23.2",
     "earthengine-api>=1.4.0",
     "geojson-pydantic>=1.1.2",
+    "fiona>=1.10.1",
 ]
 
 [dependency-groups]

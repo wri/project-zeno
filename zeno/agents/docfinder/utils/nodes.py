@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 from zeno.agents.maingraph.models import ModelFactory
 from zeno.tools.docretrieve.document_retrieve_tool import retriever_tool
 
+model_name = "claude-3-5-sonnet-latest"
 
-model_name = "llama3.2"
 
 def grade_documents(state, config: RunnableConfig) -> Literal["generate", "rewrite"]:
     """
