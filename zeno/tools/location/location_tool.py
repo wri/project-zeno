@@ -1,12 +1,23 @@
-import json
-from typing import List
+import os
+from typing import Tuple
 
+import fiona
+from langchain_chroma.vectorstores import Chroma
 from langchain_core.tools import tool
+from langchain_ollama import OllamaEmbeddings
 from pydantic import BaseModel, Field
 
-from zeno.tools.location.location_matcher import LocationMatcher
+gadm = fiona.open("data/gadm_410_small.gpkg")
 
-location_matcher = LocationMatcher("data/gadm41_PRT.gpkg")
+vectorstore = Chroma(
+    # persist_directory="data/chroma_gadm",
+    persist_directory="/Users/tam/Desktop/chroma_gadm",
+    embedding_function=OllamaEmbeddings(
+        model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
+    ),
+    collection_name="gadm",
+    create_collection_if_not_exists=False,
+)
 
 
 class LocationInput(BaseModel):
@@ -23,7 +34,7 @@ class LocationInput(BaseModel):
     return_direct=False,
     response_format="content_and_artifact",
 )
-def location_tool(query: str) -> List[str]:
+def location_tool(query: str) -> Tuple[list, list]:
     """Find locations and their administrative hierarchies given a place name.
       Returns a list of IDs with matches at different administrative levels
 
@@ -31,12 +42,15 @@ def location_tool(query: str) -> List[str]:
         query (str): Location name to search for
 
     Returns:
-        matches (List[str]): ids of matching locations
+        matches (Tuple[list, list]): GDAM feature IDs their geojson feature collections
     """
     print("---LOCATION-TOOL---")
-    try:
-        matches = location_matcher.find_matches(query)
-    except Exception as e:
-        return f"Error finding locations: {str(e)}"
+    matches = vectorstore.similarity_search(query, k=1)
+    fids = [int(dat.metadata["fid"]) for dat in matches]
+    aois = [gadm[fid] for fid in fids]
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [aoi.__geo_interface__ for aoi in aois],
+    }
 
-    return list(matches.GID_3), json.loads(matches.to_json())
+    return fids, geojson

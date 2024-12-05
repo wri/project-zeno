@@ -3,14 +3,15 @@ from typing import List
 
 import geopandas as gpd
 from shapely import box
-from thefuzz import fuzz
 
-NAME_COLS = ["NAME_1", "NAME_2", "NAME_3"]
+NAME_COLS = ["NAME_0", "NAME_1", "NAME_2", "NAME_3", "NAME_4", "NAME_5"]
 NR_OF_RESULTS = 3
 
 
 def fuzz_search(row: gpd.GeoSeries, query: str):
-    return sum([fuzz.ratio(row[name].lower(), query) for name in NAME_COLS])
+    return sum([dat in row["name"].lower() for dat in query.lower().split(" ")])
+    # ratios = [fuzz.token_set_ratio(dat, query) for dat in row["name"].lower().split(" ")]
+    # return sum([dat for dat in ratios if dat > 0.5])
 
 
 class LocationMatcher:
@@ -19,11 +20,10 @@ class LocationMatcher:
         Initialize the matcher with GADM CSV data
         """
         # self.df = pd.read_csv(csv_path)
-        self.df = gpd.read_file(csv_path, layer="ADM_ADM_3")
-        self.df["full_name"] = self.df[NAME_COLS].agg(" ".join, axis=1)
+        self.df = gpd.read_file(csv_path)
 
     def get_by_id(self, id: str) -> dict:
-        return json.loads(self.df[self.df.GID_3 == id].to_json())
+        return json.loads(self.df[self.df.gadmid == id].to_json())
 
     def find_matches(self, query: str) -> List[str]:
         """
@@ -39,4 +39,4 @@ class LocationMatcher:
         self, xmin: float, ymin: float, xmax: float, ymax: float
     ) -> List[str]:
         matches = self.df.intersects(box(xmin, ymin, xmax, ymax))
-        return list(self.df[matches].GID_3)
+        return list(self.df[matches].gadmid)

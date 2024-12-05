@@ -4,7 +4,7 @@ from zeno.tools.distalert.dist_alerts_tool import dist_alerts_tool
 def test_dist_alert_tool():
 
     natural_lands = "WRI/SBTN/naturalLands/v1/2020"
-    features = ["PRT.6.2.5_1"]
+    features = ["23"]
     result = dist_alerts_tool.invoke(
         input={"features": features, "landcover": natural_lands, "threshold": 5}
     )
