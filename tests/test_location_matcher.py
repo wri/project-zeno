@@ -8,7 +8,7 @@ def test_location_matcher():
         "lisboa portugal": ["PRT.12.7.52_1"],
         "Liisboa portugal": ["PRT.6.2.5_1"],
         "Lisbon portugal": ["PRT.6.2.5_1"],
-        "Lamego viseu portugal": ['PRT.20.5.11_1'],
+        "Lamego viseu portugal": ["PRT.20.5.11_1"],
         "Sao Joao Porto": ["PRT.12.7.41_1"],
         "Bern Switzerland": ["PRT.6.2.5_1"],
     }

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
+from zeno.tools.contextlayer.layers import layer_choices
 from zeno.tools.distalert.gee import init_gee
 
 # Load environment variables
@@ -17,41 +18,13 @@ init_gee()
 
 gadm = fiona.open("data/gadm_410_small.gpkg")
 
-classtables = {
-    "WRI/SBTN/naturalLands/v1/2020": {
-        2: {"color": "#246E24", "description": "natural forests"},
-        3: {"color": "#B9B91E", "description": "natural short vegetation"},
-        4: {"color": "#6BAED6", "description": "natural water"},
-        5: {"color": "#06A285", "description": "mangroves"},
-        6: {"color": "#FEFECC", "description": "bare"},
-        7: {"color": "#ACD1E8", "description": "snow"},
-        8: {"color": "#589558", "description": "wet natural forests"},
-        9: {"color": "#093D09", "description": "natural peat forests"},
-        10: {"color": "#DBDB7B", "description": "wet natural short vegetation"},
-        11: {"color": "#99991A", "description": "natural peat short vegetation"},
-        12: {"color": "#D3D3D3", "description": "crop"},
-        13: {"color": "#D3D3D3", "description": "built"},
-        14: {"color": "#D3D3D3", "description": "non-natural tree cover"},
-        15: {"color": "#D3D3D3", "description": "non-natural short vegetation"},
-        16: {"color": "#D3D3D3", "description": "non-natural water"},
-        17: {"color": "#D3D3D3", "description": "wet non-natural tree cover"},
-        18: {"color": "#D3D3D3", "description": "non-natural peat tree cover"},
-        19: {"color": "#D3D3D3", "description": "wet non-natural short vegetation"},
-        20: {"color": "#D3D3D3", "description": "non-natural peat short vegetation"},
-        21: {"color": "#D3D3D3", "description": "non-natural bare"},
-    }
-}
-
 
 class DistAlertsInput(BaseModel):
     """Input schema for dist tool"""
 
-    # class Config:
-    #     arbitrary_types_allowed = True
-    features: List[str] = Field(
+    features: List[int] = Field(
         description="List of GADM ids are used for zonal statistics"
     )
-    # features: FeatureCollection = Field(description="Feature collection that is used for zonal statistics")
     landcover: Optional[str] = Field(
         default=None, description="Landcover layer name to group zonal statistics by"
     )
@@ -71,6 +44,22 @@ def print_meta(
     print("Image Metadata:")
     for key, value in metadata.items():
         print(f"{key}: {value}")
+
+
+def get_class_table(
+    band_name: str, layer: Union[ee.image.Image, ee.imagecollection.ImageCollection]
+) -> dict:
+    band_info = layer.select(band_name).getInfo()
+
+    names = band_info["features"][0]["properties"][f"{band_name}_class_names"]
+    values = band_info["features"][0]["properties"][f"{band_name}_class_values"]
+    colors = band_info["features"][0]["properties"][f"{band_name}_class_palette"]
+
+    pairs = []
+    for name, color in zip(names, colors):
+        pairs.append({"name": name, "color": color})
+
+    return {val: pair for val, pair in zip(values, pairs)}
 
 
 @tool(
@@ -102,18 +91,29 @@ def dist_alerts_tool(
     combo = distalerts.gte(threshold)
 
     if landcover:
-        class_table = classtables[landcover]
-        landcover_layer = ee.Image(landcover).select("classification")
+        choice = [dat for dat in layer_choices if dat["dataset"] == landcover][0]
+        if choice["type"] == "ImageCollection":
+            landcover_layer = ee.ImageCollection(landcover)  # .mosaic()
+        else:
+            landcover_layer = ee.Image(landcover)
+
+        class_table = get_class_table(choice["band"], landcover_layer)
+
+        if choice["type"] == "ImageCollection":
+            landcover_layer = landcover_layer.mosaic()
+
+        landcover_layer = landcover_layer.select(choice["band"])
+
         combo = combo.addBands(landcover_layer)
         zone_stats = combo.reduceRegions(
             collection=gee_features,
-            reducer=ee.Reducer.count().group(groupField=1, groupName="classification"),
-            scale=30,
+            reducer=ee.Reducer.count().group(groupField=1, groupName=choice["band"]),
+            scale=choice["resolution"],
         ).getInfo()
         zone_stats_result = {}
         for feat in zone_stats["features"]:
             zone_stats_result[feat["properties"]["gadmid"]] = {
-                class_table[dat["classification"]]["description"]: dat["count"]
+                class_table[dat[choice["band"]]]["name"]: dat["count"]
                 for dat in feat["properties"]["groups"]
             }
         vectorize = landcover_layer.updateMask(distalerts.gte(threshold).selfMask())
@@ -137,7 +137,7 @@ def dist_alerts_tool(
     # Vectorize the masked classification
     vectors = vectorize.reduceToVectors(
         geometryType="polygon",
-        scale=100,
+        scale=30,
         maxPixels=1e8,
         geometry=gee_features,
         eightConnected=True,
