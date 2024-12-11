@@ -1,12 +1,15 @@
 import json
 import os
 import uuid
+from dotenv import load_dotenv
 
 import folium
 import pandas as pd
 import requests
 import streamlit as st
 from streamlit_folium import folium_static
+
+load_dotenv()
 
 API_BASE_URL = os.environ.get("API_BASE_URL")
 
