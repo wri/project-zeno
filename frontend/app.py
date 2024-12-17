@@ -44,49 +44,66 @@ with st.sidebar:
     """
     )
 
+def handle_stream_response(stream):
+    for chunk in stream.iter_lines():
+        data = json.loads(chunk.decode("utf-8"))
 
-if user_input := st.chat_input("Type your message here..."):
-    st.chat_message("user").write(user_input)
-    with requests.post(
-        f"{API_BASE_URL}/stream",
-        json=dict(query=user_input, session_id=st.session_state.zeno_session_id),
-        stream=True,
-    ) as stream:
-        for chunk in stream.iter_lines():
-            data = json.loads(chunk.decode("utf-8"))
-            artifact = data.pop("artifact", {})
-            print(data)
-            if data.get("tool_name") == "dist-alerts-tool":
-                st.markdown("#### Dist alerts statistics")
-                table = json.loads(data["message"])
-                st.bar_chart(pd.DataFrame(table).T)
-                st.markdown("#### Map of dist alerts")
-            elif data.get("tool_name") == "context-layer-tool":
-                st.markdown("#### Context layer")
-                st.markdown(f"Using context layer **{data['message']}**")
-            elif data.get("tool_name") == "location-tool":
-                st.markdown("#### Matched location")
-                for feat in artifact["features"]:
-                    st.markdown(
-                        f'Found area **{feat["properties"]["gadmid"]}** {feat["properties"]["name"]}'
-                    )
-                    st.markdown("#### Map of location")
-            elif data.get("type") == "assistant":
-                st.markdown("#### Assistant message")
-                st.markdown(data["message"])
-            else:
-                st.write(data)
-            if artifact and artifact.get("type") == "FeatureCollection":
-                geom = artifact["features"][0]["geometry"]
-                if geom["type"] == "Polygon":
-                    pnt = geom["coordinates"][0][0]
+        if data.get("type") == "human_input":
+            # Show a dropdown with options & a submit button
+            selected_option = st.selectbox(data["question"], data["options"])
+            if st.button("Submit"):
+                # Send another POST request with the selected option
+                with requests.post(
+                    f"{API_BASE_URL}/stream",
+                    json={
+                        "query": selected_option,
+                        "thread_id": st.session_state.zeno_session_id,
+                        "query_type": "human_input"
+                    },
+                    stream=True,
+                ) as response:
+                    handle_stream_response(response)
+        elif data.get("type") == "tool_call":
+            if data.get("tool_name") == "location-tool":
+                st.chat_message("assistant").write("Found location you searched for...")
+                artifact = data.get("artifact", {})
+                for feature in artifact["features"]:
+                    st.chat_message("assistant").write(f"Found {feature['properties']['name']} in {feature['properties']['gadmid']}")
+
+                # Add the artifact to the map
+                geometry = artifact["features"][0]["geometry"]
+                if geometry["type"] == "Polygon":
+                    pnt = geometry["coordinates"][0][0]
                 else:
-                    pnt = geom["coordinates"][0][0][0]
+                    pnt = geometry["coordinates"][0][0][0]
 
                 m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=11)
                 g = folium.GeoJson(
                     artifact,
                 ).add_to(m)
                 folium_static(m, width=700, height=500)
-            elif artifact:
-                st.write(artifact)
+            elif data.get("tool_name") == "dist-alerts-tool":
+                st.chat_message("assistant").write("Computing distributed alerts statistics...")
+                table = json.loads(data["content"])
+                st.bar_chart(pd.DataFrame(table).T)
+            elif data.get("tool_name") == "context-layer-tool":
+                st.chat_message("assistant").write(f"Adding context layer {data['content']}")
+            else:
+                st.chat_message("assistant").write(data["content"])
+        elif data.get("type") == "update":
+            st.chat_message("assistant").write(data["content"])
+        else:
+            raise ValueError(f"Unknown message type: {data.get('type')}")
+
+if user_input := st.chat_input("Type your message here..."):
+    st.chat_message("user").write(user_input)
+    with requests.post(
+        f"{API_BASE_URL}/stream",
+        json={
+            "query": user_input,
+            "thread_id": st.session_state.zeno_session_id,
+            "query_type": "query"
+        },
+        stream=True,
+    ) as stream:
+        handle_stream_response(stream)
