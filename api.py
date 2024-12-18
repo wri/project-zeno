@@ -59,7 +59,11 @@ def event_stream(query: str, thread_id: Optional[str]=None, query_type: Optional
     else:
         raise ValueError(f"Invalid query type from frontend: {query_type}")
 
-    for namespace,chunk in stream:
+    for namespace, chunk in stream:
+        # Avoid streaming duplicate output by skipping the
+        # messages without namespace.
+        if not namespace:
+            continue
         node_name = list(chunk.keys())[0]
         print(f"Namespace -> {namespace}")
         print(f"Node name -> {node_name}")
