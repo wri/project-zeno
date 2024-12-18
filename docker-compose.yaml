@@ -11,6 +11,7 @@ services:
       - LANGFUSE_SECRET_KEY=lf_sk_1234567890
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEE_SERVICE_ACCOUNT_PATH=${GEE_SERVICE_ACCOUNT_PATH}
     env_file:
       - .env
     
