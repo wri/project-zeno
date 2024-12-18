@@ -44,7 +44,7 @@ def location_tool(query: str) -> Tuple[list, list]:
         matches (Tuple[list, list]): GDAM feature IDs their geojson feature collections
     """
     print("---LOCATION-TOOL---")
-    matches = vectorstore.similarity_search(query, k=1)
+    matches = vectorstore.similarity_search(query, k=3)
     fids = [int(dat.metadata["fid"]) for dat in matches]
     aois = [gadm[fid] for fid in fids]
     geojson = {
