@@ -52,7 +52,6 @@ if user_input := st.chat_input("Type your message here..."):
         for chunk in stream.iter_lines():
             data = json.loads(chunk.decode("utf-8"))
             artifact = data.pop("artifact", {})
-            print(data)
             if data.get("tool_name") == "dist-alerts-tool":
                 st.markdown("#### Dist alerts statistics")
                 table = json.loads(data["message"])

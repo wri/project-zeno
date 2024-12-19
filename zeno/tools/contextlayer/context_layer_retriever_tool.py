@@ -11,7 +11,9 @@ from pydantic import BaseModel, Field
 from zeno.agents.maingraph.models import ModelFactory
 from zeno.tools.contextlayer.layers import DatasetNames
 
-embedder = OllamaEmbeddings(model="nomic-embed-text")
+embedder = OllamaEmbeddings(
+    model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
+)
 table = lancedb.connect("data/layers-context").open_table("zeno-layers-context")
 
 
@@ -58,15 +60,17 @@ def context_layer_tool(question: str) -> DatasetNames:
     embedding = embedder.embed_query(question)
 
     # TODO: extract hard filters from query input
-    results = table.search(embedding).limit(10).to_pandas()
+    results = table.search(embedding).limit(30).to_pandas()
 
     # Multiple years of a single dataset are stored as separate entries
     # if the results set contains multiple datasets with the same name
     # as the top result, then we collect them all, and sort them by
     # year to return the most recent, by default
-    results[results["name"] == results.iloc[0]["name"]].sort_values(
-        by="year", ascending=False
-    ).iloc[0]
+    results = (
+        results[results["name"] == results.iloc[0]["name"]]
+        .sort_values(by="year", ascending=False)
+        .iloc[0]
+    )
 
     # return matches.dataset.value
     return results.dataset

@@ -63,7 +63,7 @@ def event_stream(query: str, thread_id: Optional[str] = None):
             #     "type":
             # })
             if isinstance(msg, ToolMessage):
-
+                print(f"NODE: {node_name}, MESSAGE: {msg}")
                 yield pack(
                     {
                         "type": "tool",
