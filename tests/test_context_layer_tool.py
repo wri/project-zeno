@@ -7,6 +7,7 @@ def test_context_layer_tool_cereal():
     )
     assert result == "ESA/WorldCereal/2021/MODELS/v100"
 
+
 def test_context_layer_tool_null():
     result = context_layer_tool.invoke(
         input={"question": "Provide disturbances for Aveiro Portugal"}
