@@ -751,6 +751,18 @@ wheels = [
 ]
 
 [[package]]
+name = "deprecation"
+version = "2.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5a/d3/8ae2869247df154b64c1884d7346d412fed0c49df84db635aab2d1c40e62/deprecation-2.1.0.tar.gz", hash = "sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff", size = 173788 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/02/c3/253a89ee03fc9b9682f1541728eb66db7db22148cd94f89ab22528cd1e1b/deprecation-2.1.0-py2.py3-none-any.whl", hash = "sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a", size = 11178 },
+]
+
+[[package]]
 name = "distlib"
 version = "0.3.9"
 source = { registry = "https://pypi.org/simple" }
@@ -2050,8 +2062,29 @@ wheels = [
 ]
 
 [[package]]
+name = "lancedb"
+version = "0.17.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "deprecation" },
+    { name = "overrides" },
+    { name = "packaging" },
+    { name = "pydantic" },
+    { name = "pylance" },
+    { name = "tqdm" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/ed/58e04eaf815acd6b75ad7db8a6a61d01eccc5cb2191d431c0d5f234cf20a/lancedb-0.17.0-cp39-abi3-macosx_10_15_x86_64.whl", hash = "sha256:40aac1583edda390e51189c4e95bdfd4768d23705234e12a7b81957f1143df42", size = 26393821 },
+    { url = "https://files.pythonhosted.org/packages/87/a9/14807f23f0fb415453626ba4ea7431ab62f0906bd0ef1df24680fd5ae2df/lancedb-0.17.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:895bed499dae61cac1dbfc40ad71a566e06ab5c8d538aa57873a0cba859f8a7a", size = 24846600 },
+    { url = "https://files.pythonhosted.org/packages/a5/46/4a5af607b9904d76344b56e62d6799ce7ae8f6c835bf05d1678313ca877f/lancedb-0.17.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3ea688d0f63796ee912a7cfe6667f36661e36756fa8340b94dd54d666a7db63f", size = 30443392 },
+    { url = "https://files.pythonhosted.org/packages/eb/03/4eb452f02a740ab1cfa334570384f10810890b2670ef6277af7abcb0039d/lancedb-0.17.0-cp39-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:f51a61950ead30a605b5653a81e8362e4aac6fec32705b88b9c9319e9308b2bb", size = 28242872 },
+    { url = "https://files.pythonhosted.org/packages/b2/11/c48248f984dfd8dfec0bb074465ca697cf64b6b71b0aa199c15ad0153597/lancedb-0.17.0-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:07e6f10b3fcbeb6c737996e5ebd68d04c3ca2656a9b8b970111ecf368245e7f6", size = 29925342 },
+    { url = "https://files.pythonhosted.org/packages/34/b9/a3d4bfdaefbc9098ef18bff2cf403c6060f70894c5022983464f9c3db367/lancedb-0.17.0-cp39-abi3-win_amd64.whl", hash = "sha256:9d7e82f83f430d906c285d3303729258b21b1cc8da634c9f7017e354bcb7318a", size = 27511050 },
+]
+
+[[package]]
 name = "langchain"
-version = "0.3.9"
+version = "0.3.13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -2065,9 +2098,9 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/88/9e/7cf5c9653d545461b8e29d70cb2e029dbd5d10cd771968f342a35d324b8f/langchain-0.3.9.tar.gz", hash = "sha256:4950c4ad627d0aa95ce6bda7de453e22059b7e7836b562a8f781fb0b05d7294c", size = 419365 }
+sdist = { url = "https://files.pythonhosted.org/packages/bf/77/6850ca959114aa1e63a4aa3298d9d5886eccedfa6b1d8a50f59d9e6ee328/langchain-0.3.13.tar.gz", hash = "sha256:3d618a8e7e496704dc4407d224218ff28baf9416c1241e7bdcdd117e6c70daa8", size = 420308 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7d/04/1990e724a3cc3cc858f48f524facabbcab6857b5690ddf1f747899e0baab/langchain-0.3.9-py3-none-any.whl", hash = "sha256:ade5a1fee2f94f2e976a6c387f97d62cc7f0b9f26cfe0132a41d2bda761e1045", size = 1008401 },
+    { url = "https://files.pythonhosted.org/packages/83/d4/f70ddcd14a1c9401367c601380e1204c6cfc948d7a46a4a274d3c03f1526/langchain-0.3.13-py3-none-any.whl", hash = "sha256:dd3549a28dc28b5d4769122b60fad0890aee86928d1bdbba3f9349d9f023315d", size = 1009093 },
 ]
 
 [[package]]
@@ -2102,7 +2135,7 @@ wheels = [
 
 [[package]]
 name = "langchain-community"
-version = "0.3.8"
+version = "0.3.12"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -2118,14 +2151,14 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0b/d3/11870afbbe1e3bbf510b451a881d68481229f635f84d390d8bc26e7fa487/langchain_community-0.3.8.tar.gz", hash = "sha256:f7575a717d95208d0e969c090104622783c6a38a5527657aa5aa38776fadc835", size = 1667696 }
+sdist = { url = "https://files.pythonhosted.org/packages/cf/15/97439b96bd3f8407ef0f049ea3fed7e5b2b00fcd9679428b94cafa3baf8e/langchain_community-0.3.12.tar.gz", hash = "sha256:b4694f34c7214dede03fe5a75e9f335e16bd788dfa6ca279302ad357bf0d0fc4", size = 1691757 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ee/09/fe45363955df325fb0aba3757b6b5bb0c530b6de257481c445ba39492dbf/langchain_community-0.3.8-py3-none-any.whl", hash = "sha256:191b3fcdf6b2e92934f4daeba5f5d0ac684b03772b15ef9d3c3fbcd86bd6cd64", size = 2441029 },
+    { url = "https://files.pythonhosted.org/packages/2f/b9/9d52879a1c1ee090d47530aa0d9d9a0cc5ca7f5ee9f1d8de784fec8fbff0/langchain_community-0.3.12-py3-none-any.whl", hash = "sha256:5a993c931d46dc07fcdfcdfa4d87095c5a15d37ff32b0c16e9ecf6f5caa58c9c", size = 2471646 },
 ]
 
 [[package]]
 name = "langchain-core"
-version = "0.3.21"
+version = "0.3.27"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jsonpatch" },
@@ -2136,9 +2169,9 @@ dependencies = [
     { name = "tenacity" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/64/0c/9388d0959dff69fbca6e0f79076811cb1a494e06d04c8a880079228edded/langchain_core-0.3.21.tar.gz", hash = "sha256:561b52b258ffa50a9fb11d7a1940ebfd915654d1ec95b35e81dfd5ee84143411", size = 328597 }
+sdist = { url = "https://files.pythonhosted.org/packages/77/2c/3ddc9d0d94dd7fc4ed8f71fda8b2cb6f3189e486ee224cb3b37fc7aba4bb/langchain_core-0.3.27.tar.gz", hash = "sha256:3d71835c4c630db03a19757565046029e89ee96a4b06788892599d49bb3fc58a", size = 330710 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9b/50/e0bd90fc481d1cc8c2039ad6161b20fc8e396a7cba6064a4f1e8e5afea62/langchain_core-0.3.21-py3-none-any.whl", hash = "sha256:7e723dff80946a1198976c6876fea8326dc82566ef9bcb5f8d9188f738733665", size = 409467 },
+    { url = "https://files.pythonhosted.org/packages/76/73/5d876d7c24cf82ff1d2c297c7da6ded4d857f7846763abe1bc72f7563e8e/langchain_core-0.3.27-py3-none-any.whl", hash = "sha256:5db42cd73f4f2d5d2550403a4c8b7dec2cd56f1501fe207d009b5b9632a5ca02", size = 411485 },
 ]
 
 [[package]]
@@ -2170,14 +2203,14 @@ wheels = [
 
 [[package]]
 name = "langchain-text-splitters"
-version = "0.3.2"
+version = "0.3.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langchain-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/47/63/0f7dae88d87e924d819e6a6375043499e3bc9931e306edd48b396abb4e42/langchain_text_splitters-0.3.2.tar.gz", hash = "sha256:81e6515d9901d6dd8e35fb31ccd4f30f76d44b771890c789dc835ef9f16204df", size = 20229 }
+sdist = { url = "https://files.pythonhosted.org/packages/10/a5/215816cc376c4f3853c961ae98022a6d57e74f6859c206f29716173e9a73/langchain_text_splitters-0.3.4.tar.gz", hash = "sha256:f3cedea469684483b4492d9f11dc2fa66388dab01c5d5c5307925515ab884c24", size = 22205 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ee/c6/5ba25c8bad647e92a92b3066177ab10d78efbd16c0b9919948cdcd18b027/langchain_text_splitters-0.3.2-py3-none-any.whl", hash = "sha256:0db28c53f41d1bc024cdb3b1646741f6d46d5371e90f31e7e7c9fbe75d01c726", size = 25564 },
+    { url = "https://files.pythonhosted.org/packages/a2/37/b2c971dfea62675f640e0dd5a078ca502885059276d21b7143cf1fe13e82/langchain_text_splitters-0.3.4-py3-none-any.whl", hash = "sha256:432fdb39c161d4d0db16d61d38af068dc5dd4dd08082febd2fced81304b2725c", size = 27783 },
 ]
 
 [[package]]
@@ -3179,6 +3212,7 @@ dependencies = [
 dev = [
     { name = "geopandas" },
     { name = "jupyterlab" },
+    { name = "lancedb" },
     { name = "matplotlib" },
     { name = "pre-commit" },
     { name = "pytest" },
@@ -3197,6 +3231,7 @@ requires-dist = [
     { name = "langchain-anthropic", specifier = ">=0.2.4" },
     { name = "langchain-chroma", specifier = ">=0.1.4" },
     { name = "langchain-community", specifier = ">=0.3.5" },
+    { name = "langchain-community", specifier = ">=0.3.11" },
     { name = "langchain-ollama", specifier = ">=0.2.0" },
     { name = "langchain-openai", specifier = ">=0.2.6" },
     { name = "langfuse", specifier = ">=2.53.9" },
@@ -3212,6 +3247,7 @@ requires-dist = [
 dev = [
     { name = "geopandas", specifier = ">=1.0.1" },
     { name = "jupyterlab", specifier = ">=4.3.0" },
+    { name = "lancedb", specifier = ">=0.17.0" },
     { name = "matplotlib", specifier = ">=3.9.2" },
     { name = "pre-commit", specifier = ">=4.0.1" },
     { name = "pytest", specifier = ">=8.3.3" },
@@ -3520,6 +3556,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/8e/62/8336eff65bcbc8e4cb5d05b55faf041285951b6e80f33e2bff2024788f31/pygments-2.18.0.tar.gz", hash = "sha256:786ff802f32e91311bff3889f6e9a86e81505fe99f2735bb6d60ae0c5004f199", size = 4891905 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f7/3f/01c8b82017c199075f8f788d0d906b9ffbbc5a47dc9918a945e13d5a2bda/pygments-2.18.0-py3-none-any.whl", hash = "sha256:b8e6aca0523f3ab76fee51799c488e38782ac06eafcf95e7ba832985c8e7b13a", size = 1205513 },
+]
+
+[[package]]
+name = "pylance"
+version = "0.20.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pyarrow" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c1/d9/f2a5ee73b07df1c2c6bc06b53f67960caa5374f55118ee46fabe35396de5/pylance-0.20.0-cp39-abi3-macosx_10_15_x86_64.whl", hash = "sha256:fbb640b00567ff79d23a5994c0f0bc97587fcf74ece6ca568e77c453f70801c5", size = 31512397 },
+    { url = "https://files.pythonhosted.org/packages/01/dc/14c8321a08bbe110789e19aa8b9ba840f52ef8db88d0cdd9c3a29789791b/pylance-0.20.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:c8e30f1b6429b843429fde8f3d6fb7e715153174161e3bcf29902e2d32ee471f", size = 29266199 },
+    { url = "https://files.pythonhosted.org/packages/1e/2c/f262507cdbed70994afc8bcc60beae2b823d10967bc632d9144806f035d4/pylance-0.20.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:032242a347ac909db81c0ade6384d82102f4ec61bc892d8caaa04b3d0a7b1613", size = 33539993 },
+    { url = "https://files.pythonhosted.org/packages/41/9c/88eb6eb07f1a803dec43930d28c587d9df3dc996337d399fa74bcb3cbb10/pylance-0.20.0-cp39-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:5320f11925524c1a67279afc4638cad60f61c36f11d3d9c2a91651489874be0d", size = 31858413 },
+    { url = "https://files.pythonhosted.org/packages/22/d2/acaf3328d1bd55201f9775d8b8a3f7c497966d3f3371e22aabb269cb4f0f/pylance-0.20.0-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:fa5acd4488c574f6017145eafd5b45b178d611a5cbcd2ed492e01013fc72f5a2", size = 33465409 },
+    { url = "https://files.pythonhosted.org/packages/c7/0a/c012ef957c3c99edf7a87d5f77ccf174bdf161d4ae1aac2181d750fcbcd5/pylance-0.20.0-cp39-abi3-win_amd64.whl", hash = "sha256:587850cddd0e669addd9414f378fa30527fc9020010cb73c842f026ea8a9b4ea", size = 31356456 },
 ]
 
 [[package]]

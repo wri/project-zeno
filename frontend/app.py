@@ -37,7 +37,7 @@ with st.sidebar:
     st.subheader("🧐 Try asking:")
     st.write(
         """
-    - Provide data about disturbance alerts in Aveiro summarized by landcover
+    - Provide data about disturbance alerts in Aveiro summarized by natural lands
     - What is happening with Gold Mining Deforestation?
     - What do you know about Forest Protection in remote islands in Indonesia?
     - How many users are using GFW and how long did it take to get there?
@@ -50,6 +50,7 @@ with st.sidebar:
     """
     )
 
+
 def display_message(message):
     """Helper function to display a single message"""
     if message["role"] == "user":
@@ -60,7 +61,9 @@ def display_message(message):
             data = message["content"]
             artifact = data.get("artifact", {})
             for feature in artifact["features"]:
-                st.chat_message("assistant").write(f"Found {feature['properties']['name']} in {feature['properties']['gadmid']}")
+                st.chat_message("assistant").write(
+                    f"Found {feature['properties']['name']} in {feature['properties']['gadmid']}"
+                )
 
             geometry = artifact["features"][0]["geometry"]
             if geometry["type"] == "Polygon":
@@ -72,13 +75,18 @@ def display_message(message):
             g = folium.GeoJson(artifact).add_to(m)
             folium_static(m, width=700, height=500)
         elif message["type"] == "alerts":
-            st.chat_message("assistant").write("Computing distributed alerts statistics...")
+            st.chat_message("assistant").write(
+                "Computing distributed alerts statistics..."
+            )
             table = json.loads(message["content"]["content"])
             st.bar_chart(pd.DataFrame(table).T)
         elif message["type"] == "context":
-            st.chat_message("assistant").write(f"Adding context layer {message['content']}")
+            st.chat_message("assistant").write(
+                f"Adding context layer {message['content']}"
+            )
         else:
             st.chat_message("assistant").write(message["content"])
+
 
 def handle_human_input_submission(selected_index):
     if st.session_state.current_options and selected_index is not None:
@@ -87,12 +95,13 @@ def handle_human_input_submission(selected_index):
             json={
                 "query": str(selected_index),
                 "thread_id": st.session_state.zeno_session_id,
-                "query_type": "human_input"
+                "query_type": "human_input",
             },
             stream=True,
         ) as response:
             print("\n POST HUMAN INPUT...\n")
             handle_stream_response(response)
+
 
 def handle_stream_response(stream):
     for chunk in stream.iter_lines():
@@ -112,9 +121,17 @@ def handle_stream_response(stream):
             elif data.get("tool_name") == "dist-alerts-tool":
                 message = {"role": "assistant", "type": "alerts", "content": data}
             elif data.get("tool_name") == "context-layer-tool":
-                message = {"role": "assistant", "type": "context", "content": data["content"]}
+                message = {
+                    "role": "assistant",
+                    "type": "context",
+                    "content": data["content"],
+                }
             else:
-                message = {"role": "assistant", "type": "text", "content": data["content"]}
+                message = {
+                    "role": "assistant",
+                    "type": "text",
+                    "content": data["content"],
+                }
 
             if message:
                 st.session_state.messages.append(message)
@@ -127,6 +144,7 @@ def handle_stream_response(stream):
         else:
             raise ValueError(f"Unknown message type: {data.get('type')}")
 
+
 # Display chat history
 for message in st.session_state.messages:
     display_message(message)
@@ -136,7 +154,7 @@ if st.session_state.current_options:
     selected_option = st.selectbox(
         st.session_state.current_question,
         st.session_state.current_options,
-        key="selected_option"
+        key="selected_option",
     )
     selected_index = st.session_state.current_options.index(selected_option)
     if st.button("Submit"):
@@ -157,7 +175,7 @@ if user_input := st.chat_input("Type your message here..."):
         json={
             "query": user_input,
             "thread_id": st.session_state.zeno_session_id,
-            "query_type": "query"
+            "query_type": "query",
         },
         stream=True,
     ) as stream:
