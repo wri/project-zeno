@@ -18,7 +18,6 @@ table = lancedb.connect("data/layers-context").open_table("zeno-layers-context")
 # TODO: add reranker?
 vectorstore = LanceDB(
     uri="data/layers-context",
-    region="us-east-1",
     embedding=OllamaEmbeddings(
         model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
     ),
