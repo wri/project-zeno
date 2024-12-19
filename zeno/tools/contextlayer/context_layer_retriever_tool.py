@@ -58,9 +58,16 @@ def context_layer_tool(question: str) -> DatasetNames:
     print("---CHECK CONTEXT LAYER TOOL---")
     embedding = embedder.embed_query(question)
 
-    matches = table.search(embedding).limit(5).to_pandas()
+    # TODO: extract hard filters from query input
+    results = table.search(embedding).limit(10).to_pandas()
 
-    # TODO: add a filter that returns most recent by default.
+    # Multiple years of a single dataset are stored as separate entries
+    # if the results set contains multiple datasets with the same name
+    # as the top result, then we collect them all, and sort them by
+    # year to return the most recent, by default
+    results[results["name"] == results.iloc[0]["name"]].sort_values(
+        by="year", ascending=False
+    ).iloc[0]
 
     # return matches.dataset.value
-    return matches.dataset.values[0]
+    return results.dataset
