@@ -29,12 +29,9 @@ def pack(data):
 
 
 # Streams the response from the graph
-<<<<<<< HEAD
-def event_stream(query: str, thread_id: Optional[str] = None):
-
-=======
-def event_stream(query: str, thread_id: Optional[str]=None, query_type: Optional[str]=None):
->>>>>>> main
+def event_stream(
+    query: str, thread_id: Optional[str] = None, query_type: Optional[str] = None
+):
     if not thread_id:
         thread_id = uuid.uuid4()
 
@@ -47,10 +44,7 @@ def event_stream(query: str, thread_id: Optional[str]=None, query_type: Optional
         selected_index = int(query)
         current_state = graph.get_state(config)
         stream = graph.stream(
-            Command(resume={
-                "action": "update",
-                "option": selected_index
-            }),
+            Command(resume={"action": "update", "option": selected_index}),
             stream_mode="updates",
             subgraphs=True,
             config=config,
@@ -76,18 +70,20 @@ def event_stream(query: str, thread_id: Optional[str]=None, query_type: Optional
 
         if node_name == "__interrupt__":
             print(f"Waiting for human input")
-            interrupt_msg  = chunk[node_name][0].value
+            interrupt_msg = chunk[node_name][0].value
             question = interrupt_msg["question"]
             options = interrupt_msg["options"]
             artifact = interrupt_msg["artifact"]
 
             print("Waiting for human input")
-            yield pack({
-                "type": "human_input",
-                "options": options,
-                "artifact": artifact,
-                "question": question
-            })
+            yield pack(
+                {
+                    "type": "human_input",
+                    "options": options,
+                    "artifact": artifact,
+                    "question": question,
+                }
+            )
         elif node_name == "slasher":
             pass
         else:
@@ -98,22 +94,21 @@ def event_stream(query: str, thread_id: Optional[str]=None, query_type: Optional
                 continue
             for msg in messages:
                 if isinstance(msg, ToolMessage):
-                    yield pack({
-                        "type": "tool_call",
-                        "tool_name": msg.name,
-                        "content": msg.content,
-                        "artifact": msg.artifact if hasattr(msg, "artifact") else None,
-                    })
+                    yield pack(
+                        {
+                            "type": "tool_call",
+                            "tool_name": msg.name,
+                            "content": msg.content,
+                            "artifact": (
+                                msg.artifact if hasattr(msg, "artifact") else None
+                            ),
+                        }
+                    )
                 elif isinstance(msg, AIMessage):
                     if msg.content:
-                        yield pack({
-                            "type": "update",
-                            "content": msg.content
-                        })
+                        yield pack({"type": "update", "content": msg.content})
                 else:
                     raise ValueError(f"Unknown message type: {type(msg)}")
-
-
 
         # node_name = list(chunk.keys())[0]
         # yield pack(chunk[node_name])
@@ -142,15 +137,15 @@ def event_stream(query: str, thread_id: Optional[str]=None, query_type: Optional
 async def stream(
     query: Annotated[str, Body(embed=True)],
     thread_id: Optional[str] = Body(None),
-    query_type: Optional[str] = Body(None)):
+    query_type: Optional[str] = Body(None),
+):
 
     print("\n\nPOST...\n\n")
     print(query, thread_id, query_type)
     print("=" * 30)
 
     return StreamingResponse(
-        event_stream(query, thread_id, query_type),
-        media_type="application/x-ndjson"
+        event_stream(query, thread_id, query_type), media_type="application/x-ndjson"
     )
 
 
