@@ -33,7 +33,7 @@ def event_stream(query: str, thread_id: Optional[str]=None, query_type: Optional
         thread_id = uuid.uuid4()
 
     config = {
-        # "callbacks": [langfuse_handler],
+        "callbacks": [langfuse_handler],
         "configurable": {"thread_id": thread_id},
     }
     if query_type == "human_input":
