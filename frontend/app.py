@@ -37,7 +37,7 @@ with st.sidebar:
     st.subheader("🧐 Try asking:")
     st.write(
         """
-    - Provide data about disturbance alerts in Aveiro summarized by landcover
+    - Provide data about disturbance alerts in Aveiro summarized by natural lands
     - What is happening with Gold Mining Deforestation?
     - What do you know about Forest Protection in remote islands in Indonesia?
     - How many users are using GFW and how long did it take to get there?
