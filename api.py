@@ -6,6 +6,7 @@ from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from langgraph.types import Command
 from langfuse.callback import CallbackHandler
 from zeno.agents.maingraph.agent import graph
 from zeno.agents.maingraph.utils.state import GraphState
@@ -28,53 +29,91 @@ def pack(data):
 
 
 # Streams the response from the graph
+<<<<<<< HEAD
 def event_stream(query: str, thread_id: Optional[str] = None):
 
+=======
+def event_stream(query: str, thread_id: Optional[str]=None, query_type: Optional[str]=None):
+>>>>>>> main
     if not thread_id:
         thread_id = uuid.uuid4()
-
-    initial_state = GraphState(question=query)
 
     config = {
         "callbacks": [langfuse_handler],
         "configurable": {"thread_id": thread_id},
     }
+    if query_type == "human_input":
+        print(query)
+        selected_index = int(query)
+        current_state = graph.get_state(config)
+        stream = graph.stream(
+            Command(resume={
+                "action": "update",
+                "option": selected_index
+            }),
+            stream_mode="updates",
+            subgraphs=True,
+            config=config,
+        )
+    elif query_type == "query":
+        stream = graph.stream(
+            {"question": query, "route": None},
+            stream_mode="updates",
+            subgraphs=True,
+            config=config,
+        )
+    else:
+        raise ValueError(f"Invalid query type from frontend: {query_type}")
 
-    for namespace, chunk in graph.stream(
-        # for data in graph.stream(
-        initial_state,
-        stream_mode="updates",
-        subgraphs=True,
-        config=config,
-    ):
+    for namespace, chunk in stream:
         node_name = list(chunk.keys())[0]
-        print(f"Namespace {namespace}")
-        if not namespace:
+        print(f"Namespace -> {namespace}")
+        print(f"Node name -> {node_name}")
+        # Avoid streaming duplicate output by skipping the
+        # messages without namespace.
+        if not namespace and not node_name == "__interrupt__":
             continue
-        print(f"Node {node_name}")
-        if not chunk[node_name]:
-            continue
-        messages = chunk[node_name].get("messages")
-        if not messages:
-            continue
-        for msg in messages:
-            # print(msg)
-            # yield pack({
-            #     "type":
-            # })
-            if isinstance(msg, ToolMessage):
-                print(f"NODE: {node_name}, MESSAGE: {msg}")
-                yield pack(
-                    {
-                        "type": "tool",
+
+        if node_name == "__interrupt__":
+            print(f"Waiting for human input")
+            interrupt_msg  = chunk[node_name][0].value
+            question = interrupt_msg["question"]
+            options = interrupt_msg["options"]
+            artifact = interrupt_msg["artifact"]
+
+            print("Waiting for human input")
+            yield pack({
+                "type": "human_input",
+                "options": options,
+                "artifact": artifact,
+                "question": question
+            })
+        elif node_name == "slasher":
+            pass
+        else:
+            if not chunk[node_name]:
+                continue
+            messages = chunk[node_name].get("messages", {})
+            if not messages:
+                continue
+            for msg in messages:
+                if isinstance(msg, ToolMessage):
+                    yield pack({
+                        "type": "tool_call",
                         "tool_name": msg.name,
-                        "message": msg.content,
+                        "content": msg.content,
                         "artifact": msg.artifact if hasattr(msg, "artifact") else None,
-                    }
-                )
-            elif isinstance(msg, AIMessage):
-                if msg.content:
-                    yield pack({"type": "assistant", "message": msg.content})
+                    })
+                elif isinstance(msg, AIMessage):
+                    if msg.content:
+                        yield pack({
+                            "type": "update",
+                            "content": msg.content
+                        })
+                else:
+                    raise ValueError(f"Unknown message type: {type(msg)}")
+
+
 
         # node_name = list(chunk.keys())[0]
         # yield pack(chunk[node_name])
@@ -101,10 +140,17 @@ def event_stream(query: str, thread_id: Optional[str] = None):
 
 @app.post("/stream")
 async def stream(
-    query: Annotated[str, Body(embed=True)], thread_id: Optional[str] = None
-):
+    query: Annotated[str, Body(embed=True)],
+    thread_id: Optional[str] = Body(None),
+    query_type: Optional[str] = Body(None)):
+
+    print("\n\nPOST...\n\n")
+    print(query, thread_id, query_type)
+    print("=" * 30)
+
     return StreamingResponse(
-        event_stream(query, thread_id), media_type="application/x-ndjson"
+        event_stream(query, thread_id, query_type),
+        media_type="application/x-ndjson"
     )
 
 

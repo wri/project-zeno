@@ -2,7 +2,7 @@ from typing import Literal
 
 DatasetNames = Literal[
     "",
-    "WRI/SBTN/naturalLands/v1",
+    "WRI/SBTN/naturalLands/v1/2020",
     "ESA/WorldCover/v200",
     "GOOGLE/DYNAMICWORLD/V1",
     "JAXA/ALOS/PALSAR/YEARLY/FNF4",
@@ -14,12 +14,34 @@ DatasetNames = Literal[
 layer_choices = [
     {
         "name": "SBTN Natural Lands Map v1",
-        "dataset": "WRI/SBTN/naturalLands/v1",
+        "dataset": "WRI/SBTN/naturalLands/v1/2020",
         "description": "The SBTN Natural Lands Map v1 is a 2020 baseline map of natural and non-natural land covers intended for use by companies setting science-based targets for nature, specifically the SBTN Land target #1: no conversion of natural ecosystems.  'Natural' and 'non-natural' definitions were adapted from the Accountability Framework initiative's definition of a natural ecosystem as 'one that substantially resembles - in terms of species composition, structure, and ecological function - what would be found in a given area in the absence of major human impacts' and can include managed ecosystems as well as degraded ecosystems that are expected to regenerate either naturally or through management (AFi 2024). The SBTN Natural Lands Map operationalizes this definition by using proxies based on available data that align with AFi guidance to the extent possible.  This map was made by compiling existing global and regional data.You can find the full technical note explaining the methodology linked on the Natural Lands GitHub. This work was a collaboration between Land & Carbon Lab at the World Resources Institute, World Wildlife Fund US, Systemiq, and SBTN.",
         "resolution": 30,
         "year": 2020,
         "band": "classification",
         "type": "Image",
+        "class_table": {
+            2: {"color": "#246E24", "name": "Natural forests"},
+            3: {"color": "#B9B91E", "name": "Natural short vegetation"},
+            4: {"color": "#6BAED6", "name": "Natural water"},
+            5: {"color": "#06A285", "name": "Mangroves"},
+            6: {"color": "#FEFECC", "name": "Bare"},
+            7: {"color": "#ACD1E8", "name": "Snow"},
+            8: {"color": "#589558", "name": "Wet natural forests"},
+            9: {"color": "#093D09", "name": "Natural peat forests"},
+            10: {"color": "#DBDB7B", "name": "Wet natural short vegetation"},
+            11: {"color": "#99991A", "name": "Natural peat short vegetation"},
+            12: {"color": "#D3D3D3", "name": "Crop"},
+            13: {"color": "#D3D3D3", "name": "Built"},
+            14: {"color": "#D3D3D3", "name": "Non-natural tree cover"},
+            15: {"color": "#D3D3D3", "name": "Non-natural short vegetation"},
+            16: {"color": "#D3D3D3", "name": "Non-natural water"},
+            17: {"color": "#D3D3D3", "name": "Wet non-natural tree cover"},
+            18: {"color": "#D3D3D3", "name": "Non-natural peat tree cover"},
+            19: {"color": "#D3D3D3", "name": "Wet non-natural short vegetation"},
+            20: {"color": "#D3D3D3", "name": "Non-natural peat short vegetation"},
+            21: {"color": "#D3D3D3", "name": "Non-natural bare"},
+        }
     },
     {
         "name": "ESA WorldCover",

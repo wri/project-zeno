@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Literal, Optional, Union
 
 import ee
@@ -18,6 +19,9 @@ init_gee()
 
 gadm = fiona.open("data/gadm_410_small.gpkg")
 
+DIST_ALERT_REF_DATE = datetime.date(2020, 12, 31)
+DIST_ALERT_SCALE = 30
+
 
 class DistAlertsInput(BaseModel):
     """Input schema for dist tool"""
@@ -31,7 +35,14 @@ class DistAlertsInput(BaseModel):
     threshold: Optional[Literal[1, 2, 3, 4, 5, 6, 7, 8]] = Field(
         default=5, description="Threshold for disturbance alert scale"
     )
-
+    min_date: Optional[datetime.date] = Field(
+        default=None,
+        description="Cutoff date for alerts. Alerts before that date will be excluded.",
+    )
+    max_date: Optional[datetime.date] = Field(
+        default=None,
+        description="Cutoff date for alerts. Alerts after that date will be excluded.",
+    )
 
 def print_meta(
     layer: Union[ee.image.Image, ee.imagecollection.ImageCollection]
@@ -72,6 +83,8 @@ def dist_alerts_tool(
     features: List[str],
     landcover: Optional[str] = None,
     threshold: Optional[Literal[1, 2, 3, 4, 5, 6, 7, 8]] = 5,
+    min_date: Optional[datetime.date] = None,
+    max_date: Optional[datetime.date] = None,
 ) -> dict:
     """
     Dist alerts tool
@@ -88,56 +101,102 @@ def dist_alerts_tool(
         [ee.Feature(gadm[int(id)].__geo_interface__) for id in features]
     )
 
-    combo = distalerts.gte(threshold)
+    today = datetime.date.today()
+    date_mask = None
+    if min_date and min_date > DIST_ALERT_REF_DATE and min_date < today:
+        days_passed = (today - min_date).days
+        days_since_start = (today - DIST_ALERT_REF_DATE).days
+        cutoff = days_since_start - days_passed
+        date_mask = (
+            ee.ImageCollection("projects/glad/HLSDIST/current/VEG-DIST-DATE")
+            .mosaic()
+            .gte(cutoff)
+            .selfMask()
+        )
+
+    if max_date and max_date > DIST_ALERT_REF_DATE and max_date < today:
+        days_passed = (today - max_date).days
+        days_since_start = (today - DIST_ALERT_REF_DATE).days
+        cutoff = days_since_start - days_passed
+        date_mask_max = (
+            ee.ImageCollection("projects/glad/HLSDIST/current/VEG-DIST-DATE")
+            .mosaic()
+            .lte(cutoff)
+            .selfMask()
+        )
+        if date_mask:
+            date_mask = date_mask.And(date_mask_max)
+        else:
+            date_mask = date_mask_max
 
     if landcover:
         choice = [dat for dat in layer_choices if dat["dataset"] == landcover][0]
         if choice["type"] == "ImageCollection":
-            landcover_layer = ee.ImageCollection(landcover)  # .mosaic()
+            landcover_layer = ee.ImageCollection(landcover)
         else:
             landcover_layer = ee.Image(landcover)
 
-        class_table = get_class_table(choice["band"], landcover_layer)
+        if "class_table" in choice:
+            class_table = choice["class_table"]
+        else:
+            class_table = get_class_table(choice["band"], landcover_layer)
 
         if choice["type"] == "ImageCollection":
             landcover_layer = landcover_layer.mosaic()
 
         landcover_layer = landcover_layer.select(choice["band"])
 
-        combo = combo.addBands(landcover_layer)
-        zone_stats = combo.reduceRegions(
+        zone_stats_img = (
+            distalerts.pixelArea()
+            .divide(10000)
+            .addBands(landcover_layer)
+            .updateMask(distalerts.gte(threshold))
+        )
+        if date_mask:
+            zone_stats_img = zone_stats_img.updateMask(
+                zone_stats_img.selfMask().And(date_mask)
+            )
+
+        zone_stats = zone_stats_img.reduceRegions(
             collection=gee_features,
-            reducer=ee.Reducer.count().group(groupField=1, groupName=choice["band"]),
+            reducer=ee.Reducer.sum().group(groupField=1, groupName=choice["band"]),
             scale=choice["resolution"],
         ).getInfo()
+
         zone_stats_result = {}
         for feat in zone_stats["features"]:
             zone_stats_result[feat["properties"]["gadmid"]] = {
-                class_table[dat[choice["band"]]]["name"]: dat["count"]
+                class_table[dat[choice["band"]]]["name"]: dat["sum"]
                 for dat in feat["properties"]["groups"]
             }
-        vectorize = landcover_layer.updateMask(distalerts.gte(threshold).selfMask())
+        vectorize = landcover_layer.updateMask(distalerts.gte(threshold))
     else:
-        zone_stats = (
-            distalerts.gte(threshold)
-            .selfMask()
-            .reduceRegions(
-                collection=gee_features,
-                reducer=ee.Reducer.count(),
-                scale=30,
-            )
-            .getInfo()
+        zone_stats_img = (
+            distalerts.pixelArea().divide(10000).updateMask(distalerts.gte(threshold))
         )
+        if date_mask:
+            zone_stats_img = zone_stats_img.updateMask(
+                zone_stats_img.selfMask().And(date_mask)
+            )
+
+        zone_stats = zone_stats_img.reduceRegions(
+            collection=gee_features,
+            reducer=ee.Reducer.sum(),
+            scale=DIST_ALERT_SCALE,
+        ).getInfo()
+
         zone_stats_result = {
-            feat["properties"]["gadmid"]: {"disturbances": feat["properties"]["count"]}
+            feat["properties"]["gadmid"]: {"disturbances": feat["properties"]["sum"]}
             for feat in zone_stats["features"]
         }
-        vectorize = distalerts.gte(threshold).selfMask()
+        vectorize = (
+            distalerts.gte(threshold).updateMask(distalerts.gte(threshold)).selfMask()
+        )
 
     # Vectorize the masked classification
     vectors = vectorize.reduceToVectors(
         geometryType="polygon",
-        scale=30,
+        scale=DIST_ALERT_SCALE,
         maxPixels=1e8,
         geometry=gee_features,
         eightConnected=True,
