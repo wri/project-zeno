@@ -21,8 +21,6 @@ ENV PATH="/root/.local/bin/:$PATH"
 # Copy the project into the image
 ADD . /app
 
-COPY ./ee-zeno-service-account.json /app/ee-zeno-service-account.json
-
 # Sync the project into a new environment, using the frozen lockfile
 WORKDIR /app
 
