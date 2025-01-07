@@ -2,21 +2,11 @@ import os
 from typing import Tuple
 
 import fiona
-from langchain_chroma.vectorstores import Chroma
+import requests
 from langchain_core.tools import tool
-from langchain_ollama import OllamaEmbeddings
 from pydantic import BaseModel, Field
 
 gadm = fiona.open("data/gadm_410_small.gpkg")
-
-vectorstore = Chroma(
-    persist_directory="data/chroma_gadm",
-    embedding_function=OllamaEmbeddings(
-        model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
-    ),
-    collection_name="gadm",
-    create_collection_if_not_exists=False,
-)
 
 
 class LocationInput(BaseModel):
@@ -44,9 +34,21 @@ def location_tool(query: str) -> Tuple[list, list]:
         matches (Tuple[list, list]): GDAM feature IDs their geojson feature collections
     """
     print("---LOCATION-TOOL---")
-    matches = vectorstore.similarity_search(query, k=3)
-    fids = [int(dat.metadata["fid"]) for dat in matches]
-    aois = [gadm[fid] for fid in fids]
+
+    url = f"https://api.mapbox.com/search/geocode/v6/forward?q={query}&autocomplete=false&access_token={os.environ.get('MAPBOX_API_TOKEN')}"
+    response = requests.get(url)
+
+    aois = []
+    for result in response.json()["features"]:
+        lon = result["geometry"]["coordinates"][0]
+        lat = result["geometry"]["coordinates"][1]
+        print(result)
+        for rowid, match in gadm.items(bbox=(lon, lat, lon, lat)):
+            aois.append(match)
+            break
+
+    fids = [dat["properties"]["gadmid"] for dat in aois]
+
     geojson = {
         "type": "FeatureCollection",
         "features": [aoi.__geo_interface__ for aoi in aois],
