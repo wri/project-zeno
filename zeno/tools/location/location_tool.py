@@ -54,10 +54,13 @@ def location_tool(query: str, gadm_level: Literal[1, 2]) -> Tuple[list, list]:
         lon = result["geometry"]["coordinates"][0]
         lat = result["geometry"]["coordinates"][1]
         for _, match in gadm.items(bbox=(lon, lat, lon, lat)):
+            match["properties"]["gadmid"] = match["properties"][f"GID_{gadm_level}"]
+            match["properties"]["name"] = match["properties"][f"NAME_{gadm_level}"]
+
             aois.append(match)
             break
 
-    fids = [dat["properties"][id_key] for dat in aois]
+    fids = [dat["properties"]["gadmid"] for dat in aois]
 
     geojson = {
         "type": "FeatureCollection",
