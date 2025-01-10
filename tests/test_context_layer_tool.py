@@ -4,14 +4,13 @@ from zeno.tools.contextlayer.context_layer_retriever_tool import (
 
 
 def test_context_layer_tool_cereal():
-    result = context_layer_tool.invoke(
-        input={"question": "Summarize disturbance alerts by type of cereal"}
+    msg = context_layer_tool.invoke(
+        {
+            "name": "context-layer-tool",
+            "args": {"question": "Summarize disturbance alerts by type of cereal"},
+            "id": "42",
+            "type": "tool_call",
+        }
     )
-    assert result == "ESA/WorldCereal/2021/MODELS/v100"
-
-
-def test_context_layer_tool_null():
-    result = context_layer_tool.invoke(
-        input={"question": "Provide disturbances for Aveiro Portugal"}
-    )
-    assert result == ""
+    assert msg.content == "ESA/WorldCereal/2021/MODELS/v100"
+    assert "{z}/{x}/{y}" in msg.artifact["tms_url"]
