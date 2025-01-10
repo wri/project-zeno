@@ -3201,6 +3201,8 @@ dependencies = [
     { name = "langchain-openai" },
     { name = "langfuse" },
     { name = "langgraph" },
+    { name = "pystac" },
+    { name = "pystac-client" },
     { name = "streamlit" },
     { name = "streamlit-folium" },
     { name = "thefuzz" },
@@ -3236,6 +3238,8 @@ requires-dist = [
     { name = "langchain-openai", specifier = ">=0.2.6" },
     { name = "langfuse", specifier = ">=2.53.9" },
     { name = "langgraph", specifier = ">=0.2.56" },
+    { name = "pystac", specifier = ">=1.11.0" },
+    { name = "pystac-client", specifier = ">=0.8.5" },
     { name = "streamlit", specifier = ">=1.40.0" },
     { name = "streamlit-folium", specifier = ">=0.23.2" },
     { name = "thefuzz", specifier = ">=0.22.1" },
@@ -3681,6 +3685,37 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/63/9f/0dd21250c60375a532c35e89fad8d5e8a3f1a2e3f7c389ccc5a60b05263e/pyshp-2.3.1.tar.gz", hash = "sha256:4caec82fd8dd096feba8217858068bacb2a3b5950f43c048c6dc32a3489d5af1", size = 1731544 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/98/2f/68116db5b36b895c0450e3072b8cb6c2fac0359279b182ea97014d3c8ac0/pyshp-2.3.1-py2.py3-none-any.whl", hash = "sha256:67024c0ccdc352ba5db777c4e968483782dfa78f8e200672a90d2d30fd8b7b49", size = 46537 },
+]
+
+[[package]]
+name = "pystac"
+version = "1.11.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "python-dateutil" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/90/4f/f6f89956aabffd1211fa9c9130293ac67f774c66fab7944bfe33dc317f18/pystac-1.11.0.tar.gz", hash = "sha256:acb1e04be398a0cda2d8870ab5e90457783a8014a206590233171d8b2ae0d9e7", size = 141392 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/71/5b/60dc94cbf6af2fd3a3d3fae52de7e294819af2dfe7a1bea4d246beb7e0b6/pystac-1.11.0-py3-none-any.whl", hash = "sha256:10ac7c7b4ea6c5ec8333829a09ec1a33b596f02d1a97ffbbd72cd1b6c10598c1", size = 183925 },
+]
+
+[package.optional-dependencies]
+validation = [
+    { name = "jsonschema" },
+]
+
+[[package]]
+name = "pystac-client"
+version = "0.8.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pystac", extra = ["validation"] },
+    { name = "python-dateutil" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a2/0a/7f25bbad05b72602789f08b8ea444f362440e70e330b36c642ac1440e242/pystac_client-0.8.5.tar.gz", hash = "sha256:7fba8d4f3c641ff7e840084fc3a53c96443a227f8a5889ae500fc38183ccd994", size = 52367 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/25/1130b9916f7ff42fae3719c479ba4d7038659e3b6b681b736a3c936d5cc1/pystac_client-0.8.5-py3-none-any.whl", hash = "sha256:0da63244e46dae45f66b6bd6e40eb94c03cb6e4850536ef3ebd58a7efeb48f69", size = 41863 },
 ]
 
 [[package]]
