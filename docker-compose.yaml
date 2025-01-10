@@ -14,10 +14,10 @@ services:
       - GEE_SERVICE_ACCOUNT_PATH=${GEE_SERVICE_ACCOUNT_PATH}
     env_file:
       - .env
-    
     volumes:
-      - .:/app
-      #- ./data:/app/data
+      - ./zeno:/app/zeno
+      - ./data:/app/data
+      - ./api.py:/app/api.py
 
   frontend: 
     build: 
