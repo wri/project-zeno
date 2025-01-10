@@ -25,22 +25,19 @@ def assistant(state):
     sys_msg = SystemMessage(
         content="""You are a helpful assistant tasked with answering the user queries for vegetation disturbance, tree cover loss, or deforestation.
     Never try to guess locations or alert data. Always rely on tools to answer queries, and otherwise refuse to answer queries.
-    Always check if a context layer is required. Check that using the  `context-layer-tool`.
+
     Think through the solution step-by-step first and then execute.
-    Use the `location-tool` to get polygons of any region or place by name.
-    Use the `dist-alerts-tool` to get vegetation disturbance information, pass the context layer as input
+
+    A context layer can be used to summarize vegetation disturbances by things like landcover or tree height categories.
+    If such a context layer analysis is is requested, obtain the context layer using the `context-layer-tool`.
+
+    Use the `location-tool` to get polygons of any region or place by name. There are two levels, 1 is for
+    state/province/regional analysis, and 2 is for smaller areas like municiaplities and counties. Use 2 level by default,
+    and level 1 if someone asks for state/province/regional analysis.
+
+    Use the `dist-alerts-tool` to get vegetation disturbance information, pass the context layer and the location as input.
     """
     )
-    #     sys_msg = SystemMessage(
-    #         content="""You are a helpful assistant tasked with answering the user queries for vegetation disturbance, tree cover loss, or deforestation.
-    # Never try to guess locations or alert data. Always rely on tools to answer queries, and otherwise refuse to answer queries.
-    # Think through the solution step-by-step first and then execute.
-    # Always check if a context layer is required. Check that using the  `retriever-tool`.
-    # Use the `location-tool` to get polygons of any region or place by name.
-    # Use the `dist-alerts-tool` to get vegetation disturbance information, pass the context layer as input
-
-    # """
-    # )
 
     if not state["messages"]:
         state["messages"] = [HumanMessage(state["question"])]
@@ -61,9 +58,6 @@ def human_review_location(state):
             "options": options,
             "artifact": last_msg.artifact
         })
-
-        # return a response to the frontend
-        # return Command(goto="assistant", update={"messages": [last_msg]})
 
         action = human_input["action"]
         option = human_input["option"]
