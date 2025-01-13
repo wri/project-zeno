@@ -128,5 +128,5 @@ def test_dist_alert_tool_verified(monkeypatch):
             "max_date": expected_vegdate,
         }
     )
-    # Threshold is out of range, no results
+    # Landcover type is as expected
     assert list(result["IND.26.12_1"].keys()) == [exppected_natural_lands]
