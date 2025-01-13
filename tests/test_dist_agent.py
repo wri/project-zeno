@@ -1,3 +1,4 @@
+import datetime
 import uuid
 
 from zeno.agents.distalert.agent import graph
@@ -9,7 +10,7 @@ def test_distalert_agent_level_2():
         "configurable": {"thread_id": uuid.uuid4()},
     }
     initial_state = GraphState(
-        question="Provide data about disturbance alerts in Aveiro summarized by natural lands in 2023"
+        question="Provide data about disturbance alerts in Aveiro in 2023 summarized by natural lands"
     )
     for _, chunk in graph.stream(
         initial_state,
@@ -20,8 +21,13 @@ def test_distalert_agent_level_2():
         if "assistant" in chunk:
             for msg in chunk["assistant"]["messages"]:
                 for call in msg.tool_calls:
+                    print(call["name"])
                     if call["name"] == "location-tool":
                         assert call["args"]["gadm_level"] == 2
+                        assert call["args"]["query"] == "Aveiro"
+                    if call["name"] == "dist-alerts-tool":
+                        assert call["args"]["min_date"] == "2023-01-01"
+                        assert call["args"]["max_date"] == "2023-12-31"
 
         if "tools" in chunk:
             for msg in chunk["tools"]["messages"]:
@@ -47,3 +53,4 @@ def test_distalert_agent_level_1():
                 call = chunk["assistant"]["messages"][0].tool_calls[0]
                 if call["name"] == "location-tool":
                     assert call["args"]["gadm_level"] == 1
+                    assert call["args"]["query"] == "Florida"
