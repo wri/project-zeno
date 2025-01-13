@@ -39,13 +39,13 @@ def test_dist_alert_tool_no_landcover():
 
 
 def test_dist_alert_tool_verified(monkeypatch):
-
+    # Target location and small buffer size.
     lon = -54.180643732357765
     lat = -24.047038901203194
     epsilon = 0.0005
-    # For this location, disturbances were marked as wildfire
-    # and latest disturbance was 2024-04-29, and the landcover
-    # was class 10, Wet natural short vegetation
+    # For this location, using GEE directly, disturbances were
+    # marked as wildfire and latest disturbance was 2024-04-29,
+    # and the landcover was class 10, Wet natural short vegetation.
     expected_natural_lands = "Wet natural short vegetation"
     expected_vegstatus = 6
     expected_vegdate = datetime.datetime(2024, 4, 29)  # 1215
