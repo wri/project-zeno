@@ -46,7 +46,7 @@ def test_dist_alert_tool_verified(monkeypatch):
     # For this location, disturbances were marked as wildfire
     # and latest disturbance was 2024-04-29, and the landcover
     # was class 10, Wet natural short vegetation
-    exppected_natural_lands = "Wet natural short vegetation"
+    expected_natural_lands = "Wet natural short vegetation"
     expected_vegstatus = 6
     expected_vegdate = datetime.datetime(2024, 4, 29)  # 1215
     expected_driver = "wildfire"
@@ -129,4 +129,4 @@ def test_dist_alert_tool_verified(monkeypatch):
         }
     )
     # Landcover type is as expected
-    assert list(result["IND.26.12_1"].keys()) == [exppected_natural_lands]
+    assert list(result["IND.26.12_1"].keys()) == [expected_natural_lands]
