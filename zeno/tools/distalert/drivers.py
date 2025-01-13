@@ -1,5 +1,7 @@
 import ee
 
+# Example from https://code.earthengine.google.com/06f83955d12f278414f8c53655abdd6d
+
 DRIVER_VALUEMAP = {
     "wildfire": 1,
     "crop_cycle": 2,

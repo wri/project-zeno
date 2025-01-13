@@ -15,10 +15,10 @@ _ = load_dotenv(".env")
 
 tools = [dist_alerts_tool, context_layer_tool, location_tool]
 
-# model = ModelFactory().get("claude-3-5-sonnet-latest").bind_tools(tools)
+model = ModelFactory().get("claude-3-5-sonnet-latest").bind_tools(tools)
 # model = ModelFactory().get("qwen2.5:7b").bind_tools(tools)
 # model = ModelFactory().get("gpt-3.5-turbo").bind_tools(tools)
-model = ModelFactory().get("gpt-4o-mini").bind_tools(tools)
+# model = ModelFactory().get("gpt-4o-mini").bind_tools(tools)
 
 
 def assistant(state):
@@ -29,13 +29,16 @@ def assistant(state):
     Think through the solution step-by-step first and then execute.
 
     A context layer can be used to summarize vegetation disturbances by things like landcover or tree height categories.
-    If such a context layer analysis is is requested, obtain the context layer using the `context-layer-tool`.
+    If such a context layer analysis is is requested, obtain the context layer using the `context-layer-tool`
 
     Use the `location-tool` to get polygons of any region or place by name. There are two levels, 1 is for
     state/province/regional analysis, and 2 is for smaller areas like municiaplities and counties. Use 2 level by default,
     and level 1 if someone asks for state/province/regional analysis.
 
     Use the `dist-alerts-tool` to get vegetation disturbance information, pass the context layer and the location as input.
+    If the user asks for summarizing disturbance alerts by underlying cause or driver, do not use the `context-layer-tool`
+    and pass `distalert-drivers` in the `landcover` argument like so `landcover="distalert-drivers"`. This will summarize
+    the disturbance alerts by driver.
     """
     )
 
@@ -69,7 +72,7 @@ def human_review_location(state):
         if action == "continue":
             return Command(goto="assistant")
         elif action == "update":
-            last_msg.content = json.dumps(options[option])
+            last_msg.content = json.dumps([options[option]])
             last_msg.artifact = artifact
             return Command(goto="assistant")
         elif action == "feedback":
