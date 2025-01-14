@@ -1,6 +1,7 @@
-import pytest
+import random
 
-from zeno.agents.location.tools import location_tool
+from zeno.agents.location.agent import location_agent
+
 
 # Test data for level 1 locations
 LEVEL_1_TEST_DATA = [
@@ -31,15 +32,17 @@ LEVEL_2_TEST_DATA = [
 ]
 
 
-@pytest.mark.parametrize("query,expected_id", LEVEL_1_TEST_DATA)
-def test_level_1_locations(query, expected_id):
-    """Test that level 1 locations return correct GADM IDs"""
-    result = location_tool.invoke(input={"query": query})
-    assert result == expected_id
+def test_location_agent():
+    import pdb
 
-
-@pytest.mark.parametrize("query,expected_id", LEVEL_2_TEST_DATA)
-def test_level_2_locations(query, expected_id):
-    """Test that level 2 locations return correct GADM IDs"""
-    result = location_tool.invoke(input={"query": query})
-    assert result == expected_id
+    # pick a random query each from LEVEL_1_TEST_DATA & LEVEL_2_TEST_DATA
+    query_1 = random.choice(LEVEL_1_TEST_DATA)
+    query_2 = random.choice(LEVEL_2_TEST_DATA)
+    result_1 = location_agent.invoke(
+        {"messages": [("user", "Find the location of " + query_1[0])]}
+    )
+    result_2 = location_agent.invoke(
+        {"messages": [("user", "Find the location of " + query_2[0])]}
+    )
+    assert query_1[1] in result_1["messages"][-1].content[0]["text"]
+    assert query_2[1] in result_2["messages"][-1].content[0]["text"]

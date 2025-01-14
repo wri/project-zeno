@@ -37,6 +37,13 @@ MODELS_CONFIG = [
         "additional_params": {},
     },
     {
+        "required_env_var": "ANTHROPIC_API_KEY",
+        "model_id": "claude-3-5-haiku-latest",
+        "model_name": "Anthropic claude3.5 haiku",
+        "constructor_class": ChatAnthropic,
+        "additional_params": {},
+    },
+    {
         "required_env_var": "OPENAI_API_KEY",
         "model_id": "gpt-3.5-turbo",
         "model_name": "OpenAI GPT3.5 turbo",
