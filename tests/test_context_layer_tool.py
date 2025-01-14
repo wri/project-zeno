@@ -1,6 +1,4 @@
-from zeno.tools.contextlayer.context_layer_retriever_tool import (
-    context_layer_tool,
-)
+from zeno.tools.contextlayer.context_layer_retriever_tool import context_layer_tool
 
 
 def test_context_layer_tool_cereal():

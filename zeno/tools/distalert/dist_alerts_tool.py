@@ -18,17 +18,19 @@ load_dotenv(".env")
 # Initialize gee
 init_gee()
 
-gadm = fiona.open("data/gadm_410_small.gpkg")
+gadm_1 = fiona.open("data/gadm_410_level_1.gpkg")
+gadm_2 = fiona.open("data/gadm_410_level_2.gpkg")
 
 DIST_ALERT_REF_DATE = datetime.date(2020, 12, 31)
 DIST_ALERT_SCALE = 30
 M2_TO_HA = 10000
+GEE_FOLDER = "projects/glad/HLSDIST/backend/"
 
 
 class DistAlertsInput(BaseModel):
     """Input schema for dist tool"""
 
-    features: List[int] = Field(
+    features: List[str] = Field(
         description="List of GADM ids are used for zonal statistics"
     )
     landcover: Optional[str] = Field(
@@ -84,7 +86,7 @@ def get_date_mask(min_date: datetime.date, max_date: datetime.date) -> ee.image.
         days_since_start = (today - DIST_ALERT_REF_DATE).days
         cutoff = days_since_start - days_passed
         date_mask = (
-            ee.ImageCollection("projects/glad/HLSDIST/current/VEG-DIST-DATE")
+            ee.ImageCollection(GEE_FOLDER + "VEG-DIST-DATE")
             .mosaic()
             .gte(cutoff)
             .selfMask()
@@ -95,7 +97,7 @@ def get_date_mask(min_date: datetime.date, max_date: datetime.date) -> ee.image.
         days_since_start = (today - DIST_ALERT_REF_DATE).days
         cutoff = days_since_start - days_passed
         date_mask_max = (
-            ee.ImageCollection("projects/glad/HLSDIST/current/VEG-DIST-DATE")
+            ee.ImageCollection(GEE_FOLDER + "VEG-DIST-DATE")
             .mosaic()
             .lte(cutoff)
             .selfMask()
@@ -110,14 +112,15 @@ def get_date_mask(min_date: datetime.date, max_date: datetime.date) -> ee.image.
 
 def get_alerts_by_landcover(
     distalerts: ee.Image,
-    landcover: ee.Image,
+    landcover: str,
     gee_features: ee.FeatureCollection,
     date_mask: ee.Image,
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
-    choice = [dat for dat in layer_choices if dat["dataset"] == landcover]
-    if choice:
-        choice = choice[0]
+    lc_choice = [dat for dat in layer_choices if dat["dataset"] == landcover]
+    choice = {}
+    if lc_choice:
+        choice = lc_choice[0]
         if choice["type"] == "ImageCollection":
             landcover_layer = ee.ImageCollection(landcover)
         else:
@@ -127,16 +130,16 @@ def get_alerts_by_landcover(
             class_table = choice["class_table"]
         else:
             class_table = get_class_table(choice["band"], landcover_layer)
+
+        if choice["type"] == "ImageCollection":
+            landcover_layer = landcover_layer.mosaic()
+
+        landcover_layer = landcover_layer.select(choice["band"])
     else:
         # TODO: replace this with a better selection. For now
         # assumes if the choice did not exist that the drivers are requested.
         landcover_layer = get_drivers()
-        class_table = {val: key for key, val in DRIVER_VALUEMAP.items()}
-
-    if choice["type"] == "ImageCollection":
-        landcover_layer = landcover_layer.mosaic()
-
-    landcover_layer = landcover_layer.select(choice["band"])
+        class_table = {val: {"name": key} for key, val in DRIVER_VALUEMAP.items()}
 
     zone_stats_img = (
         distalerts.pixelArea()
@@ -151,14 +154,21 @@ def get_alerts_by_landcover(
 
     zone_stats = zone_stats_img.reduceRegions(
         collection=gee_features,
-        reducer=ee.Reducer.sum().group(groupField=1, groupName=choice["band"]),
-        scale=choice["resolution"],
+        reducer=ee.Reducer.sum().group(
+            groupField=1, groupName=choice.get("band", "name")
+        ),
+        scale=choice.get("resolution", 30),
     ).getInfo()
 
     zone_stats_result = {}
     for feat in zone_stats["features"]:
-        zone_stats_result[feat["properties"]["gadmid"]] = {
-            class_table[dat[choice["band"]]]["name"]: dat["sum"]
+        if "GID_2" in feat["properties"]:
+            gadmid = feat["properties"]["GID_2"]
+        else:
+            gadmid = feat["properties"]["GID_1"]
+
+        zone_stats_result[gadmid] = {
+            class_table[dat[choice.get("band", "name")]]["name"]: dat["sum"]
             for dat in feat["properties"]["groups"]
         }
     vectorize = landcover_layer.updateMask(distalerts.gte(threshold))
@@ -186,14 +196,31 @@ def get_distalerts_unfiltered(
         scale=DIST_ALERT_SCALE,
     ).getInfo()
 
-    zone_stats_result = {
-        feat["properties"]["gadmid"]: {"disturbances": feat["properties"]["sum"]}
-        for feat in zone_stats["features"]
-    }
+    zone_stats_result = {}
+    for feat in zone_stats["features"]:
+        if "GID_2" in feat["properties"]:
+            gadmid = feat["properties"]["GID_2"]
+        else:
+            gadmid = feat["properties"]["GID_1"]
+        zone_stats_result[gadmid] = {"disturbances": feat["properties"]["sum"]}
+
     vectorize = (
         distalerts.gte(threshold).updateMask(distalerts.gte(threshold)).selfMask()
     )
     return zone_stats_result, vectorize
+
+
+def get_features(features: List[str]) -> ee.FeatureCollection:
+    if features[0].count(".") == 2:
+        gadm = gadm_2
+        gadm_level = 2
+    else:
+        gadm = gadm_1
+        gadm_level = 1
+
+    matches = [next(gadm.filter(where=f"GID_{gadm_level} = '{id}'")) for id in features]
+
+    return ee.FeatureCollection([ee.Feature(dat.__geo_interface__) for dat in matches])
 
 
 @tool(
@@ -216,13 +243,9 @@ def dist_alerts_tool(
     and summarizes the alerts in statistics by landcover types.
     """
     print("---DIST ALERTS TOOL---")
-    distalerts = ee.ImageCollection(
-        "projects/glad/HLSDIST/current/VEG-DIST-STATUS"
-    ).mosaic()
+    distalerts = ee.ImageCollection(GEE_FOLDER + "VEG-DIST-STATUS").mosaic()
 
-    gee_features = ee.FeatureCollection(
-        [ee.Feature(gadm[int(id)].__geo_interface__) for id in features]
-    )
+    gee_features = get_features(features)
 
     date_mask = get_date_mask(min_date, max_date)
 

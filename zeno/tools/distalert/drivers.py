@@ -12,7 +12,7 @@ DRIVER_VALUEMAP = {
 
 
 def get_drivers():
-    folder = "projects/glad/HLSDIST/current"
+    folder = "projects/glad/HLSDIST/backend"
     natural_lands = ee.Image("WRI/SBTN/naturalLands/v1/2020").select("natural")
     vegdistcount = ee.ImageCollection(folder + "/VEG-DIST-COUNT").mosaic()
     veganommax = ee.ImageCollection(folder + "/VEG-ANOM-MAX").mosaic()

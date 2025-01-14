@@ -17,7 +17,7 @@ init_gee()
 embedder = OllamaEmbeddings(
     model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
 )
-table = lancedb.connect("data/layers-context").open_table("zeno-layers-context")
+table = lancedb.connect("data/layers-context").open_table("zeno-layers-context-latest")
 
 
 # TODO: add reranker?
@@ -53,7 +53,11 @@ class ContextLayerInput(BaseModel):
 model = ModelFactory().get("claude-3-5-sonnet-latest").with_structured_output(grade)
 
 
-@tool("context-layer-tool", args_schema=ContextLayerInput, response_format="content_and_artifact")
+@tool(
+    "context-layer-tool",
+    args_schema=ContextLayerInput,
+    response_format="content_and_artifact",
+)
 def context_layer_tool(question: str) -> dict:
     """
     Determines whether the question asks for summarizing by land cover.
@@ -92,6 +96,8 @@ def get_tms_url(result: Series):
         image = ee.Image(result.dataset)
 
     # TODO: add dynamic viz parameters
-    map_id = image.select(result.band).getMapId()
+    map_id = image.select(result.band).getMapId(
+        visParams=result.visualization_parameters
+    )
 
     return map_id["tile_fetcher"].url_format
