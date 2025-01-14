@@ -35,11 +35,11 @@ LEVEL_2_TEST_DATA = [
 def test_level_1_locations(query, expected_id):
     """Test that level 1 locations return correct GADM IDs"""
     result = location_tool.invoke(input={"query": query})
-    assert result == expected_id
+    assert result == (expected_id, 1)
 
 
 @pytest.mark.parametrize("query,expected_id", LEVEL_2_TEST_DATA)
 def test_level_2_locations(query, expected_id):
     """Test that level 2 locations return correct GADM IDs"""
     result = location_tool.invoke(input={"query": query})
-    assert result == expected_id
+    assert result == (expected_id, 2)

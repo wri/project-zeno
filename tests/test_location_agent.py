@@ -33,8 +33,6 @@ LEVEL_2_TEST_DATA = [
 
 
 def test_location_agent():
-    import pdb
-
     # pick a random query each from LEVEL_1_TEST_DATA & LEVEL_2_TEST_DATA
     query_1 = random.choice(LEVEL_1_TEST_DATA)
     query_2 = random.choice(LEVEL_2_TEST_DATA)
@@ -44,5 +42,7 @@ def test_location_agent():
     result_2 = location_agent.invoke(
         {"messages": [("user", "Find the location of " + query_2[0])]}
     )
+    print(result_1["messages"][-1].content[0]["text"])
+    print(result_2["messages"][-1].content[0]["text"])
     assert query_1[1] in result_1["messages"][-1].content[0]["text"]
     assert query_2[1] in result_2["messages"][-1].content[0]["text"]

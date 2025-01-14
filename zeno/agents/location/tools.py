@@ -35,9 +35,7 @@ def simplify_geometry(
 ) -> Dict[str, Any]:
     """Simplify a GeoJSON feature's geometry while preserving topology."""
     geometry = shape(geojson_feature["geometry"])
-    simplified = simplify(
-        geometry, tolerance=tolerance, preserve_topology=True
-    )
+    simplified = simplify(geometry, tolerance=tolerance, preserve_topology=True)
     geojson_feature["geometry"] = mapping(simplified)
     return geojson_feature
 
@@ -72,7 +70,7 @@ def determine_gadm_level(place_type: str) -> Optional[int]:
     return_direct=False,
     response_format="content_and_artifact",
 )
-def location_tool(query: str) -> Tuple[str, Dict[str, Any]]:
+def location_tool(query: str) -> Tuple[Tuple[str, int], Dict[str, Any]]:
     """
     Find a location's GADM ID and simplified GeoJSON feature based on place name.
     Automatically determines the appropriate GADM level.
@@ -81,10 +79,11 @@ def location_tool(query: str) -> Tuple[str, Dict[str, Any]]:
         query (str): Location name to search for
 
     Returns:
-        Tuple[str, Dict]: A tuple containing:
-            - GADM ID (str)
+        Tuple[Tuple[str, int], Dict]: A tuple containing:
+            - GADM ID (str), GADM Level (int)
             - GeoJSON Feature (Dict) with simplified geometry
     """
+    print("---LOCATION TOOL---")
     # Query Mapbox API
     url = f"https://api.mapbox.com/search/geocode/v6/forward?q={query}&autocomplete=false&limit=1&access_token={os.environ.get('MAPBOX_API_TOKEN')}"
     response = requests.get(url)
@@ -117,9 +116,7 @@ def location_tool(query: str) -> Tuple[str, Dict[str, Any]]:
             gadm_level = alternate_level
 
     if not matches:
-        raise ValueError(
-            f"No GADM regions found for coordinates: {lon}, {lat}"
-        )
+        raise ValueError(f"No GADM regions found for coordinates: {lon}, {lat}")
 
     # Get the first match and convert to GeoJSON
     match = matches[0][1]
@@ -134,42 +131,7 @@ def location_tool(query: str) -> Tuple[str, Dict[str, Any]]:
         "gadm_id": gadm_id,
         "name": match["properties"][f"NAME_{gadm_level}"],
         "gadm_level": gadm_level,
-        "admin_level": match["properties"].get(
-            f"ENGTYPE_{gadm_level}", "Unknown"
-        ),
+        "admin_level": match["properties"].get(f"ENGTYPE_{gadm_level}", "Unknown"),
     }
 
-    return gadm_id, simplified_feature
-
-
-# Level 1 locations (state, province, country)
-level_1_locations = [
-    "California, USA",
-    "Bavaria, Germany",
-    "Hokkaido, Japan",
-    "Punjab, India",
-    "Queensland, Australia",
-    "Tuscany, Italy",
-    "Guangdong, China",
-    "Ontario, Canada",
-    "Tamil Nadu, India",
-]
-
-# Level 2 locations (cities, districts, counties)
-level_2_locations = [
-    "Manhattan, USA",
-    "Munich, Germany",
-    "Liverpool, UK",
-    "Kyoto City, Japan",
-    "Barcelona, Spain",
-    "Oxford County, UK",
-    "Lyon, France",
-    "Bangalore Urban, India",
-    "Milan, Italy",
-    "Vancouver, Canada",
-    "Catalonia, Spain",
-]
-
-for loc in level_1_locations + level_2_locations:
-    result = location_tool.invoke(input={"query": loc})
-    print(loc, result)
+    return (gadm_id, gadm_level), simplified_feature
