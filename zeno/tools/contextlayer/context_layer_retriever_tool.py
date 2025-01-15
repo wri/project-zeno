@@ -20,22 +20,22 @@ embedder = OllamaEmbeddings(
 table = lancedb.connect("data/layers-context").open_table("zeno-layers-context-latest")
 
 
-# TODO: add reranker?
-vectorstore = LanceDB(
-    uri="data/layers-context",
-    embedding=OllamaEmbeddings(
-        model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
-    ),
-    table_name="zeno-layers-context",
-)
+# # TODO: add reranker?
+# vectorstore = LanceDB(
+#     uri="data/layers-context",
+#     embedding=OllamaEmbeddings(
+#         model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
+#     ),
+#     table_name="zeno-layers-context",
+# )
 
-retriever = vectorstore.as_retriever()
+# retriever = vectorstore.as_retriever()
 
-retriever_tool = create_retriever_tool(
-    retriever,
-    "retrieve_context_layers",
-    "Search and return available context layers for land cover.",
-)
+# retriever_tool = create_retriever_tool(
+#     retriever,
+#     "retrieve_context_layers",
+#     "Search and return available context layers for land cover.",
+# )
 
 
 class grade(BaseModel):
@@ -96,8 +96,6 @@ def get_tms_url(result: Series):
         image = ee.Image(result.dataset)
 
     # TODO: add dynamic viz parameters
-    map_id = image.select(result.band).getMapId(
-        visParams=result.visualization_parameters
-    )
+    map_id = image.select(result.band).getMapId(result.visualization_parameters)
 
     return map_id["tile_fetcher"].url_format
