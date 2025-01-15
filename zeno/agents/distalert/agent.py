@@ -1,19 +1,15 @@
-from langgraph.graph import END, START, StateGraph
-from langgraph.prebuilt import tools_condition
+from langgraph.prebuilt import create_react_agent
 
-from zeno.agents.distalert.utils.nodes import assistant, tool_node, human_review_location
-from zeno.agents.maingraph.utils.state import GraphState
+from zeno.agents.distalert.prompts import DIST_ALERTS_PROMPT
+from zeno.agents.distalert.tools import dist_alerts_tool
+from zeno.agents.maingraph.models import ModelFactory
+from zeno.agents.maingraph.state import ZenoState
 
-wf = StateGraph(GraphState)
+model = ModelFactory().get("claude-3-5-haiku-latest")
 
-wf.add_node("assistant", assistant)
-wf.add_node("tools", tool_node)
-wf.add_node("human_review_location", human_review_location)
-
-wf.add_edge(START, "assistant")
-wf.add_conditional_edges("assistant", tools_condition)
-wf.add_edge("tools", "human_review_location")
-wf.add_edge("human_review_location", "assistant")
-wf.add_edge("assistant", END)
-
-graph = wf.compile()
+dist_alert_agent = create_react_agent(
+    model,
+    tools=[dist_alerts_tool],
+    state_schema=ZenoState,
+    state_modifier=DIST_ALERTS_PROMPT,
+)

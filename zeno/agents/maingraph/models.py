@@ -77,9 +77,7 @@ MODELS_CONFIG = [
 
 
 class ModelFactory:
-
     def __init__(self):
-
         self.available_models = {
             model["model_id"]: model
             for model in MODELS_CONFIG
@@ -88,7 +86,6 @@ class ModelFactory:
 
     @lru_cache
     def get(self, model_id, json_mode=False):
-
         if not self.available_models.get(model_id):
             raise ValueError(
                 f"Model {model_id} not avaialable. Available models: {self.available_models.keys()} (note: models are available if the required API key is set as an environment variable)"
@@ -97,14 +94,16 @@ class ModelFactory:
         params = model_config["additional_params"]
 
         if json_mode and not model_config.get("json_mode"):
-            raise ValueError(f"Request model {model_id} does not support json mode")
+            raise ValueError(
+                f"Request model {model_id} does not support json mode"
+            )
 
         if json_mode:
             params.update(
                 {
-                    model_config["json_mode"]["param_name"]: model_config["json_mode"][
-                        "param_value"
-                    ]
+                    model_config["json_mode"]["param_name"]: model_config[
+                        "json_mode"
+                    ]["param_value"]
                 }
             )
 

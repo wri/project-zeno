@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import fiona
@@ -8,9 +9,11 @@ from pydantic import BaseModel, Field
 from shapely import simplify
 from shapely.geometry import mapping, shape
 
+data_dir = Path("data")
+
 # Open GADM datasets
-gadm_1 = fiona.open("data/gadm_410_level_1.gpkg")
-gadm_2 = fiona.open("data/gadm_410_level_2.gpkg")
+gadm_1 = fiona.open(data_dir / "gadm_410_level_1.gpkg")
+gadm_2 = fiona.open(data_dir / "gadm_410_level_2.gpkg")
 
 
 class LocationInput(BaseModel):
@@ -35,7 +38,9 @@ def simplify_geometry(
 ) -> Dict[str, Any]:
     """Simplify a GeoJSON feature's geometry while preserving topology."""
     geometry = shape(geojson_feature["geometry"])
-    simplified = simplify(geometry, tolerance=tolerance, preserve_topology=True)
+    simplified = simplify(
+        geometry, tolerance=tolerance, preserve_topology=True
+    )
     geojson_feature["geometry"] = mapping(simplified)
     return geojson_feature
 
@@ -116,7 +121,9 @@ def location_tool(query: str) -> Tuple[Tuple[str, int], Dict[str, Any]]:
             gadm_level = alternate_level
 
     if not matches:
-        raise ValueError(f"No GADM regions found for coordinates: {lon}, {lat}")
+        raise ValueError(
+            f"No GADM regions found for coordinates: {lon}, {lat}"
+        )
 
     # Get the first match and convert to GeoJSON
     match = matches[0][1]
@@ -131,7 +138,9 @@ def location_tool(query: str) -> Tuple[Tuple[str, int], Dict[str, Any]]:
         "gadm_id": gadm_id,
         "name": match["properties"][f"NAME_{gadm_level}"],
         "gadm_level": gadm_level,
-        "admin_level": match["properties"].get(f"ENGTYPE_{gadm_level}", "Unknown"),
+        "admin_level": match["properties"].get(
+            f"ENGTYPE_{gadm_level}", "Unknown"
+        ),
     }
 
     return (gadm_id, gadm_level), simplified_feature

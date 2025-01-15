@@ -38,8 +38,14 @@ layer_choices = [
             16: {"color": "#D3D3D3", "name": "Non-natural water"},
             17: {"color": "#D3D3D3", "name": "Wet non-natural tree cover"},
             18: {"color": "#D3D3D3", "name": "Non-natural peat tree cover"},
-            19: {"color": "#D3D3D3", "name": "Wet non-natural short vegetation"},
-            20: {"color": "#D3D3D3", "name": "Non-natural peat short vegetation"},
+            19: {
+                "color": "#D3D3D3",
+                "name": "Wet non-natural short vegetation",
+            },
+            20: {
+                "color": "#D3D3D3",
+                "name": "Non-natural peat short vegetation",
+            },
             21: {"color": "#D3D3D3", "name": "Non-natural bare"},
         },
     },
@@ -74,25 +80,82 @@ layer_choices = [
         "band": "label",
         "type": "ImageCollection",
         "class_table": {
-            0: {"name": "True desert 3% short vegetation cover", "color": "FEFECC"},
-            1: {"name": "True desert 7% short vegetation cover", "color": "FAFAC3"},
-            2: {"name": "Semi-arid 11% short vegetation cover", "color": "F7F7BB"},
-            3: {"name": "Semi-arid 15% short vegetation cover", "color": "F4F4B3"},
-            4: {"name": "Semi-arid 19% short vegetation cover", "color": "F1F1AB"},
-            5: {"name": "Semi-arid 23% short vegetation cover", "color": "EDEDA2"},
-            6: {"name": "Semi-arid 27% short vegetation cover", "color": "EAEA9A"},
-            7: {"name": "Semi-arid 31% short vegetation cover", "color": "E7E792"},
-            8: {"name": "Semi-arid 35% short vegetation cover", "color": "E4E48A"},
-            9: {"name": "Semi-arid 39% short vegetation cover", "color": "E0E081"},
-            10: {"name": "Semi-arid 43% short vegetation cover", "color": "DDDD79"},
-            11: {"name": "Semi-arid 47% short vegetation cover", "color": "DADA71"},
-            12: {"name": "Semi-arid 51% short vegetation cover", "color": "D7D769"},
-            13: {"name": "Semi-arid 55% short vegetation cover", "color": "D3D360"},
-            14: {"name": "Semi-arid 59% short vegetation cover", "color": "D0D058"},
-            15: {"name": "Semi-arid 63% short vegetation cover", "color": "CDCD50"},
-            16: {"name": "Semi-arid 67% short vegetation cover", "color": "CACA48"},
-            17: {"name": "Semi-arid 71% short vegetation cover", "color": "C6C63F"},
-            18: {"name": "Semi-arid 75% short vegetation cover", "color": "C3C337"},
+            0: {
+                "name": "True desert 3% short vegetation cover",
+                "color": "FEFECC",
+            },
+            1: {
+                "name": "True desert 7% short vegetation cover",
+                "color": "FAFAC3",
+            },
+            2: {
+                "name": "Semi-arid 11% short vegetation cover",
+                "color": "F7F7BB",
+            },
+            3: {
+                "name": "Semi-arid 15% short vegetation cover",
+                "color": "F4F4B3",
+            },
+            4: {
+                "name": "Semi-arid 19% short vegetation cover",
+                "color": "F1F1AB",
+            },
+            5: {
+                "name": "Semi-arid 23% short vegetation cover",
+                "color": "EDEDA2",
+            },
+            6: {
+                "name": "Semi-arid 27% short vegetation cover",
+                "color": "EAEA9A",
+            },
+            7: {
+                "name": "Semi-arid 31% short vegetation cover",
+                "color": "E7E792",
+            },
+            8: {
+                "name": "Semi-arid 35% short vegetation cover",
+                "color": "E4E48A",
+            },
+            9: {
+                "name": "Semi-arid 39% short vegetation cover",
+                "color": "E0E081",
+            },
+            10: {
+                "name": "Semi-arid 43% short vegetation cover",
+                "color": "DDDD79",
+            },
+            11: {
+                "name": "Semi-arid 47% short vegetation cover",
+                "color": "DADA71",
+            },
+            12: {
+                "name": "Semi-arid 51% short vegetation cover",
+                "color": "D7D769",
+            },
+            13: {
+                "name": "Semi-arid 55% short vegetation cover",
+                "color": "D3D360",
+            },
+            14: {
+                "name": "Semi-arid 59% short vegetation cover",
+                "color": "D0D058",
+            },
+            15: {
+                "name": "Semi-arid 63% short vegetation cover",
+                "color": "CDCD50",
+            },
+            16: {
+                "name": "Semi-arid 67% short vegetation cover",
+                "color": "CACA48",
+            },
+            17: {
+                "name": "Semi-arid 71% short vegetation cover",
+                "color": "C6C63F",
+            },
+            18: {
+                "name": "Semi-arid 75% short vegetation cover",
+                "color": "C3C337",
+            },
             19: {
                 "name": "Dense short vegetation 79% short vegetation cover",
                 "color": "C0C02F",
@@ -237,29 +300,98 @@ layer_choices = [
                 "name": "Tree cover with previous disturbance (2020 height) >25m trees",
                 "color": "667b00",
             },
-            73: {"name": "Tree height gain (2020 height) 3m trees", "color": "ff99ff"},
-            74: {"name": "Tree height gain (2020 height) 4m trees", "color": "FC92FC"},
-            75: {"name": "Tree height gain (2020 height) 5m trees", "color": "F98BF9"},
-            76: {"name": "Tree height gain (2020 height) 6m trees", "color": "F685F6"},
-            77: {"name": "Tree height gain (2020 height) 7m trees", "color": "F37EF3"},
-            78: {"name": "Tree height gain (2020 height) 8m trees", "color": "F077F0"},
-            79: {"name": "Tree height gain (2020 height) 9m trees", "color": "ED71ED"},
-            80: {"name": "Tree height gain (2020 height) 10m trees", "color": "EA6AEA"},
-            81: {"name": "Tree height gain (2020 height) 11m trees", "color": "E763E7"},
-            82: {"name": "Tree height gain (2020 height) 12m trees", "color": "E45DE4"},
-            83: {"name": "Tree height gain (2020 height) 13m trees", "color": "E156E1"},
-            84: {"name": "Tree height gain (2020 height) 14m trees", "color": "DE4FDE"},
-            85: {"name": "Tree height gain (2020 height) 15m trees", "color": "DB49DB"},
-            86: {"name": "Tree height gain (2020 height) 16m trees", "color": "D842D8"},
-            87: {"name": "Tree height gain (2020 height) 17m trees", "color": "D53BD5"},
-            88: {"name": "Tree height gain (2020 height) 18m trees", "color": "D235D2"},
-            89: {"name": "Tree height gain (2020 height) 19m trees", "color": "CF2ECF"},
-            90: {"name": "Tree height gain (2020 height) 20m trees", "color": "CC27CC"},
-            91: {"name": "Tree height gain (2020 height) 21m trees", "color": "C921C9"},
-            92: {"name": "Tree height gain (2020 height) 22m trees", "color": "C61AC6"},
-            93: {"name": "Tree height gain (2020 height) 23m trees", "color": "C313C3"},
-            94: {"name": "Tree height gain (2020 height) 24m trees", "color": "C00DC0"},
-            95: {"name": "Tree height gain (2020 height) 25m trees", "color": "BD06BD"},
+            73: {
+                "name": "Tree height gain (2020 height) 3m trees",
+                "color": "ff99ff",
+            },
+            74: {
+                "name": "Tree height gain (2020 height) 4m trees",
+                "color": "FC92FC",
+            },
+            75: {
+                "name": "Tree height gain (2020 height) 5m trees",
+                "color": "F98BF9",
+            },
+            76: {
+                "name": "Tree height gain (2020 height) 6m trees",
+                "color": "F685F6",
+            },
+            77: {
+                "name": "Tree height gain (2020 height) 7m trees",
+                "color": "F37EF3",
+            },
+            78: {
+                "name": "Tree height gain (2020 height) 8m trees",
+                "color": "F077F0",
+            },
+            79: {
+                "name": "Tree height gain (2020 height) 9m trees",
+                "color": "ED71ED",
+            },
+            80: {
+                "name": "Tree height gain (2020 height) 10m trees",
+                "color": "EA6AEA",
+            },
+            81: {
+                "name": "Tree height gain (2020 height) 11m trees",
+                "color": "E763E7",
+            },
+            82: {
+                "name": "Tree height gain (2020 height) 12m trees",
+                "color": "E45DE4",
+            },
+            83: {
+                "name": "Tree height gain (2020 height) 13m trees",
+                "color": "E156E1",
+            },
+            84: {
+                "name": "Tree height gain (2020 height) 14m trees",
+                "color": "DE4FDE",
+            },
+            85: {
+                "name": "Tree height gain (2020 height) 15m trees",
+                "color": "DB49DB",
+            },
+            86: {
+                "name": "Tree height gain (2020 height) 16m trees",
+                "color": "D842D8",
+            },
+            87: {
+                "name": "Tree height gain (2020 height) 17m trees",
+                "color": "D53BD5",
+            },
+            88: {
+                "name": "Tree height gain (2020 height) 18m trees",
+                "color": "D235D2",
+            },
+            89: {
+                "name": "Tree height gain (2020 height) 19m trees",
+                "color": "CF2ECF",
+            },
+            90: {
+                "name": "Tree height gain (2020 height) 20m trees",
+                "color": "CC27CC",
+            },
+            91: {
+                "name": "Tree height gain (2020 height) 21m trees",
+                "color": "C921C9",
+            },
+            92: {
+                "name": "Tree height gain (2020 height) 22m trees",
+                "color": "C61AC6",
+            },
+            93: {
+                "name": "Tree height gain (2020 height) 23m trees",
+                "color": "C313C3",
+            },
+            94: {
+                "name": "Tree height gain (2020 height) 24m trees",
+                "color": "C00DC0",
+            },
+            95: {
+                "name": "Tree height gain (2020 height) 25m trees",
+                "color": "BD06BD",
+            },
             96: {
                 "name": "Tree height gain (2020 height) >25m trees",
                 "color": "bb00bb",

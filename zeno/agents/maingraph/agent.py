@@ -1,30 +1,12 @@
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, START, StateGraph
+from zeno.agents.contextfinder.tools import context_layer_tool
+from zeno.agents.distalert.tools import dist_alerts_tool
+from zeno.agents.location.tools import location_tool
+from zeno.agents.maingraph.models import ModelFactory
 
-from zeno.agents.distalert.agent import graph as distalert
-from zeno.agents.docfinder.agent import graph as docfinder
-from zeno.agents.firealert.agent import graph as firealert
-from zeno.agents.layerfinder.agent import graph as layerfinder
-from zeno.agents.maingraph.utils.nodes import maingraph, slasher
-from zeno.agents.maingraph.utils.state import GraphState
+haiku = ModelFactory().get("claude-3-5-haiku-latest")
 
-# Define a new graph
-workflow = StateGraph(GraphState)
+tools_with_hil = [location_tool]
+tools_with_hil_names = {t.name for t in tools_with_hil}
+tools = [dist_alerts_tool, context_layer_tool]
 
-# Define the nodes we will cycle between
-workflow.add_node("slasher", slasher)
-workflow.add_node("docfinder", docfinder)
-workflow.add_node("layerfinder", layerfinder)
-workflow.add_node("firealert", firealert)
-workflow.add_node("distalert", distalert)
-
-workflow.add_edge(START, "slasher")
-workflow.add_conditional_edges("slasher", maingraph)
-workflow.add_edge("docfinder", END)
-workflow.add_edge("layerfinder", END)
-workflow.add_edge("firealert", END)
-workflow.add_edge("distalert", END)
-
-checkpointer = MemorySaver()
-
-graph = workflow.compile(checkpointer=checkpointer)
+zeno_agent = haiku.bind_tools(tools + tools_with_hil)

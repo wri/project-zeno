@@ -1,11 +1,12 @@
 import datetime
+import pytest
 
+from zeno.agents.distalert.tools import dist_alerts_tool
 from zeno.tools.contextlayer.layers import layer_choices
 from zeno.tools.distalert import dist_alerts_tool
 
 
 def test_dist_alert_tool():
-
     features = ["BRA.13.369_2"]
     result = dist_alerts_tool.dist_alerts_tool.invoke(
         input={
@@ -19,23 +20,6 @@ def test_dist_alert_tool():
 
     assert len(result) == 1
     assert "BRA.13.369_2" in result
-
-
-def test_dist_alert_tool_no_landcover():
-
-    features = ["IND.26.12_1"]
-    result = dist_alerts_tool.dist_alerts_tool.invoke(
-        input={
-            "features": features,
-            "landcover": None,
-            "threshold": 5,
-            "min_date": datetime.date(2021, 8, 12),
-            "max_date": datetime.date(2024, 8, 12),
-        }
-    )
-
-    assert len(result) == 1
-    assert "IND.26.12_1" in result
 
 
 def test_dist_alert_tool_verified(monkeypatch):

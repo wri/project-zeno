@@ -16,7 +16,7 @@ def init_gee() -> None:
     ]
 
     credentials = Credentials.from_service_account_file(
-        os.environ.get("GEE_SERVICE_ACCOUNT_PATH"), scopes=scopes
+        "../" + os.environ.get("GEE_SERVICE_ACCOUNT_PATH"), scopes=scopes
     )
 
     ee.Initialize(credentials)

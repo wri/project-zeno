@@ -20,7 +20,9 @@ class GladAlertsInput(BaseModel):
     )
     adm1: str = Field(description="Administrative level 1 ID")
     adm2: str = Field(description="Administrative level 2 ID")
-    year: int = Field(description="Year for which to fetch alerts", ge=2015, le=2024)
+    year: int = Field(
+        description="Year for which to fetch alerts", ge=2015, le=2024
+    )
     week: Optional[int] = Field(
         default=None,
         description="Specific week number (1-52) to fetch. If not provided, returns all weeks.",
@@ -29,7 +31,9 @@ class GladAlertsInput(BaseModel):
     )
 
 
-@tool("glad-weekly-alerts-tool", args_schema=GladAlertsInput, return_direct=True)
+@tool(
+    "glad-weekly-alerts-tool", args_schema=GladAlertsInput, return_direct=True
+)
 def glad_weekly_alerts_tool(
     iso: str, adm1: str, adm2: str, year: int, week: Optional[int] = None
 ) -> str:
