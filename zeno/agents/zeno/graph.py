@@ -4,14 +4,14 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
-from zeno.agents.maingraph.agent import (
+from zeno.agents.zeno.agent import (
     tools,
     tools_with_hil,
     tools_with_hil_names,
     zeno_agent,
 )
-from zeno.agents.maingraph.prompts import ZENO_PROMPT
-from zeno.agents.maingraph.state import ZenoState
+from zeno.agents.zeno.prompts import ZENO_PROMPT
+from zeno.agents.zeno.state import ZenoState
 
 
 def handle_tool_error(state: ZenoState) -> dict:
@@ -65,6 +65,6 @@ wf.add_edge("tools", "zeno")
 wf.add_edge("tools_with_hil", "zeno")
 
 memory = MemorySaver()
-zeno_graph = wf.compile(
-    checkpointer=memory, interrupt_after=["tools_with_hil"]
-)
+# zeno = wf.compile(checkpointer=memory, interrupt_after=["tools_with_hil"])
+zeno = wf.compile(checkpointer=memory)
+zeno.name = "Zeno"
