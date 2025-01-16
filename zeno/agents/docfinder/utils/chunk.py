@@ -41,7 +41,9 @@ loader = CSVLoader(
 docs = loader.load()
 
 # Split into chunks
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=200)
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1024, chunk_overlap=200
+)
 splits = text_splitter.split_documents(docs)
 
 vectorstore = Chroma.from_documents(

@@ -8,7 +8,9 @@ from langchain_ollama import ChatOllama  # noqa
 from zeno.agents.maingraph.models import ModelFactory
 
 # llm_json_mode = ChatOllama(model="qwen2.5:7b", temperature=0, format="json")
-llm_json_mode = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
+llm_json_mode = ChatAnthropic(
+    model="claude-3-5-sonnet-20241022", temperature=0
+)
 
 
 def slasher(state):
@@ -38,7 +40,9 @@ def maingraph(state, config: RunnableConfig):
         model_id = config["configurable"].get("model_id", "gpt-4o-mini")
         model = ModelFactory().get(model_id, json_mode=True)
 
-        response = model.invoke([sys_msg] + [HumanMessage(content=state["question"])])
+        response = model.invoke(
+            [sys_msg] + [HumanMessage(content=state["question"])]
+        )
         route = json.loads(response.content)["route"]
 
     if route == "layerfinder":

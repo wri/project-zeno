@@ -12,7 +12,9 @@ from zeno.tools.docretrieve.document_retrieve_tool import retriever_tool
 model_name = "claude-3-5-sonnet-latest"
 
 
-def grade_documents(state, config: RunnableConfig) -> Literal["generate", "rewrite"]:
+def grade_documents(
+    state, config: RunnableConfig
+) -> Literal["generate", "rewrite"]:
     """
     Determines whether the retrieved documents are relevant to the question.
 
