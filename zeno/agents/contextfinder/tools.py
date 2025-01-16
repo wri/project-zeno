@@ -1,23 +1,22 @@
 import os
+from pathlib import Path
 
 import ee
 import lancedb
-from langchain_community.vectorstores import LanceDB
 from langchain_core.tools import tool
-from langchain_core.tools.retriever import create_retriever_tool
 from langchain_ollama import OllamaEmbeddings
 from pandas import Series
 from pydantic import BaseModel, Field
 
-from zeno.agents.maingraph.models import ModelFactory
-from zeno.tools.distalert.gee import init_gee
+from zeno.agents.distalert.gee import init_gee
 
 init_gee()
+data_dir = Path("data")
+
 
 embedder = OllamaEmbeddings(
     model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
 )
-table = lancedb.connect("data/layers-context").open_table("zeno-layers-context-latest")
 
 
 # # TODO: add reranker?
@@ -37,20 +36,30 @@ table = lancedb.connect("data/layers-context").open_table("zeno-layers-context-l
 #     "Search and return available context layers for land cover.",
 # )
 
+table = lancedb.connect(data_dir / "layers-context").open_table(
+    "zeno-layers-context-latest"
+)
 
-class grade(BaseModel):
-    """Choice of landcover."""
 
-    choice: str = Field(description="Choice of context layer to use")
+
+def get_tms_url(result: Series):
+    if result.type == "ImageCollection":
+        image = ee.ImageCollection(result.dataset).mosaic()
+    else:
+        image = ee.Image(result.dataset)
+
+    # TODO: add dynamic viz parameters
+    map_id = image.select(result.band).getMapId(
+        visParams=result.visualization_parameters
+    )
+
+    return map_id["tile_fetcher"].url_format
 
 
 class ContextLayerInput(BaseModel):
     """Input schema for context layer tool"""
 
-    question: str = Field(description="The question from the user")
-
-
-model = ModelFactory().get("claude-3-5-sonnet-latest").with_structured_output(grade)
+    question: str = Field(description="landcover layer requested by the user")
 
 
 @tool(
@@ -60,7 +69,7 @@ model = ModelFactory().get("claude-3-5-sonnet-latest").with_structured_output(gr
 )
 def context_layer_tool(question: str) -> dict:
     """
-    Determines whether the question asks for summarizing by land cover.
+    Finds the most relevant landcover layer for the user's question.
     """
 
     print("---CHECK CONTEXT LAYER TOOL---")
@@ -79,14 +88,18 @@ def context_layer_tool(question: str) -> dict:
         .iloc[0]
     )
 
-    tms_url = get_tms_url(result)
+    # tms_url = get_tms_url(result)
 
     result = result.to_dict()
-    result["tms_url"] = tms_url
+    # result["tms_url"] = tms_url
+
+    # Delete the dataset key vector as ndarray is not serializable
+    del result["vector"]
 
     dataset = result.pop("dataset")
 
     return dataset, result
+<<<<<<< HEAD:zeno/tools/contextlayer/context_layer_retriever_tool.py
 
 
 def get_tms_url(result: Series):
@@ -99,3 +112,5 @@ def get_tms_url(result: Series):
     map_id = image.select(result.band).getMapId(result.visualization_parameters)
 
     return map_id["tile_fetcher"].url_format
+=======
+>>>>>>> main:zeno/agents/contextfinder/tools.py

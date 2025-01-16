@@ -1,11 +1,12 @@
 import json
 import os
 import uuid
-from dotenv import load_dotenv
+
 import folium
 import pandas as pd
 import requests
 import streamlit as st
+from dotenv import load_dotenv
 from streamlit_folium import folium_static
 
 load_dotenv()
@@ -15,15 +16,15 @@ API_BASE_URL = os.environ.get("API_BASE_URL")
 # Initialize session state variables
 if "zeno_session_id" not in st.session_state:
     st.session_state.zeno_session_id = str(uuid.uuid4())
-if "current_options" not in st.session_state:
-    st.session_state.current_options = None
-if "current_question" not in st.session_state:
-    st.session_state.current_question = None
+if "waiting_for_input" not in st.session_state:
+    st.session_state.waiting_for_input = False
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 st.header("Zeno")
-st.caption("Your intelligent EcoBot, saving the forest faster than a 🐼 eats bamboo")
+st.caption(
+    "Your intelligent EcoBot, saving the forest faster than a 🐼 eats bamboo"
+)
 
 # Sidebar content
 with st.sidebar:
@@ -57,29 +58,46 @@ def display_message(message):
         st.chat_message("user").write(message["content"])
     elif message["role"] == "assistant":
         if message["type"] == "location":
-            st.chat_message("assistant").write("Found location you searched for...")
+            st.chat_message("assistant").write(
+                "Found location you searched for..."
+            )
             data = message["content"]
             artifact = data.get("artifact", {})
-            for feature in artifact["features"]:
-                st.chat_message("assistant").write(
-                    f"Found {feature['properties']['name']} in {feature['properties']['gadmid']}"
-                )
+            # artifact is a single feature
+            st.chat_message("assistant").write(artifact["properties"])
 
-            geometry = artifact["features"][0]["geometry"]
+            geometry = artifact["geometry"]
             if geometry["type"] == "Polygon":
                 pnt = geometry["coordinates"][0][0]
             else:
                 pnt = geometry["coordinates"][0][0][0]
-
             m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=11)
-            g = folium.GeoJson(artifact).add_to(m)
+            g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
             folium_static(m, width=700, height=500)
         elif message["type"] == "alerts":
             st.chat_message("assistant").write(
                 "Computing distributed alerts statistics..."
             )
-            table = json.loads(message["content"]["content"])
-            st.bar_chart(pd.DataFrame(table).T)
+            # plot the stats
+            data = message["content"]
+            stats = data.get("content", {})
+            print(stats)
+            stats = json.loads(stats)
+            stats = {k: v for k, v in stats.items() if k != "landcover"}
+            st.bar_chart(pd.DataFrame(stats))
+
+            # plot the artifact which is a geojson featurecollection
+            artifact = data.get("artifact", {})
+            if artifact:
+                first_feature = artifact["features"][0]
+                geometry = first_feature["geometry"]
+                if geometry["type"] == "Polygon":
+                    pnt = geometry["coordinates"][0][0]
+                else:
+                    pnt = geometry["coordinates"][0][0][0]
+                m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=11)
+                g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
+                folium_static(m, width=700, height=500)
         elif message["type"] == "context":
             st.chat_message("assistant").write(
                 f"Adding context layer {message['content']}"
@@ -88,38 +106,34 @@ def display_message(message):
             st.chat_message("assistant").write(message["content"])
 
 
-def handle_human_input_submission(selected_index):
-    if st.session_state.current_options and selected_index is not None:
-        with requests.post(
-            f"{API_BASE_URL}/stream",
-            json={
-                "query": str(selected_index),
-                "thread_id": st.session_state.zeno_session_id,
-                "query_type": "human_input",
-            },
-            stream=True,
-        ) as response:
-            print("\n POST HUMAN INPUT...\n")
-            handle_stream_response(response)
-
-
 def handle_stream_response(stream):
     for chunk in stream.iter_lines():
         data = json.loads(chunk.decode("utf-8"))
 
-        if data.get("type") == "human_input":
-            # Store the options and question in session state
-            st.session_state.current_options = data["options"]
-            st.session_state.current_question = data["question"]
-            st.session_state.waiting_for_input = True
-            st.rerun()
-
+        # Regular update messages from Zeno
+        if data.get("type") == "update":
+            message = {
+                "role": "assistant",
+                "type": "text",
+                "content": data["content"],
+            }
+            st.session_state.messages.append(message)
+            display_message(message)
+        # Tool calls from Zeno
         elif data.get("type") == "tool_call":
             message = None
             if data.get("tool_name") == "location-tool":
-                message = {"role": "assistant", "type": "location", "content": data}
+                message = {
+                    "role": "assistant",
+                    "type": "location",
+                    "content": data,
+                }
             elif data.get("tool_name") == "dist-alerts-tool":
-                message = {"role": "assistant", "type": "alerts", "content": data}
+                message = {
+                    "role": "assistant",
+                    "type": "alerts",
+                    "content": data,
+                }
             elif data.get("tool_name") == "context-layer-tool":
                 message = {
                     "role": "assistant",
@@ -134,13 +148,22 @@ def handle_stream_response(stream):
                 }
 
             if message:
+                message["avatar"] = "✅"
                 st.session_state.messages.append(message)
                 display_message(message)
-
-        elif data.get("type") == "update":
-            message = {"role": "assistant", "type": "text", "content": data["content"]}
+        # Interrupted by human input
+        elif data.get("type") == "interrupted":
+            # Store the state that we're waiting for input
+            st.session_state.waiting_for_input = True
+            # Add the interrupt message to the chat
+            message = {
+                "role": "assistant",
+                "type": "text",
+                "content": data["input"],
+            }
             st.session_state.messages.append(message)
             display_message(message)
+            st.rerun()
         else:
             raise ValueError(f"Unknown message type: {data.get('type')}")
 
@@ -149,20 +172,6 @@ def handle_stream_response(stream):
 for message in st.session_state.messages:
     display_message(message)
 
-# Handle human input interface if options are available
-if st.session_state.current_options:
-    selected_option = st.selectbox(
-        st.session_state.current_question,
-        st.session_state.current_options,
-        key="selected_option",
-    )
-    selected_index = st.session_state.current_options.index(selected_option)
-    if st.button("Submit"):
-        handle_human_input_submission(selected_index)
-        # Clear the options after submission
-        st.session_state.current_options = None
-        st.session_state.current_question = None
-
 # Main chat input
 if user_input := st.chat_input("Type your message here..."):
     # Add user message to history
@@ -170,14 +179,23 @@ if user_input := st.chat_input("Type your message here..."):
     st.session_state.messages.append(message)
     display_message(message)
 
+    # If we were waiting for input, this is a response to an interrupt
+    query_type = (
+        "human_input" if st.session_state.waiting_for_input else "query"
+    )
+
+    # Reset the waiting_for_input state
+    if st.session_state.waiting_for_input:
+        st.session_state.waiting_for_input = False
+
     with requests.post(
         f"{API_BASE_URL}/stream",
         json={
             "query": user_input,
             "thread_id": st.session_state.zeno_session_id,
-            "query_type": "query",
+            "query_type": query_type,
         },
         stream=True,
     ) as stream:
-        print("\nPOST...\n")
+        print(f"\nPOST... (query_type: {query_type})\n")
         handle_stream_response(stream)

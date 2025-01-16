@@ -16,7 +16,9 @@ class LocationInput(BaseModel):
     query: str = Field(
         description="Name of the location to search for. Can be a city, region, or country name."
     )
-    gadm_level: Literal[1, 2] = Field(description="GADM level to use. The value 1 is for obtaining states or districts, 2 is for smaller areas like counties and municipalities")
+    gadm_level: Literal[1, 2] = Field(
+        description="GADM level to use. The value 1 is for obtaining states or districts, 2 is for smaller areas like counties and municipalities"
+    )
 
 
 @tool(
@@ -59,7 +61,9 @@ def location_tool(query: str, gadm_level: Literal[1, 2]) -> Tuple[list, list]:
             if fid in fids:
                 continue
             match["properties"]["gadmid"] = fid
-            match["properties"]["name"] = match["properties"][f"NAME_{gadm_level}"]
+            match["properties"]["name"] = match["properties"][
+                f"NAME_{gadm_level}"
+            ]
             aois.append(match)
             fids.append(fid)
             if len(fids) == 3:

@@ -1,4 +1,5 @@
 import json
+
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.prebuilt import ToolNode
@@ -50,23 +51,30 @@ def assistant(state):
         "route": "distalert",
     }
 
+
 def human_review_location(state):
     last_msg = state["messages"][-1]
 
     if last_msg.name == "location-tool":
         options = json.loads(last_msg.content)
 
-        human_input = interrupt({
-            "question": "Pick the location you would like to query?",
-            "options": options,
-            "artifact": last_msg.artifact
-        })
+        human_input = interrupt(
+            {
+                "question": "Pick the location you would like to query?",
+                "options": options,
+                "artifact": last_msg.artifact,
+            }
+        )
 
         action = human_input["action"]
         option = human_input["option"]
         artifact = {
             "type": "FeatureCollection",
-            "features": [feature for idx,feature in enumerate(last_msg.artifact["features"]) if idx == option]
+            "features": [
+                feature
+                for idx, feature in enumerate(last_msg.artifact["features"])
+                if idx == option
+            ],
         }
 
         if action == "continue":
@@ -81,5 +89,6 @@ def human_review_location(state):
             raise ValueError(f"Invalid action: {action}")
     else:
         return Command(goto="assistant")
+
 
 tool_node = ToolNode(tools)

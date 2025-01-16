@@ -1,25 +1,24 @@
 import datetime
-from typing import List, Literal, Optional, Tuple, Union
+from pathlib import Path
+from typing import Literal, Optional, Tuple, Union
 
 import ee
-import fiona
+import geopandas as gpd
 import googleapiclient
 from dotenv import load_dotenv
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
+from zeno.agents.distalert.drivers import DRIVER_VALUEMAP, get_drivers
+from zeno.agents.distalert.gee import init_gee
 from zeno.tools.contextlayer.layers import layer_choices
-from zeno.tools.distalert.drivers import DRIVER_VALUEMAP, get_drivers
-from zeno.tools.distalert.gee import init_gee
 
 # Load environment variables
 load_dotenv(".env")
 
 # Initialize gee
 init_gee()
-
-gadm_1 = fiona.open("data/gadm_410_level_1.gpkg")
-gadm_2 = fiona.open("data/gadm_410_level_2.gpkg")
+data_dir = Path("data")
 
 DIST_ALERT_REF_DATE = datetime.date(2020, 12, 31)
 DIST_ALERT_SCALE = 30
@@ -30,8 +29,14 @@ GEE_FOLDER = "projects/glad/HLSDIST/backend/"
 class DistAlertsInput(BaseModel):
     """Input schema for dist tool"""
 
-    features: List[str] = Field(
-        description="List of GADM ids are used for zonal statistics"
+    name: str = Field(description="Name of the area of interest")
+    gadm_id: str = Field(description="GADM ID of the area of interest")
+    gadm_level: int = Field(description="GADM level of the area of interest")
+    min_date: datetime.date = Field(
+        description="Cutoff date for alerts. Alerts before that date will be excluded.",
+    )
+    max_date: datetime.date = Field(
+        description="Cutoff date for alerts. Alerts after that date will be excluded.",
     )
     landcover: Optional[str] = Field(
         default=None,
@@ -39,14 +44,6 @@ class DistAlertsInput(BaseModel):
     )
     threshold: Optional[Literal[1, 2, 3, 4, 5, 6, 7, 8]] = Field(
         default=5, description="Threshold for disturbance alert scale"
-    )
-    min_date: Optional[datetime.date] = Field(
-        default=None,
-        description="Cutoff date for alerts. Alerts before that date will be excluded.",
-    )
-    max_date: Optional[datetime.date] = Field(
-        default=None,
-        description="Cutoff date for alerts. Alerts after that date will be excluded.",
     )
 
 
@@ -119,16 +116,16 @@ def get_date_mask(
 
 
 def get_alerts_by_landcover(
+    name: str,
     distalerts: ee.Image,
-    landcover: str,
+    landcover: ee.Image,
     gee_features: ee.FeatureCollection,
     date_mask: ee.Image,
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
-    lc_choice = [dat for dat in layer_choices if dat["dataset"] == landcover]
-    choice = {}
-    if lc_choice:
-        choice = lc_choice[0]
+    choice = [dat for dat in layer_choices if dat["dataset"] == landcover]
+    if choice:
+        choice = choice[0]
         if choice["type"] == "ImageCollection":
             landcover_layer = ee.ImageCollection(landcover)
         else:
@@ -138,18 +135,16 @@ def get_alerts_by_landcover(
             class_table = choice["class_table"]
         else:
             class_table = get_class_table(choice["band"], landcover_layer)
-
-        if choice["type"] == "ImageCollection":
-            landcover_layer = landcover_layer.mosaic()
-
-        landcover_layer = landcover_layer.select(choice["band"])
     else:
         # TODO: replace this with a better selection. For now
         # assumes if the choice did not exist that the drivers are requested.
         landcover_layer = get_drivers()
-        class_table = {
-            val: {"name": key} for key, val in DRIVER_VALUEMAP.items()
-        }
+        class_table = {val: key for key, val in DRIVER_VALUEMAP.items()}
+
+    if choice["type"] == "ImageCollection":
+        landcover_layer = landcover_layer.mosaic()
+
+    landcover_layer = landcover_layer.select(choice["band"])
 
     zone_stats_img = (
         distalerts.pixelArea()
@@ -164,21 +159,14 @@ def get_alerts_by_landcover(
 
     zone_stats = zone_stats_img.reduceRegions(
         collection=gee_features,
-        reducer=ee.Reducer.sum().group(
-            groupField=1, groupName=choice.get("band", "name")
-        ),
-        scale=choice.get("resolution", 30),
+        reducer=ee.Reducer.sum().group(groupField=1, groupName=choice["band"]),
+        scale=choice["resolution"],
     ).getInfo()
 
-    zone_stats_result = {}
+    zone_stats_result = {"landcover": landcover}
     for feat in zone_stats["features"]:
-        if "GID_2" in feat["properties"]:
-            gadmid = feat["properties"]["GID_2"]
-        else:
-            gadmid = feat["properties"]["GID_1"]
-
-        zone_stats_result[gadmid] = {
-            class_table[dat[choice.get("band", "name")]]["name"]: dat["sum"]
+        zone_stats_result[name] = {
+            class_table[dat[choice["band"]]]["name"]: dat["sum"]
             for dat in feat["properties"]["groups"]
         }
     vectorize = landcover_layer.updateMask(distalerts.gte(threshold))
@@ -187,6 +175,7 @@ def get_alerts_by_landcover(
 
 
 def get_distalerts_unfiltered(
+    name: str,
     distalerts: ee.Image,
     gee_features: ee.FeatureCollection,
     date_mask: ee.Image,
@@ -208,13 +197,9 @@ def get_distalerts_unfiltered(
         scale=DIST_ALERT_SCALE,
     ).getInfo()
 
-    zone_stats_result = {}
+    zone_stats_result = {"landcover": None}
     for feat in zone_stats["features"]:
-        if "GID_2" in feat["properties"]:
-            gadmid = feat["properties"]["GID_2"]
-        else:
-            gadmid = feat["properties"]["GID_1"]
-        zone_stats_result[gadmid] = {"disturbances": feat["properties"]["sum"]}
+        zone_stats_result[name] = {"disturbances": feat["properties"]["sum"]}
 
     vectorize = (
         distalerts.gte(threshold)
@@ -224,24 +209,6 @@ def get_distalerts_unfiltered(
     return zone_stats_result, vectorize
 
 
-def get_features(features: List[str]) -> ee.FeatureCollection:
-    if features[0].count(".") == 2:
-        gadm = gadm_2
-        gadm_level = 2
-    else:
-        gadm = gadm_1
-        gadm_level = 1
-
-    matches = [
-        next(gadm.filter(where=f"GID_{gadm_level} = '{id}'"))
-        for id in features
-    ]
-
-    return ee.FeatureCollection(
-        [ee.Feature(dat.__geo_interface__) for dat in matches]
-    )
-
-
 @tool(
     "dist-alerts-tool",
     args_schema=DistAlertsInput,
@@ -249,11 +216,13 @@ def get_features(features: List[str]) -> ee.FeatureCollection:
     response_format="content_and_artifact",
 )
 def dist_alerts_tool(
-    features: List[str],
+    name: str,
+    gadm_id: str,
+    gadm_level: int,
+    min_date: datetime.date,
+    max_date: datetime.date,
     landcover: Optional[str] = None,
     threshold: Optional[Literal[1, 2, 3, 4, 5, 6, 7, 8]] = 5,
-    min_date: Optional[datetime.date] = None,
-    max_date: Optional[datetime.date] = None,
 ) -> dict:
     """
     Dist alerts tool
@@ -261,15 +230,25 @@ def dist_alerts_tool(
     This tool quantifies vegetation disturbance alerts over an area of interest
     and summarizes the alerts in statistics by landcover types.
     """
-    print("---DIST ALERTS TOOL---")
-    distalerts = ee.ImageCollection(GEE_FOLDER + "VEG-DIST-STATUS").mosaic()
+    # import pdb
 
-    gee_features = get_features(features)
+    # pdb.set_trace()
+    print("---DIST ALERTS TOOL---")
+
+    aoi_df = gpd.read_file(
+        data_dir / f"gadm_410_level_{gadm_level}.gpkg",
+        where=f"GID_{gadm_level} like '{gadm_id}'",
+    )
+    aoi = aoi_df.geometry.iloc[0]
+    gee_features = ee.FeatureCollection([ee.Feature(aoi.__geo_interface__)])
+
+    distalerts = ee.ImageCollection(GEE_FOLDER + "VEG-DIST-STATUS").mosaic()
 
     date_mask = get_date_mask(min_date, max_date)
 
     if landcover:
         zone_stats_result, vectorize = get_alerts_by_landcover(
+            name=name,
             distalerts=distalerts,
             landcover=landcover,
             gee_features=gee_features,
@@ -278,6 +257,7 @@ def dist_alerts_tool(
         )
     else:
         zone_stats_result, vectorize = get_distalerts_unfiltered(
+            name=name,
             distalerts=distalerts,
             gee_features=gee_features,
             date_mask=date_mask,
