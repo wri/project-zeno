@@ -21,7 +21,8 @@ init_gee()
 data_dir = Path("data")
 
 DIST_ALERT_REF_DATE = datetime.date(2020, 12, 31)
-DIST_ALERT_SCALE = 30
+DIST_ALERT_STATS_SCALE = 30
+DIST_ALERT_VECTORIZATION_SCALE = 150
 M2_TO_HA = 10000
 GEE_FOLDER = "projects/glad/HLSDIST/backend/"
 
@@ -194,7 +195,7 @@ def get_distalerts_unfiltered(
     zone_stats = zone_stats_img.reduceRegions(
         collection=gee_features,
         reducer=ee.Reducer.sum(),
-        scale=DIST_ALERT_SCALE,
+        scale=DIST_ALERT_STATS_SCALE,
     ).getInfo()
 
     zone_stats_result = {"landcover": None}
@@ -267,7 +268,7 @@ def dist_alerts_tool(
     # Vectorize the masked classification
     vectors = vectorize.reduceToVectors(
         geometryType="polygon",
-        scale=DIST_ALERT_SCALE,
+        scale=DIST_ALERT_VECTORIZATION_SCALE,
         maxPixels=1e8,
         geometry=gee_features,
         eightConnected=True,
