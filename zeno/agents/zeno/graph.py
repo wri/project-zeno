@@ -65,6 +65,6 @@ wf.add_edge("tools", "zeno")
 wf.add_edge("tools_with_hil", "zeno")
 
 memory = MemorySaver()
-# zeno = wf.compile(checkpointer=memory, interrupt_after=["tools_with_hil"])
-zeno = wf.compile(checkpointer=memory)
+zeno = wf.compile(checkpointer=memory, interrupt_after=["tools_with_hil"])
+# zeno = wf.compile(checkpointer=memory)
 zeno.name = "Zeno"

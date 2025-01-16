@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import (
     HumanMessage,
 )
+from langgraph.types import Command
 
 from zeno.agents.zeno.graph import zeno
 
@@ -42,8 +43,18 @@ def event_stream(
     }
 
     if query_type == "human_input":
-        # todo
-        pass
+        query = HumanMessage(content=query, name="human")
+        stream = zeno.stream(
+            Command(
+                goto="zeno",
+                update={
+                    "messages": [query],
+                },
+            ),
+            stream_mode="updates",
+            subgraphs=False,
+            config=config,
+        )
     elif query_type == "query":
         query = HumanMessage(content=query, name="human")
         stream = zeno.stream(
@@ -57,37 +68,45 @@ def event_stream(
 
     for update in stream:
         node = next(iter(update.keys()))
+        # node = list(update.keys())[0]
 
         if node == "__interrupt__":
             print("INTERRUPTED")
-            yield pack(update[node])
-
-        messages = update[node]["messages"]
-        if node == "tools" or node == "tools_with_hil":
-            for message in messages:
-                message.pretty_print()
-                yield pack(
-                    {
-                        "node": node,
-                        "type": "tool_call",
-                        "tool_name": message.name,
-                        "content": message.content,
-                        "artifact": (
-                            message.artifact
-                            if hasattr(message, "artifact")
-                            else None
-                        ),
-                    }
-                )
-        else:
-            messages.pretty_print()
+            current_state = zeno.get_state(config)
             yield pack(
                 {
                     "node": node,
-                    "type": "update",
-                    "content": messages.content,
+                    "type": "interrupted",
+                    "input": "Do you want to continue?",
                 }
             )
+        else:
+            messages = update[node]["messages"]
+            if node == "tools" or node == "tools_with_hil":
+                for message in messages:
+                    message.pretty_print()
+                    yield pack(
+                        {
+                            "node": node,
+                            "type": "tool_call",
+                            "tool_name": message.name,
+                            "content": message.content,
+                            "artifact": (
+                                message.artifact
+                                if hasattr(message, "artifact")
+                                else None
+                            ),
+                        }
+                    )
+            else:
+                messages.pretty_print()
+                yield pack(
+                    {
+                        "node": node,
+                        "type": "update",
+                        "content": messages.content,
+                    }
+                )
 
 
 @app.post("/stream")
