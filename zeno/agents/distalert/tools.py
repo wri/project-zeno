@@ -67,8 +67,12 @@ def get_class_table(
     band_info = layer.select(band_name).getInfo()
 
     names = band_info["features"][0]["properties"][f"{band_name}_class_names"]
-    values = band_info["features"][0]["properties"][f"{band_name}_class_values"]
-    colors = band_info["features"][0]["properties"][f"{band_name}_class_palette"]
+    values = band_info["features"][0]["properties"][
+        f"{band_name}_class_values"
+    ]
+    colors = band_info["features"][0]["properties"][
+        f"{band_name}_class_palette"
+    ]
 
     pairs = []
     for name, color in zip(names, colors):
@@ -77,7 +81,9 @@ def get_class_table(
     return {val: pair for val, pair in zip(values, pairs)}
 
 
-def get_date_mask(min_date: datetime.date, max_date: datetime.date) -> ee.image.Image:
+def get_date_mask(
+    min_date: datetime.date, max_date: datetime.date
+) -> ee.image.Image:
     today = datetime.date.today()
     date_mask = None
     if min_date and min_date > DIST_ALERT_REF_DATE and min_date < today:
@@ -176,7 +182,9 @@ def get_distalerts_unfiltered(
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
     zone_stats_img = (
-        distalerts.pixelArea().divide(M2_TO_HA).updateMask(distalerts.gte(threshold))
+        distalerts.pixelArea()
+        .divide(M2_TO_HA)
+        .updateMask(distalerts.gte(threshold))
     )
     if date_mask:
         zone_stats_img = zone_stats_img.updateMask(
@@ -194,7 +202,9 @@ def get_distalerts_unfiltered(
         zone_stats_result[name] = {"disturbances": feat["properties"]["sum"]}
 
     vectorize = (
-        distalerts.gte(threshold).updateMask(distalerts.gte(threshold)).selfMask()
+        distalerts.gte(threshold)
+        .updateMask(distalerts.gte(threshold))
+        .selfMask()
     )
     return zone_stats_result, vectorize
 

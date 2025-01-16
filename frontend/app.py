@@ -1,11 +1,12 @@
 import json
 import os
 import uuid
-from dotenv import load_dotenv
+
 import folium
 import pandas as pd
 import requests
 import streamlit as st
+from dotenv import load_dotenv
 from streamlit_folium import folium_static
 
 load_dotenv()
@@ -60,19 +61,16 @@ def display_message(message):
             st.chat_message("assistant").write("Found location you searched for...")
             data = message["content"]
             artifact = data.get("artifact", {})
-            for feature in artifact["features"]:
-                st.chat_message("assistant").write(
-                    f"Found {feature['properties']['name']} in {feature['properties']['gadmid']}"
-                )
+            # artifact is a single feature
+            st.chat_message("assistant").write(artifact["properties"])
 
-            geometry = artifact["features"][0]["geometry"]
+            geometry = artifact["geometry"]
             if geometry["type"] == "Polygon":
                 pnt = geometry["coordinates"][0][0]
             else:
                 pnt = geometry["coordinates"][0][0][0]
-
             m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=11)
-            g = folium.GeoJson(artifact).add_to(m)
+            g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
             folium_static(m, width=700, height=500)
         elif message["type"] == "alerts":
             st.chat_message("assistant").write(
@@ -117,9 +115,17 @@ def handle_stream_response(stream):
         elif data.get("type") == "tool_call":
             message = None
             if data.get("tool_name") == "location-tool":
-                message = {"role": "assistant", "type": "location", "content": data}
+                message = {
+                    "role": "assistant",
+                    "type": "location",
+                    "content": data,
+                }
             elif data.get("tool_name") == "dist-alerts-tool":
-                message = {"role": "assistant", "type": "alerts", "content": data}
+                message = {
+                    "role": "assistant",
+                    "type": "alerts",
+                    "content": data,
+                }
             elif data.get("tool_name") == "context-layer-tool":
                 message = {
                     "role": "assistant",
@@ -138,7 +144,11 @@ def handle_stream_response(stream):
                 display_message(message)
 
         elif data.get("type") == "update":
-            message = {"role": "assistant", "type": "text", "content": data["content"]}
+            message = {
+                "role": "assistant",
+                "type": "text",
+                "content": data["content"],
+            }
             st.session_state.messages.append(message)
             display_message(message)
         else:
