@@ -63,6 +63,8 @@ def display_message(message):
             )
             data = message["content"]
             artifact = data.get("artifact", {})
+            artifact = artifact[0]
+
             # artifact is a single feature
             st.chat_message("assistant").write(artifact["properties"])
 
@@ -153,13 +155,14 @@ def handle_stream_response(stream):
                 display_message(message)
         # Interrupted by human input
         elif data.get("type") == "interrupted":
+            payload = json.loads(data.get("payload"))
             # Store the state that we're waiting for input
             st.session_state.waiting_for_input = True
             # Add the interrupt message to the chat
             message = {
                 "role": "assistant",
                 "type": "text",
-                "content": data["input"],
+                "content": f"Pick one of the options: {[row[0] for row in payload]}",
             }
             st.session_state.messages.append(message)
             display_message(message)

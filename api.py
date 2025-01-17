@@ -73,11 +73,13 @@ def event_stream(
         if node == "__interrupt__":
             print("INTERRUPTED")
             current_state = zeno.get_state(config)
+
             yield pack(
                 {
                     "node": node,
                     "type": "interrupted",
                     "input": "Do you want to continue?",
+                    "payload": current_state.values["messages"][-1].content,
                 }
             )
         else:
