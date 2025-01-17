@@ -81,10 +81,10 @@ def display_message(message):
             # plot the stats
             data = message["content"]
             stats = data.get("content", {})
-            print(stats)
             stats = json.loads(stats)
-            stats = {k: v for k, v in stats.items() if k != "landcover"}
-            st.bar_chart(pd.DataFrame(stats))
+            print(stats)
+            df = pd.DataFrame(list(stats.items()), columns=['Category', 'Value'])
+            st.bar_chart(df, x='Category', y='Value')
 
             # plot the artifact which is a geojson featurecollection
             artifact = data.get("artifact", {})
