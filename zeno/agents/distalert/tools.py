@@ -1,6 +1,7 @@
 import datetime
+import json
 from pathlib import Path
-from typing import Literal, Optional, Tuple, Union
+from typing import Literal, Optional, Tuple
 
 import ee
 import geopandas as gpd
@@ -9,19 +10,16 @@ from dotenv import load_dotenv
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
+from zeno.agents.contextfinder.tools import table as contextfinder_table
 from zeno.agents.distalert.drivers import DRIVER_VALUEMAP, get_drivers
 from zeno.agents.distalert.gee import init_gee
-from zeno.tools.contextlayer.layers import layer_choices
 
-# Load environment variables
 load_dotenv(".env")
-
-# Initialize gee
 init_gee()
-data_dir = Path("data")
 
 DIST_ALERT_REF_DATE = datetime.date(2020, 12, 31)
-DIST_ALERT_SCALE = 30
+DIST_ALERT_STATS_SCALE = 30
+DIST_ALERT_VECTORIZATION_SCALE = 150
 M2_TO_HA = 10000
 GEE_FOLDER = "projects/glad/HLSDIST/backend/"
 
@@ -38,52 +36,16 @@ class DistAlertsInput(BaseModel):
     max_date: datetime.date = Field(
         description="Cutoff date for alerts. Alerts after that date will be excluded.",
     )
-    landcover: Optional[str] = Field(
+    context_layer_name: Optional[str] = Field(
         default=None,
-        description="Landcover layer name to group zonal statistics by",
+        description="Context layer name to group zonal statistics by.",
     )
     threshold: Optional[Literal[1, 2, 3, 4, 5, 6, 7, 8]] = Field(
         default=5, description="Threshold for disturbance alert scale"
     )
 
 
-def print_meta(
-    layer: Union[ee.image.Image, ee.imagecollection.ImageCollection],
-) -> None:
-    """Print layer metadata"""
-    # Get all metadata as a dictionary
-    metadata = layer.getInfo()
-
-    # Print metadata
-    print("Image Metadata:")
-    for key, value in metadata.items():
-        print(f"{key}: {value}")
-
-
-def get_class_table(
-    band_name: str,
-    layer: Union[ee.image.Image, ee.imagecollection.ImageCollection],
-) -> dict:
-    band_info = layer.select(band_name).getInfo()
-
-    names = band_info["features"][0]["properties"][f"{band_name}_class_names"]
-    values = band_info["features"][0]["properties"][
-        f"{band_name}_class_values"
-    ]
-    colors = band_info["features"][0]["properties"][
-        f"{band_name}_class_palette"
-    ]
-
-    pairs = []
-    for name, color in zip(names, colors):
-        pairs.append({"name": name, "color": color})
-
-    return {val: pair for val, pair in zip(values, pairs)}
-
-
-def get_date_mask(
-    min_date: datetime.date, max_date: datetime.date
-) -> ee.image.Image:
+def get_date_mask(min_date: datetime.date, max_date: datetime.date) -> ee.image.Image:
     today = datetime.date.today()
     date_mask = None
     if min_date and min_date > DIST_ALERT_REF_DATE and min_date < today:
@@ -115,41 +77,52 @@ def get_date_mask(
     return date_mask
 
 
-def get_alerts_by_landcover(
+def get_context_layer_info(dataset: str) -> dict:
+    data = contextfinder_table.search().where(f"dataset = '{dataset}'").to_list()
+    if not data:
+        return {}
+    data.reverse()
+    data = data[0]
+    data["visualization_parameters"] = json.loads(data["visualization_parameters"])
+    data["metadata"] = json.loads(data["metadata"])
+    data.pop("vector")
+
+    return data
+
+
+def get_alerts_by_context_layer(
     name: str,
     distalerts: ee.Image,
-    landcover: ee.Image,
+    context_layer_name: ee.Image,
     gee_features: ee.FeatureCollection,
     date_mask: ee.Image,
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
-    choice = [dat for dat in layer_choices if dat["dataset"] == landcover]
-    if choice:
-        choice = choice[0]
-        if choice["type"] == "ImageCollection":
-            landcover_layer = ee.ImageCollection(landcover)
-        else:
-            landcover_layer = ee.Image(landcover)
 
-        if "class_table" in choice:
-            class_table = choice["class_table"]
-        else:
-            class_table = get_class_table(choice["band"], landcover_layer)
+    choice = get_context_layer_info(context_layer_name)
+
+    if not choice:
+        context_layer = get_drivers()
+        # TODO: replace this with layer in DB, this is currently a patch to make the tests work
+        choice["resolution"] = DIST_ALERT_STATS_SCALE
+        choice["band"] = "driver"
+        choice["metadata"] = {
+            "value_mappings": [
+                {"value": val, "description": key}
+                for key, val in DRIVER_VALUEMAP.items()
+            ]
+        }
+    elif choice["type"] == "ImageCollection":
+        context_layer = (
+            ee.ImageCollection(context_layer_name).mosaic().select(choice["band"])
+        )
     else:
-        # TODO: replace this with a better selection. For now
-        # assumes if the choice did not exist that the drivers are requested.
-        landcover_layer = get_drivers()
-        class_table = {val: key for key, val in DRIVER_VALUEMAP.items()}
-
-    if choice["type"] == "ImageCollection":
-        landcover_layer = landcover_layer.mosaic()
-
-    landcover_layer = landcover_layer.select(choice["band"])
+        context_layer = ee.Image(context_layer_name).select(choice["band"])
 
     zone_stats_img = (
         distalerts.pixelArea()
         .divide(M2_TO_HA)
-        .addBands(landcover_layer)
+        .addBands(context_layer)
         .updateMask(distalerts.gte(threshold))
     )
     if date_mask:
@@ -163,15 +136,16 @@ def get_alerts_by_landcover(
         scale=choice["resolution"],
     ).getInfo()
 
-    zone_stats_result = {"landcover": landcover}
-    for feat in zone_stats["features"]:
-        zone_stats_result[name] = {
-            class_table[dat[choice["band"]]]["name"]: dat["sum"]
-            for dat in feat["properties"]["groups"]
-        }
-    vectorize = landcover_layer.updateMask(distalerts.gte(threshold))
+    zone_stats = zone_stats["features"][0]["properties"]["groups"]
 
-    return zone_stats_result, vectorize
+    value_mappings = {
+        dat["value"]: dat["description"] for dat in choice["metadata"]["value_mappings"]
+    }
+    zone_stats = {value_mappings[dat[choice["band"]]]: dat["sum"] for dat in zone_stats}
+
+    vectorize = context_layer.updateMask(distalerts.gte(threshold))
+
+    return zone_stats, vectorize
 
 
 def get_distalerts_unfiltered(
@@ -182,9 +156,7 @@ def get_distalerts_unfiltered(
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
     zone_stats_img = (
-        distalerts.pixelArea()
-        .divide(M2_TO_HA)
-        .updateMask(distalerts.gte(threshold))
+        distalerts.pixelArea().divide(M2_TO_HA).updateMask(distalerts.gte(threshold))
     )
     if date_mask:
         zone_stats_img = zone_stats_img.updateMask(
@@ -194,19 +166,26 @@ def get_distalerts_unfiltered(
     zone_stats = zone_stats_img.reduceRegions(
         collection=gee_features,
         reducer=ee.Reducer.sum(),
-        scale=DIST_ALERT_SCALE,
+        scale=DIST_ALERT_STATS_SCALE,
     ).getInfo()
 
-    zone_stats_result = {"landcover": None}
+    zone_stats_result = {"context_layer_name": None}
     for feat in zone_stats["features"]:
         zone_stats_result[name] = {"disturbances": feat["properties"]["sum"]}
 
     vectorize = (
-        distalerts.gte(threshold)
-        .updateMask(distalerts.gte(threshold))
-        .selfMask()
+        distalerts.gte(threshold).updateMask(distalerts.gte(threshold)).selfMask()
     )
     return zone_stats_result, vectorize
+
+
+def get_features(gadm_id: str, gadm_level: int) -> ee.FeatureCollection:
+    aoi_df = gpd.read_file(
+        Path("data") / f"gadm_410_level_{gadm_level}.gpkg",
+        where=f"GID_{gadm_level} like '{gadm_id}'",
+    )
+    aoi = aoi_df.geometry.iloc[0]
+    return ee.FeatureCollection([ee.Feature(aoi.__geo_interface__)])
 
 
 @tool(
@@ -221,36 +200,27 @@ def dist_alerts_tool(
     gadm_level: int,
     min_date: datetime.date,
     max_date: datetime.date,
-    landcover: Optional[str] = None,
+    context_layer_name: Optional[str] = None,
     threshold: Optional[Literal[1, 2, 3, 4, 5, 6, 7, 8]] = 5,
 ) -> dict:
     """
     Dist alerts tool
 
     This tool quantifies vegetation disturbance alerts over an area of interest
-    and summarizes the alerts in statistics by landcover types.
+    and summarizes the alerts in statistics by context layer types.
     """
-    # import pdb
-
-    # pdb.set_trace()
     print("---DIST ALERTS TOOL---")
 
-    aoi_df = gpd.read_file(
-        data_dir / f"gadm_410_level_{gadm_level}.gpkg",
-        where=f"GID_{gadm_level} like '{gadm_id}'",
-    )
-    aoi = aoi_df.geometry.iloc[0]
-    gee_features = ee.FeatureCollection([ee.Feature(aoi.__geo_interface__)])
-
+    gee_features = get_features(gadm_id=gadm_id, gadm_level=gadm_level)
     distalerts = ee.ImageCollection(GEE_FOLDER + "VEG-DIST-STATUS").mosaic()
 
     date_mask = get_date_mask(min_date, max_date)
 
-    if landcover:
-        zone_stats_result, vectorize = get_alerts_by_landcover(
+    if context_layer_name:
+        zone_stats_result, vectorize = get_alerts_by_context_layer(
             name=name,
             distalerts=distalerts,
-            landcover=landcover,
+            context_layer_name=context_layer_name,
             gee_features=gee_features,
             date_mask=date_mask,
             threshold=threshold,
@@ -267,7 +237,7 @@ def dist_alerts_tool(
     # Vectorize the masked classification
     vectors = vectorize.reduceToVectors(
         geometryType="polygon",
-        scale=DIST_ALERT_SCALE,
+        scale=DIST_ALERT_VECTORIZATION_SCALE,
         maxPixels=1e8,
         geometry=gee_features,
         eightConnected=True,
