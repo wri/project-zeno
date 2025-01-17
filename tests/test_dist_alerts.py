@@ -114,3 +114,32 @@ def test_dist_alert_tool_verified(monkeypatch):
     )
     # Context layer type is as expected
     assert list(result.keys()) == [expected_natural_lands]
+
+
+def test_dist_alert_tool_buffer():
+    result = tools.dist_alerts_tool.invoke(
+        input={
+            "name": "BRA.13.369_2",
+            "gadm_id": "BRA.13.369_2",
+            "gadm_level": 2,
+            "context_layer_name": "WRI/SBTN/naturalLands/v1/2020",
+            "threshold": 8,
+            "min_date": datetime.date(2021, 8, 12),
+            "max_date": datetime.date(2024, 8, 12),
+        }
+    )
+    result_buffered = tools.dist_alerts_tool.invoke(
+        input={
+            "name": "BRA.13.369_2",
+            "gadm_id": "BRA.13.369_2",
+            "gadm_level": 2,
+            "context_layer_name": "WRI/SBTN/naturalLands/v1/2020",
+            "threshold": 8,
+            "min_date": datetime.date(2021, 8, 12),
+            "max_date": datetime.date(2024, 8, 12),
+            "buffer_distance": 1000,
+        }
+    )
+    assert (
+        result["natural short vegetation"] < result_buffered["natural short vegetation"]
+    )
