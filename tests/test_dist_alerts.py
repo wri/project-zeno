@@ -143,3 +143,20 @@ def test_dist_alert_tool_buffer():
     assert (
         result["natural short vegetation"] < result_buffered["natural short vegetation"]
     )
+
+
+def test_dist_alert_tool_no_context():
+    result = tools.dist_alerts_tool.invoke(
+        input={
+            "name": "BRA.13.369_2",
+            "gadm_id": "BRA.13.369_2",
+            "gadm_level": 2,
+            "context_layer_name": None,
+            "threshold": 8,
+            "min_date": datetime.date(2021, 8, 12),
+            "max_date": datetime.date(2024, 8, 12),
+        }
+    )
+
+    assert len(result) == 1
+    assert "disturbances" in result
