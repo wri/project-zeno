@@ -10,7 +10,7 @@ from langchain_core.messages import (
 )
 from langgraph.types import Command
 
-from zeno.agents.zeno.graph import zeno
+from zeno.agents.distalert.graph import dist_alert
 
 app = FastAPI()
 # # langfuse_handler = CallbackHandler()
@@ -44,9 +44,9 @@ def event_stream(
 
     if query_type == "human_input":
         query = HumanMessage(content=query, name="human")
-        stream = zeno.stream(
+        stream = dist_alert.stream(
             Command(
-                goto="zeno",
+                goto="dist_alert",
                 update={
                     "messages": [query],
                 },
@@ -57,7 +57,7 @@ def event_stream(
         )
     elif query_type == "query":
         query = HumanMessage(content=query, name="human")
-        stream = zeno.stream(
+        stream = dist_alert.stream(
             {"messages": [query]},
             stream_mode="updates",
             subgraphs=False,
@@ -72,7 +72,7 @@ def event_stream(
 
         if node == "__interrupt__":
             print("INTERRUPTED")
-            current_state = zeno.get_state(config)
+            current_state = dist_alert.get_state(config)
 
             yield pack(
                 {
@@ -111,7 +111,7 @@ def event_stream(
                 )
 
 
-@app.post("/stream")
+@app.post("/stream/dist_alert")
 async def stream(
     query: Annotated[str, Body(embed=True)],
     thread_id: Optional[str] = Body(None),

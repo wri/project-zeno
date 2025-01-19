@@ -1,11 +1,10 @@
 import datetime
 from pathlib import Path
-from typing import Tuple
 
+import geopandas as gpd
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 from pystac_client import Client
-import geopandas as gpd
 
 # Defaults to E84 AWS STAC catalog & Sentinel-2 L2A collection
 CATALOG = "https://earth-search.aws.element84.com/v1"

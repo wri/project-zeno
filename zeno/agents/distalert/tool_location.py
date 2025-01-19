@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import fiona
 import requests
@@ -10,7 +10,6 @@ from shapely import simplify
 from shapely.geometry import mapping, shape
 
 data_dir = Path("data")
-
 # Open GADM datasets
 gadm_1 = fiona.open(data_dir / "gadm_410_level_1.gpkg")
 gadm_2 = fiona.open(data_dir / "gadm_410_level_2.gpkg")
@@ -69,46 +68,12 @@ def determine_gadm_level(place_type: str) -> Optional[int]:
     return 2
 
 
-@tool(
-    "location-tool",
-    args_schema=LocationInput,
-    return_direct=False,
-    response_format="content_and_artifact",
-)
-def location_tool(query: str) -> Tuple[Tuple[str, int], Dict[str, Any]]:
-    """
-    Find a location's GADM ID and simplified GeoJSON feature based on place name.
-    Automatically determines the appropriate GADM level.
-
-    Args:
-        query (str): Location name to search for
-
-    Returns:
-        Tuple[Tuple[str, int], Dict]: A tuple containing:
-            - GADM ID (str), GADM Level (int)
-            - GeoJSON Feature (Dict) with simplified geometry
-    """
-    print("---LOCATION TOOL---")
-    # Query Mapbox API
-    url = f"https://api.mapbox.com/search/geocode/v6/forward?q={query}&autocomplete=false&limit=1&access_token={os.environ.get('MAPBOX_API_TOKEN')}"
-    response = requests.get(url)
-
-    if not response.ok:
-        raise ValueError(f"Geocoding failed: {response.status_code}")
-
-    data = response.json()
-    if not data.get("features"):
-        raise ValueError(f"No locations found for query: {query}")
-
-    result = data["features"][0]
-    place_type = result["properties"].get("feature_type", None)
-
-    # Determine GADM level
-    gadm_level = determine_gadm_level(place_type)
+def process_single_location(
+    coords: List[float], gadm_level: int
+) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """Process a single location's coordinates to find matching GADM feature."""
+    lon, lat = coords
     gadm = gadm_2 if gadm_level == 2 else gadm_1
-
-    # Get coordinates
-    lon, lat = result["geometry"]["coordinates"]
 
     # Find matching GADM feature
     matches = list(gadm.items(bbox=(lon, lat, lon, lat)))
@@ -121,9 +86,7 @@ def location_tool(query: str) -> Tuple[Tuple[str, int], Dict[str, Any]]:
             gadm_level = alternate_level
 
     if not matches:
-        raise ValueError(
-            f"No GADM regions found for coordinates: {lon}, {lat}"
-        )
+        return None, None
 
     # Get the first match and convert to GeoJSON
     match = matches[0][1]
@@ -143,4 +106,57 @@ def location_tool(query: str) -> Tuple[Tuple[str, int], Dict[str, Any]]:
         ),
     }
 
-    return (gadm_id, gadm_level), simplified_feature
+    return (
+        match["properties"][f"NAME_{gadm_level}"],
+        gadm_id,
+        gadm_level,
+        simplified_feature,
+    )
+
+
+@tool(
+    "location-tool",
+    args_schema=LocationInput,
+    return_direct=False,
+    response_format="content_and_artifact",
+)
+def location_tool(
+    query: str,
+) -> List[Tuple[Optional[str], Optional[Dict[str, Any]]]]:
+    """
+    Finds top 3 matches for a location name and returns their name, gadm_id & gadm_level.
+    """
+    # Query Mapbox API with limit=3
+    url = f"https://api.mapbox.com/search/geocode/v6/forward?q={query}&autocomplete=false&limit=3&access_token={os.environ.get('MAPBOX_API_TOKEN')}"
+    response = requests.get(url)
+
+    if not response.ok:
+        raise ValueError(f"Geocoding failed: {response.status_code}")
+
+    data = response.json()
+    if not data.get("features"):
+        raise ValueError(f"No locations found for query: {query}")
+
+    results = []
+    for feature in data["features"]:
+        place_type = feature["properties"].get("feature_type", None)
+        gadm_level = determine_gadm_level(place_type)
+
+        # Process the location
+        name, gadm_id, gadm_level, simplified_feature = (
+            process_single_location(
+                feature["geometry"]["coordinates"], gadm_level
+            )
+        )
+
+        if gadm_id and simplified_feature:
+            # Add Mapbox metadata to help distinguish between results
+            simplified_feature["properties"].update(
+                {
+                    "mapbox_place_name": feature["properties"].get("name", ""),
+                    "mapbox_context": feature["properties"].get("context", {}),
+                }
+            )
+            results.append(((name, gadm_id, gadm_level), simplified_feature))
+
+    return [item[0] for item in results], [item[1] for item in results]
