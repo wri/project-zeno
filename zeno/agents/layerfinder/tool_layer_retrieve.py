@@ -1,6 +1,5 @@
 import os
 
-from langchain.tools.retriever import create_retriever_tool
 from langchain_chroma import Chroma
 from langchain_ollama.embeddings import OllamaEmbeddings
 
@@ -14,9 +13,3 @@ db = Chroma(
 )
 
 retriever = db.as_retriever(k=4)
-
-retriever_tool = create_retriever_tool(
-    retriever,
-    "retrieve_data_layers",
-    "Search and return layers about from the World Resources Institute and Land and Carbon Lab.",
-)

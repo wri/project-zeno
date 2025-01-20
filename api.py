@@ -10,7 +10,9 @@ from langchain_core.messages import (
 )
 from langgraph.types import Command
 
-from zeno.agents.distalert.graph import dist_alert
+from zeno.agents.distalert.graph import graph as dist_alert
+from zeno.agents.docfinder.graph import graph as docfinder
+from zeno.agents.layerfinder.graph import graph as layerfinder
 
 app = FastAPI()
 # # langfuse_handler = CallbackHandler()
@@ -29,7 +31,7 @@ def pack(data):
 
 
 # Streams the response from the graph
-def event_stream(
+def event_stream_alerts(
     query: str,
     thread_id: Optional[str] = None,
     query_type: Optional[str] = None,
@@ -112,12 +114,110 @@ def event_stream(
 
 
 @app.post("/stream/dist_alert")
-async def stream(
+async def stream_alerts(
     query: Annotated[str, Body(embed=True)],
     thread_id: Optional[str] = Body(None),
     query_type: Optional[str] = Body(None),
 ):
     return StreamingResponse(
-        event_stream(query, thread_id, query_type),
+        event_stream_alerts(query, thread_id, query_type),
+        media_type="application/x-ndjson",
+    )
+
+
+def event_stream_docfinder(
+    query: str,
+    thread_id: Optional[str] = None,
+):
+    if not thread_id:
+        thread_id = str(uuid.uuid4())
+
+    config = {"configurable": {"thread_id": thread_id}}
+
+    query = HumanMessage(content=query, name="human")
+    stream = docfinder.stream(
+        {"messages": [query]},
+        stream_mode="updates",
+        subgraphs=False,
+        config=config,
+    )
+
+    for update in stream:
+        node = next(iter(update.keys()))
+        if node == "retrieve":
+            continue
+        else:
+            messages = update[node]["messages"]
+            for msg in messages:
+                yield pack(
+                    {
+                        "node": node,
+                        "type": "update",
+                        "content": msg.content,
+                    }
+                )
+
+
+@app.post("/stream/docfinder")
+async def stream_docfinder(
+    query: Annotated[str, Body(embed=True)],
+    thread_id: Optional[str] = Body(None),
+):
+    return StreamingResponse(
+        event_stream_docfinder(query, thread_id),
+        media_type="application/x-ndjson",
+    )
+
+
+def event_stream_layerfinder(
+    query: str,
+    thread_id: Optional[str] = None,
+):
+    if not thread_id:
+        thread_id = str(uuid.uuid4())
+
+    config = {"configurable": {"thread_id": thread_id}}
+    stream = layerfinder.stream(
+        {"question": query},
+        stream_mode="updates",
+        subgraphs=False,
+        config=config,
+    )
+
+    for update in stream:
+        node = next(iter(update.keys()))
+
+        if node == "retrieve":
+            continue
+            # documents = update[node]["documents"]
+            # for doc in documents:
+            #     yield pack(
+            #         {
+            #             "node": node,
+            #             "type": "update",
+            #             "content": doc.page_content,
+            #             "metadata": doc.metadata,
+            #         }
+            #     )
+        else:
+            messages = update[node]["messages"]
+            datasets = json.loads(messages)
+            for ds in datasets:
+                yield pack(
+                    {
+                        "node": node,
+                        "type": "update",
+                        "content": ds,
+                    }
+                )
+
+
+@app.post("/stream/layerfinder")
+async def stream_layerfinder(
+    query: Annotated[str, Body(embed=True)],
+    thread_id: Optional[str] = Body(None),
+):
+    return StreamingResponse(
+        event_stream_layerfinder(query, thread_id),
         media_type="application/x-ndjson",
     )

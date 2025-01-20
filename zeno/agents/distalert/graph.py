@@ -69,7 +69,5 @@ wf.add_edge("tools", "dist_alert")
 wf.add_edge("tools_with_hil", "dist_alert")
 
 memory = MemorySaver()
-dist_alert = wf.compile(
-    checkpointer=memory, interrupt_after=["tools_with_hil"]
-)
-dist_alert.name = "DistAlert"
+graph = wf.compile(checkpointer=memory, interrupt_after=["tools_with_hil"])
+graph.name = "DistAlert"

@@ -14,40 +14,34 @@ load_dotenv()
 API_BASE_URL = os.environ.get("API_BASE_URL")
 
 # Initialize session state variables
-if "zeno_session_id" not in st.session_state:
-    st.session_state.zeno_session_id = str(uuid.uuid4())
+if "distalert_session_id" not in st.session_state:
+    st.session_state.distalert_session_id = str(uuid.uuid4())
 if "waiting_for_input" not in st.session_state:
     st.session_state.waiting_for_input = False
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if "distalert_messages" not in st.session_state:
+    st.session_state.distalert_messages = []
 
-st.header("Zeno")
+st.header("Earthy Eagle 🦅")
 st.caption(
-    "Your intelligent EcoBot, saving the forest faster than a 🐼 eats bamboo"
+    "Zeno's Earthy Eagle is an eagle-eyed agent focused on detecting distribution alerts."
 )
 
 # Sidebar content
 with st.sidebar:
-    st.header("Meet Zeno!")
+    st.header("🦅")
     st.write(
         """
-    **Zeno** is your AI sidekick, trained on all your blog posts! It is a concious consumer and is consuming a local produce only. It can help you with questions about your blog posts. Give it a try!
+    Earthy Eagle specializes in detecting distribution alerts. It assists in finding alerts for specific locations and timeframes.
+    Additionally, it helps in understanding the distribution of alerts within a location and provides satellite images for validation.
     """
     )
 
     st.subheader("🧐 Try asking:")
     st.write(
         """
-    - Provide data about disturbance alerts in Aveiro summarized by natural lands
-    - What is happening with Gold Mining Deforestation?
-    - What do you know about Forest Protection in remote islands in Indonesia?
-    - How many users are using GFW and how long did it take to get there?
-    - I am interested in understanding tree cover loss
-    - I am interested in biodiversity conservation in Argentina
-    - I would like to explore helping with forest loss in Amazon
-    - Show datasets related to mangrooves
-    - Find forest fires in milan for the year 2022
-    - Show stats on forest fires over Ihorombe for 2021
+    - Find alerts over Munich
+    - Find disturbance alerts over Lisbon, Portugal for the year 2023
+    - Find alerts over the Amazon distributed by natural lands layer for the year 2022
     """
     )
 
@@ -143,7 +137,7 @@ def handle_stream_response(stream):
                 "type": "text",
                 "content": data["content"],
             }
-            st.session_state.messages.append(message)
+            st.session_state.distalert_messages.append(message)
             display_message(message)
         # Tool calls from Zeno
         elif data.get("type") == "tool_call":
@@ -181,7 +175,7 @@ def handle_stream_response(stream):
 
             if message:
                 message["avatar"] = "✅"
-                st.session_state.messages.append(message)
+                st.session_state.distalert_messages.append(message)
                 display_message(message)
         # Interrupted by human input
         elif data.get("type") == "interrupted":
@@ -194,7 +188,7 @@ def handle_stream_response(stream):
                 "type": "text",
                 "content": f"Pick one of the options: {[row[0] for row in payload]}",
             }
-            st.session_state.messages.append(message)
+            st.session_state.distalert_messages.append(message)
             display_message(message)
             st.rerun()
         else:
@@ -202,14 +196,14 @@ def handle_stream_response(stream):
 
 
 # Display chat history
-for message in st.session_state.messages:
+for message in st.session_state.distalert_messages:
     display_message(message)
 
 # Main chat input
 if user_input := st.chat_input("Type your message here..."):
     # Add user message to history
     message = {"role": "user", "type": "text", "content": user_input}
-    st.session_state.messages.append(message)
+    st.session_state.distalert_messages.append(message)
     display_message(message)
 
     # If we were waiting for input, this is a response to an interrupt
@@ -225,7 +219,7 @@ if user_input := st.chat_input("Type your message here..."):
         f"{API_BASE_URL}/stream/dist_alert",
         json={
             "query": user_input,
-            "thread_id": st.session_state.zeno_session_id,
+            "thread_id": st.session_state.distalert_session_id,
             "query_type": query_type,
         },
         stream=True,
