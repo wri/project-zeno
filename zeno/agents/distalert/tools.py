@@ -173,9 +173,7 @@ def get_distalerts_unfiltered(
         scale=DIST_ALERT_STATS_SCALE,
     ).getInfo()
 
-    zone_stats_result = {"context_layer_name": None}
-    for feat in zone_stats["features"]:
-        zone_stats_result[name] = {"disturbances": feat["properties"]["sum"]}
+    zone_stats_result= {"disturbances": zone_stats["features"][0]["properties"]["sum"]}
 
     vectorize = (
         distalerts.gte(threshold).updateMask(distalerts.gte(threshold)).selfMask()
@@ -233,6 +231,8 @@ def dist_alerts_tool(
 
     This tool quantifies vegetation disturbance alerts over an area of interest
     and summarizes the alerts in statistics by context layer types.
+
+    The unit of disturbances that are returned are hectares.
     """
     print("---DIST ALERTS TOOL---")
 
