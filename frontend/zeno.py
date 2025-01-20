@@ -43,10 +43,7 @@ st.write(
 # Sidebar
 st.sidebar.success(
     """
-    Pick an agent for Zeno 🦣 to help you:
-    1. Docu Dodo 🐥
-    2. Owl Gorithm 🦉
-    3. Earthy Eagle 🦅
+    Pick an agent for Zeno 🦣 to help you.
     """
 )
 
