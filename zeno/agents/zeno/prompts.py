@@ -9,8 +9,6 @@ If the user doesn't provide enough information to call the tools like a place na
 ask follow up questions without picking a default.
 
 Current date: {current_date}.
-""".format(
-    current_date=current_date
-)
+""".format(current_date=current_date)
 
 print(ZENO_PROMPT)

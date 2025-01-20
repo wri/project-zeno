@@ -1,15 +1,14 @@
-from langgraph.prebuilt import create_react_agent
+from langchain_anthropic import ChatAnthropic
 
-from zeno.agents.distalert.prompts import DIST_ALERTS_PROMPT
-from zeno.agents.distalert.tools import dist_alerts_tool
-from zeno.agents.zeno.models import ModelFactory
-from zeno.agents.zeno.state import ZenoState
+from zeno.agents.distalert.tool_context_layer import context_layer_tool
+from zeno.agents.distalert.tool_dist_alerts import dist_alerts_tool
+from zeno.agents.distalert.tool_location import location_tool
+from zeno.agents.distalert.tool_stac import stac_tool
 
-model = ModelFactory().get("claude-3-5-haiku-latest")
+haiku = ChatAnthropic(model="claude-3-5-haiku-latest", temperature=0)
 
-dist_alert_agent = create_react_agent(
-    model,
-    tools=[dist_alerts_tool],
-    state_schema=ZenoState,
-    state_modifier=DIST_ALERTS_PROMPT,
-)
+tools_with_hil = [location_tool]
+tools_with_hil_names = {t.name for t in tools_with_hil}
+tools = [dist_alerts_tool, context_layer_tool, stac_tool]
+
+dist_alert_agent = haiku.bind_tools(tools + tools_with_hil)

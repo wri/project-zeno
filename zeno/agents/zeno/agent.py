@@ -1,9 +1,9 @@
+from langchain_anthropic import ChatAnthropic
+
 from zeno.agents.contextfinder.tools import context_layer_tool
 from zeno.agents.distalert.tools import dist_alerts_tool
 from zeno.agents.location.multitools import location_tool
 from zeno.tools.stac.stac_tool import stac_tool
-from zeno.agents.zeno.models import ModelFactory
-from langchain_anthropic import ChatAnthropic
 
 haiku = ChatAnthropic(model="claude-3-5-haiku-latest", temperature=0)
 

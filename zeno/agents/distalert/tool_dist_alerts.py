@@ -11,9 +11,11 @@ from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 from pyproj import CRS
 
-from zeno.agents.contextfinder.tools import table as contextfinder_table
 from zeno.agents.distalert.drivers import DRIVER_VALUEMAP, get_drivers
 from zeno.agents.distalert.gee import init_gee
+from zeno.agents.distalert.tool_context_layer import (
+    table as contextfinder_table,
+)
 
 load_dotenv(".env")
 init_gee()
@@ -49,7 +51,9 @@ class DistAlertsInput(BaseModel):
     )
 
 
-def get_date_mask(min_date: datetime.date, max_date: datetime.date) -> ee.image.Image:
+def get_date_mask(
+    min_date: datetime.date, max_date: datetime.date
+) -> ee.image.Image:
     today = datetime.date.today()
     date_mask = None
     if min_date and min_date > DIST_ALERT_REF_DATE and min_date < today:
@@ -82,12 +86,16 @@ def get_date_mask(min_date: datetime.date, max_date: datetime.date) -> ee.image.
 
 
 def get_context_layer_info(dataset: str) -> dict:
-    data = contextfinder_table.search().where(f"dataset = '{dataset}'").to_list()
+    data = (
+        contextfinder_table.search().where(f"dataset = '{dataset}'").to_list()
+    )
     if not data:
         return {}
     data.reverse()
     data = data[0]
-    data["visualization_parameters"] = json.loads(data["visualization_parameters"])
+    data["visualization_parameters"] = json.loads(
+        data["visualization_parameters"]
+    )
     data["metadata"] = json.loads(data["metadata"])
     data.pop("vector")
 
@@ -102,7 +110,6 @@ def get_alerts_by_context_layer(
     date_mask: ee.Image,
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
-
     choice = get_context_layer_info(context_layer_name)
 
     if not choice:
@@ -118,7 +125,9 @@ def get_alerts_by_context_layer(
         }
     elif choice["type"] == "ImageCollection":
         context_layer = (
-            ee.ImageCollection(context_layer_name).mosaic().select(choice["band"])
+            ee.ImageCollection(context_layer_name)
+            .mosaic()
+            .select(choice["band"])
         )
     else:
         context_layer = ee.Image(context_layer_name).select(choice["band"])
@@ -143,9 +152,12 @@ def get_alerts_by_context_layer(
     zone_stats = zone_stats["features"][0]["properties"]["groups"]
 
     value_mappings = {
-        dat["value"]: dat["description"] for dat in choice["metadata"]["value_mappings"]
+        dat["value"]: dat["description"]
+        for dat in choice["metadata"]["value_mappings"]
     }
-    zone_stats = {value_mappings[dat[choice["band"]]]: dat["sum"] for dat in zone_stats}
+    zone_stats = {
+        value_mappings[dat[choice["band"]]]: dat["sum"] for dat in zone_stats
+    }
 
     vectorize = context_layer.updateMask(distalerts.gte(threshold))
 
@@ -160,7 +172,9 @@ def get_distalerts_unfiltered(
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
     zone_stats_img = (
-        distalerts.pixelArea().divide(M2_TO_HA).updateMask(distalerts.gte(threshold))
+        distalerts.pixelArea()
+        .divide(M2_TO_HA)
+        .updateMask(distalerts.gte(threshold))
     )
     if date_mask:
         zone_stats_img = zone_stats_img.updateMask(
@@ -176,7 +190,9 @@ def get_distalerts_unfiltered(
     zone_stats_result= {"disturbances": zone_stats["features"][0]["properties"]["sum"]}
 
     vectorize = (
-        distalerts.gte(threshold).updateMask(distalerts.gte(threshold)).selfMask()
+        distalerts.gte(threshold)
+        .updateMask(distalerts.gte(threshold))
+        .selfMask()
     )
     return zone_stats_result, vectorize
 
