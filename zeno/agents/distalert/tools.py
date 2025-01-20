@@ -9,6 +9,7 @@ import googleapiclient
 from dotenv import load_dotenv
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
+from pyproj import CRS
 
 from zeno.agents.contextfinder.tools import table as contextfinder_table
 from zeno.agents.distalert.drivers import DRIVER_VALUEMAP, get_drivers
@@ -42,6 +43,9 @@ class DistAlertsInput(BaseModel):
     )
     threshold: Optional[Literal[1, 2, 3, 4, 5, 6, 7, 8]] = Field(
         default=5, description="Threshold for disturbance alert scale"
+    )
+    buffer_distance: Optional[float] = Field(
+        default=None, description="Buffer distance in meters for buffering the features."
     )
 
 
@@ -179,12 +183,32 @@ def get_distalerts_unfiltered(
     return zone_stats_result, vectorize
 
 
-def get_features(gadm_id: str, gadm_level: int) -> ee.FeatureCollection:
+def detect_utm_zone(lat, lon):
+    """
+    Detect the UTM zone for a given latitude and longitude in WGS84.
+    """
+    zone_number = int((lon + 180) // 6) + 1
+    hemisphere = "north" if lat >= 0 else "south"
+    utm_crs = CRS.from_dict(
+        {"proj": "utm", "zone": zone_number, "south": hemisphere == "south"}
+    )
+    return utm_crs
+
+
+def get_features(
+    gadm_id: str, gadm_level: int, buffer_distance: float
+) -> ee.FeatureCollection:
     aoi_df = gpd.read_file(
         Path("data") / f"gadm_410_level_{gadm_level}.gpkg",
         where=f"GID_{gadm_level} like '{gadm_id}'",
     )
     aoi = aoi_df.geometry.iloc[0]
+
+    if buffer_distance:
+        utm = detect_utm_zone(aoi.centroid.y, aoi.centroid.x)
+        aoi_df_utm = aoi_df.to_crs(utm)
+        aoi = aoi_df_utm.buffer(buffer_distance).to_crs(aoi_df.crs).iloc[0]
+
     return ee.FeatureCollection([ee.Feature(aoi.__geo_interface__)])
 
 
@@ -202,6 +226,7 @@ def dist_alerts_tool(
     max_date: datetime.date,
     context_layer_name: Optional[str] = None,
     threshold: Optional[Literal[1, 2, 3, 4, 5, 6, 7, 8]] = 5,
+    buffer_distance: Optional[float] = None,
 ) -> dict:
     """
     Dist alerts tool
@@ -211,7 +236,9 @@ def dist_alerts_tool(
     """
     print("---DIST ALERTS TOOL---")
 
-    gee_features = get_features(gadm_id=gadm_id, gadm_level=gadm_level)
+    gee_features = get_features(
+        gadm_id=gadm_id, gadm_level=gadm_level, buffer_distance=buffer_distance
+    )
     distalerts = ee.ImageCollection(GEE_FOLDER + "VEG-DIST-STATUS").mosaic()
 
     date_mask = get_date_mask(min_date, max_date)
