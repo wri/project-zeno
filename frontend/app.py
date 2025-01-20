@@ -85,8 +85,10 @@ def display_message(message):
             stats = data.get("content", {})
             stats = json.loads(stats)
             print(stats)
-            df = pd.DataFrame(list(stats.items()), columns=['Category', 'Value'])
-            st.bar_chart(df, x='Category', y='Value')
+            df = pd.DataFrame(
+                list(stats.items()), columns=["Category", "Value"]
+            )
+            st.bar_chart(df, x="Category", y="Value")
 
             # plot the artifact which is a geojson featurecollection
             artifact = data.get("artifact", {})
@@ -104,6 +106,28 @@ def display_message(message):
             st.chat_message("assistant").write(
                 f"Adding context layer {message['content']}"
             )
+        elif message["type"] == "stac":
+            st.chat_message("assistant").write(
+                "Found satellite images for your area of interest, here are the stac ids: "
+            )
+            data = message["content"]
+            artifact = data.get("artifact", {})
+            # create a grid of 2 x 5 images
+            cols = st.columns(5)
+            for idx, stac_item in enumerate(artifact["features"]):
+                stac_id = stac_item["id"]
+                stac_href = next(
+                    (
+                        link["href"]
+                        for link in stac_item["links"]
+                        if link["rel"] == "thumbnail"
+                    ),
+                    None,
+                )
+                with cols[idx % 5]:
+                    st.chat_message("assistant").image(
+                        stac_href, caption=stac_id, width=100
+                    )
         else:
             st.chat_message("assistant").write(message["content"])
 
@@ -141,6 +165,12 @@ def handle_stream_response(stream):
                     "role": "assistant",
                     "type": "context",
                     "content": data["content"],
+                }
+            elif data.get("tool_name") == "stac-tool":
+                message = {
+                    "role": "assistant",
+                    "type": "stac",
+                    "content": data,
                 }
             else:
                 message = {
