@@ -1,14 +1,14 @@
-from zeno.tools.contextlayer.context_layer_retriever_tool import context_layer_tool
+from zeno.agents.distalert.tool_context_layer import context_layer_tool
 
 
 def test_context_layer_tool_cereal():
     msg = context_layer_tool.invoke(
         {
             "name": "context-layer-tool",
-            "args": {"question": "Summarize disturbance alerts by type of cereal"},
+            "args": {"question": "Summarize disturbance alerts by natural lands"},
             "id": "42",
             "type": "tool_call",
         }
     )
-    assert msg.content == "ESA/WorldCereal/2021/MODELS/v100"
+    assert msg.content == "WRI/SBTN/naturalLands/v1/2020"
     assert "{z}/{x}/{y}" in msg.artifact["tms_url"]

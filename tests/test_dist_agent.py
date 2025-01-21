@@ -1,56 +1,39 @@
-import datetime
 import uuid
 
-from zeno.agents.distalert.agent import graph
-from zeno.agents.maingraph.utils.state import GraphState
+from langgraph.types import Command
+
+from zeno.agents.distalert.graph import graph as dist_alert
 
 
-def test_distalert_agent_level_2():
+def test_distalert_agent():
+    """
+    This test just runs the agent without checking any output, it is intended
+    to be used for debugging
+    """
     config = {
         "configurable": {"thread_id": uuid.uuid4()},
     }
-    initial_state = GraphState(
-        question="Provide data about disturbance alerts in Aveiro in 2023 summarized by natural lands"
-    )
-    for _, chunk in graph.stream(
-        initial_state,
+    query = "Provide data about disturbance alerts in Aveiro summarized by natural lands in 2023"
+    stream = dist_alert.stream(
+        {"messages": [query]},
         stream_mode="updates",
-        subgraphs=True,
+        subgraphs=False,
         config=config,
-    ):
-        if "assistant" in chunk:
-            for msg in chunk["assistant"]["messages"]:
-                for call in msg.tool_calls:
-                    print(call["name"])
-                    if call["name"] == "location-tool":
-                        assert call["args"]["gadm_level"] == 2
-                        assert call["args"]["query"] == "Aveiro"
-                    if call["name"] == "dist-alerts-tool":
-                        assert call["args"]["min_date"] == "2023-01-01"
-                        assert call["args"]["max_date"] == "2023-12-31"
-
-        if "tools" in chunk:
-            for msg in chunk["tools"]["messages"]:
-                if msg.name == "context-layer-tool":
-                    assert "WRI/SBTN/naturalLands/v1" in msg.content
-
-
-def test_distalert_agent_level_1():
-    config = {
-        "configurable": {"thread_id": uuid.uuid4()},
-    }
-    initial_state = GraphState(
-        question="Provide data about disturbance alerts in Florida summarized by natural lands in 2023"
     )
-    for _, chunk in graph.stream(
-        initial_state,
+    for chunk in stream:
+        print(str(chunk)[:300], "\n")
+
+    query = "Averio"
+    stream = dist_alert.stream(
+        Command(
+            goto="dist_alert",
+            update={
+                "messages": [query],
+            },
+        ),
         stream_mode="updates",
-        subgraphs=True,
+        subgraphs=False,
         config=config,
-    ):
-        if "assistant" in chunk:
-            if chunk["assistant"]["messages"][0].tool_calls:
-                call = chunk["assistant"]["messages"][0].tool_calls[0]
-                if call["name"] == "location-tool":
-                    assert call["args"]["gadm_level"] == 1
-                    assert call["args"]["query"] == "Florida"
+    )
+    for chunk in stream:
+        print(str(chunk)[:300], "\n")

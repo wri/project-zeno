@@ -1,6 +1,6 @@
 import random
 
-from zeno.agents.location.agent import location_agent
+from zeno.agents.distalert.agent import dist_alert_agent
 
 
 # Test data for level 1 locations
@@ -36,10 +36,10 @@ def test_location_agent():
     # pick a random query each from LEVEL_1_TEST_DATA & LEVEL_2_TEST_DATA
     query_1 = random.choice(LEVEL_1_TEST_DATA)
     query_2 = random.choice(LEVEL_2_TEST_DATA)
-    result_1 = location_agent.invoke(
+    result_1 = dist_alert_agent.invoke(
         {"messages": [("user", "Find the location of " + query_1[0])]}
     )
-    result_2 = location_agent.invoke(
+    result_2 = dist_alert_agent.invoke(
         {"messages": [("user", "Find the location of " + query_2[0])]}
     )
     print(result_1["messages"][-1].content[0]["text"])
