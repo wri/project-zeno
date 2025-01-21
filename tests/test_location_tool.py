@@ -1,6 +1,6 @@
 import pytest
 
-from zeno.agents.location.tools import location_tool
+from zeno.agents.distalert.tool_location import location_tool
 
 # Test data for level 1 locations
 LEVEL_1_TEST_DATA = [

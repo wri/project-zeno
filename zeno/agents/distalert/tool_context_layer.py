@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import json
 
 import ee
 import lancedb
@@ -28,10 +29,11 @@ def get_tms_url(result: Series):
     else:
         image = ee.Image(result.dataset)
 
-    # TODO: add dynamic viz parameters
-    map_id = image.select(result.band).getMapId(
-        visParams=result.visualization_parameters
-    )
+    if result.visualization_parameters:
+        viz_params = json.loads(result.visualization_parameters)
+        map_id = image.select(result.band).getMapId(viz_params)
+    else:
+        map_id = image.select(result.band).getMapId()
 
     return map_id["tile_fetcher"].url_format
 
@@ -67,11 +69,9 @@ def context_layer_tool(question: str) -> dict:
         .sort_values(by="year", ascending=False)
         .iloc[0]
     )
-
-    # tms_url = get_tms_url(result)
-
+    tms_url = get_tms_url(result)
     result = result.to_dict()
-    # result["tms_url"] = tms_url
+    result["tms_url"] = tms_url
 
     # Delete the dataset key vector as ndarray is not serializable
     del result["vector"]

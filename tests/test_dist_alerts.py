@@ -1,6 +1,6 @@
 import datetime
 
-from zeno.agents.distalert import tools
+from zeno.agents.distalert import tool_dist_alerts as tools
 
 
 def test_dist_alert_tool():
