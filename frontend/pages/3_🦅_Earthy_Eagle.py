@@ -97,9 +97,18 @@ def display_message(message):
                 g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
                 folium_static(m, width=700, height=500)
         elif message["type"] == "context":
+            data = message["content"]
             st.chat_message("assistant").write(
-                f"Adding context layer {message['content']}"
+                f"Adding context layer {data['content']}"
             )
+            m = folium.Map(location=[0, 0], zoom_start=3)
+            g = folium.TileLayer(
+                data['artifact']['tms_url'],
+                name=data['content'],
+                attr=data['content'],
+            ).add_to(m)  # noqa: F841
+            folium_static(m, width=700, height=500)
+
         elif message["type"] == "stac":
             st.chat_message("assistant").write(
                 "Found satellite images for your area of interest, here are the stac ids: "
@@ -158,7 +167,7 @@ def handle_stream_response(stream):
                 message = {
                     "role": "assistant",
                     "type": "context",
-                    "content": data["content"],
+                    "content": data,
                 }
             elif data.get("tool_name") == "stac-tool":
                 message = {

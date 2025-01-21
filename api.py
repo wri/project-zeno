@@ -70,7 +70,6 @@ def event_stream_alerts(
 
     for update in stream:
         node = next(iter(update.keys()))
-        # node = list(update.keys())[0]
 
         if node == "__interrupt__":
             print("INTERRUPTED")
