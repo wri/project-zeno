@@ -23,7 +23,7 @@ if "distalert_messages" not in st.session_state:
 
 st.header("Earthy Eagle 🦅")
 st.caption(
-    "Zeno's Earthy Eagle is an eagle-eyed agent focused on detecting distribution alerts."
+    "Zeno's Earthy Eagle is an eagle-eyed agent focused on detecting disturbances or deforestation alerts."
 )
 
 # Sidebar content
@@ -31,7 +31,7 @@ with st.sidebar:
     st.header("🦅")
     st.write(
         """
-    Earthy Eagle specializes in detecting distribution alerts. It assists in finding alerts for specific locations and timeframes.
+    Earthy Eagle specializes in detecting disturbances or deforestation alerts. It assists in finding alerts for specific locations and timeframes.
     Additionally, it helps in understanding the distribution of alerts within a location and provides satellite images for validation.
     """
     )
@@ -52,9 +52,7 @@ def display_message(message):
         st.chat_message("user").write(message["content"])
     elif message["role"] == "assistant":
         if message["type"] == "location":
-            st.chat_message("assistant").write(
-                "Found location you searched for..."
-            )
+            st.chat_message("assistant").write("Found location you searched for...")
             data = message["content"]
             artifact = data.get("artifact", {})
             artifact = artifact[0]
@@ -79,9 +77,7 @@ def display_message(message):
             stats = data.get("content", {})
             stats = json.loads(stats)
             print(stats)
-            df = pd.DataFrame(
-                list(stats.items()), columns=["Category", "Value"]
-            )
+            df = pd.DataFrame(list(stats.items()), columns=["Category", "Value"])
             st.bar_chart(df, x="Category", y="Value")
 
             # plot the artifact which is a geojson featurecollection
@@ -207,9 +203,7 @@ if user_input := st.chat_input("Type your message here..."):
     display_message(message)
 
     # If we were waiting for input, this is a response to an interrupt
-    query_type = (
-        "human_input" if st.session_state.waiting_for_input else "query"
-    )
+    query_type = "human_input" if st.session_state.waiting_for_input else "query"
 
     # Reset the waiting_for_input state
     if st.session_state.waiting_for_input:

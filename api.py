@@ -13,6 +13,7 @@ from langgraph.types import Command
 from zeno.agents.distalert.graph import graph as dist_alert
 from zeno.agents.docfinder.graph import graph as docfinder
 from zeno.agents.layerfinder.graph import graph as layerfinder
+from zeno.agents.kba.graph import graph as kba
 
 app = FastAPI()
 # # langfuse_handler = CallbackHandler()
@@ -219,5 +220,82 @@ async def stream_layerfinder(
 ):
     return StreamingResponse(
         event_stream_layerfinder(query, thread_id),
+        media_type="application/x-ndjson",
+    )
+
+
+def event_stream_kba(
+    query: str,
+    user_persona: Optional[str] = None,
+    thread_id: Optional[str] = None,
+):
+    if not thread_id:
+        thread_id = str(uuid.uuid4())
+
+    config = {"configurable": {"thread_id": thread_id}}
+    query = HumanMessage(content=query, name="human")
+    stream = kba.stream(
+        {"messages": [query], "user_persona": user_persona},
+        stream_mode="updates",
+        subgraphs=False,
+        config=config,
+    )
+
+    for update in stream:
+        node = next(iter(update.keys()))
+        print(node)
+
+        if node == "kba_response_node":
+            report = update[node]["report"]
+            summary = report.summary
+            analysis = report.analysis
+            data = report.data
+            yield pack(
+                {
+                    "node": node,
+                    "type": "report",
+                    "content": summary,
+                    "analysis": analysis,
+                    "data": data,
+                }
+            )
+        else:
+            messages = update[node]["messages"]
+            if node == "tools":
+                for message in messages:
+                    message.pretty_print()
+                    yield pack(
+                        {
+                            "node": node,
+                            "type": "tool_call",
+                            "tool_name": message.name,
+                            "content": message.content,
+                            "artifact": (
+                                message.artifact
+                                if hasattr(message, "artifact")
+                                else None
+                            ),
+                        }
+                    )
+            else:
+                for message in messages:
+                    message.pretty_print()
+                    yield pack(
+                        {
+                            "node": node,
+                            "type": "update",
+                            "content": message.content,
+                        }
+                    )
+
+
+@app.post("/stream/kba")
+async def stream_kba(
+    query: Annotated[str, Body(embed=True)],
+    user_persona: Optional[str] = Body(None),
+    thread_id: Optional[str] = Body(None),
+):
+    return StreamingResponse(
+        event_stream_kba(query, user_persona, thread_id),
         media_type="application/x-ndjson",
     )
