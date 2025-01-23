@@ -1,6 +1,6 @@
 import datetime
 
-from zeno.tools.stac.stac_tool import stac_tool
+from zeno.agents.distalert.tool_stac import stac_tool
 
 
 def test_stac_tool():

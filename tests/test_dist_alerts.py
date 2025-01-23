@@ -1,25 +1,23 @@
 import datetime
-import pytest
 
-from zeno.agents.distalert.tools import dist_alerts_tool
-from zeno.tools.contextlayer.layers import layer_choices
-from zeno.tools.distalert import dist_alerts_tool
+from zeno.agents.distalert import tool_dist_alerts as tools
 
 
 def test_dist_alert_tool():
-    features = ["BRA.13.369_2"]
-    result = dist_alerts_tool.dist_alerts_tool.invoke(
+    result = tools.dist_alerts_tool.invoke(
         input={
-            "features": features,
-            "landcover": layer_choices[1]["dataset"],
+            "name": "BRA.13.369_2",
+            "gadm_id": "BRA.13.369_2",
+            "gadm_level": 2,
+            "context_layer_name": "WRI/SBTN/naturalLands/v1/2020",
             "threshold": 8,
             "min_date": datetime.date(2021, 8, 12),
             "max_date": datetime.date(2024, 8, 12),
         }
     )
 
-    assert len(result) == 1
-    assert "BRA.13.369_2" in result
+    assert len(result) == 7
+    assert "natural short vegetation" in result
 
 
 def test_dist_alert_tool_verified(monkeypatch):
@@ -29,13 +27,13 @@ def test_dist_alert_tool_verified(monkeypatch):
     epsilon = 0.0005
     # For this location, using GEE directly, disturbances were
     # marked as wildfire and latest disturbance was 2024-04-29,
-    # and the landcover was class 10, Wet natural short vegetation.
-    expected_natural_lands = "Wet natural short vegetation"
+    # and the context layer was class 10, Wet natural short vegetation.
+    expected_natural_lands = "wet natural short vegetation"
     expected_vegstatus = 6
     expected_vegdate = datetime.datetime(2024, 4, 29)  # 1215
     expected_driver = "wildfire"
 
-    def mockfunction(features):
+    def mockfunction(gadm_id, gadm_level):
 
         mockfeature = {
             "type": "Feature",
@@ -54,63 +52,111 @@ def test_dist_alert_tool_verified(monkeypatch):
             },
         }
 
-        return dist_alerts_tool.ee.FeatureCollection(
-            [dist_alerts_tool.ee.Feature(mockfeature)]
-        )
+        return tools.ee.FeatureCollection([tools.ee.Feature(mockfeature)])
 
-    monkeypatch.setattr(dist_alerts_tool, "get_features", mockfunction)
+    monkeypatch.setattr(tools, "get_features", mockfunction)
 
-    features = ["IND.26.12_1"]
-    result = dist_alerts_tool.dist_alerts_tool.invoke(
+    result = tools.dist_alerts_tool.invoke(
         input={
-            "features": features,
-            "landcover": "distalert-drivers",
+            "name": "IND.26.12_1",
+            "gadm_id": "IND.26.12_1",
+            "gadm_level": 2,
+            "context_layer_name": "distalert-drivers",
             "threshold": expected_vegstatus,
             "min_date": expected_vegdate,
             "max_date": expected_vegdate,
         }
     )
     # Change is wildfire
-    assert list(result["IND.26.12_1"].keys()) == [expected_driver]
+    assert list(result.keys()) == [expected_driver]
 
     # Test for date range
-    features = ["IND.26.12_1"]
-    result = dist_alerts_tool.dist_alerts_tool.invoke(
+    result = tools.dist_alerts_tool.invoke(
         input={
-            "features": features,
-            "landcover": "distalert-drivers",
+            "name": "IND.26.12_1",
+            "gadm_id": "IND.26.12_1",
+            "gadm_level": 2,
+            "context_layer_name": "distalert-drivers",
             "threshold": expected_vegstatus,
             "min_date": expected_vegdate + datetime.timedelta(days=1),
             "max_date": expected_vegdate + datetime.timedelta(days=1),
         }
     )
     # Date is out of range, no results
-    assert result["IND.26.12_1"] == {}
+    assert result == {}
 
     # Test for threshold
-    features = ["IND.26.12_1"]
-    result = dist_alerts_tool.dist_alerts_tool.invoke(
+    result = tools.dist_alerts_tool.invoke(
         input={
-            "features": features,
-            "landcover": "distalert-drivers",
+            "name": "IND.26.12_1",
+            "gadm_id": "IND.26.12_1",
+            "gadm_level": 2,
+            "context_layer_name": "distalert-drivers",
             "threshold": expected_vegstatus + 1,
             "min_date": expected_vegdate,
             "max_date": expected_vegdate,
         }
     )
     # Threshold is out of range, no results
-    assert result["IND.26.12_1"] == {}
+    assert result == {}
 
-    # Test for landcover type
-    features = ["IND.26.12_1"]
-    result = dist_alerts_tool.dist_alerts_tool.invoke(
+    # Test for context_layer_name type
+    result = tools.dist_alerts_tool.invoke(
         input={
-            "features": features,
-            "landcover": "WRI/SBTN/naturalLands/v1/2020",
+            "name": "IND.26.12_1",
+            "gadm_id": "IND.26.12_1",
+            "gadm_level": 2,
+            "context_layer_name": "WRI/SBTN/naturalLands/v1/2020",
             "threshold": expected_vegstatus,
             "min_date": expected_vegdate,
             "max_date": expected_vegdate,
         }
     )
-    # Landcover type is as expected
-    assert list(result["IND.26.12_1"].keys()) == [expected_natural_lands]
+    # Context layer type is as expected
+    assert list(result.keys()) == [expected_natural_lands]
+
+
+def test_dist_alert_tool_buffer():
+    result = tools.dist_alerts_tool.invoke(
+        input={
+            "name": "BRA.13.369_2",
+            "gadm_id": "BRA.13.369_2",
+            "gadm_level": 2,
+            "context_layer_name": "WRI/SBTN/naturalLands/v1/2020",
+            "threshold": 8,
+            "min_date": datetime.date(2021, 8, 12),
+            "max_date": datetime.date(2024, 8, 12),
+        }
+    )
+    result_buffered = tools.dist_alerts_tool.invoke(
+        input={
+            "name": "BRA.13.369_2",
+            "gadm_id": "BRA.13.369_2",
+            "gadm_level": 2,
+            "context_layer_name": "WRI/SBTN/naturalLands/v1/2020",
+            "threshold": 8,
+            "min_date": datetime.date(2021, 8, 12),
+            "max_date": datetime.date(2024, 8, 12),
+            "buffer_distance": 1000,
+        }
+    )
+    assert (
+        result["natural short vegetation"] < result_buffered["natural short vegetation"]
+    )
+
+
+def test_dist_alert_tool_no_context():
+    result = tools.dist_alerts_tool.invoke(
+        input={
+            "name": "BRA.13.369_2",
+            "gadm_id": "BRA.13.369_2",
+            "gadm_level": 2,
+            "context_layer_name": None,
+            "threshold": 8,
+            "min_date": datetime.date(2021, 8, 12),
+            "max_date": datetime.date(2024, 8, 12),
+        }
+    )
+
+    assert len(result) == 1
+    assert "disturbances" in result
