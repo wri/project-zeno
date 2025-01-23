@@ -42,7 +42,6 @@ table = lancedb.connect(data_dir / "layers-context").open_table(
 )
 
 
-
 def get_tms_url(result: Series):
     if result.type == "ImageCollection":
         image = ee.ImageCollection(result.dataset).mosaic()
@@ -99,18 +98,3 @@ def context_layer_tool(question: str) -> dict:
     dataset = result.pop("dataset")
 
     return dataset, result
-<<<<<<< HEAD:zeno/tools/contextlayer/context_layer_retriever_tool.py
-
-
-def get_tms_url(result: Series):
-    if result.type == "ImageCollection":
-        image = ee.ImageCollection(result.dataset).mosaic()
-    else:
-        image = ee.Image(result.dataset)
-
-    # TODO: add dynamic viz parameters
-    map_id = image.select(result.band).getMapId(result.visualization_parameters)
-
-    return map_id["tile_fetcher"].url_format
-=======
->>>>>>> main:zeno/agents/contextfinder/tools.py
