@@ -24,9 +24,9 @@ table = lancedb.connect(data_dir / "layers-context").open_table(
 
 
 def get_tms_url(result: Series):
-    if result.type == "ImageCollection":
+    try:
         image = ee.ImageCollection(result.dataset).mosaic()
-    else:
+    except ee.ee_exception.EEException:
         image = ee.Image(result.dataset)
 
     if result.visualization_parameters:

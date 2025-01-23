@@ -112,7 +112,14 @@ def get_alerts_by_context_layer(
 ) -> Tuple[dict, ee.Image]:
     choice = get_context_layer_info(context_layer_name)
 
-    if not choice:
+    if choice:
+        try:
+            image = ee.ImageCollection(context_layer_name).mosaic()
+        except ee.ee_exception.EEException:
+            image = ee.Image(context_layer_name)
+
+        context_layer = image.select(choice["band"])
+    else:
         context_layer = get_drivers()
         # TODO: replace this with layer in DB, this is currently a patch to make the tests work
         choice["resolution"] = DIST_ALERT_STATS_SCALE
@@ -123,14 +130,6 @@ def get_alerts_by_context_layer(
                 for key, val in DRIVER_VALUEMAP.items()
             ]
         }
-    elif choice["type"] == "ImageCollection":
-        context_layer = (
-            ee.ImageCollection(context_layer_name)
-            .mosaic()
-            .select(choice["band"])
-        )
-    else:
-        context_layer = ee.Image(context_layer_name).select(choice["band"])
 
     zone_stats_img = (
         distalerts.pixelArea()

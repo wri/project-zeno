@@ -13,7 +13,7 @@ def test_distalert_agent():
     config = {
         "configurable": {"thread_id": uuid.uuid4()},
     }
-    query = "Provide data about disturbance alerts in Aveiro summarized by natural lands in 2023"
+    query = "Provide data about disturbance alerts in Aveiro summarized by grasslands in 2023"
     stream = dist_alert.stream(
         {"messages": [query]},
         stream_mode="updates",
@@ -23,7 +23,7 @@ def test_distalert_agent():
     for chunk in stream:
         print(str(chunk)[:300], "\n")
 
-    query = "Averio"
+    query = "Aveiro"
     stream = dist_alert.stream(
         Command(
             goto="dist_alert",
