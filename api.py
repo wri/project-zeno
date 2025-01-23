@@ -243,20 +243,23 @@ def event_stream_kba(
 
     for update in stream:
         node = next(iter(update.keys()))
-        print(node)
 
         if node == "kba_response_node":
-            report = update[node]["report"]
-            summary = report.summary
-            analysis = report.analysis
-            data = report.data
+            report = update[node]["report"].to_dict()
+            summary = report["summary"]
+            metrics = report["metrics"]
+            regional_breakdown = report["regional_breakdown"]
+            actions = report["actions"]
+            data_gaps = report["data_gaps"]
             yield pack(
                 {
                     "node": node,
                     "type": "report",
-                    "content": summary,
-                    "analysis": analysis,
-                    "data": data,
+                    "summary": summary,
+                    "metrics": metrics,
+                    "regional_breakdown": regional_breakdown,
+                    "actions": actions,
+                    "data_gaps": data_gaps,
                 }
             )
         else:

@@ -23,6 +23,7 @@ if "kba_messages" not in st.session_state:
 def reset_state():
     st.session_state.kba_session_id = str(uuid.uuid4())
     st.session_state.kba_messages = []
+    st.session_state.custom_persona = ""
 
 
 st.header("Keeper Kaola 🐨")
@@ -41,10 +42,14 @@ with st.sidebar:
     # Add user persona selection
     st.subheader("Select or Enter User Persona")
     user_personas = [
-        "Biologist interested in biodiversity conservation in Peru",
-        "Policy maker interested in indigineous groups in Brazil",
-        "Researcher interested in biodiversity conservation in Indonesia",
+        "I am a conservation manager responsible for overseeing a network of Key Biodiversity Areas. I have basic GIS skills, I am comfortable visualising data but not conducting advanced analysis. I need to identify and understand threats, such as illegal logging or habitat degradation, and monitor changes in ecosystem health over time to allocate resources effectively and plan conservation interventions.",
+        "I am a program manager implementing nature-based solutions projects focused on agroforestry and land restoration. I am comfortable using tools like QGIS for mapping and visualisation. I need to track project outcomes, such as tree cover gain and carbon sequestration, and prioritise areas for intervention based on risks like soil erosion or forest loss.",
+        "I am an investment analyst for an impact fund supporting reforestation and agroforestry projects. I have limited GIS skills and rely on intuitive dashboards or visualisations to understand geospatial insights. I need independent geospatial insights to monitor portfolio performance, assess project risks, and ensure investments align with our net-zero commitments.",
+        "I am a sustainability manager responsible for ensuring our company’s agricultural supply chains meet conversion-free commitments. I have limited GIS skills and can only use simple web-based tools or dashboards. I need to monitor and address risks such as land conversion to maintain compliance and support sustainable sourcing decisions.",
+        "I am an advocacy program manager for an NGO working on Indigenous Peoples’ land rights. I have basic GIS skills, enabling me to visualise data but not perform advanced analysis. I need to use data to highlight land use changes, advocate for stronger tenure policies, and empower local communities to monitor their territories.",
+        "I am a journalist covering environmental issues and corporate accountability, with basic GIS skills that enable me to interpret geospatial data by eye but not produce charts or insights myself. I need reliable, accessible data to track whether companies are meeting their EU Deforestation Regulation (EUDR) commitments, identify instances of non-compliance, and write compelling, data-driven stories that hold businesses accountable for their environmental impact.",
     ]
+
     selected_persona = st.selectbox(
         "Choose a persona", user_personas, on_change=reset_state
     )
@@ -83,9 +88,11 @@ def display_message(message):
             g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
             folium_static(m, width=700, height=500)
         elif message["type"] == "report":
-            st.chat_message("assistant").write(message["content"])
-            st.chat_message("assistant").write(message["analysis"])
-            st.chat_message("assistant").write(message["data"])
+            st.chat_message("assistant").write(message["summary"])
+            st.chat_message("assistant").write(message["metrics"])
+            st.chat_message("assistant").write(message["regional_breakdown"])
+            st.chat_message("assistant").write(message["actions"])
+            st.chat_message("assistant").write(message["data_gaps"])
         elif message["type"] == "update":
             st.chat_message("assistant").write(message["content"])
 
@@ -98,9 +105,11 @@ def handle_stream_response(stream):
             message = {
                 "role": "assistant",
                 "type": "report",
-                "content": data["content"],
-                "analysis": data["analysis"],
-                "data": data["data"],
+                "summary": data["summary"],
+                "metrics": data["metrics"],
+                "regional_breakdown": data["regional_breakdown"],
+                "actions": data["actions"],
+                "data_gaps": data["data_gaps"],
             }
         elif data.get("type") == "update":
             message = {
