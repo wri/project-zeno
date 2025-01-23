@@ -288,7 +288,7 @@ def dist_alerts_tool(
 
     try:
         vectorized = vectors.getInfo()
-    except googleapiclient.errors.HttpError:
+    except:
         vectorized = {}
 
     return zone_stats_result, vectorized
