@@ -10,7 +10,7 @@ from shapely.geometry import shape
 from zeno.agents.distalert.tool_location import location_tool
 
 data_dir = Path("data/kba")
-kba = gpd.read_file(data_dir / "kba_data_preparation/kba_merged.gpkg")
+kba = gpd.read_file(data_dir / "kba_merged.gpkg")
 
 
 class KbaInfoInput(BaseModel):
