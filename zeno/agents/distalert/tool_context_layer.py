@@ -20,23 +20,6 @@ embedder = OllamaEmbeddings(
 )
 
 
-# # TODO: add reranker?
-# vectorstore = LanceDB(
-#     uri="data/layers-context",
-#     embedding=OllamaEmbeddings(
-#         model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
-#     ),
-#     table_name="zeno-layers-context",
-# )
-
-# retriever = vectorstore.as_retriever()
-
-# retriever_tool = create_retriever_tool(
-#     retriever,
-#     "retrieve_context_layers",
-#     "Search and return available context layers for land cover.",
-# )
-
 table = lancedb.connect(data_dir / "layers-context").open_table(
     "zeno-layers-context-latest"
 )
