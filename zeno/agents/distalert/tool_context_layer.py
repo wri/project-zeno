@@ -25,17 +25,24 @@ table = lancedb.connect(data_dir / "layers-context").open_table(
 )
 
 
-def get_tms_url(result: Series):
-    try:
-        image = ee.ImageCollection(result.dataset).mosaic()
-    except ee.ee_exception.EEException:
-        image = ee.Image(result.dataset)
-
+def get_map_id(image, result):
     if result.visualization_parameters:
         viz_params = json.loads(result.visualization_parameters)
-        map_id = image.select(result.band).getMapId(viz_params)
-    else:
-        map_id = image.select(result.band).getMapId()
+        return image.getMapId(viz_params)
+    return image.getMapId()
+
+
+def get_tms_url(result: Series):
+    # Note: the ee.EEEception if triggered by the image.getMapId() call.
+    # I've moved the getMapId() call to a separate function to avoid
+    # redefining it in the except block.
+    try:
+        image = ee.ImageCollection(result.dataset).mosaic().select(result.band)
+        map_id = get_map_id(image, result)
+
+    except ee.ee_exception.EEException:
+        image = ee.Image(result.dataset).select(result.band)
+        map_id = get_map_id(image, result)
 
     return map_id["tile_fetcher"].url_format
 
@@ -71,7 +78,9 @@ def context_layer_tool(question: str) -> dict:
         .sort_values(by="year", ascending=False)
         .iloc[0]
     )
+
     tms_url = get_tms_url(result)
+
     result = result.to_dict()
     result["tms_url"] = tms_url
 

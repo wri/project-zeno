@@ -52,9 +52,7 @@ class DistAlertsInput(BaseModel):
     )
 
 
-def get_date_mask(
-    min_date: datetime.date, max_date: datetime.date
-) -> ee.image.Image:
+def get_date_mask(min_date: datetime.date, max_date: datetime.date) -> ee.image.Image:
     today = datetime.date.today()
     date_mask = None
     if min_date and min_date > DIST_ALERT_REF_DATE and min_date < today:
@@ -87,20 +85,38 @@ def get_date_mask(
 
 
 def get_context_layer_info(dataset: str) -> dict:
-    data = (
-        contextfinder_table.search().where(f"dataset = '{dataset}'").to_list()
-    )
+    data = contextfinder_table.search().where(f"dataset = '{dataset}'").to_list()
     if not data:
         return {}
     data.reverse()
     data = data[0]
-    data["visualization_parameters"] = json.loads(
-        data["visualization_parameters"]
-    )
+    data["visualization_parameters"] = json.loads(data["visualization_parameters"])
     data["metadata"] = json.loads(data["metadata"])
     data.pop("vector")
 
     return data
+
+
+def get_zone_stats(
+    context_layer, distalerts, threshold, date_mask, gee_features, choice
+):
+    zone_stats_img = (
+        distalerts.pixelArea()
+        .divide(M2_TO_HA)
+        .addBands(context_layer)
+        .updateMask(distalerts.gte(threshold))
+    )
+
+    if date_mask:
+        zone_stats_img = zone_stats_img.updateMask(
+            zone_stats_img.selfMask().And(date_mask)
+        )
+
+    return zone_stats_img.reduceRegions(
+        collection=gee_features,
+        reducer=ee.Reducer.sum().group(groupField=1, groupName=choice["band"]),
+        scale=choice["resolution"],
+    ).getInfo()
 
 
 def get_alerts_by_context_layer(
@@ -113,13 +129,25 @@ def get_alerts_by_context_layer(
 ) -> Tuple[dict, ee.Image]:
     choice = get_context_layer_info(context_layer_name)
 
+    # Note: the ee_excpetion.EEXception that is triggered when an Image type
+    # is loaded as an ImageCollection (or inversely) is actually raised in
+    # the `getinfo()` call (I assume due to some internal lazy-loading logic).
+    # I've moved the `getInfo()` call to a separate method in order to avoid
+    # re-defining the functionality in the except block.
     if choice:
         try:
-            image = ee.ImageCollection(context_layer_name).mosaic()
+            context_layer = (
+                ee.ImageCollection(context_layer_name).mosaic().select(choice["band"])
+            )
+            zone_stats = get_zone_stats(
+                context_layer, distalerts, threshold, date_mask, gee_features, choice
+            )
         except ee.ee_exception.EEException:
-            image = ee.Image(context_layer_name)
+            context_layer = ee.Image(context_layer_name).select(choice["band"])
+            zone_stats = get_zone_stats(
+                context_layer, distalerts, threshold, date_mask, gee_features, choice
+            )
 
-        context_layer = image.select(choice["band"])
     else:
         context_layer = get_drivers()
         # TODO: replace this with layer in DB, this is currently a patch to make the tests work
@@ -131,33 +159,16 @@ def get_alerts_by_context_layer(
                 for key, val in DRIVER_VALUEMAP.items()
             ]
         }
-
-    zone_stats_img = (
-        distalerts.pixelArea()
-        .divide(M2_TO_HA)
-        .addBands(context_layer)
-        .updateMask(distalerts.gte(threshold))
-    )
-    if date_mask:
-        zone_stats_img = zone_stats_img.updateMask(
-            zone_stats_img.selfMask().And(date_mask)
+        zone_stats = get_zone_stats(
+            context_layer, distalerts, threshold, date_mask, gee_features, choice
         )
-
-    zone_stats = zone_stats_img.reduceRegions(
-        collection=gee_features,
-        reducer=ee.Reducer.sum().group(groupField=1, groupName=choice["band"]),
-        scale=choice["resolution"],
-    ).getInfo()
 
     zone_stats = zone_stats["features"][0]["properties"]["groups"]
 
     value_mappings = {
-        dat["value"]: dat["description"]
-        for dat in choice["metadata"]["value_mappings"]
+        dat["value"]: dat["description"] for dat in choice["metadata"]["value_mappings"]
     }
-    zone_stats = {
-        value_mappings[dat[choice["band"]]]: dat["sum"] for dat in zone_stats
-    }
+    zone_stats = {value_mappings[dat[choice["band"]]]: dat["sum"] for dat in zone_stats}
 
     vectorize = context_layer.updateMask(distalerts.gte(threshold))
 
@@ -172,9 +183,7 @@ def get_distalerts_unfiltered(
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
     zone_stats_img = (
-        distalerts.pixelArea()
-        .divide(M2_TO_HA)
-        .updateMask(distalerts.gte(threshold))
+        distalerts.pixelArea().divide(M2_TO_HA).updateMask(distalerts.gte(threshold))
     )
     if date_mask:
         zone_stats_img = zone_stats_img.updateMask(
@@ -187,14 +196,10 @@ def get_distalerts_unfiltered(
         scale=DIST_ALERT_STATS_SCALE,
     ).getInfo()
 
-    zone_stats_result = {
-        "disturbances": zone_stats["features"][0]["properties"]["sum"]
-    }
+    zone_stats_result = {"disturbances": zone_stats["features"][0]["properties"]["sum"]}
 
     vectorize = (
-        distalerts.gte(threshold)
-        .updateMask(distalerts.gte(threshold))
-        .selfMask()
+        distalerts.gte(threshold).updateMask(distalerts.gte(threshold)).selfMask()
     )
     return zone_stats_result, vectorize
 
