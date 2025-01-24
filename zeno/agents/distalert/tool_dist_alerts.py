@@ -47,7 +47,8 @@ class DistAlertsInput(BaseModel):
         default=5, description="Threshold for disturbance alert scale"
     )
     buffer_distance: Optional[float] = Field(
-        default=None, description="Buffer distance in meters for buffering the features."
+        default=None,
+        description="Buffer distance in meters for buffering the features.",
     )
 
 
@@ -186,7 +187,9 @@ def get_distalerts_unfiltered(
         scale=DIST_ALERT_STATS_SCALE,
     ).getInfo()
 
-    zone_stats_result= {"disturbances": zone_stats["features"][0]["properties"]["sum"]}
+    zone_stats_result = {
+        "disturbances": zone_stats["features"][0]["properties"]["sum"]
+    }
 
     vectorize = (
         distalerts.gte(threshold)
