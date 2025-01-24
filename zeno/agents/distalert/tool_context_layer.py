@@ -18,6 +18,8 @@ data_dir = Path("data")
 embedder = OllamaEmbeddings(
     model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
 )
+
+
 table = lancedb.connect(data_dir / "layers-context").open_table(
     "zeno-layers-context-latest"
 )
