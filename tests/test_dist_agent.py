@@ -13,7 +13,9 @@ def test_distalert_agent():
     config = {
         "configurable": {"thread_id": uuid.uuid4()},
     }
-    query = "Provide data about disturbance alerts in Aveiro summarized by grasslands in 2023"
+    query = (
+        "Provide data about disturbance alerts in Aveiro summarized by drivers in 2023"
+    )
     stream = dist_alert.stream(
         {"messages": [query]},
         stream_mode="updates",

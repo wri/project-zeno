@@ -10,6 +10,7 @@ from pandas import Series
 from pydantic import BaseModel, Field
 
 from zeno.agents.distalert.gee import init_gee
+from zeno.agents.distalert.drivers import get_drivers
 
 init_gee()
 data_dir = Path("data")
@@ -36,6 +37,12 @@ def get_tms_url(result: Series):
     # Note: the ee.EEEception if triggered by the image.getMapId() call.
     # I've moved the getMapId() call to a separate function to avoid
     # redefining it in the except block.
+
+    if result.dataset == "wri-dist-alert-drivers":
+        image = get_drivers()
+        map_id = get_map_id(image, result)
+        return map_id["tile_fetcher"].url_format
+
     try:
         image = ee.ImageCollection(result.dataset).mosaic().select(result.band)
         map_id = get_map_id(image, result)

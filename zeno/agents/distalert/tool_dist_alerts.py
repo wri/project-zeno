@@ -98,10 +98,8 @@ def get_context_layer_info(dataset: str) -> dict:
 def get_zone_stats(
     context_layer, distalerts, threshold, date_mask, gee_features, choice
 ):
-    zone_stats_img = (
-        distalerts
-        .addBands(context_layer)
-        .updateMask(distalerts.gte(threshold))
+    zone_stats_img = distalerts.addBands(context_layer).updateMask(
+        distalerts.gte(threshold)
     )
 
     if date_mask:
@@ -124,8 +122,8 @@ def get_alerts_by_context_layer(
     date_mask: ee.Image,
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
-    choice = get_context_layer_info(context_layer_name)
 
+    choice = get_context_layer_info(context_layer_name)
 
     if context_layer_name == "wri-dist-alert-drivers":
         context_layer = get_drivers()
@@ -156,7 +154,9 @@ def get_alerts_by_context_layer(
     value_mappings = {
         dat["value"]: dat["description"] for dat in choice["metadata"]["value_mappings"]
     }
-    zone_stats = {value_mappings[dat[choice["band"]]]: dat["count"] for dat in zone_stats}
+    zone_stats = {
+        value_mappings[dat[choice["band"]]]: dat["count"] for dat in zone_stats
+    }
 
     return zone_stats, vectorize
 
@@ -168,9 +168,7 @@ def get_distalerts_unfiltered(
     date_mask: ee.Image,
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
-    zone_stats_img = (
-        distalerts.updateMask(distalerts.gte(threshold))
-    )
+    zone_stats_img = distalerts.updateMask(distalerts.gte(threshold))
     if date_mask:
         zone_stats_img = zone_stats_img.updateMask(
             zone_stats_img.selfMask().And(date_mask)
@@ -182,7 +180,11 @@ def get_distalerts_unfiltered(
         scale=DIST_ALERT_STATS_SCALE,
     ).getInfo()
 
-    zone_stats_result = {"disturbances": sum(feat["properties"]["count"] for feat in zone_stats["features"])}
+    zone_stats_result = {
+        "disturbances": sum(
+            feat["properties"]["count"] for feat in zone_stats["features"]
+        )
+    }
 
     return zone_stats_result, zone_stats_img
 
@@ -238,8 +240,11 @@ def dist_alerts_tool(
     This tool quantifies vegetation disturbance alerts over an area of interest
     and summarizes the alerts in statistics by context layer types.
 
-    The unit of disturbances that are returned are numberr of pixels with
+    The unit of disturbances that are returned are number of alerts with
     potential disturbances.
+
+    Never input the context_layer_name directly, always use the context_layer_tool
+    to obtain the correct context_layer_name.
     """
     print("---DIST ALERTS TOOL---")
 
