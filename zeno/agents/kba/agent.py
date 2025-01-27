@@ -43,7 +43,7 @@ class KBAActionItem(JSONSerializable):
 
 class KBAResponse(JSONSerializable):
     summary: str = Field(
-        description="Concise summary highlighting key patterns and critical insights"
+        description="Concise summary highlighting key patterns and critical insights, formatted as markdown with highlighing and bolding."
     )
     metrics: KBAMetrics = Field(description="Core KBA statistics for visualization")
     regional_breakdown: List[RegionalStats] = Field(
