@@ -11,7 +11,7 @@ from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 from pyproj import CRS
 
-from zeno.agents.distalert.drivers import DRIVER_VALUEMAP, get_drivers
+from zeno.agents.distalert.drivers import DRIVER_VALUEMAP, get_drivers, GEE_FOLDER
 from zeno.agents.distalert.gee import init_gee
 from zeno.agents.distalert.tool_context_layer import (
     table as contextfinder_table,
@@ -23,8 +23,6 @@ init_gee()
 DIST_ALERT_REF_DATE = datetime.date(2020, 12, 31)
 DIST_ALERT_STATS_SCALE = 30
 DIST_ALERT_VECTORIZATION_SCALE = 150
-M2_TO_HA = 10000
-GEE_FOLDER = "projects/glad/HLSDIST/backend/"
 
 
 class DistAlertsInput(BaseModel):
@@ -101,8 +99,7 @@ def get_zone_stats(
     context_layer, distalerts, threshold, date_mask, gee_features, choice
 ):
     zone_stats_img = (
-        distalerts.pixelArea()
-        .divide(M2_TO_HA)
+        distalerts
         .addBands(context_layer)
         .updateMask(distalerts.gte(threshold))
     )
@@ -114,9 +111,9 @@ def get_zone_stats(
 
     return zone_stats_img.reduceRegions(
         collection=gee_features,
-        reducer=ee.Reducer.sum().group(groupField=1, groupName=choice["band"]),
+        reducer=ee.Reducer.count().group(groupField=1, groupName=choice["band"]),
         scale=choice["resolution"],
-    ).getInfo()
+    ).getInfo(), zone_stats_img
 
 
 def get_alerts_by_context_layer(
@@ -139,12 +136,12 @@ def get_alerts_by_context_layer(
             context_layer = (
                 ee.ImageCollection(context_layer_name).mosaic().select(choice["band"])
             )
-            zone_stats = get_zone_stats(
+            zone_stats, vectorize = get_zone_stats(
                 context_layer, distalerts, threshold, date_mask, gee_features, choice
             )
         except ee.ee_exception.EEException:
             context_layer = ee.Image(context_layer_name).select(choice["band"])
-            zone_stats = get_zone_stats(
+            zone_stats, vectorize = get_zone_stats(
                 context_layer, distalerts, threshold, date_mask, gee_features, choice
             )
 
@@ -159,7 +156,7 @@ def get_alerts_by_context_layer(
                 for key, val in DRIVER_VALUEMAP.items()
             ]
         }
-        zone_stats = get_zone_stats(
+        zone_stats, vectorize = get_zone_stats(
             context_layer, distalerts, threshold, date_mask, gee_features, choice
         )
 
@@ -168,9 +165,7 @@ def get_alerts_by_context_layer(
     value_mappings = {
         dat["value"]: dat["description"] for dat in choice["metadata"]["value_mappings"]
     }
-    zone_stats = {value_mappings[dat[choice["band"]]]: dat["sum"] for dat in zone_stats}
-
-    vectorize = context_layer.updateMask(distalerts.gte(threshold))
+    zone_stats = {value_mappings[dat[choice["band"]]]: dat["count"] for dat in zone_stats}
 
     return zone_stats, vectorize
 
@@ -183,7 +178,7 @@ def get_distalerts_unfiltered(
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
     zone_stats_img = (
-        distalerts.pixelArea().divide(M2_TO_HA).updateMask(distalerts.gte(threshold))
+        distalerts.updateMask(distalerts.gte(threshold))
     )
     if date_mask:
         zone_stats_img = zone_stats_img.updateMask(
@@ -192,16 +187,13 @@ def get_distalerts_unfiltered(
 
     zone_stats = zone_stats_img.reduceRegions(
         collection=gee_features,
-        reducer=ee.Reducer.sum(),
+        reducer=ee.Reducer.count(),
         scale=DIST_ALERT_STATS_SCALE,
     ).getInfo()
 
-    zone_stats_result = {"disturbances": zone_stats["features"][0]["properties"]["sum"]}
+    zone_stats_result = {"disturbances": sum(feat["properties"]["count"] for feat in zone_stats["features"])}
 
-    vectorize = (
-        distalerts.gte(threshold).updateMask(distalerts.gte(threshold)).selfMask()
-    )
-    return zone_stats_result, vectorize
+    return zone_stats_result, zone_stats_img
 
 
 def detect_utm_zone(lat, lon):
@@ -255,7 +247,8 @@ def dist_alerts_tool(
     This tool quantifies vegetation disturbance alerts over an area of interest
     and summarizes the alerts in statistics by context layer types.
 
-    The unit of disturbances that are returned are hectares.
+    The unit of disturbances that are returned are numberr of pixels with
+    potential disturbances.
     """
     print("---DIST ALERTS TOOL---")
 
@@ -284,10 +277,15 @@ def dist_alerts_tool(
             threshold=threshold,
         )
 
+    if sum(zone_stats_result.values()) < 5000:
+        scale = DIST_ALERT_STATS_SCALE
+    else:
+        scale = DIST_ALERT_VECTORIZATION_SCALE
+
     # Vectorize the masked classification
     vectors = vectorize.reduceToVectors(
         geometryType="polygon",
-        scale=DIST_ALERT_VECTORIZATION_SCALE,
+        scale=scale,
         maxPixels=1e8,
         geometry=gee_features,
         eightConnected=True,
@@ -296,6 +294,9 @@ def dist_alerts_tool(
     try:
         vectorized = vectors.getInfo()
     except:
+        vectorized = {}
+
+    if not vectorized.get("features"):
         vectorized = {}
 
     return zone_stats_result, vectorized

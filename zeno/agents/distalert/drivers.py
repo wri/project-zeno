@@ -9,13 +9,13 @@ DRIVER_VALUEMAP = {
     "conversion": 4,
     "other_conversion": 5,
 }
+GEE_FOLDER = "projects/glad/HLSDIST/backend/"
 
 
 def get_drivers():
-    folder = "projects/glad/HLSDIST/backend"
     natural_lands = ee.Image("WRI/SBTN/naturalLands/v1/2020").select("natural")
-    vegdistcount = ee.ImageCollection(folder + "/VEG-DIST-COUNT").mosaic()
-    veganommax = ee.ImageCollection(folder + "/VEG-ANOM-MAX").mosaic()
+    vegdistcount = ee.ImageCollection(GEE_FOLDER + "VEG-DIST-COUNT").mosaic()
+    veganommax = ee.ImageCollection(GEE_FOLDER + "VEG-ANOM-MAX").mosaic()
     confmask = vegdistcount.gte(2).And(veganommax.gt(50))
 
     wf_collection = ee.ImageCollection.fromImages(
