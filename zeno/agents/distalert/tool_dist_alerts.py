@@ -113,7 +113,7 @@ def get_zone_stats(
         collection=gee_features,
         reducer=ee.Reducer.count().group(groupField=1, groupName=choice["band"]),
         scale=choice["resolution"],
-    ).getInfo(), zone_stats_img
+    ).getInfo(), zone_stats_img.select(choice["band"])
 
 
 def get_alerts_by_context_layer(

@@ -11,8 +11,8 @@ def test_dist_alert_tool():
             "gadm_level": 2,
             "context_layer_name": "WRI/SBTN/naturalLands/v1/2020",
             "threshold": 8,
-            "min_date": datetime.date(2021, 8, 12),
-            "max_date": datetime.date(2024, 8, 12),
+            "min_date": datetime.date(2023, 8, 1),
+            "max_date": datetime.date(2023, 8, 31),
         }
     )
 
