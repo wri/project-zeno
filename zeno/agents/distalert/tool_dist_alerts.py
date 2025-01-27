@@ -113,7 +113,7 @@ def get_zone_stats(
         collection=gee_features,
         reducer=ee.Reducer.count().group(groupField=1, groupName=choice["band"]),
         scale=choice["resolution"],
-    ).getInfo()
+    ).getInfo(), zone_stats_img
 
 
 def get_alerts_by_context_layer(
@@ -136,12 +136,12 @@ def get_alerts_by_context_layer(
             context_layer = (
                 ee.ImageCollection(context_layer_name).mosaic().select(choice["band"])
             )
-            zone_stats = get_zone_stats(
+            zone_stats, vectorize = get_zone_stats(
                 context_layer, distalerts, threshold, date_mask, gee_features, choice
             )
         except ee.ee_exception.EEException:
             context_layer = ee.Image(context_layer_name).select(choice["band"])
-            zone_stats = get_zone_stats(
+            zone_stats, vectorize = get_zone_stats(
                 context_layer, distalerts, threshold, date_mask, gee_features, choice
             )
 
@@ -156,7 +156,7 @@ def get_alerts_by_context_layer(
                 for key, val in DRIVER_VALUEMAP.items()
             ]
         }
-        zone_stats = get_zone_stats(
+        zone_stats, vectorize = get_zone_stats(
             context_layer, distalerts, threshold, date_mask, gee_features, choice
         )
 
@@ -166,8 +166,6 @@ def get_alerts_by_context_layer(
         dat["value"]: dat["description"] for dat in choice["metadata"]["value_mappings"]
     }
     zone_stats = {value_mappings[dat[choice["band"]]]: dat["count"] for dat in zone_stats}
-
-    vectorize = context_layer.updateMask(distalerts.gte(threshold))
 
     return zone_stats, vectorize
 
@@ -193,12 +191,9 @@ def get_distalerts_unfiltered(
         scale=DIST_ALERT_STATS_SCALE,
     ).getInfo()
 
-    zone_stats_result = {"disturbances": zone_stats["features"][0]["properties"]["count"]}
+    zone_stats_result = {"disturbances": sum(feat["properties"]["count"] for feat in zone_stats["features"])}
 
-    vectorize = (
-        distalerts.gte(threshold).updateMask(distalerts.gte(threshold)).selfMask()
-    )
-    return zone_stats_result, vectorize
+    return zone_stats_result, zone_stats_img
 
 
 def detect_utm_zone(lat, lon):
@@ -282,10 +277,15 @@ def dist_alerts_tool(
             threshold=threshold,
         )
 
+    if sum(zone_stats_result.values()) < 5000:
+        scale = DIST_ALERT_STATS_SCALE
+    else:
+        scale = DIST_ALERT_VECTORIZATION_SCALE
+
     # Vectorize the masked classification
     vectors = vectorize.reduceToVectors(
         geometryType="polygon",
-        scale=DIST_ALERT_VECTORIZATION_SCALE,
+        scale=scale,
         maxPixels=1e8,
         geometry=gee_features,
         eightConnected=True,
@@ -294,6 +294,9 @@ def dist_alerts_tool(
     try:
         vectorized = vectors.getInfo()
     except:
+        vectorized = {}
+
+    if not vectorized.get("features"):
         vectorized = {}
 
     return zone_stats_result, vectorized
