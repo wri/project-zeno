@@ -2,6 +2,7 @@ import json
 import os
 import uuid
 
+import pandas as pd
 import folium
 import requests
 import streamlit as st
@@ -76,25 +77,42 @@ def display_message(message):
             )
             data = message["content"]
             artifact = data.get("artifact", {})
-            artifact = json.loads(artifact)
-            print(artifact)
-            # plot the artifact which is a geojson featurecollection using folium
-            geometry = artifact["features"][0]["geometry"]
-            if geometry["type"] == "Polygon":
-                pnt = geometry["coordinates"][0][0]
-            else:
-                pnt = geometry["coordinates"][0][0][0]
-            m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=11)
-            g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
-            folium_static(m, width=700, height=500)
+            if artifact:
+                artifact = json.loads(artifact)
+                # plot the artifact which is a geojson featurecollection using folium
+                geometry = artifact["features"][0]["geometry"]
+                if geometry["type"] == "Polygon":
+                    pnt = geometry["coordinates"][0][0]
+                else:
+                    pnt = geometry["coordinates"][0][0][0]
+                m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=11)
+                g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
+                folium_static(m, width=700, height=500)
         elif message["type"] == "report":
-            st.chat_message("assistant").write(message["summary"])
-            st.chat_message("assistant").write(message["metrics"])
-            st.chat_message("assistant").write(message["regional_breakdown"])
-            st.chat_message("assistant").write(message["actions"])
-            st.chat_message("assistant").write(message["data_gaps"])
+            bot = st.chat_message("assistant")
+            bot.write(message["summary"])
+
+            try:
+                metrics = pd.DataFrame(message["metrics"])
+                regional_breakdown = pd.DataFrame(message["regional_breakdown"])
+                actions = pd.DataFrame(message["actions"])
+                data_gaps = pd.DataFrame(message["data_gaps"])
+
+                # st.chat_message("assistant").table(metrics)
+                bot.header("Breakdown by region")
+                bot.table(regional_breakdown)
+                bot.header("Action items to take")
+                bot.table(actions)
+                # st.chat_message("assistant").table(data_gaps)
+            except Exception as e:
+                # ignore the error
+                pass
         elif message["type"] == "update":
-            st.chat_message("assistant").write(message["content"])
+            if len(message["content"]) <= 2:
+                with st.expander("API calls from Keeper Kaola 🐨 "):
+                    st.chat_message("assistant").write(message["content"])
+            else:
+                st.chat_message("assistant").markdown(message["content"])
 
 
 def handle_stream_response(stream):

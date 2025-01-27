@@ -88,7 +88,6 @@ def event_stream_alerts(
             messages = update[node]["messages"]
             if node == "tools" or node == "tools_with_hil":
                 for message in messages:
-                    message.pretty_print()
                     yield pack(
                         {
                             "node": node,
@@ -103,7 +102,6 @@ def event_stream_alerts(
                         }
                     )
             else:
-                messages.pretty_print()
                 yield pack(
                     {
                         "node": node,
@@ -244,28 +242,31 @@ def event_stream_kba(
         node = next(iter(update.keys()))
 
         if node == "kba_response_node":
-            report = update[node]["report"].to_dict()
-            summary = report["summary"]
-            metrics = report["metrics"]
-            regional_breakdown = report["regional_breakdown"]
-            actions = report["actions"]
-            data_gaps = report["data_gaps"]
-            yield pack(
-                {
-                    "node": node,
-                    "type": "report",
-                    "summary": summary,
-                    "metrics": metrics,
-                    "regional_breakdown": regional_breakdown,
-                    "actions": actions,
-                    "data_gaps": data_gaps,
-                }
-            )
+            print("kba_response_node")
+            try:
+                report = update[node]["report"].to_dict()
+                summary = report["summary"]
+                metrics = report["metrics"]
+                regional_breakdown = report["regional_breakdown"]
+                actions = report["actions"]
+                data_gaps = report["data_gaps"]
+                yield pack(
+                    {
+                        "node": node,
+                        "type": "report",
+                        "summary": summary,
+                        "metrics": metrics,
+                        "regional_breakdown": regional_breakdown,
+                        "actions": actions,
+                        "data_gaps": data_gaps,
+                    }
+                )
+            except Exception as e:
+                print(e)
         else:
             messages = update[node]["messages"]
             if node == "tools":
                 for message in messages:
-                    message.pretty_print()
                     yield pack(
                         {
                             "node": node,
@@ -281,7 +282,6 @@ def event_stream_kba(
                     )
             else:
                 for message in messages:
-                    message.pretty_print()
                     yield pack(
                         {
                             "node": node,
