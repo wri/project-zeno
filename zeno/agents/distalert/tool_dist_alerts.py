@@ -165,7 +165,7 @@ def get_alerts_by_context_layer(
     value_mappings = {
         dat["value"]: dat["description"] for dat in choice["metadata"]["value_mappings"]
     }
-    zone_stats = {value_mappings[dat[choice["band"]]]: dat["sum"] for dat in zone_stats}
+    zone_stats = {value_mappings[dat[choice["band"]]]: dat["count"] for dat in zone_stats}
 
     vectorize = context_layer.updateMask(distalerts.gte(threshold))
 
@@ -193,7 +193,7 @@ def get_distalerts_unfiltered(
         scale=DIST_ALERT_STATS_SCALE,
     ).getInfo()
 
-    zone_stats_result = {"disturbances": zone_stats["features"][0]["properties"]["sum"]}
+    zone_stats_result = {"disturbances": zone_stats["features"][0]["properties"]["count"]}
 
     vectorize = (
         distalerts.gte(threshold).updateMask(distalerts.gte(threshold)).selfMask()
