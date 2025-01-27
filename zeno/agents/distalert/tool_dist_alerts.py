@@ -127,7 +127,7 @@ def get_alerts_by_context_layer(
     choice = get_context_layer_info(context_layer_name)
 
 
-    if context_layer_name == "distalert-drivers":
+    if context_layer_name == "wri-dist-alert-drivers":
         context_layer = get_drivers()
         zone_stats, vectorize = get_zone_stats(
             context_layer, distalerts, threshold, date_mask, gee_features, choice
