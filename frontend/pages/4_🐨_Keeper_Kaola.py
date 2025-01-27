@@ -32,7 +32,7 @@ st.caption(
 )
 
 with st.sidebar:
-    st.header("🐥")
+    st.header("🐨")
     st.write(
         """
     Keeper Kaola is an expert at planning interventions and answering queries about KBAs - from habitat analysis to species protection strategies.
@@ -71,22 +71,20 @@ def display_message(message):
         st.chat_message("user").write(message["content"])
     else:
         if message["type"] == "kba_location":
-            st.chat_message("assistant").write(
-                "Found Key Biodiversity Areas in your area of interest..."
-            )
             data = message["content"]
+            st.chat_message("assistant").write(data.get("content", ""))
             artifact = data.get("artifact", {})
-            artifact = json.loads(artifact)
-            print(artifact)
-            # plot the artifact which is a geojson featurecollection using folium
-            geometry = artifact["features"][0]["geometry"]
-            if geometry["type"] == "Polygon":
-                pnt = geometry["coordinates"][0][0]
-            else:
-                pnt = geometry["coordinates"][0][0][0]
-            m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=11)
-            g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
-            folium_static(m, width=700, height=500)
+            if artifact:
+                artifact = json.loads(artifact)
+                # plot the artifact which is a geojson featurecollection using folium
+                geometry = artifact["features"][0]["geometry"]
+                if geometry["type"] == "Polygon":
+                    pnt = geometry["coordinates"][0][0]
+                else:
+                    pnt = geometry["coordinates"][0][0][0]
+                m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=11)
+                g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
+                folium_static(m, width=700, height=500)
         elif message["type"] == "report":
             st.chat_message("assistant").write(message["summary"])
             st.chat_message("assistant").write(message["metrics"])

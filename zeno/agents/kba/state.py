@@ -13,5 +13,6 @@ class KbaState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     user_persona: str
     report: KBAResponse
+    kba_within_aoi: str
     is_last_step: IsLastStep
     remaining_steps: RemainingSteps

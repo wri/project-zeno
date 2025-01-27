@@ -241,6 +241,7 @@ def event_stream_kba(
     )
 
     for update in stream:
+        print(update)
         node = next(iter(update.keys()))
 
         if node == "kba_response_node":
@@ -264,6 +265,7 @@ def event_stream_kba(
         else:
             messages = update[node]["messages"]
             if node == "tools":
+                state_graph = kba.get_state(config).values
                 for message in messages:
                     message.pretty_print()
                     yield pack(
@@ -272,11 +274,7 @@ def event_stream_kba(
                             "type": "tool_call",
                             "tool_name": message.name,
                             "content": message.content,
-                            "artifact": (
-                                message.artifact
-                                if hasattr(message, "artifact")
-                                else None
-                            ),
+                            "artifact": state_graph["kba_within_aoi"] if "kba_within_aoi" in state_graph else None,
                         }
                     )
             else:

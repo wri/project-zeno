@@ -10,8 +10,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from zeno.agents.kba.agent import kba_info_agent, kba_response_agent, tools
-from zeno.agents.kba.prompts import KBA_INFO_PROMPT
+from zeno.agents.kba.agent import kba_agent, kba_response_agent, tools
+from zeno.agents.kba.prompts import KBA_PROMPT
 from zeno.agents.kba.state import KbaState
 
 column_description = pd.read_csv("data/kba/kba_column_descriptions.csv").to_csv(
@@ -39,18 +39,15 @@ def create_tool_node_with_fallback(tools: list) -> dict:
     )
 
 
-def kba_info_node(state: KbaState):
-    system_prompt = KBA_INFO_PROMPT.format(
-        user_persona=state["user_persona"],
-        dataset_description=column_description,
-    )
-    system_messsage = SystemMessage(content=system_prompt)
-    response = kba_info_agent.invoke([system_messsage] + state["messages"])
+def kba_node(state: KbaState):
+    print("kba node")
+    kba_prompt = SystemMessage(content=KBA_PROMPT)
+    result = kba_agent.invoke([kba_prompt] + state["messages"])
 
-    return {"messages": [response]}
-
+    return {"messages": [result], "user_persona": state["user_persona"]}
 
 def kba_response_node(state: KbaState):
+    print("kba response node")
     response = kba_response_agent.invoke(
         [HumanMessage(content=state["messages"][-2].content)]
         + [AIMessage(content=state["messages"][-1].content)]
@@ -63,22 +60,22 @@ def route_node(state: KbaState):
     if not last_message.tool_calls:
         return "respond"
     else:
-        return "continue"
+        return "tools"
 
 
 wf = StateGraph(KbaState)
 
-wf.add_node("kba_info_node", kba_info_node)
+wf.add_node("kba_node", kba_node)
 wf.add_node("kba_response_node", kba_response_node)
 wf.add_node("tools", create_tool_node_with_fallback(tools))
 
-wf.add_edge(START, "kba_info_node")
+wf.add_edge(START, "kba_node")
 wf.add_conditional_edges(
-    "kba_info_node",
+    "kba_node",
     route_node,
-    {"continue": "tools", "respond": "kba_response_node"},
+    {"tools": "tools", "respond": "kba_response_node"},
 )
-wf.add_edge("tools", "kba_info_node")
+wf.add_edge("tools", "kba_node")
 wf.add_edge("kba_response_node", END)
 
 memory = MemorySaver()

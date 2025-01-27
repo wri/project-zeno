@@ -3,7 +3,8 @@ import json
 from langchain_anthropic import ChatAnthropic
 from pydantic import BaseModel, Field
 
-from zeno.agents.kba.tool_kba_info import kba_info_tool
+from zeno.agents.kba.tool_kba_data import kba_data_tool
+from zeno.agents.kba.tool_kba_insights import kba_insights_tool
 
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
@@ -57,6 +58,6 @@ class KBAResponse(JSONSerializable):
 sonnet = ChatAnthropic(model="claude-3-5-sonnet-latest", temperature=0)
 
 
-tools = [kba_info_tool]
-kba_info_agent = sonnet.bind_tools(tools)
+tools = [kba_data_tool, kba_insights_tool]
+kba_agent = sonnet.bind_tools(tools)
 kba_response_agent = sonnet.with_structured_output(KBAResponse)
