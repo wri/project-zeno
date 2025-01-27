@@ -126,12 +126,18 @@ def get_alerts_by_context_layer(
 ) -> Tuple[dict, ee.Image]:
     choice = get_context_layer_info(context_layer_name)
 
-    # Note: the ee_excpetion.EEXception that is triggered when an Image type
-    # is loaded as an ImageCollection (or inversely) is actually raised in
-    # the `getinfo()` call (I assume due to some internal lazy-loading logic).
-    # I've moved the `getInfo()` call to a separate method in order to avoid
-    # re-defining the functionality in the except block.
-    if choice:
+
+    if context_layer_name == "distalert-drivers":
+        context_layer = get_drivers()
+        zone_stats, vectorize = get_zone_stats(
+            context_layer, distalerts, threshold, date_mask, gee_features, choice
+        )
+    else:
+        # Note: the ee_excpetion.EEXception that is triggered when an Image type
+        # is loaded as an ImageCollection (or inversely) is actually raised in
+        # the `getinfo()` call (I assume due to some internal lazy-loading logic).
+        # I've moved the `getInfo()` call to a separate method in order to avoid
+        # re-defining the functionality in the except block.
         try:
             context_layer = (
                 ee.ImageCollection(context_layer_name).mosaic().select(choice["band"])
@@ -144,21 +150,6 @@ def get_alerts_by_context_layer(
             zone_stats, vectorize = get_zone_stats(
                 context_layer, distalerts, threshold, date_mask, gee_features, choice
             )
-
-    else:
-        context_layer = get_drivers()
-        # TODO: replace this with layer in DB, this is currently a patch to make the tests work
-        choice["resolution"] = DIST_ALERT_STATS_SCALE
-        choice["band"] = "driver"
-        choice["metadata"] = {
-            "value_mappings": [
-                {"value": val, "description": key}
-                for key, val in DRIVER_VALUEMAP.items()
-            ]
-        }
-        zone_stats, vectorize = get_zone_stats(
-            context_layer, distalerts, threshold, date_mask, gee_features, choice
-        )
 
     zone_stats = zone_stats["features"][0]["properties"]["groups"]
 
