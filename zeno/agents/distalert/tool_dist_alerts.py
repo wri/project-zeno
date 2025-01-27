@@ -98,10 +98,8 @@ def get_context_layer_info(dataset: str) -> dict:
 def get_zone_stats(
     context_layer, distalerts, threshold, date_mask, gee_features, choice
 ):
-    zone_stats_img = (
-        distalerts
-        .addBands(context_layer)
-        .updateMask(distalerts.gte(threshold))
+    zone_stats_img = distalerts.addBands(context_layer).updateMask(
+        distalerts.gte(threshold)
     )
 
     if date_mask:
@@ -124,14 +122,20 @@ def get_alerts_by_context_layer(
     date_mask: ee.Image,
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
+
     choice = get_context_layer_info(context_layer_name)
 
-    # Note: the ee_excpetion.EEXception that is triggered when an Image type
-    # is loaded as an ImageCollection (or inversely) is actually raised in
-    # the `getinfo()` call (I assume due to some internal lazy-loading logic).
-    # I've moved the `getInfo()` call to a separate method in order to avoid
-    # re-defining the functionality in the except block.
-    if choice:
+    if context_layer_name == "wri-dist-alert-drivers":
+        context_layer = get_drivers()
+        zone_stats, vectorize = get_zone_stats(
+            context_layer, distalerts, threshold, date_mask, gee_features, choice
+        )
+    else:
+        # Note: the ee_excpetion.EEXception that is triggered when an Image type
+        # is loaded as an ImageCollection (or inversely) is actually raised in
+        # the `getinfo()` call (I assume due to some internal lazy-loading logic).
+        # I've moved the `getInfo()` call to a separate method in order to avoid
+        # re-defining the functionality in the except block.
         try:
             context_layer = (
                 ee.ImageCollection(context_layer_name).mosaic().select(choice["band"])
@@ -145,27 +149,14 @@ def get_alerts_by_context_layer(
                 context_layer, distalerts, threshold, date_mask, gee_features, choice
             )
 
-    else:
-        context_layer = get_drivers()
-        # TODO: replace this with layer in DB, this is currently a patch to make the tests work
-        choice["resolution"] = DIST_ALERT_STATS_SCALE
-        choice["band"] = "driver"
-        choice["metadata"] = {
-            "value_mappings": [
-                {"value": val, "description": key}
-                for key, val in DRIVER_VALUEMAP.items()
-            ]
-        }
-        zone_stats, vectorize = get_zone_stats(
-            context_layer, distalerts, threshold, date_mask, gee_features, choice
-        )
-
     zone_stats = zone_stats["features"][0]["properties"]["groups"]
 
     value_mappings = {
         dat["value"]: dat["description"] for dat in choice["metadata"]["value_mappings"]
     }
-    zone_stats = {value_mappings[dat[choice["band"]]]: dat["count"] for dat in zone_stats}
+    zone_stats = {
+        value_mappings[dat[choice["band"]]]: dat["count"] for dat in zone_stats
+    }
 
     return zone_stats, vectorize
 
@@ -177,9 +168,7 @@ def get_distalerts_unfiltered(
     date_mask: ee.Image,
     threshold: int,
 ) -> Tuple[dict, ee.Image]:
-    zone_stats_img = (
-        distalerts.updateMask(distalerts.gte(threshold))
-    )
+    zone_stats_img = distalerts.updateMask(distalerts.gte(threshold))
     if date_mask:
         zone_stats_img = zone_stats_img.updateMask(
             zone_stats_img.selfMask().And(date_mask)
@@ -191,7 +180,11 @@ def get_distalerts_unfiltered(
         scale=DIST_ALERT_STATS_SCALE,
     ).getInfo()
 
-    zone_stats_result = {"disturbances": sum(feat["properties"]["count"] for feat in zone_stats["features"])}
+    zone_stats_result = {
+        "disturbances": sum(
+            feat["properties"]["count"] for feat in zone_stats["features"]
+        )
+    }
 
     return zone_stats_result, zone_stats_img
 
@@ -247,8 +240,11 @@ def dist_alerts_tool(
     This tool quantifies vegetation disturbance alerts over an area of interest
     and summarizes the alerts in statistics by context layer types.
 
-    The unit of disturbances that are returned are numberr of pixels with
+    The unit of disturbances that are returned are number of alerts with
     potential disturbances.
+
+    Never input the context_layer_name directly, always use the context_layer_tool
+    to obtain the correct context_layer_name.
     """
     print("---DIST ALERTS TOOL---")
 
