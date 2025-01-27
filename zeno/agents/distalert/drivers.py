@@ -9,7 +9,7 @@ DRIVER_VALUEMAP = {
     "conversion": 4,
     "other_conversion": 5,
 }
-GEE_FOLDER = "pojects/glad/HLSDIST/current/"
+GEE_FOLDER = "pojects/glad/HLSDIST/backend/"
 
 def get_drivers():
     natural_lands = ee.Image("WRI/SBTN/naturalLands/v1/2020").select("natural")
