@@ -828,6 +828,23 @@ wheels = [
 ]
 
 [[package]]
+name = "elevenlabs"
+version = "1.50.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/82/3c/e562446d4079ff0690020071855e8ba4ca24881af508eda08f3a02e669ce/elevenlabs-1.50.5.tar.gz", hash = "sha256:602b1c67bda9c53cc02c009c02225290043b9d312e02f8af860d42e3ab15c0dc", size = 104807 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/12/a96adce9a16db1da674ddfa464ab7be04a2dfac7ba6969074f7d44adc2ff/elevenlabs-1.50.5-py3-none-any.whl", hash = "sha256:71cb961abe50f48684e349579741630b8534698ca70e955e84cb3c2467175146", size = 236367 },
+]
+
+[[package]]
 name = "email-validator"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3188,6 +3205,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "earthengine-api" },
+    { name = "elevenlabs" },
     { name = "fastapi", extra = ["standard"] },
     { name = "fiona" },
     { name = "geemap" },
@@ -3224,6 +3242,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "earthengine-api", specifier = ">=1.4.0" },
+    { name = "elevenlabs", specifier = ">=1.50.5" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.4" },
     { name = "fiona", specifier = ">=1.10.1" },
     { name = "geemap", specifier = ">=0.35.1" },

@@ -27,6 +27,7 @@ dependencies = [
     "langgraph>=0.2.56",
     "pystac>=1.11.0",
     "pystac-client>=0.8.5",
+    "elevenlabs>=1.50.5",
 ]
 
 [dependency-groups]

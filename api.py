@@ -1,19 +1,24 @@
+import io
 import json
+import os
 import uuid
 from typing import Annotated, Optional
 
+from dotenv import load_dotenv
+from elevenlabs.client import ElevenLabs
 from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from langchain_core.messages import (
-    HumanMessage,
-)
+from fastapi.responses import Response, StreamingResponse
+from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
 from zeno.agents.distalert.graph import graph as dist_alert
 from zeno.agents.docfinder.graph import graph as docfinder
-from zeno.agents.layerfinder.graph import graph as layerfinder
 from zeno.agents.kba.graph import graph as kba
+from zeno.agents.layerfinder.graph import graph as layerfinder
+
+load_dotenv()
+
 
 app = FastAPI()
 # # langfuse_handler = CallbackHandler()
@@ -301,3 +306,26 @@ async def stream_kba(
         event_stream_kba(query, user_persona, thread_id),
         media_type="application/x-ndjson",
     )
+
+
+@app.get("/stream/voice")
+async def stream_audio(query: str):
+
+    client = ElevenLabs(
+        api_key=os.getenv("ELEVENLABS_API_KEY"),
+    )
+
+    audio = client.text_to_speech.convert(
+        text=query,
+        voice_id="MKOHthhn22dKT5XpmFBl",
+        model_id="eleven_multilingual_v2",
+        output_format="mp3_44100_128",
+    )
+
+    audio_buffer = io.BytesIO()
+    for chunk in audio:
+        if chunk:
+            audio_buffer.write(chunk)
+    audio_buffer.seek(0)
+
+    return Response(content=audio_buffer.getvalue(), media_type="audio/mpeg")
