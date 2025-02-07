@@ -41,14 +41,14 @@ def kba_data_tool(
     )  # pass a tool call to return the artifact
     _, artifact = result.content, result.artifact
     aoi_geometry = shape(artifact[0]["geometry"])
-    aoi_buffered = aoi_geometry.buffer(0.1)
+    aoi_buffered = aoi_geometry.buffer(0.1) # 0.1 degree buffer i.e ~11km
 
     kba_within_aoi = kba[kba.geometry.within(aoi_buffered)]
 
     data = f"Found data for {len(kba_within_aoi)} KBAs within the area of interest: {query}."
     return Command(
         update={
-            "kba_within_aoi": kba_within_aoi,
+            "kba_within_aoi": kba_within_aoi.to_json(),
             "messages": [ToolMessage(content=data, tool_call_id=tool_call_id)],
         },
     )

@@ -10,7 +10,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from zeno.agents.kba.agent import kba_agent, kba_response_agent, tools
+from zeno.agents.kba.agent import kba_agent, tools
 from zeno.agents.kba.prompts import KBA_PROMPT
 from zeno.agents.kba.state import KbaState
 
@@ -46,19 +46,11 @@ def kba_node(state: KbaState):
 
     return {"messages": [result], "user_persona": state["user_persona"]}
 
-def kba_response_node(state: KbaState):
-    print("kba response node")
-    response = kba_response_agent.invoke(
-        [HumanMessage(content=state["messages"][-2].content)]
-        + [AIMessage(content=state["messages"][-1].content)]
-    )
-    return {"report": response}
-
 
 def route_node(state: KbaState):
     last_message = state["messages"][-1]
     if not last_message.tool_calls:
-        return "respond"
+        return END
     else:
         return "tools"
 
@@ -66,17 +58,15 @@ def route_node(state: KbaState):
 wf = StateGraph(KbaState)
 
 wf.add_node("kba_node", kba_node)
-wf.add_node("kba_response_node", kba_response_node)
 wf.add_node("tools", create_tool_node_with_fallback(tools))
 
 wf.add_edge(START, "kba_node")
 wf.add_conditional_edges(
     "kba_node",
     route_node,
-    {"tools": "tools", "respond": "kba_response_node"},
+    {"tools": "tools", END: END},
 )
 wf.add_edge("tools", "kba_node")
-wf.add_edge("kba_response_node", END)
 
 memory = MemorySaver()
 graph = wf.compile(checkpointer=memory)

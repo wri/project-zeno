@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Annotated
 from uuid import uuid4
@@ -34,8 +35,9 @@ def kba_insights_tool(question: str, state: Annotated[Dict, InjectedState]):
         question: The user's question or query
     """
     print("kba insights tool")
-    kba_within_aoi = state.kba_within_aoi
-    user_persona = state.user_persona
+    kba_within_aoi = state["kba_within_aoi"]
+    kba_within_aoi = gpd.GeoDataFrame.from_features(json.loads(kba_within_aoi))
+    user_persona = state["user_persona"]
 
     column_selection_prompt = KBA_COLUMN_SELECTION_PROMPT.format(
         user_persona=user_persona,
@@ -45,7 +47,7 @@ def kba_insights_tool(question: str, state: Annotated[Dict, InjectedState]):
     columns = column_selection_agent.invoke(
         [AIMessage(content=column_selection_prompt),
         HumanMessage(content=question)]
-    )
+    ).columns
     print(columns)
     # add siteName and sitecode to the columns list if they are not already in the list
     if "siteName" not in columns:
@@ -61,10 +63,10 @@ def kba_insights_tool(question: str, state: Annotated[Dict, InjectedState]):
     kba_insights_prompt = KBA_INSIGHTS_PROMPT.format(
         user_persona=user_persona,
         question=question,
-        dataset_description=column_description[columns].to_csv(index=False),
+        column_description=column_description[column_description['column'].isin(columns)].to_csv(index=False),
         data=kba_within_aoi_filtered.to_csv(index=False),
     )
 
     response = sonnet.invoke(kba_insights_prompt)
 
-    return response
+    return response.content

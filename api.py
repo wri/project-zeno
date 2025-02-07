@@ -243,50 +243,30 @@ def event_stream_kba(
     for update in stream:
         print(update)
         node = next(iter(update.keys()))
-
-        if node == "kba_response_node":
-            report = update[node]["report"].to_dict()
-            summary = report["summary"]
-            metrics = report["metrics"]
-            regional_breakdown = report["regional_breakdown"]
-            actions = report["actions"]
-            data_gaps = report["data_gaps"]
-            yield pack(
-                {
-                    "node": node,
-                    "type": "report",
-                    "summary": summary,
-                    "metrics": metrics,
-                    "regional_breakdown": regional_breakdown,
-                    "actions": actions,
-                    "data_gaps": data_gaps,
-                }
-            )
+        messages = update[node]["messages"]
+        if node == "tools":
+            state_graph = kba.get_state(config).values
+            for message in messages:
+                message.pretty_print()
+                yield pack(
+                    {
+                        "node": node,
+                        "type": "tool_call",
+                        "tool_name": message.name,
+                        "content": message.content,
+                        "artifact": state_graph["kba_within_aoi"] if "kba_within_aoi" in state_graph else None,
+                    }
+                )
         else:
-            messages = update[node]["messages"]
-            if node == "tools":
-                state_graph = kba.get_state(config).values
-                for message in messages:
-                    message.pretty_print()
-                    yield pack(
-                        {
-                            "node": node,
-                            "type": "tool_call",
-                            "tool_name": message.name,
-                            "content": message.content,
-                            "artifact": state_graph["kba_within_aoi"] if "kba_within_aoi" in state_graph else None,
-                        }
-                    )
-            else:
-                for message in messages:
-                    message.pretty_print()
-                    yield pack(
-                        {
-                            "node": node,
-                            "type": "update",
-                            "content": message.content,
-                        }
-                    )
+            for message in messages:
+                message.pretty_print()
+                yield pack(
+                    {
+                        "node": node,
+                        "type": "update",
+                        "content": message.content,
+                    }
+                )
 
 
 @app.post("/stream/kba")
