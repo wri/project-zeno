@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
+from langfuse.callback import CallbackHandler
 
 from zeno.agents.distalert.graph import graph as dist_alert
 from zeno.agents.docfinder.graph import graph as docfinder
@@ -21,7 +22,10 @@ load_dotenv()
 
 
 app = FastAPI()
-# # langfuse_handler = CallbackHandler()
+
+callbacks = []
+if "LANGFUSE_PUBLIC_KEY" in os.environ:
+    callbacks.append(CallbackHandler())
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,7 +50,7 @@ def event_stream_alerts(
         thread_id = str(uuid.uuid4())
 
     config = {
-        # "callbacks": [langfuse_handler],
+        "callbacks": callbacks,
         "configurable": {"thread_id": thread_id},
     }
 
