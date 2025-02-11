@@ -227,46 +227,78 @@ def event_stream_kba(
     query: str,
     user_persona: Optional[str] = None,
     thread_id: Optional[str] = None,
+    query_type: Optional[str] = None,
 ):
+    print(f"query_type: {query_type}")
+    print(f"query: {query}")
     if not thread_id:
         thread_id = str(uuid.uuid4())
 
     config = {"configurable": {"thread_id": thread_id}}
-    query = HumanMessage(content=query, name="human")
-    stream = kba.stream(
-        {"messages": [query], "user_persona": user_persona},
-        stream_mode="updates",
-        subgraphs=False,
-        config=config,
-    )
+    if query_type == "human_input":
+        query = HumanMessage(content=query, name="human")
+        stream = kba.stream(
+            Command(
+                goto="kba_node",
+                update={
+                    "messages": [query],
+                },
+            ),
+            stream_mode="updates",
+            subgraphs=False,
+            config=config,
+        )
+    elif query_type == "query":
+        query = HumanMessage(content=query, name="human")
+        stream = kba.stream(
+            {"messages": [query], "user_persona": user_persona},
+            stream_mode="updates",
+            subgraphs=False,
+            config=config,
+        )
+    else:
+        raise ValueError(f"Invalid query type from frontend: {query_type}")
 
     for update in stream:
         print(update)
         node = next(iter(update.keys()))
-        messages = update[node]["messages"]
-        if node == "tools":
-            state_graph = kba.get_state(config).values
-            for message in messages:
-                message.pretty_print()
-                yield pack(
-                    {
-                        "node": node,
-                        "type": "tool_call",
-                        "tool_name": message.name,
-                        "content": message.content,
-                        "artifact": state_graph["kba_within_aoi"] if "kba_within_aoi" in state_graph else None,
-                    }
-                )
+
+        if node == "__interrupt__":
+            print("INTERRUPTED")
+            current_state = kba.get_state(config)
+            yield pack(
+                {
+                    "node": node,
+                    "type": "interrupted",
+                    "input": "Do you want to continue?",
+                    "payload": current_state.values["messages"][-1].content,
+                }
+            )
         else:
-            for message in messages:
-                message.pretty_print()
-                yield pack(
-                    {
-                        "node": node,
-                        "type": "update",
-                        "content": message.content,
-                    }
-                )
+            messages = update[node]["messages"]
+            if node == "tools" or node == "tools_with_hil":
+                state_graph = kba.get_state(config).values
+                for message in messages:
+                    message.pretty_print()
+                    yield pack(
+                        {
+                            "node": node,
+                            "type": "tool_call",
+                            "tool_name": message.name,
+                            "content": message.content,
+                            "artifact": state_graph["kba_within_aoi"] if "kba_within_aoi" in state_graph else None,
+                        }
+                    )
+            else:
+                for message in messages:
+                    message.pretty_print()
+                    yield pack(
+                        {
+                            "node": node,
+                            "type": "update",
+                            "content": message.content,
+                        }
+                    )
 
 
 @app.post("/stream/kba")
@@ -274,8 +306,9 @@ async def stream_kba(
     query: Annotated[str, Body(embed=True)],
     user_persona: Optional[str] = Body(None),
     thread_id: Optional[str] = Body(None),
+    query_type: Optional[str] = Body(None),
 ):
     return StreamingResponse(
-        event_stream_kba(query, user_persona, thread_id),
+        event_stream_kba(query, user_persona, thread_id, query_type),
         media_type="application/x-ndjson",
     )

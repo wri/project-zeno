@@ -16,9 +16,23 @@ from zeno.agents.distalert.tool_location import location_tool
 data_dir = Path("data/kba")
 kba = gpd.read_file(data_dir / "kba_merged.gpkg")
 
+def get_aoi(gadm_id: str, gadm_level: int, buffer_distance: float = 0.1):
+    aoi_df = gpd.read_file(
+        Path("data") / f"gadm_410_level_{gadm_level}.gpkg",
+        where=f"GID_{gadm_level} like '{gadm_id}'",
+    )
+    aoi = aoi_df.geometry.iloc[0]
+
+    if buffer_distance:
+        aoi = aoi.buffer(buffer_distance)
+
+    return aoi
+
 @tool("kba-data-tool")
 def kba_data_tool(
-    query: str,
+    name: str,
+    gadm_id: str,
+    gadm_level: int,
     tool_call_id: Annotated[str, InjectedToolCallId],
     config: RunnableConfig
 ) -> Command:
@@ -26,26 +40,16 @@ def kba_data_tool(
     Finds location of all Key Biodiversity Areas (KBAs) with in an area of interest.
 
     Args:
-        query: Name of the location to search for. Can be a city, region, or country name.
+        name: Name of the location to search for. Can be a city, region, or country name.
+        gadm_id: GADM ID of the location to search for.
+        gadm_level: GADM level of the location to search for.
     """
     print("kba data tool")
-    result = location_tool.invoke(
-        {
-            "name": "location-tool",
-            "args": {
-                "query": query,
-            },
-            "id": str(uuid4()),
-            "type": "tool_call",
-        }
-    )  # pass a tool call to return the artifact
-    _, artifact = result.content, result.artifact
-    aoi_geometry = shape(artifact[0]["geometry"])
-    aoi_buffered = aoi_geometry.buffer(0.1) # 0.1 degree buffer i.e ~11km
+    aoi = get_aoi(gadm_id=gadm_id, gadm_level=gadm_level)
 
-    kba_within_aoi = kba[kba.geometry.within(aoi_buffered)]
+    kba_within_aoi = kba[kba.geometry.within(aoi)]
 
-    data = f"Found data for {len(kba_within_aoi)} KBAs within the area of interest: {query}."
+    data = f"Found data for {len(kba_within_aoi)} KBAs within the area of interest: {name}."
     return Command(
         update={
             "kba_within_aoi": kba_within_aoi.to_json(),

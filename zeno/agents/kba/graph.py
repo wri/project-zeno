@@ -8,9 +8,9 @@ from langchain_core.messages import (
 from langchain_core.runnables import RunnableLambda
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
-from langgraph.prebuilt import ToolNode
+from langgraph.prebuilt import ToolNode, tools_condition
 
-from zeno.agents.kba.agent import kba_agent, tools
+from zeno.agents.kba.agent import kba_agent, tools, tools_with_hil_names, tools_with_hil
 from zeno.agents.kba.prompts import KBA_PROMPT
 from zeno.agents.kba.state import KbaState
 
@@ -48,9 +48,13 @@ def kba_node(state: KbaState):
 
 
 def route_node(state: KbaState):
-    last_message = state["messages"][-1]
-    if not last_message.tool_calls:
+    next_node = tools_condition(state)
+    if next_node == END:
         return END
+    msg = state["messages"][-1]
+    tc = msg.tool_calls[0]
+    if tc["name"] in tools_with_hil_names:
+        return "tools_with_hil"
     else:
         return "tools"
 
@@ -59,15 +63,17 @@ wf = StateGraph(KbaState)
 
 wf.add_node("kba_node", kba_node)
 wf.add_node("tools", create_tool_node_with_fallback(tools))
+wf.add_node("tools_with_hil", create_tool_node_with_fallback(tools_with_hil))
 
 wf.add_edge(START, "kba_node")
 wf.add_conditional_edges(
     "kba_node",
     route_node,
-    {"tools": "tools", END: END},
+    {"tools": "tools", "tools_with_hil": "tools_with_hil", END: END},
 )
 wf.add_edge("tools", "kba_node")
+wf.add_edge("tools_with_hil", "kba_node")
 
 memory = MemorySaver()
-graph = wf.compile(checkpointer=memory)
+graph = wf.compile(checkpointer=memory, interrupt_after=["tools_with_hil"])
 graph.name = "kba"

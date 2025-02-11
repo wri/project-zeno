@@ -15,6 +15,8 @@ API_BASE_URL = os.environ.get("API_BASE_URL")
 
 if "kba_session_id" not in st.session_state:
     st.session_state.kba_session_id = str(uuid.uuid4())
+if "waiting_for_input" not in st.session_state:
+    st.session_state.waiting_for_input = False
 if "kba_messages" not in st.session_state:
     st.session_state.kba_messages = []
 
@@ -22,6 +24,7 @@ if "kba_messages" not in st.session_state:
 # Add a callback function to reset the session state
 def reset_state():
     st.session_state.kba_session_id = str(uuid.uuid4())
+    st.session_state.waiting_for_input = False
     st.session_state.kba_messages = []
     st.session_state.custom_persona = ""
 
@@ -99,30 +102,35 @@ def handle_stream_response(stream):
     for chunk in stream.iter_lines():
         data = json.loads(chunk.decode("utf-8"))
 
-        if data.get("type") == "report":
-            message = {
-                "role": "assistant",
-                "type": "report",
-                "summary": data["summary"],
-                "metrics": data["metrics"],
-                "regional_breakdown": data["regional_breakdown"],
-                "actions": data["actions"],
-                "data_gaps": data["data_gaps"],
-            }
-        elif data.get("type") == "update":
+        if data.get("type") == "update":
             message = {
                 "role": "assistant",
                 "type": "update",
                 "content": data["content"],
             }
+            st.session_state.kba_messages.append(message)
+            display_message(message)
         elif data.get("type") == "tool_call":
             message = {
                 "role": "assistant",
                 "type": "kba_location",
                 "content": data,
             }
-        st.session_state.kba_messages.append(message)
-        display_message(message)
+            st.session_state.kba_messages.append(message)
+            display_message(message)
+        elif data.get("type") == "interrupted":
+            payload = json.loads(data.get("payload"))
+            st.session_state.waiting_for_input = True
+            message = {
+                "role": "assistant",
+                "type": "text",
+                "content": f"Pick one of the options: {[row[0] for row in payload]}",
+            }
+            st.session_state.kba_messages.append(message)
+            display_message(message)
+            st.rerun()
+        else:
+            raise ValueError(f"Unknown message type: {data.get('type')}")
 
 
 # Display chat history
@@ -135,15 +143,22 @@ if st.session_state.active_persona:
         st.session_state.kba_messages.append(message)
         display_message(message)
 
-        with requests.post(
-            f"{API_BASE_URL}/stream/kba",
-            json={
+        query_type = "human_input" if st.session_state.waiting_for_input else "query"
+        if st.session_state.waiting_for_input:
+            st.session_state.waiting_for_input = False
+        request = {
                 "query": user_input,
                 "user_persona": st.session_state.active_persona,  # Include persona in the request
                 "thread_id": st.session_state.kba_session_id,
-            },
+                "query_type": query_type,
+        }
+        print(f"request: {request}")
+        with requests.post(
+            f"{API_BASE_URL}/stream/kba",
+            json=request,
             stream=True,
         ) as stream:
+            print(f"stream: {stream}")
             handle_stream_response(stream)
 else:
     st.write("Please select or enter a user persona to start the chat.")
