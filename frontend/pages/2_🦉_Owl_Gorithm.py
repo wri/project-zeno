@@ -2,9 +2,11 @@ import json
 import os
 import uuid
 
+import folium
 import requests
 import streamlit as st
 from dotenv import load_dotenv
+from streamlit_folium import folium_static
 
 load_dotenv()
 
@@ -43,7 +45,14 @@ def display_message(message):
         st.chat_message("user").write(message["content"])
     else:
         st.chat_message("assistant").write(message["content"])
-
+        if "tilelayer" in message["content"]:
+            m = folium.Map(location=[0, 0], zoom_start=3)
+            g = folium.TileLayer(
+                message['content']['tilelayer'],
+                name=message["content"]['dataset'],
+                attr=message["content"]['dataset'],
+            ).add_to(m)  # noqa: F841
+            folium_static(m, width=700, height=500)
 
 def handle_stream_response(stream):
     for chunk in stream.iter_lines():

@@ -1,14 +1,3 @@
-import json
-
-
-def clean_json_response(response: str) -> dict:
-    """Clean JSON response from LLM by removing any markdown formatting."""
-    # Remove markdown code block indicators if present
-    cleaned = response.strip().replace("```json", "").replace("```", "")
-    # Parse the cleaned string into a dict
-    return json.loads(cleaned)
-
-
 def make_context(docs):
     fmt_docs = []
     for doc in docs:
