@@ -8,21 +8,18 @@ from typing_extensions import Self
 
 class Dataset(BaseModel):
     title: str = Field(description="The title of the dataset")
-    dataset: str = Field(description="The slug of the dataset")
+    dataset: str = Field(description="The uuid of the dataset")
     explanation: str = Field(
         description="A one paragraph explanation of why this dataset is relevant to the user's problem"
     )
     uri: Optional[str] = Field(None, description="The URI of the dataset")
     tilelayer: Optional[str] = Field(None, description="The tilelayer of the dataset")
+    metadata: Optional[dict] = Field(
+        None, description="GFW metadata record for the dataset"
+    )
     score: bool = Field(
         description="Relevance score 'true' if the dataset is relvant and 'false' otherwise"
     )
-
-    @model_validator(mode="after")
-    def set_uri_and_tilelayer(self) -> Self:
-        self.uri = f"https://data-api.globalforestwatch.org/dataset/{self.dataset}"
-        self.tilelayer = f"https://tiles.globalforestwatch.org/{self.dataset}/latest/dynamic/{{z}}/{{x}}/{{y}}.png"
-        return self
 
 
 class LayerFinderResponse(BaseModel):

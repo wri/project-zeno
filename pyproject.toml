@@ -28,6 +28,7 @@ dependencies = [
     "pystac>=1.11.0",
     "pystac-client>=0.8.5",
     "elevenlabs>=1.50.5",
+    "folium-vectorgrid>=0.1.3",
 ]
 
 [dependency-groups]

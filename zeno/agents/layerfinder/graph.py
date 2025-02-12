@@ -1,13 +1,13 @@
 import json
 
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
-from zeno.agents.layerfinder.agent import layerfinder_agent, haiku
+from zeno.agents.layerfinder.agent import haiku, layerfinder_agent
 from zeno.agents.layerfinder.prompts import (
-    LAYER_FINDER_RAG_PROMPT,
     LAYER_DETAILS_PROMPT,
+    LAYER_FINDER_RAG_PROMPT,
 )
 from zeno.agents.layerfinder.state import LayerFinderState
 from zeno.agents.layerfinder.tool_layer_retrieve import retriever
@@ -32,6 +32,18 @@ def validation_node(state: LayerFinderState):
     data = layerfinder_agent.invoke([HumanMessage(content=rag_prompt_fmt)])
 
     data.datasets = [data for data in data.datasets if data.score]
+
+    for dataset in data.datasets:
+        doc = [doc for doc in documents if doc.metadata["zeno_id"] == dataset.dataset][
+            0
+        ]
+        dataset.metadata = doc.metadata
+        dataset.uri = doc.metadata["gfw_metadata_url"]
+        if "url_id" in doc.metadata["gfw_tile_url"]:
+            doc.metadata["gfw_tile_url"] = doc.metadata["gfw_tile_url"].replace(
+                "{url_id}", doc.metadata["gfw_layer_id"]
+            )
+        dataset.tilelayer = doc.metadata["gfw_tile_url"]
 
     return {"validated_documents": data}
 

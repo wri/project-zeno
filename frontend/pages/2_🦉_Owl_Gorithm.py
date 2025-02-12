@@ -6,6 +6,7 @@ import folium
 import requests
 import streamlit as st
 from dotenv import load_dotenv
+from folium_vectorgrid import VectorGridProtobuf
 from streamlit_folium import folium_static
 
 load_dotenv()
@@ -44,21 +45,20 @@ def generate_markdown(data):
     return f"""#### Overview
 {data['metadata'].get('overview') or "N/A"}
 
+[More Information]({data['metadata'].get('learn_more') or '#'})
+
 #### Cautions
 {data['metadata'].get('cautions') or "N/A"}
-
-#### Learn More
-[More Information]({data['metadata'].get('learn_more') or '#'})
 
 #### Metadata
 - **Spatial Resolution:** {data['metadata'].get('spatial_resolution') or "N/A"}
 - **Geographic Coverage:** {data['metadata'].get('geographic_coverage') or "N/A"}
 - **Source:** {data['metadata'].get('source') or "N/A"}
-- **License:** [{data['metadata'].get('license') or "N/A"}]({data['metadata'].get('license', '#' )})
+- **License:** {data['metadata'].get('license') or "N/A"}
 - **Data Language:** {data['metadata'].get('data_language') or "N/A"}
 - **Function:** {data['metadata'].get('function') or "N/A"}
 - **Key Restrictions:** {data['metadata'].get('key_restrictions') or "N/A"}
-- **Tags:** {', '.join(data['metadata'].get('tags') or [])}
+- **Tags:** {data['metadata'].get('tags', '')}
 - **Created On:** {data.get('created_on') or 'N/A'}
 - **Updated On:** {data.get('updated_on') or 'N/A'}
 - **Dataset ID:** `{data.get('dataset') or 'N/A'}`
@@ -74,27 +74,35 @@ def display_message(message):
     if message["role"] == "user":
         st.chat_message("user").write(message["content"])
     else:
-        with requests.get(message["content"]["uri"]) as response:
-            data = response.json()["data"]
+        # print("MSG", message["content"]["metadata"].keys())
+        data = message["content"]
+        header = f"""### {data.get('metadata', {}).get('title', 'Dataset')}
 
-        data["explanation"] = message["content"]["explanation"]
-        header = f"""### {data['metadata'].get('title', 'Dataset')}
-
-{data.get('explanation', '')}"""
+{data['explanation']}"""
         st.markdown(header)
-        md_output = generate_markdown(data)
 
         if "tilelayer" in message["content"]:
             m = folium.Map(location=[0, 0], zoom_start=3)
-            g = folium.TileLayer(
-                message['content']['tilelayer'],
-                name=message["content"]['dataset'],
-                attr=message["content"]['dataset'],
-            ).add_to(m)  # noqa: F841
+            if message["content"]["tilelayer"].endswith(".pbf"):
+                vc = VectorGridProtobuf(
+                    message["content"]["tilelayer"], "folium_layer_name", {}
+                ).add_to(
+                    m
+                )  # noqa: F841
+            else:
+                g = folium.TileLayer(
+                    message["content"]["tilelayer"],
+                    name=message["content"]["dataset"],
+                    attr=message["content"]["dataset"],
+                ).add_to(
+                    m
+                )  # noqa: F841
             folium_static(m, width=700, height=300)
-        
+
+        md_output = generate_markdown(data)
         with st.expander("More info", expanded=False):
-            st.markdown(md_output)
+            st.markdown(md_output, unsafe_allow_html=True)
+
 
 def handle_stream_response(stream):
     for chunk in stream.iter_lines():
