@@ -15,6 +15,7 @@ class JSONSerializable(BaseModel):
 
 
 class Dataset(JSONSerializable):
+    title: str = Field(description="The title of the dataset")
     dataset: str = Field(description="The slug of the dataset")
     explanation: str = Field(
         description="A two-line explanation of why this dataset is relevant to the user's problem"
