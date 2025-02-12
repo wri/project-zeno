@@ -1,20 +1,16 @@
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Annotated
-from uuid import uuid4
+from typing import Annotated
 
 import geopandas as gpd
-from langchain_core.tools import tool
-from pydantic import BaseModel, Field
-from shapely.geometry import shape
-from langchain_core.tools.base import InjectedToolCallId
 from langchain_core.messages import ToolMessage
 from langchain_core.runnables import RunnableConfig
+from langchain_core.tools import tool
+from langchain_core.tools.base import InjectedToolCallId
 from langgraph.types import Command
-
-from zeno.agents.distalert.tool_location import location_tool
 
 data_dir = Path("data/kba")
 kba = gpd.read_file(data_dir / "kba_merged.gpkg")
+
 
 def get_aoi(gadm_id: str, gadm_level: int, buffer_distance: float = 0.1):
     aoi_df = gpd.read_file(
@@ -28,13 +24,13 @@ def get_aoi(gadm_id: str, gadm_level: int, buffer_distance: float = 0.1):
 
     return aoi
 
+
 @tool("kba-data-tool")
 def kba_data_tool(
     name: str,
     gadm_id: str,
     gadm_level: int,
     tool_call_id: Annotated[str, InjectedToolCallId],
-    config: RunnableConfig
 ) -> Command:
     """
     Finds location of all Key Biodiversity Areas (KBAs) with in an area of interest.

@@ -12,8 +12,8 @@ from langgraph.types import Command
 
 from zeno.agents.distalert.graph import graph as dist_alert
 from zeno.agents.docfinder.graph import graph as docfinder
-from zeno.agents.layerfinder.graph import graph as layerfinder
 from zeno.agents.kba.graph import graph as kba
+from zeno.agents.layerfinder.graph import graph as layerfinder
 
 app = FastAPI()
 # # langfuse_handler = CallbackHandler()
@@ -88,7 +88,6 @@ def event_stream_alerts(
             messages = update[node]["messages"]
             if node == "tools" or node == "tools_with_hil":
                 for message in messages:
-                    message.pretty_print()
                     yield pack(
                         {
                             "node": node,
@@ -103,7 +102,6 @@ def event_stream_alerts(
                         }
                     )
             else:
-                messages.pretty_print()
                 yield pack(
                     {
                         "node": node,
@@ -229,8 +227,6 @@ def event_stream_kba(
     thread_id: Optional[str] = None,
     query_type: Optional[str] = None,
 ):
-    print(f"query_type: {query_type}")
-    print(f"query: {query}")
     if not thread_id:
         thread_id = str(uuid.uuid4())
 
@@ -260,7 +256,6 @@ def event_stream_kba(
         raise ValueError(f"Invalid query type from frontend: {query_type}")
 
     for update in stream:
-        print(update)
         node = next(iter(update.keys()))
 
         if node == "__interrupt__":
@@ -277,21 +272,44 @@ def event_stream_kba(
         else:
             messages = update[node]["messages"]
             if node == "tools" or node == "tools_with_hil":
-                state_graph = kba.get_state(config).values
                 for message in messages:
-                    message.pretty_print()
-                    yield pack(
-                        {
-                            "node": node,
-                            "type": "tool_call",
-                            "tool_name": message.name,
-                            "content": message.content,
-                            "artifact": state_graph["kba_within_aoi"] if "kba_within_aoi" in state_graph else None,
-                        }
-                    )
+                    if message.name == "kba-data-tool":
+                        state_graph = kba.get_state(config).values
+                        yield pack(
+                            {
+                                "node": node,
+                                "type": "tool_call",
+                                "tool_name": message.name,
+                                "content": message.content,
+                                "artifact": state_graph["kba_within_aoi"]
+                                if "kba_within_aoi" in state_graph
+                                else None,
+                            }
+                        )
+                    elif message.name == "location-tool":
+                        yield pack(
+                            {
+                                "node": node,
+                                "type": "tool_call",
+                                "tool_name": message.name,
+                                "content": message.content,
+                                "artifact": message.artifact
+                                if hasattr(message, "artifact")
+                                else None,
+                            }
+                        )
+                    else:
+                        yield pack(
+                            {
+                                "node": node,
+                                "type": "tool_call",
+                                "tool_name": message.name,
+                                "content": message.content,
+                                "artifact": None,
+                            }
+                        )
             else:
                 for message in messages:
-                    message.pretty_print()
                     yield pack(
                         {
                             "node": node,

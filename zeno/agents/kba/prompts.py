@@ -16,6 +16,8 @@ FLOW
 5. If the user's query explicitly requests time-series analysis or insights into trends for specific topics then invoke the `kba-timeseries-tool`. Otherwise, do not use this tool by default.
 6. Only provide interpretations and insights that are supported by the data you find; do not fabricate information. If data is missing or unavailable, simply state that it does not exist.
 7. End with a concise, markdown-formatted 1–2 line summary that references specific data points. Avoid bullet points or lengthy lists.
+
+Note: Don't use tools to get more context unless the user explicitly asks for it.
 """
 
 KBA_COLUMN_SELECTION_PROMPT = """

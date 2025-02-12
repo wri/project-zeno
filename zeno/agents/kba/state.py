@@ -6,6 +6,7 @@ from langgraph.managed import IsLastStep
 from langgraph.managed.is_last_step import RemainingSteps
 from typing_extensions import TypedDict
 
+
 class KbaState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     user_persona: str
