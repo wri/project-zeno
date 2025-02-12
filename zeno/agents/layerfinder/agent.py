@@ -5,8 +5,6 @@ from langchain_anthropic import ChatAnthropic
 from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
 
-from zeno.agents.kba.tool_kba_info import kba_info_tool
-
 
 # Add this mixin to all models
 class JSONSerializable(BaseModel):
