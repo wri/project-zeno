@@ -16,7 +16,7 @@ class Dataset(JSONSerializable):
     title: str = Field(description="The title of the dataset")
     dataset: str = Field(description="The slug of the dataset")
     explanation: str = Field(
-        description="A two-line explanation of why this dataset is relevant to the user's problem"
+        description="A one paragraph explanation of why this dataset is relevant to the user's problem"
     )
     uri: Optional[str] = Field(None, description="The URI of the dataset")
     tilelayer: Optional[str] = Field(None, description="The tilelayer of the dataset")
