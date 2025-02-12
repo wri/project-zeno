@@ -12,4 +12,4 @@ db = Chroma(
     create_collection_if_not_exists=False,
 )
 
-retriever = db.as_retriever(k=4)
+retriever = db.as_retriever(k=10)

@@ -10,6 +10,7 @@ from pandas import Series
 from pydantic import BaseModel, Field
 
 from zeno.agents.distalert.gee import init_gee
+from zeno.agents.distalert.drivers import get_drivers
 
 init_gee()
 data_dir = Path("data")
@@ -18,22 +19,37 @@ data_dir = Path("data")
 embedder = OllamaEmbeddings(
     model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
 )
+
+
 table = lancedb.connect(data_dir / "layers-context").open_table(
     "zeno-layers-context-latest"
 )
 
 
-def get_tms_url(result: Series):
-    if result.type == "ImageCollection":
-        image = ee.ImageCollection(result.dataset).mosaic()
-    else:
-        image = ee.Image(result.dataset)
-
+def get_map_id(image, result):
     if result.visualization_parameters:
         viz_params = json.loads(result.visualization_parameters)
-        map_id = image.select(result.band).getMapId(viz_params)
-    else:
-        map_id = image.select(result.band).getMapId()
+        return image.getMapId(viz_params)
+    return image.getMapId()
+
+
+def get_tms_url(result: Series):
+    # Note: the ee.EEEception if triggered by the image.getMapId() call.
+    # I've moved the getMapId() call to a separate function to avoid
+    # redefining it in the except block.
+
+    if result.dataset == "wri-dist-alert-drivers":
+        image = get_drivers()
+        map_id = get_map_id(image, result)
+        return map_id["tile_fetcher"].url_format
+
+    try:
+        image = ee.ImageCollection(result.dataset).mosaic().select(result.band)
+        map_id = get_map_id(image, result)
+
+    except ee.ee_exception.EEException:
+        image = ee.Image(result.dataset).select(result.band)
+        map_id = get_map_id(image, result)
 
     return map_id["tile_fetcher"].url_format
 
@@ -69,7 +85,9 @@ def context_layer_tool(question: str) -> dict:
         .sort_values(by="year", ascending=False)
         .iloc[0]
     )
+
     tms_url = get_tms_url(result)
+
     result = result.to_dict()
     result["tms_url"] = tms_url
 

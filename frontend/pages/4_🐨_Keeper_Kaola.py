@@ -2,6 +2,7 @@ import json
 import os
 import uuid
 
+import pandas as pd
 import folium
 import requests
 import pandas as pd
@@ -204,7 +205,11 @@ def display_message(message):
             else:
                 st.chat_message("assistant").markdown(message["content"])
         elif message["type"] == "update":
-            st.chat_message("assistant").write(message["content"])
+            if len(message["content"]) <= 2:
+                with st.expander("API calls from Keeper Kaola 🐨 "):
+                    st.chat_message("assistant").write(message["content"])
+            else:
+                st.chat_message("assistant").markdown(message["content"])
 
 
 def handle_stream_response(stream):
