@@ -218,61 +218,89 @@ def event_stream_kba(
     query: str,
     user_persona: Optional[str] = None,
     thread_id: Optional[str] = None,
+    query_type: Optional[str] = None,
 ):
     if not thread_id:
         thread_id = str(uuid.uuid4())
 
     config = {"configurable": {"thread_id": thread_id}}
-    query = HumanMessage(content=query, name="human")
-    stream = kba.stream(
-        {"messages": [query], "user_persona": user_persona},
-        stream_mode="updates",
-        subgraphs=False,
-        config=config,
-    )
+    if query_type == "human_input":
+        query = HumanMessage(content=query, name="human")
+        stream = kba.stream(
+            Command(
+                goto="kba_node",
+                update={
+                    "messages": [query],
+                },
+            ),
+            stream_mode="updates",
+            subgraphs=False,
+            config=config,
+        )
+    elif query_type == "query":
+        query = HumanMessage(content=query, name="human")
+        stream = kba.stream(
+            {"messages": [query], "user_persona": user_persona},
+            stream_mode="updates",
+            subgraphs=False,
+            config=config,
+        )
+    else:
+        raise ValueError(f"Invalid query type from frontend: {query_type}")
 
     for update in stream:
         node = next(iter(update.keys()))
 
-        if node == "kba_response_node":
-            print("kba_response_node")
-            try:
-                report = update[node]["report"].to_dict()
-                summary = report["summary"]
-                metrics = report["metrics"]
-                regional_breakdown = report["regional_breakdown"]
-                actions = report["actions"]
-                data_gaps = report["data_gaps"]
-                yield pack(
-                    {
-                        "node": node,
-                        "type": "report",
-                        "summary": summary,
-                        "metrics": metrics,
-                        "regional_breakdown": regional_breakdown,
-                        "actions": actions,
-                        "data_gaps": data_gaps,
-                    }
-                )
-            except Exception as e:
-                print(e)
+        if node == "__interrupt__":
+            print("INTERRUPTED")
+            current_state = kba.get_state(config)
+            yield pack(
+                {
+                    "node": node,
+                    "type": "interrupted",
+                    "input": "Do you want to continue?",
+                    "payload": current_state.values["messages"][-1].content,
+                }
+            )
         else:
             messages = update[node]["messages"]
-            if node == "tools":
+            if node == "tools" or node == "tools_with_hil":
                 for message in messages:
-                    yield pack(
-                        {
-                            "node": node,
-                            "type": "tool_call",
-                            "tool_name": message.name,
-                            "content": message.content,
-                            "artifact": (
-                                message.artifact
+                    if message.name == "kba-data-tool":
+                        state_graph = kba.get_state(config).values
+                        yield pack(
+                            {
+                                "node": node,
+                                "type": "tool_call",
+                                "tool_name": message.name,
+                                "content": message.content,
+                                "artifact": state_graph["kba_within_aoi"]
+                                if "kba_within_aoi" in state_graph
+                                else None,
+                            }
+                        )
+                    elif message.name == "location-tool":
+                        yield pack(
+                            {
+                                "node": node,
+                                "type": "tool_call",
+                                "tool_name": message.name,
+                                "content": message.content,
+                                "artifact": message.artifact
                                 if hasattr(message, "artifact")
-                                else None
-                            ),
-                        }
-                    )
+                                else None,
+                            }
+                        )
+                    else:
+                        yield pack(
+                            {
+                                "node": node,
+                                "type": "tool_call",
+                                "tool_name": message.name,
+                                "content": message.content,
+                                "artifact": None,
+                            }
+                        )
             else:
                 for message in messages:
                     yield pack(
@@ -289,9 +317,10 @@ async def stream_kba(
     query: Annotated[str, Body(embed=True)],
     user_persona: Optional[str] = Body(None),
     thread_id: Optional[str] = Body(None),
+    query_type: Optional[str] = Body(None),
 ):
     return StreamingResponse(
-        event_stream_kba(query, user_persona, thread_id),
+        event_stream_kba(query, user_persona, thread_id, query_type),
         media_type="application/x-ndjson",
     )
 

@@ -5,9 +5,11 @@ import uuid
 import pandas as pd
 import folium
 import requests
+import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
-from streamlit_folium import folium_static
+from streamlit_folium import st_folium
+from typing import Dict, Any, Optional
 
 load_dotenv()
 
@@ -16,6 +18,8 @@ API_BASE_URL = os.environ.get("API_BASE_URL")
 
 if "kba_session_id" not in st.session_state:
     st.session_state.kba_session_id = str(uuid.uuid4())
+if "waiting_for_input" not in st.session_state:
+    st.session_state.waiting_for_input = False
 if "kba_messages" not in st.session_state:
     st.session_state.kba_messages = []
 
@@ -23,6 +27,7 @@ if "kba_messages" not in st.session_state:
 # Add a callback function to reset the session state
 def reset_state():
     st.session_state.kba_session_id = str(uuid.uuid4())
+    st.session_state.waiting_for_input = False
     st.session_state.kba_messages = []
     st.session_state.custom_persona = ""
 
@@ -33,7 +38,7 @@ st.caption(
 )
 
 with st.sidebar:
-    st.header("🐥")
+    st.header("🐨")
     st.write(
         """
     Keeper Kaola is an expert at planning interventions and answering queries about KBAs - from habitat analysis to species protection strategies.
@@ -66,47 +71,139 @@ with st.sidebar:
     if st.session_state.get("active_persona"):
         st.success(f"**{st.session_state.active_persona}**", icon="🕵️‍♂️")
 
+def render_text_insight(insight):
+    st.header(insight["title"])
+    st.write(insight["description"])
+    st.write(insight["data"])
+    st.markdown("---")
+
+def render_table_insight(insight):
+    st.header(insight["title"])
+    st.write(insight["description"])
+    df = pd.DataFrame(insight["data"])
+    st.table(df)
+    st.markdown("---")
+
+def render_timeseries_plot(insight):
+    """
+    Render a single time series insight with clear formatting.
+
+    Args:
+        insight: A TimeSeriesInsight object
+    """
+    st.header(insight["title"])
+    st.markdown(insight["description"])
+
+    df = pd.DataFrame(insight["data"])
+    df = df.sort_values('year')
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(
+            "Latest Value",
+            f"{df['value'].iloc[-1]:.2f}",
+            f"{df['value'].iloc[-1] - df['value'].iloc[-2]:.2f}"
+        )
+
+    with col2:
+        st.metric(
+            "Average",
+            f"{df['value'].mean():.2f}"
+        )
+
+    with col3:
+        st.metric(
+            "Total Change",
+            f"{df['value'].iloc[-1] - df['value'].iloc[0]:.2f}"
+        )
+
+    # Plot the time series
+    st.line_chart(
+        df.set_index('year')['value'],
+        use_container_width=True
+    )
+
+    # Show data table in expander
+    with st.expander("View Data", expanded=False):
+        st.dataframe(
+            df.style.format({
+                'value': '{:.2f}'
+            })
+        )
+
+def render_chart_insight(insight):
+    st.header(insight["title"])
+    st.write(insight["description"])
+
+    if True:
+        df = pd.DataFrame({
+            'Category': insight["data"]["categories"],
+            'Value': insight["data"]["values"]
+        })
+        st.bar_chart(
+            data=df.set_index('Category')['Value'],
+            use_container_width=True
+        )
+    # elif insight["chart_type"] == "pie":
+    #     df = pd.DataFrame({
+    #         'Category': insight["data"]["categories"],
+    #         'Value': insight["data"]["values"]
+    #     })
+    #     st.pie_chart(
+    #         data=df.set_index('Category')['Value'],
+    #         use_container_width=True
+    #     )
+    st.markdown("---")
+
+
 
 def display_message(message):
     if message["role"] == "user":
         st.chat_message("user").write(message["content"])
     else:
-        if message["type"] == "kba_location":
-            st.chat_message("assistant").write(
-                "Found Key Biodiversity Areas in your area of interest..."
-            )
-            data = message["content"]
-            artifact = data.get("artifact", {})
-            if artifact:
-                artifact = json.loads(artifact)
-                # plot the artifact which is a geojson featurecollection using folium
-                geometry = artifact["features"][0]["geometry"]
+        if message["type"] == "tool_call":
+            if message["name"] == "kba-data-tool":
+                st.chat_message("assistant").write(message["content"])
+                artifact = message.get("artifact", {})
+                if artifact:
+                    artifact = json.loads(artifact)
+                    # plot the artifact which is a geojson featurecollection using folium
+                    geometry = artifact["features"][0]["geometry"]
+                    if geometry["type"] == "Polygon":
+                        pnt = geometry["coordinates"][0][0]
+                    else:
+                        pnt = geometry["coordinates"][0][0][0]
+                    m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=9)
+                    g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
+                    st_folium(m, width=700, height=500)
+            elif message["name"] == "location-tool":
+                artifact = message.get("artifact", {})
+                artifact = artifact[0]
+
+                geometry = artifact["geometry"]
                 if geometry["type"] == "Polygon":
                     pnt = geometry["coordinates"][0][0]
                 else:
                     pnt = geometry["coordinates"][0][0][0]
-                m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=11)
+                m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=9)
                 g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
-                folium_static(m, width=700, height=500)
-        elif message["type"] == "report":
-            bot = st.chat_message("assistant")
-            bot.write(message["summary"])
-
-            try:
-                metrics = pd.DataFrame(message["metrics"])
-                regional_breakdown = pd.DataFrame(message["regional_breakdown"])
-                actions = pd.DataFrame(message["actions"])
-                data_gaps = pd.DataFrame(message["data_gaps"])
-
-                # st.chat_message("assistant").table(metrics)
-                bot.header("Breakdown by region")
-                bot.table(regional_breakdown)
-                bot.header("Action items to take")
-                bot.table(actions)
-                # st.chat_message("assistant").table(data_gaps)
-            except Exception as e:
-                # ignore the error
-                pass
+                st_folium(m, width=700, height=500)
+                st.chat_message("assistant").write("Pick one of the options: " + message["content"])
+            elif message["name"] == "kba-insights-tool":
+                insights = json.loads(message["insights"])["insights"]
+                for insight in insights:
+                    if insight["type"] == "text":
+                        render_text_insight(insight)
+                    elif insight["type"] == "table":
+                        render_table_insight(insight)
+                    elif insight["type"] == "chart":
+                        render_chart_insight(insight)
+            elif message["name"] == "kba-timeseries-tool":
+                insights = json.loads(message["insights"])["insights"]
+                for insight in insights:
+                    render_timeseries_plot(insight)
+            else:
+                st.chat_message("assistant").markdown(message["content"])
         elif message["type"] == "update":
             if len(message["content"]) <= 2:
                 with st.expander("API calls from Keeper Kaola 🐨 "):
@@ -119,30 +216,68 @@ def handle_stream_response(stream):
     for chunk in stream.iter_lines():
         data = json.loads(chunk.decode("utf-8"))
 
-        if data.get("type") == "report":
-            message = {
-                "role": "assistant",
-                "type": "report",
-                "summary": data["summary"],
-                "metrics": data["metrics"],
-                "regional_breakdown": data["regional_breakdown"],
-                "actions": data["actions"],
-                "data_gaps": data["data_gaps"],
-            }
-        elif data.get("type") == "update":
+        if data.get("type") == "update":
             message = {
                 "role": "assistant",
                 "type": "update",
                 "content": data["content"],
             }
+            st.session_state.kba_messages.append(message)
+            display_message(message)
         elif data.get("type") == "tool_call":
+            tool_name = data.get("tool_name")
+            if tool_name == "kba-data-tool":
+                message = {
+                    "role": "assistant",
+                    "type": "tool_call",
+                    "name": tool_name,
+                    "content": data["content"],
+                    "artifact": data["artifact"],
+                }
+            elif tool_name == "location-tool":
+                message = {
+                    "role": "assistant",
+                    "type": "tool_call",
+                    "name": tool_name,
+                    "content": data["content"],
+                    "artifact": data["artifact"],
+                }
+            elif tool_name == "kba-insights-tool":
+                message = {
+                    "role": "assistant",
+                    "type": "tool_call",
+                    "name": tool_name,
+                    "insights": data["content"],
+                }
+            elif tool_name == "kba-timeseries-tool":
+                message = {
+                    "role": "assistant",
+                    "type": "tool_call",
+                    "name": tool_name,
+                    "insights": data["content"],
+                }
+            else:
+                message = {
+                    "role": "assistant",
+                    "type": "tool_call",
+                    "name": tool_name,
+                    "content": data["content"],
+                }
+            st.session_state.kba_messages.append(message)
+            display_message(message)
+        elif data.get("type") == "interrupted":
+            payload = json.loads(data.get("payload"))
+            st.session_state.waiting_for_input = True
             message = {
                 "role": "assistant",
-                "type": "kba_location",
-                "content": data,
+                "type": "text",
+                "content": f"Pick one of the options: {[row[0] for row in payload]}",
             }
-        st.session_state.kba_messages.append(message)
-        display_message(message)
+            st.session_state.kba_messages.append(message)
+            display_message(message)
+            st.rerun()
+        else:
+            raise ValueError(f"Unknown message type: {data.get('type')}")
 
 
 # Display chat history
@@ -155,13 +290,18 @@ if st.session_state.active_persona:
         st.session_state.kba_messages.append(message)
         display_message(message)
 
-        with requests.post(
-            f"{API_BASE_URL}/stream/kba",
-            json={
+        query_type = "human_input" if st.session_state.waiting_for_input else "query"
+        if st.session_state.waiting_for_input:
+            st.session_state.waiting_for_input = False
+        request = {
                 "query": user_input,
                 "user_persona": st.session_state.active_persona,  # Include persona in the request
                 "thread_id": st.session_state.kba_session_id,
-            },
+                "query_type": query_type,
+        }
+        with requests.post(
+            f"{API_BASE_URL}/stream/kba",
+            json=request,
             stream=True,
         ) as stream:
             handle_stream_response(stream)
