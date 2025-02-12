@@ -6,13 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
 
 
-# Add this mixin to all models
-class JSONSerializable(BaseModel):
-    def to_dict(self):
-        return json.loads(json.dumps(self, default=lambda o: o.dict()))
-
-
-class Dataset(JSONSerializable):
+class Dataset(BaseModel):
     title: str = Field(description="The title of the dataset")
     dataset: str = Field(description="The slug of the dataset")
     explanation: str = Field(
@@ -31,7 +25,7 @@ class Dataset(JSONSerializable):
         return self
 
 
-class LayerFinderResponse(JSONSerializable):
+class LayerFinderResponse(BaseModel):
     datasets: List[Dataset]
 
 
