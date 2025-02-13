@@ -74,7 +74,6 @@ def display_message(message):
     if message["role"] == "user":
         st.chat_message("user").write(message["content"])
     else:
-        # print("MSG", message["content"]["metadata"].keys())
         data = message["content"]
         header = f"""### {data.get('metadata', {}).get('title', 'Dataset')}
 
@@ -83,17 +82,19 @@ def display_message(message):
 
         if "tilelayer" in message["content"]:
             m = folium.Map(location=[0, 0], zoom_start=3, tiles="cartodb positron")
-            if message["content"]["tilelayer"].endswith(".pbf"):
+            if data["tilelayer"].endswith(".pbf"):
                 vc = VectorGridProtobuf(
-                    message["content"]["tilelayer"], "folium_layer_name", {}
+                    data["tilelayer"],
+                    data.get("metadata", {}).get("title", "GFW Dataset"),
+                    {},
                 ).add_to(
                     m
                 )  # noqa: F841
             else:
                 g = folium.TileLayer(
-                    message["content"]["tilelayer"],
-                    name=message["content"]["dataset"],
-                    attr=message["content"]["dataset"],
+                    data["tilelayer"],
+                    name=data["dataset"],
+                    attr=data["dataset"],
                 ).add_to(
                     m
                 )  # noqa: F841
