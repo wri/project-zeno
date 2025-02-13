@@ -82,7 +82,7 @@ def display_message(message):
         st.markdown(header)
 
         if "tilelayer" in message["content"]:
-            m = folium.Map(location=[0, 0], zoom_start=3)
+            m = folium.Map(location=[0, 0], zoom_start=3, tiles="cartodb positron")
             if message["content"]["tilelayer"].endswith(".pbf"):
                 vc = VectorGridProtobuf(
                     message["content"]["tilelayer"], "folium_layer_name", {}
