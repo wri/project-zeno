@@ -21,7 +21,7 @@ def retrieve_node(state: LayerFinderState):
     print("---RETRIEVE---")
     question = state["question"]
     search_result = db.similarity_search_with_relevance_scores(
-        question, k=10, score_threshold=0.5
+        question, k=10, score_threshold=0.3
     )
 
     documents = []
