@@ -1,5 +1,3 @@
-from langchain_core.messages import HumanMessage
-
 from zeno.agents.layerfinder.graph import graph as layerfinder
 
 
@@ -13,13 +11,11 @@ def test_layerfinder_agent():
     nodes = []
     for update in stream:
         node = next(iter(update.keys()))
-        print("node", node)
-        print("update", update)
         nodes.append(node)
-        if node == "validate":
+        if node == "retrieve":
             if not update[node]:
                 continue
-            datasets = update[node]["validated_documents"].datasets
+            datasets = update[node]["validated_documents"]
             prodes = [
                 dataset for dataset in datasets if "inpe_prodes" in dataset.dataset
             ]
@@ -34,7 +30,7 @@ def test_layerfinder_agent():
                 == "https://tiles.globalforestwatch.org/inpe_prodes/latest/dynamic/{z}/{x}/{y}.png"
             )
 
-    assert nodes == ["retrieve", "validate"]
+    assert nodes == ["retrieve"]
 
 
 def test_layerfinder_agent_detail():

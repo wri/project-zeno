@@ -11,5 +11,3 @@ db = Chroma(
     embedding_function=embedder,
     create_collection_if_not_exists=False,
 )
-
-retriever = db.as_retriever(k=10)

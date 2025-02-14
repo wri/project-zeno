@@ -190,9 +190,9 @@ def event_stream_layerfinder(
 
     for update in stream:
         node = next(iter(update.keys()))
-        if node == "validate":
+        if node == "retrieve":
             validated_docs = update[node]["validated_documents"]
-            for ds in validated_docs.datasets:
+            for ds in validated_docs:
                 yield pack(
                     {
                         "node": node,

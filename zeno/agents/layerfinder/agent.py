@@ -1,9 +1,7 @@
-import json
-from typing import Dict, List, Optional
+from typing import Optional
 
 from langchain_anthropic import ChatAnthropic
-from pydantic import BaseModel, Field, model_validator
-from typing_extensions import Self
+from pydantic import BaseModel, Field
 
 
 class Dataset(BaseModel):
@@ -17,15 +15,11 @@ class Dataset(BaseModel):
     metadata: Optional[dict] = Field(
         None, description="GFW metadata record for the dataset"
     )
-    score: bool = Field(
-        description="Relevance score 'true' if the dataset is relvant and 'false' otherwise"
+    is_relevant: Optional[bool] = Field(
+        description="Relevance of the dataset, 'true' if the dataset is relvant and 'false' otherwise"
     )
-
-
-class LayerFinderResponse(BaseModel):
-    datasets: List[Dataset]
 
 
 haiku = ChatAnthropic(model="claude-3-5-haiku-latest", temperature=0)
 
-layerfinder_agent = haiku.with_structured_output(LayerFinderResponse)
+layerfinder_agent = haiku.with_structured_output(Dataset)

@@ -42,10 +42,10 @@ with st.sidebar:
 
 
 def generate_markdown(data):
+    more_info = f"\n[More Information]({data['metadata'].get('learn_more')})" if data['metadata'].get('learn_more') else ""
     return f"""#### Overview
 {data['metadata'].get('overview') or "N/A"}
-
-[More Information]({data['metadata'].get('learn_more') or '#'})
+{more_info}
 
 #### Cautions
 {data['metadata'].get('cautions') or "N/A"}
@@ -64,6 +64,7 @@ def generate_markdown(data):
 - **Dataset ID:** `{data.get('dataset') or 'N/A'}`
 - **Downloadable:** {'✅ Yes' if data.get('is_downloadable', False) else '❌ No'}
 - **Versions:** {', '.join(data.get('versions') or [])}
+- **Relevance score:** {data['metadata'].get('relevance') or "N/A"}
 
 #### Citation
 {data['metadata'].get('citation') or "N/A"}
@@ -73,6 +74,8 @@ def generate_markdown(data):
 def display_message(message):
     if message["role"] == "user":
         st.chat_message("user").write(message["content"])
+    # elif message["role"] == "assistant":
+    #     st.chat_message("assistant").write(message["content"])
     else:
         data = message["content"]
         header = f"""### {data.get('metadata', {}).get('title', 'Dataset')}
@@ -106,6 +109,8 @@ def display_message(message):
 
 
 def handle_stream_response(stream):
+    irrelevant_messages = []
+    data = None
     for chunk in stream.iter_lines():
         data = json.loads(chunk.decode("utf-8"))
         message = {
@@ -114,8 +119,24 @@ def handle_stream_response(stream):
             "content": data["content"],
         }
         st.session_state.layerfinder_messages.append(message)
-        display_message(message)
+        if message["content"].get("is_relevant"):
+            display_message(message)
+        else:
+            irrelevant_messages.append(message)
+    
+    with st.expander("Low relevance datasets", expanded=False):
+        for message in irrelevant_messages:
+            data = message["content"]
+            header = f"""### {data.get('metadata', {}).get('title', 'Dataset')}
 
+{data['explanation']}
+
+Relevance: {data['metadata'].get('relevance')}"""
+            st.markdown(header)
+    if not irrelevant_messages and not data:
+        message = {"role": "assistant", "content": "No relevant datasets found.", "type": "text"}
+        st.session_state.layerfinder_messages.append(message)
+        display_message(message)
 
 # Display chat history
 for message in st.session_state.layerfinder_messages:
