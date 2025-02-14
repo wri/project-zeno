@@ -74,8 +74,8 @@ def generate_markdown(data):
 def display_message(message):
     if message["role"] == "user":
         st.chat_message("user").write(message["content"])
-    # elif message["role"] == "assistant":
-    #     st.chat_message("assistant").write(message["content"])
+    elif message["role"] == "nodata":
+        st.chat_message("assistant").write(message["content"])
     else:
         data = message["content"]
         header = f"""### {data.get('metadata', {}).get('title', 'Dataset')}
@@ -134,7 +134,7 @@ def handle_stream_response(stream):
 Relevance: {data['metadata'].get('relevance')}"""
             st.markdown(header)
     if not irrelevant_messages and not data:
-        message = {"role": "assistant", "content": "No relevant datasets found.", "type": "text"}
+        message = {"role": "nodata", "content": "No relevant datasets found.", "type": "text"}
         st.session_state.layerfinder_messages.append(message)
         display_message(message)
 
