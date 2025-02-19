@@ -48,7 +48,7 @@ def generate_markdown(data):
         if meta.get("learn_more")
         else ""
     )
-    download = f"\n[Download data]({meta.get('download_data')})" if meta.get("download_data") else ""
+    download = f"\n\n[Download data]({meta.get('download_data')})" if meta.get("download_data") else ""
 
     return f"""#### Overview
 {meta.get('overview') or "N/A"}
@@ -90,8 +90,8 @@ def display_message(message):
         st.markdown(header)
 
         if "tilelayer" in message["content"]:
-            m = folium.Map(location=[0, 0], zoom_start=3, tiles="cartodb positron")
-            if data["tilelayer"].endswith(".pbf"):
+            m = folium.Map(location=[0, 0], zoom_start=1, tiles="cartodb positron")
+            if ".pbf" in data["tilelayer"]:
                 vc = VectorGridProtobuf(
                     data["tilelayer"],
                     data.get("metadata", {}).get("title", "GFW Dataset"),
