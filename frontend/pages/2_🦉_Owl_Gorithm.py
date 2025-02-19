@@ -42,32 +42,38 @@ with st.sidebar:
 
 
 def generate_markdown(data):
-    more_info = f"\n[More Information]({data['metadata'].get('learn_more')})" if data['metadata'].get('learn_more') else ""
+    meta = data.get("metadata", {})
+    print(meta.keys())
+    more_info = (
+        f"\n[More Information]({meta.get('learn_more')})"
+        if meta.get("learn_more")
+        else ""
+    )
+
     return f"""#### Overview
-{data['metadata'].get('overview') or "N/A"}
+{meta.get('overview') or "N/A"}
 {more_info}
 
-#### Cautions
-{data['metadata'].get('cautions') or "N/A"}
+#### Function
+{meta.get('function') or "N/A"}
 
-#### Metadata
-- **Spatial Resolution:** {data['metadata'].get('spatial_resolution') or "N/A"}
-- **Geographic Coverage:** {data['metadata'].get('geographic_coverage') or "N/A"}
-- **Source:** {data['metadata'].get('source') or "N/A"}
-- **License:** {data['metadata'].get('license') or "N/A"}
-- **Data Language:** {data['metadata'].get('data_language') or "N/A"}
-- **Function:** {data['metadata'].get('function') or "N/A"}
-- **Key Restrictions:** {data['metadata'].get('key_restrictions') or "N/A"}
-- **Tags:** {data['metadata'].get('tags', '')}
-- **Created On:** {data.get('created_on') or 'N/A'}
-- **Updated On:** {data.get('updated_on') or 'N/A'}
-- **Dataset ID:** `{data.get('dataset') or 'N/A'}`
-- **Downloadable:** {'✅ Yes' if data.get('is_downloadable', False) else '❌ No'}
-- **Versions:** {', '.join(data.get('versions') or [])}
-- **Relevance score:** {data['metadata'].get('relevance') or "N/A"}
+#### Cautions
+{meta.get('cautions') or "N/A"}
 
 #### Citation
-{data['metadata'].get('citation') or "N/A"}
+{meta.get('citation') or "N/A"}
+
+#### Metadata
+- **Date:** {meta.get('date_of_content') or "N/A"}
+- **Update frequency:** {meta.get('frequency_of_updates', '')}
+- **Source:** {meta.get('source') or "N/A"}
+- **Tags:** {meta.get('tags', '')}
+- **Spatial Resolution:** {meta.get('resolution') or "N/A"}
+- **Geographic Coverage:** {meta.get('geographic_coverage') or "N/A"}
+- **License:** {meta.get('license') or "N/A"}
+- **Dataset ID:** {meta.get('gfw_dataset_id') or 'N/A'}
+- **Data API:** [link]({meta.get('data_api_url', '#')})
+- **Relevance score:** {meta.get('relevance') or "N/A"}
 """
 
 
@@ -123,7 +129,7 @@ def handle_stream_response(stream):
             display_message(message)
         else:
             irrelevant_messages.append(message)
-    
+
     with st.expander("Low relevance datasets", expanded=False):
         for message in irrelevant_messages:
             data = message["content"]
@@ -134,9 +140,14 @@ def handle_stream_response(stream):
 Relevance: {data['metadata'].get('relevance')}"""
             st.markdown(header)
     if not irrelevant_messages and not data:
-        message = {"role": "nodata", "content": "No relevant datasets found.", "type": "text"}
+        message = {
+            "role": "nodata",
+            "content": "No relevant datasets found.",
+            "type": "text",
+        }
         st.session_state.layerfinder_messages.append(message)
         display_message(message)
+
 
 # Display chat history
 for message in st.session_state.layerfinder_messages:
