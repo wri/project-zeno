@@ -9,7 +9,7 @@ from langchain_ollama.embeddings import OllamaEmbeddings
 
 load_dotenv()
 
-df = pd.read_csv("data/gfw_layer_metadata_v20251402_2.csv", index_col=0)
+df = pd.read_csv("data/gfw_layer_metadata_v20251402_3.csv")
 df = df.fillna("")
 
 embedder = OllamaEmbeddings(

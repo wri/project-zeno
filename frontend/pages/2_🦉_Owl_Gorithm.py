@@ -43,16 +43,16 @@ with st.sidebar:
 
 def generate_markdown(data):
     meta = data.get("metadata", {})
-    print(meta.keys())
     more_info = (
         f"\n[More Information]({meta.get('learn_more')})"
         if meta.get("learn_more")
         else ""
     )
+    download = f"\n[Download data]({meta.get('download_data')})" if meta.get("download_data") else ""
 
     return f"""#### Overview
 {meta.get('overview') or "N/A"}
-{more_info}
+{more_info}{download}
 
 #### Function
 {meta.get('function') or "N/A"}
