@@ -8,6 +8,7 @@ from zeno.agents.layerfinder.agent import haiku, layerfinder_agent
 from zeno.agents.layerfinder.prompts import (
     LAYER_DETAILS_PROMPT,
     LAYER_FINDER_PROMPT,
+    LAYER_CAUTIONS_PROMPT,
 )
 from zeno.agents.layerfinder.state import LayerFinderState
 from zeno.agents.layerfinder.tool_layer_retrieve import db
@@ -31,7 +32,6 @@ def retrieve_node(state: LayerFinderState):
 
     prompts = []
     for doc in documents:
-        print("Doc", doc.metadata["zeno_id"])
         prompt = LAYER_FINDER_PROMPT.format(
             context=f"Dataset: {doc.metadata['zeno_id']}\n{doc.page_content}",
             question=question,
@@ -51,7 +51,18 @@ def retrieve_node(state: LayerFinderState):
         dataset.uri = doc.metadata["gfw_metadata_url"]
         dataset.tilelayer = doc.metadata["gfw_tile_url"]
 
-    return {"validated_documents": datasets, "documents": documents}
+    return {"datasets": datasets}
+
+def cautions_node(state: LayerFinderState):
+    print("---CAUTIONS---")
+    question = state["question"]
+    cautions = "\n".join([ds.metadata["cautions"] for ds in state["datasets"]])
+    prompt = LAYER_CAUTIONS_PROMPT.format(
+        cautions=cautions,
+        question=question,
+    )
+    haiku_response = haiku.invoke(prompt)
+    return {"messages": [haiku_response]}
 
 
 def route_node(state: LayerFinderState):
@@ -65,7 +76,7 @@ def route_node(state: LayerFinderState):
 def explain_details_node(state: LayerFinderState):
     print("---EXPLAIN DETAILS---")
     ds_id = state["ds_id"]
-    dataset = [ds for ds in state["documents"] if ds_id == ds.metadata["dataset"]]
+    dataset = [ds for ds in state["datasets"] if ds_id == ds.metadata["dataset"]]
     if not dataset:
         return {"messages": [AIMessage("No dataset found")]}
     else:
@@ -81,9 +92,11 @@ wf = StateGraph(LayerFinderState)
 
 wf.add_node("retrieve", retrieve_node)
 wf.add_node("detail", explain_details_node)
+wf.add_node("cautions", cautions_node)
 
 wf.add_conditional_edges(START, route_node)
-wf.add_edge("retrieve", END)
+wf.add_edge("retrieve", "cautions")
+wf.add_edge("cautions", END)
 wf.add_edge("detail", END)
 
 memory = MemorySaver()

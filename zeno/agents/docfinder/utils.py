@@ -20,6 +20,8 @@ with open("data/gfw-blog-and-help-center-posts.xml") as fl:
 bodies = []
 titles = []
 for item in soup.channel.find_all("item"):
+    if not item.find_all("wp:post_id"):
+        print(item)
     html = item.find_all("content:encoded")[0]
     sopa = BeautifulSoup(html.contents[0], "html.parser").get_text()
     txt = unicodedata.normalize("NFKC", sopa)
@@ -28,6 +30,7 @@ for item in soup.channel.find_all("item"):
 
     title = item.title.contents[0]
     titles.append(title)
+    break
 
 # Persist resulting data as csv
 df = pd.DataFrame({"title": titles, "body": bodies})

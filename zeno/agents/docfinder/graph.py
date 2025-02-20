@@ -163,10 +163,12 @@ def docfinder_node(state: DocFinderState, config: RunnableConfig) -> dict:
     return {"messages": [result]}
 
 
+retrieve_node = create_tool_node_with_fallback(tools)
+
 wf = StateGraph(DocFinderState)
 
 wf.add_node("docfinder", docfinder_node)
-wf.add_node("retrieve", create_tool_node_with_fallback(tools))
+wf.add_node("retrieve", retrieve_node)
 wf.add_node("rewrite", rewrite_node)
 wf.add_node("generate", generate_node)
 

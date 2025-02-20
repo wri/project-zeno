@@ -119,16 +119,20 @@ def handle_stream_response(stream):
     data = None
     for chunk in stream.iter_lines():
         data = json.loads(chunk.decode("utf-8"))
-        message = {
-            "role": "assistant",
-            "type": "text",
-            "content": data["content"],
-        }
-        st.session_state.layerfinder_messages.append(message)
-        if message["content"].get("is_relevant"):
-            display_message(message)
+        if data["node"] == "cautions":
+            with st.expander("⚠️ Cautions", expanded=False):
+                st.markdown(data["content"])
         else:
-            irrelevant_messages.append(message)
+            message = {
+                "role": "assistant",
+                "type": "text",
+                "content": data["content"],
+            }
+            st.session_state.layerfinder_messages.append(message)
+            if message["content"].get("is_relevant"):
+                display_message(message)
+            else:
+                irrelevant_messages.append(message)
 
     with st.expander("Low relevance datasets", expanded=False):
         for message in irrelevant_messages:

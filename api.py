@@ -191,8 +191,8 @@ def event_stream_layerfinder(
     for update in stream:
         node = next(iter(update.keys()))
         if node == "retrieve":
-            validated_docs = update[node]["validated_documents"]
-            for ds in validated_docs:
+            datasets = update[node]["datasets"]
+            for ds in datasets:
                 yield pack(
                     {
                         "node": node,
@@ -200,6 +200,14 @@ def event_stream_layerfinder(
                         "content": ds.model_dump(),
                     }
                 )
+        if node == "cautions":
+            yield pack(
+                {
+                    "node": node,
+                    "type": "update",
+                    "content": update[node]["messages"][0].content,
+                }
+            )
 
 
 @app.post("/stream/layerfinder")

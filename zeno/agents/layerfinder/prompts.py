@@ -12,6 +12,15 @@ Instructions:
 {question}
 """
 
+LAYER_CAUTIONS_PROMPT = """You summarize the cautions that need to be taken into account when using datasets, the cautions should be summarized with respect to the question from the user.
+
+1. The following cautions apply to the datasets:
+{cautions}
+
+2. User Question:
+{question}
+"""
+
 LAYER_DETAILS_PROMPT = """You are a World Resources Institute (WRI) assistant specializing in dataset recommendations.
 Explain the details of the dataset to the user, in the context of his question. \n
 

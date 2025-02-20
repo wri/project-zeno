@@ -12,8 +12,7 @@ from zeno.agents.layerfinder.agent import Dataset
 class LayerFinderState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     question: str
-    documents: List[str]
-    validated_documents: List[Dataset]
+    datasets: List[Dataset]
     is_last_step: IsLastStep
     remaining_steps: RemainingSteps
     ds_id: str

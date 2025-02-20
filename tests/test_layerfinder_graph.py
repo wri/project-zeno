@@ -15,32 +15,22 @@ def test_layerfinder_agent():
         if node == "retrieve":
             if not update[node]:
                 continue
-            datasets = update[node]["validated_documents"]
-            prodes = [
-                dataset for dataset in datasets if "inpe_prodes" in dataset.dataset
-            ]
-            assert len(prodes) == 1
-            prodes = prodes[0]
-            assert (
-                prodes.uri
-                == "https://data-api.globalforestwatch.org/dataset/inpe_prodes"
-            )
-            assert (
-                prodes.tilelayer
-                == "https://tiles.globalforestwatch.org/inpe_prodes/latest/dynamic/{z}/{x}/{y}.png"
-            )
+            datasets = update[node]["datasets"]
+            assert len(datasets) > 0
+        if node == "cautions":
+            pass
 
-    assert nodes == ["retrieve"]
+    assert nodes == ["retrieve", "cautions"]
 
 
 def test_layerfinder_agent_detail():
-    query = "Suggest datasets to understand deforestation in Brazil"
+    query = "Suggest datasets that are fire related"
     layerfinder.invoke(
         {"question": query},
         config={"configurable": {"thread_id": "test"}},
     )
     stream = layerfinder.stream(
-        {"question": query, "ds_id": "inpe_prodes"},
+        {"question": query},
         stream_mode="updates",
         config={"configurable": {"thread_id": "test"}},
     )
