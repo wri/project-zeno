@@ -9,5 +9,6 @@ from typing_extensions import TypedDict
 
 class DocFinderState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
+    question: str
     is_last_step: IsLastStep
     remaining_steps: RemainingSteps

@@ -39,8 +39,7 @@ def rewrite_node(state: DocFinderState, config: RunnableConfig):
     """
 
     print("---TRANSFORM QUERY---")
-    messages = state["messages"]
-    question = messages[0].content
+    question = state["question"]
 
     msg = [
         HumanMessage(
@@ -65,9 +64,8 @@ def generate_node(state: DocFinderState, config: RunnableConfig):
     """
     print("---GENERATE---")
     messages = state["messages"]
-    question = messages[0].content
+    question = state["question"]
     last_message = messages[-1]
-    print("GENERATING FROM", last_message.content)
 
     docs = last_message.content
 
@@ -117,7 +115,7 @@ def grade_documents_edge(
     messages = state["messages"]
     last_message = messages[-1]
 
-    question = messages[0].content
+    question = state["question"]
     docs = last_message.content
 
     scored_result = chain.invoke({"question": question, "context": docs})
@@ -157,7 +155,7 @@ def create_tool_node_with_fallback(tools: list) -> dict:
 def docfinder_node(state: DocFinderState, config: RunnableConfig) -> dict:
     doc_finder_prompt = SystemMessage(content=DOC_FINDER_PROMPT)
     result = docfinder_agent.invoke(
-        [doc_finder_prompt] + state["messages"], config
+        [doc_finder_prompt, HumanMessage(state["question"])], config
     )
 
     return {"messages": [result]}

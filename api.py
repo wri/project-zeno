@@ -137,9 +137,8 @@ def event_stream_docfinder(
 
     config = {"configurable": {"thread_id": thread_id}}
 
-    query = HumanMessage(content=query, name="human")
     stream = docfinder.stream(
-        {"messages": [query]},
+        {"question": query},
         stream_mode="updates",
         subgraphs=False,
         config=config,
@@ -200,7 +199,7 @@ def event_stream_layerfinder(
                         "content": ds.model_dump(),
                     }
                 )
-        if node == "cautions":
+        elif node == "cautions":
             yield pack(
                 {
                     "node": node,
@@ -208,6 +207,14 @@ def event_stream_layerfinder(
                     "content": update[node]["messages"][0].content,
                 }
             )
+        elif node == "docfinder":
+            yield pack(
+                {
+                    "node": node,
+                    "type": "update",
+                    "content": update[node]["messages"][-1].content,
+                }
+            )            
 
 
 @app.post("/stream/layerfinder")

@@ -42,3 +42,18 @@ def test_layerfinder_agent_detail():
         print("update", update)
         nodes.append(node)
     assert nodes == ["detail"]
+
+
+def test_layerfinder_agent_doc_route():
+    query = "How many users are using GFW and how long did it take to get there?"
+    stream = layerfinder.stream(
+        {"question": query},
+        stream_mode="updates",
+        config={"configurable": {"thread_id": "test"}},
+    )
+    nodes = []
+    for update in stream:
+        node = next(iter(update.keys()))
+        nodes.append(node)
+
+    assert nodes == ["docfinder"]

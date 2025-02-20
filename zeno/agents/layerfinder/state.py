@@ -15,4 +15,3 @@ class LayerFinderState(TypedDict):
     datasets: List[Dataset]
     is_last_step: IsLastStep
     remaining_steps: RemainingSteps
-    ds_id: str

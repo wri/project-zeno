@@ -36,7 +36,7 @@ with st.sidebar:
         """
         - My interest is in understanding tree cover loss, what datasets are available?
         - Suggest datasets to understand deforestation in Brazil
-        - What should I look at to better estimate above ground biomass in the Amazon?
+        - What data should I look at to better estimate above ground biomass in the Amazon?
     """
     )
 
@@ -48,7 +48,11 @@ def generate_markdown(data):
         if meta.get("learn_more")
         else ""
     )
-    download = f"\n\n[Download data]({meta.get('download_data')})" if meta.get("download_data") else ""
+    download = (
+        f"\n\n[Download data]({meta.get('download_data')})"
+        if meta.get("download_data")
+        else ""
+    )
 
     return f"""#### Overview
 {meta.get('overview') or "N/A"}
@@ -119,9 +123,13 @@ def handle_stream_response(stream):
     data = None
     for chunk in stream.iter_lines():
         data = json.loads(chunk.decode("utf-8"))
+        if "node" not in data:
+            continue
         if data["node"] == "cautions":
             with st.expander("⚠️ Cautions", expanded=False):
                 st.markdown(data["content"])
+        elif data["node"] == "docfinder":
+            st.chat_message("assistant").write(data["content"])
         else:
             message = {
                 "role": "assistant",

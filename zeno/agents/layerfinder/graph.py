@@ -1,14 +1,18 @@
 from multiprocessing import Pool
+from typing import Literal
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel
 
+from zeno.agents.docfinder.graph import graph as docfinder
 from zeno.agents.layerfinder.agent import haiku, layerfinder_agent
 from zeno.agents.layerfinder.prompts import (
+    LAYER_CAUTIONS_PROMPT,
     LAYER_DETAILS_PROMPT,
     LAYER_FINDER_PROMPT,
-    LAYER_CAUTIONS_PROMPT,
+    ROUTING_PROMPT,
 )
 from zeno.agents.layerfinder.state import LayerFinderState
 from zeno.agents.layerfinder.tool_layer_retrieve import db
@@ -53,6 +57,7 @@ def retrieve_node(state: LayerFinderState):
 
     return {"datasets": datasets}
 
+
 def cautions_node(state: LayerFinderState):
     print("---CAUTIONS---")
     question = state["question"]
@@ -67,10 +72,19 @@ def cautions_node(state: LayerFinderState):
 
 def route_node(state: LayerFinderState):
     print("---ROUTE---")
-    if state.get("ds_id"):
-        return "detail"
-    else:
-        return "retrieve"
+
+    class RouteResponse(BaseModel):
+        route: Literal["retrieve", "docfinder"]
+
+    choice = haiku.with_structured_output(RouteResponse).invoke(
+        ROUTING_PROMPT.format(question=state["question"])
+    )
+    print(f"---Route Chosen: {choice.route}---")
+    return choice.route
+
+
+def docfinder_node(state: LayerFinderState):
+    return docfinder.invoke([HumanMessage(content=state["question"])])
 
 
 def explain_details_node(state: LayerFinderState):
@@ -93,11 +107,13 @@ wf = StateGraph(LayerFinderState)
 wf.add_node("retrieve", retrieve_node)
 wf.add_node("detail", explain_details_node)
 wf.add_node("cautions", cautions_node)
+wf.add_node("docfinder", docfinder)
 
 wf.add_conditional_edges(START, route_node)
 wf.add_edge("retrieve", "cautions")
 wf.add_edge("cautions", END)
 wf.add_edge("detail", END)
+wf.add_edge("docfinder", END)
 
 memory = MemorySaver()
 graph = wf.compile(checkpointer=memory)
