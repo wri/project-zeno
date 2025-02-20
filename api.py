@@ -214,7 +214,7 @@ def event_stream_layerfinder(
                     "type": "update",
                     "content": update[node]["messages"][-1].content,
                 }
-            )            
+            )
 
 
 @app.post("/stream/layerfinder")

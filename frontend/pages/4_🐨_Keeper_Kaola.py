@@ -2,14 +2,12 @@ import json
 import os
 import uuid
 
-import pandas as pd
 import folium
-import requests
 import pandas as pd
+import requests
 import streamlit as st
 from dotenv import load_dotenv
 from streamlit_folium import st_folium
-from typing import Dict, Any, Optional
 
 load_dotenv()
 
@@ -95,7 +93,7 @@ def render_timeseries_plot(insight):
     st.markdown(insight["description"])
 
     df = pd.DataFrame(insight["data"])
-    df = df.sort_values('year')
+    df = df.sort_values("year")
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -119,7 +117,7 @@ def render_timeseries_plot(insight):
 
     # Plot the time series
     st.line_chart(
-        df.set_index('year')['value'],
+        df.set_index("year")["value"],
         use_container_width=True
     )
 
@@ -127,7 +125,7 @@ def render_timeseries_plot(insight):
     with st.expander("View Data", expanded=False):
         st.dataframe(
             df.style.format({
-                'value': '{:.2f}'
+                "value": "{:.2f}"
             })
         )
 
@@ -137,11 +135,11 @@ def render_chart_insight(insight):
 
     if True:
         df = pd.DataFrame({
-            'Category': insight["data"]["categories"],
-            'Value': insight["data"]["values"]
+            "Category": insight["data"]["categories"],
+            "Value": insight["data"]["values"]
         })
         st.bar_chart(
-            data=df.set_index('Category')['Value'],
+            data=df.set_index("Category")["Value"],
             use_container_width=True
         )
     # elif insight["chart_type"] == "pie":

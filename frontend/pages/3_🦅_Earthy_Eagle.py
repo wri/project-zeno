@@ -99,9 +99,9 @@ def display_message(message):
             )
             m = folium.Map(location=[0, 0], zoom_start=3)
             g = folium.TileLayer(
-                data['artifact']['tms_url'],
-                name=data['content'],
-                attr=data['content'],
+                data["artifact"]["tms_url"],
+                name=data["content"],
+                attr=data["content"],
             ).add_to(m)  # noqa: F841
             folium_static(m, width=700, height=500)
 
