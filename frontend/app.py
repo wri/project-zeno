@@ -50,14 +50,9 @@ st.sidebar.success(
 # Agent data
 agents = [
     {
-        "name": "Docu Dodo 🐥",
-        "tagline": "A trusty agent that digs through documents to find the information you need.",
-        "description": "Specializes in finding and analyzing WRI & LCL documents. Can search through various document types, extract key information, and provide relevant summaries.",
-    },
-    {
         "name": "Owl Gorithm 🦉",
-        "tagline": "A wise, data-savvy agent for discovering relevant datasets.",
-        "description": "Expert at finding relevant datasets hosted by WRI & LCL. It tries its best to find the dataset & explain why it is relevant to your query.",
+        "tagline": "A wise, data-savvy agent for WRI content such as blog posts and datasets.",
+        "description": "Expert at finding relevant content datasets hosted by WRI & LCL. It tries its best to find the dataset & explain why it is relevant to your query.",
     },
     {
         "name": "Earthy Eagle 🦅",

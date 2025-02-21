@@ -11,7 +11,6 @@ from zeno.agents.layerfinder.agent import haiku, layerfinder_agent
 from zeno.agents.layerfinder.prompts import (
     DATASETS_FOR_DOCS_PROMPT,
     LAYER_CAUTIONS_PROMPT,
-    LAYER_DETAILS_PROMPT,
     LAYER_FINDER_PROMPT,
     ROUTING_PROMPT,
 )
@@ -43,9 +42,9 @@ def retrieve_node(state: LayerFinderState):
                 if isinstance(msg, HumanMessage):
                     questions += ", " + msg.content
             context = [msg for msg in state["messages"] if isinstance(msg, AIMessage)][
-                0
-            ].content
-            question = questions + context
+                -1
+            ]
+            question = questions + context.content
 
     search_result = db.similarity_search_with_relevance_scores(
         question, k=10, score_threshold=0.3
@@ -110,32 +109,15 @@ def docfinder_node(state: LayerFinderState):
     return docfinder.invoke([HumanMessage(content=state["question"])])
 
 
-def explain_details_node(state: LayerFinderState):
-    print("---EXPLAIN DETAILS---")
-    ds_id = state["ds_id"]
-    dataset = [ds for ds in state["datasets"] if ds_id == ds.metadata["dataset"]]
-    if not dataset:
-        return {"messages": [AIMessage("No dataset found")]}
-    else:
-        dataset = dataset[0]
-    prompt = LAYER_DETAILS_PROMPT.format(
-        context=dataset.page_content, question=state["question"]
-    )
-    response = haiku.invoke(prompt)
-    return {"messages": [response]}
-
-
 wf = StateGraph(LayerFinderState)
 
 wf.add_node("retrieve", retrieve_node)
-wf.add_node("detail", explain_details_node)
 wf.add_node("cautions", cautions_node)
 wf.add_node("docfinder", docfinder)
 
 wf.add_conditional_edges(START, route_node)
 wf.add_edge("retrieve", "cautions")
 wf.add_edge("cautions", END)
-wf.add_edge("detail", END)
 wf.add_edge("docfinder", END)
 
 memory = MemorySaver()

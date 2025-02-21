@@ -7,7 +7,10 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel
 
-from zeno.agents.docfinder.prompts import DOCUMENTS_FOR_DATASETS_PROMPT, GENERATE_PROMPT
+from zeno.agents.docfinder.prompts import (
+    DOCUMENTS_FOR_DATASETS_PROMPT,
+    GENERATE_PROMPT,
+)
 from zeno.agents.docfinder.state import DocFinderState
 from zeno.agents.docfinder.tool_document_retrieve import vectorstore
 
@@ -37,7 +40,6 @@ def generate_node(state: DocFinderState, config: RunnableConfig):
     for msg in state["messages"]:
         if isinstance(msg, HumanMessage):
             questions += ", " + msg.content
-            print("QUESTION", questions)
 
     prompt = GENERATE_PROMPT.format(questions=questions, context=context)
 

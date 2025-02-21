@@ -173,7 +173,6 @@ async def stream_docfinder(
 
 def event_stream_layerfinder(
     query: str,
-    ds_id: Optional[str] = None,
     thread_id: Optional[str] = None,
 ):
     if not thread_id:
@@ -181,7 +180,7 @@ def event_stream_layerfinder(
 
     config = {"configurable": {"thread_id": thread_id}}
     stream = layerfinder.stream(
-        {"question": query, "messages": [HumanMessage(query)], "ds_id": ds_id},
+        {"question": query, "messages": [HumanMessage(query)]},
         stream_mode="updates",
         subgraphs=False,
         config=config,
@@ -221,10 +220,9 @@ def event_stream_layerfinder(
 async def stream_layerfinder(
     query: Annotated[str, Body(embed=True)],
     thread_id: Optional[str] = Body(None),
-    ds_id: Optional[str] = Body(None),
 ):
     return StreamingResponse(
-        event_stream_layerfinder(query=query, thread_id=thread_id, ds_id=ds_id),
+        event_stream_layerfinder(query=query, thread_id=thread_id),
         media_type="application/x-ndjson",
     )
 

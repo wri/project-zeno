@@ -45,7 +45,8 @@ def test_layerfinder_agent_detail():
 
 
 def test_layerfinder_agent_doc_route():
-    query = "How many users are using GFW and how long did it take to get there?"
+    # query = "How many users are using GFW and how long did it take to get there?"
+    query = "What do you know about indonesia?"
     stream = layerfinder.invoke(
         {"question": query},
         stream_mode="updates",
