@@ -33,7 +33,16 @@ Explain the details of the dataset to the user, in the context of his question. 
 
 ROUTING_PROMPT = """Evaluate if this question is a general inquiry or if the user is interested in datasets or layers.
 
-If its about datasets or layers, choose `retrieve`, if its about general inquiries choose `docfinder`.
+If the user is asking for obtaining data, datasets, or layers, choose `retrieve`
+
+If the user is  asking about general inquiries or additional context for datasets choose `docfinder`.
+
+Question: {question}
+"""
+
+DATASETS_FOR_DOCS_PROMPT = """This user has gotten some initial information based on
+blog posts. Evaluate the user is now asking for finding datasets that are related
+to the previosuly obtained information. Return `yes` or `no`.
 
 Question: {question}
 """

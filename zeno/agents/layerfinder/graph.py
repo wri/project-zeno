@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from zeno.agents.docfinder.graph import graph as docfinder
 from zeno.agents.layerfinder.agent import haiku, layerfinder_agent
 from zeno.agents.layerfinder.prompts import (
+    DATASETS_FOR_DOCS_PROMPT,
     LAYER_CAUTIONS_PROMPT,
     LAYER_DETAILS_PROMPT,
     LAYER_FINDER_PROMPT,
@@ -18,6 +19,10 @@ from zeno.agents.layerfinder.state import LayerFinderState
 from zeno.agents.layerfinder.tool_layer_retrieve import db
 
 
+class UseDocsResponse(BaseModel):
+    use_docs: Literal["yes", "no"]
+
+
 def call_agent(prompt):
     return layerfinder_agent.invoke([HumanMessage(content=prompt)])
 
@@ -25,6 +30,23 @@ def call_agent(prompt):
 def retrieve_node(state: LayerFinderState):
     print("---RETRIEVE---")
     question = state["question"]
+
+    if "documents" in state:
+        response = haiku.with_structured_output(UseDocsResponse).invoke(
+            DATASETS_FOR_DOCS_PROMPT.format(question=question)
+        )
+        print("DOC INCLUDE", response.use_docs)
+        if response.use_docs == "yes":
+            context = "\n".join([doc.page_content for doc in state["documents"]])
+            questions = ""
+            for msg in state["messages"]:
+                if isinstance(msg, HumanMessage):
+                    questions += ", " + msg.content
+            context = [msg for msg in state["messages"] if isinstance(msg, AIMessage)][
+                0
+            ].content
+            question = questions + context
+
     search_result = db.similarity_search_with_relevance_scores(
         question, k=10, score_threshold=0.3
     )
@@ -41,6 +63,7 @@ def retrieve_node(state: LayerFinderState):
             question=question,
         )
         prompts.append(prompt)
+
     if prompts:
         with Pool(len(prompts)) as p:
             datasets = p.map(call_agent, prompts)

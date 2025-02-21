@@ -7,10 +7,13 @@ from langgraph.managed import IsLastStep
 from langgraph.managed.is_last_step import RemainingSteps
 from typing_extensions import TypedDict
 
+from zeno.agents.layerfinder.agent import Dataset
+
 
 class DocFinderState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     question: str
     documents: List[Document]
+    datasets: List[Dataset]
     is_last_step: IsLastStep
     remaining_steps: RemainingSteps

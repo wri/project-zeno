@@ -46,6 +46,12 @@ def test_layerfinder_agent_detail():
 
 def test_layerfinder_agent_doc_route():
     query = "How many users are using GFW and how long did it take to get there?"
+    stream = layerfinder.invoke(
+        {"question": query},
+        stream_mode="updates",
+        config={"configurable": {"thread_id": "test"}},
+    )
+    query = "Can you find relevant datasets for this?"
     stream = layerfinder.stream(
         {"question": query},
         stream_mode="updates",

@@ -82,10 +82,22 @@ def generate_markdown(data):
 
 
 def display_message(message):
-    if message["role"] == "user":
+    if message["role"] == "cautions":
+        with st.expander("⚠️ Cautions Summary", expanded=False):
+            st.markdown(message["content"])
+    elif message["role"] == "user":
         st.chat_message("user").write(message["content"])
-    elif message["role"] == "nodata":
+    elif message["role"] in ["nodata", "docfinder"]:
         st.chat_message("assistant").write(message["content"])
+    elif message["role"] == "irrelevant_datasets":
+        with st.expander("Low relevance datasets", expanded=False):
+            for data in message["content"]:
+                header = f"""### {data.get('metadata', {}).get('title', 'Dataset')}
+
+{data['explanation']}
+
+Relevance: {data['metadata'].get('relevance')}"""
+                st.markdown(header)
     else:
         data = message["content"]
         header = f"""### {data.get('metadata', {}).get('title', 'Dataset')}
@@ -126,36 +138,38 @@ def handle_stream_response(stream):
         if "node" not in data:
             continue
         if data["node"] == "cautions":
-            with st.expander("⚠️ Cautions Summary", expanded=False):
-                st.markdown(data["content"])
+            message = {
+                "role": "cautions",
+                "content": data["content"],
+            }
         elif data["node"] == "docfinder":
-            st.chat_message("assistant").write(data["content"])
+            message = {
+                "role": "docfinder",
+                "content": data["content"],
+            }
         else:
             message = {
                 "role": "assistant",
-                "type": "text",
                 "content": data["content"],
             }
-            st.session_state.layerfinder_messages.append(message)
-            if message["content"].get("is_relevant"):
-                display_message(message)
-            else:
-                irrelevant_messages.append(message)
+            if not message["content"].get("is_relevant"):
+                irrelevant_messages.append(data["content"])
+                continue
 
-    with st.expander("Low relevance datasets", expanded=False):
-        for message in irrelevant_messages:
-            data = message["content"]
-            header = f"""### {data.get('metadata', {}).get('title', 'Dataset')}
-
-{data['explanation']}
-
-Relevance: {data['metadata'].get('relevance')}"""
-            st.markdown(header)
-    if not irrelevant_messages and not data:
+        st.session_state.layerfinder_messages.append(message)
+        display_message(message)
+        
+    if irrelevant_messages:
+        message = {
+            "role": "irrelevant_datasets",
+            "content": irrelevant_messages,
+        }
+        st.session_state.layerfinder_messages.append(message)
+        display_message(message)
+    elif not data:
         message = {
             "role": "nodata",
             "content": "No relevant datasets found.",
-            "type": "text",
         }
         st.session_state.layerfinder_messages.append(message)
         display_message(message)

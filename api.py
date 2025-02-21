@@ -181,7 +181,7 @@ def event_stream_layerfinder(
 
     config = {"configurable": {"thread_id": thread_id}}
     stream = layerfinder.stream(
-        {"question": query, "ds_id": ds_id},
+        {"question": query, "messages": [HumanMessage(query)], "ds_id": ds_id},
         stream_mode="updates",
         subgraphs=False,
         config=config,
