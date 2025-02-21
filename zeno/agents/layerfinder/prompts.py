@@ -31,8 +31,9 @@ Explain the details of the dataset to the user, in the context of his question. 
 {question}
 """
 
-ROUTING_PROMPT = """
-Evaluate if this question is a general inquiry or if the user is interested in data, trends, layers, or datasets.
+ROUTING_PROMPT = """Evaluate if this question is a general inquiry or if the user is interested in datasets or layers.
 
-If its about datasets, choose `retrieve`, if its about general inquiries choose `docfinder`. Question: {question}
+If its about datasets or layers, choose `retrieve`, if its about general inquiries choose `docfinder`.
+
+Question: {question}
 """

@@ -1,5 +1,6 @@
 from typing import Annotated, List, Sequence
 
+from langchain_core.documents.base import Document
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
 from langgraph.managed import IsLastStep
@@ -13,5 +14,6 @@ class LayerFinderState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     question: str
     datasets: List[Dataset]
+    documents: List[Document]
     is_last_step: IsLastStep
     remaining_steps: RemainingSteps
