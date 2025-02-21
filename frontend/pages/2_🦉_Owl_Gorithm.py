@@ -126,7 +126,7 @@ def handle_stream_response(stream):
         if "node" not in data:
             continue
         if data["node"] == "cautions":
-            with st.expander("⚠️ Cautions", expanded=False):
+            with st.expander("⚠️ Cautions Summary", expanded=False):
                 st.markdown(data["content"])
         elif data["node"] == "docfinder":
             st.chat_message("assistant").write(data["content"])
