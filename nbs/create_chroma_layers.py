@@ -9,7 +9,7 @@ from langchain_ollama.embeddings import OllamaEmbeddings
 
 load_dotenv()
 
-df = pd.read_csv("data/gfw_layer_metadata_v20251402_4.csv")
+df = pd.read_csv("data/gfw_layer_metadata_v20252502.csv")
 df = df.fillna("")
 
 embedder = OllamaEmbeddings(
@@ -28,13 +28,14 @@ for rownr, row in df.iterrows():
     if not overview:
         print("No overview for", data["gfw_layer_name"])
         continue
-    cautions = data.get("cautions")
-    geographic_coverage = data.get("geographic_coverage", "")
+    
+    keywordserage = data["keywords"]
+    content = data["gfw_dataset_name"] + data["gfw_layer_name"] + overview + ". " + data["keywords"]
 
     data["zeno_id"] = str(uuid4())
     documents.append(
         Document(
-            page_content=data["gfw_dataset_name"] + data["gfw_layer_name"] + overview,
+            page_content=content,
             metadata=data,
             id=data["zeno_id"],
         )
