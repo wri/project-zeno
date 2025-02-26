@@ -3,6 +3,7 @@ import os
 import uuid
 
 import folium
+import geopandas as gpd
 import pandas as pd
 import requests
 import streamlit as st
@@ -133,24 +134,14 @@ def render_chart_insight(insight):
     st.header(insight["title"])
     st.write(insight["description"])
 
-    if True:
-        df = pd.DataFrame({
-            "Category": insight["data"]["categories"],
-            "Value": insight["data"]["values"]
-        })
-        st.bar_chart(
-            data=df.set_index("Category")["Value"],
-            use_container_width=True
-        )
-    # elif insight["chart_type"] == "pie":
-    #     df = pd.DataFrame({
-    #         'Category': insight["data"]["categories"],
-    #         'Value': insight["data"]["values"]
-    #     })
-    #     st.pie_chart(
-    #         data=df.set_index('Category')['Value'],
-    #         use_container_width=True
-    #     )
+    df = pd.DataFrame({
+        "Category": insight["data"]["categories"],
+        "Value": insight["data"]["values"]
+    })
+    st.bar_chart(
+        data=df.set_index("Category")["Value"],
+        use_container_width=True
+    )
     st.markdown("---")
 
 
@@ -188,6 +179,11 @@ def display_message(message):
                 st_folium(m, width=700, height=500)
                 st.chat_message("assistant").write("Pick one of the options: " + message["content"])
             elif message["name"] == "kba-insights-tool":
+                with st.expander("Raw Dataset"):
+                    ds = json.loads(message["dataset"])
+                    # ds is a featurecollection, convert to dataframe
+                    gdf = gpd.GeoDataFrame.from_features(ds)
+                    st.chat_message("assistant").dataframe(gdf)
                 insights = json.loads(message["insights"])["insights"]
                 for insight in insights:
                     if insight["type"] == "text":
@@ -203,11 +199,12 @@ def display_message(message):
             else:
                 st.chat_message("assistant").markdown(message["content"])
         elif message["type"] == "update":
-            if len(message["content"]) <= 2:
+            if message["summary"]:
+                st.chat_message("assistant").markdown(message["content"])
+            else:
                 with st.expander("API calls from Keeper Kaola 🐨 "):
                     st.chat_message("assistant").write(message["content"])
-            else:
-                st.chat_message("assistant").markdown(message["content"])
+
 
 
 def handle_stream_response(stream):
@@ -219,6 +216,7 @@ def handle_stream_response(stream):
                 "role": "assistant",
                 "type": "update",
                 "content": data["content"],
+                "summary": data["summary"],
             }
             st.session_state.kba_messages.append(message)
             display_message(message)
@@ -246,6 +244,7 @@ def handle_stream_response(stream):
                     "type": "tool_call",
                     "name": tool_name,
                     "insights": data["content"],
+                    "dataset": data["dataset"],
                 }
             elif tool_name == "kba-timeseries-tool":
                 message = {

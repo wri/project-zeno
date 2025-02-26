@@ -280,15 +280,14 @@ def event_stream_kba(
             if node == "tools" or node == "tools_with_hil":
                 for message in messages:
                     if message.name == "kba-data-tool":
-                        state_graph = kba.get_state(config).values
                         yield pack(
                             {
                                 "node": node,
                                 "type": "tool_call",
                                 "tool_name": message.name,
                                 "content": message.content,
-                                "artifact": state_graph["kba_within_aoi"]
-                                if "kba_within_aoi" in state_graph
+                                "artifact": message.artifact
+                                if hasattr(message, "artifact")
                                 else None,
                             }
                         )
@@ -304,6 +303,17 @@ def event_stream_kba(
                                 else None,
                             }
                         )
+                    elif message.name == "kba-insights-tool":
+                        current_state = kba.get_state(config)
+                        yield pack(
+                            {
+                                "node": node,
+                                "type": "tool_call",
+                                "tool_name": message.name,
+                                "content": message.content,
+                                "dataset": current_state.values["kba_within_aoi"],
+                            }
+                        )
                     else:
                         yield pack(
                             {
@@ -315,12 +325,20 @@ def event_stream_kba(
                             }
                         )
             else:
+                # Check if previous tool call is kba-insights-tool, add a summary boolean
+                current_state = kba.get_state(config)
+                summary = False
+                if len(current_state.values["messages"]) >= 2:
+                    previous_tool_call = current_state.values["messages"][-2]
+                    summary = previous_tool_call.name == "kba-insights-tool"
+
                 for message in messages:
                     yield pack(
                         {
                             "node": node,
                             "type": "update",
                             "content": message.content,
+                            "summary": summary,
                         }
                     )
 
