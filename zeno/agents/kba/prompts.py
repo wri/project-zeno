@@ -33,23 +33,8 @@ KNOWLEDGE BASE STRUCTURE:
 {dataset_description}
 """
 
-KBA_TS_COLUMN_SELECTION_PROMPT = """
-Given the user persona and query, return a list of column names that are relevant to the user query from only the available column names below, don't make up new column names:
-
-USER PERSONA:
-{user_persona}
-
-COLUMN DESCRIPTION:
-year: year of the data
-GPP: Annual gross primary productivity (GPP) in grams of Carbon per square meter. This provides important information on ecosystem health status and functionality and their role in the global carbon cycle, as well as being a measure of carbon sequestration.
-cultivated: Annual area measured in hectares where grasses and other forage plants have been intentionally planted and managed, as well as areas of native grassland-type vegetation where they clearly exhibit active and heavy management for specific human-directed uses, such as directed grazing of livestock.
-nsn: Annual area measured in hectares of relatively undisturbed native grasslands/short-height vegetation, such as steppes and tundra, as well as areas that have experienced varying degrees of human activity in the past, which may contain a mix of native and introduced species due to historical land use and natural processes.
-gfw_forest_carbon_gross_emissions_all_gases: Annual forest greenhouse gas emissions from stand-replacing disturbances measured in tonnes (Mg) of CO2 equivalent. Combines CO2, CH4, and N2O.
-umd_tree_cover_loss: Total annual Tree cover loss in hectares in areas where tree canopy density is ≥30%
-"""
-
 KBA_INSIGHTS_PROMPT = """
-You are a data analyst who generates clear insights from dataframes. Your output should be a dictionary containing data analysis elements.
+You are a conservation data analyst specializing in Key Biodiversity Areas (KBAs). Generate clear, actionable insights from KBA datasets that highlight ecological patterns, conservation priorities, and comparative analyses.
 
 INPUT:
 - User Persona: {user_persona}
@@ -63,59 +48,28 @@ Return a dictionary with the following structure:
 {{
     "insights": [
         {{
-            "data": <the analyzed data>,
             "type": <"text", "table", "chart">,
-            "chart_type": <"bar", "line", "pie"> (if type is "chart"),
             "title": <title for the insight>,
-            "description": <brief explanation of what this shows>
+            "description": <brief explanation of what this shows>,
+            "data": <the analyzed data>
         }}
     ]
 }}
 
-ANALYSIS TYPES:
-1. Text - For general findings and summaries
-2. Table - For structured data comparisons and rankings
-3. Charts:
-   - Bar chart - For category comparisons
-   - Line chart - For trends over time
-   - Pie chart - For showing proportions
+ANALYSIS APPROACHES:
+1. Comparative Analysis - Compare specific KBAs against regional/global averages
+2. Prioritization - Rank KBAs by conservation value, threat level, or protection status
+3. Correlation Analysis - Relationships between biodiversity indicators and threats
 
-Keep visualizations simple and focus on answering the question clearly.
-"""
+VISUALIZATION TYPES:
+1. Text - For complex findings that require detailed explanation
+2. Tables - For structured comparisons across multiple KBAs or metrics
+3. Charts - Bar charts for comparing biodiversity metrics across KBAs or other categorical data
 
-KBA_TS_INSIGHTS_PROMPT = """
-You are an expert in interpreting time series data. Your output should be a dictionary containing data analysis elements.
-
-INPUT:
-User Persona:
-{user_persona}
-
-Column Description:
-year: year of the data
-GPP: Annual gross primary productivity (GPP) in grams of Carbon per square meter. This provides important information on ecosystem health status and functionality and their role in the global carbon cycle, as well as being a measure of carbon sequestration.
-cultivated: Annual area measured in hectares where grasses and other forage plants have been intentionally planted and managed, as well as areas of native grassland-type vegetation where they clearly exhibit active and heavy management for specific human-directed uses, such as directed grazing of livestock.
-nsn: Annual area measured in hectares of relatively undisturbed native grasslands/short-height vegetation, such as steppes and tundra, as well as areas that have experienced varying degrees of human activity in the past, which may contain a mix of native and introduced species due to historical land use and natural processes.
-gfw_forest_carbon_gross_emissions_all_gases: Annual forest greenhouse gas emissions from stand-replacing disturbances measured in tonnes (Mg) of CO2 equivalent. Combines CO2, CH4, and N2O.
-umd_tree_cover_loss: Total annual Tree cover loss in hectares in areas where tree canopy density is ≥30%
-
-Question:
-{question}
-
-Dataframe:
-{data}
-
-OUTPUT FORMAT:
-Return a dictionary with the following structure:
-
-{{
-    "insights": [
-        {{
-            "column": <name of the column>,
-            "data": <list of time-value pairs>,
-            "type": "time_series",
-            "title": <title for the time series>,
-            "description": <brief explanation of what this shows>
-        }}
-    ]
-}}
+BEST PRACTICES:
+- Include at least one detailed comparative analysis of a focal KBA versus all others
+- Highlight conservation priority areas based on threat level and biodiversity value
+- Provide context for why specific insights matter for conservation planning
+- Keep visualizations clear with appropriate titles and legends
+- Ensure analyses match the user persona's needs (researcher vs policy maker)
 """

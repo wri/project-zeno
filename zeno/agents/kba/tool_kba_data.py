@@ -3,7 +3,6 @@ from typing import Annotated
 
 import geopandas as gpd
 from langchain_core.messages import ToolMessage
-from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.types import Command
@@ -33,7 +32,7 @@ def kba_data_tool(
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """
-    Finds location of all Key Biodiversity Areas (KBAs) with in an area of interest.
+    Finds data for Key Biodiversity Areas (KBAs) within an area of interest.
 
     Args:
         name: Name of the location to search for. Can be a city, region, or country name.
@@ -49,6 +48,13 @@ def kba_data_tool(
     return Command(
         update={
             "kba_within_aoi": kba_within_aoi.to_json(),
-            "messages": [ToolMessage(content=data, tool_call_id=tool_call_id)],
+            "messages": [
+                ToolMessage(
+                    content=data,
+                    # artifact=kba_within_aoi.to_json(), # Issue with streamlit render on front-end, premature stop of stream
+                    tool_call_id=tool_call_id,
+                )
+            ],
         },
+        goto="kba_node",
     )

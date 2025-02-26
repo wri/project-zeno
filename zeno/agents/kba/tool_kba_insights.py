@@ -1,6 +1,6 @@
 import json
 from enum import Enum
-from typing import Annotated, Any, Dict, List, Optional, Union
+from typing import Annotated, Any, Dict, List, Union
 
 import geopandas as gpd
 import pandas as pd
@@ -8,7 +8,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
-from pydantic import BaseModel, Field, constr, validator
+from pydantic import BaseModel, Field
 
 from zeno.agents.kba.prompts import (
     KBA_COLUMN_SELECTION_PROMPT,
@@ -16,19 +16,13 @@ from zeno.agents.kba.prompts import (
 )
 
 haiku = ChatAnthropic(model="claude-3-5-haiku-latest")
-# sonnet = ChatAnthropic(model="claude-3-5-sonnet-latest")
+sonnet = ChatAnthropic(model="claude-3-5-sonnet-latest")
 
 
 class InsightType(str, Enum):
     TEXT = "text"
     TABLE = "table"
     CHART = "chart"
-
-
-class ChartType(str, Enum):
-    BAR = "bar"
-    LINE = "line"
-    PIE = "pie"
 
 
 class ChartData(BaseModel):
@@ -39,52 +33,16 @@ class ChartData(BaseModel):
         ..., description="Numerical values corresponding to categories"
     )
 
-    @validator("categories")
-    def validate_categories_length(cls, v, values):
-        if "values" in values and len(v) != len(values["values"]):
-            raise ValueError("Categories and values must have the same length")
-        return v
-
 
 class Insight(BaseModel):
     type: InsightType = Field(..., description="Type of insight visualization")
-    title: constr(min_length=5) = Field(
-        ..., description="Title for the insight"
+    title: str = Field(..., description="Title for the insight")
+    description: str = Field(
+        ..., description="Explanation of what the insight shows"
     )
     data: Union[str, List[Dict[str, Any]], ChartData] = Field(
         ..., description="Content of the insight, structure depends on type"
     )
-    chart_type: Optional[ChartType] = Field(
-        None, description="Type of chart when insight type is 'chart'"
-    )
-    description: constr(min_length=10) = Field(
-        ..., description="Explanation of what the insight shows"
-    )
-
-    @validator("chart_type")
-    def validate_chart_type(cls, v, values):
-        if values.get("type") == InsightType.CHART and v is None:
-            raise ValueError("chart_type is required when type is 'chart'")
-        if values.get("type") != InsightType.CHART and v is not None:
-            raise ValueError(
-                "chart_type should only be present when type is 'chart'"
-            )
-        return v
-
-    @validator("data")
-    def validate_data_type(cls, v, values):
-        insight_type = values.get("type")
-        if insight_type == InsightType.TEXT and not isinstance(v, str):
-            raise ValueError("Data must be a string for text insights")
-        elif insight_type == InsightType.TABLE and not isinstance(v, list):
-            raise ValueError(
-                "Data must be a list of dictionaries for table insights"
-            )
-        elif insight_type == InsightType.CHART and not isinstance(
-            v, (dict, ChartData)
-        ):
-            raise ValueError("Data must be ChartData for chart insights")
-        return v
 
 
 class InsightsResponse(BaseModel):
@@ -103,7 +61,7 @@ class ColumnSelectionOutput(BaseModel):
 
 
 column_selection_agent = haiku.with_structured_output(ColumnSelectionOutput)
-insights_agent = haiku.with_structured_output(InsightsResponse)
+insights_agent = sonnet.with_structured_output(InsightsResponse)
 
 column_description = pd.read_csv("data/kba/kba_column_descriptions.csv")
 
@@ -113,7 +71,7 @@ def kba_insights_tool(question: str, state: Annotated[Dict, InjectedState]):
     """Find insights relevant to the user query for the Key Biodiversity Areas (KBAs).
 
     Args:
-        question: The user's question or query
+        question: The user's question
     """
     print("kba insights tool")
     kba_within_aoi = state["kba_within_aoi"]
@@ -153,4 +111,4 @@ def kba_insights_tool(question: str, state: Annotated[Dict, InjectedState]):
 
     response = insights_agent.invoke(kba_insights_prompt)
 
-    return json.loads(response.json())
+    return response.dict()
