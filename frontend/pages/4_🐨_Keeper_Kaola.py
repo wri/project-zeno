@@ -50,8 +50,8 @@ with st.sidebar:
         "I am a conservation manager responsible for overseeing a network of Key Biodiversity Areas. I have basic GIS skills, I am comfortable visualising data but not conducting advanced analysis. I need to identify and understand threats, such as illegal logging or habitat degradation, and monitor changes in ecosystem health over time to allocate resources effectively and plan conservation interventions.",
         "I am a program manager implementing nature-based solutions projects focused on agroforestry and land restoration. I am comfortable using tools like QGIS for mapping and visualisation. I need to track project outcomes, such as tree cover gain and carbon sequestration, and prioritise areas for intervention based on risks like soil erosion or forest loss.",
         "I am an investment analyst for an impact fund supporting reforestation and agroforestry projects. I have limited GIS skills and rely on intuitive dashboards or visualisations to understand geospatial insights. I need independent geospatial insights to monitor portfolio performance, assess project risks, and ensure investments align with our net-zero commitments.",
-        "I am a sustainability manager responsible for ensuring our company’s agricultural supply chains meet conversion-free commitments. I have limited GIS skills and can only use simple web-based tools or dashboards. I need to monitor and address risks such as land conversion to maintain compliance and support sustainable sourcing decisions.",
-        "I am an advocacy program manager for an NGO working on Indigenous Peoples’ land rights. I have basic GIS skills, enabling me to visualise data but not perform advanced analysis. I need to use data to highlight land use changes, advocate for stronger tenure policies, and empower local communities to monitor their territories.",
+        "I am a sustainability manager responsible for ensuring our company's agricultural supply chains meet conversion-free commitments. I have limited GIS skills and can only use simple web-based tools or dashboards. I need to monitor and address risks such as land conversion to maintain compliance and support sustainable sourcing decisions.",
+        "I am an advocacy program manager for an NGO working on Indigenous Peoples' land rights. I have basic GIS skills, enabling me to visualise data but not perform advanced analysis. I need to use data to highlight land use changes, advocate for stronger tenure policies, and empower local communities to monitor their territories.",
         "I am a journalist covering environmental issues and corporate accountability, with basic GIS skills that enable me to interpret geospatial data by eye but not produce charts or insights myself. I need reliable, accessible data to track whether companies are meeting their EU Deforestation Regulation (EUDR) commitments, identify instances of non-compliance, and write compelling, data-driven stories that hold businesses accountable for their environmental impact.",
     ]
 
@@ -83,53 +83,6 @@ def render_table_insight(insight):
     st.table(df)
     st.markdown("---")
 
-def render_timeseries_plot(insight):
-    """
-    Render a single time series insight with clear formatting.
-
-    Args:
-        insight: A TimeSeriesInsight object
-    """
-    st.header(insight["title"])
-    st.markdown(insight["description"])
-
-    df = pd.DataFrame(insight["data"])
-    df = df.sort_values("year")
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric(
-            "Latest Value",
-            f"{df['value'].iloc[-1]:.2f}",
-            f"{df['value'].iloc[-1] - df['value'].iloc[-2]:.2f}"
-        )
-
-    with col2:
-        st.metric(
-            "Average",
-            f"{df['value'].mean():.2f}"
-        )
-
-    with col3:
-        st.metric(
-            "Total Change",
-            f"{df['value'].iloc[-1] - df['value'].iloc[0]:.2f}"
-        )
-
-    # Plot the time series
-    st.line_chart(
-        df.set_index("year")["value"],
-        use_container_width=True
-    )
-
-    # Show data table in expander
-    with st.expander("View Data", expanded=False):
-        st.dataframe(
-            df.style.format({
-                "value": "{:.2f}"
-            })
-        )
-
 def render_chart_insight(insight):
     st.header(insight["title"])
     st.write(insight["description"])
@@ -143,8 +96,6 @@ def render_chart_insight(insight):
         use_container_width=True
     )
     st.markdown("---")
-
-
 
 def display_message(message):
     if message["role"] == "user":
@@ -193,9 +144,9 @@ def display_message(message):
                     elif insight["type"] == "chart":
                         render_chart_insight(insight)
             elif message["name"] == "kba-timeseries-tool":
-                insights = json.loads(message["insights"])["insights"]
-                for insight in insights:
-                    render_timeseries_plot(insight)
+                insight = json.loads(message["insights"])
+                insight = pd.DataFrame(insight)
+                st.line_chart(insight)
             else:
                 st.chat_message("assistant").markdown(message["content"])
         elif message["type"] == "update":

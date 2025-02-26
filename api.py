@@ -311,7 +311,9 @@ def event_stream_kba(
                                 "type": "tool_call",
                                 "tool_name": message.name,
                                 "content": message.content,
-                                "dataset": current_state.values["kba_within_aoi"],
+                                "dataset": current_state.values[
+                                    "kba_within_aoi"
+                                ],
                             }
                         )
                     else:
@@ -330,7 +332,10 @@ def event_stream_kba(
                 summary = False
                 if len(current_state.values["messages"]) >= 2:
                     previous_tool_call = current_state.values["messages"][-2]
-                    summary = previous_tool_call.name == "kba-insights-tool"
+                    summary = (
+                        previous_tool_call.name == "kba-insights-tool"
+                        or previous_tool_call.name == "kba-timeseries-tool"
+                    )
 
                 for message in messages:
                     yield pack(
@@ -358,7 +363,6 @@ async def stream_kba(
 
 @app.get("/stream/voice")
 async def stream_audio(query: str):
-
     client = ElevenLabs(
         api_key=os.getenv("ELEVENLABS_API_KEY"),
     )

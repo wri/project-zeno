@@ -1,6 +1,6 @@
 import json
 from enum import Enum
-from typing import Annotated, Any, Dict, List, Optional, Union
+from typing import Annotated, Any, Dict, List, Union
 
 import geopandas as gpd
 import pandas as pd
@@ -36,8 +36,10 @@ class ChartData(BaseModel):
 
 class Insight(BaseModel):
     type: InsightType = Field(..., description="Type of insight visualization")
-    title: str= Field(..., description="Title for the insight")
-    description: str = Field(..., description="Explanation of what the insight shows")
+    title: str = Field(..., description="Title for the insight")
+    description: str = Field(
+        ..., description="Explanation of what the insight shows"
+    )
     data: Union[str, List[Dict[str, Any]], ChartData] = Field(
         ..., description="Content of the insight, structure depends on type"
     )
