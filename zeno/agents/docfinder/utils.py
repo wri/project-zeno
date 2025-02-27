@@ -3,49 +3,45 @@ Module to do chunking of GFW blog posts and create a Chroma vector
 database to support a simple RAG agent.
 """
 
-import unicodedata
-
+import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
 from langchain_chroma.vectorstores import Chroma
-from langchain_community.document_loaders import CSVLoader
 from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 
-# Open blog posts from WordPress export
-with open("data/gfw-blog-and-help-center-posts.xml") as fl:
-    soup = BeautifulSoup(fl, "xml")
+data = pd.read_csv("data/gfw_blog_titles_links.csv", index_col=0)
 
-# Parse xml and extract blog content as text
-bodies = []
-titles = []
-for item in soup.channel.find_all("item"):
-    if not item.find_all("wp:post_id"):
-        print(item)
-    html = item.find_all("content:encoded")[0]
-    sopa = BeautifulSoup(html.contents[0], "html.parser").get_text()
-    txt = unicodedata.normalize("NFKC", sopa)
-    txt = txt.replace("\n", "")
-    bodies.append(txt)
+FIXTURES = {
+    175: "https://www.wri.org/insights/amazon-forest-fires-2024",
+    181: "https://www.wri.org/insights/how-mining-impacts-forests",
+    186: "https://www.wri.org/insights/rethinking-definition-forest-monitoring",
+    204: "https://www.wri.org/insights/europe-forest-loss-drivers",
+    206: "https://www.wri.org/insights/canada-wildfire-emissions",
+    214: "",
+    216: "",
+    218: "",
+    231: "https://www.wri.org/insights/los-angeles-fires-january-2025-explained"
+}
 
-    title = item.title.contents[0]
-    titles.append(title)
-    break
+documents = []
+for idx, row in data.iterrows():
+    if not isinstance(row.content, str):
+        print("No content for", idx, row.title, row.link)
+        continue
+    content = BeautifulSoup(row.content, "html.parser").get_text()
+    data = row.to_dict()
+    data.pop("content")
+    documents.append(
+        Document(
+            page_content=content,
+            metadata=data,
+        )
+    )
 
-# Persist resulting data as csv
-df = pd.DataFrame({"title": titles, "body": bodies})
-df.to_csv("data/gfw-blog.csv", index=False, columns=["title", "body"])
-
-# Load data from csv
-loader = CSVLoader(
-    file_path="data/gfw-blog.csv",
-    source_column="title",
-)
-docs = loader.load()
-
-# Split into chunks
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=200)
-splits = text_splitter.split_documents(docs)
+splits = text_splitter.split_documents(documents)
 
 vectorstore = Chroma.from_documents(
     documents=splits,
