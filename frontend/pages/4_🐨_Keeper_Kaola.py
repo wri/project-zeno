@@ -119,16 +119,17 @@ def display_message(message):
                 st.chat_message("assistant").write(message["content"])
                 artifact = message.get("artifact", {})
                 if artifact:
-                    artifact = json.loads(artifact)
-                    # plot the artifact which is a geojson featurecollection using folium
-                    geometry = artifact["features"][0]["geometry"]
-                    if geometry["type"] == "Polygon":
-                        pnt = geometry["coordinates"][0][0]
-                    else:
-                        pnt = geometry["coordinates"][0][0][0]
-                    m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=9)
-                    g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
-                    st_folium(m, width=700, height=500)
+                    # artifact = json.loads(artifact)
+                    # # plot the artifact which is a geojson featurecollection using folium
+                    # geometry = artifact["features"][0]["geometry"]
+                    # if geometry["type"] == "Polygon":
+                    #     pnt = geometry["coordinates"][0][0]
+                    # else:
+                    #     pnt = geometry["coordinates"][0][0][0]
+                    # m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=9)
+                    # g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
+                    # st_folium(m, width=700, height=500)
+                    pass
             elif message["name"] == "location-tool":
                 artifact = message.get("artifact", {})
                 artifact = artifact[0]

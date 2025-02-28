@@ -63,7 +63,7 @@ def kba_data_tool(
             "messages": [
                 ToolMessage(
                     content=data,
-                    # artifact=kba_within_aoi.to_json(), # Issue with streamlit render on front-end, premature stop of stream
+                    artifact=kba_within_aoi.to_json(), # Issue with streamlit render on front-end, premature stop of stream
                     tool_call_id=tool_call_id,
                 )
             ],
