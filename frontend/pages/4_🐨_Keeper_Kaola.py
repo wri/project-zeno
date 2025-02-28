@@ -97,6 +97,19 @@ def render_chart_insight(insight):
     )
     st.markdown("---")
 
+def render_timeseries_insight(insight):
+    st.header(insight["title"])
+    st.write(insight["description"])
+
+    st.markdown(insight["analysis"])
+    data = pd.DataFrame(insight["data"])
+
+    with st.expander("Raw timeseries data"):
+        st.dataframe(data)
+
+    st.line_chart(data, x="year", x_label="Year", y_label=insight["ylabel"], use_container_width=True)
+    st.markdown("---")
+
 def display_message(message):
     if message["role"] == "user":
         st.chat_message("user").write(message["content"])
@@ -145,8 +158,7 @@ def display_message(message):
                         render_chart_insight(insight)
             elif message["name"] == "kba-timeseries-tool":
                 insight = json.loads(message["insights"])
-                insight = pd.DataFrame(insight)
-                st.line_chart(insight)
+                render_timeseries_insight(insight)
             else:
                 st.chat_message("assistant").markdown(message["content"])
         elif message["type"] == "update":
