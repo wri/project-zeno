@@ -41,6 +41,15 @@ with st.sidebar:
     )
 
 
+def generate_doc_card(doc):
+    return f"""### {doc["metadata"]["title"]}
+
+{doc["page_content"]}
+
+[{doc["metadata"]["link"]}]({doc["metadata"]["link"]})
+"""
+
+
 def generate_markdown(data):
     meta = data.get("metadata", {})
     more_info = (
@@ -87,8 +96,15 @@ def display_message(message):
             st.markdown(message["content"])
     elif message["role"] == "user":
         st.chat_message("user").write(message["content"])
-    elif message["role"] in ["nodata", "docfinder"]:
+    elif message["role"] in ["nodata"]:
         st.chat_message("assistant").write(message["content"])
+    elif message["role"] == "docfinder":
+        if isinstance(message["content"], list):
+            with st.expander("Blog posts found", expanded=False):
+                for doc in message["content"]:
+                    st.markdown(generate_doc_card(doc))
+        else:
+            st.chat_message("assistant").write(message["content"])
     elif message["role"] == "irrelevant_datasets":
         with st.expander("Low relevance datasets", expanded=False):
             for data in message["content"]:
@@ -158,7 +174,7 @@ def handle_stream_response(stream):
 
         st.session_state.layerfinder_messages.append(message)
         display_message(message)
-        
+
     if irrelevant_messages:
         message = {
             "role": "irrelevant_datasets",

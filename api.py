@@ -138,7 +138,6 @@ def event_stream_layerfinder(
     stream = layerfinder.stream(
         {"question": query, "messages": [HumanMessage(query)]},
         stream_mode="updates",
-        subgraphs=False,
         config=config,
     )
 
@@ -150,7 +149,6 @@ def event_stream_layerfinder(
                 yield pack(
                     {
                         "node": node,
-                        "type": "update",
                         "content": ds.model_dump(),
                     }
                 )
@@ -158,7 +156,6 @@ def event_stream_layerfinder(
             yield pack(
                 {
                     "node": node,
-                    "type": "update",
                     "content": update[node]["messages"][0].content,
                 }
             )
@@ -166,10 +163,17 @@ def event_stream_layerfinder(
             yield pack(
                 {
                     "node": node,
-                    "type": "update",
                     "content": update[node]["messages"][-1].content,
                 }
             )
+            if "documents" in update[node]:
+                documents = update[node]["documents"]
+                yield pack(
+                    {
+                        "node": node,
+                        "content": [dict(doc) for doc in documents],
+                    }
+                )
 
 
 @app.post("/stream/layerfinder")
@@ -242,9 +246,11 @@ def event_stream_kba(
                                 "type": "tool_call",
                                 "tool_name": message.name,
                                 "content": message.content,
-                                "artifact": message.artifact
-                                if hasattr(message, "artifact")
-                                else None,
+                                "artifact": (
+                                    message.artifact
+                                    if hasattr(message, "artifact")
+                                    else None
+                                ),
                             }
                         )
                     elif message.name == "location-tool":
@@ -254,9 +260,11 @@ def event_stream_kba(
                                 "type": "tool_call",
                                 "tool_name": message.name,
                                 "content": message.content,
-                                "artifact": message.artifact
-                                if hasattr(message, "artifact")
-                                else None,
+                                "artifact": (
+                                    message.artifact
+                                    if hasattr(message, "artifact")
+                                    else None
+                                ),
                             }
                         )
                     elif message.name == "kba-insights-tool":
@@ -267,9 +275,7 @@ def event_stream_kba(
                                 "type": "tool_call",
                                 "tool_name": message.name,
                                 "content": message.content,
-                                "dataset": current_state.values[
-                                    "kba_within_aoi"
-                                ],
+                                "dataset": current_state.values["kba_within_aoi"],
                             }
                         )
                     else:
