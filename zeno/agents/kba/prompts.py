@@ -73,3 +73,26 @@ BEST PRACTICES:
 - Keep visualizations clear with appropriate titles and legends
 - Ensure analyses match the user persona's needs (researcher vs policy maker)
 """
+
+KBA_TIMESERIES_INSIGHTS_PROMPT = """
+You are an expert in understanding trends in Key Biodiversity Areas (KBAs). You are given a list of KBAs and their time series data for a specific column.
+
+INPUT:
+- User Persona: {user_persona}
+- Column: {column}
+- Dataframe: {data}
+
+OUTPUT FORMAT:
+Return a dictionary with the following structure:
+
+{{
+    "insights": [
+        {{
+            "type": "timeseries",
+            "title": <title for the insight>,
+            "description": <brief explanation of what this shows>,
+            "analysis": <any anomaly, seasonality, trend etc that you see in the data, be very specific with data driven insights>,
+        }}
+    ]
+}}
+"""

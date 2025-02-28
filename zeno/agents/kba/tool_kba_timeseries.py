@@ -5,10 +5,31 @@ from typing import Annotated, Dict
 import geopandas as gpd
 import pandas as pd
 from langchain_core.tools import tool
+from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import InjectedState
+from pydantic import BaseModel, Field
+
+from zeno.agents.kba.prompts import KBA_TIMESERIES_INSIGHTS_PROMPT
 
 data_dir = Path("data/kba")
 kba_ts_data = pd.read_parquet(data_dir / "kba_timeseries_data.parquet")
+
+sonnet = ChatAnthropic(model="claude-3-5-sonnet-latest", temperature=0)
+
+class Insight(BaseModel):
+    type: str = Field(..., description="Type of insight")
+    title: str = Field(..., description="Title for the insight")
+    description: str = Field(..., description="Brief explanation of what this shows")
+    analysis: str = Field(..., description="Any anomaly, seasonality, trend etc that you see in the data, be very specific with data driven insights")
+
+insights_agent = sonnet.with_structured_output(Insight)
+column_mapper = {
+    "gpp": "Annual gross primary productivity in gC/m2",
+    "cultivated": "Annual managed grassland area in hectares",
+    "nsn": "Annual native/unmanaged grassland area in hectares",
+    "gfw_forest_carbon_gross_emissions_all_gases": "Annual forest GHG emissions in tonnes CO2e",
+    "umd_tree_cover_loss": "Annual tree cover loss in hectares"
+}
 
 
 @tool("kba-timeseries-tool")
@@ -44,4 +65,19 @@ def kba_timeseries_tool(column: str, state: Annotated[Dict, InjectedState]):
         index="year", columns="sitename", values=column
     )
 
-    return kba_ts_data_filtered.to_dict(orient="records")
+    # get insights
+    response = insights_agent.invoke(KBA_TIMESERIES_INSIGHTS_PROMPT.format(
+        user_persona=state["user_persona"],
+        column=column,
+        data=kba_ts_data_filtered
+    ))
+
+    return {
+        "data": kba_ts_data_filtered.reset_index().to_dict(orient="records"),
+        "ylabel": column_mapper[column],
+        "xlabel": "Year",
+        "type": "timeseries",
+        "title": response.title,
+        "description": response.description,
+        "analysis": response.analysis
+    }
