@@ -64,7 +64,7 @@ def retrieve_node(state: DocFinderState, config: RunnableConfig) -> dict:
             )
             question = context
     documents = vectorstore.similarity_search_with_relevance_scores(
-        question, k=10, score_threshold=0.3
+        question, k=10, score_threshold=0.5
     )
     return {"documents": [doc[0] for doc in documents]}
 
