@@ -32,6 +32,7 @@ class ChartData(BaseModel):
     values: List[Union[int, float]] = Field(
         ..., description="Numerical values corresponding to categories"
     )
+    unit: str = Field(..., description="Unit of the data")
 
 
 class Insight(BaseModel):

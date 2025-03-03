@@ -71,7 +71,9 @@ BEST PRACTICES:
 - Highlight conservation priority areas based on threat level and biodiversity value
 - Provide context for why specific insights matter for conservation planning
 - Keep visualizations clear with appropriate titles and legends
-- Ensure analyses match the user persona's needs (researcher vs policy maker)
+
+
+Note: Ensure the insights, title and description are all aligned with the user persona.
 """
 
 KBA_TIMESERIES_INSIGHTS_PROMPT = """
@@ -95,4 +97,6 @@ Return a dictionary with the following structure:
         }}
     ]
 }}
+
+Note: Ensure the title, description and analysis are all aligned with the user persona.
 """
