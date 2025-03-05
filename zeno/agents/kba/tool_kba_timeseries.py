@@ -20,7 +20,7 @@ class Insight(BaseModel):
     type: str = Field(..., description="Type of insight")
     title: str = Field(..., description="Title for the insight")
     description: str = Field(..., description="Brief explanation of what this shows")
-    analysis: str = Field(..., description="Any anomaly, seasonality, trend etc that you see in the data, be very specific with data driven insights")
+    analysis: str = Field(..., description="Provide data driven insights")
 
 insights_agent = sonnet.with_structured_output(Insight)
 column_mapper = {
@@ -61,7 +61,7 @@ def kba_timeseries_tool(column: str, state: Annotated[Dict, InjectedState]):
     kba_ts_data_filtered = kba_ts_data_filtered[["sitename", "year", column]]
 
     # pivot the data to get the year as index and sitename as columns
-    kba_ts_data_filtered = kba_ts_data_filtered.pivot(
+    kba_ts_data_pivoted = kba_ts_data_filtered.pivot(
         index="year", columns="sitename", values=column
     )
 
@@ -69,11 +69,11 @@ def kba_timeseries_tool(column: str, state: Annotated[Dict, InjectedState]):
     response = insights_agent.invoke(KBA_TIMESERIES_INSIGHTS_PROMPT.format(
         user_persona=state["user_persona"],
         column=column,
-        data=kba_ts_data_filtered
+        data=kba_ts_data_pivoted.to_csv()
     ))
 
     return {
-        "data": kba_ts_data_filtered.reset_index().to_dict(orient="records"),
+        "data": kba_ts_data_pivoted.reset_index().to_dict(orient="records"),
         "ylabel": column_mapper[column],
         "xlabel": "Year",
         "type": "timeseries",
