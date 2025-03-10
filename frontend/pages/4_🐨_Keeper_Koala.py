@@ -31,16 +31,16 @@ def reset_state():
     st.session_state.custom_persona = ""
 
 
-st.header("Keeper Kaola 🐨")
+st.header("Keeper Koala 🐨")
 st.caption(
-    "Zeno's Keeper Kaola, keeping a watch over the worlds Key Biodiversity Areas (KBAs)."
+    "Zeno's Keeper Koala, keeping a watch over the worlds Key Biodiversity Areas (KBAs)."
 )
 
 with st.sidebar:
     st.header("🐨")
     st.write(
         """
-    Keeper Kaola is an expert at planning interventions and answering queries about KBAs - from habitat analysis to species protection strategies.
+    Keeper Koala is an expert at planning interventions and answering queries about KBAs - from habitat analysis to species protection strategies.
     """
     )
 
@@ -70,11 +70,13 @@ with st.sidebar:
     if st.session_state.get("active_persona"):
         st.success(f"**{st.session_state.active_persona}**", icon="🕵️‍♂️")
 
+
 def render_text_insight(insight):
     st.header(insight["title"])
     st.write(insight["description"])
     st.write(insight["data"])
     st.markdown("---")
+
 
 def render_table_insight(insight):
     st.header(insight["title"])
@@ -83,19 +85,17 @@ def render_table_insight(insight):
     st.table(df)
     st.markdown("---")
 
+
 def render_chart_insight(insight):
     st.header(insight["title"])
     st.write(insight["description"])
 
-    df = pd.DataFrame({
-        "Category": insight["data"]["categories"],
-        "Value": insight["data"]["values"]
-    })
-    st.bar_chart(
-        data=df.set_index("Category")["Value"],
-        use_container_width=True
+    df = pd.DataFrame(
+        {"Category": insight["data"]["categories"], "Value": insight["data"]["values"]}
     )
+    st.bar_chart(data=df.set_index("Category")["Value"], use_container_width=True)
     st.markdown("---")
+
 
 def render_timeseries_insight(insight):
     st.header(insight["title"])
@@ -107,8 +107,15 @@ def render_timeseries_insight(insight):
     with st.expander("Raw timeseries data"):
         st.dataframe(data)
 
-    st.line_chart(data, x="year", x_label="Year", y_label=insight["ylabel"], use_container_width=True)
+    st.line_chart(
+        data,
+        x="year",
+        x_label="Year",
+        y_label=insight["ylabel"],
+        use_container_width=True,
+    )
     st.markdown("---")
+
 
 def display_message(message):
     if message["role"] == "user":
@@ -142,7 +149,9 @@ def display_message(message):
                 m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=9)
                 g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
                 st_folium(m, width=700, height=500)
-                st.chat_message("assistant").write("Pick one of the options: " + message["content"])
+                st.chat_message("assistant").write(
+                    "Pick one of the options: " + message["content"]
+                )
             elif message["name"] == "kba-insights-tool":
                 with st.expander("Raw Dataset"):
                     ds = json.loads(message["dataset"])
@@ -166,9 +175,8 @@ def display_message(message):
             if message["summary"]:
                 st.chat_message("assistant").markdown(message["content"])
             else:
-                with st.expander("API calls from Keeper Kaola 🐨 "):
+                with st.expander("API calls from Keeper Koala 🐨 "):
                     st.chat_message("assistant").write(message["content"])
-
 
 
 def handle_stream_response(stream):
@@ -255,10 +263,10 @@ if st.session_state.active_persona:
         if st.session_state.waiting_for_input:
             st.session_state.waiting_for_input = False
         request = {
-                "query": user_input,
-                "user_persona": st.session_state.active_persona,  # Include persona in the request
-                "thread_id": st.session_state.kba_session_id,
-                "query_type": query_type,
+            "query": user_input,
+            "user_persona": st.session_state.active_persona,  # Include persona in the request
+            "thread_id": st.session_state.kba_session_id,
+            "query_type": query_type,
         }
         with requests.post(
             f"{API_BASE_URL}/stream/kba",

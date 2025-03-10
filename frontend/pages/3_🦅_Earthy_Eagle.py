@@ -102,7 +102,9 @@ def display_message(message):
                 data["artifact"]["tms_url"],
                 name=data["content"],
                 attr=data["content"],
-            ).add_to(m)  # noqa: F841
+            ).add_to(
+                m
+            )  # noqa: F841
             folium_static(m, width=700, height=500)
 
         elif message["type"] == "stac":
