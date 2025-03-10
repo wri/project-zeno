@@ -16,6 +16,7 @@ from langfuse.callback import CallbackHandler
 from zeno.agents.distalert.graph import graph as dist_alert
 from zeno.agents.kba.graph import graph as kba
 from zeno.agents.layerfinder.graph import graph as layerfinder
+from zeno.agents.gfw_data_api.graph import graph as gfw_data_api
 
 load_dotenv()
 
@@ -323,6 +324,101 @@ async def stream_kba(
 ):
     return StreamingResponse(
         event_stream_kba(query, user_persona, thread_id, query_type),
+        media_type="application/x-ndjson",
+    )
+
+
+def event_stream_gfw_data_api(
+    query: str,
+    thread_id: Optional[str] = None,
+    query_type: Optional[str] = None,
+):
+    if not thread_id:
+        thread_id = str(uuid.uuid4())
+
+    config = {"configurable": {"thread_id": thread_id}}
+    stream = gfw_data_api.stream(
+        {"question": query, "messages": [HumanMessage(query)]},
+        stream_mode="updates",
+        config=config,
+    )
+
+    if query_type == "human_input":
+        query = HumanMessage(content=query, name="human")
+        stream = gfw_data_api.stream(
+            Command(
+                goto="gfw_data_api",
+                update={
+                    "messages": [query],
+                },
+            ),
+            stream_mode="updates",
+            subgraphs=False,
+            config=config,
+        )
+    elif query_type == "query":
+        query = HumanMessage(content=query, name="human")
+        stream = gfw_data_api.stream(
+            {"messages": [query]},
+            stream_mode="updates",
+            subgraphs=False,
+            config=config,
+        )
+    else:
+        raise ValueError(f"Invalid query type from frontend: {query_type}")
+
+    for update in stream:
+        node = next(iter(update.keys()))
+
+        if node == "__interrupt__":
+            print("INTERRUPTED")
+            current_state = gfw_data_api.get_state(config)
+
+            yield pack(
+                {
+                    "node": node,
+                    "type": "interrupted",
+                    "input": "Do you want to continue?",
+                    "payload": current_state.values["messages"][-1].content,
+                }
+            )
+        else:
+            messages = update[node]["messages"]
+            if node == "tools" or node == "tools_with_hil":
+                for message in messages:
+                    yield pack(
+                        {
+                            "node": node,
+                            "type": "tool_call",
+                            "tool_name": message.name,
+                            "content": message.content,
+                            "artifact": (
+                                message.artifact
+                                if hasattr(message, "artifact")
+                                else None
+                            ),
+                        }
+                    )
+            else:
+                yield pack(
+                    {
+                        "node": node,
+                        "type": "update",
+                        "content": messages.content,
+                    }
+                )
+
+
+@app.post("/stream/gfw_data_api")
+async def stream_gfw_data_api(
+    query: Annotated[str, Body(embed=True)],
+    thread_id: Optional[str] = Body(None),
+    query_type: Optional[str] = Body(None),
+):
+    return StreamingResponse(
+        event_stream_gfw_data_api(
+            query=query, thread_id=thread_id, query_type=query_type
+        ),
         media_type="application/x-ndjson",
     )
 

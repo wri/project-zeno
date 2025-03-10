@@ -60,7 +60,12 @@ agents = [
         "description": "Specializes in detecting disturbances or deforestation alerts. It assists in finding alerts for specific locations and timeframes. Additionally, it helps in understanding the distribution of alerts within a location and provides satellite images for validation.",
     },
     {
-        "name": "Keeper Kaola 🐨",
+        "name": "Keeper Koala 🐨",
+        "tagline": "Keeping a watch over the worlds Key Biodiversity Areas (KBAs).",
+        "description": "Specializing in planning interventions and answering queries about KBAs - from habitat analysis to species protection strategies. Keeper Koala helps ensure critical ecosystems get the attention they need.",
+    },
+    {
+        "name": "Investi Gator 🐊",
         "tagline": "Keeping a watch over the worlds Key Biodiversity Areas (KBAs).",
         "description": "Specializing in planning interventions and answering queries about KBAs - from habitat analysis to species protection strategies. Keeper Koala helps ensure critical ecosystems get the attention they need.",
     },
