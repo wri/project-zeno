@@ -1,21 +1,68 @@
 import os
 
-from typing import Any, Dict, List, Optional, Tuple, Any
-
+from typing import Any, Dict, List, Optional, Tuple
 import requests
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from zeno.agents.gfw_data_api.prompts import (
     prep_datatables_selection_prompt,
     prep_field_selection_prompt,
+    prep_api_sql_query_prompt,
 )
 import csv
 import io
 
 GFW_DATA_API_BASE_URL = os.getenv(
-    "GFW_DATA_API_BASE_URL", "https://data-api.globalforestwatch.org/"
+    "GFW_DATA_API_BASE_URL", "https://www.globalforestwatch.org/api/data"
 )
+
+
+class QueryInput(BaseModel):
+    """Input schema for location finder tool"""
+
+    gadm_level: int = Field(description="GADM level of place or places to be queried")
+    gadm_ids: Optional[List[str]] = Field(
+        description="A list of one or more GADM IDs to query", default=None
+    )
+    query: str = Field(description="The user's query")
+
+
+class DatatableSelection(BaseModel):
+    table: str
+    description: str
+
+    def __repr__(self):
+        return f"Selected table: {self.table} (description: {self.description})"
+
+
+class _FieldSelection(BaseModel):
+    name: str
+    description: str
+    data_type: str
+
+    def __repr__(self):
+        return f"Field: {self.name} (description: {self.description}, type: {self.data_type})"
+
+
+class FieldSelection(BaseModel):
+    fields: List[_FieldSelection]
+
+    def as_csv(self):
+
+        # Create a string buffer to hold CSV data
+        csv_buffer = io.StringIO()
+        writer = csv.DictWriter(
+            csv_buffer, fieldnames=["name", "description", "data_type"]
+        )
+        writer.writeheader()
+        writer.writerows([f.model_dump() for f in self.fields])
+
+        # Get the CSV string
+        csv_output = csv_buffer.getvalue()
+        csv_buffer.close()
+
+        return csv_output
 
 
 def build_table_slug(gadm_level: int, table: str) -> str:
@@ -25,10 +72,10 @@ def build_table_slug(gadm_level: int, table: str) -> str:
     return table_slug
 
 
-def fetch_table_fields(table_slug: str) -> str:
+def fetch_table_fields(table_slug: str) -> FieldSelection:
     dataset = requests.get(
         f"{GFW_DATA_API_BASE_URL}/dataset/{table_slug}",
-        headers={"Authorization": f"Bearer: {os.environ['GFW_DATA_API_KEY']}"},
+        headers={"x-api-key": os.environ["GFW_DATA_API_KEY"]},
     ).json()
     # TODO: assert the query succeeded
     latest_version = sorted(dataset["data"]["versions"])[-1]
@@ -36,7 +83,7 @@ def fetch_table_fields(table_slug: str) -> str:
     # This contains an asset URI with tiling endpoint for the precomputed raster (.pbf)!
     table_metadata = requests.get(
         f"{GFW_DATA_API_BASE_URL}/assets?dataset={table_slug}&version={latest_version}",
-        headers={"Authorization": f"Bearer: {os.environ['GFW_DATA_API_KEY']}"},
+        headers={"x-api-key": os.environ["GFW_DATA_API_KEY"]},
     ).json()
     # TODO: assert the query succeeded
 
@@ -51,24 +98,71 @@ def fetch_table_fields(table_slug: str) -> str:
         }
         for f in table_metadata["fields"]
     ]
-    # Create a string buffer to hold CSV data
-    csv_buffer = io.StringIO()
-    writer = csv.DictWriter(csv_buffer, fieldnames=["name", "description", "data_type"])
-    writer.writeheader()
-    writer.writerows(fields)
 
-    # Get the CSV string
-    csv_output = csv_buffer.getvalue()
-    csv_buffer.close()
-    return csv_output
+    return FieldSelection(fields=fields)
 
 
-class QueryInput(BaseModel):
-    """Input schema for location finder tool"""
+class GadmId(BaseModel):
+    gadm_id: str
+    gadm_level: Optional[int] = -1
+    iso: Optional[str] = ""
+    adm1: Optional[int] = -1
+    adm2: Optional[int] = -1
 
-    gadm_level: int = Field(description="GADM level of place or places to be queried")
-    gadm_ids: List[str] = Field(description="A list of one or more GADM IDs to query")
-    query: str = Field(description="The user's query")
+    # TODO: add a validator to ensure that the GADM ID is well-formed
+    # and that the iso/adm1/adm2 levels correspond to the GADM ID
+    # (if supplied)
+
+    @model_validator(mode="after")
+    def parse_id(self):
+
+        gadm_id = self.gadm_id
+
+        if "_" in gadm_id:
+            [gadm_id, _] = gadm_id.split("_")
+
+        gadm_id = gadm_id.split(".")
+        if len(gadm_id) == 1:
+            [self.iso] = gadm_id
+            self.gadm_level = 0
+
+        if len(gadm_id) == 2:
+            self.iso, self.adm1 = gadm_id[0], int(gadm_id[1])
+            self.gadm_level = 1
+
+        if len(gadm_id) > 2:
+            self.iso, self.adm1, self.adm2 = (
+                gadm_id[0],
+                int(gadm_id[1]),
+                int(gadm_id[2]),
+            )
+            self.gadm_level = 2
+        return self
+
+    def __repr__(self):
+        return f"GADM ID: {self.gadm_id} (level: {self.gadm_level}). ISO: {self.iso}, ADM1: {self.adm1}, ADM2: {self.adm2}"
+
+    def as_sql_filter(self):
+        if self.gadm_level == 0:
+            return f"(iso = '{self.iso}')"
+        if self.gadm_level == 1:
+            return f"(iso = '{self.iso}' AND adm1 = {self.adm1})"
+        if self.gadm_level == 2:
+            return f"(iso = '{self.iso}' AND adm1 = {self.adm1} AND adm2 = {self.adm2})"
+        return ""
+
+
+# def collect_gadm_ids(gadm_ids: List[str]):
+#     locations = {}
+#     gadm_ids = [GadmId(gadm_id=gadm_id) for gadm_id in gadm_ids]
+#     for gadm_id in gadm_ids:
+#         locations.setdefault(gadm_id.iso, {})
+#         if gadm_id.gadm_level == 1:
+#             locations[gadm_id.iso].setdefault(gadm_id.adm1, [])
+#         if gadm_id.gadm_level == 2:
+#             locations[gadm_id.iso].setdefault(gadm_id.adm1, []).append(gadm_id.adm2)
+
+#     return locations
 
 
 @tool(
@@ -81,48 +175,73 @@ def query_tool(
     gadm_level: int,
     gadm_ids: Optional[str],
     query: str,
-) -> Tuple[List[Tuple[Any]], List[Dict[str, Any]]]:
-    """ """
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Returns a SQL query to retrieve data from the GFW data API based on user input."""
     # TODO: as we add more tables, this should become a HIL
     # tool that prompts the user to select within a preselection of
     # 3-5 tables
     from zeno.agents.gfw_data_api.models import haiku
 
-    model_resp = haiku.invoke(
+    model_resp = haiku.with_structured_output(DatatableSelection).invoke(
         [HumanMessage(prep_datatables_selection_prompt(query))]
-    ).content
+    )
 
-    table, description = model_resp.split(",")
-
-    table_slug = build_table_slug(gadm_level, table)
+    table_slug = build_table_slug(gadm_level, model_resp.table)
     table_gadm_level = "iso" if gadm_level == 0 else f"adm{gadm_level}"
 
+    # Fetch feilds in table to allow LLM to craft an appropriate
+    # query
     fields = fetch_table_fields(table_slug)
 
     from zeno.agents.gfw_data_api.models import haiku
 
+    fields_to_query = haiku.with_structured_output(FieldSelection).invoke(
+        [HumanMessage(prep_field_selection_prompt(query, fields.as_csv()))]
+    )
+
+    print(f"Fields to query: {fields_to_query.as_csv()}")
+
+    location_filter = " OR ".join(
+        [GadmId(gadm_id=gadm_id).as_sql_filter() for gadm_id in gadm_ids]
+    )
+
     sql_query = haiku.invoke(
         [
             HumanMessage(
-                prep_field_selection_prompt(
+                prep_api_sql_query_prompt(
                     query=query,
-                    table_slug=table_slug,
-                    fields=fields,
+                    fields_to_query=fields_to_query.as_csv(),
                     gadm_level=table_gadm_level,
-                    gadm_ids=gadm_ids,
+                    location_filter=location_filter,
                 )
             )
         ]
     ).content
 
+    # TODO: assert that query succeeds before returning to user, otherwise
+    # return to prompt for updated query (if syntax error, etc)
+    result = requests.post(
+        f"{GFW_DATA_API_BASE_URL}/dataset/{table_slug}/latest/query/json",
+        headers={"x-api-key": os.environ["GFW_DATA_API_KEY"]},
+        json={"sql": sql_query},
+    ).json()
+
     return (
-        sql_query,
         {
             "table_slug": table_slug,
-            "fields": fields,
+            "fields_to_query": fields_to_query.as_csv(),
             "gadm_ids": gadm_ids,
             "gadm_level": table_gadm_level,
             "query": query,
             "sql_query": sql_query,
         },
+        result["data"],
     )
+
+
+# SAMPLE WELL FORMATTED QUERY:
+
+# requests.get(
+#     f"{base_url}/dataset/gadm__tcl__iso_summary/latest/query/json?sql=SELECT iso, umd_tree_cover_density__threshold FROM data WHERE umd_tree_cover_density__threshold > 10 ORDER BY umd_tree_cover_density__threshold DESC",
+#     headers={"x-api-key": "API KEY HERE"},
+# ).json()

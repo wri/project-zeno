@@ -75,10 +75,18 @@ def display_message(message):
                 # artifact is a single feature
                 st.chat_message("assistant").write(_artifact["properties"])
 
-                geometry = _artifact["geometry"]
+                # geometry = _artifact["geometry"]
 
-                g = folium.GeoJson(_artifact).add_to(m)  # noqa: F841
+                folium.GeoJson(_artifact).add_to(m)  # noqa: F841
+
             st_folium(m, width=700, height=500, returned_objects=[])
+
+        elif message["type"] == "query":
+            sql_query = json.loads(message["content"]["content"])["sql_query"]
+            st.chat_message("assistant").write(f"Results for query: {sql_query} ")
+            data = message["content"]["artifact"]
+            df = pd.DataFrame(data)
+            st.table(data=df)
         # elif message["type"] == "alerts":
         #     st.chat_message("assistant").write(
         #         "Computing distributed alerts statistics..."
@@ -185,7 +193,11 @@ def handle_stream_response(stream):
                     "content": data,
                 }
             elif data.get("tool_name") == "query-tool":
-                message = {"role": "assistant", "type": "query", "content": data}
+                message = {
+                    "role": "assistant",
+                    "type": "query",
+                    "content": data,
+                }
             # elif data.get("tool_name") == "dist-alerts-tool":
             #     message = {
             #         "role": "assistant",
@@ -260,5 +272,4 @@ if user_input := st.chat_input("Type your message here..."):
         },
         stream=True,
     ) as stream:
-        print(f"\nPOST... (query_type: {query_type})\n")
         handle_stream_response(stream)

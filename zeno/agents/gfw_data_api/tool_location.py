@@ -83,9 +83,8 @@ def relative_location_tool(
     parent_gadm_id: Optional[str] = None,
     parent_gadm_level: Optional[int] = None,
 ) -> Tuple[List[Tuple], List[Dict[str, Any]]]:
-    """Returns a list of GADM Items  for a requested GADM Level.
-    Optionally returns a list of GADM Items for a requested parent GADM ID
-    and parent GADM Level.
+    """Returns a list of GADM Items for a requested GADM Level.
+    Note that BOTH parent_gadm_level and parent_gadm_id are required in order to query for locations relative to a parent.
     """
 
     gadm = GADM_BY_LEVEL[gadm_level]
