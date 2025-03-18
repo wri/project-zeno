@@ -82,8 +82,18 @@ def display_message(message):
             st_folium(m, width=700, height=500, returned_objects=[])
 
         elif message["type"] == "query":
-            sql_query = json.loads(message["content"]["content"])["sql_query"]
-            st.chat_message("assistant").write(f"Results for query: {sql_query} ")
+            # sql_query = json.loads(message["content"]["content"])["sql_query"]
+
+            # st.chat_message("assistant").write(f"Results for query: {sql_query} ")
+            # Query + explanation
+            st.chat_message("assistant").write(
+                "Here is the query that I've come up with, with an explanation: "
+            )
+            st.chat_message("assistant").write(message["content"]["content"])
+
+            st.chat_message("assistant").write(
+                "Here are the results of this query executed against the GFW Data API: "
+            )
             data = message["content"]["artifact"]
             df = pd.DataFrame(data)
             st.table(data=df)

@@ -37,7 +37,7 @@ def test_query_tool():
                 "BRA.26_1",
                 "BRA.27_1",
             ],
-            "query": "total carbon sequestered by state",
+            "user_query": "total carbon sequestered by state",
         }
     )
 

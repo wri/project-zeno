@@ -9,6 +9,7 @@ from zeno.agents.gfw_data_api.prompts import (
     prep_datatables_selection_prompt,
     prep_field_selection_prompt,
     prep_api_sql_query_prompt,
+    prep_sql_query_explanation_prompt,
 )
 import csv
 import io
@@ -25,7 +26,7 @@ class QueryInput(BaseModel):
     gadm_ids: Optional[List[str]] = Field(
         description="A list of one or more GADM IDs to query", default=None
     )
-    query: str = Field(description="The user's query")
+    user_query: str = Field(description="The user's query")
 
 
 class DatatableSelection(BaseModel):
@@ -174,7 +175,7 @@ class GadmId(BaseModel):
 def query_tool(
     gadm_level: int,
     gadm_ids: Optional[str],
-    query: str,
+    user_query: str,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Returns a SQL query to retrieve data from the GFW data API based on user input."""
     # TODO: as we add more tables, this should become a HIL
@@ -183,7 +184,7 @@ def query_tool(
     from zeno.agents.gfw_data_api.models import haiku
 
     model_resp = haiku.with_structured_output(DatatableSelection).invoke(
-        [HumanMessage(prep_datatables_selection_prompt(query))]
+        [HumanMessage(prep_datatables_selection_prompt(user_query=user_query))]
     )
 
     table_slug = build_table_slug(gadm_level, model_resp.table)
@@ -193,10 +194,14 @@ def query_tool(
     # query
     fields = fetch_table_fields(table_slug)
 
-    from zeno.agents.gfw_data_api.models import haiku
-
     fields_to_query = haiku.with_structured_output(FieldSelection).invoke(
-        [HumanMessage(prep_field_selection_prompt(query, fields.as_csv()))]
+        [
+            HumanMessage(
+                prep_field_selection_prompt(
+                    user_query=user_query, fields=fields.as_csv()
+                )
+            )
+        ]
     )
 
     print(f"Fields to query: {fields_to_query.as_csv()}")
@@ -209,7 +214,7 @@ def query_tool(
         [
             HumanMessage(
                 prep_api_sql_query_prompt(
-                    query=query,
+                    user_query=user_query,
                     fields_to_query=fields_to_query.as_csv(),
                     gadm_level=table_gadm_level,
                     location_filter=location_filter,
@@ -218,30 +223,37 @@ def query_tool(
         ]
     ).content
 
-    # TODO: assert that query succeeds before returning to user, otherwise
-    # return to prompt for updated query (if syntax error, etc)
+    explanation = haiku.invoke(
+        [
+            HumanMessage(
+                prep_sql_query_explanation_prompt(
+                    user_query=user_query, sql_query=sql_query
+                )
+            )
+        ]
+    ).content
+
     result = requests.post(
         f"{GFW_DATA_API_BASE_URL}/dataset/{table_slug}/latest/query/json",
         headers={"x-api-key": os.environ["GFW_DATA_API_KEY"]},
         json={"sql": sql_query},
     ).json()
 
+    # TODO: add automated handling for failed query, with reformulating and retrying it
+    # TODO: add HIL to confirm generated SQL before executing
+    # TODO: add interpretation/reporting for query
+
     return (
+        f"QUERY: {sql_query} \n EXPLANATION: {explanation}",
         {
             "table_slug": table_slug,
+            "fields_available": fields.as_csv(),
             "fields_to_query": fields_to_query.as_csv(),
             "gadm_ids": gadm_ids,
             "gadm_level": table_gadm_level,
-            "query": query,
+            "user_query": user_query,
             "sql_query": sql_query,
+            "explanation": explanation,
+            "result": result["data"],
         },
-        result["data"],
     )
-
-
-# SAMPLE WELL FORMATTED QUERY:
-
-# requests.get(
-#     f"{base_url}/dataset/gadm__tcl__iso_summary/latest/query/json?sql=SELECT iso, umd_tree_cover_density__threshold FROM data WHERE umd_tree_cover_density__threshold > 10 ORDER BY umd_tree_cover_density__threshold DESC",
-#     headers={"x-api-key": "API KEY HERE"},
-# ).json()

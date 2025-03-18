@@ -15,21 +15,21 @@ daily_alerts,Provides daily forest disturbance in near-real-time using integrate
 """
 
 
-def prep_datatables_selection_prompt(query: str) -> str:
+def prep_datatables_selection_prompt(user_query: str) -> str:
     prompt = f"""
 You are Zeno, a helpful AI assistant helping users query conservation and biodiversity data from the Global Forest Watch data API. \n
 Select a data table from the GFW data api to query, based on the user's question and a csv defining the available data tables. \n
-User's question: {query} \n
+User's question: {user_query} \n
 \n
 CSV with available data tables: {DATATABLES} \n"""
     return prompt
 
 
-def prep_field_selection_prompt(query: str, fields: List[str]) -> str:
+def prep_field_selection_prompt(user_query: str, fields: List[str]) -> str:
     prompt = f"""
 You are Zeno, a helpful AI assistant helping users query environmental conservation and biodiversity data from the Global Forest Watch data API. \n
 Select one or more fields from the list of fields provided, based on the user's question and a csv defining the available fields to query. \n
-User's question: {query} \n
+User's question: {user_query} \n
 CSV with available fields: {fields} \n
 Return one or more rows from the csv as the answer, where each row is formatted as 'name,data_type', and each row is separated by a newline \\n character. Do not include any additional text
     """
@@ -37,7 +37,7 @@ Return one or more rows from the csv as the answer, where each row is formatted 
 
 
 def prep_api_sql_query_prompt(
-    query: str,
+    user_query: str,
     fields_to_query: str,
     gadm_level: int,
     location_filter: Optional[str] = "",
@@ -47,7 +47,7 @@ def prep_api_sql_query_prompt(
 You are Zeno, a helpful AI assistant helping users query environmental conservation and biodiversity data from the Global Forest Watch data API. \n
 You will construct a SQL query to retrieve the requested data. You will be provided with the user's question and a list of fields to query, as pairs of field name and data type and a template for the SQL query with some information pre-filled. Do your best not to alter the existing elements of this template. \n
 
-User's question: {query} \n
+User's question: {user_query} \n
 Fields to query: \n{fields_to_query} \n
 Template: \n
 
@@ -68,12 +68,16 @@ Return a string formatted SQL statement with no additional text, or you can prom
     return prompt
 
 
-# SELECT adm1, SUM(umd_tree_cover_density__threshold) as total_tree_cover_density, SUM(umd_tree_cover_density_2000__threshold) as total_tree_cover_density_2000
-
-# FROM data
-
-# WHERE adm1 IN ('BRA.1_1', 'BRA.2_1', 'BRA.3_1', 'BRA.4_1', 'BRA.5_1', 'BRA.6_1', 'BRA.7_1', 'BRA.8_1', 'BRA.9_1', 'BRA.10_1', 'BRA.11_1', 'BRA.12_1', 'BRA.13_1', 'BRA.14_1', 'BRA.15_1', 'BRA.16_1', 'BRA.17_1', 'BRA.18_1', 'BRA.19_1', 'BRA.20_1', 'BRA.21_1', 'BRA.22_1', 'BRA.23_1', 'BRA.24_1', 'BRA.25_1', 'BRA.26_1', 'BRA.27_1') AND umd_tree_cover_density__threshold > 0 AND umd_tree_cover_density_2000__threshold > 0
-
-# GROUP BY adm1
-
-# ORDER BY total_tree_cover_density DESC
+def prep_sql_query_explanation_prompt(user_query: str, sql_query: str):
+    prompt = f"""
+You are Zeno, a helpful AI assistant helping users query environmental conservation and biodiversity data from the Global Forest Watch data API. \n
+You have constructed a SQL query which will be run against the GFW data API and you will now explain how you constructed this query to the user.\n
+Be sure to explain: \n
+- Why each field in the SELECT statement was chosen and what any additional operations, such as the SUM operation, are performed. \n
+- Why the filtering condition was chose, especially for filters NOT relating to gadm_ids. \n
+- Why any grouping operation was performed. \n
+Be sure to explain each part in such a way that a user that is familiar with the GFW data and API, but not very familiar with SQL syntax would understand. If there is anything you are unsure about you can say that. The user will be able to correct the query. \n
+User's question: {user_query} \n
+SQL Query to explain: {sql_query} \n
+"""
+    return prompt
