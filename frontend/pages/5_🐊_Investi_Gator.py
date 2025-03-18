@@ -94,7 +94,7 @@ def display_message(message):
             st.chat_message("assistant").write(
                 "Here are the results of this query executed against the GFW Data API: "
             )
-            data = message["content"]["artifact"]
+            data = message["content"]["artifact"]["result"]
             df = pd.DataFrame(data)
             st.table(data=df)
         # elif message["type"] == "alerts":
