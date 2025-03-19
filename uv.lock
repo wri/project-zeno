@@ -3214,7 +3214,7 @@ wheels = [
 [[package]]
 name = "project-zeno"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "earthengine-api" },
     { name = "elevenlabs" },
