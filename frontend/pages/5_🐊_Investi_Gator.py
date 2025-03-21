@@ -4,7 +4,7 @@ import uuid
 
 import folium
 
-import geopandas as gpd
+# import geopandas as gpd
 import pandas as pd
 import requests
 import streamlit as st
@@ -70,114 +70,37 @@ def display_message(message):
 
             for _artifact in artifact:
 
-                # artifact = artifact[0]
-
-                # artifact is a single feature
                 st.chat_message("assistant").write(_artifact["properties"])
-
-                # geometry = _artifact["geometry"]
 
                 folium.GeoJson(_artifact).add_to(m)  # noqa: F841
 
             st_folium(m, width=700, height=500, returned_objects=[])
+        elif message["type"] == "generated-query":
+            data = message["content"]
+            artifact = data["artifact"]
 
-        elif message["type"] == "query":
-            # sql_query = json.loads(message["content"]["content"])["sql_query"]
-
-            # st.chat_message("assistant").write(f"Results for query: {sql_query} ")
-            # Query + explanation
             st.chat_message("assistant").write(
-                "Here is the query that I've come up with, with an explanation: "
+                f"I've generated the following query: {artifact['sql_query']}."
             )
+
+            st.chat_message("assistant").write(artifact["explanation"])
+
+        elif message["type"] == "query-result":
+            # st.write(message)
+
             st.chat_message("assistant").write(message["content"]["content"])
-
-            st.chat_message("assistant").write(
-                "Here are the results of this query executed against the GFW Data API: "
-            )
-            data = message["content"]["artifact"]["result"]
+            data = message["content"]["artifact"]["data"]
             df = pd.DataFrame(data)
             st.table(data=df)
-        # elif message["type"] == "alerts":
-        #     st.chat_message("assistant").write(
-        #         "Computing distributed alerts statistics..."
-        #     )
-        #     # plot the stats
-        #     data = message["content"]
-        #     stats = data.get("content", {})
-        #     stats = json.loads(stats)
-        #     print(stats)
-        #     df = pd.DataFrame(list(stats.items()), columns=["Category", "Value"])
-        #     st.bar_chart(df, x="Category", y="Value")
 
-        #     # plot the artifact which is a geojson featurecollection
-        #     artifact = data.get("artifact", {})
-        #     if artifact:
-        #         first_feature = artifact["features"][0]
-        #         geometry = first_feature["geometry"]
-        #         if geometry["type"] == "Polygon":
-        #             pnt = geometry["coordinates"][0][0]
-        #         else:
-        #             pnt = geometry["coordinates"][0][0][0]
-
-        #         m = folium.Map(location=[pnt[1], pnt[0]], zoom_start=11)
-
-        #         minx, miny, maxx, maxy = gpd.GeoDataFrame.from_features(
-        #             artifact
-        #         ).total_bounds
-
-        #         print("BOUNDS: ", minx, miny, maxx, maxy)
-
-        #         m.fit_bounds([[miny, minx], [maxy, maxx]])
-
-        #         g = folium.GeoJson(artifact).add_to(m)  # noqa: F841
-        #         st_folium(m, width=700, height=500, returned_objects=[])
-        # elif message["type"] == "context":
-        #     data = message["content"]
-        #     st.chat_message("assistant").write(
-        #         f"Adding context layer {data['content']}"
-        #     )
-        #     m = folium.Map(location=[0, 0], zoom_start=3)
-        #     g = folium.TileLayer(
-        #         data["artifact"]["tms_url"],
-        #         name=data["content"],
-        #         attr=data["content"],
-        #     ).add_to(
-        #         m
-        #     )  # noqa: F841
-        #     st_folium(m, width=700, height=500, returned_objects=[])
-
-        # elif message["type"] == "stac":
-        #     st.chat_message("assistant").write(
-        #         "Found satellite images for your area of interest, here are the stac ids: "
-        #     )
-        #     data = message["content"]
-        #     artifact = data.get("artifact", {})
-        #     # create a grid of 2 x 5 images
-        #     cols = st.columns(5)
-        #     for idx, stac_item in enumerate(artifact["features"]):
-        #         stac_id = stac_item["id"]
-        #         stac_href = next(
-        #             (
-        #                 link["href"]
-        #                 for link in stac_item["links"]
-        #                 if link["rel"] == "thumbnail"
-        #             ),
-        #             None,
-        #         )
-        #         with cols[idx % 5]:
-        #             st.chat_message("assistant").image(
-        #                 stac_href, caption=stac_id, width=100
-        #             )
         else:
             st.chat_message("assistant").write(message["content"])
 
 
 def handle_stream_response(stream):
     for chunk in stream.iter_lines():
+
         data = json.loads(chunk.decode("utf-8"))
-
-        # st.write(data)
-
         # Regular update messages from Zeno
         if data.get("type") == "update":
             message = {
@@ -202,30 +125,26 @@ def handle_stream_response(stream):
                     "type": "location",
                     "content": data,
                 }
-            elif data.get("tool_name") == "query-tool":
+            # elif data.get("tool_name") == "generate-query-tool":
+
+            #     message = {
+            #         "role": "assistant",
+            #         "type": "generated-query",
+            #         "content": data,
+            #     }
+            # elif data.get("tool_name") == "execute-query-tool":
+            #     message = {
+            #         "role": "assistant",
+            #         "type": "query-result",
+            #         "content": data,
+            #     }
+            elif data.get("tool_name") == "explain-results-tool":
                 message = {
                     "role": "assistant",
-                    "type": "query",
+                    "type": "query-result",
                     "content": data,
                 }
-            # elif data.get("tool_name") == "dist-alerts-tool":
-            #     message = {
-            #         "role": "assistant",
-            #         "type": "alerts",
-            #         "content": data,
-            #     }
-            # elif data.get("tool_name") == "context-layer-tool":
-            #     message = {
-            #         "role": "assistant",
-            #         "type": "context",
-            #         "content": data,
-            #     }
-            # elif data.get("tool_name") == "stac-tool":
-            #     message = {
-            #         "role": "assistant",
-            #         "type": "stac",
-            #         "content": data,
-            #     }
+
             else:
                 message = {
                     "role": "assistant",
@@ -239,14 +158,17 @@ def handle_stream_response(stream):
                 display_message(message)
         # Interrupted by human input
         elif data.get("type") == "interrupted":
-            payload = json.loads(data.get("payload"))
+
+            # payload = json.loads(data.get("payload"))
+            # st.write(payload)
             # Store the state that we're waiting for input
             st.session_state.waiting_for_input = True
             # Add the interrupt message to the chat
+
             message = {
                 "role": "assistant",
                 "type": "text",
-                "content": f"Pick one of the options: {[ (row[0], row[1]) for row in payload]}",
+                "content": data["payload"],
             }
             st.session_state.gfw_messages.append(message)
             display_message(message)

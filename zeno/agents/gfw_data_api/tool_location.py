@@ -72,58 +72,6 @@ class RelativeLocationInput(BaseModel):
         return value
 
 
-@tool(
-    "relative-location-tool",
-    args_schema=RelativeLocationInput,
-    return_direct=False,
-    response_format="content_and_artifact",
-)
-def relative_location_tool(
-    gadm_level: int,
-    parent_gadm_id: Optional[str] = None,
-    parent_gadm_level: Optional[int] = None,
-) -> Tuple[List[Tuple], List[Dict[str, Any]]]:
-    """Returns a list of GADM Items for a requested GADM Level.
-    Note that BOTH parent_gadm_level and parent_gadm_id are required in order to query for locations relative to a parent.
-    """
-
-    gadm = GADM_BY_LEVEL[gadm_level]
-
-    matches = [
-        m
-        for m in gadm
-        if (
-            m["properties"][f"GID_{parent_gadm_level}"] == parent_gadm_id
-            if parent_gadm_id
-            else True
-        )
-    ]
-    results = []
-    for match in matches:
-        gadm_id = match["properties"][f"GID_{gadm_level}"]
-        name = match["properties"][
-            f"NAME_{gadm_level}" if gadm_level != 0 else "COUNTRY"
-        ]
-        admin_level = (
-            "Country"
-            if gadm_level == 0
-            else match["properties"].get(f"ENGTYPE_{gadm_level}", "Unknown")
-        )
-
-        geojson_feature = convert_to_geojson(match)
-        simplified_feature = simplify_geometry(geojson_feature)
-
-        simplified_feature["properties"] = {
-            "gadm_id": gadm_id,
-            "name": name,
-            "admin_level": admin_level,
-            "gadm_level": gadm_level,
-        }
-        results.append(((name, admin_level, gadm_id, gadm_level), simplified_feature))
-
-    return [item[0] for item in results], [item[1] for item in results]
-
-
 def convert_to_geojson(fiona_feature: Dict[str, Any]) -> Dict[str, Any]:
     """Convert a Fiona Feature to a GeoJSON Feature."""
     return {
@@ -231,6 +179,58 @@ def process_single_location(
 
 
 @tool(
+    "relative-location-tool",
+    args_schema=RelativeLocationInput,
+    return_direct=False,
+    response_format="content_and_artifact",
+)
+def relative_location_tool(
+    gadm_level: int,
+    parent_gadm_id: Optional[str] = None,
+    parent_gadm_level: Optional[int] = None,
+) -> Tuple[List[Tuple], List[Dict[str, Any]]]:
+    """Returns a list of GADM Items for a requested GADM Level.
+    Note that BOTH parent_gadm_level and parent_gadm_id are required in order to query for locations relative to a parent.
+    """
+
+    gadm = GADM_BY_LEVEL[gadm_level]
+
+    matches = [
+        m
+        for m in gadm
+        if (
+            m["properties"][f"GID_{parent_gadm_level}"] == parent_gadm_id
+            if parent_gadm_id
+            else True
+        )
+    ]
+    results = []
+    for match in matches:
+        gadm_id = match["properties"][f"GID_{gadm_level}"]
+        name = match["properties"][
+            f"NAME_{gadm_level}" if gadm_level != 0 else "COUNTRY"
+        ]
+        admin_level = (
+            "Country"
+            if gadm_level == 0
+            else match["properties"].get(f"ENGTYPE_{gadm_level}", "Unknown")
+        )
+
+        geojson_feature = convert_to_geojson(match)
+        simplified_feature = simplify_geometry(geojson_feature)
+
+        simplified_feature["properties"] = {
+            "gadm_id": gadm_id,
+            "name": name,
+            "admin_level": admin_level,
+            "gadm_level": gadm_level,
+        }
+        results.append(((name, admin_level, gadm_id, gadm_level), simplified_feature))
+
+    return [item[0] for item in results], [item[1] for item in results]
+
+
+@tool(
     "location-tool",
     args_schema=LocationInput,
     return_direct=False,
@@ -275,4 +275,6 @@ def location_tool(
                 ((name, admin_level, gadm_id, gadm_level), simplified_feature)
             )
 
-    return [item[0] for item in results], [item[1] for item in results]
+    return f"Pick one of the following options: {[item[0] for item in results]}", [
+        item[1] for item in results
+    ]
