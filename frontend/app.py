@@ -1,7 +1,10 @@
 import streamlit as st
+import os
 import requests
 
-import logging
+
+LOCAL_API_BASE_URL = os.environ["LOCAL_API_BASE_URL"]
+
 
 st.set_page_config(page_title="Zeno", page_icon="🦣")
 
@@ -64,13 +67,15 @@ with st.sidebar:
             ),
         )
     else:
+
         user_info = requests.get(
-            "https://api.resourcewatch.org/auth/user/me",
+            f"{LOCAL_API_BASE_URL}auth/me",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {st.session_state['token']}",
             },
         )
+
         if user_info.status_code == 200:
             st.session_state["user"] = user_info.json()
             st.sidebar.success(
@@ -86,6 +91,7 @@ with st.sidebar:
             # and not the JWT. So in this case, we'll just clear the user info and token
             st.session_state.pop("user", None)
             st.session_state.pop("token", None)
+            st.rerun()
 
 
 # Agent data

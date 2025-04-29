@@ -15,6 +15,7 @@ from streamlit_folium import st_folium
 load_dotenv()
 
 API_BASE_URL = os.environ.get("API_BASE_URL")
+LOCAL_API_BASE_URL = os.environ.get("LOCAL_API_BASE_URL")
 
 
 if "gfw_session_id" not in st.session_state:
@@ -54,6 +55,41 @@ with st.sidebar:
     - Which state in Brazil has sequestered the most carbon? 
     """
     )
+
+    if not st.session_state.get("token"):
+        st.button(
+            "Login with Global Forest Watch",
+            on_click=lambda: st.markdown(
+                '<meta http-equiv="refresh" content="0;url=https://api.resourcewatch.org/auth?callbackUrl=http://localhost:8501&token=true">',
+                unsafe_allow_html=True,
+            ),
+        )
+    else:
+
+        user_info = requests.get(
+            f"{LOCAL_API_BASE_URL}auth/me",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {st.session_state['token']}",
+            },
+        )
+
+        if user_info.status_code == 200:
+            st.session_state["user"] = user_info.json()
+            st.sidebar.success(
+                f"""
+                Logged in as {st.session_state['user']['name']}
+                """
+            )
+
+    if st.session_state.get("user"):
+        st.write("User info: ", st.session_state["user"])
+        if st.button("Logout"):
+            # NOTE: there is a logout endpoint in the API, but it only invalidates the browser cookies
+            # and not the JWT. So in this case, we'll just clear the user info and token
+            st.session_state.pop("user", None)
+            st.session_state.pop("token", None)
+            st.rerun()
 
 
 def display_message(message):
@@ -274,12 +310,16 @@ if user_input := st.chat_input("Type your message here..."):
         st.session_state.waiting_for_input = False
 
     with requests.post(
-        f"{API_BASE_URL}/stream/gfw_data_api",
+        f"{LOCAL_API_BASE_URL}/stream/gfw_data_api",
         json={
             "query": user_input,
             "thread_id": st.session_state.gfw_session_id,
             "query_type": query_type,
         },
+        headers={"Authorization": f"Bearer {st.session_state.token}"},
         stream=True,
     ) as stream:
+        import logging
+
+        logging.error(f"STREAM: {stream.content}")
         handle_stream_response(stream)

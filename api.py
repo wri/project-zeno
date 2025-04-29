@@ -4,12 +4,18 @@ import os
 import uuid
 from typing import Annotated, Optional
 
+import requests
+import cachetools
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from db.models import UserOrm
 from elevenlabs.client import ElevenLabs
-from fastapi import Body, FastAPI
+from fastapi import Body, FastAPI, Header, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from langchain_core.messages import HumanMessage
+from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langgraph.types import Command
 from langfuse.callback import CallbackHandler
 
@@ -17,11 +23,80 @@ from zeno.agents.distalert.graph import graph as dist_alert
 from zeno.agents.kba.graph import graph as kba
 from zeno.agents.layerfinder.graph import graph as layerfinder
 from zeno.agents.gfw_data_api.graph import graph as gfw_data_api
+from db.models import UserModel, UserOrm, ThreadOrm
 
 load_dotenv()
 
+DATABASE_URL = os.environ["DATABASE_URL"]
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 app = FastAPI()
+
+
+# LRU cache for user info, keyed by token
+_user_info_cache = cachetools.LRUCache(maxsize=1024)
+
+
+@cachetools.cached(_user_info_cache)
+def _fetch_user_info(authorization: str = Header(...)) -> UserModel:
+
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Bearer token"
+        )
+
+    token = authorization.split(" ")[1]
+
+    try:
+        resp = requests.get(
+            "https://api.resourcewatch.org/auth/user/me",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {token}",
+            },
+            timeout=10,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=502, detail=f"Error contacting Resource Watch: {e}"
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+
+    user_info = resp.json()
+    user_id = user_info.get("id")
+    user_name = user_info.get("name") or user_info.get("displayName") or "Unknown"
+    user_email = user_info.get("email")
+
+    if not user_id or not user_email:
+        raise HTTPException(status_code=500, detail="User info missing id or email")
+
+    with SessionLocal() as db:
+        user = db.query(UserOrm).filter_by(id=user_id).first()
+        if not user:
+            user = UserOrm(
+                id=user_id,
+                name=user_name,
+                email=user_email,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        # Convert to Pydantic model while session is open
+        return UserModel.model_validate(user)
+
+
+@app.get("/auth/me", response_model=UserModel)
+async def auth_me(user_info: UserModel = Depends(_fetch_user_info)):
+    """
+    Requires Authorization: Bearer <JWT>
+    Forwards the JWT to Resource Watch API and returns user info.
+    """
+
+    return user_info
+
 
 callbacks = []
 if "LANGFUSE_PUBLIC_KEY" in os.environ:
@@ -330,9 +405,11 @@ async def stream_kba(
 
 def event_stream_gfw_data_api(
     query: str,
+    user_id: str,
     thread_id: Optional[str] = None,
     query_type: Optional[str] = None,
 ):
+
     if not thread_id:
         thread_id = str(uuid.uuid4())
 
@@ -367,7 +444,11 @@ def event_stream_gfw_data_api(
     else:
         raise ValueError(f"Invalid query type from frontend: {query_type}")
 
+    # Stores the stream to later write to the database
+    messages_store = []
+
     for update in stream:
+
         node = next(iter(update.keys()))
 
         if node == "__interrupt__":
@@ -384,6 +465,7 @@ def event_stream_gfw_data_api(
             )
         else:
             messages = update[node]["messages"]
+
             if node == "tools" or node == "tools_with_hil":
                 for message in messages:
                     yield pack(
@@ -408,16 +490,54 @@ def event_stream_gfw_data_api(
                     }
                 )
 
+    messages_to_store = gfw_data_api.get_state(config).values["messages"]
+    # import logging
+
+    # logging.error(messages_to_store)
+    # logging.error([message.dict() for message in messages_to_store])
+
+    # Write the stream to the database
+    with SessionLocal() as db:
+        existing_thread = db.query(ThreadOrm).filter_by(id=thread_id).first()
+        new_responses = [message.dict() for message in messages_to_store]
+        if existing_thread:
+            # Append new messages to the "response" field in content
+            if "response" in existing_thread.content and isinstance(
+                existing_thread.content["response"], list
+            ):
+                existing_thread.content["response"].extend(new_responses)
+            else:
+                existing_thread.content["response"] = new_responses
+            db.commit()
+            db.refresh(existing_thread)
+        else:
+            thread = ThreadOrm(
+                id=thread_id,
+                user_id=user_id,
+                content={
+                    "query": query.dict(),
+                    "response": new_responses,
+                },
+            )
+            db.add(thread)
+            db.commit()
+            db.refresh(thread)
+
 
 @app.post("/stream/gfw_data_api")
 async def stream_gfw_data_api(
     query: Annotated[str, Body(embed=True)],
     thread_id: Optional[str] = Body(None),
     query_type: Optional[str] = Body(None),
+    user_info: UserModel = Depends(_fetch_user_info),
 ):
+
     return StreamingResponse(
         event_stream_gfw_data_api(
-            query=query, thread_id=thread_id, query_type=query_type
+            query=query,
+            user_id=user_info.id,
+            thread_id=thread_id,
+            query_type=query_type,
         ),
         media_type="application/x-ndjson",
     )
