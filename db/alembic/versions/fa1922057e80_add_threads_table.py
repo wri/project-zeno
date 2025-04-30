@@ -26,6 +26,7 @@ def upgrade() -> None:
         "threads",
         sa.Column("id", sa.String(), nullable=False),
         sa.Column("user_id", sa.String(), nullable=False),
+        sa.Column("agent_id", sa.String(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.Column("content", postgresql.JSONB(astext_type=sa.Text()), nullable=False),

@@ -9,13 +9,11 @@ import cachetools
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from db.models import UserOrm
 from elevenlabs.client import ElevenLabs
 from fastapi import Body, FastAPI, Header, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from langchain_core.messages import HumanMessage
-from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langgraph.types import Command
 from langfuse.callback import CallbackHandler
 
@@ -23,7 +21,7 @@ from zeno.agents.distalert.graph import graph as dist_alert
 from zeno.agents.kba.graph import graph as kba
 from zeno.agents.layerfinder.graph import graph as layerfinder
 from zeno.agents.gfw_data_api.graph import graph as gfw_data_api
-from db.models import UserModel, UserOrm, ThreadOrm
+from db.models import UserModel, UserOrm, ThreadOrm, ThreadModel
 
 load_dotenv()
 
@@ -36,11 +34,11 @@ app = FastAPI()
 
 
 # LRU cache for user info, keyed by token
-_user_info_cache = cachetools.LRUCache(maxsize=1024)
+_user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
 @cachetools.cached(_user_info_cache)
-def _fetch_user_info(authorization: str = Header(...)) -> UserModel:
+def fetch_user_from_rw_api(authorization: str = Header(...)) -> UserModel:
 
     if not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -65,22 +63,18 @@ def _fetch_user_info(authorization: str = Header(...)) -> UserModel:
     if resp.status_code != 200:
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
-    user_info = resp.json()
-    user_id = user_info.get("id")
-    user_name = user_info.get("name") or user_info.get("displayName") or "Unknown"
-    user_email = user_info.get("email")
+    return UserModel.model_validate(resp.json())
 
-    if not user_id or not user_email:
-        raise HTTPException(status_code=500, detail="User info missing id or email")
+
+def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
+    """
+    Requires Authorization
+    """
 
     with SessionLocal() as db:
-        user = db.query(UserOrm).filter_by(id=user_id).first()
+        user = db.query(UserOrm).filter_by(id=user_info.id).first()
         if not user:
-            user = UserOrm(
-                id=user_id,
-                name=user_name,
-                email=user_email,
-            )
+            user = UserOrm(**user_info.model_dump())
             db.add(user)
             db.commit()
             db.refresh(user)
@@ -88,14 +82,38 @@ def _fetch_user_info(authorization: str = Header(...)) -> UserModel:
         return UserModel.model_validate(user)
 
 
+@app.get("/threads", response_model=list[ThreadModel])
+def list_threads(user: UserModel = Depends(fetch_user)):
+    """
+    Requires Authorization
+    """
+
+    with SessionLocal() as db:
+        threads = db.query(ThreadOrm).filter_by(user_id=user.id).all()
+        return [ThreadModel.model_validate(thread) for thread in threads]
+
+
+@app.get("/threads/{thread_id}", response_model=ThreadModel)
+def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
+    """
+    Requires Authorization
+    """
+
+    with SessionLocal() as db:
+        thread = db.query(ThreadOrm).filter_by(id=thread_id, user_id=user.id).first()
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+        return ThreadModel.model_validate(thread)
+
+
 @app.get("/auth/me", response_model=UserModel)
-async def auth_me(user_info: UserModel = Depends(_fetch_user_info)):
+async def auth_me(user: UserModel = Depends(fetch_user)):
     """
     Requires Authorization: Bearer <JWT>
     Forwards the JWT to Resource Watch API and returns user info.
     """
 
-    return user_info
+    return user
 
 
 callbacks = []
@@ -490,38 +508,30 @@ def event_stream_gfw_data_api(
                     }
                 )
 
-    messages_to_store = gfw_data_api.get_state(config).values["messages"]
-    # import logging
-
-    # logging.error(messages_to_store)
-    # logging.error([message.dict() for message in messages_to_store])
+    messages_to_store = [
+        message.dict() for message in gfw_data_api.get_state(config).values["messages"]
+    ]
 
     # Write the stream to the database
     with SessionLocal() as db:
-        existing_thread = db.query(ThreadOrm).filter_by(id=thread_id).first()
-        new_responses = [message.dict() for message in messages_to_store]
-        if existing_thread:
-            # Append new messages to the "response" field in content
-            if "response" in existing_thread.content and isinstance(
-                existing_thread.content["response"], list
-            ):
-                existing_thread.content["response"].extend(new_responses)
-            else:
-                existing_thread.content["response"] = new_responses
-            db.commit()
-            db.refresh(existing_thread)
+
+        thread = db.query(ThreadOrm).filter_by(id=thread_id, user_id=user_id).first()
+
+        if thread:
+            thread.content["response"] = thread.content.get("response", []).extend(
+                messages_to_store
+            )
         else:
             thread = ThreadOrm(
                 id=thread_id,
                 user_id=user_id,
-                content={
-                    "query": query.dict(),
-                    "response": new_responses,
-                },
+                agent_id="gfw_data_api",
+                content={"query": query.dict(), "response": messages_to_store},
             )
             db.add(thread)
-            db.commit()
-            db.refresh(thread)
+
+        db.commit()
+        db.refresh(thread)
 
 
 @app.post("/stream/gfw_data_api")
@@ -529,13 +539,13 @@ async def stream_gfw_data_api(
     query: Annotated[str, Body(embed=True)],
     thread_id: Optional[str] = Body(None),
     query_type: Optional[str] = Body(None),
-    user_info: UserModel = Depends(_fetch_user_info),
+    user: UserModel = Depends(fetch_user),
 ):
 
     return StreamingResponse(
         event_stream_gfw_data_api(
             query=query,
-            user_id=user_info.id,
+            user_id=user.id,
             thread_id=thread_id,
             query_type=query_type,
         ),

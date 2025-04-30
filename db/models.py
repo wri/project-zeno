@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 from sqlalchemy import Column, String, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator, alias_generators
+from datetime import datetime
+
 
 Base = declarative_base()
 
@@ -24,28 +28,44 @@ class ThreadOrm(Base):
 
     id = Column(String, primary_key=True, unique=True, nullable=False)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    agent_id = Column(String, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now())
     updated_at = Column(
         DateTime, nullable=False, default=datetime.now(), onupdate=datetime.now()
     )
     content = Column(JSONB, nullable=False)
-    user = relationship("UserOrm", back_populates="threads")
+    user = relationship("UserOrm", back_populates="threads", foreign_keys=[user_id])
 
 
 class ThreadModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     user_id: str
+    agent_id: str
     created_at: datetime
     updated_at: datetime
     content: dict
+    # user: UserModel
 
 
 class UserModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        alias_generator=alias_generators.to_camel,
+        from_attributes=True,
+        populate_by_name=True,
+    )
     id: str
     name: str
     email: str
     created_at: datetime
     updated_at: datetime
     threads: list[ThreadModel] = []
+
+    @field_validator("created_at", "updated_at", mode="before")
+    def parse_dates(cls, value):
+        if isinstance(value, str):
+            try:
+                return datetime.fromisoformat(value)
+            except ValueError:
+                return value
+        return value
