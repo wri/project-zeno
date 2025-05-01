@@ -14,6 +14,7 @@ services:
       - GEE_SERVICE_ACCOUNT_PATH=${GEE_SERVICE_ACCOUNT_PATH}
       - WATCHFILES_FORCE_POLLING=1
       - DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/zeno-data
+      - EMAILS_ALLOWLIST="leo@developmentseed.org"
     env_file:
       - .env
     volumes:
