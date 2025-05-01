@@ -29,7 +29,7 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-EMAILS_ALLOWLIST = os.environ.get("EMAIL_ALLOWLIST", "").split(",")
+DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "").split(",")
 
 
 app = FastAPI()
@@ -41,7 +41,7 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 @cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
-    authorization: str = Header(...), emails_allowlist: str = EMAILS_ALLOWLIST
+    authorization: str = Header(...), domains_allowlist: str = DOMAINS_ALLOWLIST
 ) -> UserModel:
 
     if not authorization.startswith("Bearer "):
@@ -68,7 +68,7 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
-    if user_info["email"] not in emails_allowlist:
+    if user_info["email"].split("@")[-1].lower() not in domains_allowlist:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not allowed to access this API",
