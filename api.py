@@ -4,24 +4,24 @@ import os
 import uuid
 from typing import Annotated, Optional
 
-import requests
 import cachetools
+import requests
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from elevenlabs.client import ElevenLabs
-from fastapi import Body, FastAPI, Header, HTTPException, status, Depends
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
-from langfuse.callback import CallbackHandler
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
+from db.models import ThreadModel, ThreadOrm, UserModel, UserOrm
+from langfuse.callback import CallbackHandler
 from zeno.agents.distalert.graph import graph as dist_alert
+from zeno.agents.gfw_data_api.graph import graph as gfw_data_api
 from zeno.agents.kba.graph import graph as kba
 from zeno.agents.layerfinder.graph import graph as layerfinder
-from zeno.agents.gfw_data_api.graph import graph as gfw_data_api
-from db.models import UserModel, UserOrm, ThreadOrm, ThreadModel
 
 load_dotenv()
 
@@ -41,12 +41,13 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 @cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
-    authorization: str = Header(...), domains_allowlist: str = DOMAINS_ALLOWLIST
+    authorization: str = Header(...),
+    domains_allowlist: str = DOMAINS_ALLOWLIST,
 ) -> UserModel:
-
     if not authorization.startswith("Bearer "):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Bearer token"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Bearer token",
         )
 
     token = authorization.split(" ")[1]
@@ -111,7 +112,11 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     """
 
     with SessionLocal() as db:
-        thread = db.query(ThreadOrm).filter_by(id=thread_id, user_id=user.id).first()
+        thread = (
+            db.query(ThreadOrm)
+            .filter_by(id=thread_id, user_id=user.id)
+            .first()
+        )
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
         return ThreadModel.model_validate(thread)
@@ -129,6 +134,7 @@ async def auth_me(user: UserModel = Depends(fetch_user)):
 
 callbacks = []
 if "LANGFUSE_PUBLIC_KEY" in os.environ:
+    print("Activating Langfuse callbacks")
     callbacks.append(CallbackHandler())
 
 app.add_middleware(
@@ -243,7 +249,7 @@ def event_stream_layerfinder(
     if not thread_id:
         thread_id = str(uuid.uuid4())
 
-    config = {"configurable": {"thread_id": thread_id}}
+    config = {"callbacks": callbacks, "configurable": {"thread_id": thread_id}}
     stream = layerfinder.stream(
         {"question": query, "messages": [HumanMessage(query)]},
         stream_mode="updates",
@@ -305,7 +311,7 @@ def event_stream_kba(
     if not thread_id:
         thread_id = str(uuid.uuid4())
 
-    config = {"configurable": {"thread_id": thread_id}}
+    config = {"callbacks": callbacks, "configurable": {"thread_id": thread_id}}
     if query_type == "human_input":
         query = HumanMessage(content=query, name="human")
         stream = kba.stream(
@@ -384,7 +390,9 @@ def event_stream_kba(
                                 "type": "tool_call",
                                 "tool_name": message.name,
                                 "content": message.content,
-                                "dataset": current_state.values["kba_within_aoi"],
+                                "dataset": current_state.values[
+                                    "kba_within_aoi"
+                                ],
                             }
                         )
                     else:
@@ -438,11 +446,10 @@ def event_stream_gfw_data_api(
     thread_id: Optional[str] = None,
     query_type: Optional[str] = None,
 ):
-
     if not thread_id:
         thread_id = str(uuid.uuid4())
 
-    config = {"configurable": {"thread_id": thread_id}}
+    config = {"callbacks": callbacks, "configurable": {"thread_id": thread_id}}
     stream = gfw_data_api.stream(
         {"question": query, "messages": [HumanMessage(query)]},
         stream_mode="updates",
@@ -473,11 +480,7 @@ def event_stream_gfw_data_api(
     else:
         raise ValueError(f"Invalid query type from frontend: {query_type}")
 
-    # Stores the stream to later write to the database
-    messages_store = []
-
     for update in stream:
-
         node = next(iter(update.keys()))
 
         if node == "__interrupt__":
@@ -520,18 +523,22 @@ def event_stream_gfw_data_api(
                 )
 
     messages_to_store = [
-        message.dict() for message in gfw_data_api.get_state(config).values["messages"]
+        message.dict()
+        for message in gfw_data_api.get_state(config).values["messages"]
     ]
 
     # Write the stream to the database
     with SessionLocal() as db:
-
-        thread = db.query(ThreadOrm).filter_by(id=thread_id, user_id=user_id).first()
+        thread = (
+            db.query(ThreadOrm)
+            .filter_by(id=thread_id, user_id=user_id)
+            .first()
+        )
 
         if thread:
-            thread.content["response"] = thread.content.get("response", []).extend(
-                messages_to_store
-            )
+            thread.content["response"] = thread.content.get(
+                "response", []
+            ).extend(messages_to_store)
         else:
             thread = ThreadOrm(
                 id=thread_id,
@@ -552,7 +559,6 @@ async def stream_gfw_data_api(
     query_type: Optional[str] = Body(None),
     user: UserModel = Depends(fetch_user),
 ):
-
     return StreamingResponse(
         event_stream_gfw_data_api(
             query=query,
