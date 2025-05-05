@@ -12,12 +12,19 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEE_SERVICE_ACCOUNT_PATH=${GEE_SERVICE_ACCOUNT_PATH}
+      - WATCHFILES_FORCE_POLLING=1
+      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/zeno-data
+      - EMAILS_ALLOWLIST="developmentseed.org,wri.org"
     env_file:
       - .env
     volumes:
       - ./zeno:/app/zeno
       - ./data:/app/data
       - ./api.py:/app/api.py
+      - ./db:/app/db
+    depends_on:
+     - migrate 
+     - langfuse-server
 
   frontend: 
     build: 
@@ -27,7 +34,8 @@ services:
     volumes:
       - ./frontend:/app
     environment:
-      - API_BASE_URL=http://api:8000
+      - API_BASE_URL=https://api.zeno-staging.ds.io/
+      - LOCAL_API_BASE_URL=http://api:8000/
 
   langfuse-server:
     image: langfuse/langfuse:2
@@ -69,11 +77,22 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=langfuse
+      - APP_DB=zeno-data
+      - LANGFUSE_DB=langfuse
     ports:
       - 5432:5432
     volumes:
       - database_data:/var/lib/postgresql/data
+      - ./db/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh:ro
+
+  migrate:
+    build:
+      context: ./db
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/zeno-data
 
 volumes:
   database_data:
@@ -85,5 +104,4 @@ volumes:
   #   volumes: 
   #     - ./data/ollama:/root/.ollama
   #   ports:
-  #     - 11434:11434 
- 
+  #     - 11434:11434

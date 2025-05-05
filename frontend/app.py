@@ -1,6 +1,21 @@
 import streamlit as st
+import os
+import requests
+
+
+LOCAL_API_BASE_URL = os.environ["LOCAL_API_BASE_URL"]
+
 
 st.set_page_config(page_title="Zeno", page_icon="🦣")
+
+
+# Handle navigation based on URL path
+token = st.query_params.get("token")
+
+if token:
+    st.session_state["token"] = token
+    st.query_params.clear()
+
 
 # Custom CSS for cards
 st.markdown(
@@ -40,12 +55,44 @@ st.write(
     "Zeno the mammoth is at your service: Ready to find, fetch & filter your data needs."
 )
 
-# Sidebar
-st.sidebar.success(
-    """
-    Pick an agent for Zeno 🦣 to help you.
-    """
-)
+
+with st.sidebar:
+
+    if not st.session_state.get("token"):
+        st.button(
+            "Login with Global Forest Watch",
+            on_click=lambda: st.markdown(
+                '<meta http-equiv="refresh" content="0;url=https://api.resourcewatch.org/auth?callbackUrl=http://localhost:8501&token=true">',
+                unsafe_allow_html=True,
+            ),
+        )
+    else:
+
+        user_info = requests.get(
+            f"{LOCAL_API_BASE_URL}auth/me",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {st.session_state['token']}",
+            },
+        )
+
+        if user_info.status_code == 200:
+            st.session_state["user"] = user_info.json()
+            st.sidebar.success(
+                f"""
+                Logged in as {st.session_state['user']['name']}
+                """
+            )
+
+    if st.session_state.get("user"):
+        st.write("User info: ", st.session_state["user"])
+        if st.button("Logout"):
+            # NOTE: there is a logout endpoint in the API, but it only invalidates the browser cookies
+            # and not the JWT. So in this case, we'll just clear the user info and token
+            st.session_state.pop("user", None)
+            st.session_state.pop("token", None)
+            st.rerun()
+
 
 # Agent data
 agents = [
@@ -70,6 +117,7 @@ agents = [
         "description": "Specializing in planning interventions and answering queries about KBAs - from habitat analysis to species protection strategies. Keeper Koala helps ensure critical ecosystems get the attention they need.",
     },
 ]
+
 
 # Display agent cards in rows
 for agent in agents:

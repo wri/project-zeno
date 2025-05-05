@@ -4,9 +4,13 @@ import os
 import uuid
 from typing import Annotated, Optional
 
+import requests
+import cachetools
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from elevenlabs.client import ElevenLabs
-from fastapi import Body, FastAPI
+from fastapi import Body, FastAPI, Header, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from langchain_core.messages import HumanMessage
@@ -17,11 +21,111 @@ from zeno.agents.distalert.graph import graph as dist_alert
 from zeno.agents.kba.graph import graph as kba
 from zeno.agents.layerfinder.graph import graph as layerfinder
 from zeno.agents.gfw_data_api.graph import graph as gfw_data_api
+from db.models import UserModel, UserOrm, ThreadOrm, ThreadModel
 
 load_dotenv()
 
+DATABASE_URL = os.environ["DATABASE_URL"]
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "").split(",")
+
 
 app = FastAPI()
+
+
+# LRU cache for user info, keyed by token
+_user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
+
+
+@cachetools.cached(_user_info_cache)
+def fetch_user_from_rw_api(
+    authorization: str = Header(...), domains_allowlist: str = DOMAINS_ALLOWLIST
+) -> UserModel:
+
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Bearer token"
+        )
+
+    token = authorization.split(" ")[1]
+
+    try:
+        resp = requests.get(
+            "https://api.resourcewatch.org/auth/user/me",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {token}",
+            },
+            timeout=10,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=502, detail=f"Error contacting Resource Watch: {e}"
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+
+    user_info = resp.json()
+    if user_info["email"].split("@")[-1].lower() not in domains_allowlist:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User not allowed to access this API",
+        )
+
+    return UserModel.model_validate(resp.json())
+
+
+def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
+    """
+    Requires Authorization
+    """
+
+    with SessionLocal() as db:
+        user = db.query(UserOrm).filter_by(id=user_info.id).first()
+        if not user:
+            user = UserOrm(**user_info.model_dump())
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        # Convert to Pydantic model while session is open
+        return UserModel.model_validate(user)
+
+
+@app.get("/threads", response_model=list[ThreadModel])
+def list_threads(user: UserModel = Depends(fetch_user)):
+    """
+    Requires Authorization
+    """
+
+    with SessionLocal() as db:
+        threads = db.query(ThreadOrm).filter_by(user_id=user.id).all()
+        return [ThreadModel.model_validate(thread) for thread in threads]
+
+
+@app.get("/threads/{thread_id}", response_model=ThreadModel)
+def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
+    """
+    Requires Authorization
+    """
+
+    with SessionLocal() as db:
+        thread = db.query(ThreadOrm).filter_by(id=thread_id, user_id=user.id).first()
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+        return ThreadModel.model_validate(thread)
+
+
+@app.get("/auth/me", response_model=UserModel)
+async def auth_me(user: UserModel = Depends(fetch_user)):
+    """
+    Requires Authorization: Bearer <JWT>
+    Forwards the JWT to Resource Watch API and returns user info.
+    """
+
+    return user
+
 
 callbacks = []
 if "LANGFUSE_PUBLIC_KEY" in os.environ:
@@ -330,9 +434,11 @@ async def stream_kba(
 
 def event_stream_gfw_data_api(
     query: str,
+    user_id: str,
     thread_id: Optional[str] = None,
     query_type: Optional[str] = None,
 ):
+
     if not thread_id:
         thread_id = str(uuid.uuid4())
 
@@ -367,7 +473,11 @@ def event_stream_gfw_data_api(
     else:
         raise ValueError(f"Invalid query type from frontend: {query_type}")
 
+    # Stores the stream to later write to the database
+    messages_store = []
+
     for update in stream:
+
         node = next(iter(update.keys()))
 
         if node == "__interrupt__":
@@ -384,6 +494,7 @@ def event_stream_gfw_data_api(
             )
         else:
             messages = update[node]["messages"]
+
             if node == "tools" or node == "tools_with_hil":
                 for message in messages:
                     yield pack(
@@ -408,16 +519,46 @@ def event_stream_gfw_data_api(
                     }
                 )
 
+    messages_to_store = [
+        message.dict() for message in gfw_data_api.get_state(config).values["messages"]
+    ]
+
+    # Write the stream to the database
+    with SessionLocal() as db:
+
+        thread = db.query(ThreadOrm).filter_by(id=thread_id, user_id=user_id).first()
+
+        if thread:
+            thread.content["response"] = thread.content.get("response", []).extend(
+                messages_to_store
+            )
+        else:
+            thread = ThreadOrm(
+                id=thread_id,
+                user_id=user_id,
+                agent_id="gfw_data_api",
+                content={"query": query.dict(), "response": messages_to_store},
+            )
+            db.add(thread)
+
+        db.commit()
+        db.refresh(thread)
+
 
 @app.post("/stream/gfw_data_api")
 async def stream_gfw_data_api(
     query: Annotated[str, Body(embed=True)],
     thread_id: Optional[str] = Body(None),
     query_type: Optional[str] = Body(None),
+    user: UserModel = Depends(fetch_user),
 ):
+
     return StreamingResponse(
         event_stream_gfw_data_api(
-            query=query, thread_id=thread_id, query_type=query_type
+            query=query,
+            user_id=user.id,
+            thread_id=thread_id,
+            query_type=query_type,
         ),
         media_type="application/x-ndjson",
     )
