@@ -2,6 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /app/db
 
+# Install PostgreSQL client and Alembic
+RUN apt-get update && \
+    apt-get install -y postgresql-client
+
 # Install Alembic
 RUN pip install --no-cache-dir alembic psycopg2-binary pydantic
 
