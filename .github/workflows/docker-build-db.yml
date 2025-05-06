@@ -6,8 +6,8 @@ on:
       - main
       - docker-build-publish
       - publish-docker-db
-    paths:
-      - 'db/**'
+    # paths:
+    #   - 'db/**'
 
 env:
   REGISTRY: public.ecr.aws/b7u8b0a6
@@ -34,6 +34,7 @@ jobs:
         run: |
           aws ecr-public create-repository \
             --repository-name ${{ env.IMAGE_NAME }} \
+            --registry-alias b7u8b0a6 \
             --region us-east-1 || true
 
       - name: Login to Amazon ECR Public
