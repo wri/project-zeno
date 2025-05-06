@@ -34,7 +34,6 @@ jobs:
         run: |
           aws ecr-public create-repository \
             --repository-name ${{ env.IMAGE_NAME }} \
-            --registry-alias b7u8b0a6 \
             --region us-east-1 || true
 
       - name: Login to Amazon ECR Public
