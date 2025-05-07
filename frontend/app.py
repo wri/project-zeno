@@ -1,9 +1,11 @@
 import streamlit as st
 import os
 import requests
+from dotenv import load_dotenv
 
+_ = load_dotenv("../.env")
 
-LOCAL_API_BASE_URL = os.environ["LOCAL_API_BASE_URL"]
+API_BASE_URL = os.environ["API_BASE_URL"]
 
 
 st.set_page_config(page_title="Zeno", page_icon="🦣")
@@ -69,7 +71,7 @@ with st.sidebar:
     else:
 
         user_info = requests.get(
-            f"{LOCAL_API_BASE_URL}auth/me",
+            f"{API_BASE_URL}/auth/me",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {st.session_state['token']}",

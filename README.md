@@ -5,6 +5,7 @@ Language Interface for Maps & WRI/LCL data APIs.
 ## Dependencies
 - uv: https://docs.astral.sh/uv/getting-started/installation/
 - ollama: https://ollama.com/
+- postgresql: https://www.postgresql.org/
 
 ## Getting Started
 
@@ -39,5 +40,42 @@ for line in response:
 Run streamlit
 
 ```bash
-uv run streamlit run app.py
+uv run streamlit run frontend/app.py
+```
+
+## Setup Database
+
+1. Using docker:
+
+```bash
+docker compose up -d
+```
+
+2. Using postgresql:
+
+a. Create a new database
+
+```bash
+createuser -s postgres # if you don't have a postgres user
+createdb -U postgres zeno-data-local
+alembic upgrade head
+
+# Check if you have the database running
+psql zeno-data-local
+
+# Check if you have the tables created
+\dt
+
+# Output
+#               List of relations
+#  Schema |      Name       | Type  |  Owner   
+# --------+-----------------+-------+----------
+#  public | alembic_version | table | postgres
+#  public | threads         | table | postgres
+#  public | users           | table | postgres
+```
+
+b. Add the database URL to the .env file:
+```bash
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/zeno-data-local
 ```
