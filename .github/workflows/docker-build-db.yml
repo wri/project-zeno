@@ -4,10 +4,8 @@ on:
   push:
     branches:
       - main
-      - docker-build-publish
-      - publish-docker-db
-    # paths:
-    #   - 'db/**'
+    paths:
+      - 'db/**'
 
 env:
   REGISTRY: public.ecr.aws/b7u8b0a6
