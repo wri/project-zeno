@@ -1,0 +1,50 @@
+name: Build and Publish DB Docker Image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'db/**'
+
+env:
+  REGISTRY: public.ecr.aws/b7u8b0a6
+  IMAGE_NAME: project-zeno/zeno-db
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Create ECR repository if not exists
+        run: |
+          aws ecr-public create-repository \
+            --repository-name ${{ env.IMAGE_NAME }} \
+            --region us-east-1 || true
+
+      - name: Login to Amazon ECR Public
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./db
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
