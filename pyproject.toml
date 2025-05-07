@@ -32,6 +32,8 @@ dependencies = [
     "cachetools>=5.5.2",
     "pydantic>=2",
     "psycopg2-binary==2.9.10",
+    "alembic>=1.15.2",
+    "sqlalchemy>=2.0.35",
 ]
 
 [dependency-groups]
