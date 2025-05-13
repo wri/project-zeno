@@ -11,6 +11,7 @@ from zeno.agents.gfw_data_api.prompts import (
     prep_api_sql_query_prompt,
     prep_sql_query_explanation_prompt,
 )
+
 import csv
 import io
 
@@ -23,9 +24,11 @@ class QueryInput(BaseModel):
     """Input schema for location finder tool"""
 
     gadm_level: int = Field(description="GADM level of place or places to be queried")
-    gadm_ids: Optional[List[str]] = Field(
-        description="A list of one or more GADM IDs to query", default=None
+
+    gadm_id: Optional[str] = Field(
+        description="GADM id to search for. This can either be a GADM ID for a location to search directly (eg: Brazil) or it can be the ID of a relative location to search for (eg: states in Brazil)"
     )
+
     user_query: str = Field(description="The user's query")
 
 
@@ -153,19 +156,6 @@ class GadmId(BaseModel):
         return ""
 
 
-# def collect_gadm_ids(gadm_ids: List[str]):
-#     locations = {}
-#     gadm_ids = [GadmId(gadm_id=gadm_id) for gadm_id in gadm_ids]
-#     for gadm_id in gadm_ids:
-#         locations.setdefault(gadm_id.iso, {})
-#         if gadm_id.gadm_level == 1:
-#             locations[gadm_id.iso].setdefault(gadm_id.adm1, [])
-#         if gadm_id.gadm_level == 2:
-#             locations[gadm_id.iso].setdefault(gadm_id.adm1, []).append(gadm_id.adm2)
-
-#     return locations
-
-
 @tool(
     "gfw-query-tool",
     args_schema=QueryInput,
@@ -174,7 +164,7 @@ class GadmId(BaseModel):
 )
 def gfw_query_tool(
     gadm_level: int,
-    gadm_ids: Optional[str],
+    gadm_id: Optional[str],
     user_query: str,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Returns a SQL query to retrieve data from the GFW data API based on user input."""
@@ -206,10 +196,6 @@ def gfw_query_tool(
 
     print(f"Fields to query: {fields_to_query.as_csv()}")
 
-    location_filter = " OR ".join(
-        [GadmId(gadm_id=gadm_id).as_sql_filter() for gadm_id in gadm_ids]
-    )
-
     sql_query = haiku.invoke(
         [
             HumanMessage(
@@ -217,7 +203,7 @@ def gfw_query_tool(
                     user_query=user_query,
                     fields_to_query=fields_to_query.as_csv(),
                     gadm_level=table_gadm_level,
-                    location_filter=location_filter,
+                    location_filter=GadmId(gadm_id=gadm_id).as_sql_filter(),
                 )
             )
         ]
@@ -249,7 +235,7 @@ def gfw_query_tool(
             "table_slug": table_slug,
             "fields_available": fields.as_csv(),
             "fields_to_query": fields_to_query.as_csv(),
-            "gadm_ids": gadm_ids,
+            "gadm_id": gadm_id,
             "gadm_level": table_gadm_level,
             "user_query": user_query,
             "sql_query": sql_query,
