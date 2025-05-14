@@ -20,18 +20,6 @@ GFW_DATA_API_BASE_URL = os.getenv(
 )
 
 
-class QueryInput(BaseModel):
-    """Input schema for location finder tool"""
-
-    gadm_level: int = Field(description="GADM level of place or places to be queried")
-
-    gadm_id: Optional[str] = Field(
-        description="GADM id to search for. This can either be a GADM ID for a location to search directly (eg: Brazil) or it can be the ID of a relative location to search for (eg: states in Brazil)"
-    )
-
-    user_query: str = Field(description="The user's query")
-
-
 class DatatableSelection(BaseModel):
     table: str
     description: str
@@ -158,16 +146,22 @@ class GadmId(BaseModel):
 
 @tool(
     "gfw-query-tool",
-    args_schema=QueryInput,
     return_direct=False,
-    response_format="content_and_artifact",
+    response_format="content",
 )
 def gfw_query_tool(
     gadm_level: int,
     gadm_id: Optional[str],
     user_query: str,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    """Returns a SQL query to retrieve data from the GFW data API based on user input."""
+    """Query the GFW data API. Use this tool ONLY to answer questions on a global scale like deforestation, 
+    biodiversity loss, etc. at country or subnational administrative divisions.
+
+    Args:
+        gadm_level: GADM level of place or places to be queried
+        gadm_id: GADM id to search for. This can either be a GADM ID for a location to search directly (eg: Brazil) or it can be the ID of a relative location to search for (eg: states in Brazil)
+        user_query: the user's query
+    """
     # TODO: as we add more tables, this should become a HIL
     # tool that prompts the user to select within a preselection of
     # 3-5 tables
@@ -209,15 +203,15 @@ def gfw_query_tool(
         ]
     ).content
 
-    explanation = haiku.invoke(
-        [
-            HumanMessage(
-                prep_sql_query_explanation_prompt(
-                    user_query=user_query, sql_query=sql_query
-                )
-            )
-        ]
-    ).content
+    # explanation = haiku.invoke(
+    #     [
+    #         HumanMessage(
+    #             prep_sql_query_explanation_prompt(
+    #                 user_query=user_query, sql_query=sql_query
+    #             )
+    #         )
+    #     ]
+    # ).content
 
     result = requests.post(
         f"{GFW_DATA_API_BASE_URL}/dataset/{table_slug}/latest/query/json",
@@ -229,17 +223,19 @@ def gfw_query_tool(
     # TODO: add HIL to confirm generated SQL before executing
     # TODO: add interpretation/reporting for query
 
-    return (
-        f"QUERY: {sql_query} \n EXPLANATION: {explanation}",
-        {
-            "table_slug": table_slug,
-            "fields_available": fields.as_csv(),
-            "fields_to_query": fields_to_query.as_csv(),
-            "gadm_id": gadm_id,
-            "gadm_level": table_gadm_level,
-            "user_query": user_query,
-            "sql_query": sql_query,
-            "explanation": explanation,
-            "result": result["data"],
-        },
-    )
+    # return (
+    #     f"QUERY: {sql_query} \n EXPLANATION: {explanation}",
+    #     {
+    #         "table_slug": table_slug,
+    #         "fields_available": fields.as_csv(),
+    #         "fields_to_query": fields_to_query.as_csv(),
+    #         "gadm_id": gadm_id,
+    #         "gadm_level": table_gadm_level,
+    #         "user_query": user_query,
+    #         "sql_query": sql_query,
+    #         "explanation": explanation,
+    #         "result": result["data"],
+    #     },
+    # )
+
+    return result["data"]

@@ -26,6 +26,15 @@ class LocationInput(BaseModel):
     )
 
 
+def convert_to_geojson(fiona_feature: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert a Fiona Feature to a GeoJSON Feature."""
+    return {
+        "type": "Feature",
+        "geometry": fiona_feature["geometry"],
+        "properties": fiona_feature["properties"],
+    }
+
+
 def simplify_geometry(
     geojson_feature: Dict[str, Any], tolerance: float = 0.001
 ) -> Dict[str, Any]:

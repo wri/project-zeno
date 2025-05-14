@@ -10,7 +10,6 @@ from src.tools import (
     kba_insights_tool,
     kba_timeseries_tool,
     location_tool,
-    relative_location_tool,
     stac_tool,
     gfw_query_tool,
     dataset_finder_tool,
@@ -32,13 +31,12 @@ Tools:
 Notes: 
 - For tasks like analysing key biodiversity areas or finding disturbance alerts, use the location tool first to pick the AOI
 - For queries that are in search of datasets or data layers, use the dataset-finder-tool to find the most relevant datasets.
-- For queries related to GFW data API, use the relative-location-tool to find gadm ids first & then use it to query GFW data api based on user input.
+- For queries related to Global Forest Watch (GFW) data API, use the relative-location-tool to find gadm ids first & then use it to query GFW data api based on user input.
 """
 
 model = ChatAnthropic(model="claude-3-7-sonnet-latest", temperature=0)
 tools = [
     location_tool,
-    relative_location_tool,
     dist_alerts_tool,
     kba_data_tool,
     kba_insights_tool,
