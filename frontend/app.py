@@ -3,13 +3,25 @@ import os
 import requests
 from dotenv import load_dotenv
 
-_ = load_dotenv("../.env")
-
-API_BASE_URL = os.environ["API_BASE_URL"]
-
+dotenv_path = ".env"
+env_loaded = load_dotenv(dotenv_path)
 
 st.set_page_config(page_title="Zeno", page_icon="🦣")
 
+# For debugging purposes, display a message about .env loading status
+# This can be removed or commented out once confirmed working.
+if env_loaded:
+    st.sidebar.info(
+        f"Successfully loaded .env file from: {os.path.abspath(dotenv_path)}"
+    )
+else:
+    st.sidebar.warning(
+        f"Could not find or load .env file from: {os.path.abspath(dotenv_path)}. "
+        f"Please ensure it exists at that location and is readable. "
+        f"Current working directory: {os.getcwd()}"
+    )
+
+API_BASE_URL = os.environ["API_BASE_URL"]
 
 # Handle navigation based on URL path
 token = st.query_params.get("token")
@@ -59,7 +71,6 @@ st.write(
 
 
 with st.sidebar:
-
     if not st.session_state.get("token"):
         st.button(
             "Login with Global Forest Watch",
@@ -69,7 +80,6 @@ with st.sidebar:
             ),
         )
     else:
-
         user_info = requests.get(
             f"{API_BASE_URL}/auth/me",
             headers={
@@ -82,7 +92,7 @@ with st.sidebar:
             st.session_state["user"] = user_info.json()
             st.sidebar.success(
                 f"""
-                Logged in as {st.session_state['user']['name']}
+                Logged in as {st.session_state["user"]["name"]}
                 """
             )
 
@@ -126,9 +136,9 @@ for agent in agents:
     st.markdown(
         f"""
         <div class="agent-card">
-            <div class="agent-name">{agent['name']}</div>
-            <div class="agent-tagline">{agent['tagline']}</div>
-            <div class="agent-description">{agent['description']}</div>
+            <div class="agent-name">{agent["name"]}</div>
+            <div class="agent-tagline">{agent["tagline"]}</div>
+            <div class="agent-description">{agent["description"]}</div>
         </div>
     """,
         unsafe_allow_html=True,
