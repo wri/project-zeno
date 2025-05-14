@@ -13,7 +13,7 @@ from src.tools import (
     relative_location_tool,
     stac_tool,
     gfw_query_tool,
-    layer_finder_tool,
+    dataset_finder_tool,
 )
 from src.graph import AgentState
 
@@ -27,11 +27,11 @@ Tools:
 - kba-insights-tool: Generates insights based on the data and user query.
 - kba-timeseries-tool: Provides trends on specific topics only i.e carbon emissions, tree cover loss, ecosystem productivity & cultivation/agriculture practices.
 - gfw-query-tool: Returns a SQL query to retrieve data from the GFW data API based on user input.
-- layer-finder-tool: Finds the most relevant datasets for the user's question. Use this tools when the user is asking for dataset recommentation.
+- dataset-finder-tool: Finds the most relevant datasets for the user's question. Use this tools when the user is asking for dataset recommentation.
 
 Notes: 
 - For tasks like analysing key biodiversity areas or finding disturbance alerts, use the location tool first to pick the AOI
-- For queries that require datasets, use the layer-finder-tool to find the most relevant datasets.
+- For queries that are in search of datasets or data layers, use the dataset-finder-tool to find the most relevant datasets.
 - For queries related to GFW data API, use the relative-location-tool to find gadm ids first & then use it to query GFW data api based on user input.
 """
 
@@ -45,7 +45,7 @@ tools = [
     kba_timeseries_tool,
     stac_tool,
     gfw_query_tool,
-    layer_finder_tool,
+    dataset_finder_tool,
 ]
 
 checkpointer = InMemorySaver()

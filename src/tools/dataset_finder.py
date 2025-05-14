@@ -29,11 +29,12 @@ class Dataset(BaseModel):
 
 haiku = ChatAnthropic(model="claude-3-5-haiku-latest", temperature=0)
 
-layerfinder_agent = haiku.with_structured_output(Dataset)
+dataset_finder_agent = haiku.with_structured_output(Dataset)
 
 
 def call_agent(prompt):
-    return layerfinder_agent.invoke([HumanMessage(content=prompt)])
+    dataset = dataset_finder_agent.invoke([HumanMessage(content=prompt)])
+    return dataset.model_dump()
 
 embedder = OllamaEmbeddings(
     model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
@@ -42,15 +43,15 @@ db = Chroma(
     persist_directory="data/chroma_layers",
     embedding_function=embedder,
     create_collection_if_not_exists=False,
+    collection_metadata={"hnsw:M": 1024,"hnsw:ef": 64}
 )
 
-@tool("layer-finder-tool")
-def layer_finder_tool(question: str) -> list[Dataset]:
+@tool("dataset-finder-tool", return_direct=True)
+def dataset_finder_tool(question: str) -> list[Dataset]:
     """
     Finds the most relevant datasets for the user's question.
     """
-    print("layerfinder tool")
-    import pdb; pdb.set_trace()
+    print("dataset finder tool")
     search_results = db.similarity_search_with_relevance_scores(
         question,
         k=10,
@@ -64,7 +65,7 @@ def layer_finder_tool(question: str) -> list[Dataset]:
     prompts = []
     for doc in documents:
         prompt = LAYER_FINDER_PROMPT.format(
-            context=f"Dataset: {doc.metadata['zeno_id']}\n{doc.page_content}",
+            context=f"Dataset: {doc.metadata['dataset']}\n{doc.page_content}",
             question=question,
         )
         prompts.append(prompt)
@@ -76,16 +77,16 @@ def layer_finder_tool(question: str) -> list[Dataset]:
         datasets = []
 
     for dataset in datasets:
-        doc = [doc for doc in documents if doc.metadata["zeno_id"] == dataset.dataset][
+        doc = [doc for doc in documents if doc.metadata["dataset"] == dataset["dataset"]][
             0
         ]
-        dataset.metadata = doc.metadata
-        dataset.uri = doc.metadata["gfw_metadata_url"]
-        dataset.tilelayer = doc.metadata["gfw_tile_url"]
+        dataset["metadata"] = doc.metadata
+        # TODO: check missing keys, also `zeno_id`
+        # TODO: Change the embedder from Ollama to OpenAI or something else
+        # dataset.uri = doc.metadata["gfw_metadata_url"]
+        # dataset.tilelayer = doc.metadata["gfw_tile_url"]
 
-    return {
-        "datasets": datasets,
-    }
+    return datasets
 
     
     

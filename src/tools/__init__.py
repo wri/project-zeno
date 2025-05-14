@@ -6,7 +6,7 @@ from .kba_timeseries import kba_timeseries_tool
 from .location import location_tool, relative_location_tool
 from .stac import stac_tool
 from .gfw_query import gfw_query_tool
-from .layer_finder import layer_finder_tool
+from .dataset_finder import dataset_finder_tool
 
 __all__ = [
     "context_layer_tool",
@@ -18,6 +18,6 @@ __all__ = [
     "relative_location_tool",
     "stac_tool",
     "gfw_query_tool",
-    "layer_finder_tool",
+    "dataset_finder_tool",
 ] 
 
