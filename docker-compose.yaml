@@ -36,6 +36,7 @@ services:
     environment:
       - API_BASE_URL=https://api.zeno-staging.ds.io/
       - LOCAL_API_BASE_URL=http://api:8000/
+      - STREAMLIT_URL=${STREAMLIT_URL:-http://localhost:8501}
 
   langfuse-server:
     image: langfuse/langfuse:2

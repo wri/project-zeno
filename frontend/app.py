@@ -7,9 +7,10 @@ _ = load_dotenv("../.env")
 
 API_BASE_URL = os.environ["API_BASE_URL"]
 
+LOCAL_API_BASE_URL = os.environ["LOCAL_API_BASE_URL"]
+STREAMLIT_URL = os.environ.get("STREAMLIT_URL", "http://localhost:8501")  # URL where the Streamlit app is hosted
 
 st.set_page_config(page_title="Zeno", page_icon="🦣")
-
 
 # Handle navigation based on URL path
 token = st.query_params.get("token")
@@ -17,7 +18,6 @@ token = st.query_params.get("token")
 if token:
     st.session_state["token"] = token
     st.query_params.clear()
-
 
 # Custom CSS for cards
 st.markdown(
@@ -57,14 +57,13 @@ st.write(
     "Zeno the mammoth is at your service: Ready to find, fetch & filter your data needs."
 )
 
-
 with st.sidebar:
 
     if not st.session_state.get("token"):
         st.button(
             "Login with Global Forest Watch",
             on_click=lambda: st.markdown(
-                '<meta http-equiv="refresh" content="0;url=https://api.resourcewatch.org/auth?callbackUrl=http://localhost:8501&token=true">',
+                f'<meta http-equiv="refresh" content="0;url=https://api.resourcewatch.org/auth?callbackUrl={STREAMLIT_URL}&token=true">',
                 unsafe_allow_html=True,
             ),
         )
@@ -95,7 +94,6 @@ with st.sidebar:
             st.session_state.pop("token", None)
             st.rerun()
 
-
 # Agent data
 agents = [
     {
@@ -119,7 +117,6 @@ agents = [
         "description": "Specializing in planning interventions and answering queries about KBAs - from habitat analysis to species protection strategies. Keeper Koala helps ensure critical ecosystems get the attention they need.",
     },
 ]
-
 
 # Display agent cards in rows
 for agent in agents:
