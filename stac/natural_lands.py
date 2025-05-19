@@ -21,16 +21,14 @@ from pystac import (
 )
 from rio_stac import create_stac_item
 
-dotenv.load_dotenv()
+dotenv.load_dotenv("stac/env/.env_localhost")
 
 set_stac_version("1.1.0")
 
 GC_BUCKET = "lcl_public"
 GC_FOLDER = "SBTN_NaturalLands/v1_1/classification"
+COLLECTION_ID = "natural-lands-map-v1-1"
 
-COLLECTION_ID = "NaturalLands"
-
-# SBTN Natural Lands classification values
 CLASSIFICATION_VALUES = {
     2: "natural forests",
     3: "natural short vegetation",
@@ -92,32 +90,30 @@ def get_tif_urls() -> list[str]:
             url = f"https://storage.googleapis.com/{GC_BUCKET}/{blob.name}"
             tif_urls.append(url)
 
-    print(f"Found {len(tif_urls)} TIF files")
-
     return tif_urls
 
 
 def create_stac_item_with_extensions(url: str) -> Item:
     return create_stac_item(
-        url,
+        source=url,
+        id=os.path.basename(url).replace(".tif", ""),
+        collection=COLLECTION_ID,
         extensions=[
             "https://stac-extensions.github.io/projection/v2.0.0/schema.json",
             "https://stac-extensions.github.io/raster/v2.0.0/schema.json",
         ],
         properties={
-            "start_datetime": datetime(2020, 1, 1),
-            "end_datetime": datetime(2020, 12, 31),
+            "start_datetime": str(datetime(2020, 1, 1)),
+            "end_datetime": str(datetime(2020, 12, 31)),
         },
     )
 
 
 def get_stac_items() -> list[Item]:
+    tif_urls = get_tif_urls()
+    print(f"Getting {len(tif_urls)} STAC items")
     with ThreadPoolExecutor(max_workers=cpu_count()) as executor:
-        items = list(
-            executor.map(
-                create_stac_item_with_extensions, get_tif_urls()[:3]
-            )  # TODO: Remove the limit
-        )
+        items = list(executor.map(create_stac_item_with_extensions, tif_urls))
 
     return items
 
@@ -131,7 +127,7 @@ def create_collection() -> Collection:
         spatial=spatial_extent, temporal=temporal_extent
     )
 
-    collection = Collection(
+    return Collection(
         id=COLLECTION_ID,
         description="""The SBTN Natural Lands Map v1.1 is a 2020 baseline map of
         natural and non-natural land covers intended for use by companies setting
@@ -148,26 +144,22 @@ def create_collection() -> Collection:
             )
         ],
         extent=collection_extent,
-    )
-
-    # Add SBTN Natural Lands specific metadata to collection
-    collection.extra_fields.update(
-        {
+        extra_fields={
             "classification_values": CLASSIFICATION_VALUES,
             "classification_band": {
                 "description": "Land cover classification",
                 "min": 2,
                 "max": 21,
             },
-        }
+            "version": "1.1",
+        },
     )
-
-    return collection
 
 
 def load_stac_data_to_db(collection: Collection, items: list[Item]):
     loader = get_loader()
 
+    print("Loading collection to database")
     loader.load_collections(
         io.BytesIO(json.dumps(collection.to_dict()).encode("utf-8")),
         insert_mode=Methods.upsert,
@@ -176,6 +168,7 @@ def load_stac_data_to_db(collection: Collection, items: list[Item]):
     for item in items:
         item.clear_links()
 
+    print(f"Loading {len(items)} items to database")
     loader.load_items(
         (item.to_dict() for item in items),
         insert_mode=Methods.upsert,
@@ -185,18 +178,8 @@ def load_stac_data_to_db(collection: Collection, items: list[Item]):
 def main():
     items = get_stac_items()
     collection = create_collection()
-
-    for item in items:
-        collection.add_item(item)
-
-    # collection.save("stac/natural_lands_collection.json")
-    # print(collection.to_dict())
-
     load_stac_data_to_db(collection, items)
 
 
 if __name__ == "__main__":
     main()
-
-# For loading the STAC records into a database
-# https://github.com/developmentseed/eoapi-foss4gna/blob/main/scripts/load-stac-records
