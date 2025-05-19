@@ -164,6 +164,8 @@ cython_debug/
 
 # Data
 data/
+.pgdata/
+
 # API backup
 .api/ 
 
