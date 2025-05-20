@@ -10,11 +10,11 @@ Language Interface for Maps & WRI/LCL data APIs.
 ## Getting Started
 
 1. Clone the repository: `git clone git@github.com:wri/project-zeno.git'
-2. Change into the project directory: `cd project-zeno`
+2. Navigate into the project directory: `cd project-zeno`
 3. Install dependencies: `uv sync`
-4. Activate the environment: `source .venv/bin/activate`
-5. Run `cp .env.example .env` and replace values appropriately in the .env file
-6. Fetch the content of `data/` from the team
+4. Activate the virtual environment: `source .venv/bin/activate`
+5. Create your environment file: `cp .env.example .env`. Then, open `.env` and update the placeholder values with your actual credentials and configurations.
+6. Obtain the `data/` directory contents: This step requires fetching data from the team (e.g., from a shared drive or internal source) and placing it into the `data/` folder in your local project.
 
 ### Start the agent API
 
