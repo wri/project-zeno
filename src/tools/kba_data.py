@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Optional, List
 
@@ -26,7 +27,9 @@ def get_aoi(gadm_id: str, gadm_level: int, buffer_distance: float = 0.1):
     return aoi
 
 
+
 @tool("kba-data-tool")
+@lru_cache(maxsize=16)
 def kba_data_tool(
     name: Optional[str] = None,
     gadm_id: Optional[str] = None,

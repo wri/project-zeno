@@ -1,4 +1,5 @@
 import json
+from functools import lru_cache
 from enum import Enum
 from typing import Annotated, Any, Dict, List, Union
 
@@ -65,6 +66,7 @@ column_selection_agent = haiku.with_structured_output(ColumnSelectionOutput)
 insights_agent = sonnet.with_structured_output(InsightsResponse)
 
 column_description = pd.read_csv("data/kba/kba_column_descriptions.csv")
+
 
 
 @tool("kba-insights-tool")

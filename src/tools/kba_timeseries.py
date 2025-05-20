@@ -1,4 +1,5 @@
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Dict
 
@@ -30,6 +31,7 @@ column_mapper = {
     "gfw_forest_carbon_gross_emissions_all_gases": "Annual forest GHG emissions in tonnes CO2e",
     "umd_tree_cover_loss": "Annual tree cover loss in hectares"
 }
+
 
 
 @tool("kba-timeseries-tool")

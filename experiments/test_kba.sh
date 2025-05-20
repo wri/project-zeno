@@ -1,13 +1,22 @@
 #!/bin/bash
 
 # Default values for first query
-QUERY="find threats to elephants in Odisha"
+QUERY="find threats to tigers in KBAs of Odisha - share insights on the matter"
 PERSONA="researcher"
 THREAD_ID="kba"
+SESSION_ID="test-session"
+USER_ID="srm"
+TAGS='["kba-test", "2025-05-20"]'
+METADATA='{"tools": "location-tool,kba-data-tool,kba-insights-tool",
+           "location_tool_input": {"query": "Odisha"},
+           "location_tool_output": "[\"Odisha\", \"State\", \"IND.26_1\", 1]"}'
 URL="http://localhost:8000"
 
 # Default values for follow-up query
 FOLLOWUP_QUERY="show time series stats of how agriculture has changed in this area"
+METADATA_FOLLOWUP='{"tools": "kba-timeseries-tool",
+           "location_tool_input": {"query": "Odisha"},
+           "location_tool_output": "[\"Odisha\", \"State\", \"IND.26_1\", 1]"}'
 RUN_FOLLOWUP=true
 
 # Display usage information if --help is provided
@@ -31,15 +40,19 @@ if [ ! -z "$3" ]; then
 fi
 
 if [ ! -z "$4" ]; then
-  URL="$4"
+  METADATA="$4"
 fi
 
 if [ ! -z "$5" ]; then
-  FOLLOWUP_QUERY="$5"
+  URL="$5"
 fi
 
 if [ ! -z "$6" ]; then
-  RUN_FOLLOWUP=$6
+  FOLLOWUP_QUERY="$6"
+fi
+
+if [ ! -z "$7" ]; then
+  RUN_FOLLOWUP=$7
 fi
 
 # Visual separator for first query
@@ -50,7 +63,7 @@ echo "Running first query: $QUERY"
 echo ""
 
 # Run the first query
-python client.py "$QUERY" -p "$PERSONA" -t "$THREAD_ID" -u "$URL"
+python client.py "$QUERY" -p "$PERSONA" -t "$THREAD_ID" -u "$URL" -m "$METADATA" -s "$SESSION_ID" -i "$USER_ID" -a "$TAGS"
 
 # Run the follow-up query if enabled
 if [ "$RUN_FOLLOWUP" = true ]; then
@@ -62,7 +75,7 @@ if [ "$RUN_FOLLOWUP" = true ]; then
   echo "Running follow-up query: $FOLLOWUP_QUERY"
   echo ""
   
-  python client.py "$FOLLOWUP_QUERY" -p "$PERSONA" -t "$THREAD_ID" -u "$URL"
+  python client.py "$FOLLOWUP_QUERY" -p "$PERSONA" -t "$THREAD_ID" -u "$URL" -m "$METADATA_FOLLOWUP" -s "$SESSION_ID" -i "$USER_ID" -a "$TAGS"
   
   # Final separator
   echo -e "\n"

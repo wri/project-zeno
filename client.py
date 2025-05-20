@@ -1,3 +1,4 @@
+import uuid
 import requests
 import json
 import argparse
@@ -18,7 +19,11 @@ class ZenoClient:
         self, 
         query: str, 
         user_persona: Optional[str] = None, 
-        thread_id: Optional[str] = None
+        thread_id: Optional[str] = None,
+        metadata: Optional[Dict] = None,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        tags: Optional[list] = None,
     ) -> Iterator[Dict[str, Any]]:
         """
         Send a chat request to the Zeno API and stream the responses.
@@ -27,6 +32,7 @@ class ZenoClient:
             query: The query to send
             user_persona: Optional user persona
             thread_id: Optional thread ID
+            metadata: Optional metadata
             
         Returns:
             An iterator of response messages
@@ -42,6 +48,18 @@ class ZenoClient:
             
         if thread_id:
             payload["thread_id"] = thread_id
+        
+        if metadata:
+            payload["metadata"] = metadata
+        
+        if session_id:
+            payload["session_id"] = session_id
+        
+        if user_id:
+            payload["user_id"] = user_id
+        
+        if tags:
+            payload["tags"] = tags
         
         with requests.post(url, json=payload, stream=True) as response:
             if response.status_code != 200:
@@ -65,6 +83,10 @@ def main():
     parser.add_argument('query', nargs='?', help='The query to send')
     parser.add_argument('--persona', '-p', help='User persona')
     parser.add_argument('--thread-id', '-t', help='Thread ID')
+    parser.add_argument('--metadata', '-m', help='Metadata')
+    parser.add_argument('--session-id', '-s', help='Session ID')
+    parser.add_argument('--user-id', '-i', help='User ID')
+    parser.add_argument('--tags', '-a', help='Tags')
     parser.add_argument('--url', '-u', default='http://localhost:8000', help='API server URL')
     
     args = parser.parse_args()
@@ -81,10 +103,26 @@ def main():
         print(f"User persona: {args.persona}")
     if args.thread_id:
         print(f"Thread ID: {args.thread_id}")
+    if args.metadata:
+        metadata = json.loads(args.metadata)
+    else:
+        metadata = None
+    if args.session_id:
+        session_id = args.session_id
+    else:
+        session_id = uuid.uuid4().hex
+    if args.user_id:
+        user_id = args.user_id
+    else:
+        user_id = "zeno-default-user"
+    if args.tags:
+        tags = json.loads(args.tags)
+    else:
+        tags = ["zeno-default-tag"]
     print("Streaming response:")
     
     try:
-        for update in client.chat(query, user_persona=args.persona, thread_id=args.thread_id):
+        for update in client.chat(query, user_persona=args.persona, thread_id=args.thread_id, metadata=metadata, session_id=session_id, user_id=user_id, tags=tags):
             node = update['node']
             content = update['update']['kwargs']['content']
             

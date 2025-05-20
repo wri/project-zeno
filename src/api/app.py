@@ -1,6 +1,7 @@
+import os
 import json
-import pdb
 
+import uuid
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -9,7 +10,7 @@ from pydantic import BaseModel, Field
 from langchain_core.messages import HumanMessage
 from langchain_community.adapters.openai import convert_message_to_dict
 from fastapi import HTTPException
-import pdb
+from langfuse.callback import CallbackHandler
 
 from src.agents import zeno
 
@@ -29,10 +30,20 @@ app.add_middleware(
 
 graph = zeno
 
+langfuse_handler = CallbackHandler(
+    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+    host=os.getenv("LANGFUSE_HOST"),
+)
+
 class ChatRequest(BaseModel):
     query: str = Field(..., description="The query")
     user_persona: Optional[str] = Field(None, description="The user persona")
     thread_id: Optional[str] = Field(None, description="The thread ID")
+    metadata: Optional[dict] = Field(None, description="The metadata")
+    session_id: Optional[str] = Field(None, description="The session ID")
+    user_id: Optional[str] = Field(None, description="The user ID")
+    tags: Optional[list] = Field(None, description="The tags")
 
 def pack(data):
     return json.dumps(data) + "\n"
@@ -41,11 +52,26 @@ def stream_chat(
     query: str,
     user_persona: Optional[str] = None,
     thread_id: Optional[str] = None,
+    metadata: Optional[Dict] = None,
+    session_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    tags: Optional[list] = None,
 ):
+    # Populate langfuse metadata
+    if metadata:
+        langfuse_handler.metadata = metadata
+    if session_id:
+        langfuse_handler.session_id = session_id
+    if user_id:
+        langfuse_handler.user_id = user_id
+    if tags:
+        langfuse_handler.tags = tags
+
     config = {
         "configurable": {
             "thread_id": thread_id,
-        }
+        },
+        "callbacks": [langfuse_handler],
     }
     messages = [HumanMessage(content=query)]
 
@@ -87,6 +113,10 @@ async def chat(request: ChatRequest):
                 query=request.query,
                 user_persona=request.user_persona,
                 thread_id=request.thread_id,
+                metadata=request.metadata,
+                session_id=request.session_id,
+                user_id=request.user_id,
+                tags=request.tags,
             ),
             media_type="application/x-ndjson",
         )

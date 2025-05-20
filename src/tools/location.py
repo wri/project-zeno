@@ -1,4 +1,5 @@
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Any
 
@@ -132,12 +133,14 @@ def process_single_location(
     )
 
 
+
 @tool(
     "location-tool",
     args_schema=LocationInput,
     return_direct=False,
     response_format="content_and_artifact",
 )
+@lru_cache(maxsize=16)
 def location_tool(
     query: str,
 ) -> Tuple[List[Tuple], List[Dict[str, Any]]]:

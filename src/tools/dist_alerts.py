@@ -1,5 +1,6 @@
 import datetime
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Optional, Tuple
 
@@ -224,6 +225,7 @@ def get_features(
     return_direct=True,
     response_format="content_and_artifact",
 )
+@lru_cache(maxsize=16)
 def dist_alerts_tool(
     name: str,
     gadm_id: str,
