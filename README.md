@@ -45,11 +45,10 @@ docker compose up -d
 uv run streamlit run frontend/app.py
 ```
 
-
 ## Configure localhost Langfuse
 
 1. `docker compose up langfuse-server` (or just spin up the whole backend with `docker-compuse up`)
-2. create localhost Langfuse account via the UI http://localhost:3000
-3. then create org and create a project
-4. copy the API keys from the project
-5. update Langfuse API keys (LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY) in docker-compose.yml
+2. Open your browser and navigate to http://localhost:3000 to create a Langfuse account.
+3. Within the Langfuse UI, create an organization and then a project.
+4. Copy the API keys (public and secret) generated for your project.
+5. Update the `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` environment variables in your `docker-compose.yml` file with the copied keys.
