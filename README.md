@@ -5,7 +5,7 @@ Language Interface for Maps & WRI/LCL data APIs.
 ## Dependencies
 - uv: https://docs.astral.sh/uv/getting-started/installation/
 - ollama: https://ollama.com/
-- postgresql: https://www.postgresql.org/
+- docker: https://www.docker.com/products/docker-desktop/
 
 ## Getting Started
 
@@ -14,8 +14,9 @@ Language Interface for Maps & WRI/LCL data APIs.
 3. Install dependencies: `uv sync`
 4. Activate the environment: `source .venv/bin/activate`
 5. Run `cp .env.example .env` and replace values appropriately in the .env file
+6. Fetch the content of `data/` from the team
 
-## Start the agent API
+### Start the agent API
 
 The following example shows how the streaming response can be obtained.
 
@@ -37,45 +38,10 @@ for line in response:
         print(line.decode())
 ```
 
-Run streamlit
-
-```bash
-uv run streamlit run frontend/app.py
-```
-
-## Setup Database
-
-1. Using docker:
+### Run Streamlit app
 
 ```bash
 docker compose up -d
+uv run streamlit run frontend/app.py
 ```
 
-2. Using postgresql:
-
-a. Create a new database
-
-```bash
-createuser -s postgres # if you don't have a postgres user
-createdb -U postgres zeno-data-local
-alembic upgrade head
-
-# Check if you have the database running
-psql zeno-data-local
-
-# Check if you have the tables created
-\dt
-
-# Output
-#               List of relations
-#  Schema |      Name       | Type  |  Owner   
-# --------+-----------------+-------+----------
-#  public | alembic_version | table | postgres
-#  public | threads         | table | postgres
-#  public | users           | table | postgres
-```
-
-b. Add the database URL to the .env file:
-```bash
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/zeno-data-local
-```
