@@ -68,5 +68,5 @@ def kba_data_tool(
                 )
             ],
         },
-        # goto="kba_node",
+        goto="kba_node",
     )

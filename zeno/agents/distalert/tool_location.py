@@ -128,7 +128,7 @@ def location_tool(
     """
     print("location tool")
     # Query Mapbox API with limit=3
-    url = f"https://api.mapbox.com/search/geocode/v6/forward?q={query}&autocomplete=false&limit=1&access_token={os.environ.get('MAPBOX_API_TOKEN')}"
+    url = f"https://api.mapbox.com/search/geocode/v6/forward?q={query}&autocomplete=false&limit=3&access_token={os.environ.get('MAPBOX_API_TOKEN')}"
     response = requests.get(url)
 
     if not response.ok:
