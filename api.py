@@ -30,7 +30,12 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "").split(",")
+def get_domains_allowlist() -> tuple[str, ...]:
+    """Get allowed domains as a tuple for immutability."""
+    domains = os.environ.get("DOMAINS_ALLOWLIST", "").split(",")
+    return tuple(d.strip() for d in domains if d.strip())
+
+DOMAINS_ALLOWLIST = get_domains_allowlist()
 
 
 app = FastAPI()
@@ -43,18 +48,23 @@ app.mount("/zeno", zeno_app)
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
-@cachetools.cached(_user_info_cache)
-def fetch_user_from_rw_api(
-    authorization: str = Header(...),
-    domains_allowlist: str = DOMAINS_ALLOWLIST,
-) -> UserModel:
-    if not authorization.startswith("Bearer "):
+def get_token(authorization: str = Header(..., description="Bearer token")) -> str:
+    """Extract and validate Bearer token from Authorization header."""
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing Bearer token",
         )
+    return authorization.split(" ")[1]
 
-    token = authorization.split(" ")[1]
+def fetch_user_from_rw_api(
+    token: str = Depends(get_token),
+    domains_allowlist: tuple[str, ...] = DOMAINS_ALLOWLIST,
+) -> UserModel:
+    # Use cache key that only includes the token
+    cache_key = token
+    if cache_key in _user_info_cache:
+        return _user_info_cache[cache_key]
 
     try:
         resp = requests.get(
@@ -73,13 +83,17 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
-    if user_info["email"].split("@")[-1].lower() not in domains_allowlist:
+    domain = user_info["email"].split("@")[-1]
+    allowed_domains = {d.lower() for d in domains_allowlist}
+    if domain.lower() not in allowed_domains:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not allowed to access this API",
         )
 
-    return UserModel.model_validate(resp.json())
+    user = UserModel.model_validate(resp.json())
+    _user_info_cache[cache_key] = user
+    return user
 
 
 def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
