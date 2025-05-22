@@ -22,6 +22,16 @@ if config.config_file_name is not None:
 # from models import Base
 # target_metadata = Base.metadata
 
+import sys
+from pathlib import Path
+
+# Add the base directory to the Python path
+base_dir = str(Path(__file__).resolve().parent.parent)
+if base_dir not in sys.path:
+    sys.path.append(base_dir)
+
+from models import Base
+
 target_metadata = None
 
 # other values from the config, defined by the needs of env.py,
