@@ -37,7 +37,7 @@ class ZenoClient:
         Returns:
             An iterator of response messages
         """
-        url = f"{self.base_url}/api/chat"
+        url = f"{self.base_url}/zeno/api/chat"
         
         payload = {
             "query": query,
