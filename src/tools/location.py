@@ -1,18 +1,22 @@
 import os
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Any
 
 import fiona
 import requests
 from langchain_core.tools import tool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator, field_validator
 from shapely import simplify
 from shapely.geometry import mapping, shape
 
 data_dir = Path("data")
 # Open GADM datasets
+gadm_0 = fiona.open(data_dir / "gadm_410_level_0.gpkg")
 gadm_1 = fiona.open(data_dir / "gadm_410_level_1.gpkg")
 gadm_2 = fiona.open(data_dir / "gadm_410_level_2.gpkg")
+
+GADM_BY_LEVEL = {0: gadm_0, 1: gadm_1, 2: gadm_2}
 
 
 class LocationInput(BaseModel):
@@ -37,15 +41,17 @@ def simplify_geometry(
 ) -> Dict[str, Any]:
     """Simplify a GeoJSON feature's geometry while preserving topology."""
     geometry = shape(geojson_feature["geometry"])
-    simplified = simplify(
-        geometry, tolerance=tolerance, preserve_topology=True
-    )
+    simplified = simplify(geometry, tolerance=tolerance, preserve_topology=True)
     geojson_feature["geometry"] = mapping(simplified)
     return geojson_feature
 
 
 def determine_gadm_level(place_type: str) -> Optional[int]:
     """Determine GADM level based on place type from Mapbox API."""
+
+    # Level 1 types (larger administrative divisions)
+    level_1_types = {"region", "state", "province", "territory"}
+
     # Level 2 types (more specific locations)
     level_2_types = {
         "place",
@@ -58,35 +64,42 @@ def determine_gadm_level(place_type: str) -> Optional[int]:
         "borough",
         "locality",
     }
-    # Level 1 types (larger administrative divisions)
-    level_1_types = {"region", "state", "province", "territory", "country"}
 
+    if place_type.lower() == "country":
+        return 0
+    if place_type.lower() in level_1_types:
+        return 1
     if place_type.lower() in level_2_types:
         return 2
-    elif place_type.lower() in level_1_types:
-        return 1
+
     return 2
 
 
 def process_single_location(
     coords: List[float], gadm_level: int
-) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+) -> Tuple[
+    Optional[str], Optional[str], Optional[str], Optional[int], Optional[Dict[str, Any]]
+]:
     """Process a single location's coordinates to find matching GADM feature."""
     lon, lat = coords
-    gadm = gadm_2 if gadm_level == 2 else gadm_1
-
-    # Find matching GADM feature
+    # First, search for matches within the requested GADM level
+    gadm = GADM_BY_LEVEL[gadm_level]
     matches = list(gadm.items(bbox=(lon, lat, lon, lat)))
+
+    # If no matches found, try alternate level
     if not matches:
-        # Try alternate level if no matches found
-        alternate_level = 1 if gadm_level == 2 else 2
-        gadm = gadm_1 if alternate_level == 1 else gadm_2
-        matches = list(gadm.items(bbox=(lon, lat, lon, lat)))
-        if matches:
-            gadm_level = alternate_level
+
+        for level in GADM_BY_LEVEL.keys():
+            if level == gadm_level:
+                continue
+            gadm = GADM_BY_LEVEL[level]
+            matches = list(gadm.items(bbox=(lon, lat, lon, lat)))
+            if matches:
+                gadm_level = level
+                break
 
     if not matches:
-        return None, None
+        return (None, None, None, None, None)
 
     # Get the first match and convert to GeoJSON
     match = matches[0][1]
@@ -95,23 +108,30 @@ def process_single_location(
     # Get GADM ID
     gadm_id = match["properties"][f"GID_{gadm_level}"]
 
-    # Simplify geometry and prepare response
+    name_key = f"NAME_{gadm_level}" if gadm_level != 0 else "COUNTRY"
+
+    admin_level = (
+        "Country"
+        if gadm_level == 0
+        else match["properties"].get(f"ENGTYPE_{gadm_level}", "Unknown")
+    )
+
     simplified_feature = simplify_geometry(geojson_feature)
     simplified_feature["properties"] = {
         "gadm_id": gadm_id,
-        "name": match["properties"][f"NAME_{gadm_level}"],
+        "name": match["properties"][name_key],
         "gadm_level": gadm_level,
-        "admin_level": match["properties"].get(
-            f"ENGTYPE_{gadm_level}", "Unknown"
-        ),
+        "admin_level": admin_level,
     }
 
     return (
-        match["properties"][f"NAME_{gadm_level}"],
+        match["properties"][name_key],
+        admin_level,
         gadm_id,
         gadm_level,
         simplified_feature,
     )
+
 
 
 @tool(
@@ -120,15 +140,16 @@ def process_single_location(
     return_direct=False,
     response_format="content_and_artifact",
 )
+@lru_cache(maxsize=16)
 def location_tool(
     query: str,
-) -> List[Tuple[Optional[str], Optional[Dict[str, Any]]]]:
+) -> Tuple[List[Tuple], List[Dict[str, Any]]]:
     """
     Finds top 3 matches for a location name and returns their name, gadm_id & gadm_level.
     """
     print("location tool")
-    # Query Mapbox API with limit=3
-    url = f"https://api.mapbox.com/search/geocode/v6/forward?q={query}&autocomplete=false&limit=3&access_token={os.environ.get('MAPBOX_API_TOKEN')}"
+    # Query Mapbox API with limit=1
+    url = f"https://api.mapbox.com/search/geocode/v6/forward?q={query}&autocomplete=false&limit=1&access_token={os.environ.get('MAPBOX_API_TOKEN')}"
     response = requests.get(url)
 
     if not response.ok:
@@ -144,10 +165,8 @@ def location_tool(
         gadm_level = determine_gadm_level(place_type)
 
         # Process the location
-        name, gadm_id, gadm_level, simplified_feature = (
-            process_single_location(
-                feature["geometry"]["coordinates"], gadm_level
-            )
+        (name, admin_level, gadm_id, gadm_level, simplified_feature) = (
+            process_single_location(feature["geometry"]["coordinates"], gadm_level)
         )
 
         if gadm_id and simplified_feature:
@@ -158,6 +177,8 @@ def location_tool(
                     "mapbox_context": feature["properties"].get("context", {}),
                 }
             )
-            results.append(((name, gadm_id, gadm_level), simplified_feature))
+            results.append(
+                ((name, admin_level, gadm_id, gadm_level), simplified_feature)
+            )
 
     return [item[0] for item in results], [item[1] for item in results]
