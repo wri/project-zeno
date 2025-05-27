@@ -18,6 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from db.models import ThreadModel, ThreadOrm, UserModel, UserOrm
 from langfuse.callback import CallbackHandler
+from src.api.app import app as zeno_app
 from zeno.agents.distalert.graph import graph as dist_alert
 from zeno.agents.gfw_data_api.graph import graph as gfw_data_api
 from zeno.agents.kba.graph import graph as kba
@@ -33,6 +34,9 @@ DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "").split(",")
 
 
 app = FastAPI()
+
+# Mount the new Zeno app under /zeno prefix
+app.mount("/zeno", zeno_app)
 
 
 # LRU cache for user info, keyed by token
