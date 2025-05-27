@@ -1,4 +1,36 @@
-import json
+"""
+GADM Location Evaluation Script
+
+This script evaluates the GADM location extraction capabilities by running queries from
+a Langfuse dataset and comparing actual outputs against expected outputs.
+
+Usage:
+    $ LANGFUSE_HOST=http://localhost:3000 \
+      LANGFUSE_SECRET_KEY=<SECRET_KEY> \
+      LANGFUSE_PUBLIC_KEY=<PUBLIC_KEY> \
+      python -i experiments/eval_gadm.py
+
+Required Environment Variables:
+    - LANGFUSE_HOST: The Langfuse server URL (e.g., http://localhost:3000)
+    - LANGFUSE_SECRET_KEY: Your Langfuse secret key
+    - LANGFUSE_PUBLIC_KEY: Your Langfuse public key
+
+Configuration:
+    - DATASET_NAME: Set this constant to match the name of your Langfuse dataset
+                    (default: "gadm_location"). This must correspond to an existing
+                    dataset in your Langfuse instance.
+
+The script will:
+    1. Connect to Langfuse and fetch the dataset specified by DATASET_NAME
+    2. Process all active items in the dataset
+    3. Run each query through the chat system
+    4. Extract GADM locations from the responses
+    5. Compare actual vs expected GADM locations
+    6. Score each result and upload scores to Langfuse
+
+The -i flag keeps the Python interpreter open after execution for debugging.
+"""
+
 import os
 import subprocess
 from collections import Counter
@@ -10,13 +42,12 @@ from langchain_core.messages import HumanMessage
 from langfuse import Langfuse
 from langfuse.callback import CallbackHandler
 
-from src.agents import zeno
-
 from experiments.gadm_utils import (
     GadmLocation,
-    parse_gadm_from_json,
     parse_expected_output,
+    parse_gadm_from_json,
 )
+from src.agents import zeno
 
 # I don't know what this does. So just copied over from test_alerts.sh defaults
 USER_PERSONA = "researcher"
