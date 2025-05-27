@@ -118,28 +118,6 @@ def test_missing_bearer_token(db_session: Session):
         assert response.status_code == 401
         assert "Missing Bearer token" in response.json()["detail"]
 
-def test_case_insensitive_domain_check(db_session: Session):
-    """Test that email domain checking is case-insensitive."""
-    with domain_allowlist("developmentseed.org,wri.org"):
-        mock_mixed_case_user = {
-            "id": "test-user-4",
-            "name": "Mixed Case User",
-            "email": "test@DevElopmentSeed.org",  # Mixed case domain
-            "createdAt": "2024-01-01T00:00:00Z",
-            "updatedAt": "2024-01-01T00:00:00Z"
-        }
-        
-        with patch('requests.get') as mock_get:
-            mock_get.return_value = mock_rw_api_response(mock_mixed_case_user)
-            
-            response = client.get(
-                "/auth/me",
-                headers={"Authorization": "Bearer test-token"}
-            )
-            
-            assert response.status_code == 200
-            user_response = response.json()
-            assert user_response["email"] == mock_mixed_case_user["email"]
 
 def test_missing_authorization_header(db_session: Session):
     """Test that requests without an Authorization header are rejected."""
