@@ -5,6 +5,10 @@ from typing import Dict, List
 
 from langfuse import Langfuse
 
+# Usage:
+# create_langfuse_dataset("s2_gadm_0_1")
+# upload_csv("s2_gadm_0_1", "experiments/Zeno test dataset(S2 GADM 0-1).csv")
+
 langfuse = Langfuse(
     secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
     public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
@@ -116,10 +120,3 @@ def upload_csv(dataset_name, csv_filepath):
         print(f"An error occurred: {e}")
 
 
-# Usage:
-#
-# >> create_langfuse_dataset("s2_gadm_0_1")
-# >> upload_csv("s2_gadm_0_1", "experiments/Zeno test dataset(S2 GADM 0-1).csv")
-#
-# >> create_langfuse_dataset("s2_gadm_2")
-# >> upload_csv("s2_gadm_2", "experiments/Zeno test dataset(S2 GADM 2).csv")
