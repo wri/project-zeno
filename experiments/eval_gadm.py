@@ -191,3 +191,7 @@ for item in active_dataset_items:
         value=score,
         comment=comment,
     )
+
+    # there seems to be back pressure issue with Langfuse. flushing at every interation prevent
+    # Langfuse from crashing.
+    langfuse.flush()
