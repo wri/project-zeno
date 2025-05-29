@@ -1,0 +1,34 @@
+version: '3'
+
+services:
+
+  database:
+    image: ghcr.io/stac-utils/pgstac:v0.9.6
+    environment:
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgis
+      - PGUSER=username
+      - PGPASSWORD=password
+      - PGDATABASE=postgis
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./.pgdata:/var/lib/postgresql/data
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - database
+    environment:
+      - PGHOST=database
+      - PGPORT=5432
+      - PGUSER=username
+      - PGPASSWORD=password
+      - PGDATABASE=postgis
+    volumes:
+      - ./datasets:/app/datasets
+    env_file:
+      - ./env/.env_localhost
