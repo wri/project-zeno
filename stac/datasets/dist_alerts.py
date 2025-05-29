@@ -62,11 +62,34 @@ def create_collection() -> Collection:
 
     return Collection(
         id=COLLECTION_ID,
-        description="""This dataset is a derivative of the OPERA’s DIST-ALERT product (OPERA Land Surface Disturbance Alert from Harmonized Landsat Sentinel-2 product), which is derived through a time-series analysis of harmonized data from the NASA/USGS Landsat and ESA Sentinel-2 satellites (known as the HLS dataset). The product identifies and continuously monitors vegetation cover change in 30-m pixels across the globe. It can be accessed through the LPDAAC website here: https://search.earthdata.nasa.gov/search?q=C2746980408-LPCLOUD, and on Google Earth Engine (GEE) with asset ID: projects/glad/HLSDIST/current
+        description="""
+            This dataset is a derivative of the OPERA's DIST-ALERT product (OPERA Land Surface
+            Disturbance Alert from Harmonized Landsat Sentinel-2 product), which is derived through
+            a time-series analysis of harmonized data from the NASA/USGS Landsat and ESA Sentinel-2
+            satellites (known as the HLS dataset). The product identifies and continuously monitors
+            vegetation cover change in 30-m pixels across the globe. It can be accessed through the
+            LPDAAC website here: https://search.earthdata.nasa.gov/search?q=C2746980408-LPCLOUD,
+            and on Google Earth Engine (GEE) with asset ID: projects/glad/HLSDIST/current
 
-The DIST-ALERT on GFW is a derivative of this, and additional data layers not used in the GFW product are available through the LPDAAC and GEE such as initial vegetation fraction, and disturbance duration. While the version on the LPDAAC is updated every 2-4 days, the data is updated weekly on GFW.  The product detects notable reductions in vegetation cover (measured as “vegetation fraction” or the percent of the ground that is covered by vegetation) for every pixel every time the new satellite data is acquired and the ground is not obscured by clouds or snow.
+            The DIST-ALERT on GFW is a derivative of this, and additional data layers not used in
+            the GFW product are available through the LPDAAC and GEE such as initial vegetation
+            fraction, and disturbance duration. While the version on the LPDAAC is updated every
+            2-4 days, the data is updated weekly on GFW. The product detects notable reductions in
+            vegetation cover (measured as "vegetation fraction" or the percent of the ground that is
+            covered by vegetation) for every pixel every time the new satellite data is acquired and
+            the ground is not obscured by clouds or snow.
 
-The current vegetation fraction estimate is compared to the minimum fraction for the same time period (within 15 days before and after) in the previous 3 years, and if there is a reduction, then the system identifies an alert in that pixel. Anomalies of at least a 10% reduction from the minimum become alerts in the original product, and on GFW, a higher threshold of 30% is used, to reduce noise, and false alerts in the dataset. Because the product compares each pixel to the minimum for the same time period in previous years, it takes into account regular seasonal variation in vegetation cover.   As the product is global and detects vegetation anomalies, much of the data may not be applicable to GFW users monitoring forests. Therefore, we mask the alerts with UMD’s tree cover map, allowing users to view only alerts within 30% canopy cover.""",
+            The current vegetation fraction estimate is compared to the minimum fraction for the same
+            time period (within 15 days before and after) in the previous 3 years, and if there is a
+            reduction, then the system identifies an alert in that pixel. Anomalies of at least a 10%
+            reduction from the minimum become alerts in the original product, and on GFW, a higher
+            threshold of 30% is used, to reduce noise, and false alerts in the dataset. Because the
+            product compares each pixel to the minimum for the same time period in previous years, it
+            takes into account regular seasonal variation in vegetation cover. As the product is global
+            and detects vegetation anomalies, much of the data may not be applicable to GFW users
+            monitoring forests. Therefore, we mask the alerts with UMD's tree cover map, allowing users
+            to view only alerts within 30% canopy cover.
+        """,
         title="Global all ecosystem disturbance alerts (DIST-ALERT)",
         license="CC-BY-SA-4.0",
         keywords=["vegetation", "disturbance", "alert", "wri"],
