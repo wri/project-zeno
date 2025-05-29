@@ -45,4 +45,4 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
           DOMAINS_ALLOWLIST: developmentseed.org,wri.org
         run: |
-          uv run pytest tests/api -v --cov=src/api --cov-report=term-missing
+          uv run pytest tests/api -v
