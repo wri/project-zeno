@@ -2,7 +2,6 @@
 import os
 from sqlalchemy import create_engine, text
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from alembic.config import Config
 from alembic import command
