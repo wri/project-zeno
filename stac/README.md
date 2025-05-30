@@ -44,3 +44,15 @@ the entryponit.sh script.
    ```bash
    docker-compose up
    ```
+
+### Running against remote
+
+For ingestion into remote PGSTAC DB, set the env vars
+to point to a remote database and run the python
+scripts directly. The docker setup will not be necessary.
+
+```bash
+pip install -r requirements.txt
+python datasets/natural_lands.py
+python datasets/dist_alerts.py   
+```
