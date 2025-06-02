@@ -13,7 +13,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEE_SERVICE_ACCOUNT_PATH=${GEE_SERVICE_ACCOUNT_PATH}
       - WATCHFILES_FORCE_POLLING=1
-      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/zeno-data
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/zeno-data
       - EMAILS_ALLOWLIST="developmentseed.org,wri.org"
     env_file:
       - .env
@@ -23,9 +23,12 @@ services:
       - ./api.py:/app/api.py
       - ./db:/app/db
     depends_on:
-     - migrate 
-     - langfuse-server
-
+      - migrate
+      - langfuse-server
+        
+        
+        
+          
   frontend: 
     build: 
       context: ./frontend
@@ -45,8 +48,14 @@ services:
         condition: service_healthy
     ports:
       - "3000:3000"
-    #env_file:
-    #  - .env
+    healthcheck:
+      # Uses wget because curl is not available in the langfuse image
+      test: ["CMD", "wget", "-qO-", "http://172.20.0.3:3000/api/public/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
     environment:
       - DATABASE_PORT=${DATABASE_PORT:-5432}
       - DATABASE_USERNAME=${DATABASE_USERNAME:-postgres}
