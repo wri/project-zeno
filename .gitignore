@@ -164,7 +164,9 @@ cython_debug/
 
 # Data
 data/
+nbs/data
 .pgdata/
+*.jsonl
 
 # API backup
 .api/ 
