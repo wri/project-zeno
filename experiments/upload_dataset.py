@@ -7,9 +7,13 @@ from typing import Any, Callable, Dict
 from langfuse import Langfuse
 
 # Usage:
-# gadm_config = ColumnConfig(input_column="text", parser=parse_gadm_location)
 # create_langfuse_dataset("s2_gadm_0_1")
+# gadm_config = ColumnConfig(input_column="text", parser=parse_gadm_location)
 # upload_csv("s2_gadm_0_1", "experiments/Zeno test dataset(S2 GADM 0-1).csv", gadm_config)
+#
+# create_langfuse_dataset("s5_t2_02_investigator")
+# tree_cover_config = ColumnConfig( input_column="Question", parser=parse_tree_cover_qa)
+# upload_csv("s5_t2_02_investigator", "experiments/Zeno test dataset(S5 T2-02 Investigator).csv", tree_cover_config)
 
 """
 Parser Template:
@@ -119,6 +123,31 @@ def parse_gadm_location(row: Dict[str, str]) -> Dict[str, Any]:
         expected_output.append({"name": location_name, "gadm_id": gadm_id})
 
     return {"expected_output": expected_output}
+
+
+def parse_tree_cover_qa(row: Dict[str, str]) -> Dict[str, Any]:
+    """Parser for tree cover Q&A datasets with questions and expert answers.
+
+    Expected CSV columns:
+    - Question: the question text (used as input)
+    - Answer (definitive answer based on GFW dashboards): the expert answer
+    - Notes: additional context (e.g., "2010, 30%")
+
+    Returns:
+        {"expected_output": {"answer": "...", "notes": "..."}}
+    """
+    expected = {
+        "answer": row.get(
+            "Answer (definitive answer based on GFW dashboards)", ""
+        ).strip(),
+    }
+
+    # Include notes if present
+    notes = row.get("Notes", "").strip()
+    if notes:
+        expected["notes"] = notes
+
+    return {"expected_output": expected}
 
 
 def upload_csv(dataset_name: str, csv_filepath: str, config: ColumnConfig):
