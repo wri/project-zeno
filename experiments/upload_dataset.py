@@ -6,6 +6,10 @@ from typing import Any, Callable, Dict
 
 from langfuse import Langfuse
 
+# Usage:
+# gadm_config = ColumnConfig(input_column="text", parser=parse_gadm_location)
+# create_langfuse_dataset("s2_gadm_0_1")
+# upload_csv("s2_gadm_0_1", "experiments/Zeno test dataset(S2 GADM 0-1).csv", gadm_config)
 
 """
 Parser Template:
@@ -61,11 +65,6 @@ class ColumnConfig:
         [Dict[str, str]], Dict[str, Any]
     ]  # Function to parse row into expected_output
 
-
-# Usage:
-# gadm_config = ColumnConfig(input_column="text", parser=parse_gadm_location)
-# create_langfuse_dataset("s2_gadm_0_1")
-# upload_csv("s2_gadm_0_1", "experiments/Zeno test dataset(S2 GADM 0-1).csv", gadm_config)
 
 langfuse = Langfuse(
     secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
