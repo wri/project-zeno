@@ -83,7 +83,7 @@ def evaluate_answer(
 
     prompt = f"""Analyze the provided agentic system trace against the user query and golden answer.
     Determine if the system responded reasonably well to the query with respect to the expected
-    answer. Be lenient in your assessment.
+    answer.
 
     <Trace>
     {json.dumps(trace)}
@@ -100,10 +100,10 @@ def evaluate_answer(
     Evaluate whether the system:
     1. Made meaningful progress toward answering the query
     2. Retrieved relevant data or information
-    3. Provided or approached the correct answer
+    3. Provided the correct answer
     4. Handled errors reasonably
 
-    Respond with pass_fail as "pass" if the system adequately addressed the query (even partially), "fail" if it did not.
+    Respond with pass_fail as "pass" if the system adequately addressed the query, "fail" if it did not.
     Include a brief analysis explaining your assessment."""
 
     result = evaluator.invoke(prompt)
