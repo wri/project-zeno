@@ -3,8 +3,9 @@ from typing import List, Optional
 import pandas as pd
 import rioxarray  # noqa: F401
 import xarray as xr
-from pystac_client import Client, Item
-from shapely.geometry import BaseGeometry
+from pystac import Item
+from pystac_client import Client
+from shapely.geometry.base import BaseGeometry
 from stackstac import stack
 
 STAC_API_URL = "https://eoapi.zeno-staging.ds.io/stac"
@@ -38,11 +39,14 @@ def integer_check(items: List[Item]) -> None:
         "uint64",
     ]
     for item in items:
-        data_type = item.properties["raster:bands"][0]["data_type"]
-        if data_type not in integer_types:
-            raise ValueError(
-                f"Context layer must have integer data type, got {data_type}"
+        for asset in item.assets.values():
+            data_type = asset.extra_fields.get("raster:bands", [{}])[0].get(
+                "data_type", ""
             )
+            if data_type not in integer_types:
+                raise ValueError(
+                    f"Context layer must have integer data type, got {data_type}"
+                )
 
 
 def get_pixels(
@@ -110,7 +114,7 @@ def compute_data_statistics(data: xr.DataArray) -> pd.DataFrame:
         colnames = ["alerts", "context"]
         id_vars = ["date", "context"]
     else:
-        vars = confidence
+        vars = [confidence]
         colnames = ["alerts"]
         id_vars = ["date"]
 
@@ -125,12 +129,16 @@ def compute_data_statistics(data: xr.DataArray) -> pd.DataFrame:
         .fillna(0)
     )
 
-    data = pd.melt(
-        data.reset_index(),
-        id_vars=id_vars,
-        var_name="alerts",
-        value_name="count",
-    )
+    if len(id_vars) > 1:
+        data = pd.melt(
+            data.reset_index(),
+            id_vars=id_vars,
+            var_name="alerts",
+            value_name="count",
+        )
+    else:
+        data = data.reset_index()
+        data.columns = ["date", "alerts", "count"]
 
     data = data[data["count"] != 0]
 
