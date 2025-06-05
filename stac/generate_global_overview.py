@@ -34,7 +34,7 @@ class STACCOGMosaicCreator:
     def __init__(
         self,
         stac_collection_url: str,
-        overview_level: int = -1,
+        overview_level: int = -2,
         max_items: Optional[int] = None,
     ):
         """
