@@ -130,16 +130,14 @@ def parse_tree_cover_qa(row: Dict[str, str]) -> Dict[str, Any]:
 
     Expected CSV columns:
     - Question: the question text (used as input)
-    - Answer (definitive answer based on GFW dashboards): the expert answer
+    - Answer*: any column starting with "Answer" (e.g., "Answer (definitive answer based on GFW dashboards)")
     - Notes: additional context (e.g., "2010, 30%")
 
     Returns:
         {"expected_output": {"answer": "...", "notes": "..."}}
     """
     expected = {
-        "answer": row.get(
-            "Answer (definitive answer based on GFW dashboards)", ""
-        ).strip(),
+        "answer": next((v.strip() for k, v in row.items() if k.startswith("Answer")), ""),
     }
 
     # Include notes if present
