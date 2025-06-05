@@ -23,8 +23,8 @@ services:
       - ./api.py:/app/api.py
       - ./db:/app/db
     depends_on:
-      - migrate
-      - langfuse-server
+      migrate: 
+        condition: service_completed_successfully
         
         
         
@@ -44,8 +44,8 @@ services:
   langfuse-server:
     image: langfuse/langfuse:2
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "3000:3000"
     healthcheck:
@@ -88,13 +88,12 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
-      - APP_DB=zeno-data
-      - LANGFUSE_DB=langfuse
+      - POSTGRES_DB=zeno-data
+      
     ports:
       - 5432:5432
     volumes:
-      - database_data:/var/lib/postgresql/data
-      - ./db/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh:ro
+      - ./database_data:/var/lib/postgresql/data
 
   migrate:
     build:
@@ -102,20 +101,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
       - APP_DB=zeno-data
+    volumes: 
+      - ./db:/app/db
 
-volumes:
-  database_data:
-    driver: local
-
-  # ollama: 
-  #   build:
-  #     context: ollama
-  #   volumes: 
-  #     - ./data/ollama:/root/.ollama
-  #   ports:
-  #     - 11434:11434
+   

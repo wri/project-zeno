@@ -36,31 +36,6 @@ class ThreadOrm(Base):
     user = relationship("UserOrm", back_populates="threads", foreign_keys=[user_id])
 
 
-class MessageOrm(Base):
-    __tablename__ = "messages"
-
-    id = Column(String, primary_key=True, unique=True, nullable=False)
-    thread_id = Column(String, ForeignKey("threads.id"), nullable=False)
-    content = Column(JSONB, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.now())
-    updated_at = Column(
-        DateTime, nullable=False, default=datetime.now(), onupdate=datetime.now()
-    )
-    thread = relationship(
-        "ThreadOrm", back_populates="messages", foreign_keys=[thread_id]
-    )
-
-
-class MessageModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: str
-    thread_id: str
-    content: dict
-    created_at: datetime
-    updated_at: datetime
-    # thread: ThreadModel
-
-
 class ThreadModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -68,8 +43,6 @@ class ThreadModel(BaseModel):
     agent_id: str
     created_at: datetime
     updated_at: datetime
-    content: dict
-    messages: list[MessageModel] = []
     # user: UserModel
 
 

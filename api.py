@@ -2,7 +2,7 @@ import io
 import json
 import os
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 
 import cachetools
 import requests
@@ -24,13 +24,14 @@ from zeno.agents.gfw_data_api.graph import graph as gfw_data_api
 from zeno.agents.kba.graph import graph as kba
 from zeno.agents.layerfinder.graph import graph as layerfinder
 
+
 load_dotenv()
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "").split(",")
+DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "")
 
 
 app = FastAPI()
@@ -46,7 +47,7 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 @cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
     authorization: str = Header(...),
-    domains_allowlist: str = DOMAINS_ALLOWLIST,
+    domains_allowlist: Optional[str] = DOMAINS_ALLOWLIST,
 ) -> UserModel:
     if not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -73,6 +74,10 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
+
+    if isinstance(domains_allowlist, str):
+        domains_allowlist = domains_allowlist.split(",")
+
     if user_info["email"].split("@")[-1].lower() not in domains_allowlist:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -109,21 +114,23 @@ def list_threads(user: UserModel = Depends(fetch_user)):
         return [ThreadModel.model_validate(thread) for thread in threads]
 
 
-@app.get("/threads/{thread_id}", response_model=ThreadModel)
+@app.get("/threads/{thread_id}")
 def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     """
     Requires Authorization
     """
 
     with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm)
-            .filter_by(id=thread_id, user_id=user.id)
-            .first()
-        )
+        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
-        return ThreadModel.model_validate(thread)
+
+        thread_id = thread.id
+
+    from zeno.agents.gfw_data_api.graph import checkpointer
+
+    state = checkpointer.get_tuple(config={"configurable": {"thread_id": thread_id}})
+    return state
 
 
 @app.get("/auth/me", response_model=UserModel)
@@ -394,9 +401,7 @@ def event_stream_kba(
                                 "type": "tool_call",
                                 "tool_name": message.name,
                                 "content": message.content,
-                                "dataset": current_state.values[
-                                    "kba_within_aoi"
-                                ],
+                                "dataset": current_state.values["kba_within_aoi"],
                             }
                         )
                     else:
@@ -452,6 +457,17 @@ def event_stream_gfw_data_api(
 ):
     if not thread_id:
         thread_id = str(uuid.uuid4())
+
+    # Create thread in DB if it doesn't exist
+    agent_id = "gfw_data_api"
+    with SessionLocal() as db:
+        existing_thread = (
+            db.query(ThreadOrm).filter_by(id=thread_id, user_id=user_id).first()
+        )
+        if not existing_thread:
+            new_thread = ThreadOrm(id=thread_id, user_id=user_id, agent_id=agent_id)
+            db.add(new_thread)
+            db.commit()
 
     config = {"callbacks": callbacks, "configurable": {"thread_id": thread_id}}
     stream = gfw_data_api.stream(
@@ -526,35 +542,6 @@ def event_stream_gfw_data_api(
                     }
                 )
 
-    messages_to_store = [
-        message.dict()
-        for message in gfw_data_api.get_state(config).values["messages"]
-    ]
-
-    # Write the stream to the database
-    with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm)
-            .filter_by(id=thread_id, user_id=user_id)
-            .first()
-        )
-
-        if thread:
-            thread.content["response"] = thread.content.get(
-                "response", []
-            ).extend(messages_to_store)
-        else:
-            thread = ThreadOrm(
-                id=thread_id,
-                user_id=user_id,
-                agent_id="gfw_data_api",
-                content={"query": query.dict(), "response": messages_to_store},
-            )
-            db.add(thread)
-
-        db.commit()
-        db.refresh(thread)
-
 
 @app.post("/stream/gfw_data_api")
 async def stream_gfw_data_api(
@@ -563,6 +550,7 @@ async def stream_gfw_data_api(
     query_type: Optional[str] = Body(None),
     user: UserModel = Depends(fetch_user),
 ):
+
     return StreamingResponse(
         event_stream_gfw_data_api(
             query=query,

@@ -37,6 +37,7 @@ dependencies = [
     "psycopg>=3.2.9",
     "rio-stac>=0.11.0",
     "psycopg-pool>=3.2.6",
+    "langgraph-checkpoint-postgres>=2.0.21",
 ]
 
 [dependency-groups]
