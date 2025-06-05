@@ -2,6 +2,7 @@ import os
 import subprocess
 from datetime import datetime
 
+import langgraph.errors
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse import Langfuse
@@ -45,14 +46,24 @@ def run_query(
         "callbacks": [handler],
     }
 
-    response = zeno.stream(
-        {
-            "messages": [HumanMessage(content=query)],
-            "user_persona": user_persona,
-        },
-        config=config,
-        stream_mode="updates",
-        subgraphs=False,
-    )
-
-    return dumps(list(response))
+    try:
+        response = zeno.stream(
+            {
+                "messages": [HumanMessage(content=query)],
+                "user_persona": user_persona,
+            },
+            config=config,
+            stream_mode="updates",
+            subgraphs=False,
+        )
+        return dumps(list(response))
+    except langgraph.errors.GraphRecursionError as e:
+        # Log the error for debugging
+        print(f"GraphRecursionError for query '{query}': {str(e)}")
+        # Return empty list to maintain expected structure
+        return dumps([])
+    except Exception as e:
+        # Catch any other unexpected errors
+        print(f"Unexpected error for query '{query}': {type(e).__name__}: {str(e)}")
+        # Return empty list to maintain expected structure
+        return dumps([])
