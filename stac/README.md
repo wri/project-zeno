@@ -56,3 +56,20 @@ pip install -r requirements.txt
 python datasets/natural_lands.py
 python datasets/dist_alerts.py   
 ```
+
+## Generate global overviews
+
+Some of the collections to be ingested will be tiled. These will be
+harder to visualize at low zoom levels, because many separate files
+have to be touched.
+
+For this reason, we extract the overviews from the COG tiles and stitch
+them together into a global overview layer for lower zoom levels.
+
+The `generate_global_overview.py` file can be used to create that global
+overview file. COGs can not be generated incrementally. So after creating
+the merged overview file, use the gdal commandline to covert it into a COG.
+
+```bash
+gdalwarp -of COG natural_lands_mosaic_overview_merged.tif natural_lands_mosaic_overview_cog.tif
+```

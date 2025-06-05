@@ -7,3 +7,4 @@ rasterio>=1.3.0
 boto3>=1.34.0
 psycopg>=3.2.9
 psycopg_pool>=3.2.6
+tqdm>=4.66.0
