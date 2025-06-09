@@ -1,0 +1,72 @@
+text,id,name,type
+Show me deforestation trends in Brazil's Amazon rainforest,BRA,Brazil,iso
+forest fires indonisia last month,IDN,Indonesia,iso
+Compare logging rates between Peru and Columbia over past 5 years,PER; COL,Peru; Colombia,iso; iso
+recent forest loss near Kinshasa,COD-10,"Kinshasa, Democratic Republic of the Congo",adm1
+What's the current forest coverage in Deutschland?,DEU,Germany,iso
+how much rainforest is left in the world,,,
+forest fires in cote d'ivoire 2023,CIV,Côte d'Ivoire,iso
+deforestation in congo basin who is responsible,COD,Democratic Republic of the Congo,iso
+tree cover loss yanomami territory,555542521,"Yanomami, Brazil",wdpa
+palm oil plantations in MY and ID,MYS; IDN,Malaysia; Indonesia,iso; iso
+How many hectares of forest burned in Rusia this summer???,RUS,Russia,iso
+forest conservation projects southeast asia,IDN,Indonesia,iso
+Show me illegal logging hotspots near Mae Hong Son,THA-23,"Mae Hong Son, Thailand",adm1
+chile AND argentina mountain forest loss,CHL; ARG,Chile; Argentina,iso; iso
+plz show deforestation in phillipines since 2020,PHL,Philippines,iso
+satellite imagery nueva zelandia forests,NZL,New Zealand,iso
+Is the amazon getting smaller?,BRA,Brazil,iso
+forest monitoring systms in PNG,PNG,Papua New Guinea,iso
+What happened to the forests in Myanmar (Burma)?,MMR,Myanmar,iso
+Need data on forest fires near S√£o Paulo last week,BRA-25,"São Paulo, Brazil",adm1
+comparing forest loss DRC vs ROC,COD; COG,Democratic Republic of the Congo; Republic of Congo,iso; iso
+how many trees r left in amazon???!!!,BRA,Brazil,iso
+"forest coverage maps for C√¥te d'Ivoire, Ghana, and Burkina",CIV; GHA; BFA,Côte d'Ivoire; Ghana; Burkina Faso,iso; iso; iso
+timber harvest in British Columbia,CAN-2,"British Columbia, Canada",adm1
+deforestaci√≥n en M√©xico y Guatemala,MEX; GTM,Mexico; Guatemala,iso; iso
+Show me forest data for congo not drc,COD,Republic of Congo,iso
+whats happening to forests in scandinavia,DNK; NOR; SWE,Denmark; Norway; Sweden,"iso, iso, iso"
+Forest fires near hanoi affecting air quality,VNM-27,"Hà N_i, Vietnam",adm1
+madagaskar forest loss 2022-2023,MDG,Madagascar,iso
+recent satellite images of forests around Mt. Kilimanjaro,TZA-9,"Kilimanjaro, Tanzania",adm1
+show me deforestation hotspots in Mato Grosso,BRA-12,"Mato Grosso, Brazil",adm1
+How much forest did Sabah loose in 2022?,MYS-13,"Sabah, Malaysia",adm1
+recent fires in Kalimantan,IDN-12,"Kalimantan Barat, Indonesia",adm1
+illegal logging activities near pahang forest reserves,MYS-8,"Pahang, Malaysia",adm1
+What's happening to forests in amazons Para region??,BRA-14,"Pará, Brazil",adm1
+What is the deforestation rate in Ontario last year?,CAN-9,"Ontario, Canada",adm1
+forest fires in Chiuahua mexico,MEX-6,"Chihuahua, Mexico",adm1
+Compare logging activities between Bayern and Baden-W√ºrttemberg,DEU-2; DEU-1,"Bayern, Germany; Baden-Württemberg, Germany",adm1; adm1
+How much rainforest was lost in Para Brasil since 2015?,BRA-14,"Pará, Brazil",adm1
+need satellite imagery for queensland bushfires asap!!,AUS-7,"Queensland, Australia",adm1
+What's the forest coverage in Kalimantan Timur Kutai?,IDN-15,"Kalimantan Timur, Indonesia",adm1
+deforestation rates in Ucayali Atalaya,PER-26,"Ucayali, Peru",adm1
+"Find me tree cover in Johor bahru, I want to study forest loss",MYS-1,"Johor, Malaysia",adm1
+I need urgent data on ilegal logging in Borgou!!,BEN-4,"Borgou, Benin",adm1
+what is the forest coverage in distrito de Puerto Plata DR compared to last year?,DOM-21,"Puerto Plata, Dominican Republic",adm1
+show me fires near Preah Vihéar area,KHM-18,"Preah Vihéar, Cambodia",adm1
+What's the rate of forest loss in Sulawesi over the last decade?,IDN-25,"Sulawesi Barat, Indonesia",adm1
+How much tree cover has been lost in Sumatera since 2000?,IDN-30,"Sumatera Barat, Indonesia",adm1
+Which areas in the Congo Basin are most affected by deforestation?,COD,Democratic Republic of the Congo,iso
+Are there new forest restoration projects in the Amazon region?,BRA,Brazil,iso
+Can you map recent wildfire damage in Victoria?,AUS-10,"Victoria, Australia",adm1
+Is there any reforestation effort happening in the Sahel region?,SSD,South Sudan,iso
+Show me forest degradation trends in Kalimantan since 2015.,IDN-12,"Kalimantan Barat, Indonesia",adm1
+What are the main drivers of deforestation Fier?,ALB-5,"Fier, Albania",adm1
+Can you provide a map of tree cover gain in Shandong and Qinghai?,CHN-23; CHN-21,"Shandong, China; Qinghai, China",adm1; adm1
+Does  Riau or Ocotepeque have the highest forest loss?,IDN-24; HND-14,"Riau, Indonesia; Ocotepeque, Honduras",adm1; adm1
+Has there been an increase in illegal logging in the kisil?,KEN-16,"Kisii, Kenya",adm1
+How are mangrove forests changing in the Nkhata?,MWI-19,"Nkhata Bay, Malawi",adm1
+Which areas in Sør-Trøndela have seen the most deforestation since 2010?,NOR-15,"Sør-Trøndelag, Norway",adm1
+What percentage of forest has been lost in Thies this year?,SEN-13,"Thiès, Senegal",adm1
+Are there any forest fires near the Pantanal in Lakes?,SSD-4,"Lakes, South Sudan",adm1
+"How much forest cover is left in Chai Nat, Thailand?",THA-7,"Chai Nat, Thailand",adm1
+Can you compare deforestation rates in Ermera TL?,TLS-8,"Ermera, Timor-Leste",adm1
+What's the current state of the boreal forest in Davao del n?,PHL-27,"Davao del Norte, Philippines",adm1
+How has forest cover in the Minsk and Mahilyow changed since 1990?,BLR-5; BLR-4,"Minsk, Belarus; Mahilyow, Belarus",adm1; adm1
+ouest?,CMR-8,"Ouest, Cameroon",adm1
+what's driving mangrove deforestation in Bra_ov?,ROU-8,"Bra_ov, Romania",adm1
+Which regions in Glarus are experiencing the fastest forest loss?,CHE-9,"Glarus, Switzerland",adm1
+Can you show forest regrowth areas in Holguín?,CUB-7,"Holguín, Cuba",adm1
+MMR-5,MMR-5,"Kayah, Myanmar",adm1
+nor 12 and nor 13,NOR-12; NOR-13,"Oslo, Norway; Rogaland, Norway",adm1; adm1
