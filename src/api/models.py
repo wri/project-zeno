@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from sqlalchemy import Column, String, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from pydantic import BaseModel, ConfigDict, field_validator, alias_generators
-from datetime import datetime
 
 
 Base = declarative_base()
@@ -43,7 +41,6 @@ class ThreadModel(BaseModel):
     agent_id: str
     created_at: datetime
     updated_at: datetime
-    # user: UserModel
 
 
 class UserModel(BaseModel):

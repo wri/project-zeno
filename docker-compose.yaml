@@ -18,17 +18,12 @@ services:
     env_file:
       - .env
     volumes:
-      - ./zeno:/app/zeno
+      - ./src:/app/src
       - ./data:/app/data
-      - ./api.py:/app/api.py
-      - ./db:/app/db
     depends_on:
       migrate: 
         condition: service_completed_successfully
         
-        
-        
-          
   frontend: 
     build: 
       context: ./frontend

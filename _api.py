@@ -16,7 +16,7 @@ from langgraph.types import Command
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from db.models import ThreadModel, ThreadOrm, UserModel, UserOrm
+from api.models import ThreadModel, ThreadOrm, UserModel, UserOrm
 from langfuse.callback import CallbackHandler
 from src.api.app import app as zeno_app
 from zeno.agents.distalert.graph import graph as dist_alert
@@ -470,6 +470,7 @@ def event_stream_gfw_data_api(
             db.commit()
 
     config = {"callbacks": callbacks, "configurable": {"thread_id": thread_id}}
+
     stream = gfw_data_api.stream(
         {"question": query, "messages": [HumanMessage(query)]},
         stream_mode="updates",

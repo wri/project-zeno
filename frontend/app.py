@@ -8,7 +8,9 @@ _ = load_dotenv("../.env")
 API_BASE_URL = os.environ["API_BASE_URL"]
 
 LOCAL_API_BASE_URL = os.environ["LOCAL_API_BASE_URL"]
-STREAMLIT_URL = os.environ.get("STREAMLIT_URL", "http://localhost:8501")  # URL where the Streamlit app is hosted
+STREAMLIT_URL = os.environ.get(
+    "STREAMLIT_URL", "http://localhost:8501"
+)  # URL where the Streamlit app is hosted
 
 st.set_page_config(page_title="Zeno", page_icon="🦣")
 
@@ -97,25 +99,10 @@ with st.sidebar:
 # Agent data
 agents = [
     {
-        "name": "Owl Gorithm 🦉",
-        "tagline": "A wise, data-savvy agent for WRI content such as blog posts and datasets.",
-        "description": "Expert at finding relevant content datasets hosted by WRI & LCL. It tries its best to find the dataset & explain why it is relevant to your query.",
-    },
-    {
-        "name": "Earthy Eagle 🦅",
-        "tagline": "An eagle-eyed agent focused on detecting disturbances or deforestation alerts.",
-        "description": "Specializes in detecting disturbances or deforestation alerts. It assists in finding alerts for specific locations and timeframes. Additionally, it helps in understanding the distribution of alerts within a location and provides satellite images for validation.",
-    },
-    {
-        "name": "Keeper Koala 🐨",
-        "tagline": "Keeping a watch over the worlds Key Biodiversity Areas (KBAs).",
-        "description": "Specializing in planning interventions and answering queries about KBAs - from habitat analysis to species protection strategies. Keeper Koala helps ensure critical ecosystems get the attention they need.",
-    },
-    {
-        "name": "Investi Gator 🐊",
-        "tagline": "Keeping a watch over the worlds Key Biodiversity Areas (KBAs).",
-        "description": "Specializing in planning interventions and answering queries about KBAs - from habitat analysis to species protection strategies. Keeper Koala helps ensure critical ecosystems get the attention they need.",
-    },
+        "name": "Uni Guana 🦎",
+        "tagline": "A unified agent for all your data needs.",
+        "description": "UniGuana brings together the best of all the tools you know and love. Find all the wisdom of Owl Gorithm, the keen eye of Earth Eagle, the sleuthing of Ivesitgator and the watchfulness of Keeper Koala, all in one place!",
+    }
 ]
 
 # Display agent cards in rows
