@@ -8,7 +8,7 @@ from langchain_ollama.embeddings import OllamaEmbeddings
 from pydantic import BaseModel, Field
 from multiprocessing import Pool
 
-from zeno.agents.layerfinder.prompts import LAYER_FINDER_PROMPT
+from src.tools.utils.prompts import LAYER_FINDER_PROMPT
 
 
 class Dataset(BaseModel):
@@ -36,6 +36,7 @@ def call_agent(prompt):
     dataset = dataset_finder_agent.invoke([HumanMessage(content=prompt)])
     return dataset.model_dump()
 
+
 embedder = OllamaEmbeddings(
     model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
 )
@@ -43,8 +44,9 @@ db = Chroma(
     persist_directory="data/chroma_layers",
     embedding_function=embedder,
     create_collection_if_not_exists=False,
-    collection_metadata={"hnsw:M": 1024,"hnsw:ef": 64}
+    collection_metadata={"hnsw:M": 1024, "hnsw:ef": 64},
 )
+
 
 @tool("dataset-finder-tool", return_direct=True)
 def dataset_finder_tool(question: str) -> list[Dataset]:
@@ -77,9 +79,9 @@ def dataset_finder_tool(question: str) -> list[Dataset]:
         datasets = []
 
     for dataset in datasets:
-        doc = [doc for doc in documents if doc.metadata["dataset"] == dataset["dataset"]][
-            0
-        ]
+        doc = [
+            doc for doc in documents if doc.metadata["dataset"] == dataset["dataset"]
+        ][0]
         dataset["metadata"] = doc.metadata
         # TODO: check missing keys, also `zeno_id`
         # TODO: Change the embedder from Ollama to OpenAI or something else
@@ -87,12 +89,3 @@ def dataset_finder_tool(question: str) -> list[Dataset]:
         # dataset.tilelayer = doc.metadata["gfw_tile_url"]
 
     return datasets
-
-    
-    
-    
-    
-
-
-
-

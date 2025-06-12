@@ -18,7 +18,7 @@ def get_auth_headers():
 
 # Fetch threads
 def fetch_threads():
-    resp = requests.get(f"{LOCAL_API_BASE_URL}threads", headers=get_auth_headers())
+    resp = requests.get(f"{LOCAL_API_BASE_URL}/api/threads", headers=get_auth_headers())
 
     if resp.status_code == 200:
 
@@ -31,7 +31,7 @@ def fetch_threads():
 # Fetch a single thread
 def fetch_thread(thread_id):
     resp = requests.get(
-        f"{LOCAL_API_BASE_URL}threads/{thread_id}", headers=get_auth_headers()
+        f"{LOCAL_API_BASE_URL}/api/threads/{thread_id}", headers=get_auth_headers()
     )
     if resp.status_code == 200:
         return resp.json()
@@ -52,7 +52,7 @@ with st.sidebar:
     else:
 
         user_info = requests.get(
-            f"{LOCAL_API_BASE_URL}auth/me",
+            f"{LOCAL_API_BASE_URL}/api/auth/me",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {st.session_state['token']}",

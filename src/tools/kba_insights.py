@@ -11,7 +11,7 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 from pydantic import BaseModel, Field
 
-from zeno.agents.kba.prompts import (
+from src.tools.utils.prompts import (
     KBA_COLUMN_SELECTION_PROMPT,
     KBA_INSIGHTS_PROMPT,
 )
@@ -39,9 +39,7 @@ class ChartData(BaseModel):
 class Insight(BaseModel):
     type: InsightType = Field(..., description="Type of insight visualization")
     title: str = Field(..., description="Title for the insight")
-    description: str = Field(
-        ..., description="Explanation of what the insight shows"
-    )
+    description: str = Field(..., description="Explanation of what the insight shows")
     data: Union[str, List[Dict[str, Any]], ChartData] = Field(
         ..., description="Content of the insight, structure depends on type"
     )
@@ -66,7 +64,6 @@ column_selection_agent = haiku.with_structured_output(ColumnSelectionOutput)
 insights_agent = sonnet.with_structured_output(InsightsResponse)
 
 column_description = pd.read_csv("data/kba/kba_column_descriptions.csv")
-
 
 
 @tool("kba-insights-tool")

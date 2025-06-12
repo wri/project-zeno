@@ -3,3 +3,4 @@ streamlit_folium==0.23.0
 pandas==2.2.3
 python-dotenv==1.0.1
 geopandas==1.0.1
+folium-vectorgrid==0.1.3

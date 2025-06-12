@@ -1,28 +1,21 @@
 import os
-from pathlib import Path
 import json
 
 import ee
-import lancedb
 from langchain_core.tools import tool
 from langchain_ollama import OllamaEmbeddings
 from pandas import Series
 from pydantic import BaseModel, Field
 
-from zeno.agents.distalert.gee import init_gee
-from zeno.agents.distalert.drivers import get_drivers
+from src.tools.utils.gee import init_gee
+from src.tools.utils.dist_alerts_drivers import get_drivers
+from src.tools.utils.context_layers_table import table
 
 init_gee()
-data_dir = Path("data")
 
 
 embedder = OllamaEmbeddings(
     model="nomic-embed-text", base_url=os.environ["OLLAMA_BASE_URL"]
-)
-
-
-table = lancedb.connect(data_dir / "layers-context").open_table(
-    "zeno-layers-context-latest"
 )
 
 

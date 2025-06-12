@@ -16,3 +16,4 @@ venv/
 tests/
 *.log
 data/*
+database_data/*

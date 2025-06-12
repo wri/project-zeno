@@ -13,19 +13,17 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEE_SERVICE_ACCOUNT_PATH=${GEE_SERVICE_ACCOUNT_PATH}
       - WATCHFILES_FORCE_POLLING=1
-      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/zeno-data
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/zeno-data
       - EMAILS_ALLOWLIST="developmentseed.org,wri.org"
     env_file:
       - .env
     volumes:
-      - ./zeno:/app/zeno
+      - ./src:/app/src
       - ./data:/app/data
-      - ./api.py:/app/api.py
-      - ./db:/app/db
     depends_on:
-     - migrate 
-     - langfuse-server
-
+      migrate: 
+        condition: service_completed_successfully
+        
   frontend: 
     build: 
       context: ./frontend
@@ -35,18 +33,24 @@ services:
       - ./frontend:/app
     environment:
       - API_BASE_URL=https://api.zeno-staging.ds.io/
-      - LOCAL_API_BASE_URL=http://api:8000/
+      - LOCAL_API_BASE_URL=http://api:8000
       - STREAMLIT_URL=${STREAMLIT_URL:-http://localhost:8501}
 
   langfuse-server:
     image: langfuse/langfuse:2
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "3000:3000"
-    #env_file:
-    #  - .env
+    healthcheck:
+      # Uses wget because curl is not available in the langfuse image
+      test: ["CMD", "wget", "-qO-", "http://172.20.0.3:3000/api/public/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
     environment:
       - DATABASE_PORT=${DATABASE_PORT:-5432}
       - DATABASE_USERNAME=${DATABASE_USERNAME:-postgres}
@@ -79,13 +83,12 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
-      - APP_DB=zeno-data
-      - LANGFUSE_DB=langfuse
+      - POSTGRES_DB=zeno-data
+      
     ports:
       - 5432:5432
     volumes:
-      - database_data:/var/lib/postgresql/data
-      - ./db/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh:ro
+      - ./database_data:/var/lib/postgresql/data
 
   migrate:
     build:
@@ -93,20 +96,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
       - APP_DB=zeno-data
+    volumes: 
+      - ./db:/app/db
 
-volumes:
-  database_data:
-    driver: local
-
-  # ollama: 
-  #   build:
-  #     context: ollama
-  #   volumes: 
-  #     - ./data/ollama:/root/.ollama
-  #   ports:
-  #     - 11434:11434
+   
