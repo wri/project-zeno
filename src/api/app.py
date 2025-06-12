@@ -11,15 +11,15 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from langchain_core.messages import HumanMessage
-
+from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
-from agents import zeno as graph
-from api.models import UserModel, UserOrm, ThreadModel, ThreadOrm
+from src.agents.agents import zeno as graph, checkpointer
+from src.api.data_models import UserModel, UserOrm, ThreadModel, ThreadOrm
 
 
 app = FastAPI(
@@ -35,13 +35,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-langfuse_handler = CallbackHandler(
+langfuse = Langfuse(
     secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
     public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
     host=os.getenv("LANGFUSE_HOST"),
 )
+
+langfuse_handler = CallbackHandler()
 
 
 class ChatRequest(BaseModel):
@@ -105,34 +105,6 @@ def stream_chat(
                         "update": msg.to_json(),
                     }
                 )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/chat")
-async def chat(request: ChatRequest):
-    """
-    Chat endpoint for Zeno.
-
-    Args:
-        request: The chat request
-
-    Returns:
-        The streamed response
-    """
-    try:
-        return StreamingResponse(
-            stream_chat(
-                query=request.query,
-                user_persona=request.user_persona,
-                thread_id=request.thread_id,
-                metadata=request.metadata,
-                session_id=request.session_id,
-                user_id=request.user_id,
-                tags=request.tags,
-            ),
-            media_type="application/x-ndjson",
-        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -205,7 +177,48 @@ def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
         return UserModel.model_validate(user)
 
 
-@app.get("/threads", response_model=list[ThreadModel])
+@app.post("/api/chat")
+async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
+    """
+    Chat endpoint for Zeno.
+
+    Args:
+        request: The chat request
+        user: The user, authenticated against the WRI API (injected via FastAPI dependency)
+
+    Returns:
+        The streamed response
+    """
+    with SessionLocal() as db:
+        thread = (
+            db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
+        )
+        if not thread:
+            thread = ThreadOrm(
+                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+            )
+            db.add(thread)
+            db.commit()
+            db.refresh(thread)
+
+    try:
+        return StreamingResponse(
+            stream_chat(
+                query=request.query,
+                user_persona=request.user_persona,
+                thread_id=request.thread_id,
+                metadata=request.metadata,
+                session_id=request.session_id,
+                user_id=request.user_id,
+                tags=request.tags,
+            ),
+            media_type="application/x-ndjson",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/threads", response_model=list[ThreadModel])
 def list_threads(user: UserModel = Depends(fetch_user)):
     """
     Requires Authorization
@@ -216,7 +229,7 @@ def list_threads(user: UserModel = Depends(fetch_user)):
         return [ThreadModel.model_validate(thread) for thread in threads]
 
 
-@app.get("/threads/{thread_id}")
+@app.get("/api/threads/{thread_id}")
 def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     """
     Requires Authorization
@@ -229,14 +242,10 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
 
         thread_id = thread.id
 
-    from zeno.agents.gfw_data_api.graph import checkpointer
-
-    state = checkpointer.get_tuple(config={"configurable": {"thread_id": thread_id}})
-
-    return state
+    return checkpointer.get_tuple(config={"configurable": {"thread_id": thread_id}})
 
 
-@app.get("/auth/me", response_model=UserModel)
+@app.get("/api/auth/me", response_model=UserModel)
 async def auth_me(user: UserModel = Depends(fetch_user)):
     """
     Requires Authorization: Bearer <JWT>

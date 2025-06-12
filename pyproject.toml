@@ -12,7 +12,7 @@ dependencies = [
     "langchain-openai>=0.2.6",
     "langchain-community>=0.3.11",
     "streamlit>=1.40.0",
-    "langfuse>=3.0.0",
+    "langfuse>=2.53.9",
     "langchain-chroma>=0.1.4",
     "thefuzz>=0.22.1",
     "fastapi[standard]>=0.115.4",
@@ -68,4 +68,4 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src", "zeno"]
+packages = ["src"]

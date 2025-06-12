@@ -81,6 +81,6 @@ zeno = create_react_agent(
     model=model,
     tools=tools,
     state_schema=AgentState,
-    state_modifier=prompt,
+    prompt=prompt,
     checkpointer=checkpointer,
 )

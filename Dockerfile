@@ -19,13 +19,13 @@ RUN sh /uv-installer.sh && rm /uv-installer.sh
 ENV PATH="/root/.local/bin/:$PATH"
 
 ## Copy the project into the image
-ADD ./pyproject.toml ./uv.lock ./README.md /app/
+ADD ./pyproject.toml ./uv.lock ./README.md ./ee-zeno-service-account.json /app/
 ADD ./src /app/src
 
-WORKDIR /app/src
+WORKDIR /app
 
 # Install the dependencies
 RUN uv sync --frozen
 
 # Command to run the application.
-CMD ["uv", "run", "uvicorn", "api.app:app", "--reload", "--reload-exclude", "*data*", "--host", "0.0.0.0"]
+CMD ["uv", "run", "uvicorn", "src.api.app:app", "--reload", "--reload-exclude", "*data*", "--host", "0.0.0.0"]

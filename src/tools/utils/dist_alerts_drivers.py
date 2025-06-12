@@ -42,10 +42,7 @@ def get_drivers():
     )
 
     wildfire = (
-        wf_collection.mosaic()
-        .neq(0)
-        .updateMask(confmask)
-        .updateMask(natural_lands)
+        wf_collection.mosaic().neq(0).updateMask(confmask).updateMask(natural_lands)
     )
 
     cc_collection = ee.ImageCollection.fromImages(
@@ -148,11 +145,7 @@ def get_drivers():
         .add(crop_cycle.multiply(DRIVER_VALUEMAP["crop_cycle"]).unmask())
         .add(flooding.multiply(DRIVER_VALUEMAP["flooding"]).unmask())
         .add(conversion.multiply(DRIVER_VALUEMAP["conversion"]).unmask())
-        .add(
-            other_conversion.multiply(
-                DRIVER_VALUEMAP["other_conversion"]
-            ).unmask()
-        )
+        .add(other_conversion.multiply(DRIVER_VALUEMAP["other_conversion"]).unmask())
     )
     combo_mask = (
         wildfire.mask()
