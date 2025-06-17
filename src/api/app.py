@@ -58,6 +58,29 @@ def pack(data):
     return json.dumps(data) + "\n"
 
 
+def replay_chat(thread_id):
+    config = {
+        "configurable": {
+            "thread_id": thread_id,
+        }
+    }
+    try:
+
+        result = graph.invoke(None, config=config, subgraphs=False)
+
+        for node, node_data in result.items():
+
+            for msg in node_data:
+                yield pack(
+                    {
+                        "node": node,
+                        "update": msg.to_json(),
+                    }
+                )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def stream_chat(
     query: str,
     user_persona: Optional[str] = None,
@@ -242,7 +265,13 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
 
         thread_id = thread.id
 
-    return checkpointer.get_tuple(config={"configurable": {"thread_id": thread_id}})
+    try:
+        return StreamingResponse(
+            replay_chat(thread_id=thread_id),
+            media_type="application/x-ndjson",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/auth/me", response_model=UserModel)

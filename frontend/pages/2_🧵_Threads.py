@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import os
+import json
 
 st.set_page_config(page_title="🧵 Threads", page_icon="🧵")
 
@@ -30,13 +31,18 @@ def fetch_threads():
 
 # Fetch a single thread
 def fetch_thread(thread_id):
-    resp = requests.get(
-        f"{LOCAL_API_BASE_URL}/api/threads/{thread_id}", headers=get_auth_headers()
-    )
-    if resp.status_code == 200:
-        return resp.json()
-    st.error("Failed to fetch thread")
-    return None
+
+    with requests.get(
+        f"{LOCAL_API_BASE_URL}/api/threads/{thread_id}",
+        headers=get_auth_headers(),
+        stream=True,
+    ) as stream:
+        st.subheader(f"Thread {selected_id}")
+
+        for chunk in stream.iter_lines():
+            if chunk:
+                data = json.loads(chunk.decode("utf-8"))
+                st.write(data)
 
 
 threads = []
@@ -91,6 +97,3 @@ else:
 
     if selected_id:
         thread = fetch_thread(selected_id)
-        if thread:
-            st.subheader(f"Thread {selected_id}")
-            st.write(thread)
