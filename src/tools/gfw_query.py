@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage
-from pydantic import BaseModel, Field, model_validator
-from zeno.agents.gfw_data_api.prompts import (
+from pydantic import BaseModel, model_validator
+from src.tools.utils.prompts import (
     prep_datatables_selection_prompt,
     prep_field_selection_prompt,
     prep_api_sql_query_prompt,
@@ -154,7 +154,7 @@ def gfw_query_tool(
     gadm_id: Optional[str],
     user_query: str,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    """Query the GFW data API. Use this tool ONLY to answer questions on a global scale like deforestation, 
+    """Query the GFW data API. Use this tool ONLY to answer questions on a global scale like deforestation,
     biodiversity loss, etc. at country or subnational administrative divisions.
 
     Args:
@@ -165,7 +165,7 @@ def gfw_query_tool(
     # TODO: as we add more tables, this should become a HIL
     # tool that prompts the user to select within a preselection of
     # 3-5 tables
-    from zeno.agents.gfw_data_api.models import haiku
+    from src.tools.utils.models import haiku
 
     model_resp = haiku.with_structured_output(DatatableSelection).invoke(
         [HumanMessage(prep_datatables_selection_prompt(user_query=user_query))]

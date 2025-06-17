@@ -10,12 +10,13 @@ from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import InjectedState
 from pydantic import BaseModel, Field
 
-from zeno.agents.kba.prompts import KBA_TIMESERIES_INSIGHTS_PROMPT
+from src.tools.utils.prompts import KBA_TIMESERIES_INSIGHTS_PROMPT
 
 data_dir = Path("data/kba")
 kba_ts_data = pd.read_parquet(data_dir / "kba_timeseries_data.parquet")
 
 sonnet = ChatAnthropic(model="claude-3-5-sonnet-latest", temperature=0)
+
 
 class Insight(BaseModel):
     type: str = Field(..., description="Type of insight")
@@ -23,15 +24,15 @@ class Insight(BaseModel):
     description: str = Field(..., description="Brief explanation of what this shows")
     analysis: str = Field(..., description="Provide data driven insights")
 
+
 insights_agent = sonnet.with_structured_output(Insight)
 column_mapper = {
     "gpp": "Annual gross primary productivity in gC/m2",
     "cultivated": "Annual managed grassland area in hectares",
     "nsn": "Annual native/unmanaged grassland area in hectares",
     "gfw_forest_carbon_gross_emissions_all_gases": "Annual forest GHG emissions in tonnes CO2e",
-    "umd_tree_cover_loss": "Annual tree cover loss in hectares"
+    "umd_tree_cover_loss": "Annual tree cover loss in hectares",
 }
-
 
 
 @tool("kba-timeseries-tool")
@@ -68,11 +69,13 @@ def kba_timeseries_tool(column: str, state: Annotated[Dict, InjectedState]):
     )
 
     # get insights
-    response = insights_agent.invoke(KBA_TIMESERIES_INSIGHTS_PROMPT.format(
-        user_persona=state["user_persona"],
-        column=column,
-        data=kba_ts_data_pivoted.to_csv()
-    ))
+    response = insights_agent.invoke(
+        KBA_TIMESERIES_INSIGHTS_PROMPT.format(
+            user_persona=state["user_persona"],
+            column=column,
+            data=kba_ts_data_pivoted.to_csv(),
+        )
+    )
 
     return {
         "data": kba_ts_data_pivoted.reset_index().to_dict(orient="records"),
@@ -81,5 +84,5 @@ def kba_timeseries_tool(column: str, state: Annotated[Dict, InjectedState]):
         "type": "timeseries",
         "title": response.title,
         "description": response.description,
-        "analysis": response.analysis
+        "analysis": response.analysis,
     }
