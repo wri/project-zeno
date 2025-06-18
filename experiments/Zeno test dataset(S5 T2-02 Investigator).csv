@@ -1,0 +1,16 @@
+GADM,Data,Question,GADM ID,GADM name,Notes,Answer (definitive answer based on GFW dashboards)
+0,tree cover extent,Has tree cover in Switzerland increased or decreased since 2000?,,,30%,increased
+1,tree cover extent,Did Papua or Kalimantan Tengah have more tree cover in 2010?,,,"2010, 30%",Papua
+2,tree cover extent,"Does Papua, Indonesia or Amazonas Brazil have more tree cover ?",,,"2010, 15%",Amazonas
+0,tree cover loss,"Has annual tree cover loss in Russia in the last 5 years increased, decreased or remained stable?",,,"2020-2024, 30%",decreased
+1,tree cover loss,Did tree cover loss in Kalimantan Barat go up or down 2023-2024?,,,"2023-2024, 30%",down
+2,tree cover loss,"Was there more or less tree cover loss in Rajnandgaon, Chhattisgarh, India in 2024 compared to 2001?",,,"2001, 2024, 30%",less
+0,tree cover gain,"Which 5 regions in Germany showed the most significant tree cover gain between 2000 and 2020? For each, provide the total gain in hectares.",,,"2000,2020, 30%","Niedersachsen (59.1 kha), Brandenburg (46.2 kha), Nordrhein-Westfalen (40.3 kha), Bayern (35.7 kha), Mecklenburg-Vorpommern (32.7 kha)"
+1,tree cover gain,"Which of the Borgou, Atakora, and Alibori departments in Benin from 2000 to the most recent available year had the most tree cover gain?",,,2000-2020,Borgou
+2,tree cover gain,"For the period 2010 to 2020, did Porto or Peñafiel, Portugal have more tree cover gain? ",,,2010-2020,Peñafiel
+0,integrated deforesation alerts,"Which country had more integrated deforestation alerts within Intact Forest Landscapes during April 2025, the Republic of the Congo or Gabon?",,,"2025, IFL",Republic of the Congo
+1,integrated deforesation alerts,"Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2023 or 2024?",,,2023-2024,2024
+2,integrated deforesation alerts,"Which month from January to April 2025 recorded the highest number of deforestation alerts in Ngoma, Rwanda? ",,,2025,March
+0,carbon fluxes from forests,Did total forest-related greenhouse gas emissions in Indonesia increase or decrease in  2024 compared to 2004? ,,,2004-2024,Decreased
+1,carbon fluxes from forests,Has Chai Nat or Krabi in Thailand has had the most forest-related annual carbon emissions since 2001?,,,2000,Krabi
+2,carbon fluxes from forests,"Since 2001, do the forests within Gomba's KBAs act as a net carbon source or a net carbon sink, and by how much?",,,,Net carbon source by 2.55 ktCO₂e/year
