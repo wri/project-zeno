@@ -1,9 +1,18 @@
-import streamlit as st
 import os
+
 import requests
+import streamlit as st
 from dotenv import load_dotenv
 
-_ = load_dotenv("../.env")
+DOTENV_PATH = "../.env"
+env_loaded = load_dotenv(DOTENV_PATH)
+
+if not env_loaded:
+    st.sidebar.warning(
+        f"Could not find or load .env file from: {os.path.abspath(DOTENV_PATH)}. "
+        "Please ensure it exists at that location and is readable. "
+        f"Current working directory: {os.getcwd()}"
+    )
 
 API_BASE_URL = os.environ["API_BASE_URL"]
 
@@ -60,7 +69,6 @@ st.write(
 )
 
 with st.sidebar:
-
     if not st.session_state.get("token"):
         st.button(
             "Login with Global Forest Watch",
@@ -70,7 +78,6 @@ with st.sidebar:
             ),
         )
     else:
-
         user_info = requests.get(
             f"{API_BASE_URL}/auth/me",
             headers={
