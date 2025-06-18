@@ -11,6 +11,10 @@ from langgraph.types import Command
 from langgraph.prebuilt import create_react_agent
 from pydantic import BaseModel, Field
 
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 # Initialize language models with zero temperature for deterministic outputs
 CLAUDE_MODEL = ChatAnthropic(model="claude-3-5-sonnet-latest", temperature=0) 
 GPT_MODEL = ChatOpenAI(model="gpt-4o", temperature=0)
@@ -28,9 +32,11 @@ def create_database_connection(database_path: str):
     Returns:
         Configured DuckDB connection
     """
+    logger.debug(f"Connecting to DuckDB at {database_path}")
     connection = duckdb.connect(database_path)
     connection.load_extension("spatial")
     connection.load_extension("httpfs")
+    logger.debug("DuckDB connection successful.")
     return connection
 
 
@@ -53,6 +59,7 @@ def query_aoi_database(connection, table_name: str, place_name: str, result_limi
         ORDER BY similarity_score DESC
         LIMIT {result_limit}
     """
+    logger.debug(f"Executing AOI query: {sql_query}")
     query_results = connection.sql(sql_query)
     return query_results.df()
 
@@ -79,6 +86,7 @@ def query_subregion_database(connection, subregion_name: str, source: str, src_i
         case "landmark":
             table_name = "landmark"
         case _:
+            logger.error(f"Invalid subregion: {subregion_name}")
             raise ValueError(f"Subregion: {subregion_name} does not match to any table in basemaps database.")
 
     sql_query = f"""
@@ -91,7 +99,7 @@ def query_subregion_database(connection, subregion_name: str, source: str, src_i
     FROM {table_name} AS t, aoi
     WHERE ST_Within(t.geometry, aoi.geom);
     """
-
+    logger.debug(f"Executing subregion query: {sql_query}")
     results = connection.execute(sql_query).df()
     return results
 
@@ -140,6 +148,7 @@ def pick_aoi(
         place: Name of the place or area to find in the spatial database, expand any abbreviations
         subregion: Any subregion to filter the results by if asked by the user (optional). It can only be a country, state, district, municipality, locality, neighbourhood, kba, wdpa or landmark.
     """
+    logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
     # Query the database for place & get top matches using jaro winkler similarity
     db_connection = create_database_connection(DATABASE_PATH)
     results = query_aoi_database(db_connection, TABLE_NAME, place, RESULT_LIMIT)
@@ -154,6 +163,7 @@ def pick_aoi(
 
     # Get source, src_id from the selected AOI
     source, src_id = db_connection.sql(f"SELECT source, src_id FROM {TABLE_NAME} WHERE id = {selected_aoi_id}").df().iloc[0].to_list()
+    logger.debug(f"Selected AOI source: '{source}', src_id: {src_id}")
 
     match source:
         case "gadm":
@@ -165,12 +175,16 @@ def pick_aoi(
         case "wdpa":
             selected_aoi = db_connection.sql(f"SELECT * FROM wdpa WHERE wdpa_id = {src_id}").df().iloc[0].to_dict()
         case _:
+            logger.error(f"Invalid source: {source}")
             raise ValueError(f"Source: {source} does not match to any table in basemaps database.")
 
     if subregion:
+        logger.info(f"Querying for subregion: '{subregion}'")
         subregion_aois = query_subregion_database(db_connection, subregion, source, src_id)
+        logger.info(f"Found {len(subregion_aois)} subregion AOIs")
     
     db_connection.close()
+    logger.debug("Database connection closed.")
 
     tool_message = f"""
     Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}
@@ -182,7 +196,8 @@ def pick_aoi(
         update={
             "aoi": selected_aoi,
             "subregion_aois": subregion_aois if subregion else None,
-            "place": selected_aoi["name"],
+            "subregion": subregion,
+            "aoi_name": selected_aoi["name"],
             "subtype": selected_aoi["subtype"],
             # Update the message history
             "messages": [
@@ -198,7 +213,7 @@ if __name__ == "__main__":
     agent = create_react_agent(
         CLAUDE_MODEL, 
         tools=[pick_aoi], 
-        state_modifier="""You are a Geo Agent that can ONLY HELP PICK an AOI using the `pick-aoi` tool.
+        prompt="""You are a Geo Agent that can ONLY HELP PICK an AOI using the `pick-aoi` tool.
         Pick the best AOI based on the user query. You DONT need to answer the user query, just pick the best AOI."""
     )
 
@@ -218,7 +233,7 @@ if __name__ == "__main__":
         for step in agent.stream({"messages": [{"role": "user", "content": query}]}, stream_mode="values"):
             message = step["messages"][-1]
             if isinstance(message, tuple):
-                print(message)
+                logger.info(message)
             else:
                 message.pretty_print()
     

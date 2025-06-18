@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from langchain_core.messages import HumanMessage
 from langchain_community.adapters.openai import convert_message_to_dict
 from fastapi import HTTPException
-from langfuse.callback import CallbackHandler
+from langfuse.langchain import CallbackHandler
 
 from src.agents import zeno
 
@@ -30,11 +30,7 @@ app.add_middleware(
 
 graph = zeno
 
-langfuse_handler = CallbackHandler(
-    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-    host=os.getenv("LANGFUSE_HOST"),
-)
+langfuse_handler = CallbackHandler()
 
 class ChatRequest(BaseModel):
     query: str = Field(..., description="The query")

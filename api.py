@@ -17,7 +17,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from db.models import ThreadModel, ThreadOrm, UserModel, UserOrm
-from langfuse.callback import CallbackHandler
+from langfuse.langchain import CallbackHandler
 from src.api.app import app as zeno_app
 from zeno.agents.distalert.graph import graph as dist_alert
 from zeno.agents.gfw_data_api.graph import graph as gfw_data_api
