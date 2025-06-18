@@ -19,7 +19,7 @@ RUN sh /uv-installer.sh && rm /uv-installer.sh
 ENV PATH="/root/.local/bin/:$PATH"
 
 ## Copy the project into the image
-ADD ./pyproject.toml ./uv.lock ./README.md ./ee-zeno-service-account.json /app/
+ADD ./pyproject.toml ./uv.lock ./README.md /app/
 ADD ./src /app/src
 
 WORKDIR /app
