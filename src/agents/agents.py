@@ -1,5 +1,6 @@
 import contextlib
 import os
+import re
 
 from langchain_anthropic import ChatAnthropic
 from langgraph.checkpoint.postgres import PostgresSaver
@@ -44,9 +45,10 @@ tools = [
     dataset_finder_tool,
 ]
 
-DATABASE_URL = os.environ["DATABASE_URL"].replace(
-    "postgresql+psycopg://", "postgresql://"
-)
+# DATABASE_URL = os.environ["DATABASE_URL"].replace(
+#    "postgresql+psycopg://", "postgresql://"
+# )
+DATABASE_URL = re.sub(r"^.*?//", "postgresql://", os.environ["DATABASE_URL"])
 
 
 @contextlib.contextmanager
