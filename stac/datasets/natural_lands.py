@@ -3,7 +3,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import dotenv
-from datasets.utils import load_stac_data_to_db
 from google.cloud import storage
 from pystac import (
     Collection,
@@ -16,8 +15,11 @@ from pystac import (
     set_stac_version,
 )
 from rio_stac import create_stac_item
+from tqdm import tqdm
 
-dotenv.load_dotenv("stac/env/.env_localhost")
+from stac.datasets.utils import load_stac_data_to_db
+
+dotenv.load_dotenv("stac/env/.env_staging")
 
 set_stac_version("1.1.0")
 
@@ -56,7 +58,8 @@ def get_tif_urls() -> list[str]:
     blobs = bucket.list_blobs(prefix=GC_FOLDER)
 
     tif_urls = []
-    for blob in blobs:
+    print("Fetching TIF URLs from Google Cloud Storage...")
+    for blob in tqdm(blobs, desc="Loading URLs"):
         if blob.name.endswith(".tif"):
             url = f"https://storage.googleapis.com/{GC_BUCKET}/{blob.name}"
             tif_urls.append(url)
@@ -81,9 +84,15 @@ def create_stac_item_with_extensions(url: str) -> Item:
 
 def get_stac_items() -> list[Item]:
     tif_urls = get_tif_urls()
-    print(f"Getting {len(tif_urls)} STAC items")
-    with ThreadPoolExecutor() as executor:
-        items = list(executor.map(create_stac_item_with_extensions, tif_urls))
+    print(f"Creating {len(tif_urls)} STAC items")
+    with ThreadPoolExecutor(max_workers=100) as executor:
+        items = list(
+            tqdm(
+                executor.map(create_stac_item_with_extensions, tif_urls),
+                total=len(tif_urls),
+                desc="Creating STAC items",
+            )
+        )
 
     return items
 
@@ -128,8 +137,11 @@ def create_collection() -> Collection:
 
 def main():
     items = get_stac_items()
+    print(f"Loaded {len(items)} STAC items")
     collection = create_collection()
+    print("Loading STAC data to database...")
     load_stac_data_to_db(collection, items)
+    print("Done!")
 
 
 if __name__ == "__main__":

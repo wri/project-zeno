@@ -48,5 +48,5 @@ def load_stac_data_to_db(collection: Collection, items: list[Item]):
     print(f"Loading {len(items)} items to database")
     loader.load_items(
         (item.to_dict() for item in items),
-        insert_mode=Methods.delsert,
+        insert_mode=Methods.upsert,
     )

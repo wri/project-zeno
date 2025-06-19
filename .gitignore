@@ -180,5 +180,7 @@ nbs/data
 # Custom zeno
 ee-zeno-service-account.json
 
+*database_data*
+
 # Logs
 logs/
