@@ -33,7 +33,7 @@ tools = [
 ]
 
 DATABASE_URL = os.environ["DATABASE_URL"].replace(
-    "postgresql+psycopg://", "postgresql://"
+    "postgresql+psycopg2://", "postgresql://"
 )
 
 
@@ -66,7 +66,6 @@ zeno = create_react_agent(
     model=sonnet,
     tools=tools,
     state_schema=AgentState,
-    prompt=prompt,
     prompt=prompt,
     checkpointer=checkpointer,
 )

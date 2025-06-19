@@ -16,7 +16,7 @@ from langfuse.langchain import CallbackHandler
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.agents.agents import zeno as graph
+from src.agents.agents import zeno
 from src.api.data_models import UserModel, UserOrm, ThreadModel, ThreadOrm
 
 
@@ -33,7 +33,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-graph = zeno
+
 langfuse_handler = CallbackHandler()
 
 class ChatRequest(BaseModel):
@@ -58,7 +58,7 @@ def replay_chat(thread_id):
     }
     try:
 
-        result = graph.invoke(None, config=config, subgraphs=False)
+        result = zeno.invoke(None, config=config, subgraphs=False)
 
         for node, node_data in result.items():
 
@@ -101,7 +101,7 @@ def stream_chat(
     messages = [HumanMessage(content=query)]
 
     try:
-        stream = graph.stream(
+        stream = zeno.stream(
             {
                 "messages": messages,
                 "user_persona": user_persona,
