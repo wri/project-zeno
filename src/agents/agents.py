@@ -3,6 +3,7 @@ import os
 
 from langchain_anthropic import ChatAnthropic
 from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.prebuilt import create_react_agent
 
 from src.graph import AgentState
@@ -60,12 +61,15 @@ def persistent_checkpointer():
 
 
 # Open the context manager at the module level and keep it open
-checkpointer_cm = persistent_checkpointer()
-checkpointer = checkpointer_cm.__enter__()
+# checkpointer_cm = persistent_checkpointer()
+# checkpointer = checkpointer_cm.__enter__()
+
+memory = InMemorySaver()
+
 zeno = create_react_agent(
     model=sonnet,
     tools=tools,
     state_schema=AgentState,
     prompt=prompt,
-    checkpointer=checkpointer,
+    checkpointer=memory,
 )
