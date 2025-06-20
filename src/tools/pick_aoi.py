@@ -34,6 +34,8 @@ def create_database_connection(database_path: str):
     """
     logger.debug(f"Connecting to DuckDB at {database_path}")
     connection = duckdb.connect(database_path)
+    connection.sql("INSTALL spatial;")
+    connection.sql("INSTALL httpfs;")
     connection.load_extension("spatial")
     connection.load_extension("httpfs")
     logger.debug("DuckDB connection successful.")
