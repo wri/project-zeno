@@ -4,6 +4,11 @@ import cachetools
 import requests
 from typing import Optional, Dict
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file at the very beginning
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Header, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -193,28 +198,29 @@ def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
+async def chat(request: ChatRequest): #, user: UserModel = Depends(fetch_user)):
     """
     Chat endpoint for Zeno.
 
     Args:
         request: The chat request
-        user: The user, authenticated against the WRI API (injected via FastAPI dependency)
+        # user: The user, authenticated against the WRI API (injected via FastAPI dependency)
 
     Returns:
         The streamed response
     """
-    with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
-        )
-        if not thread:
-            thread = ThreadOrm(
-                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
-            )
-            db.add(thread)
-            db.commit()
-            db.refresh(thread)
+    # The following database logic is commented out for testing without auth
+    # with SessionLocal() as db:
+    #     thread = (
+    #         db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
+    #     )
+    #     if not thread:
+    #         thread = ThreadOrm(
+    #             id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+    #         )
+    #         db.add(thread)
+    #         db.commit()
+    #         db.refresh(thread)
 
     try:
         return StreamingResponse(
