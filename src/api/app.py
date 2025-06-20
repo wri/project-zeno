@@ -16,7 +16,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from langchain_core.messages import HumanMessage
-from langfuse.langchain import CallbackHandler
+from langfuse.callback import CallbackHandler
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -198,7 +198,7 @@ def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest): #, user: UserModel = Depends(fetch_user)):
+async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
     """
     Chat endpoint for Zeno.
 
@@ -210,17 +210,17 @@ async def chat(request: ChatRequest): #, user: UserModel = Depends(fetch_user)):
         The streamed response
     """
     # The following database logic is commented out for testing without auth
-    # with SessionLocal() as db:
-    #     thread = (
-    #         db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
-    #     )
-    #     if not thread:
-    #         thread = ThreadOrm(
-    #             id=request.thread_id, user_id=user.id, agent_id="UniGuana"
-    #         )
-    #         db.add(thread)
-    #         db.commit()
-    #         db.refresh(thread)
+    with SessionLocal() as db:
+        thread = (
+            db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
+        )
+        if not thread:
+            thread = ThreadOrm(
+                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+            )
+            db.add(thread)
+            db.commit()
+            db.refresh(thread)
 
     try:
         return StreamingResponse(

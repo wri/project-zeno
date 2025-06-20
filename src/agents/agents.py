@@ -61,15 +61,15 @@ def persistent_checkpointer():
 
 
 # Open the context manager at the module level and keep it open
-# checkpointer_cm = persistent_checkpointer()
-# checkpointer = checkpointer_cm.__enter__()
+checkpointer_cm = persistent_checkpointer()
+checkpointer = checkpointer_cm.__enter__()
 
-memory = InMemorySaver()
+# memory = InMemorySaver()
 
 zeno = create_react_agent(
     model=sonnet,
     tools=tools,
     state_schema=AgentState,
     prompt=prompt,
-    checkpointer=memory,
+    checkpointer=checkpointer,
 )
