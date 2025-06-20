@@ -1,13 +1,11 @@
 import streamlit as st
 import requests
-import os
 import json
+from app import API_BASE_URL
 
 st.set_page_config(page_title="🧵 Threads", page_icon="🧵")
 
 st.title("🧵 Your Threads")
-
-LOCAL_API_BASE_URL = os.environ["LOCAL_API_BASE_URL"]
 
 
 # Helper to get auth token from session (if available)
@@ -19,7 +17,7 @@ def get_auth_headers():
 
 # Fetch threads
 def fetch_threads():
-    resp = requests.get(f"{LOCAL_API_BASE_URL}/api/threads", headers=get_auth_headers())
+    resp = requests.get(f"{API_BASE_URL}/api/threads", headers=get_auth_headers())
 
     if resp.status_code == 200:
 
@@ -33,7 +31,7 @@ def fetch_threads():
 def fetch_thread(thread_id):
 
     with requests.get(
-        f"{LOCAL_API_BASE_URL}/api/threads/{thread_id}",
+        f"{API_BASE_URL}/api/threads/{thread_id}",
         headers=get_auth_headers(),
         stream=True,
     ) as stream:
@@ -58,7 +56,7 @@ with st.sidebar:
     else:
 
         user_info = requests.get(
-            f"{LOCAL_API_BASE_URL}/api/auth/me",
+            f"{API_BASE_URL}/api/auth/me",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {st.session_state['token']}",

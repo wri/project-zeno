@@ -1,17 +1,11 @@
 import streamlit as st
 import requests
-import os
 from folium_vectorgrid import VectorGridProtobuf
 from streamlit_folium import folium_static
-from dotenv import load_dotenv
 import folium
 import json
 import uuid
-
-load_dotenv()
-API_BASE_URL = os.environ.get("API_BASE_URL")
-
-LOCAL_API_BASE_URL = os.environ["LOCAL_API_BASE_URL"]
+from app import API_BASE_URL
 
 
 if "session_id" not in st.session_state:
@@ -51,7 +45,7 @@ with st.sidebar:
     else:
 
         user_info = requests.get(
-            f"{LOCAL_API_BASE_URL}/api/auth/me",
+            f"{API_BASE_URL}/api/auth/me",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {st.session_state['token']}",
@@ -251,7 +245,7 @@ if user_input := st.chat_input(
     display_message(message)
 
     with requests.post(
-        f"{LOCAL_API_BASE_URL}/api/chat",
+        f"{API_BASE_URL}/api/chat",
         json={"query": user_input, "thread_id": st.session_state.session_id},
         headers={"Authorization": f"Bearer {st.session_state['token']}"},
         stream=True,
