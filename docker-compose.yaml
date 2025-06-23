@@ -4,6 +4,7 @@ services:
       context: .
     ports:
       - "8000:8000"
+    command: ["uv", "run", "uvicorn", "src.api.app:app", "--reload", "--reload-exclude", "*data*", "--host", "0.0.0.0"]
     environment:
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - LANGFUSE_HOST=http://langfuse-server:3000
@@ -25,13 +26,15 @@ services:
         
   frontend: 
     build: 
-      context: ./frontend
+      context: .
+    command: ["uv", "run", "streamlit", "run", "src/frontend/app.py", "--server.port=8501", "--server.runOnSave=True"]
     ports: 
       - 8501:8501
     volumes:
-      - ./frontend:/app
+      - ./src:/app/src
+      - ./.env:/app/.env
     environment:
-      - API_BASE_URL=https://api.zeno-staging.ds.io/
+      - API_BASE_URL=https://api.zeno-staging.ds.io
       - LOCAL_API_BASE_URL=http://api:8000
       - STREAMLIT_URL=${STREAMLIT_URL:-http://localhost:8501}
 
