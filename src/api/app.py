@@ -4,6 +4,11 @@ import cachetools
 import requests
 from typing import Optional, Dict
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file at the very beginning
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Header, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -11,14 +16,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from langchain_core.messages import HumanMessage
-from langfuse import Langfuse
-from langfuse.langchain import CallbackHandler
+from langfuse.callback import CallbackHandler
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-
-from src.agents.agents import zeno as graph, checkpointer
+from src.agents.agents import zeno
 from src.api.data_models import UserModel, UserOrm, ThreadModel, ThreadOrm
 
 
@@ -35,14 +38,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-langfuse = Langfuse(
-    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-    host=os.getenv("LANGFUSE_HOST"),
-)
 
 langfuse_handler = CallbackHandler()
-
 
 class ChatRequest(BaseModel):
     query: str = Field(..., description="The query")
@@ -66,7 +63,7 @@ def replay_chat(thread_id):
     }
     try:
 
-        result = graph.invoke(None, config=config, subgraphs=False)
+        result = zeno.invoke(None, config=config, subgraphs=False)
 
         for node, node_data in result.items():
 
@@ -109,7 +106,7 @@ def stream_chat(
     messages = [HumanMessage(content=query)]
 
     try:
-        stream = graph.stream(
+        stream = zeno.stream(
             {
                 "messages": messages,
                 "user_persona": user_persona,
@@ -207,11 +204,12 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
 
     Args:
         request: The chat request
-        user: The user, authenticated against the WRI API (injected via FastAPI dependency)
+        # user: The user, authenticated against the WRI API (injected via FastAPI dependency)
 
     Returns:
         The streamed response
     """
+    # The following database logic is commented out for testing without auth
     with SessionLocal() as db:
         thread = (
             db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()

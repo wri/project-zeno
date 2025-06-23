@@ -2,18 +2,24 @@ import uuid
 import requests
 import json
 import argparse
+import os
 from typing import Dict, Optional, Iterator, Any
+from dotenv import load_dotenv
+
+load_dotenv('../.env')
 
 
 class ZenoClient:
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://localhost:8000", token: Optional[str] = None):
         """
         Initialize the Zeno API client.
         
         Args:
             base_url: The base URL of the Zeno API server
+            token: The bearer token for authentication
         """
         self.base_url = base_url
+        self.token = token or os.environ.get("GFW_ACCESS_TOKEN")
         
     def chat(
         self, 
@@ -37,7 +43,7 @@ class ZenoClient:
         Returns:
             An iterator of response messages
         """
-        url = f"{self.base_url}/zeno/api/chat"
+        url = f"{self.base_url}/api/chat"
         
         payload = {
             "query": query,
@@ -61,7 +67,11 @@ class ZenoClient:
         if tags:
             payload["tags"] = tags
         
-        with requests.post(url, json=payload, stream=True) as response:
+        headers = {}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+
+        with requests.post(url, json=payload, stream=True, headers=headers) as response:
             if response.status_code != 200:
                 raise Exception(f"Request failed with status code {response.status_code}: {response.text}")
             for update in response.iter_lines():
