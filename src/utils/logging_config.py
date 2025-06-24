@@ -1,10 +1,11 @@
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
+import os
 
 # Define the formatter
 formatter = logging.Formatter(
-    "{asctime} | {levelname:<8s} | {message}", 
+    "{asctime} | {levelname:<8s} | {message}",
     style="{",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -14,9 +15,12 @@ stream_handler = logging.StreamHandler(sys.stdout)
 stream_handler.setFormatter(formatter)
 stream_handler.setLevel(logging.INFO)
 
+os.makedirs("logs", exist_ok=True)
+
 file_handler = RotatingFileHandler("logs/zeno.log", maxBytes=10**6, backupCount=5)
 file_handler.setFormatter(formatter)
 file_handler.setLevel(logging.DEBUG)
+
 
 def get_logger(name: str) -> logging.Logger:
     """
@@ -24,7 +28,7 @@ def get_logger(name: str) -> logging.Logger:
     both console and a file.
     """
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG) # Set the lowest level
+    logger.setLevel(logging.DEBUG)  # Set the lowest level
 
     # Add handlers only if they haven't been added before
     if not logger.handlers:
