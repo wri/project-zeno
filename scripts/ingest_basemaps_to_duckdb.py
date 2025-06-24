@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-download_gadm_to_duckdb.py
+ingest_basemaps_to_duckdb.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 • Downloads GADM 4.1 “all-levels” archive
@@ -175,6 +175,7 @@ def gdf_from_ndjson(url: str, cache_dir: Path = Path("/tmp")) -> gpd.GeoDataFram
 
     gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
     gdf["geometry"] = gdf.geometry.apply(lambda g: g.wkb)
+    gdf["id"] = gdf.index
     return gdf
 
 
@@ -210,9 +211,12 @@ def main() -> None:
     load_into_duckdb(gdf, Path(args.database), table=args.table)
 
     # Load additional layers
-    # for table, url in NDJSON_SOURCES.items():
-    #     print(f"→ Loading “{table}” from {url}")
-    #     ndjson_gdf = gdf_from_ndjson(url)
-    #     load_into_duckdb(ndjson_gdf, Path(args.database), table=table)
+    for table, url in NDJSON_SOURCES.items():
+        print(f"→ Loading “{table}” from {url}")
+        ndjson_gdf = gdf_from_ndjson(url)
+        load_into_duckdb(ndjson_gdf, Path(args.database), table=table)
+
+    print("✓ Done")
+
 if __name__ == "__main__":
     main()
