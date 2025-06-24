@@ -16,7 +16,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from langchain_core.messages import HumanMessage
-from langfuse.callback import CallbackHandler
+from langfuse.langchain import CallbackHandler
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -40,6 +40,7 @@ app.add_middleware(
 )
 
 langfuse_handler = CallbackHandler()
+
 
 class ChatRequest(BaseModel):
     query: str = Field(..., description="The query")
