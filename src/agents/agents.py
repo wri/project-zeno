@@ -66,12 +66,12 @@ def persistent_checkpointer():
 checkpointer_cm = persistent_checkpointer()
 checkpointer = checkpointer_cm.__enter__()
 
-# memory = InMemorySaver()
+memory = InMemorySaver()
 
 zeno = create_react_agent(
     model=sonnet,
     tools=tools,
     state_schema=AgentState,
     prompt=prompt,
-    checkpointer=checkpointer,
+    checkpointer=memory,
 )
