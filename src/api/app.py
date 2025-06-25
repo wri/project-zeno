@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 
 from pydantic import BaseModel, Field
 
+from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 
@@ -109,7 +110,7 @@ def stream_chat(
     try:
         stream = zeno.stream(
             {
-                "messages": [("user", query)],
+                "messages": messages,
                 "user_persona": user_persona,
             },
             config=config,
@@ -118,14 +119,12 @@ def stream_chat(
         )
         for update in stream:
             node = next(iter(update.keys()))
-
-            for msg in update[node]["messages"]:
-                yield pack(
-                    {
-                        "node": node,
-                        "update": msg.to_json(),
-                    }
-                )
+            yield pack(
+                {
+                    "node": node,
+                    "update": dumps(update[node]),
+                }
+            )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
