@@ -1,3 +1,13 @@
+"""Investigator Evaluation Script
+
+This evaluation runs against datasets created by Alyssa/Aman and uploaded via upload_dataset.py.
+Results are published to LangFuse (either localhost or staging instance).
+See experiments/upload_dataset.py for how to add new test data.
+
+This evaluates high-level questions (e.g., deforestation in Amazon) with expert-verified answers.
+Unlike GADM evaluation, this uses LLM-based scoring to compare non-exact matches.
+"""
+
 import json
 from dataclasses import dataclass
 from typing import Optional
@@ -32,8 +42,15 @@ def parse_expected_output(data: dict) -> InvestigatorAnswer:
 
 
 def parse_output_trace(json_str: str) -> dict:
-    """
-    Parse the output trace to extract messages content.
+    """Parse the output trace to extract messages content.
+
+    Note: The Zeno agent dynamically decides which tools to use based on the question.
+    Trace data contains all intermediate steps in JSON format - we extract only
+    the relevant messages here. Use LangFuse UI to view full traces graphically.
+
+    For debugging: LLMs can help identify patterns in complex trace data if the
+    structure changes.
+
     Mimics: jq 'walk(if type == "object" then del(.artifact) else . end)' json_str |
             jq '{messages: .messages | map({type, content} + (if .tool_calls then {tool_calls: .tool_calls | map({name, args})} else {} end))}'
     """
@@ -69,7 +86,12 @@ def parse_output_trace(json_str: str) -> dict:
 def evaluate_answer(
     trace: dict, user_query: str, golden_answer: dict, chat_model
 ) -> EvaluationResult:
-    """Evaluate answer matches using structured output."""
+    """Evaluate answer matches using structured output.
+
+    Uses LLM evaluation for non-exact matches. Dataset is designed with disparate
+    answers to make it easier for LLMs to identify correct responses.
+    TODO: Consider adding partial scoring based on retrieval quality as discussed.
+    """
 
     # Check for empty trace (likely from error handling)
     if not trace.get("messages"):
@@ -125,6 +147,9 @@ chat_model = ChatAnthropic(
     thinking={"type": "enabled", "budget_tokens": 10000},
 )
 
+# This iterates through dataset items automatically like unit tests.
+# Run locally for development, but use staging for accurate latency/cost measurements.
+# Future: Integrate with CI/CD pipeline for automated testing on code changes.
 active_items = [item for item in dataset.items if item.status == "ACTIVE"]
 print(
     f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
@@ -151,4 +176,6 @@ for item in active_items:
     )
     langfuse.flush()
 
+    # LLM-based scoring with analysis helps understand evaluation reasoning
+    # Check LangFuse UI for detailed trace analysis of failures
     print(f"✓ {item.input} -> {score}")
