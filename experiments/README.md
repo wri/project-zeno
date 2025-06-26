@@ -37,13 +37,33 @@ View results in your LangFuse UI.
 
 ## Adding Test Data
 
-CSV format with examples (see `upload_dataset.py` for details).
+Start with an interactive session:
+
+```
+python -i experiments/upload_dataset.py
+```
+
+Then upload your test data:
+
+```
+# Create dataset in LangFuse
+create_langfuse_dataset("my_dataset_name")
+
+# For GADM location tests
+gadm_config = ColumnConfig(input_column="text", parser=parse_gadm_location)
+upload_csv("my_dataset_name", "path/to/gadm_test.csv", gadm_config)
+
+# For investigator Q&A tests
+qa_config = ColumnConfig(input_column="Question", parser=parse_tree_cover_qa)
+upload_csv("my_dataset_name", "path/to/qa_test.csv", qa_config)
+```
 
 Built-in parsers:
-- `parse_gadm_location` - For location datasets
-- `parse_tree_cover_qa` - For Q&A datasets
 
-Template for custom parsers available in `upload_dataset.py`.
+ • `parse_gadm_location` - For location datasets
+ • `parse_tree_cover_qa` - For Q&A datasets
+
+See parser template in `upload_dataset.py` for creating custom parsers.
 
 ## Running on Different Environments
 
