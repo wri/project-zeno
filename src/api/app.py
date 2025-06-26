@@ -4,21 +4,25 @@ import cachetools
 import requests
 from typing import Optional, Dict
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file at the very beginning
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Header, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from pydantic import BaseModel, Field
 
+from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
-from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-
-from src.agents.agents import zeno as graph, checkpointer
+from src.agents.agents import zeno
 from src.api.data_models import UserModel, UserOrm, ThreadModel, ThreadOrm
 
 
@@ -34,11 +38,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-langfuse = Langfuse(
-    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-    host=os.getenv("LANGFUSE_HOST"),
 )
 
 langfuse_handler = CallbackHandler()
@@ -66,7 +65,7 @@ def replay_chat(thread_id):
     }
     try:
 
-        result = graph.invoke(None, config=config, subgraphs=False)
+        result = zeno.invoke(None, config=config, subgraphs=False)
 
         for node, node_data in result.items():
 
@@ -109,7 +108,7 @@ def stream_chat(
     messages = [HumanMessage(content=query)]
 
     try:
-        stream = graph.stream(
+        stream = zeno.stream(
             {
                 "messages": messages,
                 "user_persona": user_persona,
@@ -120,14 +119,12 @@ def stream_chat(
         )
         for update in stream:
             node = next(iter(update.keys()))
-
-            for msg in update[node]["messages"]:
-                yield pack(
-                    {
-                        "node": node,
-                        "update": msg.to_json(),
-                    }
-                )
+            yield pack(
+                {
+                    "node": node,
+                    "update": dumps(update[node]),
+                }
+            )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -201,28 +198,29 @@ def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
+async def chat(request: ChatRequest): # user: UserModel = Depends(fetch_user)
     """
     Chat endpoint for Zeno.
 
     Args:
         request: The chat request
-        user: The user, authenticated against the WRI API (injected via FastAPI dependency)
+        # user: The user, authenticated against the WRI API (injected via FastAPI dependency)
 
     Returns:
         The streamed response
     """
-    with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
-        )
-        if not thread:
-            thread = ThreadOrm(
-                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
-            )
-            db.add(thread)
-            db.commit()
-            db.refresh(thread)
+    # # The following database logic is commented out for testing without auth
+    # with SessionLocal() as db:
+    #     thread = (
+    #         db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
+    #     )
+    #     if not thread:
+    #         thread = ThreadOrm(
+    #             id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+    #         )
+    #         db.add(thread)
+    #         db.commit()
+    #         db.refresh(thread)
 
     try:
         return StreamingResponse(
