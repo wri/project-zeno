@@ -71,8 +71,6 @@ See parser template in `upload_dataset.py` for creating custom parsers.
 - **Local**: `LANGFUSE_HOST=http://localhost:3000` (for development/debugging)
 - **Staging**: Update host URL to staging instance (recommended for accurate performance metrics, latency measurements, and cost tracking)
 
-Note: Always run final evaluations on staging before deployment to get realistic performance data.
-
 ## Understanding Results
 
 - **Scores**: View in LangFuse UI - 1.0 means perfect match, 0.0 means complete failure
