@@ -8,7 +8,25 @@ This is an evaluation framework for the Zeno agent that uses LangFuse to track a
 
 ### Prerequisites
 
-Set the following environment variables:
+For local development, spin up a LangFuse server:
+```bash
+docker compose up langfuse-server
+```
+
+This will start LangFuse at `http://localhost:3000`. 
+
+**Note**: There are no default API keys. You have two options:
+
+1. **Manual setup** (easier for getting started):
+   - Navigate to `http://localhost:3000` and create an account
+   - Create a new project
+   - Generate API keys from the project settings
+
+2. **Headless initialization** (better for automation):
+   - Follow the guide at https://langfuse.com/self-hosting/headless-initialization
+   - This allows you to preconfigure projects and API keys
+
+For all environments, set the following environment variables:
 - `LANGFUSE_HOST` - Your LangFuse instance URL
 - `LANGFUSE_SECRET_KEY` - LangFuse secret key
 - `LANGFUSE_PUBLIC_KEY` - LangFuse public key
