@@ -72,7 +72,7 @@ def generate_insights(
     logger.info(f"GENERATE-INSIGHTS-TOOL")
 
     raw_data = state.get("raw_data")
-    if not raw_data or not isinstance(raw_data, list) or not raw_data:
+    if not raw_data: # raw_data is None or empty
         logger.warning("No raw data found to generate insights from.")
         return Command(
             update={
