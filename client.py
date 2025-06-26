@@ -132,17 +132,18 @@ def main():
     print("Streaming response:")
     
     try:
-        for update in client.chat(query, user_persona=args.persona, thread_id=args.thread_id, metadata=metadata, session_id=session_id, user_id=user_id, tags=tags):
-            node = update['node']
-            content = update['update']['kwargs']['content']
-            
-            print(f"Node: {node}")
-            if isinstance(content, list):
-                for msg in content:
-                    print(f"Content: {msg}")
-            else:
-                print(f"Content: {content}")
-            print("---")
+        for stream in client.chat(query, user_persona=args.persona, thread_id=args.thread_id, metadata=metadata, session_id=session_id, user_id=user_id, tags=tags):
+            node = stream['node']
+            update = json.loads(stream['update'])
+            for msg in update['messages']:
+                content = msg['kwargs']['content']
+                print(f"Node: {node}")
+                if isinstance(content, list):
+                    for msg in content:
+                        print(f"Content: {msg}")
+                else:
+                    print(f"Content: {content}")
+                print("---")
     except Exception as e:
         print(f"Error: {e}")
 

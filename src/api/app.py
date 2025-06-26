@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 
 from pydantic import BaseModel, Field
 
+from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 
@@ -118,14 +119,12 @@ def stream_chat(
         )
         for update in stream:
             node = next(iter(update.keys()))
-
-            for msg in update[node]["messages"]:
-                yield pack(
-                    {
-                        "node": node,
-                        "update": msg.to_json(),
-                    }
-                )
+            yield pack(
+                {
+                    "node": node,
+                    "update": dumps(update[node]),
+                }
+            )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -199,7 +198,7 @@ def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
+async def chat(request: ChatRequest): # user: UserModel = Depends(fetch_user)
     """
     Chat endpoint for Zeno.
 
@@ -210,18 +209,18 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
     Returns:
         The streamed response
     """
-    # The following database logic is commented out for testing without auth
-    with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
-        )
-        if not thread:
-            thread = ThreadOrm(
-                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
-            )
-            db.add(thread)
-            db.commit()
-            db.refresh(thread)
+    # # The following database logic is commented out for testing without auth
+    # with SessionLocal() as db:
+    #     thread = (
+    #         db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
+    #     )
+    #     if not thread:
+    #         thread = ThreadOrm(
+    #             id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+    #         )
+    #         db.add(thread)
+    #         db.commit()
+    #         db.refresh(thread)
 
     try:
         return StreamingResponse(
