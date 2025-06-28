@@ -1,4 +1,8 @@
+import os
 from typing import Annotated, Literal
+
+from dotenv import load_dotenv
+load_dotenv()
 
 import duckdb
 from langchain_anthropic import ChatAnthropic
@@ -12,37 +16,22 @@ from langgraph.prebuilt import create_react_agent
 from pydantic import BaseModel, Field
 
 from src.utils.logging_config import get_logger
+from src.tools.utils.db_connection import get_db_connection
 
 logger = get_logger(__name__)
 
 # Initialize language models with zero temperature for deterministic outputs
 CLAUDE_MODEL = ChatAnthropic(model="claude-3-5-sonnet-latest", temperature=0) 
 GPT_MODEL = ChatOpenAI(model="gpt-4o", temperature=0)
-DATABASE_PATH = "data/geocode/basemaps.duckdb"
-TABLE_NAME = "gadm_plus"
 RESULT_LIMIT = 10
 
-
-def create_database_connection(database_path: str):
-    """Create and configure a DuckDB connection with necessary extensions.
-    
-    Args:
-        database_path: Path to the DuckDB database file
-        
-    Returns:
-        Configured DuckDB connection
-    """
-    logger.debug(f"Connecting to DuckDB at {database_path}")
-    connection = duckdb.connect(database_path)
-    connection.sql("INSTALL spatial;")
-    connection.sql("INSTALL httpfs;")
-    connection.load_extension("spatial")
-    connection.load_extension("httpfs")
-    logger.debug("DuckDB connection successful.")
-    return connection
+GADM_TABLE = "s3://zeno-agent-data/geocode/exports/gadm.parquet"
+KBA_TABLE = "s3://zeno-agent-data/geocode/exports/kba.parquet"
+LANDMARK_TABLE = "s3://zeno-agent-data/geocode/exports/landmark.parquet"
+WDPA_TABLE = "s3://zeno-agent-data/geocode/exports/wdpa.parquet"
 
 
-def query_aoi_database(connection, table_name: str, place_name: str, result_limit: int = 10):
+def query_aoi_database(connection: duckdb.DuckDBPyConnection, place_name: str, result_limit: int = 10):
     """Query the Overture database for location information.
     
     Args:
@@ -57,12 +46,13 @@ def query_aoi_database(connection, table_name: str, place_name: str, result_limi
         SELECT
             *,
             jaro_winkler_similarity(LOWER(name), LOWER('{place_name}')) AS similarity_score
-        FROM {table_name}
+        FROM gadm_plus_search
         ORDER BY similarity_score DESC
         LIMIT {result_limit}
     """
     logger.debug(f"Executing AOI query: {sql_query}")
     query_results = connection.sql(sql_query)
+    logger.debug(f"AOI query results: {query_results.df()}")
     return query_results.df()
 
 
@@ -80,13 +70,13 @@ def query_subregion_database(connection, subregion_name: str, source: str, src_i
     """
     match subregion_name:
         case "country" | "state" | "district" | "municipality" | "locality" | "neighbourhood":
-            table_name = "gadm"
+            table_name = GADM_TABLE
         case "kba":
-            table_name = "kba"
+            table_name = KBA_TABLE
         case "wdpa":
-            table_name = "wdpa"
+            table_name = WDPA_TABLE
         case "landmark":
-            table_name = "landmark"
+            table_name = LANDMARK_TABLE
         case _:
             logger.error(f"Invalid subregion: {subregion_name}")
             raise ValueError(f"Subregion: {subregion_name} does not match to any table in basemaps database.")
@@ -94,11 +84,11 @@ def query_subregion_database(connection, subregion_name: str, source: str, src_i
     sql_query = f"""
     WITH aoi AS (
         SELECT geometry AS geom
-        FROM {source}
+        FROM 's3://zeno-agent-data/geocode/exports/{source}.parquet'
         WHERE {source}_id = {src_id}
     )
     SELECT t.*
-    FROM {table_name} AS t, aoi
+    FROM '{table_name}' AS t, aoi
     WHERE ST_Within(t.geometry, aoi.geom);
     """
     logger.debug(f"Executing subregion query: {sql_query}")
@@ -108,7 +98,9 @@ def query_subregion_database(connection, subregion_name: str, source: str, src_i
 
 class AOIIndex(BaseModel):
     """Model for storing the index of the selected location."""
-    id: int = Field(description="ID of the location that best matches the user query.")
+    id: int = Field(description="`id` of the location that best matches the user query.")
+    source: str = Field(description="`source` of the selected location.")
+    src_id: int = Field(description="`src_id` of the selected location.")
 
 
 # Prompt template for selecting the best location match based on user query
@@ -152,30 +144,31 @@ def pick_aoi(
     """
     logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
     # Query the database for place & get top matches using jaro winkler similarity
-    db_connection = create_database_connection(DATABASE_PATH)
-    results = query_aoi_database(db_connection, TABLE_NAME, place, RESULT_LIMIT)
+    db_connection = get_db_connection()
+    results = query_aoi_database(db_connection, place, RESULT_LIMIT)
 
-    candidate_aois = results[["id", "name", "subtype", "source"]].to_csv(index=False)
+    candidate_aois = results.to_csv(index=False) # results: id, name, subtype, source, src_id
 
     # Select the best AOI based on user query
-    selected_aoi_id = AOI_SELECTION_CHAIN.invoke({
+    selected_aoi = AOI_SELECTION_CHAIN.invoke({
         "candidate_locations": candidate_aois,
         "user_query": question
-    }).id
+    })
+    selected_aoi_id = selected_aoi.id
+    source = selected_aoi.source
+    src_id = selected_aoi.src_id
 
-    # Get source, src_id from the selected AOI
-    source, src_id = db_connection.sql(f"SELECT source, src_id FROM {TABLE_NAME} WHERE id = {selected_aoi_id}").df().iloc[0].to_list()
-    logger.debug(f"Selected AOI source: '{source}', src_id: {src_id}")
+    logger.debug(f"Selected AOI id: {selected_aoi_id}, source: '{source}', src_id: {src_id}")
 
     match source:
         case "gadm":
-            selected_aoi = db_connection.sql(f"SELECT * FROM gadm WHERE gadm_id = {src_id}").df().iloc[0].to_dict()
+            selected_aoi = db_connection.sql(f"SELECT * FROM '{GADM_TABLE}' WHERE gadm_id = {src_id}").df().iloc[0].to_dict()
         case "kba":
-            selected_aoi = db_connection.sql(f"SELECT * FROM kba WHERE kba_id = {src_id}").df().iloc[0].to_dict()
+            selected_aoi = db_connection.sql(f"SELECT * FROM '{KBA_TABLE}' WHERE kba_id = {src_id}").df().iloc[0].to_dict()
         case "landmark":
-            selected_aoi = db_connection.sql(f"SELECT * FROM landmark WHERE landmark_id = {src_id}").df().iloc[0].to_dict()
+            selected_aoi = db_connection.sql(f"SELECT * FROM '{LANDMARK_TABLE}' WHERE landmark_id = {src_id}").df().iloc[0].to_dict()
         case "wdpa":
-            selected_aoi = db_connection.sql(f"SELECT * FROM wdpa WHERE wdpa_id = {src_id}").df().iloc[0].to_dict()
+            selected_aoi = db_connection.sql(f"SELECT * FROM '{WDPA_TABLE}' WHERE wdpa_id = {src_id}").df().iloc[0].to_dict()
         case _:
             logger.error(f"Invalid source: {source}")
             raise ValueError(f"Source: {source} does not match to any table in basemaps database.")
@@ -185,8 +178,6 @@ def pick_aoi(
         subregion_aois = query_subregion_database(db_connection, subregion, source, src_id)
         logger.info(f"Found {len(subregion_aois)} subregion AOIs")
     
-    db_connection.close()
-    logger.debug("Database connection closed.")
 
     tool_message = f"""
     Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}
@@ -210,6 +201,7 @@ def pick_aoi(
             ],
         },
     )
+
 
 if __name__ == "__main__":
     agent = create_react_agent(
