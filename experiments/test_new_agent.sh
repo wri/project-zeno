@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Default values for first query
-QUERY="Find tree cover loss by forest fires in Odisha, India between 2020-2022."
+QUERY="Find disturbance alerts by drivers in Koraput district in 2024."
+# QUERY="Find tree cover loss in Koraput between 2015-2020 driven by fire"
 PERSONA="researcher"
 THREAD_ID="test-new-agent-2"
 URL="http://localhost:8000"

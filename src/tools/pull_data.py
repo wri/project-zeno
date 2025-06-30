@@ -1,174 +1,58 @@
-import requests
-import io
-import os
-import csv
-from typing import List, Optional, Annotated, Dict
-from pydantic import BaseModel, Field, model_validator
+from typing import Dict, Any, Annotated
 
-from langchain_anthropic import ChatAnthropic
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.messages import ToolMessage
 from langchain_core.tools.base import InjectedToolCallId
+from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
-from langgraph.prebuilt import InjectedState, create_react_agent
 
 from src.utils.logging_config import get_logger
+from src.tools.data_handlers.base import DataPullResult, dataset_names
+from src.tools.data_handlers.dist_alerts_handler import DistAlertHandler
+from src.tools.data_handlers.gfw_sql_handler import GFWSQLHandler
 
 logger = get_logger(__name__)
 
-GFW_DATA_API_BASE_URL = os.getenv(
-    "GFW_DATA_API_BASE_URL", "https://www.globalforestwatch.org/api/data"
-)
-
-# GADM LEVELS
-gadm_levels = {
-    "country": {
-        "col_name": "GID_0",
-        "name": "iso" 
-    },
-    "state-province": {
-        "col_name": "GID_1",
-        "name": "adm1"
-    },
-    "district-county": {
-        "col_name": "GID_2",
-        "name": "adm2"
-    },
-    "municipality": {
-        "col_name": "GID_3",
-        "name": "adm3"
-    },
-    "locality": {
-        "col_name": "GID_4",
-        "name": "adm4"
-    },
-    "neighbourhood": {
-        "col_name": "GID_5",
-        "name": "adm5"
-    }
-}
-
-# DATASET NAME MAPPINGS
-dataset_names = {
-    "Tree cover loss": "tcl",
-    "Tree cover loss due to fires": "tcl",
-    "Tree Cover": "tcc",
-    "VIIRS alerts": "viirs",
-    "Greenhouse Gas Emissions": "gge",
-}
-
-# LLM
-sonnet = ChatAnthropic(model="claude-3-7-sonnet-latest")
-
-class _FieldSelection(BaseModel):
-    name: str
-    description: str
-    data_type: str
-
-    def __repr__(self):
-        return f"Field: {self.name} (description: {self.description}, type: {self.data_type})"
-
-class FieldSelection(BaseModel):
-    fields: List[_FieldSelection]
-
-    def as_csv(self):
-
-        # Create a string buffer to hold CSV data
-        csv_buffer = io.StringIO()
-        writer = csv.DictWriter(
-            csv_buffer, fieldnames=["name", "description", "data_type"]
-        )
-        writer.writeheader()
-        writer.writerows([f.model_dump() for f in self.fields])
-
-        # Get the CSV string
-        csv_output = csv_buffer.getvalue()
-        csv_buffer.close()
-
-        return csv_output
-
-def fetch_table_fields(table_slug: str) -> FieldSelection:
-    logger.debug(f"Fetching dataset info for table: {table_slug}")
-    dataset_url = f"{GFW_DATA_API_BASE_URL}/dataset/{table_slug}"
-    dataset = requests.get(
-        dataset_url,
-        headers={"x-api-key": os.environ["GFW_DATA_API_KEY"]},
-    ).json()
-    # TODO: assert the query succeeded
-    latest_version = sorted(dataset["data"]["versions"])[-1]
-    logger.debug(f"Using latest dataset version: {latest_version}")
-
-    # This contains an asset URI with tiling endpoint for the precomputed raster (.pbf)!
-    assets_url = f"{GFW_DATA_API_BASE_URL}/assets?dataset={table_slug}&version={latest_version}"
-    table_metadata = requests.get(
-        assets_url,
-        headers={"x-api-key": os.environ["GFW_DATA_API_KEY"]},
-    ).json()
-    # TODO: assert the query succeeded
-
-    table_metadata = table_metadata["data"][0]["metadata"]
-    fields = [
-        {
-            "name": f["name"],
-            "description": (
-                f["description"] if f["description"] else " ".join(f["name"].split("_"))
-            ),
-            "data_type": f["data_type"],
-        }
-        for f in table_metadata["fields"]
-    ]
-    logger.debug(f"Found {len(fields)} fields for table '{table_slug}'")
-    return FieldSelection(fields=fields)
-
-class GadmId(BaseModel):
-    gadm_id: str
-    gadm_level: Optional[int] = -1
-    iso: Optional[str] = ""
-    adm1: Optional[int] = -1
-    adm2: Optional[int] = -1
-
-    # TODO: add a validator to ensure that the GADM ID is well-formed
-    # and that the iso/adm1/adm2 levels correspond to the GADM ID
-    # (if supplied)
-
-    @model_validator(mode="after")
-    def parse_id(self):
-
-        gadm_id = self.gadm_id
-
-        if "_" in gadm_id:
-            [gadm_id, _] = gadm_id.split("_")
-
-        gadm_id = gadm_id.split(".")
-        if len(gadm_id) == 1:
-            [self.iso] = gadm_id
-            self.gadm_level = 0
-
-        if len(gadm_id) == 2:
-            self.iso, self.adm1 = gadm_id[0], int(gadm_id[1])
-            self.gadm_level = 1
-
-        if len(gadm_id) > 2:
-            self.iso, self.adm1, self.adm2 = (
-                gadm_id[0],
-                int(gadm_id[1]),
-                int(gadm_id[2]),
+class DataPullOrchestrator:
+    """Orchestrates data pulling using appropriate handlers"""
+    
+    def __init__(self):
+        self.handlers = [
+            DistAlertHandler(),
+            GFWSQLHandler(),
+        ]
+    
+    def pull_data(self, query: str, aoi_name: str, dataset: Any, aoi: Dict, 
+                  subregion: str, subtype: str) -> DataPullResult:
+        """Pull data using the appropriate handler"""
+        if dataset.source != "GFW":
+            return DataPullResult(
+                success=False,
+                data={'data': []},
+                message=f"Cannot pull data from {dataset.source} yet, will add support soon."
             )
-            self.gadm_level = 2
-        return self
+        
+        table_name = dataset_names.get(dataset.data_layer)
+        if not table_name:
+            return DataPullResult(
+                success=False,
+                data={'data': []},
+                message=f"Unknown dataset layer: {dataset.data_layer}"
+            )
+        
+        # Find appropriate handler
+        for handler in self.handlers:
+            if handler.can_handle(dataset, table_name):
+                return handler.pull_data(query, aoi_name, dataset, aoi, subregion, subtype)
+        
+        return DataPullResult(
+            success=False,
+            data={'data': []},
+            message=f"No handler found for dataset: {dataset.data_layer}"
+        )
 
-    def __repr__(self):
-        return f"GADM ID: {self.gadm_id} (level: {self.gadm_level}). ISO: {self.iso}, ADM1: {self.adm1}, ADM2: {self.adm2}"
-
-    def as_sql_filter(self):
-        if self.gadm_level == 0:
-            return f"(iso = '{self.iso}')"
-        if self.gadm_level == 1:
-            return f"(iso = '{self.iso}' AND adm1 = {self.adm1})"
-        if self.gadm_level == 2:
-            return f"(iso = '{self.iso}' AND adm1 = {self.adm1} AND adm2 = {self.adm2})"
-        return ""
+# Global orchestrator instance
+data_pull_orchestrator = DataPullOrchestrator()
 
 @tool("pull-data")
 def pull_data(query: str, aoi_name: str, dataset_name: str, tool_call_id: Annotated[str, InjectedToolCallId] = None, state: Annotated[Dict, InjectedState] = None) -> Command:
@@ -188,117 +72,33 @@ def pull_data(query: str, aoi_name: str, dataset_name: str, tool_call_id: Annota
     subtype = state["subtype"]
     dataset = state["dataset"]
 
-    if dataset.source == "GFW":
-        try:
-            table_name = dataset_names[dataset.data_layer]
-            match subtype:
-                case "country" | "state-province" | "district-county" | "municipality" | "locality" | "neighbourhood":
-                    gadm_level = gadm_levels[subtype]
-                    table_slug = f"gadm__{table_name}__{gadm_level['name']}_change"
-                case "kba":
-                    table_slug = f"kba__{table_name}_change"
-                case "wdpa":
-                    table_slug = f"wdpa_protected_areas__{table_name}_change"
-                case "landmark":
-                    table_slug = f"landmark__{table_name}_change"
-                case _:
-                    logger.error(f"Unsupported subtype: {subtype}")
-                    raise ValueError(f"Subtype: {subtype} does not match to any table in basemaps database.")
-            
-            logger.debug(f"Determined table slug: {table_slug}")
-            table_fields = fetch_table_fields(table_slug)
-            FIELD_SELECTION_PROMPT = ChatPromptTemplate.from_messages([
-                ("user",
-                """
-    You are Zeno, a helpful AI assistant helping users query environmental conservation and biodiversity data from the Global Forest Watch data API. \n
-    Select fields from the list of fields provided, based on the user's question and a csv defining the available fields to query. Be greedy with picking the fields that will help answer the user query & provide insights. \n
-    Be mindful of fields that can help analyse data around specific date ranges, thresholds, etc. \n
-    User's question: {user_query} \n
-    CSV with available fields: {fields} \n
-    Return rows from the csv as the answer, where each row is formatted as 'name,data_type', and each row is separated by a newline \n character. Do not include any additional text
-        """)
-            ])
-
-            logger.debug(f"Invoking field selection chain...")
-            field_selection_chain = FIELD_SELECTION_PROMPT | sonnet.with_structured_output(FieldSelection)
-            fields_to_query = field_selection_chain.invoke({
-                "user_query": query,
-                "fields": table_fields.as_csv()
-            })
-
-            logger.debug(f"Selected fields to query: {fields_to_query.fields}")
-
-            SQL_QUERY_PROMPT = ChatPromptTemplate.from_messages([
-                ("user", """
-                You are Zeno, a helpful AI assistant helping users query environmental conservation and biodiversity data from the Global Forest Watch data API. \n
-                You will construct a SQL query to retrieve the requested data. You will be provided with the user's question and a list of fields to query, as pairs of field name and data type and a template for the SQL query with some information pre-filled. Do your best not to alter the existing elements of this template. \n
-
-                User's question: {user_query} \n
-                Fields to query: \n{fields_to_query} \n
-                Template: \n
-
-                SELECT {gadm_level}, {{query_fields}} \n
-                FROM data \n
-                WHERE  ({location_filter}) AND {{filtering_fields}} \n
-                GROUP BY {{grouping_field}} \n
-                ORDER BY {{ordering_field}} \n
-                \n
-
-                Replace the placeholder {{query_fields}} with the fields from the list of the fields provided with any additional relevant SQL operation, appropriate for the field's data type, such as SUM() for numeric fields. \n
-                Replace the placeholder {{filtering_fields}} with one or more filtering conditions, such as 'umd_tree_cover_density_2000__threshold' > 30, separated by AND. \n
-                Replace the placeholder {{grouping_field}} with the field to group the data by, if appropriate. Otherwise you may choose to omit this portion of the query. \n
-                Replace the placeholder {{ordering_field}} with the field to order the data by, if appropriate. Otherwise you may choose to omit this portion of the query. \n
-                Make sure to enclose each of the query fields with double quotes (") in order to ensure that the SQL query is properly formatted. \n
-                Return ONLY the raw SQL statement with no formatting, code blocks, or additional text. The output should be a plain SQL query that can be executed directly.
-                """)
-            ])   
-
-            logger.debug(f"Invoking SQL query generation chain...")
-            sql_query_chain = SQL_QUERY_PROMPT | sonnet
-            location_filter = GadmId(gadm_id=aoi[gadm_level['col_name']]).as_sql_filter()
-            sql_query = sql_query_chain.invoke({
-                "user_query": query,
-                "fields_to_query": fields_to_query.as_csv(),
-                "gadm_level": gadm_level['name'],
-                "location_filter": location_filter,
-            })
-
-            logger.debug(f"Generated SQL query: {sql_query.content}")
-
-            logger.debug(f"Executing query against GFW Data API...")
-            raw_data = requests.post(
-                f"{GFW_DATA_API_BASE_URL}/dataset/{table_slug}/latest/query/json",
-                headers={"x-api-key": os.environ["GFW_DATA_API_KEY"]},
-                json={"sql": sql_query.content},
-            ).json()
-
-            data_points = len(raw_data.get('data', []))
-            logger.debug(f"Successfully pulled {data_points} data points.")
-            logger.debug(f"Raw data: {raw_data}")
-            tool_message = ToolMessage(
-                content=f"Successfully pulled data for {aoi_name} from {dataset_name}. Retrieved {data_points} data points to analyze.",
-                tool_call_id=tool_call_id
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to pull data from GFW: {e}", exc_info=True)
-            raw_data = []
-            tool_message = ToolMessage(
-                content=f"Failed to pull data from GFW: {e}",
-                tool_call_id=tool_call_id
-            )
-
+    # Use orchestrator to pull data
+    result = data_pull_orchestrator.pull_data(
+        query=query,
+        aoi_name=aoi_name,
+        dataset=dataset,
+        aoi=aoi,
+        subregion=subregion,
+        subtype=subtype
+    )
+    
+    # Create tool message
+    tool_message = ToolMessage(
+        content=result.message,
+        tool_call_id=tool_call_id,
+    )
+    
+    # Determine raw data format for backward compatibility
+    if result.success and isinstance(result.data, dict) and 'data' in result.data:
+        raw_data = result.data["data"]
+    elif result.success:
+        raw_data = result.data
     else:
-        logger.warning(f"Data source '{dataset.source}' is not supported yet.")
-        raw_data = {'data': []}
-        tool_message = ToolMessage(
-            content=f"Cannot pull data from {dataset.source} yet, will add support soon.",
-            tool_call_id=tool_call_id
-        )
+        raw_data = []
 
     return Command(
         update={
-            "raw_data": raw_data["data"] if raw_data else [],
+            "raw_data": raw_data,
             "messages": [tool_message],
         },
     )
