@@ -17,6 +17,13 @@ Language Interface for Maps & WRI/LCL data APIs.
 5. Create your environment file: `cp .env.example .env`. Then, open `.env` and update the placeholder values with your actual credentials and configurations.
 6. Obtain the `data/` directory contents: This step requires fetching data from the team (e.g., from a shared drive or internal source) and placing it into the `data/` folder in your local project.
 
+For step 6, use the following command to download the required files into
+the local `data/` directory
+
+```bash
+aws s3 sync s3://zeno-static-data/ data/
+```
+
 
 ## Start the agent API
 

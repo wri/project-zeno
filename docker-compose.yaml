@@ -39,7 +39,7 @@ services:
       - STREAMLIT_URL=${STREAMLIT_URL:-http://localhost:8501}
 
   langfuse-server:
-    image: langfuse/langfuse:2
+    image: langfuse/langfuse:3
     depends_on:
       migrate:
         condition: service_completed_successfully
