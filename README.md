@@ -21,7 +21,7 @@ For step 6, use the following command to download the required files into
 the local `data/` directory
 
 ```bash
-aws s3 sync s3://zeno-static-data/unified-agent-data/ data/
+aws s3 sync s3://zeno-static-data/ data/
 ```
 
 
