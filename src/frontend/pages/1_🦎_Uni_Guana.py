@@ -5,7 +5,7 @@ from streamlit_folium import folium_static
 import folium
 import json
 import uuid
-from app import API_BASE_URL
+from app import API_BASE_URL, STREAMLIT_URL
 
 
 if "session_id" not in st.session_state:
@@ -14,7 +14,6 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "token" not in st.session_state:
     st.session_state["token"] = None
-
 
 # Sidebar content
 with st.sidebar:
@@ -38,7 +37,7 @@ with st.sidebar:
         st.button(
             "Login with Global Forest Watch",
             on_click=lambda: st.markdown(
-                '<meta http-equiv="refresh" content="0;url=https://api.resourcewatch.org/auth?callbackUrl=http://localhost:8501&token=true">',
+                '<meta http-equiv="refresh" content="0;url=https://api.resourcewatch.org/auth?callbackUrl={STREAMLIT_URL}&token=true">',
                 unsafe_allow_html=True,
             ),
         )
