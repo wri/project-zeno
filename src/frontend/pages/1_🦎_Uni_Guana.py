@@ -37,7 +37,7 @@ with st.sidebar:
         st.button(
             "Login with Global Forest Watch",
             on_click=lambda: st.markdown(
-                '<meta http-equiv="refresh" content="0;url=https://api.resourcewatch.org/auth?callbackUrl={STREAMLIT_URL}&token=true">',
+                f'<meta http-equiv="refresh" content="0;url=https://api.resourcewatch.org/auth?callbackUrl={STREAMLIT_URL}&token=true">',
                 unsafe_allow_html=True,
             ),
         )
