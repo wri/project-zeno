@@ -29,7 +29,7 @@ class DataPullOrchestrator:
             return DataPullResult(
                 success=False,
                 data={'data': []},
-                message=f"Cannot pull data from {dataset.source} yet, will add support soon."
+                message=f"Dataset from {dataset.source} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question."
             )
         
         table_name = dataset_names.get(dataset.data_layer)
@@ -37,7 +37,7 @@ class DataPullOrchestrator:
             return DataPullResult(
                 success=False,
                 data={'data': []},
-                message=f"Unknown dataset layer: {dataset.data_layer}"
+                message=f"Dataset {dataset.data_layer} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question."
             )
         
         # Find appropriate handler
@@ -48,7 +48,7 @@ class DataPullOrchestrator:
         return DataPullResult(
             success=False,
             data={'data': []},
-            message=f"No handler found for dataset: {dataset.data_layer}"
+            message=f"No handler found for dataset: {dataset.data_layer}. Please ask for data from GFW datasets."
         )
 
 # Global orchestrator instance
@@ -87,6 +87,8 @@ def pull_data(query: str, aoi_name: str, dataset_name: str, tool_call_id: Annota
         content=result.message,
         tool_call_id=tool_call_id,
     )
+
+    logger.debug(f"Pull data tool message: {tool_message}")
     
     # Determine raw data format for backward compatibility
     if result.success and isinstance(result.data, dict) and 'data' in result.data:

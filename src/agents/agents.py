@@ -24,6 +24,8 @@ Tools:
 - generate-insights: Analyzes raw data in the context of the user's query to generate a structured insight.
 
 End with a 1-line summary of the insights you generated.
+
+Note: If the dataset is not available, politely inform the user & STOP - don't do any more steps further.
 """
 
 sonnet = ChatAnthropic(model="claude-3-7-sonnet-latest", temperature=0)

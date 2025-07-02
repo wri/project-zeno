@@ -5,8 +5,13 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import List, Optional
 
-from experiments.eval_utils import get_langfuse, get_run_name, run_query
+from langfuse.langchain import CallbackHandler
 
+from experiments.eval_utils import get_langfuse, get_run_name, run_query
+from src.tools.data_handlers.base import gadm_levels
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # Data structures
 @dataclass
@@ -29,7 +34,11 @@ class GadmLocation:
 
 # Parsing utilities
 def normalize_gadm_id(gadm_id: str) -> str:
-    gadm_id = gadm_id.replace("-", ".").lower()
+    gadm_id = (gadm_id
+                .split("_")[0]
+                .replace("-", ".")
+                .lower()
+                )
     return gadm_id
 
 
@@ -98,10 +107,27 @@ def score_gadm(actual, expected):
     return matches / max(len(actual), len(expected))
 
 
+def extract_gadm_from_state(state):
+    if hasattr(state, "values") and isinstance(state.values, dict):
+        aoi_name = state.values.get("aoi_name")
+        aoi = state.values.get("aoi")
+        
+        if aoi is not None and aoi_name:
+            subtype = state.values.get("subtype")
+            gadm_level = gadm_levels.get(subtype, {})
+            aoi_gadm_id = aoi.get(gadm_level.get('col_name', ''))
+            
+            if aoi_gadm_id:
+                return [GadmLocation(name=aoi_name, gadm_id=aoi_gadm_id)]
+        
+        return []
+    
+    return []
+
 # Main execution
 langfuse = get_langfuse()
 run_name = get_run_name()
-dataset = langfuse.get_dataset("gadm_location")
+dataset = langfuse.get_dataset("s2_gadm_0_1")
 
 print(f"Evaluating {len(dataset.items)} items...")
 
@@ -109,21 +135,57 @@ for item in dataset.items:
     if item.status != "ACTIVE":
         continue
 
-    # Execute
-    handler = item.get_langchain_handler(run_name=run_name)
-    response = run_query(item.input, handler, "researcher", item.id)
+    handler = CallbackHandler()
 
-    # Score
-    actual = parse_gadm_from_json(response)
-    score = score_gadm(actual, item.expected_output)
+    with item.run(
+        run_name=run_name,
+    ) as span:
+        # Execute
+        state = run_query(
+            item.input, 
+            handler, 
+            "researcher", 
+            item.id
+        )
+        
+        # Score
+        actual = extract_gadm_from_state(state)
+        score = score_gadm(actual, item.expected_output)
 
-    # Upload
-    langfuse.score(
-        trace_id=handler.get_trace_id(),
-        name="gadm_matches_score",
-        value=score,
-        comment=f"Expected: {item.expected_output}\nActual: {actual}",
-    )
-    langfuse.flush()
+        # Upload
+        span.score_trace(
+            name="gadm_matches_score",
+            value=score,
+            comment=f"Expected: {item.expected_output}\nActual: {actual}",
+        )
+        
+        # Log results
+        logger.debug(f"""
+        Query: {item.input}
+        Expected: {item.expected_output}
+        Actual: {actual}
+        Score: {score}
+        """)
+        logger.debug("--------------------------------")
+
+
+
+    # # Execute
+    # handler = item.get_langchain_handler(run_name=run_name)
+    # response = run_query(item.input, handler, "researcher", item.id)
+
+    # # Score
+    # # actual = parse_gadm_from_json(response)
+    # actual = extract_gadm_from_state(response)
+    # score = score_gadm(actual, item.expected_output)
+
+    # # Upload
+    # langfuse.score(
+    #     trace_id=handler.get_trace_id(),
+    #     name="gadm_matches_score",
+    #     value=score,
+    #     comment=f"Expected: {item.expected_output}\nActual: {actual}",
+    # )
+    # langfuse.flush()
 
     print(f"✓ {item.input} -> {score}")
