@@ -1,30 +1,24 @@
-import os
 import json
+import os
+from typing import Dict, Optional
+
 import cachetools
 import requests
-from typing import Optional, Dict
-
 from dotenv import load_dotenv
-
-# Load environment variables from .env file at the very beginning
-load_dotenv()
-
-from fastapi import FastAPI, HTTPException, Header, Depends, status
+from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-
-from pydantic import BaseModel, Field
-
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
-
+from pydantic import BaseModel, Field
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.agents.agents import zeno
-from src.api.data_models import UserModel, UserOrm, ThreadModel, ThreadOrm
+from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
 
+load_dotenv()
 
 app = FastAPI(
     title="Zeno API",
@@ -64,11 +58,9 @@ def replay_chat(thread_id):
         }
     }
     try:
-
         result = zeno.invoke(None, config=config, subgraphs=False)
 
         for node, node_data in result.items():
-
             for msg in node_data:
                 yield pack(
                     {
@@ -198,29 +190,30 @@ def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest): # user: UserModel = Depends(fetch_user)
+async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
     """
     Chat endpoint for Zeno.
 
     Args:
         request: The chat request
-        # user: The user, authenticated against the WRI API (injected via FastAPI dependency)
+        user: The user, authenticated against the WRI API (injected via FastAPI dependency)
 
     Returns:
         The streamed response
     """
-    # # The following database logic is commented out for testing without auth
-    # with SessionLocal() as db:
-    #     thread = (
-    #         db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
-    #     )
-    #     if not thread:
-    #         thread = ThreadOrm(
-    #             id=request.thread_id, user_id=user.id, agent_id="UniGuana"
-    #         )
-    #         db.add(thread)
-    #         db.commit()
-    #         db.refresh(thread)
+    with SessionLocal() as db:
+        thread = (
+            db.query(ThreadOrm)
+            .filter_by(id=request.thread_id, user_id=user.id)
+            .first()
+        )
+        if not thread:
+            thread = ThreadOrm(
+                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+            )
+            db.add(thread)
+            db.commit()
+            db.refresh(thread)
 
     try:
         return StreamingResponse(
@@ -257,7 +250,11 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     """
 
     with SessionLocal() as db:
-        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+        thread = (
+            db.query(ThreadOrm)
+            .filter_by(user_id=user.id, id=thread_id)
+            .first()
+        )
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
 
