@@ -5,9 +5,15 @@ import requests
 from typing import Optional, Dict
 
 from dotenv import load_dotenv
+import os
 
-# Load environment variables from .env file at the very beginning
-load_dotenv()
+# Load environment variables - .env first (base), then .env.local (overrides)
+load_dotenv()  # Load base environment from .env
+if os.path.exists('.env.local'):
+    load_dotenv('.env.local', override=True)  # Override with local development settings
+    print("🔧 Loaded .env + .env.local (development mode with overrides)")
+else:
+    print("🚀 Loaded .env only (production mode)")
 
 from fastapi import FastAPI, HTTPException, Header, Depends, status
 from fastapi.middleware.cors import CORSMiddleware

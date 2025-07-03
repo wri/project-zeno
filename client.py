@@ -2,11 +2,7 @@ import uuid
 import requests
 import json
 import argparse
-import os
 from typing import Dict, Optional, Iterator, Any
-from dotenv import load_dotenv
-
-load_dotenv('../.env')
 
 
 class ZenoClient:
@@ -19,7 +15,7 @@ class ZenoClient:
             token: The bearer token for authentication
         """
         self.base_url = base_url
-        self.token = token or os.environ.get("GFW_ACCESS_TOKEN")
+        self.token = token
         
     def chat(
         self, 

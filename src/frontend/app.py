@@ -7,21 +7,15 @@ from dotenv import load_dotenv
 st.set_page_config(page_title="Zeno", page_icon="🦣")
 
 
-DOTENV_PATH = ".env"
-env_loaded = load_dotenv(DOTENV_PATH)
-
-if not env_loaded:
-    st.sidebar.warning(
-        f"Could not find or load .env file from: {os.path.abspath(DOTENV_PATH)}. "
-        "Please ensure it exists at that location and is readable. "
-        f"Current working directory: {os.getcwd()}"
-    )
+# Load environment variables - .env first (base), then .env.local (overrides)
+load_dotenv()  # Load base environment from .env
+if os.path.exists('.env.local'):
+    load_dotenv('.env.local', override=True)  # Override with local development settings
+    print("🔧 Loaded .env + .env.local (development mode with overrides)")
+else:
+    print("🚀 Loaded .env only (production mode)")
 
 API_BASE_URL = os.environ["API_BASE_URL"]
-
-LOCAL_API_BASE_URL = os.environ["LOCAL_API_BASE_URL"]
-API_BASE_URL = LOCAL_API_BASE_URL
-
 
 STREAMLIT_URL = os.environ.get(
     "STREAMLIT_URL", "http://localhost:8501"
