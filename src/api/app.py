@@ -7,13 +7,9 @@ from typing import Optional, Dict
 from dotenv import load_dotenv
 import os
 
-# Load environment variables - .env first (base), then .env.local (overrides)
-load_dotenv()  # Load base environment from .env
-if os.path.exists('.env.local'):
-    load_dotenv('.env.local', override=True)  # Override with local development settings
-    print("🔧 Loaded .env + .env.local (development mode with overrides)")
-else:
-    print("🚀 Loaded .env only (production mode)")
+# Load environment variables using shared utility
+from src.utils.env_loader import load_environment_variables
+load_environment_variables()
 
 from fastapi import FastAPI, HTTPException, Header, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
