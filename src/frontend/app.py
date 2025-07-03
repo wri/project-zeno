@@ -7,13 +7,9 @@ from dotenv import load_dotenv
 st.set_page_config(page_title="Zeno", page_icon="🦣")
 
 
-# Load environment variables - .env first (base), then .env.local (overrides)
-load_dotenv()  # Load base environment from .env
-if os.path.exists('.env.local'):
-    load_dotenv('.env.local', override=True)  # Override with local development settings
-    print("🔧 Loaded .env + .env.local (development mode with overrides)")
-else:
-    print("🚀 Loaded .env only (production mode)")
+# Load environment variables using shared utility
+from src.utils.env_loader import load_environment_variables
+load_environment_variables()
 
 API_BASE_URL = os.environ["API_BASE_URL"]
 

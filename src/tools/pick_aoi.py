@@ -1,8 +1,6 @@
 from typing import Annotated
 
 import duckdb
-from dotenv import load_dotenv
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -17,10 +15,6 @@ from src.utils.llms import SONNET, HAIKU, GPT, PHI4
 
 logger = get_logger(__name__)
 
-# Initialize language models with zero temperature for deterministic outputs
-CLAUDE_MODEL = ChatAnthropic(model="claude-3-5-sonnet-latest", temperature=0) 
-LOCAL_MODEL = ChatOllama(model="phi4-mini", temperature=0)
-GPT_MODEL = ChatOpenAI(model="gpt-4o", temperature=0)
 RESULT_LIMIT = 10
 
 GADM_TABLE = "data/geocode/exports/gadm.parquet"
