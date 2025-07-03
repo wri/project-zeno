@@ -43,7 +43,34 @@ Language Interface for Maps & WRI/LCL data APIs.
    make frontend # Run Streamlit frontend (port 8501)
    ```
 
-5. **Access the application:**
+5. **Setup Local Langfuse:**
+   a. Clone the Langfuse repository outside your current project directory
+   ```bash
+   cd ..
+   git clone https://github.com/langfuse/langfuse.git
+   cd langfuse
+   ```
+   
+   b. Start the Langfuse server
+   ```bash
+   docker compose up -d
+   ```
+   
+   c. Access the Langfuse UI at http://localhost:3000
+   1. Create an account
+   2. Create a new project
+   3. Copy the API keys from your project settings
+   
+   d. Return to your project directory and update your .env.local file
+   ```bash
+   cd ../project-zeno
+   # Update these values in your .env.local file:
+   LANGFUSE_HOST=http://localhost:3000
+   LANGFUSE_PUBLIC_KEY=your_public_key_here
+   LANGFUSE_SECRET_KEY=your_secret_key_here
+   ```
+
+6. **Access the application:**
    - Frontend: http://localhost:8501
    - API: http://localhost:8000
    - Langfuse: http://localhost:3000
