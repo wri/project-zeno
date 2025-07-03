@@ -5,9 +5,11 @@ import requests
 from typing import Optional, Dict
 
 from dotenv import load_dotenv
+import os
 
-# Load environment variables from .env file at the very beginning
-load_dotenv()
+# Load environment variables using shared utility
+from src.utils.env_loader import load_environment_variables
+load_environment_variables()
 
 from fastapi import FastAPI, HTTPException, Header, Depends, status
 from fastapi.middleware.cors import CORSMiddleware

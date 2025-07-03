@@ -1,12 +1,10 @@
 import streamlit as st
 import requests
-from folium_vectorgrid import VectorGridProtobuf
-from streamlit_folium import folium_static
-import folium
 import json
 import uuid
-from app import API_BASE_URL, STREAMLIT_URL
 
+from app import API_BASE_URL, STREAMLIT_URL
+from client import ZenoClient
 
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
@@ -27,9 +25,8 @@ with st.sidebar:
     st.subheader("🧐 Try asking:")
     st.write(
         """
-    - What is current state of Cameroon's tree cover?
-    - Find alerts over the Amazon distributed by natural lands layer for the year 2022?
-    - What data should I look at to better estimate above ground biomass in the Amazon?
+    - Find Tree cover loss in Odisha between 2015 - 2020, driven by wildfire
+    - Find disturbance alerts & their main drivers in Koraput in first quarter of 2024
     """
     )
 
@@ -117,119 +114,10 @@ def generate_doc_card(doc):
 [{doc["metadata"]["link"]}]({doc["metadata"]["link"]})
 """
 
-
-def display_message(message):
-    if message["role"] == "cautions":
-        with st.expander("⚠️ Cautions Summary", expanded=False):
-            st.markdown(message["content"])
-    elif message["role"] == "user":
-        st.chat_message("user").write(message["content"])
-    elif message["role"] in ["nodata"]:
-        st.chat_message("assistant").write(message["content"])
-    elif message["role"] == "docfinder":
-        if isinstance(message["content"], list):
-            with st.expander("Blog posts found", expanded=False):
-                for doc in message["content"]:
-                    st.markdown(generate_doc_card(doc))
-        else:
-            st.chat_message("assistant").write(message["content"])
-    elif message["role"] == "irrelevant_datasets":
-        with st.expander("Low relevance datasets", expanded=False):
-            for data in message["content"]:
-                header = f"""### {data.get('metadata', {}).get('title', 'Dataset')}
-
-{data['explanation']}
-
-Relevance: {data['metadata'].get('relevance')}"""
-                st.markdown(header)
-    else:
-        data = message["content"]
-        header = f"""### {data.get('metadata', {}).get('title', 'Dataset')}
-
-{data['explanation']}"""
-        st.markdown(header)
-
-        if "tilelayer" in message["content"]:
-            m = folium.Map(location=[0, 0], zoom_start=1, tiles="cartodb positron")
-            if ".pbf" in data["tilelayer"]:
-                vc = VectorGridProtobuf(
-                    data["tilelayer"],
-                    data.get("metadata", {}).get("title", "GFW Dataset"),
-                    {},
-                ).add_to(
-                    m
-                )  # noqa: F841
-            else:
-                g = folium.TileLayer(
-                    data["tilelayer"],
-                    name=data["dataset"],
-                    attr=data["dataset"],
-                ).add_to(
-                    m
-                )  # noqa: F841
-            folium_static(m, width=700, height=300)
-
-        md_output = generate_markdown(data)
-        with st.expander("More info", expanded=False):
-            st.markdown(md_output, unsafe_allow_html=True)
-
-
-def handle_stream_response(stream):
-
-    for chunk in stream.iter_lines():
-        if chunk:
-            data = json.loads(chunk.decode("utf-8"))
-            st.write(data)
-
-
-# def handle_stream_response(stream):
-#     irrelevant_messages = []
-#     data = None
-#     for chunk in stream.iter_lines():
-#         data = json.loads(chunk.decode("utf-8"))
-#         if "node" not in data:
-#             continue
-#         if data["node"] == "cautions":
-#             message = {
-#                 "role": "cautions",
-#                 "content": data["content"],
-#             }
-#         elif data["node"] == "docfinder":
-#             message = {
-#                 "role": "docfinder",
-#                 "content": data["content"],
-#             }
-#         else:
-#             message = {
-#                 "role": "assistant",
-#                 "content": data["content"],
-#             }
-#             if not message["content"].get("is_relevant"):
-#                 irrelevant_messages.append(data["content"])
-#                 continue
-
-#         st.session_state.messages.append(message)
-#         display_message(message)
-
-#     if irrelevant_messages:
-#         message = {
-#             "role": "irrelevant_datasets",
-#             "content": irrelevant_messages,
-#         }
-#         st.session_state.messages.append(message)
-#         display_message(message)
-#     elif not data:
-#         message = {
-#             "role": "nodata",
-#             "content": "No relevant datasets found.",
-#         }
-#         st.session_state.messages.append(message)
-#         display_message(message)
-
-
 # Display chat history
 for message in st.session_state.messages:
-    display_message(message)
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
 if user_input := st.chat_input(
     (
@@ -238,16 +126,26 @@ if user_input := st.chat_input(
         else "Type your message here..."
     ),
     disabled=not st.session_state.get("token"),
-):
-    message = {"role": "user", "content": user_input, "type": "text"}
-    st.session_state.messages.append(message)
-    display_message(message)
+):  
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
-    with requests.post(
-        f"{API_BASE_URL}/api/chat",
-        json={"query": user_input, "thread_id": st.session_state.session_id},
-        headers={"Authorization": f"Bearer {st.session_state['token']}"},
-        stream=True,
-    ) as stream:
-
-        handle_stream_response(stream)
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full_response = ""
+        client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
+        for stream in client.chat(user_input, thread_id=st.session_state.session_id):
+            node = stream['node']
+            update = json.loads(stream['update'])
+            for msg in update['messages']:
+                content = msg['kwargs']['content']
+                
+                if isinstance(content, list):
+                    for msg in content:
+                        full_response += str(msg) + "\n"
+                else:
+                    full_response += str(content)
+            message_placeholder.markdown(full_response + "▌")
+        message_placeholder.markdown(full_response)
+    st.session_state.messages.append({"role": "assistant", "content": full_response})

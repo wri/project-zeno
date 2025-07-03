@@ -8,46 +8,90 @@ Language Interface for Maps & WRI/LCL data APIs.
 - postgresql: https://www.postgresql.org/ (for using local DB instead of docker)
 - docker: https://docs.docker.com/
 
-## Getting Started
+## Local Development Setup
 
-1. Clone the repository: `git clone git@github.com:wri/project-zeno.git'
-2. Navigate into the project directory: `cd project-zeno`
-3. Install dependencies: `uv sync`
-4. Activate the virtual environment: `source .venv/bin/activate`
-5. Create your environment file: `cp .env.example .env`. Then, open `.env` and update the placeholder values with your actual credentials and configurations.
-6. Obtain the `data/` directory contents: This step requires fetching data from the team (e.g., from a shared drive or internal source) and placing it into the `data/` folder in your local project.
+1. **Clone and setup:**
+   ```bash
+   git clone git@github.com:wri/project-zeno.git
+   cd project-zeno
+   uv sync
+   source .venv/bin/activate
+   ```
 
-For step 6, use the following command to download the required files into
-the local `data/` directory
+2. **Environment configuration:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys and credentials
+   
+   cp .env.local.example .env.local
+   # .env.local contains local development overrides (auto-created by make commands)
+   ```
+
+3. **Download data:**
+   ```bash
+   aws s3 sync s3://zeno-agent-data/ data/
+   ```
+
+4. **Start development environment:**
+   ```bash
+   make dev    # Starts everything (infrastructure + API + frontend)
+   ```
+   Or run services individually:
+   ```bash
+   make up       # Start Docker services (PostgreSQL + Langfuse + ClickHouse)
+   make api      # Run API locally (port 8000)
+   make frontend # Run Streamlit frontend (port 8501)
+   ```
+
+5. **Setup Local Langfuse:**
+   a. Clone the Langfuse repository outside your current project directory
+   ```bash
+   cd ..
+   git clone https://github.com/langfuse/langfuse.git
+   cd langfuse
+   ```
+   
+   b. Start the Langfuse server
+   ```bash
+   docker compose up -d
+   ```
+   
+   c. Access the Langfuse UI at http://localhost:3000
+   1. Create an account
+   2. Create a new project
+   3. Copy the API keys from your project settings
+   
+   d. Return to your project directory and update your .env.local file
+   ```bash
+   cd ../project-zeno
+   # Update these values in your .env.local file:
+   LANGFUSE_HOST=http://localhost:3000
+   LANGFUSE_PUBLIC_KEY=your_public_key_here
+   LANGFUSE_SECRET_KEY=your_secret_key_here
+   ```
+
+6. **Access the application:**
+   - Frontend: http://localhost:8501
+   - API: http://localhost:8000
+   - Langfuse: http://localhost:3000
+
+## Development Commands
 
 ```bash
-aws s3 sync s3://zeno-static-data/ data/
+make help     # Show all available commands
+make up       # Start Docker infrastructure
+make down     # Stop Docker infrastructure
+make api      # Run API with hot reload
+make frontend # Run frontend with hot reload
+make dev      # Start full development environment
 ```
 
+## Environment Files
 
-## Start the agent API
+- `.env` - Base configuration (production settings)
+- `.env.local` - Local development overrides (auto-created)
 
-The following example shows how the streaming response can be obtained.
-
-Run fastapi server
-
-```bash
-uv run uvicorn api:app --reload
-```
-
-Test the API
-
-```python
-import requests
-
-msg = "How many users are using GFW and how long did it take to get there?"
-response = requests.post("http://127.0.0.1:8000/stream", json=dict(query=msg), stream=True)
-for line in response:
-    if line:
-        print(line.decode())
-```
-
-Run streamlit
+The system automatically loads `.env` first, then overrides with `.env.local` for local development.
 
 ```bash
 uv run streamlit run frontend/app.py
