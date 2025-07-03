@@ -232,6 +232,8 @@ def pick_aoi(
     if subregion:
         tool_message += f"\nSubregion AOIs: {subregion_aois.shape[0]}"
 
+    logger.debug(f"Pick AOI tool message: {tool_message}")
+
     return Command(
         update={
             "aoi": selected_aoi,
