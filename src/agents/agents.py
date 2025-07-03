@@ -1,18 +1,16 @@
 import contextlib
 import os
-import re
 
 from langchain_anthropic import ChatAnthropic
 from langgraph.checkpoint.postgres import PostgresSaver
-from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.prebuilt import create_react_agent
 
 from src.graph import AgentState
 from src.tools import (
+    generate_insights,
     pick_aoi,
     pick_dataset,
     pull_data,
-    generate_insights,
 )
 
 prompt = """You are a geospatial agent that has access to tools to help answer user queries. Plan your actions carefully and use the tools to answer the user's question.
@@ -36,10 +34,9 @@ tools = [
     generate_insights,
 ]
 
-# DATABASE_URL = os.environ["DATABASE_URL"].replace(
-#    "postgresql+psycopg://", "postgresql://"
-# )
-DATABASE_URL = re.sub(r"^.*?//", "postgresql://", os.environ["DATABASE_URL"])
+DATABASE_URL = os.environ["DATABASE_URL"].replace(
+    "postgresql+psycopg://", "postgresql://"
+)
 
 
 @contextlib.contextmanager
@@ -68,12 +65,10 @@ def persistent_checkpointer():
 checkpointer_cm = persistent_checkpointer()
 checkpointer = checkpointer_cm.__enter__()
 
-memory = InMemorySaver()
-
 zeno = create_react_agent(
     model=sonnet,
     tools=tools,
     state_schema=AgentState,
     prompt=prompt,
-    checkpointer=memory,
+    checkpointer=checkpointer,
 )

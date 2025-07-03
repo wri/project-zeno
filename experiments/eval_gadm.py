@@ -1,4 +1,9 @@
-"""GADM Location Evaluation Script"""
+"""GADM Location Evaluation Script
+
+This evaluation runs against datasets created by Alyssa/Aman and uploaded via upload_dataset.py.
+Results are published to LangFuse (either localhost or staging instance).
+See experiments/upload_dataset.py for how to add new test data.
+"""
 
 import json
 from collections import Counter
@@ -58,6 +63,13 @@ def parse_expected_output(data: List[dict]) -> List[GadmLocation]:
 def parse_gadm_from_json(json_str: str) -> List[GadmLocation]:
     """Extracts GADM location data from Langgraph json output.
 
+    Note: The Zeno agent dynamically decides which tools to use based on the question.
+    Trace data contains all intermediate steps in JSON format - we extract only
+    the location-tool messages here. Use LangFuse UI to view full traces graphically.
+
+    For debugging: LLMs can help identify patterns in complex trace data if the
+    structure changes.
+
     Filters for "location-tool" messages and extracts GADM details
     (name, ID, level, admin_level) from their artifact properties.
 
@@ -95,7 +107,12 @@ def parse_gadm_from_json(json_str: str) -> List[GadmLocation]:
 
 # Scoring
 def score_gadm(actual, expected):
-    """Score GADM matches."""
+    """Score GADM matches.
+
+    Currently uses exact ID matching (normalized).
+    TODO: Consider partial scoring for nearby/related locations as discussed.
+    Names are not checked - only GADM IDs matter for scoring.
+    """
     expected = parse_expected_output(expected)
 
     if not actual and not expected:
@@ -129,6 +146,9 @@ langfuse = get_langfuse()
 run_name = get_run_name()
 dataset = langfuse.get_dataset("s2_gadm_0_1")
 
+# This iterates through dataset items automatically like unit tests.
+# Run locally for development, but use staging for accurate latency/cost measurements.
+# Future: Integrate with CI/CD pipeline for automated testing on code changes.
 print(f"Evaluating {len(dataset.items)} items...")
 
 for item in dataset.items:
@@ -188,4 +208,6 @@ for item in dataset.items:
     # )
     # langfuse.flush()
 
+    # Scoring with annotations helps understand mismatches
+    # Check LangFuse UI for detailed trace analysis of failures
     print(f"✓ {item.input} -> {score}")

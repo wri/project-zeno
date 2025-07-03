@@ -123,6 +123,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
 .venv
 env/
 venv/
@@ -167,6 +168,9 @@ data/
 nbs/data
 .pgdata/
 *.jsonl
+*.duckdb
+*.ddb
+*.db
 
 # API backup
 .api/ 
