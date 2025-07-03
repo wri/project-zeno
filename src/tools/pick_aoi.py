@@ -1,26 +1,31 @@
 from typing import Annotated
 
 import duckdb
+<<<<<<< Updated upstream
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
+=======
+>>>>>>> Stashed changes
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
-from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from src.tools.utils.db_connection import get_db_connection
 from src.utils.logging_config import get_logger
+from src.utils.llms import SONNET, HAIKU, GPT, PHI4
 
-load_dotenv()
 logger = get_logger(__name__)
 
+<<<<<<< Updated upstream
 # Initialize language models with zero temperature for deterministic outputs
 CLAUDE_MODEL = ChatAnthropic(model="claude-3-5-sonnet-latest", temperature=0)
 GPT_MODEL = ChatOpenAI(model="gpt-4o", temperature=0)
+=======
+>>>>>>> Stashed changes
 RESULT_LIMIT = 10
 
 GADM_TABLE = "data/geocode/exports/gadm.parquet"
@@ -140,7 +145,7 @@ AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
 
 # Chain for selecting the best location match
 AOI_SELECTION_CHAIN = (
-    AOI_SELECTION_PROMPT | CLAUDE_MODEL.with_structured_output(AOIIndex)
+    AOI_SELECTION_PROMPT | SONNET.with_structured_output(AOIIndex)
 )
 
 
@@ -253,7 +258,7 @@ def pick_aoi(
 
 if __name__ == "__main__":
     agent = create_react_agent(
-        CLAUDE_MODEL,
+        SONNET,
         tools=[pick_aoi],
         prompt="""You are a Geo Agent that can ONLY HELP PICK an AOI using the `pick-aoi` tool.
         Pick the best AOI based on the user query. You DONT need to answer the user query, just pick the best AOI.""",
