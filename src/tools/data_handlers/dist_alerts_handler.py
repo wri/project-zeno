@@ -42,10 +42,10 @@ class DistAlertHandler(DataSourceHandler):
                         "version": "4.1",
                     }
                 ],
-                "start_date": dataset.daterange.start_date,
-                "end_date": dataset.daterange.end_date,
-                "intersections": [dataset.context_layer]
-                if dataset.context_layer
+                "start_date": dataset["daterange"]["start_date"],
+                "end_date": dataset["daterange"]["end_date"],
+                "intersections": [dataset["context_layer"]]
+                if dataset["context_layer"]
                 else [],
             }
 

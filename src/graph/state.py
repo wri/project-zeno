@@ -27,6 +27,8 @@ class AgentState(TypedDict):
 
     # generate-insights tool
     insights: list
+    charts_data: list
+    insight_count: int
 
     # langgraph managed
     is_last_step: IsLastStep
