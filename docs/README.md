@@ -261,4 +261,117 @@ class AgentState(TypedDict):
 
 ### Generate insights tool
 
-The insights are [being created at the moment](https://github.com/wri/project-zeno/tree/tool/create-chart), we will document the insights structure here soon.
+This tool generates insights, either tables, or differnt types of charts. The outuput chart data is compatible with `reachart.js`.
+
+The state variables updated are the following.
+
+```python
+class AgentState(TypedDict):
+    # Adds one tool message string to the message history
+    messages: Annotated[Sequence[BaseMessage], add_messages]
+    # generate-insights tool
+    insights: list
+    charts_data: list
+    insight_count: int
+```
+
+
+#### Error handling
+
+⚠️ This tool sometimes returns only a `message` without actual data when the chart creation fails. This breaks the expected schema of the tool output. We will address this issue soon.
+
+This is a problem also in other tools and needs to be addressed in a better way across the agent tools.
+
+#### Example output
+
+Bar chart example
+
+```json
+"insights": [
+    {
+        "title": "Top 5 Countries with Highest Forest Loss in 2022",
+        "chart_type": "bar",
+        "insight": "Brazil leads significantly in forest loss with over 11.5 million hectares lost in 2022, more than double the next highest country, Indonesia (6 million hectares). The Democratic Republic of Congo ranks third with 4.77 million hectares, while Peru and Colombia have considerably lower forest loss at 1.63 and 1.24 million hectares respectively.",
+        "data": [
+            {"country": "Brazil", "forest_loss_ha": 11568000},
+            {"country": "Indonesia", "forest_loss_ha": 6020000}, 
+            {"country": "DRC", "forest_loss_ha": 4770000},
+            {"country": "Peru", "forest_loss_ha": 1630000},
+            {"country": "Colombia", "forest_loss_ha": 1240000}
+        ],
+        "x_axis": "country",
+        "y_axis": "forest_loss_ha",
+        "color_field": ""
+    }
+],
+"charts_data": [
+    {
+        "id": "chart_1",
+        "title": "Top 5 Countries with Highest Forest Loss in 2022",
+        "type": "bar",
+        "insight": "Brazil leads significantly in forest loss with over 11.5 million hectares lost in 2022, more than double the next highest country, Indonesia (6 million hectares). The Democratic Republic of Congo ranks third with 4.77 million hectares, while Peru and Colombia have considerably lower forest loss at 1.63 and 1.24 million hectares respectively.",
+        "data": [
+            {"country": "Brazil", "forest_loss_ha": 11568000},
+            {"country": "Indonesia", "forest_loss_ha": 6020000},
+            {"country": "DRC", "forest_loss_ha": 4770000}, 
+            {"country": "Peru", "forest_loss_ha": 1630000},
+            {"country": "Colombia", "forest_loss_ha": 1240000}
+        ],
+        "xAxis": "country",
+        "yAxis": "forest_loss_ha",
+        "colorField": ""
+    }
+],
+"insight_count": 1,
+"messages": [
+    {
+        "content": "**Insight 1: Top 5 Countries with Highest Forest Loss in 2022**\nChart Type: bar\nKey Finding: Brazil leads significantly in forest loss with over 11.5 million hectares lost in 2022, more than double the next highest country, Indonesia (6 million hectares). The Democratic Republic of Congo ranks third with 4.77 million hectares, while Peru and Colombia have considerably lower forest loss at 1.63 and 1.24 million hectares respectively.\nData Points: 5\n",
+        "tool_call_id": "test-id-2"
+    }
+]
+```
+
+Line chart example
+
+```json
+"insights": [
+    {
+        "title": "Deforestation Alerts in the Amazon Region (2020-2023)",
+        "chart_type": "line",
+        "insight": "Deforestation alerts in the Amazon region have shown a declining trend over the past four years, decreasing from 1,450 alerts in 2021 to 980 alerts in 2023. After an initial increase of 21% from 2020 to 2021, alerts decreased by 24% in the following two years, suggesting potentially improved conservation efforts or changes in monitoring systems.",
+        "data": [
+            {"date": "2020-01-01", "alerts": 1200, "year": "2020"},
+            {"date": "2021-01-01", "alerts": 1450, "year": "2021"},
+            {"date": "2022-01-01", "alerts": 1100, "year": "2022"},
+            {"date": "2023-01-01", "alerts": 980, "year": "2023"}
+        ],
+        "x_axis": "year",
+        "y_axis": "alerts",
+        "color_field": ""
+    }
+],
+"charts_data": [
+    {
+        "id": "chart_1",
+        "title": "Deforestation Alerts in the Amazon Region (2020-2023)",
+        "type": "line",
+        "insight": "Deforestation alerts in the Amazon region have shown a declining trend over the past four years, decreasing from 1,450 alerts in 2021 to 980 alerts in 2023. After an initial increase of 21% from 2020 to 2021, alerts decreased by 24% in the following two years, suggesting potentially improved conservation efforts or changes in monitoring systems.",
+        "data": [
+            {"date": "2020-01-01", "alerts": 1200, "year": "2020"},
+            {"date": "2021-01-01", "alerts": 1450, "year": "2021"},
+            {"date": "2022-01-01", "alerts": 1100, "year": "2022"},
+            {"date": "2023-01-01", "alerts": 980, "year": "2023"}
+        ],
+        "xAxis": "year",
+        "yAxis": "alerts",
+        "colorField": ""
+    }
+],
+"insight_count": 1,
+"messages": [
+    {
+        "content": "**Insight 1: Deforestation Alerts in the Amazon Region (2020-2023)**\nChart Type: line\nKey Finding: Deforestation alerts in the Amazon region have shown a declining trend over the past four years, decreasing from 1,450 alerts in 2021 to 980 alerts in 2023. After an initial increase of 21% from 2020 to 2021, alerts decreased by 24% in the following two years, suggesting potentially improved conservation efforts or changes in monitoring systems.\nData Points: 4\n",
+        "tool_call_id": "test-id-1"
+    }
+]
+```
