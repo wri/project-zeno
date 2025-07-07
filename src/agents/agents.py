@@ -7,9 +7,11 @@ from langgraph.prebuilt import create_react_agent
 
 from src.graph import AgentState
 from src.tools import (
-    generate_insights,
+    create_chart,
+    list_available_insights,
     pick_aoi,
     pick_dataset,
+    plan_insights,
     pull_data,
 )
 
@@ -19,9 +21,20 @@ Tools:
 - pick-aoi: Pick the best area of interest (AOI) based on a place name and user's question. Optionally, it can also filter the results by a subregion.
 - pick-dataset: Find the most relevant datasets to help answer the user's question.
 - pull-data: Pulls data for the selected AOI and dataset.
-- generate-insights: Analyzes raw data in the context of the user's query to generate a structured insight.
+- plan-insights: Analyzes raw data and creates a plan for the most valuable insights/charts to generate.
+- create-chart: Creates a specific chart based on a planned insight focus area.
+- list-available-insights: Lists all planned insights that haven't been generated yet.
 
-End with a 1-line summary of the insights you generated.
+Workflow:
+1. Use pick-aoi, pick-dataset, and pull-data to get the data
+2. Use plan-insights to analyze the data and plan 2-4 valuable insights
+3. Use create-chart to generate the top 2-3 most important charts from the plan
+4. End with a summary of the key insights revealed by the charts
+
+For multi-turn conversations:
+- Users can request specific charts: "show me the pie chart" or "make this a bar chart"
+- Use list-available-insights to show what other charts are available
+- Use create-chart with different focus areas or chart types as requested
 
 Note: If the dataset is not available, politely inform the user & STOP - don't do any more steps further.
 """
@@ -31,7 +44,9 @@ tools = [
     pick_aoi,
     pick_dataset,
     pull_data,
-    generate_insights,
+    plan_insights,
+    create_chart,
+    list_available_insights,
 ]
 
 DATABASE_URL = os.environ["DATABASE_URL"].replace(
