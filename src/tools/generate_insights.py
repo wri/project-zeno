@@ -1,4 +1,4 @@
-from typing import Annotated, Dict, List, Any
+from typing import Annotated, Any, Dict, List
 
 import pandas as pd
 from langchain_anthropic import ChatAnthropic
@@ -9,7 +9,6 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, Field
-import json
 
 from src.utils.logging_config import get_logger
 
@@ -23,10 +22,8 @@ class ChartInsight(BaseModel):
     """
     Represents a chart-based insight with Recharts-compatible data.
     """
-    
-    title: str = Field(
-        description="Clear, descriptive title for the chart"
-    )
+
+    title: str = Field(description="Clear, descriptive title for the chart")
     chart_type: str = Field(
         description="Chart type: 'line', 'bar', 'pie', 'area', 'scatter', or 'table'"
     )
@@ -44,7 +41,7 @@ class ChartInsight(BaseModel):
     )
     color_field: str = Field(
         default="",
-        description="Optional field name for color grouping/categorization"
+        description="Optional field name for color grouping/categorization",
     )
 
 
@@ -52,7 +49,7 @@ class InsightResponse(BaseModel):
     """
     Contains 1-2 chart insights generated from the data.
     """
-    
+
     insights: List[ChartInsight] = Field(
         description="List of 1-2 chart insights, ordered by importance"
     )
@@ -109,8 +106,6 @@ Return 1 insight if the data is simple/focused, or 2 insights if there are multi
 @tool
 def generate_insights(
     query: str,
-    aoi: str = "",
-    dataset: str = "",
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
@@ -122,8 +117,6 @@ def generate_insights(
 
     Args:
         query: The user's original query to provide context for insights.
-        aoi: Area of interest (optional, for context).
-        dataset: Dataset name (optional, for context).
     """
     logger.info("GENERATE-INSIGHTS-TOOL")
     logger.debug(f"Generating insights for query: {query}")
@@ -154,11 +147,10 @@ def generate_insights(
 
     # Generate insights using the LLM
     try:
-        chain = INSIGHT_GENERATION_PROMPT | sonnet.with_structured_output(InsightResponse)
-        response = chain.invoke({
-            "user_query": query,
-            "raw_data": data_csv
-        })
+        chain = INSIGHT_GENERATION_PROMPT | sonnet.with_structured_output(
+            InsightResponse
+        )
+        response = chain.invoke({"user_query": query, "raw_data": data_csv})
 
         insights = response.insights
         logger.debug(f"Generated {len(insights)} insights")
@@ -166,35 +158,39 @@ def generate_insights(
         # Format the response message
         message_parts = []
         charts_data = []
-        
+
         for i, insight in enumerate(insights, 1):
-            logger.debug(f"Insight {i}: {insight.title} ({insight.chart_type})")
-            
+            logger.debug(
+                f"Insight {i}: {insight.title} ({insight.chart_type})"
+            )
+
             message_parts.append(f"**Insight {i}: {insight.title}**")
             message_parts.append(f"Chart Type: {insight.chart_type}")
             message_parts.append(f"Key Finding: {insight.insight}")
             message_parts.append(f"Data Points: {len(insight.data)}")
             message_parts.append("")
-            
+
             # Store chart data for frontend
-            charts_data.append({
-                "id": f"chart_{i}",
-                "title": insight.title,
-                "type": insight.chart_type,
-                "insight": insight.insight,
-                "data": insight.data,
-                "xAxis": insight.x_axis,
-                "yAxis": insight.y_axis,
-                "colorField": insight.color_field
-            })
+            charts_data.append(
+                {
+                    "id": f"chart_{i}",
+                    "title": insight.title,
+                    "type": insight.chart_type,
+                    "insight": insight.insight,
+                    "data": insight.data,
+                    "xAxis": insight.x_axis,
+                    "yAxis": insight.y_axis,
+                    "colorField": insight.color_field,
+                }
+            )
 
         tool_message = "\n".join(message_parts)
-        
+
         # Update state with generated insights
         updated_state = {
             "insights": response.model_dump()["insights"],
             "charts_data": charts_data,
-            "insight_count": len(insights)
+            "insight_count": len(insights),
         }
 
         return Command(
@@ -226,43 +222,54 @@ def generate_insights(
 
 if __name__ == "__main__":
     # Example usage for testing
-    
+
     # Test with time series data
     mock_state_1 = {
-        "raw_data": pd.DataFrame({
-            "date": ["2020-01-01", "2021-01-01", "2022-01-01", "2023-01-01"],
-            "alerts": [1200, 1450, 1100, 980],
-            "region": ["Amazon", "Amazon", "Amazon", "Amazon"]
-        })
+        "raw_data": pd.DataFrame(
+            {
+                "date": [
+                    "2020-01-01",
+                    "2021-01-01",
+                    "2022-01-01",
+                    "2023-01-01",
+                ],
+                "alerts": [1200, 1450, 1100, 980],
+                "region": ["Amazon", "Amazon", "Amazon", "Amazon"],
+            }
+        )
     }
 
     result_1 = generate_insights.func(
         query="What are the trends in deforestation alerts over time?",
-        aoi="Amazon",
-        dataset="GLAD alerts",
         state=mock_state_1,
         tool_call_id="test-id-1",
     )
-    
+
     print("=== Time Series Test ===")
     print(result_1.update["messages"][0].content)
-    
+
     # Test with categorical data
     mock_state_2 = {
-        "raw_data": pd.DataFrame({
-            "country": ["Brazil", "Indonesia", "DRC", "Peru", "Colombia"],
-            "forest_loss_ha": [11568000, 6020000, 4770000, 1630000, 1240000],
-            "year": [2022, 2022, 2022, 2022, 2022]
-        })
+        "raw_data": pd.DataFrame(
+            {
+                "country": ["Brazil", "Indonesia", "DRC", "Peru", "Colombia"],
+                "forest_loss_ha": [
+                    11568000,
+                    6020000,
+                    4770000,
+                    1630000,
+                    1240000,
+                ],
+                "year": [2022, 2022, 2022, 2022, 2022],
+            }
+        )
     }
 
     result_2 = generate_insights.func(
         query="Which countries have the highest forest loss?",
-        aoi="Global",
-        dataset="Global Forest Watch",
         state=mock_state_2,
         tool_call_id="test-id-2",
     )
-    
+
     print("\n=== Categorical Test ===")
     print(result_2.update["messages"][0].content)
