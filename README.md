@@ -29,7 +29,7 @@ Language Interface for Maps & WRI/LCL data APIs.
 
 3. **Download data:**
    ```bash
-   aws s3 sync s3://zeno-agent-data/ data/
+   aws s3 sync s3://zeno-static-data/ data/
    ```
 
 4. **Start development environment:**
