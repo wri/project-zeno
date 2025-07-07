@@ -1,7 +1,7 @@
 import logging
+import os
 import sys
 from logging.handlers import RotatingFileHandler
-import os
 
 # Define the formatter
 formatter = logging.Formatter(
@@ -17,7 +17,9 @@ stream_handler.setLevel(logging.INFO)
 
 os.makedirs("logs", exist_ok=True)
 
-file_handler = RotatingFileHandler("logs/zeno.log", maxBytes=10**6, backupCount=5)
+file_handler = RotatingFileHandler(
+    "logs/zeno.log", maxBytes=10**6, backupCount=5
+)
 file_handler.setFormatter(formatter)
 file_handler.setLevel(logging.DEBUG)
 

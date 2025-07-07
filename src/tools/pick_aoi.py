@@ -10,8 +10,8 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from src.tools.utils.db_connection import get_db_connection
+from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
-from src.utils.llms import SONNET, HAIKU, GPT, PHI4
 
 logger = get_logger(__name__)
 
@@ -133,8 +133,8 @@ AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 # Chain for selecting the best location match
-AOI_SELECTION_CHAIN = (
-    AOI_SELECTION_PROMPT | SONNET.with_structured_output(AOIIndex)
+AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
+    AOIIndex
 )
 
 

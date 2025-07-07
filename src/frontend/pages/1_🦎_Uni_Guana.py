@@ -1,9 +1,10 @@
-import streamlit as st
-import requests
 import json
 import uuid
 
+import requests
+import streamlit as st
 from app import API_BASE_URL, STREAMLIT_URL
+
 from client import ZenoClient
 
 if "session_id" not in st.session_state:
@@ -39,7 +40,6 @@ with st.sidebar:
             ),
         )
     else:
-
         user_info = requests.get(
             f"{API_BASE_URL}/api/auth/me",
             headers={
@@ -114,6 +114,7 @@ def generate_doc_card(doc):
 [{doc["metadata"]["link"]}]({doc["metadata"]["link"]})
 """
 
+
 # Display chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -126,7 +127,7 @@ if user_input := st.chat_input(
         else "Type your message here..."
     ),
     disabled=not st.session_state.get("token"),
-):  
+):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
@@ -134,13 +135,17 @@ if user_input := st.chat_input(
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         full_response = ""
-        client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
-        for stream in client.chat(user_input, thread_id=st.session_state.session_id):
-            node = stream['node']
-            update = json.loads(stream['update'])
-            for msg in update['messages']:
-                content = msg['kwargs']['content']
-                
+        client = ZenoClient(
+            base_url=API_BASE_URL, token=st.session_state.token
+        )
+        for stream in client.chat(
+            user_input, thread_id=st.session_state.session_id
+        ):
+            node = stream["node"]
+            update = json.loads(stream["update"])
+            for msg in update["messages"]:
+                content = msg["kwargs"]["content"]
+
                 if isinstance(content, list):
                     for msg in content:
                         full_response += str(msg) + "\n"
@@ -148,4 +153,6 @@ if user_input := st.chat_input(
                     full_response += str(content)
             message_placeholder.markdown(full_response + "▌")
         message_placeholder.markdown(full_response)
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+    st.session_state.messages.append(
+        {"role": "assistant", "content": full_response}
+    )

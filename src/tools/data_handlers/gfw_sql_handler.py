@@ -1,13 +1,19 @@
-import os
-import io
 import csv
+import io
+import os
+from typing import Any, Dict, List, Optional
+
 import requests
-from typing import List, Optional, Dict, Any
+from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, model_validator
 
-from langchain_core.prompts import ChatPromptTemplate
-
-from src.tools.data_handlers.base import DataSourceHandler, DataPullResult, gadm_levels, dataset_names, sonnet
+from src.tools.data_handlers.base import (
+    DataPullResult,
+    DataSourceHandler,
+    dataset_names,
+    gadm_levels,
+    sonnet,
+)
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -16,6 +22,7 @@ GFW_DATA_API_BASE_URL = os.getenv(
     "GFW_DATA_API_BASE_URL", "https://www.globalforestwatch.org/api/data"
 )
 
+
 class _FieldSelection(BaseModel):
     name: str
     description: str
@@ -23,6 +30,7 @@ class _FieldSelection(BaseModel):
 
     def __repr__(self):
         return f"Field: {self.name} (description: {self.description}, type: {self.data_type})"
+
 
 class FieldSelection(BaseModel):
     fields: List[_FieldSelection]
@@ -41,6 +49,7 @@ class FieldSelection(BaseModel):
         csv_buffer.close()
 
         return csv_output
+
 
 def fetch_table_fields(table_slug: str) -> FieldSelection:
     logger.debug(f"Fetching dataset info for table: {table_slug}")
@@ -66,7 +75,9 @@ def fetch_table_fields(table_slug: str) -> FieldSelection:
         {
             "name": f["name"],
             "description": (
-                f["description"] if f["description"] else " ".join(f["name"].split("_"))
+                f["description"]
+                if f["description"]
+                else " ".join(f["name"].split("_"))
             ),
             "data_type": f["data_type"],
         }
@@ -74,6 +85,7 @@ def fetch_table_fields(table_slug: str) -> FieldSelection:
     ]
     logger.debug(f"Found {len(fields)} fields for table '{table_slug}'")
     return FieldSelection(fields=fields)
+
 
 class GadmId(BaseModel):
     gadm_id: str
@@ -88,7 +100,6 @@ class GadmId(BaseModel):
 
     @model_validator(mode="after")
     def parse_id(self):
-
         gadm_id = self.gadm_id
 
         if "_" in gadm_id:
@@ -124,56 +135,71 @@ class GadmId(BaseModel):
             return f"(iso = '{self.iso}' AND adm1 = {self.adm1} AND adm2 = {self.adm2})"
         return ""
 
+
 class GFWSQLHandler(DataSourceHandler):
     """Handler for standard GFW data sources (non-DIST-ALERT)"""
-    
+
     def can_handle(self, dataset: Any, table_name: str) -> bool:
         return table_name != "DIST-ALERT"
-    
-    def pull_data(self, query: str, aoi_name: str, dataset: Any, aoi: Dict, 
-                  subregion: str, subtype: str) -> DataPullResult:
+
+    def pull_data(
+        self,
+        query: str,
+        aoi_name: str,
+        dataset: Any,
+        aoi: Dict,
+        subregion: str,
+        subtype: str,
+    ) -> DataPullResult:
         try:
             table_name = dataset_names[dataset.data_layer]
             table_slug = self._determine_table_slug(table_name, subtype)
-            
+
             logger.debug(f"Determined table slug: {table_slug}")
             table_fields = fetch_table_fields(table_slug)
-            
+
             # Field selection
             fields_to_query = self._select_fields(query, table_fields)
             logger.debug(f"Selected fields to query: {fields_to_query.fields}")
-            
+
             # SQL query generation
             gadm_level = gadm_levels[subtype]
-            sql_query = self._generate_sql_query(query, fields_to_query, gadm_level, aoi)
+            sql_query = self._generate_sql_query(
+                query, fields_to_query, gadm_level, aoi
+            )
             logger.debug(f"Generated SQL query: {sql_query.content}")
-            
+
             # Execute query
             raw_data = self._execute_query(table_slug, sql_query.content)
-            
-            data_points = len(raw_data.get('data', []))
+
+            data_points = len(raw_data.get("data", []))
             logger.debug(f"Successfully pulled {data_points} data points.")
-            
+
             return DataPullResult(
                 success=True,
                 data=raw_data,
                 message=f"Successfully pulled data for {aoi_name}. Retrieved {data_points} data points to analyze.",
-                data_points_count=data_points
+                data_points_count=data_points,
             )
-            
+
         except Exception as e:
             error_msg = f"Failed to pull standard GFW data: {e}"
             logger.error(error_msg, exc_info=True)
             return DataPullResult(
-                success=False,
-                data={'data': []},
-                message=error_msg
+                success=False, data={"data": []}, message=error_msg
             )
-    
+
     def _determine_table_slug(self, table_name: str, subtype: str) -> str:
         """Determine the appropriate table slug based on subtype"""
         match subtype:
-            case "country" | "state-province" | "district-county" | "municipality" | "locality" | "neighbourhood":
+            case (
+                "country"
+                | "state-province"
+                | "district-county"
+                | "municipality"
+                | "locality"
+                | "neighbourhood"
+            ):
                 gadm_level = gadm_levels[subtype]
                 return f"gadm__{table_name}__{gadm_level['name']}_change"
             case "kba":
@@ -184,34 +210,52 @@ class GFWSQLHandler(DataSourceHandler):
                 return f"landmark__{table_name}_change"
             case _:
                 logger.error(f"Unsupported subtype: {subtype}")
-                raise ValueError(f"Subtype: {subtype} does not match to any table in basemaps database.")
-    
-    def _select_fields(self, query: str, table_fields: FieldSelection) -> FieldSelection:
+                raise ValueError(
+                    f"Subtype: {subtype} does not match to any table in basemaps database."
+                )
+
+    def _select_fields(
+        self, query: str, table_fields: FieldSelection
+    ) -> FieldSelection:
         """Select appropriate fields based on user query"""
-        FIELD_SELECTION_PROMPT = ChatPromptTemplate.from_messages([
-            ("user",
-            """
+        FIELD_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "user",
+                    """
 You are Zeno, a helpful AI assistant helping users query environmental conservation and biodiversity data from the Global Forest Watch data API. \n
 Select fields from the list of fields provided, based on the user's question and a csv defining the available fields to query. Be greedy with picking the fields that will help answer the user query & provide insights. \n
 Be mindful of fields that can help analyse data around specific date ranges, thresholds, etc. \n
 User's question: {user_query} \n
 CSV with available fields: {fields} \n
 Return rows from the csv as the answer, where each row is formatted as 'name,data_type', and each row is separated by a newline \n character. Do not include any additional text
-        """)
-        ])
+        """,
+                )
+            ]
+        )
 
-        logger.debug(f"Invoking field selection chain...")
-        field_selection_chain = FIELD_SELECTION_PROMPT | sonnet.with_structured_output(FieldSelection)
-        return field_selection_chain.invoke({
-            "user_query": query,
-            "fields": table_fields.as_csv()
-        })
-    
-    def _generate_sql_query(self, query: str, fields_to_query: FieldSelection, 
-                           gadm_level: Dict, aoi: Dict) -> Any:
+        logger.debug("Invoking field selection chain...")
+        field_selection_chain = (
+            FIELD_SELECTION_PROMPT
+            | sonnet.with_structured_output(FieldSelection)
+        )
+        return field_selection_chain.invoke(
+            {"user_query": query, "fields": table_fields.as_csv()}
+        )
+
+    def _generate_sql_query(
+        self,
+        query: str,
+        fields_to_query: FieldSelection,
+        gadm_level: Dict,
+        aoi: Dict,
+    ) -> Any:
         """Generate SQL query based on user query and selected fields"""
-        SQL_QUERY_PROMPT = ChatPromptTemplate.from_messages([
-            ("user", """
+        SQL_QUERY_PROMPT = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "user",
+                    """
             You are Zeno, a helpful AI assistant helping users query environmental conservation and biodiversity data from the Global Forest Watch data API. \n
             You will construct a SQL query to retrieve the requested data. You will be provided with the user's question and a list of fields to query, as pairs of field name and data type and a template for the SQL query with some information pre-filled. Do your best not to alter the existing elements of this template. \n
 
@@ -232,23 +276,29 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
             Replace the placeholder {{ordering_field}} with the field to order the data by, if appropriate. Otherwise you may choose to omit this portion of the query. \n
             Make sure to enclose each of the query fields with double quotes (") in order to ensure that the SQL query is properly formatted. \n
             Return ONLY the raw SQL statement with no formatting, code blocks, or additional text. The output should be a plain SQL query that can be executed directly.
-            """)
-        ])   
+            """,
+                )
+            ]
+        )
 
-        logger.debug(f"Invoking SQL query generation chain...")
+        logger.debug("Invoking SQL query generation chain...")
         sql_query_chain = SQL_QUERY_PROMPT | sonnet
-        location_filter = GadmId(gadm_id=aoi[gadm_level['col_name']]).as_sql_filter()
-        
-        return sql_query_chain.invoke({
-            "user_query": query,
-            "fields_to_query": fields_to_query.as_csv(),
-            "gadm_level": gadm_level['name'],
-            "location_filter": location_filter,
-        })
-    
+        location_filter = GadmId(
+            gadm_id=aoi[gadm_level["col_name"]]
+        ).as_sql_filter()
+
+        return sql_query_chain.invoke(
+            {
+                "user_query": query,
+                "fields_to_query": fields_to_query.as_csv(),
+                "gadm_level": gadm_level["name"],
+                "location_filter": location_filter,
+            }
+        )
+
     def _execute_query(self, table_slug: str, sql_query: str) -> Dict:
         """Execute the SQL query against GFW Data API"""
-        logger.debug(f"Executing query against GFW Data API...")
+        logger.debug("Executing query against GFW Data API...")
         return requests.post(
             f"{GFW_DATA_API_BASE_URL}/dataset/{table_slug}/latest/query/json",
             headers={"x-api-key": os.environ["GFW_DATA_API_KEY"]},

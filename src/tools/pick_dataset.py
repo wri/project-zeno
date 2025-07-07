@@ -1,19 +1,18 @@
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Annotated
+from typing import Annotated, List, Optional
+
+import pandas as pd
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import ToolMessage
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_anthropic import ChatAnthropic
+from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_ollama import OllamaEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
-from langchain_openai import OpenAIEmbeddings
-from langchain_ollama import OllamaEmbeddings
-from langchain_core.vectorstores import InMemoryVectorStore
-
 from pydantic import BaseModel, Field
-import pandas as pd
-
 from pylate import indexes, models, retrieve
 
 from src.utils.logging_config import get_logger
@@ -28,61 +27,87 @@ sonnet = ChatAnthropic(model="claude-3-7-sonnet-latest")
 
 _retriever_cache = {}
 
+
 def _get_openai_retriever():
     if "openai" not in _retriever_cache:
         logger.debug("Loading OpenAI retriever for the first time...")
         openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-        openai_index = InMemoryVectorStore.load(data_dir / "zeno-docs-openai-index", embedding=openai_embeddings)
-        _retriever_cache["openai"] = openai_index.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+        openai_index = InMemoryVectorStore.load(
+            data_dir / "zeno-docs-openai-index", embedding=openai_embeddings
+        )
+        _retriever_cache["openai"] = openai_index.as_retriever(
+            search_type="similarity", search_kwargs={"k": 3}
+        )
     return _retriever_cache["openai"]
+
 
 def _get_nomic_retriever():
     if "nomic" not in _retriever_cache:
         logger.debug("Loading Nomic retriever for the first time...")
         nomic_embeddings = OllamaEmbeddings(model="nomic-embed-text")
-        nomic_index = InMemoryVectorStore.load(data_dir / "zeno-docs-nomic-index", embedding=nomic_embeddings)
-        _retriever_cache["nomic"] = nomic_index.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+        nomic_index = InMemoryVectorStore.load(
+            data_dir / "zeno-docs-nomic-index", embedding=nomic_embeddings
+        )
+        _retriever_cache["nomic"] = nomic_index.as_retriever(
+            search_type="similarity", search_kwargs={"k": 3}
+        )
     return _retriever_cache["nomic"]
+
 
 def _get_colbert_retriever_and_model():
     if "colbert" not in _retriever_cache:
         logger.debug("Loading ColBERT model and index for the first time...")
-        colbert_model = models.ColBERT(model_name_or_path="lightonai/GTE-ModernColBERT-v1")
+        colbert_model = models.ColBERT(
+            model_name_or_path="lightonai/GTE-ModernColBERT-v1"
+        )
         colbert_index = indexes.PLAID(
-            index_folder=data_dir / "colbert-index",
-            index_name="dataset"
+            index_folder=data_dir / "colbert-index", index_name="dataset"
         )
         colbert_retriever = retrieve.ColBERT(index=colbert_index)
         _retriever_cache["colbert"] = (colbert_retriever, colbert_model)
     return _retriever_cache["colbert"]
 
+
 def rag_candidate_datasets(query: str, k=3, strategy="openai"):
-    logger.debug(f"Retrieving candidate datasets for query: '{query}' using strategy: '{strategy}'")
+    logger.debug(
+        f"Retrieving candidate datasets for query: '{query}' using strategy: '{strategy}'"
+    )
     candidate_datasets = []
     match strategy:
         case "openai":
             openai_retriever = _get_openai_retriever()
             match_documents = openai_retriever.invoke(query)
             for doc in match_documents:
-                candidate_datasets.append(zeno_data[zeno_data.dataset_id == int(doc.id)].iloc[0].to_dict())
+                candidate_datasets.append(
+                    zeno_data[zeno_data.dataset_id == int(doc.id)]
+                    .iloc[0]
+                    .to_dict()
+                )
         case "nomic":
             nomic_retriever = _get_nomic_retriever()
             match_documents = nomic_retriever.invoke(query)
             for doc in match_documents:
-                candidate_datasets.append(zeno_data[zeno_data.dataset_id == int(doc.id)].iloc[0].to_dict())
+                candidate_datasets.append(
+                    zeno_data[zeno_data.dataset_id == int(doc.id)]
+                    .iloc[0]
+                    .to_dict()
+                )
         case "colbert":
-            colbert_retriever, colbert_model = _get_colbert_retriever_and_model()
+            colbert_retriever, colbert_model = (
+                _get_colbert_retriever_and_model()
+            )
             query_embedding = colbert_model.encode(
-                query,
-                batch_size=1,
-                is_query=True,
-                show_progress_bar=False
+                query, batch_size=1, is_query=True, show_progress_bar=False
             )
 
-            scores = colbert_retriever.retrieve(queries_embeddings=query_embedding, k=k)
+            scores = colbert_retriever.retrieve(
+                queries_embeddings=query_embedding, k=k
+            )
 
             candidate_datasets = [
-                zeno_data[zeno_data.dataset_id == int(score["id"])].iloc[0].to_dict()
+                zeno_data[zeno_data.dataset_id == int(score["id"])]
+                .iloc[0]
+                .to_dict()
                 for score in scores[0]
             ]
         case _:
@@ -93,11 +118,14 @@ def rag_candidate_datasets(query: str, k=3, strategy="openai"):
     return pd.DataFrame(candidate_datasets)
 
 
-def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):  
+def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     class DatasetOption(BaseModel):
-        id: int = Field(description="ID of the dataset that best matches the user query.")
-        reason: str = Field(description="Short reason why the dataset is the best match.")
-
+        id: int = Field(
+            description="ID of the dataset that best matches the user query."
+        )
+        reason: str = Field(
+            description="Short reason why the dataset is the best match."
+        )
 
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
@@ -118,60 +146,102 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
         ]
     )
 
-    logger.debug(f"Invoking dataset selection chain...")
-    dataset_selection_chain = DATASET_SELECTION_PROMPT | sonnet.with_structured_output(DatasetOption)
-    selection_result = dataset_selection_chain.invoke({
-        "candidate_datasets": candidate_datasets[["dataset_id", "data_layer", "description", "context_layer", "date", "variables"]].to_csv(index=False),
-        "user_query": query,
-    })
-    logger.debug(f"Selected dataset ID: {selection_result.id}. Reason: {selection_result.reason}")
+    logger.debug("Invoking dataset selection chain...")
+    dataset_selection_chain = (
+        DATASET_SELECTION_PROMPT | sonnet.with_structured_output(DatasetOption)
+    )
+    selection_result = dataset_selection_chain.invoke(
+        {
+            "candidate_datasets": candidate_datasets[
+                [
+                    "dataset_id",
+                    "data_layer",
+                    "description",
+                    "context_layer",
+                    "date",
+                    "variables",
+                ]
+            ].to_csv(index=False),
+            "user_query": query,
+        }
+    )
+    logger.debug(
+        f"Selected dataset ID: {selection_result.id}. Reason: {selection_result.reason}"
+    )
     return selection_result
 
+
 class DateRange(BaseModel):
-    start_date: Optional[str] = Field(None, description="Start date in YYYY-MM-DD format if available")
-    end_date: Optional[str] = Field(None, description="End date in YYYY-MM-DD format if available")
-    years: Optional[List[int]] = Field(None, description="List of individual years requested")
-    period: Optional[str] = Field(None, description="Describes period like 'first half', 'Q2', etc.")
-    original_text: Optional[str] = Field(None, description="The original date/daterange requested by the user")
+    start_date: Optional[str] = Field(
+        None, description="Start date in YYYY-MM-DD format if available"
+    )
+    end_date: Optional[str] = Field(
+        None, description="End date in YYYY-MM-DD format if available"
+    )
+    years: Optional[List[int]] = Field(
+        None, description="List of individual years requested"
+    )
+    period: Optional[str] = Field(
+        None, description="Describes period like 'first half', 'Q2', etc."
+    )
+    original_text: Optional[str] = Field(
+        None, description="The original date/daterange requested by the user"
+    )
+
 
 class DatasetInfo(BaseModel):
     dataset_id: int
     source: str
     data_layer: str
-    context_layer: Optional[str] = Field(None, description="Pick a single context layer from the dataset if useful")
+    context_layer: Optional[str] = Field(
+        None,
+        description="Pick a single context layer from the dataset if useful",
+    )
     daterange: Optional[DateRange] = None
     threshold: Optional[int] = None
-    
+
+
 def extract_dataset_info(query: str, selection_id: int):
-    DATASET_PROMPT = ChatPromptTemplate.from_messages([
-        ("user", """Given the user query and the dataset - extract the relevant information from the dataset to pull data from source.
+    DATASET_PROMPT = ChatPromptTemplate.from_messages(
+        [
+            (
+                "user",
+                """Given the user query and the dataset - extract the relevant information from the dataset to pull data from source.
 
     Dataset: 
     {dataset}
 
     User Query: 
     {user_query}    
-    """),
-    ])
+    """,
+            ),
+        ]
+    )
 
-    logger.debug(f"Invoking dataset info extraction chain for dataset ID: {selection_id}")
+    logger.debug(
+        f"Invoking dataset info extraction chain for dataset ID: {selection_id}"
+    )
     dataset_chain = DATASET_PROMPT | sonnet.with_structured_output(DatasetInfo)
     dataset_row = zeno_data[zeno_data.dataset_id == selection_id].iloc[0]
-    final_info = dataset_chain.invoke({
-        "user_query": query,
-        "dataset": dataset_row.to_json(),
-    })
+    final_info = dataset_chain.invoke(
+        {
+            "user_query": query,
+            "dataset": dataset_row.to_json(),
+        }
+    )
     logger.debug(f"Extracted dataset info: {final_info}")
     return final_info
 
 
 @tool("pick-dataset")
-def pick_dataset(query: str, tool_call_id: Annotated[str, InjectedToolCallId] = None) -> Command:
+def pick_dataset(
+    query: str, tool_call_id: Annotated[str, InjectedToolCallId] = None
+) -> Command:
     """
-    Given a user query, runs RAG to retrieve relevant datasets, selects the best matching dataset with reasoning, 
+    Given a user query, runs RAG to retrieve relevant datasets, selects the best matching dataset with reasoning,
     and extracts relevant metadata needed for downstream querying.
     """
-    logger.info(f"PICK-DATASET-TOOL")
+    logger.info("PICK-DATASET-TOOL")
     # Step 1: RAG lookup
     candidate_datasets = rag_candidate_datasets(query, k=3, strategy="openai")
 
@@ -195,23 +265,19 @@ def pick_dataset(query: str, tool_call_id: Annotated[str, InjectedToolCallId] = 
     return Command(
         update={
             "dataset": dataset_info,
-            "messages": [
-                ToolMessage(
-                    tool_message,
-                    tool_call_id=tool_call_id
-                )
-            ],
+            "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
         },
     )
 
+
 if __name__ == "__main__":
     agent = create_react_agent(
-        sonnet, 
-        tools=[pick_dataset], 
+        sonnet,
+        tools=[pick_dataset],
         prompt="""You are a Data Agent that can ONLY HELP PICK a dataset using the `pick-dataset` tool.
 
         {instructions}
-        """
+        """,
     )
 
     user_queries = [
@@ -227,7 +293,10 @@ if __name__ == "__main__":
     ]
 
     for query in user_queries:
-        for step in agent.stream({"messages": [{"role": "user", "content": query}]}, stream_mode="values"):
+        for step in agent.stream(
+            {"messages": [{"role": "user", "content": query}]},
+            stream_mode="values",
+        ):
             message = step["messages"][-1]
             if isinstance(message, tuple):
                 logger.info(message)

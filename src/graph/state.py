@@ -1,6 +1,6 @@
 from typing import Annotated, Sequence
-import pandas as pd
 
+import pandas as pd
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
 from langgraph.managed import IsLastStep
@@ -11,7 +11,7 @@ from typing_extensions import TypedDict
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     user_persona: str
-    
+
     # pick-aoi tool
     aoi: dict
     subregion_aois: pd.DataFrame

@@ -6,37 +6,20 @@ that are used by both the orchestrator and individual handlers,
 preventing circular imports.
 """
 
-from typing import Dict, Any
 from abc import ABC, abstractmethod
-from pydantic import BaseModel
+from typing import Any, Dict
+
 from langchain_anthropic import ChatAnthropic
+from pydantic import BaseModel
 
 # GADM LEVELS
 gadm_levels = {
-    "country": {
-        "col_name": "GID_0",
-        "name": "iso" 
-    },
-    "state-province": {
-        "col_name": "GID_1",
-        "name": "adm1"
-    },
-    "district-county": {
-        "col_name": "GID_2",
-        "name": "adm2"
-    },
-    "municipality": {
-        "col_name": "GID_3",
-        "name": "adm3"
-    },
-    "locality": {
-        "col_name": "GID_4",
-        "name": "adm4"
-    },
-    "neighbourhood": {
-        "col_name": "GID_5",
-        "name": "adm5"
-    }
+    "country": {"col_name": "GID_0", "name": "iso"},
+    "state-province": {"col_name": "GID_1", "name": "adm1"},
+    "district-county": {"col_name": "GID_2", "name": "adm2"},
+    "municipality": {"col_name": "GID_3", "name": "adm3"},
+    "locality": {"col_name": "GID_4", "name": "adm4"},
+    "neighbourhood": {"col_name": "GID_5", "name": "adm5"},
 }
 
 # DATASET NAME MAPPINGS
@@ -52,6 +35,7 @@ sonnet = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
 
 class DataPullResult(BaseModel):
     """Result of a data pull operation"""
+
     success: bool
     data: Any
     message: str
@@ -60,14 +44,21 @@ class DataPullResult(BaseModel):
 
 class DataSourceHandler(ABC):
     """Abstract base class for data source handlers"""
-    
+
     @abstractmethod
     def can_handle(self, dataset: Any, table_name: str) -> bool:
         """Check if this handler can process the given dataset and table"""
         pass
-    
+
     @abstractmethod
-    def pull_data(self, query: str, aoi_name: str, dataset: Any, aoi: Dict, 
-                  subregion: str, subtype: str) -> DataPullResult:
+    def pull_data(
+        self,
+        query: str,
+        aoi_name: str,
+        dataset: Any,
+        aoi: Dict,
+        subregion: str,
+        subtype: str,
+    ) -> DataPullResult:
         """Pull data from the source"""
         pass

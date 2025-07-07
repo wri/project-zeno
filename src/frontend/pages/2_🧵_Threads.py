@@ -1,6 +1,7 @@
-import streamlit as st
-import requests
 import json
+
+import requests
+import streamlit as st
 from app import API_BASE_URL
 
 st.set_page_config(page_title="🧵 Threads", page_icon="🧵")
@@ -17,10 +18,11 @@ def get_auth_headers():
 
 # Fetch threads
 def fetch_threads():
-    resp = requests.get(f"{API_BASE_URL}/api/threads", headers=get_auth_headers())
+    resp = requests.get(
+        f"{API_BASE_URL}/api/threads", headers=get_auth_headers()
+    )
 
     if resp.status_code == 200:
-
         return resp.json()
 
     st.error("Failed to fetch threads")
@@ -29,7 +31,6 @@ def fetch_threads():
 
 # Fetch a single thread
 def fetch_thread(thread_id):
-
     with requests.get(
         f"{API_BASE_URL}/api/threads/{thread_id}",
         headers=get_auth_headers(),
@@ -54,7 +55,6 @@ with st.sidebar:
             ),
         )
     else:
-
         user_info = requests.get(
             f"{API_BASE_URL}/api/auth/me",
             headers={
