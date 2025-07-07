@@ -31,17 +31,7 @@ Tool updates create new messages in the message history, but more importantly di
 
 The first tool is picking an AOI. It updates either the `aoi`, or the `subregion_aois` fields.
 
-The `aoi` has the following structure
 
-```json
-{}
-```
-
-The `subregion_aois` has the following structure.
-
-```json
-{}
-```
 
 The other fields are for internal use and can be ingnored on the frontend.
 
@@ -58,6 +48,170 @@ class AgentState(TypedDict):
     subtype: str
 ```
 
+#### Example pick aoi output
+
+For single aoi
+
+```json
+{
+    "aoi": {
+        "GID_0": "IND",
+        "COUNTRY": "India", 
+        "subtype": "district-county",
+        "GID_1": "IND.26_1",
+        "NAME_1": "Odisha",
+        "VARNAME_1": null,
+        "NL_NAME_1": "NA",
+        "TYPE_1": null,
+        "ENGTYPE_1": null,
+        "CC_1": null,
+        "HASC_1": null,
+        "ISO_1": null,
+        "GID_2": "IND.26.20_1",
+        "NAME_2": "Koraput",
+        "VARNAME_2": "NA",
+        "NL_NAME_2": "NA",
+        "TYPE_2": "District",
+        "ENGTYPE_2": "District",
+        "CC_2": "NA",
+        "HASC_2": "IN.OR.KO",
+        "GID_3": null,
+        "NAME_3": null,
+        "VARNAME_3": null,
+        "NL_NAME_3": null,
+        "TYPE_3": null,
+        "ENGTYPE_3": null,
+        "CC_3": null,
+        "HASC_3": null,
+        "GID_4": null,
+        "NAME_4": null,
+        "VARNAME_4": null,
+        "TYPE_4": null,
+        "ENGTYPE_4": null,
+        "CC_4": null,
+        "GID_5": null,
+        "NAME_5": null,
+        "TYPE_5": null,
+        "ENGTYPE_5": null,
+        "CC_5": null,
+        "name": "Koraput, Odisha, India",
+        "gadm_id": 22056,
+        "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [...]
+        }
+    },
+    "subregion_aois": null,
+    "subregion": null,
+    "aoi_name": "Koraput, Odisha, India",
+    "subtype": "district-county",
+    "message": "Selected AOI: Koraput, Odisha, India, type: district-county"
+}
+```
+
+For multi aoi
+
+```json
+{
+    "aoi": {
+        "GID_0": "IND",
+        "COUNTRY": "India",
+        "subtype": "state-province",
+        "GID_1": "IND.26_1",
+        "NAME_1": "Odisha",
+        "VARNAME_1": "NA",
+        "NL_NAME_1": "NA",
+        "TYPE_1": "State",
+        "ENGTYPE_1": "State",
+        "CC_1": "NA",
+        "HASC_1": "IN.OR",
+        "ISO_1": "IN-OR",
+        "GID_2": null,
+        "NAME_2": null,
+        "VARNAME_2": null,
+        "NL_NAME_2": null,
+        "TYPE_2": null,
+        "ENGTYPE_2": null,
+        "CC_2": null,
+        "HASC_2": null,
+        "GID_3": null,
+        "NAME_3": null,
+        "VARNAME_3": null,
+        "NL_NAME_3": null,
+        "TYPE_3": null,
+        "ENGTYPE_3": null,
+        "CC_3": null,
+        "HASC_3": null,
+        "GID_4": null,
+        "NAME_4": null,
+        "VARNAME_4": null,
+        "TYPE_4": null,
+        "ENGTYPE_4": null,
+        "CC_4": null,
+        "GID_5": null,
+        "NAME_5": null,
+        "TYPE_5": null,
+        "ENGTYPE_5": null,
+        "CC_5": null,
+        "name": "Odisha, India",
+        "gadm_id": 1534,
+        "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [...]
+        }
+    },
+    "subregion_aois": {
+        "data": [
+            {
+                "gfw_fid": 3261,
+                "geometry": {
+                    "type": "MultiPolygon",
+                    "coordinates": [[...]]
+                }
+            },
+            {
+                "gfw_fid": 3262,
+                "geometry": {
+                    "type": "MultiPolygon",
+                    "coordinates": [[...]]
+                }
+            },
+            {
+                "gfw_fid": 3263,
+                "geometry": {
+                    "type": "MultiPolygon",
+                    "coordinates": [[...]]
+                }
+            },
+            {
+                "gfw_fid": 14937,
+                "geometry": {
+                    "type": "MultiPolygon",
+                    "coordinates": [[...]]
+                }
+            },
+            {
+                "gfw_fid": 15089,
+                "geometry": {
+                    "type": "MultiPolygon",
+                    "coordinates": [[...]]
+                }
+            }
+        ],
+        "total_rows": 5,
+        "columns": 23
+    },
+    "subregion": "kba",
+    "aoi_name": "Odisha, India",
+    "subtype": "state-province",
+    "message": {
+        "aoi": "Selected AOI: Odisha, India, type: state-province",
+        "subregions": "Subregion AOIs: 5"
+    }
+}
+```
+
+
 ### Pick dataset
 
 The second tool is responsible to pick a dataset. It sends a tool message and updates only one addtional state variable.
@@ -68,6 +222,41 @@ class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     # Structured dictionary containing the dataset info
     dataset: dict
+```
+
+#### Example output
+
+```json
+{
+    "dataset": {
+        "dataset_id": 14,
+        "source": "GFW",
+        "data_layer": "DIST-ALERT",
+        "tile_url": "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color",
+        "context_layer": "driver",
+        "daterange": {
+            "start_date": "2024-01-01",
+            "end_date": "2024-03-31", 
+            "years": null,
+            "period": "first quarter",
+            "original_text": "first quarter of 2024"
+        },
+        "threshold": null
+    },
+    "message": {
+        "selected_dataset": "DIST-ALERT",
+        "context_layer": "driver",
+        "date_range": {
+            "start_date": "2024-01-01",
+            "end_date": "2024-03-31",
+            "years": null,
+            "period": "first quarter",
+            "original_text": "first quarter of 2024"
+        },
+        "threshold": null,
+        "reasoning": "The DIST-ALERT dataset is the best match as it specifically provides near-real-time alerts of vegetation disturbance at high resolution (30m), covers the 2024 timeframe (2023-2025), and includes a \"driver\" contextual layer which would help identify the main drivers of disturbances in Koraput for Q1 2024. This dataset covers all vegetation types and is designed for monitoring ecosystem changes in near-real-time."
+    }
+}
 ```
 
 ### Generate insights tool
