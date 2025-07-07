@@ -193,6 +193,7 @@ class DatasetInfo(BaseModel):
     dataset_id: int
     source: str
     data_layer: str
+    tile_url: str
     context_layer: Optional[str] = Field(
         None,
         description="Pick a single context layer from the dataset if useful",
@@ -292,7 +293,7 @@ if __name__ == "__main__":
         "find deforestation rate in PNG",
     ]
 
-    for query in user_queries:
+    for query in user_queries[:1]:
         for step in agent.stream(
             {"messages": [{"role": "user", "content": query}]},
             stream_mode="values",
