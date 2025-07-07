@@ -26,7 +26,7 @@ with st.sidebar:
     st.subheader("🧐 Try asking:")
     st.write(
         """
-    - Find Tree cover loss in Odisha between 2015 - 2020, driven by wildfire
+    - Find Tree cover loss in Odisha between 2015 - 2020
     - Find disturbance alerts & their main drivers in Koraput in first quarter of 2024
     """
     )
