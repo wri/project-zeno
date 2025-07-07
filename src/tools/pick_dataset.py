@@ -190,6 +190,8 @@ def pick_dataset(query: str, tool_call_id: Annotated[str, InjectedToolCallId] = 
     Reasoning: {selection_result.reason}
     """
 
+    logger.debug(f"Pick dataset tool message: {tool_message}")
+
     return Command(
         update={
             "dataset": dataset_info,

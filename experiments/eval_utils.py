@@ -6,7 +6,7 @@ import langgraph.errors
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse import Langfuse
-from langfuse.callback import CallbackHandler
+from langfuse.langchain import CallbackHandler
 
 from src.agents import zeno
 
@@ -47,16 +47,30 @@ def run_query(
     }
 
     try:
-        response = zeno.stream(
+        result = zeno.invoke(
             {
-                "messages": [HumanMessage(content=query)],
-                "user_persona": user_persona,
+                "messages": [( "user", query)]
             },
-            config=config,
-            stream_mode="updates",
-            subgraphs=False,
+            config=config
         )
-        return dumps(list(response))
+        state = zeno.get_state(config=config)
+
+        return state
+        # aoi = state.values.get("aoi")
+        # subtype = state.values.get("subtype")
+        # gadm_level = gadm_levels[subtype]
+        # aoi_gadm_id = aoi.get(gadm_level['col_name'])
+
+        # response = zeno.stream(
+        #     {
+        #         "messages": [HumanMessage(content=query)],
+        #         "user_persona": user_persona,
+        #     },
+        #     config=config,
+        #     stream_mode="updates",
+        #     subgraphs=False,
+        # )
+        # return dumps(list(response))
     except langgraph.errors.GraphRecursionError as e:
         # Log the error for debugging
         print(f"GraphRecursionError for query '{query}': {str(e)}")

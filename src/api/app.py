@@ -24,9 +24,11 @@ from langfuse.langchain import CallbackHandler
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.utils.logging_config import get_logger
 from src.agents.agents import zeno
 from src.api.data_models import UserModel, UserOrm, ThreadModel, ThreadOrm
 
+logger = get_logger(__name__)
 
 app = FastAPI(
     title="Zeno API",
@@ -225,6 +227,7 @@ async def chat(request: ChatRequest): # user: UserModel = Depends(fetch_user)
     #         db.refresh(thread)
 
     try:
+        logger.debug(f"Chat request: {request}")
         return StreamingResponse(
             stream_chat(
                 query=request.query,
@@ -238,6 +241,7 @@ async def chat(request: ChatRequest): # user: UserModel = Depends(fetch_user)
             media_type="application/x-ndjson",
         )
     except Exception as e:
+        logger.error(f"Chat request failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -266,11 +270,13 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
         thread_id = thread.id
 
     try:
+        logger.debug(f"Replaying thread: {thread_id}")
         return StreamingResponse(
             replay_chat(thread_id=thread_id),
             media_type="application/x-ndjson",
         )
     except Exception as e:
+        logger.error(f"Replay failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
