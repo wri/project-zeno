@@ -1,4 +1,5 @@
 from typing import Annotated
+import json
 
 import duckdb
 from langchain_core.messages import ToolMessage
@@ -94,12 +95,23 @@ def query_subregion_database(
         FROM 'data/geocode/exports/{source}.parquet'
         WHERE {source}_id = {src_id}
     )
-    SELECT t.*
+    SELECT t.* EXCLUDE geometry, ST_AsGeoJSON(t.geometry) as geometry
     FROM '{table_name}' AS t, aoi
     WHERE ST_Within(t.geometry, aoi.geom);
     """
     logger.debug(f"Executing subregion query: {sql_query}")
     results = connection.execute(sql_query).df()
+    
+    # Parse GeoJSON strings in the results
+    if not results.empty and 'geometry' in results.columns:
+        for idx, row in results.iterrows():
+            if row['geometry'] is not None and isinstance(row['geometry'], str):
+                try:
+                    results.at[idx, 'geometry'] = json.loads(row['geometry'])
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse GeoJSON for subregion {row.get('name', 'Unknown')}: {e}")
+                    results.at[idx, 'geometry'] = None
+    
     return results
 
 
@@ -180,7 +192,7 @@ def pick_aoi(
         case "gadm":
             selected_aoi = (
                 db_connection.sql(
-                    f"SELECT * FROM '{GADM_TABLE}' WHERE gadm_id = {src_id}"
+                    f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{GADM_TABLE}' WHERE gadm_id = {src_id}"
                 )
                 .df()
                 .iloc[0]
@@ -189,7 +201,7 @@ def pick_aoi(
         case "kba":
             selected_aoi = (
                 db_connection.sql(
-                    f"SELECT * FROM '{KBA_TABLE}' WHERE kba_id = {src_id}"
+                    f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{KBA_TABLE}' WHERE kba_id = {src_id}"
                 )
                 .df()
                 .iloc[0]
@@ -198,7 +210,7 @@ def pick_aoi(
         case "landmark":
             selected_aoi = (
                 db_connection.sql(
-                    f"SELECT * FROM '{LANDMARK_TABLE}' WHERE landmark_id = {src_id}"
+                    f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{LANDMARK_TABLE}' WHERE landmark_id = {src_id}"
                 )
                 .df()
                 .iloc[0]
@@ -207,7 +219,7 @@ def pick_aoi(
         case "wdpa":
             selected_aoi = (
                 db_connection.sql(
-                    f"SELECT * FROM '{WDPA_TABLE}' WHERE wdpa_id = {src_id}"
+                    f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{WDPA_TABLE}' WHERE wdpa_id = {src_id}"
                 )
                 .df()
                 .iloc[0]
@@ -218,6 +230,18 @@ def pick_aoi(
             raise ValueError(
                 f"Source: {source} does not match to any table in basemaps database."
             )
+
+    # Parse the GeoJSON string into a Python dictionary
+    if 'geometry' in selected_aoi and selected_aoi['geometry'] is not None:
+        try:
+            if isinstance(selected_aoi['geometry'], str):
+                selected_aoi['geometry'] = json.loads(selected_aoi['geometry'])
+                logger.debug(f"Parsed GeoJSON geometry for AOI: {selected_aoi['name']}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse GeoJSON for AOI {selected_aoi['name']}: {e}")
+            selected_aoi['geometry'] = None
+    else:
+        logger.warning(f"No geometry found for AOI: {selected_aoi.get('name', 'Unknown')}")
 
     if subregion:
         logger.info(f"Querying for subregion: '{subregion}'")
@@ -267,7 +291,7 @@ if __name__ == "__main__":
         "find deforestation rate in PNG",
     ]
 
-    for query in user_queries:
+    for query in user_queries[:1]:
         for step in agent.stream(
             {"messages": [{"role": "user", "content": query}]},
             stream_mode="values",
