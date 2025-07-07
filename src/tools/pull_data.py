@@ -33,19 +33,19 @@ class DataPullOrchestrator:
         subtype: str,
     ) -> DataPullResult:
         """Pull data using the appropriate handler"""
-        if dataset.source != "GFW":
+        if dataset["source"] != "GFW":
             return DataPullResult(
                 success=False,
                 data={"data": []},
-                message=f"Dataset from {dataset.source} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question.",
+                message=f"Dataset from {dataset['source']} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question.",
             )
 
-        table_name = dataset_names.get(dataset.data_layer)
+        table_name = dataset_names.get(dataset["data_layer"])
         if not table_name:
             return DataPullResult(
                 success=False,
                 data={"data": []},
-                message=f"Dataset {dataset.data_layer} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question.",
+                message=f"Dataset {dataset['data_layer']} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question.",
             )
 
         # Find appropriate handler
@@ -58,7 +58,7 @@ class DataPullOrchestrator:
         return DataPullResult(
             success=False,
             data={"data": []},
-            message=f"No handler found for dataset: {dataset.data_layer}. Please ask for data from GFW datasets.",
+            message=f"No handler found for dataset: {dataset['data_layer']}. Please ask for data from GFW datasets.",
         )
 
 
@@ -154,7 +154,7 @@ if __name__ == "__main__":
                 start_date="2020-01-01", end_date="2020-12-31"
             ),
             threshold=30,
-        ),
+        ).model_dump(),
     }
 
     user_query = mock_state["messages"][0]["content"]

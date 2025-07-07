@@ -265,7 +265,7 @@ def pick_dataset(
 
     return Command(
         update={
-            "dataset": dataset_info,
+            "dataset": dataset_info.model_dump(),
             "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
         },
     )

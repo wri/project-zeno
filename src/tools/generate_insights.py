@@ -1,4 +1,4 @@
-from typing import Annotated, Dict
+from typing import Annotated, Dict, List, Any
 
 import pandas as pd
 from langchain_anthropic import ChatAnthropic
@@ -9,6 +9,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, Field
+import json
 
 from src.utils.logging_config import get_logger
 
@@ -18,19 +19,42 @@ logger = get_logger(__name__)
 sonnet = ChatAnthropic(model="claude-3-7-sonnet-latest", temperature=0)
 
 
-class Insight(BaseModel):
+class ChartInsight(BaseModel):
     """
-    Represents an insight generated from the data.
+    Represents a chart-based insight with Recharts-compatible data.
     """
-
+    
     title: str = Field(
-        description="A concise and descriptive title for the insight."
+        description="Clear, descriptive title for the chart"
     )
-    short_description: str = Field(
-        description="A brief summary of the key findings."
+    chart_type: str = Field(
+        description="Chart type: 'line', 'bar', 'pie', 'area', 'scatter', or 'table'"
     )
-    data_table: str = Field(
-        description="The data supporting the insight, formatted as a markdown table."
+    insight: str = Field(
+        description="Key insight or finding that this chart reveals (2-3 sentences)"
+    )
+    data: List[Dict[str, Any]] = Field(
+        description="Recharts-compatible data array with objects containing key-value pairs"
+    )
+    x_axis: str = Field(
+        description="Name of the field to use for X-axis (for applicable chart types)"
+    )
+    y_axis: str = Field(
+        description="Name of the field to use for Y-axis (for applicable chart types)"
+    )
+    color_field: str = Field(
+        default="",
+        description="Optional field name for color grouping/categorization"
+    )
+
+
+class InsightResponse(BaseModel):
+    """
+    Contains 1-2 chart insights generated from the data.
+    """
+    
+    insights: List[ChartInsight] = Field(
+        description="List of 1-2 chart insights, ordered by importance"
     )
 
 
@@ -39,139 +63,206 @@ INSIGHT_GENERATION_PROMPT = ChatPromptTemplate.from_messages(
         (
             "user",
             """
-You are Zeno, a helpful AI assistant helping users analyze environmental data.
-Your task is to generate a compelling insight from the provided raw data, keeping the original user query in mind.
+You are Zeno, an AI assistant that analyzes environmental data and creates insightful visualizations.
 
-The insight should have three parts:
-1.  A `title`: A short, catchy title that summarizes the main finding.
-2.  A `short_description`: A one or two-sentence summary that explains the insight.
-3.  A `data_table`: The raw data formatted as a markdown table to support the finding.
+Your task is to analyze the provided raw data and generate 1-2 compelling chart insights that answer the user's query.
+
+For each insight, you need to:
+1. Choose the most appropriate chart type based on the data characteristics
+2. Transform the data into Recharts-compatible format (array of objects)
+3. Provide a clear title and key insight
+4. Specify axis fields for the chart
+
+Chart type guidelines:
+- 'line': For time series or continuous data trends
+- 'bar': For categorical comparisons or rankings
+- 'pie': For part-to-whole relationships (max 6-8 categories)
+- 'area': For cumulative data or filled trends
+- 'scatter': For correlation between two variables
+- 'table': For detailed data that doesn't visualize well
+
+Recharts data format:
+- Array of objects where each object represents one data point
+- Use simple, descriptive field names (e.g., 'date', 'value', 'category', 'count')
+- Ensure numeric values are actual numbers, not strings
+- For time data, use ISO date strings or simple date formats
 
 User's original query: {user_query}
 Raw data (in CSV format):
 {raw_data}
 
-Generate the insight based on the data and the user's query.
-""",
-        )
+Analyze this data and generate 1-2 compelling chart insights. Focus on the most important patterns that answer the user's query.
+
+For each insight:
+1. Choose the best chart type for the data pattern
+2. Transform data into Recharts format (array of objects with simple field names)
+3. Provide clear axis field names
+4. Write a compelling insight description
+
+Return 1 insight if the data is simple/focused, or 2 insights if there are multiple interesting patterns to explore.
+            """,
+        ),
     ]
 )
 
-insight_generation_chain = (
-    INSIGHT_GENERATION_PROMPT | sonnet.with_structured_output(Insight)
-)
 
-
-@tool("generate-insights")
+@tool
 def generate_insights(
     query: str,
-    aoi: str,
-    dataset: str,
+    aoi: str = "",
+    dataset: str = "",
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
     """
-    Analyzes raw data in the context of the user's query to generate a structured insight.
+    Analyzes raw data and generates 1-2 chart insights with Recharts-compatible data.
 
-    This tool takes the raw data pulled from a data source and uses an AI model
-    to generate a title, a short description, and a data table that represent
-    a key insight from the data.
+    This simplified tool combines insight planning and chart creation into a single step.
+    It analyzes the raw data and generates compelling visualizations that answer the user's query.
 
     Args:
-        query: The user's original query to provide context for the insight.
-        state: The current state of the agent, which must contain 'raw_data'.
+        query: The user's original query to provide context for insights.
+        aoi: Area of interest (optional, for context).
+        dataset: Dataset name (optional, for context).
     """
     logger.info("GENERATE-INSIGHTS-TOOL")
+    logger.debug(f"Generating insights for query: {query}")
 
-    raw_data = state.get("raw_data")
-    if not raw_data:  # raw_data is None or empty
-        logger.warning("No raw data found to generate insights from.")
+    if not state or "raw_data" not in state:
+        error_msg = "No raw data available in state. Please pull data first."
+        logger.error(error_msg)
         return Command(
             update={
                 "messages": [
                     ToolMessage(
-                        content="No raw data found to generate insights from.",
+                        content=error_msg,
                         tool_call_id=tool_call_id,
                     )
                 ]
             }
         )
 
-    # Convert raw data to a pandas DataFrame for easier handling and table formatting
-    df = pd.DataFrame(raw_data)
-    logger.debug(f"Converted raw data to DataFrame with shape: {df.shape}")
+    raw_data = state["raw_data"]
+    logger.debug(f"Processing data with {len(raw_data)} rows")
 
-    # Generate the insight
-    logger.debug("Invoking insight generation chain...")
-    insight = insight_generation_chain.invoke(
-        {
+    # Convert DataFrame to CSV string for the prompt
+    if isinstance(raw_data, pd.DataFrame):
+        data_csv = raw_data.to_csv(index=False)
+        logger.debug(f"Data columns: {list(raw_data.columns)}")
+    else:
+        data_csv = str(raw_data)
+
+    # Generate insights using the LLM
+    try:
+        chain = INSIGHT_GENERATION_PROMPT | sonnet.with_structured_output(InsightResponse)
+        response = chain.invoke({
             "user_query": query,
-            "raw_data": df.to_csv(index=False),
+            "raw_data": data_csv
+        })
+
+        insights = response.insights
+        logger.debug(f"Generated {len(insights)} insights")
+
+        # Format the response message
+        message_parts = []
+        charts_data = []
+        
+        for i, insight in enumerate(insights, 1):
+            logger.debug(f"Insight {i}: {insight.title} ({insight.chart_type})")
+            
+            message_parts.append(f"**Insight {i}: {insight.title}**")
+            message_parts.append(f"Chart Type: {insight.chart_type}")
+            message_parts.append(f"Key Finding: {insight.insight}")
+            message_parts.append(f"Data Points: {len(insight.data)}")
+            message_parts.append("")
+            
+            # Store chart data for frontend
+            charts_data.append({
+                "id": f"chart_{i}",
+                "title": insight.title,
+                "type": insight.chart_type,
+                "insight": insight.insight,
+                "data": insight.data,
+                "xAxis": insight.x_axis,
+                "yAxis": insight.y_axis,
+                "colorField": insight.color_field
+            })
+
+        tool_message = "\n".join(message_parts)
+        
+        # Update state with generated insights
+        updated_state = {
+            "insights": response.model_dump()["insights"],
+            "charts_data": charts_data,
+            "insight_count": len(insights)
         }
-    )
-    logger.debug(f"Successfully generated insight: '{insight.title}'")
 
-    # Convert dataframe to markdown for the insight object
+        return Command(
+            update={
+                **updated_state,
+                "messages": [
+                    ToolMessage(
+                        content=tool_message,
+                        tool_call_id=tool_call_id,
+                    )
+                ],
+            }
+        )
 
-    tool_message = ToolMessage(
-        content=f"Successfully generated an insight: '{insight.title}'. Raw data: {df.to_csv(index=False)}",
-        tool_call_id=tool_call_id,
-    )
-
-    return Command(
-        update={
-            "insights": insight.model_dump(),
-            "messages": [tool_message],
-        },
-    )
+    except Exception as e:
+        error_msg = f"Error generating insights: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        content=error_msg,
+                        tool_call_id=tool_call_id,
+                    )
+                ]
+            }
+        )
 
 
 if __name__ == "__main__":
     # Example usage for testing
-    mock_state = {
-        "messages": [
-            {
-                "role": "user",
-                "content": "How much tree cover was lost in Indonesia in 2020?",
-            }
-        ],
-        "raw_data": [
-            {
-                "adm1": 1,
-                "adm2": 1,
-                "umd_tree_cover_loss__year": 2020,
-                "umd_tree_cover_density_2000__threshold": 30,
-                "umd_tree_cover_loss__ha": 1000.0,
-            },
-            {
-                "adm1": 1,
-                "adm2": 2,
-                "umd_tree_cover_loss__year": 2020,
-                "umd_tree_cover_density_2000__threshold": 30,
-                "umd_tree_cover_loss__ha": 2500.5,
-            },
-            {
-                "adm1": 2,
-                "adm2": 3,
-                "umd_tree_cover_loss__year": 2020,
-                "umd_tree_cover_density_2000__threshold": 30,
-                "umd_tree_cover_loss__ha": 500.75,
-            },
-        ],
+    
+    # Test with time series data
+    mock_state_1 = {
+        "raw_data": pd.DataFrame({
+            "date": ["2020-01-01", "2021-01-01", "2022-01-01", "2023-01-01"],
+            "alerts": [1200, 1450, 1100, 980],
+            "region": ["Amazon", "Amazon", "Amazon", "Amazon"]
+        })
     }
 
-    # To test the tool's logic directly, we call its underlying function (`.func`).
-    # The `@tool` decorator wraps the function, and `.func` gives us access to the original.
-    # This bypasses the LangChain machinery that gets confused by the `InjectedState`
-    # when the tool is not run within a LangGraph agent.
-    user_query = mock_state["messages"][0]["content"]
-    command = generate_insights.func(
-        query=user_query,
-        aoi="Indonesia",
-        dataset="Tree cover loss",
-        state=mock_state,
-        tool_call_id="test-id",
+    result_1 = generate_insights.func(
+        query="What are the trends in deforestation alerts over time?",
+        aoi="Amazon",
+        dataset="GLAD alerts",
+        state=mock_state_1,
+        tool_call_id="test-id-1",
     )
+    
+    print("=== Time Series Test ===")
+    print(result_1.update["messages"][0].content)
+    
+    # Test with categorical data
+    mock_state_2 = {
+        "raw_data": pd.DataFrame({
+            "country": ["Brazil", "Indonesia", "DRC", "Peru", "Colombia"],
+            "forest_loss_ha": [11568000, 6020000, 4770000, 1630000, 1240000],
+            "year": [2022, 2022, 2022, 2022, 2022]
+        })
+    }
 
-    logger.info("--- Generated Command ---")
-    logger.info(command)
+    result_2 = generate_insights.func(
+        query="Which countries have the highest forest loss?",
+        aoi="Global",
+        dataset="Global Forest Watch",
+        state=mock_state_2,
+        tool_call_id="test-id-2",
+    )
+    
+    print("\n=== Categorical Test ===")
+    print(result_2.update["messages"][0].content)

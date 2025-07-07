@@ -152,7 +152,7 @@ class GFWSQLHandler(DataSourceHandler):
         subtype: str,
     ) -> DataPullResult:
         try:
-            table_name = dataset_names[dataset.data_layer]
+            table_name = dataset_names[dataset["data_layer"]]
             table_slug = self._determine_table_slug(table_name, subtype)
 
             logger.debug(f"Determined table slug: {table_slug}")
@@ -224,7 +224,7 @@ class GFWSQLHandler(DataSourceHandler):
                     "user",
                     """
 You are Zeno, a helpful AI assistant helping users query environmental conservation and biodiversity data from the Global Forest Watch data API. \n
-Select fields from the list of fields provided, based on the user's question and a csv defining the available fields to query. Be greedy with picking the fields that will help answer the user query & provide insights. \n
+Select fields from the list of fields provided, based on the user's question and a csv defining the available fields to query. \n
 Be mindful of fields that can help analyse data around specific date ranges, thresholds, etc. \n
 User's question: {user_query} \n
 CSV with available fields: {fields} \n
