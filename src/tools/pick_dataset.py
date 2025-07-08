@@ -252,14 +252,7 @@ def pick_dataset(
     # Step 3: LLM to extract structured info for downstream query
     dataset_info = extract_dataset_info(query, selection_result.id)
 
-    tool_message = f"""
-    Selected dataset: {dataset_info.data_layer}
-    Context layer: {dataset_info.context_layer}
-    Date range: {dataset_info.daterange}
-    Threshold: {dataset_info.threshold}
-
-    Reasoning: {selection_result.reason}
-    """
+    tool_message = f"""Selected dataset: {dataset_info.data_layer}\nContext layer: {dataset_info.context_layer}\nTile URL: {dataset_info.tile_url}\nDate range: {dataset_info.daterange}\nThreshold: {dataset_info.threshold}\nReasoning: {selection_result.reason}"""
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
 

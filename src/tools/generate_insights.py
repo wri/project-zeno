@@ -130,6 +130,7 @@ def generate_insights(
                     ToolMessage(
                         content=error_msg,
                         tool_call_id=tool_call_id,
+                        status="error"
                     )
                 ]
             }
@@ -214,6 +215,7 @@ def generate_insights(
                     ToolMessage(
                         content=error_msg,
                         tool_call_id=tool_call_id,
+                        status="error"
                     )
                 ]
             }
