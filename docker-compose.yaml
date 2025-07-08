@@ -32,6 +32,7 @@ services:
       - 8501:8501
     volumes:
       - ./src:/app/src
+      - ./client.py:/app/src/frontend/client.py
       - ./.env:/app/.env
     environment:
       - API_BASE_URL=https://api.zeno-staging.ds.io
@@ -107,4 +108,4 @@ services:
     volumes: 
       - ./db:/app/db
 
-   
+  

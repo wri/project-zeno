@@ -21,6 +21,7 @@ ENV PATH="/root/.local/bin/:$PATH"
 ## Copy the project into the image
 ADD ./pyproject.toml ./uv.lock ./README.md /app/
 ADD ./src /app/src
+ADD ./client.py /app/src/frontend/client.py
 
 WORKDIR /app
 
