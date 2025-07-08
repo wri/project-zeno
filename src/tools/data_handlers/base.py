@@ -9,7 +9,6 @@ preventing circular imports.
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
-from langchain_anthropic import ChatAnthropic
 from pydantic import BaseModel
 
 # GADM LEVELS
@@ -28,10 +27,6 @@ dataset_names = {
     "Tree cover loss due to fires": "tcl",
     "DIST-ALERT": "DIST-ALERT",
 }
-
-# Initialize the language model
-sonnet = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
-
 
 class DataPullResult(BaseModel):
     """Result of a data pull operation"""

@@ -16,14 +16,12 @@ from pydantic import BaseModel, Field
 from pylate import indexes, models, retrieve
 
 from src.utils.logging_config import get_logger
+from src.utils.llms import SONNET
 
 logger = get_logger(__name__)
 
 data_dir = Path("data")
 zeno_data = pd.read_csv(data_dir / "zeno_data_clean.csv")
-
-# LLM
-sonnet = ChatAnthropic(model="claude-3-7-sonnet-latest")
 
 _retriever_cache = {}
 
@@ -148,7 +146,7 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
 
     logger.debug("Invoking dataset selection chain...")
     dataset_selection_chain = (
-        DATASET_SELECTION_PROMPT | sonnet.with_structured_output(DatasetOption)
+        DATASET_SELECTION_PROMPT | SONNET.with_structured_output(DatasetOption)
     )
     selection_result = dataset_selection_chain.invoke(
         {
@@ -222,7 +220,7 @@ def extract_dataset_info(query: str, selection_id: int):
     logger.debug(
         f"Invoking dataset info extraction chain for dataset ID: {selection_id}"
     )
-    dataset_chain = DATASET_PROMPT | sonnet.with_structured_output(DatasetInfo)
+    dataset_chain = DATASET_PROMPT | SONNET.with_structured_output(DatasetInfo)
     dataset_row = zeno_data[zeno_data.dataset_id == selection_id].iloc[0]
     final_info = dataset_chain.invoke(
         {
@@ -252,14 +250,7 @@ def pick_dataset(
     # Step 3: LLM to extract structured info for downstream query
     dataset_info = extract_dataset_info(query, selection_result.id)
 
-    tool_message = f"""
-    Selected dataset: {dataset_info.data_layer}
-    Context layer: {dataset_info.context_layer}
-    Date range: {dataset_info.daterange}
-    Threshold: {dataset_info.threshold}
-
-    Reasoning: {selection_result.reason}
-    """
+    tool_message = f"""Selected dataset: {dataset_info.data_layer}\nContext layer: {dataset_info.context_layer}\nTile URL: {dataset_info.tile_url}\nDate range: {dataset_info.daterange}\nThreshold: {dataset_info.threshold}\nReasoning: {selection_result.reason}"""
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
 
@@ -273,7 +264,7 @@ def pick_dataset(
 
 if __name__ == "__main__":
     agent = create_react_agent(
-        sonnet,
+        SONNET,
         tools=[pick_dataset],
         prompt="""You are a Data Agent that can ONLY HELP PICK a dataset using the `pick-dataset` tool.
 

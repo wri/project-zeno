@@ -133,8 +133,6 @@ if user_input := st.chat_input(
         st.markdown(user_input)
 
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
         client = ZenoClient(
             base_url=API_BASE_URL, token=st.session_state.token
         )
@@ -143,16 +141,24 @@ if user_input := st.chat_input(
         ):
             node = stream["node"]
             update = json.loads(stream["update"])
+            state_updates = "State Update: " + ", ".join(list(update.keys()))
+            st.badge(state_updates, icon=":material/check:", color="green")
+
             for msg in update["messages"]:
                 content = msg["kwargs"]["content"]
-
                 if isinstance(content, list):
                     for msg in content:
-                        full_response += str(msg) + "\n"
+                        if msg["type"] == "text":
+                            st.text(msg["text"])
+                        elif msg["type"] == "tool_use":
+                            st.code(msg["name"])
+                            st.code(msg["input"], language="json")
                 else:
-                    full_response += str(content)
-            message_placeholder.markdown(full_response + "▌")
-        message_placeholder.markdown(full_response)
-    st.session_state.messages.append(
-        {"role": "assistant", "content": full_response}
-    )
+                    st.text(content)
+            with st.expander("State Updates"):
+                for key, value in update.items():
+                    if key == "messages" or key == "aoi":
+                        continue
+                    st.badge(key)
+                    st.code(value, language="json")
+    st.session_state.messages.append({"role": "assistant", "content": content})

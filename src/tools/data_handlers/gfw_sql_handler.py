@@ -12,8 +12,8 @@ from src.tools.data_handlers.base import (
     DataSourceHandler,
     dataset_names,
     gadm_levels,
-    sonnet,
 )
+from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -237,7 +237,7 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
         logger.debug("Invoking field selection chain...")
         field_selection_chain = (
             FIELD_SELECTION_PROMPT
-            | sonnet.with_structured_output(FieldSelection)
+            | SONNET.with_structured_output(FieldSelection)
         )
         return field_selection_chain.invoke(
             {"user_query": query, "fields": table_fields.as_csv()}
@@ -282,7 +282,7 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
         )
 
         logger.debug("Invoking SQL query generation chain...")
-        sql_query_chain = SQL_QUERY_PROMPT | sonnet
+        sql_query_chain = SQL_QUERY_PROMPT | SONNET
         location_filter = GadmId(
             gadm_id=aoi[gadm_level["col_name"]]
         ).as_sql_filter()
