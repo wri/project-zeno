@@ -14,7 +14,7 @@ class AgentState(TypedDict):
 
     # pick-aoi tool
     aoi: dict
-    subregion_aois: pd.DataFrame
+    subregion_aois: dict
     subregion: str
     aoi_name: str
     subtype: str

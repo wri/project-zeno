@@ -16,14 +16,12 @@ from pydantic import BaseModel, Field
 from pylate import indexes, models, retrieve
 
 from src.utils.logging_config import get_logger
+from src.utils.llms import SONNET
 
 logger = get_logger(__name__)
 
 data_dir = Path("data")
 zeno_data = pd.read_csv(data_dir / "zeno_data_clean.csv")
-
-# LLM
-sonnet = ChatAnthropic(model="claude-3-7-sonnet-latest")
 
 _retriever_cache = {}
 
@@ -148,7 +146,7 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
 
     logger.debug("Invoking dataset selection chain...")
     dataset_selection_chain = (
-        DATASET_SELECTION_PROMPT | sonnet.with_structured_output(DatasetOption)
+        DATASET_SELECTION_PROMPT | SONNET.with_structured_output(DatasetOption)
     )
     selection_result = dataset_selection_chain.invoke(
         {
@@ -222,7 +220,7 @@ def extract_dataset_info(query: str, selection_id: int):
     logger.debug(
         f"Invoking dataset info extraction chain for dataset ID: {selection_id}"
     )
-    dataset_chain = DATASET_PROMPT | sonnet.with_structured_output(DatasetInfo)
+    dataset_chain = DATASET_PROMPT | SONNET.with_structured_output(DatasetInfo)
     dataset_row = zeno_data[zeno_data.dataset_id == selection_id].iloc[0]
     final_info = dataset_chain.invoke(
         {
@@ -266,7 +264,7 @@ def pick_dataset(
 
 if __name__ == "__main__":
     agent = create_react_agent(
-        sonnet,
+        SONNET,
         tools=[pick_dataset],
         prompt="""You are a Data Agent that can ONLY HELP PICK a dataset using the `pick-dataset` tool.
 

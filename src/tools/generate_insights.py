@@ -11,11 +11,9 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from src.utils.logging_config import get_logger
+from src.utils.llms import SONNET
 
 logger = get_logger(__name__)
-
-# LLM
-sonnet = ChatAnthropic(model="claude-3-7-sonnet-latest", temperature=0)
 
 
 class ChartInsight(BaseModel):
@@ -148,7 +146,7 @@ def generate_insights(
 
     # Generate insights using the LLM
     try:
-        chain = INSIGHT_GENERATION_PROMPT | sonnet.with_structured_output(
+        chain = INSIGHT_GENERATION_PROMPT | SONNET.with_structured_output(
             InsightResponse
         )
         response = chain.invoke({"user_query": query, "raw_data": data_csv})

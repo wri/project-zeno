@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal, Optional
 import json
 
 import duckdb
@@ -154,7 +154,7 @@ AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
 def pick_aoi(
     question: str,
     place: str,
-    subregion: str = None,
+    subregion: Optional[Literal["country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", "landmark"]] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
     """Selects the most appropriate area of interest (AOI) based on a place name and user's question. Optionally, it can also filter the results by a subregion.
@@ -165,110 +165,117 @@ def pick_aoi(
     Args:
         question: User's question providing context for selecting the most relevant location
         place: Name of the place or area to find in the spatial database, expand any abbreviations
-        subregion: Any subregion to filter the results by if asked by the user (optional). It can only be a country, state, district, municipality, locality, neighbourhood, kba, wdpa or landmark.
+        subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
-    logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
-    # Query the database for place & get top matches using jaro winkler similarity
-    db_connection = get_db_connection()
-    results = query_aoi_database(db_connection, place, RESULT_LIMIT)
+    try:
+        logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
+        # Query the database for place & get top matches using jaro winkler similarity
+        db_connection = get_db_connection()
+        results = query_aoi_database(db_connection, place, RESULT_LIMIT)
 
-    candidate_aois = results.to_csv(
-        index=False
-    )  # results: id, name, subtype, source, src_id
+        candidate_aois = results.to_csv(
+            index=False
+        )  # results: id, name, subtype, source, src_id
 
-    # Select the best AOI based on user query
-    selected_aoi = AOI_SELECTION_CHAIN.invoke(
-        {"candidate_locations": candidate_aois, "user_query": question}
-    )
-    selected_aoi_id = selected_aoi.id
-    source = selected_aoi.source
-    src_id = selected_aoi.src_id
-
-    logger.debug(
-        f"Selected AOI id: {selected_aoi_id}, source: '{source}', src_id: {src_id}"
-    )
-
-    match source:
-        case "gadm":
-            selected_aoi = (
-                db_connection.sql(
-                    f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{GADM_TABLE}' WHERE gadm_id = {src_id}"
-                )
-                .df()
-                .iloc[0]
-                .to_dict()
-            )
-        case "kba":
-            selected_aoi = (
-                db_connection.sql(
-                    f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{KBA_TABLE}' WHERE kba_id = {src_id}"
-                )
-                .df()
-                .iloc[0]
-                .to_dict()
-            )
-        case "landmark":
-            selected_aoi = (
-                db_connection.sql(
-                    f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{LANDMARK_TABLE}' WHERE landmark_id = {src_id}"
-                )
-                .df()
-                .iloc[0]
-                .to_dict()
-            )
-        case "wdpa":
-            selected_aoi = (
-                db_connection.sql(
-                    f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{WDPA_TABLE}' WHERE wdpa_id = {src_id}"
-                )
-                .df()
-                .iloc[0]
-                .to_dict()
-            )
-        case _:
-            logger.error(f"Invalid source: {source}")
-            raise ValueError(
-                f"Source: {source} does not match to any table in basemaps database."
-            )
-
-    # Parse the GeoJSON string into a Python dictionary
-    if 'geometry' in selected_aoi and selected_aoi['geometry'] is not None:
-        try:
-            if isinstance(selected_aoi['geometry'], str):
-                selected_aoi['geometry'] = json.loads(selected_aoi['geometry'])
-                logger.debug(f"Parsed GeoJSON geometry for AOI: {selected_aoi['name']}")
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse GeoJSON for AOI {selected_aoi['name']}: {e}")
-            selected_aoi['geometry'] = None
-    else:
-        logger.warning(f"No geometry found for AOI: {selected_aoi.get('name', 'Unknown')}")
-
-    if subregion:
-        logger.info(f"Querying for subregion: '{subregion}'")
-        subregion_aois = query_subregion_database(
-            db_connection, subregion, source, src_id
+        # Select the best AOI based on user query
+        selected_aoi = AOI_SELECTION_CHAIN.invoke(
+            {"candidate_locations": candidate_aois, "user_query": question}
         )
-        logger.info(f"Found {len(subregion_aois)} subregion AOIs")
+        selected_aoi_id = selected_aoi.id
+        source = selected_aoi.source
+        src_id = selected_aoi.src_id
 
-    tool_message = f"""
-    Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}
-    """
-    if subregion:
-        tool_message += f"\nSubregion AOIs: {subregion_aois.shape[0]}"
+        logger.debug(
+            f"Selected AOI id: {selected_aoi_id}, source: '{source}', src_id: {src_id}"
+        )
 
-    logger.debug(f"Pick AOI tool message: {tool_message}")
+        match source:
+            case "gadm":
+                selected_aoi = (
+                    db_connection.sql(
+                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{GADM_TABLE}' WHERE gadm_id = {src_id}"
+                    )
+                    .df()
+                    .iloc[0]
+                    .to_dict()
+                )
+            case "kba":
+                selected_aoi = (
+                    db_connection.sql(
+                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{KBA_TABLE}' WHERE kba_id = {src_id}"
+                    )
+                    .df()
+                    .iloc[0]
+                    .to_dict()
+                )
+            case "landmark":
+                selected_aoi = (
+                    db_connection.sql(
+                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{LANDMARK_TABLE}' WHERE landmark_id = {src_id}"
+                    )
+                    .df()
+                    .iloc[0]
+                    .to_dict()
+                )
+            case "wdpa":
+                selected_aoi = (
+                    db_connection.sql(
+                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{WDPA_TABLE}' WHERE wdpa_id = {src_id}"
+                    )
+                    .df()
+                    .iloc[0]
+                    .to_dict()
+                )
+            case _:
+                logger.error(f"Invalid source: {source}")
+                raise ValueError(
+                    f"Source: {source} does not match to any table in basemaps database."
+                )
 
-    return Command(
-        update={
-            "aoi": selected_aoi,
-            "subregion_aois": subregion_aois if subregion else None,
-            "subregion": subregion,
-            "aoi_name": selected_aoi["name"],
-            "subtype": selected_aoi["subtype"],
-            # Update the message history
-            "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
-        },
-    )
+        # Parse the GeoJSON string into a Python dictionary
+        if 'geometry' in selected_aoi and selected_aoi['geometry'] is not None:
+            try:
+                if isinstance(selected_aoi['geometry'], str):
+                    selected_aoi['geometry'] = json.loads(selected_aoi['geometry'])
+                    logger.debug(f"Parsed GeoJSON geometry for AOI: {selected_aoi['name']}")
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse GeoJSON for AOI {selected_aoi['name']}: {e}")
+                selected_aoi['geometry'] = None
+        else:
+            logger.warning(f"No geometry found for AOI: {selected_aoi.get('name', 'Unknown')}")
+
+        if subregion:
+            logger.info(f"Querying for subregion: '{subregion}'")
+            subregion_aois = query_subregion_database(
+                db_connection, subregion, source, src_id
+            )
+            subregion_aois = subregion_aois.to_dict(orient="records")
+            logger.info(f"Found {len(subregion_aois)} subregion AOIs")
+
+        tool_message = f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
+        if subregion:
+            tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
+
+        logger.debug(f"Pick AOI tool message: {tool_message}")
+
+        return Command(
+            update={
+                "aoi": selected_aoi,
+                "subregion_aois": subregion_aois if subregion else None,
+                "subregion": subregion,
+                "aoi_name": selected_aoi["name"],
+                "subtype": selected_aoi["subtype"],
+                # Update the message history
+                "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error in pick_aoi tool: {e}")
+        return Command(
+            update={
+                "messages": [ToolMessage(str(e), tool_call_id=tool_call_id, status="error")],
+            },
+        )
 
 
 if __name__ == "__main__":
