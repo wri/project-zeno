@@ -1,7 +1,9 @@
 import json
 import uuid
 
+import altair as alt
 import folium
+import pandas as pd
 import requests
 import streamlit as st
 from app import API_BASE_URL, STREAMLIT_URL
@@ -289,6 +291,176 @@ def render_dataset_map(dataset_data, aoi_data=None):
         st.json(dataset_data)  # Fallback to show raw data
 
 
+def render_charts(charts_data):
+    """
+    Render charts using Altair based on charts_data schema.
+
+    Args:
+        charts_data: List of chart dictionaries with schema:
+        {
+            "id": "chart_1",
+            "title": "Chart Title",
+            "type": "bar|line|pie|area|scatter|table",
+            "data": [{...}],
+            "xAxis": "field_name",
+            "yAxis": "field_name",
+            "colorField": "field_name" (optional)
+        }
+    """
+    try:
+        if not charts_data or not isinstance(charts_data, list):
+            return
+
+        for chart in charts_data:
+            if not isinstance(chart, dict):
+                continue
+
+            chart_title = chart.get("title", "Chart")
+            chart_type = chart.get("type", "bar").lower()
+            chart_data = chart.get("data", [])
+            x_axis = chart.get("xAxis", "")
+            y_axis = chart.get("yAxis", "")
+            color_field = chart.get("colorField", "")
+
+            if not chart_data or not x_axis or not y_axis:
+                st.warning(f"Incomplete chart data for: {chart_title}")
+                continue
+
+            # Convert to DataFrame
+            df = pd.DataFrame(chart_data)
+
+            st.subheader(chart_title)
+
+            # Display insight if available
+            if "insight" in chart:
+                st.info(chart["insight"])
+
+            # Create chart based on type
+            if chart_type == "bar":
+                chart_obj = (
+                    alt.Chart(df)
+                    .mark_bar()
+                    .encode(
+                        x=alt.X(
+                            f"{x_axis}:N",
+                            title=x_axis.replace("_", " ").title(),
+                        ),
+                        y=alt.Y(
+                            f"{y_axis}:Q",
+                            title=y_axis.replace("_", " ").title(),
+                        ),
+                        color=alt.Color(f"{color_field}:N")
+                        if color_field
+                        else alt.value("steelblue"),
+                    )
+                    .properties(width=600, height=400, title=chart_title)
+                )
+
+            elif chart_type == "line":
+                chart_obj = (
+                    alt.Chart(df)
+                    .mark_line(point=True)
+                    .encode(
+                        x=alt.X(
+                            f"{x_axis}:O",
+                            title=x_axis.replace("_", " ").title(),
+                        ),
+                        y=alt.Y(
+                            f"{y_axis}:Q",
+                            title=y_axis.replace("_", " ").title(),
+                        ),
+                        color=alt.Color(f"{color_field}:N")
+                        if color_field
+                        else alt.value("steelblue"),
+                    )
+                    .properties(width=600, height=400, title=chart_title)
+                )
+
+            elif chart_type == "pie":
+                chart_obj = (
+                    alt.Chart(df)
+                    .mark_arc()
+                    .encode(
+                        theta=alt.Theta(f"{y_axis}:Q"),
+                        color=alt.Color(
+                            f"{x_axis}:N",
+                            title=x_axis.replace("_", " ").title(),
+                        ),
+                        tooltip=[f"{x_axis}:N", f"{y_axis}:Q"],
+                    )
+                    .properties(width=400, height=400, title=chart_title)
+                )
+
+            elif chart_type == "area":
+                chart_obj = (
+                    alt.Chart(df)
+                    .mark_area()
+                    .encode(
+                        x=alt.X(
+                            f"{x_axis}:O",
+                            title=x_axis.replace("_", " ").title(),
+                        ),
+                        y=alt.Y(
+                            f"{y_axis}:Q",
+                            title=y_axis.replace("_", " ").title(),
+                        ),
+                        color=alt.Color(f"{color_field}:N")
+                        if color_field
+                        else alt.value("steelblue"),
+                    )
+                    .properties(width=600, height=400, title=chart_title)
+                )
+
+            elif chart_type == "scatter":
+                chart_obj = (
+                    alt.Chart(df)
+                    .mark_point()
+                    .encode(
+                        x=alt.X(
+                            f"{x_axis}:O",
+                            title=x_axis.replace("_", " ").title(),
+                        ),
+                        y=alt.Y(
+                            f"{y_axis}:Q",
+                            title=y_axis.replace("_", " ").title(),
+                        ),
+                        color=alt.Color(f"{color_field}:N")
+                        if color_field
+                        else alt.value("steelblue"),
+                    )
+                    .properties(width=600, height=400, title=chart_title)
+                )
+
+            elif chart_type == "table":
+                chart_obj = (
+                    alt.Chart(df)
+                    .mark_bar()
+                    .encode(
+                        x=alt.X(
+                            f"{x_axis}:N",
+                            title=x_axis.replace("_", " ").title(),
+                        ),
+                        y=alt.Y(
+                            f"{y_axis}:Q",
+                            title=y_axis.replace("_", " ").title(),
+                        ),
+                        color=alt.Color(f"{color_field}:N")
+                        if color_field
+                        else alt.value("steelblue"),
+                    )
+                    .properties(width=600, height=400, title=chart_title)
+                )
+            else:
+                st.warning(f"Unsupported chart type: {chart_type}")
+                continue
+
+            st.altair_chart(chart_obj, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Error rendering charts: {str(e)}")
+        st.json(charts_data)  # Fallback to show raw data
+
+
 # Display chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -346,6 +518,11 @@ if user_input := st.chat_input(
                     update.get("aoi") or aoi_data
                 )  # Include AOI as overlay if available
                 render_dataset_map(dataset_data, aoi_data)
+
+            # Render charts if this is a tool node with charts_data
+            if node == "tools" and "charts_data" in update:
+                charts_data = update["charts_data"]
+                render_charts(charts_data)
 
             with st.expander("State Updates"):
                 for key, value in update.items():
