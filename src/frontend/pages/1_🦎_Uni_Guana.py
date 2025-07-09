@@ -1,9 +1,11 @@
 import json
 import uuid
-
 import requests
 import streamlit as st
+import folium
+from streamlit_folium import folium_static
 from app import API_BASE_URL, STREAMLIT_URL
+from shapely.geometry import shape
 
 from client import ZenoClient
 
@@ -115,6 +117,86 @@ def generate_doc_card(doc):
 """
 
 
+def render_aoi_map(aoi_data, subregion_data=None):
+    """
+    Render AOI geojson data as a map using streamlit-folium.
+    
+    Args:
+        aoi_data: Dictionary containing geojson data for AOI
+        subregion_data: Optional dictionary containing geojson data for subregion
+    """
+    try:
+        # Extract geojson from aoi_data
+        if isinstance(aoi_data, dict) and 'geometry' in aoi_data:
+            geojson_data = aoi_data['geometry']
+        
+        # Calculate center from geojson bounds
+        center = [0, 0]  # Default center
+        
+        if isinstance(geojson_data, dict):
+            try:
+                # Convert GeoJSON to shapely geometry
+                geom = shape(geojson_data)
+                
+                # Get bounding box and calculate center
+                minx, miny, maxx, maxy = geom.bounds
+                center = [(miny + maxy) / 2, (minx + maxx) / 2]
+            except (ValueError, AttributeError, TypeError):
+                # If any error occurs during conversion, use default center
+                center = [0, 0]
+        
+        # Create folium map
+        m = folium.Map(
+            location=center,
+            zoom_start=5,
+            tiles="OpenStreetMap"
+        )
+        
+        # Add AOI to map
+        if geojson_data:
+            folium.GeoJson(
+                geojson_data,
+                style_function=lambda feature: {
+                    'fillColor': 'gray',
+                    'color': 'gray',
+                    'weight': 2,
+                    'fillOpacity': 0.3,
+                },
+                popup=folium.Popup("Area of Interest", parse_html=True),
+                tooltip="AOI"
+            ).add_to(m)
+        
+        # Add subregions if provided
+        if subregion_data and isinstance(subregion_data, list):
+            try:
+                for subregion in subregion_data:
+                    if isinstance(subregion, dict) and 'geometry' in subregion:
+                        subregion_geojson = subregion['geometry']
+                        subregion_name = subregion.get('name', 'Subregion')
+                        
+                        folium.GeoJson(
+                            subregion_geojson,
+                            style_function=lambda feature: {
+                                'fillColor': 'red',
+                                'color': 'red',
+                                'weight': 2,
+                                'fillOpacity': 0.2,
+                            },
+                            popup=folium.Popup(subregion_name, parse_html=True),
+                            tooltip=subregion_name
+                        ).add_to(m)
+            except Exception as e:
+                st.warning(f"Could not render subregions: {str(e)}")
+        
+        # Display map in streamlit
+        st.subheader("📍 Area of Interest")
+        folium_static(m, width=700, height=400) # st_folium stalls the UI - use folium_static instead
+        
+    except Exception as e:
+        st.error(f"Error rendering map: {str(e)}")
+        st.json(aoi_data)  # Fallback to show raw data
+
+
 # Display chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -155,6 +237,12 @@ if user_input := st.chat_input(
                             st.code(msg["input"], language="json")
                 else:
                     st.text(content)
+            # Render map if this is a tool node with AOI data
+            if node == "tools" and "aoi" in update:
+                aoi_data = update["aoi"]
+                subregion_data = update.get("subregion_aois") if update.get("subregion") is not None else None
+                render_aoi_map(aoi_data, subregion_data)
+            
             with st.expander("State Updates"):
                 for key, value in update.items():
                     if key == "messages" or key == "aoi":
