@@ -1,11 +1,12 @@
 import json
 import uuid
+
+import folium
 import requests
 import streamlit as st
-import folium
-from streamlit_folium import folium_static
 from app import API_BASE_URL, STREAMLIT_URL
 from shapely.geometry import shape
+from streamlit_folium import folium_static
 
 from client import ZenoClient
 
@@ -120,81 +121,172 @@ def generate_doc_card(doc):
 def render_aoi_map(aoi_data, subregion_data=None):
     """
     Render AOI geojson data as a map using streamlit-folium.
-    
+
     Args:
         aoi_data: Dictionary containing geojson data for AOI
         subregion_data: Optional dictionary containing geojson data for subregion
     """
     try:
         # Extract geojson from aoi_data
-        if isinstance(aoi_data, dict) and 'geometry' in aoi_data:
-            geojson_data = aoi_data['geometry']
-        
+        if isinstance(aoi_data, dict) and "geometry" in aoi_data:
+            geojson_data = aoi_data["geometry"]
+
         # Calculate center from geojson bounds
         center = [0, 0]  # Default center
-        
+
         if isinstance(geojson_data, dict):
             try:
                 # Convert GeoJSON to shapely geometry
                 geom = shape(geojson_data)
-                
+
                 # Get bounding box and calculate center
                 minx, miny, maxx, maxy = geom.bounds
                 center = [(miny + maxy) / 2, (minx + maxx) / 2]
             except (ValueError, AttributeError, TypeError):
                 # If any error occurs during conversion, use default center
                 center = [0, 0]
-        
+
         # Create folium map
-        m = folium.Map(
-            location=center,
-            zoom_start=5,
-            tiles="OpenStreetMap"
-        )
-        
+        m = folium.Map(location=center, zoom_start=5, tiles="OpenStreetMap")
+
         # Add AOI to map
         if geojson_data:
             folium.GeoJson(
                 geojson_data,
                 style_function=lambda feature: {
-                    'fillColor': 'gray',
-                    'color': 'gray',
-                    'weight': 2,
-                    'fillOpacity': 0.3,
+                    "fillColor": "gray",
+                    "color": "gray",
+                    "weight": 2,
+                    "fillOpacity": 0.3,
                 },
                 popup=folium.Popup("Area of Interest", parse_html=True),
-                tooltip="AOI"
+                tooltip="AOI",
             ).add_to(m)
-        
+
         # Add subregions if provided
         if subregion_data and isinstance(subregion_data, list):
             try:
                 for subregion in subregion_data:
-                    if isinstance(subregion, dict) and 'geometry' in subregion:
-                        subregion_geojson = subregion['geometry']
-                        subregion_name = subregion.get('name', 'Subregion')
-                        
+                    if isinstance(subregion, dict) and "geometry" in subregion:
+                        subregion_geojson = subregion["geometry"]
+                        subregion_name = subregion.get("name", "Subregion")
+
                         folium.GeoJson(
                             subregion_geojson,
                             style_function=lambda feature: {
-                                'fillColor': 'red',
-                                'color': 'red',
-                                'weight': 2,
-                                'fillOpacity': 0.2,
+                                "fillColor": "red",
+                                "color": "red",
+                                "weight": 2,
+                                "fillOpacity": 0.2,
                             },
-                            popup=folium.Popup(subregion_name, parse_html=True),
-                            tooltip=subregion_name
+                            popup=folium.Popup(
+                                subregion_name, parse_html=True
+                            ),
+                            tooltip=subregion_name,
                         ).add_to(m)
             except Exception as e:
                 st.warning(f"Could not render subregions: {str(e)}")
-        
+
         # Display map in streamlit
         st.subheader("📍 Area of Interest")
-        folium_static(m, width=700, height=400) # st_folium stalls the UI - use folium_static instead
-        
+        folium_static(
+            m, width=700, height=400
+        )  # st_folium stalls the UI - use folium_static instead
+
     except Exception as e:
         st.error(f"Error rendering map: {str(e)}")
         st.json(aoi_data)  # Fallback to show raw data
+
+
+def render_dataset_map(dataset_data, aoi_data=None):
+    """
+    Render dataset tile layer as a map using streamlit-folium.
+
+    Args:
+        dataset_data: Dictionary containing dataset information with tile_url
+        aoi_data: Optional dictionary containing geojson data for AOI overlay
+    """
+    try:
+        # Extract tile_url from dataset_data
+        tile_url = dataset_data.get("tile_url")
+        if not tile_url:
+            st.warning("No tile_url found in dataset")
+            return
+
+        # Calculate center from AOI if available, otherwise use default
+        center = [0, 0]  # Default center
+        zoom_start = 2  # Default zoom for global view
+
+        if aoi_data and isinstance(aoi_data, dict) and "geometry" in aoi_data:
+            try:
+                # Convert GeoJSON to shapely geometry
+                geom = shape(aoi_data["geometry"])
+
+                # Get bounding box and calculate center
+                minx, miny, maxx, maxy = geom.bounds
+                center = [(miny + maxy) / 2, (minx + maxx) / 2]
+                zoom_start = 5  # Closer zoom when AOI is available
+            except (ValueError, AttributeError, TypeError):
+                # If any error occurs during conversion, use default center
+                center = [0, 0]
+                zoom_start = 2
+
+        # Create folium map
+        m2 = folium.Map(
+            location=center, zoom_start=zoom_start, tiles="OpenStreetMap"
+        )
+
+        # Add dataset tile layer
+        dataset_name = dataset_data.get("data_layer", "Dataset Layer")
+        folium.raster_layers.TileLayer(
+            tiles=tile_url,
+            attr="Dataset Tiles",
+            name=dataset_name,
+            overlay=True,
+            control=True,
+        ).add_to(m2)
+
+        # Add AOI overlay if provided
+        if aoi_data and isinstance(aoi_data, dict) and "geometry" in aoi_data:
+            try:
+                geojson_data = aoi_data["geometry"]
+                folium.GeoJson(
+                    geojson_data,
+                    style_function=lambda feature: {
+                        "fillColor": "blue",
+                        "color": "blue",
+                        "weight": 2,
+                        "fillOpacity": 0.1,
+                    },
+                    popup=folium.Popup("Area of Interest", parse_html=True),
+                    tooltip="AOI",
+                ).add_to(m2)
+            except Exception as e:
+                st.warning(f"Could not render AOI overlay: {str(e)}")
+
+        # Add layer control
+        folium.LayerControl().add_to(m2)
+
+        # Display map in streamlit
+        st.subheader(f"🗺️ {dataset_name}")
+        folium_static(m2, width=700, height=400)
+
+        # Show dataset info
+        with st.expander("Dataset Information"):
+            dataset_info = {
+                "Data Layer": dataset_data.get("data_layer", "N/A"),
+                "Source": dataset_data.get("source", "N/A"),
+                "Context Layer": dataset_data.get("context_layer", "N/A"),
+                "Date Range": dataset_data.get("daterange", "N/A"),
+                "Threshold": dataset_data.get("threshold", "N/A"),
+            }
+            for key, value in dataset_info.items():
+                if value != "N/A":
+                    st.write(f"**{key}:** {value}")
+
+    except Exception as e:
+        st.error(f"Error rendering dataset map: {str(e)}")
+        st.json(dataset_data)  # Fallback to show raw data
 
 
 # Display chat history
@@ -240,9 +332,21 @@ if user_input := st.chat_input(
             # Render map if this is a tool node with AOI data
             if node == "tools" and "aoi" in update:
                 aoi_data = update["aoi"]
-                subregion_data = update.get("subregion_aois") if update.get("subregion") is not None else None
+                subregion_data = (
+                    update.get("subregion_aois")
+                    if update.get("subregion") is not None
+                    else None
+                )
                 render_aoi_map(aoi_data, subregion_data)
-            
+
+            # Render dataset map if this is a tool node with dataset data
+            if node == "tools" and "dataset" in update:
+                dataset_data = update["dataset"]
+                aoi_data = (
+                    update.get("aoi") or aoi_data
+                )  # Include AOI as overlay if available
+                render_dataset_map(dataset_data, aoi_data)
+
             with st.expander("State Updates"):
                 for key, value in update.items():
                     if key == "messages" or key == "aoi":
