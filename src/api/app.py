@@ -166,6 +166,11 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
+    if not "name" in user_info:
+        logger.warning(
+            "User info does not contain 'name' field, using email account name as fallback"
+        )
+        user_info["name"] = user_info["email"].split("@")[0]
 
     if isinstance(domains_allowlist, str):
         domains_allowlist = domains_allowlist.split(",")
@@ -176,7 +181,7 @@ def fetch_user_from_rw_api(
             detail="User not allowed to access this API",
         )
 
-    return UserModel.model_validate(resp.json())
+    return UserModel.model_validate(user_info)
 
 
 def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
