@@ -11,8 +11,10 @@ Unlike GADM evaluation, this uses LLM-based scoring to compare non-exact matches
 import json
 from dataclasses import dataclass
 from typing import Optional
-from typing_extensions import Annotated, TypedDict
+
 from langchain_anthropic import ChatAnthropic
+from langfuse.langchain import CallbackHandler
+from typing_extensions import Annotated, TypedDict
 
 from experiments.eval_utils import get_langfuse, get_run_name, run_query
 
@@ -155,25 +157,29 @@ print(
     f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
 )
 
+
+handler = CallbackHandler()
+
 for item in active_items:
-    # Execute
-    handler = item.get_langchain_handler(run_name=run_name)
-    response = run_query(item.input, handler, "researcher", item.id)
+    with item.run(run_name=run_name) as root_span:
+        # Execute
+        response = run_query(item.input, handler, "researcher", item.id)
 
-    # Score
-    actual = parse_output_trace(response)
-    evaluation = evaluate_answer(
-        actual, item.input, item.expected_output, chat_model
-    )
-    score = evaluation_to_score(evaluation)
+        # Score
+        actual = parse_output_trace(response)
+        evaluation = evaluate_answer(
+            actual, item.input, item.expected_output, chat_model
+        )
+        score = evaluation_to_score(evaluation)
 
-    # Upload
-    langfuse.score(
-        trace_id=handler.get_trace_id(),
-        name="tree_cover_answer_score",
-        value=score,
-        comment=f"Analysis: {evaluation['analysis']}",
-    )
+        # Upload
+        root_span.score_trace(
+            trace_id=handler.get_trace_id(),
+            name="tree_cover_answer_score",
+            value=score,
+            comment=f"Analysis: {evaluation['analysis']}",
+        )
+
     langfuse.flush()
 
     # LLM-based scoring with analysis helps understand evaluation reasoning
