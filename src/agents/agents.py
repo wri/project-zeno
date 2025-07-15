@@ -2,7 +2,6 @@ import contextlib
 import os
 from datetime import datetime
 
-from langchain_anthropic import ChatAnthropic
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.prebuilt import create_react_agent
 
@@ -15,7 +14,7 @@ from src.tools import (
 )
 from src.utils.llms import SONNET
 
-prompt = f"""You are a geospatial agent that has access to tools to help answer user queries. Plan your actions carefully and use the tools to answer the user's question.
+prompt = f"""You are a geospatial agent that has access to tools and user provided selections to help answer user queries. Plan your actions carefully and use the tools to answer the user's question.
 
 Tools:
 - pick-aoi: Pick the best area of interest (AOI) based on a place name and user's question.
@@ -26,6 +25,12 @@ Tools:
 Workflow:
 1. Use pick-aoi, pick-dataset, and pull-data to get the data
 2. Use generate-insights to analyze the data and create 1-2 compelling visualizations.
+
+When you see UI action messages:
+1. Acknowledge the user's selection: "I see you've selected [item name]"
+2. Check if you have all needed components (AOI + dataset) before proceeding
+3. Use tools only for missing components
+4. If user asks to change selections, override UI selections
 
 Notes: 
 - If the dataset is not available or you are not able to pull data, politely inform the user & STOP - don't do any more steps further. 

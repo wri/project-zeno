@@ -46,6 +46,16 @@ langfuse_handler = CallbackHandler()
 class ChatRequest(BaseModel):
     query: str = Field(..., description="The query")
     user_persona: Optional[str] = Field(None, description="The user persona")
+
+    # UI Context - can include multiple selections
+    ui_context: Optional[dict] = (
+        None  # {"aoi_selected": {...}, "dataset_selected": {...}, "daterange_selected": {...}}
+    )
+
+    # Pure UI actions - no query
+    ui_action_only: Optional[bool] = False
+
+    # Chat info
     thread_id: Optional[str] = Field(None, description="The thread ID")
     metadata: Optional[dict] = Field(None, description="The metadata")
     session_id: Optional[str] = Field(None, description="The session ID")
@@ -81,6 +91,8 @@ def replay_chat(thread_id):
 def stream_chat(
     query: str,
     user_persona: Optional[str] = None,
+    ui_context: Optional[dict] = None,
+    ui_action_only: Optional[bool] = False,
     thread_id: Optional[str] = None,
     metadata: Optional[Dict] = None,
     session_id: Optional[str] = None,
@@ -103,14 +115,54 @@ def stream_chat(
         },
         "callbacks": [langfuse_handler],
     }
-    messages = [HumanMessage(content=query)]
+
+    messages = []
+    ui_action_message = []
+    state_updates = {}
+
+    if ui_context:
+        for action_type, action_data in ui_context.items():
+            match action_type:
+                case "aoi_selected":
+                    content = (
+                        f"User selected AOI in UI: {action_data['aoi_name']}"
+                    )
+                    state_updates["aoi"] = action_data["aoi"]
+                    state_updates["aoi_name"] = action_data["aoi_name"]
+                    state_updates["subregion_aois"] = action_data[
+                        "subregion_aois"
+                    ]
+                    state_updates["subregion"] = action_data["subregion"]
+                    state_updates["subtype"] = action_data["subtype"]
+                case "dataset_selected":
+                    content = f"User selected dataset in UI: {action_data['dataset']['data_layer']}"
+                    state_updates["dataset"] = action_data["dataset"]
+                case "daterange_selected":
+                    content = f"User selected daterange in UI: start_date:  {action_data['start_date']}, end_date: {action_data['end_date']}"
+                    # state_updates["daterange"] = action_data["daterange"]
+                case _:
+                    content = f"User performed action in UI: {action_type}"
+            ui_action_message.append(content)
+
+    ui_message = HumanMessage(content="\n".join(ui_action_message))
+    messages.append(ui_message)
+
+    if not ui_action_only and query:
+        messages.append(HumanMessage(content=query))
+    else:
+        # UI action only, no query, agent should acknowledge the UI updates & ask what's next
+        messages.append(
+            HumanMessage(
+                content="User performed UI action only. Acknowledge the updates and ask what they would like to do next with their selections."
+            )
+        )
 
     try:
+        state_updates["messages"] = messages
+        state_updates["user_persona"] = user_persona
+
         stream = zeno.stream(
-            {
-                "messages": messages,
-                "user_persona": user_persona,
-            },
+            state_updates,
             config=config,
             stream_mode="updates",
             subgraphs=False,
@@ -166,7 +218,7 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
-    if not "name" in user_info:
+    if "name" not in user_info:
         logger.warning(
             "User info does not contain 'name' field, using email account name as fallback"
         )
@@ -231,6 +283,8 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
             stream_chat(
                 query=request.query,
                 user_persona=request.user_persona,
+                ui_context=request.ui_context,
+                ui_action_only=request.ui_action_only,
                 thread_id=request.thread_id,
                 metadata=request.metadata,
                 session_id=request.session_id,
