@@ -77,13 +77,24 @@ def replay_chat(thread_id):
         result = zeno.invoke(None, config=config, subgraphs=False)
 
         for node, node_data in result.items():
-            for msg in node_data:
-                yield pack(
-                    {
-                        "node": node,
-                        "update": msg.to_json(),
-                    }
-                )
+            
+            if node_data is None:
+                yield pack({"node": node, "update": "None"})
+            
+            elif isinstance(node_data, str):
+                yield pack({"node": node, "update": node_data})
+            elif isinstance(node_data, dict):
+                yield pack({"node": node, "update": json.dumps(node_data)})
+            else: 
+                for msg in node_data:
+                    if msg is None:
+                        yield pack({"node": node, "update": "None"})
+                    elif isinstance(msg, str):
+                        yield pack({"node": node, "update": msg})
+                    else:
+                        yield pack({"node": node, "update": msg.to_json()})
+                 
+                
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
