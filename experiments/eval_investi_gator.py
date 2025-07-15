@@ -180,6 +180,9 @@ for item in active_items:
                 value=score,
                 comment=f"Analysis: {evaluation['analysis']}",
             )
+        except TypeError:
+            # Skip this item if response is not in expected format
+            continue
         finally:
             langfuse.flush()
 
