@@ -166,21 +166,22 @@ for item in active_items:
         response = run_query(item.input, handler, "researcher", item.id)
 
         # Score
-        actual = parse_output_trace(response)
-        evaluation = evaluate_answer(
-            actual, item.input, item.expected_output, chat_model
-        )
-        score = evaluation_to_score(evaluation)
+        try:
+            actual = parse_output_trace(response)
+            evaluation = evaluate_answer(
+                actual, item.input, item.expected_output, chat_model
+            )
+            score = evaluation_to_score(evaluation)
 
-        # Upload
-        root_span.score_trace(
-            trace_id=handler.get_trace_id(),
-            name="tree_cover_answer_score",
-            value=score,
-            comment=f"Analysis: {evaluation['analysis']}",
-        )
-
-    langfuse.flush()
+            # Upload
+            root_span.score_trace(
+                trace_id=handler.get_trace_id(),
+                name="tree_cover_answer_score",
+                value=score,
+                comment=f"Analysis: {evaluation['analysis']}",
+            )
+        finally:
+            langfuse.flush()
 
     # LLM-based scoring with analysis helps understand evaluation reasoning
     # Check LangFuse UI for detailed trace analysis of failures
