@@ -119,9 +119,6 @@ def stream_chat(
     messages = []
     ui_action_message = []
     state_updates = {}
-    import pdb
-
-    pdb.set_trace()
 
     if ui_context:
         for action_type, action_data in ui_context.items():

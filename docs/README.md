@@ -8,6 +8,94 @@ The reasoning behind this is the following:
 - Minimal middle layer between the agent and the frontend
 - Focus on a synced state on frontend and backend
 
+## Chat API Endpoint
+
+The main chat endpoint is `/api/chat` which accepts POST requests with the following schema:
+
+```python
+class ChatRequest(BaseModel):
+    query: str = Field(..., description="The query")
+    user_persona: Optional[str] = Field(None, description="The user persona")
+    
+    # UI Context - can include multiple selections
+    ui_context: Optional[dict] = None  # {"aoi_selected": {...}, "dataset_selected": {...}, "daterange_selected": {...}}
+    
+    # Pure UI actions - no query
+    ui_action_only: Optional[bool] = False
+    
+    # Chat info
+    thread_id: Optional[str] = Field(None, description="The thread ID")
+    metadata: Optional[dict] = Field(None, description="The metadata")
+    session_id: Optional[str] = Field(None, description="The session ID")
+    user_id: Optional[str] = Field(None, description="The user ID")
+    tags: Optional[list] = Field(None, description="The tags")
+```
+
+### UI Context
+
+The `ui_context` parameter allows the frontend to pass pre-selected data (AOI, dataset, date range) directly to the agent, enabling a hybrid approach where users can either:
+1. Use natural language queries to let the agent select data
+2. Use UI dropdowns to pre-select data and then ask questions
+3. Mix both approaches in the same conversation
+
+#### UI Context Schema
+
+```python
+ui_context = {
+    "aoi_selected": {
+        "aoi": {  # Full AOI geojson and metadata
+            "geometry": {...},  # GeoJSON geometry
+            "name": "Location Name",
+            "gadm_id": 12345,
+            # ... other AOI fields
+        },
+        "aoi_name": "Location Name",
+        "subregion_aois": None,  # or DataFrame data
+        "subregion": None,
+        "subtype": "district-county"
+    },
+    "dataset_selected": {
+        "dataset": {
+            "dataset_id": 14,
+            "source": "GFW",
+            "data_layer": "DIST-ALERT",
+            "tile_url": "https://tiles.globalforestwatch.org/...",
+            "context_layer": "driver",
+            "daterange": {
+                "start_date": "2024-01-01",
+                "end_date": "2024-12-31",
+                "years": [2024],
+                "period": "2024",
+                "original_text": "2024"
+            },
+            "threshold": None
+        }
+    },
+    "daterange_selected": {
+        "start_date": "2024-01-01",
+        "end_date": "2024-12-31",
+        "years": None,
+        "period": "2024-01-01 to 2024-12-31",
+        "original_text": "2024-01-01 to 2024-12-31"
+    }
+}
+```
+
+### Frontend UI Components
+
+The Streamlit frontend now includes UI selection components that work in conjunction with the chat interface:
+
+1. **AOI Dropdown**: Pre-defined areas of interest (e.g., "Koraput" district)
+2. **Dataset Dropdown**: Pre-configured datasets (e.g., "Tree Cover Loss", "DIST_ALERT")
+3. **Date Range Picker**: Interactive date selection with start/end date inputs
+
+When users make selections via these UI components, the selections are automatically passed to the chat API via the `ui_context` parameter. This enables a seamless hybrid experience where users can:
+- Pre-select data via UI and then ask natural language questions
+- Override UI selections with natural language ("actually, show me data for Brazil instead")
+- Mix UI selections and natural language queries in the same conversation
+
+The UI selections are acknowledged once per conversation to avoid repetitive confirmations.
+
 ## Type of updates
 
 We have two main types of updates: AI messages and tool updates. Both are state updates, they are not different from that perspective. However, AI messages operate only on the "messages" list in the state (appending new messages), while the tool updates add to "messages" but also update other state varaibles such as aoi, chart data, dataset picked, etc.
