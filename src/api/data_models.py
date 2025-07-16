@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
-
+from datetime import datetime, date
+import enum
 from pydantic import BaseModel, ConfigDict, alias_generators, field_validator
-from sqlalchemy import Column, DateTime, ForeignKey, String
+from sqlalchemy import Column, Date, DateTime, ForeignKey, String, Integer
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -34,9 +34,15 @@ class ThreadOrm(Base):
         default=datetime.now(),
         onupdate=datetime.now(),
     )
-    user = relationship(
-        "UserOrm", back_populates="threads", foreign_keys=[user_id]
-    )
+    user = relationship("UserOrm", back_populates="threads", foreign_keys=[user_id])
+
+
+class DailyUsageOrm(Base):
+    __tablename__ = "daily_usage"
+
+    id = Column(String, primary_key=True, unique=True, nullable=False)
+    date = Column(Date, nullable=False, primary_key=True, default=date.today())
+    usage_count = Column(Integer, nullable=False, default=0)
 
 
 class ThreadModel(BaseModel):
@@ -46,6 +52,11 @@ class ThreadModel(BaseModel):
     agent_id: str
     created_at: datetime
     updated_at: datetime
+
+
+class UserType(str, enum.Enum):
+    ADMIN = "admin"
+    REGULAR = "regular"
 
 
 class UserModel(BaseModel):
@@ -60,9 +71,26 @@ class UserModel(BaseModel):
     created_at: datetime
     updated_at: datetime
     threads: list[ThreadModel] = []
+    user_type: UserType = UserType.REGULAR
 
     @field_validator("created_at", "updated_at", mode="before")
     def parse_dates(cls, value):
+        if isinstance(value, str):
+            try:
+                return datetime.fromisoformat(value)
+            except ValueError:
+                return value
+        return value
+
+
+class DailyUsageModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    date: datetime
+    usage_count: int
+
+    @field_validator("date", mode="before")
+    def parse_date(cls, value):
         if isinstance(value, str):
             try:
                 return datetime.fromisoformat(value)

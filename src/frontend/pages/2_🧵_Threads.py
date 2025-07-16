@@ -18,9 +18,7 @@ def get_auth_headers():
 
 # Fetch threads
 def fetch_threads():
-    resp = requests.get(
-        f"{API_BASE_URL}/api/threads", headers=get_auth_headers()
-    )
+    resp = requests.get(f"{API_BASE_URL}/api/threads", headers=get_auth_headers())
 
     if resp.status_code == 200:
         return resp.json()
@@ -73,7 +71,7 @@ with st.sidebar:
 
         if st.session_state.get("user"):
             # st.write("User info: ", st.session_state["user"])
-            if st.button("Logout"):
+            if st.button("Logout", key="logout_threads"):
                 # NOTE: there is a logout endpoint in the API, but it only invalidates the browser cookies
                 # and not the JWT. So in this case, we'll just clear the user info and token
                 st.session_state.pop("user", None)

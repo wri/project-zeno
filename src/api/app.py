@@ -1,9 +1,13 @@
 import json
 import os
+import traceback
 from typing import Dict, Optional
+
 
 import cachetools
 import requests
+import uuid
+from datetime import date
 
 # Load environment variables using shared utility
 from src.utils.env_loader import load_environment_variables
@@ -13,18 +17,45 @@ load_environment_variables()
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi import Request, Response
+from itsdangerous import BadSignature, TimestampSigner
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.dialects.postgresql import insert
 
-from src.agents.agents import zeno
-from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
+from src.agents.agents import zeno, zeno_anonymous
+from src.api.data_models import (
+    ThreadModel,
+    ThreadOrm,
+    UserType,
+    UserModel,
+    UserOrm,
+    DailyUsageOrm,
+)
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "")
+DATABASE_URL = os.environ["DATABASE_URL"]
+
+# TODO: how to diferentiate between admin and regular users for limits?
+# For now, we assume all users are regular users
+# Question: will there be only 2 usage tiers? Do we want to set a default
+# daily limit and then set custom limits for specific users? (we can use this
+# approach to set daily quotas to -1 for unlimited users)
+DAILY_QUOTA_WARNING_THRESHOLD = 5
+ADMIN_USER_DAILY_QUOTA = 100
+REGULAR_USER_DAILY_QUOTA = 4
+ANONYMOUS_USER_DAILY_QUOTA = 10
+ENABLE_QUOTA_CHECKING = True
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 app = FastAPI(
     title="Zeno API",
@@ -41,6 +72,42 @@ app.add_middleware(
 )
 
 langfuse_handler = CallbackHandler()
+
+# HTTP Middleware to asign/verify anonymous session IDs
+signer = TimestampSigner(os.environ["COOKIE_SIGNER_SECRET_KEY"])
+
+
+@app.middleware("http")
+async def anonymous_id_middleware(request: Request, call_next):
+    anon_cookie = request.cookies.get("anonymous_id")
+    need_new = True
+
+    if anon_cookie:
+        try:
+            # Verify signature & extract payload
+            _ = signer.unsign(anon_cookie, max_age=365 * 24 * 3600)  # Cookie age: 1yr
+            need_new = False
+        except BadSignature:
+            pass
+
+    if need_new:
+        raw_uuid = str(uuid.uuid4())
+        signed = signer.sign(raw_uuid).decode()
+
+    request.state.anonymous_id = signed if need_new else anon_cookie
+
+    response: Response = await call_next(request)
+
+    response.set_cookie(
+        "anonymous_id",
+        signed,
+        max_age=365 * 24 * 3600,  # Cookie age: 1yr
+        # secure=True,  # only over HTTPS
+        httponly=True,  # JS cannot read
+        samesite="Lax",
+    )
+
+    return response
 
 
 class ChatRequest(BaseModel):
@@ -98,15 +165,17 @@ def stream_chat(
         langfuse_handler.tags = tags
 
     config = {
-        "configurable": {
-            "thread_id": thread_id,
-        },
-        "callbacks": [langfuse_handler],
+        # "callbacks": [langfuse_handler],
     }
+    zeno_agent = zeno_anonymous
+    if thread_id:
+        zeno_agent = zeno
+        config["configurable"] = {"thread_id": thread_id}
+
     messages = [HumanMessage(content=query)]
 
     try:
-        stream = zeno.stream(
+        stream = zeno_agent.stream(
             {
                 "messages": messages,
                 "user_persona": user_persona,
@@ -127,20 +196,19 @@ def stream_chat(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "")
-DATABASE_URL = os.environ["DATABASE_URL"]
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 # LRU cache for user info, keyed by token
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
 @cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
-    authorization: str = Header(...),
+    authorization: Optional[str] = Header(None),
     domains_allowlist: Optional[str] = DOMAINS_ALLOWLIST,
 ) -> UserModel:
+
+    if not authorization:
+        return None
+
     if not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -184,10 +252,12 @@ def fetch_user_from_rw_api(
     return UserModel.model_validate(user_info)
 
 
-def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
+def fetch_user(user_info: Optional[UserModel] = Depends(fetch_user_from_rw_api)):
     """
     Requires Authorization
     """
+    if not user_info:
+        return None
 
     with SessionLocal() as db:
         user = db.query(UserOrm).filter_by(id=user_info.id).first()
@@ -200,8 +270,69 @@ def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
         return UserModel.model_validate(user)
 
 
+def check_quota(
+    request: Request, user: Optional[UserModel] = Depends(fetch_user_from_rw_api)
+):
+
+    if not ENABLE_QUOTA_CHECKING:
+        return {}
+
+    DAILY_QUOTA = ANONYMOUS_USER_DAILY_QUOTA
+    # 1. Get calling user
+    if not user:
+        if anon := request.cookies.get("anon_id"):
+            identity = f"anon:{anon}"
+        else:
+            identity = f"anon:{request.state.anonymous_id}"
+
+    else:
+        print("USER: ", user)
+        DAILY_QUOTA = (
+            ADMIN_USER_DAILY_QUOTA
+            if user.user_type == UserType.ADMIN
+            else REGULAR_USER_DAILY_QUOTA
+        )
+        identity = f"user:{user.id}"
+
+    today = date.today()
+
+    # 2. Atomically "insert or increment" with ON CONFLICT
+    stmt = (
+        insert(DailyUsageOrm)
+        .values(id=identity, date=today, usage_count=1)
+        # Composite PK = (id, date)
+        .on_conflict_do_update(
+            index_elements=["id", "date"],
+            set_={"usage_count": DailyUsageOrm.usage_count + 1},
+        )
+        .returning(DailyUsageOrm.usage_count)
+    )
+    with SessionLocal() as db:
+        result = db.execute(stmt)
+        count = result.scalar()
+        db.commit()  # commit the upsert
+
+    # 3. Enforce the quota
+    if count > DAILY_QUOTA:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Daily free limit of {DAILY_QUOTA} exceeded; please try again tomorrow.",
+        )
+
+    if count >= DAILY_QUOTA - DAILY_QUOTA_WARNING_THRESHOLD:
+        return {
+            "warning": f"User {identity} is approaching daily quota limit ({count} prompts out of {DAILY_QUOTA})"
+        }
+
+    return {}
+
+
 @app.post("/api/chat")
-async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
+async def chat(
+    request: ChatRequest,
+    user: UserModel = Depends(fetch_user),
+    quota_info: dict = Depends(check_quota),
+):
     """
     Chat endpoint for Zeno.
 
@@ -212,35 +343,44 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
     Returns:
         The streamed response
     """
-    with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm)
-            .filter_by(id=request.thread_id, user_id=user.id)
-            .first()
-        )
-        if not thread:
-            thread = ThreadOrm(
-                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+    thread_id = None
+    if user:
+        with SessionLocal() as db:
+            thread = (
+                db.query(ThreadOrm)
+                .filter_by(id=request.thread_id, user_id=user.id)
+                .first()
             )
-            db.add(thread)
-            db.commit()
-            db.refresh(thread)
+            if not thread:
+                thread = ThreadOrm(
+                    id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+                )
+                db.add(thread)
+                db.commit()
+                db.refresh(thread)
+            thread_id = thread.id
 
     try:
+        headers = {}
+        if "warning" in quota_info:
+            headers["X-Quota-Warning"] = quota_info["warning"]
+
         return StreamingResponse(
             stream_chat(
                 query=request.query,
                 user_persona=request.user_persona,
-                thread_id=request.thread_id,
+                thread_id=thread_id,
                 metadata=request.metadata,
                 session_id=request.session_id,
                 user_id=request.user_id,
                 tags=request.tags,
             ),
             media_type="application/x-ndjson",
+            headers=headers if headers else None,
         )
     except Exception as e:
         logger.error(f"Chat request failed: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -262,11 +402,7 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     """
 
     with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm)
-            .filter_by(user_id=user.id, id=thread_id)
-            .first()
-        )
+        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
 
