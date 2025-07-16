@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Dict
+from typing import Annotated, Dict, List
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
@@ -26,11 +26,13 @@ class DataPullOrchestrator:
     def pull_data(
         self,
         query: str,
-        aoi_name: str,
-        dataset: Any,
         aoi: Dict,
+        subregion_aois: List[Dict],
         subregion: str,
         subtype: str,
+        dataset: Dict,
+        start_date: str,
+        end_date: str,
     ) -> DataPullResult:
         """Pull data using the appropriate handler"""
         if dataset["source"] != "GFW":
@@ -52,7 +54,14 @@ class DataPullOrchestrator:
         for handler in self.handlers:
             if handler.can_handle(dataset, table_name):
                 return handler.pull_data(
-                    query, aoi_name, dataset, aoi, subregion, subtype
+                    query=query,
+                    aoi=aoi,
+                    subregion_aois=subregion_aois,
+                    subregion=subregion,
+                    subtype=subtype,
+                    dataset=dataset,
+                    start_date=start_date,
+                    end_date=end_date,
                 )
 
         return DataPullResult(
@@ -69,21 +78,29 @@ data_pull_orchestrator = DataPullOrchestrator()
 @tool("pull-data")
 def pull_data(
     query: str,
+    start_date: str,
+    end_date: str,
     aoi_name: str,
     dataset_name: str,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
     state: Annotated[Dict, InjectedState] = None,
 ) -> Command:
     """
-    Given a user query, an AOI & a dataset, pulls data from the dataset for the specific AOI.
+    Pull data for a specific AOI and dataset in a given time range.
+
+    This tool retrieves data from the appropriate data source based on the selected area of interest
+    and dataset for the specified time period. It uses specialized handlers to process different
+    data types and sources.
 
     Args:
-        query: User query
-        aoi_name: Name of the AOI
-        dataset_name: Name of the dataset
+        query: User query providing context for the data pull
+        start_date: Start date in YYYY-MM-DD format
+        end_date: End date in YYYY-MM-DD format
+        aoi_name: Name of the area of interest
+        dataset_name: Name of the dataset to pull from
     """
     logger.info(
-        f"PULL-DATA-TOOL: aoi_name: '{aoi_name}', dataset_name: '{dataset_name}'"
+        f"PULL-DATA-TOOL: AOI: {aoi_name}, Dataset: {dataset_name}, Start Date: {start_date}, End Date: {end_date}"
     )
 
     aoi = state["aoi"]
@@ -95,11 +112,13 @@ def pull_data(
     # Use orchestrator to pull data
     result = data_pull_orchestrator.pull_data(
         query=query,
-        aoi_name=aoi_name,
-        dataset=dataset,
         aoi=aoi,
+        subregion_aois=subregion_aois,
         subregion=subregion,
         subtype=subtype,
+        dataset=dataset,
+        start_date=start_date,
+        end_date=end_date,
     )
 
     # Create tool message
@@ -125,13 +144,15 @@ def pull_data(
     return Command(
         update={
             "raw_data": raw_data,
+            "start_date": start_date,
+            "end_date": end_date,
             "messages": [tool_message],
         },
     )
 
 
 if __name__ == "__main__":
-    from src.tools.pick_dataset import DatasetInfo, DateRange
+    from src.tools.pick_dataset import DatasetInfo
 
     # Example usage for testing
     mock_state = {
@@ -150,9 +171,6 @@ if __name__ == "__main__":
             source="GFW",
             data_layer="Tree cover loss",
             context_layer="Tree cover",
-            daterange=DateRange(
-                start_date="2020-01-01", end_date="2020-12-31"
-            ),
             threshold=30,
         ).model_dump(),
     }
@@ -160,9 +178,13 @@ if __name__ == "__main__":
     user_query = mock_state["messages"][0]["content"]
     command = pull_data.func(
         query=user_query,
-        aoi_name="Odisha",
-        dataset_name="Tree cover loss",
-        state=mock_state,
+        aoi=mock_state["aoi"],
+        subregion_aois=mock_state["subregion_aois"],
+        subregion=mock_state["subregion"],
+        subtype=mock_state["subtype"],
+        dataset=mock_state["dataset"],
+        start_date="2020-01-01",
+        end_date="2020-12-31",
         tool_call_id="test-id",
     )
 

@@ -77,15 +77,14 @@ def replay_chat(thread_id):
         result = zeno.invoke(None, config=config, subgraphs=False)
 
         for node, node_data in result.items():
-            
             if node_data is None:
                 yield pack({"node": node, "update": "None"})
-            
+
             elif isinstance(node_data, str):
                 yield pack({"node": node, "update": node_data})
             elif isinstance(node_data, dict):
                 yield pack({"node": node, "update": json.dumps(node_data)})
-            else: 
+            else:
                 for msg in node_data:
                     if msg is None:
                         yield pack({"node": node, "update": "None"})
@@ -93,8 +92,7 @@ def replay_chat(thread_id):
                         yield pack({"node": node, "update": msg})
                     else:
                         yield pack({"node": node, "update": msg.to_json()})
-                 
-                
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -150,7 +148,8 @@ def stream_chat(
                     state_updates["dataset"] = action_data["dataset"]
                 case "daterange_selected":
                     content = f"User selected daterange in UI: start_date:  {action_data['start_date']}, end_date: {action_data['end_date']}"
-                    # state_updates["daterange"] = action_data["daterange"]
+                    state_updates["start_date"] = action_data["start_date"]
+                    state_updates["end_date"] = action_data["end_date"]
                 case _:
                     content = f"User performed action in UI: {action_type}"
             ui_action_message.append(content)

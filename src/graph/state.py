@@ -1,6 +1,5 @@
 from typing import Annotated, Sequence
 
-import pandas as pd
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
 from langgraph.managed import IsLastStep
@@ -24,6 +23,8 @@ class AgentState(TypedDict):
 
     # pull-data tool
     raw_data: dict
+    start_date: str
+    end_date: str
 
     # generate-insights tool
     insights: list
