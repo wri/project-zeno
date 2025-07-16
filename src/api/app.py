@@ -197,14 +197,10 @@ def stream_chat(
         for action_type, action_data in ui_context.items():
             match action_type:
                 case "aoi_selected":
-                    content = (
-                        f"User selected AOI in UI: {action_data['aoi_name']}"
-                    )
+                    content = f"User selected AOI in UI: {action_data['aoi_name']}"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
-                    state_updates["subregion_aois"] = action_data[
-                        "subregion_aois"
-                    ]
+                    state_updates["subregion_aois"] = action_data["subregion_aois"]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
@@ -239,7 +235,7 @@ def stream_chat(
         # anonymous users by default
         zeno_agent = zeno_anonymous
         if thread_id:
-            # thread_id is provided if the user is authenticated, 
+            # thread_id is provided if the user is authenticated,
             # use main zeno agent (with checkpointer)
             zeno_agent = zeno
             config["configurable"] = {"thread_id": thread_id}
@@ -435,13 +431,9 @@ async def chat(
             stream_chat(
                 query=request.query,
                 user_persona=request.user_persona,
-<<<<<<< HEAD
                 thread_id=thread_id,
-=======
                 ui_context=request.ui_context,
                 ui_action_only=request.ui_action_only,
-                thread_id=request.thread_id,
->>>>>>> main
                 metadata=request.metadata,
                 session_id=request.session_id,
                 user_id=request.user_id,
