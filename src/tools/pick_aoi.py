@@ -1,5 +1,5 @@
-from typing import Annotated, Literal, Optional
 import json
+from typing import Annotated, Literal, Optional
 
 import duckdb
 from langchain_core.messages import ToolMessage
@@ -101,17 +101,21 @@ def query_subregion_database(
     """
     logger.debug(f"Executing subregion query: {sql_query}")
     results = connection.execute(sql_query).df()
-    
+
     # Parse GeoJSON strings in the results
-    if not results.empty and 'geometry' in results.columns:
+    if not results.empty and "geometry" in results.columns:
         for idx, row in results.iterrows():
-            if row['geometry'] is not None and isinstance(row['geometry'], str):
+            if row["geometry"] is not None and isinstance(
+                row["geometry"], str
+            ):
                 try:
-                    results.at[idx, 'geometry'] = json.loads(row['geometry'])
+                    results.at[idx, "geometry"] = json.loads(row["geometry"])
                 except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse GeoJSON for subregion {row.get('name', 'Unknown')}: {e}")
-                    results.at[idx, 'geometry'] = None
-    
+                    logger.error(
+                        f"Failed to parse GeoJSON for subregion {row.get('name', 'Unknown')}: {e}"
+                    )
+                    results.at[idx, "geometry"] = None
+
     return results
 
 
@@ -154,7 +158,19 @@ AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
 def pick_aoi(
     question: str,
     place: str,
-    subregion: Optional[Literal["country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", "landmark"]] = None,
+    subregion: Optional[
+        Literal[
+            "country",
+            "state",
+            "district",
+            "municipality",
+            "locality",
+            "neighbourhood",
+            "kba",
+            "wdpa",
+            "landmark",
+        ]
+    ] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
     """Selects the most appropriate area of interest (AOI) based on a place name and user's question. Optionally, it can also filter the results by a subregion.
@@ -168,7 +184,9 @@ def pick_aoi(
         subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
     try:
-        logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
+        logger.info(
+            f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'"
+        )
         # Query the database for place & get top matches using jaro winkler similarity
         db_connection = get_db_connection()
         results = query_aoi_database(db_connection, place, RESULT_LIMIT)
@@ -233,16 +251,24 @@ def pick_aoi(
                 )
 
         # Parse the GeoJSON string into a Python dictionary
-        if 'geometry' in selected_aoi and selected_aoi['geometry'] is not None:
+        if "geometry" in selected_aoi and selected_aoi["geometry"] is not None:
             try:
-                if isinstance(selected_aoi['geometry'], str):
-                    selected_aoi['geometry'] = json.loads(selected_aoi['geometry'])
-                    logger.debug(f"Parsed GeoJSON geometry for AOI: {selected_aoi['name']}")
+                if isinstance(selected_aoi["geometry"], str):
+                    selected_aoi["geometry"] = json.loads(
+                        selected_aoi["geometry"]
+                    )
+                    logger.debug(
+                        f"Parsed GeoJSON geometry for AOI: {selected_aoi['name']}"
+                    )
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse GeoJSON for AOI {selected_aoi['name']}: {e}")
-                selected_aoi['geometry'] = None
+                logger.error(
+                    f"Failed to parse GeoJSON for AOI {selected_aoi['name']}: {e}"
+                )
+                selected_aoi["geometry"] = None
         else:
-            logger.warning(f"No geometry found for AOI: {selected_aoi.get('name', 'Unknown')}")
+            logger.warning(
+                f"No geometry found for AOI: {selected_aoi.get('name', 'Unknown')}"
+            )
 
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
@@ -266,14 +292,20 @@ def pick_aoi(
                 "aoi_name": selected_aoi["name"],
                 "subtype": selected_aoi["subtype"],
                 # Update the message history
-                "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
+                "messages": [
+                    ToolMessage(tool_message, tool_call_id=tool_call_id)
+                ],
             },
         )
     except Exception as e:
         logger.error(f"Error in pick_aoi tool: {e}")
         return Command(
             update={
-                "messages": [ToolMessage(str(e), tool_call_id=tool_call_id, status="error")],
+                "messages": [
+                    ToolMessage(
+                        str(e), tool_call_id=tool_call_id, status="error"
+                    )
+                ],
             },
         )
 

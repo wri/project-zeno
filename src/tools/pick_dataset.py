@@ -1,8 +1,7 @@
 from pathlib import Path
-from typing import Annotated, List, Optional
+from typing import Annotated, Optional
 
 import pandas as pd
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -15,8 +14,8 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 from pylate import indexes, models, retrieve
 
-from src.utils.logging_config import get_logger
 from src.utils.llms import SONNET
+from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -169,24 +168,6 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     return selection_result
 
 
-class DateRange(BaseModel):
-    start_date: Optional[str] = Field(
-        None, description="Start date in YYYY-MM-DD format if available"
-    )
-    end_date: Optional[str] = Field(
-        None, description="End date in YYYY-MM-DD format if available"
-    )
-    years: Optional[List[int]] = Field(
-        None, description="List of individual years requested"
-    )
-    period: Optional[str] = Field(
-        None, description="Describes period like 'first half', 'Q2', etc."
-    )
-    original_text: Optional[str] = Field(
-        None, description="The original date/daterange requested by the user"
-    )
-
-
 class DatasetInfo(BaseModel):
     dataset_id: int
     source: str
@@ -196,7 +177,6 @@ class DatasetInfo(BaseModel):
         None,
         description="Pick a single context layer from the dataset if useful",
     )
-    daterange: Optional[DateRange] = None
     threshold: Optional[int] = None
 
 
@@ -250,7 +230,7 @@ def pick_dataset(
     # Step 3: LLM to extract structured info for downstream query
     dataset_info = extract_dataset_info(query, selection_result.id)
 
-    tool_message = f"""Selected dataset: {dataset_info.data_layer}\nContext layer: {dataset_info.context_layer}\nTile URL: {dataset_info.tile_url}\nDate range: {dataset_info.daterange}\nThreshold: {dataset_info.threshold}\nReasoning: {selection_result.reason}"""
+    tool_message = f"""Selected dataset: {dataset_info.data_layer}\nContext layer: {dataset_info.context_layer}\nTile URL: {dataset_info.tile_url}\nThreshold: {dataset_info.threshold}\nReasoning: {selection_result.reason}"""
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
 

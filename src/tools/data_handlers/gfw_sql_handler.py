@@ -145,13 +145,16 @@ class GFWSQLHandler(DataSourceHandler):
     def pull_data(
         self,
         query: str,
-        aoi_name: str,
-        dataset: Any,
         aoi: Dict,
+        subregion_aois: List[Dict],
         subregion: str,
         subtype: str,
+        dataset: Dict,
+        start_date: str,
+        end_date: str,
     ) -> DataPullResult:
         try:
+            aoi_name = aoi["name"]
             table_name = dataset_names[dataset["data_layer"]]
             table_slug = self._determine_table_slug(table_name, subtype)
 
@@ -165,7 +168,7 @@ class GFWSQLHandler(DataSourceHandler):
             # SQL query generation
             gadm_level = gadm_levels[subtype]
             sql_query = self._generate_sql_query(
-                query, fields_to_query, gadm_level, aoi
+                query, fields_to_query, gadm_level, aoi, start_date, end_date
             )
             logger.debug(f"Generated SQL query: {sql_query.content}")
 
@@ -249,6 +252,8 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
         fields_to_query: FieldSelection,
         gadm_level: Dict,
         aoi: Dict,
+        start_date: str,
+        end_date: str,
     ) -> Any:
         """Generate SQL query based on user query and selected fields"""
         SQL_QUERY_PROMPT = ChatPromptTemplate.from_messages(
@@ -260,6 +265,8 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
             You will construct a SQL query to retrieve the requested data. You will be provided with the user's question and a list of fields to query, as pairs of field name and data type and a template for the SQL query with some information pre-filled. Do your best not to alter the existing elements of this template. \n
 
             User's question: {user_query} \n
+            Start date: {start_date} \n
+            End date: {end_date} \n
             Fields to query: \n{fields_to_query} \n
             Template: \n
 
@@ -293,6 +300,8 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
                 "fields_to_query": fields_to_query.as_csv(),
                 "gadm_level": gadm_level["name"],
                 "location_filter": location_filter,
+                "start_date": start_date,
+                "end_date": end_date,
             }
         )
 

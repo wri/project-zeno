@@ -102,13 +102,6 @@ with st.sidebar:
                 "data_layer": "Tree cover loss",
                 "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=2001&end_year=2024&tree_cover_density_threshold=25&render_type=true_color",
                 "context_layer": "Primary forest",
-                "daterange": {
-                    "start_date": "2020-01-01",
-                    "end_date": "2023-12-31",
-                    "years": [2020, 2021, 2022, 2023],
-                    "period": "2020-2023",
-                    "original_text": "2020 to 2023",
-                },
                 "threshold": "30",
             }
         },
@@ -119,13 +112,6 @@ with st.sidebar:
                 "data_layer": "DIST-ALERT",
                 "tile_url": "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color",
                 "context_layer": "driver",
-                "daterange": {
-                    "start_date": "2024-01-01",
-                    "end_date": "2024-12-31",
-                    "years": [2024],
-                    "period": "2024",
-                    "original_text": "2024",
-                },
                 "threshold": None,
             }
         },
@@ -174,44 +160,59 @@ with st.sidebar:
 
     # Date Range Picker
     st.subheader("Date Range Selection")
-    col1, col2 = st.columns(2)
 
-    with col1:
-        start_date = st.date_input(
-            "Start Date",
-            value=datetime(2024, 1, 1).date(),
-            min_value=datetime(2000, 1, 1).date(),
-            max_value=datetime.now().date(),
-            key="start_date_picker",
-        )
+    # Checkbox to enable/disable date range selection
+    enable_date_range = st.checkbox(
+        "Enable Date Range Filter",
+        value=False,
+        key="enable_date_range_checkbox",
+        help="Check this box to filter data by date range",
+    )
 
-    with col2:
-        end_date = st.date_input(
-            "End Date",
-            value=datetime(2024, 12, 31).date(),
-            min_value=datetime(2000, 1, 1).date(),
-            max_value=datetime.now().date(),
-            key="end_date_picker",
-        )
+    if enable_date_range:
+        col1, col2 = st.columns(2)
 
-    # Validate date range
-    if start_date > end_date:
-        st.error("Start date must be before end date")
+        with col1:
+            start_date = st.date_input(
+                "Start Date",
+                value=datetime(2024, 1, 1).date(),
+                min_value=datetime(2000, 1, 1).date(),
+                max_value=datetime.now().date(),
+                key="start_date_picker",
+            )
+
+        with col2:
+            end_date = st.date_input(
+                "End Date",
+                value=datetime(2024, 12, 31).date(),
+                min_value=datetime(2000, 1, 1).date(),
+                max_value=datetime.now().date(),
+                key="end_date_picker",
+            )
+
+        # Validate date range
+        if start_date > end_date:
+            st.error("Start date must be before end date")
+        else:
+            # Create daterange object
+            current_daterange = {
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "end_date": end_date.strftime("%Y-%m-%d"),
+            }
+
+            # Check if daterange has changed
+            if current_daterange != st.session_state.get("daterange_selected"):
+                st.session_state["daterange_selected"] = current_daterange
+                st.session_state["daterange_acknowledged"] = False
+                st.success(
+                    f"Selected Date Range: {current_daterange['start_date']} to {current_daterange['end_date']}"
+                )
     else:
-        # Create daterange object
-        current_daterange = {
-            "start_date": start_date.strftime("%Y-%m-%d"),
-            "end_date": end_date.strftime("%Y-%m-%d"),
-            "years": None,
-            "period": f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
-            "original_text": f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
-        }
-
-        # Check if daterange has changed
-        if current_daterange != st.session_state.get("daterange_selected"):
-            st.session_state["daterange_selected"] = current_daterange
+        # Clear date range selection when disabled
+        if st.session_state.get("daterange_selected") is not None:
+            st.session_state["daterange_selected"] = None
             st.session_state["daterange_acknowledged"] = False
-            st.success(f"Selected Date Range: {current_daterange['period']}")
+            st.info("Date range filter disabled")
 
     # Show current selections
     if st.session_state.get("aoi_selected"):
@@ -222,7 +223,7 @@ with st.sidebar:
         )
     if st.session_state.get("daterange_selected"):
         st.info(
-            f"Current Date Range: {st.session_state['daterange_selected']['period']}"
+            f"Current Date Range: {st.session_state['daterange_selected']['start_date']} to {st.session_state['daterange_selected']['end_date']}"
         )
 
     if not st.session_state.get("token"):

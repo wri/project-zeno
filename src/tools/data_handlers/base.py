@@ -7,7 +7,7 @@ preventing circular imports.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from pydantic import BaseModel
 
@@ -49,11 +49,13 @@ class DataSourceHandler(ABC):
     def pull_data(
         self,
         query: str,
-        aoi_name: str,
-        dataset: Any,
         aoi: Dict,
+        subregion_aois: List[Dict],
         subregion: str,
         subtype: str,
+        dataset: Dict,
+        start_date: str,
+        end_date: str,
     ) -> DataPullResult:
         """Pull data from the source"""
         pass

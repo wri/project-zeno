@@ -322,28 +322,60 @@ class AgentState(TypedDict):
         "data_layer": "DIST-ALERT",
         "tile_url": "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color",
         "context_layer": "driver",
-        "daterange": {
-            "start_date": "2024-01-01",
-            "end_date": "2024-03-31", 
-            "years": null,
-            "period": "first quarter",
-            "original_text": "first quarter of 2024"
-        },
         "threshold": null
     },
     "message": {
         "selected_dataset": "DIST-ALERT",
         "context_layer": "driver",
-        "date_range": {
-            "start_date": "2024-01-01",
-            "end_date": "2024-03-31",
-            "years": null,
-            "period": "first quarter",
-            "original_text": "first quarter of 2024"
-        },
         "threshold": null,
         "reasoning": "The DIST-ALERT dataset is the best match as it specifically provides near-real-time alerts of vegetation disturbance at high resolution (30m), covers the 2024 timeframe (2023-2025), and includes a \"driver\" contextual layer which would help identify the main drivers of disturbances in Koraput for Q1 2024. This dataset covers all vegetation types and is designed for monitoring ecosystem changes in near-real-time."
     }
+}
+```
+
+### Pull data tool
+
+The pull-data tool retrieves actual data from the selected dataset for the specified AOI and time range. This tool now handles date range parameters directly, making it more reliable for LLM usage.
+
+```python
+class AgentState(TypedDict):
+    # Adds one tool message string to the message history
+    messages: Annotated[Sequence[BaseMessage], add_messages]
+    # Raw data pulled from the dataset
+    raw_data: dict
+    # Date range for the data pull
+    start_date: str
+    end_date: str
+```
+
+#### Tool Parameters
+
+- `query`: User query providing context for the data pull
+- `start_date`: Start date in YYYY-MM-DD format
+- `end_date`: End date in YYYY-MM-DD format  
+- `aoi_name`: Name of the area of interest
+- `dataset_name`: Name of the dataset to pull from
+
+#### Key Changes
+
+**Date Range Handling**: Date range parameters (`start_date`, `end_date`) are now handled directly by the pull-data tool rather than being embedded within the dataset selection. This architectural change:
+
+- Reduces complexity for the LLM when selecting datasets
+- Makes date range handling more explicit and reliable
+- Separates dataset selection logic from temporal filtering
+- Allows for more flexible date range processing in data handlers
+
+#### Example output
+
+```json
+{
+    "raw_data": {
+        "data": [...],  // Actual data from the dataset
+        "metadata": {...}  // Data metadata and statistics
+    },
+    "start_date": "2024-01-01",
+    "end_date": "2024-03-31",
+    "message": "Successfully pulled data for Koraput from DIST-ALERT dataset for period 2024-01-01 to 2024-03-31"
 }
 ```
 

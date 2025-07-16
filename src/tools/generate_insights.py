@@ -1,7 +1,6 @@
 from typing import Annotated, Any, Dict, List
 
 import pandas as pd
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -10,8 +9,8 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from src.utils.logging_config import get_logger
 from src.utils.llms import SONNET
+from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -128,7 +127,7 @@ def generate_insights(
                     ToolMessage(
                         content=error_msg,
                         tool_call_id=tool_call_id,
-                        status="error"
+                        status="error",
                     )
                 ]
             }
@@ -213,7 +212,7 @@ def generate_insights(
                     ToolMessage(
                         content=error_msg,
                         tool_call_id=tool_call_id,
-                        status="error"
+                        status="error",
                     )
                 ]
             }
