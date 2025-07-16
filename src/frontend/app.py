@@ -11,7 +11,8 @@ from src.utils.env_loader import load_environment_variables
 
 load_environment_variables()
 
-API_BASE_URL = os.environ["API_BASE_URL"]
+
+# API_BASE_URL = os.environ["API_BASE_URL"]
 API_BASE_URL = os.environ["LOCAL_API_BASE_URL"]
 
 STREAMLIT_URL = os.environ.get(

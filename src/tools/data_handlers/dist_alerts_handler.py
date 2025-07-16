@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import requests
 
@@ -23,13 +23,16 @@ class DistAlertHandler(DataSourceHandler):
     def pull_data(
         self,
         query: str,
-        aoi_name: str,
-        dataset: Any,
         aoi: Dict,
+        subregion_aois: List[Dict],
         subregion: str,
         subtype: str,
+        dataset: Dict,
+        start_date: str,
+        end_date: str,
     ) -> DataPullResult:
         try:
+            aoi_name = aoi["name"]
             gadm_level = gadm_levels[subtype]
             aoi_gadm_id = aoi[gadm_level["col_name"]].split("_")[0]
 
@@ -42,8 +45,8 @@ class DistAlertHandler(DataSourceHandler):
                         "version": "4.1",
                     }
                 ],
-                "start_date": dataset["daterange"]["start_date"],
-                "end_date": dataset["daterange"]["end_date"],
+                "start_date": start_date,
+                "end_date": end_date,
                 "intersections": [dataset["context_layer"]]
                 if dataset["context_layer"]
                 else [],
@@ -57,7 +60,6 @@ class DistAlertHandler(DataSourceHandler):
             response = requests.post(
                 self.DIST_ALERT_URL, headers=headers, json=payload
             )
-            response.raise_for_status()
 
             result = response.json()
 

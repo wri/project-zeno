@@ -113,6 +113,16 @@ async def anonymous_id_middleware(request: Request, call_next):
 class ChatRequest(BaseModel):
     query: str = Field(..., description="The query")
     user_persona: Optional[str] = Field(None, description="The user persona")
+
+    # UI Context - can include multiple selections
+    ui_context: Optional[dict] = (
+        None  # {"aoi_selected": {...}, "dataset_selected": {...}, "daterange_selected": {...}}
+    )
+
+    # Pure UI actions - no query
+    ui_action_only: Optional[bool] = False
+
+    # Chat info
     thread_id: Optional[str] = Field(None, description="The thread ID")
     metadata: Optional[dict] = Field(None, description="The metadata")
     session_id: Optional[str] = Field(None, description="The session ID")
@@ -134,13 +144,22 @@ def replay_chat(thread_id):
         result = zeno.invoke(None, config=config, subgraphs=False)
 
         for node, node_data in result.items():
-            for msg in node_data:
-                yield pack(
-                    {
-                        "node": node,
-                        "update": msg.to_json(),
-                    }
-                )
+            if node_data is None:
+                yield pack({"node": node, "update": "None"})
+
+            elif isinstance(node_data, str):
+                yield pack({"node": node, "update": node_data})
+            elif isinstance(node_data, dict):
+                yield pack({"node": node, "update": json.dumps(node_data)})
+            else:
+                for msg in node_data:
+                    if msg is None:
+                        yield pack({"node": node, "update": "None"})
+                    elif isinstance(msg, str):
+                        yield pack({"node": node, "update": msg})
+                    else:
+                        yield pack({"node": node, "update": msg.to_json()})
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -148,6 +167,8 @@ def replay_chat(thread_id):
 def stream_chat(
     query: str,
     user_persona: Optional[str] = None,
+    ui_context: Optional[dict] = None,
+    ui_action_only: Optional[bool] = False,
     thread_id: Optional[str] = None,
     metadata: Optional[Dict] = None,
     session_id: Optional[str] = None,
@@ -167,19 +188,64 @@ def stream_chat(
     config = {
         # "callbacks": [langfuse_handler],
     }
-    zeno_agent = zeno_anonymous
-    if thread_id:
-        zeno_agent = zeno
-        config["configurable"] = {"thread_id": thread_id}
 
-    messages = [HumanMessage(content=query)]
+    messages = []
+    ui_action_message = []
+    state_updates = {}
+
+    if ui_context:
+        for action_type, action_data in ui_context.items():
+            match action_type:
+                case "aoi_selected":
+                    content = (
+                        f"User selected AOI in UI: {action_data['aoi_name']}"
+                    )
+                    state_updates["aoi"] = action_data["aoi"]
+                    state_updates["aoi_name"] = action_data["aoi_name"]
+                    state_updates["subregion_aois"] = action_data[
+                        "subregion_aois"
+                    ]
+                    state_updates["subregion"] = action_data["subregion"]
+                    state_updates["subtype"] = action_data["subtype"]
+                case "dataset_selected":
+                    content = f"User selected dataset in UI: {action_data['dataset']['data_layer']}"
+                    state_updates["dataset"] = action_data["dataset"]
+                case "daterange_selected":
+                    content = f"User selected daterange in UI: start_date:  {action_data['start_date']}, end_date: {action_data['end_date']}"
+                    state_updates["start_date"] = action_data["start_date"]
+                    state_updates["end_date"] = action_data["end_date"]
+                case _:
+                    content = f"User performed action in UI: {action_type}"
+            ui_action_message.append(content)
+
+    ui_message = HumanMessage(content="\n".join(ui_action_message))
+    messages.append(ui_message)
+
+    if not ui_action_only and query:
+        messages.append(HumanMessage(content=query))
+    else:
+        # UI action only, no query, agent should acknowledge the UI updates & ask what's next
+        messages.append(
+            HumanMessage(
+                content="User performed UI action only. Acknowledge the updates and ask what they would like to do next with their selections."
+            )
+        )
 
     try:
+        state_updates["messages"] = messages
+        state_updates["user_persona"] = user_persona
+
+        # Use zeno_anonymous (zeno agent without checkpointer) for
+        # anonymous users by default
+        zeno_agent = zeno_anonymous
+        if thread_id:
+            # thread_id is provided if the user is authenticated, 
+            # use main zeno agent (with checkpointer)
+            zeno_agent = zeno
+            config["configurable"] = {"thread_id": thread_id}
+
         stream = zeno_agent.stream(
-            {
-                "messages": messages,
-                "user_persona": user_persona,
-            },
+            state_updates,
             config=config,
             stream_mode="updates",
             subgraphs=False,
@@ -234,7 +300,7 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
-    if not "name" in user_info:
+    if "name" not in user_info:
         logger.warning(
             "User info does not contain 'name' field, using email account name as fallback"
         )
@@ -369,7 +435,13 @@ async def chat(
             stream_chat(
                 query=request.query,
                 user_persona=request.user_persona,
+<<<<<<< HEAD
                 thread_id=thread_id,
+=======
+                ui_context=request.ui_context,
+                ui_action_only=request.ui_action_only,
+                thread_id=request.thread_id,
+>>>>>>> main
                 metadata=request.metadata,
                 session_id=request.session_id,
                 user_id=request.user_id,
