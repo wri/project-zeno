@@ -94,6 +94,7 @@ def replay_chat(thread_id):
                         yield pack({"node": node, "update": msg.to_json()})
 
     except Exception as e:
+        logger.exception("Error during chat replay: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -133,14 +134,10 @@ def stream_chat(
         for action_type, action_data in ui_context.items():
             match action_type:
                 case "aoi_selected":
-                    content = (
-                        f"User selected AOI in UI: {action_data['aoi_name']}"
-                    )
+                    content = f"User selected AOI in UI: {action_data['aoi_name']}"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
-                    state_updates["subregion_aois"] = action_data[
-                        "subregion_aois"
-                    ]
+                    state_updates["subregion_aois"] = action_data["subregion_aois"]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
@@ -186,6 +183,7 @@ def stream_chat(
                 }
             )
     except Exception as e:
+        logger.exception("Error during chat streaming: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -221,6 +219,7 @@ def fetch_user_from_rw_api(
             timeout=10,
         )
     except Exception as e:
+        logger.exception(f"Error contacting Resource Watch: {e}")
         raise HTTPException(
             status_code=502, detail=f"Error contacting Resource Watch: {e}"
         )
@@ -276,9 +275,7 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
     """
     with SessionLocal() as db:
         thread = (
-            db.query(ThreadOrm)
-            .filter_by(id=request.thread_id, user_id=user.id)
-            .first()
+            db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
         )
         if not thread:
             thread = ThreadOrm(
@@ -304,7 +301,7 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
             media_type="application/x-ndjson",
         )
     except Exception as e:
-        logger.error(f"Chat request failed: {e}")
+        logger.exception(f"Chat request failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -326,11 +323,7 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     """
 
     with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm)
-            .filter_by(user_id=user.id, id=thread_id)
-            .first()
-        )
+        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
 
@@ -343,7 +336,7 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
             media_type="application/x-ndjson",
         )
     except Exception as e:
-        logger.error(f"Replay failed: {e}")
+        logger.exception(f"Replay failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
