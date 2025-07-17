@@ -9,6 +9,7 @@ Unlike GADM evaluation, this uses LLM-based scoring to compare non-exact matches
 """
 
 import json
+import traceback
 from dataclasses import dataclass
 from typing import Optional
 
@@ -188,6 +189,7 @@ for item in active_items:
             print(f"  Response type: {type(response)}")
             if response:
                 print(f"  Response preview: {str(response)[:200]}...")
+            print(f"  Traceback:\n{traceback.format_exc()}")
             continue
         finally:
             langfuse.flush()
