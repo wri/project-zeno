@@ -14,7 +14,7 @@ from typing import Optional
 
 from langchain_anthropic import ChatAnthropic
 from langfuse.langchain import CallbackHandler
-from typing_extensions import Annotated, TypedDict
+from typing_extensions import Annotated, Literal, TypedDict
 
 from experiments.eval_utils import get_langfuse, get_run_name, run_query
 
@@ -29,8 +29,10 @@ class InvestigatorAnswer:
 class EvaluationResult(TypedDict):
     """Evaluation result for the agent's response."""
 
-    pass_fail: Annotated[
-        str, ..., "Either 'pass' or 'fail' based on evaluation"
+    result: Annotated[
+        Literal["pass", "fail", "unanswered"],
+        ...,
+        "Either 'pass', 'fail', or 'unanswered' based on evaluation",
     ]
     analysis: Annotated[str, ..., "Brief explanation of the assessment"]
 
@@ -56,30 +58,26 @@ def parse_output_trace(json_str: str) -> dict:
     Mimics: jq 'walk(if type == "object" then del(.artifact) else . end)' json_str |
             jq '{messages: .messages | map({type, content} + (if .tool_calls then {tool_calls: .tool_calls | map({name, args})} else {} end))}'
     """
-    data = json.loads(json_str)
+    data = json_str.values["messages"]
 
     # Collect all messages from the nested structure
     messages = []
-    for item in data:
-        # Get messages from whichever key exists (tools or agent)
-        node = item.get("tools", item.get("agent", {}))
-        for message in node.get("messages", []):
-            msg_data = message.get("kwargs", message)
+    for msg in data:
+        processed_msg = {
+            "type": msg.type,
+            "content": msg.content,
+            "name": msg.name,
+        }
 
-            processed_msg = {
-                "type": msg_data.get("type"),
-                "content": msg_data.get("content"),
-                "name": msg_data.get("name"),
-            }
+        # Add tool_calls if present
+        if hasattr(msg, "tool_calls"):
+            print(msg.tool_calls)
+            processed_msg["tool_calls"] = [
+                {"name": tc["name"], "args": tc["args"]}
+                for tc in msg.tool_calls
+            ]
 
-            # Add tool_calls if present
-            if "tool_calls" in msg_data:
-                processed_msg["tool_calls"] = [
-                    {"name": tc["name"], "args": tc["args"]}
-                    for tc in msg_data["tool_calls"]
-                ]
-
-            messages.append(processed_msg)
+        messages.append(processed_msg)
 
     return {"messages": messages}
 
@@ -98,7 +96,7 @@ def evaluate_answer(
     # Check for empty trace (likely from error handling)
     if not trace.get("messages"):
         return EvaluationResult(
-            pass_fail="fail",
+            result="fail",
             analysis="Empty response received - likely due to GraphRecursionError or other runtime error. Check run logs for details.",
         )
 
@@ -108,6 +106,8 @@ def evaluate_answer(
     prompt = f"""Analyze the provided agentic system trace against the user query and golden answer.
     Determine if the system responded reasonably well to the query with respect to the expected
     answer.
+
+    If the system did not respond because it was unable to answer the question, return "unanswered".
 
     <Trace>
     {json.dumps(trace)}
@@ -127,7 +127,7 @@ def evaluate_answer(
     3. Provided the correct answer
     4. Handled errors reasonably
 
-    Respond with pass_fail as "pass" if the system adequately addressed the query, "fail" if it did not.
+    Respond with result as "pass" if the system adequately addressed the query, "fail" if it did not.
     Include a brief analysis explaining your assessment."""
 
     result = evaluator.invoke(prompt)
@@ -136,7 +136,14 @@ def evaluate_answer(
 
 def evaluation_to_score(evaluation: EvaluationResult) -> float:
     """Convert evaluation result to numeric score."""
-    return 1.0 if evaluation["pass_fail"] == "pass" else 0.0
+    if evaluation["result"] == "pass":
+        return 1.0
+    elif evaluation["result"] == "fail":
+        return 0.0
+    elif evaluation["result"] == "unanswered":
+        return 0.5
+    else:
+        raise ValueError(f"Invalid result value: {evaluation['result']}")
 
 
 # Main execution
@@ -163,8 +170,12 @@ handler = CallbackHandler()
 for item in active_items:
     with item.run(run_name=run_name) as root_span:
         # Execute
-        response = run_query(item.input, handler, "researcher", item.id)
-
+        response = run_query(
+            query=item.input,
+            handler=handler,
+            user_persona="researcher",
+            thread_id=item.id,
+        )
         # Score
         actual = parse_output_trace(response)
         evaluation = evaluate_answer(
@@ -174,7 +185,6 @@ for item in active_items:
 
         # Upload
         root_span.score_trace(
-            trace_id=handler.get_trace_id(),
             name="tree_cover_answer_score",
             value=score,
             comment=f"Analysis: {evaluation['analysis']}",
