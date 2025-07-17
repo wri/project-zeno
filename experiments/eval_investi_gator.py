@@ -135,7 +135,7 @@ def _extract_final_response(messages):
 
 # Scoring
 def evaluate_answer(
-    trace: dict, user_query: str, golden_answer: dict, chat_model
+    conversation: dict, user_query: str, golden_answer: dict, chat_model
 ) -> EvaluationResult:
     """Evaluate answer matches using structured output.
 
@@ -143,13 +143,6 @@ def evaluate_answer(
     answers to make it easier for LLMs to identify correct responses.
     TODO: Consider adding partial scoring based on retrieval quality as discussed.
     """
-
-    # Check for empty trace (likely from error handling)
-    if not trace.get("messages"):
-        return EvaluationResult(
-            pass_fail="fail",
-            analysis="Empty response received - likely due to GraphRecursionError or other runtime error. Check run logs for details.",
-        )
 
     # Create a model with structured output
     evaluator = chat_model.with_structured_output(EvaluationResult)
@@ -159,7 +152,7 @@ def evaluate_answer(
     answer.
 
     <Trace>
-    {json.dumps(trace)}
+    {json.dumps(conversation)}
     </Trace>
 
     <Query>
