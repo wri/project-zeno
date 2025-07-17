@@ -43,6 +43,7 @@ class ZenoClient:
             ui_context: Optional UI context
             thread_id: Optional thread ID
             metadata: Optional metadata
+
             session_id: Optional session ID
             user_id: Optional user ID
             tags: Optional tags
@@ -81,13 +82,13 @@ class ZenoClient:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
-        with requests.post(
-            url, json=payload, stream=True, headers=headers
-        ) as response:
+        with requests.post(url, json=payload, stream=True, headers=headers) as response:
             if response.status_code != 200:
                 raise Exception(
                     f"Request failed with status code {response.status_code}: {response.text}"
                 )
+            print("RESPONSE HEADERS: ", response.headers)
+            print("RESPOONSE COOKIES: ", response.cookies)
             for update in response.iter_lines():
                 if update:
                     # Decode the line and parse the JSON
