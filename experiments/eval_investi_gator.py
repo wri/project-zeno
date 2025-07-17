@@ -201,7 +201,7 @@ print(
 
 handler = CallbackHandler()
 
-for item in active_items[:1]:
+for item in active_items:
     with item.run(run_name=run_name) as root_span:
         # Execute
         response = run_query(item.input, handler, "researcher", item.id)
