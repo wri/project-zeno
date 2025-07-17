@@ -10,6 +10,11 @@ from sqlalchemy.orm import relationship
 Base = declarative_base()
 
 
+class UserType(str, enum.Enum):
+    ADMIN = "admin"
+    REGULAR = "regular"
+
+
 class UserOrm(Base):
     __tablename__ = "users"
 
@@ -18,6 +23,7 @@ class UserOrm(Base):
     email = Column(String, unique=True, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now())
     updated_at = Column(DateTime, nullable=False, default=datetime.now())
+    user_type = Column(String, nullable=False, default=UserType.REGULAR.value)
     threads = relationship("ThreadOrm", back_populates="user")
 
 
@@ -52,11 +58,6 @@ class ThreadModel(BaseModel):
     agent_id: str
     created_at: datetime
     updated_at: datetime
-
-
-class UserType(str, enum.Enum):
-    ADMIN = "admin"
-    REGULAR = "regular"
 
 
 class UserModel(BaseModel):
