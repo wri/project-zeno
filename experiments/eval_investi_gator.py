@@ -75,16 +75,8 @@ def parse_output_state_snapshot(state: StateSnapshot) -> dict:
         elif msg_type == "ToolMessage":
             status = getattr(msg, "status", "success")
             tool_name = getattr(msg, "name", "unknown")
-            # Include full content for errors
-            if status == "error":
-                content_preview = (
-                    msg.content if msg.content else "No error details"
-                )
-                flow.append(
-                    f"Tool [{tool_name}]: {status} - {content_preview}"
-                )
-            else:
-                flow.append(f"Tool [{tool_name}]: {status}")
+            content = getattr(msg, "content", "")
+            flow.append(f"Tool [{tool_name}]: {status} - {content}")
 
     return {
         "conversation_flow": flow,
