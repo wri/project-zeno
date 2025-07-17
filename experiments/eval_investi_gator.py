@@ -13,6 +13,7 @@ import traceback
 from dataclasses import dataclass
 from typing import Optional
 
+from langgraph.types import StateSnapshot
 from langchain_anthropic import ChatAnthropic
 from langfuse.langchain import CallbackHandler
 from typing_extensions import Annotated, TypedDict
@@ -44,7 +45,7 @@ def parse_expected_output(data: dict) -> InvestigatorAnswer:
     )
 
 
-def parse_output_trace(json_str: str) -> dict:
+def parse_output_state_snapshot(state: StateSnapshot) -> dict:
     """Parse the output trace to extract messages content.
 
     Note: The Zeno agent dynamically decides which tools to use based on the question.
@@ -57,11 +58,9 @@ def parse_output_trace(json_str: str) -> dict:
     Mimics: jq 'walk(if type == "object" then del(.artifact) else . end)' json_str |
             jq '{messages: .messages | map({type, content} + (if .tool_calls then {tool_calls: .tool_calls | map({name, args})} else {} end))}'
     """
-    data = json.loads(json_str)
-
     # Collect all messages from the nested structure
     messages = []
-    for item in data:
+    for item in state:
         # Get messages from whichever key exists (tools or agent)
         node = item.get("tools", item.get("agent", {}))
         for message in node.get("messages", []):
@@ -161,14 +160,14 @@ print(
 
 handler = CallbackHandler()
 
-for item in active_items:
+for item in active_items[:1]:
     with item.run(run_name=run_name) as root_span:
         # Execute
         response = run_query(item.input, handler, "researcher", item.id)
 
         # Score
         try:
-            actual = parse_output_trace(response)
+            actual = parse_output_state_snapshot(response)
             evaluation = evaluate_answer(
                 actual, item.input, item.expected_output, chat_model
             )
