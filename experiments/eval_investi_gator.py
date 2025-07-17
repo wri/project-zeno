@@ -46,7 +46,69 @@ def parse_expected_output(data: dict) -> InvestigatorAnswer:
 
 
 def parse_output_state_snapshot(state: StateSnapshot) -> dict:
-    return state.values.get("messages", [])
+    """Extract conversation flow from state snapshot."""
+    messages = state.values.get("messages", [])
+    flow = []
+
+    for msg in messages:
+        msg_type = msg.__class__.__name__
+
+        if msg_type == "HumanMessage":
+            flow.append(f"User: {msg.content[:80]}...")
+        elif msg_type == "AIMessage":
+            # Check for tool calls
+            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                tools = [tc["name"] for tc in msg.tool_calls]
+                flow.append(f"AI: Called tools: {', '.join(tools)}")
+            else:
+                # Extract text content
+                if isinstance(msg.content, list):
+                    text_parts = [
+                        c.get("text", "")
+                        for c in msg.content
+                        if c.get("type") == "text"
+                    ]
+                    content = " ".join(text_parts)[:80]
+                else:
+                    content = str(msg.content)[:80]
+                flow.append(f"AI: {content}...")
+        elif msg_type == "ToolMessage":
+            status = getattr(msg, "status", "success")
+            tool_name = getattr(msg, "name", "unknown")
+            # Include brief content preview for errors
+            if status == "error":
+                content_preview = (
+                    msg.content[:50] if msg.content else "No error details"
+                )
+                flow.append(
+                    f"Tool [{tool_name}]: {status} - {content_preview}"
+                )
+            else:
+                flow.append(f"Tool [{tool_name}]: {status}")
+
+    return {
+        "conversation_flow": flow,
+        "total_messages": len(messages),
+        "final_response": _extract_final_response(messages),
+    }
+
+
+def _extract_final_response(messages):
+    """Extract the final AI response without tool calls."""
+    for msg in reversed(messages):
+        if msg.__class__.__name__ == "AIMessage" and not getattr(
+            msg, "tool_calls", []
+        ):
+            if isinstance(msg.content, list):
+                text_parts = [
+                    c.get("text", "")
+                    for c in msg.content
+                    if c.get("type") == "text"
+                ]
+                return " ".join(text_parts)
+            else:
+                return msg.content
+    return None
 
 
 # Scoring
