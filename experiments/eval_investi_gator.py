@@ -49,17 +49,36 @@ def parse_output_state_snapshot(state: StateSnapshot) -> dict:
     """Extract conversation flow from state snapshot."""
     messages = state.values.get("messages", [])
     flow = []
+    step = 0
 
     for msg in messages:
+        step += 1
         msg_type = msg.__class__.__name__
 
         if msg_type == "HumanMessage":
-            flow.append(f"User: {msg.content}")
+            flow.append(
+                {
+                    "step": step,
+                    "type": "user_query_or_system_continuation",
+                    "content": msg.content,
+                }
+            )
         elif msg_type == "AIMessage":
             # Check for tool calls
             if hasattr(msg, "tool_calls") and msg.tool_calls:
-                tools = [tc["name"] for tc in msg.tool_calls]
-                flow.append(f"AI: Called tools: {', '.join(tools)}")
+                flow.append(
+                    {
+                        "step": step,
+                        "type": "assistant_tool_call",
+                        "tools": [
+                            {
+                                "name": tc["name"],
+                                "arguments": tc.get("args", {}),
+                            }
+                            for tc in msg.tool_calls
+                        ],
+                    }
+                )
             else:
                 # Extract text content
                 if isinstance(msg.content, list):
@@ -71,12 +90,23 @@ def parse_output_state_snapshot(state: StateSnapshot) -> dict:
                     content = " ".join(text_parts)
                 else:
                     content = str(msg.content)
-                flow.append(f"AI: {content}")
+                flow.append(
+                    {
+                        "step": step,
+                        "type": "assistant_response",
+                        "content": content,
+                    }
+                )
         elif msg_type == "ToolMessage":
-            status = getattr(msg, "status", "success")
-            tool_name = getattr(msg, "name", "unknown")
-            content = getattr(msg, "content", "")
-            flow.append(f"Tool [{tool_name}]: {status} - {content}")
+            flow.append(
+                {
+                    "step": step,
+                    "type": "tool_result",
+                    "tool_name": getattr(msg, "name", "unknown"),
+                    "status": getattr(msg, "status", "success"),
+                    "content": getattr(msg, "content", ""),
+                }
+            )
 
     return {
         "conversation_flow": flow,
