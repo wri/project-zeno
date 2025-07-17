@@ -148,8 +148,7 @@ def evaluate_answer(
     evaluator = chat_model.with_structured_output(EvaluationResult)
 
     prompt = f"""Analyze the provided agentic system trace against the user query and golden answer.
-    Determine if the system responded reasonably well to the query with respect to the expected
-    answer.
+    Apply STRICT evaluation criteria.
 
     <Trace>
     {json.dumps(conversation)}
@@ -163,13 +162,13 @@ def evaluate_answer(
     {json.dumps(golden_answer)}
     </Golden Answer>
 
-    Evaluate whether the system:
-    1. Made meaningful progress toward answering the query
-    2. Retrieved relevant data or information
-    3. Provided the correct answer
-    4. Handled errors reasonably
+    STRICT CRITERIA:
+    - Numerical values (areas, percentages, counts) must be EXACT or within 5% of golden answer
+    - All locations, time periods, and facts must match precisely
+    - Vague/approximate answers FAIL when specific values are expected
+    - System must provide the actual answer, not just retrieve relevant data
 
-    Respond with pass_fail as "pass" if the system adequately addressed the query, "fail" if it did not.
+    Mark as "pass" ONLY if the answer is substantively correct with accurate quantities.
     Include a brief analysis explaining your assessment."""
 
     result = evaluator.invoke(prompt)
