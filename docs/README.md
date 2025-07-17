@@ -105,6 +105,35 @@ We have two main types of updates: AI messages and tool updates. Both are state 
 
 So the complexity comes from tool updates, which we will describe in detail for each tool below.
 
+## Streaming Response Format
+
+The chat API returns a streaming response with `application/x-ndjson` media type. Each line contains a JSON object:
+
+```json
+{
+    "node": "node_type",
+    "update": "{\"serialized_state_update\"}"
+}
+```
+
+- `node`: Can be "agent", "tools", or "error"
+- `update`: JSON-serialized string containing the state update data
+
+### Error Handling
+
+Errors are sent as stream events instead of breaking the stream:
+
+```json
+{
+    "node": "error",
+    "update": "{\"error\": true, \"message\": \"Error description\", \"error_type\": \"ExceptionClassName\", \"type\": \"error_category\", \"fatal\": false}"
+}
+```
+
+**Error Types:**
+- `stream_processing_error`: Non-fatal, stream continues
+- `stream_initialization_error`: Fatal, stream stops
+
 ## Agent state
 
 The agent has all the data that the zeno needs to work. The core are the messages, which is a list of messages. The messages are the human messages (queries), the AI messages (LLM response), and tool messages (output of tools).
