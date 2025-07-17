@@ -54,7 +54,7 @@ def parse_output_state_snapshot(state: StateSnapshot) -> dict:
         msg_type = msg.__class__.__name__
 
         if msg_type == "HumanMessage":
-            flow.append(f"User: {msg.content[:80]}...")
+            flow.append(f"User: {msg.content}")
         elif msg_type == "AIMessage":
             # Check for tool calls
             if hasattr(msg, "tool_calls") and msg.tool_calls:
@@ -68,21 +68,17 @@ def parse_output_state_snapshot(state: StateSnapshot) -> dict:
                         for c in msg.content
                         if c.get("type") == "text"
                     ]
-                    content = " ".join(text_parts)[:80]
+                    content = " ".join(text_parts)
                 else:
-                    content = str(msg.content)[:80]
-                flow.append(f"AI: {content}...")
+                    content = str(msg.content)
+                flow.append(f"AI: {content}")
         elif msg_type == "ToolMessage":
             status = getattr(msg, "status", "success")
             tool_name = getattr(msg, "name", "unknown")
-            # Include brief content preview for errors
+            # Include full content for errors
             if status == "error":
-                content_preview = (
-                    msg.content[:50] if msg.content else "No error details"
-                )
-                flow.append(
-                    f"Tool [{tool_name}]: {status} - {content_preview}"
-                )
+                content_preview = msg.content if msg.content else "No error details"
+                flow.append(f"Tool [{tool_name}]: {status} - {content_preview}")
             else:
                 flow.append(f"Tool [{tool_name}]: {status}")
 
