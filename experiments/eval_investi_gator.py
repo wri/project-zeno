@@ -9,11 +9,13 @@ Unlike GADM evaluation, this uses LLM-based scoring to compare non-exact matches
 """
 
 import json
+import traceback
 from dataclasses import dataclass
 from typing import Optional
 
 from langchain_anthropic import ChatAnthropic
 from langfuse.langchain import CallbackHandler
+from langgraph.types import StateSnapshot
 from typing_extensions import Annotated, Literal, TypedDict
 
 from experiments.eval_utils import get_langfuse, get_run_name, run_query
@@ -45,46 +47,97 @@ def parse_expected_output(data: dict) -> InvestigatorAnswer:
     )
 
 
-def parse_output_trace(json_str: str) -> dict:
-    """Parse the output trace to extract messages content.
+def parse_output_state_snapshot(state: StateSnapshot) -> dict:
+    """Extract conversation flow from state snapshot."""
+    messages = state.values.get("messages", [])
+    flow = []
+    step = 0
 
-    Note: The Zeno agent dynamically decides which tools to use based on the question.
-    Trace data contains all intermediate steps in JSON format - we extract only
-    the relevant messages here. Use LangFuse UI to view full traces graphically.
+    for msg in messages:
+        step += 1
+        msg_type = msg.__class__.__name__
 
-    For debugging: LLMs can help identify patterns in complex trace data if the
-    structure changes.
+        if msg_type == "HumanMessage":
+            flow.append(
+                {
+                    "step": step,
+                    "type": "user_query_or_system_continuation",
+                    "content": msg.content,
+                }
+            )
+        elif msg_type == "AIMessage":
+            # Check for tool calls
+            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                flow.append(
+                    {
+                        "step": step,
+                        "type": "assistant_tool_call",
+                        "tools": [
+                            {
+                                "name": tc["name"],
+                                "arguments": tc.get("args", {}),
+                            }
+                            for tc in msg.tool_calls
+                        ],
+                    }
+                )
+            else:
+                # Extract text content
+                if isinstance(msg.content, list):
+                    text_parts = [
+                        c.get("text", "")
+                        for c in msg.content
+                        if c.get("type") == "text"
+                    ]
+                    content = " ".join(text_parts)
+                else:
+                    content = str(msg.content)
+                flow.append(
+                    {
+                        "step": step,
+                        "type": "assistant_response",
+                        "content": content,
+                    }
+                )
+        elif msg_type == "ToolMessage":
+            flow.append(
+                {
+                    "step": step,
+                    "type": "tool_result",
+                    "tool_name": getattr(msg, "name", "unknown"),
+                    "status": getattr(msg, "status", "success"),
+                    "content": getattr(msg, "content", ""),
+                }
+            )
 
-    Mimics: jq 'walk(if type == "object" then del(.artifact) else . end)' json_str |
-            jq '{messages: .messages | map({type, content} + (if .tool_calls then {tool_calls: .tool_calls | map({name, args})} else {} end))}'
-    """
-    data = json_str.values["messages"]
+    return {
+        "conversation_flow": flow,
+        "total_messages": len(messages),
+        "final_response": _extract_final_response(messages),
+    }
 
-    # Collect all messages from the nested structure
-    messages = []
-    for msg in data:
-        processed_msg = {
-            "type": msg.type,
-            "content": msg.content,
-            "name": msg.name,
-        }
 
-        # Add tool_calls if present
-        if hasattr(msg, "tool_calls"):
-            print(msg.tool_calls)
-            processed_msg["tool_calls"] = [
-                {"name": tc["name"], "args": tc["args"]}
-                for tc in msg.tool_calls
-            ]
-
-        messages.append(processed_msg)
-
-    return {"messages": messages}
+def _extract_final_response(messages):
+    """Extract the final AI response without tool calls."""
+    for msg in reversed(messages):
+        if msg.__class__.__name__ == "AIMessage" and not getattr(
+            msg, "tool_calls", []
+        ):
+            if isinstance(msg.content, list):
+                text_parts = [
+                    c.get("text", "")
+                    for c in msg.content
+                    if c.get("type") == "text"
+                ]
+                return " ".join(text_parts)
+            else:
+                return msg.content
+    return None
 
 
 # Scoring
 def evaluate_answer(
-    trace: dict, user_query: str, golden_answer: dict, chat_model
+    conversation: dict, user_query: str, golden_answer: dict, chat_model
 ) -> EvaluationResult:
     """Evaluate answer matches using structured output.
 
@@ -93,24 +146,16 @@ def evaluate_answer(
     TODO: Consider adding partial scoring based on retrieval quality as discussed.
     """
 
-    # Check for empty trace (likely from error handling)
-    if not trace.get("messages"):
-        return EvaluationResult(
-            result="fail",
-            analysis="Empty response received - likely due to GraphRecursionError or other runtime error. Check run logs for details.",
-        )
-
     # Create a model with structured output
     evaluator = chat_model.with_structured_output(EvaluationResult)
 
     prompt = f"""Analyze the provided agentic system trace against the user query and golden answer.
-    Determine if the system responded reasonably well to the query with respect to the expected
-    answer.
+    Apply STRICT evaluation criteria.
 
     If the system did not respond because it was unable to answer the question, return "unanswered".
 
     <Trace>
-    {json.dumps(trace)}
+    {json.dumps(conversation)}
     </Trace>
 
     <Query>
@@ -121,13 +166,13 @@ def evaluate_answer(
     {json.dumps(golden_answer)}
     </Golden Answer>
 
-    Evaluate whether the system:
-    1. Made meaningful progress toward answering the query
-    2. Retrieved relevant data or information
-    3. Provided the correct answer
-    4. Handled errors reasonably
+    STRICT CRITERIA:
+    - Numerical values (areas, percentages, counts) must be EXACT or within 5% of golden answer
+    - All locations, time periods, and facts must match precisely
+    - Vague/approximate answers FAIL when specific values are expected
+    - System must provide the actual answer, not just retrieve relevant data
 
-    Respond with result as "pass" if the system adequately addressed the query, "fail" if it did not.
+    Mark as "pass" ONLY if the answer is substantively correct with accurate quantities.
     Include a brief analysis explaining your assessment."""
 
     result = evaluator.invoke(prompt)
@@ -177,20 +222,31 @@ for item in active_items:
             thread_id=item.id,
         )
         # Score
-        actual = parse_output_trace(response)
-        evaluation = evaluate_answer(
-            actual, item.input, item.expected_output, chat_model
-        )
-        score = evaluation_to_score(evaluation)
+        try:
+            actual = parse_output_state_snapshot(response)
+            evaluation = evaluate_answer(
+                actual, item.input, item.expected_output, chat_model
+            )
+            score = evaluation_to_score(evaluation)
 
-        # Upload
-        root_span.score_trace(
-            name="tree_cover_answer_score",
-            value=score,
-            comment=f"Analysis: {evaluation['analysis']}",
-        )
+            # Upload
+            root_span.update_trace(input=item.input, output=actual)
 
-    langfuse.flush()
+            root_span.score_trace(
+                name="tree_cover_answer_score",
+                value=score,
+                comment=f"Analysis: {evaluation['analysis']}",
+            )
+        except TypeError as e:
+            # Skip this item if response is not in expected format
+            print(f"✗ TypeError processing item '{item.input}': {str(e)}")
+            print(f"  Response type: {type(response)}")
+            if response:
+                print(f"  Response preview: {str(response)[:200]}...")
+            print(f"  Traceback:\n{traceback.format_exc()}")
+            continue
+        finally:
+            langfuse.flush()
 
     # LLM-based scoring with analysis helps understand evaluation reasoning
     # Check LangFuse UI for detailed trace analysis of failures
