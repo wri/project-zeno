@@ -47,12 +47,7 @@ def run_query(
     }
 
     try:
-        result = zeno.invoke(
-            {
-                "messages": [( "user", query)]
-            },
-            config=config
-        )
+        result = zeno.invoke({"messages": [("user", query)]}, config=config)
         state = zeno.get_state(config=config)
 
         return state
@@ -78,6 +73,8 @@ def run_query(
         return dumps([])
     except Exception as e:
         # Catch any other unexpected errors
-        print(f"Unexpected error for query '{query}': {type(e).__name__}: {str(e)}")
+        print(
+            f"Unexpected error for query '{query}': {type(e).__name__}: {str(e)}"
+        )
         # Return empty list to maintain expected structure
         return dumps([])
