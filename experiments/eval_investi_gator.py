@@ -174,6 +174,8 @@ for item in active_items:
             score = evaluation_to_score(evaluation)
 
             # Upload
+            root_span.update_trace(input=item.input, output=actual)
+
             root_span.score_trace(
                 trace_id=handler.get_trace_id(),
                 name="tree_cover_answer_score",

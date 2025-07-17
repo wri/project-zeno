@@ -166,6 +166,8 @@ for item in dataset.items:
         score = score_gadm(actual, item.expected_output)
 
         # Upload
+        span.update_trace(input=item.input, output=actual)
+
         span.score_trace(
             name="gadm_matches_score",
             value=score,
