@@ -77,8 +77,12 @@ def parse_output_state_snapshot(state: StateSnapshot) -> dict:
             tool_name = getattr(msg, "name", "unknown")
             # Include full content for errors
             if status == "error":
-                content_preview = msg.content if msg.content else "No error details"
-                flow.append(f"Tool [{tool_name}]: {status} - {content_preview}")
+                content_preview = (
+                    msg.content if msg.content else "No error details"
+                )
+                flow.append(
+                    f"Tool [{tool_name}]: {status} - {content_preview}"
+                )
             else:
                 flow.append(f"Tool [{tool_name}]: {status}")
 
@@ -200,7 +204,6 @@ for item in active_items[:1]:
             root_span.update_trace(input=item.input, output=actual)
 
             root_span.score_trace(
-                trace_id=handler.get_trace_id(),
                 name="tree_cover_answer_score",
                 value=score,
                 comment=f"Analysis: {evaluation['analysis']}",
