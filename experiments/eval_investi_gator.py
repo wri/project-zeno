@@ -46,42 +46,7 @@ def parse_expected_output(data: dict) -> InvestigatorAnswer:
 
 
 def parse_output_state_snapshot(state: StateSnapshot) -> dict:
-    """Parse the output trace to extract messages content.
-
-    Note: The Zeno agent dynamically decides which tools to use based on the question.
-    Trace data contains all intermediate steps in JSON format - we extract only
-    the relevant messages here. Use LangFuse UI to view full traces graphically.
-
-    For debugging: LLMs can help identify patterns in complex trace data if the
-    structure changes.
-
-    Mimics: jq 'walk(if type == "object" then del(.artifact) else . end)' json_str |
-            jq '{messages: .messages | map({type, content} + (if .tool_calls then {tool_calls: .tool_calls | map({name, args})} else {} end))}'
-    """
-    # Collect all messages from the nested structure
-    messages = []
-    for item in state:
-        # Get messages from whichever key exists (tools or agent)
-        node = item.get("tools", item.get("agent", {}))
-        for message in node.get("messages", []):
-            msg_data = message.get("kwargs", message)
-
-            processed_msg = {
-                "type": msg_data.get("type"),
-                "content": msg_data.get("content"),
-                "name": msg_data.get("name"),
-            }
-
-            # Add tool_calls if present
-            if "tool_calls" in msg_data:
-                processed_msg["tool_calls"] = [
-                    {"name": tc["name"], "args": tc["args"]}
-                    for tc in msg_data["tool_calls"]
-                ]
-
-            messages.append(processed_msg)
-
-    return {"messages": messages}
+    return state.values.get("messages", [])
 
 
 # Scoring
