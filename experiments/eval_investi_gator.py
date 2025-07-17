@@ -182,8 +182,12 @@ for item in active_items:
                 value=score,
                 comment=f"Analysis: {evaluation['analysis']}",
             )
-        except TypeError:
+        except TypeError as e:
             # Skip this item if response is not in expected format
+            print(f"✗ TypeError processing item '{item.input}': {str(e)}")
+            print(f"  Response type: {type(response)}")
+            if response:
+                print(f"  Response preview: {str(response)[:200]}...")
             continue
         finally:
             langfuse.flush()
