@@ -407,8 +407,7 @@ def render_charts(charts_data):
 
 def render_stream(stream):
 
-    print("STREAM KEYS: ", json.loads(stream["update"]).keys())
-    node = stream["node"]
+    # node = stream["node"]
     update = json.loads(stream["update"])
     state_updates = "State Update: " + ", ".join(list(update.keys()))
     st.badge(state_updates, icon=":material/check:", color="green")
