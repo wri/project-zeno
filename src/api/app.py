@@ -74,26 +74,26 @@ def replay_chat(thread_id):
         }
     }
     try:
-        result = zeno.invoke(None, config=config, subgraphs=False)
 
-        for node, node_data in result.items():
-            if node_data is None:
-                yield pack({"node": node, "update": "None"})
+        result = zeno.get_state(config=config, subgraphs=False)
 
-            elif isinstance(node_data, str):
-                yield pack({"node": node, "update": node_data})
-            elif isinstance(node_data, dict):
-                yield pack({"node": node, "update": json.dumps(node_data)})
-            else:
-                for msg in node_data:
-                    if msg is None:
-                        yield pack({"node": node, "update": "None"})
-                    elif isinstance(msg, str):
-                        yield pack({"node": node, "update": msg})
-                    else:
-                        yield pack({"node": node, "update": msg.to_json()})
+        for i, (node, data) in enumerate({"agent": result.values}.items()):
+
+            yield pack(
+                {
+                    # User's input query is always the first message
+                    # however if I separate the fetches result into a dict
+                    # with format {"user": {...}, "agent": {...}}, the
+                    # frontend code complains
+                    "node": "user" if i == 0 else node,
+                    "update": dumps(data),
+                }
+            )
 
     except Exception as e:
+        import traceback
+
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -133,14 +133,10 @@ def stream_chat(
         for action_type, action_data in ui_context.items():
             match action_type:
                 case "aoi_selected":
-                    content = (
-                        f"User selected AOI in UI: {action_data['aoi_name']}"
-                    )
+                    content = f"User selected AOI in UI: {action_data['aoi_name']}"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
-                    state_updates["subregion_aois"] = action_data[
-                        "subregion_aois"
-                    ]
+                    state_updates["subregion_aois"] = action_data["subregion_aois"]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
@@ -210,7 +206,7 @@ def fetch_user_from_rw_api(
         )
 
     token = authorization.split(" ")[1]
-
+    # print("TOKEN: ", token)
     try:
         resp = requests.get(
             "https://api.resourcewatch.org/auth/user/me",
@@ -276,9 +272,7 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
     """
     with SessionLocal() as db:
         thread = (
-            db.query(ThreadOrm)
-            .filter_by(id=request.thread_id, user_id=user.id)
-            .first()
+            db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
         )
         if not thread:
             thread = ThreadOrm(
@@ -326,11 +320,7 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     """
 
     with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm)
-            .filter_by(user_id=user.id, id=thread_id)
-            .first()
-        )
+        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
 
