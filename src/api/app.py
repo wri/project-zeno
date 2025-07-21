@@ -73,27 +73,60 @@ def replay_chat(thread_id):
             "thread_id": thread_id,
         }
     }
+
     try:
-        result = zeno.invoke(None, config=config, subgraphs=False)
+        # Fetch checkpoints for conversation/thread
+        checkpoints = zeno.get_state_history(config=config)
+        # consume checkpoints and sort them by step to process from
+        # oldest to newest
+        checkpoints = sorted(list(checkpoints), key=lambda x: x.metadata["step"])
+        # Remove step -1 which is the initial empty state
+        checkpoints = [c for c in checkpoints if c.metadata["step"] >= 0]
 
-        for node, node_data in result.items():
-            if node_data is None:
-                yield pack({"node": node, "update": "None"})
+        # Variables to track rendered state elements and messages
+        # so that we essentially just render the diff of the state
+        # from one checkpoint to the next (in order to maintain the
+        # correct ordering of messages and state updates)
+        rendered_state_elements = {}
+        rendered_messages = []
 
-            elif isinstance(node_data, str):
-                yield pack({"node": node, "update": node_data})
-            elif isinstance(node_data, dict):
-                yield pack({"node": node, "update": json.dumps(node_data)})
-            else:
-                for msg in node_data:
-                    if msg is None:
-                        yield pack({"node": node, "update": "None"})
-                    elif isinstance(msg, str):
-                        yield pack({"node": node, "update": msg})
-                    else:
-                        yield pack({"node": node, "update": msg.to_json()})
+        for checkpoint in checkpoints:
+            # Render messages
+            for message in checkpoint.values.get("messages", []):
+                # Assert that message has content, and hasn't already been rendered
+                if message.id in rendered_messages or not message.content:
+                    continue
+                rendered_messages.append(message.id)
+
+                # set correct type for node
+                node = "human" if message.type == "human" else "agent"
+
+                yield pack({"node": node, "update": dumps({"messages": [message]})})
+
+            # Render the rest of the state updates
+            for key, value in checkpoint.values.items():
+                # skip rendering messages again
+                if key == "messages":
+                    continue
+                # Skip if this state element has already been rendered
+                if value in rendered_state_elements.setdefault(key, []):
+                    continue
+                rendered_state_elements[key].append(value)
+
+                # In the original stream, the state updates are sent along side
+                # the messages at the moment in which they occur, however in the
+                # checkpoint the state updates and messages are both stored in
+                # the checkpoint values dict so we need to yield them with an empty
+                # messages list to ensure the frontend doesn't trip up
+
+                yield pack(
+                    {"node": "agent", "update": dumps({"messages": [], key: value})}
+                )
 
     except Exception as e:
+        import traceback
+
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -133,14 +166,10 @@ def stream_chat(
         for action_type, action_data in ui_context.items():
             match action_type:
                 case "aoi_selected":
-                    content = (
-                        f"User selected AOI in UI: {action_data['aoi_name']}"
-                    )
+                    content = f"User selected AOI in UI: {action_data['aoi_name']}"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
-                    state_updates["subregion_aois"] = action_data[
-                        "subregion_aois"
-                    ]
+                    state_updates["subregion_aois"] = action_data["subregion_aois"]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
@@ -240,7 +269,6 @@ def fetch_user_from_rw_api(
         )
 
     token = authorization.split(" ")[1]
-
     try:
         resp = requests.get(
             "https://api.resourcewatch.org/auth/user/me",
@@ -306,9 +334,7 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
     """
     with SessionLocal() as db:
         thread = (
-            db.query(ThreadOrm)
-            .filter_by(id=request.thread_id, user_id=user.id)
-            .first()
+            db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
         )
         if not thread:
             thread = ThreadOrm(
@@ -356,11 +382,7 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     """
 
     with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm)
-            .filter_by(user_id=user.id, id=thread_id)
-            .first()
-        )
+        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
 
