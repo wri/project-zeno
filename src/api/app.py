@@ -167,26 +167,56 @@ def stream_chat(
             )
         )
 
-    try:
-        state_updates["messages"] = messages
-        state_updates["user_persona"] = user_persona
+    state_updates["messages"] = messages
+    state_updates["user_persona"] = user_persona
 
+    try:
         stream = zeno.stream(
             state_updates,
             config=config,
             stream_mode="updates",
             subgraphs=False,
         )
+        
         for update in stream:
-            node = next(iter(update.keys()))
-            yield pack(
-                {
-                    "node": node,
-                    "update": dumps(update[node]),
-                }
-            )
+            try:
+                node = next(iter(update.keys()))
+                yield pack(
+                    {
+                        "node": node,
+                        "update": dumps(update[node]),
+                    }
+                )
+            except Exception as e:
+                # Send error as a stream event instead of raising
+                yield pack(
+                    {
+                        "node": "error",
+                        "update": dumps({
+                            "error": True,
+                            "message": str(e),  # String representation of the error
+                            "error_type": type(e).__name__,  # Exception class name
+                            "type": "stream_processing_error"
+                        }),
+                    }
+                )
+                # Continue processing other updates if possible
+                continue
+                
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Initial stream setup error - send as error event
+        yield pack(
+            {
+                "node": "error",
+                "update": dumps({
+                    "error": True,
+                    "message": str(e),  # String representation of the error
+                    "error_type": type(e).__name__,  # Exception class name
+                    "type": "stream_initialization_error",
+                    "fatal": True  # Indicates stream cannot continue
+                }),
+            }
+        )
 
 
 DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "")
