@@ -377,6 +377,116 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/geometry/{source}/{src_id}")
+async def get_aoi_geometry(source: str, src_id: int, user: UserModel = Depends(fetch_user)):
+    """
+    Get geometry for a specific AOI by source and src_id.
+    
+    Args:
+        source: The source of the AOI (e.g., 'gadm', 'kba', 'wdpa', 'landmark')
+        src_id: The source-specific ID of the AOI
+        user: The authenticated user
+    
+    Returns:
+        GeoJSON geometry or 404 if not found
+    """
+    try:
+        from src.tools.pick_aoi import get_db_connection, get_aoi_geometry
+        
+        # Get database connection
+        db_connection = get_db_connection()
+        
+        # Fetch geometry
+        geometry = get_aoi_geometry(db_connection, source, src_id)
+        
+        if geometry is None:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Geometry not found for {source} with ID {src_id}"
+            )
+        
+        return {"geometry": geometry}
+        
+    except Exception as e:
+        logger.error(f"Error fetching geometry for {source}/{src_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class GeometryRequest(BaseModel):
+    source: str = Field(..., description="The source of the AOI")
+    src_id: int = Field(..., description="The source-specific ID")
+
+
+class BatchGeometryRequest(BaseModel):
+    requests: list[GeometryRequest] = Field(..., description="List of geometry requests")
+
+
+@app.post("/api/geometry/batch")
+async def get_batch_geometries(request: BatchGeometryRequest, user: UserModel = Depends(fetch_user)):
+    """
+    Get geometries for multiple AOIs in a single request.
+    
+    Args:
+        request: Batch request containing list of source/src_id pairs
+        user: The authenticated user
+    
+    Returns:
+        Dictionary mapping "source:src_id" keys to geometry objects
+    """
+    try:
+        from src.tools.pick_aoi import get_db_connection
+        
+        # Get database connection
+        db_connection = get_db_connection()
+        
+        # Build batch query for efficiency
+        if not request.requests:
+            return {"geometries": {}}
+        
+        # Group requests by source for efficient querying
+        source_groups = {}
+        for req in request.requests:
+            if req.source not in source_groups:
+                source_groups[req.source] = []
+            source_groups[req.source].append(req.src_id)
+        
+        results = {}
+        
+        # Query each source group
+        for source, src_ids in source_groups.items():
+            src_ids_str = ",".join(map(str, src_ids))
+            sql_query = f"""
+                SELECT 
+                    source,
+                    src_id,
+                    ST_AsGeoJSON(geometry) as geometry_json
+                FROM 'data/geocode/exports/geometries.parquet'
+                WHERE source = '{source}' AND src_id IN ({src_ids_str})
+            """
+            
+            query_results = db_connection.sql(sql_query).df()
+            
+            # Process results
+            for _, row in query_results.iterrows():
+                key = f"{row['source']}:{row['src_id']}"
+                try:
+                    results[key] = json.loads(row['geometry_json']) if row['geometry_json'] else None
+                except json.JSONDecodeError:
+                    results[key] = None
+        
+        # Ensure all requested keys are present (with None for missing)
+        for req in request.requests:
+            key = f"{req.source}:{req.src_id}"
+            if key not in results:
+                results[key] = None
+        
+        return {"geometries": results}
+        
+    except Exception as e:
+        logger.error(f"Error fetching batch geometries: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/auth/me", response_model=UserModel)
 async def auth_me(user: UserModel = Depends(fetch_user)):
     """

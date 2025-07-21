@@ -31,6 +31,68 @@ class ChatRequest(BaseModel):
     tags: Optional[list] = Field(None, description="The tags")
 ```
 
+## Geometry API Endpoints
+
+Since AOI responses no longer include geometry data (for performance optimization), separate API endpoints are provided to fetch geometry when needed for map rendering.
+
+### Individual Geometry Endpoint
+
+**GET** `/api/geometry/{source}/{src_id}`
+
+Fetches geometry for a single AOI.
+
+**Parameters:**
+- `source`: Source table (`gadm`, `kba`, `landmark`, `wdpa`)
+- `src_id`: Source table ID
+
+**Response:**
+```json
+{
+    "type": "MultiPolygon",
+    "coordinates": [...]
+}
+```
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     https://api.example.com/api/geometry/gadm/22056
+```
+
+### Batch Geometry Endpoint
+
+**POST** `/api/geometry/batch`
+
+Fetches multiple geometries in a single request for efficient loading.
+
+**Request Body:**
+```json
+{
+    "requests": [
+        {"source": "gadm", "src_id": 22056},
+        {"source": "kba", "src_id": 3261},
+        {"source": "wdpa", "src_id": 12345}
+    ]
+}
+```
+
+**Response:**
+```json
+{
+    "gadm:22056": {
+        "type": "MultiPolygon",
+        "coordinates": [...]
+    },
+    "kba:3261": {
+        "type": "Polygon",
+        "coordinates": [...]
+    },
+    "wdpa:12345": null  // Not found
+}
+```
+
+**Authentication:** Both endpoints require WRI API token authentication.
+
 ### UI Context
 
 The `ui_context` parameter allows the frontend to pass pre-selected data (AOI, dataset, date range) directly to the agent, enabling a hybrid approach where users can either:
@@ -43,11 +105,13 @@ The `ui_context` parameter allows the frontend to pass pre-selected data (AOI, d
 ```python
 ui_context = {
     "aoi_selected": {
-        "aoi": {  # Full AOI geojson and metadata
-            "geometry": {...},  # GeoJSON geometry
+        "aoi": {  # AOI metadata (geometry fetched separately via API)
+            "source": "gadm",  # Source table: 'gadm', 'kba', 'landmark', 'wdpa'
+            "src_id": 12345,   # Source table ID for geometry lookup
             "name": "Location Name",
             "gadm_id": 12345,
-            # ... other AOI fields
+            # ... other AOI metadata fields
+            # Note: geometry excluded - fetch via /api/geometry/{source}/{src_id}
         },
         "aoi_name": "Location Name",
         "subregion_aois": None,  # or DataFrame data
@@ -213,10 +277,9 @@ For single aoi
         "CC_5": null,
         "name": "Koraput, Odisha, India",
         "gadm_id": 22056,
-        "geometry": {
-            "type": "MultiPolygon",
-            "coordinates": [...]
-        }
+        "source": "gadm",
+        "src_id": 22056
+        # Note: geometry excluded - fetch via /api/geometry/gadm/22056
     },
     "subregion_aois": null,
     "subregion": null,
@@ -272,47 +335,41 @@ For multi aoi
         "CC_5": null,
         "name": "Odisha, India",
         "gadm_id": 1534,
-        "geometry": {
-            "type": "MultiPolygon",
-            "coordinates": [...]
-        }
+        "source": "gadm",
+        "src_id": 1534
+        # Note: geometry excluded - fetch via /api/geometry/gadm/1534
     },
     "subregion_aois": {
         "data": [
             {
                 "gfw_fid": 3261,
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": [[...]]
-                }
+                "source": "kba",
+                "src_id": 3261
+                # Note: geometry excluded - fetch via /api/geometry/kba/3261
             },
             {
                 "gfw_fid": 3262,
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": [[...]]
-                }
+                "source": "kba",
+                "src_id": 3262
+                # Note: geometry excluded - fetch via /api/geometry/kba/3262
             },
             {
                 "gfw_fid": 3263,
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": [[...]]
-                }
+                "source": "kba",
+                "src_id": 3263
+                # Note: geometry excluded - fetch via /api/geometry/kba/3263
             },
             {
                 "gfw_fid": 14937,
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": [[...]]
-                }
+                "source": "kba",
+                "src_id": 14937
+                # Note: geometry excluded - fetch via /api/geometry/kba/14937
             },
             {
                 "gfw_fid": 15089,
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": [[...]]
-                }
+                "source": "kba",
+                "src_id": 15089
+                # Note: geometry excluded - fetch via /api/geometry/kba/15089
             }
         ],
         "total_rows": 5,

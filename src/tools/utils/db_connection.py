@@ -10,14 +10,14 @@ from src.utils.logging_config import get_logger
 load_dotenv()
 logger = get_logger(__name__)
 
-GADM_PLUS_SEARCH_TABLE = "data/geocode/exports/gadm_plus_search.parquet"
+GADM_PLUS_TABLE = "data/geocode/exports/gadm_plus.parquet"
 
 # Pre-loading tables is an option
-# GADM_TABLE = "data/geocode/exports/gadm.parquet"
-# KBA_TABLE = "data/geocode/exports/kba.parquet"
-# LANDMARK_TABLE = "data/geocode/exports/landmark.parquet"
-# WDPA_TABLE = "data/geocode/exports/wdpa.parquet"
-
+# GADM_TABLE = "data/geocode/exports/gadm_no_geom.parquet"
+# KBA_TABLE = "data/geocode/exports/kba_no_geom.parquet"
+# LANDMARK_TABLE = "data/geocode/exports/landmark_no_geom.parquet"
+# WDPA_TABLE = "data/geocode/exports/wdpa_no_geom.parquet"
+# GEOMETRIES_TABLE = "data/geocode/exports/geometries.parquet"
 
 @lru_cache(maxsize=1)
 def get_db_connection(local_path: str = "local_basemaps.duckdb"):
@@ -46,13 +46,15 @@ def get_db_connection(local_path: str = "local_basemaps.duckdb"):
     # Load tables
     start_time = time.time()
     conn.execute(
-        f"CREATE TABLE IF NOT EXISTS gadm_plus_search AS SELECT * FROM '{GADM_PLUS_SEARCH_TABLE}';"
+        f"CREATE TABLE IF NOT EXISTS gadm_plus AS SELECT * FROM '{GADM_PLUS_TABLE}';"
     )
     # conn.execute(f"CREATE TABLE IF NOT EXISTS gadm AS SELECT * FROM '{GADM_TABLE}';")
     # conn.execute(f"CREATE TABLE IF NOT EXISTS kba AS SELECT * FROM '{KBA_TABLE}';")
     # conn.execute(f"CREATE TABLE IF NOT EXISTS landmark AS SELECT * FROM '{LANDMARK_TABLE}';")
     # conn.execute(f"CREATE TABLE IF NOT EXISTS wdpa AS SELECT * FROM '{WDPA_TABLE}';")
-
+    # conn.execute(
+    #     f"CREATE TABLE IF NOT EXISTS geometries AS SELECT * FROM '{GEOMETRIES_TABLE}';"
+    # )
     logger.debug(
         f"Tables loaded successfully in {time.time() - start_time:.2f} seconds."
     )

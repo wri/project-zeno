@@ -18,10 +18,14 @@ logger = get_logger(__name__)
 
 RESULT_LIMIT = 10
 
-GADM_TABLE = "data/geocode/exports/gadm.parquet"
-KBA_TABLE = "data/geocode/exports/kba.parquet"
-LANDMARK_TABLE = "data/geocode/exports/landmark.parquet"
-WDPA_TABLE = "data/geocode/exports/wdpa.parquet"
+# Optimized table paths (without geometry)
+GADM_TABLE = "data/geocode/exports/gadm_no_geom.parquet"
+KBA_TABLE = "data/geocode/exports/kba_no_geom.parquet"
+LANDMARK_TABLE = "data/geocode/exports/landmark_no_geom.parquet"
+WDPA_TABLE = "data/geocode/exports/wdpa_no_geom.parquet"
+
+# Separate geometry table
+GEOMETRIES_TABLE = "data/geocode/exports/geometries.parquet"
 
 
 def query_aoi_database(
@@ -43,7 +47,7 @@ def query_aoi_database(
         SELECT
             *,
             jaro_winkler_similarity(LOWER(name), LOWER('{place_name}')) AS similarity_score
-        FROM gadm_plus_search
+        FROM gadm_plus
         ORDER BY similarity_score DESC
         LIMIT {result_limit}
     """
@@ -89,34 +93,73 @@ def query_subregion_database(
                 f"Subregion: {subregion_name} does not match to any table in basemaps database."
             )
 
+    # Get the appropriate ID column name based on subregion type
+    if subregion_name in ["country", "state", "district", "municipality", "locality", "neighbourhood"]:
+        id_column = "gadm_id"
+        source_name = "gadm"
+    else:
+        id_column = f"{subregion_name}_id"
+        source_name = subregion_name
+    
     sql_query = f"""
     WITH aoi AS (
         SELECT geometry AS geom
-        FROM 'data/geocode/exports/{source}.parquet'
-        WHERE {source}_id = {src_id}
+        FROM '{GEOMETRIES_TABLE}'
+        WHERE source = '{source}' AND src_id = {src_id}
+    ),
+    subregion_geometries AS (
+        SELECT 
+            source,
+            src_id,
+            geometry
+        FROM '{GEOMETRIES_TABLE}'
+        WHERE source = '{source_name}'
     )
-    SELECT t.* EXCLUDE geometry, ST_AsGeoJSON(t.geometry) as geometry
-    FROM '{table_name}' AS t, aoi
-    WHERE ST_Within(t.geometry, aoi.geom);
+    SELECT 
+        t.*
+    FROM '{table_name}' AS t
+    CROSS JOIN aoi
+    JOIN subregion_geometries sg ON t.{id_column} = sg.src_id
+    WHERE ST_Within(sg.geometry, aoi.geom);
     """
     logger.debug(f"Executing subregion query: {sql_query}")
     results = connection.execute(sql_query).df()
-
-    # Parse GeoJSON strings in the results
-    if not results.empty and "geometry" in results.columns:
-        for idx, row in results.iterrows():
-            if row["geometry"] is not None and isinstance(
-                row["geometry"], str
-            ):
-                try:
-                    results.at[idx, "geometry"] = json.loads(row["geometry"])
-                except json.JSONDecodeError as e:
-                    logger.error(
-                        f"Failed to parse GeoJSON for subregion {row.get('name', 'Unknown')}: {e}"
-                    )
-                    results.at[idx, "geometry"] = None
-
+    
+    # Note: Geometry is not returned - only used for spatial filtering
+    logger.debug(f"Found {len(results)} subregions within AOI")
     return results
+
+
+def get_aoi_geometry(connection: duckdb.DuckDBPyConnection, source: str, src_id: int):
+    """Fetch geometry for a specific AOI from the geometry table.
+    
+    Args:
+        connection: DuckDB connection object
+        source: Source of the AOI ('gadm', 'kba', 'landmark', 'wdpa')
+        src_id: Source-specific ID of the AOI
+        
+    Returns:
+        GeoJSON geometry dict or None if not found
+    """
+    sql_query = f"""
+        SELECT ST_AsGeoJSON(geometry) as geometry
+        FROM '{GEOMETRIES_TABLE}'
+        WHERE source = '{source}' AND src_id = {src_id}
+        LIMIT 1
+    """
+    
+    logger.debug(f"Fetching geometry for {source}:{src_id}")
+    
+    try:
+        result = connection.sql(sql_query).fetchone()
+        if result and result[0]:
+            return json.loads(result[0])
+        else:
+            logger.warning(f"No geometry found for {source}:{src_id}")
+            return None
+    except Exception as e:
+        logger.error(f"Failed to fetch geometry for {source}:{src_id}: {e}")
+        return None
 
 
 class AOIIndex(BaseModel):
@@ -207,11 +250,12 @@ def pick_aoi(
             f"Selected AOI id: {selected_aoi_id}, source: '{source}', src_id: {src_id}"
         )
 
+        # Fetch metadata from the appropriate table (without geometry)
         match source:
             case "gadm":
                 selected_aoi = (
                     db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{GADM_TABLE}' WHERE gadm_id = {src_id}"
+                        f"SELECT * FROM '{GADM_TABLE}' WHERE gadm_id = {src_id}"
                     )
                     .df()
                     .iloc[0]
@@ -220,7 +264,7 @@ def pick_aoi(
             case "kba":
                 selected_aoi = (
                     db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{KBA_TABLE}' WHERE kba_id = {src_id}"
+                        f"SELECT * FROM '{KBA_TABLE}' WHERE kba_id = {src_id}"
                     )
                     .df()
                     .iloc[0]
@@ -229,7 +273,7 @@ def pick_aoi(
             case "landmark":
                 selected_aoi = (
                     db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{LANDMARK_TABLE}' WHERE landmark_id = {src_id}"
+                        f"SELECT * FROM '{LANDMARK_TABLE}' WHERE landmark_id = {src_id}"
                     )
                     .df()
                     .iloc[0]
@@ -238,7 +282,7 @@ def pick_aoi(
             case "wdpa":
                 selected_aoi = (
                     db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{WDPA_TABLE}' WHERE wdpa_id = {src_id}"
+                        f"SELECT * FROM '{WDPA_TABLE}' WHERE wdpa_id = {src_id}"
                     )
                     .df()
                     .iloc[0]
@@ -249,32 +293,16 @@ def pick_aoi(
                 raise ValueError(
                     f"Source: {source} does not match to any table in basemaps database."
                 )
-
-        # Parse the GeoJSON string into a Python dictionary
-        if "geometry" in selected_aoi and selected_aoi["geometry"] is not None:
-            try:
-                if isinstance(selected_aoi["geometry"], str):
-                    selected_aoi["geometry"] = json.loads(
-                        selected_aoi["geometry"]
-                    )
-                    logger.debug(
-                        f"Parsed GeoJSON geometry for AOI: {selected_aoi['name']}"
-                    )
-            except json.JSONDecodeError as e:
-                logger.error(
-                    f"Failed to parse GeoJSON for AOI {selected_aoi['name']}: {e}"
-                )
-                selected_aoi["geometry"] = None
-        else:
-            logger.warning(
-                f"No geometry found for AOI: {selected_aoi.get('name', 'Unknown')}"
-            )
-
+        
+        # Note: Geometry is not included in the frontend response
+        # Frontend should fetch geometry via API endpoints when needed for map rendering
+        
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
             subregion_aois = query_subregion_database(
                 db_connection, subregion, source, src_id
             )
+            # Convert to records for frontend (geometry already excluded from query)
             subregion_aois = subregion_aois.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
 
@@ -319,7 +347,8 @@ if __name__ == "__main__":
     )
 
     user_queries = [
-        "find threats to tigers in kbas of Odisha",
+        "find threats to tigers in Odisha",
+        "find threats to tigers in KBAs of Odisha",
         "Show me forest data for congo not drc",
         "What is the deforestation rate in Ontario last year?",
         "I need urgent data on ilegal logging in Borgou!!",
@@ -330,7 +359,7 @@ if __name__ == "__main__":
         "find deforestation rate in PNG",
     ]
 
-    for query in user_queries[:1]:
+    for query in user_queries[:5]:
         for step in agent.stream(
             {"messages": [{"role": "user", "content": query}]},
             stream_mode="values",
