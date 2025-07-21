@@ -1,7 +1,7 @@
 import argparse
 import json
 import uuid
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, Optional, List
 
 import requests
 
@@ -21,6 +21,42 @@ class ZenoClient:
         """
         self.base_url = base_url
         self.token = token
+
+    def list_threads(self) -> List[Dict[str, Any]]:
+        url = f"{self.base_url}/api/threads"
+        if not self.token:
+            raise ValueError("Token is required to list threads.")
+        headers = {"Authorization": f"Bearer {self.token}"}
+        with requests.get(url, headers=headers) as response:
+            if response.status_code != 200:
+                raise Exception(
+                    f"Request failed with status code {response.status_code}: {response.text}"
+                )
+            try:
+                threads = response.json()
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Failed to parse JSON response: {e}")
+            return threads
+
+    def fetch(self, thread_id: str):
+        if not self.token:
+            raise ValueError("Token is required to fetch thread.")
+        url = f"{self.base_url}/api/threads/{thread_id}"
+
+        headers = {"Authorization": f"Bearer {self.token}"}
+
+        payload = {"thread_id": thread_id}
+
+        with requests.get(url, json=payload, stream=True, headers=headers) as response:
+            if response.status_code != 200:
+                raise Exception(
+                    f"Request failed with status code {response.status_code}: {response.text}"
+                )
+            for update in response.iter_lines():
+                if update:
+                    # Decode the line and parse the JSON
+                    decoded_update = update.decode("utf-8")
+                    yield json.loads(decoded_update)
 
     def chat(
         self,
@@ -115,15 +151,40 @@ def main():
     parser.add_argument(
         "--url", "-u", default="http://localhost:8000", help="API server URL"
     )
+    parser.add_argument("--token", "-k", help="Bearer token for authentication")
 
     args = parser.parse_args()
 
-    # If query wasn't provided as a positional argument, prompt for it
+    client = ZenoClient(base_url=args.url, token=args.token)
+
     query = args.query
+    if args.thread_id and not query:
+        if not client.token:
+            raise ValueError("Thread ID provided but no token provided.")
+        print(f"Fetching existing thread: {args.thread_id}")
+        try:
+
+            for stream in client.fetch(thread_id=args.thread_id):
+                node = stream["node"]
+                update = json.loads(stream["update"])
+
+                for msg in update["messages"]:
+                    content = msg["kwargs"]["content"]
+                    print(f"Node: {node}")
+                    if isinstance(content, list):
+                        for msg in content:
+                            print(f"Content: {msg}")
+                    else:
+                        print(f"Content: {content}")
+                    print("---")
+        except Exception as e:
+            print(f"Error fetching thread: {e}")
+
+        return
+
+    # If query wasn't provided as a positional argument, prompt for it
     if not query:
         query = input("Enter your query: ")
-
-    client = ZenoClient(base_url=args.url)
 
     print(f"Sending query: {query}")
     if args.persona:

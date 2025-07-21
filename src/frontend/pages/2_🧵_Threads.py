@@ -1,45 +1,29 @@
-import json
-
 import requests
 import streamlit as st
 from app import API_BASE_URL
+from utils import render_stream
+from client import ZenoClient
 
 st.set_page_config(page_title="🧵 Threads", page_icon="🧵")
 
 st.title("🧵 Your Threads")
 
 
-# Helper to get auth token from session (if available)
-def get_auth_headers():
-    token = st.session_state.get("token")
-
-    return {"Authorization": f"Bearer {token}"}
-
-
 # Fetch threads
 def fetch_threads():
-    resp = requests.get(f"{API_BASE_URL}/api/threads", headers=get_auth_headers())
-
-    if resp.status_code == 200:
-        return resp.json()
-
-    st.error("Failed to fetch threads")
-    return []
+    if not st.session_state.get("token"):
+        st.info("Please log in to view your threads.")
+        return []
+    client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
+    return client.list_threads()
 
 
 # Fetch a single thread
 def fetch_thread(thread_id):
-    with requests.get(
-        f"{API_BASE_URL}/api/threads/{thread_id}",
-        headers=get_auth_headers(),
-        stream=True,
-    ) as stream:
-        st.subheader(f"Thread {selected_id}")
+    client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
 
-        for chunk in stream.iter_lines():
-            if chunk:
-                data = json.loads(chunk.decode("utf-8"))
-                st.write(data)
+    for stream in client.fetch(thread_id):
+        render_stream(stream)
 
 
 threads = []
@@ -80,10 +64,7 @@ with st.sidebar:
 
 
 threads = fetch_threads()
-
-if not threads:
-    st.info("No threads found.")
-else:
+if threads:
     thread_options = {f"{t['id']}": t for t in threads}
     selected_id = st.radio(
         "Select a thread to view:",

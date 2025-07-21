@@ -137,7 +137,9 @@ def parse_tree_cover_qa(row: Dict[str, str]) -> Dict[str, Any]:
         {"expected_output": {"answer": "...", "notes": "..."}}
     """
     expected = {
-        "answer": next((v.strip() for k, v in row.items() if k.startswith("Answer")), ""),
+        "answer": next(
+            (v.strip() for k, v in row.items() if k.startswith("Answer")), ""
+        ),
     }
 
     # Include notes if present

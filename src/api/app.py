@@ -140,27 +140,60 @@ def replay_chat(thread_id):
             "thread_id": thread_id,
         }
     }
+
     try:
-        result = zeno.invoke(None, config=config, subgraphs=False)
+        # Fetch checkpoints for conversation/thread
+        checkpoints = zeno.get_state_history(config=config)
+        # consume checkpoints and sort them by step to process from
+        # oldest to newest
+        checkpoints = sorted(list(checkpoints), key=lambda x: x.metadata["step"])
+        # Remove step -1 which is the initial empty state
+        checkpoints = [c for c in checkpoints if c.metadata["step"] >= 0]
 
-        for node, node_data in result.items():
-            if node_data is None:
-                yield pack({"node": node, "update": "None"})
+        # Variables to track rendered state elements and messages
+        # so that we essentially just render the diff of the state
+        # from one checkpoint to the next (in order to maintain the
+        # correct ordering of messages and state updates)
+        rendered_state_elements = {}
+        rendered_messages = []
 
-            elif isinstance(node_data, str):
-                yield pack({"node": node, "update": node_data})
-            elif isinstance(node_data, dict):
-                yield pack({"node": node, "update": json.dumps(node_data)})
-            else:
-                for msg in node_data:
-                    if msg is None:
-                        yield pack({"node": node, "update": "None"})
-                    elif isinstance(msg, str):
-                        yield pack({"node": node, "update": msg})
-                    else:
-                        yield pack({"node": node, "update": msg.to_json()})
+        for checkpoint in checkpoints:
+            # Render messages
+            for message in checkpoint.values.get("messages", []):
+                # Assert that message has content, and hasn't already been rendered
+                if message.id in rendered_messages or not message.content:
+                    continue
+                rendered_messages.append(message.id)
+
+                # set correct type for node
+                node = "human" if message.type == "human" else "agent"
+
+                yield pack({"node": node, "update": dumps({"messages": [message]})})
+
+            # Render the rest of the state updates
+            for key, value in checkpoint.values.items():
+                # skip rendering messages again
+                if key == "messages":
+                    continue
+                # Skip if this state element has already been rendered
+                if value in rendered_state_elements.setdefault(key, []):
+                    continue
+                rendered_state_elements[key].append(value)
+
+                # In the original stream, the state updates are sent along side
+                # the messages at the moment in which they occur, however in the
+                # checkpoint the state updates and messages are both stored in
+                # the checkpoint values dict so we need to yield them with an empty
+                # messages list to ensure the frontend doesn't trip up
+
+                yield pack(
+                    {"node": "agent", "update": dumps({"messages": [], key: value})}
+                )
 
     except Exception as e:
+        import traceback
+
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -227,10 +260,9 @@ def stream_chat(
             )
         )
 
+    state_updates["messages"] = messages
+    state_updates["user_persona"] = user_persona
     try:
-        state_updates["messages"] = messages
-        state_updates["user_persona"] = user_persona
-
         # Use zeno_anonymous (zeno agent without checkpointer) for
         # anonymous users by default
         zeno_agent = zeno_anonymous
@@ -246,16 +278,50 @@ def stream_chat(
             stream_mode="updates",
             subgraphs=False,
         )
+
         for update in stream:
-            node = next(iter(update.keys()))
-            yield pack(
-                {
-                    "node": node,
-                    "update": dumps(update[node]),
-                }
-            )
+            try:
+                node = next(iter(update.keys()))
+                yield pack(
+                    {
+                        "node": node,
+                        "update": dumps(update[node]),
+                    }
+                )
+            except Exception as e:
+                # Send error as a stream event instead of raising
+                yield pack(
+                    {
+                        "node": "error",
+                        "update": dumps(
+                            {
+                                "error": True,
+                                "message": str(e),  # String representation of the error
+                                "error_type": type(e).__name__,  # Exception class name
+                                "type": "stream_processing_error",
+                            }
+                        ),
+                    }
+                )
+                # Continue processing other updates if possible
+                continue
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Initial stream setup error - send as error event
+        yield pack(
+            {
+                "node": "error",
+                "update": dumps(
+                    {
+                        "error": True,
+                        "message": str(e),  # String representation of the error
+                        "error_type": type(e).__name__,  # Exception class name
+                        "type": "stream_initialization_error",
+                        "fatal": True,  # Indicates stream cannot continue
+                    }
+                ),
+            }
+        )
 
 
 # LRU cache for user info, keyed by token
@@ -278,7 +344,6 @@ def fetch_user_from_rw_api(
         )
 
     token = authorization.split(" ")[1]
-
     try:
         resp = requests.get(
             "https://api.resourcewatch.org/auth/user/me",
