@@ -73,22 +73,55 @@ def replay_chat(thread_id):
             "thread_id": thread_id,
         }
     }
+
     try:
+        # Fetch checkpoints for conversation/thread
+        checkpoints = zeno.get_state_history(config=config)
+        # consume checkpoints and sort them by step to process from
+        # oldest to newest
+        checkpoints = sorted(list(checkpoints), key=lambda x: x.metadata["step"])
+        # Remove step -1 which is the initial empty state
+        checkpoints = [c for c in checkpoints if c.metadata["step"] >= 0]
 
-        result = zeno.get_state(config=config, subgraphs=False)
+        # Variables to track rendered state elements and messages
+        # so that we essentially just render the diff of the state
+        # from one checkpoint to the next (in order to maintain the
+        # correct ordering of messages and state updates)
+        rendered_state_elements = {}
+        rendered_messages = []
 
-        for i, (node, data) in enumerate({"agent": result.values}.items()):
+        for checkpoint in checkpoints:
+            # Render messages
+            for message in checkpoint.values.get("messages", []):
+                # Assert that message has content, and hasn't already been rendered
+                if message.id in rendered_messages or not message.content:
+                    continue
+                rendered_messages.append(message.id)
 
-            yield pack(
-                {
-                    # User's input query is always the first message
-                    # however if I separate the fetches result into a dict
-                    # with format {"user": {...}, "agent": {...}}, the
-                    # frontend code complains
-                    "node": "user" if i == 0 else node,
-                    "update": dumps(data),
-                }
-            )
+                # set correct type for node
+                node = "human" if message.type == "human" else "agent"
+
+                yield pack({"node": node, "update": dumps({"messages": [message]})})
+
+            # Render the rest of the state updates
+            for key, value in checkpoint.values.items():
+                # skip rendering messages again
+                if key == "messages":
+                    continue
+                # Skip if this state element has already been rendered
+                if value in rendered_state_elements.setdefault(key, []):
+                    continue
+                rendered_state_elements[key].append(value)
+
+                # In the original stream, the state updates are sent along side
+                # the messages at the moment in which they occur, however in the
+                # checkpoint the state updates and messages are both stored in
+                # the checkpoint values dict so we need to yield them with an empty
+                # messages list to ensure the frontend doesn't trip up
+
+                yield pack(
+                    {"node": "agent", "update": dumps({"messages": [], key: value})}
+                )
 
     except Exception as e:
         import traceback
@@ -206,7 +239,6 @@ def fetch_user_from_rw_api(
         )
 
     token = authorization.split(" ")[1]
-    # print("TOKEN: ", token)
     try:
         resp = requests.get(
             "https://api.resourcewatch.org/auth/user/me",

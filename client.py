@@ -175,9 +175,6 @@ def main():
                         print(f"Content: {content}")
                     print("---")
         except Exception as e:
-            import traceback
-
-            traceback.print_exc()
             print(f"Error fetching thread: {e}")
 
         return

@@ -409,11 +409,13 @@ def render_stream(stream):
 
     # node = stream["node"]
     update = json.loads(stream["update"])
+
     state_updates = "State Update: " + ", ".join(list(update.keys()))
     st.badge(state_updates, icon=":material/check:", color="green")
 
     for msg in update["messages"]:
         content = msg["kwargs"]["content"]
+
         if isinstance(content, list):
             for msg in content:
                 if msg["type"] == "text":
@@ -425,6 +427,7 @@ def render_stream(stream):
             st.text(content)
     # Render map if this is a tool node with AOI data
     # if node == "tools" and "aoi" in update:
+    aoi_data = None
     if "aoi" in update:
         aoi_data = update["aoi"]
         subregion_data = (
@@ -456,4 +459,5 @@ def render_stream(stream):
 
     if not st.session_state.get("messages"):
         st.session_state.messages = []
-    st.session_state.messages.append({"role": "assistant", "content": content})
+
+    # st.session_state.messages.append({"role": "assistant", "content": content})

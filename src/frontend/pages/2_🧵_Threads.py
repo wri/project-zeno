@@ -1,5 +1,3 @@
-import json
-
 import requests
 import streamlit as st
 from app import API_BASE_URL
@@ -11,17 +9,13 @@ st.set_page_config(page_title="🧵 Threads", page_icon="🧵")
 st.title("🧵 Your Threads")
 
 
-# Helper to get auth token from session (if available)
-def get_auth_headers():
-    token = st.session_state.get("token")
-
-    return {"Authorization": f"Bearer {token}"}
-
-
 # Fetch threads
 def fetch_threads():
+    if not st.session_state.get("token"):
+        st.info("Please log in to view your threads.")
+        return []
     client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
-    return client.list_threads() if st.session_state.get("token") else []
+    return client.list_threads()
 
 
 # Fetch a single thread
@@ -70,10 +64,7 @@ with st.sidebar:
 
 
 threads = fetch_threads()
-
-if not threads:
-    st.info("No threads found.")
-else:
+if threads:
     thread_options = {f"{t['id']}": t for t in threads}
     selected_id = st.radio(
         "Select a thread to view:",
