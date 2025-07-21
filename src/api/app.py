@@ -186,7 +186,7 @@ def stream_chat(
         langfuse_handler.tags = tags
 
     config = {
-        # "callbacks": [langfuse_handler],
+        "callbacks": [langfuse_handler],
     }
 
     messages = []
