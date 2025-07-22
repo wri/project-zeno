@@ -18,6 +18,7 @@ from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+
 # Data structures
 @dataclass
 class GadmLocation:
@@ -39,11 +40,7 @@ class GadmLocation:
 
 # Parsing utilities
 def normalize_gadm_id(gadm_id: str) -> str:
-    gadm_id = (gadm_id
-                .split("_")[0]
-                .replace("-", ".")
-                .lower()
-                )
+    gadm_id = gadm_id.split("_")[0].replace("-", ".").lower()
     return gadm_id
 
 
@@ -128,18 +125,19 @@ def extract_gadm_from_state(state):
     if hasattr(state, "values") and isinstance(state.values, dict):
         aoi_name = state.values.get("aoi_name")
         aoi = state.values.get("aoi")
-        
+
         if aoi is not None and aoi_name:
             subtype = state.values.get("subtype")
             gadm_level = gadm_levels.get(subtype, {})
-            aoi_gadm_id = aoi.get(gadm_level.get('col_name', ''))
-            
+            aoi_gadm_id = aoi.get(gadm_level.get("col_name", ""))
+
             if aoi_gadm_id:
                 return [GadmLocation(name=aoi_name, gadm_id=aoi_gadm_id)]
-        
+
         return []
-    
+
     return []
+
 
 # Main execution
 langfuse = get_langfuse()
@@ -161,24 +159,21 @@ for item in dataset.items:
         run_name=run_name,
     ) as span:
         # Execute
-        state = run_query(
-            item.input, 
-            handler, 
-            "researcher", 
-            item.id
-        )
-        
+        state = run_query(item.input, handler, "researcher", item.id)
+
         # Score
         actual = extract_gadm_from_state(state)
         score = score_gadm(actual, item.expected_output)
 
         # Upload
+        span.update_trace(input=item.input, output=actual)
+
         span.score_trace(
             name="gadm_matches_score",
             value=score,
             comment=f"Expected: {item.expected_output}\nActual: {actual}",
         )
-        
+
         # Log results
         logger.debug(f"""
         Query: {item.input}
@@ -187,8 +182,6 @@ for item in dataset.items:
         Score: {score}
         """)
         logger.debug("--------------------------------")
-
-
 
     # # Execute
     # handler = item.get_langchain_handler(run_name=run_name)
