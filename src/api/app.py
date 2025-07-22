@@ -1,28 +1,28 @@
 import json
 import os
 from typing import Dict, Optional
+import uuid
 
 import cachetools
-import requests
-
-# Load environment variables using shared utility
-from src.utils.env_loader import load_environment_variables
-
-load_environment_variables()
-
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
+import requests
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import structlog
 
 from src.agents.agents import zeno
 from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
-from src.utils.logging_config import get_logger
+from src.utils.env_loader import load_environment_variables
+from src.utils.logging_config import bind_request_context, get_logger
+
+load_environment_variables()
+
 
 logger = get_logger(__name__)
 
@@ -39,6 +39,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def logging_middleware(request: Request, call_next) -> Response:
+    req_id = uuid.uuid4().hex
+
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(
+        request_id=req_id,
+    )
+
+    response: Response = await call_next(request)
+
+    return response
+
 
 langfuse_handler = CallbackHandler()
 
@@ -204,7 +219,7 @@ def stream_chat(
             stream_mode="updates",
             subgraphs=False,
         )
-        
+
         for update in stream:
             try:
                 node = next(iter(update.keys()))
@@ -219,30 +234,34 @@ def stream_chat(
                 yield pack(
                     {
                         "node": "error",
-                        "update": dumps({
-                            "error": True,
-                            "message": str(e),  # String representation of the error
-                            "error_type": type(e).__name__,  # Exception class name
-                            "type": "stream_processing_error"
-                        }),
+                        "update": dumps(
+                            {
+                                "error": True,
+                                "message": str(e),  # String representation of the error
+                                "error_type": type(e).__name__,  # Exception class name
+                                "type": "stream_processing_error",
+                            }
+                        ),
                     }
                 )
                 # Continue processing other updates if possible
                 continue
-                
+
     except Exception as e:
         logger.exception("Error during chat streaming: %s", e)
         # Initial stream setup error - send as error event
         yield pack(
             {
                 "node": "error",
-                "update": dumps({
-                    "error": True,
-                    "message": str(e),  # String representation of the error
-                    "error_type": type(e).__name__,  # Exception class name
-                    "type": "stream_initialization_error",
-                    "fatal": True  # Indicates stream cannot continue
-                }),
+                "update": dumps(
+                    {
+                        "error": True,
+                        "message": str(e),  # String representation of the error
+                        "error_type": type(e).__name__,  # Exception class name
+                        "type": "stream_initialization_error",
+                        "fatal": True,  # Indicates stream cannot continue
+                    }
+                ),
             }
         )
 
@@ -288,7 +307,8 @@ def fetch_user_from_rw_api(
     user_info = resp.json()
     if "name" not in user_info:
         logger.warning(
-            "User info does not contain 'name' field, using email account name as fallback"
+            "User info does not contain 'name' field, using email account name as fallback",
+            email=user_info.get("email", None),
         )
         user_info["name"] = user_info["email"].split("@")[0]
 
@@ -304,7 +324,7 @@ def fetch_user_from_rw_api(
     return UserModel.model_validate(user_info)
 
 
-def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
+async def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
     """
     Requires Authorization
     """
@@ -317,7 +337,11 @@ def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
             db.commit()
             db.refresh(user)
         # Convert to Pydantic model while session is open
-        return UserModel.model_validate(user)
+        user_model = UserModel.model_validate(user)
+        # Bind user info to request context for logging
+        # Todo: should we drop email and use only id?
+        bind_request_context(user_id=user_model.id, user_email=user_model.email)
+        return user_model
 
 
 @app.post("/api/chat")
@@ -360,7 +384,12 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
             media_type="application/x-ndjson",
         )
     except Exception as e:
-        logger.exception(f"Chat request failed: {e}")
+        logger.exception(
+            "Chat request failed",
+            error=str(e),
+            error_type=type(e).__name__,
+            thread_id=request.thread_id,
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -384,18 +413,19 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     with SessionLocal() as db:
         thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
         if not thread:
+            logger.warning("Thread not found", thread_id=thread_id)
             raise HTTPException(status_code=404, detail="Thread not found")
 
         thread_id = thread.id
 
     try:
-        logger.debug(f"Replaying thread: {thread_id}")
+        logger.debug("Replaying thread", thread_id=thread_id)
         return StreamingResponse(
             replay_chat(thread_id=thread_id),
             media_type="application/x-ndjson",
         )
     except Exception as e:
-        logger.exception(f"Replay failed: {e}")
+        logger.exception("Replay failed", thread_id=thread_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
