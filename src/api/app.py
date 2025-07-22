@@ -1,9 +1,12 @@
 import json
 import os
 from typing import Dict, Optional
+from uuid import UUID
 
 import cachetools
 import requests
+from shapely.geometry import shape, mapping
+from geoalchemy2.shape import from_shape, to_shape
 
 # Load environment variables using shared utility
 from src.utils.env_loader import load_environment_variables
@@ -21,7 +24,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.agents.agents import zeno
-from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
+from src.api.data_models import (ThreadModel, ThreadOrm, UserModel, UserOrm,
+                               CustomAreaModel, CustomAreaOrm, CustomAreaCreate)
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -407,3 +411,94 @@ async def auth_me(user: UserModel = Depends(fetch_user)):
     """
 
     return user
+
+@app.post("/api/custom_areas/")
+def create_custom_area(
+    area: CustomAreaCreate,
+    user: UserModel = Depends(fetch_user)
+):
+    """Create a new custom area for the authenticated user."""
+    with SessionLocal() as db:
+        # Convert GeoJSON to PostGIS geometry
+        geom = shape(area.geometry)
+        custom_area = CustomAreaOrm(
+            user_id=user.id,
+            name=area.name,
+            geometry=from_shape(geom, srid=4326)
+        )
+        db.add(custom_area)
+        db.commit()
+        db.refresh(custom_area)
+
+        logger.info(f"Created custom area: {custom_area.id} for user: {user.id}")
+        logger.info(f"Custom area details: {custom_area}")
+        # Convert PostGIS geometry back to GeoJSON for response
+        result = custom_area.id
+        return result
+
+@app.get("/api/custom_areas/", response_model=list[CustomAreaModel])
+def list_custom_areas(user: UserModel = Depends(fetch_user)):
+    """List all custom areas belonging to the authenticated user."""
+    with SessionLocal() as db:
+        areas = db.query(CustomAreaOrm).filter_by(user_id=user.id).all()
+        results = []
+        for area in areas:
+            # Convert PostGIS geometry to GeoJSON
+            shape_geom = to_shape(area.geometry)
+            logger.info(f"Custom area geometry: {shape_geom}")
+            area.geometry = mapping(shape_geom)
+            results.append(area)
+        return results
+
+@app.get("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
+def get_custom_area(
+    area_id: UUID,
+    user: UserModel = Depends(fetch_user)
+):
+    """Get a specific custom area by ID."""
+    with SessionLocal() as db:
+        area = db.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+        if not area:
+            raise HTTPException(status_code=404, detail="Custom area not found")
+
+        result = CustomAreaModel.model_validate(area)
+        # Convert PostGIS geometry to GeoJSON
+        shape_geom = to_shape(area.geometry)
+        result.geometry = mapping(shape_geom)
+        shape_geom = to_shape(area.geometry)
+        result.geometry = mapping(shape_geom)
+        return result
+
+@app.patch("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
+def update_custom_area_name(
+    area_id: UUID,
+    name: str,
+    user: UserModel = Depends(fetch_user)
+):
+    """Update the name of a custom area."""
+    with SessionLocal() as db:
+        area = db.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+        if not area:
+            raise HTTPException(status_code=404, detail="Custom area not found")
+        area.name = name
+        db.commit()
+        db.refresh(area)
+
+        result = CustomAreaModel.model_validate(area)
+        # Convert PostGIS geometry to GeoJSON
+        shape_geom = to_shape(area.geometry)
+        result.geometry = mapping(shape_geom)
+        return result
+
+@app.delete("/api/custom_areas/{area_id}", status_code=204)
+def delete_custom_area(
+    area_id: UUID,
+    user: UserModel = Depends(fetch_user)
+):
+    """Delete a custom area."""
+    with SessionLocal() as db:
+        area = db.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+        if not area:
+            raise HTTPException(status_code=404, detail="Custom area not found")
+        db.delete(area)
+        db.commit()
