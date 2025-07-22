@@ -298,7 +298,7 @@ def pick_aoi(
             },
         )
     except Exception as e:
-        logger.error(f"Error in pick_aoi tool: {e}")
+        logger.exception(f"Error in pick_aoi tool: {e}")
         return Command(
             update={
                 "messages": [

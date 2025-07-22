@@ -124,9 +124,7 @@ def replay_chat(thread_id):
                 )
 
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
+        logger.exception("Error during chat replay: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -233,6 +231,7 @@ def stream_chat(
                 continue
                 
     except Exception as e:
+        logger.exception("Error during chat streaming: %s", e)
         # Initial stream setup error - send as error event
         yield pack(
             {
@@ -279,6 +278,7 @@ def fetch_user_from_rw_api(
             timeout=10,
         )
     except Exception as e:
+        logger.exception(f"Error contacting Resource Watch: {e}")
         raise HTTPException(
             status_code=502, detail=f"Error contacting Resource Watch: {e}"
         )
@@ -360,7 +360,7 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
             media_type="application/x-ndjson",
         )
     except Exception as e:
-        logger.error(f"Chat request failed: {e}")
+        logger.exception(f"Chat request failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -395,7 +395,7 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
             media_type="application/x-ndjson",
         )
     except Exception as e:
-        logger.error(f"Replay failed: {e}")
+        logger.exception(f"Replay failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
