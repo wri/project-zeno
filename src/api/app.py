@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.agents.agents import zeno
+from src.agents.agents import zeno, checkpointer
 from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
 from src.utils.logging_config import get_logger
 
@@ -206,7 +206,7 @@ def stream_chat(
             stream_mode="updates",
             subgraphs=False,
         )
-        
+
         for update in stream:
             try:
                 node = next(iter(update.keys()))
@@ -221,29 +221,33 @@ def stream_chat(
                 yield pack(
                     {
                         "node": "error",
-                        "update": dumps({
-                            "error": True,
-                            "message": str(e),  # String representation of the error
-                            "error_type": type(e).__name__,  # Exception class name
-                            "type": "stream_processing_error"
-                        }),
+                        "update": dumps(
+                            {
+                                "error": True,
+                                "message": str(e),  # String representation of the error
+                                "error_type": type(e).__name__,  # Exception class name
+                                "type": "stream_processing_error",
+                            }
+                        ),
                     }
                 )
                 # Continue processing other updates if possible
                 continue
-                
+
     except Exception as e:
         # Initial stream setup error - send as error event
         yield pack(
             {
                 "node": "error",
-                "update": dumps({
-                    "error": True,
-                    "message": str(e),  # String representation of the error
-                    "error_type": type(e).__name__,  # Exception class name
-                    "type": "stream_initialization_error",
-                    "fatal": True  # Indicates stream cannot continue
-                }),
+                "update": dumps(
+                    {
+                        "error": True,
+                        "message": str(e),  # String representation of the error
+                        "error_type": type(e).__name__,  # Exception class name
+                        "type": "stream_initialization_error",
+                        "fatal": True,  # Indicates stream cannot continue
+                    }
+                ),
             }
         )
 
@@ -397,6 +401,48 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     except Exception as e:
         logger.error(f"Replay failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class ThreadUpdateRequest(BaseModel):
+    name: Optional[str] = Field(None, description="The name of the thread")
+
+
+@app.patch("/api/threads/{thread_id}", response_model=ThreadModel)
+def update_thread(
+    thread_id: str, request: ThreadUpdateRequest, user: UserModel = Depends(fetch_user)
+):
+    """
+    Requires Authorization
+    """
+
+    with SessionLocal() as db:
+        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        for key, value in request.model_dump().items():
+            setattr(thread, key, value)
+        db.commit()
+        db.refresh(thread)
+        return ThreadModel.model_validate(thread)
+
+
+@app.delete("/api/threads/{thread_id}", status_code=204)
+def delete_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
+    """
+    Requires Authorization
+    """
+
+    checkpointer.delete_thread(thread_id)
+
+    with SessionLocal() as db:
+        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        db.delete(thread)
+        db.commit()
+        return {"detail": "Thread deleted successfully"}
 
 
 @app.get("/api/auth/me", response_model=UserModel)
