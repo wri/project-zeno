@@ -1,7 +1,8 @@
 import json
+import os
 from typing import Annotated, Literal, Optional
 
-import duckdb
+import requests
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -10,7 +11,6 @@ from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from src.tools.utils.db_connection import get_db_connection
 from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
 
@@ -18,105 +18,80 @@ logger = get_logger(__name__)
 
 RESULT_LIMIT = 10
 
-GADM_TABLE = "data/geocode/exports/gadm.parquet"
-KBA_TABLE = "data/geocode/exports/kba.parquet"
-LANDMARK_TABLE = "data/geocode/exports/landmark.parquet"
-WDPA_TABLE = "data/geocode/exports/wdpa.parquet"
+# AOI Service configuration
+GEOCODING_SERVICE_URL = os.getenv("GEOCODING_SERVICE_URL", "http://localhost:8081")
 
 
 def query_aoi_database(
-    connection: duckdb.DuckDBPyConnection,
     place_name: str,
     result_limit: int = 10,
 ):
-    """Query the Overture database for location information.
+    """Query the AOI service for location information.
 
     Args:
-        connection: DuckDB connection object
         place_name: Name of the place to search for
         result_limit: Maximum number of results to return
 
     Returns:
         DataFrame containing location information
     """
-    sql_query = f"""
-        SELECT
-            *,
-            jaro_winkler_similarity(LOWER(name), LOWER('{place_name}')) AS similarity_score
-        FROM gadm_plus_search
-        ORDER BY similarity_score DESC
-        LIMIT {result_limit}
-    """
-    logger.debug(f"Executing AOI query: {sql_query}")
-    query_results = connection.sql(sql_query)
-    logger.debug(f"AOI query results: {query_results.df()}")
-    return query_results.df()
+    try:
+        response = requests.post(
+            f"{GEOCODING_SERVICE_URL}/aoi/search",
+            json={"place_name": place_name, "result_limit": result_limit},
+            timeout=30,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        results = data["results"]
+
+        # Convert to DataFrame to maintain compatibility
+        import pandas as pd
+
+        results_df = pd.DataFrame(results)
+
+        logger.debug(f"AOI query results: {results_df}")
+        return results_df
+
+    except requests.RequestException as e:
+        logger.error(f"Failed to query AOI service: {e}")
+        raise Exception(f"AOI service request failed: {e}")
 
 
-def query_subregion_database(
-    connection, subregion_name: str, source: str, src_id: int
-):
-    """Query the right table in basemaps database for subregions based on the selected AOI.
+def query_subregion_database(subregion_name: str, source: str, src_id: int):
+    """Query the AOI service for subregions based on the selected AOI.
 
     Args:
-        connection: DuckDB connection object
         subregion_name: Name of the subregion to search for
         source: Source of the selected AOI
         src_id: id of the selected AOI in source table: gadm_id, kba_id, landmark_id, wdpa_id
 
     Returns:
-        list of subregions
+        DataFrame containing subregions
     """
-    match subregion_name:
-        case (
-            "country"
-            | "state"
-            | "district"
-            | "municipality"
-            | "locality"
-            | "neighbourhood"
-        ):
-            table_name = GADM_TABLE
-        case "kba":
-            table_name = KBA_TABLE
-        case "wdpa":
-            table_name = WDPA_TABLE
-        case "landmark":
-            table_name = LANDMARK_TABLE
-        case _:
-            logger.error(f"Invalid subregion: {subregion_name}")
-            raise ValueError(
-                f"Subregion: {subregion_name} does not match to any table in basemaps database."
-            )
+    try:
+        response = requests.post(
+            f"{GEOCODING_SERVICE_URL}/aoi/subregions",
+            json={"subregion_name": subregion_name, "source": source, "src_id": src_id},
+            timeout=30,
+        )
+        response.raise_for_status()
 
-    sql_query = f"""
-    WITH aoi AS (
-        SELECT geometry AS geom
-        FROM 'data/geocode/exports/{source}.parquet'
-        WHERE {source}_id = {src_id}
-    )
-    SELECT t.* EXCLUDE geometry, ST_AsGeoJSON(t.geometry) as geometry
-    FROM '{table_name}' AS t, aoi
-    WHERE ST_Within(t.geometry, aoi.geom);
-    """
-    logger.debug(f"Executing subregion query: {sql_query}")
-    results = connection.execute(sql_query).df()
+        data = response.json()
+        results = data["results"]
 
-    # Parse GeoJSON strings in the results
-    if not results.empty and "geometry" in results.columns:
-        for idx, row in results.iterrows():
-            if row["geometry"] is not None and isinstance(
-                row["geometry"], str
-            ):
-                try:
-                    results.at[idx, "geometry"] = json.loads(row["geometry"])
-                except json.JSONDecodeError as e:
-                    logger.error(
-                        f"Failed to parse GeoJSON for subregion {row.get('name', 'Unknown')}: {e}"
-                    )
-                    results.at[idx, "geometry"] = None
+        # Convert to DataFrame to maintain compatibility
+        import pandas as pd
 
-    return results
+        results_df = pd.DataFrame(results)
+
+        logger.debug(f"Subregion query results: {results_df}")
+        return results_df
+
+    except requests.RequestException as e:
+        logger.error(f"Failed to query subregion from AOI service: {e}")
+        raise Exception(f"AOI service subregion request failed: {e}")
 
 
 class AOIIndex(BaseModel):
@@ -149,9 +124,7 @@ AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 # Chain for selecting the best location match
-AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
-    AOIIndex
-)
+AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(AOIIndex)
 
 
 @tool("pick-aoi")
@@ -184,12 +157,9 @@ def pick_aoi(
         subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
     try:
-        logger.info(
-            f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'"
-        )
-        # Query the database for place & get top matches using jaro winkler similarity
-        db_connection = get_db_connection()
-        results = query_aoi_database(db_connection, place, RESULT_LIMIT)
+        logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
+        # Query the AOI service for place & get top matches using jaro winkler similarity
+        results = query_aoi_database(place, RESULT_LIMIT)
 
         candidate_aois = results.to_csv(
             index=False
@@ -207,78 +177,34 @@ def pick_aoi(
             f"Selected AOI id: {selected_aoi_id}, source: '{source}', src_id: {src_id}"
         )
 
-        match source:
-            case "gadm":
-                selected_aoi = (
-                    db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{GADM_TABLE}' WHERE gadm_id = {src_id}"
-                    )
-                    .df()
-                    .iloc[0]
-                    .to_dict()
-                )
-            case "kba":
-                selected_aoi = (
-                    db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{KBA_TABLE}' WHERE kba_id = {src_id}"
-                    )
-                    .df()
-                    .iloc[0]
-                    .to_dict()
-                )
-            case "landmark":
-                selected_aoi = (
-                    db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{LANDMARK_TABLE}' WHERE landmark_id = {src_id}"
-                    )
-                    .df()
-                    .iloc[0]
-                    .to_dict()
-                )
-            case "wdpa":
-                selected_aoi = (
-                    db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{WDPA_TABLE}' WHERE wdpa_id = {src_id}"
-                    )
-                    .df()
-                    .iloc[0]
-                    .to_dict()
-                )
-            case _:
-                logger.error(f"Invalid source: {source}")
-                raise ValueError(
-                    f"Source: {source} does not match to any table in basemaps database."
-                )
-
-        # Parse the GeoJSON string into a Python dictionary
-        if "geometry" in selected_aoi and selected_aoi["geometry"] is not None:
-            try:
-                if isinstance(selected_aoi["geometry"], str):
-                    selected_aoi["geometry"] = json.loads(
-                        selected_aoi["geometry"]
-                    )
-                    logger.debug(
-                        f"Parsed GeoJSON geometry for AOI: {selected_aoi['name']}"
-                    )
-            except json.JSONDecodeError as e:
-                logger.error(
-                    f"Failed to parse GeoJSON for AOI {selected_aoi['name']}: {e}"
-                )
-                selected_aoi["geometry"] = None
-        else:
-            logger.warning(
-                f"No geometry found for AOI: {selected_aoi.get('name', 'Unknown')}"
+        # Get the selected AOI details from the service
+        try:
+            response = requests.post(
+                f"{GEOCODING_SERVICE_URL}/aoi/by-id",
+                json={"source": source, "src_id": src_id},
+                timeout=30,
             )
+            response.raise_for_status()
+            data = response.json()
+            selected_aoi = data["result"]
+        except requests.RequestException as e:
+            logger.error(f"Failed to get AOI by ID from service: {e}")
+            raise Exception(f"AOI service get-by-id request failed: {e}")
+
+        # Geometry parsing is now handled by the AOI service
+        logger.debug(
+            f"Selected AOI geometry: {selected_aoi.get('geometry', 'No geometry')}"
+        )
 
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
-            subregion_aois = query_subregion_database(
-                db_connection, subregion, source, src_id
-            )
-            subregion_aois = subregion_aois.to_dict(orient="records")
+            subregion_results = query_subregion_database(subregion, source, src_id)
+            subregion_aois = subregion_results.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
 
-        tool_message = f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
+        tool_message = (
+            f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
+        )
         if subregion:
             tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
 
@@ -292,9 +218,7 @@ def pick_aoi(
                 "aoi_name": selected_aoi["name"],
                 "subtype": selected_aoi["subtype"],
                 # Update the message history
-                "messages": [
-                    ToolMessage(tool_message, tool_call_id=tool_call_id)
-                ],
+                "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
             },
         )
     except Exception as e:
@@ -302,9 +226,7 @@ def pick_aoi(
         return Command(
             update={
                 "messages": [
-                    ToolMessage(
-                        str(e), tool_call_id=tool_call_id, status="error"
-                    )
+                    ToolMessage(str(e), tool_call_id=tool_call_id, status="error")
                 ],
             },
         )

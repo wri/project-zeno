@@ -12,7 +12,7 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
       - POSTGRES_DB=zeno-data
-      
+
     ports:
       - 5433:5432 # Local PostgreSQL running on port 5432, mapped to port 5433
     volumes:
@@ -24,11 +24,21 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    
+
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
       - APP_DB=zeno-data
-    volumes: 
+    volumes:
       - ./db:/app/db
+
+  geocoding-servic:
+    build:
+      context: services/geocoding-service
+    ports:
+      - "8081:8081"
+    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8081", "--reload"]
+    volumes:
+      - ./data:/app/data
+      - ./services/geocoding-service:/app
