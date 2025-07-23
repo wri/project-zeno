@@ -40,6 +40,10 @@ jobs:
         run: |
           uv sync
 
+      - name: Generate test data
+        run: |
+          uv run python scripts/generate_test_data.py
+
       - name: Run API tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
