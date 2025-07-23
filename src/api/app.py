@@ -19,7 +19,7 @@ import structlog
 from src.agents.agents import zeno
 from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
 from src.utils.env_loader import load_environment_variables
-from src.utils.logging_config import bind_request_context, get_logger
+from src.utils.logging_config import bind_request_logging_context, get_logger
 
 load_environment_variables()
 
@@ -43,6 +43,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def logging_middleware(request: Request, call_next) -> Response:
+    """Middleware to log requests and bind request ID to context."""
     req_id = uuid.uuid4().hex
 
     structlog.contextvars.clear_contextvars()
@@ -51,6 +52,15 @@ async def logging_middleware(request: Request, call_next) -> Response:
     )
 
     response: Response = await call_next(request)
+
+    # Log request details
+    logger.info(
+        "Request received",
+        method=request.method,
+        url=str(request.url),
+        status_code=response.status_code,
+        request_id=req_id,
+    )
 
     return response
 
@@ -339,8 +349,7 @@ async def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
         # Convert to Pydantic model while session is open
         user_model = UserModel.model_validate(user)
         # Bind user info to request context for logging
-        # Todo: should we drop email and use only id?
-        bind_request_context(user_id=user_model.id, user_email=user_model.email)
+        bind_request_logging_context(user_id=user_model.id)
         return user_model
 
 
@@ -356,6 +365,9 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
     Returns:
         The streamed response
     """
+    bind_request_logging_context(
+        thread_id=request.thread_id, session_id=request.session_id, query=request.query
+    )
     with SessionLocal() as db:
         thread = (
             db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()

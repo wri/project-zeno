@@ -107,6 +107,7 @@ def setup_standard_logging() -> None:
 
     # File handler (if enabled)
     if should_log_to_file():
+        # This is meant to be used only for development locally
         log_file_path = get_log_file_path()
         os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
 
@@ -139,7 +140,7 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     return structlog.get_logger(name)
 
 
-def bind_request_context(**kwargs) -> None:
+def bind_request_logging_context(**kwargs) -> None:
     """
     Bind request context for structured logging.
     """
