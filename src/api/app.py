@@ -115,11 +115,6 @@ def replay_chat(thread_id):
                     continue
                 rendered_state_elements[key].append(value)
 
-                # In the original stream, the state updates are sent along side
-                # the messages at the moment in which they occur, however in the
-                # checkpoint the state updates and messages are both stored in
-                # the checkpoint values dict so we need to yield them with an empty
-                # messages list to ensure the frontend doesn't trip up
                 update[key] = value
 
             yield pack({"node": "agent", "update": dumps(update)})
