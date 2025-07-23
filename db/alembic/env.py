@@ -30,9 +30,9 @@ base_dir = str(Path(__file__).resolve().parent.parent)
 if base_dir not in sys.path:
     sys.path.append(base_dir)
 
-from models import Base
+from src.api.data_models import Base
 
-target_metadata = None
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

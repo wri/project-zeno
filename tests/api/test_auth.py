@@ -5,17 +5,11 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-import importlib.util
-from pathlib import Path
-
 from fastapi import FastAPI
 from contextlib import contextmanager
 
-# Import api.py from the project root
-api_path = Path(__file__).resolve().parent.parent.parent / "api.py"
-spec = importlib.util.spec_from_file_location("api", api_path)
-api = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(api)
+# Import the API app directly from the src package
+from src.api import app as api
 
 # Use the original app with its dependencies and middleware
 client = TestClient(api.app)
@@ -93,7 +87,7 @@ def test_email_domain_authorization(user_data, expected_status, expected_error, 
             
             # Test the auth endpoint
             response = client.get(
-                "/auth/me",
+                "/api/auth/me",
                 headers={"Authorization": "Bearer test-token"}
             )
         
@@ -112,7 +106,7 @@ def test_missing_bearer_token(db_session: Session):
     """Test that requests without a Bearer token are rejected."""
     with domain_allowlist("developmentseed.org,wri.org"):
         response = client.get(
-            "/auth/me",
+            "/api/auth/me",
             headers={"Authorization": "test-token"}  # Missing "Bearer" prefix
         )
         assert response.status_code == 401
@@ -122,5 +116,5 @@ def test_missing_bearer_token(db_session: Session):
 def test_missing_authorization_header(db_session: Session):
     """Test that requests without an Authorization header are rejected."""
     os.environ["DOMAINS_ALLOWLIST"] = "developmentseed.org,wri.org"
-    response = client.get("/auth/me")  # No Authorization header
+    response = client.get("/api/auth/me")  # No Authorization header
     assert response.status_code == 422  # FastAPI validation error
