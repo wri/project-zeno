@@ -40,12 +40,7 @@ Notes:
 - Current date is {datetime.now().strftime('%Y-%m-%d')}. Use this for relative time queries like "past 3 months", "last week", etc.
 """
 
-tools = [
-    pick_aoi,
-    pick_dataset,
-    pull_data,
-    generate_insights,
-]
+tools = [pick_aoi, pick_dataset, pull_data, generate_insights]
 
 DATABASE_URL = os.environ["DATABASE_URL"].replace(
     "postgresql+psycopg://", "postgresql://"

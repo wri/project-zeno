@@ -87,27 +87,29 @@ def replay_chat(thread_id):
         # so that we essentially just render the diff of the state
         # from one checkpoint to the next (in order to maintain the
         # correct ordering of messages and state updates)
-        rendered_state_elements = {}
-        rendered_messages = []
+        rendered_state_elements = {"messages": []}
 
         for checkpoint in checkpoints:
-            # Render messages
+
+            update = {"messages": []}
+
             for message in checkpoint.values.get("messages", []):
                 # Assert that message has content, and hasn't already been rendered
-                if message.id in rendered_messages or not message.content:
+                if (
+                    message.id in rendered_state_elements["messages"]
+                    or not message.content
+                ):
                     continue
-                rendered_messages.append(message.id)
+                rendered_state_elements["messages"].append(message.id)
 
-                # set correct type for node
-                node = "human" if message.type == "human" else "agent"
-
-                yield pack({"node": node, "update": dumps({"messages": [message]})})
+                update["messages"].append(message)
 
             # Render the rest of the state updates
             for key, value in checkpoint.values.items():
-                # skip rendering messages again
+
                 if key == "messages":
-                    continue
+                    continue  # Skip messages, already handled above
+
                 # Skip if this state element has already been rendered
                 if value in rendered_state_elements.setdefault(key, []):
                     continue
@@ -118,10 +120,9 @@ def replay_chat(thread_id):
                 # checkpoint the state updates and messages are both stored in
                 # the checkpoint values dict so we need to yield them with an empty
                 # messages list to ensure the frontend doesn't trip up
+                update[key] = value
 
-                yield pack(
-                    {"node": "agent", "update": dumps({"messages": [], key: value})}
-                )
+            yield pack({"node": "agent", "update": dumps(update)})
 
     except Exception as e:
         import traceback
