@@ -86,6 +86,16 @@ make frontend # Run frontend with hot reload
 make dev      # Start full development environment
 ```
 
+## Testing
+
+### API Tests
+
+Run API tests using pytest:
+
+```bash
+uv run pytest tests/api/
+```
+
 ## Environment Files
 
 - `.env` - Base configuration (production settings)
