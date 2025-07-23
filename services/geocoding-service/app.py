@@ -1,25 +1,61 @@
 import json
-import os
-import time
-from functools import lru_cache
-from typing import List
+import asyncio
+import logging
+from typing import List, Dict, Any
+from contextlib import asynccontextmanager
+from concurrent.futures import ThreadPoolExecutor
+import hashlib
 
 import duckdb
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 
+
+def configure_thread_pool():
+    """Configure asyncio with a thread pool for database operations."""
+    loop = asyncio.get_event_loop()
+    executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="db-worker")
+    loop.set_default_executor(executor)
+    logger.info("Configured thread pool with 4 workers for database operations")
+
+
+# Simple in-memory cache for query results
+# note that lru_cache from standard library is not suitable for async functions
+query_cache: Dict[str, Any] = {}
+
+
+def get_cache_key(query_type: str, **params) -> str:
+    """Generate a cache key for query parameters."""
+    key_data = f"{query_type}:{str(sorted(params.items()))}"
+    return hashlib.md5(key_data.encode()).hexdigest()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    configure_thread_pool()
+    yield
+    # Shutdown - cleanup if needed
+    pass
+
+
 app = FastAPI(
-    title="AOI Service", description="Area of Interest database query service"
+    title="Geocoding Service",
+    description="Area of Interest database query service",
+    lifespan=lifespan,
 )
 
 GADM_TABLE = "data/geocode/exports/gadm.parquet"
 KBA_TABLE = "data/geocode/exports/kba.parquet"
 LANDMARK_TABLE = "data/geocode/exports/landmark.parquet"
 WDPA_TABLE = "data/geocode/exports/wdpa.parquet"
-GADM_PLUS_SEARCH_TABLE = "data/geocode/exports/gadm_plus_search.parquet"
 
 
 class AOISearchRequest(BaseModel):
@@ -50,38 +86,42 @@ class AOIByIdResponse(BaseModel):
     result: dict
 
 
-@lru_cache(maxsize=1)
-def get_db_connection(local_path: str = "local_basemaps.duckdb"):
-    """Create and configure a DuckDB connection with necessary extensions."""
-    start_time = time.time()
-    conn = duckdb.connect(local_path)
-    conn.sql("INSTALL spatial; LOAD spatial;")
-    conn.sql("INSTALL httpfs; LOAD httpfs;")
+class ConnectionManager:
+    """Simple connection manager that creates connections per request."""
 
-    print(
-        f"DuckDB connection created and extensions installed in {time.time() - start_time:.2f} seconds."
-    )
+    def __init__(self):
+        self.local_path = "local_basemaps.duckdb"
 
-    # Setup S3 access
-    start_time = time.time()
-    conn.execute(f"SET s3_region='{os.getenv('AWS_DEFAULT_REGION', 'us-east-1')}';")
-    conn.execute(f"SET s3_access_key_id='{os.getenv('AWS_ACCESS_KEY_ID')}';")
-    conn.execute(f"SET s3_secret_access_key='{os.getenv('AWS_SECRET_ACCESS_KEY')}';")
+    def get_connection(self):
+        """Create and configure a DuckDB connection with necessary extensions."""
+        conn = duckdb.connect(self.local_path, read_only=True)
+        conn.sql("INSTALL spatial; LOAD spatial;")
 
-    print(f"S3 access setup in {time.time() - start_time:.2f} seconds.")
+        # Enable parallel processing in DuckDB
+        conn.execute("SET threads=4;")
+        
+        # Create indexes for faster ID-based lookups
+        try:
+            # Index on GADM table
+            conn.execute(f"CREATE INDEX IF NOT EXISTS idx_gadm_id ON '{GADM_TABLE}' (gadm_id);")
+            # Index on KBA table  
+            conn.execute(f"CREATE INDEX IF NOT EXISTS idx_kba_id ON '{KBA_TABLE}' (kba_id);")
+            # Index on Landmark table
+            conn.execute(f"CREATE INDEX IF NOT EXISTS idx_landmark_id ON '{LANDMARK_TABLE}' (landmark_id);")
+            # Index on WDPA table
+            conn.execute(f"CREATE INDEX IF NOT EXISTS idx_wdpa_id ON '{WDPA_TABLE}' (wdpa_id);")
+            
+            logger.info("Created indexes on ID columns for faster lookups")
+        except Exception as e:
+            logger.warning(f"Could not create indexes (may not be supported on Parquet): {e}")
 
-    # Load tables
-    start_time = time.time()
-    conn.execute(
-        f"CREATE TABLE IF NOT EXISTS gadm_plus_search AS SELECT * FROM '{GADM_PLUS_SEARCH_TABLE}';"
-    )
-
-    print(f"Tables loaded successfully in {time.time() - start_time:.2f} seconds.")
-
-    return conn
+        return conn
 
 
-def query_aoi_database(
+connection_manager = ConnectionManager()
+
+
+async def query_aoi_database(
     connection: duckdb.DuckDBPyConnection,
     place_name: str,
     result_limit: int = 10,
@@ -95,14 +135,20 @@ def query_aoi_database(
         ORDER BY similarity_score DESC
         LIMIT {result_limit}
     """
-    print(f"Executing AOI query: {sql_query}")
-    query_results = connection.sql(sql_query)
-    results_df = query_results.df()
-    print(f"AOI query results: {results_df}")
+    logger.info(f"Executing AOI query: {sql_query}")
+
+    # Run the query in a thread pool to avoid blocking the event loop
+    loop = asyncio.get_event_loop()
+    query_results = await loop.run_in_executor(None, connection.sql, sql_query)
+    results_df = await loop.run_in_executor(None, query_results.df)
+
+    logger.info(f"AOI query results: {results_df}")
     return results_df
 
 
-def query_subregion_database(connection, subregion_name: str, source: str, src_id: int):
+async def query_subregion_database(
+    connection, subregion_name: str, source: str, src_id: int
+):
     """Query the right table in basemaps database for subregions based on the selected AOI."""
 
     # Map subregion names to table names
@@ -135,8 +181,12 @@ def query_subregion_database(connection, subregion_name: str, source: str, src_i
     FROM '{table_name}' AS t, aoi
     WHERE ST_Within(t.geometry, aoi.geom);
     """
-    print(f"Executing subregion query: {sql_query}")
-    results = connection.execute(sql_query).df()
+    logger.info(f"Executing subregion query: {sql_query}")
+
+    # Run the query in a thread pool to avoid blocking the event loop
+    loop = asyncio.get_event_loop()
+    query_result = await loop.run_in_executor(None, connection.execute, sql_query)
+    results = await loop.run_in_executor(None, query_result.df)
 
     # Parse GeoJSON strings in the results
     if not results.empty and "geometry" in results.columns:
@@ -145,7 +195,7 @@ def query_subregion_database(connection, subregion_name: str, source: str, src_i
                 try:
                     results.at[idx, "geometry"] = json.loads(row["geometry"])
                 except json.JSONDecodeError as e:
-                    print(
+                    logger.info(
                         f"Failed to parse GeoJSON for subregion {row.get('name', 'Unknown')}: {e}"
                     )
                     results.at[idx, "geometry"] = None
@@ -153,8 +203,14 @@ def query_subregion_database(connection, subregion_name: str, source: str, src_i
     return results
 
 
-def get_aoi_by_id(connection, source: str, src_id: int):
+async def get_aoi_by_id(connection, source: str, src_id: int):
     """Get specific AOI by source and ID."""
+
+    # Check cache first
+    cache_key = get_cache_key("aoi_by_id", source=source, src_id=src_id)
+    if cache_key in query_cache:
+        logger.info(f"Cache hit for AOI by ID: {source}:{src_id}")
+        return query_cache[cache_key]
 
     # Map source to table and ID column
     source_mapping = {
@@ -177,8 +233,12 @@ def get_aoi_by_id(connection, source: str, src_id: int):
     WHERE {id_column} = {src_id}
     """
 
-    print(f"Executing AOI by ID query: {sql_query}")
-    results = connection.sql(sql_query).df()
+    logger.info(f"Executing AOI by ID query: {sql_query}")
+
+    # Run the query in a thread pool to avoid blocking the event loop
+    loop = asyncio.get_event_loop()
+    query_result = await loop.run_in_executor(None, connection.sql, sql_query)
+    results = await loop.run_in_executor(None, query_result.df)
 
     if results.empty:
         raise ValueError(f"No AOI found for source: {source}, ID: {src_id}")
@@ -190,16 +250,26 @@ def get_aoi_by_id(connection, source: str, src_id: int):
         try:
             if isinstance(result["geometry"], str):
                 result["geometry"] = json.loads(result["geometry"])
-                print(
+                logger.info(
                     f"Parsed GeoJSON geometry for AOI: {result.get('name', 'Unknown')}"
                 )
         except json.JSONDecodeError as e:
-            print(
+            logger.info(
                 f"Failed to parse GeoJSON for AOI {result.get('name', 'Unknown')}: {e}"
             )
             result["geometry"] = None
     else:
-        print(f"No geometry found for AOI: {result.get('name', 'Unknown')}")
+        logger.info(f"No geometry found for AOI: {result.get('name', 'Unknown')}")
+
+    # Cache the result with eviction
+    if len(query_cache) >= 1000:
+        # Remove oldest item (first inserted) to make room
+        oldest_key = next(iter(query_cache))
+        del query_cache[oldest_key]
+        logger.info(f"Evicted oldest cache entry: {oldest_key}")
+
+    query_cache[cache_key] = result
+    logger.info(f"Cached result for AOI by ID: {source}:{src_id}")
 
     return result
 
@@ -213,9 +283,10 @@ async def health_check():
 @app.post("/aoi/search", response_model=AOISearchResponse)
 async def search_aoi(request: AOISearchRequest):
     """Search for areas of interest by place name."""
+    connection = None
     try:
-        connection = get_db_connection()
-        results_df = query_aoi_database(
+        connection = connection_manager.get_connection()
+        results_df = await query_aoi_database(
             connection, request.place_name, request.result_limit
         )
 
@@ -225,16 +296,20 @@ async def search_aoi(request: AOISearchRequest):
         return AOISearchResponse(results=results)
 
     except Exception as e:
-        print(f"Error in AOI search: {e}")
+        logger.error(f"Error in AOI search: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if connection:
+            connection.close()
 
 
 @app.post("/aoi/subregions", response_model=SubregionSearchResponse)
 async def search_subregions(request: SubregionSearchRequest):
     """Search for subregions within an AOI."""
+    connection = None
     try:
-        connection = get_db_connection()
-        results_df = query_subregion_database(
+        connection = connection_manager.get_connection()
+        results_df = await query_subregion_database(
             connection, request.subregion_name, request.source, request.src_id
         )
 
@@ -244,22 +319,29 @@ async def search_subregions(request: SubregionSearchRequest):
         return SubregionSearchResponse(results=results)
 
     except Exception as e:
-        print(f"Error in subregion search: {e}")
+        logger.error(f"Error in subregion search: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if connection:
+            connection.close()
 
 
 @app.post("/aoi/by-id", response_model=AOIByIdResponse)
 async def get_aoi_by_source_id(request: AOIByIdRequest):
     """Get specific AOI by source and ID."""
+    connection = None
     try:
-        connection = get_db_connection()
-        result = get_aoi_by_id(connection, request.source, request.src_id)
+        connection = connection_manager.get_connection()
+        result = await get_aoi_by_id(connection, request.source, request.src_id)
 
         return AOIByIdResponse(result=result)
 
     except Exception as e:
-        print(f"Error getting AOI by ID: {e}")
+        logger.error(f"Error getting AOI by ID: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if connection:
+            connection.close()
 
 
 if __name__ == "__main__":
