@@ -3690,6 +3690,7 @@ dependencies = [
     { name = "s3fs" },
     { name = "setuptools" },
     { name = "sqlalchemy" },
+    { name = "structlog" },
     { name = "tabulate" },
     { name = "thefuzz" },
     { name = "uvicorn", extra = ["standard"] },
@@ -3750,6 +3751,7 @@ requires-dist = [
     { name = "s3fs", specifier = ">=2025.3.0" },
     { name = "setuptools", specifier = ">=80.9.0" },
     { name = "sqlalchemy", specifier = ">=2.0.35" },
+    { name = "structlog", specifier = ">=24.1.0" },
     { name = "tabulate", specifier = ">=0.9.0" },
     { name = "thefuzz", specifier = ">=0.22.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
@@ -5371,6 +5373,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e7/c9/4b96909cbc2c82859a962d68cdbc1f54a12dae4a828615bd302626489b2c/streamlit_folium-0.25.0.tar.gz", hash = "sha256:f32eb51c1958705030e15045a38edaf9c046d6de5e6587e64190251466a4a006", size = 330728 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/57/1d/4fb456ca29b58b4272672bbd80769ba114b21ccf39af2bf0531895f559bc/streamlit_folium-0.25.0-py3-none-any.whl", hash = "sha256:48d5f05ea3e9005c00c0b2fe5a9a3086df30d04e1a20c3630a6c9df183ec590a", size = 328445 },
+]
+
+[[package]]
+name = "structlog"
+version = "25.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/b9/6e672db4fec07349e7a8a8172c1a6ae235c58679ca29c3f86a61b5e59ff3/structlog-25.4.0.tar.gz", hash = "sha256:186cd1b0a8ae762e29417095664adf1d6a31702160a46dacb7796ea82f7409e4", size = 1369138 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/4a/97ee6973e3a73c74c8120d59829c3861ea52210667ec3e7a16045c62b64d/structlog-25.4.0-py3-none-any.whl", hash = "sha256:fe809ff5c27e557d14e613f45ca441aabda051d119ee5a0102aaba6ce40eed2c", size = 68720 },
 ]
 
 [[package]]

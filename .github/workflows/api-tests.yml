@@ -1,0 +1,69 @@
+name: API Tests
+
+on:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv sync
+
+      - name: Generate test data
+        run: |
+          uv run python scripts/generate_test_data.py
+
+      - name: Run API tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          DOMAINS_ALLOWLIST: developmentseed.org,wri.org
+          OPENAI_API_KEY: fake-key-for-testing
+          ANTHROPIC_API_KEY: fake-key-for-testing
+          LANGFUSE_SECRET_KEY: fake-secret-key
+          LANGFUSE_PUBLIC_KEY: fake-public-key
+          LANGFUSE_HOST: http://localhost:3000
+          MAPBOX_API_TOKEN: fake-mapbox-token
+          WRI_API_KEY: fake-wri-api-key
+          WRI_BEARER_TOKEN: fake-wri-bearer-token
+          GFW_DATA_API_KEY: fake-gfw-api-key
+          AWS_ACCESS_KEY_ID: fake-aws-access-key
+          AWS_SECRET_ACCESS_KEY: fake-aws-secret-key
+          AWS_DEFAULT_REGION: us-east-1
+          OLLAMA_BASE_URL: http://localhost:11434
+          API_BASE_URL: http://localhost:8000
+          LOCAL_API_BASE_URL: http://localhost:8000
+          STREAMLIT_URL: http://localhost:8501
+        run: |
+          uv run pytest tests/api -v
