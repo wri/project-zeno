@@ -474,7 +474,9 @@ async def get_geometry(source: str, src_id: int):
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
-        logger.error(f"Failed to get geometry from geocoding service: {e}")
+        logger.exception(
+            f"Failed to get geometry from geocoding service from source {source} with id {src_id}: {e}"
+        )
         raise HTTPException(
             status_code=500, detail=f"Geocoding service request failed: {e}"
         )
