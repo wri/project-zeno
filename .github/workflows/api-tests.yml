@@ -44,5 +44,21 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
           DOMAINS_ALLOWLIST: developmentseed.org,wri.org
+          OPENAI_API_KEY: fake-key-for-testing
+          ANTHROPIC_API_KEY: fake-key-for-testing
+          LANGFUSE_SECRET_KEY: fake-secret-key
+          LANGFUSE_PUBLIC_KEY: fake-public-key
+          LANGFUSE_HOST: http://localhost:3000
+          MAPBOX_API_TOKEN: fake-mapbox-token
+          WRI_API_KEY: fake-wri-api-key
+          WRI_BEARER_TOKEN: fake-wri-bearer-token
+          GFW_DATA_API_KEY: fake-gfw-api-key
+          AWS_ACCESS_KEY_ID: fake-aws-access-key
+          AWS_SECRET_ACCESS_KEY: fake-aws-secret-key
+          AWS_DEFAULT_REGION: us-east-1
+          OLLAMA_BASE_URL: http://localhost:11434
+          API_BASE_URL: http://localhost:8000
+          LOCAL_API_BASE_URL: http://localhost:8000
+          STREAMLIT_URL: http://localhost:8501
         run: |
           uv run pytest tests/api -v
