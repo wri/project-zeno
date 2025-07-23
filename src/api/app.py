@@ -88,6 +88,10 @@ class ChatRequest(BaseModel):
     tags: Optional[list] = Field(None, description="The tags")
 
 
+class GeometryResponse(BaseModel):
+    result: dict = Field(..., description="The AOI geometry and metadata")
+
+
 def pack(data):
     return json.dumps(data) + "\n"
 
@@ -449,3 +453,28 @@ async def auth_me(user: UserModel = Depends(fetch_user)):
     """
 
     return user
+
+
+@app.get("/api/geometry/{source}/{src_id}", response_model=GeometryResponse)
+async def get_geometry(source: str, src_id: int):
+    """
+    Get geometry for a specific AOI by source and ID.
+    Proxies request to the geocoding microservice.
+    """
+    geocoding_service_url = os.getenv(
+        "GEOCODING_SERVICE_URL", "http://geocoding-service:8081"
+    )
+
+    try:
+        response = requests.post(
+            f"{geocoding_service_url}/aoi/by-id",
+            json={"source": source, "src_id": src_id},
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        logger.error(f"Failed to get geometry from geocoding service: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Geocoding service request failed: {e}"
+        )
