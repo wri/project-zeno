@@ -11,6 +11,7 @@ from app import API_BASE_URL, STREAMLIT_URL
 from shapely.geometry import shape
 from streamlit_folium import folium_static
 
+# Remove this import - we'll use plain dicts instead
 from client import ZenoClient
 
 if "session_id" not in st.session_state:
@@ -45,21 +46,9 @@ with st.sidebar:
         "Odisha": {
             "aoi": {
                 "name": "Odisha, India",
-                "gadm_id": 1534,
-                "GID_1": "IND.26_1",
                 "subtype": "state-province",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
-                        [
-                            [82.19806406848329, 21.82733671447052],
-                            [82.19806406848329, 18.309508358985113],
-                            [86.75537603715372, 18.309508358985113],
-                            [86.75537603715372, 21.82733671447052],
-                            [82.19806406848329, 21.82733671447052],
-                        ]
-                    ],
-                },
+                "source": "gadm",
+                "src_id": "IND.26_1",
             },
             "aoi_name": "Odisha",
             "subregion_aois": None,
@@ -69,21 +58,9 @@ with st.sidebar:
         "Koraput": {
             "aoi": {
                 "name": "Koraput, Odisha, India",
-                "gadm_id": 22056,
-                "GID_2": "IND.26.20_1",
                 "subtype": "district-county",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
-                        [
-                            [82.69889130216421, 18.823028264440254],
-                            [82.69889130216421, 18.796325063722534],
-                            [82.72949498909782, 18.796325063722534],
-                            [82.72949498909782, 18.823028264440254],
-                            [82.69889130216421, 18.823028264440254],
-                        ]
-                    ],
-                },
+                "source": "gadm",
+                "src_id": "IND.26.20_1",
             },
             "aoi_name": "Koraput",
             "subregion_aois": None,
@@ -310,6 +287,48 @@ def generate_doc_card(doc):
 """
 
 
+def fetch_geometry(source: str, src_id: str):
+    response = requests.get(
+        f"{API_BASE_URL}/api/geometry/{source}/{src_id}",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {st.session_state['token']}",
+        },
+    )
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return None
+
+
+def fetch_batch_geometries(geometry_requests: list[dict]):
+    """
+    Fetch geometries for multiple AOIs in batch.
+
+    Args:
+        geometry_requests: List of dicts with 'source' and 'src_id' keys
+
+    Returns:
+        Dict mapping "source:src_id" keys to geometry objects, or None on error
+    """
+    if not geometry_requests:
+        return {}
+
+    response = requests.post(
+        f"{API_BASE_URL}/api/geometry/batch",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {st.session_state['token']}",
+        },
+        json={"requests": geometry_requests},
+    )
+    if response.status_code == 200:
+        return response.json().get("geometries", {})
+    else:
+        st.error(f"Failed to fetch batch geometries: {response.status_code}")
+        return None
+
+
 def render_aoi_map(aoi_data, subregion_data=None):
     """
     Render AOI geojson data as a map using streamlit-folium.
@@ -319,9 +338,10 @@ def render_aoi_map(aoi_data, subregion_data=None):
         subregion_data: Optional dictionary containing geojson data for subregion
     """
     try:
-        # Extract geojson from aoi_data
-        if isinstance(aoi_data, dict) and "geometry" in aoi_data:
-            geojson_data = aoi_data["geometry"]
+        # Query the database for the AOI geometry
+        geojson_data = fetch_geometry(aoi_data["source"], aoi_data["src_id"])[
+            "geometry"
+        ]
 
         # Calculate center from geojson bounds
         center = [0, 0]  # Default center
@@ -358,24 +378,58 @@ def render_aoi_map(aoi_data, subregion_data=None):
         # Add subregions if provided
         if subregion_data and isinstance(subregion_data, list):
             try:
+                # Prepare geometry requests for batch fetching
+                geometry_requests = []
                 for subregion in subregion_data:
-                    if isinstance(subregion, dict) and "geometry" in subregion:
-                        subregion_geojson = subregion["geometry"]
-                        subregion_name = subregion.get("name", "Subregion")
+                    if (
+                        isinstance(subregion, dict)
+                        and "source" in subregion
+                        and "src_id" in subregion
+                    ):
+                        geometry_requests.append(
+                            {
+                                "source": subregion["source"],
+                                "src_id": subregion["src_id"],
+                            }
+                        )
 
-                        folium.GeoJson(
-                            subregion_geojson,
-                            style_function=lambda feature: {
-                                "fillColor": "red",
-                                "color": "red",
-                                "weight": 2,
-                                "fillOpacity": 0.2,
-                            },
-                            popup=folium.Popup(
-                                subregion_name, parse_html=True
-                            ),
-                            tooltip=subregion_name,
-                        ).add_to(m)
+                # Fetch geometries in batch
+                if geometry_requests:
+                    subregion_geometries = fetch_batch_geometries(
+                        geometry_requests
+                    )
+
+                    if subregion_geometries:
+                        for subregion in subregion_data:
+                            if (
+                                isinstance(subregion, dict)
+                                and "source" in subregion
+                                and "src_id" in subregion
+                            ):
+                                # Get geometry from batch results
+                                geometry_key = f"{subregion['source']}:{subregion['src_id']}"
+                                subregion_geojson = subregion_geometries.get(
+                                    geometry_key
+                                )
+
+                                if subregion_geojson:
+                                    subregion_name = subregion.get(
+                                        "name", "Subregion"
+                                    )
+
+                                    folium.GeoJson(
+                                        subregion_geojson,
+                                        style_function=lambda feature: {
+                                            "fillColor": "red",
+                                            "color": "red",
+                                            "weight": 2,
+                                            "fillOpacity": 0.2,
+                                        },
+                                        popup=folium.Popup(
+                                            subregion_name, parse_html=True
+                                        ),
+                                        tooltip=subregion_name,
+                                    ).add_to(m)
             except Exception as e:
                 st.warning(f"Could not render subregions: {str(e)}")
 
@@ -396,7 +450,7 @@ def render_dataset_map(dataset_data, aoi_data=None):
 
     Args:
         dataset_data: Dictionary containing dataset information with tile_url
-        aoi_data: Optional dictionary containing geojson data for AOI overlay
+        aoi_data: Optional dictionary containing AOI metadata with source/src_id for geometry fetching
     """
     try:
         # Extract tile_url from dataset_data
@@ -408,18 +462,32 @@ def render_dataset_map(dataset_data, aoi_data=None):
         # Calculate center from AOI if available, otherwise use default
         center = [0, 0]  # Default center
         zoom_start = 2  # Default zoom for global view
+        aoi_geometry = None
 
-        if aoi_data and isinstance(aoi_data, dict) and "geometry" in aoi_data:
+        # Fetch AOI geometry if source and src_id are provided
+        if (
+            aoi_data
+            and isinstance(aoi_data, dict)
+            and "source" in aoi_data
+            and "src_id" in aoi_data
+        ):
             try:
-                # Convert GeoJSON to shapely geometry
-                geom = shape(aoi_data["geometry"])
+                geometry_response = fetch_geometry(
+                    aoi_data["source"], aoi_data["src_id"]
+                )
+                if geometry_response and "geometry" in geometry_response:
+                    aoi_geometry = geometry_response["geometry"]
 
-                # Get bounding box and calculate center
-                minx, miny, maxx, maxy = geom.bounds
-                center = [(miny + maxy) / 2, (minx + maxx) / 2]
-                zoom_start = 5  # Closer zoom when AOI is available
-            except (ValueError, AttributeError, TypeError):
+                    # Convert GeoJSON to shapely geometry for bounds calculation
+                    geom = shape(aoi_geometry)
+
+                    # Get bounding box and calculate center
+                    minx, miny, maxx, maxy = geom.bounds
+                    center = [(miny + maxy) / 2, (minx + maxx) / 2]
+                    zoom_start = 5  # Closer zoom when AOI is available
+            except (ValueError, AttributeError, TypeError) as e:
                 # If any error occurs during conversion, use default center
+                st.warning(f"Could not process AOI geometry: {str(e)}")
                 center = [0, 0]
                 zoom_start = 2
 
@@ -438,15 +506,14 @@ def render_dataset_map(dataset_data, aoi_data=None):
             control=True,
         ).add_to(m2)
 
-        # Add AOI overlay if provided
-        if aoi_data and isinstance(aoi_data, dict) and "geometry" in aoi_data:
+        # Add AOI overlay if geometry was successfully fetched
+        if aoi_geometry:
             try:
-                geojson_data = aoi_data["geometry"]
                 folium.GeoJson(
-                    geojson_data,
+                    aoi_geometry,
                     style_function=lambda feature: {
-                        "fillColor": "blue",
-                        "color": "blue",
+                        "fillColor": "gray",
+                        "color": "gray",
                         "weight": 2,
                         "fillOpacity": 0.1,
                     },

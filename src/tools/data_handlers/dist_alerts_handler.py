@@ -5,7 +5,6 @@ import requests
 from src.tools.data_handlers.base import (
     DataPullResult,
     DataSourceHandler,
-    gadm_levels,
 )
 from src.utils.logging_config import get_logger
 
@@ -33,14 +32,14 @@ class DistAlertHandler(DataSourceHandler):
     ) -> DataPullResult:
         try:
             aoi_name = aoi["name"]
-            gadm_level = gadm_levels[subtype]
-            aoi_gadm_id = aoi[gadm_level["col_name"]].split("_")[0]
+            aoi_source = aoi["source"]
+            aoi_id = aoi["src_id"].split("_")[0]  # GADM ID
 
             payload = {
                 "aois": [
                     {
                         "type": "admin",
-                        "id": aoi_gadm_id,
+                        "id": aoi_id,
                         "provider": "gadm",
                         "version": "4.1",
                     }

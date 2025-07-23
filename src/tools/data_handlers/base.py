@@ -28,6 +28,7 @@ dataset_names = {
     "DIST-ALERT": "DIST-ALERT",
 }
 
+
 class DataPullResult(BaseModel):
     """Result of a data pull operation"""
 

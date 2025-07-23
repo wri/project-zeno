@@ -11,20 +11,25 @@ ingest_basemaps_to_duckdb.py
 """
 
 import argparse
-import io
 import json
+import logging
 import zipfile
 from pathlib import Path
 
-import pandas as pd
-import geopandas as gpd
 import duckdb
+import geopandas as gpd
+import pandas as pd
 import requests
 import s3fs
 
-GADM_ZIP_URL = (
-    "https://geodata.ucdavis.edu/gadm/gadm4.1/gadm_410-levels.zip"
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+logger = logging.getLogger(__name__)
+
+GADM_ZIP_URL = "https://geodata.ucdavis.edu/gadm/gadm4.1/gadm_410-levels.zip"
+# Define mappings between GADM layer names and their semantic subtypes
 LAYER_SUBTYPES = {
     "ADM_0": "country",
     "ADM_1": "state-province",
@@ -32,6 +37,16 @@ LAYER_SUBTYPES = {
     "ADM_3": "municipality",
     "ADM_4": "locality",
     "ADM_5": "neighbourhood",
+}
+
+# Reverse mapping for lookup by subtype
+SUBTYPE_LAYERS = {
+    "country": "GID_0",
+    "state-province": "GID_1",
+    "district-county": "GID_2",
+    "municipality": "GID_3",
+    "locality": "GID_4",
+    "neighbourhood": "GID_5",
 }
 
 # Additional layers to load - NDJSON format
@@ -55,27 +70,58 @@ def download(url: str, dest: str) -> str:
     """Stream-download *url* into *dest* (skips if already present)."""
     dest = Path(dest)
     if dest.exists():
-        print(f"✓ Using cached file → {dest}")
+        logger.info(f"Using cached file → {dest}")
         return dest
+
+    logger.info(f"Starting download from {url}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
         with open(dest, "wb") as f:
             for chunk in r.iter_content(1 << 20):
                 f.write(chunk)
-    print(f"✓ Downloaded {dest.stat().st_size/1e6:.1f} MB")
+    logger.info(f"Downloaded {dest.stat().st_size/1e6:.1f} MB → {dest}")
     return dest
 
 
 def extract_gpkg(zip_path: Path, out_dir: Path) -> Path:
     """Unzip and return the GeoPackage path."""
+    logger.info(f"Extracting GeoPackage from {zip_path}")
     with zipfile.ZipFile(zip_path) as z:
         z.extractall(out_dir)
     gpkg = out_dir / "gadm_410-levels.gpkg"
     if not gpkg.exists():
         raise FileNotFoundError("GeoPackage not found after extraction.")
-    print(f"✓ Extracted → {gpkg}")
+    logger.info(f"Extracted GeoPackage → {gpkg}")
     return gpkg
+
+
+def get_gadm_id(row):
+    match row["subtype"]:
+        case "country":
+            return row[SUBTYPE_LAYERS["country"]]
+        case "state-province":
+            return row[SUBTYPE_LAYERS["state-province"]]
+        case "district-county":
+            return row[SUBTYPE_LAYERS["district-county"]]
+        case "municipality":
+            return row[SUBTYPE_LAYERS["municipality"]]
+        case "locality":
+            return row[SUBTYPE_LAYERS["locality"]]
+        case "neighbourhood":
+            return row[SUBTYPE_LAYERS["neighbourhood"]]
+
+
+def get_kba_id(row):
+    return row["sitrecid"]
+
+
+def get_landmark_id(row):
+    return row["gfw_fid"]
+
+
+def get_wdpa_id(row):
+    return row["wdpa_pid"]
 
 
 def build_dataframe(gpkg: Path) -> gpd.GeoDataFrame:
@@ -103,10 +149,10 @@ def build_dataframe(gpkg: Path) -> gpd.GeoDataFrame:
 
     # DuckDB’s spatial extension works with WKB → convert for fast load
     gdf["geometry"] = gdf.geometry.apply(lambda geom: geom.wkb)
-    
+
     # Add a unique id
-    gdf["gadm_id"] = gdf.index
-    
+    gdf["gadm_id"] = gdf.apply(get_gadm_id, axis=1)
+
     return gdf
 
 
@@ -139,45 +185,57 @@ def cached_ndjson_path(url: str, cache_dir: Path = Path("/tmp")) -> Path:
     """
     dest = cache_dir / Path(url).name
     if dest.exists():
-        print(f"✓ Using cached NDJSON → {dest}")
+        logger.info(f"Using cached NDJSON → {dest}")
         return dest
 
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     if url.startswith("s3://"):
+        logger.info(f"Downloading from S3: {url}")
         fs = s3fs.S3FileSystem(requester_pays=True)
-        print(f"⇣ Downloading {url} → {dest}")
         fs.get(url, str(dest), recursive=False)
-    else:                                  # HTTP/HTTPS
-        print(f"⇣ Downloading {url} → {dest}")
+    else:  # HTTP/HTTPS
+        logger.info(f"Downloading from HTTP: {url}")
         with requests.get(url, stream=True) as r:
             r.raise_for_status()
             with open(dest, "wb") as f:
                 for chunk in r.iter_content(1 << 20):
                     f.write(chunk)
 
-    print(f"✓ Downloaded {dest.stat().st_size/1e6:.1f} MB")
+    logger.info(f"Downloaded NDJSON {dest.stat().st_size/1e6:.1f} MB → {dest}")
     return dest
 
 
-def gdf_from_ndjson(url: str, cache_dir: Path = Path("/tmp")) -> gpd.GeoDataFrame:
+def gdf_from_ndjson(
+    table: str, url: str, cache_dir: Path = Path("/tmp")
+) -> gpd.GeoDataFrame:
     """
     Download the NDJSON file once (into *cache_dir*), then read it
     into a GeoDataFrame. Geometry is converted to WKB for DuckDB.
     """
     ndjson_path = cached_ndjson_path(url, cache_dir)
 
+    logger.info(f"Processing NDJSON file for {table} table")
     features = []
     with open(ndjson_path, "r") as f:
         for line in f:
             if line := line.strip():
                 features.append(json.loads(line))
 
+    logger.info(f"Creating GeoDataFrame from {len(features)} features")
     gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
     gdf["geometry"] = gdf.geometry.apply(lambda g: g.wkb)
-    gdf["id"] = gdf.index
-    return gdf
 
+    match table:
+        case "landmark":
+            gdf["id"] = gdf.apply(get_landmark_id, axis=1)
+        case "kba":
+            gdf["id"] = gdf.apply(get_kba_id, axis=1)
+        case "wdpa":
+            gdf["id"] = gdf.apply(get_wdpa_id, axis=1)
+
+    logger.info(f"Processed {table} table with {len(gdf)} records")
+    return gdf
 
 
 def main() -> None:
@@ -205,18 +263,30 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    zip_path = download(GADM_ZIP_URL, Path(args.tempdir) / "gadm_410-levels.zip")
+    logger.info("Starting GADM basemap ingestion process")
+    logger.info(f"Target database: {args.database}")
+
+    # Process GADM data
+    zip_path = download(
+        GADM_ZIP_URL, Path(args.tempdir) / "gadm_410-levels.zip"
+    )
     gpkg_path = extract_gpkg(zip_path, Path(args.tempdir))
+    logger.info("Building GADM dataframe from GeoPackage layers")
     gdf = build_dataframe(gpkg_path)
+    logger.info(f"Loading GADM data into DuckDB table '{args.table}'")
     load_into_duckdb(gdf, Path(args.database), table=args.table)
 
     # Load additional layers
+    logger.info(f"Loading {len(NDJSON_SOURCES)} additional data sources")
     for table, url in NDJSON_SOURCES.items():
-        print(f"→ Loading “{table}” from {url}")
-        ndjson_gdf = gdf_from_ndjson(url)
+        logger.info(f"Loading '{table}' table from {url}")
+        ndjson_gdf = gdf_from_ndjson(table, url)
         load_into_duckdb(ndjson_gdf, Path(args.database), table=table)
 
+    logger.info("Basemap ingestion completed successfully")
+
     print("✓ Done")
+
 
 if __name__ == "__main__":
     main()

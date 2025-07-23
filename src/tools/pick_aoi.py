@@ -58,7 +58,7 @@ def query_aoi_database(
 
 
 def query_subregion_database(
-    connection, subregion_name: str, source: str, src_id: int
+    connection, subregion_name: str, source: str, src_id: str
 ):
     """Query the right table in basemaps database for subregions based on the selected AOI.
 
@@ -71,6 +71,19 @@ def query_subregion_database(
     Returns:
         list of subregions
     """
+    # Mapping from user query terms to actual database subtypes
+    SUBREGION_SUBTYPE_MAPPING = {
+        "country": "country",
+        "state": "state-province",
+        "district": "district-county",
+        "municipality": "municipality",
+        "locality": "locality",
+        "neighbourhood": "neighbourhood",
+        "kba": "key-biodiversity-area",
+        "wdpa": "protected-area",
+        "landmark": "indigenous-and-community-land",
+    }
+
     match subregion_name:
         case (
             "country"
@@ -93,19 +106,28 @@ def query_subregion_database(
                 f"Subregion: {subregion_name} does not match to any table in basemaps database."
             )
 
-    # Get the appropriate ID column name based on subregion type
-    if subregion_name in ["country", "state", "district", "municipality", "locality", "neighbourhood"]:
+    # Get the appropriate ID column name and expected subtype
+    if subregion_name in [
+        "country",
+        "state",
+        "district",
+        "municipality",
+        "locality",
+        "neighbourhood",
+    ]:
         id_column = "gadm_id"
         source_name = "gadm"
+        expected_subtype = SUBREGION_SUBTYPE_MAPPING[subregion_name]
     else:
         id_column = f"{subregion_name}_id"
         source_name = subregion_name
-    
+        expected_subtype = SUBREGION_SUBTYPE_MAPPING[subregion_name]
+
     sql_query = f"""
     WITH aoi AS (
         SELECT geometry AS geom
         FROM '{GEOMETRIES_TABLE}'
-        WHERE source = '{source}' AND src_id = {src_id}
+        WHERE source = '{source}' AND src_id = '{src_id}'
     ),
     subregion_geometries AS (
         SELECT 
@@ -116,40 +138,47 @@ def query_subregion_database(
         WHERE source = '{source_name}'
     )
     SELECT 
-        t.*
+        t.*,
+        sg.source AS source,
+        sg.src_id AS src_id
     FROM '{table_name}' AS t
     CROSS JOIN aoi
     JOIN subregion_geometries sg ON t.{id_column} = sg.src_id
-    WHERE ST_Within(sg.geometry, aoi.geom);
+    WHERE ST_Within(sg.geometry, aoi.geom)
+      AND t.subtype = '{expected_subtype}';
     """
     logger.debug(f"Executing subregion query: {sql_query}")
     results = connection.execute(sql_query).df()
-    
+
     # Note: Geometry is not returned - only used for spatial filtering
-    logger.debug(f"Found {len(results)} subregions within AOI")
+    logger.debug(
+        f"Found {len(results)} subregions of type '{expected_subtype}' within AOI"
+    )
     return results
 
 
-def get_aoi_geometry(connection: duckdb.DuckDBPyConnection, source: str, src_id: int):
+def get_aoi_geometry(
+    connection: duckdb.DuckDBPyConnection, source: str, src_id: str
+):
     """Fetch geometry for a specific AOI from the geometry table.
-    
+
     Args:
         connection: DuckDB connection object
         source: Source of the AOI ('gadm', 'kba', 'landmark', 'wdpa')
         src_id: Source-specific ID of the AOI
-        
+
     Returns:
         GeoJSON geometry dict or None if not found
     """
     sql_query = f"""
         SELECT ST_AsGeoJSON(geometry) as geometry
         FROM '{GEOMETRIES_TABLE}'
-        WHERE source = '{source}' AND src_id = {src_id}
+        WHERE source = '{source}' AND src_id = '{src_id}'
         LIMIT 1
     """
-    
+
     logger.debug(f"Fetching geometry for {source}:{src_id}")
-    
+
     try:
         result = connection.sql(sql_query).fetchone()
         if result and result[0]:
@@ -169,7 +198,7 @@ class AOIIndex(BaseModel):
         description="`id` of the location that best matches the user query."
     )
     source: str = Field(description="`source` of the selected location.")
-    src_id: int = Field(description="`src_id` of the selected location.")
+    src_id: str = Field(description="`src_id` of the selected location.")
 
 
 # Prompt template for selecting the best location match based on user query
@@ -255,7 +284,7 @@ def pick_aoi(
             case "gadm":
                 selected_aoi = (
                     db_connection.sql(
-                        f"SELECT * FROM '{GADM_TABLE}' WHERE gadm_id = {src_id}"
+                        f"SELECT * FROM '{GADM_TABLE}' WHERE gadm_id = '{src_id}'"
                     )
                     .df()
                     .iloc[0]
@@ -264,7 +293,7 @@ def pick_aoi(
             case "kba":
                 selected_aoi = (
                     db_connection.sql(
-                        f"SELECT * FROM '{KBA_TABLE}' WHERE kba_id = {src_id}"
+                        f"SELECT * FROM '{KBA_TABLE}' WHERE kba_id = '{src_id}'"
                     )
                     .df()
                     .iloc[0]
@@ -273,7 +302,7 @@ def pick_aoi(
             case "landmark":
                 selected_aoi = (
                     db_connection.sql(
-                        f"SELECT * FROM '{LANDMARK_TABLE}' WHERE landmark_id = {src_id}"
+                        f"SELECT * FROM '{LANDMARK_TABLE}' WHERE landmark_id = '{src_id}'"
                     )
                     .df()
                     .iloc[0]
@@ -282,7 +311,7 @@ def pick_aoi(
             case "wdpa":
                 selected_aoi = (
                     db_connection.sql(
-                        f"SELECT * FROM '{WDPA_TABLE}' WHERE wdpa_id = {src_id}"
+                        f"SELECT * FROM '{WDPA_TABLE}' WHERE wdpa_id = '{src_id}'"
                     )
                     .df()
                     .iloc[0]
@@ -293,10 +322,14 @@ def pick_aoi(
                 raise ValueError(
                     f"Source: {source} does not match to any table in basemaps database."
                 )
-        
+
+        # Add source and src_id to the selected_aoi dictionary - for API geometry fetching
+        selected_aoi["source"] = source
+        selected_aoi["src_id"] = src_id
+
         # Note: Geometry is not included in the frontend response
         # Frontend should fetch geometry via API endpoints when needed for map rendering
-        
+
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
             subregion_aois = query_subregion_database(
@@ -308,7 +341,11 @@ def pick_aoi(
 
         tool_message = f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
         if subregion:
-            tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
+            subregion_names = "\n".join(
+                [aoi["name"].split(",")[0] for aoi in subregion_aois]
+            )
+            tool_message += f"\nSubregion AOIs Count: {len(subregion_aois)}"
+            tool_message += f"\nSubregion AOIs: {subregion_names}"
 
         logger.debug(f"Pick AOI tool message: {tool_message}")
 
@@ -349,6 +386,8 @@ if __name__ == "__main__":
     user_queries = [
         "find threats to tigers in Odisha",
         "find threats to tigers in KBAs of Odisha",
+        "find threats to tigers in states of India",
+        "find threats to tigers in districts of Odisha",
         "Show me forest data for congo not drc",
         "What is the deforestation rate in Ontario last year?",
         "I need urgent data on ilegal logging in Borgou!!",

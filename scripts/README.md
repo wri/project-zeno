@@ -99,10 +99,10 @@ python scripts/export_optimized_parquets.py
 
 1. **Connects to DuckDB database** - Opens the processed database
 2. **Exports individual source tables** - Creates parquet files for each source:
-   - `gadm.parquet` - GADM administrative areas (metadata only)
-   - `kba.parquet` - Key Biodiversity Areas (metadata only)
-   - `landmark.parquet` - Indigenous and Community Lands (metadata only)
-   - `wdpa.parquet` - Protected areas (metadata only)
+   - `gadm_no_geom.parquet` - GADM administrative areas (metadata only)
+   - `kba_no_geom.parquet` - Key Biodiversity Areas (metadata only)
+   - `landmark_no_geom.parquet` - Indigenous and Community Lands (metadata only)
+   - `wdpa_no_geom.parquet` - Protected areas (metadata only)
 3. **Exports unified tables** - Creates combined data files:
    - `geometries.parquet` - All geometry data with source identifiers
    - `gadm_plus.parquet` - Unified searchable metadata from all sources
@@ -133,53 +133,6 @@ After running both scripts, you'll have the following parquet files in `data/geo
 ### Unified Tables
 - **geometries**: `id`, `source`, `src_id`, `geometry`
 - **gadm_plus**: `source`, `src_id`, `name`, `subtype`, `is_gadm`, `is_kba`, `is_landmark`, `is_wdpa`
-
-## Verification
-
-After running all scripts, verify the results:
-
-```bash
-# Step 0 verification - Check raw data tables were created
-duckdb data/geocode/basemaps.duckdb -c "SHOW TABLES;"
-duckdb data/geocode/basemaps.duckdb -c "SELECT COUNT(*) FROM gadm;"
-duckdb data/geocode/basemaps.duckdb -c "SELECT COUNT(*) FROM kba;"
-duckdb data/geocode/basemaps.duckdb -c "SELECT COUNT(*) FROM landmark;"
-duckdb data/geocode/basemaps.duckdb -c "SELECT COUNT(*) FROM wdpa;"
-
-# Step 1 verification - Check processed tables were created
-duckdb data/geocode/basemaps.duckdb -c "SELECT COUNT(*) FROM gadm_plus;"
-duckdb data/geocode/basemaps.duckdb -c "SELECT COUNT(*) FROM geometries;"
-
-# Step 2 verification - Check parquet files were generated
-ls -la data/geocode/*.parquet
-duckdb -c "SELECT COUNT(*) FROM 'data/geocode/gadm_plus.parquet';"
-duckdb -c "SELECT COUNT(*) FROM 'data/geocode/geometries.parquet';"
-duckdb -c "SELECT COUNT(*) FROM 'data/geocode/gadm_no_geom.parquet';"
-duckdb -c "SELECT COUNT(*) FROM 'data/geocode/kba_no_geom.parquet';"
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"Column already exists" errors**
-   - The tables may already have been processed
-   - Check if columns like `kba_id`, `name`, `subtype` already exist
-   - If so, comment out the table modification section in `create_gadm_plus.sql`
-
-2. **"Table does not exist" errors**
-   - Ensure raw data tables (`gadm`, `kba`, `landmark`, `wdpa`) are loaded in the database
-   - Check table names with: `duckdb basemaps.duckdb -c "SHOW TABLES;"`
-
-3. **Python import errors**
-   - Install required packages: `pip install duckdb pandas`
-
-4. **File permission errors**
-   - Ensure write permissions for the `data/geocode/` directory
-
-5. **Memory issues**
-   - Large geometry processing may require sufficient RAM
-   - Consider processing in smaller batches if needed
 
 ## Integration
 

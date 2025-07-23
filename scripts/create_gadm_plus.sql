@@ -1,7 +1,3 @@
--- Table modifications (SKIP - tables already have correct structure)
--- Uncomment these lines only if running on fresh tables that need schema updates:
-
-/*
 -- kba -> rename id to kba_id, add name using (natname, intname, iso3), add subtype
 ALTER TABLE kba RENAME COLUMN id TO kba_id;
 
@@ -30,7 +26,6 @@ UPDATE wdpa SET name = concat_ws(', ', wdpa_name, desig, iso3);
 
 ALTER TABLE wdpa ADD COLUMN subtype VARCHAR;
 UPDATE wdpa SET subtype = 'protected-area';
-*/
 
 ------------------------------------------------------------
 -- 1. Load spatial extension (install only once per database)
@@ -103,6 +98,9 @@ ALTER TABLE gadm DROP COLUMN IF EXISTS geometry;
 ALTER TABLE kba DROP COLUMN IF EXISTS geometry;
 ALTER TABLE landmark DROP COLUMN IF EXISTS geometry;
 ALTER TABLE wdpa DROP COLUMN IF EXISTS geometry;
+
+-- Drop problematic source column from KBA table to avoid conflicts
+ALTER TABLE kba DROP COLUMN IF EXISTS source;
 
 ------------------------------------------------------------
 -- 5. Create main metadata table (without geometry)

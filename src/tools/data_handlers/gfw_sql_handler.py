@@ -290,9 +290,7 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
 
         logger.debug("Invoking SQL query generation chain...")
         sql_query_chain = SQL_QUERY_PROMPT | SONNET
-        location_filter = GadmId(
-            gadm_id=aoi[gadm_level["col_name"]]
-        ).as_sql_filter()
+        location_filter = GadmId(gadm_id=aoi["src_id"]).as_sql_filter()
 
         return sql_query_chain.invoke(
             {
