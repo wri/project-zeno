@@ -93,6 +93,25 @@ Fetches multiple geometries in a single request for efficient loading.
 
 **Authentication:** Both endpoints require WRI API token authentication.
 
+### AOI ID Field Mappings
+
+The `src_id` field used for geometry lookups is derived from different source columns depending on the data source:
+
+| Source | ID Field (`src_id`) | Description | Example Values |
+|--------|-------------------|-------------|----------------|
+| `gadm` | GID_X (based on subtype) | GADM Geographic Identifier | `"USA"`, `"USA.1_1"`, `"IND.26.20_1"` |
+| `kba` | `sitrecid` | KBA Site Record ID | `3261`, `15089` |
+| `landmark` | `gfw_fid` | GFW Feature ID | `12345` |
+| `wdpa` | `wdpa_pid` | WDPA Protected Area ID | `67890` |
+
+**GADM ID Mapping by Subtype:**
+- `country`: Uses `GID_0` (e.g., `"USA"`, `"IND"`)
+- `state-province`: Uses `GID_1` (e.g., `"USA.1_1"`, `"IND.26_1"`)
+- `district-county`: Uses `GID_2` (e.g., `"USA.1.1_1"`, `"IND.26.20_1"`)
+- `municipality`: Uses `GID_3`
+- `locality`: Uses `GID_4`
+- `neighbourhood`: Uses `GID_5`
+
 ### UI Context
 
 The `ui_context` parameter allows the frontend to pass pre-selected data (AOI, dataset, date range) directly to the agent, enabling a hybrid approach where users can either:
@@ -107,11 +126,11 @@ ui_context = {
     "aoi_selected": {
         "aoi": {  # AOI metadata (geometry fetched separately via API)
             "source": "gadm",  # Source table: 'gadm', 'kba', 'landmark', 'wdpa'
-            "src_id": 12345,   # Source table ID for geometry lookup
-            "name": "Location Name",
-            "gadm_id": 12345,
+            "src_id": "IND.26.20_1",   # Source table ID for geometry lookup (GADM GID)
+            "name": "Koraput, Odisha, India",
+            "subtype": "district-county",
             # ... other AOI metadata fields
-            # Note: geometry excluded - fetch via /api/geometry/{source}/{src_id}
+            # Note: geometry excluded - fetch via /api/geometry/gadm/IND.26.20_1
         },
         "aoi_name": "Location Name",
         "subregion_aois": None,  # or DataFrame data
@@ -276,10 +295,9 @@ For single aoi
         "ENGTYPE_5": null,
         "CC_5": null,
         "name": "Koraput, Odisha, India",
-        "gadm_id": 22056,
         "source": "gadm",
-        "src_id": 22056
-        # Note: geometry excluded - fetch via /api/geometry/gadm/22056
+        "src_id": "IND.26.20_1"
+        # Note: geometry excluded - fetch via /api/geometry/gadm/IND.26.20_1
     },
     "subregion_aois": null,
     "subregion": null,
@@ -334,47 +352,42 @@ For multi aoi
         "ENGTYPE_5": null,
         "CC_5": null,
         "name": "Odisha, India",
-        "gadm_id": 1534,
         "source": "gadm",
-        "src_id": 1534
-        # Note: geometry excluded - fetch via /api/geometry/gadm/1534
+        "src_id": "IND.26_1"
+        # Note: geometry excluded - fetch via /api/geometry/gadm/IND.26_1
     },
-    "subregion_aois": {
-        "data": [
-            {
-                "gfw_fid": 3261,
-                "source": "kba",
-                "src_id": 3261
-                # Note: geometry excluded - fetch via /api/geometry/kba/3261
-            },
-            {
-                "gfw_fid": 3262,
-                "source": "kba",
-                "src_id": 3262
-                # Note: geometry excluded - fetch via /api/geometry/kba/3262
-            },
-            {
-                "gfw_fid": 3263,
-                "source": "kba",
-                "src_id": 3263
-                # Note: geometry excluded - fetch via /api/geometry/kba/3263
-            },
-            {
-                "gfw_fid": 14937,
-                "source": "kba",
-                "src_id": 14937
-                # Note: geometry excluded - fetch via /api/geometry/kba/14937
-            },
-            {
-                "gfw_fid": 15089,
-                "source": "kba",
-                "src_id": 15089
-                # Note: geometry excluded - fetch via /api/geometry/kba/15089
-            }
-        ],
-        "total_rows": 5,
-        "columns": 23
-    },
+    "subregion_aois": [
+        {
+            "gfw_fid": 3261,
+            "source": "kba",
+            "src_id": 3261
+            # Note: geometry excluded - fetch via /api/geometry/kba/3261
+        },
+        {
+            "gfw_fid": 3262,
+            "source": "kba",
+            "src_id": 3262
+            # Note: geometry excluded - fetch via /api/geometry/kba/3262
+        },
+        {
+            "gfw_fid": 3263,
+            "source": "kba",
+            "src_id": 3263
+            # Note: geometry excluded - fetch via /api/geometry/kba/3263
+        },
+        {
+            "gfw_fid": 14937,
+            "source": "kba",
+            "src_id": 14937
+            # Note: geometry excluded - fetch via /api/geometry/kba/14937
+        },
+        {
+            "gfw_fid": 15089,
+            "source": "kba",
+            "src_id": 15089
+            # Note: geometry excluded - fetch via /api/geometry/kba/15089
+        }
+    ],
     "subregion": "kba",
     "aoi_name": "Odisha, India",
     "subtype": "state-province",
