@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 from typing import Dict, Optional
 import uuid
 
@@ -17,7 +18,15 @@ from sqlalchemy.orm import sessionmaker
 import structlog
 
 from src.agents.agents import zeno, checkpointer
-from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
+from src.api.data_models import (
+    RatingCreateRequest,
+    RatingModel, 
+    RatingOrm,
+    ThreadModel, 
+    ThreadOrm, 
+    UserModel, 
+    UserOrm
+)
 from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
 
@@ -477,6 +486,72 @@ def delete_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
         db.delete(thread)
         db.commit()
         return {"detail": "Thread deleted successfully"}
+
+
+@app.post("/api/ratings", response_model=RatingModel)
+def create_or_update_rating(
+    request: RatingCreateRequest, user: UserModel = Depends(fetch_user)
+):
+    """
+    Create or update a rating for a trace in a thread.
+    Requires Authorization
+    """
+    with SessionLocal() as db:
+        # Verify the thread exists and belongs to the user
+        thread = db.query(ThreadOrm).filter_by(
+            id=request.thread_id, user_id=user.id
+        ).first()
+        if not thread:
+            raise HTTPException(
+                status_code=404, 
+                detail="Thread not found or access denied"
+            )
+
+        # Check if rating already exists (upsert logic)
+        existing_rating = db.query(RatingOrm).filter_by(
+            user_id=user.id,
+            thread_id=request.thread_id,
+            trace_id=request.trace_id
+        ).first()
+
+        if existing_rating:
+            # Update existing rating
+            existing_rating.rating = request.rating
+            existing_rating.updated_at = datetime.now()
+            db.commit()
+            db.refresh(existing_rating)
+            
+            logger.info(
+                "Rating updated",
+                user_id=user.id,
+                thread_id=request.thread_id,
+                trace_id=request.trace_id,
+                rating=request.rating
+            )
+            
+            return RatingModel.model_validate(existing_rating)
+        else:
+            # Create new rating
+            new_rating = RatingOrm(
+                id=str(uuid.uuid4()),
+                user_id=user.id,
+                thread_id=request.thread_id,
+                trace_id=request.trace_id,
+                rating=request.rating
+            )
+            db.add(new_rating)
+            db.commit()
+            db.refresh(new_rating)
+            
+            logger.info(
+                "Rating created",
+                user_id=user.id,
+                thread_id=request.thread_id,
+                trace_id=request.trace_id,
+                rating=request.rating
+            )
+            
+            return RatingModel.model_validate(new_rating)
 
 
 @app.get("/api/auth/me", response_model=UserModel)
