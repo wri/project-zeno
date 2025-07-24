@@ -40,6 +40,7 @@ class ThreadOrm(Base):
         default=datetime.now(),
         onupdate=datetime.now(),
     )
+    name = Column(String, nullable=False, default="Unnamed Thread")
     user = relationship("UserOrm", back_populates="threads", foreign_keys=[user_id])
 
 
@@ -56,6 +57,7 @@ class ThreadModel(BaseModel):
     id: str
     user_id: str
     agent_id: str
+    name: str
     created_at: datetime
     updated_at: datetime
 

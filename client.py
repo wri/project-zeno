@@ -22,6 +22,50 @@ class ZenoClient:
         self.base_url = base_url
         self.token = token
 
+    def delete_thread(self, thread_id: str):
+        """
+        Delete a thread by its ID.
+
+        Args:
+            thread_id: The ID of the thread to delete
+        Returns:
+            Response from the server
+        """
+        if not self.token:
+            raise ValueError("Token is required to delete thread.")
+        url = f"{self.base_url}/api/threads/{thread_id}"
+        headers = {"Authorization": f"Bearer {self.token}"}
+
+        with requests.delete(url, headers=headers) as response:
+            if response.status_code != 204:
+                raise Exception(
+                    f"Request failed with status code {response.status_code}: {response.text}"
+                )
+            return
+
+    def update_thread(self, thread_id: str, name: str):
+        """
+        Update the name of a thread.
+
+        Args:
+            thread_id: The ID of the thread to update
+            name: The new name for the thread
+        Returns:
+            Response from the server
+        """
+        if not self.token:
+            raise ValueError("Token is required to update thread.")
+        url = f"{self.base_url}/api/threads/{thread_id}"
+        headers = {"Authorization": f"Bearer {self.token}"}
+        payload = {"name": name}
+
+        with requests.patch(url, json=payload, headers=headers) as response:
+            if response.status_code != 200:
+                raise Exception(
+                    f"Request failed with status code {response.status_code}: {response.text}"
+                )
+            return response.json()
+
     def list_threads(self) -> List[Dict[str, Any]]:
         url = f"{self.base_url}/api/threads"
         if not self.token:
