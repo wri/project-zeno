@@ -1,6 +1,7 @@
 """Test configuration and fixtures."""
 import os
 from sqlalchemy import create_engine, text
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 import pytest
 from sqlalchemy.orm import sessionmaker
 from alembic.config import Config
@@ -64,12 +65,14 @@ def test_db():
     drop_test_database()
 
 @pytest.fixture(scope="function")
-def db_session():
-    """Create a new database session for a test."""
-    engine = create_engine(TEST_DB_URL)
-    Session = sessionmaker(bind=engine)
+async def db_session():
+    """Create a new async database session for a test."""
+    engine = create_async_engine(TEST_DB_URL)
+    AsyncSessionLocal = sessionmaker(class_=AsyncSession, expire_on_commit=False, bind=engine)
     
-    with Session() as session:
-        with session.begin():  # Automatic transaction management
+    async with AsyncSessionLocal() as session:
+        async with session.begin():  # Automatic transaction management
             yield session
-            session.rollback()  # Rollback any changes after test
+            await session.rollback()  # Rollback any changes after test
+    
+    await engine.dispose()

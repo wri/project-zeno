@@ -3,7 +3,7 @@ import os
 import pytest
 from unittest.mock import patch
 import httpx
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import FastAPI
 from contextlib import contextmanager
@@ -75,7 +75,7 @@ def clear_cache():
     (MOCK_UNAUTHORIZED_USER, 403, "User not allowed to access this API"),  # unauthorized domain should fail
 ])
 @pytest.mark.asyncio
-async def test_email_domain_authorization(user_data, expected_status, expected_error, db_session: Session):
+async def test_email_domain_authorization(user_data, expected_status, expected_error, db_session: AsyncSession):
     """Test that only users with allowed email domains can access the API."""
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch('requests.get') as mock_get:
@@ -102,7 +102,7 @@ async def test_email_domain_authorization(user_data, expected_status, expected_e
             assert user_response["name"] == user_data["name"]
 
 @pytest.mark.asyncio
-async def test_missing_bearer_token(db_session: Session):
+async def test_missing_bearer_token(db_session: AsyncSession):
     """Test that requests without a Bearer token are rejected."""
     with domain_allowlist("developmentseed.org,wri.org"):
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api.app), base_url="http://test") as client:
@@ -115,7 +115,7 @@ async def test_missing_bearer_token(db_session: Session):
 
 
 @pytest.mark.asyncio
-async def test_missing_authorization_header(db_session: Session):
+async def test_missing_authorization_header(db_session: AsyncSession):
     """Test that requests without an Authorization header are rejected."""
     os.environ["DOMAINS_ALLOWLIST"] = "developmentseed.org,wri.org"
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api.app), base_url="http://test") as client:
