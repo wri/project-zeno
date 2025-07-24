@@ -370,7 +370,11 @@ async def fetch_user(
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user), SessionLocal = Depends(get_session)):
+async def chat(
+    request: ChatRequest,
+    user: UserModel = Depends(fetch_user),
+    session=Depends(get_session),
+):
     """
     Chat endpoint for Zeno.
 
@@ -384,17 +388,16 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user), Sess
     bind_request_logging_context(
         thread_id=request.thread_id, session_id=request.session_id, query=request.query
     )
-    with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
+    thread = (
+        session.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
+    )
+    if not thread:
+        thread = ThreadOrm(
+            id=request.thread_id, user_id=user.id, agent_id="UniGuana"
         )
-        if not thread:
-            thread = ThreadOrm(
-                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
-            )
-            db.add(thread)
-            db.commit()
-            db.refresh(thread)
+        session.add(thread)
+        session.commit()
+        session.refresh(thread)
 
     try:
         return StreamingResponse(
@@ -423,34 +426,30 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user), Sess
 
 @app.get("/api/threads", response_model=list[ThreadModel])
 def list_threads(
-    user: UserModel = Depends(fetch_user), SessionLocal=Depends(get_session)
+    user: UserModel = Depends(fetch_user), session=Depends(get_session)
 ):
     """
     Requires Authorization
     """
-
-    with SessionLocal() as db:
-        threads = db.query(ThreadOrm).filter_by(user_id=user.id).all()
-        return [ThreadModel.model_validate(thread) for thread in threads]
+    threads = session.query(ThreadOrm).filter_by(user_id=user.id).all()
+    return [ThreadModel.model_validate(thread) for thread in threads]
 
 
 @app.get("/api/threads/{thread_id}")
 def get_thread(
     thread_id: str,
     user: UserModel = Depends(fetch_user),
-    SessionLocal=Depends(get_session),
+    session=Depends(get_session),
 ):
     """
     Requires Authorization
     """
+    thread = session.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    if not thread:
+        logger.warning("Thread not found", thread_id=thread_id)
+        raise HTTPException(status_code=404, detail="Thread not found")
 
-    with SessionLocal() as db:
-        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
-        if not thread:
-            logger.warning("Thread not found", thread_id=thread_id)
-            raise HTTPException(status_code=404, detail="Thread not found")
-
-        thread_id = thread.id
+    thread_id = thread.id
 
     try:
         logger.debug("Replaying thread", thread_id=thread_id)
@@ -472,29 +471,27 @@ def update_thread(
     thread_id: str,
     request: ThreadUpdateRequest,
     user: UserModel = Depends(fetch_user),
-    SessionLocal=Depends(get_session),
+    session=Depends(get_session),
 ):
     """
     Requires Authorization
     """
+    thread = session.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread not found")
 
-    with SessionLocal() as db:
-        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
-        if not thread:
-            raise HTTPException(status_code=404, detail="Thread not found")
-
-        for key, value in request.model_dump().items():
-            setattr(thread, key, value)
-        db.commit()
-        db.refresh(thread)
-        return ThreadModel.model_validate(thread)
+    for key, value in request.model_dump().items():
+        setattr(thread, key, value)
+    session.commit()
+    session.refresh(thread)
+    return ThreadModel.model_validate(thread)
 
 
 @app.delete("/api/threads/{thread_id}", status_code=204)
 def delete_thread(
     thread_id: str,
     user: UserModel = Depends(fetch_user),
-    SessionLocal=Depends(get_session),
+    session=Depends(get_session),
 ):
     """
     Requires Authorization
@@ -502,14 +499,13 @@ def delete_thread(
 
     checkpointer.delete_thread(thread_id)
 
-    with SessionLocal() as db:
-        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
-        if not thread:
-            raise HTTPException(status_code=404, detail="Thread not found")
+    thread = session.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread not found")
 
-        db.delete(thread)
-        db.commit()
-        return {"detail": "Thread deleted successfully"}
+    session.delete(thread)
+    session.commit()
+    return {"detail": "Thread deleted successfully"}
 
 
 @app.get("/api/auth/me", response_model=UserModel)
@@ -547,40 +543,38 @@ def create_custom_area(
 
 @app.get("/api/custom_areas/", response_model=list[CustomAreaModel])
 def list_custom_areas(
-    user: UserModel = Depends(fetch_user), SessionLocal=Depends(get_session)
+    user: UserModel = Depends(fetch_user), session=Depends(get_session)
 ):
     """List all custom areas belonging to the authenticated user."""
-    with SessionLocal() as db:
-        areas = db.query(CustomAreaOrm).filter_by(user_id=user.id).all()
-        results = []
-        for area in areas:
-            # Convert PostGIS geometry to GeoJSON
-            shape_geom = to_shape(area.geometry)
-            logger.info(f"Custom area geometry: {shape_geom}")
-            area.geometry = mapping(shape_geom)
-            results.append(area)
-        return results
+    areas = session.query(CustomAreaOrm).filter_by(user_id=user.id).all()
+    results = []
+    for area in areas:
+        # Convert PostGIS geometry to GeoJSON
+        shape_geom = to_shape(area.geometry)
+        logger.info(f"Custom area geometry: {shape_geom}")
+        area.geometry = mapping(shape_geom)
+        results.append(area)
+    return results
 
 
 @app.get("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
 def get_custom_area(
     area_id: UUID,
     user: UserModel = Depends(fetch_user),
-    SessionLocal=Depends(get_session),
+    session=Depends(get_session),
 ):
     """Get a specific custom area by ID."""
-    with SessionLocal() as db:
-        area = db.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
-        if not area:
-            raise HTTPException(status_code=404, detail="Custom area not found")
+    area = session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+    if not area:
+        raise HTTPException(status_code=404, detail="Custom area not found")
 
-        result = CustomAreaModel.model_validate(area)
-        # Convert PostGIS geometry to GeoJSON
-        shape_geom = to_shape(area.geometry)
-        result.geometry = mapping(shape_geom)
-        shape_geom = to_shape(area.geometry)
-        result.geometry = mapping(shape_geom)
-        return result
+    result = CustomAreaModel.model_validate(area)
+    # Convert PostGIS geometry to GeoJSON
+    shape_geom = to_shape(area.geometry)
+    result.geometry = mapping(shape_geom)
+    shape_geom = to_shape(area.geometry)
+    result.geometry = mapping(shape_geom)
+    return result
 
 
 @app.patch("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
@@ -588,34 +582,32 @@ def update_custom_area_name(
     area_id: UUID,
     name: str,
     user: UserModel = Depends(fetch_user),
-    SessionLocal=Depends(get_session),
+    session=Depends(get_session),
 ):
     """Update the name of a custom area."""
-    with SessionLocal() as db:
-        area = db.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
-        if not area:
-            raise HTTPException(status_code=404, detail="Custom area not found")
-        area.name = name
-        db.commit()
-        db.refresh(area)
+    area = session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+    if not area:
+        raise HTTPException(status_code=404, detail="Custom area not found")
+    area.name = name
+    session.commit()
+    session.refresh(area)
 
-        result = CustomAreaModel.model_validate(area)
-        # Convert PostGIS geometry to GeoJSON
-        shape_geom = to_shape(area.geometry)
-        result.geometry = mapping(shape_geom)
-        return result
+    result = CustomAreaModel.model_validate(area)
+    # Convert PostGIS geometry to GeoJSON
+    shape_geom = to_shape(area.geometry)
+    result.geometry = mapping(shape_geom)
+    return result
 
 
 @app.delete("/api/custom_areas/{area_id}", status_code=204)
 def delete_custom_area(
     area_id: UUID,
     user: UserModel = Depends(fetch_user),
-    SessionLocal=Depends(get_session),
+    session=Depends(get_session),
 ):
     """Delete a custom area."""
-    with SessionLocal() as db:
-        area = db.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
-        if not area:
-            raise HTTPException(status_code=404, detail="Custom area not found")
-        db.delete(area)
-        db.commit()
+    area = session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+    if not area:
+        raise HTTPException(status_code=404, detail="Custom area not found")
+    session.delete(area)
+    session.commit()
