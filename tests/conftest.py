@@ -10,7 +10,7 @@ from pathlib import Path
 # Test database settings
 TEST_DB_NAME = "zeno_test"
 DEFAULT_DB_URL = "postgresql+psycopg://postgres@localhost:5432/postgres"
-TEST_DB_URL = f"postgresql+psycopg://postgres@localhost:5432/{TEST_DB_NAME}"
+TEST_DB_URL = f"postgresql+asyncpg://postgres@localhost:5432/{TEST_DB_NAME}"
 
 def run_migrations(database_url: str) -> None:
     """Run all alembic migrations."""
