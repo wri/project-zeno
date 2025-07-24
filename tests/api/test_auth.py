@@ -2,17 +2,11 @@
 import os
 import pytest
 from unittest.mock import patch
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
-from fastapi import FastAPI
 
 from contextlib import contextmanager
 
 # Import the API app directly from the src package
 from src.api import app as api
-
-# Use the original app with its dependencies and middleware
-client = TestClient(api.app)
 
 
 @contextmanager
@@ -70,7 +64,7 @@ def mock_rw_api_response(user_data):
 
     return MockResponse(user_data, 200)
 
- 
+
 @pytest.fixture(autouse=True)
 def clear_cache():
     """Clear the user info cache before each test."""
@@ -82,14 +76,14 @@ def clear_cache():
     (MOCK_ALTERNATE_DOMAIN_USER, 200, None),  # wri.org user should succeed
     (MOCK_UNAUTHORIZED_USER, 403, "User not allowed to access this API"),  # unauthorized domain should fail
 ])
-def test_email_domain_authorization(user_data, expected_status, expected_error):
+def test_email_domain_authorization(user_data, expected_status, expected_error, client):
     """Test that only users with allowed email domains can access the API."""
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch('requests.get') as mock_get:
             # Mock the RW API response
             mock_response = mock_rw_api_response(user_data)
             mock_get.return_value = mock_response
-            
+
             # Test the auth endpoint
             response = client.get(
                 "/api/auth/me",
@@ -107,8 +101,8 @@ def test_email_domain_authorization(user_data, expected_status, expected_error):
             assert user_response["email"] == user_data["email"]
             assert user_response["name"] == user_data["name"]
 
-            
-def test_missing_bearer_token():
+
+def test_missing_bearer_token(client):
     """Test that requests without a Bearer token are rejected."""
     with domain_allowlist("developmentseed.org,wri.org"):
         response = client.get(
@@ -119,7 +113,7 @@ def test_missing_bearer_token():
         assert "Missing Bearer token" in response.json()["detail"]
 
 
-def test_missing_authorization_header():
+def test_missing_authorization_header(client):
     """Test that requests without an Authorization header are rejected."""
     os.environ["DOMAINS_ALLOWLIST"] = "developmentseed.org,wri.org"
     response = client.get("/api/auth/me")  # No Authorization header

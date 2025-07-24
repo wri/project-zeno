@@ -1,6 +1,7 @@
 """Test configuration and fixtures."""
 import os
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
@@ -33,6 +34,12 @@ def test_db():
     yield
     # Clean databases
     Base.metadata.drop_all(bind=ENGINE)
+
+
+@pytest.fixture(scope="session")
+def client():
+    with TestClient(app) as c:
+        yield c
 
 
 def clear_tables():
