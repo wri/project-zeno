@@ -47,7 +47,7 @@ jobs:
 
       - name: Run API tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
           DOMAINS_ALLOWLIST: developmentseed.org,wri.org
           OPENAI_API_KEY: fake-key-for-testing
           ANTHROPIC_API_KEY: fake-key-for-testing
