@@ -15,6 +15,7 @@ services:
       - WATCHFILES_FORCE_POLLING=1
       - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/zeno-data
       - EMAILS_ALLOWLIST="developmentseed.org,wri.org"
+      - COOKIE_SIGNER_SECRET_KEY=${COOKIE_SIGNER_SECRET_KEY:-secret-cookie-key-123}
     env_file:
       - .env
     volumes:

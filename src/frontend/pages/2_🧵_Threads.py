@@ -126,7 +126,7 @@ with st.sidebar:
 
         if st.session_state.get("user"):
             # st.write("User info: ", st.session_state["user"])
-            if st.button("Logout"):
+            if st.button("Logout", key="logout_threads"):
                 # NOTE: there is a logout endpoint in the API, but it only invalidates the browser cookies
                 # and not the JWT. So in this case, we'll just clear the user info and token
                 st.session_state.pop("user", None)
