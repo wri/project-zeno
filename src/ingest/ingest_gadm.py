@@ -7,7 +7,6 @@ import os
 from sqlalchemy import create_engine, text
 from src.utils.env_loader import load_environment_variables
 
-from memory_profiler import profile
 
 load_environment_variables()
 
@@ -89,12 +88,12 @@ def process_chunk(
 def get_unified_schema(gpkg: Path) -> set:
     """Sample all layers to get a unified set of all possible columns."""
     all_columns = set()
-    
+
     for layer in LAYER_SUBTYPES.keys():
         print(f"Sampling schema from layer {layer}...")
         sample = gpd.read_file(gpkg, layer=layer, rows=1)
         all_columns.update(sample.columns)
-    
+
     print(f"✓ Found {len(all_columns)} unique columns across all layers")
     return all_columns
 
@@ -133,7 +132,9 @@ def ingest_gadm_chunked(
             chunk = gpd.read_file(gpkg, layer=layer, rows=slice(start_idx, end_idx))
 
             # Process chunk
-            processed_chunk = process_chunk(chunk, subtype, gadm_id_counter, all_columns)
+            processed_chunk = process_chunk(
+                chunk, subtype, gadm_id_counter, all_columns
+            )
             gadm_id_counter += len(processed_chunk)
 
             # Write to database
@@ -177,7 +178,6 @@ def ingest_to_postgis(
     print(f"✓ Ingested {total_records} records to PostGIS table '{table_name}'")
 
 
-@profile
 def main():
     """Main function to download, extract, and ingest GADM data."""
     # Download and extract GADM data
