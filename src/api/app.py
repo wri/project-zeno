@@ -14,7 +14,9 @@ from src.utils.env_loader import load_environment_variables
 
 load_environment_variables()
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi import (
+    Depends, FastAPI, Header, HTTPException, Request, Response, status
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.load import dumps

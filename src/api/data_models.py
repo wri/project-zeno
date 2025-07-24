@@ -43,6 +43,7 @@ class ThreadOrm(Base):
         "UserOrm", back_populates="threads", foreign_keys=[user_id]
     )
 
+
 class CustomAreaOrm(Base):
     __tablename__ = "custom_areas"
 
@@ -93,6 +94,7 @@ class UserModel(BaseModel):
                 return value
         return value
 
+
 class CustomAreaModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -101,6 +103,7 @@ class CustomAreaModel(BaseModel):
     geometry: Polygon
     created_at: datetime
     updated_at: datetime
+
 
 class CustomAreaCreate(BaseModel):
     name: str

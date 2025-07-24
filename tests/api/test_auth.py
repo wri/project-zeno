@@ -5,7 +5,6 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from fastapi import FastAPI
 from contextlib import contextmanager
 
 # Import the API app directly from the src package
@@ -13,6 +12,7 @@ from src.api import app as api
 
 # Use the original app with its dependencies and middleware
 client = TestClient(api.app)
+
 
 @contextmanager
 def domain_allowlist(domains: str):
@@ -28,6 +28,7 @@ def domain_allowlist(domains: str):
             os.environ["DOMAINS_ALLOWLIST"] = original
         else:
             del os.environ["DOMAINS_ALLOWLIST"]
+
 
 # Mock user responses for different scenarios
 MOCK_AUTHORIZED_USER = {
@@ -54,6 +55,7 @@ MOCK_UNAUTHORIZED_USER = {
     "updatedAt": "2024-01-01T00:00:00Z"
 }
 
+
 def mock_rw_api_response(user_data):
     """Helper to create a mock response object."""
     class MockResponse:
@@ -67,17 +69,19 @@ def mock_rw_api_response(user_data):
 
     return MockResponse(user_data, 200)
 
+
 @pytest.fixture(autouse=True)
 def clear_cache():
     """Clear the user info cache before each test."""
     api._user_info_cache.clear()
+
 
 @pytest.mark.parametrize("user_data,expected_status,expected_error", [
     (MOCK_AUTHORIZED_USER, 200, None),  # developmentseed.org user should succeed
     (MOCK_ALTERNATE_DOMAIN_USER, 200, None),  # wri.org user should succeed
     (MOCK_UNAUTHORIZED_USER, 403, "User not allowed to access this API"),  # unauthorized domain should fail
 ])
-def test_email_domain_authorization(user_data, expected_status, expected_error, db_session: Session):
+def test_email_domain_authorization(user_data, expected_status, expected_error):
     """Test that only users with allowed email domains can access the API."""
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch('requests.get') as mock_get:
@@ -90,9 +94,9 @@ def test_email_domain_authorization(user_data, expected_status, expected_error, 
                 "/api/auth/me",
                 headers={"Authorization": "Bearer test-token"}
             )
-        
+
         assert response.status_code == expected_status
-        
+
         if expected_error:
             assert expected_error in response.json()["detail"]
         else:
@@ -102,7 +106,8 @@ def test_email_domain_authorization(user_data, expected_status, expected_error, 
             assert user_response["email"] == user_data["email"]
             assert user_response["name"] == user_data["name"]
 
-def test_missing_bearer_token(db_session: Session):
+
+def test_missing_bearer_token():
     """Test that requests without a Bearer token are rejected."""
     with domain_allowlist("developmentseed.org,wri.org"):
         response = client.get(
@@ -113,7 +118,7 @@ def test_missing_bearer_token(db_session: Session):
         assert "Missing Bearer token" in response.json()["detail"]
 
 
-def test_missing_authorization_header(db_session: Session):
+def test_missing_authorization_header():
     """Test that requests without an Authorization header are rejected."""
     os.environ["DOMAINS_ALLOWLIST"] = "developmentseed.org,wri.org"
     response = client.get("/api/auth/me")  # No Authorization header
