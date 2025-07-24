@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from fastapi import FastAPI
 
 from contextlib import contextmanager
 
@@ -69,7 +70,7 @@ def mock_rw_api_response(user_data):
 
     return MockResponse(user_data, 200)
 
-
+ 
 @pytest.fixture(autouse=True)
 def clear_cache():
     """Clear the user info cache before each test."""
@@ -106,7 +107,7 @@ def test_email_domain_authorization(user_data, expected_status, expected_error):
             assert user_response["email"] == user_data["email"]
             assert user_response["name"] == user_data["name"]
 
-
+            
 def test_missing_bearer_token():
     """Test that requests without a Bearer token are rejected."""
     with domain_allowlist("developmentseed.org,wri.org"):

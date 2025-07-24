@@ -125,41 +125,37 @@ def replay_chat(thread_id):
         # so that we essentially just render the diff of the state
         # from one checkpoint to the next (in order to maintain the
         # correct ordering of messages and state updates)
-        rendered_state_elements = {}
-        rendered_messages = []
+        rendered_state_elements = {"messages": []}
 
         for checkpoint in checkpoints:
-            # Render messages
+
+            update = {"messages": []}
+
             for message in checkpoint.values.get("messages", []):
                 # Assert that message has content, and hasn't already been rendered
-                if message.id in rendered_messages or not message.content:
+                if (
+                    message.id in rendered_state_elements["messages"]
+                    or not message.content
+                ):
                     continue
-                rendered_messages.append(message.id)
+                rendered_state_elements["messages"].append(message.id)
 
-                # set correct type for node
-                node = "human" if message.type == "human" else "agent"
-
-                yield pack({"node": node, "update": dumps({"messages": [message]})})
+                update["messages"].append(message)
 
             # Render the rest of the state updates
             for key, value in checkpoint.values.items():
-                # skip rendering messages again
+
                 if key == "messages":
-                    continue
+                    continue  # Skip messages, already handled above
+
                 # Skip if this state element has already been rendered
                 if value in rendered_state_elements.setdefault(key, []):
                     continue
                 rendered_state_elements[key].append(value)
 
-                # In the original stream, the state updates are sent along side
-                # the messages at the moment in which they occur, however in the
-                # checkpoint the state updates and messages are both stored in
-                # the checkpoint values dict so we need to yield them with an empty
-                # messages list to ensure the frontend doesn't trip up
+                update[key] = value
 
-                yield pack(
-                    {"node": "agent", "update": dumps({"messages": [], key: value})}
-                )
+            yield pack({"node": "agent", "update": dumps(update)})
 
     except Exception as e:
         logger.exception("Error during chat replay: %s", e)
@@ -452,6 +448,48 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     except Exception as e:
         logger.exception("Replay failed", thread_id=thread_id)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class ThreadUpdateRequest(BaseModel):
+    name: Optional[str] = Field(None, description="The name of the thread")
+
+
+@app.patch("/api/threads/{thread_id}", response_model=ThreadModel)
+def update_thread(
+    thread_id: str, request: ThreadUpdateRequest, user: UserModel = Depends(fetch_user)
+):
+    """
+    Requires Authorization
+    """
+
+    with SessionLocal() as db:
+        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        for key, value in request.model_dump().items():
+            setattr(thread, key, value)
+        db.commit()
+        db.refresh(thread)
+        return ThreadModel.model_validate(thread)
+
+
+@app.delete("/api/threads/{thread_id}", status_code=204)
+def delete_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
+    """
+    Requires Authorization
+    """
+
+    checkpointer.delete_thread(thread_id)
+
+    with SessionLocal() as db:
+        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        db.delete(thread)
+        db.commit()
+        return {"detail": "Thread deleted successfully"}
 
 
 @app.get("/api/auth/me", response_model=UserModel)
