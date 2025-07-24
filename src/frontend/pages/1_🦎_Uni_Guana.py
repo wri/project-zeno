@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime
 
@@ -116,5 +117,12 @@ if user_input := st.chat_input(
             ui_context=ui_context,
             thread_id=st.session_state.session_id,
         ):
-
+            # Handle trace_info node to capture trace ID
+            if stream.get("node") == "trace_info":
+                update = json.loads(stream["update"])
+                if "trace_id" in update:
+                    st.session_state.current_trace_id = update["trace_id"]
+                    st.success(f"🔍 Trace ID: {update['trace_id']}")
+                continue
+            
             render_stream(stream)
