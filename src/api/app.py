@@ -12,7 +12,7 @@ from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
 import requests
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 import structlog
 
@@ -441,6 +441,14 @@ class ThreadUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, description="The name of the thread")
 
 
+class GeometryResponse(BaseModel):
+    name: str = Field(..., description="Name of the geometry")
+    # subtype: str = Field(..., description="Subtype of the geometry")
+    source: str = Field(..., description="Source of the geometry")
+    src_id: int = Field(..., description="Source ID of the geometry")
+    geometry: dict = Field(..., description="GeoJSON geometry")
+
+
 @app.patch("/api/threads/{thread_id}", response_model=ThreadModel)
 def update_thread(
     thread_id: str, request: ThreadUpdateRequest, user: UserModel = Depends(fetch_user)
@@ -477,6 +485,74 @@ def delete_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
         db.delete(thread)
         db.commit()
         return {"detail": "Thread deleted successfully"}
+
+
+@app.get("/api/geometry/{source}/{src_id}", response_model=GeometryResponse)
+async def get_geometry(source: str, src_id: int):
+    """
+    Get geometry data by source and source ID.
+
+    Args:
+        source: Source type (gadm, kba, landmark, wdpa)
+        src_id: Source-specific ID
+        user: Authenticated user
+
+    Returns:
+        Geometry data with name, subtype, and GeoJSON geometry
+    """
+    # Define table and column mappings
+    source_mappings = {
+        "gadm": {"table": "geometries_gadm", "id_column": "gadm_id"},
+        "kba": {"table": "geometries_kba", "id_column": "id"},
+        "landmark": {"table": "geometries_landmark", "id_column": "landmark_id"},
+        "wdpa": {"table": "geometries_wdpa", "id_column": "wdpa_id"},
+    }
+
+    if source not in source_mappings:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid source: {source}. Must be one of: {', '.join(source_mappings.keys())}",
+        )
+
+    table_name = source_mappings[source]["table"]
+    id_column = source_mappings[source]["id_column"]
+
+    sql_query = f"""
+        SELECT name, ST_AsGeoJSON(geometry) as geometry_json
+        FROM {table_name}
+        WHERE {id_column} = :src_id
+    """
+
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(sql_query), {"src_id": src_id}).fetchone()
+
+        if not result:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Geometry not found for source '{source}' with ID {src_id}",
+            )
+
+        # Parse GeoJSON string
+        try:
+            geometry = (
+                json.loads(result.geometry_json) if result.geometry_json else None
+            )
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse GeoJSON for {source}:{src_id}")
+            geometry = None
+
+        return GeometryResponse(
+            name=result.name,
+            # subtype=result.subtype,
+            source=source,
+            src_id=src_id,
+            geometry=geometry,
+        )
+
+    except Exception as e:
+        logger.exception(f"Error fetching geometry for {source}:{src_id}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/auth/me", response_model=UserModel)
