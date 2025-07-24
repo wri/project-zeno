@@ -50,6 +50,8 @@ load_environment_variables()
 
 DATABASE_URL = os.environ["DATABASE_URL"].replace(
     "postgresql+psycopg://", "postgresql://"
+).replace(
+    "postgresql+asyncpg://", "postgresql://"
 )
 
 

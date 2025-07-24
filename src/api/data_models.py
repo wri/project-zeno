@@ -4,11 +4,12 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, alias_generators, field_validator
 from sqlalchemy import Column, DateTime, ForeignKey, String
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import DeclarativeBase, relationship
 
-Base = declarative_base()
-
+class Base(DeclarativeBase):
+    """Base class for all SQLAlchemy models"""
+    pass
 
 class UserOrm(Base):
     __tablename__ = "users"
@@ -19,7 +20,6 @@ class UserOrm(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.now())
     updated_at = Column(DateTime, nullable=False, default=datetime.now())
     threads = relationship("ThreadOrm", back_populates="user")
-
 
 class ThreadOrm(Base):
     __tablename__ = "threads"
@@ -37,7 +37,6 @@ class ThreadOrm(Base):
     name = Column(String, nullable=False, default="Unnamed Thread")
     user = relationship("UserOrm", back_populates="threads", foreign_keys=[user_id])
 
-
 class ThreadModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -46,7 +45,6 @@ class ThreadModel(BaseModel):
     name: str
     created_at: datetime
     updated_at: datetime
-
 
 class UserModel(BaseModel):
     model_config = ConfigDict(

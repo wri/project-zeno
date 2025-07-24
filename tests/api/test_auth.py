@@ -2,17 +2,14 @@
 import os
 import pytest
 from unittest.mock import patch
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import FastAPI
 from contextlib import contextmanager
 
 # Import the API app directly from the src package
 from src.api import app as api
-
-# Use the original app with its dependencies and middleware
-client = TestClient(api.app)
 
 @contextmanager
 def domain_allowlist(domains: str):
@@ -34,24 +31,24 @@ MOCK_AUTHORIZED_USER = {
     "id": "test-user-1",
     "name": "Test User",
     "email": "test@developmentseed.org",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
 }
 
 MOCK_ALTERNATE_DOMAIN_USER = {
     "id": "test-user-2",
     "name": "WRI User",
     "email": "test@wri.org",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
 }
 
 MOCK_UNAUTHORIZED_USER = {
     "id": "test-user-3",
     "name": "Unauthorized User",
     "email": "test@unauthorized.com",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
 }
 
 def mock_rw_api_response(user_data):
@@ -77,7 +74,8 @@ def clear_cache():
     (MOCK_ALTERNATE_DOMAIN_USER, 200, None),  # wri.org user should succeed
     (MOCK_UNAUTHORIZED_USER, 403, "User not allowed to access this API"),  # unauthorized domain should fail
 ])
-def test_email_domain_authorization(user_data, expected_status, expected_error, db_session: Session):
+@pytest.mark.asyncio
+async def test_email_domain_authorization(user_data, expected_status, expected_error, db_session: AsyncSession):
     """Test that only users with allowed email domains can access the API."""
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch('requests.get') as mock_get:
@@ -85,11 +83,12 @@ def test_email_domain_authorization(user_data, expected_status, expected_error, 
             mock_response = mock_rw_api_response(user_data)
             mock_get.return_value = mock_response
             
-            # Test the auth endpoint
-            response = client.get(
-                "/api/auth/me",
-                headers={"Authorization": "Bearer test-token"}
-            )
+            # Test the auth endpoint using async client
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api.app), base_url="http://test") as client:
+                response = await client.get(
+                    "/api/auth/me",
+                    headers={"Authorization": "Bearer test-token"}
+                )
         
         assert response.status_code == expected_status
         
@@ -102,19 +101,23 @@ def test_email_domain_authorization(user_data, expected_status, expected_error, 
             assert user_response["email"] == user_data["email"]
             assert user_response["name"] == user_data["name"]
 
-def test_missing_bearer_token(db_session: Session):
+@pytest.mark.asyncio
+async def test_missing_bearer_token(db_session: AsyncSession):
     """Test that requests without a Bearer token are rejected."""
     with domain_allowlist("developmentseed.org,wri.org"):
-        response = client.get(
-            "/api/auth/me",
-            headers={"Authorization": "test-token"}  # Missing "Bearer" prefix
-        )
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api.app), base_url="http://test") as client:
+            response = await client.get(
+                "/api/auth/me",
+                headers={"Authorization": "test-token"}  # Missing "Bearer" prefix
+            )
         assert response.status_code == 401
         assert "Missing Bearer token" in response.json()["detail"]
 
 
-def test_missing_authorization_header(db_session: Session):
+@pytest.mark.asyncio
+async def test_missing_authorization_header(db_session: AsyncSession):
     """Test that requests without an Authorization header are rejected."""
     os.environ["DOMAINS_ALLOWLIST"] = "developmentseed.org,wri.org"
-    response = client.get("/api/auth/me")  # No Authorization header
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api.app), base_url="http://test") as client:
+        response = await client.get("/api/auth/me")  # No Authorization header
     assert response.status_code == 422  # FastAPI validation error

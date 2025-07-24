@@ -43,6 +43,10 @@ def run_migrations_offline() -> None:
 
     """
     url = os.environ["DATABASE_URL"]
+    
+    # Convert async postgresql URLs to sync for alembic migrations
+    if "+asyncpg://" in url:
+        url = url.replace("+asyncpg://", "+psycopg://")
 
     context.configure(
         url=url,
@@ -64,6 +68,10 @@ def run_migrations_online() -> None:
     """
 
     url = os.environ["DATABASE_URL"]
+    
+    # Convert async postgresql URLs to sync for alembic migrations
+    if "+asyncpg://" in url:
+        url = url.replace("+asyncpg://", "+psycopg://")
 
     connectable = create_engine(url)
 
