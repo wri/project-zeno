@@ -252,6 +252,16 @@ def stream_chat(
                 )
                 # Continue processing other updates if possible
                 continue
+        
+        # Send trace ID after stream completes
+        trace_id = getattr(langfuse_handler, 'last_trace_id', None)
+        if trace_id:
+            yield pack(
+                {
+                    "node": "trace_info",
+                    "update": dumps({"trace_id": trace_id}),
+                }
+            )
 
     except Exception as e:
         logger.exception("Error during chat streaming: %s", e)
