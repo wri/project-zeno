@@ -8,8 +8,7 @@ from geojson_pydantic import Polygon
 from pydantic import BaseModel, ConfigDict, alias_generators, field_validator
 from sqlalchemy import Column, DateTime, ForeignKey, String, text
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
 

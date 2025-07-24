@@ -15,7 +15,7 @@ jobs:
         uses: huaxk/postgis-action@v1.0.0
         with:
           postgresql version: latest
-          postgresql db: zeno-data_test
+          postgresql db: zeno-data
           postgresql user: postgres
           postgresql password: postgres
 
@@ -39,7 +39,8 @@ jobs:
 
       - name: Run API tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/zeno-data
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/zeno-data
+          TEST_DB_URL: postgresql+psycopg://postgres:postgres@localhost:5432/zeno-data
           DOMAINS_ALLOWLIST: developmentseed.org,wri.org
           OPENAI_API_KEY: fake-key-for-testing
           ANTHROPIC_API_KEY: fake-key-for-testing

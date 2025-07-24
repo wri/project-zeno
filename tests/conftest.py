@@ -6,9 +6,23 @@ from sqlalchemy.orm import sessionmaker
 
 from src.api.data_models import Base
 
+from src.api.app import app, get_session
+
 # Test database settings
-TEST_DB_URL = f"{os.getenv('DATABASE_URL')}_test"
+if (os.getenv('TEST_DATABASE_URL')):
+    TEST_DB_URL = os.getenv("TEST_DATABASE_URL")
+else:
+    TEST_DB_URL = f"{os.getenv('DATABASE_URL')}_test"
 ENGINE = create_engine(TEST_DB_URL)
+Session = sessionmaker(bind=ENGINE, expire_on_commit=False)
+
+
+def get_session_override():
+    with Session() as session:
+        yield session  # Run the tests
+
+
+app.dependency_overrides[get_session] = get_session_override
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -16,9 +30,7 @@ def test_db():
     """Create test database and clear it after each test."""
     # Set up test database
     Base.metadata.create_all(bind=ENGINE)
-
-    yield  # Run the tests
-
+    yield
     # Clean databases
     Base.metadata.drop_all(bind=ENGINE)
 

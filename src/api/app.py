@@ -288,7 +288,13 @@ def stream_chat(
 DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "")
 DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def get_session():
+    Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    with Session(engine) as session:
+        yield session
+
 
 # LRU cache for user info, keyed by token
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
@@ -343,27 +349,28 @@ def fetch_user_from_rw_api(
     return UserModel.model_validate(user_info)
 
 
-async def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
+async def fetch_user(
+    user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
+):
     """
     Requires Authorization
     """
 
-    with SessionLocal() as db:
-        user = db.query(UserOrm).filter_by(id=user_info.id).first()
-        if not user:
-            user = UserOrm(**user_info.model_dump())
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-        # Convert to Pydantic model while session is open
-        user_model = UserModel.model_validate(user)
-        # Bind user info to request context for logging
-        bind_request_logging_context(user_id=user_model.id)
-        return user_model
+    user = session.query(UserOrm).filter_by(id=user_info.id).first()
+    if not user:
+        user = UserOrm(**user_info.model_dump())
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+    # Convert to Pydantic model while session is open
+    user_model = UserModel.model_validate(user)
+    # Bind user info to request context for logging
+    bind_request_logging_context(user_id=user_model.id)
+    return user_model
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
+async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user), SessionLocal = Depends(get_session)):
     """
     Chat endpoint for Zeno.
 
@@ -415,7 +422,9 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
 
 
 @app.get("/api/threads", response_model=list[ThreadModel])
-def list_threads(user: UserModel = Depends(fetch_user)):
+def list_threads(
+    user: UserModel = Depends(fetch_user), SessionLocal=Depends(get_session)
+):
     """
     Requires Authorization
     """
@@ -426,7 +435,11 @@ def list_threads(user: UserModel = Depends(fetch_user)):
 
 
 @app.get("/api/threads/{thread_id}")
-def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
+def get_thread(
+    thread_id: str,
+    user: UserModel = Depends(fetch_user),
+    SessionLocal=Depends(get_session),
+):
     """
     Requires Authorization
     """
@@ -456,7 +469,10 @@ class ThreadUpdateRequest(BaseModel):
 
 @app.patch("/api/threads/{thread_id}", response_model=ThreadModel)
 def update_thread(
-    thread_id: str, request: ThreadUpdateRequest, user: UserModel = Depends(fetch_user)
+    thread_id: str,
+    request: ThreadUpdateRequest,
+    user: UserModel = Depends(fetch_user),
+    SessionLocal=Depends(get_session),
 ):
     """
     Requires Authorization
@@ -475,7 +491,11 @@ def update_thread(
 
 
 @app.delete("/api/threads/{thread_id}", status_code=204)
-def delete_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
+def delete_thread(
+    thread_id: str,
+    user: UserModel = Depends(fetch_user),
+    SessionLocal=Depends(get_session),
+):
     """
     Requires Authorization
     """
@@ -501,10 +521,12 @@ async def auth_me(user: UserModel = Depends(fetch_user)):
 
     return user
 
+
 @app.post("/api/custom_areas/")
 def create_custom_area(
     area: CustomAreaCreate,
-    user: UserModel = Depends(fetch_user)
+    user: UserModel = Depends(fetch_user),
+    SessionLocal=Depends(get_session),
 ):
     """Create a new custom area for the authenticated user."""
     with SessionLocal() as db:
@@ -525,8 +547,11 @@ def create_custom_area(
         result = custom_area.id
         return result
 
+
 @app.get("/api/custom_areas/", response_model=list[CustomAreaModel])
-def list_custom_areas(user: UserModel = Depends(fetch_user)):
+def list_custom_areas(
+    user: UserModel = Depends(fetch_user), SessionLocal=Depends(get_session)
+):
     """List all custom areas belonging to the authenticated user."""
     with SessionLocal() as db:
         areas = db.query(CustomAreaOrm).filter_by(user_id=user.id).all()
@@ -539,10 +564,12 @@ def list_custom_areas(user: UserModel = Depends(fetch_user)):
             results.append(area)
         return results
 
+
 @app.get("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
 def get_custom_area(
     area_id: UUID,
-    user: UserModel = Depends(fetch_user)
+    user: UserModel = Depends(fetch_user),
+    SessionLocal=Depends(get_session),
 ):
     """Get a specific custom area by ID."""
     with SessionLocal() as db:
@@ -558,11 +585,13 @@ def get_custom_area(
         result.geometry = mapping(shape_geom)
         return result
 
+
 @app.patch("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
 def update_custom_area_name(
     area_id: UUID,
     name: str,
-    user: UserModel = Depends(fetch_user)
+    user: UserModel = Depends(fetch_user),
+    SessionLocal=Depends(get_session),
 ):
     """Update the name of a custom area."""
     with SessionLocal() as db:
@@ -579,10 +608,12 @@ def update_custom_area_name(
         result.geometry = mapping(shape_geom)
         return result
 
+
 @app.delete("/api/custom_areas/{area_id}", status_code=204)
 def delete_custom_area(
     area_id: UUID,
-    user: UserModel = Depends(fetch_user)
+    user: UserModel = Depends(fetch_user),
+    SessionLocal=Depends(get_session),
 ):
     """Delete a custom area."""
     with SessionLocal() as db:
