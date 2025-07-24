@@ -142,7 +142,15 @@ def replay_chat(thread_id):
 
                 update[key] = value
 
-            yield pack({"node": "agent", "update": dumps(update)})
+            mtypes = set(m.type for m in update["messages"])
+
+            node_type = (
+                "agent"
+                if mtypes == {"ai"} or len(mtypes) > 1
+                else "tools" if mtypes == {"tool"} else "human"
+            )
+
+            yield pack({"node": node_type, "update": dumps(update)})
 
     except Exception as e:
         logger.exception("Error during chat replay: %s", e)

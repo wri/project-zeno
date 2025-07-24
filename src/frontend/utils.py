@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import altair as alt
-import datetime
+from datetime import datetime
 import folium
 import pandas as pd
 from shapely.geometry import shape
