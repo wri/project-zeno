@@ -282,11 +282,14 @@ AsyncSessionLocal = sessionmaker(class_=AsyncSession, expire_on_commit=False, bi
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
-@cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
     authorization: str = Header(...),
     domains_allowlist: Optional[str] = DOMAINS_ALLOWLIST,
 ) -> UserModel:
+    # Check cache first
+    cache_key = f"{authorization}:{domains_allowlist}"
+    if cache_key in _user_info_cache:
+        return _user_info_cache[cache_key]
     if not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -328,7 +331,10 @@ def fetch_user_from_rw_api(
             detail="User not allowed to access this API",
         )
 
-    return UserModel.model_validate(user_info)
+    user_model = UserModel.model_validate(user_info)
+    # Cache the result
+    _user_info_cache[cache_key] = user_model
+    return user_model
 
 
 async def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
