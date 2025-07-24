@@ -526,26 +526,23 @@ async def auth_me(user: UserModel = Depends(fetch_user)):
 def create_custom_area(
     area: CustomAreaCreate,
     user: UserModel = Depends(fetch_user),
-    SessionLocal=Depends(get_session),
+    session=Depends(get_session),
 ):
     """Create a new custom area for the authenticated user."""
-    with SessionLocal() as db:
-        # Convert GeoJSON to PostGIS geometry
-        geom = shape(area.geometry)
-        custom_area = CustomAreaOrm(
-            user_id=user.id,
-            name=area.name,
-            geometry=from_shape(geom, srid=4326)
-        )
-        db.add(custom_area)
-        db.commit()
-        db.refresh(custom_area)
+    # Convert GeoJSON to PostGIS geometry
+    geom = shape(area.geometry)
+    custom_area = CustomAreaOrm(
+        user_id=user.id,
+        name=area.name,
+        geometry=from_shape(geom, srid=4326)
+    )
+    session.add(custom_area)
+    session.commit()
+    session.refresh(custom_area)
 
-        logger.info(f"Created custom area: {custom_area.id} for user: {user.id}")
-        logger.info(f"Custom area details: {custom_area}")
-        # Convert PostGIS geometry back to GeoJSON for response
-        result = custom_area.id
-        return result
+    logger.info(f"Created custom area: {custom_area.id} for user: {user.id}")
+    logger.info(f"Custom area details: {custom_area}")
+    return {"id": custom_area.id}
 
 
 @app.get("/api/custom_areas/", response_model=list[CustomAreaModel])

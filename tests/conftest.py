@@ -7,7 +7,8 @@ from sqlalchemy.orm import sessionmaker
 
 from src.api.data_models import Base
 
-from src.api.app import app, get_session
+from src.api.app import app, get_session, fetch_user_from_rw_api
+from src.api.data_models import UserOrm, UserModel
 
 # Test database settings
 if (os.getenv('TEST_DATABASE_URL')):
@@ -62,3 +63,29 @@ def test_db_session():
     yield ENGINE
     ENGINE.dispose()
     clear_tables()
+
+
+@pytest.fixture(scope="session")
+def user(username, session):
+    with get_session_override() as session:
+        user = UserOrm(
+            name=username,
+            email="admin@wri.org",
+        )
+        session.add(user)
+        session.commit()
+
+
+def set_wri_user():
+    return UserModel.model_validate({
+        "id": "test-user-2",
+        "name": "WRI User",
+        "email": "test@wri.org",
+        "createdAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
+    })
+
+
+@pytest.fixture(scope="function")
+def wri_user():
+    app.dependency_overrides[fetch_user_from_rw_api] = set_wri_user
