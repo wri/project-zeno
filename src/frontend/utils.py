@@ -451,8 +451,6 @@ def render_stream(stream):
         charts_data = update["charts_data"]
         render_charts(charts_data)
 
-
-
     with st.expander("State Updates"):
         for key, value in update.items():
             if key == "messages" or key == "aoi":
