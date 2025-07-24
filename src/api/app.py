@@ -12,8 +12,9 @@ from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
 import requests
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker, selectinload
+from sqlalchemy import select
 import structlog
 
 from src.agents.agents import zeno, checkpointer
@@ -274,8 +275,8 @@ def stream_chat(
 
 DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "")
 DATABASE_URL = os.environ["DATABASE_URL"]
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_async_engine(DATABASE_URL.replace('postgresql://', 'postgresql+asyncpg://'))
+AsyncSessionLocal = sessionmaker(class_=AsyncSession, expire_on_commit=False, bind=engine)
 
 # LRU cache for user info, keyed by token
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
@@ -335,14 +336,20 @@ async def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
     Requires Authorization
     """
 
-    with SessionLocal() as db:
-        user = db.query(UserOrm).filter_by(id=user_info.id).first()
+    async with AsyncSessionLocal() as db:
+        stmt = select(UserOrm).filter_by(id=user_info.id).options(
+            selectinload(UserOrm.threads)
+        )
+        result = await db.execute(stmt)
+        user = result.scalar()
         if not user:
             user = UserOrm(**user_info.model_dump())
             db.add(user)
-            db.commit()
-            db.refresh(user)
-        # Convert to Pydantic model while session is open
+            await db.commit()
+            await db.refresh(user)
+            # Explicitly load relationships after refresh
+            await db.refresh(user, ['threads'])
+
         user_model = UserModel.model_validate(user)
         # Bind user info to request context for logging
         bind_request_logging_context(user_id=user_model.id)
@@ -364,17 +371,20 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
     bind_request_logging_context(
         thread_id=request.thread_id, session_id=request.session_id, query=request.query
     )
-    with SessionLocal() as db:
-        thread = (
-            db.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).options(
+                selectinload(ThreadOrm.user)
+            )
         )
+        thread = result.scalar()
         if not thread:
             thread = ThreadOrm(
                 id=request.thread_id, user_id=user.id, agent_id="UniGuana"
             )
             db.add(thread)
-            db.commit()
-            db.refresh(thread)
+            await db.commit()
+            await db.refresh(thread)
 
     try:
         return StreamingResponse(
@@ -402,24 +412,33 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
 
 
 @app.get("/api/threads", response_model=list[ThreadModel])
-def list_threads(user: UserModel = Depends(fetch_user)):
+async def list_threads(user: UserModel = Depends(fetch_user)):
     """
     Requires Authorization
     """
 
-    with SessionLocal() as db:
-        threads = db.query(ThreadOrm).filter_by(user_id=user.id).all()
-        return [ThreadModel.model_validate(thread) for thread in threads]
+    async with AsyncSessionLocal() as db:
+        stmt = select(ThreadOrm).filter_by(user_id=user.id).options(
+            selectinload(ThreadOrm.user)
+        )
+        result = await db.execute(stmt)
+        threads = result.scalars().all()
+        return [ThreadModel.model_validate(thread_dict) for thread_dict in threads]
 
 
 @app.get("/api/threads/{thread_id}")
-def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
+async def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     """
     Requires Authorization
     """
 
-    with SessionLocal() as db:
-        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(ThreadOrm).filter_by(user_id=user.id, id=thread_id).options(
+                selectinload(ThreadOrm.user)
+            )
+        )
+        thread = result.scalar()
         if not thread:
             logger.warning("Thread not found", thread_id=thread_id)
             raise HTTPException(status_code=404, detail="Thread not found")
@@ -442,40 +461,47 @@ class ThreadUpdateRequest(BaseModel):
 
 
 @app.patch("/api/threads/{thread_id}", response_model=ThreadModel)
-def update_thread(
+async def update_thread(
     thread_id: str, request: ThreadUpdateRequest, user: UserModel = Depends(fetch_user)
 ):
     """
     Requires Authorization
     """
 
-    with SessionLocal() as db:
-        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
+        )
+        thread = result.scalar()
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
 
         for key, value in request.model_dump().items():
             setattr(thread, key, value)
-        db.commit()
-        db.refresh(thread)
+        await db.commit()
+        await db.refresh(thread)
+
         return ThreadModel.model_validate(thread)
 
 
 @app.delete("/api/threads/{thread_id}", status_code=204)
-def delete_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
+async def delete_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     """
     Requires Authorization
     """
 
     checkpointer.delete_thread(thread_id)
 
-    with SessionLocal() as db:
-        thread = db.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
+        )
+        thread = result.scalar()
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
 
-        db.delete(thread)
-        db.commit()
+        await db.delete(thread)
+        await db.commit()
         return {"detail": "Thread deleted successfully"}
 
 
