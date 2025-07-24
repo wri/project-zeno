@@ -34,24 +34,24 @@ MOCK_AUTHORIZED_USER = {
     "id": "test-user-1",
     "name": "Test User",
     "email": "test@developmentseed.org",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
 }
 
 MOCK_ALTERNATE_DOMAIN_USER = {
     "id": "test-user-2",
     "name": "WRI User",
     "email": "test@wri.org",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
 }
 
 MOCK_UNAUTHORIZED_USER = {
     "id": "test-user-3",
     "name": "Unauthorized User",
     "email": "test@unauthorized.com",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+    "createdAt": "2024-01-01T00:00:00",
+    "updatedAt": "2024-01-01T00:00:00"
 }
 
 def mock_rw_api_response(user_data):

@@ -37,7 +37,6 @@ dependencies = [
     "langchain-anthropic>=0.3.15",
     "pylate>=1.2.0",
     "s3fs>=2025.3.0",
-    "psycopg2-binary>=2.9.10",
     "pandas>=2.2.0",
     "tabulate>=0.9.0",
     "setuptools>=80.9.0",
@@ -52,6 +51,7 @@ dev = [
     "pre-commit>=4.0.1",
     "ruff>=0.7.3",
     "pytest>=8.3.3",
+    "pytest-asyncio>=0.23.0",
     "matplotlib>=3.9.2",
     "geopandas>=1.0.1",
     "lancedb>=0.23.0",
@@ -82,6 +82,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.uv]
 default-groups = ["dev", "frontend"]
