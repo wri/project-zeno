@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date
@@ -26,6 +27,9 @@ from src.agents.agents import checkpointer, zeno, zeno_anonymous
 from src.api.data_models import (
     CustomAreaOrm,
     DailyUsageOrm,
+    RatingCreateRequest,
+    RatingModel,
+    RatingOrm,
     ThreadOrm,
     UserOrm,
     UserType,
@@ -851,6 +855,77 @@ async def get_geometry(
     except Exception as e:
         logger.exception(f"Error fetching geometry for {source}:{src_id}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ratings", response_model=RatingModel)
+async def create_or_update_rating(
+    request: RatingCreateRequest, 
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Create or update a rating for a trace in a thread.
+    Requires Authorization
+    """
+    # Verify the thread exists and belongs to the user
+    stmt = select(ThreadOrm).filter_by(
+        id=request.thread_id, user_id=user.id
+    )
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
+    if not thread:
+        raise HTTPException(
+            status_code=404, 
+            detail="Thread not found or access denied"
+        )
+
+    # Check if rating already exists (upsert logic)
+    stmt = select(RatingOrm).filter_by(
+        user_id=user.id,
+        thread_id=request.thread_id,
+        trace_id=request.trace_id
+    )
+    result = await session.execute(stmt)
+    existing_rating = result.scalars().first()
+
+    if existing_rating:
+        # Update existing rating
+        existing_rating.rating = request.rating
+        existing_rating.updated_at = datetime.now()
+        await session.commit()
+        await session.refresh(existing_rating)
+        
+        logger.info(
+            "Rating updated",
+            user_id=user.id,
+            thread_id=request.thread_id,
+            trace_id=request.trace_id,
+            rating=request.rating
+        )
+        
+        return RatingModel.model_validate(existing_rating)
+    else:
+        # Create new rating
+        new_rating = RatingOrm(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            thread_id=request.thread_id,
+            trace_id=request.trace_id,
+            rating=request.rating
+        )
+        session.add(new_rating)
+        await session.commit()
+        await session.refresh(new_rating)
+        
+        logger.info(
+            "Rating created",
+            user_id=user.id,
+            thread_id=request.thread_id,
+            trace_id=request.trace_id,
+            rating=request.rating
+        )
+        
+        return RatingModel.model_validate(new_rating)
 
 
 @app.get("/api/auth/me", response_model=UserModel)
