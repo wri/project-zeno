@@ -28,6 +28,7 @@ dataset_names = {
     "DIST-ALERT": "DIST-ALERT",
 }
 
+
 class DataPullResult(BaseModel):
     """Result of a data pull operation"""
 
@@ -46,7 +47,7 @@ class DataSourceHandler(ABC):
         pass
 
     @abstractmethod
-    def pull_data(
+    async def pull_data(
         self,
         query: str,
         aoi: Dict,
