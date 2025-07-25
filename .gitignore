@@ -187,7 +187,7 @@ ee-zeno-service-account.json
 *database_data*
 
 # Logs
-laogs/
+logs/
 
 # file gets mounted inside docker container
 src/frontend/client.py
