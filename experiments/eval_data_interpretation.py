@@ -139,21 +139,32 @@ def _extract_final_response(messages):
 def evaluate_answer(
     conversation: dict, user_query: str, golden_answer: dict, chat_model
 ) -> EvaluationResult:
-    """Evaluate if the agent accessed the correct dataset.
+    """Evaluate the agent's final response and reasoning.
 
-    This evaluation focuses exclusively on whether the agent's conversation trace
-    shows a tool call to the dataset specified in the golden answer. It does not
-    evaluate parameter correctness or the final response accuracy.
+    This evaluation checks if the agent correctly interpreted the query,
+    performed necessary calculations, and produced a final answer that
+    matches the golden answer. It considers the entire conversation trace.
     """
     # Create a model with structured output
     evaluator = chat_model.with_structured_output(EvaluationResult)
 
-    prompt = f"""As an expert evaluator, your task is to determine if the agent accessed the correct dataset to answer the user's query.
+    prompt = f"""As an expert evaluator, your task is to assess the agent's performance in answering a user query. You must evaluate the entire process, from understanding the query to generating the final response.
 
-Your evaluation must be STRICT:
-- The agent's trace MUST contain at least one tool call to the dataset specified in the "Golden Answer".
-- The name of the tool called by the agent must match the expected dataset.
-- You do NOT need to evaluate the correctness of tool call parameters or the final answer.
+**Evaluation Criteria:**
+
+1.  **Query Interpretation:** Did the agent correctly understand the user's request?
+2.  **Data Retrieval:** Did the agent access the correct dataset(s) and use appropriate parameters? (Refer to the trace for tool calls).
+3.  **Analysis & Calculation:** Did the agent correctly perform any necessary calculations, data slicing, or interpretation of the retrieved data?
+4.  **Reasoning:** Is the agent's reasoning sound and logical?
+5.  **Final Answer:** Does the agent's final answer match the "Golden Answer"? The final answer must be factually correct and directly address the user's query.
+
+**Instructions:**
+
+- Review the full conversation trace, user query, and the golden answer.
+- Compare the agent's `final_response` from the trace with the `answer` in the `<Golden Answer>`.
+- Mark as "pass" ONLY if the agent's final answer is semantically equivalent to the golden answer and the reasoning is sound.
+- Mark as "fail" if the final answer is incorrect, the reasoning is flawed, or the wrong data was used.
+- Provide a brief analysis explaining your decision.
 
 <Trace>
 {json.dumps(conversation)}
@@ -165,9 +176,7 @@ Your evaluation must be STRICT:
 {json.dumps(golden_answer)}
 </Golden Answer>
 
-Review the "assistant_tool_call" events in the trace.
-Mark as "pass" if any tool call matches the dataset in the golden answer. Otherwise, mark as "fail".
-Provide a brief analysis explaining which tool was expected and what was found in the trace.
+Now, evaluate the agent's performance and provide your assessment.
 """
 
     result = evaluator.invoke(prompt)
@@ -226,7 +235,7 @@ for item in active_items:
             root_span.update_trace(input=item.input, output=actual)
 
             root_span.score_trace(
-                name="dataset_identification_score",
+                name="data_interpretation_score",
                 value=score,
                 comment=f"Analysis: {evaluation['analysis']}",
             )
