@@ -518,7 +518,7 @@ async def auth_me(user: UserModel = Depends(fetch_user)):
     return user
 
 
-@app.post("/api/custom_areas/")
+@app.post("/api/custom_areas/", response_model=CustomAreaModel)
 def create_custom_area(
     area: CustomAreaCreate,
     user: UserModel = Depends(fetch_user),
@@ -536,9 +536,14 @@ def create_custom_area(
     session.commit()
     session.refresh(custom_area)
 
-    logger.info(f"Created custom area: {custom_area.id} for user: {user.id}")
-    logger.info(f"Custom area details: {custom_area}")
-    return {"id": custom_area.id}
+    return CustomAreaModel(
+        id=custom_area.id,
+        user_id=custom_area.user_id,
+        name=custom_area.name,
+        created_at=custom_area.created_at,
+        updated_at=custom_area.updated_at,
+        geometry=mapping(to_shape(custom_area.geometry)),
+    )
 
 
 @app.get("/api/custom_areas/", response_model=list[CustomAreaModel])
@@ -572,15 +577,13 @@ def get_custom_area(
     # Convert PostGIS geometry to GeoJSON
     shape_geom = to_shape(area.geometry)
     result.geometry = mapping(shape_geom)
-    shape_geom = to_shape(area.geometry)
-    result.geometry = mapping(shape_geom)
     return result
 
 
 @app.patch("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
 def update_custom_area_name(
     area_id: UUID,
-    name: str,
+    payload: dict,
     user: UserModel = Depends(fetch_user),
     session=Depends(get_session),
 ):
@@ -588,15 +591,18 @@ def update_custom_area_name(
     area = session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
     if not area:
         raise HTTPException(status_code=404, detail="Custom area not found")
-    area.name = name
+    area.name = payload["name"]
     session.commit()
     session.refresh(area)
 
-    result = CustomAreaModel.model_validate(area)
-    # Convert PostGIS geometry to GeoJSON
-    shape_geom = to_shape(area.geometry)
-    result.geometry = mapping(shape_geom)
-    return result
+    return CustomAreaModel(
+        id=area.id,
+        user_id=area.user_id,
+        name=area.name,
+        created_at=area.created_at,
+        updated_at=area.updated_at,
+        geometry=mapping(to_shape(area.geometry))
+    )
 
 
 @app.delete("/api/custom_areas/{area_id}", status_code=204)
