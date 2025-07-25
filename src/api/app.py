@@ -292,7 +292,7 @@ engine = create_engine(DATABASE_URL)
 
 def get_session():
     Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    with Session(engine) as session:
+    with Session() as session:
         yield session
 
 
