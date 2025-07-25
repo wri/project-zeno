@@ -23,6 +23,16 @@ LAYER_SUBTYPES = {
     "ADM_5": "neighbourhood",
 }
 
+# Layer-specific chunk sizes to handle large geometries at higher admin levels
+LAYER_CHUNK_SIZES = {
+    "ADM_0": 100,    # Smallest batch for countries (largest geometries)
+    "ADM_1": 500,    # Small batch for states/provinces
+    "ADM_2": 2000,   # Medium batch for districts/counties
+    "ADM_3": 5000,   # Larger batch for municipalities
+    "ADM_4": 8000,   # Large batch for localities
+    "ADM_5": 10000,  # Largest batch for neighbourhoods (smallest geometries)
+}
+
 
 def download(url: str, dest: str) -> str:
     """Stream-download *url* into *dest* (skips if already present)."""
@@ -101,7 +111,8 @@ def get_unified_schema(gpkg: Path) -> set:
 def ingest_gadm_chunked(
     gpkg: Path, table_name: str = "geometries_gadm", chunk_size: int = 10000
 ) -> None:
-    """Read GADM layers in chunks and ingest directly to PostGIS."""
+    """Read GADM layers in chunks and ingest directly to PostGIS.
+    Uses layer-specific chunk sizes to handle large geometries at higher admin levels."""
     database_url = os.environ["DATABASE_URL"]
     engine = create_engine(database_url)
 
@@ -120,13 +131,17 @@ def ingest_gadm_chunked(
     for layer, subtype in LAYER_SUBTYPES.items():
         print(f"Processing layer {layer}...")
 
+        # Use layer-specific chunk size, fallback to default if not specified
+        layer_chunk_size = LAYER_CHUNK_SIZES.get(layer, chunk_size)
+        print(f"  Using chunk size: {layer_chunk_size} for layer {layer}")
+
         # Get total rows for this layer
         total_rows = len(gpd.read_file(gpkg, layer=layer, rows=0))
         print(f"  Layer {layer} has {total_rows} records")
 
         # Process layer in chunks
-        for start_idx in range(0, total_rows, chunk_size):
-            end_idx = min(start_idx + chunk_size, total_rows)
+        for start_idx in range(0, total_rows, layer_chunk_size):
+            end_idx = min(start_idx + layer_chunk_size, total_rows)
 
             # Read chunk
             chunk = gpd.read_file(gpkg, layer=layer, rows=slice(start_idx, end_idx))
