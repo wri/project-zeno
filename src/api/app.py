@@ -16,7 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import structlog
 
-from src.agents.agents import zeno, checkpointer
+from src.agents.agents import zeno, zeno_async, checkpointer
 from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
 from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
@@ -149,7 +149,7 @@ def replay_chat(thread_id):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def stream_chat(
+async def stream_chat(
     query: str,
     user_persona: Optional[str] = None,
     ui_context: Optional[dict] = None,
@@ -219,14 +219,14 @@ def stream_chat(
     state_updates["user_persona"] = user_persona
 
     try:
-        stream = zeno.stream(
+        stream = zeno_async.astream(
             state_updates,
             config=config,
             stream_mode="updates",
             subgraphs=False,
         )
 
-        for update in stream:
+        async for update in stream:
             try:
                 node = next(iter(update.keys()))
                 yield pack(

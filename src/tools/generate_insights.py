@@ -101,7 +101,7 @@ Return 1 insight if the data is simple/focused, or 2 insights if there are multi
 
 
 @tool
-def generate_insights(
+async def generate_insights(
     query: str,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
@@ -148,7 +148,7 @@ def generate_insights(
         chain = INSIGHT_GENERATION_PROMPT | SONNET.with_structured_output(
             InsightResponse
         )
-        response = chain.invoke({"user_query": query, "raw_data": data_csv})
+        response = await chain.ainvoke({"user_query": query, "raw_data": data_csv})
 
         insights = response.insights
         logger.debug(f"Generated {len(insights)} insights")

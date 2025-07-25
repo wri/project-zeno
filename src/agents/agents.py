@@ -79,10 +79,20 @@ def persistent_checkpointer():
 checkpointer_cm = persistent_checkpointer()
 checkpointer = checkpointer_cm.__enter__()
 
+# Agent with checkpointer (for sync usage)
 zeno = create_react_agent(
     model=SONNET,
     tools=tools,
     state_schema=AgentState,
     prompt=prompt,
     checkpointer=checkpointer,
+)
+
+# Agent without checkpointer (for async usage - avoids PostgresSaver async limitation)
+zeno_async = create_react_agent(
+    model=SONNET,
+    tools=tools,
+    state_schema=AgentState,
+    prompt=prompt,
+    # No checkpointer to avoid async compatibility issues
 )

@@ -142,7 +142,7 @@ class GFWSQLHandler(DataSourceHandler):
     def can_handle(self, dataset: Any, table_name: str) -> bool:
         return table_name != "DIST-ALERT"
 
-    def pull_data(
+    async def pull_data(
         self,
         query: str,
         aoi: Dict,

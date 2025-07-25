@@ -65,7 +65,7 @@ def _get_colbert_retriever_and_model():
     return _retriever_cache["colbert"]
 
 
-def rag_candidate_datasets(query: str, k=3, strategy="openai"):
+async def rag_candidate_datasets(query: str, k=3, strategy="openai"):
     logger.debug(
         f"Retrieving candidate datasets for query: '{query}' using strategy: '{strategy}'"
     )
@@ -73,7 +73,7 @@ def rag_candidate_datasets(query: str, k=3, strategy="openai"):
     match strategy:
         case "openai":
             openai_retriever = _get_openai_retriever()
-            match_documents = openai_retriever.invoke(query)
+            match_documents = await openai_retriever.ainvoke(query)
             for doc in match_documents:
                 candidate_datasets.append(
                     zeno_data[zeno_data.dataset_id == int(doc.id)]
@@ -82,7 +82,7 @@ def rag_candidate_datasets(query: str, k=3, strategy="openai"):
                 )
         case "nomic":
             nomic_retriever = _get_nomic_retriever()
-            match_documents = nomic_retriever.invoke(query)
+            match_documents = await nomic_retriever.ainvoke(query)
             for doc in match_documents:
                 candidate_datasets.append(
                     zeno_data[zeno_data.dataset_id == int(doc.id)]
@@ -115,7 +115,7 @@ def rag_candidate_datasets(query: str, k=3, strategy="openai"):
     return pd.DataFrame(candidate_datasets)
 
 
-def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
+async def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     class DatasetOption(BaseModel):
         id: int = Field(
             description="ID of the dataset that best matches the user query."
@@ -147,7 +147,7 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     dataset_selection_chain = (
         DATASET_SELECTION_PROMPT | SONNET.with_structured_output(DatasetOption)
     )
-    selection_result = dataset_selection_chain.invoke(
+    selection_result = await dataset_selection_chain.ainvoke(
         {
             "candidate_datasets": candidate_datasets[
                 [
@@ -180,7 +180,7 @@ class DatasetInfo(BaseModel):
     threshold: Optional[int] = None
 
 
-def extract_dataset_info(query: str, selection_id: int):
+async def extract_dataset_info(query: str, selection_id: int):
     DATASET_PROMPT = ChatPromptTemplate.from_messages(
         [
             (
@@ -202,7 +202,7 @@ def extract_dataset_info(query: str, selection_id: int):
     )
     dataset_chain = DATASET_PROMPT | SONNET.with_structured_output(DatasetInfo)
     dataset_row = zeno_data[zeno_data.dataset_id == selection_id].iloc[0]
-    final_info = dataset_chain.invoke(
+    final_info = await dataset_chain.ainvoke(
         {
             "user_query": query,
             "dataset": dataset_row.to_json(),
@@ -213,7 +213,7 @@ def extract_dataset_info(query: str, selection_id: int):
 
 
 @tool("pick-dataset")
-def pick_dataset(
+async def pick_dataset(
     query: str, tool_call_id: Annotated[str, InjectedToolCallId] = None
 ) -> Command:
     """
@@ -222,13 +222,13 @@ def pick_dataset(
     """
     logger.info("PICK-DATASET-TOOL")
     # Step 1: RAG lookup
-    candidate_datasets = rag_candidate_datasets(query, k=3, strategy="openai")
+    candidate_datasets = await rag_candidate_datasets(query, k=3, strategy="openai")
 
     # Step 2: LLM to select best dataset
-    selection_result = select_best_dataset(query, candidate_datasets)
+    selection_result = await select_best_dataset(query, candidate_datasets)
 
     # Step 3: LLM to extract structured info for downstream query
-    dataset_info = extract_dataset_info(query, selection_result.id)
+    dataset_info = await extract_dataset_info(query, selection_result.id)
 
     tool_message = f"""Selected dataset: {dataset_info.data_layer}\nContext layer: {dataset_info.context_layer}\nTile URL: {dataset_info.tile_url}\nThreshold: {dataset_info.threshold}\nReasoning: {selection_result.reason}"""
 
