@@ -44,6 +44,7 @@ dependencies = [
     "structlog>=24.1.0",
     "geoalchemy2>=0.18.0",
     "boto3>=1.38.27",
+    "requests>=2.26.0",
 ]
 
 [dependency-groups]
