@@ -1,7 +1,9 @@
 import json
 from typing import Annotated, Literal, Optional
+import os
+import pandas as pd
 
-import duckdb
+from sqlalchemy import create_engine, text
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -10,62 +12,183 @@ from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from src.tools.utils.db_connection import get_db_connection
+from src.utils.env_loader import load_environment_variables
 from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
 
+load_environment_variables()
 logger = get_logger(__name__)
+
+
+def get_postgis_connection():
+    """Get PostGIS database connection."""
+    database_url = os.environ["DATABASE_URL"]
+    return create_engine(database_url)
+
 
 RESULT_LIMIT = 10
 
-GADM_TABLE = "data/geocode/exports/gadm.parquet"
-KBA_TABLE = "data/geocode/exports/kba.parquet"
-LANDMARK_TABLE = "data/geocode/exports/landmark.parquet"
-WDPA_TABLE = "data/geocode/exports/wdpa.parquet"
+GADM_TABLE = "geometries_gadm"
+KBA_TABLE = "geometries_kba"
+LANDMARK_TABLE = "geometries_landmark"
+WDPA_TABLE = "geometries_wdpa"
 
 
 def query_aoi_database(
-    connection: duckdb.DuckDBPyConnection,
+    engine,
     place_name: str,
     result_limit: int = 10,
 ):
-    """Query the Overture database for location information.
+    """Query the PostGIS database for location information.
 
     Args:
-        connection: DuckDB connection object
+        engine: SQLAlchemy engine object
         place_name: Name of the place to search for
         result_limit: Maximum number of results to return
 
     Returns:
         DataFrame containing location information
     """
-    sql_query = f"""
-        SELECT
-            *,
-            jaro_winkler_similarity(LOWER(name), LOWER('{place_name}')) AS similarity_score
-        FROM gadm_plus_search
-        ORDER BY similarity_score DESC
-        LIMIT {result_limit}
-    """
-    logger.debug(f"Executing AOI query: {sql_query}")
-    query_results = connection.sql(sql_query)
-    logger.debug(f"AOI query results: {query_results.df()}")
-    return query_results.df()
+    with engine.connect() as conn:
+        # Enable pg_trgm extension for similarity function
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+        conn.commit()
+
+        # Check which tables exist first
+        existing_tables = []
+
+        # Check GADM table
+        try:
+            conn.execute(text(f"SELECT 1 FROM {GADM_TABLE} LIMIT 1"))
+            existing_tables.append("gadm")
+        except Exception:
+            logger.warning(f"Table {GADM_TABLE} does not exist")
+
+        # Check KBA table
+        try:
+            conn.execute(text(f"SELECT 1 FROM {KBA_TABLE} LIMIT 1"))
+            existing_tables.append("kba")
+        except Exception:
+            logger.warning(f"Table {KBA_TABLE} does not exist")
+
+        # Check Landmark table
+        try:
+            conn.execute(text(f"SELECT 1 FROM {LANDMARK_TABLE} LIMIT 1"))
+            existing_tables.append("landmark")
+        except Exception:
+            logger.warning(f"Table {LANDMARK_TABLE} does not exist")
+
+        # Check WDPA table
+        # try:
+        #     conn.execute(text(f"SELECT 1 FROM {WDPA_TABLE} LIMIT 1"))
+        #     existing_tables.append("wdpa")
+        # except Exception:
+        #     logger.warning(f"Table {WDPA_TABLE} does not exist")
+
+        # Build the query based on existing tables
+        union_parts = []
+        row_offset = 0
+
+        if "gadm" in existing_tables:
+            union_parts.append(
+                f"""
+                SELECT gadm_id as src_id, name, subtype, 'gadm' as source,
+                       ROW_NUMBER() OVER() + {row_offset} as id
+                FROM {GADM_TABLE}
+            """
+            )
+            # Get count for offset calculation
+            gadm_count = conn.execute(
+                text(f"SELECT COUNT(*) FROM {GADM_TABLE}")
+            ).scalar()
+            row_offset += gadm_count
+
+        if "kba" in existing_tables:
+            union_parts.append(
+                f"""
+                SELECT id as src_id,
+                       name,
+                       'key-biodiversity-area' as subtype,
+                       'kba' as source,
+                       ROW_NUMBER() OVER() + {row_offset} as id
+                FROM {KBA_TABLE}
+            """
+            )
+            # Get count for offset calculation
+            kba_count = conn.execute(text(f"SELECT COUNT(*) FROM {KBA_TABLE}")).scalar()
+            row_offset += kba_count
+
+        if "landmark" in existing_tables:
+            union_parts.append(
+                f"""
+                SELECT landmark_id as src_id,
+                       name,
+                       subtype,
+                       'landmark' as source,
+                       ROW_NUMBER() OVER() + {row_offset} as id
+                FROM {LANDMARK_TABLE}
+            """
+            )
+            # Get count for offset calculation
+            landmark_count = conn.execute(
+                text(f"SELECT COUNT(*) FROM {LANDMARK_TABLE}")
+            ).scalar()
+            row_offset += landmark_count
+
+        if "wdpa" in existing_tables:
+            union_parts.append(
+                f"""
+                SELECT wdpa_id as src_id,
+                       name,
+                       subtype,
+                       'wdpa' as source,
+                       ROW_NUMBER() OVER() + {row_offset} as id
+                FROM {WDPA_TABLE}
+            """
+            )
+
+        if not union_parts:
+            logger.error("No geometry tables exist in the database")
+            return pd.DataFrame()
+
+        # Create the combined search query
+        combined_query = " UNION ALL ".join(union_parts)
+
+        sql_query = f"""
+            WITH combined_search AS (
+                {combined_query}
+            )
+            SELECT *,
+                   similarity(LOWER(name), LOWER(:place_name)) AS similarity_score
+            FROM combined_search
+            WHERE name IS NOT NULL
+            ORDER BY similarity_score DESC
+            LIMIT :limit_val
+        """
+
+        logger.debug(f"Executing AOI query: {sql_query}")
+
+        query_results = pd.read_sql(
+            text(sql_query),
+            conn,
+            params={"place_name": place_name, "limit_val": result_limit},
+        )
+
+    logger.debug(f"AOI query results: {query_results}")
+    return query_results
 
 
-def query_subregion_database(
-    connection, subregion_name: str, source: str, src_id: int
-):
-    """Query the right table in basemaps database for subregions based on the selected AOI.
+def query_subregion_database(engine, subregion_name: str, source: str, src_id: int):
+    """Query the right table in PostGIS database for subregions based on the selected AOI.
 
     Args:
-        connection: DuckDB connection object
+        engine: SQLAlchemy engine object
         subregion_name: Name of the subregion to search for
         source: Source of the selected AOI
         src_id: id of the selected AOI in source table: gadm_id, kba_id, landmark_id, wdpa_id
 
     Returns:
-        list of subregions
+        DataFrame of subregions
     """
     match subregion_name:
         case (
@@ -86,35 +209,54 @@ def query_subregion_database(
         case _:
             logger.error(f"Invalid subregion: {subregion_name}")
             raise ValueError(
-                f"Subregion: {subregion_name} does not match to any table in basemaps database."
+                f"Subregion: {subregion_name} does not match to any table in PostGIS database."
             )
+
+    # Determine the ID column name based on source
+    id_column_map = {
+        "gadm": "gadm_id",
+        "kba": "id",
+        "landmark": "landmark_id",
+        "wdpa": "wdpa_id",
+    }
+    source_table_map = {
+        "gadm": GADM_TABLE,
+        "kba": KBA_TABLE,
+        "landmark": LANDMARK_TABLE,
+        "wdpa": WDPA_TABLE,
+    }
+
+    id_column = id_column_map[source]
+    source_table = source_table_map[source]
 
     sql_query = f"""
     WITH aoi AS (
         SELECT geometry AS geom
-        FROM 'data/geocode/exports/{source}.parquet'
-        WHERE {source}_id = {src_id}
+        FROM {source_table}
+        WHERE {id_column} = :src_id
     )
-    SELECT t.* EXCLUDE geometry, ST_AsGeoJSON(t.geometry) as geometry
-    FROM '{table_name}' AS t, aoi
-    WHERE ST_Within(t.geometry, aoi.geom);
+    SELECT t.*, ST_AsGeoJSON(t.geometry) as geometry_json
+    FROM {table_name} AS t, aoi
+    WHERE ST_Within(t.geometry, aoi.geom)
     """
     logger.debug(f"Executing subregion query: {sql_query}")
-    results = connection.execute(sql_query).df()
+
+    with engine.connect() as conn:
+        results = pd.read_sql(text(sql_query), conn, params={"src_id": src_id})
 
     # Parse GeoJSON strings in the results
-    if not results.empty and "geometry" in results.columns:
+    if not results.empty and "geometry_json" in results.columns:
         for idx, row in results.iterrows():
-            if row["geometry"] is not None and isinstance(
-                row["geometry"], str
-            ):
+            if row["geometry_json"] is not None:
                 try:
-                    results.at[idx, "geometry"] = json.loads(row["geometry"])
+                    results.at[idx, "geometry"] = json.loads(row["geometry_json"])
                 except json.JSONDecodeError as e:
                     logger.error(
                         f"Failed to parse GeoJSON for subregion {row.get('name', 'Unknown')}: {e}"
                     )
                     results.at[idx, "geometry"] = None
+        # Drop the geometry_json column as we now have parsed geometry
+        results = results.drop(columns=["geometry_json"])
 
     return results
 
@@ -149,9 +291,7 @@ AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 # Chain for selecting the best location match
-AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
-    AOIIndex
-)
+AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(AOIIndex)
 
 
 @tool("pick-aoi")
@@ -184,12 +324,10 @@ def pick_aoi(
         subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
     try:
-        logger.info(
-            f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'"
-        )
-        # Query the database for place & get top matches using jaro winkler similarity
-        db_connection = get_db_connection()
-        results = query_aoi_database(db_connection, place, RESULT_LIMIT)
+        logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
+        # Query the database for place & get top matches using similarity
+        engine = get_postgis_connection()
+        results = query_aoi_database(engine, place, RESULT_LIMIT)
 
         candidate_aois = results.to_csv(
             index=False
@@ -207,64 +345,62 @@ def pick_aoi(
             f"Selected AOI id: {selected_aoi_id}, source: '{source}', src_id: {src_id}"
         )
 
-        match source:
-            case "gadm":
-                selected_aoi = (
-                    db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{GADM_TABLE}' WHERE gadm_id = {src_id}"
-                    )
-                    .df()
-                    .iloc[0]
-                    .to_dict()
-                )
-            case "kba":
-                selected_aoi = (
-                    db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{KBA_TABLE}' WHERE kba_id = {src_id}"
-                    )
-                    .df()
-                    .iloc[0]
-                    .to_dict()
-                )
-            case "landmark":
-                selected_aoi = (
-                    db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{LANDMARK_TABLE}' WHERE landmark_id = {src_id}"
-                    )
-                    .df()
-                    .iloc[0]
-                    .to_dict()
-                )
-            case "wdpa":
-                selected_aoi = (
-                    db_connection.sql(
-                        f"SELECT * EXCLUDE geometry, ST_AsGeoJSON(geometry) as geometry FROM '{WDPA_TABLE}' WHERE wdpa_id = {src_id}"
-                    )
-                    .df()
-                    .iloc[0]
-                    .to_dict()
-                )
-            case _:
-                logger.error(f"Invalid source: {source}")
-                raise ValueError(
-                    f"Source: {source} does not match to any table in basemaps database."
-                )
+        # Get full AOI details with geometry
+        id_column_map = {
+            "gadm": "gadm_id",
+            "kba": "id",
+            "landmark": "landmark_id",
+            "wdpa": "wdpa_id",
+        }
+        source_table_map = {
+            "gadm": GADM_TABLE,
+            "kba": KBA_TABLE,
+            "landmark": LANDMARK_TABLE,
+            "wdpa": WDPA_TABLE,
+        }
+
+        if source not in source_table_map:
+            logger.error(f"Invalid source: {source}")
+            raise ValueError(
+                f"Source: {source} does not match to any table in PostGIS database."
+            )
+
+        id_column = id_column_map[source]
+        source_table = source_table_map[source]
+
+        sql_query = f"""
+            SELECT *, ST_AsGeoJSON(geometry) as geometry_json
+            FROM {source_table}
+            WHERE {id_column} = :src_id
+        """
+
+        with engine.connect() as conn:
+            selected_aoi_df = pd.read_sql(
+                text(sql_query), conn, params={"src_id": src_id}
+            )
+
+        if selected_aoi_df.empty:
+            raise ValueError(f"No AOI found with {id_column} = {src_id}")
+
+        selected_aoi = selected_aoi_df.iloc[0].to_dict()
 
         # Parse the GeoJSON string into a Python dictionary
-        if "geometry" in selected_aoi and selected_aoi["geometry"] is not None:
+        if (
+            "geometry_json" in selected_aoi
+            and selected_aoi["geometry_json"] is not None
+        ):
             try:
-                if isinstance(selected_aoi["geometry"], str):
-                    selected_aoi["geometry"] = json.loads(
-                        selected_aoi["geometry"]
-                    )
-                    logger.debug(
-                        f"Parsed GeoJSON geometry for AOI: {selected_aoi['name']}"
-                    )
+                selected_aoi["geometry"] = json.loads(selected_aoi["geometry_json"])
+                logger.debug(
+                    f"Parsed GeoJSON geometry for AOI: {selected_aoi.get('name', 'Unknown')}"
+                )
             except json.JSONDecodeError as e:
                 logger.error(
-                    f"Failed to parse GeoJSON for AOI {selected_aoi['name']}: {e}"
+                    f"Failed to parse GeoJSON for AOI {selected_aoi.get('name', 'Unknown')}: {e}"
                 )
                 selected_aoi["geometry"] = None
+            # Remove the geometry_json column as we now have parsed geometry
+            del selected_aoi["geometry_json"]
         else:
             logger.warning(
                 f"No geometry found for AOI: {selected_aoi.get('name', 'Unknown')}"
@@ -272,13 +408,13 @@ def pick_aoi(
 
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
-            subregion_aois = query_subregion_database(
-                db_connection, subregion, source, src_id
-            )
+            subregion_aois = query_subregion_database(engine, subregion, source, src_id)
             subregion_aois = subregion_aois.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
 
-        tool_message = f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
+        tool_message = (
+            f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
+        )
         if subregion:
             tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
 
@@ -292,9 +428,7 @@ def pick_aoi(
                 "aoi_name": selected_aoi["name"],
                 "subtype": selected_aoi["subtype"],
                 # Update the message history
-                "messages": [
-                    ToolMessage(tool_message, tool_call_id=tool_call_id)
-                ],
+                "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
             },
         )
     except Exception as e:
@@ -302,9 +436,7 @@ def pick_aoi(
         return Command(
             update={
                 "messages": [
-                    ToolMessage(
-                        str(e), tool_call_id=tool_call_id, status="error"
-                    )
+                    ToolMessage(str(e), tool_call_id=tool_call_id, status="error")
                 ],
             },
         )
