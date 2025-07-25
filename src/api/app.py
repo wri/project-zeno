@@ -6,9 +6,6 @@ import uuid
 
 import cachetools
 import requests
-from shapely.geometry import shape, mapping
-from geoalchemy2.shape import from_shape, to_shape
-
 # Load environment variables using shared utility
 from src.utils.env_loader import load_environment_variables
 
@@ -525,12 +522,10 @@ def create_custom_area(
     session=Depends(get_session),
 ):
     """Create a new custom area for the authenticated user."""
-    # Convert GeoJSON to PostGIS geometry
-    geom = shape(area.geometry)
     custom_area = CustomAreaOrm(
         user_id=user.id,
         name=area.name,
-        geometry=from_shape(geom, srid=4326)
+        geometries=[i.model_dump_json() for i in area.geometries]
     )
     session.add(custom_area)
     session.commit()
@@ -542,7 +537,7 @@ def create_custom_area(
         name=custom_area.name,
         created_at=custom_area.created_at,
         updated_at=custom_area.updated_at,
-        geometry=mapping(to_shape(custom_area.geometry)),
+        geometries=[json.loads(i) for i in custom_area.geometries],
     )
 
 
@@ -554,10 +549,7 @@ def list_custom_areas(
     areas = session.query(CustomAreaOrm).filter_by(user_id=user.id).all()
     results = []
     for area in areas:
-        # Convert PostGIS geometry to GeoJSON
-        shape_geom = to_shape(area.geometry)
-        logger.info(f"Custom area geometry: {shape_geom}")
-        area.geometry = mapping(shape_geom)
+        area.geometries = [json.loads(i) for i in area.geometries]
         results.append(area)
     return results
 
@@ -569,15 +561,18 @@ def get_custom_area(
     session=Depends(get_session),
 ):
     """Get a specific custom area by ID."""
-    area = session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
-    if not area:
+    custom_area = session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+    if not custom_area:
         raise HTTPException(status_code=404, detail="Custom area not found")
 
-    result = CustomAreaModel.model_validate(area)
-    # Convert PostGIS geometry to GeoJSON
-    shape_geom = to_shape(area.geometry)
-    result.geometry = mapping(shape_geom)
-    return result
+    return CustomAreaModel(
+        id=custom_area.id,
+        user_id=custom_area.user_id,
+        name=custom_area.name,
+        created_at=custom_area.created_at,
+        updated_at=custom_area.updated_at,
+        geometries=[json.loads(i) for i in custom_area.geometries],
+    )
 
 
 @app.patch("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
@@ -601,7 +596,7 @@ def update_custom_area_name(
         name=area.name,
         created_at=area.created_at,
         updated_at=area.updated_at,
-        geometry=mapping(to_shape(area.geometry))
+        geometries=[json.loads(i) for i in area.geometries]
     )
 
 

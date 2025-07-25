@@ -13,7 +13,7 @@ def test_custom_area_endpoints(wri_user, client):
         "/api/custom_areas/",
         json={
             "name": "Test area",
-            "geometry": {
+            "geometries": [{
                 "coordinates": [
                     [
                         [29.2263174, -1.641965],
@@ -24,7 +24,7 @@ def test_custom_area_endpoints(wri_user, client):
                     ]
                 ],
                 "type": "Polygon",
-            },
+            }],
         },
         headers={"Authorization": "Bearer abc123"},
     )
@@ -33,7 +33,20 @@ def test_custom_area_endpoints(wri_user, client):
     custom_area_id = res.json()["id"]
     assert custom_area_id
     assert res.json()["name"] == "Test area"
-    assert res.json()["geometry"]
+    assert res.json()["geometries"] == [
+        {
+            "coordinates": [
+                [
+                    [29.2263174, -1.641965],
+                    [29.2263174, -1.665582],
+                    [29.2301511, -1.665582],
+                    [29.2301511, -1.641965],
+                    [29.2263174, -1.641965],
+                ]
+            ],
+            "type": "Polygon",
+        }
+    ]
 
     # list custom areas again
     res = client.get(
@@ -43,7 +56,7 @@ def test_custom_area_endpoints(wri_user, client):
 
     assert res.status_code == 200
     assert len(res.json()) == 1
-    assert res.json()[0]["geometry"] == {
+    assert res.json()[0]["geometries"] == [{
                 "coordinates": [
                     [
                         [29.2263174, -1.641965],
@@ -54,7 +67,7 @@ def test_custom_area_endpoints(wri_user, client):
                     ]
                 ],
                 "type": "Polygon",
-            }
+            }]
     assert res.json()[0]["created_at"]
     assert res.json()[0]["name"] == "Test area"
     assert res.json()[0]["id"] == custom_area_id

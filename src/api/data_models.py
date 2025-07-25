@@ -3,10 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from geoalchemy2 import Geometry
 from geojson_pydantic import Polygon
 from pydantic import BaseModel, ConfigDict, alias_generators, field_validator
+from typing import List
 from sqlalchemy import Column, DateTime, ForeignKey, String, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import relationship, declarative_base
 
@@ -48,7 +49,7 @@ class CustomAreaOrm(Base):
     id = Column(PostgresUUID, primary_key=True, server_default=text("gen_random_uuid()"))
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
-    geometry = Column(Geometry(geometry_type='GEOMETRY', srid=4326), nullable=False)
+    geometries = Column(JSONB, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now())
     updated_at = Column(
         DateTime,
@@ -99,11 +100,11 @@ class CustomAreaModel(BaseModel):
     id: UUID
     user_id: str
     name: str
-    geometry: Polygon
+    geometries: List
     created_at: datetime
     updated_at: datetime
 
 
 class CustomAreaCreate(BaseModel):
     name: str
-    geometry: Polygon
+    geometries: List[Polygon]
