@@ -39,27 +39,54 @@ def cached_ndjson_path(url: str, cache_dir: Path = Path("/tmp")) -> Path:
     return dest
 
 
-def gdf_from_ndjson(url: str, cache_dir: Path = Path("/tmp")) -> gpd.GeoDataFrame:
+def gdf_from_ndjson_chunked(
+    url: str, chunk_size: int = 1000, cache_dir: Path = Path("/tmp")
+):
     """
-    Download the NDJSON file once (into *cache_dir*), then read it
-    into a GeoDataFrame. Geometry is converted to WKB for DuckDB.
+    Download the NDJSON file once (into *cache_dir*), then yield
+    GeoDataFrame chunks for processing.
     """
     ndjson_path = cached_ndjson_path(url, cache_dir)
 
     features = []
+    processed_records = 0
+
     with open(ndjson_path, "r") as f:
         for line in f:
             if line := line.strip():
                 features.append(json.loads(line))
 
-    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
-    gdf["geometry"] = gdf.geometry.apply(lambda g: g.wkb)
-    gdf["id"] = gdf.index
-    return gdf
+                if len(features) >= chunk_size:
+                    # Process this chunk
+                    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+                    gdf["id"] = range(processed_records, processed_records + len(gdf))
+
+                    processed_records += len(features)
+
+                    yield gdf
+
+                    print(f"Processed {processed_records} records so far...")
+                    # Reset for next chunk
+                    features = []
+
+    # Process remaining features
+    if features:
+        gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+        gdf["id"] = range(processed_records, processed_records + len(gdf))
+
+        processed_records += len(features)
+        print(
+            f"✓ Yielding final chunk with {len(features)} records (total processed: {processed_records})"
+        )
+
+        yield gdf
 
 
 def ingest_to_postgis(
-    table_name: str, gdf: gpd.GeoDataFrame, chunk_size: int = 10000
+    table_name: str,
+    gdf: gpd.GeoDataFrame,
+    chunk_size: int = 1000,
+    if_exists: str = "replace",
 ) -> None:
     """Ingest the GeoDataFrame to PostGIS database in chunks."""
     database_url = os.environ["DATABASE_URL"]
@@ -71,31 +98,40 @@ def ingest_to_postgis(
         conn.commit()
 
     gdf_copy = gdf.copy()
-    gdf_copy["geometry"] = gpd.GeoSeries.from_wkb(gdf_copy["geometry"], crs="EPSG:4326")
+    gdf_copy["geometry"] = gpd.GeoSeries(gdf_copy["geometry"], crs="EPSG:4326")
 
     total_records = len(gdf_copy)
-    print(f"Ingesting {total_records} records in chunks of {chunk_size}...")
 
     # Process in chunks
     for i in range(0, total_records, chunk_size):
         chunk = gdf_copy.iloc[i : i + chunk_size]
-        if_exists_param = "replace" if i == 0 else "append"
+        if_exists_param = if_exists if i == 0 else "append"
 
         chunk.to_postgis(table_name, engine, if_exists=if_exists_param, index=False)
 
-        records_processed = min(i + chunk_size, total_records)
-        print(f"✓ Processed {records_processed}/{total_records} records")
-
     # Ensure all geometries have correct SRID and create spatial index
     with engine.connect() as conn:
-        conn.execute(text(f"UPDATE {table_name} SET geometry = ST_SetSRID(geometry, 4326) WHERE ST_SRID(geometry) = 0;"))
+        conn.execute(
+            text(
+                f"UPDATE {table_name} SET geometry = ST_SetSRID(geometry, 4326) WHERE ST_SRID(geometry) = 0;"
+            )
+        )
         conn.commit()
-        print(f"✓ Updated SRID to 4326 for geometries with undefined SRID")
-        
-        # Create spatial index using bounding boxes to avoid size limits for complex geometries
-        index_name = f"idx_{table_name}_geom"
-        conn.execute(text(f"CREATE INDEX IF NOT EXISTS {index_name} ON {table_name} USING GIST (ST_Envelope(geometry));"))
+    print(f"✓ Ingested {total_records} records to PostGIS table '{table_name}'")
+
+
+def create_index_if_not_exists(
+    table_name: str, index_name: str, column: str = "geometry"
+) -> None:
+    """Create a spatial index on the specified table and column if it does not exist."""
+    database_url = os.environ["DATABASE_URL"]
+    engine = create_engine(database_url)
+
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                f"CREATE INDEX IF NOT EXISTS {index_name} ON {table_name} USING GIST (ST_Envelope({column}));"
+            )
+        )
         conn.commit()
         print(f"✓ Created spatial index {index_name} on {table_name}")
-
-    print(f"✓ Ingested {total_records} records to PostGIS table '{table_name}'")
