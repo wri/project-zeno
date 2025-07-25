@@ -89,6 +89,10 @@ class ThreadModel(BaseModel):
     updated_at: datetime
 
 
+class CustomAreaNameRequest(BaseModel):
+    type: str = Field("FeatureCollection", description="Type must be FeatureCollection")
+    features: list = Field(..., description="Array of GeoJSON Feature objects")
+
 class UserModel(BaseModel):
     """User model with relationships to threads and custom areas."""
 

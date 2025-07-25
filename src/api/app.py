@@ -35,6 +35,17 @@ from src.api.data_models import (
     CustomAreaCreate,
     GeometryResponse,
 )
+import structlog
+from src.agents.agents import zeno, checkpointer
+from src.api.data_models import (
+    CustomAreaNameRequest,
+    ThreadModel,
+    ThreadOrm,
+    UserModel,
+    UserOrm,
+)
+from src.utils.llms import HAIKU
+from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.env_loader import load_environment_variables
 from src.utils.config import APISettings
@@ -717,6 +728,22 @@ def update_thread(
     session.refresh(thread)
     return ThreadModel.model_validate(thread)
 
+
+@app.post("/api/custom_area_name")
+async def custom_area_name(
+    request: CustomAreaNameRequest, user: UserModel = Depends(fetch_user)
+):
+    """
+    Generate a neutral geographic name for a GeoJSON FeatureCollection of bounding boxes.
+    Requires Authorization.
+    """
+    try:
+        prompt = f"Name this GeoJSON FeatureCollection neutrally by geography, make sure to check where they are:\n{request.model_dump()}\n return strictly name only."
+        response = HAIKU.invoke(prompt)
+        return {"name": response.content}
+    except Exception as e:
+        logger.exception("Error generating area name: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/threads/{thread_id}", status_code=204)
 def delete_thread(
