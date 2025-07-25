@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, alias_generators, field_validator
+from pydantic import BaseModel, ConfigDict, Field, alias_generators, field_validator
 from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -47,6 +47,10 @@ class ThreadModel(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+
+class CustomAreaNameRequest(BaseModel):
+    type: str = Field("FeatureCollection", description="Type must be FeatureCollection")
+    features: list = Field(..., description="Array of GeoJSON Feature objects")
 
 class UserModel(BaseModel):
     model_config = ConfigDict(
