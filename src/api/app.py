@@ -127,6 +127,7 @@ def replay_chat(thread_id):
                     continue
                 rendered_state_elements["messages"].append(message.id)
 
+                # TODO: add checkpoint timestamp to message?
                 update["messages"].append(message)
 
             # Render the rest of the state updates
@@ -153,6 +154,7 @@ def replay_chat(thread_id):
             yield pack({"node": node_type, "update": dumps(update)})
 
     except Exception as e:
+        # TODO: yield a stream event with the error?
         logger.exception("Error during chat replay: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -237,6 +239,7 @@ def stream_chat(
         for update in stream:
             try:
                 node = next(iter(update.keys()))
+
                 yield pack(
                     {
                         "node": node,
