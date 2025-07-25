@@ -1,75 +1,91 @@
 """Test configuration and fixtures."""
 import os
-from sqlalchemy import create_engine, text
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from alembic.config import Config
-from alembic import command
-from pathlib import Path
+
+from src.api.data_models import Base
+
+from src.api.app import app, get_session, fetch_user_from_rw_api
+from src.api.data_models import UserOrm, UserModel
 
 # Test database settings
-TEST_DB_NAME = "zeno_test"
-DEFAULT_DB_URL = "postgresql://postgres@localhost:5432/postgres"
-TEST_DB_URL = f"postgresql://postgres@localhost:5432/{TEST_DB_NAME}"
+if (os.getenv('TEST_DATABASE_URL')):
+    TEST_DB_URL = os.getenv("TEST_DATABASE_URL")
+else:
+    TEST_DB_URL = f"{os.getenv('DATABASE_URL')}_test"
+ENGINE = create_engine(TEST_DB_URL)
+Session = sessionmaker(bind=ENGINE, expire_on_commit=False)
 
-def run_migrations(database_url: str) -> None:
-    """Run all alembic migrations."""
-    alembic_cfg = Config()
-    alembic_cfg.set_main_option("script_location", "db/alembic")
-    alembic_cfg.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(alembic_cfg, "head")
 
-def create_test_database() -> None:
-    """Create a test database."""
-    # Connect to default postgres database
-    engine = create_engine(DEFAULT_DB_URL)
-    
-    # Need to be outside a transaction for database drop/create
-    with engine.connect() as conn:
-        conn.execution_options(isolation_level="AUTOCOMMIT")
-        # Drop test database if it exists and create it fresh
-        conn.execute(text(f"DROP DATABASE IF EXISTS {TEST_DB_NAME}"))
-        conn.execute(text(f"CREATE DATABASE {TEST_DB_NAME}"))
-    
-    engine.dispose()
-    
-    # Run migrations on test database
-    run_migrations(TEST_DB_URL)
+def get_session_override():
+    with Session() as session:
+        yield session  # Run the tests
 
-def drop_test_database() -> None:
-    """Drop the test database."""
-    engine = create_engine(DEFAULT_DB_URL)
-    
-    with engine.connect() as conn:
-        conn.execution_options(isolation_level="AUTOCOMMIT")
-        conn.execute(text(f"DROP DATABASE IF EXISTS {TEST_DB_NAME}"))
-    
-    engine.dispose()
 
-@pytest.fixture(scope="session", autouse=True)
+app.dependency_overrides[get_session] = get_session_override
+
+
+@pytest.fixture(scope="function", autouse=True)
 def test_db():
-    """Create test database and run migrations."""
-    # Save original DATABASE_URL
-    original_db_url = os.environ.get("DATABASE_URL")
-    
+    """Create test database and clear it after each test."""
     # Set up test database
-    create_test_database()
-    os.environ["DATABASE_URL"] = TEST_DB_URL
-    
-    yield  # Run the tests
-    
-    # Clean up
-    if original_db_url:
-        os.environ["DATABASE_URL"] = original_db_url
-    drop_test_database()
+    Base.metadata.create_all(bind=ENGINE)
+    yield
+    # Clean databases
+    Base.metadata.drop_all(bind=ENGINE)
+
+
+@pytest.fixture(scope="session")
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
+def clear_tables():
+    """Truncate all tables, except the 'users' table, after running each test."""
+    Session = sessionmaker(
+        bind=ENGINE,
+        expire_on_commit=False
+    )
+    with Session() as session:
+        for table in Base.metadata.sorted_tables:
+            if table.name != "users":
+                session.execute(
+                    text(f"TRUNCATE {table.name} RESTART IDENTITY CASCADE;"),
+                )
+        session.commit()
+
+
+@pytest.fixture(autouse=True, scope="function")
+def test_db_session():
+    yield ENGINE
+    ENGINE.dispose()
+    clear_tables()
+
+
+@pytest.fixture(scope="session")
+def user(username, session):
+    with get_session_override() as session:
+        user = UserOrm(
+            name=username,
+            email="admin@wri.org",
+        )
+        session.add(user)
+        session.commit()
+
+
+def set_wri_user():
+    return UserModel.model_validate({
+        "id": "test-user-2",
+        "name": "WRI User",
+        "email": "test@wri.org",
+        "createdAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
+    })
+
 
 @pytest.fixture(scope="function")
-def db_session():
-    """Create a new database session for a test."""
-    engine = create_engine(TEST_DB_URL)
-    Session = sessionmaker(bind=engine)
-    
-    with Session() as session:
-        with session.begin():  # Automatic transaction management
-            yield session
-            session.rollback()  # Rollback any changes after test
+def wri_user():
+    app.dependency_overrides[fetch_user_from_rw_api] = set_wri_user
