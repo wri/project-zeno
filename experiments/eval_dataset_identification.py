@@ -139,39 +139,36 @@ def _extract_final_response(messages):
 def evaluate_answer(
     conversation: dict, user_query: str, golden_answer: dict, chat_model
 ) -> EvaluationResult:
-    """Evaluate answer matches using structured output.
+    """Evaluate if the agent accessed the correct dataset.
 
-    Uses LLM evaluation for non-exact matches. Dataset is designed with disparate
-    answers to make it easier for LLMs to identify correct responses.
-    TODO: Consider adding partial scoring based on retrieval quality as discussed.
+    This evaluation focuses exclusively on whether the agent's conversation trace
+    shows a tool call to the dataset specified in the golden answer. It does not
+    evaluate parameter correctness or the final response accuracy.
     """
-
     # Create a model with structured output
     evaluator = chat_model.with_structured_output(EvaluationResult)
 
-    prompt = f"""Analyze the provided agentic system trace against the user query and golden answer.
-    Apply STRICT evaluation criteria.
+    prompt = f"""As an expert evaluator, your task is to determine if the agent accessed the correct dataset to answer the user's query.
 
-    <Trace>
-    {json.dumps(conversation)}
-    </Trace>
+Your evaluation must be STRICT:
+- The agent's trace MUST contain at least one tool call to the dataset specified in the "Golden Answer".
+- The name of the tool called by the agent must match the expected dataset.
+- You do NOT need to evaluate the correctness of tool call parameters or the final answer.
 
-    <Query>
-    {user_query}
-    </Query>
+<Trace>
+{json.dumps(conversation)}
+</Trace>
+<Query>
+{user_query}
+</Query>
+<Golden Answer>
+{json.dumps(golden_answer)}
+</Golden Answer>
 
-    <Golden Answer>
-    {json.dumps(golden_answer)}
-    </Golden Answer>
-
-    STRICT CRITERIA:
-    - Numerical values (areas, percentages, counts) must be EXACT or within 5% of golden answer
-    - All locations, time periods, and facts must match precisely
-    - Vague/approximate answers FAIL when specific values are expected
-    - System must provide the actual answer, not just retrieve relevant data
-
-    Mark as "pass" ONLY if the answer is substantively correct with accurate quantities.
-    Include a brief analysis explaining your assessment."""
+Review the "assistant_tool_call" events in the trace.
+Mark as "pass" if any tool call matches the dataset in the golden answer. Otherwise, mark as "fail".
+Provide a brief analysis explaining which tool was expected and what was found in the trace.
+"""
 
     result = evaluator.invoke(prompt)
     return result
@@ -229,7 +226,7 @@ for item in active_items:
             root_span.update_trace(input=item.input, output=actual)
 
             root_span.score_trace(
-                name="tree_cover_answer_score",
+                name="dataset_identification_score",
                 value=score,
                 comment=f"Analysis: {evaluation['analysis']}",
             )
