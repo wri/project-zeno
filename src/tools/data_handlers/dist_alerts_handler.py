@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 
-import requests
+import httpx
 
 from src.tools.data_handlers.base import (
     DataPullResult,
@@ -20,7 +20,7 @@ class DistAlertHandler(DataSourceHandler):
     def can_handle(self, dataset: Any, table_name: str) -> bool:
         return table_name == "DIST-ALERT"
 
-    def pull_data(
+    async def pull_data(
         self,
         query: str,
         aoi: Dict,
@@ -57,29 +57,30 @@ class DistAlertHandler(DataSourceHandler):
                 "Content-Type": "application/json",
             }
 
-            response = requests.post(
-                self.DIST_ALERT_URL, headers=headers, json=payload
-            )
-
-            result = response.json()
-
-            if result["status"] == "success":
-                download_link = result["data"]["link"]
-                data = requests.get(download_link).json()
-                raw_data = data["data"]["result"]
-
-                return DataPullResult(
-                    success=True,
-                    data=raw_data,
-                    message=f"Successfully pulled data from GFW for {aoi_name}. Found {len(raw_data['value'])} alerts.",
-                    data_points_count=len(raw_data["value"]),
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    self.DIST_ALERT_URL, headers=headers, json=payload
                 )
-            else:
-                error_msg = f"Failed to pull data from GFW for {aoi_name} - DIST_ALERT_URL: {self.DIST_ALERT_URL}, payload: {payload}, response: {response.text}"
-                logger.error(error_msg)
-                return DataPullResult(
-                    success=False, data=[], message=error_msg
-                )
+
+                result = response.json()
+
+                if result["status"] == "success":
+                    download_link = result["data"]["link"]
+                    download_response = await client.get(download_link)
+                    raw_data = download_response.json()["data"]["result"]
+
+                    return DataPullResult(
+                        success=True,
+                        data=raw_data,
+                        message=f"Successfully pulled data from GFW for {aoi_name}. Found {len(raw_data['value'])} alerts.",
+                        data_points_count=len(raw_data["value"]),
+                    )
+                else:
+                    error_msg = f"Failed to pull data from GFW for {aoi_name} - DIST_ALERT_URL: {self.DIST_ALERT_URL}, payload: {payload}, response: {response.text}"
+                    logger.error(error_msg)
+                    return DataPullResult(
+                        success=False, data=[], message=error_msg
+                    )
 
         except Exception as e:
             error_msg = f"Failed to pull DIST-ALERT data: {e}"
