@@ -61,17 +61,35 @@ async def logging_middleware(request: Request, call_next) -> Response:
         request_id=req_id,
     )
 
-    response: Response = await call_next(request)
-
-    # Log request details
+    # Log request start
     logger.info(
-        "Request received",
+        "Request started",
         method=request.method,
         url=str(request.url),
-        status_code=response.status_code,
         request_id=req_id,
     )
 
+    # Call the next middleware or endpoint
+    try:
+        response: Response = await call_next(request)
+    except Exception as e:
+        logger.exception(
+            "Request failed with error",
+            method=request.method,
+            url=str(request.url),
+            error=str(e),
+            request_id=req_id,
+        )
+        raise e
+    finally:
+        # Log request end
+        logger.info(
+            "Response sent",
+            method=request.method,
+            url=str(request.url),
+            status_code=response.status_code,
+            request_id=req_id,
+        )
     return response
 
 
