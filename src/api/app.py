@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 from typing import Dict, Optional
@@ -20,6 +21,7 @@ from src.agents.agents import zeno, checkpointer
 from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
 from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
+from src.utils.helpers import get_gadm_level, SOURCE_ID_MAPPING
 
 load_environment_variables()
 
@@ -445,7 +447,7 @@ class GeometryResponse(BaseModel):
     name: str = Field(..., description="Name of the geometry")
     # subtype: str = Field(..., description="Subtype of the geometry")
     source: str = Field(..., description="Source of the geometry")
-    src_id: int = Field(..., description="Source ID of the geometry")
+    src_id: int | str = Field(..., description="Source ID of the geometry")
     geometry: dict = Field(..., description="GeoJSON geometry")
 
 
@@ -488,7 +490,7 @@ def delete_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
 
 
 @app.get("/api/geometry/{source}/{src_id}", response_model=GeometryResponse)
-async def get_geometry(source: str, src_id: int):
+async def get_geometry(source: str, src_id: str):
     """
     Get geometry data by source and source ID.
 
@@ -500,13 +502,13 @@ async def get_geometry(source: str, src_id: int):
     Returns:
         Geometry data with name, subtype, and GeoJSON geometry
     """
-    # Define table and column mappings
-    source_mappings = {
-        "gadm": {"table": "geometries_gadm", "id_column": "gadm_id"},
-        "kba": {"table": "geometries_kba", "id_column": "id"},
-        "landmark": {"table": "geometries_landmark", "id_column": "landmark_id"},
-        "wdpa": {"table": "geometries_wdpa", "id_column": "wdpa_id"},
-    }
+    source_mappings = copy.deepcopy(SOURCE_ID_MAPPING)
+    if source == "gadm":
+        gadm_level, subtype = get_gadm_level(src_id)
+        source_mappings["gadm"] = {
+            "table": "geometries_gadm",
+            "id_column": gadm_level,
+        }
 
     if source not in source_mappings:
         raise HTTPException(
@@ -520,8 +522,13 @@ async def get_geometry(source: str, src_id: int):
     sql_query = f"""
         SELECT name, ST_AsGeoJSON(geometry) as geometry_json
         FROM {table_name}
-        WHERE {id_column} = :src_id
+        WHERE "{id_column}" = :src_id
     """
+
+    if source == "gadm":
+        # For GADM, we also need to pass the relevant subtype
+        # Because the children of the GADM area will have the same GID_X as well
+        sql_query += f" AND subtype = '{subtype}'"
 
     try:
         with engine.connect() as conn:

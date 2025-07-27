@@ -63,7 +63,9 @@ def fetch_table_fields(table_slug: str) -> FieldSelection:
     logger.debug(f"Using latest dataset version: {latest_version}")
 
     # This contains an asset URI with tiling endpoint for the precomputed raster (.pbf)!
-    assets_url = f"{GFW_DATA_API_BASE_URL}/assets?dataset={table_slug}&version={latest_version}"
+    assets_url = (
+        f"{GFW_DATA_API_BASE_URL}/assets?dataset={table_slug}&version={latest_version}"
+    )
     table_metadata = requests.get(
         assets_url,
         headers={"x-api-key": os.environ["GFW_DATA_API_KEY"]},
@@ -75,9 +77,7 @@ def fetch_table_fields(table_slug: str) -> FieldSelection:
         {
             "name": f["name"],
             "description": (
-                f["description"]
-                if f["description"]
-                else " ".join(f["name"].split("_"))
+                f["description"] if f["description"] else " ".join(f["name"].split("_"))
             ),
             "data_type": f["data_type"],
         }
@@ -188,9 +188,7 @@ class GFWSQLHandler(DataSourceHandler):
         except Exception as e:
             error_msg = f"Failed to pull standard GFW data: {e}"
             logger.error(error_msg, exc_info=True)
-            return DataPullResult(
-                success=False, data={"data": []}, message=error_msg
-            )
+            return DataPullResult(success=False, data={"data": []}, message=error_msg)
 
     def _determine_table_slug(self, table_name: str, subtype: str) -> str:
         """Determine the appropriate table slug based on subtype"""
@@ -238,9 +236,8 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
         )
 
         logger.debug("Invoking field selection chain...")
-        field_selection_chain = (
-            FIELD_SELECTION_PROMPT
-            | SONNET.with_structured_output(FieldSelection)
+        field_selection_chain = FIELD_SELECTION_PROMPT | SONNET.with_structured_output(
+            FieldSelection
         )
         return field_selection_chain.invoke(
             {"user_query": query, "fields": table_fields.as_csv()}
@@ -290,9 +287,8 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
 
         logger.debug("Invoking SQL query generation chain...")
         sql_query_chain = SQL_QUERY_PROMPT | SONNET
-        location_filter = GadmId(
-            gadm_id=aoi[gadm_level["col_name"]]
-        ).as_sql_filter()
+        logger.info(f"aoi: {list(aoi.keys())}, gadm_level: {gadm_level}")
+        location_filter = GadmId(gadm_id=aoi[gadm_level["col_name"]]).as_sql_filter()
 
         return sql_query_chain.invoke(
             {

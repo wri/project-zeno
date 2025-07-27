@@ -47,9 +47,9 @@ class DistAlertHandler(DataSourceHandler):
                 ],
                 "start_date": start_date,
                 "end_date": end_date,
-                "intersections": [dataset["context_layer"]]
-                if dataset["context_layer"]
-                else [],
+                # todo: fix this hardcoded value. using as temp fix
+                # because of limitations in DIST-ALERT API
+                "intersections": ["driver"],
             }
 
             headers = {
@@ -57,13 +57,11 @@ class DistAlertHandler(DataSourceHandler):
                 "Content-Type": "application/json",
             }
 
-            response = requests.post(
-                self.DIST_ALERT_URL, headers=headers, json=payload
-            )
+            response = requests.post(self.DIST_ALERT_URL, headers=headers, json=payload)
 
             result = response.json()
 
-            if result["status"] == "success":
+            if "status" in result and result["status"] == "success":
                 download_link = result["data"]["link"]
                 data = requests.get(download_link).json()
                 raw_data = data["data"]["result"]
@@ -77,9 +75,7 @@ class DistAlertHandler(DataSourceHandler):
             else:
                 error_msg = f"Failed to pull data from GFW for {aoi_name} - DIST_ALERT_URL: {self.DIST_ALERT_URL}, payload: {payload}, response: {response.text}"
                 logger.error(error_msg)
-                return DataPullResult(
-                    success=False, data=[], message=error_msg
-                )
+                return DataPullResult(success=False, data=[], message=error_msg)
 
         except Exception as e:
             error_msg = f"Failed to pull DIST-ALERT data: {e}"

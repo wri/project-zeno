@@ -1,3 +1,4 @@
+import copy
 import json
 from typing import Annotated, Literal, Optional
 import os
@@ -15,6 +16,7 @@ from pydantic import BaseModel, Field
 from src.utils.env_loader import load_environment_variables
 from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
+from src.utils.helpers import get_gadm_level, SOURCE_ID_MAPPING
 
 load_environment_variables()
 logger = get_logger(__name__)
@@ -28,6 +30,8 @@ def get_postgis_connection():
 
 RESULT_LIMIT = 10
 
+
+# todo: this is redundant with the one in helpers.py, consider refactoring
 GADM_TABLE = "geometries_gadm"
 KBA_TABLE = "geometries_kba"
 LANDMARK_TABLE = "geometries_landmark"
@@ -92,8 +96,9 @@ def query_aoi_database(
         if "gadm" in existing_tables:
             union_parts.append(
                 f"""
-                SELECT gadm_id as src_id, name, subtype, 'gadm' as source,
-                       ROW_NUMBER() OVER() + {row_offset} as id
+                SELECT COALESCE("GID_5", "GID_4", "GID_3", "GID_2", "GID_1", "GID_0") AS src_id,
+                    name, subtype, 'gadm' as source,
+                    ROW_NUMBER() OVER() + {row_offset} as id
                 FROM {GADM_TABLE}
             """
             )
@@ -104,9 +109,10 @@ def query_aoi_database(
             row_offset += gadm_count
 
         if "kba" in existing_tables:
+            src_id = SOURCE_ID_MAPPING["kba"]["id_column"]
             union_parts.append(
                 f"""
-                SELECT id as src_id,
+                SELECT CAST({src_id} as TEXT) as src_id,
                        name,
                        'key-biodiversity-area' as subtype,
                        'kba' as source,
@@ -119,9 +125,10 @@ def query_aoi_database(
             row_offset += kba_count
 
         if "landmark" in existing_tables:
+            src_id = SOURCE_ID_MAPPING["landmark"]["id_column"]
             union_parts.append(
                 f"""
-                SELECT landmark_id as src_id,
+                SELECT CAST({src_id} as TEXT) as src_id,
                        name,
                        subtype,
                        'landmark' as source,
@@ -136,9 +143,10 @@ def query_aoi_database(
             row_offset += landmark_count
 
         if "wdpa" in existing_tables:
+            src_id = SOURCE_ID_MAPPING["wdpa"]["id_column"]
             union_parts.append(
                 f"""
-                SELECT wdpa_id as src_id,
+                SELECT CAST({src_id} as TEXT) as src_id,
                        name,
                        subtype,
                        'wdpa' as source,
@@ -213,27 +221,23 @@ def query_subregion_database(engine, subregion_name: str, source: str, src_id: i
             )
 
     # Determine the ID column name based on source
-    id_column_map = {
-        "gadm": "gadm_id",
-        "kba": "id",
-        "landmark": "landmark_id",
-        "wdpa": "wdpa_id",
-    }
-    source_table_map = {
-        "gadm": GADM_TABLE,
-        "kba": KBA_TABLE,
-        "landmark": LANDMARK_TABLE,
-        "wdpa": WDPA_TABLE,
-    }
+    # todo: we do this a couple of times, consider refactoring
+    source_mappings = copy.deepcopy(SOURCE_ID_MAPPING)
+    if source == "gadm":
+        gadm_level, subtype = get_gadm_level(src_id)
+        source_mappings["gadm"] = {
+            "table": "geometries_gadm",
+            "id_column": gadm_level,
+        }
 
-    id_column = id_column_map[source]
-    source_table = source_table_map[source]
+    id_column = source_mappings[source]["id_column"]
+    source_table = source_mappings[source]["table"]
 
     sql_query = f"""
     WITH aoi AS (
         SELECT geometry AS geom
         FROM {source_table}
-        WHERE {id_column} = :src_id
+        WHERE "{id_column}" = :src_id
     )
     SELECT t.*, ST_AsGeoJSON(t.geometry) as geometry_json
     FROM {table_name} AS t, aoi
@@ -268,7 +272,7 @@ class AOIIndex(BaseModel):
         description="`id` of the location that best matches the user query."
     )
     source: str = Field(description="`source` of the selected location.")
-    src_id: int = Field(description="`src_id` of the selected location.")
+    src_id: str = Field(description="`src_id` of the selected location.")
 
 
 # Prompt template for selecting the best location match based on user query
@@ -345,13 +349,15 @@ def pick_aoi(
             f"Selected AOI id: {selected_aoi_id}, source: '{source}', src_id: {src_id}"
         )
 
-        # Get full AOI details with geometry
-        id_column_map = {
-            "gadm": "gadm_id",
-            "kba": "id",
-            "landmark": "landmark_id",
-            "wdpa": "wdpa_id",
-        }
+        source_mappings = copy.deepcopy(SOURCE_ID_MAPPING)
+        if source == "gadm":
+            gadm_level, subtype = get_gadm_level(src_id)
+            source_mappings["gadm"] = {
+                "table": "geometries_gadm",
+                "id_column": gadm_level,
+            }
+
+        # todo: this is redundant with the one in helpers.py, consider refactoring
         source_table_map = {
             "gadm": GADM_TABLE,
             "kba": KBA_TABLE,
@@ -365,14 +371,19 @@ def pick_aoi(
                 f"Source: {source} does not match to any table in PostGIS database."
             )
 
-        id_column = id_column_map[source]
+        id_column = source_mappings[source]["id_column"]
         source_table = source_table_map[source]
 
         sql_query = f"""
-            SELECT *, ST_AsGeoJSON(geometry) as geometry_json
+            SELECT name, subtype, ST_AsGeoJSON(geometry) as geometry_json, "{id_column}" as src_id
             FROM {source_table}
-            WHERE {id_column} = :src_id
+            WHERE "{id_column}" = :src_id
         """
+
+        if source == "gadm":
+            # For GADM, we also need to pass the relevant subtype
+            # Because the children of the GADM area will have the same GID_X as well
+            sql_query += f" AND subtype = '{subtype}'"
 
         with engine.connect() as conn:
             selected_aoi_df = pd.read_sql(
@@ -383,6 +394,7 @@ def pick_aoi(
             raise ValueError(f"No AOI found with {id_column} = {src_id}")
 
         selected_aoi = selected_aoi_df.iloc[0].to_dict()
+        selected_aoi[source_mappings[source]["id_column"]] = src_id
 
         # Parse the GeoJSON string into a Python dictionary
         if (
