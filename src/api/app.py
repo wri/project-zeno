@@ -4,22 +4,26 @@ from typing import Dict, Optional
 import uuid
 
 import cachetools
+
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
 import requests
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import structlog
 
-from src.agents.agents import zeno, zeno_async, checkpointer
+from src.agents.agents import setup_zeno, setup_checkpointer
 from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
 from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
+
 
 load_environment_variables()
 
@@ -92,7 +96,7 @@ def pack(data):
     return json.dumps(data) + "\n"
 
 
-def replay_chat(thread_id):
+def replay_chat(thread_id, checkpointer: AsyncPostgresSaver):
     config = {
         "configurable": {
             "thread_id": thread_id,
@@ -101,7 +105,7 @@ def replay_chat(thread_id):
 
     try:
         # Fetch checkpoints for conversation/thread
-        checkpoints = zeno.get_state_history(config=config)
+        checkpoints = checkpointer.get_state_history(config=config)
         # consume checkpoints and sort them by step to process from
         # oldest to newest
         checkpoints = sorted(list(checkpoints), key=lambda x: x.metadata["step"])
@@ -151,6 +155,7 @@ def replay_chat(thread_id):
 
 async def stream_chat(
     query: str,
+    zeno_async: CompiledStateGraph,
     user_persona: Optional[str] = None,
     ui_context: Optional[dict] = None,
     ui_action_only: Optional[bool] = False,
@@ -174,7 +179,7 @@ async def stream_chat(
         "configurable": {
             "thread_id": thread_id,
         },
-        "callbacks": [langfuse_handler],
+        # "callbacks": [langfuse_handler],
     }
 
     messages = []
@@ -281,8 +286,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
-@cachetools.cached(_user_info_cache)
-def fetch_user_from_rw_api(
+# TODO: find async compatible cache solution
+async def fetch_user_from_rw_api(
     authorization: str = Header(...),
     domains_allowlist: Optional[str] = DOMAINS_ALLOWLIST,
 ) -> UserModel:
@@ -350,7 +355,11 @@ async def fetch_user(user_info: UserModel = Depends(fetch_user_from_rw_api)):
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
+async def chat(
+    request: ChatRequest,
+    user: UserModel = Depends(fetch_user),
+    zeno: CompiledStateGraph = Depends(setup_zeno),
+):
     """
     Chat endpoint for Zeno.
 
@@ -380,6 +389,7 @@ async def chat(request: ChatRequest, user: UserModel = Depends(fetch_user)):
         return StreamingResponse(
             stream_chat(
                 query=request.query,
+                zeno_async=zeno,
                 user_persona=request.user_persona,
                 ui_context=request.ui_context,
                 ui_action_only=request.ui_action_only,
@@ -413,7 +423,11 @@ def list_threads(user: UserModel = Depends(fetch_user)):
 
 
 @app.get("/api/threads/{thread_id}")
-def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
+def get_thread(
+    thread_id: str,
+    user: UserModel = Depends(fetch_user),
+    checkpointer: AsyncPostgresSaver = Depends(setup_checkpointer),
+):
     """
     Requires Authorization
     """
@@ -429,7 +443,7 @@ def get_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
     try:
         logger.debug("Replaying thread", thread_id=thread_id)
         return StreamingResponse(
-            replay_chat(thread_id=thread_id),
+            replay_chat(thread_id=thread_id, checkpointer=checkpointer),
             media_type="application/x-ndjson",
         )
     except Exception as e:
@@ -462,7 +476,11 @@ def update_thread(
 
 
 @app.delete("/api/threads/{thread_id}", status_code=204)
-def delete_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
+def delete_thread(
+    thread_id: str,
+    user: UserModel = Depends(fetch_user),
+    checkpointer: AsyncPostgresSaver = Depends(setup_checkpointer),
+):
     """
     Requires Authorization
     """

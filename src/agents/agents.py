@@ -2,8 +2,12 @@ import contextlib
 import os
 from datetime import datetime
 
-from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.prebuilt import create_react_agent
+from langgraph.graph.state import CompiledStateGraph
+from psycopg_pool import AsyncConnectionPool
+from psycopg.rows import dict_row
+
 
 from src.graph import AgentState
 from src.tools import (
@@ -53,9 +57,21 @@ DATABASE_URL = os.environ["DATABASE_URL"].replace(
 )
 
 
-@contextlib.contextmanager
-def persistent_checkpointer():
-    with PostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
+# async def get_zeno():
+#     async with setup_checkpointer() as checkpointer:
+#         agent = create_react_agent(
+#             model=SONNET,
+#             tools=tools,
+#             state_schema=AgentState,
+#             prompt=prompt,
+#             checkpointer=checkpointer,
+#         )
+#         yield agent
+
+
+@contextlib.asynccontextmanager
+async def setup_checkpointer() -> AsyncPostgresSaver:
+    async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
         # Note: no need to run `checkpointer.setup()` here, since I've
         # converted the checkpointer setup into Alembic migrations so
         # that Alembic can manage the database schema. Note that if we
@@ -75,24 +91,34 @@ def persistent_checkpointer():
         yield checkpointer
 
 
-# Open the context manager at the module level and keep it open
-checkpointer_cm = persistent_checkpointer()
-checkpointer = checkpointer_cm.__enter__()
+# checkpointer_cm = setup_checkpointer()
+# checkpointer = checkpointer_cm.__enter__()
 
-# Agent with checkpointer (for sync usage)
-zeno = create_react_agent(
-    model=SONNET,
-    tools=tools,
-    state_schema=AgentState,
-    prompt=prompt,
-    checkpointer=checkpointer,
-)
 
-# Agent without checkpointer (for async usage - avoids PostgresSaver async limitation)
-zeno_async = create_react_agent(
-    model=SONNET,
-    tools=tools,
-    state_schema=AgentState,
-    prompt=prompt,
-    # No checkpointer to avoid async compatibility issues
-)
+async def setup_zeno() -> CompiledStateGraph:
+    """Setup the Zeno agent with the provided tools and prompt."""
+    async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
+        # Create the Zeno agent with the provided tools and prompt
+        zeno_agent = create_react_agent(
+            model=SONNET,
+            tools=tools,
+            state_schema=AgentState,
+            prompt=prompt,
+            checkpointer=checkpointer,
+        )
+        yield zeno_agent
+
+
+# # Open the context manager at the module level and keep it open
+# checkpointer_cm = persistent_checkpointer()
+# checkpointer = checkpointer_cm.__aenter__()
+
+
+# # Agent without checkpointer (for async usage - avoids PostgresSaver async limitation)
+# zeno_async = create_react_agent(
+#     model=SONNET,
+#     tools=tools,
+#     state_schema=AgentState,
+#     prompt=prompt,
+#     # No checkpointer to avoid async compatibility issues
+# )
