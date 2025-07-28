@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime
 
 import requests
 import streamlit as st

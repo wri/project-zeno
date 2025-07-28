@@ -6,14 +6,13 @@ import uuid
 
 import cachetools
 import requests
+
 # Load environment variables using shared utility
 from src.utils.env_loader import load_environment_variables
 
 load_environment_variables()
 
-from fastapi import (
-    Depends, FastAPI, Header, HTTPException, Request, Response, status
-)
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.load import dumps
@@ -26,8 +25,15 @@ from sqlalchemy.orm import sessionmaker
 import structlog
 
 from src.agents.agents import zeno
-from src.api.data_models import (ThreadModel, ThreadOrm, UserModel, UserOrm,
-                               CustomAreaModel, CustomAreaOrm, CustomAreaCreate)
+from src.api.data_models import (
+    ThreadModel,
+    ThreadOrm,
+    UserModel,
+    UserOrm,
+    CustomAreaModel,
+    CustomAreaOrm,
+    CustomAreaCreate,
+)
 from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
 
@@ -179,7 +185,13 @@ def replay_chat(thread_id):
                 else "tools" if mtypes == {"tool"} else "human"
             )
 
-            yield pack({"node": node_type, "update": dumps(update)})
+            update = {
+                "node": node_type,
+                "timestamp": checkpoint.created_at,
+                "update": dumps(update),
+            }
+
+            yield pack(update)
 
     except Exception as e:
         # TODO: yield a stream event with the error?
@@ -209,10 +221,8 @@ def stream_chat(
         langfuse_handler.tags = tags
 
     config = {
-        "configurable": {
-            "thread_id": thread_id,
-        },
-        "callbacks": [langfuse_handler],
+        "configurable": {"thread_id": thread_id},
+        # "callbacks": [langfuse_handler],
     }
 
     messages = []
@@ -415,12 +425,12 @@ async def chat(
         thread_id=request.thread_id, session_id=request.session_id, query=request.query
     )
     thread = (
-        session.query(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id).first()
+        session.query(ThreadOrm)
+        .filter_by(id=request.thread_id, user_id=user.id)
+        .first()
     )
     if not thread:
-        thread = ThreadOrm(
-            id=request.thread_id, user_id=user.id, agent_id="UniGuana"
-        )
+        thread = ThreadOrm(id=request.thread_id, user_id=user.id, agent_id="UniGuana")
         session.add(thread)
         session.commit()
         session.refresh(thread)
@@ -451,9 +461,7 @@ async def chat(
 
 
 @app.get("/api/threads", response_model=list[ThreadModel])
-def list_threads(
-    user: UserModel = Depends(fetch_user), session=Depends(get_session)
-):
+def list_threads(user: UserModel = Depends(fetch_user), session=Depends(get_session)):
     """
     Requires Authorization
     """
@@ -554,7 +562,7 @@ def create_custom_area(
     custom_area = CustomAreaOrm(
         user_id=user.id,
         name=area.name,
-        geometries=[i.model_dump_json() for i in area.geometries]
+        geometries=[i.model_dump_json() for i in area.geometries],
     )
     session.add(custom_area)
     session.commit()
@@ -590,7 +598,9 @@ def get_custom_area(
     session=Depends(get_session),
 ):
     """Get a specific custom area by ID."""
-    custom_area = session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+    custom_area = (
+        session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+    )
     if not custom_area:
         raise HTTPException(status_code=404, detail="Custom area not found")
 
@@ -625,7 +635,7 @@ def update_custom_area_name(
         name=area.name,
         created_at=area.created_at,
         updated_at=area.updated_at,
-        geometries=[json.loads(i) for i in area.geometries]
+        geometries=[json.loads(i) for i in area.geometries],
     )
 
 

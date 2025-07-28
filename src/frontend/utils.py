@@ -413,8 +413,11 @@ def render_stream(stream):
 
     state_updates = "State Update: " + ", ".join(list(update.keys()))
     st.badge(state_updates, icon=":material/check:", color="green")
+    if timestamp := stream.get("timestamp"):
+        st.badge(timestamp, icon=":material/schedule:", color="blue")
 
     for msg in update["messages"]:
+
         content = msg["kwargs"]["content"]
 
         if isinstance(content, list):
