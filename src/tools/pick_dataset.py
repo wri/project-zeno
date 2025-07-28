@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -76,35 +77,25 @@ def rag_candidate_datasets(query: str, k=3, strategy="openai"):
             match_documents = openai_retriever.invoke(query)
             for doc in match_documents:
                 candidate_datasets.append(
-                    zeno_data[zeno_data.dataset_id == int(doc.id)]
-                    .iloc[0]
-                    .to_dict()
+                    zeno_data[zeno_data.dataset_id == int(doc.id)].iloc[0].to_dict()
                 )
         case "nomic":
             nomic_retriever = _get_nomic_retriever()
             match_documents = nomic_retriever.invoke(query)
             for doc in match_documents:
                 candidate_datasets.append(
-                    zeno_data[zeno_data.dataset_id == int(doc.id)]
-                    .iloc[0]
-                    .to_dict()
+                    zeno_data[zeno_data.dataset_id == int(doc.id)].iloc[0].to_dict()
                 )
         case "colbert":
-            colbert_retriever, colbert_model = (
-                _get_colbert_retriever_and_model()
-            )
+            colbert_retriever, colbert_model = _get_colbert_retriever_and_model()
             query_embedding = colbert_model.encode(
                 query, batch_size=1, is_query=True, show_progress_bar=False
             )
 
-            scores = colbert_retriever.retrieve(
-                queries_embeddings=query_embedding, k=k
-            )
+            scores = colbert_retriever.retrieve(queries_embeddings=query_embedding, k=k)
 
             candidate_datasets = [
-                zeno_data[zeno_data.dataset_id == int(score["id"])]
-                .iloc[0]
-                .to_dict()
+                zeno_data[zeno_data.dataset_id == int(score["id"])].iloc[0].to_dict()
                 for score in scores[0]
             ]
         case _:
@@ -144,8 +135,8 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     )
 
     logger.debug("Invoking dataset selection chain...")
-    dataset_selection_chain = (
-        DATASET_SELECTION_PROMPT | SONNET.with_structured_output(DatasetOption)
+    dataset_selection_chain = DATASET_SELECTION_PROMPT | SONNET.with_structured_output(
+        DatasetOption
     )
     selection_result = dataset_selection_chain.invoke(
         {
@@ -168,12 +159,17 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     return selection_result
 
 
+class ContextLayer(str, Enum):
+    NATURAL_LANDS = "natural_lands"
+    LDACS_DRIVER = "driver"
+
+
 class DatasetInfo(BaseModel):
     dataset_id: int
     source: str
     data_layer: str
     tile_url: str
-    context_layer: Optional[str] = Field(
+    context_layer: Optional[ContextLayer] = Field(
         None,
         description="Pick a single context layer from the dataset if useful",
     )
@@ -187,11 +183,11 @@ def extract_dataset_info(query: str, selection_id: int):
                 "user",
                 """Given the user query and the dataset - extract the relevant information from the dataset to pull data from source.
 
-    Dataset: 
+    Dataset:
     {dataset}
 
-    User Query: 
-    {user_query}    
+    User Query:
+    {user_query}
     """,
             ),
         ]
