@@ -148,7 +148,7 @@ def downgrade() -> None:
     op.drop_table("checkpoint_migrations")
     op.drop_index("checkpoint_writes_thread_id_idx", table_name="checkpoint_writes")
     op.drop_table("checkpoint_writes")
-    op.create_column(
+    op.add_column(
         "threads",
         sa.Column(
             "content",
