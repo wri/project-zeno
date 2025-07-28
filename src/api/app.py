@@ -222,7 +222,7 @@ def stream_chat(
 
     config = {
         "configurable": {"thread_id": thread_id},
-        # "callbacks": [langfuse_handler],
+        "callbacks": [langfuse_handler],
     }
 
     messages = []
