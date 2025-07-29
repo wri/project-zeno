@@ -10,6 +10,9 @@ Unlike GADM evaluation, this uses LLM-based scoring to compare non-exact matches
 
 import json
 import traceback
+import argparse
+import code
+import sys
 from dataclasses import dataclass
 from typing import Optional
 
@@ -184,64 +187,83 @@ def evaluation_to_score(evaluation: EvaluationResult) -> float:
         raise ValueError(f"Invalid result value: {evaluation['result']}")
 
 
-# Main execution
-langfuse = get_langfuse()
-run_name = get_run_name()
-dataset_name = "S2 T1-02 TCL"
-dataset = langfuse.get_dataset(dataset_name)
-chat_model = ChatAnthropic(
-    model="claude-opus-4-20250514",
-    max_tokens=20000,
-    thinking={"type": "enabled", "budget_tokens": 10000},
-)
+def main(dataset_name: str):
+    langfuse = get_langfuse()
+    run_name = get_run_name()
+    dataset = langfuse.get_dataset(dataset_name)
+    chat_model = ChatAnthropic(
+        model="claude-opus-4-20250514",
+        max_tokens=20000,
+        thinking={"type": "enabled", "budget_tokens": 10000},
+    )
 
-# This iterates through dataset items automatically like unit tests.
-# Run locally for development, but use staging for accurate latency/cost measurements.
-# Future: Integrate with CI/CD pipeline for automated testing on code changes.
-active_items = [item for item in dataset.items if item.status == "ACTIVE"]
-print(
-    f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
-)
+    # This iterates through dataset items automatically like unit tests.
+    # Run locally for development, but use staging for accurate latency/cost measurements.
+    # Future: Integrate with CI/CD pipeline for automated testing on code changes.
+    active_items = [item for item in dataset.items if item.status == "ACTIVE"]
+    print(
+        f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
+    )
 
+    handler = CallbackHandler()
 
-handler = CallbackHandler()
+    for item in active_items:
+        with item.run(run_name=run_name) as root_span:
+            # Execute
+            response = run_query(
+                query=item.input,
+                handler=handler,
+                user_persona="researcher",
+                thread_id=item.id,
+            )
+            # Score
+            try:
+                actual = parse_output_state_snapshot(response)
+                evaluation = evaluate_answer(
+                    actual, item.input, item.expected_output, chat_model
+                )
+                score = evaluation_to_score(evaluation)
 
-for item in active_items:
-    with item.run(run_name=run_name) as root_span:
-        # Execute
-        response = run_query(
-            query=item.input,
-            handler=handler,
-            user_persona="researcher",
-            thread_id=item.id,
+                # Upload
+                root_span.update_trace(input=item.input, output=actual)
+
+                root_span.score_trace(
+                    name="dataset_identification_score",
+                    value=score,
+                    comment=f"Analysis: {evaluation['analysis']}",
+                )
+            except TypeError as e:
+                # Skip this item if response is not in expected format
+                print(f"✗ TypeError processing item '{item.input}': {str(e)}")
+                print(f"  Response type: {type(response)}")
+                if response:
+                    print(f"  Response preview: {str(response)[:200]}...")
+                print(f"  Traceback:\n{traceback.format_exc()}")
+                continue
+            finally:
+                langfuse.flush()
+
+        # LLM-based scoring with analysis helps understand evaluation reasoning
+        # Check LangFuse UI for detailed trace analysis of failures
+        print(f"✓ {item.input} -> {score}")
+
+    if hasattr(sys, "flags") and sys.flags.interactive:
+        print(
+            "\nEvaluation complete. Starting interactive console to inspect variables (e.g., 'item', 'response', 'evaluation')."
         )
-        # Score
-        try:
-            actual = parse_output_state_snapshot(response)
-            evaluation = evaluate_answer(
-                actual, item.input, item.expected_output, chat_model
-            )
-            score = evaluation_to_score(evaluation)
+        code.interact(local=locals())
 
-            # Upload
-            root_span.update_trace(input=item.input, output=actual)
 
-            root_span.score_trace(
-                name="dataset_identification_score",
-                value=score,
-                comment=f"Analysis: {evaluation['analysis']}",
-            )
-        except TypeError as e:
-            # Skip this item if response is not in expected format
-            print(f"✗ TypeError processing item '{item.input}': {str(e)}")
-            print(f"  Response type: {type(response)}")
-            if response:
-                print(f"  Response preview: {str(response)[:200]}...")
-            print(f"  Traceback:\n{traceback.format_exc()}")
-            continue
-        finally:
-            langfuse.flush()
-
-    # LLM-based scoring with analysis helps understand evaluation reasoning
-    # Check LangFuse UI for detailed trace analysis of failures
-    print(f"✓ {item.input} -> {score}")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run dataset identification evaluation."
+    )
+    parser.add_argument(
+        "dataset_name",
+        type=str,
+        nargs="?",
+        default="S2 T1-02 TCL",
+        help="The name of the dataset to evaluate. Defaults to 'S2 T1-02 TCL'.",
+    )
+    args = parser.parse_args()
+    main(args.dataset_name)
