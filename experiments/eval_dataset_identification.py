@@ -187,7 +187,8 @@ def evaluation_to_score(evaluation: EvaluationResult) -> float:
 # Main execution
 langfuse = get_langfuse()
 run_name = get_run_name()
-dataset = langfuse.get_dataset("S2 T1-02 TCL")
+dataset_name = "S2 T1-02 TCL"
+dataset = langfuse.get_dataset(dataset_name)
 chat_model = ChatAnthropic(
     model="claude-opus-4-20250514",
     max_tokens=20000,
