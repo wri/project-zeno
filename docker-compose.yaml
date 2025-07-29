@@ -76,7 +76,7 @@ services:
       - LANGFUSE_INIT_USER_PASSWORD=${LANGFUSE_INIT_USER_PASSWORD:-Password123!}
 
   db:
-    image: postgres
+    image: postgis/postgis:17-3.5
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
