@@ -29,20 +29,18 @@ from src.api.data_models import (
     UserModel,
     UserOrm,
     DailyUsageOrm,
+    CustomAreaOrm,
+    CustomAreaModel,
+    CustomAreaCreate,
 )
-
-
 from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.env_loader import load_environment_variables
+from src.utils.config import APISettings
 
 # Load environment variables using shared utility
 load_environment_variables()
 
 logger = get_logger(__name__)
-
-DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "")
-DATABASE_URL = os.environ["DATABASE_URL"]
-engine = create_engine(DATABASE_URL)
 
 
 # TODO: how to diferentiate between admin and regular users for limits?
@@ -50,13 +48,12 @@ engine = create_engine(DATABASE_URL)
 # Question: will there be only 2 usage tiers? Do we want to set a default
 # daily limit and then set custom limits for specific users? (we can use this
 # approach to set daily quotas to -1 for unlimited users)
-DAILY_QUOTA_WARNING_THRESHOLD = 5
-ADMIN_USER_DAILY_QUOTA = 100
-REGULAR_USER_DAILY_QUOTA = 25
-ANONYMOUS_USER_DAILY_QUOTA = 10
-ENABLE_QUOTA_CHECKING = True
+# DAILY_QUOTA_WARNING_THRESHOLD = 5
+# ADMIN_USER_DAILY_QUOTA = 100
+# REGULAR_USER_DAILY_QUOTA = 25
+# ANONYMOUS_USER_DAILY_QUOTA = 10
+# ENABLE_QUOTA_CHECKING = True
 
-# SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 app = FastAPI(
     title="Zeno API",
@@ -363,7 +360,10 @@ def stream_chat(
         )
 
 
+# TODO: use connection pooling
 def get_session():
+    engine = create_engine(APISettings.database_url)
+
     Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     with Session() as session:
         yield session
@@ -376,7 +376,7 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 @cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
     authorization: Optional[str] = Header(None),
-    domains_allowlist: Optional[str] = DOMAINS_ALLOWLIST,
+    domains_allowlist: Optional[str] = APISettings.domains_allowlist,
 ) -> UserModel:
 
     if not authorization:
@@ -454,10 +454,10 @@ def check_quota(
     session=Depends(get_session),
 ):
 
-    if not ENABLE_QUOTA_CHECKING:
+    if not APISettings.enable_quota_checking:
         return {}
 
-    DAILY_QUOTA = ANONYMOUS_USER_DAILY_QUOTA
+    DAILY_QUOTA = APISettings.anonymous_user_daily_quota
     # 1. Get calling user
     if not user:
         if anon := request.cookies.get("anon_id"):
@@ -466,10 +466,10 @@ def check_quota(
             identity = f"anon:{request.state.anonymous_id}"
 
     else:
-        DAILY_QUOTA = (
-            ADMIN_USER_DAILY_QUOTA
+        daily_quota = (
+            APISettings.admin_user_daily_quota
             if user.user_type == UserType.ADMIN
-            else REGULAR_USER_DAILY_QUOTA
+            else APISettings.regular_user_daily_quota
         )
         identity = f"user:{user.id}"
 
@@ -491,15 +491,15 @@ def check_quota(
     session.commit()  # commit the upsert
 
     # 3. Enforce the quota
-    if count > DAILY_QUOTA:
+    if count > daily_quota:
         raise HTTPException(
             status_code=429,
-            detail=f"Daily free limit of {DAILY_QUOTA} exceeded; please try again tomorrow.",
+            detail=f"Daily free limit of {daily_quota} exceeded; please try again tomorrow.",
         )
 
-    if count >= DAILY_QUOTA - DAILY_QUOTA_WARNING_THRESHOLD:
+    if count >= daily_quota - APISettings.daily_quoata_warning_threshold:
         return {
-            "warning": f"User {identity} is approaching daily quota limit ({count} prompts out of {DAILY_QUOTA})"
+            "warning": f"User {identity} is approaching daily quota limit ({count} prompts out of {daily_quota})"
         }
 
     return {}
