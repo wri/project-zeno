@@ -14,16 +14,11 @@ from .mock import mock_rw_api_response
 def domain_allowlist(domains: str):
     """Context manager to set and reset DOMAINS_ALLOWLIST."""
     domain_list = domains.split(",")
-    original = os.environ.get("DOMAINS_ALLOWLIST")
-    os.environ["DOMAINS_ALLOWLIST"] = ",".join(domain_list)
     try:
-        with patch.object(api, "DOMAINS_ALLOWLIST", domain_list):
+        with patch.object(api.APISettings, "domains_allowlist_str", domains):
             yield domain_list
     finally:
-        if original is not None:
-            os.environ["DOMAINS_ALLOWLIST"] = original
-        else:
-            del os.environ["DOMAINS_ALLOWLIST"]
+        pass
 
 
 @pytest.fixture(autouse=True)

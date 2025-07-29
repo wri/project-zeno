@@ -134,8 +134,10 @@ async def anonymous_id_middleware(request: Request, call_next):
     if need_new:
         raw_uuid = str(uuid.uuid4())
         signed = signer.sign(raw_uuid).decode()
+    else:
+        signed = anon_cookie
 
-    request.state.anonymous_id = signed if need_new else anon_cookie
+    request.state.anonymous_id = signed
 
     response: Response = await call_next(request)
 
@@ -376,7 +378,7 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 @cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
     authorization: Optional[str] = Header(None),
-    domains_allowlist: Optional[str] = APISettings.domains_allowlist,
+    domains_allowlist: Optional[str] = ",".join(APISettings.domains_allowlist),
 ) -> UserModel:
 
     if not authorization:
@@ -426,11 +428,36 @@ def fetch_user_from_rw_api(
     return UserModel.model_validate(user_info)
 
 
-async def fetch_user(
+async def require_auth(
     user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
-):
+) -> UserModel:
     """
-    Requires Authorization
+    Requires Authorization - raises HTTPException if not authenticated
+    """
+    if not user_info:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Authorization header is required"
+        )
+
+    user = session.query(UserOrm).filter_by(id=user_info.id).first()
+    if not user:
+        user = UserOrm(**user_info.model_dump())
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+    # Convert to Pydantic model while session is open
+    user_model = UserModel.model_validate(user)
+    # Bind user info to request context for logging
+    bind_request_logging_context(user_id=user_model.id)
+    return user_model
+
+
+async def optional_auth(
+    user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
+) -> Optional[UserModel]:
+    """
+    Optional Authorization - returns None if not authenticated, UserModel if authenticated
     """
     if not user_info:
         return None
@@ -448,6 +475,16 @@ async def fetch_user(
     return user_model
 
 
+# Keep the old function for backward compatibility during transition
+async def fetch_user(
+    user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
+):
+    """
+    Deprecated: Use require_auth() or optional_auth() instead
+    """
+    return await optional_auth(user_info, session)
+
+
 def check_quota(
     request: Request,
     user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
@@ -457,9 +494,9 @@ def check_quota(
     if not APISettings.enable_quota_checking:
         return {}
 
-    DAILY_QUOTA = APISettings.anonymous_user_daily_quota
-    # 1. Get calling user
+    # 1. Get calling user and set quota
     if not user:
+        daily_quota = APISettings.anonymous_user_daily_quota
         if anon := request.cookies.get("anon_id"):
             identity = f"anon:{anon}"
         else:
@@ -508,7 +545,7 @@ def check_quota(
 @app.post("/api/chat")
 async def chat(
     request: ChatRequest,
-    user: UserModel = Depends(fetch_user),
+    user: Optional[UserModel] = Depends(optional_auth),
     quota_info: dict = Depends(check_quota),
     session=Depends(get_session),
 ):
@@ -524,13 +561,10 @@ async def chat(
     """
 
     thread_id = None
+    thread = None
+    
     if user:
-        # Does this function require a thread_id
-        # to bind the request? If the user is not
-        # authenticated, we won't store their thread
-        # therefore there won't be an id (we could
-        # persist threads using session_id for anonymous
-        # users, and then be able to use a thread_id)
+        # For authenticated users, persist threads in database
         bind_request_logging_context(
             thread_id=request.thread_id,
             session_id=request.session_id,
@@ -541,11 +575,16 @@ async def chat(
             .filter_by(id=request.thread_id, user_id=user.id)
             .first()
         )
-    if not thread:
-        thread = ThreadOrm(id=request.thread_id, user_id=user.id, agent_id="UniGuana")
-        session.add(thread)
-        session.commit()
-        session.refresh(thread)
+        if not thread:
+            thread = ThreadOrm(id=request.thread_id, user_id=user.id, agent_id="UniGuana")
+            session.add(thread)
+            session.commit()
+            session.refresh(thread)
+        thread_id = thread.id
+    else:
+        # For anonymous users, use the thread_id from request but don't persist
+        # This allows conversation continuity within the same session
+        thread_id = request.thread_id
 
     try:
         headers = {}
@@ -578,7 +617,7 @@ async def chat(
 
 
 @app.get("/api/threads", response_model=list[ThreadModel])
-def list_threads(user: UserModel = Depends(fetch_user), session=Depends(get_session)):
+def list_threads(user: UserModel = Depends(require_auth), session=Depends(get_session)):
     """
     Requires Authorization
     """
@@ -589,7 +628,7 @@ def list_threads(user: UserModel = Depends(fetch_user), session=Depends(get_sess
 @app.get("/api/threads/{thread_id}")
 def get_thread(
     thread_id: str,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """
@@ -621,7 +660,7 @@ class ThreadUpdateRequest(BaseModel):
 def update_thread(
     thread_id: str,
     request: ThreadUpdateRequest,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """
@@ -641,7 +680,7 @@ def update_thread(
 @app.delete("/api/threads/{thread_id}", status_code=204)
 def delete_thread(
     thread_id: str,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """
@@ -660,7 +699,7 @@ def delete_thread(
 
 
 @app.get("/api/auth/me", response_model=UserModel)
-async def auth_me(user: UserModel = Depends(fetch_user)):
+async def auth_me(user: UserModel = Depends(require_auth)):
     """
     Requires Authorization: Bearer <JWT>
     Forwards the JWT to Resource Watch API and returns user info.
@@ -672,7 +711,7 @@ async def auth_me(user: UserModel = Depends(fetch_user)):
 @app.post("/api/custom_areas/", response_model=CustomAreaModel)
 def create_custom_area(
     area: CustomAreaCreate,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """Create a new custom area for the authenticated user."""
@@ -697,7 +736,7 @@ def create_custom_area(
 
 @app.get("/api/custom_areas/", response_model=list[CustomAreaModel])
 def list_custom_areas(
-    user: UserModel = Depends(fetch_user), session=Depends(get_session)
+    user: UserModel = Depends(require_auth), session=Depends(get_session)
 ):
     """List all custom areas belonging to the authenticated user."""
     areas = session.query(CustomAreaOrm).filter_by(user_id=user.id).all()
@@ -711,7 +750,7 @@ def list_custom_areas(
 @app.get("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
 def get_custom_area(
     area_id: UUID,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """Get a specific custom area by ID."""
@@ -735,7 +774,7 @@ def get_custom_area(
 def update_custom_area_name(
     area_id: UUID,
     payload: dict,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """Update the name of a custom area."""
@@ -759,7 +798,7 @@ def update_custom_area_name(
 @app.delete("/api/custom_areas/{area_id}", status_code=204)
 def delete_custom_area(
     area_id: UUID,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """Delete a custom area."""

@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -3726,6 +3725,7 @@ dependencies = [
     { name = "psycopg-pool" },
     { name = "psycopg2-binary" },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
     { name = "pylate" },
     { name = "pypgstac" },
     { name = "pystac" },
@@ -3788,6 +3788,7 @@ requires-dist = [
     { name = "psycopg-pool", specifier = ">=3.2.6" },
     { name = "psycopg2-binary", specifier = ">=2.9.10" },
     { name = "pydantic", specifier = ">=2" },
+    { name = "pydantic-settings", specifier = ">=2.6.0" },
     { name = "pylate", specifier = ">=1.2.0" },
     { name = "pypgstac", specifier = ">=0.9.6" },
     { name = "pystac", specifier = ">=1.11.0" },
