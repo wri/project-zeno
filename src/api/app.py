@@ -443,14 +443,6 @@ class ThreadUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, description="The name of the thread")
 
 
-class GeometryResponse(BaseModel):
-    name: str = Field(..., description="Name of the geometry")
-    # subtype: str = Field(..., description="Subtype of the geometry")
-    source: str = Field(..., description="Source of the geometry")
-    src_id: int | str = Field(..., description="Source ID of the geometry")
-    geometry: dict = Field(..., description="GeoJSON geometry")
-
-
 @app.patch("/api/threads/{thread_id}", response_model=ThreadModel)
 def update_thread(
     thread_id: str, request: ThreadUpdateRequest, user: UserModel = Depends(fetch_user)
@@ -489,6 +481,14 @@ def delete_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
         return {"detail": "Thread deleted successfully"}
 
 
+class GeometryResponse(BaseModel):
+    name: str = Field(..., description="Name of the geometry")
+    subtype: str = Field(..., description="Subtype of the geometry")
+    source: str = Field(..., description="Source of the geometry")
+    src_id: int | str = Field(..., description="Source ID of the geometry")
+    geometry: dict = Field(..., description="GeoJSON geometry")
+
+
 @app.get("/api/geometry/{source}/{src_id}", response_model=GeometryResponse)
 async def get_geometry(source: str, src_id: str):
     """
@@ -496,11 +496,15 @@ async def get_geometry(source: str, src_id: str):
 
     Args:
         source: Source type (gadm, kba, landmark, wdpa)
-        src_id: Source-specific ID
+        src_id: Source-specific ID (GID_X for GADM, sitrecid for KBA, etc.)
         user: Authenticated user
 
     Returns:
         Geometry data with name, subtype, and GeoJSON geometry
+
+    Example:
+        GET /api/geometry/gadm/IND.26.2_1
+        GET /api/geometry/kba/16595
     """
     if source not in SOURCE_ID_MAPPING:
         raise HTTPException(
@@ -512,7 +516,7 @@ async def get_geometry(source: str, src_id: str):
     id_column = SOURCE_ID_MAPPING[source]["id_column"]
 
     sql_query = f"""
-        SELECT name, ST_AsGeoJSON(geometry) as geometry_json
+        SELECT name, subtype, ST_AsGeoJSON(geometry) as geometry_json
         FROM {table_name}
         WHERE "{id_column}" = :src_id
     """
@@ -538,7 +542,7 @@ async def get_geometry(source: str, src_id: str):
 
         return GeometryResponse(
             name=result.name,
-            # subtype=result.subtype,
+            subtype=result.subtype,
             source=source,
             src_id=src_id,
             geometry=geometry,
