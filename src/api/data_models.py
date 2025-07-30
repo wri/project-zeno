@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, alias_generators, field_validator
+from pydantic import BaseModel, ConfigDict, alias_generators, field_validator, Field
 from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -69,3 +69,11 @@ class UserModel(BaseModel):
             except ValueError:
                 return value
         return value
+
+
+class GeometryResponse(BaseModel):
+    name: str = Field(..., description="Name of the geometry")
+    subtype: str = Field(..., description="Subtype of the geometry")
+    source: str = Field(..., description="Source of the geometry")
+    src_id: int | str = Field(..., description="Source ID of the geometry")
+    geometry: dict = Field(..., description="GeoJSON geometry")

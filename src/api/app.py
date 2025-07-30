@@ -18,7 +18,13 @@ from sqlalchemy.orm import sessionmaker
 import structlog
 
 from src.agents.agents import zeno, checkpointer
-from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
+from src.api.data_models import (
+    ThreadModel,
+    ThreadOrm,
+    UserModel,
+    UserOrm,
+    GeometryResponse,
+)
 from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
@@ -479,14 +485,6 @@ def delete_thread(thread_id: str, user: UserModel = Depends(fetch_user)):
         db.delete(thread)
         db.commit()
         return {"detail": "Thread deleted successfully"}
-
-
-class GeometryResponse(BaseModel):
-    name: str = Field(..., description="Name of the geometry")
-    subtype: str = Field(..., description="Subtype of the geometry")
-    source: str = Field(..., description="Source of the geometry")
-    src_id: int | str = Field(..., description="Source ID of the geometry")
-    geometry: dict = Field(..., description="GeoJSON geometry")
 
 
 @app.get("/api/geometry/{source}/{src_id}", response_model=GeometryResponse)
