@@ -4,7 +4,7 @@ from src.ingest.utils import (
     create_index_if_not_exists,
 )
 
-LANDMARK_DATA_SOURCE = "s3://gfw-data-lake/landmark_indigenous_and_community_lands/v202411/vector/epsg-4326/default.ndjson"
+LANDMARK_DATA_SOURCE = "s3://gfw-data-lake/landmark_ip_lc_and_indicative_poly/v20250625/vector/epsg-4326/default.ndjson"
 
 
 def ingest_landmark() -> None:
@@ -15,9 +15,7 @@ def ingest_landmark() -> None:
 
     for i, gdf_chunk in enumerate(gdf_from_ndjson_chunked(LANDMARK_DATA_SOURCE)):
         # Rename columns
-        gdf_chunk = gdf_chunk.rename(
-            columns={"id": "landmark_id", "name": "landmark_name"}
-        )
+        gdf_chunk = gdf_chunk.rename(columns={"name": "landmark_name"})
 
         # Add new name column
         gdf_chunk["name"] = gdf_chunk.apply(
