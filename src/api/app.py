@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 from uuid import UUID
 import uuid
 import cachetools
@@ -13,18 +13,18 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from itsdangerous import BadSignature, TimestampSigner
+
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
-from langgraph.graph.state import CompiledStateGraph
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import insert
 
-from src.agents.agents import setup_zeno, setup_checkpointer
-from src.agents.agents import zeno, zeno_anonymous, checkpointer
+
+from src.agents.agents import fetch_zeno, fetch_zeno_anonymous, fetch_checkpointer
 
 from src.api.data_models import (
     ThreadModel,
@@ -46,18 +46,6 @@ from src.utils.config import APISettings
 load_environment_variables()
 
 logger = get_logger(__name__)
-
-
-# TODO: how to diferentiate between admin and regular users for limits?
-# For now, we assume all users are regular users
-# Question: will there be only 2 usage tiers? Do we want to set a default
-# daily limit and then set custom limits for specific users? (we can use this
-# approach to set daily quotas to -1 for unlimited users)
-# DAILY_QUOTA_WARNING_THRESHOLD = 5
-# ADMIN_USER_DAILY_QUOTA = 100
-# REGULAR_USER_DAILY_QUOTA = 25
-# ANONYMOUS_USER_DAILY_QUOTA = 10
-# ENABLE_QUOTA_CHECKING = True
 
 
 app = FastAPI(
@@ -93,6 +81,8 @@ async def logging_middleware(request: Request, call_next) -> Response:
         request_id=req_id,
     )
 
+    response = None
+
     # Call the next middleware or endpoint
     try:
         response: Response = await call_next(request)
@@ -104,8 +94,16 @@ async def logging_middleware(request: Request, call_next) -> Response:
             error=str(e),
             request_id=req_id,
         )
+
         raise e
+
     finally:
+        if not response:
+            response = Response(
+                content="Internal Server Error",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
         # Log request end
         logger.info(
             "Response sent",
@@ -182,26 +180,24 @@ def pack(data):
     return json.dumps(data) + "\n"
 
 
-def replay_chat(thread_id, checkpointer: AsyncPostgresSaver):
-    config = {
-        "configurable": {
-            "thread_id": thread_id,
-        }
-    }
+async def replay_chat(thread_id):
+    config = {"configurable": {"thread_id": thread_id}}
 
     try:
+
+        zeno_async = await fetch_zeno()
+
         # Fetch checkpoints for conversation/thread
-        checkpoints = checkpointer.get_state_history(config=config)
         # consume checkpoints and sort them by step to process from
-        # oldest to newest
+        # oldest to newest. Skip step -1 which is the initial empty state
+        checkpoints = [c async for c in zeno_async.aget_state_history(config=config)]
         checkpoints = sorted(list(checkpoints), key=lambda x: x.metadata["step"])
-        # Remove step -1 which is the initial empty state
         checkpoints = [c for c in checkpoints if c.metadata["step"] >= 0]
 
-        # Variables to track rendered state elements and messages
-        # so that we essentially just render the diff of the state
-        # from one checkpoint to the next (in order to maintain the
-        # correct ordering of messages and state updates)
+        # Track rendered state elements and messages.
+        # We want to just render the diff of the state from one checkpoint to
+        # the next (in order to maintain the correct ordering of messages and
+        # state updates)
         rendered_state_elements = {"messages": []}
 
         for checkpoint in checkpoints:
@@ -241,7 +237,6 @@ def replay_chat(thread_id, checkpointer: AsyncPostgresSaver):
 
 async def stream_chat(
     query: str,
-    zeno_async: CompiledStateGraph,
     user_persona: Optional[str] = None,
     ui_context: Optional[dict] = None,
     ui_action_only: Optional[bool] = False,
@@ -267,6 +262,11 @@ async def stream_chat(
         },
         # "callbacks": [langfuse_handler],
     }
+
+    if not thread_id:
+        zeno_async = await fetch_zeno_anonymous()
+    else:
+        zeno_async = await fetch_zeno()
 
     messages = []
     ui_action_message = []
@@ -308,6 +308,7 @@ async def stream_chat(
 
     state_updates["messages"] = messages
     state_updates["user_persona"] = user_persona
+
     try:
         stream = zeno_async.astream(
             state_updates,
@@ -378,7 +379,7 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 @cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
     authorization: Optional[str] = Header(None),
-    domains_allowlist: Optional[List[str]] = APISettings.domains_allowlist,
+    domains_allowlist: Optional[str] = ",".join(APISettings.domains_allowlist),
 ) -> UserModel:
 
     if not authorization:
@@ -391,6 +392,7 @@ def fetch_user_from_rw_api(
         )
 
     token = authorization.split(" ")[1]
+
     try:
         resp = requests.get(
             "https://api.resourcewatch.org/auth/user/me",
@@ -416,7 +418,7 @@ def fetch_user_from_rw_api(
         )
         user_info["name"] = user_info["email"].split("@")[0]
 
-    if user_info["email"].split("@")[-1].lower() not in domains_allowlist:
+    if user_info["email"].split("@")[-1].lower() not in domains_allowlist.split(","):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not allowed to access this API",
@@ -472,16 +474,6 @@ async def optional_auth(
     return user_model
 
 
-# Keep the old function for backward compatibility during transition
-async def fetch_user(
-    user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
-):
-    """
-    Deprecated: Use require_auth() or optional_auth() instead
-    """
-    return await optional_auth(user_info, session)
-
-
 def check_quota(
     request: Request,
     user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
@@ -531,7 +523,7 @@ def check_quota(
             detail=f"Daily free limit of {daily_quota} exceeded; please try again tomorrow.",
         )
 
-    if count >= daily_quota - APISettings.daily_quoata_warning_threshold:
+    if count >= daily_quota - APISettings.daily_quota_warning_threshold:
         return {
             "warning": f"User {identity} is approaching daily quota limit ({count} prompts out of {daily_quota})"
         }
@@ -593,7 +585,6 @@ async def chat(
         return StreamingResponse(
             stream_chat(
                 query=request.query,
-                zeno_async=zeno,
                 user_persona=request.user_persona,
                 thread_id=thread_id,
                 ui_context=request.ui_context,
@@ -644,8 +635,7 @@ def get_thread(
     try:
         logger.debug("Replaying thread", thread_id=thread_id)
         return StreamingResponse(
-            replay_chat(thread_id=thread_id, checkpointer=checkpointer),
-            media_type="application/x-ndjson",
+            replay_chat(thread_id=thread_id), media_type="application/x-ndjson"
         )
     except Exception as e:
         logger.exception("Replay failed", thread_id=thread_id)
@@ -678,16 +668,16 @@ def update_thread(
 
 
 @app.delete("/api/threads/{thread_id}", status_code=204)
-def delete_thread(
+async def delete_thread(
     thread_id: str,
     user: UserModel = Depends(require_auth),
     session=Depends(get_session),
+    checkpointer: AsyncPostgresSaver = Depends(fetch_checkpointer),
 ):
     """
     Requires Authorization
     """
-
-    checkpointer.delete_thread(thread_id)
+    await checkpointer.adelete_thread(thread_id)
 
     thread = session.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
     if not thread:

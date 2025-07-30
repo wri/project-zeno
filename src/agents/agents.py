@@ -1,12 +1,11 @@
-import contextlib
 import os
 from datetime import datetime
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.prebuilt import create_react_agent
 from langgraph.graph.state import CompiledStateGraph
-from psycopg_pool import AsyncConnectionPool
 from psycopg.rows import dict_row
+from psycopg import AsyncConnection
 
 
 from src.graph import AgentState
@@ -52,77 +51,42 @@ tools = [pick_aoi, pick_dataset, pull_data, generate_insights]
 load_environment_variables()
 
 
-# Load environment variables before using them
-load_environment_variables()
-
-
 DATABASE_URL = os.environ["DATABASE_URL"].replace(
     "postgresql+psycopg://", "postgresql://"
 )
 
 
-# async def get_zeno():
-#     async with setup_checkpointer() as checkpointer:
-#         agent = create_react_agent(
-#             model=SONNET,
-#             tools=tools,
-#             state_schema=AgentState,
-#             prompt=prompt,
-#             checkpointer=checkpointer,
-#         )
-#         yield agent
+async def fetch_checkpointer() -> AsyncPostgresSaver:
+    connection = await AsyncConnection.connect(
+        DATABASE_URL, row_factory=dict_row, autocommit=True
+    )
+    checkpointer = AsyncPostgresSaver(conn=connection)
+    return checkpointer
 
 
-@contextlib.asynccontextmanager
-async def setup_checkpointer() -> AsyncPostgresSaver:
-    async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
-        # Note: no need to run `checkpointer.setup()` here, since I've
-        # converted the checkpointer setup into Alembic migrations so
-        # that Alembic can manage the database schema. Note that if we
-        # update the postgres checkpointer library it may require a new
-        # migration to be created - I manually ran `checkpointer.setup()`
-        # on a local database and then ran
-        # `alembic revision --autogenerate -m "Add langgraph persistence tables"`
-        # to create the migration script (note that the desired migration
-        # scripts were created in the opposite methods (upgrade vs downgrade)
-        # than the ones expected, since, technically alembic would need to
-        # drop the tables in order to get the state to match the local
-        # codebase. I just copy/pasted the code from the `upgrade` method
-        # to the `downgrade` method).
+async def fetch_zeno_anonymous() -> CompiledStateGraph:
+    """Setup the Zeno agent for anonymous users with the provided tools and prompt."""
+    # async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
+    # Create the Zeno agent with the provided tools and prompt
 
-        # checkpointer.setup()
-
-        yield checkpointer
+    zeno_agent = create_react_agent(
+        model=SONNET,
+        tools=tools,
+        state_schema=AgentState,
+        prompt=prompt,
+    )
+    return zeno_agent
 
 
-# checkpointer_cm = setup_checkpointer()
-# checkpointer = checkpointer_cm.__enter__()
-
-
-async def setup_zeno() -> CompiledStateGraph:
+async def fetch_zeno() -> CompiledStateGraph:
     """Setup the Zeno agent with the provided tools and prompt."""
-    async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
-        # Create the Zeno agent with the provided tools and prompt
-        zeno_agent = create_react_agent(
-            model=SONNET,
-            tools=tools,
-            state_schema=AgentState,
-            prompt=prompt,
-            checkpointer=checkpointer,
-        )
-        yield zeno_agent
 
-
-# # Open the context manager at the module level and keep it open
-# checkpointer_cm = persistent_checkpointer()
-# checkpointer = checkpointer_cm.__aenter__()
-
-
-# # Agent without checkpointer (for async usage - avoids PostgresSaver async limitation)
-# zeno_async = create_react_agent(
-#     model=SONNET,
-#     tools=tools,
-#     state_schema=AgentState,
-#     prompt=prompt,
-#     # No checkpointer to avoid async compatibility issues
-# )
+    checkpointer = await fetch_checkpointer()
+    zeno_agent = create_react_agent(
+        model=SONNET,
+        tools=tools,
+        state_schema=AgentState,
+        prompt=prompt,
+        checkpointer=checkpointer,
+    )
+    return zeno_agent
