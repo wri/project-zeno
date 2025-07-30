@@ -154,7 +154,7 @@ def downgrade() -> None:
             "content",
             postgresql.JSONB(),
             default={},
-            nullable=False,
+            nullable=True,
         ),
     )
     # ### end Alembic commands ###

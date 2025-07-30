@@ -27,6 +27,7 @@ def upgrade() -> None:
         sa.Column("date", sa.Date(), nullable=False),
         sa.Column("usage_count", sa.Integer(), nullable=False, server_default="0"),
         sa.PrimaryKeyConstraint("id", "date"),
+        sa.UniqueConstraint("id"),
     )
 
 
