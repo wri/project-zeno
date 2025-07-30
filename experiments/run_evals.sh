@@ -20,7 +20,25 @@ trap ':' INT
 : "${LANGFUSE_PUBLIC_KEY?Error: LANGFUSE_PUBLIC_KEY is not set.}"
 : "${LANGFUSE_TRACING_ENVIRONMENT?Error: LANGFUSE_TRACING_ENVIRONMENT is not set.}"
 
-echo "--- Running Data Interpretation Evaluation ---"
+# Function to run and time a command
+run_and_time() {
+    # First argument is description, the rest is the command
+    description="$1"
+    shift
+
+    echo "--- $description ---"
+    start_time=$(date +%s)
+    
+    "$@" # Run the command
+    
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    minutes=$((duration / 60))
+    seconds=$((duration % 60))
+    echo "Elapsed time: ${minutes}m ${seconds}s"
+}
+
+run_and_time "Running Data Interpretation Evaluation" \
 uv run python experiments/eval_data_interpretation.py
 
 echo
