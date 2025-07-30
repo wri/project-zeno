@@ -3,44 +3,56 @@ import os
 from typing import Dict, Optional
 from uuid import UUID
 import uuid
-
 import cachetools
 import requests
+from datetime import date
 
-# Load environment variables using shared utility
-from src.utils.env_loader import load_environment_variables
-
-load_environment_variables()
+import structlog
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from itsdangerous import BadSignature, TimestampSigner
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
-import requests
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-import structlog
-
-from src.agents.agents import zeno
+from sqlalchemy.dialects.postgresql import insert
+from src.agents.agents import zeno, zeno_anonymous, checkpointer
 from src.api.data_models import (
     ThreadModel,
     ThreadOrm,
+    UserType,
     UserModel,
     UserOrm,
-    CustomAreaModel,
+    DailyUsageOrm,
     CustomAreaOrm,
+    CustomAreaModel,
     CustomAreaCreate,
 )
-from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
+from src.utils.env_loader import load_environment_variables
+from src.utils.config import APISettings
 
+# Load environment variables using shared utility
 load_environment_variables()
 
-
 logger = get_logger(__name__)
+
+
+# TODO: how to diferentiate between admin and regular users for limits?
+# For now, we assume all users are regular users
+# Question: will there be only 2 usage tiers? Do we want to set a default
+# daily limit and then set custom limits for specific users? (we can use this
+# approach to set daily quotas to -1 for unlimited users)
+# DAILY_QUOTA_WARNING_THRESHOLD = 5
+# ADMIN_USER_DAILY_QUOTA = 100
+# REGULAR_USER_DAILY_QUOTA = 25
+# ANONYMOUS_USER_DAILY_QUOTA = 10
+# ENABLE_QUOTA_CHECKING = True
+
 
 app = FastAPI(
     title="Zeno API",
@@ -74,10 +86,12 @@ async def logging_middleware(request: Request, call_next) -> Response:
         url=str(request.url),
         request_id=req_id,
     )
+    response_code = None
 
     # Call the next middleware or endpoint
     try:
         response: Response = await call_next(request)
+        response_code = response.status_code
     except Exception as e:
         logger.exception(
             "Request failed with error",
@@ -86,6 +100,7 @@ async def logging_middleware(request: Request, call_next) -> Response:
             error=str(e),
             request_id=req_id,
         )
+        response_code = 500
         raise e
     finally:
         # Log request end
@@ -93,13 +108,51 @@ async def logging_middleware(request: Request, call_next) -> Response:
             "Response sent",
             method=request.method,
             url=str(request.url),
-            status_code=response.status_code,
+            status_code=response_code,
             request_id=req_id,
         )
     return response
 
 
 langfuse_handler = CallbackHandler()
+
+# HTTP Middleware to asign/verify anonymous session IDs
+signer = TimestampSigner(os.environ["COOKIE_SIGNER_SECRET_KEY"])
+
+
+@app.middleware("http")
+async def anonymous_id_middleware(request: Request, call_next):
+    anon_cookie = request.cookies.get("anonymous_id")
+    need_new = True
+
+    if anon_cookie:
+        try:
+            # Verify signature & extract payload
+            _ = signer.unsign(anon_cookie, max_age=365 * 24 * 3600)  # Cookie age: 1yr
+            need_new = False
+        except BadSignature:
+            pass
+
+    if need_new:
+        raw_uuid = str(uuid.uuid4())
+        signed = signer.sign(raw_uuid).decode()
+    else:
+        signed = anon_cookie
+
+    request.state.anonymous_id = signed
+
+    response: Response = await call_next(request)
+
+    response.set_cookie(
+        "anonymous_id",
+        signed,
+        max_age=365 * 24 * 3600,  # Cookie age: 1yr
+        # secure=True,  # only over HTTPS
+        httponly=True,  # JS cannot read
+        samesite="Lax",
+    )
+
+    return response
 
 
 class ChatRequest(BaseModel):
@@ -265,9 +318,17 @@ def stream_chat(
 
     state_updates["messages"] = messages
     state_updates["user_persona"] = user_persona
-
     try:
-        stream = zeno.stream(
+        # Use zeno_anonymous (zeno agent without checkpointer) for
+        # anonymous users by default
+        zeno_agent = zeno_anonymous
+        if thread_id:
+            # thread_id is provided if the user is authenticated,
+            # use main zeno agent (with checkpointer)
+            zeno_agent = zeno
+            config["configurable"] = {"thread_id": thread_id}
+
+        stream = zeno_agent.stream(
             state_updates,
             config=config,
             stream_mode="updates",
@@ -321,12 +382,10 @@ def stream_chat(
         )
 
 
-DOMAINS_ALLOWLIST = os.environ.get("DOMAINS_ALLOWLIST", "")
-DATABASE_URL = os.environ["DATABASE_URL"]
-engine = create_engine(DATABASE_URL)
-
-
+# TODO: use connection pooling
 def get_session():
+    engine = create_engine(APISettings.database_url)
+
     Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     with Session() as session:
         yield session
@@ -338,9 +397,13 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 @cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
-    authorization: str = Header(...),
-    domains_allowlist: Optional[str] = DOMAINS_ALLOWLIST,
+    authorization: Optional[str] = Header(None),
+    domains_allowlist: Optional[str] = ",".join(APISettings.domains_allowlist),
 ) -> UserModel:
+
+    if not authorization:
+        return None
+
     if not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -385,12 +448,17 @@ def fetch_user_from_rw_api(
     return UserModel.model_validate(user_info)
 
 
-async def fetch_user(
+async def require_auth(
     user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
-):
+) -> UserModel:
     """
-    Requires Authorization
+    Requires Authorization - raises HTTPException if not authenticated
     """
+    if not user_info:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Authorization header is required",
+        )
 
     user = session.query(UserOrm).filter_by(id=user_info.id).first()
     if not user:
@@ -405,10 +473,100 @@ async def fetch_user(
     return user_model
 
 
+async def optional_auth(
+    user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
+) -> Optional[UserModel]:
+    """
+    Optional Authorization - returns None if not authenticated, UserModel if authenticated
+    """
+    if not user_info:
+        return None
+
+    user = session.query(UserOrm).filter_by(id=user_info.id).first()
+    if not user:
+        user = UserOrm(**user_info.model_dump())
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+    # Convert to Pydantic model while session is open
+    user_model = UserModel.model_validate(user)
+    # Bind user info to request context for logging
+    bind_request_logging_context(user_id=user_model.id)
+    return user_model
+
+
+# Keep the old function for backward compatibility during transition
+async def fetch_user(
+    user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
+):
+    """
+    Deprecated: Use require_auth() or optional_auth() instead
+    """
+    return await optional_auth(user_info, session)
+
+
+def check_quota(
+    request: Request,
+    user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
+    session=Depends(get_session),
+):
+
+    if not APISettings.enable_quota_checking:
+        return {}
+
+    # 1. Get calling user and set quota
+    if not user:
+        daily_quota = APISettings.anonymous_user_daily_quota
+        if anon := request.cookies.get("anon_id"):
+            identity = f"anon:{anon}"
+        else:
+            identity = f"anon:{request.state.anonymous_id}"
+
+    else:
+        daily_quota = (
+            APISettings.admin_user_daily_quota
+            if user.user_type == UserType.ADMIN
+            else APISettings.regular_user_daily_quota
+        )
+        identity = f"user:{user.id}"
+
+    today = date.today()
+
+    # 2. Atomically "insert or increment" with ON CONFLICT
+    stmt = (
+        insert(DailyUsageOrm)
+        .values(id=identity, date=today, usage_count=1)
+        # Composite PK = (id, date)
+        .on_conflict_do_update(
+            index_elements=["id", "date"],
+            set_={"usage_count": DailyUsageOrm.usage_count + 1},
+        )
+        .returning(DailyUsageOrm.usage_count)
+    )
+    result = session.execute(stmt)
+    count = result.scalar()
+    session.commit()  # commit the upsert
+
+    # 3. Enforce the quota
+    if count > daily_quota:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Daily free limit of {daily_quota} exceeded; please try again tomorrow.",
+        )
+
+    if count >= daily_quota - APISettings.daily_quoata_warning_threshold:
+        return {
+            "warning": f"User {identity} is approaching daily quota limit ({count} prompts out of {daily_quota})"
+        }
+
+    return {}
+
+
 @app.post("/api/chat")
 async def chat(
     request: ChatRequest,
-    user: UserModel = Depends(fetch_user),
+    user: Optional[UserModel] = Depends(optional_auth),
+    quota_info: dict = Depends(check_quota),
     session=Depends(get_session),
 ):
     """
@@ -421,34 +579,54 @@ async def chat(
     Returns:
         The streamed response
     """
-    bind_request_logging_context(
-        thread_id=request.thread_id, session_id=request.session_id, query=request.query
-    )
-    thread = (
-        session.query(ThreadOrm)
-        .filter_by(id=request.thread_id, user_id=user.id)
-        .first()
-    )
-    if not thread:
-        thread = ThreadOrm(id=request.thread_id, user_id=user.id, agent_id="UniGuana")
-        session.add(thread)
-        session.commit()
-        session.refresh(thread)
+
+    thread_id = None
+    thread = None
+
+    if user:
+        # For authenticated users, persist threads in database
+        bind_request_logging_context(
+            thread_id=request.thread_id,
+            session_id=request.session_id,
+            query=request.query,
+        )
+        thread = (
+            session.query(ThreadOrm)
+            .filter_by(id=request.thread_id, user_id=user.id)
+            .first()
+        )
+        if not thread:
+            thread = ThreadOrm(
+                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+            )
+            session.add(thread)
+            session.commit()
+            session.refresh(thread)
+        thread_id = thread.id
+    else:
+        # For anonymous users, use the thread_id from request but don't persist
+        # This allows conversation continuity within the same session
+        thread_id = request.thread_id
 
     try:
+        headers = {}
+        if "warning" in quota_info:
+            headers["X-Quota-Warning"] = quota_info["warning"]
+
         return StreamingResponse(
             stream_chat(
                 query=request.query,
                 user_persona=request.user_persona,
+                thread_id=thread_id,
                 ui_context=request.ui_context,
                 ui_action_only=request.ui_action_only,
-                thread_id=request.thread_id,
                 metadata=request.metadata,
                 session_id=request.session_id,
                 user_id=request.user_id,
                 tags=request.tags,
             ),
             media_type="application/x-ndjson",
+            headers=headers if headers else None,
         )
     except Exception as e:
         logger.exception(
@@ -461,7 +639,7 @@ async def chat(
 
 
 @app.get("/api/threads", response_model=list[ThreadModel])
-def list_threads(user: UserModel = Depends(fetch_user), session=Depends(get_session)):
+def list_threads(user: UserModel = Depends(require_auth), session=Depends(get_session)):
     """
     Requires Authorization
     """
@@ -472,7 +650,7 @@ def list_threads(user: UserModel = Depends(fetch_user), session=Depends(get_sess
 @app.get("/api/threads/{thread_id}")
 def get_thread(
     thread_id: str,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """
@@ -504,7 +682,7 @@ class ThreadUpdateRequest(BaseModel):
 def update_thread(
     thread_id: str,
     request: ThreadUpdateRequest,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """
@@ -524,7 +702,7 @@ def update_thread(
 @app.delete("/api/threads/{thread_id}", status_code=204)
 def delete_thread(
     thread_id: str,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """
@@ -543,7 +721,7 @@ def delete_thread(
 
 
 @app.get("/api/auth/me", response_model=UserModel)
-async def auth_me(user: UserModel = Depends(fetch_user)):
+async def auth_me(user: UserModel = Depends(require_auth)):
     """
     Requires Authorization: Bearer <JWT>
     Forwards the JWT to Resource Watch API and returns user info.
@@ -555,7 +733,7 @@ async def auth_me(user: UserModel = Depends(fetch_user)):
 @app.post("/api/custom_areas/", response_model=CustomAreaModel)
 def create_custom_area(
     area: CustomAreaCreate,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """Create a new custom area for the authenticated user."""
@@ -580,7 +758,7 @@ def create_custom_area(
 
 @app.get("/api/custom_areas/", response_model=list[CustomAreaModel])
 def list_custom_areas(
-    user: UserModel = Depends(fetch_user), session=Depends(get_session)
+    user: UserModel = Depends(require_auth), session=Depends(get_session)
 ):
     """List all custom areas belonging to the authenticated user."""
     areas = session.query(CustomAreaOrm).filter_by(user_id=user.id).all()
@@ -594,7 +772,7 @@ def list_custom_areas(
 @app.get("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
 def get_custom_area(
     area_id: UUID,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """Get a specific custom area by ID."""
@@ -618,7 +796,7 @@ def get_custom_area(
 def update_custom_area_name(
     area_id: UUID,
     payload: dict,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """Update the name of a custom area."""
@@ -642,7 +820,7 @@ def update_custom_area_name(
 @app.delete("/api/custom_areas/{area_id}", status_code=204)
 def delete_custom_area(
     area_id: UUID,
-    user: UserModel = Depends(fetch_user),
+    user: UserModel = Depends(require_auth),
     session=Depends(get_session),
 ):
     """Delete a custom area."""

@@ -62,7 +62,7 @@ with st.sidebar:
 
     if st.session_state.get("user"):
         st.write("User info: ", st.session_state["user"])
-        if st.button("Logout"):
+        if st.button("Logout", key="logout_uniguana"):
             # NOTE: there is a logout endpoint in the API, but it only invalidates the browser cookies
             # and not the JWT. So in this case, we'll just clear the user info and token
             st.session_state.pop("user", None)
@@ -83,14 +83,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if user_input := st.chat_input(
-    (
-        "Please login to start a chat..."
-        if not st.session_state.get("token")
-        else "Type your message here..."
-    ),
-    disabled=not st.session_state.get("token"),
-):
+if user_input := st.chat_input("Type your message here..."):
     ui_context = {}
 
     if selected_aoi and not st.session_state.get("aoi_acknowledged"):

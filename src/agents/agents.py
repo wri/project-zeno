@@ -90,3 +90,8 @@ zeno = create_react_agent(
     prompt=prompt,
     checkpointer=checkpointer,
 )
+
+# Non-checkpointer backed agent for anonymous users
+zeno_anonymous = create_react_agent(
+    model=SONNET, tools=tools, state_schema=AgentState, prompt=prompt
+)
