@@ -4,7 +4,7 @@ from src.ingest.utils import (
     create_index_if_not_exists,
 )
 
-KBA_DATA_SOURCE = "s3://gfw-data-lake/birdlife_key_biodiversity_areas/v202106/vector/epsg-4326/birdlife_key_biodiversity_areas_v202106.ndjson"
+KBA_DATA_SOURCE = "s3://ndjson-layers/KBAsGlobal_2024_September_03_POL.ndjson"
 
 
 def ingest_kba() -> None:
@@ -14,13 +14,17 @@ def ingest_kba() -> None:
     print("Downloading and processing KBA data in chunks...")
 
     for i, gdf_chunk in enumerate(gdf_from_ndjson_chunked(KBA_DATA_SOURCE)):
-        # add a name column that does UPDATE kba SET name = concat_ws(', ', natname, intname, iso3);
+        # Rename columns
+        gdf_chunk = gdf_chunk.rename(columns={"SitRecID": "sitrecid"})
         gdf_chunk["name"] = gdf_chunk.apply(
             lambda row: ", ".join(
-                filter(None, [row.get("natname"), row.get("intname"), row.get("iso3")])
+                filter(None, [row.get("NatName"), row.get("IntName"), row.get("ISO3")])
             ),
             axis=1,
         )
+
+        # Add subtype column
+        gdf_chunk["subtype"] = "key-biodiversity-area"
 
         if_exists_param = "replace" if i == 0 else "append"
         ingest_to_postgis(
