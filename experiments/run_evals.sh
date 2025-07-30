@@ -39,19 +39,19 @@ run_and_time() {
 }
 
 run_and_time "Running Data Interpretation Evaluation" \
-uv run python experiments/eval_data_interpretation.py
+    uv run python experiments/eval_data_interpretation.py
 
 echo
-echo "--- Running Dataset Identification Evaluation (S2 T1-02 TCL) ---"
-uv run python experiments/eval_dataset_identification.py "S2 T1-02 TCL"
+run_and_time "Running Dataset Identification Evaluation (S2 T1-02 TCL)" \
+    uv run python experiments/eval_dataset_identification.py "S2 T1-02 TCL"
 
 echo
-echo "--- Running Dataset Identification Evaluation (S2 T1-07 DIST & LDACS) ---"
-uv run python experiments/eval_dataset_identification.py "S2 T1-07 DIST & LDACS"
+run_and_time "Running Dataset Identification Evaluation (S2 T1-07 DIST & LDACS)" \
+    uv run python experiments/eval_dataset_identification.py "S2 T1-07 DIST & LDACS"
 
 echo
-echo "--- Running GADM Evaluation ---"
-uv run python experiments/eval_gadm.py
+run_and_time "Running GADM Evaluation" \
+    uv run python experiments/eval_gadm.py
 
 echo
 echo "--- All evaluations completed successfully. ---"
