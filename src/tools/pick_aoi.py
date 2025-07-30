@@ -1,4 +1,3 @@
-import copy
 import json
 from typing import Annotated, Literal, Optional
 import os
@@ -16,7 +15,18 @@ from pydantic import BaseModel, Field
 from src.utils.env_loader import load_environment_variables
 from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
-from src.utils.helpers import get_gadm_level, SOURCE_ID_MAPPING
+from src.utils.geocoding_helpers import (
+    SOURCE_ID_MAPPING,
+    GADM_TABLE,
+    KBA_TABLE,
+    LANDMARK_TABLE,
+    WDPA_TABLE,
+    SUBREGION_TO_SUBTYPE_MAPPING,
+)
+
+
+RESULT_LIMIT = 10
+
 
 load_environment_variables()
 logger = get_logger(__name__)
@@ -26,16 +36,6 @@ def get_postgis_connection():
     """Get PostGIS database connection."""
     database_url = os.environ["DATABASE_URL"]
     return create_engine(database_url)
-
-
-RESULT_LIMIT = 10
-
-
-# todo: this is redundant with the one in helpers.py, consider refactoring
-GADM_TABLE = "geometries_gadm"
-KBA_TABLE = "geometries_kba"
-LANDMARK_TABLE = "geometries_landmark"
-WDPA_TABLE = "geometries_wdpa"
 
 
 def query_aoi_database(
@@ -67,6 +67,7 @@ def query_aoi_database(
             existing_tables.append("gadm")
         except Exception:
             logger.warning(f"Table {GADM_TABLE} does not exist")
+            conn.rollback()
 
         # Check KBA table
         try:
@@ -74,6 +75,7 @@ def query_aoi_database(
             existing_tables.append("kba")
         except Exception:
             logger.warning(f"Table {KBA_TABLE} does not exist")
+            conn.rollback()
 
         # Check Landmark table
         try:
@@ -81,13 +83,15 @@ def query_aoi_database(
             existing_tables.append("landmark")
         except Exception:
             logger.warning(f"Table {LANDMARK_TABLE} does not exist")
+            conn.rollback()
 
         # Check WDPA table
-        # try:
-        #     conn.execute(text(f"SELECT 1 FROM {WDPA_TABLE} LIMIT 1"))
-        #     existing_tables.append("wdpa")
-        # except Exception:
-        #     logger.warning(f"Table {WDPA_TABLE} does not exist")
+        try:
+            conn.execute(text(f"SELECT 1 FROM {WDPA_TABLE} LIMIT 1"))
+            existing_tables.append("wdpa")
+        except Exception:
+            logger.warning(f"Table {WDPA_TABLE} does not exist")
+            conn.rollback()
 
         # Build the query based on existing tables
         union_parts = []
@@ -96,7 +100,7 @@ def query_aoi_database(
         if "gadm" in existing_tables:
             union_parts.append(
                 f"""
-                SELECT COALESCE("GID_5", "GID_4", "GID_3", "GID_2", "GID_1", "GID_0") AS src_id,
+                SELECT gadm_id AS src_id,
                     name, subtype, 'gadm' as source,
                     ROW_NUMBER() OVER() + {row_offset} as id
                 FROM {GADM_TABLE}
@@ -114,7 +118,7 @@ def query_aoi_database(
                 f"""
                 SELECT CAST({src_id} as TEXT) as src_id,
                        name,
-                       'key-biodiversity-area' as subtype,
+                       subtype,
                        'kba' as source,
                        ROW_NUMBER() OVER() + {row_offset} as id
                 FROM {KBA_TABLE}
@@ -208,45 +212,47 @@ def query_subregion_database(engine, subregion_name: str, source: str, src_id: i
             | "neighbourhood"
         ):
             table_name = GADM_TABLE
+            subtype = SUBREGION_TO_SUBTYPE_MAPPING[subregion_name]
         case "kba":
             table_name = KBA_TABLE
+            subtype = SUBREGION_TO_SUBTYPE_MAPPING["kba"]
         case "wdpa":
             table_name = WDPA_TABLE
+            subtype = SUBREGION_TO_SUBTYPE_MAPPING["wdpa"]
         case "landmark":
             table_name = LANDMARK_TABLE
+            subtype = SUBREGION_TO_SUBTYPE_MAPPING["landmark"]
         case _:
             logger.error(f"Invalid subregion: {subregion_name}")
             raise ValueError(
                 f"Subregion: {subregion_name} does not match to any table in PostGIS database."
             )
 
-    # Determine the ID column name based on source
-    # todo: we do this a couple of times, consider refactoring
-    source_mappings = copy.deepcopy(SOURCE_ID_MAPPING)
-    if source == "gadm":
-        gadm_level, subtype = get_gadm_level(src_id)
-        source_mappings["gadm"] = {
-            "table": "geometries_gadm",
-            "id_column": gadm_level,
-        }
+    id_column = SOURCE_ID_MAPPING[source]["id_column"]
+    source_table = SOURCE_ID_MAPPING[source]["table"]
 
-    id_column = source_mappings[source]["id_column"]
-    source_table = source_mappings[source]["table"]
+    logger.info(
+        f"Querying subregion: {subregion_name} in table: {table_name} for source: {source}, src_id: {src_id}"
+    )
 
     sql_query = f"""
     WITH aoi AS (
         SELECT geometry AS geom
         FROM {source_table}
         WHERE "{id_column}" = :src_id
+        LIMIT 1
     )
     SELECT t.*, ST_AsGeoJSON(t.geometry) as geometry_json
     FROM {table_name} AS t, aoi
-    WHERE ST_Within(t.geometry, aoi.geom)
+    WHERE t.subtype = :subtype
+    AND ST_Within(t.geometry, aoi.geom)
     """
     logger.debug(f"Executing subregion query: {sql_query}")
 
     with engine.connect() as conn:
-        results = pd.read_sql(text(sql_query), conn, params={"src_id": src_id})
+        results = pd.read_sql(
+            text(sql_query), conn, params={"src_id": src_id, "subtype": subtype}
+        )
 
     # Parse GeoJSON strings in the results
     if not results.empty and "geometry_json" in results.columns:
@@ -349,14 +355,6 @@ def pick_aoi(
             f"Selected AOI id: {selected_aoi_id}, source: '{source}', src_id: {src_id}"
         )
 
-        source_mappings = copy.deepcopy(SOURCE_ID_MAPPING)
-        if source == "gadm":
-            gadm_level, subtype = get_gadm_level(src_id)
-            source_mappings["gadm"] = {
-                "table": "geometries_gadm",
-                "id_column": gadm_level,
-            }
-
         # todo: this is redundant with the one in helpers.py, consider refactoring
         source_table_map = {
             "gadm": GADM_TABLE,
@@ -371,7 +369,7 @@ def pick_aoi(
                 f"Source: {source} does not match to any table in PostGIS database."
             )
 
-        id_column = source_mappings[source]["id_column"]
+        id_column = SOURCE_ID_MAPPING[source]["id_column"]
         source_table = source_table_map[source]
 
         sql_query = f"""
@@ -379,11 +377,6 @@ def pick_aoi(
             FROM {source_table}
             WHERE "{id_column}" = :src_id
         """
-
-        if source == "gadm":
-            # For GADM, we also need to pass the relevant subtype
-            # Because the children of the GADM area will have the same GID_X as well
-            sql_query += f" AND subtype = '{subtype}'"
 
         with engine.connect() as conn:
             selected_aoi_df = pd.read_sql(
@@ -394,7 +387,7 @@ def pick_aoi(
             raise ValueError(f"No AOI found with {id_column} = {src_id}")
 
         selected_aoi = selected_aoi_df.iloc[0].to_dict()
-        selected_aoi[source_mappings[source]["id_column"]] = src_id
+        selected_aoi[SOURCE_ID_MAPPING[source]["id_column"]] = src_id
 
         # Parse the GeoJSON string into a Python dictionary
         if (

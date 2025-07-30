@@ -21,7 +21,7 @@ from src.agents.agents import zeno, checkpointer
 from src.api.data_models import ThreadModel, ThreadOrm, UserModel, UserOrm
 from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
-from src.utils.helpers import get_gadm_level, SOURCE_ID_MAPPING
+from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
 
 load_environment_variables()
 
@@ -502,33 +502,20 @@ async def get_geometry(source: str, src_id: str):
     Returns:
         Geometry data with name, subtype, and GeoJSON geometry
     """
-    source_mappings = copy.deepcopy(SOURCE_ID_MAPPING)
-    if source == "gadm":
-        gadm_level, subtype = get_gadm_level(src_id)
-        source_mappings["gadm"] = {
-            "table": "geometries_gadm",
-            "id_column": gadm_level,
-        }
-
-    if source not in source_mappings:
+    if source not in SOURCE_ID_MAPPING:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid source: {source}. Must be one of: {', '.join(source_mappings.keys())}",
+            detail=f"Invalid source: {source}. Must be one of: {', '.join(SOURCE_ID_MAPPING.keys())}",
         )
 
-    table_name = source_mappings[source]["table"]
-    id_column = source_mappings[source]["id_column"]
+    table_name = SOURCE_ID_MAPPING[source]["table"]
+    id_column = SOURCE_ID_MAPPING[source]["id_column"]
 
     sql_query = f"""
         SELECT name, ST_AsGeoJSON(geometry) as geometry_json
         FROM {table_name}
         WHERE "{id_column}" = :src_id
     """
-
-    if source == "gadm":
-        # For GADM, we also need to pass the relevant subtype
-        # Because the children of the GADM area will have the same GID_X as well
-        sql_query += f" AND subtype = '{subtype}'"
 
     try:
         with engine.connect() as conn:

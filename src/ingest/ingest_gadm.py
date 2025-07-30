@@ -6,6 +6,7 @@ import pandas as pd
 import os
 from sqlalchemy import create_engine, text
 from src.utils.env_loader import load_environment_variables
+from src.utils.geocoding_helpers import GADM_LEVELS
 
 
 load_environment_variables()
@@ -25,11 +26,11 @@ LAYER_SUBTYPES = {
 
 # Layer-specific chunk sizes to handle large geometries at higher admin levels
 LAYER_CHUNK_SIZES = {
-    "ADM_0": 100,    # Smallest batch for countries (largest geometries)
-    "ADM_1": 500,    # Small batch for states/provinces
-    "ADM_2": 2000,   # Medium batch for districts/counties
-    "ADM_3": 5000,   # Larger batch for municipalities
-    "ADM_4": 8000,   # Large batch for localities
+    "ADM_0": 100,  # Smallest batch for countries (largest geometries)
+    "ADM_1": 500,  # Small batch for states/provinces
+    "ADM_2": 2000,  # Medium batch for districts/counties
+    "ADM_3": 5000,  # Larger batch for municipalities
+    "ADM_4": 8000,  # Large batch for localities
     "ADM_5": 10000,  # Largest batch for neighbourhoods (smallest geometries)
 }
 
@@ -64,7 +65,7 @@ def extract_gpkg(zip_path: Path, out_dir: Path) -> Path:
 
 
 def process_chunk(
-    chunk: gpd.GeoDataFrame, subtype: str, gadm_id_offset: int, all_columns: set
+    chunk: gpd.GeoDataFrame, subtype: str, all_columns: set
 ) -> gpd.GeoDataFrame:
     """Process a single chunk of data."""
     # Set CRS to EPSG:4326
@@ -84,8 +85,9 @@ def process_chunk(
         axis=1,
     )
 
-    # Add unique id with offset
-    chunk["gadm_id"] = range(gadm_id_offset, gadm_id_offset + len(chunk))
+    chunk["gadm_id"] = chunk.apply(
+        lambda row: row[GADM_LEVELS[subtype]["col_name"]], axis=1
+    )
 
     # Ensure all columns exist with None values for missing ones
     for col in all_columns:
@@ -112,7 +114,8 @@ def ingest_gadm_chunked(
     gpkg: Path, table_name: str = "geometries_gadm", chunk_size: int = 10000
 ) -> None:
     """Read GADM layers in chunks and ingest directly to PostGIS.
-    Uses layer-specific chunk sizes to handle large geometries at higher admin levels."""
+    Uses layer-specific chunk sizes to handle large geometries at higher admin levels.
+    """
     database_url = os.environ["DATABASE_URL"]
     engine = create_engine(database_url)
 
@@ -126,7 +129,6 @@ def ingest_gadm_chunked(
 
     first_chunk = True
     total_processed = 0
-    gadm_id_counter = 0
 
     for layer, subtype in LAYER_SUBTYPES.items():
         print(f"Processing layer {layer}...")
@@ -147,10 +149,7 @@ def ingest_gadm_chunked(
             chunk = gpd.read_file(gpkg, layer=layer, rows=slice(start_idx, end_idx))
 
             # Process chunk
-            processed_chunk = process_chunk(
-                chunk, subtype, gadm_id_counter, all_columns
-            )
-            gadm_id_counter += len(processed_chunk)
+            processed_chunk = process_chunk(chunk, subtype, all_columns)
 
             # Write to database
             if_exists_param = "replace" if first_chunk else "append"

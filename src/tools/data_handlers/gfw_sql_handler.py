@@ -11,10 +11,10 @@ from src.tools.data_handlers.base import (
     DataPullResult,
     DataSourceHandler,
     dataset_names,
-    gadm_levels,
 )
 from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
+from src.utils.geocoding_helpers import GADM_LEVELS
 
 logger = get_logger(__name__)
 
@@ -166,7 +166,7 @@ class GFWSQLHandler(DataSourceHandler):
             logger.debug(f"Selected fields to query: {fields_to_query.fields}")
 
             # SQL query generation
-            gadm_level = gadm_levels[subtype]
+            gadm_level = GADM_LEVELS[subtype]
             sql_query = self._generate_sql_query(
                 query, fields_to_query, gadm_level, aoi, start_date, end_date
             )
@@ -201,7 +201,7 @@ class GFWSQLHandler(DataSourceHandler):
                 | "locality"
                 | "neighbourhood"
             ):
-                gadm_level = gadm_levels[subtype]
+                gadm_level = GADM_LEVELS[subtype]
                 return f"gadm__{table_name}__{gadm_level['name']}_change"
             case "kba":
                 return f"kba__{table_name}_change"
@@ -288,7 +288,7 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
         logger.debug("Invoking SQL query generation chain...")
         sql_query_chain = SQL_QUERY_PROMPT | SONNET
         logger.info(f"aoi: {list(aoi.keys())}, gadm_level: {gadm_level}")
-        location_filter = GadmId(gadm_id=aoi[gadm_level["col_name"]]).as_sql_filter()
+        location_filter = GadmId(gadm_id=aoi["gadm_id"]).as_sql_filter()
 
         return sql_query_chain.invoke(
             {

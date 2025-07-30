@@ -5,7 +5,6 @@ import requests
 from src.tools.data_handlers.base import (
     DataPullResult,
     DataSourceHandler,
-    gadm_levels,
 )
 from src.utils.logging_config import get_logger
 
@@ -33,8 +32,7 @@ class DistAlertHandler(DataSourceHandler):
     ) -> DataPullResult:
         try:
             aoi_name = aoi["name"]
-            gadm_level = gadm_levels[subtype]
-            aoi_gadm_id = aoi[gadm_level["col_name"]].split("_")[0]
+            aoi_gadm_id = aoi["gadm_id"].split("_")[0]
 
             payload = {
                 "aois": [
@@ -47,9 +45,9 @@ class DistAlertHandler(DataSourceHandler):
                 ],
                 "start_date": start_date,
                 "end_date": end_date,
-                # todo: fix this hardcoded value. using as temp fix
-                # because of limitations in DIST-ALERT API
-                "intersections": ["driver"],
+                "intersections": (
+                    [dataset["context_layer"]] if dataset["context_layer"] else []
+                ),
             }
 
             headers = {
