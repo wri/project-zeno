@@ -19,7 +19,7 @@ SUBREGION_TO_SUBTYPE_MAPPING = {
 
 SOURCE_ID_MAPPING = {
     "kba": {"table": KBA_TABLE, "id_column": "sitrecid"},
-    "landmark": {"table": LANDMARK_TABLE, "id_column": "gfw_fid"},
+    "landmark": {"table": LANDMARK_TABLE, "id_column": "landmark_id"},
     "wdpa": {"table": WDPA_TABLE, "id_column": "wdpa_pid"},
     "gadm": {"table": GADM_TABLE, "id_column": "gadm_id"},
 }
