@@ -87,10 +87,12 @@ async def logging_middleware(request: Request, call_next) -> Response:
         url=str(request.url),
         request_id=req_id,
     )
+    response_code = None
 
     # Call the next middleware or endpoint
     try:
         response: Response = await call_next(request)
+        response_code = response.status_code
     except Exception as e:
         logger.exception(
             "Request failed with error",
@@ -99,6 +101,7 @@ async def logging_middleware(request: Request, call_next) -> Response:
             error=str(e),
             request_id=req_id,
         )
+        response_code = 500
         raise e
     finally:
         # Log request end
@@ -106,7 +109,7 @@ async def logging_middleware(request: Request, call_next) -> Response:
             "Response sent",
             method=request.method,
             url=str(request.url),
-            status_code=response.status_code,
+            status_code=response_code,
             request_id=req_id,
         )
     return response
@@ -437,7 +440,7 @@ async def require_auth(
     if not user_info:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Authorization header is required"
+            detail="Authorization header is required",
         )
 
     user = session.query(UserOrm).filter_by(id=user_info.id).first()
@@ -562,7 +565,7 @@ async def chat(
 
     thread_id = None
     thread = None
-    
+
     if user:
         # For authenticated users, persist threads in database
         bind_request_logging_context(
@@ -576,7 +579,9 @@ async def chat(
             .first()
         )
         if not thread:
-            thread = ThreadOrm(id=request.thread_id, user_id=user.id, agent_id="UniGuana")
+            thread = ThreadOrm(
+                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+            )
             session.add(thread)
             session.commit()
             session.refresh(thread)
