@@ -1,4 +1,3 @@
-import copy
 import json
 import os
 from typing import Dict, Optional
@@ -559,3 +558,36 @@ async def auth_me(user: UserModel = Depends(fetch_user)):
     """
 
     return user
+
+
+@app.get("/api/metadata")
+async def api_metadata() -> dict:
+    """
+    Returns API metadata that's helpful for instantiating the frontend.
+
+    Note:
+    For `layer_id_mapping`, the keys are the source names (e.g., `gadm`, `kba`, etc.)
+    and the values are the corresponding ID columns used in the database.
+
+    The frontend can get these IDs from the vector tile layer and use the `/api/geometry/{source}/{src_id}`
+    endpoint to fetch the geometry data.
+
+    The GADM layer needs some special handling:
+
+    The gadm layer uses a composite ID format like `IND.26.2_1` that's derived from
+    the GADM hierarchy, so the ID column is just `gadm_id` in the database but on the frontend
+    it will be displayed as `GID_X` where X is the GADM level (1-5).
+
+    The frontend will have to check the level of the selected GADM geometry and use the corresponding
+    `GID_X` field to get the correct ID for the API call.
+
+    For example, if the user selects a GADM level 2 geometry,
+    the ID will look something like `IND.26.2_1` and should be available in the gid_2 field on the
+    vector tile layer.
+    """
+    return {
+        "version": "0.1.0",
+        "layer_id_mapping": {
+            key: value["id_column"] for key, value in SOURCE_ID_MAPPING.items()
+        },
+    }
