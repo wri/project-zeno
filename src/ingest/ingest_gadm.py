@@ -27,8 +27,8 @@ LAYER_SUBTYPES = {
 # Layer-specific chunk sizes to handle large geometries at higher admin levels
 LAYER_CHUNK_SIZES = {
     "ADM_0": 100,  # Smallest batch for countries (largest geometries)
-    "ADM_1": 500,  # Small batch for states/provinces
-    "ADM_2": 2000,  # Medium batch for districts/counties
+    "ADM_1": 200,  # Small batch for states/provinces
+    "ADM_2": 1000,  # Medium batch for districts/counties
     "ADM_3": 5000,  # Larger batch for municipalities
     "ADM_4": 8000,  # Large batch for localities
     "ADM_5": 10000,  # Largest batch for neighbourhoods (smallest geometries)
