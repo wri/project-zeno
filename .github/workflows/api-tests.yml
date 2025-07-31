@@ -9,11 +9,11 @@ jobs:
 
     services:
       postgres:
-        image: postgres:latest
+        image: postgis/postgis:17-3.5
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
+          POSTGRES_DB: zeno-data
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
@@ -47,7 +47,8 @@ jobs:
 
       - name: Run API tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/zeno-data
+          TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/zeno-data
           DOMAINS_ALLOWLIST: developmentseed.org,wri.org
           OPENAI_API_KEY: fake-key-for-testing
           ANTHROPIC_API_KEY: fake-key-for-testing
@@ -65,5 +66,6 @@ jobs:
           API_BASE_URL: http://localhost:8000
           LOCAL_API_BASE_URL: http://localhost:8000
           STREAMLIT_URL: http://localhost:8501
+          COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
         run: |
           uv run pytest tests/api -v
