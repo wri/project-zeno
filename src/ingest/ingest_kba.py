@@ -1,7 +1,8 @@
 from src.ingest.utils import (
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
-    create_index_if_not_exists,
+    create_geometry_index_if_not_exists,
+    create_text_search_index_if_not_exists,
 )
 
 KBA_DATA_SOURCE = "s3://ndjson-layers/KBAsGlobal_2024_September_03_POL.ndjson"
@@ -31,10 +32,15 @@ def ingest_kba() -> None:
             table_name="geometries_kba", gdf=gdf_chunk, if_exists=if_exists_param
         )
 
-    create_index_if_not_exists(
+    create_geometry_index_if_not_exists(
         table_name="geometries_kba",
         index_name="idx_geometries_kba_geom",
         column="geometry",
+    )
+    create_text_search_index_if_not_exists(
+        table_name="geometries_kba",
+        index_name="idx_geometries_kba_name_gin",
+        column="name"
     )
     print("✓ KBA ingestion completed successfully!")
 

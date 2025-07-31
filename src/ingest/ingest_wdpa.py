@@ -1,7 +1,8 @@
 from src.ingest.utils import (
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
-    create_index_if_not_exists,
+    create_geometry_index_if_not_exists,
+    create_text_search_index_if_not_exists,
 )
 
 WDPA_DATA_SOURCE = "s3://gfw-data-lake/wdpa_protected_areas/v202407/vector/epsg-4326/wdpa_protected_areas_v202407.ndjson"
@@ -40,10 +41,15 @@ def ingest_wdpa() -> None:
             table_name="geometries_wdpa", gdf=gdf_chunk, if_exists=if_exists_param
         )
 
-    create_index_if_not_exists(
+    create_geometry_index_if_not_exists(
         table_name="geometries_wdpa",
         index_name="idx_geometries_wdpa_geom",
         column="geometry",
+    )
+    create_text_search_index_if_not_exists(
+        table_name="geometries_wdpa",
+        index_name="idx_geometries_wdpa_name_gin",
+        column="name"
     )
     print("✓ WDPA ingestion completed successfully!")
 

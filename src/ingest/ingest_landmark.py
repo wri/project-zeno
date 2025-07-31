@@ -1,7 +1,8 @@
 from src.ingest.utils import (
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
-    create_index_if_not_exists,
+    create_geometry_index_if_not_exists,
+    create_text_search_index_if_not_exists,
 )
 
 LANDMARK_DATA_SOURCE = "s3://gfw-data-lake/landmark_ip_lc_and_indicative_poly/v20250625/vector/epsg-4326/default.ndjson"
@@ -40,10 +41,15 @@ def ingest_landmark() -> None:
             table_name="geometries_landmark", gdf=gdf_chunk, if_exists=if_exists_param
         )
 
-    create_index_if_not_exists(
+    create_geometry_index_if_not_exists(
         table_name="geometries_landmark",
         index_name="idx_geometries_landmark_geom",
         column="geometry",
+    )
+    create_text_search_index_if_not_exists(
+        table_name="geometries_landmark",
+        index_name="idx_geometries_landmark_name_gin",
+        column="name"
     )
 
     print("✓ Landmark ingestion completed successfully!")

@@ -120,7 +120,7 @@ def ingest_to_postgis(
     print(f"✓ Ingested {total_records} records to PostGIS table '{table_name}'")
 
 
-def create_index_if_not_exists(
+def create_geometry_index_if_not_exists(
     table_name: str, index_name: str, column: str = "geometry"
 ) -> None:
     """Create a spatial index on the specified table and column if it does not exist."""
@@ -135,3 +135,24 @@ def create_index_if_not_exists(
         )
         conn.commit()
         print(f"✓ Created spatial index {index_name} on {table_name}")
+
+
+def create_text_search_index_if_not_exists(
+    table_name: str, index_name: str, column: str = "name"
+) -> None:
+    """Create a GIN trigram index on the specified table and column for text search if it does not exist."""
+    database_url = os.environ["DATABASE_URL"]
+    engine = create_engine(database_url)
+
+    with engine.connect() as conn:
+        # Ensure pg_trgm extension is enabled
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+        
+        # Create GIN index for trigram-based text search
+        conn.execute(
+            text(
+                f"CREATE INDEX IF NOT EXISTS {index_name} ON {table_name} USING GIN ({column} gin_trgm_ops);"
+            )
+        )
+        conn.commit()
+        print(f"✓ Created text search index {index_name} on {table_name}.{column}")
