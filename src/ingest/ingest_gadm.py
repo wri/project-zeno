@@ -6,8 +6,8 @@ import pandas as pd
 import os
 from sqlalchemy import create_engine, text
 from src.utils.env_loader import load_environment_variables
-from src.utils.geocoding_helpers import GADM_LEVELS
-from src.ingest.utils import create_text_search_index_if_not_exists, create_geometry_index_if_not_exists
+from src.utils.geocoding_helpers import GADM_LEVELS, SOURCE_ID_MAPPING
+from src.ingest.utils import create_text_search_index_if_not_exists, create_geometry_index_if_not_exists, create_id_index_if_not_exists
 
 
 load_environment_variables()
@@ -178,6 +178,14 @@ def ingest_gadm_chunked(
         table_name=table_name,
         index_name=f"idx_{table_name}_name_gin",
         column="name"
+    )
+    
+    # Create ID index on gadm_id column
+    id_column = SOURCE_ID_MAPPING["gadm"]["id_column"]
+    create_id_index_if_not_exists(
+        table_name=table_name,
+        index_name=f"idx_{table_name}_{id_column}",
+        column=id_column
     )
 
 

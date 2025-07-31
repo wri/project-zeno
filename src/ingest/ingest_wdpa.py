@@ -3,7 +3,9 @@ from src.ingest.utils import (
     ingest_to_postgis,
     create_geometry_index_if_not_exists,
     create_text_search_index_if_not_exists,
+    create_id_index_if_not_exists,
 )
+from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
 
 WDPA_DATA_SOURCE = "s3://gfw-data-lake/wdpa_protected_areas/v202407/vector/epsg-4326/wdpa_protected_areas_v202407.ndjson"
 
@@ -50,6 +52,12 @@ def ingest_wdpa() -> None:
         table_name="geometries_wdpa",
         index_name="idx_geometries_wdpa_name_gin",
         column="name"
+    )
+    id_column = SOURCE_ID_MAPPING["wdpa"]["id_column"]
+    create_id_index_if_not_exists(
+        table_name="geometries_wdpa",
+        index_name=f"idx_geometries_wdpa_{id_column}",
+        column=id_column
     )
     print("✓ WDPA ingestion completed successfully!")
 

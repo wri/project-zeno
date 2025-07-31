@@ -3,7 +3,9 @@ from src.ingest.utils import (
     ingest_to_postgis,
     create_geometry_index_if_not_exists,
     create_text_search_index_if_not_exists,
+    create_id_index_if_not_exists,
 )
+from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
 
 LANDMARK_DATA_SOURCE = "s3://gfw-data-lake/landmark_ip_lc_and_indicative_poly/v20250625/vector/epsg-4326/default.ndjson"
 
@@ -50,6 +52,12 @@ def ingest_landmark() -> None:
         table_name="geometries_landmark",
         index_name="idx_geometries_landmark_name_gin",
         column="name"
+    )
+    id_column = SOURCE_ID_MAPPING["landmark"]["id_column"]
+    create_id_index_if_not_exists(
+        table_name="geometries_landmark",
+        index_name=f"idx_geometries_landmark_{id_column}",
+        column=id_column
     )
 
     print("✓ Landmark ingestion completed successfully!")

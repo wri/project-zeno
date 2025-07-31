@@ -156,3 +156,20 @@ def create_text_search_index_if_not_exists(
         )
         conn.commit()
         print(f"✓ Created text search index {index_name} on {table_name}.{column}")
+
+
+def create_id_index_if_not_exists(
+    table_name: str, index_name: str, column: str
+) -> None:
+    """Create a B-tree index on the specified ID column if it does not exist."""
+    database_url = os.environ["DATABASE_URL"]
+    engine = create_engine(database_url)
+
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                f"CREATE INDEX IF NOT EXISTS {index_name} ON {table_name} ({column});"
+            )
+        )
+        conn.commit()
+        print(f"✓ Created ID index {index_name} on {table_name}.{column}")
