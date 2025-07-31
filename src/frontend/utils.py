@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import altair as alt
-import datetime
+from datetime import datetime
 import folium
 import pandas as pd
 from shapely.geometry import shape
@@ -413,8 +413,11 @@ def render_stream(stream):
 
     state_updates = "State Update: " + ", ".join(list(update.keys()))
     st.badge(state_updates, icon=":material/check:", color="green")
+    if timestamp := stream.get("timestamp"):
+        st.badge(timestamp, icon=":material/schedule:", color="blue")
 
     for msg in update["messages"]:
+
         content = msg["kwargs"]["content"]
 
         if isinstance(content, list):

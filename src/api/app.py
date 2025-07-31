@@ -219,6 +219,7 @@ async def replay_chat(thread_id):
                     continue
                 rendered_state_elements["messages"].append(message.id)
 
+                # TODO: add checkpoint timestamp to message?
                 update["messages"].append(message)
 
             # Render the rest of the state updates
@@ -234,9 +235,24 @@ async def replay_chat(thread_id):
 
                 update[key] = value
 
-            yield pack({"node": "agent", "update": dumps(update)})
+            mtypes = set(m.type for m in update["messages"])
+
+            node_type = (
+                "agent"
+                if mtypes == {"ai"} or len(mtypes) > 1
+                else "tools" if mtypes == {"tool"} else "human"
+            )
+
+            update = {
+                "node": node_type,
+                "timestamp": checkpoint.created_at,
+                "update": dumps(update),
+            }
+
+            yield pack(update)
 
     except Exception as e:
+        # TODO: yield a stream event with the error?
         logger.exception("Error during chat replay: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -263,10 +279,8 @@ async def stream_chat(
         langfuse_handler.tags = tags
 
     config = {
-        "configurable": {
-            "thread_id": thread_id,
-        },
-        # "callbacks": [langfuse_handler],
+        "configurable": {"thread_id": thread_id},
+        "callbacks": [langfuse_handler],
     }
 
     if not thread_id:
@@ -326,6 +340,7 @@ async def stream_chat(
         async for update in stream:
             try:
                 node = next(iter(update.keys()))
+
                 yield pack(
                     {
                         "node": node,
