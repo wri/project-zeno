@@ -32,18 +32,37 @@ Language Interface for Maps & WRI/LCL data APIs.
    aws s3 sync s3://zeno-static-data/ data/
    ```
 
-4. **Start development environment:**
-   ```bash
-   make dev    # Starts everything (infrastructure + API + frontend)
-   ```
-   Or run services individually:
+4. **Start infrastructure services:**
    ```bash
    make up       # Start Docker services (PostgreSQL + Langfuse + ClickHouse)
+   ```
+
+5. **Ingest data (required after starting database):**
+   After starting the database and infrastructure services, you need to ingest the required datasets. Feel free to run all or just the ones you need.
+   
+   This downloads ~2 GB of data per dataset except for WDPA which is ~10 GB. It's ok to skip WDPA if you don't need it.
+   
+   Make sure you're set up with WRI AWS credentials in your `.env` file to access the S3 bucket.
+
+   ```bash
+   python src/ingest/ingest_gadm.py
+   python src/ingest/ingest_kba.py
+   python src/ingest/ingest_landmark.py
+   # python src/ingest/ingest_wdpa.py
+   ```
+   See `src/ingest/` directory for details on each ingestion script.
+
+6. **Start application services:**
+   ```bash
    make api      # Run API locally (port 8000)
    make frontend # Run Streamlit frontend (port 8501)
    ```
+   Or start everything at once (after data ingestion):
+   ```bash
+   make dev      # Starts API + frontend (requires infrastructure already running)
+   ```
 
-5. **Setup Local Langfuse:**
+7. **Setup Local Langfuse:**
    a. Clone the Langfuse repository outside your current project directory
    ```bash
    cd ..
@@ -70,7 +89,7 @@ Language Interface for Maps & WRI/LCL data APIs.
    LANGFUSE_SECRET_KEY=your_secret_key_here
    ```
 
-6. **Access the application:**
+8. **Access the application:**
    - Frontend: http://localhost:8501
    - API: http://localhost:8000
    - Langfuse: http://localhost:3000

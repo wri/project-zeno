@@ -415,6 +415,20 @@ wheels = [
 ]
 
 [[package]]
+name = "boto3"
+version = "1.38.27"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "botocore" },
+    { name = "jmespath" },
+    { name = "s3transfer" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e7/96/fc74d8521d2369dd8c412438401ff12e1350a1cd3eab5c758ed3dd5e5f82/boto3-1.38.27.tar.gz", hash = "sha256:94bd7fdd92d5701b362d4df100d21e28f8307a67ff56b6a8b0398119cf22f859", size = 111875 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/8b/b2361188bd1e293eede1bc165e2461d390394f71ec0c8c21211c8dabf62c/boto3-1.38.27-py3-none-any.whl", hash = "sha256:95f5fe688795303a8a15e8b7e7f255cadab35eae459d00cc281a4fd77252ea80", size = 139938 },
+]
+
+[[package]]
 name = "botocore"
 version = "1.38.46"
 source = { registry = "https://pypi.org/simple" }
@@ -3701,6 +3715,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
+    { name = "boto3" },
     { name = "cachetools" },
     { name = "duckdb" },
     { name = "earthengine-api" },
@@ -3730,6 +3745,7 @@ dependencies = [
     { name = "pypgstac" },
     { name = "pystac" },
     { name = "pystac-client" },
+    { name = "requests" },
     { name = "rio-stac" },
     { name = "s3fs" },
     { name = "setuptools" },
@@ -3763,6 +3779,7 @@ frontend = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.15.2" },
+    { name = "boto3", specifier = ">=1.38.27" },
     { name = "cachetools", specifier = ">=5.5.2" },
     { name = "duckdb", specifier = ">=1.3.0" },
     { name = "earthengine-api", specifier = ">=1.4.0" },
@@ -3793,6 +3810,7 @@ requires-dist = [
     { name = "pypgstac", specifier = ">=0.9.6" },
     { name = "pystac", specifier = ">=1.11.0" },
     { name = "pystac-client", specifier = ">=0.8.5" },
+    { name = "requests", specifier = ">=2.26.0" },
     { name = "rio-stac", specifier = ">=0.11.0" },
     { name = "s3fs", specifier = ">=2025.3.0" },
     { name = "setuptools", specifier = ">=80.9.0" },
@@ -5149,6 +5167,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e4/cd/5dde2fed1699ff48120336249d9857a574e39feb8afaff694568ab1499b3/s3fs-2025.3.0.tar.gz", hash = "sha256:446dd539eb0d0678209723cb7ad1bedbb172185b0d34675b09be1ad81843a644", size = 77153 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/3f/35f4041a82a68df89fe4af97c8bb44aa492dad924799cbb02078e9e303e6/s3fs-2025.3.0-py3-none-any.whl", hash = "sha256:88d803615baa04945156ca0e1498009b7acd3132c07198bd81b3e874846e0aa2", size = 30454 },
+]
+
+[[package]]
+name = "s3transfer"
+version = "0.13.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "botocore" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6d/05/d52bf1e65044b4e5e27d4e63e8d1579dbdec54fce685908ae09bc3720030/s3transfer-0.13.1.tar.gz", hash = "sha256:c3fdba22ba1bd367922f27ec8032d6a1cf5f10c934fb5d68cf60fd5a23d936cf", size = 150589 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6d/4f/d073e09df851cfa251ef7840007d04db3293a0482ce607d2b993926089be/s3transfer-0.13.1-py3-none-any.whl", hash = "sha256:a981aa7429be23fe6dfc13e80e4020057cbab622b08c0315288758d67cabc724", size = 85308 },
 ]
 
 [[package]]

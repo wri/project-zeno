@@ -13,7 +13,7 @@ from typing import List, Optional
 from langfuse.langchain import CallbackHandler
 
 from experiments.eval_utils import get_langfuse, get_run_name, run_query
-from src.tools.data_handlers.base import gadm_levels
+from src.utils.geocoding_helpers import GADM_LEVELS
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -30,9 +30,7 @@ class GadmLocation:
     def __eq__(self, other):
         if not isinstance(other, GadmLocation):
             return NotImplemented
-        return normalize_gadm_id(self.gadm_id) == normalize_gadm_id(
-            other.gadm_id
-        )
+        return normalize_gadm_id(self.gadm_id) == normalize_gadm_id(other.gadm_id)
 
     def __hash__(self):
         return hash(normalize_gadm_id(self.gadm_id))
@@ -128,7 +126,7 @@ def extract_gadm_from_state(state):
 
         if aoi is not None and aoi_name:
             subtype = state.values.get("subtype")
-            gadm_level = gadm_levels.get(subtype, {})
+            gadm_level = GADM_LEVELS.get(subtype, {})
             aoi_gadm_id = aoi.get(gadm_level.get("col_name", ""))
 
             if aoi_gadm_id:
@@ -175,12 +173,14 @@ for item in dataset.items:
         )
 
         # Log results
-        logger.debug(f"""
+        logger.debug(
+            f"""
         Query: {item.input}
         Expected: {item.expected_output}
         Actual: {actual}
         Score: {score}
-        """)
+        """
+        )
         logger.debug("--------------------------------")
 
     # # Execute

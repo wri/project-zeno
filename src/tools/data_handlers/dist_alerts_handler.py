@@ -5,7 +5,6 @@ import requests
 from src.tools.data_handlers.base import (
     DataPullResult,
     DataSourceHandler,
-    gadm_levels,
 )
 from src.utils.logging_config import get_logger
 
@@ -33,8 +32,7 @@ class DistAlertHandler(DataSourceHandler):
     ) -> DataPullResult:
         try:
             aoi_name = aoi["name"]
-            gadm_level = gadm_levels[subtype]
-            aoi_gadm_id = aoi[gadm_level["col_name"]].split("_")[0]
+            aoi_gadm_id = aoi["gadm_id"].split("_")[0]
 
             payload = {
                 "aois": [
@@ -47,9 +45,9 @@ class DistAlertHandler(DataSourceHandler):
                 ],
                 "start_date": start_date,
                 "end_date": end_date,
-                "intersections": [dataset["context_layer"]]
-                if dataset["context_layer"]
-                else [],
+                "intersections": (
+                    [dataset["context_layer"]] if dataset["context_layer"] else []
+                ),
             }
 
             headers = {
@@ -62,12 +60,12 @@ class DistAlertHandler(DataSourceHandler):
             logger.info(f"DIST-ALERT API Request - Headers: {headers}")
             logger.info(f"DIST-ALERT API Request - Payload: {payload}")
 
-            response = requests.post(
-                self.DIST_ALERT_URL, headers=headers, json=payload
-            )
+            response = requests.post(self.DIST_ALERT_URL, headers=headers, json=payload)
 
             # Debug logging for response
-            logger.info(f"DIST-ALERT API Response - Status Code: {response.status_code}")
+            logger.info(
+                f"DIST-ALERT API Response - Status Code: {response.status_code}"
+            )
             logger.info(f"DIST-ALERT API Response - Headers: {dict(response.headers)}")
             logger.info(f"DIST-ALERT API Response - Raw Text: {response.text}")
 
@@ -77,19 +75,15 @@ class DistAlertHandler(DataSourceHandler):
             except Exception as json_error:
                 error_msg = f"Failed to parse JSON response from DIST-ALERT API. Status: {response.status_code}, Text: {response.text}, Error: {json_error}"
                 logger.error(error_msg)
-                return DataPullResult(
-                    success=False, data=[], message=error_msg
-                )
+                return DataPullResult(success=False, data=[], message=error_msg)
 
             # Check if status key exists before accessing it
             if "status" not in result:
                 error_msg = f"DIST-ALERT API response missing 'status' key. Available keys: {list(result.keys())}, Full response: {result}"
                 logger.error(error_msg)
-                return DataPullResult(
-                    success=False, data=[], message=error_msg
-                )
+                return DataPullResult(success=False, data=[], message=error_msg)
 
-            if result["status"] == "success":
+            if "status" in result and result["status"] == "success":
                 download_link = result["data"]["link"]
                 data = requests.get(download_link).json()
                 raw_data = data["data"]["result"]
@@ -103,9 +97,7 @@ class DistAlertHandler(DataSourceHandler):
             else:
                 error_msg = f"Failed to pull data from GFW for {aoi_name} - DIST_ALERT_URL: {self.DIST_ALERT_URL}, payload: {payload}, response: {response.text}"
                 logger.error(error_msg)
-                return DataPullResult(
-                    success=False, data=[], message=error_msg
-                )
+                return DataPullResult(success=False, data=[], message=error_msg)
 
         except Exception as e:
             error_msg = f"Failed to pull DIST-ALERT data: {e}"
