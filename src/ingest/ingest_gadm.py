@@ -7,7 +7,11 @@ import os
 from sqlalchemy import create_engine, text
 from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import GADM_LEVELS, SOURCE_ID_MAPPING
-from src.ingest.utils import create_text_search_index_if_not_exists, create_geometry_index_if_not_exists, create_id_index_if_not_exists
+from src.ingest.utils import (
+    create_text_search_index_if_not_exists,
+    create_geometry_index_if_not_exists,
+    create_id_index_if_not_exists,
+)
 
 
 load_environment_variables()
@@ -27,8 +31,8 @@ LAYER_SUBTYPES = {
 
 # Layer-specific chunk sizes to handle large geometries at higher admin levels
 LAYER_CHUNK_SIZES = {
-    "ADM_0": 100,  # Smallest batch for countries (largest geometries)
-    "ADM_1": 200,  # Small batch for states/provinces
+    "ADM_0": 10,  # Smallest batch for countries (largest geometries)
+    "ADM_1": 100,  # Small batch for states/provinces
     "ADM_2": 1000,  # Medium batch for districts/counties
     "ADM_3": 5000,  # Larger batch for municipalities
     "ADM_4": 8000,  # Large batch for localities
@@ -165,27 +169,23 @@ def ingest_gadm_chunked(
             )
 
     print(f"✓ Ingested {total_processed} records to PostGIS table '{table_name}'")
-    
+
     # Create spatial index on geometry column
     create_geometry_index_if_not_exists(
-        table_name=table_name,
-        index_name=f"idx_{table_name}_geom",
-        column="geometry"
+        table_name=table_name, index_name=f"idx_{table_name}_geom", column="geometry"
     )
-    
+
     # Create text search index on name column
     create_text_search_index_if_not_exists(
-        table_name=table_name,
-        index_name=f"idx_{table_name}_name_gin",
-        column="name"
+        table_name=table_name, index_name=f"idx_{table_name}_name_gin", column="name"
     )
-    
+
     # Create ID index on gadm_id column
     id_column = SOURCE_ID_MAPPING["gadm"]["id_column"]
     create_id_index_if_not_exists(
         table_name=table_name,
         index_name=f"idx_{table_name}_{id_column}",
-        column=id_column
+        column=id_column,
     )
 
 
