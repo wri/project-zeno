@@ -11,15 +11,8 @@ from typing import Any, Dict, List
 
 from pydantic import BaseModel
 
-# GADM LEVELS
-gadm_levels = {
-    "country": {"col_name": "GID_0", "name": "iso"},
-    "state-province": {"col_name": "GID_1", "name": "adm1"},
-    "district-county": {"col_name": "GID_2", "name": "adm2"},
-    "municipality": {"col_name": "GID_3", "name": "adm3"},
-    "locality": {"col_name": "GID_4", "name": "adm4"},
-    "neighbourhood": {"col_name": "GID_5", "name": "adm5"},
-}
+from src.utils.geocoding_helpers import GADM_LEVELS as gadm_levels
+
 
 # DATASET NAME MAPPINGS
 dataset_names = {

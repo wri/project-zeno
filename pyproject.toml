@@ -47,6 +47,9 @@ dependencies = [
     "httpx>=0.28.1",
     "asyncpg>=0.30.0",
 
+    "geoalchemy2>=0.18.0",
+    "boto3>=1.38.27",
+    "requests>=2.26.0",
 ]
 
 [dependency-groups]

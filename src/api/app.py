@@ -19,7 +19,8 @@ from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
-from sqlalchemy import create_engine
+import requests
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import insert
 
@@ -36,10 +37,12 @@ from src.api.data_models import (
     CustomAreaOrm,
     CustomAreaModel,
     CustomAreaCreate,
+    GeometryResponse,
 )
 from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.env_loader import load_environment_variables
 from src.utils.config import APISettings
+from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
 
 
 # Load environment variables using shared utility
@@ -80,12 +83,14 @@ async def logging_middleware(request: Request, call_next) -> Response:
         url=str(request.url),
         request_id=req_id,
     )
+    response_code = None
 
     response = None
 
     # Call the next middleware or endpoint
     try:
         response: Response = await call_next(request)
+        response_code = response.status_code
     except Exception as e:
         logger.exception(
             "Request failed with error",
@@ -95,6 +100,7 @@ async def logging_middleware(request: Request, call_next) -> Response:
             request_id=req_id,
         )
 
+        response_code = 500
         raise e
 
     finally:
@@ -109,7 +115,7 @@ async def logging_middleware(request: Request, call_next) -> Response:
             "Response sent",
             method=request.method,
             url=str(request.url),
-            status_code=response.status_code,
+            status_code=response_code,
             request_id=req_id,
         )
     return response
@@ -688,6 +694,69 @@ async def delete_thread(
     return {"detail": "Thread deleted successfully"}
 
 
+@app.get("/api/geometry/{source}/{src_id}", response_model=GeometryResponse)
+async def get_geometry(source: str, src_id: str, session=Depends(get_session)):
+    """
+    Get geometry data by source and source ID.
+
+    Args:
+        source: Source type (gadm, kba, landmark, wdpa)
+        src_id: Source-specific ID (GID_X for GADM, sitrecid for KBA, etc.)
+        user: Authenticated user
+
+    Returns:
+        Geometry data with name, subtype, and GeoJSON geometry
+
+    Example:
+        GET /api/geometry/gadm/IND.26.2_1
+        GET /api/geometry/kba/16595
+    """
+    if source not in SOURCE_ID_MAPPING:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid source: {source}. Must be one of: {', '.join(SOURCE_ID_MAPPING.keys())}",
+        )
+
+    table_name = SOURCE_ID_MAPPING[source]["table"]
+    id_column = SOURCE_ID_MAPPING[source]["id_column"]
+
+    sql_query = f"""
+        SELECT name, subtype, ST_AsGeoJSON(geometry) as geometry_json
+        FROM {table_name}
+        WHERE "{id_column}" = :src_id
+    """
+
+    try:
+        result = session.execute(text(sql_query), {"src_id": src_id}).fetchone()
+
+        if not result:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Geometry not found for source '{source}' with ID {src_id}",
+            )
+
+        # Parse GeoJSON string
+        try:
+            geometry = (
+                json.loads(result.geometry_json) if result.geometry_json else None
+            )
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse GeoJSON for {source}:{src_id}")
+            geometry = None
+
+        return GeometryResponse(
+            name=result.name,
+            subtype=result.subtype,
+            source=source,
+            src_id=src_id,
+            geometry=geometry,
+        )
+
+    except Exception as e:
+        logger.exception(f"Error fetching geometry for {source}:{src_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/auth/me", response_model=UserModel)
 async def auth_me(user: UserModel = Depends(require_auth)):
     """
@@ -696,6 +765,39 @@ async def auth_me(user: UserModel = Depends(require_auth)):
     """
 
     return user
+
+
+@app.get("/api/metadata")
+async def api_metadata() -> dict:
+    """
+    Returns API metadata that's helpful for instantiating the frontend.
+
+    Note:
+    For `layer_id_mapping`, the keys are the source names (e.g., `gadm`, `kba`, etc.)
+    and the values are the corresponding ID columns used in the database.
+
+    The frontend can get these IDs from the vector tile layer and use the `/api/geometry/{source}/{src_id}`
+    endpoint to fetch the geometry data.
+
+    The GADM layer needs some special handling:
+
+    The gadm layer uses a composite ID format like `IND.26.2_1` that's derived from
+    the GADM hierarchy, so the ID column is just `gadm_id` in the database but on the frontend
+    it will be displayed as `GID_X` where X is the GADM level (1-5).
+
+    The frontend will have to check the level of the selected GADM geometry and use the corresponding
+    `GID_X` field to get the correct ID for the API call.
+
+    For example, if the user selects a GADM level 2 geometry,
+    the ID will look something like `IND.26.2_1` and should be available in the gid_2 field on the
+    vector tile layer.
+    """
+    return {
+        "version": "0.1.0",
+        "layer_id_mapping": {
+            key: value["id_column"] for key, value in SOURCE_ID_MAPPING.items()
+        },
+    }
 
 
 @app.post("/api/custom_areas/", response_model=CustomAreaModel)

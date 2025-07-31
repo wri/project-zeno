@@ -5,7 +5,6 @@ import httpx
 from src.tools.data_handlers.base import (
     DataPullResult,
     DataSourceHandler,
-    gadm_levels,
 )
 from src.utils.logging_config import get_logger
 
@@ -33,8 +32,7 @@ class DistAlertHandler(DataSourceHandler):
     ) -> DataPullResult:
         try:
             aoi_name = aoi["name"]
-            gadm_level = gadm_levels[subtype]
-            aoi_gadm_id = aoi[gadm_level["col_name"]].split("_")[0]
+            aoi_gadm_id = aoi["gadm_id"].split("_")[0]
 
             payload = {
                 "aois": [
@@ -67,7 +65,9 @@ class DistAlertHandler(DataSourceHandler):
             logger.info(f"DIST-ALERT API Request - Headers: {headers}")
             logger.info(f"DIST-ALERT API Request - Payload: {payload}")
 
-            # response = requests.post(self.DIST_ALERT_URL, headers=headers, json=payload)
+            response = await client.post(
+                self.DIST_ALERT_URL, headers=headers, json=payload
+            )
 
             # Debug logging for response
             logger.info(
@@ -90,7 +90,7 @@ class DistAlertHandler(DataSourceHandler):
                 logger.error(error_msg)
                 return DataPullResult(success=False, data=[], message=error_msg)
 
-            if result["status"] == "success":
+            if "status" in result and result["status"] == "success":
                 download_link = result["data"]["link"]
 
                 async with httpx.AsyncClient() as client:

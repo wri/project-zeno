@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - docker-build-publish
 
 env:
   REGISTRY: public.ecr.aws/b7u8b0a6

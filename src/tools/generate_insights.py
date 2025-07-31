@@ -158,9 +158,7 @@ async def generate_insights(
         charts_data = []
 
         for i, insight in enumerate(insights, 1):
-            logger.debug(
-                f"Insight {i}: {insight.title} ({insight.chart_type})"
-            )
+            logger.debug(f"Insight {i}: {insight.title} ({insight.chart_type})")
 
             message_parts.append(f"**Insight {i}: {insight.title}**")
             message_parts.append(f"Chart Type: {insight.chart_type}")
