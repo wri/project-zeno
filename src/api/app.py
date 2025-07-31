@@ -707,7 +707,7 @@ def delete_thread(
 
 
 @app.get("/api/geometry/{source}/{src_id}", response_model=GeometryResponse)
-async def get_geometry(source: str, src_id: str):
+async def get_geometry(source: str, src_id: str, session=Depends(get_session)):
     """
     Get geometry data by source and source ID.
 
@@ -739,8 +739,7 @@ async def get_geometry(source: str, src_id: str):
     """
 
     try:
-        with engine.connect() as conn:
-            result = conn.execute(text(sql_query), {"src_id": src_id}).fetchone()
+        result = session.execute(text(sql_query), {"src_id": src_id}).fetchone()
 
         if not result:
             raise HTTPException(
