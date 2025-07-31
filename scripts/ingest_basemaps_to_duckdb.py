@@ -213,7 +213,7 @@ def main() -> None:
     # Load additional layers
     for table, url in NDJSON_SOURCES.items():
         print(f"→ Loading “{table}” from {url}")
-        ndjson_gdf = gdf_from_ndjson(url)
+        ndjson_gdf = gdf_from_ndjson(url, Path(args.tempdir))
         load_into_duckdb(ndjson_gdf, Path(args.database), table=table)
 
     print("✓ Done")

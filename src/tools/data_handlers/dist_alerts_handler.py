@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 
-import requests
+import httpx
 
 from src.tools.data_handlers.base import (
     DataPullResult,
@@ -19,7 +19,7 @@ class DistAlertHandler(DataSourceHandler):
     def can_handle(self, dataset: Any, table_name: str) -> bool:
         return table_name == "DIST-ALERT"
 
-    def pull_data(
+    async def pull_data(
         self,
         query: str,
         aoi: Dict,
@@ -55,12 +55,19 @@ class DistAlertHandler(DataSourceHandler):
                 "Content-Type": "application/json",
             }
 
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    self.DIST_ALERT_URL, headers=headers, json=payload
+                )
+
             # Debug logging for payload
             logger.info(f"DIST-ALERT API Request - URL: {self.DIST_ALERT_URL}")
             logger.info(f"DIST-ALERT API Request - Headers: {headers}")
             logger.info(f"DIST-ALERT API Request - Payload: {payload}")
 
-            response = requests.post(self.DIST_ALERT_URL, headers=headers, json=payload)
+            response = await client.post(
+                self.DIST_ALERT_URL, headers=headers, json=payload
+            )
 
             # Debug logging for response
             logger.info(
@@ -85,7 +92,10 @@ class DistAlertHandler(DataSourceHandler):
 
             if "status" in result and result["status"] == "success":
                 download_link = result["data"]["link"]
-                data = requests.get(download_link).json()
+
+                async with httpx.AsyncClient() as client:
+                    data = client.get(download_link).json()
+
                 raw_data = data["data"]["result"]
 
                 return DataPullResult(

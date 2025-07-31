@@ -20,7 +20,7 @@ class ExampleAPIHandler(DataSourceHandler):
         # Example: handle datasets from "EXAMPLE_API" source
         return hasattr(dataset, "source") and dataset.source == "EXAMPLE_API"
 
-    def pull_data(
+    async def pull_data(
         self,
         query: str,
         aoi_name: str,

@@ -289,7 +289,7 @@ AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(AOIIn
 
 
 @tool("pick-aoi")
-def pick_aoi(
+async def pick_aoi(
     question: str,
     place: str,
     subregion: Optional[
@@ -328,7 +328,7 @@ def pick_aoi(
         )  # results: id, name, subtype, source, src_id
 
         # Select the best AOI based on user query
-        selected_aoi = AOI_SELECTION_CHAIN.invoke(
+        selected_aoi = await AOI_SELECTION_CHAIN.ainvoke(
             {"candidate_locations": candidate_aois, "user_query": question}
         )
         selected_aoi_id = selected_aoi.id
