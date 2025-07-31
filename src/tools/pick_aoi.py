@@ -56,6 +56,7 @@ def query_aoi_database(
     with engine.connect() as conn:
         # Enable pg_trgm extension for similarity function
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+        conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
         conn.commit()
 
         # Check which tables exist first
@@ -174,6 +175,7 @@ def query_aoi_database(
                    similarity(LOWER(name), LOWER(:place_name)) AS similarity_score
             FROM combined_search
             WHERE name IS NOT NULL
+            AND name % :place_name
             ORDER BY similarity_score DESC
             LIMIT :limit_val
         """
