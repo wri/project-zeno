@@ -48,6 +48,10 @@ tools = [pick_aoi, pick_dataset, pull_data, generate_insights]
 load_environment_variables()
 
 
+# Load environment variables before using them
+load_environment_variables()
+
+
 DATABASE_URL = os.environ["DATABASE_URL"].replace(
     "postgresql+psycopg://", "postgresql://"
 )
@@ -85,4 +89,9 @@ zeno = create_react_agent(
     state_schema=AgentState,
     prompt=prompt,
     checkpointer=checkpointer,
+)
+
+# Non-checkpointer backed agent for anonymous users
+zeno_anonymous = create_react_agent(
+    model=SONNET, tools=tools, state_schema=AgentState, prompt=prompt
 )

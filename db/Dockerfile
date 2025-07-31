@@ -7,7 +7,7 @@ RUN apt-get update && \
     apt-get install -y postgresql-client
 
 # Install Alembic
-RUN pip install --no-cache-dir alembic psycopg2-binary pydantic
+RUN pip install --no-cache-dir alembic psycopg2-binary pydantic geoalchemy2
 
 # Copy migration scripts and models
 COPY . /app/db

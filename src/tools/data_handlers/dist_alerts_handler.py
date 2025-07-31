@@ -55,9 +55,33 @@ class DistAlertHandler(DataSourceHandler):
                 "Content-Type": "application/json",
             }
 
+            # Debug logging for payload
+            logger.info(f"DIST-ALERT API Request - URL: {self.DIST_ALERT_URL}")
+            logger.info(f"DIST-ALERT API Request - Headers: {headers}")
+            logger.info(f"DIST-ALERT API Request - Payload: {payload}")
+
             response = requests.post(self.DIST_ALERT_URL, headers=headers, json=payload)
 
-            result = response.json()
+            # Debug logging for response
+            logger.info(
+                f"DIST-ALERT API Response - Status Code: {response.status_code}"
+            )
+            logger.info(f"DIST-ALERT API Response - Headers: {dict(response.headers)}")
+            logger.info(f"DIST-ALERT API Response - Raw Text: {response.text}")
+
+            try:
+                result = response.json()
+                logger.info(f"DIST-ALERT API Response - Parsed JSON: {result}")
+            except Exception as json_error:
+                error_msg = f"Failed to parse JSON response from DIST-ALERT API. Status: {response.status_code}, Text: {response.text}, Error: {json_error}"
+                logger.error(error_msg)
+                return DataPullResult(success=False, data=[], message=error_msg)
+
+            # Check if status key exists before accessing it
+            if "status" not in result:
+                error_msg = f"DIST-ALERT API response missing 'status' key. Available keys: {list(result.keys())}, Full response: {result}"
+                logger.error(error_msg)
+                return DataPullResult(success=False, data=[], message=error_msg)
 
             if "status" in result and result["status"] == "success":
                 download_link = result["data"]["link"]
