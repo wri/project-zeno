@@ -40,7 +40,9 @@ Language Interface for Maps & WRI/LCL data APIs.
 5. **Ingest data (required after starting database):**
    After starting the database and infrastructure services, you need to ingest the required datasets. Feel free to run all or just the ones you need.
    
-   This downloads ~2 GB of data per dataset except for WDPA which is ~10 GB. It's ok to skip WDPA if you don't need it.:
+   This downloads ~2 GB of data per dataset except for WDPA which is ~10 GB. It's ok to skip WDPA if you don't need it.
+   
+   Make sure you're set up with WRI AWS credentials in your `.env` file to access the S3 bucket.
 
    ```bash
    python src/ingest/ingest_gadm.py
