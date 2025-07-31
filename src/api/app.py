@@ -21,7 +21,6 @@ import requests
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import insert
-
 from src.agents.agents import zeno, zeno_anonymous, checkpointer
 from src.api.data_models import (
     ThreadModel,
@@ -218,6 +217,7 @@ def replay_chat(thread_id):
                     continue
                 rendered_state_elements["messages"].append(message.id)
 
+                # TODO: add checkpoint timestamp to message?
                 update["messages"].append(message)
 
             # Render the rest of the state updates
@@ -233,9 +233,24 @@ def replay_chat(thread_id):
 
                 update[key] = value
 
-            yield pack({"node": "agent", "update": dumps(update)})
+            mtypes = set(m.type for m in update["messages"])
+
+            node_type = (
+                "agent"
+                if mtypes == {"ai"} or len(mtypes) > 1
+                else "tools" if mtypes == {"tool"} else "human"
+            )
+
+            update = {
+                "node": node_type,
+                "timestamp": checkpoint.created_at,
+                "update": dumps(update),
+            }
+
+            yield pack(update)
 
     except Exception as e:
+        # TODO: yield a stream event with the error?
         logger.exception("Error during chat replay: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -262,7 +277,8 @@ def stream_chat(
         langfuse_handler.tags = tags
 
     config = {
-        # "callbacks": [langfuse_handler],
+        "configurable": {"thread_id": thread_id},
+        "callbacks": [langfuse_handler],
     }
 
     messages = []
@@ -325,6 +341,7 @@ def stream_chat(
         for update in stream:
             try:
                 node = next(iter(update.keys()))
+
                 yield pack(
                     {
                         "node": node,
