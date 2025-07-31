@@ -96,22 +96,15 @@ def query_aoi_database(
 
         # Build the query based on existing tables
         union_parts = []
-        row_offset = 0
 
         if "gadm" in existing_tables:
             union_parts.append(
                 f"""
                 SELECT gadm_id AS src_id,
-                    name, subtype, 'gadm' as source,
-                    ROW_NUMBER() OVER() + {row_offset} as id
+                    name, subtype, 'gadm' as source
                 FROM {GADM_TABLE}
             """
             )
-            # Get count for offset calculation
-            gadm_count = conn.execute(
-                text(f"SELECT COUNT(*) FROM {GADM_TABLE}")
-            ).scalar()
-            row_offset += gadm_count
 
         if "kba" in existing_tables:
             src_id = SOURCE_ID_MAPPING["kba"]["id_column"]
@@ -120,14 +113,10 @@ def query_aoi_database(
                 SELECT CAST({src_id} as TEXT) as src_id,
                        name,
                        subtype,
-                       'kba' as source,
-                       ROW_NUMBER() OVER() + {row_offset} as id
+                       'kba' as source
                 FROM {KBA_TABLE}
             """
             )
-            # Get count for offset calculation
-            kba_count = conn.execute(text(f"SELECT COUNT(*) FROM {KBA_TABLE}")).scalar()
-            row_offset += kba_count
 
         if "landmark" in existing_tables:
             src_id = SOURCE_ID_MAPPING["landmark"]["id_column"]
@@ -136,16 +125,10 @@ def query_aoi_database(
                 SELECT CAST({src_id} as TEXT) as src_id,
                        name,
                        subtype,
-                       'landmark' as source,
-                       ROW_NUMBER() OVER() + {row_offset} as id
+                       'landmark' as source
                 FROM {LANDMARK_TABLE}
             """
             )
-            # Get count for offset calculation
-            landmark_count = conn.execute(
-                text(f"SELECT COUNT(*) FROM {LANDMARK_TABLE}")
-            ).scalar()
-            row_offset += landmark_count
 
         if "wdpa" in existing_tables:
             src_id = SOURCE_ID_MAPPING["wdpa"]["id_column"]
@@ -154,8 +137,7 @@ def query_aoi_database(
                 SELECT CAST({src_id} as TEXT) as src_id,
                        name,
                        subtype,
-                       'wdpa' as source,
-                       ROW_NUMBER() OVER() + {row_offset} as id
+                       'wdpa' as source
                 FROM {WDPA_TABLE}
             """
             )
