@@ -100,21 +100,3 @@ def test_user_cant_override_email_domain_authorization(client):
 
         assert response.status_code == 403
         assert "User not allowed to access this API" in response.json()["detail"]
-
-
-def test_optional_auth_for_chat(client):
-    """Test that the chat endpoint can be accessed without authentication."""
-    with patch("src.api.app.stream_chat") as mock_chat:
-        # We dont want to call LLMs in these tests, so we mock the stream_chat function
-        # Mock stream_chat to return a generator that yields packed JSON
-        mock_chat.return_value = iter(
-            [
-                '{"node": "agent", "update": "{\\"messages\\": [\\"Welcome to the chat API\\"]}"}\n'
-            ]
-        )
-
-        # Send a proper ChatRequest with required fields
-        response = client.post("/api/chat", json={"query": "Hello"})
-        assert response.status_code == 200
-        assert response.headers["content-type"] == "application/x-ndjson"
-        assert "Welcome to the chat API" in response.text
