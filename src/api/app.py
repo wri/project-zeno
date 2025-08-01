@@ -10,6 +10,7 @@ from datetime import date
 import structlog
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi.security import HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from itsdangerous import BadSignature, TimestampSigner
@@ -70,6 +71,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add HTTP Bearer security scheme
+security = HTTPBearer(auto_error=False)
 
 
 @app.middleware("http")
@@ -398,22 +402,19 @@ def get_session():
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
-@cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
-    authorization: Optional[str] = Header(None),
-    domains_allowlist: Optional[str] = ",".join(APISettings.domains_allowlist),
+    authorization: Optional[str] = Depends(security),
 ) -> UserModel:
 
     if not authorization:
         return None
 
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Bearer token",
-        )
+    token = authorization.credentials
 
-    token = authorization.split(" ")[1]
+    # return cached user info if available
+    if token and token in _user_info_cache:
+        return _user_info_cache[token]
+
     try:
         resp = requests.get(
             "https://api.resourcewatch.org/auth/user/me",
@@ -432,12 +433,17 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
+    # cache user info
+    _user_info_cache[token] = UserModel.model_validate(user_info)
+
     if "name" not in user_info:
         logger.warning(
             "User info does not contain 'name' field, using email account name as fallback",
             email=user_info.get("email", None),
         )
         user_info["name"] = user_info["email"].split("@")[0]
+
+    domains_allowlist = APISettings.domains_allowlist
 
     if isinstance(domains_allowlist, str):
         domains_allowlist = domains_allowlist.split(",")
@@ -459,8 +465,8 @@ async def require_auth(
     """
     if not user_info:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Authorization header is required",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Bearer token in Authorization header",
         )
 
     user = session.query(UserOrm).filter_by(id=user_info.id).first()
