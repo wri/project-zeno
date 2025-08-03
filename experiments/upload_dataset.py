@@ -14,6 +14,10 @@ from langfuse import Langfuse
 # create_langfuse_dataset("s5_t2_02_investigator")
 # tree_cover_config = ColumnConfig( input_column="Question", parser=parse_tree_cover_qa)
 # upload_csv("s5_t2_02_investigator", "experiments/Zeno test dataset(S5 T2-02 Investigator).csv", tree_cover_config)
+#
+# create_langfuse_dataset("s2_t1_02_tcl_identification")
+# tcl_config = ColumnConfig( input_column="query", parser=parse_tree_cover_loss_identification)
+# upload_csv( "s2_t1_02_tcl_identification", "experiments/S2 T1-02 TCL(TCL dataset ID).csv", tcl_config)
 
 """
 Parser Template:
