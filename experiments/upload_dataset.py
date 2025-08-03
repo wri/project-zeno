@@ -150,6 +150,51 @@ def parse_tree_cover_qa(row: Dict[str, str]) -> Dict[str, Any]:
     return {"expected_output": expected}
 
 
+def parse_tree_cover_loss_identification(
+    row: Dict[str, str],
+) -> Dict[str, Any]:
+    """Parser for tree cover loss identification datasets.
+
+    Expected CSV columns:
+    - query: the query text (used as input)
+    - expected_data_layer: data layer specification, may have "ANY:" prefix for multiple options
+    - expected_context_layer: context layer specification
+    - expected_daterange: date range specification
+    - expected_threshold: threshold specification
+
+    Returns:
+        For single data_layer:
+        {"expected_output": {"data_layer": "...", "context_layer": "...", "daterange": "...", "threshold": "..."}}
+        For multiple data_layer options (ANY: prefix):
+        {"expected_output": {"data_layer": {"any_of": [...]}, "context_layer": "...", "daterange": "...", "threshold": "..."}}
+    """
+    data_layer_str = row.get("expected_data_layer", "").strip()
+    data_layer_output: Any
+
+    # Handle ANY: prefix for multiple valid options
+    if data_layer_str.startswith("ANY:"):
+        # Remove "ANY:" prefix and split by semicolon
+        data_layer_content = data_layer_str[len("ANY:") :].strip()
+        options = [
+            item.strip()
+            for item in data_layer_content.split(";")
+            if item.strip()
+        ]
+        data_layer_output = {"any_of": options}
+    else:
+        # Single option
+        data_layer_output = data_layer_str
+
+    expected = {
+        "data_layer": data_layer_output,
+        "context_layer": row.get("expected_context_layer", "").strip(),
+        "daterange": row.get("expected_daterange", "").strip(),
+        "threshold": row.get("expected_threshold", "").strip(),
+    }
+
+    return {"expected_output": expected}
+
+
 def upload_csv(dataset_name: str, csv_filepath: str, config: ColumnConfig):
     """Uploads rows from a CSV file to a Langfuse dataset using the provided configuration."""
     try:
