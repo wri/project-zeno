@@ -293,21 +293,21 @@ def stream_chat(
         for action_type, action_data in ui_context.items():
             match action_type:
                 case "aoi_selected":
-                    content = f"User selected AOI in UI: {action_data['aoi_name']}"
+                    content = f"<user-action>User selected AOI in UI: {action_data['aoi_name']}</user-action>"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
                     state_updates["subregion_aois"] = action_data["subregion_aois"]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
-                    content = f"User selected dataset in UI: {action_data['dataset']['data_layer']}"
+                    content = f"<user-action>User selected dataset in UI: {action_data['dataset']['data_layer']}</user-action>"
                     state_updates["dataset"] = action_data["dataset"]
                 case "daterange_selected":
-                    content = f"User selected daterange in UI: start_date:  {action_data['start_date']}, end_date: {action_data['end_date']}"
+                    content = f"<user-action>User selected daterange in UI: start_date:  {action_data['start_date']}, end_date: {action_data['end_date']}</user-action>"
                     state_updates["start_date"] = action_data["start_date"]
                     state_updates["end_date"] = action_data["end_date"]
                 case _:
-                    content = f"User performed action in UI: {action_type}"
+                    content = f"<user-action>User performed action in UI: {action_type}</user-action>"
             ui_action_message.append(content)
 
     ui_message = HumanMessage(content="\n".join(ui_action_message))
