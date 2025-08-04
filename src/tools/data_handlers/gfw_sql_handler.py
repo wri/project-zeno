@@ -203,11 +203,11 @@ class GFWSQLHandler(DataSourceHandler):
             ):
                 gadm_level = GADM_LEVELS[subtype]
                 return f"gadm__{table_name}__{gadm_level['name']}_change"
-            case "kba":
+            case "key-biodiversity-area":
                 return f"kba__{table_name}_change"
-            case "wdpa":
+            case "protected-area":
                 return f"wdpa_protected_areas__{table_name}_change"
-            case "landmark":
+            case "indigenous-and-community-land":
                 return f"landmark__{table_name}_change"
             case _:
                 logger.error(f"Unsupported subtype: {subtype}")
@@ -288,7 +288,7 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
         logger.debug("Invoking SQL query generation chain...")
         sql_query_chain = SQL_QUERY_PROMPT | SONNET
         logger.info(f"aoi: {list(aoi.keys())}, gadm_level: {gadm_level}")
-        location_filter = GadmId(gadm_id=aoi["gadm_id"]).as_sql_filter()
+        location_filter = GadmId(gadm_id=aoi["src_id"]).as_sql_filter()
 
         return sql_query_chain.invoke(
             {
