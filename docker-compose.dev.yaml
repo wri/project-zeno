@@ -51,18 +51,3 @@ services:
       - APP_DB=zeno-data
     volumes:
       - ./db:/app/db
-
-  migrate-test:
-    build:
-      context: ./db
-    depends_on:
-      test-db:
-        condition: service_healthy
-
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_HOST=db
-      - APP_DB=zeno-data_test
-    volumes:
-      - ./db:/app/db
