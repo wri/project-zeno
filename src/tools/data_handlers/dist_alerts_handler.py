@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 class DistAlertHandler(DataSourceHandler):
     """Handler for DIST-ALERT data source"""
 
-    DIST_ALERT_URL = "http://zeno-a-publi-zrfwjzqkhk5t-237896174.us-east-1.elb.amazonaws.com/v0/land_change/dist_alerts/analytics"
+    DIST_ALERT_URL = "http://analytics-416617519.us-east-1.elb.amazonaws.com/v0/land_change/dist_alerts/analytics"
 
     def can_handle(self, dataset: Any, table_name: str) -> bool:
         return table_name == "DIST-ALERT"
@@ -35,14 +35,12 @@ class DistAlertHandler(DataSourceHandler):
             aoi_gadm_id = aoi["gadm_id"].split("_")[0]
 
             payload = {
-                "aois": [
-                    {
-                        "type": "admin",
-                        "id": aoi_gadm_id,
-                        "provider": "gadm",
-                        "version": "4.1",
-                    }
-                ],
+                "aoi": {
+                    "type": "admin",
+                    "ids": [aoi_gadm_id],
+                    "provider": "gadm",
+                    "version": "4.1",
+                },
                 "start_date": start_date,
                 "end_date": end_date,
                 "intersections": (
@@ -83,7 +81,9 @@ class DistAlertHandler(DataSourceHandler):
                 logger.error(error_msg)
                 return DataPullResult(success=False, data=[], message=error_msg)
 
-            if "status" in result and result["status"] == "success":
+            if "status" in result and (
+                result["status"] == "success" or result["status"] == "saved"
+            ):
                 download_link = result["data"]["link"]
                 data = requests.get(download_link).json()
                 raw_data = data["data"]["result"]
