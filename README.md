@@ -108,8 +108,7 @@ make dev      # Start full development environment
 ## Testing
 
 ### API Tests
-
-Run API tests using pytest:
+Running `make up` will bring up a `zeno-db_test` database that's used by pytest. The tests look for a `TEST_DATABASE_URL` environment variable (also set in .env.local). Once the database is ready, run API tests using pytest:
 
 ```bash
 uv run pytest tests/api/
