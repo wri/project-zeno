@@ -116,8 +116,21 @@ The chat API returns a streaming response with `application/x-ndjson` media type
 }
 ```
 
-- `node`: Can be "agent", "tools", or "error"
+- `node`: Can be "agent", "tools", "trace_info", or "error"
 - `update`: JSON-serialized string containing the state update data
+
+### Trace Information
+
+At the end of each conversation, a `trace_info` node is sent containing the Langfuse trace ID:
+
+```json
+{
+    "node": "trace_info",
+    "update": "{\"trace_id\": \"langfuse-trace-id\"}"
+}
+```
+
+This trace ID can be used for feedback collection and conversation analytics.
 
 ### Error Handling
 
