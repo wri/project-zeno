@@ -13,11 +13,29 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
       - POSTGRES_DB=zeno-data
-
     ports:
       - 5433:5432 # Local PostgreSQL running on port 5432, mapped to port 5433
     volumes:
       - ./database_data:/var/lib/postgresql/data
+  test-db:
+      image: postgis/postgis:17-3.5
+      platform:  linux/amd64
+      restart: always
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U postgres"]
+        interval: 3s
+        timeout: 3s
+        retries: 10
+      environment:
+        - POSTGRES_USER=postgres
+        - POSTGRES_PASSWORD=postgres
+        - POSTGRES_HOST=db
+        - POSTGRES_DB=zeno-data_test
+      ports:
+        - 5434:5432 # Local PostgreSQL running on port 5432, mapped to port 5434
+      volumes:
+        - ./database_data_test:/var/lib/postgresql/data
+
 
   migrate:
     build:
@@ -31,5 +49,20 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
       - APP_DB=zeno-data
+    volumes:
+      - ./db:/app/db
+
+  migrate-test:
+    build:
+      context: ./db
+    depends_on:
+      test-db:
+        condition: service_healthy
+
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=db
+      - APP_DB=zeno-data_test
     volumes:
       - ./db:/app/db
