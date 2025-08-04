@@ -18,7 +18,6 @@ depends_on = None
 
 def upgrade():
     # Drop the unique constraint on 'id' column if it exists
-    # op.drop_constraint("daily_usage_id_key", "daily_usage", type_="unique")
 
     op.execute(
         """
