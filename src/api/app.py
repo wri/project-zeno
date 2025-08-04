@@ -37,7 +37,11 @@ from src.api.data_models import (
 from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.env_loader import load_environment_variables
 from src.utils.config import APISettings
-from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
+from src.utils.geocoding_helpers import (
+    SOURCE_ID_MAPPING,
+    SUBREGION_TO_SUBTYPE_MAPPING,
+    GADM_SUBTYPE_MAP,
+)
 
 # Load environment variables using shared utility
 load_environment_variables()
@@ -826,6 +830,8 @@ async def api_metadata() -> dict:
         "layer_id_mapping": {
             key: value["id_column"] for key, value in SOURCE_ID_MAPPING.items()
         },
+        "subregion_to_subtype_mapping": SUBREGION_TO_SUBTYPE_MAPPING,
+        "gadm_subtype_mapping": GADM_SUBTYPE_MAP,
     }
 
 
