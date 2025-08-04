@@ -75,7 +75,7 @@ with st.sidebar:
         )
     else:
         user_info = requests.get(
-            f"{API_BASE_URL}/auth/me",
+            f"{API_BASE_URL}/api/auth/me",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {st.session_state['token']}",

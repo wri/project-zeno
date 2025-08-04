@@ -7,6 +7,11 @@ import pandas as pd
 from shapely.geometry import shape
 from streamlit_folium import folium_static
 
+from client import ZenoClient
+
+
+API_BASE_URL = "http://localhost:8000"
+
 
 # TODO: move rendering logic to a separate module so
 # that the threads can import
@@ -68,9 +73,13 @@ def render_aoi_map(aoi_data, subregion_data=None):
         subregion_data: Optional dictionary containing geojson data for subregion
     """
     try:
-        # Extract geojson from aoi_data
-        if isinstance(aoi_data, dict) and "geometry" in aoi_data:
-            geojson_data = aoi_data["geometry"]
+        src_id = aoi_data.get("src_id")
+        # fetch the geometry by src_id
+        client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
+        geom_response = client.fetch_geometry(
+            source=aoi_data.get("source"), src_id=src_id
+        )
+        geojson_data = geom_response.get("geometry")
 
         # Calculate center from geojson bounds
         center = [0, 0]  # Default center
@@ -101,15 +110,19 @@ def render_aoi_map(aoi_data, subregion_data=None):
                     "fillOpacity": 0.3,
                 },
                 popup=folium.Popup("Area of Interest", parse_html=True),
-                tooltip="AOI",
+                tooltip=aoi_data.get("name", "AOI"),
             ).add_to(m)
 
         # Add subregions if provided
         if subregion_data and isinstance(subregion_data, list):
             try:
                 for subregion in subregion_data:
-                    if isinstance(subregion, dict) and "geometry" in subregion:
-                        subregion_geojson = subregion["geometry"]
+                    if isinstance(subregion, dict):
+                        subregion_source = subregion.get("source")
+                        subregion_src_id = subregion.get("src_id")
+                        subregion_geojson = client.fetch_geometry(
+                            source=subregion_source, src_id=subregion_src_id
+                        ).get("geometry")
                         subregion_name = subregion.get("name", "Subregion")
 
                         folium.GeoJson(
@@ -474,21 +487,9 @@ def display_sidebar_selections():
         "Odisha": {
             "aoi": {
                 "name": "Odisha, India",
-                "gadm_id": 1534,
-                "GID_1": "IND.26_1",
+                "gadm_id": "IND.26_1",
+                "src_id": "IND.26_1",
                 "subtype": "state-province",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
-                        [
-                            [82.19806406848329, 21.82733671447052],
-                            [82.19806406848329, 18.309508358985113],
-                            [86.75537603715372, 18.309508358985113],
-                            [86.75537603715372, 21.82733671447052],
-                            [82.19806406848329, 21.82733671447052],
-                        ]
-                    ],
-                },
             },
             "aoi_name": "Odisha",
             "subregion_aois": None,
@@ -498,21 +499,9 @@ def display_sidebar_selections():
         "Koraput": {
             "aoi": {
                 "name": "Koraput, Odisha, India",
-                "gadm_id": 22056,
-                "GID_2": "IND.26.20_1",
+                "gadm_id": "IND.26.20_1",
+                "src_id": "IND.26.20_1",
                 "subtype": "district-county",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
-                        [
-                            [82.69889130216421, 18.823028264440254],
-                            [82.69889130216421, 18.796325063722534],
-                            [82.72949498909782, 18.796325063722534],
-                            [82.72949498909782, 18.823028264440254],
-                            [82.69889130216421, 18.823028264440254],
-                        ]
-                    ],
-                },
             },
             "aoi_name": "Koraput",
             "subregion_aois": None,

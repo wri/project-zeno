@@ -1,4 +1,3 @@
-import json
 from typing import Annotated, Literal, Optional
 import os
 import pandas as pd
@@ -197,15 +196,23 @@ def query_subregion_database(engine, subregion_name: str, source: str, src_id: i
         ):
             table_name = GADM_TABLE
             subtype = SUBREGION_TO_SUBTYPE_MAPPING[subregion_name]
+            subregion_source = "gadm"
+            src_id_field = SOURCE_ID_MAPPING["gadm"]["id_column"]
         case "kba":
             table_name = KBA_TABLE
             subtype = SUBREGION_TO_SUBTYPE_MAPPING["kba"]
+            subregion_source = "kba"
+            src_id_field = SOURCE_ID_MAPPING["kba"]["id_column"]
         case "wdpa":
             table_name = WDPA_TABLE
             subtype = SUBREGION_TO_SUBTYPE_MAPPING["wdpa"]
+            subregion_source = "wdpa"
+            src_id_field = SOURCE_ID_MAPPING["wdpa"]["id_column"]
         case "landmark":
             table_name = LANDMARK_TABLE
             subtype = SUBREGION_TO_SUBTYPE_MAPPING["landmark"]
+            subregion_source = "landmark"
+            src_id_field = SOURCE_ID_MAPPING["landmark"]["id_column"]
         case _:
             logger.error(f"Invalid subregion: {subregion_name}")
             raise ValueError(
@@ -226,7 +233,7 @@ def query_subregion_database(engine, subregion_name: str, source: str, src_id: i
         WHERE "{id_column}" = :src_id
         LIMIT 1
     )
-    SELECT t.*, ST_AsGeoJSON(t.geometry) as geometry_json
+    SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id
     FROM {table_name} AS t, aoi
     WHERE t.subtype = :subtype
     AND ST_Within(t.geometry, aoi.geom)
@@ -237,20 +244,6 @@ def query_subregion_database(engine, subregion_name: str, source: str, src_id: i
         results = pd.read_sql(
             text(sql_query), conn, params={"src_id": src_id, "subtype": subtype}
         )
-
-    # Parse GeoJSON strings in the results
-    if not results.empty and "geometry_json" in results.columns:
-        for idx, row in results.iterrows():
-            if row["geometry_json"] is not None:
-                try:
-                    results.at[idx, "geometry"] = json.loads(row["geometry_json"])
-                except json.JSONDecodeError as e:
-                    logger.error(
-                        f"Failed to parse GeoJSON for subregion {row.get('name', 'Unknown')}: {e}"
-                    )
-                    results.at[idx, "geometry"] = None
-        # Drop the geometry_json column as we now have parsed geometry
-        results = results.drop(columns=["geometry_json"])
 
     return results
 
@@ -357,7 +350,7 @@ def pick_aoi(
         source_table = source_table_map[source]
 
         sql_query = f"""
-            SELECT name, subtype, ST_AsGeoJSON(geometry) as geometry_json, "{id_column}" as src_id
+            SELECT name, subtype, "{id_column}" as src_id
             FROM {source_table}
             WHERE "{id_column}" = :src_id
         """
@@ -372,28 +365,7 @@ def pick_aoi(
 
         selected_aoi = selected_aoi_df.iloc[0].to_dict()
         selected_aoi[SOURCE_ID_MAPPING[source]["id_column"]] = src_id
-
-        # Parse the GeoJSON string into a Python dictionary
-        if (
-            "geometry_json" in selected_aoi
-            and selected_aoi["geometry_json"] is not None
-        ):
-            try:
-                selected_aoi["geometry"] = json.loads(selected_aoi["geometry_json"])
-                logger.debug(
-                    f"Parsed GeoJSON geometry for AOI: {selected_aoi.get('name', 'Unknown')}"
-                )
-            except json.JSONDecodeError as e:
-                logger.error(
-                    f"Failed to parse GeoJSON for AOI {selected_aoi.get('name', 'Unknown')}: {e}"
-                )
-                selected_aoi["geometry"] = None
-            # Remove the geometry_json column as we now have parsed geometry
-            del selected_aoi["geometry_json"]
-        else:
-            logger.warning(
-                f"No geometry found for AOI: {selected_aoi.get('name', 'Unknown')}"
-            )
+        selected_aoi["source"] = source
 
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
