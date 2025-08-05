@@ -9,7 +9,7 @@ from datetime import date
 
 import structlog
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.security import HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -20,7 +20,6 @@ from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
-import requests
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import insert
@@ -40,21 +39,12 @@ from src.api.data_models import (
     CustomAreaCreate,
     GeometryResponse,
 )
-import structlog
-from src.agents.agents import zeno, checkpointer
-from src.api.data_models import (
-    CustomAreaNameRequest,
-    ThreadModel,
-    ThreadOrm,
-    UserModel,
-    UserOrm,
-)
-from src.utils.llms import HAIKU
-from src.utils.env_loader import load_environment_variables
+
 from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.env_loader import load_environment_variables
 from src.utils.config import APISettings
 from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
+from src.utils.llms import HAIKU
 
 
 # Load environment variables using shared utility
