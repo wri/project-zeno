@@ -17,8 +17,24 @@ depends_on = None
 
 
 def upgrade():
-    # Drop the unique constraint on 'id' column
-    op.drop_constraint("daily_usage_id_key", "daily_usage", type_="unique")
+    # Drop the unique constraint on 'id' column if it exists
+
+    op.execute(
+        """
+    DO $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'daily_usage_id_key'
+              AND conrelid = 'daily_usage'::regclass
+        ) THEN
+            ALTER TABLE daily_usage DROP CONSTRAINT daily_usage_id_key;
+        END IF;
+    END
+    $$;
+    """
+    )
 
 
 def downgrade():

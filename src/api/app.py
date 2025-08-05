@@ -10,6 +10,7 @@ from datetime import date
 import structlog
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi.security import HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from itsdangerous import BadSignature, TimestampSigner
@@ -39,6 +40,17 @@ from src.api.data_models import (
     CustomAreaCreate,
     GeometryResponse,
 )
+import structlog
+from src.agents.agents import zeno, checkpointer
+from src.api.data_models import (
+    CustomAreaNameRequest,
+    ThreadModel,
+    ThreadOrm,
+    UserModel,
+    UserOrm,
+)
+from src.utils.llms import HAIKU
+from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.env_loader import load_environment_variables
 from src.utils.config import APISettings
@@ -64,6 +76,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add HTTP Bearer security scheme
+security = HTTPBearer(auto_error=False)
 
 
 @app.middleware("http")
@@ -365,6 +380,16 @@ async def stream_chat(
                 # Continue processing other updates if possible
                 continue
 
+        # Send trace ID after stream completes
+        trace_id = getattr(langfuse_handler, "last_trace_id", None)
+        if trace_id:
+            yield pack(
+                {
+                    "node": "trace_info",
+                    "update": dumps({"trace_id": trace_id}),
+                }
+            )
+
     except Exception as e:
         logger.exception("Error during chat streaming: %s", e)
         # Initial stream setup error - send as error event
@@ -397,22 +422,18 @@ def get_session():
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
-@cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
-    authorization: Optional[str] = Header(None),
-    domains_allowlist: Optional[str] = ",".join(APISettings.domains_allowlist),
+    authorization: Optional[str] = Depends(security),
 ) -> UserModel:
 
     if not authorization:
         return None
 
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Bearer token",
-        )
+    token = authorization.credentials
 
-    token = authorization.split(" ")[1]
+    # return cached user info if available
+    if token and token in _user_info_cache:
+        return _user_info_cache[token]
 
     try:
         resp = requests.get(
@@ -432,6 +453,9 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
+    # cache user info
+    _user_info_cache[token] = UserModel.model_validate(user_info)
+
     if "name" not in user_info:
         logger.warning(
             "User info does not contain 'name' field, using email account name as fallback",
@@ -439,7 +463,12 @@ def fetch_user_from_rw_api(
         )
         user_info["name"] = user_info["email"].split("@")[0]
 
-    if user_info["email"].split("@")[-1].lower() not in domains_allowlist.split(","):
+    domains_allowlist = APISettings.domains_allowlist
+
+    if isinstance(domains_allowlist, str):
+        domains_allowlist = domains_allowlist.split(",")
+
+    if user_info["email"].split("@")[-1].lower() not in domains_allowlist:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not allowed to access this API",
@@ -456,8 +485,8 @@ async def require_auth(
     """
     if not user_info:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Authorization header is required",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Bearer token in Authorization header",
         )
 
     user = session.query(UserOrm).filter_by(id=user_info.id).first()
@@ -686,6 +715,23 @@ def update_thread(
     session.commit()
     session.refresh(thread)
     return ThreadModel.model_validate(thread)
+
+
+@app.post("/api/custom_area_name")
+async def custom_area_name(
+    request: CustomAreaNameRequest, user: UserModel = Depends(fetch_user)
+):
+    """
+    Generate a neutral geographic name for a GeoJSON FeatureCollection of bounding boxes.
+    Requires Authorization.
+    """
+    try:
+        prompt = f"Name this GeoJSON FeatureCollection neutrally by geography, make sure to check where they are:\n{request.model_dump()}\n return strictly name only and limit to maximum of 150 characters."
+        response = HAIKU.invoke(prompt)
+        return {"name": response.content}
+    except Exception as e:
+        logger.exception("Error generating area name: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/api/threads/{thread_id}", status_code=204)
