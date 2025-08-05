@@ -13,7 +13,7 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - WATCHFILES_FORCE_POLLING=1
-      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/zeno-data
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/zeno-data
       - EMAILS_ALLOWLIST="developmentseed.org,wri.org"
       - COOKIE_SIGNER_SECRET_KEY=${COOKIE_SIGNER_SECRET_KEY:-secret-cookie-key-123}
     env_file:

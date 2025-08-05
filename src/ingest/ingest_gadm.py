@@ -121,7 +121,9 @@ def ingest_gadm_chunked(
     """Read GADM layers in chunks and ingest directly to PostGIS.
     Uses layer-specific chunk sizes to handle large geometries at higher admin levels.
     """
-    database_url = os.environ["DATABASE_URL"]
+    database_url = os.environ["DATABASE_URL"].replace(
+        "postgresql+asyncpg://", "postgresql=psycopg2://"
+    )
     engine = create_engine(database_url)
 
     # Ensure PostGIS extension is enabled
@@ -193,7 +195,9 @@ def ingest_to_postgis(
     gdf: gpd.GeoDataFrame, table_name: str = "geometries_gadm", chunk_size: int = 10000
 ) -> None:
     """Ingest the GeoDataFrame to PostGIS database in chunks."""
-    database_url = os.environ["DATABASE_URL"]
+    database_url = os.environ["DATABASE_URL"].replace(
+        "postgresql+asyncpg://", "postgresql+psycopg2://"
+    )
     engine = create_engine(database_url)
 
     gdf_copy = gdf.copy()

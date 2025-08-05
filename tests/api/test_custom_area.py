@@ -1,6 +1,11 @@
-def test_custom_area_endpoints(wri_user, client):
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_custom_area_endpoints(wri_user, client):
+    wri_user
     # list custom areas
-    res = client.get(
+    res = await client.get(
         "/api/custom_areas/",
         headers={"Authorization": "Bearer abc123"},
     )
@@ -9,7 +14,7 @@ def test_custom_area_endpoints(wri_user, client):
     assert res.json() == []
 
     # create a custom area
-    res = client.post(
+    res = await client.post(
         "/api/custom_areas/",
         json={
             "name": "Test area",
@@ -49,7 +54,7 @@ def test_custom_area_endpoints(wri_user, client):
     ]
 
     # list custom areas again
-    res = client.get(
+    res = await client.get(
         "/api/custom_areas/",
         headers={"Authorization": "Bearer abc123"},
     )
@@ -73,7 +78,7 @@ def test_custom_area_endpoints(wri_user, client):
     assert res.json()[0]["id"] == custom_area_id
 
     # update custom area
-    res = client.patch(
+    res = await client.patch(
         f"/api/custom_areas/{custom_area_id}",
         json={"name": "AOI #1"},
         headers={"Authorization": "Bearer abc123"},
@@ -84,14 +89,14 @@ def test_custom_area_endpoints(wri_user, client):
     assert res.json()["id"] == custom_area_id
 
     # delete custom area
-    res = client.delete(
+    res = await client.delete(
         f"/api/custom_areas/{custom_area_id}",
         headers={"Authorization": "Bearer abc123"},
     )
     assert res.status_code == 204
 
     # list custom areas after deletion
-    res = client.get(
+    res = await client.get(
         "/api/custom_areas/",
         headers={"Authorization": "Bearer abc123"},
     )
