@@ -10,9 +10,9 @@ from sqlalchemy import NullPool
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
-from src.api.data_models import Base
+from src.api.data_models import Base, UserOrm
 from src.api.app import app, get_async_session, fetch_user_from_rw_api
-from src.api.data_models import UserOrm, UserModel
+from src.api.schemas import UserModel
 
 # Test database settings
 if (os.getenv('TEST_DATABASE_URL')):

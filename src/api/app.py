@@ -23,18 +23,21 @@ from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 from src.agents.agents import zeno, zeno_anonymous, checkpointer
-from src.api.data_models import (
+from src.api.schemas import (
     ThreadModel,
-    ThreadOrm,
-    UserType,
     UserModel,
-    UserOrm,
-    DailyUsageOrm,
-    CustomAreaOrm,
     CustomAreaModel,
     CustomAreaCreate,
     CustomAreaNameRequest,
     GeometryResponse,
+    ChatRequest
+)
+from src.api.data_models import (
+    ThreadOrm,
+    UserType,
+    UserOrm,
+    DailyUsageOrm,
+    CustomAreaOrm,
     get_async_session,
     get_async_engine,
 )
@@ -172,26 +175,6 @@ async def anonymous_id_middleware(request: Request, call_next):
     )
 
     return response
-
-
-class ChatRequest(BaseModel):
-    query: str = Field(..., description="The query")
-    user_persona: Optional[str] = Field(None, description="The user persona")
-
-    # UI Context - can include multiple selections
-    ui_context: Optional[dict] = (
-        None  # {"aoi_selected": {...}, "dataset_selected": {...}, "daterange_selected": {...}}
-    )
-
-    # Pure UI actions - no query
-    ui_action_only: Optional[bool] = False
-
-    # Chat info
-    thread_id: Optional[str] = Field(None, description="The thread ID")
-    metadata: Optional[dict] = Field(None, description="The metadata")
-    session_id: Optional[str] = Field(None, description="The session ID")
-    user_id: Optional[str] = Field(None, description="The user ID")
-    tags: Optional[list] = Field(None, description="The tags")
 
 
 def pack(data):
@@ -446,8 +429,6 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
-    user_info["created_at"] = user_info["createdAt"]
-    user_info["updated_at"] = user_info["updatedAt"]
     # cache user info
     _user_info_cache[token] = UserModel.model_validate(user_info)
 
