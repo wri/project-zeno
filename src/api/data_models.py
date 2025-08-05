@@ -138,7 +138,7 @@ class UserModel(BaseModel):
     def parse_dates(cls, value):
         if isinstance(value, str):
             try:
-                return datetime.fromisoformat(value)
+                return datetime.fromisoformat(value).replace(tzinfo=None)
             except ValueError:
                 return value
         return value

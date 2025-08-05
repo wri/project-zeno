@@ -95,8 +95,8 @@ def mock_wri_user():
             "id": "test-user-1",
             "name": "Test User",
             "email": "test@developmentseed.org",
-            "created_at": "2024-01-01T00:00:00",
-            "updated_at": "2024-01-01T00:00:00",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z",
         }
     )
 

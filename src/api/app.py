@@ -446,6 +446,8 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
+    user_info["created_at"] = user_info["createdAt"]
+    user_info["updated_at"] = user_info["updatedAt"]
     # cache user info
     _user_info_cache[token] = UserModel.model_validate(user_info)
 
@@ -507,7 +509,8 @@ async def optional_auth(
     session: AsyncSession = Depends(get_async_session),
 ) -> Optional[UserModel]:
     """
-    Optional Authorization - returns None if not authenticated, UserModel if authenticated
+    Optional Authorization - returns None if not authenticated,
+    or UserModel if authenticated.
     """
     if not user_info:
         return None
@@ -770,7 +773,7 @@ async def delete_thread(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Requires Authorization
+    Delete thread.
     """
 
     checkpointer.delete_thread(thread_id)
