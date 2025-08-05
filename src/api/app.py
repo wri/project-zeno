@@ -28,7 +28,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.agents import fetch_zeno, fetch_zeno_anonymous, fetch_checkpointer
 
-
 from src.api.data_models import (
     ThreadOrm,
     UserType,
@@ -38,7 +37,6 @@ from src.api.data_models import (
     get_async_session,
     get_async_engine,
 )
-from src.utils.llms import HAIKU
 from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.config import APISettings

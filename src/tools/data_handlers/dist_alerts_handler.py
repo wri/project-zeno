@@ -17,10 +17,10 @@ class DistAlertHandler(DataSourceHandler):
 
     DIST_ALERT_URL = "http://analytics-416617519.us-east-1.elb.amazonaws.com/v0/land_change/dist_alerts/analytics"
 
-    def can_handle(self, dataset: Any, table_name: str) -> bool:
+    async def can_handle(self, dataset: Any, table_name: str) -> bool:
         return table_name == "DIST-ALERT"
 
-    def _poll_for_completion(
+    async def _poll_for_completion(
         self,
         payload: Dict,
         headers: Dict,
@@ -35,9 +35,10 @@ class DistAlertHandler(DataSourceHandler):
             time.sleep(poll_interval)
 
             try:
-                response = requests.post(
-                    self.DIST_ALERT_URL, headers=headers, json=payload
-                )
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        self.DIST_ALERT_URL, headers=headers, json=payload
+                    )
                 if response.status_code >= 400:
                     logger.warning(
                         f"Poll attempt {attempt + 1} failed with status {response.status_code}"
@@ -64,7 +65,7 @@ class DistAlertHandler(DataSourceHandler):
         logger.warning(f"Max polling attempts ({max_retries}) exceeded")
         return None
 
-    def pull_data(
+    async def pull_data(
         self,
         query: str,
         aoi: Dict,
@@ -138,7 +139,7 @@ class DistAlertHandler(DataSourceHandler):
                 logger.info(
                     f"DIST-ALERT request is pending, will retry with polling..."
                 )
-                result = self._poll_for_completion(
+                result = await self._poll_for_completion(
                     payload, headers, max_retries=3, poll_interval=0.5
                 )
                 if not result:
