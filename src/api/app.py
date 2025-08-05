@@ -27,7 +27,15 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.agents import fetch_zeno, fetch_zeno_anonymous, fetch_checkpointer
-
+from src.api.schemas import (
+    UserModel,
+    ChatRequest,
+    ThreadModel,
+    CustomAreaCreate,
+    CustomAreaModel,
+    GeometryResponse,
+    CustomAreaNameRequest,
+)
 from src.api.data_models import (
     ThreadOrm,
     UserType,
