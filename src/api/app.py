@@ -520,11 +520,16 @@ async def optional_auth(
         session.add(user)
         await session.commit()
         await session.refresh(user)
-    # Convert to Pydantic model while session is open
-    user_model = UserModel.model_validate(user)
     # Bind user info to request context for logging
-    bind_request_logging_context(user_id=user_model.id)
-    return user_model
+    bind_request_logging_context(user_id=user.id)
+    return UserModel(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        user_type=user.user_type,
+    )
 
 
 # Keep the old function for backward compatibility during transition
