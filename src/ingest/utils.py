@@ -9,6 +9,10 @@ from src.utils.env_loader import load_environment_variables
 
 load_environment_variables()
 
+DB_URL = os.environ["DATABASE_URL"].replace(
+    "postgresql+asyncpg://", "postgresql+psycopg2://"
+)
+
 
 def cached_ndjson_path(url: str, cache_dir: Path = Path("/tmp")) -> Path:
     """
@@ -89,7 +93,7 @@ def ingest_to_postgis(
     if_exists: str = "replace",
 ) -> None:
     """Ingest the GeoDataFrame to PostGIS database in chunks."""
-    database_url = os.environ["DATABASE_URL"]
+    database_url = DB_URL
     engine = create_engine(database_url)
 
     # Ensure PostGIS extension is enabled
@@ -124,7 +128,7 @@ def create_geometry_index_if_not_exists(
     table_name: str, index_name: str, column: str = "geometry"
 ) -> None:
     """Create a spatial index on the specified table and column if it does not exist."""
-    database_url = os.environ["DATABASE_URL"]
+    database_url = DB_URL
     engine = create_engine(database_url)
 
     with engine.connect() as conn:
@@ -141,7 +145,7 @@ def create_text_search_index_if_not_exists(
     table_name: str, index_name: str, column: str = "name"
 ) -> None:
     """Create a GIN trigram index on the specified table and column for text search if it does not exist."""
-    database_url = os.environ["DATABASE_URL"]
+    database_url = DB_URL
     engine = create_engine(database_url)
 
     with engine.connect() as conn:
@@ -162,7 +166,7 @@ def create_id_index_if_not_exists(
     table_name: str, index_name: str, column: str
 ) -> None:
     """Create a B-tree index on the specified ID column if it does not exist."""
-    database_url = os.environ["DATABASE_URL"]
+    database_url = DB_URL
     engine = create_engine(database_url)
 
     with engine.connect() as conn:

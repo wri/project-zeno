@@ -160,7 +160,7 @@ psql zeno-data-local
 
 b. Add the database URL to the .env file:
 ```bash
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/zeno-data-local
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-local
 ```
 
 ## Configure localhost Langfuse

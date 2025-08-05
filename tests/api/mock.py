@@ -4,22 +4,22 @@ USERS = [
         "id": "test-user-1",
         "name": "Test User",
         "email": "test@developmentseed.org",
-        "createdAt": "2024-01-01T00:00:00Z",
-        "updatedAt": "2024-01-01T00:00:00Z",
+        "created_at": "2024-01-01T00:00:00",
+        "updated_at": "2024-01-01T00:00:00",
     },
     {
         "id": "test-user-2",
         "name": "WRI User",
         "email": "test@wri.org",
-        "createdAt": "2024-01-01T00:00:00Z",
-        "updatedAt": "2024-01-01T00:00:00Z",
+        "created_at": "2024-01-01T00:00:00",
+        "updated_at": "2024-01-01T00:00:00",
     },
     {
         "id": "test-user-3",
         "name": "Unauthorized User",
         "email": "test@unauthorized.com",
-        "createdAt": "2024-01-01T00:00:00Z",
-        "updatedAt": "2024-01-01T00:00:00Z",
+        "created_at": "2024-01-01T00:00:00",
+        "updated_at": "2024-01-01T00:00:00",
     }
 ]
 

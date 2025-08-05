@@ -1,13 +1,17 @@
 """Test configuration and fixtures."""
 import os
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+import pytest_asyncio
+from httpx import ASGITransport
+from httpx import AsyncClient
+from collections.abc import AsyncGenerator
+from sqlalchemy import text
+from sqlalchemy import NullPool
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 from src.api.data_models import Base
-
-from src.api.app import app, get_session, fetch_user_from_rw_api
+from src.api.app import app, get_async_session, fetch_user_from_rw_api
 from src.api.data_models import UserOrm, UserModel
 
 # Test database settings
@@ -15,77 +19,88 @@ if (os.getenv('TEST_DATABASE_URL')):
     TEST_DB_URL = os.getenv("TEST_DATABASE_URL")
 else:
     TEST_DB_URL = f"{os.getenv('DATABASE_URL')}_test"
-ENGINE = create_engine(TEST_DB_URL)
-Session = sessionmaker(bind=ENGINE, expire_on_commit=False)
+engine_test = create_async_engine(TEST_DB_URL, poolclass=NullPool)
+Session = sessionmaker(bind=engine_test, expire_on_commit=False)
+async_session_maker = sessionmaker(
+    engine_test,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+Base.metadata.bind = engine_test
 
 
-def get_session_override():
-    with Session() as session:
-        yield session  # Run the tests
+async def override_get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_maker() as session:
+        yield session
 
 
-app.dependency_overrides[get_session] = get_session_override
+app.dependency_overrides[get_async_session] = override_get_async_session
 
 
-@pytest.fixture(scope="function", autouse=True)
-def test_db():
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def test_db():
     """Create test database and clear it after each test."""
     # Set up test database
-    Base.metadata.create_all(bind=ENGINE)
+    async with engine_test.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     yield
     # Clean databases
-    Base.metadata.drop_all(bind=ENGINE)
+    async with engine_test.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest.fixture(scope="session")
-def client():
-    with TestClient(app) as c:
-        yield c
+@pytest_asyncio.fixture(scope="session")
+async def client() -> AsyncClient:
+    t = ASGITransport(app=app)
+    async with AsyncClient(transport=t, base_url="http://test") as client:
+        yield client
 
 
-def clear_tables():
-    """Truncate all tables, except the 'users' table, after running each test."""
-    Session = sessionmaker(
-        bind=ENGINE,
-        expire_on_commit=False
-    )
-    with Session() as session:
+async def clear_tables():
+    """Truncate all tables, except the 'users' table, after running each test.
+    """
+    async with async_session_maker() as session:
         for table in Base.metadata.sorted_tables:
             if table.name != "users":
-                session.execute(
+                await session.execute(
                     text(f"TRUNCATE {table.name} RESTART IDENTITY CASCADE;"),
                 )
-        session.commit()
+        await session.commit()
 
 
-@pytest.fixture(autouse=True, scope="function")
-def test_db_session():
-    yield ENGINE
-    ENGINE.dispose()
-    clear_tables()
+@pytest_asyncio.fixture(autouse=True, scope="function")
+async def test_db_session():
+    yield engine_test
+    await clear_tables()
+    await engine_test.dispose()
 
 
-@pytest.fixture(scope="session")
-def user(username, session):
-    with get_session_override() as session:
+@pytest_asyncio.fixture(scope="session")
+async def user(username) -> UserModel:
+    async with async_session_maker() as session:
         user = UserOrm(
             name=username,
+            id=username,
             email="admin@wri.org",
         )
         session.add(user)
-        session.commit()
+        await session.commit()
+        return user
 
 
-def set_wri_user():
-    return UserModel.model_validate({
-        "id": "test-user-2",
-        "name": "WRI User",
-        "email": "test@wri.org",
-        "createdAt": "2024-01-01T00:00:00Z",
-        "updatedAt": "2024-01-01T00:00:00Z",
-    })
+def mock_wri_user():
+    return UserModel.model_validate(
+        {
+            "id": "test-user-1",
+            "name": "Test User",
+            "email": "test@developmentseed.org",
+            "created_at": "2024-01-01T00:00:00",
+            "updated_at": "2024-01-01T00:00:00",
+        }
+    )
 
 
 @pytest.fixture(scope="function")
 def wri_user():
-    app.dependency_overrides[fetch_user_from_rw_api] = set_wri_user
+    app.dependency_overrides[fetch_user_from_rw_api] = mock_wri_user
