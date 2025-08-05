@@ -34,7 +34,9 @@ logger = get_logger(__name__)
 
 def get_postgis_connection():
     """Get PostGIS database connection."""
-    database_url = os.environ["DATABASE_URL"]
+    database_url = os.environ["DATABASE_URL"].replace(
+        "postgresql+asyncpg://", "postgresql+psycopg2://"
+    )
     return create_engine(database_url)
 
 

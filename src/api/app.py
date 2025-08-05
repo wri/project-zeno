@@ -6,6 +6,7 @@ import uuid
 import cachetools
 import requests
 from datetime import date
+from contextlib import asynccontextmanager
 
 import structlog
 
@@ -20,28 +21,26 @@ from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.dialects.postgresql import insert
 
+from sqlalchemy import text, select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.agents import fetch_zeno, fetch_zeno_anonymous, fetch_checkpointer
 
+
 from src.api.data_models import (
-    ThreadModel,
     ThreadOrm,
     UserType,
-    UserModel,
     UserOrm,
     DailyUsageOrm,
     CustomAreaOrm,
-    CustomAreaModel,
-    CustomAreaCreate,
-    GeometryResponse,
+    get_async_session,
+    get_async_engine,
 )
-
-from src.utils.logging_config import bind_request_logging_context, get_logger
+from src.utils.llms import HAIKU
 from src.utils.env_loader import load_environment_variables
+from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.config import APISettings
 from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
 from src.utils.llms import HAIKU
@@ -53,7 +52,27 @@ load_environment_variables()
 logger = get_logger(__name__)
 
 
+# TODO: how to diferentiate between admin and regular users for limits?
+# For now, we assume all users are regular users
+# Question: will there be only 2 usage tiers? Do we want to set a default
+# daily limit and then set custom limits for specific users? (we can use this
+# approach to set daily quotas to -1 for unlimited users)
+# DAILY_QUOTA_WARNING_THRESHOLD = 5
+# ADMIN_USER_DAILY_QUOTA = 100
+# REGULAR_USER_DAILY_QUOTA = 25
+# ANONYMOUS_USER_DAILY_QUOTA = 10
+# ENABLE_QUOTA_CHECKING = True
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db_url = APISettings.database_url
+    app.state.engine = await get_async_engine(db_url)
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Zeno API",
     description="API for Zeno LangGraph-based agent workflow",
     version="0.1.0",
@@ -165,26 +184,6 @@ async def anonymous_id_middleware(request: Request, call_next):
     )
 
     return response
-
-
-class ChatRequest(BaseModel):
-    query: str = Field(..., description="The query")
-    user_persona: Optional[str] = Field(None, description="The user persona")
-
-    # UI Context - can include multiple selections
-    ui_context: Optional[dict] = (
-        None  # {"aoi_selected": {...}, "dataset_selected": {...}, "daterange_selected": {...}}
-    )
-
-    # Pure UI actions - no query
-    ui_action_only: Optional[bool] = False
-
-    # Chat info
-    thread_id: Optional[str] = Field(None, description="The thread ID")
-    metadata: Optional[dict] = Field(None, description="The metadata")
-    session_id: Optional[str] = Field(None, description="The session ID")
-    user_id: Optional[str] = Field(None, description="The user ID")
-    tags: Optional[list] = Field(None, description="The tags")
 
 
 def pack(data):
@@ -311,7 +310,7 @@ async def stream_chat(
                     content = f"User selected dataset in UI: {action_data['dataset']['data_layer']}"
                     state_updates["dataset"] = action_data["dataset"]
                 case "daterange_selected":
-                    content = f"User selected daterange in UI: start_date:  {action_data['start_date']}, end_date: {action_data['end_date']}"
+                    content = f"User selected daterange in UI: start_date: {action_data['start_date']}, end_date: {action_data['end_date']}"
                     state_updates["start_date"] = action_data["start_date"]
                     state_updates["end_date"] = action_data["end_date"]
                 case _:
@@ -399,15 +398,6 @@ async def stream_chat(
         )
 
 
-# TODO: use connection pooling
-def get_session():
-    engine = create_engine(APISettings.database_url)
-
-    Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    with Session() as session:
-        yield session
-
-
 # LRU cache for user info, keyed by token
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
@@ -448,7 +438,7 @@ def fetch_user_from_rw_api(
 
     if "name" not in user_info:
         logger.warning(
-            "User info does not contain 'name' field, using email account name as fallback",
+            "User info does not contain the 'name' field, using email account name as fallback",
             email=user_info.get("email", None),
         )
         user_info["name"] = user_info["email"].split("@")[0]
@@ -468,7 +458,8 @@ def fetch_user_from_rw_api(
 
 
 async def require_auth(
-    user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
+    user_info: UserModel = Depends(fetch_user_from_rw_api),
+    session: AsyncSession = Depends(get_async_session),
 ) -> UserModel:
     """
     Requires Authorization - raises HTTPException if not authenticated
@@ -479,45 +470,71 @@ async def require_auth(
             detail="Missing Bearer token in Authorization header",
         )
 
-    user = session.query(UserOrm).filter_by(id=user_info.id).first()
+    stmt = select(UserOrm).filter_by(id=user_info.id)
+    result = await session.execute(stmt)
+    user = result.scalars().first()
     if not user:
         user = UserOrm(**user_info.model_dump())
         session.add(user)
-        session.commit()
-        session.refresh(user)
-    # Convert to Pydantic model while session is open
-    user_model = UserModel.model_validate(user)
+        await session.commit()
     # Bind user info to request context for logging
-    bind_request_logging_context(user_id=user_model.id)
-    return user_model
+    bind_request_logging_context(user_id=user.id)
+    return UserModel(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        user_type=user.user_type,
+    )
 
 
 async def optional_auth(
-    user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
+    user_info: UserModel = Depends(fetch_user_from_rw_api),
+    session: AsyncSession = Depends(get_async_session),
 ) -> Optional[UserModel]:
     """
-    Optional Authorization - returns None if not authenticated, UserModel if authenticated
+    Optional Authorization - returns None if not authenticated,
+    or UserModel if authenticated.
     """
     if not user_info:
         return None
 
-    user = session.query(UserOrm).filter_by(id=user_info.id).first()
+    stmt = select(UserOrm).filter_by(id=user_info.id)
+    result = await session.execute(stmt)
+    user = result.scalars().first()
     if not user:
         user = UserOrm(**user_info.model_dump())
         session.add(user)
-        session.commit()
-        session.refresh(user)
-    # Convert to Pydantic model while session is open
-    user_model = UserModel.model_validate(user)
+        await session.commit()
+        await session.refresh(user)
     # Bind user info to request context for logging
-    bind_request_logging_context(user_id=user_model.id)
-    return user_model
+    bind_request_logging_context(user_id=user.id)
+    return UserModel(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        user_type=user.user_type,
+    )
 
 
-def check_quota(
+# Keep the old function for backward compatibility during transition
+async def fetch_user(
+    user_info: UserModel = Depends(fetch_user_from_rw_api),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Deprecated: Use require_auth() or optional_auth() instead
+    """
+    return await optional_auth(user_info, session)
+
+
+async def check_quota(
     request: Request,
     user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
 
     if not APISettings.enable_quota_checking:
@@ -552,9 +569,9 @@ def check_quota(
         )
         .returning(DailyUsageOrm.usage_count)
     )
-    result = session.execute(stmt)
-    count = result.scalar()
-    session.commit()  # commit the upsert
+    result = await session.execute(stmt)
+    count = len(result.scalars().all())
+    await session.commit()  # commit the upsert
 
     # 3. Enforce the quota
     if count > daily_quota:
@@ -576,7 +593,7 @@ async def chat(
     request: ChatRequest,
     user: Optional[UserModel] = Depends(optional_auth),
     quota_info: dict = Depends(check_quota),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Chat endpoint for Zeno.
@@ -599,18 +616,16 @@ async def chat(
             session_id=request.session_id,
             query=request.query,
         )
-        thread = (
-            session.query(ThreadOrm)
-            .filter_by(id=request.thread_id, user_id=user.id)
-            .first()
-        )
+        stmt = select(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id)
+        result = await session.execute(stmt)
+        thread = result.scalars().first()
         if not thread:
             thread = ThreadOrm(
                 id=request.thread_id, user_id=user.id, agent_id="UniGuana"
             )
             session.add(thread)
-            session.commit()
-            session.refresh(thread)
+            await session.commit()
+            await session.refresh(thread)
         thread_id = thread.id
     else:
         # For anonymous users, use the thread_id from request but don't persist
@@ -648,24 +663,29 @@ async def chat(
 
 
 @app.get("/api/threads", response_model=list[ThreadModel])
-def list_threads(user: UserModel = Depends(require_auth), session=Depends(get_session)):
-    """
-    Requires Authorization
-    """
-    threads = session.query(ThreadOrm).filter_by(user_id=user.id).all()
+async def list_threads(
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """List threads."""
+    stmt = select(ThreadOrm).filter_by(user_id=user.id)
+    result = await session.execute(stmt)
+    threads = result.scalars().all()
     return [ThreadModel.model_validate(thread) for thread in threads]
 
 
 @app.get("/api/threads/{thread_id}")
-def get_thread(
+async def get_thread(
     thread_id: str,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Requires Authorization
     """
-    thread = session.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
     if not thread:
         logger.warning("Thread not found", thread_id=thread_id)
         raise HTTPException(status_code=404, detail="Thread not found")
@@ -687,23 +707,25 @@ class ThreadUpdateRequest(BaseModel):
 
 
 @app.patch("/api/threads/{thread_id}", response_model=ThreadModel)
-def update_thread(
+async def update_thread(
     thread_id: str,
     request: ThreadUpdateRequest,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Requires Authorization
     """
-    thread = session.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
 
     for key, value in request.model_dump().items():
         setattr(thread, key, value)
-    session.commit()
-    session.refresh(thread)
+    await session.commit()
+    await session.refresh(thread)
     return ThreadModel.model_validate(thread)
 
 
@@ -712,7 +734,8 @@ async def custom_area_name(
     request: CustomAreaNameRequest, user: UserModel = Depends(fetch_user)
 ):
     """
-    Generate a neutral geographic name for a GeoJSON FeatureCollection of bounding boxes.
+    Generate a neutral geographic name for a GeoJSON FeatureCollection of
+    bounding boxes.
     Requires Authorization.
     """
     try:
@@ -728,25 +751,29 @@ async def custom_area_name(
 async def delete_thread(
     thread_id: str,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
     checkpointer: AsyncPostgresSaver = Depends(fetch_checkpointer),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Requires Authorization
+    Delete thread.
     """
-    await checkpointer.adelete_thread(thread_id)
 
-    thread = session.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    await checkpointer.delete_thread(thread_id)
+    stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    session.delete(thread)
-    session.commit()
+    await session.delete(thread)
+    await session.commit()
     return {"detail": "Thread deleted successfully"}
 
 
 @app.get("/api/geometry/{source}/{src_id}", response_model=GeometryResponse)
-async def get_geometry(source: str, src_id: str, session=Depends(get_session)):
+async def get_geometry(
+    source: str, src_id: str, session: AsyncSession = Depends(get_async_session)
+):
     """
     Get geometry data by source and source ID.
 
@@ -778,7 +805,8 @@ async def get_geometry(source: str, src_id: str, session=Depends(get_session)):
     """
 
     try:
-        result = session.execute(text(sql_query), {"src_id": src_id}).fetchone()
+        q = await session.execute(text(sql_query), {"src_id": src_id})
+        result = q.scalars().fetchone()
 
         if not result:
             raise HTTPException(
@@ -824,24 +852,26 @@ async def api_metadata() -> dict:
     Returns API metadata that's helpful for instantiating the frontend.
 
     Note:
-    For `layer_id_mapping`, the keys are the source names (e.g., `gadm`, `kba`, etc.)
-    and the values are the corresponding ID columns used in the database.
+    For `layer_id_mapping`, the keys are the source names (e.g., `gadm`, `kba`,
+    etc.) and the values are the corresponding ID columns used in the database.
 
-    The frontend can get these IDs from the vector tile layer and use the `/api/geometry/{source}/{src_id}`
-    endpoint to fetch the geometry data.
+    The frontend can get these IDs from the vector tile layer and use the
+    `/api/geometry/{source}/{src_id}` endpoint to fetch the geometry data.
 
     The GADM layer needs some special handling:
 
-    The gadm layer uses a composite ID format like `IND.26.2_1` that's derived from
-    the GADM hierarchy, so the ID column is just `gadm_id` in the database but on the frontend
-    it will be displayed as `GID_X` where X is the GADM level (1-5).
+    The gadm layer uses a composite ID format like `IND.26.2_1` that's derived
+    from the GADM hierarchy, so the ID column is just `gadm_id` in the
+    database, but on the frontend it will be displayed as `GID_X` where X is
+    the GADM level (1-5).
 
-    The frontend will have to check the level of the selected GADM geometry and use the corresponding
-    `GID_X` field to get the correct ID for the API call.
+    The frontend will have to check the level of the selected GADM geometry
+    and use the corresponding `GID_X` field to get the correct ID for the
+    API call.
 
     For example, if the user selects a GADM level 2 geometry,
-    the ID will look something like `IND.26.2_1` and should be available in the gid_2 field on the
-    vector tile layer.
+    the ID will look something like `IND.26.2_1` and should be available in
+    the gid_2 field on the vector tile layer.
     """
     return {
         "version": "0.1.0",
@@ -852,10 +882,10 @@ async def api_metadata() -> dict:
 
 
 @app.post("/api/custom_areas/", response_model=CustomAreaModel)
-def create_custom_area(
+async def create_custom_area(
     area: CustomAreaCreate,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Create a new custom area for the authenticated user."""
     custom_area = CustomAreaOrm(
@@ -864,8 +894,8 @@ def create_custom_area(
         geometries=[i.model_dump_json() for i in area.geometries],
     )
     session.add(custom_area)
-    session.commit()
-    session.refresh(custom_area)
+    await session.commit()
+    await session.refresh(custom_area)
 
     return CustomAreaModel(
         id=custom_area.id,
@@ -878,11 +908,14 @@ def create_custom_area(
 
 
 @app.get("/api/custom_areas/", response_model=list[CustomAreaModel])
-def list_custom_areas(
-    user: UserModel = Depends(require_auth), session=Depends(get_session)
+async def list_custom_areas(
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """List all custom areas belonging to the authenticated user."""
-    areas = session.query(CustomAreaOrm).filter_by(user_id=user.id).all()
+    stmt = select(CustomAreaOrm).filter_by(user_id=user.id)
+    result = await session.execute(stmt)
+    areas = result.scalars().all()
     results = []
     for area in areas:
         area.geometries = [json.loads(i) for i in area.geometries]
@@ -891,15 +924,16 @@ def list_custom_areas(
 
 
 @app.get("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
-def get_custom_area(
+async def get_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Get a specific custom area by ID."""
-    custom_area = (
-        session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
-    )
+    stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
+    result = await session.execute(stmt)
+    custom_area = result.scalars().first()
+
     if not custom_area:
         raise HTTPException(status_code=404, detail="Custom area not found")
 
@@ -914,19 +948,21 @@ def get_custom_area(
 
 
 @app.patch("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
-def update_custom_area_name(
+async def update_custom_area_name(
     area_id: UUID,
     payload: dict,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Update the name of a custom area."""
-    area = session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+    stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
+    result = await session.execute(stmt)
+    area = result.scalars().first()
     if not area:
         raise HTTPException(status_code=404, detail="Custom area not found")
     area.name = payload["name"]
-    session.commit()
-    session.refresh(area)
+    await session.commit()
+    await session.refresh(area)
 
     return CustomAreaModel(
         id=area.id,
@@ -939,14 +975,17 @@ def update_custom_area_name(
 
 
 @app.delete("/api/custom_areas/{area_id}", status_code=204)
-def delete_custom_area(
+async def delete_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Delete a custom area."""
-    area = session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+    stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
+    result = await session.execute(stmt)
+    area = result.scalars().first()
     if not area:
         raise HTTPException(status_code=404, detail="Custom area not found")
-    session.delete(area)
-    session.commit()
+    await session.delete(area)
+    await session.commit()
+    return {"detail": f"Area {area_id} deleted successfully"}
