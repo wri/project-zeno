@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 DATASET_NAMES = {
     "Tree cover loss": "tree_cover_loss",
-    "Vegetation Disturbance Alerts": "DIST-ALERT",
+    "Ecosystem disturbance alerts": "DIST-ALERT",
     "Natural lands": "natural_lands",
     "Grasslands": "grasslands",
     "Land cover change": "land_cover_change",

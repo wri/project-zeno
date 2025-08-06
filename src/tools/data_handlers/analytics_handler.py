@@ -35,7 +35,7 @@ class AnalyticsHandler(DataSourceHandler):
     # Mapping of dataset names to their API endpoints
     ENDPOINT_MAPPING = {
         DATASET_NAMES[
-            "Vegetation Disturbance Alerts"
+            "Ecosystem disturbance alerts"
         ]: "/v0/land_change/dist_alerts/analytics",
         DATASET_NAMES[
             "Natural lands"
@@ -201,7 +201,7 @@ class AnalyticsHandler(DataSourceHandler):
 
         if "link" not in data_section:
             raise ValueError(
-                f"DIST-ALERT response missing 'link' key: {data_section}"
+                f"Data response missing 'link' key: {data_section}"
             )
 
         download_link = data_section["link"]
