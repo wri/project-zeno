@@ -1,8 +1,7 @@
-from typing import Annotated, Literal, Optional
 import os
-import pandas as pd
+from typing import Annotated, Literal, Optional
 
-from sqlalchemy import create_engine, text
+import pandas as pd
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -10,19 +9,19 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 from pydantic import BaseModel, Field
+from sqlalchemy import create_engine, text
 
 from src.utils.env_loader import load_environment_variables
-from src.utils.llms import SONNET
-from src.utils.logging_config import get_logger
 from src.utils.geocoding_helpers import (
-    SOURCE_ID_MAPPING,
     GADM_TABLE,
     KBA_TABLE,
     LANDMARK_TABLE,
-    WDPA_TABLE,
+    SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
+    WDPA_TABLE,
 )
-
+from src.utils.llms import SONNET
+from src.utils.logging_config import get_logger
 
 RESULT_LIMIT = 10
 
@@ -33,7 +32,9 @@ logger = get_logger(__name__)
 
 def get_postgis_connection():
     """Get PostGIS database connection."""
-    database_url = os.environ["DATABASE_URL"]
+    database_url = os.environ["DATABASE_URL"].replace(
+        "postgresql+asyncpg://", "postgresql+psycopg2://"
+    )
     return create_engine(database_url)
 
 
@@ -173,7 +174,9 @@ def query_aoi_database(
     return query_results
 
 
-def query_subregion_database(engine, subregion_name: str, source: str, src_id: int):
+def query_subregion_database(
+    engine, subregion_name: str, source: str, src_id: int
+):
     """Query the right table in PostGIS database for subregions based on the selected AOI.
 
     Args:
@@ -242,7 +245,9 @@ def query_subregion_database(engine, subregion_name: str, source: str, src_id: i
 
     with engine.connect() as conn:
         results = pd.read_sql(
-            text(sql_query), conn, params={"src_id": src_id, "subtype": subtype}
+            text(sql_query),
+            conn,
+            params={"src_id": src_id, "subtype": subtype},
         )
 
     return results
@@ -278,7 +283,9 @@ AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 # Chain for selecting the best location match
-AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(AOIIndex)
+AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
+    AOIIndex
+)
 
 
 @tool("pick-aoi")
@@ -311,7 +318,9 @@ def pick_aoi(
         subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
     try:
-        logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
+        logger.info(
+            f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'"
+        )
         # Query the database for place & get top matches using similarity
         engine = get_postgis_connection()
         results = query_aoi_database(engine, place, RESULT_LIMIT)
@@ -369,13 +378,13 @@ def pick_aoi(
 
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
-            subregion_aois = query_subregion_database(engine, subregion, source, src_id)
+            subregion_aois = query_subregion_database(
+                engine, subregion, source, src_id
+            )
             subregion_aois = subregion_aois.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
 
-        tool_message = (
-            f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
-        )
+        tool_message = f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
         if subregion:
             tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
 
@@ -389,7 +398,9 @@ def pick_aoi(
                 "aoi_name": selected_aoi["name"],
                 "subtype": selected_aoi["subtype"],
                 # Update the message history
-                "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
+                "messages": [
+                    ToolMessage(tool_message, tool_call_id=tool_call_id)
+                ],
             },
         )
     except Exception as e:
@@ -397,7 +408,9 @@ def pick_aoi(
         return Command(
             update={
                 "messages": [
-                    ToolMessage(str(e), tool_call_id=tool_call_id, status="error")
+                    ToolMessage(
+                        str(e), tool_call_id=tool_call_id, status="error"
+                    )
                 ],
             },
         )

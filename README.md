@@ -108,8 +108,14 @@ make dev      # Start full development environment
 ## Testing
 
 ### API Tests
+Running `make up` will bring up a `zeno-db_test` database that's used by pytest. The tests look for a `TEST_DATABASE_URL` environment variable (also set in .env.local). You can also create the database manually with the following commands:
 
-Run API tests using pytest:
+```bash
+createuser -s postgres # if you don't have a postgres user
+createdb -U postgres zeno-data_test
+```
+
+Then run the API tests using pytest:
 
 ```bash
 uv run pytest tests/api/
@@ -161,7 +167,7 @@ psql zeno-data-local
 
 b. Add the database URL to the .env file:
 ```bash
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/zeno-data-local
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-local
 ```
 
 ## Configure localhost Langfuse

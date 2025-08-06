@@ -1,47 +1,55 @@
 import json
 import os
+import uuid
+from contextlib import asynccontextmanager
+from datetime import date
 from typing import Dict, Optional
 from uuid import UUID
-import uuid
+
 import cachetools
 import requests
-from datetime import date
-
 import structlog
-
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPBearer
 from itsdangerous import BadSignature, TimestampSigner
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
-import requests
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
-from src.agents.agents import zeno, zeno_anonymous, checkpointer
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.agents.agents import checkpointer, zeno, zeno_anonymous
 from src.api.data_models import (
-    ThreadModel,
-    ThreadOrm,
-    UserType,
-    UserModel,
-    UserOrm,
-    DailyUsageOrm,
     CustomAreaOrm,
-    CustomAreaModel,
-    CustomAreaCreate,
-    GeometryResponse,
+    DailyUsageOrm,
+    ThreadOrm,
+    UserOrm,
+    UserType,
+    get_async_engine,
+    get_async_session,
 )
-from src.utils.logging_config import bind_request_logging_context, get_logger
-from src.utils.env_loader import load_environment_variables
+from src.api.schemas import (
+    ChatRequest,
+    CustomAreaCreate,
+    CustomAreaModel,
+    CustomAreaNameRequest,
+    GeometryResponse,
+    ThreadModel,
+    UserModel,
+)
 from src.utils.config import APISettings
+from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
+    GADM_SUBTYPE_MAP,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
-    GADM_SUBTYPE_MAP,
 )
+from src.utils.llms import HAIKU
+from src.utils.logging_config import bind_request_logging_context, get_logger
 
 # Load environment variables using shared utility
 load_environment_variables()
@@ -61,7 +69,15 @@ logger = get_logger(__name__)
 # ENABLE_QUOTA_CHECKING = True
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db_url = APISettings.database_url
+    app.state.engine = await get_async_engine(db_url)
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Zeno API",
     description="API for Zeno LangGraph-based agent workflow",
     version="0.1.0",
@@ -74,6 +90,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add HTTP Bearer security scheme
+security = HTTPBearer(auto_error=False)
 
 
 @app.middleware("http")
@@ -135,7 +154,9 @@ async def anonymous_id_middleware(request: Request, call_next):
     if anon_cookie:
         try:
             # Verify signature & extract payload
-            _ = signer.unsign(anon_cookie, max_age=365 * 24 * 3600)  # Cookie age: 1yr
+            _ = signer.unsign(
+                anon_cookie, max_age=365 * 24 * 3600
+            )  # Cookie age: 1yr
             need_new = False
         except BadSignature:
             pass
@@ -162,26 +183,6 @@ async def anonymous_id_middleware(request: Request, call_next):
     return response
 
 
-class ChatRequest(BaseModel):
-    query: str = Field(..., description="The query")
-    user_persona: Optional[str] = Field(None, description="The user persona")
-
-    # UI Context - can include multiple selections
-    ui_context: Optional[dict] = (
-        None  # {"aoi_selected": {...}, "dataset_selected": {...}, "daterange_selected": {...}}
-    )
-
-    # Pure UI actions - no query
-    ui_action_only: Optional[bool] = False
-
-    # Chat info
-    thread_id: Optional[str] = Field(None, description="The thread ID")
-    metadata: Optional[dict] = Field(None, description="The metadata")
-    session_id: Optional[str] = Field(None, description="The session ID")
-    user_id: Optional[str] = Field(None, description="The user ID")
-    tags: Optional[list] = Field(None, description="The tags")
-
-
 def pack(data):
     return json.dumps(data) + "\n"
 
@@ -198,7 +199,9 @@ def replay_chat(thread_id):
         checkpoints = zeno.get_state_history(config=config)
         # consume checkpoints and sort them by step to process from
         # oldest to newest
-        checkpoints = sorted(list(checkpoints), key=lambda x: x.metadata["step"])
+        checkpoints = sorted(
+            list(checkpoints), key=lambda x: x.metadata["step"]
+        )
         # Remove step -1 which is the initial empty state
         checkpoints = [c for c in checkpoints if c.metadata["step"] >= 0]
 
@@ -209,7 +212,6 @@ def replay_chat(thread_id):
         rendered_state_elements = {"messages": []}
 
         for checkpoint in checkpoints:
-
             update = {"messages": []}
 
             for message in checkpoint.values.get("messages", []):
@@ -226,7 +228,6 @@ def replay_chat(thread_id):
 
             # Render the rest of the state updates
             for key, value in checkpoint.values.items():
-
                 if key == "messages":
                     continue  # Skip messages, already handled above
 
@@ -242,7 +243,9 @@ def replay_chat(thread_id):
             node_type = (
                 "agent"
                 if mtypes == {"ai"} or len(mtypes) > 1
-                else "tools" if mtypes == {"tool"} else "human"
+                else "tools"
+                if mtypes == {"tool"}
+                else "human"
             )
 
             update = {
@@ -296,14 +299,16 @@ def stream_chat(
                     content = f"User selected AOI in UI: {action_data['aoi_name']}\n\n"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
-                    state_updates["subregion_aois"] = action_data["subregion_aois"]
+                    state_updates["subregion_aois"] = action_data[
+                        "subregion_aois"
+                    ]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
                     content = f"User selected dataset in UI: {action_data['dataset']['data_layer']}\n\n"
                     state_updates["dataset"] = action_data["dataset"]
                 case "daterange_selected":
-                    content = f"User selected daterange in UI: start_date:  {action_data['start_date']}, end_date: {action_data['end_date']}\n\n"
+                    content = f"User selected daterange in UI: start_date: {action_data['start_date']}, end_date: {action_data['end_date']}"
                     state_updates["start_date"] = action_data["start_date"]
                     state_updates["end_date"] = action_data["end_date"]
                 case _:
@@ -360,8 +365,12 @@ def stream_chat(
                         "update": dumps(
                             {
                                 "error": True,
-                                "message": str(e),  # String representation of the error
-                                "error_type": type(e).__name__,  # Exception class name
+                                "message": str(
+                                    e
+                                ),  # String representation of the error
+                                "error_type": type(
+                                    e
+                                ).__name__,  # Exception class name
                                 "type": "stream_processing_error",
                             }
                         ),
@@ -369,6 +378,16 @@ def stream_chat(
                 )
                 # Continue processing other updates if possible
                 continue
+
+        # Send trace ID after stream completes
+        trace_id = getattr(langfuse_handler, "last_trace_id", None)
+        if trace_id:
+            yield pack(
+                {
+                    "node": "trace_info",
+                    "update": dumps({"trace_id": trace_id}),
+                }
+            )
 
     except Exception as e:
         logger.exception("Error during chat streaming: %s", e)
@@ -379,7 +398,9 @@ def stream_chat(
                 "update": dumps(
                     {
                         "error": True,
-                        "message": str(e),  # String representation of the error
+                        "message": str(
+                            e
+                        ),  # String representation of the error
                         "error_type": type(e).__name__,  # Exception class name
                         "type": "stream_initialization_error",
                         "fatal": True,  # Indicates stream cannot continue
@@ -389,35 +410,22 @@ def stream_chat(
         )
 
 
-# TODO: use connection pooling
-def get_session():
-    engine = create_engine(APISettings.database_url)
-
-    Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    with Session() as session:
-        yield session
-
-
 # LRU cache for user info, keyed by token
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
-@cachetools.cached(_user_info_cache)
 def fetch_user_from_rw_api(
-    authorization: Optional[str] = Header(None),
-    domains_allowlist: Optional[str] = ",".join(APISettings.domains_allowlist),
+    authorization: Optional[str] = Depends(security),
 ) -> UserModel:
-
     if not authorization:
         return None
 
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Bearer token",
-        )
+    token = authorization.credentials
 
-    token = authorization.split(" ")[1]
+    # return cached user info if available
+    if token and token in _user_info_cache:
+        return _user_info_cache[token]
+
     try:
         resp = requests.get(
             "https://api.resourcewatch.org/auth/user/me",
@@ -436,12 +444,17 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
+    # cache user info
+    _user_info_cache[token] = UserModel.model_validate(user_info)
+
     if "name" not in user_info:
         logger.warning(
-            "User info does not contain 'name' field, using email account name as fallback",
+            "User info does not contain the 'name' field, using email account name as fallback",
             email=user_info.get("email", None),
         )
         user_info["name"] = user_info["email"].split("@")[0]
+
+    domains_allowlist = APISettings.domains_allowlist
 
     if isinstance(domains_allowlist, str):
         domains_allowlist = domains_allowlist.split(",")
@@ -456,55 +469,72 @@ def fetch_user_from_rw_api(
 
 
 async def require_auth(
-    user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
+    user_info: UserModel = Depends(fetch_user_from_rw_api),
+    session: AsyncSession = Depends(get_async_session),
 ) -> UserModel:
     """
     Requires Authorization - raises HTTPException if not authenticated
     """
     if not user_info:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Authorization header is required",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Bearer token in Authorization header",
         )
 
-    user = session.query(UserOrm).filter_by(id=user_info.id).first()
+    stmt = select(UserOrm).filter_by(id=user_info.id)
+    result = await session.execute(stmt)
+    user = result.scalars().first()
     if not user:
         user = UserOrm(**user_info.model_dump())
         session.add(user)
-        session.commit()
-        session.refresh(user)
-    # Convert to Pydantic model while session is open
-    user_model = UserModel.model_validate(user)
+        await session.commit()
     # Bind user info to request context for logging
-    bind_request_logging_context(user_id=user_model.id)
-    return user_model
+    bind_request_logging_context(user_id=user.id)
+    return UserModel(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        user_type=user.user_type,
+    )
 
 
 async def optional_auth(
-    user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
+    user_info: UserModel = Depends(fetch_user_from_rw_api),
+    session: AsyncSession = Depends(get_async_session),
 ) -> Optional[UserModel]:
     """
-    Optional Authorization - returns None if not authenticated, UserModel if authenticated
+    Optional Authorization - returns None if not authenticated,
+    or UserModel if authenticated.
     """
     if not user_info:
         return None
 
-    user = session.query(UserOrm).filter_by(id=user_info.id).first()
+    stmt = select(UserOrm).filter_by(id=user_info.id)
+    result = await session.execute(stmt)
+    user = result.scalars().first()
     if not user:
         user = UserOrm(**user_info.model_dump())
         session.add(user)
-        session.commit()
-        session.refresh(user)
-    # Convert to Pydantic model while session is open
-    user_model = UserModel.model_validate(user)
+        await session.commit()
+        await session.refresh(user)
     # Bind user info to request context for logging
-    bind_request_logging_context(user_id=user_model.id)
-    return user_model
+    bind_request_logging_context(user_id=user.id)
+    return UserModel(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        user_type=user.user_type,
+    )
 
 
 # Keep the old function for backward compatibility during transition
 async def fetch_user(
-    user_info: UserModel = Depends(fetch_user_from_rw_api), session=Depends(get_session)
+    user_info: UserModel = Depends(fetch_user_from_rw_api),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Deprecated: Use require_auth() or optional_auth() instead
@@ -512,12 +542,11 @@ async def fetch_user(
     return await optional_auth(user_info, session)
 
 
-def check_quota(
+async def check_quota(
     request: Request,
     user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
-
     if not APISettings.enable_quota_checking:
         return {}
 
@@ -550,9 +579,9 @@ def check_quota(
         )
         .returning(DailyUsageOrm.usage_count)
     )
-    result = session.execute(stmt)
-    count = result.scalar()
-    session.commit()  # commit the upsert
+    result = await session.execute(stmt)
+    count = len(result.scalars().all())
+    await session.commit()  # commit the upsert
 
     # 3. Enforce the quota
     if count > daily_quota:
@@ -574,7 +603,7 @@ async def chat(
     request: ChatRequest,
     user: Optional[UserModel] = Depends(optional_auth),
     quota_info: dict = Depends(check_quota),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Chat endpoint for Zeno.
@@ -597,18 +626,18 @@ async def chat(
             session_id=request.session_id,
             query=request.query,
         )
-        thread = (
-            session.query(ThreadOrm)
-            .filter_by(id=request.thread_id, user_id=user.id)
-            .first()
+        stmt = select(ThreadOrm).filter_by(
+            id=request.thread_id, user_id=user.id
         )
+        result = await session.execute(stmt)
+        thread = result.scalars().first()
         if not thread:
             thread = ThreadOrm(
                 id=request.thread_id, user_id=user.id, agent_id="UniGuana"
             )
             session.add(thread)
-            session.commit()
-            session.refresh(thread)
+            await session.commit()
+            await session.refresh(thread)
         thread_id = thread.id
     else:
         # For anonymous users, use the thread_id from request but don't persist
@@ -646,24 +675,29 @@ async def chat(
 
 
 @app.get("/api/threads", response_model=list[ThreadModel])
-def list_threads(user: UserModel = Depends(require_auth), session=Depends(get_session)):
-    """
-    Requires Authorization
-    """
-    threads = session.query(ThreadOrm).filter_by(user_id=user.id).all()
+async def list_threads(
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """List threads."""
+    stmt = select(ThreadOrm).filter_by(user_id=user.id)
+    result = await session.execute(stmt)
+    threads = result.scalars().all()
     return [ThreadModel.model_validate(thread) for thread in threads]
 
 
 @app.get("/api/threads/{thread_id}")
-def get_thread(
+async def get_thread(
     thread_id: str,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Requires Authorization
     """
-    thread = session.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
     if not thread:
         logger.warning("Thread not found", thread_id=thread_id)
         raise HTTPException(status_code=404, detail="Thread not found")
@@ -686,49 +720,74 @@ class ThreadUpdateRequest(BaseModel):
 
 
 @app.patch("/api/threads/{thread_id}", response_model=ThreadModel)
-def update_thread(
+async def update_thread(
     thread_id: str,
     request: ThreadUpdateRequest,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Requires Authorization
     """
-    thread = session.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
 
     for key, value in request.model_dump().items():
         setattr(thread, key, value)
-    session.commit()
-    session.refresh(thread)
+    await session.commit()
+    await session.refresh(thread)
     return ThreadModel.model_validate(thread)
 
 
-@app.delete("/api/threads/{thread_id}", status_code=204)
-def delete_thread(
-    thread_id: str,
-    user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+@app.post("/api/custom_area_name")
+async def custom_area_name(
+    request: CustomAreaNameRequest, user: UserModel = Depends(fetch_user)
 ):
     """
-    Requires Authorization
+    Generate a neutral geographic name for a GeoJSON FeatureCollection of
+    bounding boxes.
+    Requires Authorization.
+    """
+    try:
+        prompt = f"Name this GeoJSON FeatureCollection neutrally by geography, make sure to check where they are:\n{request.model_dump()}\n return strictly name only and limit to maximum of 150 characters."
+        response = HAIKU.invoke(prompt)
+        return {"name": response.content}
+    except Exception as e:
+        logger.exception("Error generating area name: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/threads/{thread_id}", status_code=204)
+async def delete_thread(
+    thread_id: str,
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Delete thread.
     """
 
     checkpointer.delete_thread(thread_id)
-
-    thread = session.query(ThreadOrm).filter_by(user_id=user.id, id=thread_id).first()
+    stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    session.delete(thread)
-    session.commit()
+    await session.delete(thread)
+    await session.commit()
     return {"detail": "Thread deleted successfully"}
 
 
 @app.get("/api/geometry/{source}/{src_id}", response_model=GeometryResponse)
-async def get_geometry(source: str, src_id: str, session=Depends(get_session)):
+async def get_geometry(
+    source: str,
+    src_id: str,
+    session: AsyncSession = Depends(get_async_session),
+):
     """
     Get geometry data by source and source ID.
 
@@ -760,7 +819,8 @@ async def get_geometry(source: str, src_id: str, session=Depends(get_session)):
     """
 
     try:
-        result = session.execute(text(sql_query), {"src_id": src_id}).fetchone()
+        q = await session.execute(text(sql_query), {"src_id": src_id})
+        result = q.scalars().fetchone()
 
         if not result:
             raise HTTPException(
@@ -771,7 +831,9 @@ async def get_geometry(source: str, src_id: str, session=Depends(get_session)):
         # Parse GeoJSON string
         try:
             geometry = (
-                json.loads(result.geometry_json) if result.geometry_json else None
+                json.loads(result.geometry_json)
+                if result.geometry_json
+                else None
             )
         except json.JSONDecodeError:
             logger.error(f"Failed to parse GeoJSON for {source}:{src_id}")
@@ -806,24 +868,26 @@ async def api_metadata() -> dict:
     Returns API metadata that's helpful for instantiating the frontend.
 
     Note:
-    For `layer_id_mapping`, the keys are the source names (e.g., `gadm`, `kba`, etc.)
-    and the values are the corresponding ID columns used in the database.
+    For `layer_id_mapping`, the keys are the source names (e.g., `gadm`, `kba`,
+    etc.) and the values are the corresponding ID columns used in the database.
 
-    The frontend can get these IDs from the vector tile layer and use the `/api/geometry/{source}/{src_id}`
-    endpoint to fetch the geometry data.
+    The frontend can get these IDs from the vector tile layer and use the
+    `/api/geometry/{source}/{src_id}` endpoint to fetch the geometry data.
 
     The GADM layer needs some special handling:
 
-    The gadm layer uses a composite ID format like `IND.26.2_1` that's derived from
-    the GADM hierarchy, so the ID column is just `gadm_id` in the database but on the frontend
-    it will be displayed as `GID_X` where X is the GADM level (1-5).
+    The gadm layer uses a composite ID format like `IND.26.2_1` that's derived
+    from the GADM hierarchy, so the ID column is just `gadm_id` in the
+    database, but on the frontend it will be displayed as `GID_X` where X is
+    the GADM level (1-5).
 
-    The frontend will have to check the level of the selected GADM geometry and use the corresponding
-    `GID_X` field to get the correct ID for the API call.
+    The frontend will have to check the level of the selected GADM geometry
+    and use the corresponding `GID_X` field to get the correct ID for the
+    API call.
 
     For example, if the user selects a GADM level 2 geometry,
-    the ID will look something like `IND.26.2_1` and should be available in the gid_2 field on the
-    vector tile layer.
+    the ID will look something like `IND.26.2_1` and should be available in
+    the gid_2 field on the vector tile layer.
     """
     return {
         "version": "0.1.0",
@@ -836,10 +900,10 @@ async def api_metadata() -> dict:
 
 
 @app.post("/api/custom_areas/", response_model=CustomAreaModel)
-def create_custom_area(
+async def create_custom_area(
     area: CustomAreaCreate,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Create a new custom area for the authenticated user."""
     custom_area = CustomAreaOrm(
@@ -848,8 +912,8 @@ def create_custom_area(
         geometries=[i.model_dump_json() for i in area.geometries],
     )
     session.add(custom_area)
-    session.commit()
-    session.refresh(custom_area)
+    await session.commit()
+    await session.refresh(custom_area)
 
     return CustomAreaModel(
         id=custom_area.id,
@@ -862,11 +926,14 @@ def create_custom_area(
 
 
 @app.get("/api/custom_areas/", response_model=list[CustomAreaModel])
-def list_custom_areas(
-    user: UserModel = Depends(require_auth), session=Depends(get_session)
+async def list_custom_areas(
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """List all custom areas belonging to the authenticated user."""
-    areas = session.query(CustomAreaOrm).filter_by(user_id=user.id).all()
+    stmt = select(CustomAreaOrm).filter_by(user_id=user.id)
+    result = await session.execute(stmt)
+    areas = result.scalars().all()
     results = []
     for area in areas:
         area.geometries = [json.loads(i) for i in area.geometries]
@@ -875,15 +942,16 @@ def list_custom_areas(
 
 
 @app.get("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
-def get_custom_area(
+async def get_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Get a specific custom area by ID."""
-    custom_area = (
-        session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
-    )
+    stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
+    result = await session.execute(stmt)
+    custom_area = result.scalars().first()
+
     if not custom_area:
         raise HTTPException(status_code=404, detail="Custom area not found")
 
@@ -898,19 +966,21 @@ def get_custom_area(
 
 
 @app.patch("/api/custom_areas/{area_id}", response_model=CustomAreaModel)
-def update_custom_area_name(
+async def update_custom_area_name(
     area_id: UUID,
     payload: dict,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Update the name of a custom area."""
-    area = session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+    stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
+    result = await session.execute(stmt)
+    area = result.scalars().first()
     if not area:
         raise HTTPException(status_code=404, detail="Custom area not found")
     area.name = payload["name"]
-    session.commit()
-    session.refresh(area)
+    await session.commit()
+    await session.refresh(area)
 
     return CustomAreaModel(
         id=area.id,
@@ -923,14 +993,17 @@ def update_custom_area_name(
 
 
 @app.delete("/api/custom_areas/{area_id}", status_code=204)
-def delete_custom_area(
+async def delete_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Delete a custom area."""
-    area = session.query(CustomAreaOrm).filter_by(id=area_id, user_id=user.id).first()
+    stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
+    result = await session.execute(stmt)
+    area = result.scalars().first()
     if not area:
         raise HTTPException(status_code=404, detail="Custom area not found")
-    session.delete(area)
-    session.commit()
+    await session.delete(area)
+    await session.commit()
+    return {"detail": f"Area {area_id} deleted successfully"}
