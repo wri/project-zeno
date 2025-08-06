@@ -3,13 +3,11 @@ import os
 import requests
 import streamlit as st
 
-st.set_page_config(page_title="Zeno", page_icon="🦣")
-
-
 # Load environment variables using shared utility
 from src.utils.env_loader import load_environment_variables
 
 load_environment_variables()
+st.set_page_config(page_title="Zeno", page_icon="🦣")
 
 # API_BASE_URL = os.environ["API_BASE_URL"]
 API_BASE_URL = os.environ["LOCAL_API_BASE_URL"]
@@ -68,6 +66,7 @@ with st.sidebar:
     if not st.session_state.get("token"):
         st.button(
             "Login with Global Forest Watch",
+            key="login_button",
             on_click=lambda: st.markdown(
                 f'<meta http-equiv="refresh" content="0;url=https://api.resourcewatch.org/auth?callbackUrl={STREAMLIT_URL}&token=true">',
                 unsafe_allow_html=True,
@@ -92,7 +91,7 @@ with st.sidebar:
 
     if st.session_state.get("user"):
         st.write("User info: ", st.session_state["user"])
-        if st.button("Logout"):
+        if st.button("Logout", key="logout_button"):
             # NOTE: there is a logout endpoint in the API, but it only invalidates the browser cookies
             # and not the JWT. So in this case, we'll just clear the user info and token
             st.session_state.pop("user", None)

@@ -6,7 +6,7 @@ import streamlit as st
 from app import API_BASE_URL, STREAMLIT_URL
 
 from client import ZenoClient
-from utils import render_stream, display_sidebar_selections
+from utils import display_sidebar_selections, render_stream
 
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
@@ -39,6 +39,7 @@ with st.sidebar:
     if not st.session_state.get("token"):
         st.button(
             "Login with Global Forest Watch",
+            key="login_uniguana",
             on_click=lambda: st.markdown(
                 f'<meta http-equiv="refresh" content="0;url=https://api.resourcewatch.org/auth?callbackUrl={STREAMLIT_URL}&token=true">',
                 unsafe_allow_html=True,
@@ -93,7 +94,9 @@ if user_input := st.chat_input("Type your message here..."):
     if selected_dataset and not st.session_state.get("dataset_acknowledged"):
         ui_context["dataset_selected"] = selected_dataset
         st.session_state["dataset_acknowledged"] = True
-    if selected_daterange and not st.session_state.get("daterange_acknowledged"):
+    if selected_daterange and not st.session_state.get(
+        "daterange_acknowledged"
+    ):
         ui_context["daterange_selected"] = selected_daterange
         st.session_state["daterange_acknowledged"] = True
 
@@ -102,7 +105,9 @@ if user_input := st.chat_input("Type your message here..."):
         st.markdown(user_input)
 
     with st.chat_message("assistant"):
-        client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
+        client = ZenoClient(
+            base_url=API_BASE_URL, token=st.session_state.token
+        )
         for stream in client.chat(
             query=user_input,
             user_persona="Researcher",
@@ -116,5 +121,5 @@ if user_input := st.chat_input("Type your message here..."):
                     st.session_state.current_trace_id = update["trace_id"]
                     st.success(f"🔍 Trace ID: {update['trace_id']}")
                 continue
-            
+
             render_stream(stream)
