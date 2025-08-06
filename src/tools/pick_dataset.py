@@ -76,7 +76,9 @@ def rag_candidate_datasets(query: str, k=3, strategy="openai"):
             match_documents = openai_retriever.invoke(query)
             for doc in match_documents:
                 candidate_datasets.append(
-                    zeno_data[zeno_data.dataset_id == int(doc.id)]
+                    zeno_data[
+                        zeno_data.dataset_id == int(doc.metadata["dataset_id"])
+                    ]
                     .iloc[0]
                     .to_dict()
                 )
@@ -152,11 +154,11 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
             "candidate_datasets": candidate_datasets[
                 [
                     "dataset_id",
-                    "data_layer",
-                    "description",
-                    "context_layer",
-                    "date",
-                    "variables",
+                    "Layer Title",
+                    "Description",
+                    "Secondary/Contextual layers / Intersections",
+                    "Date",
+                    "Variables",
                 ]
             ].to_csv(index=False),
             "user_query": query,
@@ -187,11 +189,11 @@ def extract_dataset_info(query: str, selection_id: int):
                 "user",
                 """Given the user query and the dataset - extract the relevant information from the dataset to pull data from source.
 
-    Dataset: 
+    Dataset:
     {dataset}
 
-    User Query: 
-    {user_query}    
+    User Query:
+    {user_query}
     """,
             ),
         ]

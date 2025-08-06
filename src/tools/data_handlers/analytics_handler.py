@@ -34,7 +34,9 @@ class AnalyticsHandler(DataSourceHandler):
 
     # Mapping of dataset names to their API endpoints
     ENDPOINT_MAPPING = {
-        DATASET_NAMES["DIST-ALERT"]: "/v0/land_change/dist_alerts/analytics",
+        DATASET_NAMES[
+            "Vegetation Disturbance Alerts"
+        ]: "/v0/land_change/dist_alerts/analytics",
         DATASET_NAMES[
             "Natural lands"
         ]: "/v0/land_change/natural_lands/analytics",
