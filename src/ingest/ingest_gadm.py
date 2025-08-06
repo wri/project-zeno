@@ -1,18 +1,19 @@
-import requests
+import os
 import zipfile
 from pathlib import Path
+
 import geopandas as gpd
 import pandas as pd
-import os
+import requests
 from sqlalchemy import create_engine, text
-from src.utils.env_loader import load_environment_variables
-from src.utils.geocoding_helpers import GADM_LEVELS, SOURCE_ID_MAPPING
+
 from src.ingest.utils import (
-    create_text_search_index_if_not_exists,
     create_geometry_index_if_not_exists,
     create_id_index_if_not_exists,
+    create_text_search_index_if_not_exists,
 )
-
+from src.utils.env_loader import load_environment_variables
+from src.utils.geocoding_helpers import GADM_LEVELS, SOURCE_ID_MAPPING
 
 load_environment_variables()
 
@@ -80,12 +81,21 @@ def process_chunk(
 
     # Build a single display name, ignoring NaNs / empty strings
     # Only use columns that exist in this layer
-    all_name_cols = ["NAME_5", "NAME_4", "NAME_3", "NAME_2", "NAME_1", "COUNTRY"]
+    all_name_cols = [
+        "NAME_5",
+        "NAME_4",
+        "NAME_3",
+        "NAME_2",
+        "NAME_1",
+        "COUNTRY",
+    ]
     name_cols = [col for col in all_name_cols if col in chunk.columns]
 
     chunk["name"] = chunk.apply(
         lambda row: ", ".join(
-            str(v) for v in (row[c] for c in name_cols) if pd.notna(v) and v != ""
+            str(v)
+            for v in (row[c] for c in name_cols)
+            if pd.notna(v) and v != ""
         ),
         axis=1,
     )
@@ -122,7 +132,7 @@ def ingest_gadm_chunked(
     Uses layer-specific chunk sizes to handle large geometries at higher admin levels.
     """
     database_url = os.environ["DATABASE_URL"].replace(
-        "postgresql+asyncpg://", "postgresql=psycopg2://"
+        "postgresql+asyncpg://", "postgresql+psycopg2://"
     )
     engine = create_engine(database_url)
 
@@ -153,7 +163,9 @@ def ingest_gadm_chunked(
             end_idx = min(start_idx + layer_chunk_size, total_rows)
 
             # Read chunk
-            chunk = gpd.read_file(gpkg, layer=layer, rows=slice(start_idx, end_idx))
+            chunk = gpd.read_file(
+                gpkg, layer=layer, rows=slice(start_idx, end_idx)
+            )
 
             # Process chunk
             processed_chunk = process_chunk(chunk, subtype, all_columns)
@@ -170,16 +182,22 @@ def ingest_gadm_chunked(
                 f"  ✓ Processed {end_idx}/{total_rows} records for layer {layer} (Total: {total_processed})"
             )
 
-    print(f"✓ Ingested {total_processed} records to PostGIS table '{table_name}'")
+    print(
+        f"✓ Ingested {total_processed} records to PostGIS table '{table_name}'"
+    )
 
     # Create spatial index on geometry column
     create_geometry_index_if_not_exists(
-        table_name=table_name, index_name=f"idx_{table_name}_geom", column="geometry"
+        table_name=table_name,
+        index_name=f"idx_{table_name}_geom",
+        column="geometry",
     )
 
     # Create text search index on name column
     create_text_search_index_if_not_exists(
-        table_name=table_name, index_name=f"idx_{table_name}_name_gin", column="name"
+        table_name=table_name,
+        index_name=f"idx_{table_name}_name_gin",
+        column="name",
     )
 
     # Create ID index on gadm_id column
@@ -192,7 +210,9 @@ def ingest_gadm_chunked(
 
 
 def ingest_to_postgis(
-    gdf: gpd.GeoDataFrame, table_name: str = "geometries_gadm", chunk_size: int = 10000
+    gdf: gpd.GeoDataFrame,
+    table_name: str = "geometries_gadm",
+    chunk_size: int = 10000,
 ) -> None:
     """Ingest the GeoDataFrame to PostGIS database in chunks."""
     database_url = os.environ["DATABASE_URL"].replace(
@@ -211,12 +231,16 @@ def ingest_to_postgis(
         chunk = gdf_copy.iloc[i : i + chunk_size]
         if_exists_param = "replace" if i == 0 else "append"
 
-        chunk.to_postgis(table_name, engine, if_exists=if_exists_param, index=False)
+        chunk.to_postgis(
+            table_name, engine, if_exists=if_exists_param, index=False
+        )
 
         records_processed = min(i + chunk_size, total_records)
         print(f"✓ Processed {records_processed}/{total_records} records")
 
-    print(f"✓ Ingested {total_records} records to PostGIS table '{table_name}'")
+    print(
+        f"✓ Ingested {total_records} records to PostGIS table '{table_name}'"
+    )
 
 
 def main():
