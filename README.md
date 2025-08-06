@@ -129,7 +129,7 @@ uv run pytest tests/api/
 The system automatically loads `.env` first, then overrides with `.env.local` for local development.
 
 ```bash
-uv run streamlit run frontend/app.py
+uv run streamlit run src/frontend/app.py
 ```
 
 ## Setup Database
