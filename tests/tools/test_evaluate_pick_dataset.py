@@ -35,12 +35,12 @@ def get_sample_size():
 def load_test_data(sample_size: int = None):
     """Loads and prepares test data from dataset CSV files."""
     import pandas as pd
-    
+
     base_path = "experiments/"
     files = [
         "Zeno test dataset(S2 T1 Dataset ID).csv",
     ]
-    
+
     try:
         df = pd.concat(
             [pd.read_csv(f"{base_path}{f}") for f in files], ignore_index=True
@@ -51,10 +51,10 @@ def load_test_data(sample_size: int = None):
     # CSV columns: Q group, Status, Prompt text, Answer (correct data), Does the response match...
     # Filter for ready to run tests only
     df = df[df["Status"] == "ready to run"]
-    
+
     # Drop rows with missing essential data
     df.dropna(subset=["Prompt text", "Answer (correct data)"], inplace=True)
-    
+
     # Simple logic: if sample_size is specified and less than total, sample it
     if sample_size is not None and sample_size < len(df):
         sample = df.sample(n=sample_size)
@@ -108,7 +108,6 @@ def test_pick_dataset_batch(query, expected_data_type, q_group):
         "metadata": {"langfuse_tags": ["pick_dataset", "test", DEFAULT_TAG]},
     }
 
-    result = AGENT.invoke({"messages": [("user", query)]}, config=config)
     state = AGENT.get_state(config=config)
 
     dataset = state.values.get("dataset")
@@ -121,7 +120,9 @@ def test_pick_dataset_batch(query, expected_data_type, q_group):
 
     # Score based on whether the selected dataset type matches expected data type
     # This is a simplified scoring - in practice you might want more sophisticated matching
-    score = 1 if expected_data_type.lower() in dataset_data_layer.lower() else 0
+    score = (
+        1 if expected_data_type.lower() in dataset_data_layer.lower() else 0
+    )
 
     # Collect result for CSV export
     test_results.append(
