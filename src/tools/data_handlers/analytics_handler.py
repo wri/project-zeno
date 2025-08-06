@@ -110,12 +110,17 @@ class AnalyticsHandler(DataSourceHandler):
 
         elif table_name in [
             "natural_lands",
-            "grasslands",
             "land_cover_change",
         ]:
             # Natural lands and grasslands don't require date ranges
             payload = base_payload
 
+        elif table_name == "grasslands":
+            payload = {
+                **base_payload,
+                "start_year": start_date[:4],  # Extract year from YYYY-MM-DD
+                "end_year": end_date[:4],
+            }
         elif table_name == "tree_cover_loss":
             payload = {
                 **base_payload,
@@ -139,7 +144,7 @@ class AnalyticsHandler(DataSourceHandler):
         payload: Dict,
         max_retries: int = 3,
         poll_interval: float = 0.5,
-    ) -> Dict | None:
+    ) -> Dict | str:
         """Poll the API until the request is completed or max retries exceeded."""
         for attempt in range(max_retries):
             logger.info(f"Polling attempt {attempt + 1}/{max_retries}")
@@ -169,8 +174,9 @@ class AnalyticsHandler(DataSourceHandler):
                     )
                     return result
                 elif status in ["failed", "error"]:
-                    logger.error(f"Request failed with status: {status}")
-                    return None
+                    msg = f"Request failed with status: {status}"
+                    logger.error(msg)
+                    return msg
 
             except Exception as e:
                 logger.warning(
@@ -178,10 +184,9 @@ class AnalyticsHandler(DataSourceHandler):
                 )
                 continue
 
-        logger.warning(
-            f"Max polling attempts ({max_retries}) exceeded for {result.get('data', {}).get('link', 'unknown url')}"
-        )
-        return None
+        msg = f"Max polling attempts ({max_retries}) exceeded for {result.get('data', {}).get('link', 'unknown url')}"
+        logger.warning(msg)
+        return msg
 
     def _process_response_data(
         self, result: Dict, table_name: str
@@ -192,36 +197,35 @@ class AnalyticsHandler(DataSourceHandler):
 
         data_section = result["data"]
 
-        if table_name == "DIST-ALERT":
-            # DIST-ALERT has a download link
-            if "link" not in data_section:
-                raise ValueError(
-                    f"DIST-ALERT response missing 'link' key: {data_section}"
-                )
-            download_link = data_section["link"]
-            data = requests.get(download_link).json()
-            raw_data = data["data"]["result"]
-            data_points_count = len(raw_data.get("value", []))
-            message_detail = f"Found {data_points_count} alerts"
+        if "link" not in data_section:
+            raise ValueError(
+                f"DIST-ALERT response missing 'link' key: {data_section}"
+            )
 
-        else:
-            # Other analytics return data directly
-            if "result" not in data_section:
-                raise ValueError(
-                    f"Response missing 'result' key in data section: {data_section}"
-                )
-            raw_data = data_section["result"]
+        download_link = data_section["link"]
+        data = requests.get(download_link).json()
 
-            # Count data points based on available arrays in the result
-            data_points_count = 0
-            if isinstance(raw_data, dict):
-                # Find the first array in the result to count data points
-                for key, value in raw_data.items():
-                    if isinstance(value, list):
-                        data_points_count = len(value)
-                        break
+        if "data" not in data:
+            raise ValueError(
+                f"Response missing 'result' key in response: {data}"
+            )
+        if "result" not in data["data"]:
+            raise ValueError(
+                f"Response missing 'result' key in data section: {data['data']}"
+            )
 
-            message_detail = f"Found {data_points_count} data points"
+        raw_data = data["data"]["result"]
+
+        # Count data points based on available arrays in the result
+        data_points_count = 0
+        if isinstance(raw_data, dict):
+            # Find the first array in the result to count data points
+            for key, value in raw_data.items():
+                if isinstance(value, list):
+                    data_points_count = len(value)
+                    break
+
+        message_detail = f"Found {data_points_count} data points"
 
         return raw_data, data_points_count, message_detail
 
@@ -304,11 +308,14 @@ class AnalyticsHandler(DataSourceHandler):
                 result = self._poll_for_completion(
                     endpoint_url, payload, max_retries=3, poll_interval=0.5
                 )
-                if not result:
-                    error_msg = f"Failed to get completed result after polling for {aoi_name}"
+                if isinstance(result, str):
+                    error_msg = f"Failed to get completed result after polling for {aoi_name}. Reason: {result}"
                     logger.error(error_msg)
                     return DataPullResult(
-                        success=False, data=[], message=error_msg
+                        success=False,
+                        data=[],
+                        message=error_msg,
+                        data_points_count=0,
                     )
 
             if "status" in result and result["status"] in ["success", "saved"]:

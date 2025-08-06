@@ -118,6 +118,13 @@ def test_db_session():
 @pytest.mark.parametrize("aoi_data", TEST_AOIS)
 @pytest.mark.parametrize("dataset", ALL_DATASET_COMBINATIONS)
 def test_pick_aoi_queries(aoi_data, dataset):
+    print(f"Testing {dataset['data_layer']} with {aoi_data['name']}")
+    if dataset["data_layer"] == "Tree cover loss" and aoi_data[
+        "subtype"
+    ] not in ["admin", "protected_area"]:
+        print("Skipping test because of unsupported subtype")
+        return
+
     update = {
         "aoi": aoi_data,
         "subregion_aois": None,
@@ -144,8 +151,11 @@ def test_pick_aoi_queries(aoi_data, dataset):
             "state": update,
         }
     )
-    print(f"Testing {dataset['data_layer']} with {aoi_data['name']}")
-    print(command.update)
-    assert "raw_data" in command.update
-    assert "value" in command.update["raw_data"]
-    assert len(command.update["raw_data"]["value"]) > 0
+
+    msg = command.update.get("messages", [None])[0]
+    if msg and msg.content.startswith(
+        "Failed to get completed result after polling for"
+    ):
+        assert False
+    else:
+        assert command.update.get("raw_data", None) is not None

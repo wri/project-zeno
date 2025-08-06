@@ -134,7 +134,7 @@ def pull_data(
     elif result.success:
         raw_data = result.data
     else:
-        raw_data = []
+        raw_data = None
 
     return Command(
         update={
