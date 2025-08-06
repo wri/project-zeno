@@ -8,8 +8,7 @@ from langgraph.types import Command
 
 from src.tools.data_handlers.analytics_handler import AnalyticsHandler
 from src.tools.data_handlers.base import DATASET_NAMES, DataPullResult
-
-# from src.tools.data_handlers.gfw_sql_handler import GFWSQLHandler
+from src.tools.data_handlers.gfw_sql_handler import GFWSQLHandler
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -21,7 +20,7 @@ class DataPullOrchestrator:
     def __init__(self):
         self.handlers = [
             AnalyticsHandler(),
-            # GFWSQLHandler(),
+            GFWSQLHandler(),
         ]
 
     def pull_data(
