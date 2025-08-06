@@ -1,51 +1,55 @@
 import json
 import os
+import uuid
+from contextlib import asynccontextmanager
+from datetime import date
 from typing import Dict, Optional
 from uuid import UUID
-import uuid
+
 import cachetools
 import requests
-from datetime import date
-from contextlib import asynccontextmanager
-
 import structlog
-
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
-from fastapi.security import HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPBearer
 from itsdangerous import BadSignature, TimestampSigner
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
-from sqlalchemy import text, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
-from src.agents.agents import zeno, zeno_anonymous, checkpointer
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.agents.agents import checkpointer, zeno, zeno_anonymous
+from src.api.data_models import (
+    CustomAreaOrm,
+    DailyUsageOrm,
+    ThreadOrm,
+    UserOrm,
+    UserType,
+    get_async_engine,
+    get_async_session,
+)
 from src.api.schemas import (
-    ThreadModel,
-    UserModel,
-    CustomAreaModel,
+    ChatRequest,
     CustomAreaCreate,
+    CustomAreaModel,
     CustomAreaNameRequest,
     GeometryResponse,
-    ChatRequest
+    ThreadModel,
+    UserModel,
 )
-from src.api.data_models import (
-    ThreadOrm,
-    UserType,
-    UserOrm,
-    DailyUsageOrm,
-    CustomAreaOrm,
-    get_async_session,
-    get_async_engine,
+from src.utils.config import APISettings
+from src.utils.env_loader import load_environment_variables
+from src.utils.geocoding_helpers import (
+    GADM_SUBTYPE_MAP,
+    SOURCE_ID_MAPPING,
+    SUBREGION_TO_SUBTYPE_MAPPING,
 )
 from src.utils.llms import HAIKU
-from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
-from src.utils.config import APISettings
-from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
 
 # Load environment variables using shared utility
 load_environment_variables()
@@ -150,7 +154,9 @@ async def anonymous_id_middleware(request: Request, call_next):
     if anon_cookie:
         try:
             # Verify signature & extract payload
-            _ = signer.unsign(anon_cookie, max_age=365 * 24 * 3600)  # Cookie age: 1yr
+            _ = signer.unsign(
+                anon_cookie, max_age=365 * 24 * 3600
+            )  # Cookie age: 1yr
             need_new = False
         except BadSignature:
             pass
@@ -193,7 +199,9 @@ def replay_chat(thread_id):
         checkpoints = zeno.get_state_history(config=config)
         # consume checkpoints and sort them by step to process from
         # oldest to newest
-        checkpoints = sorted(list(checkpoints), key=lambda x: x.metadata["step"])
+        checkpoints = sorted(
+            list(checkpoints), key=lambda x: x.metadata["step"]
+        )
         # Remove step -1 which is the initial empty state
         checkpoints = [c for c in checkpoints if c.metadata["step"] >= 0]
 
@@ -204,7 +212,6 @@ def replay_chat(thread_id):
         rendered_state_elements = {"messages": []}
 
         for checkpoint in checkpoints:
-
             update = {"messages": []}
 
             for message in checkpoint.values.get("messages", []):
@@ -221,7 +228,6 @@ def replay_chat(thread_id):
 
             # Render the rest of the state updates
             for key, value in checkpoint.values.items():
-
                 if key == "messages":
                     continue  # Skip messages, already handled above
 
@@ -237,7 +243,9 @@ def replay_chat(thread_id):
             node_type = (
                 "agent"
                 if mtypes == {"ai"} or len(mtypes) > 1
-                else "tools" if mtypes == {"tool"} else "human"
+                else "tools"
+                if mtypes == {"tool"}
+                else "human"
             )
 
             update = {
@@ -288,21 +296,23 @@ def stream_chat(
         for action_type, action_data in ui_context.items():
             match action_type:
                 case "aoi_selected":
-                    content = f"User selected AOI in UI: {action_data['aoi_name']}"
+                    content = f"User selected AOI in UI: {action_data['aoi_name']}\n\n"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
-                    state_updates["subregion_aois"] = action_data["subregion_aois"]
+                    state_updates["subregion_aois"] = action_data[
+                        "subregion_aois"
+                    ]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
-                    content = f"User selected dataset in UI: {action_data['dataset']['data_layer']}"
+                    content = f"User selected dataset in UI: {action_data['dataset']['data_layer']}\n\n"
                     state_updates["dataset"] = action_data["dataset"]
                 case "daterange_selected":
                     content = f"User selected daterange in UI: start_date: {action_data['start_date']}, end_date: {action_data['end_date']}"
                     state_updates["start_date"] = action_data["start_date"]
                     state_updates["end_date"] = action_data["end_date"]
                 case _:
-                    content = f"User performed action in UI: {action_type}"
+                    content = f"User performed action in UI: {action_type}\n\n"
             ui_action_message.append(content)
 
     ui_message = HumanMessage(content="\n".join(ui_action_message))
@@ -355,8 +365,12 @@ def stream_chat(
                         "update": dumps(
                             {
                                 "error": True,
-                                "message": str(e),  # String representation of the error
-                                "error_type": type(e).__name__,  # Exception class name
+                                "message": str(
+                                    e
+                                ),  # String representation of the error
+                                "error_type": type(
+                                    e
+                                ).__name__,  # Exception class name
                                 "type": "stream_processing_error",
                             }
                         ),
@@ -364,9 +378,9 @@ def stream_chat(
                 )
                 # Continue processing other updates if possible
                 continue
-        
+
         # Send trace ID after stream completes
-        trace_id = getattr(langfuse_handler, 'last_trace_id', None)
+        trace_id = getattr(langfuse_handler, "last_trace_id", None)
         if trace_id:
             yield pack(
                 {
@@ -384,7 +398,9 @@ def stream_chat(
                 "update": dumps(
                     {
                         "error": True,
-                        "message": str(e),  # String representation of the error
+                        "message": str(
+                            e
+                        ),  # String representation of the error
                         "error_type": type(e).__name__,  # Exception class name
                         "type": "stream_initialization_error",
                         "fatal": True,  # Indicates stream cannot continue
@@ -401,7 +417,6 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 def fetch_user_from_rw_api(
     authorization: Optional[str] = Depends(security),
 ) -> UserModel:
-
     if not authorization:
         return None
 
@@ -532,7 +547,6 @@ async def check_quota(
     user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
     session: AsyncSession = Depends(get_async_session),
 ):
-
     if not APISettings.enable_quota_checking:
         return {}
 
@@ -613,8 +627,7 @@ async def chat(
             query=request.query,
         )
         stmt = select(ThreadOrm).filter_by(
-            id=request.thread_id,
-            user_id=user.id
+            id=request.thread_id, user_id=user.id
         )
         result = await session.execute(stmt)
         thread = result.scalars().first()
@@ -664,7 +677,7 @@ async def chat(
 @app.get("/api/threads", response_model=list[ThreadModel])
 async def list_threads(
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """List threads."""
     stmt = select(ThreadOrm).filter_by(user_id=user.id)
@@ -773,7 +786,7 @@ async def delete_thread(
 async def get_geometry(
     source: str,
     src_id: str,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Get geometry data by source and source ID.
@@ -818,7 +831,9 @@ async def get_geometry(
         # Parse GeoJSON string
         try:
             geometry = (
-                json.loads(result.geometry_json) if result.geometry_json else None
+                json.loads(result.geometry_json)
+                if result.geometry_json
+                else None
             )
         except json.JSONDecodeError:
             logger.error(f"Failed to parse GeoJSON for {source}:{src_id}")
@@ -879,6 +894,8 @@ async def api_metadata() -> dict:
         "layer_id_mapping": {
             key: value["id_column"] for key, value in SOURCE_ID_MAPPING.items()
         },
+        "subregion_to_subtype_mapping": SUBREGION_TO_SUBTYPE_MAPPING,
+        "gadm_subtype_mapping": GADM_SUBTYPE_MAP,
     }
 
 
@@ -953,7 +970,7 @@ async def update_custom_area_name(
     area_id: UUID,
     payload: dict,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Update the name of a custom area."""
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
@@ -979,7 +996,7 @@ async def update_custom_area_name(
 async def delete_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Delete a custom area."""
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
