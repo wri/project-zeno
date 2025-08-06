@@ -71,7 +71,7 @@ class ExampleAPIHandler(DataSourceHandler):
 #
 # # In DataPullOrchestrator.__init__():
 # self.handlers = [
-#     DistAlertHandler(),
-#     StandardGFWHandler(),
+#     AnalyticsHandler(),
+#     GFWSQLHandler(),
 #     ExampleAPIHandler(),  # Add new handler here
 # ]

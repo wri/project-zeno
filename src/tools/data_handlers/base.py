@@ -11,14 +11,12 @@ from typing import Any, Dict, List
 
 from pydantic import BaseModel
 
-from src.utils.geocoding_helpers import GADM_LEVELS as gadm_levels
-
-
-# DATASET NAME MAPPINGS
-dataset_names = {
-    "Tree cover loss": "tcl",
-    "Tree cover loss due to fires": "tcl",
+DATASET_NAMES = {
+    "Tree cover loss": "tree_cover_loss",
     "DIST-ALERT": "DIST-ALERT",
+    "Natural lands": "natural_lands",
+    "Grasslands": "grasslands",
+    "Land cover change": "land_cover_change",
 }
 
 
