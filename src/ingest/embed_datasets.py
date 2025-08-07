@@ -79,4 +79,4 @@ for idx, row in zeno_data.iterrows():
 
 openai_index.add_documents(documents=zeno_docs)
 
-openai_index.dump(data_dir / "zeno-docs-openai-index")
+openai_index.dump(data_dir / "zeno-docs-openai-index-v2")
