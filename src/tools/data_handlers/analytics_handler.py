@@ -245,7 +245,7 @@ class AnalyticsHandler(DataSourceHandler):
         try:
             aoi_name = aoi["name"]
             table_name = dataset.get("table_name") or DATASET_NAMES.get(
-                dataset.get("data_layer")
+                dataset.get("dataset_name")
             )
 
             if not table_name:

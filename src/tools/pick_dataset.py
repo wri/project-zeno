@@ -115,8 +115,15 @@ def rag_candidate_datasets(query: str, k=3, strategy="openai"):
 
 def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     class DatasetOption(BaseModel):
-        id: int = Field(
+        dataset_id: int = Field(
             description="ID of the dataset that best matches the user query."
+        )
+        dataset_name: str = Field(
+            description="Name of the dataset that best matches the user query."
+        )
+        context_layer: Optional[str] = Field(
+            None,
+            description="Pick a single context layer from the dataset if useful",
         )
         reason: str = Field(
             description="Short reason why the dataset is the best match."
@@ -152,7 +159,6 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
                     "dataset_id",
                     "dataset_name",
                     "description",
-                    "funcion_notes",
                     "date",
                     "context_layers",
                 ]
@@ -161,16 +167,12 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
         }
     )
     logger.debug(
-        f"Selected dataset ID: {selection_result.id}. Reason: {selection_result.reason}"
+        f"Selected dataset ID: {selection_result.dataset_id}. Reason: {selection_result.reason}"
     )
     return selection_result
 
 
 class DatasetInfo(BaseModel):
-    dataset_id: int
-    source: str
-    data_layer: str
-    tile_url: str
     context_layer: Optional[str] = Field(
         None,
         description="Pick a single context layer from the dataset if useful",
@@ -183,7 +185,7 @@ def extract_dataset_info(query: str, selection_id: int):
         [
             (
                 "user",
-                """Given the user query and the dataset - extract the relevant information from the dataset to pull data from source.
+                """Given the user query and the dataset - pick an optional context layer from the dataset if useful.
 
     Dataset:
     {dataset}
@@ -225,16 +227,18 @@ def pick_dataset(
     # Step 2: LLM to select best dataset
     selection_result = select_best_dataset(query, candidate_datasets)
 
-    # Step 3: LLM to extract structured info for downstream query
-    dataset_info = extract_dataset_info(query, selection_result.id)
+    tool_message = f"""Selected dataset ID: {selection_result.dataset_id}\nContext layer: {selection_result.context_layer}\nReasoning: {selection_result.reason}"""
 
-    tool_message = f"""Selected dataset: {dataset_info.data_layer}\nContext layer: {dataset_info.context_layer}\nTile URL: {dataset_info.tile_url}\nThreshold: {dataset_info.threshold}\nReasoning: {selection_result.reason}"""
+    # Step 3: LLM to extract structured info for downstream query
+    # dataset_info = extract_dataset_info(query, selection_result.id)
+
+    # tool_message = f"""Selected dataset: {dataset_info.data_layer}\nContext layer: {dataset_info.context_layer}\nTile URL: {dataset_info.tile_url}\nThreshold: {dataset_info.threshold}\nReasoning: {selection_result.reason}"""
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
 
     return Command(
         update={
-            "dataset": dataset_info.model_dump(),
+            "dataset": selection_result.model_dump(),
             "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
         },
     )

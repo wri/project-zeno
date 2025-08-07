@@ -118,3 +118,35 @@ def test_queries_return_expected_dataset(test_query_with_expected_dataset):
 
     dataset_id = command.update.get("dataset", {}).get("dataset_id")
     assert dataset_id == expected_dataset_id
+
+
+def test_query_dist_alerts_with_context_layer():
+    query = "Vegetation disturbances by natural lands"
+
+    command = pick_dataset.invoke(
+        {
+            "query": query,
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
+
+    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    assert dataset_id == 0
+    context_layer = command.update.get("dataset", {}).get("context_layer")
+    assert context_layer == "natural_lands"
+
+
+def test_query_tree_cover_loss_with_context_layer():
+    query = "Tree cover loss by driver"
+
+    command = pick_dataset.invoke(
+        {
+            "query": query,
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
+
+    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    assert dataset_id == 4
+    context_layer = command.update.get("dataset", {}).get("context_layer")
+    assert context_layer == "driver"

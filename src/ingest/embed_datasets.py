@@ -72,6 +72,7 @@ for idx, row in zeno_data.iterrows():
                 "context_layers": row[
                     "Secondary/Contextual layers / Intersections"
                 ],
+                "date": row["Date"],
             },
         )
     )

@@ -34,12 +34,12 @@ class DataPullOrchestrator:
     ) -> DataPullResult:
         """Pull data using the appropriate handler"""
 
-        table_name = DATASET_NAMES.get(dataset["data_layer"])
+        table_name = DATASET_NAMES.get(dataset["dataset_name"])
         if not table_name:
             return DataPullResult(
                 success=False,
                 data={"data": []},
-                message=f"Dataset {dataset['data_layer']} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question.",
+                message=f"Dataset {dataset['dataset_name']} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question.",
             )
 
         # Find appropriate handler
@@ -59,7 +59,7 @@ class DataPullOrchestrator:
         return DataPullResult(
             success=False,
             data={"data": []},
-            message=f"No handler found for dataset: {dataset['data_layer']}. Please ask for data from GFW datasets.",
+            message=f"No handler found for dataset: {dataset['dataset_name']}. Please ask for data from GFW datasets.",
         )
 
 
