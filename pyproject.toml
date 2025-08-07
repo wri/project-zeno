@@ -50,6 +50,7 @@ dependencies = [
     "asyncpg>=0.30.0",
     "greenlet>=3.2.3",
     "simsimd>=6.5.0",
+    "psycopg2>=2.9.10",
 ]
 
 [dependency-groups]
