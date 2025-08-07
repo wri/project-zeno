@@ -821,7 +821,7 @@ async def get_geometry(
 
     try:
         q = await session.execute(text(sql_query), {"src_id": src_id})
-        result = q.scalars().fetchone()
+        result = q.first()
 
         if not result:
             raise HTTPException(
