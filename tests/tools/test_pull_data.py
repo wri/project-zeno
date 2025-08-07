@@ -6,54 +6,47 @@ from src.tools.pull_data import pull_data
 # http://analytics-416617519.us-east-1.elb.amazonaws.com/openapi.json
 # as of 2025-08-06
 ALL_DATASET_COMBINATIONS = [
-    # DIST-ALERT without intersection
+    # Ecosystem disturbance alerts without intersection
     {
-        "dataset_id": 14,
-        "source": "LCL",
-        "data_layer": "DIST-ALERT",
+        "dataset_id": 0,
+        "dataset_name": "Ecosystem disturbance alerts",
         "context_layer": None,
     },
-    # DIST-ALERT with driver intersection
+    # Ecosystem disturbance alerts with driver intersection
     {
-        "dataset_id": 14,
-        "source": "LCL",
-        "data_layer": "DIST-ALERT",
+        "dataset_id": 0,
+        "dataset_name": "Ecosystem disturbance alerts",
         "context_layer": "driver",
     },
-    # Tree Cover Loss without intersection
+    # Global land cover (no intersections available)
     {
         "dataset_id": 1,
-        "source": "LCL",
-        "data_layer": "Tree cover loss",
+        "dataset_name": "Global land cover",
         "context_layer": None,
     },
-    # Tree Cover Loss with driver intersection
-    {
-        "dataset_id": 1,
-        "source": "GFW",
-        "data_layer": "Tree cover loss",
-        "context_layer": "driver",
-    },
-    # Land Cover Change (no intersections available)
+    # Grassland (no intersections available)
     {
         "dataset_id": 2,
-        "source": "LCL",
-        "data_layer": "Land cover change",
+        "dataset_name": "Grassland",
         "context_layer": None,
     },
-    # Natural Lands (no intersections available)
+    # Natural lands (no intersections available)
     {
         "dataset_id": 3,
-        "source": "LCL",
-        "data_layer": "Natural lands",
+        "dataset_name": "Natural lands",
         "context_layer": None,
     },
-    # Grasslands (no intersections available)
+    # Tree cover loss without intersection
     {
         "dataset_id": 4,
-        "source": "LCL",
-        "data_layer": "Grasslands",
+        "dataset_name": "Tree cover loss",
         "context_layer": None,
+    },
+    # Tree cover loss with driver intersection
+    {
+        "dataset_id": 4,
+        "dataset_name": "Tree cover loss",
+        "context_layer": "driver",
     },
 ]
 
@@ -118,11 +111,11 @@ def test_db_session():
 @pytest.mark.parametrize("aoi_data", TEST_AOIS)
 @pytest.mark.parametrize("dataset", ALL_DATASET_COMBINATIONS)
 def test_pick_aoi_queries(aoi_data, dataset):
-    print(f"Testing {dataset['data_layer']} with {aoi_data['name']}")
-    if dataset["data_layer"] == "Tree cover loss" and aoi_data[
-        "subtype"
-    ] not in ["admin", "protected_area"]:
-        print("Skipping test because of unsupported subtype")
+    print(f"Testing {dataset['dataset_name']} with {aoi_data['name']}")
+    if dataset["dataset_name"] == "Tree cover loss":
+        print(
+            "Skipping test because of unsupported dataset, needs update on API"
+        )
         return
 
     update = {
@@ -133,20 +126,20 @@ def test_pick_aoi_queries(aoi_data, dataset):
         "subtype": aoi_data["subtype"],
         "dataset": {
             "dataset_id": dataset["dataset_id"],
-            "source": dataset["source"],
-            "data_layer": dataset["data_layer"],
-            "tile_url": "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color",
+            "dataset_name": dataset["dataset_name"],
+            "reason": "",
+            "tile_url": "",
             "context_layer": dataset["context_layer"],
         },
     }
 
     command = pull_data.invoke(
         {
-            "query": f"find {dataset['data_layer'].lower()} in {aoi_data['query_description']}",
+            "query": f"find {dataset['dataset_name'].lower()} in {aoi_data['query_description']}",
             "start_date": "2024-01-01",
             "end_date": "2024-01-31",
             "aoi_name": update["aoi"]["name"],
-            "dataset_name": dataset["data_layer"],
+            "dataset_name": dataset["dataset_name"],
             "tool_call_id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
             "state": update,
         }
