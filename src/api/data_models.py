@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, date
 import enum
 from collections.abc import AsyncGenerator
+from typing import Optional
 
 from fastapi import Request
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -83,6 +84,7 @@ class RatingOrm(Base):
     thread_id = Column(String, ForeignKey("threads.id"), nullable=False)
     trace_id = Column(String, nullable=False)
     rating = Column(Integer, nullable=False)
+    comment = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now())
     updated_at = Column(
         DateTime,
@@ -126,6 +128,7 @@ class RatingCreateRequest(BaseModel):
     thread_id: str
     trace_id: str
     rating: int
+    comment: Optional[str] = None
 
     @field_validator("rating")
     def validate_rating(cls, v):
@@ -141,5 +144,6 @@ class RatingModel(BaseModel):
     thread_id: str
     trace_id: str
     rating: int
+    comment: Optional[str] = None
     created_at: datetime
     updated_at: datetime

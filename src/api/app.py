@@ -891,6 +891,7 @@ async def create_or_update_rating(
     if existing_rating:
         # Update existing rating
         existing_rating.rating = request.rating
+        existing_rating.comment = request.comment
         existing_rating.updated_at = datetime.now()
         await session.commit()
         await session.refresh(existing_rating)
@@ -900,7 +901,8 @@ async def create_or_update_rating(
             user_id=user.id,
             thread_id=request.thread_id,
             trace_id=request.trace_id,
-            rating=request.rating
+            rating=request.rating,
+            comment=request.comment
         )
         
         return RatingModel.model_validate(existing_rating)
@@ -911,7 +913,8 @@ async def create_or_update_rating(
             user_id=user.id,
             thread_id=request.thread_id,
             trace_id=request.trace_id,
-            rating=request.rating
+            rating=request.rating,
+            comment=request.comment
         )
         session.add(new_rating)
         await session.commit()
@@ -922,7 +925,8 @@ async def create_or_update_rating(
             user_id=user.id,
             thread_id=request.thread_id,
             trace_id=request.trace_id,
-            rating=request.rating
+            rating=request.rating,
+            comment=request.comment
         )
         
         return RatingModel.model_validate(new_rating)

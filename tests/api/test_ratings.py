@@ -75,7 +75,8 @@ async def test_create_rating_success(test_user_and_thread, client: AsyncClient, 
         json={
             "thread_id": thread.id,
             "trace_id": "test-trace-1", 
-            "rating": 1
+            "rating": 1,
+            "comment": "Great response!"
         },
         headers={"Authorization": "Bearer test-token"}
     )
@@ -87,6 +88,7 @@ async def test_create_rating_success(test_user_and_thread, client: AsyncClient, 
     assert data["thread_id"] == thread.id
     assert data["trace_id"] == "test-trace-1"
     assert data["rating"] == 1
+    assert data["comment"] == "Great response!"
     assert "id" in data
     assert "created_at" in data
     assert "updated_at" in data
@@ -270,3 +272,76 @@ async def test_create_multiple_ratings_same_user_different_traces(test_user_and_
     assert data2["trace_id"] == "test-trace-2"
     assert data1["rating"] == 1
     assert data2["rating"] == -1
+
+@pytest.mark.asyncio
+async def test_create_rating_with_comment(test_user_and_thread, client: AsyncClient, ratings_user):
+    """Test creating a rating with a comment."""
+    user, thread = test_user_and_thread
+    
+    response = await client.post(
+        "/api/ratings",
+        json={
+            "thread_id": thread.id,
+            "trace_id": "test-trace-comment",
+            "rating": 1,
+            "comment": "This is a test comment"
+        },
+        headers={"Authorization": "Bearer test-token"}
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["comment"] == "This is a test comment"
+
+@pytest.mark.asyncio
+async def test_create_rating_without_comment(test_user_and_thread, client: AsyncClient, ratings_user):
+    """Test creating a rating without a comment."""
+    user, thread = test_user_and_thread
+    
+    response = await client.post(
+        "/api/ratings",
+        json={
+            "thread_id": thread.id,
+            "trace_id": "test-trace-no-comment",
+            "rating": -1
+        },
+        headers={"Authorization": "Bearer test-token"}
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["comment"] is None
+
+@pytest.mark.asyncio
+async def test_update_rating_comment(test_user_and_thread, client: AsyncClient, ratings_user):
+    """Test updating a rating's comment."""
+    user, thread = test_user_and_thread
+    
+    # Create initial rating
+    async with async_session_maker() as session:
+        existing_rating = RatingOrm(
+            id="test-rating-comment",
+            user_id=MOCK_USER_DATA["id"],
+            thread_id=thread.id,
+            trace_id="test-trace-update-comment",
+            rating=1,
+            comment="Initial comment"
+        )
+        session.add(existing_rating)
+        await session.commit()
+    
+    # Update the rating with new comment
+    response = await client.post(
+        "/api/ratings",
+        json={
+            "thread_id": thread.id,
+            "trace_id": "test-trace-update-comment",
+            "rating": 1,
+            "comment": "Updated comment"
+        },
+        headers={"Authorization": "Bearer test-token"}
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["comment"] == "Updated comment"
