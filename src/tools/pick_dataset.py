@@ -102,7 +102,8 @@ class DatasetOption(BaseModel):
 
 class DatasetSelectionResult(DatasetOption):
     tile_url: str = Field(
-        description="Tile URL of the dataset that best matches the user query."
+        description="Tile URL of the dataset that best matches the user query.",
+        default="",
     )
 
 
@@ -148,16 +149,22 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
         f"Selected dataset ID: {selection_result.dataset_id}. Reason: {selection_result.reason}"
     )
 
+    tile_url = (
+        candidate_datasets[
+            candidate_datasets.dataset_id == selection_result.dataset_id
+        ]
+        .iloc[0]
+        .tile_url
+    )
+    if not isinstance(tile_url, str):
+        tile_url = ""
+
     return DatasetSelectionResult(
         dataset_id=selection_result.dataset_id,
         dataset_name=selection_result.dataset_name,
         context_layer=selection_result.context_layer,
         reason=selection_result.reason,
-        tile_url=candidate_datasets[
-            candidate_datasets.dataset_id == selection_result.dataset_id
-        ]
-        .iloc[0]
-        .tile_url,
+        tile_url=tile_url,
     )
 
 
