@@ -1,5 +1,6 @@
 import streamlit as st
 import json
+import os
 import altair as alt
 from datetime import datetime
 import folium
@@ -10,7 +11,9 @@ from streamlit_folium import folium_static
 from client import ZenoClient
 
 
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = os.environ.get(
+    "API_BASE_URL", os.environ.get("LOCAL_API_BASE_URL", "http://localhost:8000")
+)
 
 
 # TODO: move rendering logic to a separate module so
