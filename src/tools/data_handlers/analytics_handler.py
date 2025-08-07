@@ -95,7 +95,7 @@ class AnalyticsHandler(DataSourceHandler):
         }
 
         # Add dataset-specific parameters
-        if table_name == "DIST-ALERT":
+        if table_name == TN_DIST_ALERT:
             payload = {
                 **base_payload,
                 "start_date": start_date,
@@ -107,20 +107,17 @@ class AnalyticsHandler(DataSourceHandler):
                 ),
             }
 
-        elif table_name in [
-            "natural_lands",
-            "land_cover_change",
-        ]:
+        elif table_name in [TN_NATURAL_LANDS, TN_LAND_COVER_CHANGE]:
             # Natural lands and grasslands don't require date ranges
             payload = base_payload
 
-        elif table_name == "grasslands":
+        elif table_name == TN_GRASSLANDS:
             payload = {
                 **base_payload,
                 "start_year": start_date[:4],  # Extract year from YYYY-MM-DD
                 "end_year": end_date[:4],
             }
-        elif table_name == "tree_cover_loss":
+        elif table_name == TN_TCL:
             payload = {
                 **base_payload,
                 "start_year": start_date[:4],  # Extract year from YYYY-MM-DD

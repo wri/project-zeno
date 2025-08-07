@@ -20,7 +20,7 @@ TN_LAND_COVER_CHANGE = "land_cover_change"
 DS_TCL = "Tree cover loss"
 DS_DIST_ALERT = "Ecosystem disturbance alerts"
 DS_NATURAL_LANDS = "Natural lands"
-DS_GRASSLANDS = "Grasslands"
+DS_GRASSLANDS = "Grassland"
 DS_LAND_COVER_CHANGE = "Global land cover"
 
 DATASET_NAMES = {
