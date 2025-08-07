@@ -20,7 +20,7 @@ from src.utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 data_dir = Path("data")
-zeno_data = pd.read_csv(data_dir / "zeno_data_clean.csv")
+zeno_data = pd.read_csv(data_dir / "zeno_data_clean_v2.csv")
 
 _retriever_cache = {}
 
