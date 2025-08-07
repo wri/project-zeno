@@ -1,8 +1,9 @@
 import uuid
 
 import pytest
+import asyncio
 
-from src.agents.agents import zeno_anonymous
+from src.agents.agents import fetch_zeno_anonymous
 
 
 # Override database fixtures to avoid database connections for these unit tests
@@ -31,6 +32,8 @@ def run_agent(query: str, thread_id: str | None = None):
     config = {"configurable": {"thread_id": thread_id}}
 
     steps = []
+
+    zeno_anonymous = asyncio.run(fetch_zeno_anonymous())
 
     for i, step in enumerate(
         zeno_anonymous.stream(
