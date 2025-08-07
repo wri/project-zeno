@@ -19,7 +19,6 @@ from src.utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 data_dir = Path("data")
-zeno_data = pd.read_csv(data_dir / "zeno_data_clean_v2.csv")
 
 _retriever_cache = {}
 
@@ -77,33 +76,6 @@ def rag_candidate_datasets(query: str, k=3, strategy="openai"):
                 metadata = doc.metadata.copy()
                 metadata["description"] = doc.page_content
                 candidate_datasets.append(metadata)
-        case "nomic":
-            nomic_retriever = _get_nomic_retriever()
-            match_documents = nomic_retriever.invoke(query)
-            for doc in match_documents:
-                candidate_datasets.append(
-                    zeno_data[zeno_data.dataset_id == int(doc.id)]
-                    .iloc[0]
-                    .to_dict()
-                )
-        case "colbert":
-            colbert_retriever, colbert_model = (
-                _get_colbert_retriever_and_model()
-            )
-            query_embedding = colbert_model.encode(
-                query, batch_size=1, is_query=True, show_progress_bar=False
-            )
-
-            scores = colbert_retriever.retrieve(
-                queries_embeddings=query_embedding, k=k
-            )
-
-            candidate_datasets = [
-                zeno_data[zeno_data.dataset_id == int(score["id"])]
-                .iloc[0]
-                .to_dict()
-                for score in scores[0]
-            ]
         case _:
             logger.error(f"Unknown RAG strategy: {strategy}")
             raise ValueError(f"Unknown strategy: {strategy}")
