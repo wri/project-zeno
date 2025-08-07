@@ -17,88 +17,121 @@ def test_db_session():
     pass
 
 
+DIST_ALERT = "ecosystem disturbance alerts"
+LAND_COVER_CHANGE = "land cover change"
+GRASSLANDS = "grasslands"
+NATURAL_LANDS = "natural lands"
+TREE_COVER_LOSS = "tree cover loss"
+
+lookup = {
+    DIST_ALERT: 0,
+    LAND_COVER_CHANGE: 1,
+    GRASSLANDS: 2,
+    NATURAL_LANDS: 3,
+    TREE_COVER_LOSS: 4,
+}
+
+
 @pytest.fixture(
     params=[
         # Dataset 0 queries (Ecosystem disturbance alerts) - near-real-time vegetation changes
         (
             "Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2023 or 2024?",
-            0,
+            DIST_ALERT,
         ),
         (
             "Show me recent vegetation disturbances in the Amazon basin over the past month",
-            0,
+            DIST_ALERT,
         ),
         (
             "Are there any significant changes to natural ecosystems in Indonesia this week?",
-            0,
+            DIST_ALERT,
         ),
         (
             "I need to monitor drought impacts on vegetation cover in East Africa",
-            0,
+            DIST_ALERT,
         ),
         (
             "What areas show signs of land management interventions in the past 6 months?",
-            0,
+            DIST_ALERT,
         ),
         # Dataset 1 queries (Global land cover) - annual land cover classification and change
-        ("How much of the world is urban?", 1),
-        ("Which had more cropland in 2015, Nigeria or Ghana?", 1),
+        ("How much of the world is urban?", LAND_COVER_CHANGE),
+        (
+            "Which had more cropland in 2015, Nigeria or Ghana?",
+            LAND_COVER_CHANGE,
+        ),
         (
             "What's the trend in agricultural expansion across Southeast Asia since 2015?",
-            1,
+            LAND_COVER_CHANGE,
         ),
         (
             "I'm studying urbanization patterns in sub-Saharan Africa between 2020 and 2024",
-            1,
+            LAND_COVER_CHANGE,
         ),
-        ("Show me areas where wetlands have been converted to other uses", 1),
+        (
+            "Show me areas where wetlands have been converted to other uses",
+            LAND_COVER_CHANGE,
+        ),
         # Dataset 2 queries (Grassland) - natural and cultivated grassland classification
-        ("What is the total area of prairie ecosystems in North America?", 2),
+        (
+            "What is the total area of prairie ecosystems in North America?",
+            GRASSLANDS,
+        ),
         (
             "How much rangeland has been converted to agriculture in Mongolia since 2010?",
-            2,
+            GRASSLANDS,
         ),
         (
             "Which regions show the fastest decline in native grassland habitats?",
-            2,
+            GRASSLANDS,
         ),
         (
             "I need data on pastoral landscapes and their management intensity",
-            2,
+            GRASSLANDS,
         ),
-        ("Where are the largest intact grassland ecosystems globally?", 2),
+        (
+            "Where are the largest intact grassland ecosystems globally?",
+            GRASSLANDS,
+        ),
         # Dataset 3 queries (Natural lands) - SBTN baseline for conversion monitoring
         (
             "What percentage of land area in Brazil consists of natural ecosystems according to the 2020 baseline?",
-            3,
+            NATURAL_LANDS,
         ),
         (
             "I'm monitoring my supply chain for conversion of natural ecosystems",
-            3,
+            NATURAL_LANDS,
         ),
         (
             "Which provinces in Canada have the highest proportion of intact landscapes?",
-            3,
+            NATURAL_LANDS,
         ),
         (
             "Show me areas where natural habitats remain undisturbed by human activities",
-            3,
+            NATURAL_LANDS,
         ),
         (
             "What's the baseline extent of natural vegetation before any recent conversions?",
-            3,
+            NATURAL_LANDS,
         ),
         # Dataset 4 queries (Tree cover loss) - annual forest loss detection
         (
             "What percent of 2000 forest did Kalimantan Barat lose from 2001 through 2024?",
-            4,
+            TREE_COVER_LOSS,
         ),
-        ("Which country had the most deforestation in 2018?", 4),
-        ("Show me areas of recent forest clearing in the Congo Basin", 4),
-        ("I need to track plantation harvesting cycles in northern Europe", 4),
+        ("Which country had the most deforestation in 2018?", TREE_COVER_LOSS),
+        (
+            "Show me areas of recent forest clearing in the Congo Basin",
+            TREE_COVER_LOSS,
+        ),
+        (
+            "I need to track plantation harvesting cycles in northern Europe",
+            TREE_COVER_LOSS,
+        ),
         (
             "What regions experienced the most fire-related forest damage last year?",
-            4,
+            TREE_COVER_LOSS,
         ),
     ]
 )
@@ -107,7 +140,7 @@ def test_query_with_expected_dataset(request):
 
 
 def test_queries_return_expected_dataset(test_query_with_expected_dataset):
-    query, expected_dataset_id = test_query_with_expected_dataset
+    query, expected_dataset = test_query_with_expected_dataset
 
     command = pick_dataset.invoke(
         {
@@ -117,7 +150,7 @@ def test_queries_return_expected_dataset(test_query_with_expected_dataset):
     )
 
     dataset_id = command.update.get("dataset", {}).get("dataset_id")
-    assert dataset_id == expected_dataset_id
+    assert dataset_id == lookup[expected_dataset]
 
 
 def test_query_dist_alerts_with_context_layer():
