@@ -102,6 +102,29 @@ class ZenoClient:
                     decoded_update = update.decode("utf-8")
                     yield json.loads(decoded_update)
 
+
+    def fetch_geometry(self, source:str, src_id: str):
+        """
+        Fetch the geometry for a given src_id.
+
+        Args:
+            src_id: The source ID to fetch geometry for
+        Returns:
+            The geometry data as a dictionary
+        """
+        if not self.token:
+            raise ValueError("Token is required to fetch geometry.")
+        url = f"{self.base_url}/api/geometry/{source}/{src_id}"
+        headers = {"Authorization": f"Bearer {self.token}"}
+
+        with requests.get(url, headers=headers) as response:
+            if response.status_code != 200:
+                raise Exception(
+                    f"Request failed with status code {response.status_code}: {response.text}"
+                )
+            return response.json()
+
+
     def chat(
         self,
         query: str,

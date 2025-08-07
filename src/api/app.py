@@ -1,19 +1,18 @@
 import json
 import os
+import uuid
+from contextlib import asynccontextmanager
+from datetime import date
 from typing import Dict, Optional
 from uuid import UUID
-import uuid
+
 import cachetools
 import requests
-from datetime import date
-from contextlib import asynccontextmanager
-
 import structlog
-
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
-from fastapi.security import HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPBearer
 from itsdangerous import BadSignature, TimestampSigner
 
 from langchain_core.load import dumps
@@ -27,29 +26,36 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.agents import fetch_zeno, fetch_zeno_anonymous, fetch_checkpointer
+
+from src.api.data_models import (
+    CustomAreaOrm,
+    DailyUsageOrm,
+    ThreadOrm,
+    UserOrm,
+    UserType,
+    get_async_engine,
+    get_async_session,
+)
 from src.api.schemas import (
-    UserModel,
     ChatRequest,
-    ThreadModel,
     CustomAreaCreate,
     CustomAreaModel,
-    GeometryResponse,
     CustomAreaNameRequest,
+    GeometryResponse,
+    ThreadModel,
+    UserModel,
 )
-from src.api.data_models import (
-    ThreadOrm,
-    UserType,
-    UserOrm,
-    DailyUsageOrm,
-    CustomAreaOrm,
-    get_async_session,
-    get_async_engine,
-)
+
 from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.config import APISettings
-from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
 from src.utils.llms import HAIKU
+from src.utils.geocoding_helpers import (
+    GADM_SUBTYPE_MAP,
+    SOURCE_ID_MAPPING,
+    SUBREGION_TO_SUBTYPE_MAPPING,
+    SOURCE_ID_MAPPING,
+)
 
 
 # Load environment variables using shared utility
@@ -217,7 +223,6 @@ async def replay_chat(thread_id):
         rendered_state_elements = {"messages": []}
 
         for checkpoint in checkpoints:
-
             update = {"messages": []}
 
             for message in checkpoint.values.get("messages", []):
@@ -234,7 +239,6 @@ async def replay_chat(thread_id):
 
             # Render the rest of the state updates
             for key, value in checkpoint.values.items():
-
                 if key == "messages":
                     continue  # Skip messages, already handled above
 
@@ -306,21 +310,21 @@ async def stream_chat(
         for action_type, action_data in ui_context.items():
             match action_type:
                 case "aoi_selected":
-                    content = f"User selected AOI in UI: {action_data['aoi_name']}"
+                    content = f"User selected AOI in UI: {action_data['aoi_name']}\n\n"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
                     state_updates["subregion_aois"] = action_data["subregion_aois"]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
-                    content = f"User selected dataset in UI: {action_data['dataset']['data_layer']}"
+                    content = f"User selected dataset in UI: {action_data['dataset']['data_layer']}\n\n"
                     state_updates["dataset"] = action_data["dataset"]
                 case "daterange_selected":
                     content = f"User selected daterange in UI: start_date: {action_data['start_date']}, end_date: {action_data['end_date']}"
                     state_updates["start_date"] = action_data["start_date"]
                     state_updates["end_date"] = action_data["end_date"]
                 case _:
-                    content = f"User performed action in UI: {action_type}"
+                    content = f"User performed action in UI: {action_type}\n\n"
             ui_action_message.append(content)
 
     ui_message = HumanMessage(content="\n".join(ui_action_message))
@@ -411,7 +415,6 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 def fetch_user_from_rw_api(
     authorization: Optional[str] = Depends(security),
 ) -> UserModel:
-
     if not authorization:
         return None
 
@@ -439,8 +442,6 @@ def fetch_user_from_rw_api(
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     user_info = resp.json()
-    # cache user info
-    _user_info_cache[token] = UserModel.model_validate(user_info)
 
     if "name" not in user_info:
         logger.warning(
@@ -448,6 +449,9 @@ def fetch_user_from_rw_api(
             email=user_info.get("email", None),
         )
         user_info["name"] = user_info["email"].split("@")[0]
+
+    # cache user info
+    _user_info_cache[token] = UserModel.model_validate(user_info)
 
     domains_allowlist = APISettings.domains_allowlist
 
@@ -542,7 +546,6 @@ async def check_quota(
     user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
     session: AsyncSession = Depends(get_async_session),
 ):
-
     if not APISettings.enable_quota_checking:
         return {}
 
@@ -778,7 +781,9 @@ async def delete_thread(
 
 @app.get("/api/geometry/{source}/{src_id}", response_model=GeometryResponse)
 async def get_geometry(
-    source: str, src_id: str, session: AsyncSession = Depends(get_async_session)
+    source: str,
+    src_id: str,
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Get geometry data by source and source ID.
@@ -812,7 +817,7 @@ async def get_geometry(
 
     try:
         q = await session.execute(text(sql_query), {"src_id": src_id})
-        result = q.scalars().fetchone()
+        result = q.first()
 
         if not result:
             raise HTTPException(
@@ -884,6 +889,8 @@ async def api_metadata() -> dict:
         "layer_id_mapping": {
             key: value["id_column"] for key, value in SOURCE_ID_MAPPING.items()
         },
+        "subregion_to_subtype_mapping": SUBREGION_TO_SUBTYPE_MAPPING,
+        "gadm_subtype_mapping": GADM_SUBTYPE_MAP,
     }
 
 

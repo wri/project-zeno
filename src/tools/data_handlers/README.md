@@ -10,8 +10,8 @@ This directory contains modular data source handlers for the `pull_data` system.
 2. **DataPullResult**: Standardized result object returned by all handlers
 3. **DataPullOrchestrator**: Manages and routes requests to appropriate handlers
 4. **Built-in Handlers**:
-   - `DistAlertHandler`: Handles DIST-ALERT data from the specialized endpoint
-   - `StandardGFWHandler`: Handles standard GFW data sources with SQL queries
+   - `AnalyticsHandler`: Handles multiple analytics datasets (DIST-ALERT, natural lands, grasslands, tree cover loss) from GFW Analytics API endpoints
+   - `GFWSQLHandler`: Handles standard GFW data sources with SQL queries
 
 ### Key Benefits
 
@@ -68,8 +68,8 @@ Add your handler to the orchestrator in `pull_data.py`:
 class DataPullOrchestrator:
     def __init__(self):
         self.handlers = [
-            DistAlertHandler(),
-            StandardGFWHandler(),
+            AnalyticsHandler(),
+            GFWSQLHandler(),
             MyCustomHandler(),  # Add your handler here
         ]
 ```

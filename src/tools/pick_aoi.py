@@ -1,9 +1,7 @@
-import json
-from typing import Annotated, Literal, Optional
 import os
-import pandas as pd
+from typing import Annotated, Literal, Optional
 
-from sqlalchemy import create_engine, text
+import pandas as pd
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -11,19 +9,19 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 from pydantic import BaseModel, Field
+from sqlalchemy import create_engine, text
 
 from src.utils.env_loader import load_environment_variables
-from src.utils.llms import SONNET
-from src.utils.logging_config import get_logger
 from src.utils.geocoding_helpers import (
-    SOURCE_ID_MAPPING,
     GADM_TABLE,
     KBA_TABLE,
     LANDMARK_TABLE,
-    WDPA_TABLE,
+    SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
+    WDPA_TABLE,
 )
-
+from src.utils.llms import SONNET
+from src.utils.logging_config import get_logger
 
 RESULT_LIMIT = 10
 
@@ -176,7 +174,9 @@ def query_aoi_database(
     return query_results
 
 
-def query_subregion_database(engine, subregion_name: str, source: str, src_id: int):
+def query_subregion_database(
+    engine, subregion_name: str, source: str, src_id: int
+):
     """Query the right table in PostGIS database for subregions based on the selected AOI.
 
     Args:
@@ -199,15 +199,23 @@ def query_subregion_database(engine, subregion_name: str, source: str, src_id: i
         ):
             table_name = GADM_TABLE
             subtype = SUBREGION_TO_SUBTYPE_MAPPING[subregion_name]
+            subregion_source = "gadm"
+            src_id_field = SOURCE_ID_MAPPING["gadm"]["id_column"]
         case "kba":
             table_name = KBA_TABLE
             subtype = SUBREGION_TO_SUBTYPE_MAPPING["kba"]
+            subregion_source = "kba"
+            src_id_field = SOURCE_ID_MAPPING["kba"]["id_column"]
         case "wdpa":
             table_name = WDPA_TABLE
             subtype = SUBREGION_TO_SUBTYPE_MAPPING["wdpa"]
+            subregion_source = "wdpa"
+            src_id_field = SOURCE_ID_MAPPING["wdpa"]["id_column"]
         case "landmark":
             table_name = LANDMARK_TABLE
             subtype = SUBREGION_TO_SUBTYPE_MAPPING["landmark"]
+            subregion_source = "landmark"
+            src_id_field = SOURCE_ID_MAPPING["landmark"]["id_column"]
         case _:
             logger.error(f"Invalid subregion: {subregion_name}")
             raise ValueError(
@@ -228,7 +236,7 @@ def query_subregion_database(engine, subregion_name: str, source: str, src_id: i
         WHERE "{id_column}" = :src_id
         LIMIT 1
     )
-    SELECT t.*, ST_AsGeoJSON(t.geometry) as geometry_json
+    SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id
     FROM {table_name} AS t, aoi
     WHERE t.subtype = :subtype
     AND ST_Within(t.geometry, aoi.geom)
@@ -237,22 +245,10 @@ def query_subregion_database(engine, subregion_name: str, source: str, src_id: i
 
     with engine.connect() as conn:
         results = pd.read_sql(
-            text(sql_query), conn, params={"src_id": src_id, "subtype": subtype}
+            text(sql_query),
+            conn,
+            params={"src_id": src_id, "subtype": subtype},
         )
-
-    # Parse GeoJSON strings in the results
-    if not results.empty and "geometry_json" in results.columns:
-        for idx, row in results.iterrows():
-            if row["geometry_json"] is not None:
-                try:
-                    results.at[idx, "geometry"] = json.loads(row["geometry_json"])
-                except json.JSONDecodeError as e:
-                    logger.error(
-                        f"Failed to parse GeoJSON for subregion {row.get('name', 'Unknown')}: {e}"
-                    )
-                    results.at[idx, "geometry"] = None
-        # Drop the geometry_json column as we now have parsed geometry
-        results = results.drop(columns=["geometry_json"])
 
     return results
 
@@ -287,7 +283,9 @@ AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 # Chain for selecting the best location match
-AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(AOIIndex)
+AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
+    AOIIndex
+)
 
 
 @tool("pick-aoi")
@@ -320,7 +318,9 @@ async def pick_aoi(
         subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
     try:
-        logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
+        logger.info(
+            f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'"
+        )
         # Query the database for place & get top matches using similarity
         engine = get_postgis_connection()
         results = query_aoi_database(engine, place, RESULT_LIMIT)
@@ -359,7 +359,7 @@ async def pick_aoi(
         source_table = source_table_map[source]
 
         sql_query = f"""
-            SELECT name, subtype, ST_AsGeoJSON(geometry) as geometry_json, "{id_column}" as src_id
+            SELECT name, subtype, "{id_column}" as src_id
             FROM {source_table}
             WHERE "{id_column}" = :src_id
         """
@@ -374,38 +374,17 @@ async def pick_aoi(
 
         selected_aoi = selected_aoi_df.iloc[0].to_dict()
         selected_aoi[SOURCE_ID_MAPPING[source]["id_column"]] = src_id
-
-        # Parse the GeoJSON string into a Python dictionary
-        if (
-            "geometry_json" in selected_aoi
-            and selected_aoi["geometry_json"] is not None
-        ):
-            try:
-                selected_aoi["geometry"] = json.loads(selected_aoi["geometry_json"])
-                logger.debug(
-                    f"Parsed GeoJSON geometry for AOI: {selected_aoi.get('name', 'Unknown')}"
-                )
-            except json.JSONDecodeError as e:
-                logger.error(
-                    f"Failed to parse GeoJSON for AOI {selected_aoi.get('name', 'Unknown')}: {e}"
-                )
-                selected_aoi["geometry"] = None
-            # Remove the geometry_json column as we now have parsed geometry
-            del selected_aoi["geometry_json"]
-        else:
-            logger.warning(
-                f"No geometry found for AOI: {selected_aoi.get('name', 'Unknown')}"
-            )
+        selected_aoi["source"] = source
 
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
-            subregion_aois = query_subregion_database(engine, subregion, source, src_id)
+            subregion_aois = query_subregion_database(
+                engine, subregion, source, src_id
+            )
             subregion_aois = subregion_aois.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
 
-        tool_message = (
-            f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
-        )
+        tool_message = f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
         if subregion:
             tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
 
@@ -419,7 +398,9 @@ async def pick_aoi(
                 "aoi_name": selected_aoi["name"],
                 "subtype": selected_aoi["subtype"],
                 # Update the message history
-                "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
+                "messages": [
+                    ToolMessage(tool_message, tool_call_id=tool_call_id)
+                ],
             },
         )
     except Exception as e:
@@ -427,7 +408,9 @@ async def pick_aoi(
         return Command(
             update={
                 "messages": [
-                    ToolMessage(str(e), tool_call_id=tool_call_id, status="error")
+                    ToolMessage(
+                        str(e), tool_call_id=tool_call_id, status="error"
+                    )
                 ],
             },
         )

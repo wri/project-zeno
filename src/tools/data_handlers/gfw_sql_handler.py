@@ -8,13 +8,13 @@ from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, model_validator
 
 from src.tools.data_handlers.base import (
+    DATASET_NAMES,
     DataPullResult,
     DataSourceHandler,
-    dataset_names,
 )
+from src.utils.geocoding_helpers import GADM_LEVELS
 from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
-from src.utils.geocoding_helpers import GADM_LEVELS
 
 logger = get_logger(__name__)
 
@@ -63,9 +63,7 @@ def fetch_table_fields(table_slug: str) -> FieldSelection:
     logger.debug(f"Using latest dataset version: {latest_version}")
 
     # This contains an asset URI with tiling endpoint for the precomputed raster (.pbf)!
-    assets_url = (
-        f"{GFW_DATA_API_BASE_URL}/assets?dataset={table_slug}&version={latest_version}"
-    )
+    assets_url = f"{GFW_DATA_API_BASE_URL}/assets?dataset={table_slug}&version={latest_version}"
     table_metadata = requests.get(
         assets_url,
         headers={"x-api-key": os.environ["GFW_DATA_API_KEY"]},
@@ -77,7 +75,9 @@ def fetch_table_fields(table_slug: str) -> FieldSelection:
         {
             "name": f["name"],
             "description": (
-                f["description"] if f["description"] else " ".join(f["name"].split("_"))
+                f["description"]
+                if f["description"]
+                else " ".join(f["name"].split("_"))
             ),
             "data_type": f["data_type"],
         }
@@ -155,7 +155,7 @@ class GFWSQLHandler(DataSourceHandler):
     ) -> DataPullResult:
         try:
             aoi_name = aoi["name"]
-            table_name = dataset_names[dataset["data_layer"]]
+            table_name = DATASET_NAMES[dataset["data_layer"]]
             table_slug = self._determine_table_slug(table_name, subtype)
 
             logger.debug(f"Determined table slug: {table_slug}")
@@ -188,7 +188,9 @@ class GFWSQLHandler(DataSourceHandler):
         except Exception as e:
             error_msg = f"Failed to pull standard GFW data: {e}"
             logger.error(error_msg, exc_info=True)
-            return DataPullResult(success=False, data={"data": []}, message=error_msg)
+            return DataPullResult(
+                success=False, data={"data": []}, message=error_msg
+            )
 
     def _determine_table_slug(self, table_name: str, subtype: str) -> str:
         """Determine the appropriate table slug based on subtype"""
@@ -203,11 +205,11 @@ class GFWSQLHandler(DataSourceHandler):
             ):
                 gadm_level = GADM_LEVELS[subtype]
                 return f"gadm__{table_name}__{gadm_level['name']}_change"
-            case "kba":
+            case "key-biodiversity-area":
                 return f"kba__{table_name}_change"
-            case "wdpa":
+            case "protected-area":
                 return f"wdpa_protected_areas__{table_name}_change"
-            case "landmark":
+            case "indigenous-and-community-land":
                 return f"landmark__{table_name}_change"
             case _:
                 logger.error(f"Unsupported subtype: {subtype}")
@@ -236,8 +238,9 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
         )
 
         logger.debug("Invoking field selection chain...")
-        field_selection_chain = FIELD_SELECTION_PROMPT | SONNET.with_structured_output(
-            FieldSelection
+        field_selection_chain = (
+            FIELD_SELECTION_PROMPT
+            | SONNET.with_structured_output(FieldSelection)
         )
         return field_selection_chain.invoke(
             {"user_query": query, "fields": table_fields.as_csv()}
@@ -288,7 +291,7 @@ Return rows from the csv as the answer, where each row is formatted as 'name,dat
         logger.debug("Invoking SQL query generation chain...")
         sql_query_chain = SQL_QUERY_PROMPT | SONNET
         logger.info(f"aoi: {list(aoi.keys())}, gadm_level: {gadm_level}")
-        location_filter = GadmId(gadm_id=aoi["gadm_id"]).as_sql_filter()
+        location_filter = GadmId(gadm_id=aoi["src_id"]).as_sql_filter()
 
         return sql_query_chain.invoke(
             {

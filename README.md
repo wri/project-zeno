@@ -129,7 +129,7 @@ uv run pytest tests/api/
 The system automatically loads `.env` first, then overrides with `.env.local` for local development.
 
 ```bash
-uv run streamlit run frontend/app.py
+uv run streamlit run src/frontend/app.py
 ```
 
 ## Setup Database
@@ -177,3 +177,22 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-loc
 3. Within the Langfuse UI, create an organization and then a project.
 4. Copy the API keys (public and secret) generated for your project.
 5. Update the `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` environment variables in your `docker-compose.yml` file with the copied keys.
+
+## Dataset lookup RAG
+
+After syncing the data, use the latest version of the zeno data clean csv file to
+create embeddings that are used for looking up datasets based on queries.
+
+The latest csv reference file currently is
+
+```bash
+aws s3 cp s3://zeno-static-data/zeno_data_clean_v2.csv data/
+```
+
+then run
+
+```bash
+python src/ingest/embed_datasets.py
+```
+
+This will update the local database at `data/zeno-docs-openai-index`.

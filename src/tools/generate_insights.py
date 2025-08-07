@@ -82,6 +82,7 @@ Recharts data format:
 - For time data, use ISO date strings or simple date formats
 
 User's original query: {user_query}
+The name of the area of interest if available: {aoi_name}
 Raw data (in CSV format):
 {raw_data}
 
@@ -148,7 +149,16 @@ async def generate_insights(
         chain = INSIGHT_GENERATION_PROMPT | SONNET.with_structured_output(
             InsightResponse
         )
-        response = await chain.ainvoke({"user_query": query, "raw_data": data_csv})
+        response = chain.invoke(
+            {
+                "user_query": query,
+                "raw_data": data_csv,
+                # when picking an area of interest manually, the query will not have an area of interest
+                # mentioned, so we can use the state to get the area name to pass to the LLM
+                # Otherwise, the insight heading might not mention the name of the area
+                "aoi_name": state.get("aoi_name", ""),
+            }
+        )
 
         insights = response.insights
         logger.debug(f"Generated {len(insights)} insights")
