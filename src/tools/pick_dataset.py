@@ -154,7 +154,7 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
                     "description",
                     "funcion_notes",
                     "date",
-                    "context_layer",
+                    "context_layers",
                 ]
             ].to_csv(index=False),
             "user_query": query,
