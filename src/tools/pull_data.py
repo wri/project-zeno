@@ -6,9 +6,8 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from src.tools.data_handlers.base import DataPullResult, dataset_names
-from src.tools.data_handlers.dist_alerts_handler import DistAlertHandler
-from src.tools.data_handlers.gfw_sql_handler import GFWSQLHandler
+from src.tools.data_handlers.analytics_handler import AnalyticsHandler
+from src.tools.data_handlers.base import DATASET_NAMES, DataPullResult
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -19,8 +18,7 @@ class DataPullOrchestrator:
 
     def __init__(self):
         self.handlers = [
-            DistAlertHandler(),
-            GFWSQLHandler(),
+            AnalyticsHandler(),
         ]
 
     def pull_data(
@@ -35,19 +33,13 @@ class DataPullOrchestrator:
         end_date: str,
     ) -> DataPullResult:
         """Pull data using the appropriate handler"""
-        if dataset["source"] != "GFW":
-            return DataPullResult(
-                success=False,
-                data={"data": []},
-                message=f"Dataset from {dataset['source']} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question.",
-            )
 
-        table_name = dataset_names.get(dataset["data_layer"])
+        table_name = DATASET_NAMES.get(dataset["dataset_name"])
         if not table_name:
             return DataPullResult(
                 success=False,
                 data={"data": []},
-                message=f"Dataset {dataset['data_layer']} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question.",
+                message=f"Dataset {dataset['dataset_name']} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question.",
             )
 
         # Find appropriate handler
@@ -67,7 +59,7 @@ class DataPullOrchestrator:
         return DataPullResult(
             success=False,
             data={"data": []},
-            message=f"No handler found for dataset: {dataset['data_layer']}. Please ask for data from GFW datasets.",
+            message=f"No handler found for dataset: {dataset['dataset_name']}. Please ask for data from GFW datasets.",
         )
 
 
@@ -139,7 +131,7 @@ def pull_data(
     elif result.success:
         raw_data = result.data
     else:
-        raw_data = []
+        raw_data = None
 
     return Command(
         update={

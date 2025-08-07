@@ -359,12 +359,11 @@ class AgentState(TypedDict):
 ```json
 {
     "dataset": {
-        "dataset_id": 14,
-        "source": "GFW",
-        "data_layer": "DIST-ALERT",
-        "tile_url": "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color",
-        "context_layer": "driver",
-        "threshold": null
+        "dataset_id": 0,
+        "dataset_name": "Ecosystem disturbance alerts",
+        "context_layer": null,
+        "reason": "This dataset directly matches the query as it provides \"Global All Ecosystem Disturbance Alerts (DIST-ALERT)\" with near-real-time alerts of vegetation disturbance globally, which is exactly what the user is asking about regarding ecosystem disturbance alerts distribution.",
+        "tile_url": "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color"
     },
     "message": {
         "selected_dataset": "DIST-ALERT",
