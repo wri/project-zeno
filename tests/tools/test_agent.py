@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+import asyncio
 
 from src.agents.agents import fetch_zeno_anonymous
 
