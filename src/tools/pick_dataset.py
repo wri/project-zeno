@@ -9,7 +9,6 @@ from langchain_core.tools.base import InjectedToolCallId
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
-from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 from pylate import indexes, models, retrieve
@@ -113,22 +112,29 @@ def rag_candidate_datasets(query: str, k=3, strategy="openai"):
     return pd.DataFrame(candidate_datasets)
 
 
-def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
-    class DatasetOption(BaseModel):
-        dataset_id: int = Field(
-            description="ID of the dataset that best matches the user query."
-        )
-        dataset_name: str = Field(
-            description="Name of the dataset that best matches the user query."
-        )
-        context_layer: Optional[str] = Field(
-            None,
-            description="Pick a single context layer from the dataset if useful",
-        )
-        reason: str = Field(
-            description="Short reason why the dataset is the best match."
-        )
+class DatasetOption(BaseModel):
+    dataset_id: int = Field(
+        description="ID of the dataset that best matches the user query."
+    )
+    dataset_name: str = Field(
+        description="Name of the dataset that best matches the user query."
+    )
+    context_layer: Optional[str] = Field(
+        None,
+        description="Pick a single context layer from the dataset if useful",
+    )
+    reason: str = Field(
+        description="Short reason why the dataset is the best match."
+    )
 
+
+class DatasetSelectionResult(DatasetOption):
+    tile_url: str = Field(
+        description="Tile URL of the dataset that best matches the user query."
+    )
+
+
+def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
             (
@@ -169,47 +175,18 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     logger.debug(
         f"Selected dataset ID: {selection_result.dataset_id}. Reason: {selection_result.reason}"
     )
-    return selection_result
 
-
-class DatasetInfo(BaseModel):
-    context_layer: Optional[str] = Field(
-        None,
-        description="Pick a single context layer from the dataset if useful",
-    )
-    threshold: Optional[int] = None
-
-
-def extract_dataset_info(query: str, selection_id: int):
-    DATASET_PROMPT = ChatPromptTemplate.from_messages(
-        [
-            (
-                "user",
-                """Given the user query and the dataset - pick an optional context layer from the dataset if useful.
-
-    Dataset:
-    {dataset}
-
-    User Query:
-    {user_query}
-    """,
-            ),
+    return DatasetSelectionResult(
+        dataset_id=selection_result.dataset_id,
+        dataset_name=selection_result.dataset_name,
+        context_layer=selection_result.context_layer,
+        reason=selection_result.reason,
+        tile_url=candidate_datasets[
+            candidate_datasets.dataset_id == selection_result.dataset_id
         ]
+        .iloc[0]
+        .tile_url,
     )
-
-    logger.debug(
-        f"Invoking dataset info extraction chain for dataset ID: {selection_id}"
-    )
-    dataset_chain = DATASET_PROMPT | SONNET.with_structured_output(DatasetInfo)
-    dataset_row = zeno_data[zeno_data.dataset_id == selection_id].iloc[0]
-    final_info = dataset_chain.invoke(
-        {
-            "user_query": query,
-            "dataset": dataset_row.to_json(),
-        }
-    )
-    logger.debug(f"Extracted dataset info: {final_info}")
-    return final_info
 
 
 @tool("pick-dataset")
@@ -224,15 +201,10 @@ def pick_dataset(
     # Step 1: RAG lookup
     candidate_datasets = rag_candidate_datasets(query, k=3, strategy="openai")
 
-    # Step 2: LLM to select best dataset
+    # Step 2: LLM to select best dataset and potential context layer
     selection_result = select_best_dataset(query, candidate_datasets)
 
     tool_message = f"""Selected dataset ID: {selection_result.dataset_id}\nContext layer: {selection_result.context_layer}\nReasoning: {selection_result.reason}"""
-
-    # Step 3: LLM to extract structured info for downstream query
-    # dataset_info = extract_dataset_info(query, selection_result.id)
-
-    # tool_message = f"""Selected dataset: {dataset_info.data_layer}\nContext layer: {dataset_info.context_layer}\nTile URL: {dataset_info.tile_url}\nThreshold: {dataset_info.threshold}\nReasoning: {selection_result.reason}"""
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
 
@@ -242,37 +214,3 @@ def pick_dataset(
             "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
         },
     )
-
-
-if __name__ == "__main__":
-    agent = create_react_agent(
-        SONNET,
-        tools=[pick_dataset],
-        prompt="""You are a Data Agent that can ONLY HELP PICK a dataset using the `pick-dataset` tool.
-
-        {instructions}
-        """,
-    )
-
-    user_queries = [
-        "find threats to tigers in kbas of Odisha",
-        "Show me forest data for congo not drc",
-        "What is the deforestation rate in Ontario last year?",
-        "I need urgent data on ilegal logging in Borgou!!",
-        "How much tree cover has been lost in Sumatera since 2000?",
-        "find threats to tigers in Simlipal Park",
-        "find deforestation rate in Amazon",
-        "find crocodile statistics in Satkosia Gorge",
-        "find deforestation rate in PNG",
-    ]
-
-    for query in user_queries[:1]:
-        for step in agent.stream(
-            {"messages": [{"role": "user", "content": query}]},
-            stream_mode="values",
-        ):
-            message = step["messages"][-1]
-            if isinstance(message, tuple):
-                logger.info(message)
-            else:
-                message.pretty_print()
