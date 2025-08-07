@@ -5,6 +5,11 @@ import requests
 
 from src.tools.data_handlers.base import (
     DATASET_NAMES,
+    TN_DIST_ALERT,
+    TN_GRASSLANDS,
+    TN_LAND_COVER_CHANGE,
+    TN_NATURAL_LANDS,
+    TN_TCL,
     DataPullResult,
     DataSourceHandler,
 )
@@ -34,19 +39,11 @@ class AnalyticsHandler(DataSourceHandler):
 
     # Mapping of dataset names to their API endpoints
     ENDPOINT_MAPPING = {
-        DATASET_NAMES[
-            "Ecosystem disturbance alerts"
-        ]: "/v0/land_change/dist_alerts/analytics",
-        DATASET_NAMES[
-            "Natural lands"
-        ]: "/v0/land_change/natural_lands/analytics",
-        DATASET_NAMES["Grasslands"]: "/v0/land_change/grasslands/analytics",
-        DATASET_NAMES[
-            "Tree cover loss"
-        ]: "/v0/land_change/tree_cover_loss/analytics",
-        DATASET_NAMES[
-            "Land cover change"
-        ]: "/v0/land_change/land_cover_change/analytics",
+        TN_DIST_ALERT: "/v0/land_change/dist_alerts/analytics",
+        TN_NATURAL_LANDS: "/v0/land_change/natural_lands/analytics",
+        TN_GRASSLANDS: "/v0/land_change/grasslands/analytics",
+        TN_TCL: "/v0/land_change/tree_cover_loss/analytics",
+        TN_LAND_COVER_CHANGE: "/v0/land_change/land_cover_change/analytics",
     }
 
     def can_handle(self, dataset: Any, table_name: str) -> bool:

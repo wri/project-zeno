@@ -11,12 +11,24 @@ from typing import Any, Dict, List
 
 from pydantic import BaseModel
 
+TN_TCL = "tree_cover_loss"
+TN_DIST_ALERT = "DIST-ALERT"
+TN_NATURAL_LANDS = "natural_lands"
+TN_GRASSLANDS = "grasslands"
+TN_LAND_COVER_CHANGE = "land_cover_change"
+
+DS_TCL = "Tree cover loss"
+DS_DIST_ALERT = "Ecosystem disturbance alerts"
+DS_NATURAL_LANDS = "Natural lands"
+DS_GRASSLANDS = "Grasslands"
+DS_LAND_COVER_CHANGE = "Global land cover"
+
 DATASET_NAMES = {
-    "Tree cover loss": "tree_cover_loss",
-    "Ecosystem disturbance alerts": "DIST-ALERT",
-    "Natural lands": "natural_lands",
-    "Grasslands": "grasslands",
-    "Land cover change": "land_cover_change",
+    DS_TCL: TN_TCL,
+    DS_DIST_ALERT: TN_DIST_ALERT,
+    DS_NATURAL_LANDS: TN_NATURAL_LANDS,
+    DS_GRASSLANDS: TN_GRASSLANDS,
+    DS_LAND_COVER_CHANGE: TN_LAND_COVER_CHANGE,
 }
 
 
