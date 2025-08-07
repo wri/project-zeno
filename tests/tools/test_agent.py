@@ -72,19 +72,30 @@ def run_agent(query: str, thread_id: str | None = None):
     return steps
 
 
-def test_agent_natural_lands():
-    query = "What is the distribution of natural lands in the canton of Bern, Switzerland?"
+@pytest.mark.parametrize(
+    "dataset",
+    [
+        "ecosystem disturbance alerts",
+        "land cover change",
+        "grasslands",
+        "natural lands",
+        "tree cover loss",
+    ],
+)
+def test_full_agent_for_datasets(dataset):
+    query = f"What is the distribution of {dataset} in the canton of Bern, Switzerland?"
     steps = run_agent(query)
+
     assert len(steps) > 0
 
     has_raw_data = False
     has_insights = False
-    for tool_step in [dat for dat in steps if "tools" in dat]:
+
+    for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
         if "insights" in tool_step:
             has_insights = True
-            break
         if "raw_data" in tool_step:
             has_raw_data = True
-            break
+
     assert has_insights
     assert has_raw_data
