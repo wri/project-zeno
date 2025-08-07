@@ -69,7 +69,7 @@ for idx, row in zeno_data.iterrows():
                 "prompt_examples": row["Prompt examples"],
                 "band_values": row["Band values / meaning"],
                 "source": row["Source"],
-                "context_layer": row[
+                "context_layers": row[
                     "Secondary/Contextual layers / Intersections"
                 ],
             },

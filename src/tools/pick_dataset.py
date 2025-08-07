@@ -75,13 +75,9 @@ def rag_candidate_datasets(query: str, k=3, strategy="openai"):
             openai_retriever = _get_openai_retriever()
             match_documents = openai_retriever.invoke(query)
             for doc in match_documents:
-                candidate_datasets.append(
-                    zeno_data[
-                        zeno_data.dataset_id == int(doc.metadata["dataset_id"])
-                    ]
-                    .iloc[0]
-                    .to_dict()
-                )
+                metadata = doc.metadata.copy()
+                metadata["description"] = doc.page_content
+                candidate_datasets.append(metadata)
         case "nomic":
             nomic_retriever = _get_nomic_retriever()
             match_documents = nomic_retriever.invoke(query)
@@ -154,11 +150,11 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
             "candidate_datasets": candidate_datasets[
                 [
                     "dataset_id",
-                    "Layer Title",
-                    "Description",
-                    "Secondary/Contextual layers / Intersections",
-                    "Date",
-                    "Variables",
+                    "dataset_name",
+                    "description",
+                    "funcion_notes",
+                    "date",
+                    "context_layer",
                 ]
             ].to_csv(index=False),
             "user_query": query,
