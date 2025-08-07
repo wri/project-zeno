@@ -442,17 +442,18 @@ def fetch_user_from_rw_api(
         )
     if resp.status_code != 200:
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
-
+    
     user_info = resp.json()
-    # cache user info
-    _user_info_cache[token] = UserModel.model_validate(user_info)
-
+    
     if "name" not in user_info:
         logger.warning(
             "User info does not contain the 'name' field, using email account name as fallback",
             email=user_info.get("email", None),
         )
         user_info["name"] = user_info["email"].split("@")[0]
+    
+    # cache user info
+    _user_info_cache[token] = UserModel.model_validate(user_info)
 
     domains_allowlist = APISettings.domains_allowlist
 
