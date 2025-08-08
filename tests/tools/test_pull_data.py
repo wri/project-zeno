@@ -108,9 +108,10 @@ def test_db_session():
     pass
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("aoi_data", TEST_AOIS)
 @pytest.mark.parametrize("dataset", ALL_DATASET_COMBINATIONS)
-def test_pick_aoi_queries(aoi_data, dataset):
+async def test_pick_aoi_queries(aoi_data, dataset):
     print(f"Testing {dataset['dataset_name']} with {aoi_data['name']}")
     if dataset["dataset_name"] == "Tree cover loss":
         print(
@@ -133,7 +134,7 @@ def test_pick_aoi_queries(aoi_data, dataset):
         },
     }
 
-    command = pull_data.invoke(
+    command = await pull_data.ainvoke(
         {
             "query": f"find {dataset['dataset_name'].lower()} in {aoi_data['query_description']}",
             "start_date": "2024-01-01",

@@ -139,10 +139,13 @@ def test_query_with_expected_dataset(request):
     return request.param
 
 
-def test_queries_return_expected_dataset(test_query_with_expected_dataset):
+@pytest.mark.asyncio
+async def test_queries_return_expected_dataset(
+    test_query_with_expected_dataset,
+):
     query, expected_dataset = test_query_with_expected_dataset
 
-    command = pick_dataset.invoke(
+    command = await pick_dataset.ainvoke(
         {
             "query": query,
             "tool_call_id": str(uuid.uuid4()),
@@ -153,10 +156,11 @@ def test_queries_return_expected_dataset(test_query_with_expected_dataset):
     assert dataset_id == lookup[expected_dataset]
 
 
-def test_query_dist_alerts_with_context_layer():
+@pytest.mark.asyncio
+async def test_query_dist_alerts_with_context_layer():
     query = "Vegetation disturbances by natural lands"
 
-    command = pick_dataset.invoke(
+    command = await pick_dataset.ainvoke(
         {
             "query": query,
             "tool_call_id": str(uuid.uuid4()),
@@ -169,10 +173,11 @@ def test_query_dist_alerts_with_context_layer():
     assert context_layer == "natural_lands"
 
 
-def test_query_tree_cover_loss_with_context_layer():
+@pytest.mark.asyncio
+async def test_query_tree_cover_loss_with_context_layer():
     query = "Tree cover loss by driver"
 
-    command = pick_dataset.invoke(
+    command = await pick_dataset.ainvoke(
         {
             "query": query,
             "tool_call_id": str(uuid.uuid4()),
