@@ -3,10 +3,8 @@ from __future__ import annotations
 from datetime import datetime, date
 import enum
 from collections.abc import AsyncGenerator
-from typing import Optional
 
 from fastapi import Request
-from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgresUUID
 from sqlalchemy import (
     Column, Date, DateTime, ForeignKey, String, Integer, text, UniqueConstraint
@@ -122,28 +120,3 @@ class CustomAreaOrm(Base):
     )
 
     user = relationship("UserOrm", back_populates="custom_areas")
-
-
-class RatingCreateRequest(BaseModel):
-    thread_id: str
-    trace_id: str
-    rating: int
-    comment: Optional[str] = None
-
-    @field_validator("rating")
-    def validate_rating(cls, v):
-        if v not in [-1, 1]:
-            raise ValueError("Rating must be either 1 (thumbs up) or -1 (thumbs down)")
-        return v
-
-
-class RatingModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: str
-    user_id: str
-    thread_id: str
-    trace_id: str
-    rating: int
-    comment: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime

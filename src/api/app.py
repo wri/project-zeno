@@ -27,8 +27,6 @@ from src.agents.agents import checkpointer, zeno, zeno_anonymous
 from src.api.data_models import (
     CustomAreaOrm,
     DailyUsageOrm,
-    RatingCreateRequest,
-    RatingModel,
     RatingOrm,
     ThreadOrm,
     UserOrm,
@@ -37,6 +35,8 @@ from src.api.data_models import (
     get_async_session,
 )
 from src.api.schemas import (
+    RatingCreateRequest,
+    RatingModel,
     ChatRequest,
     CustomAreaCreate,
     CustomAreaModel,
@@ -859,15 +859,15 @@ async def get_geometry(
 
 @app.post("/api/ratings", response_model=RatingModel)
 async def create_or_update_rating(
-    request: RatingCreateRequest, 
+    request: RatingCreateRequest,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_async_session)
 ):
     """
     Create or update a rating for a trace in a thread.
-    Requires Authorization
+    Requires Authorization.
     """
-    # Verify the thread exists and belongs to the user
+    # Verify if the thread exists and belongs to the user
     stmt = select(ThreadOrm).filter_by(
         id=request.thread_id, user_id=user.id
     )
@@ -875,11 +875,11 @@ async def create_or_update_rating(
     thread = result.scalars().first()
     if not thread:
         raise HTTPException(
-            status_code=404, 
+            status_code=404,
             detail="Thread not found or access denied"
         )
 
-    # Check if rating already exists (upsert logic)
+    # Check if the rating already exists (upsert logic)
     stmt = select(RatingOrm).filter_by(
         user_id=user.id,
         thread_id=request.thread_id,
@@ -895,7 +895,7 @@ async def create_or_update_rating(
         existing_rating.updated_at = datetime.now()
         await session.commit()
         await session.refresh(existing_rating)
-        
+
         logger.info(
             "Rating updated",
             user_id=user.id,
@@ -904,7 +904,7 @@ async def create_or_update_rating(
             rating=request.rating,
             comment=request.comment
         )
-        
+
         return RatingModel.model_validate(existing_rating)
     else:
         # Create new rating
@@ -919,7 +919,7 @@ async def create_or_update_rating(
         session.add(new_rating)
         await session.commit()
         await session.refresh(new_rating)
-        
+
         logger.info(
             "Rating created",
             user_id=user.id,
@@ -928,7 +928,7 @@ async def create_or_update_rating(
             rating=request.rating,
             comment=request.comment
         )
-        
+
         return RatingModel.model_validate(new_rating)
 
 

@@ -1,90 +1,33 @@
 """Tests for ratings API endpoints."""
 import pytest
-import pytest_asyncio
-import uuid
 from httpx import AsyncClient
 
-from src.api.app import app, fetch_user_from_rw_api
-from src.api.data_models import UserOrm, ThreadOrm, RatingOrm
-from src.api.schemas import UserModel
-from tests.conftest import async_session_maker
+from src.api.data_models import UserOrm
 
-# Mock user data for testing - using a Test User from the existing mock pattern
-MOCK_USER_DATA = {
-    "id": "test-user-1",
-    "name": "Test User", 
-    "email": "test@developmentseed.org",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z",
-}
-
-def mock_ratings_user():
-    """Mock user for ratings tests."""
-    return UserModel.model_validate(MOCK_USER_DATA)
-
-@pytest.fixture
-def ratings_user():
-    """Override the fetch_user_from_rw_api dependency with our mock user."""
-    app.dependency_overrides[fetch_user_from_rw_api] = mock_ratings_user
-    yield
-    # Clean up override after test
-    app.dependency_overrides.pop(fetch_user_from_rw_api, None)
-
-@pytest_asyncio.fixture
-async def test_user_and_thread():
-    """Create a test user and thread for testing."""
-    from sqlalchemy import select
-    unique_id = str(uuid.uuid4())[:8]
-    
-    async with async_session_maker() as session:
-        # Check if test user already exists, if not create it
-        stmt = select(UserOrm).filter_by(id=MOCK_USER_DATA["id"])
-        result = await session.execute(stmt)
-        user = result.scalars().first()
-        
-        if not user:
-            user = UserOrm(
-                id=MOCK_USER_DATA["id"],  # Use the mocked user ID so API can find the thread
-                name=MOCK_USER_DATA["name"],
-                email=MOCK_USER_DATA["email"]
-            )
-            session.add(user)
-            await session.commit()
-            await session.refresh(user)
-        
-        # Create test thread that belongs to the mocked user
-        thread = ThreadOrm(
-            id=f"test-thread-{unique_id}",
-            user_id=MOCK_USER_DATA["id"],  # Must match mocked user ID
-            agent_id="test-agent", 
-            name="Test Thread"
-        )
-        session.add(thread)
-        await session.commit()
-        await session.refresh(thread)
-        
-        return user, thread
 
 @pytest.mark.asyncio
-async def test_create_rating_success(test_user_and_thread, client: AsyncClient, ratings_user):
+async def test_create_rating_success(
+    thread_factory, client: AsyncClient, user: UserOrm, auth_override
+):
     """Test successfully creating a new rating."""
-    user, thread = test_user_and_thread
-    
+    thread = await thread_factory(user.id)
+    auth_override(user.id)
+
     response = await client.post(
         "/api/ratings",
         json={
             "thread_id": thread.id,
-            "trace_id": "test-trace-1", 
+            "trace_id": "test-trace-1",
             "rating": 1,
             "comment": "Great response!"
         },
-        headers={"Authorization": "Bearer test-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     # Note: The API uses the mocked user ID, not the DB user ID
-    assert data["user_id"] == MOCK_USER_DATA["id"]
+    assert data["user_id"] == user.id
     assert data["thread_id"] == thread.id
     assert data["trace_id"] == "test-trace-1"
     assert data["rating"] == 1
@@ -93,45 +36,31 @@ async def test_create_rating_success(test_user_and_thread, client: AsyncClient, 
     assert "created_at" in data
     assert "updated_at" in data
 
-@pytest.mark.asyncio
-async def test_update_existing_rating(test_user_and_thread, client: AsyncClient, ratings_user):
-    """Test updating an existing rating (upsert behavior)."""
-    user, thread = test_user_and_thread
-    
-    # Create initial rating with the mocked user ID (not the DB user ID)
-    async with async_session_maker() as session:
-        existing_rating = RatingOrm(
-            id="test-rating-1",
-            user_id=MOCK_USER_DATA["id"],  # Use mocked user ID
-            thread_id=thread.id,
-            trace_id="test-trace-1",
-            rating=1
-        )
-        session.add(existing_rating)
-        await session.commit()
-        original_created_at = existing_rating.created_at
-    
-    response = await client.post(
+    update_res = await client.post(
         "/api/ratings",
         json={
             "thread_id": thread.id,
             "trace_id": "test-trace-1",
             "rating": -1  # Change from thumbs up to thumbs down
         },
-        headers={"Authorization": "Bearer test-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"}
     )
-    
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == existing_rating.id  # Same rating ID
-    assert data["rating"] == -1  # Updated rating
-    assert data["created_at"] == original_created_at.isoformat()  # Created at unchanged
+
+    assert update_res.status_code == 200
+    update_data = update_res.json()
+    assert update_data["id"] == data["id"]  # Same rating ID
+    assert update_data["rating"] == -1  # Updated rating
+    assert update_data["created_at"] == data["created_at"]
+
 
 @pytest.mark.asyncio
-async def test_create_rating_invalid_rating_value(test_user_and_thread, client: AsyncClient, ratings_user):
+async def test_create_rating_invalid_rating_value(
+    thread_factory, user: UserOrm, client: AsyncClient, auth_override
+):
     """Test creating a rating with invalid rating value."""
-    user, thread = test_user_and_thread
-    
+    thread = await thread_factory(user.id)
+    auth_override(user.id)
+
     response = await client.post(
         "/api/ratings",
         json={
@@ -139,17 +68,19 @@ async def test_create_rating_invalid_rating_value(test_user_and_thread, client: 
             "trace_id": "test-trace-1",
             "rating": 5  # Invalid rating (should be 1 or -1)
         },
-        headers={"Authorization": "Bearer test-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"}
     )
-    
+
     assert response.status_code == 422
     assert "Rating must be either 1 (thumbs up) or -1 (thumbs down)" in response.text
 
+
 @pytest.mark.asyncio
-async def test_create_rating_nonexistent_thread(test_user_and_thread, client: AsyncClient, ratings_user):
+async def test_create_rating_nonexistent_thread(
+    client: AsyncClient, auth_override
+):
     """Test creating a rating for a thread that doesn't exist."""
-    user, thread = test_user_and_thread
-    
+    auth_override("test-user-wri")
     response = await client.post(
         "/api/ratings",
         json={
@@ -157,53 +88,47 @@ async def test_create_rating_nonexistent_thread(test_user_and_thread, client: As
             "trace_id": "test-trace-1",
             "rating": 1
         },
-        headers={"Authorization": "Bearer test-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"}
     )
-    
+
     assert response.status_code == 404
     assert "Thread not found or access denied" in response.json()["detail"]
 
+
 @pytest.mark.asyncio
-async def test_create_rating_thread_belongs_to_other_user(test_user_and_thread, client: AsyncClient, ratings_user):
+async def test_create_rating_thread_belongs_to_other_user(
+    thread_factory,
+    user: UserOrm,
+    user_ds: UserOrm,
+    client: AsyncClient,
+    auth_override
+):
     """Test creating a rating for a thread that belongs to another user."""
-    user, thread = test_user_and_thread
-    
-    # Create another user's thread
-    async with async_session_maker() as session:
-        other_user = UserOrm(
-            id="other-user-1",
-            name="Other User",
-            email="other@developmentseed.org"
-        )
-        session.add(other_user)
-        
-        other_thread = ThreadOrm(
-            id="other-thread-1",
-            user_id=other_user.id,
-            agent_id="test-agent",
-            name="Other Thread"
-        )
-        session.add(other_thread)
-        await session.commit()
+    # Execute the test with a user that is not the owner of the thread
+    thread = await thread_factory(user_ds.id)
+    auth_override(user.id)
 
-        response = await client.post(
-            "/api/ratings",
-            json={
-                "thread_id": other_thread.id,  # Thread belongs to other user
-                "trace_id": "test-trace-1",
-                "rating": 1
-            },
-            headers={"Authorization": "Bearer test-token"}
-        )
-    
+    response = await client.post(
+        "/api/ratings",
+        json={
+            "thread_id": thread.id,
+            "trace_id": "test-trace-1",
+            "rating": 1
+        },
+        headers={"Authorization": "Bearer test-user-wri-token"}
+    )
+
     assert response.status_code == 404
     assert "Thread not found or access denied" in response.json()["detail"]
 
+
 @pytest.mark.asyncio
-async def test_create_rating_unauthorized(test_user_and_thread, client: AsyncClient):
+async def test_create_rating_unauthorized(
+    user: UserOrm, thread_factory, client: AsyncClient
+):
     """Test creating a rating without authorization."""
-    user, thread = test_user_and_thread
-    
+    thread = await thread_factory(user.id)
+
     response = await client.post(
         "/api/ratings",
         json={
@@ -211,16 +136,20 @@ async def test_create_rating_unauthorized(test_user_and_thread, client: AsyncCli
             "trace_id": "test-trace-1",
             "rating": 1
         }
-        # No Authorization header
+        # No Authorization header and not auth_override
     )
-    
+
     assert response.status_code == 401  # Unauthorized
 
+
 @pytest.mark.asyncio
-async def test_create_rating_missing_fields(test_user_and_thread, client: AsyncClient, ratings_user):
+async def test_create_rating_missing_fields(
+    auth_override, thread_factory, user: UserOrm, client: AsyncClient
+):
     """Test creating a rating with missing required fields."""
-    user, thread = test_user_and_thread
-    
+    thread = await thread_factory(user.id)
+    auth_override(user.id)
+
     # Missing trace_id
     response = await client.post(
         "/api/ratings",
@@ -228,56 +157,61 @@ async def test_create_rating_missing_fields(test_user_and_thread, client: AsyncC
             "thread_id": thread.id,
             "rating": 1
         },
-        headers={"Authorization": "Bearer test-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"}
     )
-    
+
     assert response.status_code == 422
 
+
 @pytest.mark.asyncio
-async def test_create_multiple_ratings_same_user_different_traces(test_user_and_thread, client: AsyncClient, ratings_user):
-    """Test creating multiple ratings for the same user but different traces."""
-    user, thread = test_user_and_thread
-    
+async def test_create_multiple_ratings_same_user_different_traces(
+    thread_factory, user: UserOrm, client: AsyncClient, auth_override
+):
+    """Test creating multiple ratings for the same user, but different traces.
+    """
+    thread = await thread_factory(user.id)
+    auth_override(user.id)
+
     # Create first rating
     response1 = await client.post(
         "/api/ratings",
         json={
             "thread_id": thread.id,
-            "trace_id": "test-trace-1",
-            "rating": 1
+            "trace_id": "test-trace-3",
+            "rating": 1,
+            "comment": "Great response!",
         },
-        headers={"Authorization": "Bearer test-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"},
     )
-    
+    assert response1.status_code == 200
+
     # Create second rating for different trace
     response2 = await client.post(
         "/api/ratings",
-        json={
-            "thread_id": thread.id,
-            "trace_id": "test-trace-2",
-            "rating": -1
-        },
-        headers={"Authorization": "Bearer test-token"}
+        json={"thread_id": thread.id, "trace_id": "test-trace-4", "rating": -1},
+        headers={"Authorization": "Bearer test-user-wri-token"},
     )
-    
-    assert response1.status_code == 200
     assert response2.status_code == 200
-    
+
     data1 = response1.json()
     data2 = response2.json()
-    
+
     # Should be different ratings
     assert data1["id"] != data2["id"]
-    assert data1["trace_id"] == "test-trace-1"
-    assert data2["trace_id"] == "test-trace-2"
+    assert data1["trace_id"] == "test-trace-3"
+    assert data2["trace_id"] == "test-trace-4"
     assert data1["rating"] == 1
     assert data2["rating"] == -1
 
+
 @pytest.mark.asyncio
-async def test_create_rating_with_comment(test_user_and_thread, client: AsyncClient, ratings_user):
+async def test_create_update_rating_with_comment(
+    thread_factory, user, client: AsyncClient, auth_override
+):
     """Test creating a rating with a comment."""
-    user, thread = test_user_and_thread
-    
+    thread = await thread_factory(user.id)
+    auth_override(user.id)
+
     response = await client.post(
         "/api/ratings",
         json={
@@ -286,62 +220,25 @@ async def test_create_rating_with_comment(test_user_and_thread, client: AsyncCli
             "rating": 1,
             "comment": "This is a test comment"
         },
-        headers={"Authorization": "Bearer test-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["comment"] == "This is a test comment"
 
-@pytest.mark.asyncio
-async def test_create_rating_without_comment(test_user_and_thread, client: AsyncClient, ratings_user):
-    """Test creating a rating without a comment."""
-    user, thread = test_user_and_thread
-    
-    response = await client.post(
-        "/api/ratings",
-        json={
-            "thread_id": thread.id,
-            "trace_id": "test-trace-no-comment",
-            "rating": -1
-        },
-        headers={"Authorization": "Bearer test-token"}
-    )
-    
-    assert response.status_code == 200
-    data = response.json()
-    assert data["comment"] is None
-
-@pytest.mark.asyncio
-async def test_update_rating_comment(test_user_and_thread, client: AsyncClient, ratings_user):
-    """Test updating a rating's comment."""
-    user, thread = test_user_and_thread
-    
-    # Create initial rating
-    async with async_session_maker() as session:
-        existing_rating = RatingOrm(
-            id="test-rating-comment",
-            user_id=MOCK_USER_DATA["id"],
-            thread_id=thread.id,
-            trace_id="test-trace-update-comment",
-            rating=1,
-            comment="Initial comment"
-        )
-        session.add(existing_rating)
-        await session.commit()
-    
     # Update the rating with new comment
     response = await client.post(
         "/api/ratings",
         json={
             "thread_id": thread.id,
-            "trace_id": "test-trace-update-comment",
+            "trace_id": "test-trace-comment",
             "rating": 1,
             "comment": "Updated comment"
         },
-        headers={"Authorization": "Bearer test-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["comment"] == "Updated comment"
