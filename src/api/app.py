@@ -17,6 +17,7 @@ from fastapi.security import HTTPBearer
 from itsdangerous import BadSignature, TimestampSigner
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
+from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
@@ -145,6 +146,7 @@ async def logging_middleware(request: Request, call_next) -> Response:
 
 
 langfuse_handler = CallbackHandler()
+langfuse_client = Langfuse()
 
 # HTTP Middleware to asign/verify anonymous session IDs
 signer = TimestampSigner(os.environ["COOKIE_SIGNER_SECRET_KEY"])
@@ -857,6 +859,41 @@ async def get_geometry(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def send_rating_to_langfuse(trace_id: str, rating: int, comment: str, user_id: str):
+    """
+    Send user rating feedback to Langfuse as a score.
+    
+    Args:
+        trace_id: Langfuse trace ID
+        rating: User rating (1 or -1)  
+        comment: Optional user comment
+        user_id: User ID for context
+    """
+    try:
+        langfuse_client.score(
+            trace_id=trace_id,
+            name="user-feedback",
+            value=rating,
+            comment=comment,
+            data_type="NUMERIC"
+        )
+        logger.info(
+            "Rating sent to Langfuse",
+            trace_id=trace_id,
+            rating=rating,
+            user_id=user_id
+        )
+    except Exception as e:
+        # Don't fail the rating operation if Langfuse is unavailable
+        logger.warning(
+            "Failed to send rating to Langfuse",
+            trace_id=trace_id,
+            rating=rating,
+            user_id=user_id,
+            error=str(e)
+        )
+
+
 @app.post("/api/threads/{thread_id}/rating", response_model=RatingModel)
 async def create_or_update_rating(
     thread_id: str,
@@ -930,6 +967,9 @@ async def create_or_update_rating(
             comment=request.comment
         )
 
+        # Send rating to Langfuse
+        await send_rating_to_langfuse(request.trace_id, request.rating, request.comment, user.id)
+
         return RatingModel.model_validate(existing_rating)
     else:
         # Create new rating
@@ -953,6 +993,9 @@ async def create_or_update_rating(
             rating=request.rating,
             comment=request.comment
         )
+
+        # Send rating to Langfuse
+        await send_rating_to_langfuse(request.trace_id, request.rating, request.comment, user.id)
 
         return RatingModel.model_validate(new_rating)
 
