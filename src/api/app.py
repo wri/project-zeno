@@ -25,7 +25,9 @@ from pydantic import BaseModel, Field
 
 from sqlalchemy import text, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from collections.abc import AsyncGenerator
+
 
 from src.agents.agents import fetch_zeno, fetch_zeno_anonymous, fetch_checkpointer
 
@@ -36,8 +38,6 @@ from src.api.data_models import (
     ThreadOrm,
     UserOrm,
     UserType,
-    get_async_engine,
-    get_async_session,
 )
 from src.api.schemas import (
     RatingCreateRequest,
@@ -50,7 +50,7 @@ from src.api.schemas import (
     ThreadModel,
     UserModel,
 )
-
+from src.utils.database import get_async_engine
 from src.utils.env_loader import load_environment_variables
 from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.config import APISettings
@@ -59,7 +59,6 @@ from src.utils.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
-    SOURCE_ID_MAPPING,
 )
 
 
@@ -69,22 +68,19 @@ load_environment_variables()
 logger = get_logger(__name__)
 
 
-# TODO: how to diferentiate between admin and regular users for limits?
-# For now, we assume all users are regular users
-# Question: will there be only 2 usage tiers? Do we want to set a default
-# daily limit and then set custom limits for specific users? (we can use this
-# approach to set daily quotas to -1 for unlimited users)
-# DAILY_QUOTA_WARNING_THRESHOLD = 5
-# ADMIN_USER_DAILY_QUOTA = 100
-# REGULAR_USER_DAILY_QUOTA = 25
-# ANONYMOUS_USER_DAILY_QUOTA = 10
-# ENABLE_QUOTA_CHECKING = True
+async def get_async_session(request: Request) -> AsyncGenerator[AsyncSession, None]:
+    async_session_maker = async_sessionmaker(
+        request.app.state.engine,
+        expire_on_commit=False,
+    )
+
+    async with async_session_maker() as session:
+        yield session
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    db_url = APISettings.database_url
-    app.state.engine = await get_async_engine(db_url)
+    app.state.engine = await get_async_engine(db_url=APISettings.database_url)
     yield
 
 
@@ -773,7 +769,7 @@ async def delete_thread(
     Delete thread.
     """
 
-    await checkpointer.delete_thread(thread_id)
+    await checkpointer.adelete_thread(thread_id)
     stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
     result = await session.execute(stmt)
     thread = result.scalars().first()
