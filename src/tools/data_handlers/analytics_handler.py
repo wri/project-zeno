@@ -1,6 +1,7 @@
-import time
+import asyncio
 from typing import Any, Dict, List
 
+import httpx
 import requests
 
 from src.tools.data_handlers.base import (
@@ -134,7 +135,7 @@ class AnalyticsHandler(DataSourceHandler):
 
         return payload
 
-    def _poll_for_completion(
+    async def _poll_for_completion(
         self,
         endpoint_url: str,
         payload: Dict,
@@ -144,14 +145,13 @@ class AnalyticsHandler(DataSourceHandler):
         """Poll the API until the request is completed or max retries exceeded."""
         for attempt in range(max_retries):
             logger.info(f"Polling attempt {attempt + 1}/{max_retries}")
-            # TODO: Use async sleep and convert this to an async function
-            # await asyncio.sleep(poll_interval)
-            time.sleep(poll_interval)
+            await asyncio.sleep(poll_interval)
 
             try:
-                response = requests.post(
-                    endpoint_url, headers=self.HEADERS, json=payload
-                )
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        endpoint_url, headers=self.HEADERS, json=payload
+                    )
                 if response.status_code >= 400:
                     logger.warning(
                         f"Poll attempt {attempt + 1} failed with status {response.status_code}"
@@ -225,7 +225,7 @@ class AnalyticsHandler(DataSourceHandler):
 
         return raw_data, data_points_count, message_detail
 
-    def pull_data(
+    async def pull_data(
         self,
         query: str,
         aoi: Dict,
@@ -265,9 +265,10 @@ class AnalyticsHandler(DataSourceHandler):
             logger.info(f"Analytics API Request - Headers: {self.HEADERS}")
             logger.info(f"Analytics API Request - Payload: {payload}")
 
-            response = requests.post(
-                endpoint_url, headers=self.HEADERS, json=payload
-            )
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    endpoint_url, headers=self.HEADERS, json=payload
+                )
 
             # Debug logging for response
             logger.info(
@@ -301,7 +302,7 @@ class AnalyticsHandler(DataSourceHandler):
                 logger.info(
                     "Analytics request is pending, will retry with polling..."
                 )
-                result = self._poll_for_completion(
+                result = await self._poll_for_completion(
                     endpoint_url, payload, max_retries=3, poll_interval=0.5
                 )
                 if isinstance(result, str):

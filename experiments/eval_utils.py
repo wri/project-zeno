@@ -22,7 +22,7 @@ def get_langfuse():
 
 def get_run_name():
     """Generate run name with date and git hash."""
-    date = datetime.now().strftime("%Y%m%d")
+    date = datetime.now().strftime("%Y%m%d_%H%M%S")
     try:
         git_hash = (
             subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
