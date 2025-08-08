@@ -14,6 +14,10 @@ from langfuse import Langfuse
 # create_langfuse_dataset("s5_t2_02_investigator")
 # tree_cover_config = ColumnConfig( input_column="Question", parser=parse_tree_cover_qa)
 # upload_csv("s5_t2_02_investigator", "experiments/Zeno test dataset(S5 T2-02 Investigator).csv", tree_cover_config)
+#
+# create_langfuse_dataset("s2_t1_02_tcl_identification")
+# tcl_config = ColumnConfig( input_column="query", parser=parse_tree_cover_loss_identification)
+# upload_csv( "s2_t1_02_tcl_identification", "experiments/S2 T1-02 TCL(TCL dataset ID).csv", tcl_config)
 
 """
 Parser Template:
@@ -146,6 +150,51 @@ def parse_tree_cover_qa(row: Dict[str, str]) -> Dict[str, Any]:
     notes = row.get("Notes", "").strip()
     if notes:
         expected["notes"] = notes
+
+    return {"expected_output": expected}
+
+
+def parse_tree_cover_loss_identification(
+    row: Dict[str, str],
+) -> Dict[str, Any]:
+    """Parser for tree cover loss identification datasets.
+
+    Expected CSV columns:
+    - query: the query text (used as input)
+    - expected_data_layer: data layer specification, may have "ANY:" prefix for multiple options
+    - expected_context_layer: context layer specification
+    - expected_daterange: date range specification
+    - expected_threshold: threshold specification
+
+    Returns:
+        For single data_layer:
+        {"expected_output": {"data_layer": "...", "context_layer": "...", "daterange": "...", "threshold": "..."}}
+        For multiple data_layer options (ANY: prefix):
+        {"expected_output": {"data_layer": {"any_of": [...]}, "context_layer": "...", "daterange": "...", "threshold": "..."}}
+    """
+    data_layer_str = row.get("expected_data_layer", "").strip()
+    data_layer_output: Any
+
+    # Handle ANY: prefix for multiple valid options
+    if data_layer_str.startswith("ANY:"):
+        # Remove "ANY:" prefix and split by semicolon
+        data_layer_content = data_layer_str[len("ANY:") :].strip()
+        options = [
+            item.strip()
+            for item in data_layer_content.split(";")
+            if item.strip()
+        ]
+        data_layer_output = {"any_of": options}
+    else:
+        # Single option
+        data_layer_output = data_layer_str
+
+    expected = {
+        "data_layer": data_layer_output,
+        "context_layer": row.get("expected_context_layer", "").strip(),
+        "daterange": row.get("expected_daterange", "").strip(),
+        "threshold": row.get("expected_threshold", "").strip(),
+    }
 
     return {"expected_output": expected}
 

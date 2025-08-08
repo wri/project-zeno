@@ -22,8 +22,8 @@ logger = get_logger(__name__)
 # Data structures
 @dataclass
 class GadmLocation:
-    name: str
     gadm_id: str
+    name: Optional[str] = None
     gadm_level: Optional[int] = None
     admin_level: Optional[int] = None
 
@@ -42,17 +42,9 @@ def normalize_gadm_id(gadm_id: str) -> str:
     return gadm_id
 
 
-def parse_expected_output(data: List[dict]) -> List[GadmLocation]:
+def parse_expected_output(gadm_id: str) -> List[GadmLocation]:
     """Convert list of dicts to list of GadmLocation objects."""
-    return [
-        GadmLocation(
-            name=item.get("name"),
-            gadm_id=item.get("gadm_id"),
-            gadm_level=item.get("gadm_level"),
-            admin_level=item.get("admin_level"),
-        )
-        for item in data
-    ]
+    return [GadmLocation(gadm_id=gadm_id)]
 
 
 def parse_gadm_from_json(json_str: str) -> List[GadmLocation]:
@@ -140,7 +132,7 @@ def extract_gadm_from_state(state):
 # Main execution
 langfuse = get_langfuse()
 run_name = get_run_name()
-dataset = langfuse.get_dataset("s2_gadm_0_1")
+dataset = langfuse.get_dataset("S1 T1-01 GADM 0-1 7.23.25")
 
 # This iterates through dataset items automatically like unit tests.
 # Run locally for development, but use staging for accurate latency/cost measurements.
