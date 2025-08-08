@@ -857,8 +857,9 @@ async def get_geometry(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/ratings", response_model=RatingModel)
+@app.post("/api/threads/{thread_id}/rating", response_model=RatingModel)
 async def create_or_update_rating(
+    thread_id: str,
     request: RatingCreateRequest,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_async_session)
@@ -869,7 +870,7 @@ async def create_or_update_rating(
     """
     # Verify if the thread exists and belongs to the user
     stmt = select(ThreadOrm).filter_by(
-        id=request.thread_id, user_id=user.id
+        id=thread_id, user_id=user.id
     )
     result = await session.execute(stmt)
     thread = result.scalars().first()
@@ -882,7 +883,7 @@ async def create_or_update_rating(
     # Check if the rating already exists (upsert logic)
     stmt = select(RatingOrm).filter_by(
         user_id=user.id,
-        thread_id=request.thread_id,
+        thread_id=thread_id,
         trace_id=request.trace_id
     )
     result = await session.execute(stmt)
@@ -899,7 +900,7 @@ async def create_or_update_rating(
         logger.info(
             "Rating updated",
             user_id=user.id,
-            thread_id=request.thread_id,
+            thread_id=thread_id,
             trace_id=request.trace_id,
             rating=request.rating,
             comment=request.comment
@@ -911,7 +912,7 @@ async def create_or_update_rating(
         new_rating = RatingOrm(
             id=str(uuid.uuid4()),
             user_id=user.id,
-            thread_id=request.thread_id,
+            thread_id=thread_id,
             trace_id=request.trace_id,
             rating=request.rating,
             comment=request.comment
@@ -923,7 +924,7 @@ async def create_or_update_rating(
         logger.info(
             "Rating created",
             user_id=user.id,
-            thread_id=request.thread_id,
+            thread_id=thread_id,
             trace_id=request.trace_id,
             rating=request.rating,
             comment=request.comment

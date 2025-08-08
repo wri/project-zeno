@@ -14,9 +14,8 @@ async def test_create_rating_success(
     auth_override(user.id)
 
     response = await client.post(
-        "/api/ratings",
+        f"/api/threads/{thread.id}/rating",
         json={
-            "thread_id": thread.id,
             "trace_id": "test-trace-1",
             "rating": 1,
             "comment": "Great response!"
@@ -37,9 +36,8 @@ async def test_create_rating_success(
     assert "updated_at" in data
 
     update_res = await client.post(
-        "/api/ratings",
+        f"/api/threads/{thread.id}/rating",
         json={
-            "thread_id": thread.id,
             "trace_id": "test-trace-1",
             "rating": -1  # Change from thumbs up to thumbs down
         },
@@ -62,9 +60,8 @@ async def test_create_rating_invalid_rating_value(
     auth_override(user.id)
 
     response = await client.post(
-        "/api/ratings",
+        f"/api/threads/{thread.id}/rating",
         json={
-            "thread_id": thread.id,
             "trace_id": "test-trace-1",
             "rating": 5  # Invalid rating (should be 1 or -1)
         },
@@ -82,9 +79,8 @@ async def test_create_rating_nonexistent_thread(
     """Test creating a rating for a thread that doesn't exist."""
     auth_override("test-user-wri")
     response = await client.post(
-        "/api/ratings",
+        "/api/threads/nonexistent-thread/rating",
         json={
-            "thread_id": "nonexistent-thread",
             "trace_id": "test-trace-1",
             "rating": 1
         },
@@ -109,9 +105,8 @@ async def test_create_rating_thread_belongs_to_other_user(
     auth_override(user.id)
 
     response = await client.post(
-        "/api/ratings",
+        f"/api/threads/{thread.id}/rating",
         json={
-            "thread_id": thread.id,
             "trace_id": "test-trace-1",
             "rating": 1
         },
@@ -130,9 +125,8 @@ async def test_create_rating_unauthorized(
     thread = await thread_factory(user.id)
 
     response = await client.post(
-        "/api/ratings",
+        f"/api/threads/{thread.id}/rating",
         json={
-            "thread_id": thread.id,
             "trace_id": "test-trace-1",
             "rating": 1
         }
@@ -152,9 +146,8 @@ async def test_create_rating_missing_fields(
 
     # Missing trace_id
     response = await client.post(
-        "/api/ratings",
+        f"/api/threads/{thread.id}/rating",
         json={
-            "thread_id": thread.id,
             "rating": 1
         },
         headers={"Authorization": "Bearer test-user-wri-token"}
@@ -174,9 +167,8 @@ async def test_create_multiple_ratings_same_user_different_traces(
 
     # Create first rating
     response1 = await client.post(
-        "/api/ratings",
+        f"/api/threads/{thread.id}/rating",
         json={
-            "thread_id": thread.id,
             "trace_id": "test-trace-3",
             "rating": 1,
             "comment": "Great response!",
@@ -187,8 +179,8 @@ async def test_create_multiple_ratings_same_user_different_traces(
 
     # Create second rating for different trace
     response2 = await client.post(
-        "/api/ratings",
-        json={"thread_id": thread.id, "trace_id": "test-trace-4", "rating": -1},
+        f"/api/threads/{thread.id}/rating",
+        json={"trace_id": "test-trace-4", "rating": -1},
         headers={"Authorization": "Bearer test-user-wri-token"},
     )
     assert response2.status_code == 200
@@ -213,9 +205,8 @@ async def test_create_update_rating_with_comment(
     auth_override(user.id)
 
     response = await client.post(
-        "/api/ratings",
+        f"/api/threads/{thread.id}/rating",
         json={
-            "thread_id": thread.id,
             "trace_id": "test-trace-comment",
             "rating": 1,
             "comment": "This is a test comment"
@@ -229,9 +220,8 @@ async def test_create_update_rating_with_comment(
 
     # Update the rating with new comment
     response = await client.post(
-        "/api/ratings",
+        f"/api/threads/{thread.id}/rating",
         json={
-            "thread_id": thread.id,
             "trace_id": "test-trace-comment",
             "rating": 1,
             "comment": "Updated comment"

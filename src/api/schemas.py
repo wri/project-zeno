@@ -110,7 +110,6 @@ class ChatRequest(BaseModel):
 
 
 class RatingCreateRequest(BaseModel):
-    thread_id: str
     trace_id: str
     rating: int
     comment: Optional[str] = None
