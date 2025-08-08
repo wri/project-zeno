@@ -102,7 +102,7 @@ Return 1 insight if the data is simple/focused, or 2 insights if there are multi
 
 
 @tool
-def generate_insights(
+async def generate_insights(
     query: str,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,

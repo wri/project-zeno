@@ -1,8 +1,9 @@
 import uuid
+import asyncio
 
 import pytest
 
-from src.agents.agents import zeno_anonymous
+from src.agents.agents import fetch_zeno_anonymous
 
 
 # Override database fixtures to avoid database connections for these unit tests
@@ -18,7 +19,7 @@ def test_db_session():
     pass
 
 
-def run_agent(query: str, thread_id: str | None = None):
+async def run_agent(query: str, thread_id: str | None = None):
     """Run the agent with a query and print output at each step."""
 
     if thread_id is None:
@@ -32,10 +33,12 @@ def run_agent(query: str, thread_id: str | None = None):
 
     steps = []
 
-    for i, step in enumerate(
-        zeno_anonymous.stream(
-            {"messages": [{"role": "user", "content": query}]}, config
-        )
+    # Fetch the agent instance
+    zeno_agent = await fetch_zeno_anonymous()
+
+    i = 0
+    async for step in zeno_agent.astream(
+        {"messages": [{"role": "user", "content": query}]}, config
     ):
         print(f"\n🔄 Step {i + 1}:")
         print("-" * 40)
@@ -67,6 +70,7 @@ def run_agent(query: str, thread_id: str | None = None):
 
         print("-" * 40)
         steps.append(step)
+        i += 1
 
     print("\n✅ Agent execution completed!")
     return steps
@@ -82,9 +86,10 @@ def run_agent(query: str, thread_id: str | None = None):
         "tree cover loss",
     ],
 )
-def test_full_agent_for_datasets(dataset):
+@pytest.mark.asyncio
+async def test_full_agent_for_datasets(dataset):
     query = f"What is the distribution of {dataset} in the canton of Bern, Switzerland?"
-    steps = run_agent(query)
+    steps = await run_agent(query)
 
     assert len(steps) > 0
 

@@ -21,7 +21,7 @@ class DataPullOrchestrator:
             AnalyticsHandler(),
         ]
 
-    def pull_data(
+    async def pull_data(
         self,
         query: str,
         aoi: Dict,
@@ -45,7 +45,7 @@ class DataPullOrchestrator:
         # Find appropriate handler
         for handler in self.handlers:
             if handler.can_handle(dataset, table_name):
-                return handler.pull_data(
+                return await handler.pull_data(
                     query=query,
                     aoi=aoi,
                     subregion_aois=subregion_aois,
@@ -68,7 +68,7 @@ data_pull_orchestrator = DataPullOrchestrator()
 
 
 @tool("pull-data")
-def pull_data(
+async def pull_data(
     query: str,
     start_date: str,
     end_date: str,
@@ -102,7 +102,7 @@ def pull_data(
     dataset = state["dataset"]
 
     # Use orchestrator to pull data
-    result = data_pull_orchestrator.pull_data(
+    result = await data_pull_orchestrator.pull_data(
         query=query,
         aoi=aoi,
         subregion_aois=subregion_aois,

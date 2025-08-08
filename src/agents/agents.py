@@ -1,9 +1,12 @@
-import contextlib
 import os
 from datetime import datetime
 
-from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.prebuilt import create_react_agent
+from langgraph.graph.state import CompiledStateGraph
+from psycopg.rows import dict_row
+from psycopg import AsyncConnection
+
 
 from src.graph import AgentState
 from src.tools import (
@@ -48,50 +51,42 @@ tools = [pick_aoi, pick_dataset, pull_data, generate_insights]
 load_environment_variables()
 
 
-# Load environment variables before using them
-load_environment_variables()
-
-
 DATABASE_URL = os.environ["DATABASE_URL"].replace(
     "postgresql+asyncpg://", "postgresql://"
 )
 
 
-@contextlib.contextmanager
-def persistent_checkpointer():
-    with PostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
-        # Note: no need to run `checkpointer.setup()` here, since I've
-        # converted the checkpointer setup into Alembic migrations so
-        # that Alembic can manage the database schema. Note that if we
-        # update the postgres checkpointer library it may require a new
-        # migration to be created - I manually ran `checkpointer.setup()`
-        # on a local database and then ran
-        # `alembic revision --autogenerate -m "Add langgraph persistence tables"`
-        # to create the migration script (note that the desired migration
-        # scripts were created in the opposite methods (upgrade vs downgrade)
-        # than the ones expected, since, technically alembic would need to
-        # drop the tables in order to get the state to match the local
-        # codebase. I just copy/pasted the code from the `upgrade` method
-        # to the `downgrade` method).
-
-        # checkpointer.setup()
-
-        yield checkpointer
+async def fetch_checkpointer() -> AsyncPostgresSaver:
+    connection = await AsyncConnection.connect(
+        DATABASE_URL, row_factory=dict_row, autocommit=True
+    )
+    checkpointer = AsyncPostgresSaver(conn=connection)
+    return checkpointer
 
 
-# Open the context manager at the module level and keep it open
-checkpointer_cm = persistent_checkpointer()
-checkpointer = checkpointer_cm.__enter__()
+async def fetch_zeno_anonymous() -> CompiledStateGraph:
+    """Setup the Zeno agent for anonymous users with the provided tools and prompt."""
+    # async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
+    # Create the Zeno agent with the provided tools and prompt
 
-zeno = create_react_agent(
-    model=SONNET,
-    tools=tools,
-    state_schema=AgentState,
-    prompt=prompt,
-    checkpointer=checkpointer,
-)
+    zeno_agent = create_react_agent(
+        model=SONNET,
+        tools=tools,
+        state_schema=AgentState,
+        prompt=prompt,
+    )
+    return zeno_agent
 
-# Non-checkpointer backed agent for anonymous users
-zeno_anonymous = create_react_agent(
-    model=SONNET, tools=tools, state_schema=AgentState, prompt=prompt
-)
+
+async def fetch_zeno() -> CompiledStateGraph:
+    """Setup the Zeno agent with the provided tools and prompt."""
+
+    checkpointer = await fetch_checkpointer()
+    zeno_agent = create_react_agent(
+        model=SONNET,
+        tools=tools,
+        state_schema=AgentState,
+        prompt=prompt,
+        checkpointer=checkpointer,
+    )
+    return zeno_agent

@@ -23,7 +23,7 @@ data_dir = Path("data")
 _retriever_cache = {}
 
 
-def _get_openai_retriever():
+async def _get_openai_retriever():
     if "openai" not in _retriever_cache:
         logger.debug("Loading OpenAI retriever for the first time...")
         openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
@@ -36,42 +36,15 @@ def _get_openai_retriever():
     return _retriever_cache["openai"]
 
 
-def _get_nomic_retriever():
-    if "nomic" not in _retriever_cache:
-        logger.debug("Loading Nomic retriever for the first time...")
-        nomic_embeddings = OllamaEmbeddings(model="nomic-embed-text")
-        nomic_index = InMemoryVectorStore.load(
-            data_dir / "zeno-docs-nomic-index", embedding=nomic_embeddings
-        )
-        _retriever_cache["nomic"] = nomic_index.as_retriever(
-            search_type="similarity", search_kwargs={"k": 3}
-        )
-    return _retriever_cache["nomic"]
-
-
-def _get_colbert_retriever_and_model():
-    if "colbert" not in _retriever_cache:
-        logger.debug("Loading ColBERT model and index for the first time...")
-        colbert_model = models.ColBERT(
-            model_name_or_path="lightonai/GTE-ModernColBERT-v1"
-        )
-        colbert_index = indexes.PLAID(
-            index_folder=data_dir / "colbert-index", index_name="dataset"
-        )
-        colbert_retriever = retrieve.ColBERT(index=colbert_index)
-        _retriever_cache["colbert"] = (colbert_retriever, colbert_model)
-    return _retriever_cache["colbert"]
-
-
-def rag_candidate_datasets(query: str, k=3, strategy="openai"):
+async def rag_candidate_datasets(query: str, k=3, strategy="openai"):
     logger.debug(
         f"Retrieving candidate datasets for query: '{query}' using strategy: '{strategy}'"
     )
     candidate_datasets = []
     match strategy:
         case "openai":
-            openai_retriever = _get_openai_retriever()
-            match_documents = openai_retriever.invoke(query)
+            openai_retriever = await _get_openai_retriever()
+            match_documents = await openai_retriever.ainvoke(query)
             for doc in match_documents:
                 metadata = doc.metadata.copy()
                 metadata["description"] = doc.page_content
@@ -95,9 +68,7 @@ class DatasetOption(BaseModel):
         None,
         description="Pick a single context layer from the dataset if useful",
     )
-    reason: str = Field(
-        description="Short reason why the dataset is the best match."
-    )
+    reason: str = Field(description="Short reason why the dataset is the best match.")
 
 
 class DatasetSelectionResult(DatasetOption):
@@ -107,7 +78,7 @@ class DatasetSelectionResult(DatasetOption):
     )
 
 
-def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
+async def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
             (
@@ -128,10 +99,10 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     )
 
     logger.debug("Invoking dataset selection chain...")
-    dataset_selection_chain = (
-        DATASET_SELECTION_PROMPT | SONNET.with_structured_output(DatasetOption)
+    dataset_selection_chain = DATASET_SELECTION_PROMPT | SONNET.with_structured_output(
+        DatasetOption
     )
-    selection_result = dataset_selection_chain.invoke(
+    selection_result = await dataset_selection_chain.ainvoke(
         {
             "candidate_datasets": candidate_datasets[
                 [
@@ -150,9 +121,7 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     )
 
     tile_url = (
-        candidate_datasets[
-            candidate_datasets.dataset_id == selection_result.dataset_id
-        ]
+        candidate_datasets[candidate_datasets.dataset_id == selection_result.dataset_id]
         .iloc[0]
         .tile_url
     )
@@ -169,7 +138,7 @@ def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
 
 
 @tool("pick-dataset")
-def pick_dataset(
+async def pick_dataset(
     query: str, tool_call_id: Annotated[str, InjectedToolCallId] = None
 ) -> Command:
     """
@@ -178,10 +147,10 @@ def pick_dataset(
     """
     logger.info("PICK-DATASET-TOOL")
     # Step 1: RAG lookup
-    candidate_datasets = rag_candidate_datasets(query, k=3, strategy="openai")
+    candidate_datasets = await rag_candidate_datasets(query, k=3, strategy="openai")
 
     # Step 2: LLM to select best dataset and potential context layer
-    selection_result = select_best_dataset(query, candidate_datasets)
+    selection_result = await select_best_dataset(query, candidate_datasets)
 
     tool_message = f"""Selected dataset ID: {selection_result.dataset_id}\nContext layer: {selection_result.context_layer}\nReasoning: {selection_result.reason}"""
 

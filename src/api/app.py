@@ -14,15 +14,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 from itsdangerous import BadSignature, TimestampSigner
+
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse.langchain import CallbackHandler
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
-from sqlalchemy import select, text
+
+from sqlalchemy import text, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.agents import checkpointer, zeno, zeno_anonymous
+from src.agents.agents import fetch_zeno, fetch_zeno_anonymous, fetch_checkpointer
+
 from src.api.data_models import (
     CustomAreaOrm,
     DailyUsageOrm,
@@ -41,15 +45,18 @@ from src.api.schemas import (
     ThreadModel,
     UserModel,
 )
-from src.utils.config import APISettings
+
 from src.utils.env_loader import load_environment_variables
+from src.utils.logging_config import bind_request_logging_context, get_logger
+from src.utils.config import APISettings
+from src.utils.llms import HAIKU
 from src.utils.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
+    SOURCE_ID_MAPPING,
 )
-from src.utils.llms import HAIKU
-from src.utils.logging_config import bind_request_logging_context, get_logger
+
 
 # Load environment variables using shared utility
 load_environment_variables()
@@ -114,6 +121,8 @@ async def logging_middleware(request: Request, call_next) -> Response:
     )
     response_code = None
 
+    response = None
+
     # Call the next middleware or endpoint
     try:
         response: Response = await call_next(request)
@@ -126,9 +135,17 @@ async def logging_middleware(request: Request, call_next) -> Response:
             error=str(e),
             request_id=req_id,
         )
+
         response_code = 500
         raise e
+
     finally:
+        if not response:
+            response = Response(
+                content="Internal Server Error",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
         # Log request end
         logger.info(
             "Response sent",
@@ -154,9 +171,7 @@ async def anonymous_id_middleware(request: Request, call_next):
     if anon_cookie:
         try:
             # Verify signature & extract payload
-            _ = signer.unsign(
-                anon_cookie, max_age=365 * 24 * 3600
-            )  # Cookie age: 1yr
+            _ = signer.unsign(anon_cookie, max_age=365 * 24 * 3600)  # Cookie age: 1yr
             need_new = False
         except BadSignature:
             pass
@@ -187,28 +202,24 @@ def pack(data):
     return json.dumps(data) + "\n"
 
 
-def replay_chat(thread_id):
-    config = {
-        "configurable": {
-            "thread_id": thread_id,
-        }
-    }
+async def replay_chat(thread_id):
+    config = {"configurable": {"thread_id": thread_id}}
 
     try:
+
+        zeno_async = await fetch_zeno()
+
         # Fetch checkpoints for conversation/thread
-        checkpoints = zeno.get_state_history(config=config)
         # consume checkpoints and sort them by step to process from
-        # oldest to newest
-        checkpoints = sorted(
-            list(checkpoints), key=lambda x: x.metadata["step"]
-        )
-        # Remove step -1 which is the initial empty state
+        # oldest to newest. Skip step -1 which is the initial empty state
+        checkpoints = [c async for c in zeno_async.aget_state_history(config=config)]
+        checkpoints = sorted(list(checkpoints), key=lambda x: x.metadata["step"])
         checkpoints = [c for c in checkpoints if c.metadata["step"] >= 0]
 
-        # Variables to track rendered state elements and messages
-        # so that we essentially just render the diff of the state
-        # from one checkpoint to the next (in order to maintain the
-        # correct ordering of messages and state updates)
+        # Track rendered state elements and messages.
+        # We want to just render the diff of the state from one checkpoint to
+        # the next (in order to maintain the correct ordering of messages and
+        # state updates)
         rendered_state_elements = {"messages": []}
 
         for checkpoint in checkpoints:
@@ -243,9 +254,7 @@ def replay_chat(thread_id):
             node_type = (
                 "agent"
                 if mtypes == {"ai"} or len(mtypes) > 1
-                else "tools"
-                if mtypes == {"tool"}
-                else "human"
+                else "tools" if mtypes == {"tool"} else "human"
             )
 
             update = {
@@ -262,7 +271,7 @@ def replay_chat(thread_id):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def stream_chat(
+async def stream_chat(
     query: str,
     user_persona: Optional[str] = None,
     ui_context: Optional[dict] = None,
@@ -288,6 +297,11 @@ def stream_chat(
         "callbacks": [langfuse_handler],
     }
 
+    if not thread_id:
+        zeno_async = await fetch_zeno_anonymous()
+    else:
+        zeno_async = await fetch_zeno()
+
     messages = []
     ui_action_message = []
     state_updates = {}
@@ -299,9 +313,7 @@ def stream_chat(
                     content = f"User selected AOI in UI: {action_data['aoi_name']}\n\n"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
-                    state_updates["subregion_aois"] = action_data[
-                        "subregion_aois"
-                    ]
+                    state_updates["subregion_aois"] = action_data["subregion_aois"]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
@@ -330,24 +342,16 @@ def stream_chat(
 
     state_updates["messages"] = messages
     state_updates["user_persona"] = user_persona
-    try:
-        # Use zeno_anonymous (zeno agent without checkpointer) for
-        # anonymous users by default
-        zeno_agent = zeno_anonymous
-        if thread_id:
-            # thread_id is provided if the user is authenticated,
-            # use main zeno agent (with checkpointer)
-            zeno_agent = zeno
-            config["configurable"] = {"thread_id": thread_id}
 
-        stream = zeno_agent.stream(
+    try:
+        stream = zeno_async.astream(
             state_updates,
             config=config,
             stream_mode="updates",
             subgraphs=False,
         )
 
-        for update in stream:
+        async for update in stream:
             try:
                 node = next(iter(update.keys()))
 
@@ -365,12 +369,8 @@ def stream_chat(
                         "update": dumps(
                             {
                                 "error": True,
-                                "message": str(
-                                    e
-                                ),  # String representation of the error
-                                "error_type": type(
-                                    e
-                                ).__name__,  # Exception class name
+                                "message": str(e),  # String representation of the error
+                                "error_type": type(e).__name__,  # Exception class name
                                 "type": "stream_processing_error",
                             }
                         ),
@@ -398,9 +398,7 @@ def stream_chat(
                 "update": dumps(
                     {
                         "error": True,
-                        "message": str(
-                            e
-                        ),  # String representation of the error
+                        "message": str(e),  # String representation of the error
                         "error_type": type(e).__name__,  # Exception class name
                         "type": "stream_initialization_error",
                         "fatal": True,  # Indicates stream cannot continue
@@ -442,16 +440,16 @@ def fetch_user_from_rw_api(
         )
     if resp.status_code != 200:
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
-    
+
     user_info = resp.json()
-    
+
     if "name" not in user_info:
         logger.warning(
             "User info does not contain the 'name' field, using email account name as fallback",
             email=user_info.get("email", None),
         )
         user_info["name"] = user_info["email"].split("@")[0]
-    
+
     # cache user info
     _user_info_cache[token] = UserModel.model_validate(user_info)
 
@@ -591,7 +589,7 @@ async def check_quota(
             detail=f"Daily free limit of {daily_quota} exceeded; please try again tomorrow.",
         )
 
-    if count >= daily_quota - APISettings.daily_quoata_warning_threshold:
+    if count >= daily_quota - APISettings.daily_quota_warning_threshold:
         return {
             "warning": f"User {identity} is approaching daily quota limit ({count} prompts out of {daily_quota})"
         }
@@ -627,9 +625,7 @@ async def chat(
             session_id=request.session_id,
             query=request.query,
         )
-        stmt = select(ThreadOrm).filter_by(
-            id=request.thread_id, user_id=user.id
-        )
+        stmt = select(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id)
         result = await session.execute(stmt)
         thread = result.scalars().first()
         if not thread:
@@ -708,8 +704,7 @@ async def get_thread(
     try:
         logger.debug("Replaying thread", thread_id=thread_id)
         return StreamingResponse(
-            replay_chat(thread_id=thread_id),
-            media_type="application/x-ndjson",
+            replay_chat(thread_id=thread_id), media_type="application/x-ndjson"
         )
     except Exception as e:
         logger.exception("Replay failed", thread_id=thread_id)
@@ -765,13 +760,14 @@ async def custom_area_name(
 async def delete_thread(
     thread_id: str,
     user: UserModel = Depends(require_auth),
+    checkpointer: AsyncPostgresSaver = Depends(fetch_checkpointer),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     Delete thread.
     """
 
-    checkpointer.delete_thread(thread_id)
+    await checkpointer.delete_thread(thread_id)
     stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
     result = await session.execute(stmt)
     thread = result.scalars().first()
@@ -832,9 +828,7 @@ async def get_geometry(
         # Parse GeoJSON string
         try:
             geometry = (
-                json.loads(result.geometry_json)
-                if result.geometry_json
-                else None
+                json.loads(result.geometry_json) if result.geometry_json else None
             )
         except json.JSONDecodeError:
             logger.error(f"Failed to parse GeoJSON for {source}:{src_id}")
