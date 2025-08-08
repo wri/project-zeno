@@ -866,7 +866,31 @@ async def create_or_update_rating(
 ):
     """
     Create or update a rating for a trace in a thread.
-    Requires Authorization.
+
+    This endpoint allows authenticated users to provide feedback on AI agent responses
+    by rating specific traces within their conversation threads.
+
+    **Authentication**: Requires Bearer token in Authorization header.
+
+    **Path Parameters**:
+    - thread_id (str): The unique identifier of the thread containing the trace
+
+    **Request Body**:
+    - trace_id (str): The Langfuse trace ID to rate
+    - rating (int): Either 1 (thumbs up) or -1 (thumbs down)
+    - comment (str, optional): Additional feedback text
+
+    **Behavior**:
+    - If a rating already exists for the same user/thread/trace combination, it will be updated
+    - If no rating exists, a new one will be created
+    - The thread must exist and belong to the authenticated user
+
+    **Response**: Returns the created or updated rating with metadata
+
+    **Error Responses**:
+    - 401: Missing or invalid authentication
+    - 404: Thread not found or access denied
+    - 422: Invalid rating value (must be 1 or -1)
     """
     # Verify if the thread exists and belongs to the user
     stmt = select(ThreadOrm).filter_by(
