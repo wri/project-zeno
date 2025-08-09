@@ -2,8 +2,8 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_custom_area_endpoints(wri_user, client):
-    wri_user
+async def test_custom_area_endpoints(auth_override, client):
+    auth_override("test-user-wri")
     # list custom areas
     res = await client.get(
         "/api/custom_areas/",
