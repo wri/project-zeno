@@ -2,36 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, date
 import enum
-from collections.abc import AsyncGenerator
 
-from fastapi import Request
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgresUUID
-from sqlalchemy import (
-    Column, Date, DateTime, ForeignKey, String, Integer, text
-)
-from sqlalchemy.ext.asyncio import (
-    async_sessionmaker, create_async_engine, AsyncEngine, AsyncSession
-)
+from sqlalchemy import Column, Date, DateTime, ForeignKey, String, Integer, text
+
 from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
-
-
-async def get_async_session(request: Request) -> AsyncGenerator[AsyncSession, None]:
-    async_session_maker = async_sessionmaker(
-        request.app.state.engine,
-        expire_on_commit=False,
-    )
-
-    async with async_session_maker() as session:
-        yield session
-
-
-async def get_async_engine(db_url: str) -> AsyncEngine:
-    engine = create_async_engine(
-        db_url, pool_size=15, max_overflow=5, pool_pre_ping=True
-    )
-    return engine
 
 
 class UserType(str, enum.Enum):
