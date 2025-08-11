@@ -64,15 +64,24 @@ class AnalyticsHandler(DataSourceHandler):
         """Get the type of the AOI"""
 
         if aoi["subtype"] in ADMIN_SUBTYPES:
-            return "admin"
+            aoi_type = "admin"
         elif aoi["subtype"] == "key-biodiversity-area":
-            return "key_biodiversity_area"
+            aoi_type = "key_biodiversity_area"
         elif aoi["subtype"] == "indigenous-and-community-land":
-            return "indigenous_land"
+            aoi_type = "indigenous_land"
         elif aoi["subtype"] == "protected-area":
-            return "protected_area"
+            aoi_type = "protected_area"
         else:
             raise ValueError(f"Unknown AOI subtype: {aoi['subtype']}")
+
+        if aoi_type == "admin":
+            return {
+                "type": "admin",
+                "provider": "gadm",
+                "version": "4.1",
+            }
+        else:
+            return {"type": aoi_type}
 
     def _build_payload(
         self,
@@ -84,14 +93,15 @@ class AnalyticsHandler(DataSourceHandler):
     ) -> Dict:
         """Build the API payload based on dataset type"""
         # Fix for GADM IDs which come with a _1 suffix
-        if aoi["src_id"].endswith("_1"):
+        if aoi["src_id"][-2:] in ["_1", "_2", "_3", "_4", "_5"]:
             aoi["src_id"] = aoi["src_id"][:-2]
 
         # Base payload structure common to all endpoints
+        aoi_type = self._get_aoi_type(aoi)
         base_payload = {
             "aoi": {
-                "type": self._get_aoi_type(aoi),
                 "ids": [aoi["src_id"]],
+                **aoi_type,
             }
         }
 

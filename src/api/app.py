@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date
@@ -17,6 +18,7 @@ from itsdangerous import BadSignature, TimestampSigner
 
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
+from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
@@ -32,11 +34,14 @@ from src.agents.agents import fetch_zeno, fetch_zeno_anonymous, fetch_checkpoint
 from src.api.data_models import (
     CustomAreaOrm,
     DailyUsageOrm,
+    RatingOrm,
     ThreadOrm,
     UserOrm,
     UserType,
 )
 from src.api.schemas import (
+    RatingCreateRequest,
+    RatingModel,
     ChatRequest,
     CustomAreaCreate,
     CustomAreaModel,
@@ -154,6 +159,7 @@ async def logging_middleware(request: Request, call_next) -> Response:
 
 
 langfuse_handler = CallbackHandler()
+langfuse_client = Langfuse()
 
 # HTTP Middleware to asign/verify anonymous session IDs
 signer = TimestampSigner(os.environ["COOKIE_SIGNER_SECRET_KEY"])
@@ -841,6 +847,147 @@ async def get_geometry(
     except Exception as e:
         logger.exception(f"Error fetching geometry for {source}:{src_id}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def send_rating_to_langfuse(trace_id: str, rating: int, comment: str, user_id: str):
+    """
+    Send user rating feedback to Langfuse as a score.
+    
+    Args:
+        trace_id: Langfuse trace ID
+        rating: User rating (1 or -1)  
+        comment: Optional user comment
+        user_id: User ID for context
+    """
+    try:
+        langfuse_client.score(
+            trace_id=trace_id,
+            name="user-feedback",
+            value=rating,
+            comment=comment,
+            data_type="NUMERIC"
+        )
+        logger.info(
+            "Rating sent to Langfuse",
+            trace_id=trace_id,
+            rating=rating,
+            user_id=user_id
+        )
+    except Exception as e:
+        # Don't fail the rating operation if Langfuse is unavailable
+        logger.warning(
+            "Failed to send rating to Langfuse",
+            trace_id=trace_id,
+            rating=rating,
+            user_id=user_id,
+            error=str(e)
+        )
+
+
+@app.post("/api/threads/{thread_id}/rating", response_model=RatingModel)
+async def create_or_update_rating(
+    thread_id: str,
+    request: RatingCreateRequest,
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Create or update a rating for a trace in a thread.
+
+    This endpoint allows authenticated users to provide feedback on AI agent responses
+    by rating specific traces within their conversation threads.
+
+    **Authentication**: Requires Bearer token in Authorization header.
+
+    **Path Parameters**:
+    - thread_id (str): The unique identifier of the thread containing the trace
+
+    **Request Body**:
+    - trace_id (str): The Langfuse trace ID to rate
+    - rating (int): Either 1 (thumbs up) or -1 (thumbs down)
+    - comment (str, optional): Additional feedback text
+
+    **Behavior**:
+    - If a rating already exists for the same user/thread/trace combination, it will be updated
+    - If no rating exists, a new one will be created
+    - The thread must exist and belong to the authenticated user
+
+    **Response**: Returns the created or updated rating with metadata
+
+    **Error Responses**:
+    - 401: Missing or invalid authentication
+    - 404: Thread not found or access denied
+    - 422: Invalid rating value (must be 1 or -1)
+    """
+    # Verify if the thread exists and belongs to the user
+    stmt = select(ThreadOrm).filter_by(
+        id=thread_id, user_id=user.id
+    )
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
+    if not thread:
+        raise HTTPException(
+            status_code=404,
+            detail="Thread not found or access denied"
+        )
+
+    # Check if the rating already exists (upsert logic)
+    stmt = select(RatingOrm).filter_by(
+        user_id=user.id,
+        thread_id=thread_id,
+        trace_id=request.trace_id
+    )
+    result = await session.execute(stmt)
+    existing_rating = result.scalars().first()
+
+    if existing_rating:
+        # Update existing rating
+        existing_rating.rating = request.rating
+        existing_rating.comment = request.comment
+        existing_rating.updated_at = datetime.now()
+        await session.commit()
+        await session.refresh(existing_rating)
+
+        logger.info(
+            "Rating updated",
+            user_id=user.id,
+            thread_id=thread_id,
+            trace_id=request.trace_id,
+            rating=request.rating,
+            comment=request.comment
+        )
+
+        # Send rating to Langfuse
+        await send_rating_to_langfuse(request.trace_id, request.rating, request.comment, user.id)
+
+        return RatingModel.model_validate(existing_rating)
+    else:
+        # Create new rating
+        new_rating = RatingOrm(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            thread_id=thread_id,
+            trace_id=request.trace_id,
+            rating=request.rating,
+            comment=request.comment
+        )
+        session.add(new_rating)
+        await session.commit()
+        await session.refresh(new_rating)
+
+        logger.info(
+            "Rating created",
+            user_id=user.id,
+            thread_id=thread_id,
+            trace_id=request.trace_id,
+            rating=request.rating,
+            comment=request.comment
+        )
+
+        # Send rating to Langfuse
+        await send_rating_to_langfuse(request.trace_id, request.rating, request.comment, user.id)
+
+        return RatingModel.model_validate(new_rating)
 
 
 @app.get("/api/auth/me", response_model=UserModel)
