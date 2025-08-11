@@ -15,6 +15,7 @@ from src.tools.data_handlers.base import (
     DataSourceHandler,
 )
 from src.utils.logging_config import get_logger
+from src.utils.geocoding_helpers import get_geometry_data
 
 logger = get_logger(__name__)
 
@@ -55,9 +56,7 @@ class AnalyticsHandler(DataSourceHandler):
         """Get the full endpoint URL for a given dataset"""
         endpoint_path = self.ENDPOINT_MAPPING.get(table_name)
         if not endpoint_path:
-            raise ValueError(
-                f"No endpoint mapping found for dataset: {table_name}"
-            )
+            raise ValueError(f"No endpoint mapping found for dataset: {table_name}")
         return f"{self.BASE_URL}{endpoint_path}"
 
     def _get_aoi_type(self, aoi: Dict) -> str:
@@ -71,29 +70,61 @@ class AnalyticsHandler(DataSourceHandler):
             return "indigenous_land"
         elif aoi["subtype"] == "protected-area":
             return "protected_area"
+        # custom_area instead of custom-area because
+        # that's what the existing
+        if aoi["subtype"] == "custom-area":
+            # See DistAlertsAnalyticsIn schema
+            # in http://analytics-416617519.us-east-1.elb.amazonaws.com/docs
+            return "feature_collection"
         else:
             raise ValueError(f"Unknown AOI subtype: {aoi['subtype']}")
 
-    def _build_payload(
-        self,
-        dataset: Dict,
-        table_name: str,
-        aoi: Dict,
-        start_date: str,
-        end_date: str,
+    async def _build_payload(
+        self, dataset: Dict, table_name: str, aoi: Dict, start_date: str, end_date: str
     ) -> Dict:
         """Build the API payload based on dataset type"""
         # Fix for GADM IDs which come with a _1 suffix
         if aoi["src_id"].endswith("_1"):
             aoi["src_id"] = aoi["src_id"][:-2]
 
-        # Base payload structure common to all endpoints
-        base_payload = {
-            "aoi": {
-                "type": self._get_aoi_type(aoi),
-                "ids": [aoi["src_id"]],
+        aoi_type = self._get_aoi_type(aoi)
+
+        # Handle custom areas differently - they need a feature collection
+        if aoi_type == "feature_collection":
+            geometry_data = await get_geometry_data("custom", aoi["src_id"])
+            if not geometry_data:
+                raise ValueError(f"Custom area not found: {aoi['src_id']}")
+
+            feature_collection = {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": geometry_data["geometry"],
+                        "properties": {
+                            "name": geometry_data["name"],
+                            "id": geometry_data["src_id"],
+                        },
+                    }
+                ],
             }
-        }
+
+            base_payload = {
+                "aoi": {
+                    "type": aoi_type,
+                    "feature_collection": feature_collection,
+                }
+            }
+        else:
+            # Base payload structure for standard AOI types
+            base_payload = {
+                "aoi": {
+                    "type": aoi_type,
+                    "ids": [aoi["src_id"]],
+                }
+            }
+
+        logger.info(f"dataset: {dataset}")
 
         # Add dataset-specific parameters
         if table_name == TN_DIST_ALERT:
@@ -102,9 +133,7 @@ class AnalyticsHandler(DataSourceHandler):
                 "start_date": start_date,
                 "end_date": end_date,
                 "intersections": (
-                    [dataset["context_layer"]]
-                    if dataset.get("context_layer")
-                    else []
+                    [dataset["context_layer"]] if dataset.get("context_layer") else []
                 ),
             }
 
@@ -125,9 +154,7 @@ class AnalyticsHandler(DataSourceHandler):
                 "end_year": end_date[:4],
                 "canopy_cover": 30,  # Default canopy cover threshold
                 "intersections": (
-                    [dataset["context_layer"]]
-                    if dataset.get("context_layer")
-                    else []
+                    [dataset["context_layer"]] if dataset.get("context_layer") else []
                 ),
             }
         else:
@@ -175,9 +202,7 @@ class AnalyticsHandler(DataSourceHandler):
                     return msg
 
             except Exception as e:
-                logger.warning(
-                    f"Poll attempt {attempt + 1} failed with error: {e}"
-                )
+                logger.warning(f"Poll attempt {attempt + 1} failed with error: {e}")
                 continue
 
         msg = f"Max polling attempts ({max_retries}) exceeded for {result.get('data', {}).get('link', 'unknown url')}"
@@ -194,17 +219,13 @@ class AnalyticsHandler(DataSourceHandler):
         data_section = result["data"]
 
         if "link" not in data_section:
-            raise ValueError(
-                f"Data response missing 'link' key: {data_section}"
-            )
+            raise ValueError(f"Data response missing 'link' key: {data_section}")
 
         download_link = data_section["link"]
         data = requests.get(download_link).json()
 
         if "data" not in data:
-            raise ValueError(
-                f"Response missing 'result' key in response: {data}"
-            )
+            raise ValueError(f"Response missing 'result' key in response: {data}")
         if "result" not in data["data"]:
             raise ValueError(
                 f"Response missing 'result' key in data section: {data['data']}"
@@ -243,19 +264,15 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
             if not table_name:
-                error_msg = (
-                    f"No table_name or data_layer found in dataset: {dataset}"
-                )
+                error_msg = f"No table_name or data_layer found in dataset: {dataset}"
                 logger.error(error_msg)
-                return DataPullResult(
-                    success=False, data=[], message=error_msg
-                )
+                return DataPullResult(success=False, data=[], message=error_msg)
 
             # Get the appropriate endpoint URL
             endpoint_url = self._get_endpoint_url(table_name)
 
             # Build the payload based on dataset type
-            payload = self._build_payload(
+            payload = await self._build_payload(
                 dataset, table_name, aoi, start_date, end_date
             )
 
@@ -271,12 +288,8 @@ class AnalyticsHandler(DataSourceHandler):
                 )
 
             # Debug logging for response
-            logger.info(
-                f"Analytics API Response - Status Code: {response.status_code}"
-            )
-            logger.info(
-                f"Analytics API Response - Headers: {dict(response.headers)}"
-            )
+            logger.info(f"Analytics API Response - Status Code: {response.status_code}")
+            logger.info(f"Analytics API Response - Headers: {dict(response.headers)}")
             logger.info(f"Analytics API Response - Raw Text: {response.text}")
 
             try:
@@ -285,23 +298,17 @@ class AnalyticsHandler(DataSourceHandler):
             except Exception as json_error:
                 error_msg = f"Failed to parse JSON response from Analytics API. Status: {response.status_code}, Text: {response.text}, Error: {json_error}"
                 logger.error(error_msg)
-                return DataPullResult(
-                    success=False, data=[], message=error_msg
-                )
+                return DataPullResult(success=False, data=[], message=error_msg)
 
             # Check if status key exists before accessing it
             if "status" not in result:
                 error_msg = f"Analytics API response missing 'status' key. Available keys: {list(result.keys())}, Full response: {result}"
                 logger.error(error_msg)
-                return DataPullResult(
-                    success=False, data=[], message=error_msg
-                )
+                return DataPullResult(success=False, data=[], message=error_msg)
 
             # Handle pending status with retry logic
             if result["status"] == "pending":
-                logger.info(
-                    "Analytics request is pending, will retry with polling..."
-                )
+                logger.info("Analytics request is pending, will retry with polling...")
                 result = await self._poll_for_completion(
                     endpoint_url, payload, max_retries=3, poll_interval=0.5
                 )
@@ -329,13 +336,9 @@ class AnalyticsHandler(DataSourceHandler):
             else:
                 error_msg = f"Failed to pull {table_name} data from GFW Analytics for {aoi_name} - URL: {endpoint_url}, payload: {payload}, response: {response.text}"
                 logger.error(error_msg)
-                return DataPullResult(
-                    success=False, data=[], message=error_msg
-                )
+                return DataPullResult(success=False, data=[], message=error_msg)
 
         except Exception as e:
-            error_msg = (
-                f"Failed to pull {table_name} data from Analytics API: {e}"
-            )
+            error_msg = f"Failed to pull {table_name} data from Analytics API: {e}"
             logger.error(error_msg, exc_info=True)
             return DataPullResult(success=False, data=[], message=error_msg)

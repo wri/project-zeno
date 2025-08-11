@@ -19,6 +19,7 @@ from src.utils.geocoding_helpers import (
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
     WDPA_TABLE,
+    CUSTOM_AREA_TABLE,
 )
 from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
@@ -94,6 +95,14 @@ def query_aoi_database(
             logger.warning(f"Table {WDPA_TABLE} does not exist")
             conn.rollback()
 
+        # Check Custom Areas table
+        try:
+            conn.execute(text(f"SELECT 1 FROM {CUSTOM_AREA_TABLE} LIMIT 1"))
+            existing_tables.append("custom")
+        except Exception:
+            logger.warning(f"Table {CUSTOM_AREA_TABLE} does not exist")
+            conn.rollback()
+
         # Build the query based on existing tables
         union_parts = []
 
@@ -142,6 +151,18 @@ def query_aoi_database(
             """
             )
 
+        if "custom" in existing_tables:
+            src_id = SOURCE_ID_MAPPING["custom"]["id_column"]
+            union_parts.append(
+                f"""
+                SELECT CAST({src_id} as TEXT) as src_id,
+                       name,
+                       'custom-area' as subtype,
+                       'custom' as source
+                FROM {CUSTOM_AREA_TABLE}
+            """
+            )
+
         if not union_parts:
             logger.error("No geometry tables exist in the database")
             return pd.DataFrame()
@@ -174,9 +195,7 @@ def query_aoi_database(
     return query_results
 
 
-def query_subregion_database(
-    engine, subregion_name: str, source: str, src_id: int
-):
+def query_subregion_database(engine, subregion_name: str, source: str, src_id: int):
     """Query the right table in PostGIS database for subregions based on the selected AOI.
 
     Args:
@@ -283,9 +302,7 @@ AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 # Chain for selecting the best location match
-AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
-    AOIIndex
-)
+AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(AOIIndex)
 
 
 @tool("pick-aoi")
@@ -318,9 +335,7 @@ async def pick_aoi(
         subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
     try:
-        logger.info(
-            f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'"
-        )
+        logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
         # Query the database for place & get top matches using similarity
         engine = get_postgis_connection()
         results = query_aoi_database(engine, place, RESULT_LIMIT)
@@ -337,7 +352,7 @@ async def pick_aoi(
         source = selected_aoi.source
         src_id = selected_aoi.src_id
 
-        logger.debug(
+        logger.info(
             f"Selected AOI id: {selected_aoi_id}, source: '{source}', src_id: {src_id}"
         )
 
@@ -347,6 +362,7 @@ async def pick_aoi(
             "kba": KBA_TABLE,
             "landmark": LANDMARK_TABLE,
             "wdpa": WDPA_TABLE,
+            "custom": CUSTOM_AREA_TABLE,
         }
 
         if source not in source_table_map:
@@ -358,11 +374,19 @@ async def pick_aoi(
         id_column = SOURCE_ID_MAPPING[source]["id_column"]
         source_table = source_table_map[source]
 
-        sql_query = f"""
-            SELECT name, subtype, "{id_column}" as src_id
-            FROM {source_table}
-            WHERE "{id_column}" = :src_id
-        """
+        if source == "custom":
+            # subtype doesnt exist on custom areas
+            sql_query = f"""
+                SELECT name, 'custom-area' as subtype, "{id_column}" as src_id
+                FROM {source_table}
+                WHERE "{id_column}" = :src_id
+            """
+        else:
+            sql_query = f"""
+                SELECT name, subtype, "{id_column}" as src_id
+                FROM {source_table}
+                WHERE "{id_column}" = :src_id
+            """
 
         with engine.connect() as conn:
             selected_aoi_df = pd.read_sql(
@@ -378,17 +402,25 @@ async def pick_aoi(
 
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
-            subregion_aois = query_subregion_database(
-                engine, subregion, source, src_id
-            )
+            subregion_aois = query_subregion_database(engine, subregion, source, src_id)
             subregion_aois = subregion_aois.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
 
-        tool_message = f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
+        tool_message = (
+            f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
+        )
         if subregion:
             tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
 
         logger.debug(f"Pick AOI tool message: {tool_message}")
+
+        if selected_aoi["source"] == "custom":
+            # covert uuid object to string for consistency
+            selected_aoi["src_id"] = str(selected_aoi["src_id"])
+
+        logger.info(
+            f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}, source: {selected_aoi['source']}, src_id: {repr(selected_aoi['src_id'])}"
+        )
 
         return Command(
             update={
@@ -398,9 +430,7 @@ async def pick_aoi(
                 "aoi_name": selected_aoi["name"],
                 "subtype": selected_aoi["subtype"],
                 # Update the message history
-                "messages": [
-                    ToolMessage(tool_message, tool_call_id=tool_call_id)
-                ],
+                "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
             },
         )
     except Exception as e:
@@ -408,9 +438,7 @@ async def pick_aoi(
         return Command(
             update={
                 "messages": [
-                    ToolMessage(
-                        str(e), tool_call_id=tool_call_id, status="error"
-                    )
+                    ToolMessage(str(e), tool_call_id=tool_call_id, status="error")
                 ],
             },
         )
