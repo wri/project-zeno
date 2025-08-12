@@ -1,4 +1,3 @@
-import os
 from typing import Annotated, Literal, Optional
 
 import pandas as pd
@@ -11,6 +10,8 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
+from src.utils.config import APISettings
+from src.utils.database import get_async_engine
 from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
     GADM_TABLE,
@@ -22,8 +23,6 @@ from src.utils.geocoding_helpers import (
 )
 from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
-from src.utils.database import get_async_engine
-from src.utils.config import APISettings
 
 RESULT_LIMIT = 10
 
@@ -292,7 +291,9 @@ AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 # Chain for selecting the best location match
-AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(AOIIndex)
+AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
+    AOIIndex
+)
 
 
 @tool("pick-aoi")
@@ -325,7 +326,9 @@ async def pick_aoi(
         subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
     try:
-        logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
+        logger.info(
+            f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'"
+        )
         # Query the database for place & get top matches using similarity
 
         # TODO: we may need to replace `asyncpg` with `psycopg` in the
@@ -397,9 +400,7 @@ async def pick_aoi(
             subregion_aois = subregion_aois.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
 
-        tool_message = (
-            f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
-        )
+        tool_message = f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
         if subregion:
             tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
 
@@ -413,7 +414,9 @@ async def pick_aoi(
                 "aoi_name": selected_aoi["name"],
                 "subtype": selected_aoi["subtype"],
                 # Update the message history
-                "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
+                "messages": [
+                    ToolMessage(tool_message, tool_call_id=tool_call_id)
+                ],
             },
         )
     except Exception as e:
@@ -421,7 +424,9 @@ async def pick_aoi(
         return Command(
             update={
                 "messages": [
-                    ToolMessage(str(e), tool_call_id=tool_call_id, status="error")
+                    ToolMessage(
+                        str(e), tool_call_id=tool_call_id, status="error"
+                    )
                 ],
             },
         )

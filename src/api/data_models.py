@@ -8,13 +8,13 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
-    String,
     Integer,
-    text,
+    String,
     UniqueConstraint,
+    text,
 )
-
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgresUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -53,7 +53,9 @@ class ThreadOrm(Base):
         onupdate=datetime.now(),
     )
     name = Column(String, nullable=False, default="Unnamed Thread")
-    user = relationship("UserOrm", back_populates="threads", foreign_keys=[user_id])
+    user = relationship(
+        "UserOrm", back_populates="threads", foreign_keys=[user_id]
+    )
     ratings = relationship("RatingOrm", back_populates="thread")
 
 
@@ -81,7 +83,9 @@ class RatingOrm(Base):
         default=datetime.now(),
         onupdate=datetime.now(),
     )
-    user = relationship("UserOrm", back_populates="ratings", foreign_keys=[user_id])
+    user = relationship(
+        "UserOrm", back_populates="ratings", foreign_keys=[user_id]
+    )
     thread = relationship(
         "ThreadOrm", back_populates="ratings", foreign_keys=[thread_id]
     )
