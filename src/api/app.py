@@ -49,6 +49,7 @@ from src.api.schemas import (
     RatingModel,
     ThreadModel,
     UserModel,
+    UserWithQuotaModel,
 )
 from src.utils.config import APISettings
 from src.utils.env_loader import load_environment_variables
@@ -64,18 +65,6 @@ from src.utils.logging_config import bind_request_logging_context, get_logger
 load_environment_variables()
 
 logger = get_logger(__name__)
-
-
-# TODO: how to diferentiate between admin and regular users for limits?
-# For now, we assume all users are regular users
-# Question: will there be only 2 usage tiers? Do we want to set a default
-# daily limit and then set custom limits for specific users? (we can use this
-# approach to set daily quotas to -1 for unlimited users)
-# DAILY_QUOTA_WARNING_THRESHOLD = 5
-# ADMIN_USER_DAILY_QUOTA = 100
-# REGULAR_USER_DAILY_QUOTA = 25
-# ANONYMOUS_USER_DAILY_QUOTA = 10
-# ENABLE_QUOTA_CHECKING = True
 
 
 @asynccontextmanager
@@ -174,9 +163,7 @@ async def anonymous_id_middleware(request: Request, call_next):
     if anon_cookie:
         try:
             # Verify signature & extract payload
-            _ = signer.unsign(
-                anon_cookie, max_age=365 * 24 * 3600
-            )  # Cookie age: 1yr
+            _ = signer.unsign(anon_cookie, max_age=365 * 24 * 3600)  # Cookie age: 1yr
             need_new = False
         except BadSignature:
             pass
@@ -216,12 +203,8 @@ async def replay_chat(thread_id):
         # Fetch checkpoints for conversation/thread
         # consume checkpoints and sort them by step to process from
         # oldest to newest. Skip step -1 which is the initial empty state
-        checkpoints = [
-            c async for c in zeno_async.aget_state_history(config=config)
-        ]
-        checkpoints = sorted(
-            list(checkpoints), key=lambda x: x.metadata["step"]
-        )
+        checkpoints = [c async for c in zeno_async.aget_state_history(config=config)]
+        checkpoints = sorted(list(checkpoints), key=lambda x: x.metadata["step"])
         checkpoints = [c for c in checkpoints if c.metadata["step"] >= 0]
 
         # Track rendered state elements and messages.
@@ -262,9 +245,7 @@ async def replay_chat(thread_id):
             node_type = (
                 "agent"
                 if mtypes == {"ai"} or len(mtypes) > 1
-                else "tools"
-                if mtypes == {"tool"}
-                else "human"
+                else "tools" if mtypes == {"tool"} else "human"
             )
 
             update = {
@@ -323,9 +304,7 @@ async def stream_chat(
                     content = f"User selected AOI in UI: {action_data['aoi_name']}\n\n"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
-                    state_updates["subregion_aois"] = action_data[
-                        "subregion_aois"
-                    ]
+                    state_updates["subregion_aois"] = action_data["subregion_aois"]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
@@ -381,12 +360,8 @@ async def stream_chat(
                         "update": dumps(
                             {
                                 "error": True,
-                                "message": str(
-                                    e
-                                ),  # String representation of the error
-                                "error_type": type(
-                                    e
-                                ).__name__,  # Exception class name
+                                "message": str(e),  # String representation of the error
+                                "error_type": type(e).__name__,  # Exception class name
                                 "type": "stream_processing_error",
                             }
                         ),
@@ -414,9 +389,7 @@ async def stream_chat(
                 "update": dumps(
                     {
                         "error": True,
-                        "message": str(
-                            e
-                        ),  # String representation of the error
+                        "message": str(e),  # String representation of the error
                         "error_type": type(e).__name__,  # Exception class name
                         "type": "stream_initialization_error",
                         "fatal": True,  # Indicates stream cannot continue
@@ -607,12 +580,7 @@ async def check_quota(
             detail=f"Daily free limit of {daily_quota} exceeded; please try again tomorrow.",
         )
 
-    if count >= daily_quota - APISettings.daily_quota_warning_threshold:
-        return {
-            "warning": f"User {identity} is approaching daily quota limit ({count} prompts out of {daily_quota})"
-        }
-
-    return {}
+    return {"daily_prompts_used": count, "daily_prompt_quota": daily_quota}
 
 
 async def generate_thread_name(query: str) -> str:
@@ -632,6 +600,14 @@ async def generate_thread_name(query: str) -> str:
     except Exception as e:
         logger.exception("Error generating thread name: %s", e)
         return "Unnamed Thread"  # Fallback to default name
+
+
+@app.get("/api/quota")
+async def get_quota(
+    user: UserModel = Depends(require_auth),
+    quota_info: dict = Depends(check_quota),
+):
+    return quota_info
 
 
 @app.post("/api/chat")
@@ -662,9 +638,7 @@ async def chat(
             session_id=request.session_id,
             query=request.query,
         )
-        stmt = select(ThreadOrm).filter_by(
-            id=request.thread_id, user_id=user.id
-        )
+        stmt = select(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id)
         result = await session.execute(stmt)
         thread = result.scalars().first()
         if not thread:
@@ -686,9 +660,11 @@ async def chat(
         thread_id = request.thread_id
 
     try:
-        headers = {}
-        if "warning" in quota_info:
-            headers["X-Quota-Warning"] = quota_info["warning"]
+
+        headers = {
+            "X-Daily-Prompts-Used": str(quota_info["daily_prompts_used"]),
+            "X-Daily-Prompts-Quota": str(quota_info["daily_prompt_quota"]),
+        }
 
         return StreamingResponse(
             stream_chat(
@@ -872,9 +848,7 @@ async def get_geometry(
         # Parse GeoJSON string
         try:
             geometry = (
-                json.loads(result.geometry_json)
-                if result.geometry_json
-                else None
+                json.loads(result.geometry_json) if result.geometry_json else None
             )
         except json.JSONDecodeError:
             logger.error(f"Failed to parse GeoJSON for {source}:{src_id}")
@@ -970,9 +944,7 @@ async def create_or_update_rating(
     result = await session.execute(stmt)
     thread = result.scalars().first()
     if not thread:
-        raise HTTPException(
-            status_code=404, detail="Thread not found or access denied"
-        )
+        raise HTTPException(status_code=404, detail="Thread not found or access denied")
 
     # Check if the rating already exists (upsert logic)
     stmt = select(RatingOrm).filter_by(
@@ -1035,14 +1007,16 @@ async def create_or_update_rating(
         return RatingModel.model_validate(new_rating)
 
 
-@app.get("/api/auth/me", response_model=UserModel)
-async def auth_me(user: UserModel = Depends(require_auth)):
+@app.get("/api/auth/me", response_model=UserWithQuotaModel)
+async def auth_me(
+    user: UserModel = Depends(require_auth), quota_info: dict = Depends(check_quota)
+):
     """
     Requires Authorization: Bearer <JWT>
     Forwards the JWT to Resource Watch API and returns user info.
     """
 
-    return user
+    return {**user.model_dump(), **quota_info}
 
 
 @app.get("/api/metadata")
