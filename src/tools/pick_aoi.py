@@ -166,11 +166,14 @@ async def query_aoi_database(
 
         logger.debug(f"Executing AOI query: {sql_query}")
 
-        query_results = await pd.read_sql(
-            text(sql_query),
-            conn,
-            params={"place_name": place_name, "limit_val": result_limit},
-        )
+        def _read(sync_conn):
+            return pd.read_sql(
+                text(sql_query),
+                sync_conn,
+                params={"place_name": place_name, "limit_val": result_limit},
+            )
+
+        query_results = await conn.run_sync(_read)
 
     logger.debug(f"AOI query results: {query_results}")
     return query_results
@@ -246,11 +249,15 @@ async def query_subregion_database(
     logger.debug(f"Executing subregion query: {sql_query}")
 
     async with engine.connect() as conn:
-        results = await pd.read_sql(
-            text(sql_query),
-            conn,
-            params={"src_id": src_id, "subtype": subtype},
-        )
+
+        def _read(sync_conn):
+            return pd.read_sql(
+                text(sql_query),
+                sync_conn,
+                params={"src_id": src_id, "subtype": subtype},
+            )
+
+        results = await conn.run_sync(_read)
 
     return results
 
@@ -367,9 +374,13 @@ async def pick_aoi(
         """
 
         async with engine.connect() as conn:
-            selected_aoi_df = await pd.read_sql(
-                text(sql_query), conn, params={"src_id": src_id}
-            )
+
+            def _read(sync_conn):
+                return pd.read_sql(
+                    text(sql_query), sync_conn, params={"src_id": src_id}
+                )
+
+            selected_aoi_df = await conn.run_sync(_read)
 
         if selected_aoi_df.empty:
             raise ValueError(f"No AOI found with {id_column} = {src_id}")
