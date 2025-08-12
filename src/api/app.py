@@ -615,7 +615,7 @@ async def generate_thread_name(query: str) -> str:
     """
     try:
         prompt = f"Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:\n{query}\nReturn strictly the title only, no quotes or explanation."
-        response = HAIKU.invoke(prompt)
+        response = await HAIKU.ainvoke(prompt)
         return response.content[:50]  # Ensure we don't exceed 50 chars
     except Exception as e:
         logger.exception("Error generating thread name: %s", e)
