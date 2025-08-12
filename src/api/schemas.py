@@ -25,7 +25,9 @@ class ThreadModel(BaseModel):
 
 
 class CustomAreaNameRequest(BaseModel):
-    type: str = Field("FeatureCollection", description="Type must be FeatureCollection")
+    type: str = Field(
+        "FeatureCollection", description="Type must be FeatureCollection"
+    )
     features: list = Field(..., description="Array of GeoJSON Feature objects")
 
 
@@ -63,8 +65,12 @@ class UserWithQuotaModel(UserModel):
         from_attributes=True,
         populate_by_name=True,
     )
-    daily_prompts_used: int = Field(..., description="Number of prompts used today")
-    daily_prompt_quota: int = Field(..., description="Daily prompt quota for the user")
+    daily_prompts_used: int = Field(
+        ..., description="Number of prompts used today"
+    )
+    daily_prompt_quota: int = Field(
+        ..., description="Daily prompt quota for the user"
+    )
 
 
 class GeometryResponse(BaseModel):
@@ -134,7 +140,9 @@ class RatingCreateRequest(BaseModel):
     @field_validator("rating")
     def validate_rating(cls, v):
         if v not in [-1, 1]:
-            raise ValueError("Rating must be either 1 (thumbs up) or -1 (thumbs down)")
+            raise ValueError(
+                "Rating must be either 1 (thumbs up) or -1 (thumbs down)"
+            )
         return v
 
 
