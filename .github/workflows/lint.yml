@@ -1,6 +1,7 @@
 name: Push checks
 on:
   push:
+  pull_request:
 
 jobs:
   lint:
