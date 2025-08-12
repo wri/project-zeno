@@ -20,6 +20,7 @@ class ThreadModel(BaseModel):
     user_id: str
     agent_id: str
     name: str
+    is_public: bool
     created_at: datetime
     updated_at: datetime
 

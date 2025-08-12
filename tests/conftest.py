@@ -7,7 +7,7 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import NullPool, text
+from sqlalchemy import NullPool, text, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -59,13 +59,12 @@ async def client() -> AsyncClient:
 
 
 async def clear_tables():
-    """Truncate all tables, except the 'users' table, after running each test."""
+    """Truncate all tables after running each test."""
     async with async_session_maker() as session:
-        for table in Base.metadata.sorted_tables:
-            if table.name != "users":
-                await session.execute(
-                    text(f"TRUNCATE {table.name} RESTART IDENTITY CASCADE;"),
-                )
+        for table in reversed(Base.metadata.sorted_tables):
+            await session.execute(
+                text(f"TRUNCATE {table.name} RESTART IDENTITY CASCADE;"),
+            )
         await session.commit()
 
 
@@ -76,7 +75,7 @@ async def test_db_session():
     await engine_test.dispose()
 
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(scope="function")
 async def user() -> UserOrm:
     async with async_session_maker() as session:
         u = UserOrm(
@@ -89,7 +88,7 @@ async def user() -> UserOrm:
         return u
 
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(scope="function")
 async def user_ds() -> UserOrm:
     async with async_session_maker() as session:
         u = UserOrm(
@@ -104,7 +103,8 @@ async def user_ds() -> UserOrm:
 
 @pytest.fixture(scope="function")
 def auth_override():
-    original_dependency = None
+    # Store the original dependency before any changes
+    original_dependency = app.dependency_overrides.get(fetch_user_from_rw_api)
 
     def _auth_override(user_id: str):
         nonlocal original_dependency
@@ -113,19 +113,19 @@ def auth_override():
             original_dependency = app.dependency_overrides.get(
                 fetch_user_from_rw_api
             )
-        app.dependency_overrides[fetch_user_from_rw_api] = (
-            lambda: UserModel.model_validate(
-                {
-                    "id": user_id,
-                    "name": user_id,
-                    "email": "admin@wri.org",
-                    "createdAt": "2024-01-01T00:00:00Z",
-                    "updatedAt": "2024-01-01T00:00:00Z",
-                }
-            )
+        app.dependency_overrides[fetch_user_from_rw_api] = lambda: UserModel.model_validate(
+            {
+                "id": user_id,
+                "name": user_id,
+                "email": "admin@wri.org",
+                "createdAt": "2024-01-01T00:00:00Z",
+                "updatedAt": "2024-01-01T00:00:00Z",
+            }
         )
 
     yield _auth_override
+    
+    # Always restore to the original state
     if original_dependency is not None:
         app.dependency_overrides[fetch_user_from_rw_api] = original_dependency
     else:
@@ -140,12 +140,28 @@ async def thread_factory():
         unique_id = str(uuid.uuid4())[:8]
 
         async with async_session_maker() as session:
-            # Create test thread that belongs to the mocked user
+            # First, ensure the user exists (create if not exists)
+            stmt = select(UserOrm).filter_by(id=user_id)
+            result = await session.execute(stmt)
+            user = result.scalars().first()
+            
+            if not user:
+                # Create the user if it doesn't exist
+                user = UserOrm(
+                    id=user_id,
+                    name=user_id,
+                    email=f"{user_id}@example.com"
+                )
+                session.add(user)
+                await session.commit()
+
+            # Create test thread that belongs to the user
             thread = ThreadOrm(
                 id=f"test-thread-{unique_id}",
                 user_id=user_id,  # Must match mocked user ID
                 agent_id="test-agent",
                 name="Test Thread",
+                is_public=False,  # Default to private
             )
             session.add(thread)
             await session.commit()

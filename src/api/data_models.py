@@ -6,6 +6,7 @@ from datetime import date, datetime
 
 from fastapi import Request
 from sqlalchemy import (
+    Boolean,
     Column,
     Date,
     DateTime,
@@ -80,6 +81,7 @@ class ThreadOrm(Base):
         onupdate=datetime.now(),
     )
     name = Column(String, nullable=False, default="Unnamed Thread")
+    is_public = Column(Boolean, nullable=False, default=False)
     user = relationship(
         "UserOrm", back_populates="threads", foreign_keys=[user_id]
     )
