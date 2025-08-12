@@ -22,7 +22,7 @@ Language Interface for Maps & WRI/LCL data APIs.
    ```bash
    cp .env.example .env
    # Edit .env with your API keys and credentials
-   
+
    cp .env.local.example .env.local
    # .env.local contains local development overrides (auto-created by make commands)
    ```
@@ -39,9 +39,9 @@ Language Interface for Maps & WRI/LCL data APIs.
 
 5. **Ingest data (required after starting database):**
    After starting the database and infrastructure services, you need to ingest the required datasets. Feel free to run all or just the ones you need.
-   
+
    This downloads ~2 GB of data per dataset except for WDPA which is ~10 GB. It's ok to skip WDPA if you don't need it.
-   
+
    Make sure you're set up with WRI AWS credentials in your `.env` file to access the S3 bucket.
 
    ```bash
@@ -69,17 +69,17 @@ Language Interface for Maps & WRI/LCL data APIs.
    git clone https://github.com/langfuse/langfuse.git
    cd langfuse
    ```
-   
+
    b. Start the Langfuse server
    ```bash
    docker compose up -d
    ```
-   
+
    c. Access the Langfuse UI at http://localhost:3000
    1. Create an account
    2. Create a new project
    3. Copy the API keys from your project settings
-   
+
    d. Return to your project directory and update your .env.local file
    ```bash
    cd ../project-zeno
@@ -158,7 +158,7 @@ psql zeno-data-local
 
 # Output
 #               List of relations
-#  Schema |      Name       | Type  |  Owner   
+#  Schema |      Name       | Type  |  Owner
 # --------+-----------------+-------+----------
 #  public | alembic_version | table | postgres
 #  public | threads         | table | postgres

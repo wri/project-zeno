@@ -28,9 +28,9 @@ run_and_time() {
 
     echo "--- $description ---"
     start_time=$(date +%s)
-    
+
     "$@" # Run the command
-    
+
     end_time=$(date +%s)
     duration=$((end_time - start_time))
     minutes=$((duration / 60))

@@ -74,9 +74,9 @@ if [ "$RUN_FOLLOWUP" = true ]; then
   echo "=================================================================="
   echo "Running follow-up query: $FOLLOWUP_QUERY"
   echo ""
-  
+
   python client.py "$FOLLOWUP_QUERY" -p "$PERSONA" -t "$THREAD_ID" -u "$URL" -m "$METADATA_FOLLOWUP" -s "$SESSION_ID" -i "$USER_ID" -a "$TAGS"
-  
+
   # Final separator
   echo -e "\n"
   echo "=================================================================="

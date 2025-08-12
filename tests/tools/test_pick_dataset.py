@@ -188,3 +188,20 @@ async def test_query_tree_cover_loss_with_context_layer():
     assert dataset_id == 4
     context_layer = command.update.get("dataset", {}).get("context_layer")
     assert context_layer == "driver"
+
+
+@pytest.mark.asyncio
+async def test_query_land_cover_change_with_context_layer():
+    query = "Deforestation split by land types"
+
+    command = await pick_dataset.ainvoke(
+        {
+            "query": query,
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
+
+    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    assert dataset_id == 4
+    context_layer = command.update.get("dataset", {}).get("context_layer")
+    assert context_layer == "natural_lands"

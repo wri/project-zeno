@@ -111,7 +111,9 @@ def setup_standard_logging() -> None:
         log_file_path = get_log_file_path()
         os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
 
-        file_handler = RotatingFileHandler(log_file_path, maxBytes=10**6, backupCount=5)
+        file_handler = RotatingFileHandler(
+            log_file_path, maxBytes=10**6, backupCount=5
+        )
         file_handler.setFormatter(file_formatter)
         file_handler.setLevel(logging.DEBUG)  # Always log DEBUG to file
         root_logger.addHandler(file_handler)

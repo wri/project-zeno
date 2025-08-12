@@ -29,4 +29,3 @@ WORKDIR /app
 RUN uv sync --frozen
 
 # Command to run the application.
-

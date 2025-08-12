@@ -1,22 +1,22 @@
 """Test configuration and fixtures."""
+
 import os
 import uuid
+from collections.abc import AsyncGenerator
+
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport
-from httpx import AsyncClient
-from collections.abc import AsyncGenerator
-from sqlalchemy import text
-from sqlalchemy import NullPool
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import NullPool, text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
-from src.api.data_models import Base, UserOrm, ThreadOrm
-from src.api.app import app, get_async_session, fetch_user_from_rw_api
+from src.api.app import app, fetch_user_from_rw_api, get_async_session
+from src.api.data_models import Base, ThreadOrm, UserOrm
 from src.api.schemas import UserModel
 
 # Test database settings
-if (os.getenv('TEST_DATABASE_URL')):
+if os.getenv("TEST_DATABASE_URL"):
     TEST_DB_URL = os.getenv("TEST_DATABASE_URL")
 else:
     TEST_DB_URL = f"{os.getenv('DATABASE_URL')}_test"
@@ -59,8 +59,7 @@ async def client() -> AsyncClient:
 
 
 async def clear_tables():
-    """Truncate all tables, except the 'users' table, after running each test.
-    """
+    """Truncate all tables, except the 'users' table, after running each test."""
     async with async_session_maker() as session:
         for table in Base.metadata.sorted_tables:
             if table.name != "users":
@@ -111,15 +110,19 @@ def auth_override():
         nonlocal original_dependency
         # Store the original dependency if we haven't already
         if original_dependency is None:
-            original_dependency = app.dependency_overrides.get(fetch_user_from_rw_api)
-        app.dependency_overrides[fetch_user_from_rw_api] = lambda: UserModel.model_validate(
-            {
-                "id": user_id,
-                "name": user_id,
-                "email": "admin@wri.org",
-                "createdAt": "2024-01-01T00:00:00Z",
-                "updatedAt": "2024-01-01T00:00:00Z",
-            }
+            original_dependency = app.dependency_overrides.get(
+                fetch_user_from_rw_api
+            )
+        app.dependency_overrides[fetch_user_from_rw_api] = (
+            lambda: UserModel.model_validate(
+                {
+                    "id": user_id,
+                    "name": user_id,
+                    "email": "admin@wri.org",
+                    "createdAt": "2024-01-01T00:00:00Z",
+                    "updatedAt": "2024-01-01T00:00:00Z",
+                }
+            )
         )
 
     yield _auth_override

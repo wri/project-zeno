@@ -54,7 +54,7 @@ scripts directly. The docker setup will not be necessary.
 ```bash
 pip install -r requirements.txt
 python datasets/natural_lands.py
-python datasets/dist_alerts.py   
+python datasets/dist_alerts.py
 ```
 
 ## Generate global overviews

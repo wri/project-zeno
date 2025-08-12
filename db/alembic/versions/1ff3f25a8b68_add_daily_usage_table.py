@@ -8,9 +8,8 @@ Create Date: 2025-07-14 13:21:00.024936
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "1ff3f25a8b68"
@@ -25,7 +24,9 @@ def upgrade() -> None:
         "daily_usage",
         sa.Column("id", sa.String(), nullable=False),
         sa.Column("date", sa.Date(), nullable=False),
-        sa.Column("usage_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "usage_count", sa.Integer(), nullable=False, server_default="0"
+        ),
         sa.PrimaryKeyConstraint("id", "date"),
         sa.UniqueConstraint("id"),
     )

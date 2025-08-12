@@ -1,16 +1,17 @@
 import time
-import streamlit as st
-import pandas as pd
 from pathlib import Path
-from dotenv import load_dotenv
 
-from langchain_openai import OpenAIEmbeddings
-from langchain_ollama import OllamaEmbeddings
+import pandas as pd
+import streamlit as st
+from dotenv import load_dotenv
 from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_ollama import OllamaEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from pylate import indexes, models, retrieve
 
 _ = load_dotenv()
 st.set_page_config(page_title="Zeno Search Engine", layout="wide")
+
 
 def get_relevant_documents(query, indexer="nomic"):
     results = []
@@ -18,19 +19,36 @@ def get_relevant_documents(query, indexer="nomic"):
         case "nomic":
             match_documents = nomic_retriever.invoke(query)
             for doc in match_documents:
-                results.append(zeno_data[zeno_data.dataset_id == int(doc.id)].iloc[0].to_dict())
+                results.append(
+                    zeno_data[zeno_data.dataset_id == int(doc.id)]
+                    .iloc[0]
+                    .to_dict()
+                )
         case "openai":
             match_documents = openai_retriever.invoke(query)
             for doc in match_documents:
-                results.append(zeno_data[zeno_data.dataset_id == int(doc.id)].iloc[0].to_dict())
+                results.append(
+                    zeno_data[zeno_data.dataset_id == int(doc.id)]
+                    .iloc[0]
+                    .to_dict()
+                )
         case "colbert":
-            query_embedding = colbert_model.encode(query, batch_size=1, is_query=True, show_progress_bar=False)
-            scores = colbert_retriever.retrieve(queries_embeddings=query_embedding, k=3)
+            query_embedding = colbert_model.encode(
+                query, batch_size=1, is_query=True, show_progress_bar=False
+            )
+            scores = colbert_retriever.retrieve(
+                queries_embeddings=query_embedding, k=3
+            )
             for score in scores[0]:
-                results.append(zeno_data[zeno_data.dataset_id == int(score["id"])].iloc[0].to_dict())
+                results.append(
+                    zeno_data[zeno_data.dataset_id == int(score["id"])]
+                    .iloc[0]
+                    .to_dict()
+                )
         case _:
             raise ValueError(f"Unknown indexer: {indexer}")
     return results
+
 
 @st.cache_resource(show_spinner=True)
 def load_indexes():
@@ -40,19 +58,44 @@ def load_indexes():
     nomic_embeddings = OllamaEmbeddings(model="nomic-embed-text")
     openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
 
-    nomic_index = InMemoryVectorStore.load(data_dir / "zeno-docs-nomic-index", embedding=nomic_embeddings)
-    openai_index = InMemoryVectorStore.load(data_dir / "zeno-docs-openai-index", embedding=openai_embeddings)
+    nomic_index = InMemoryVectorStore.load(
+        data_dir / "zeno-docs-nomic-index", embedding=nomic_embeddings
+    )
+    openai_index = InMemoryVectorStore.load(
+        data_dir / "zeno-docs-openai-index", embedding=openai_embeddings
+    )
 
-    nomic_retriever = nomic_index.as_retriever(search_type="similarity", search_kwargs={"k": 3})
-    openai_retriever = openai_index.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+    nomic_retriever = nomic_index.as_retriever(
+        search_type="similarity", search_kwargs={"k": 3}
+    )
+    openai_retriever = openai_index.as_retriever(
+        search_type="similarity", search_kwargs={"k": 3}
+    )
 
-    colbert_model = models.ColBERT(model_name_or_path="lightonai/GTE-ModernColBERT-v1")
-    colbert_index = indexes.PLAID(index_folder=data_dir / "colbert-index", index_name="dataset")
+    colbert_model = models.ColBERT(
+        model_name_or_path="lightonai/GTE-ModernColBERT-v1"
+    )
+    colbert_index = indexes.PLAID(
+        index_folder=data_dir / "colbert-index", index_name="dataset"
+    )
     colbert_retriever = retrieve.ColBERT(index=colbert_index)
 
-    return nomic_retriever, openai_retriever, colbert_retriever, colbert_model, zeno_data
+    return (
+        nomic_retriever,
+        openai_retriever,
+        colbert_retriever,
+        colbert_model,
+        zeno_data,
+    )
 
-nomic_retriever, openai_retriever, colbert_retriever, colbert_model, zeno_data = load_indexes()
+
+(
+    nomic_retriever,
+    openai_retriever,
+    colbert_retriever,
+    colbert_model,
+    zeno_data,
+) = load_indexes()
 
 queries = [
     "What percent of 2000 forest did Kalimantan Barat lose from 2001 through 2024?",
@@ -62,14 +105,16 @@ queries = [
     "Has Chai Nat or Krabi in Thailand has had the most forest-related annual carbon emissions since 2001?",
     "I'm researching carbon sequestration in Indonesian forests. Specifically, for Key Biodiversity Areas (KBAs), how much carbon has been absorbed from the atmosphere between 2000 and 2024?",
     "How many deforestation alerts were reported in protected areas of the Republic of the Congo april 2024 - april 2025?",
-    "which country had the most deforestation in 2018"
+    "which country had the most deforestation in 2018",
 ]
 
 # UI Controls in Sidebar
 with st.sidebar:
     st.title("Zeno Search Engine")
     st.header("Query")
-    use_example = st.selectbox("Pick an example query", ["Type your own"] + queries)
+    use_example = st.selectbox(
+        "Pick an example query", ["Type your own"] + queries
+    )
     if use_example == "Type your own":
         query = st.text_area("Your query:", height=80, key="query_input")
     else:
@@ -113,13 +158,13 @@ if st.session_state.get("run_query"):
         for idx, ds in enumerate(results):
             # Combine all fields for simple code block
             block = f"""\
-[{idx+1}] {ds['data_layer']}
+[{idx + 1}] {ds["data_layer"]}
 -----------------------------
-Description: {ds['description']}
-Vars: {ds.get('variables', '')}
-Context: {ds.get('context_layer', '')}
-Date: {ds.get('date', '')}
-Dataset ID: {ds['dataset_id']}
+Description: {ds["description"]}
+Vars: {ds.get("variables", "")}
+Context: {ds.get("context_layer", "")}
+Date: {ds.get("date", "")}
+Dataset ID: {ds["dataset_id"]}
 """
             st.code(block, language="markdown")
 
@@ -140,4 +185,3 @@ Dataset ID: {ds['dataset_id']}
 
     # Reset after run so it doesn't rerun automatically
     st.session_state["run_query"] = False
-

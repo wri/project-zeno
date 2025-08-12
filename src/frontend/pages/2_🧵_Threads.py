@@ -122,7 +122,7 @@ with st.sidebar:
             st.session_state["user"] = user_info.json()
             st.sidebar.success(
                 f"""
-                Logged in as {st.session_state['user']['name']}
+                Logged in as {st.session_state["user"]["name"]}
                 """
             )
 

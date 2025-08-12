@@ -54,7 +54,7 @@ def download(url: str, dest: str) -> str:
         with open(dest, "wb") as f:
             for chunk in r.iter_content(1 << 20):
                 f.write(chunk)
-    print(f"✓ Downloaded {dest.stat().st_size/1e6:.1f} MB")
+    print(f"✓ Downloaded {dest.stat().st_size / 1e6:.1f} MB")
     return dest
 
 
