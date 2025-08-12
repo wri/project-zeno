@@ -30,7 +30,9 @@ class GadmLocation:
     def __eq__(self, other):
         if not isinstance(other, GadmLocation):
             return NotImplemented
-        return normalize_gadm_id(self.gadm_id) == normalize_gadm_id(other.gadm_id)
+        return normalize_gadm_id(self.gadm_id) == normalize_gadm_id(
+            other.gadm_id
+        )
 
     def __hash__(self):
         return hash(normalize_gadm_id(self.gadm_id))

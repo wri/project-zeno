@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, date
 import enum
-
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgresUUID
+from datetime import date, datetime
 
 from sqlalchemy import (
     Column,
@@ -16,8 +14,8 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 
-
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgresUUID
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -63,7 +61,10 @@ class RatingOrm(Base):
     __tablename__ = "ratings"
     __table_args__ = (
         UniqueConstraint(
-            "user_id", "thread_id", "trace_id", name="uq_user_thread_trace_rating"
+            "user_id",
+            "thread_id",
+            "trace_id",
+            name="uq_user_thread_trace_rating",
         ),
     )
 
@@ -98,7 +99,9 @@ class CustomAreaOrm(Base):
     __tablename__ = "custom_areas"
 
     id = Column(
-        PostgresUUID, primary_key=True, server_default=text("gen_random_uuid()")
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
     )
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)

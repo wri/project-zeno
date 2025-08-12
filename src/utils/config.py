@@ -1,5 +1,6 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings
+
 from src.utils.env_loader import load_environment_variables
 
 # Load environment variables first
@@ -20,9 +21,15 @@ class _APISettings(BaseSettings):
     def domains_allowlist(self) -> list[str]:
         if not self.domains_allowlist_str.strip():
             return []
-        return [domain.strip() for domain in self.domains_allowlist_str.split(",")]
+        return [
+            domain.strip() for domain in self.domains_allowlist_str.split(",")
+        ]
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
 
 # Create a singleton instance

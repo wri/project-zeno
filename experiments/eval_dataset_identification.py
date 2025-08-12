@@ -8,11 +8,11 @@ This evaluates high-level questions (e.g., deforestation in Amazon) with expert-
 Unlike GADM evaluation, this uses LLM-based scoring to compare non-exact matches.
 """
 
-import json
-import traceback
 import argparse
 import code
+import json
 import sys
+import traceback
 from dataclasses import dataclass
 from typing import Optional
 

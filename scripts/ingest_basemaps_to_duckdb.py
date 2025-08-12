@@ -11,20 +11,17 @@ ingest_basemaps_to_duckdb.py
 """
 
 import argparse
-import io
 import json
 import zipfile
 from pathlib import Path
 
-import pandas as pd
-import geopandas as gpd
 import duckdb
+import geopandas as gpd
+import pandas as pd
 import requests
 import s3fs
 
-GADM_ZIP_URL = (
-    "https://geodata.ucdavis.edu/gadm/gadm4.1/gadm_410-levels.zip"
-)
+GADM_ZIP_URL = "https://geodata.ucdavis.edu/gadm/gadm4.1/gadm_410-levels.zip"
 LAYER_SUBTYPES = {
     "ADM_0": "country",
     "ADM_1": "state-province",
@@ -63,7 +60,7 @@ def download(url: str, dest: str) -> str:
         with open(dest, "wb") as f:
             for chunk in r.iter_content(1 << 20):
                 f.write(chunk)
-    print(f"✓ Downloaded {dest.stat().st_size/1e6:.1f} MB")
+    print(f"✓ Downloaded {dest.stat().st_size / 1e6:.1f} MB")
     return dest
 
 
@@ -103,10 +100,10 @@ def build_dataframe(gpkg: Path) -> gpd.GeoDataFrame:
 
     # DuckDB’s spatial extension works with WKB → convert for fast load
     gdf["geometry"] = gdf.geometry.apply(lambda geom: geom.wkb)
-    
+
     # Add a unique id
     gdf["gadm_id"] = gdf.index
-    
+
     return gdf
 
 
@@ -148,7 +145,7 @@ def cached_ndjson_path(url: str, cache_dir: Path = Path("/tmp")) -> Path:
         fs = s3fs.S3FileSystem(requester_pays=True)
         print(f"⇣ Downloading {url} → {dest}")
         fs.get(url, str(dest), recursive=False)
-    else:                                  # HTTP/HTTPS
+    else:  # HTTP/HTTPS
         print(f"⇣ Downloading {url} → {dest}")
         with requests.get(url, stream=True) as r:
             r.raise_for_status()
@@ -156,11 +153,13 @@ def cached_ndjson_path(url: str, cache_dir: Path = Path("/tmp")) -> Path:
                 for chunk in r.iter_content(1 << 20):
                     f.write(chunk)
 
-    print(f"✓ Downloaded {dest.stat().st_size/1e6:.1f} MB")
+    print(f"✓ Downloaded {dest.stat().st_size / 1e6:.1f} MB")
     return dest
 
 
-def gdf_from_ndjson(url: str, cache_dir: Path = Path("/tmp")) -> gpd.GeoDataFrame:
+def gdf_from_ndjson(
+    url: str, cache_dir: Path = Path("/tmp")
+) -> gpd.GeoDataFrame:
     """
     Download the NDJSON file once (into *cache_dir*), then read it
     into a GeoDataFrame. Geometry is converted to WKB for DuckDB.
@@ -177,7 +176,6 @@ def gdf_from_ndjson(url: str, cache_dir: Path = Path("/tmp")) -> gpd.GeoDataFram
     gdf["geometry"] = gdf.geometry.apply(lambda g: g.wkb)
     gdf["id"] = gdf.index
     return gdf
-
 
 
 def main() -> None:
@@ -205,7 +203,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    zip_path = download(GADM_ZIP_URL, Path(args.tempdir) / "gadm_410-levels.zip")
+    zip_path = download(
+        GADM_ZIP_URL, Path(args.tempdir) / "gadm_410-levels.zip"
+    )
     gpkg_path = extract_gpkg(zip_path, Path(args.tempdir))
     gdf = build_dataframe(gpkg_path)
     load_into_duckdb(gdf, Path(args.database), table=args.table)
@@ -217,6 +217,7 @@ def main() -> None:
         load_into_duckdb(ndjson_gdf, Path(args.database), table=table)
 
     print("✓ Done")
+
 
 if __name__ == "__main__":
     main()

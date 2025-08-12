@@ -22,14 +22,14 @@ services:
       - ./src:/app/src
       - ./data:/app/data
     depends_on:
-      migrate: 
+      migrate:
         condition: service_completed_successfully
-        
-  frontend: 
-    build: 
+
+  frontend:
+    build:
       context: .
     command: ["uv", "run", "streamlit", "run", "src/frontend/app.py", "--server.port=8501", "--server.runOnSave=True"]
-    ports: 
+    ports:
       - 8501:8501
     volumes:
       - ./src:/app/src
@@ -89,7 +89,7 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
       - POSTGRES_DB=zeno-data
-      
+
     ports:
       - 5432:5432
     volumes:
@@ -101,13 +101,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    
+
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
       - APP_DB=zeno-data
-    volumes: 
+    volumes:
       - ./db:/app/db
-
-  

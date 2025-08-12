@@ -39,13 +39,13 @@ from src.tools.pull_data import DataSourceHandler, DataPullResult
 class MyCustomHandler(DataSourceHandler):
     def can_handle(self, dataset: Any, table_name: str) -> bool:
         return dataset.source == "MY_API"
-    
-    def pull_data(self, query: str, aoi_name: str, dataset: Any, aoi: Dict, 
+
+    def pull_data(self, query: str, aoi_name: str, dataset: Any, aoi: Dict,
                   subregion: str, subtype: str) -> DataPullResult:
         try:
             # Your custom data pulling logic here
             data = fetch_from_my_api(aoi, dataset)
-            
+
             return DataPullResult(
                 success=True,
                 data=data,

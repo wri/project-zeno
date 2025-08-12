@@ -7,11 +7,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from langgraph.types import Command
 from pydantic import BaseModel, Field
-from pylate import indexes, models, retrieve
 
 from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
@@ -68,7 +66,9 @@ class DatasetOption(BaseModel):
         None,
         description="Pick a single context layer from the dataset if useful",
     )
-    reason: str = Field(description="Short reason why the dataset is the best match.")
+    reason: str = Field(
+        description="Short reason why the dataset is the best match."
+    )
 
 
 class DatasetSelectionResult(DatasetOption):
@@ -99,8 +99,8 @@ async def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     )
 
     logger.debug("Invoking dataset selection chain...")
-    dataset_selection_chain = DATASET_SELECTION_PROMPT | SONNET.with_structured_output(
-        DatasetOption
+    dataset_selection_chain = (
+        DATASET_SELECTION_PROMPT | SONNET.with_structured_output(DatasetOption)
     )
     selection_result = await dataset_selection_chain.ainvoke(
         {
@@ -121,7 +121,9 @@ async def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
     )
 
     tile_url = (
-        candidate_datasets[candidate_datasets.dataset_id == selection_result.dataset_id]
+        candidate_datasets[
+            candidate_datasets.dataset_id == selection_result.dataset_id
+        ]
         .iloc[0]
         .tile_url
     )
@@ -147,7 +149,9 @@ async def pick_dataset(
     """
     logger.info("PICK-DATASET-TOOL")
     # Step 1: RAG lookup
-    candidate_datasets = await rag_candidate_datasets(query, k=3, strategy="openai")
+    candidate_datasets = await rag_candidate_datasets(
+        query, k=3, strategy="openai"
+    )
 
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await select_best_dataset(query, candidate_datasets)

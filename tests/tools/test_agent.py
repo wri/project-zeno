@@ -19,6 +19,18 @@ def test_db_session():
     pass
 
 
+@pytest.fixture(scope="function", autouse=True)
+def user():
+    """Override the global user fixture to avoid database connections."""
+    pass
+
+
+@pytest.fixture(scope="function", autouse=True)
+def user_ds():
+    """Override the global user_ds fixture to avoid database connections."""
+    pass
+
+
 async def run_agent(query: str, thread_id: str | None = None):
     """Run the agent with a query and print output at each step."""
 

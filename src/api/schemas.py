@@ -1,10 +1,15 @@
 from datetime import datetime
-from uuid import UUID
 from typing import List, Optional
-from pydantic import (
-    BaseModel, ConfigDict, alias_generators, field_validator, Field
-)
+from uuid import UUID
+
 from geojson_pydantic import Polygon
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    alias_generators,
+    field_validator,
+)
 
 from src.api.data_models import UserType
 
@@ -20,7 +25,9 @@ class ThreadModel(BaseModel):
 
 
 class CustomAreaNameRequest(BaseModel):
-    type: str = Field("FeatureCollection", description="Type must be FeatureCollection")
+    type: str = Field(
+        "FeatureCollection", description="Type must be FeatureCollection"
+    )
     features: list = Field(..., description="Array of GeoJSON Feature objects")
 
 
@@ -117,7 +124,9 @@ class RatingCreateRequest(BaseModel):
     @field_validator("rating")
     def validate_rating(cls, v):
         if v not in [-1, 1]:
-            raise ValueError("Rating must be either 1 (thumbs up) or -1 (thumbs down)")
+            raise ValueError(
+                "Rating must be either 1 (thumbs up) or -1 (thumbs down)"
+            )
         return v
 
 
