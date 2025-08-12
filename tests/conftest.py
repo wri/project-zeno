@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from src.api.app import app, fetch_user_from_rw_api, get_async_session
 from src.api.data_models import Base, ThreadOrm, UserOrm
 from src.api.schemas import UserModel
+from unittest.mock import patch, AsyncMock
 
 # Test database settings
 if os.getenv("TEST_DATABASE_URL"):
@@ -39,6 +40,25 @@ async def override_get_async_session() -> AsyncGenerator[AsyncSession, None]:
 app.dependency_overrides[get_async_session] = override_get_async_session
 
 
+# Mock replay_chat function for tests to avoid checkpointer table dependencies
+async def mock_replay_chat(thread_id):
+    """Mock replay_chat that returns empty conversation history for tests."""
+    def pack(data):
+        import json
+        return json.dumps(data) + "\n"
+    
+    # Return minimal conversation history for tests
+    yield pack({
+        "node": "agent", 
+        "timestamp": "2025-01-01T00:00:00Z",
+        "update": '{"messages": [{"type": "human", "content": "Test message"}]}'
+    })
+
+# Apply the mock globally for all tests
+patcher = patch('src.api.app.replay_chat', mock_replay_chat)
+patcher.start()
+
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def test_db():
     """Create test database and clear it after each test."""
@@ -46,6 +66,8 @@ async def test_db():
     async with engine_test.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
+    # Clean up
+    patcher.stop()  # Stop the replay_chat mock
     # Clean databases
     async with engine_test.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
