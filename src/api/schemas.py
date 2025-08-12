@@ -65,10 +65,10 @@ class UserWithQuotaModel(UserModel):
         from_attributes=True,
         populate_by_name=True,
     )
-    daily_prompts_used: int = Field(
+    daily_prompts_used: Optional[int] = Field(
         ..., description="Number of prompts used today"
     )
-    daily_prompt_quota: int = Field(
+    daily_prompt_quota: Optional[int] = Field(
         ..., description="Daily prompt quota for the user"
     )
 

@@ -678,10 +678,14 @@ async def chat(
         thread_id = request.thread_id
 
     try:
-        headers = {
-            "X-Daily-Prompts-Used": str(quota_info["daily_prompts_used"]),
-            "X-Daily-Prompts-Quota": str(quota_info["daily_prompt_quota"]),
-        }
+        headers = {}
+        if APISettings.enable_quota_checking and quota_info:
+            headers["X-Daily-Prompts-Used"] = str(
+                quota_info["daily_prompts_used"]
+            )
+            headers["X-Daily-Prompts-Quota"] = str(
+                quota_info["daily_prompt_quota"]
+            )
 
         return StreamingResponse(
             stream_chat(
@@ -1037,7 +1041,8 @@ async def auth_me(
     Requires Authorization: Bearer <JWT>
     Forwards the JWT to Resource Watch API and returns user info.
     """
-
+    if not APISettings.enable_quota_checking:
+        return user
     return {**user.model_dump(), **quota_info}
 
 
