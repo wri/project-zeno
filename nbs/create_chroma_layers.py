@@ -28,9 +28,15 @@ for rownr, row in df.iterrows():
     if not overview:
         print("No overview for", data["gfw_layer_name"])
         continue
-    
+
     keywordserage = data["keywords"]
-    content = data["gfw_dataset_name"] + data["gfw_layer_name"] + overview + ". " + data["keywords"]
+    content = (
+        data["gfw_dataset_name"]
+        + data["gfw_layer_name"]
+        + overview
+        + ". "
+        + data["keywords"]
+    )
 
     data["zeno_id"] = str(uuid4())
     documents.append(

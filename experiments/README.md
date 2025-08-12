@@ -13,7 +13,7 @@ For local development, spin up a LangFuse server:
 docker compose up langfuse-server
 ```
 
-This will start LangFuse at `http://localhost:3000`. 
+This will start LangFuse at `http://localhost:3000`.
 
 **Note**: There are no default API keys. You have two options:
 

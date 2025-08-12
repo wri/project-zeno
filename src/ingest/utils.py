@@ -1,10 +1,12 @@
 import json
-from pathlib import Path
-import requests
-import geopandas as gpd
-import s3fs
 import os
+from pathlib import Path
+
+import geopandas as gpd
+import requests
+import s3fs
 from sqlalchemy import create_engine, text
+
 from src.utils.env_loader import load_environment_variables
 
 load_environment_variables()
@@ -39,7 +41,7 @@ def cached_ndjson_path(url: str, cache_dir: Path = Path("/tmp")) -> Path:
                 for chunk in r.iter_content(1 << 20):
                     f.write(chunk)
 
-    print(f"✓ Downloaded {dest.stat().st_size/1e6:.1f} MB")
+    print(f"✓ Downloaded {dest.stat().st_size / 1e6:.1f} MB")
     return dest
 
 
@@ -62,8 +64,12 @@ def gdf_from_ndjson_chunked(
 
                 if len(features) >= chunk_size:
                     # Process this chunk
-                    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
-                    gdf["id"] = range(processed_records, processed_records + len(gdf))
+                    gdf = gpd.GeoDataFrame.from_features(
+                        features, crs="EPSG:4326"
+                    )
+                    gdf["id"] = range(
+                        processed_records, processed_records + len(gdf)
+                    )
 
                     processed_records += len(features)
 
@@ -111,7 +117,9 @@ def ingest_to_postgis(
         chunk = gdf_copy.iloc[i : i + chunk_size]
         if_exists_param = if_exists if i == 0 else "append"
 
-        chunk.to_postgis(table_name, engine, if_exists=if_exists_param, index=False)
+        chunk.to_postgis(
+            table_name, engine, if_exists=if_exists_param, index=False
+        )
 
     # Ensure all geometries have correct SRID and create spatial index
     with engine.connect() as conn:
@@ -121,7 +129,9 @@ def ingest_to_postgis(
             )
         )
         conn.commit()
-    print(f"✓ Ingested {total_records} records to PostGIS table '{table_name}'")
+    print(
+        f"✓ Ingested {total_records} records to PostGIS table '{table_name}'"
+    )
 
 
 def create_geometry_index_if_not_exists(
@@ -151,7 +161,7 @@ def create_text_search_index_if_not_exists(
     with engine.connect() as conn:
         # Ensure pg_trgm extension is enabled
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
-        
+
         # Create GIN index for trigram-based text search
         conn.execute(
             text(
@@ -159,7 +169,9 @@ def create_text_search_index_if_not_exists(
             )
         )
         conn.commit()
-        print(f"✓ Created text search index {index_name} on {table_name}.{column}")
+        print(
+            f"✓ Created text search index {index_name} on {table_name}.{column}"
+        )
 
 
 def create_id_index_if_not_exists(

@@ -1,9 +1,8 @@
 import json
 import os
-from datetime import datetime
 import uuid
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime
 from typing import Dict, Optional
 from uuid import UUID
 
@@ -15,20 +14,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 from itsdangerous import BadSignature, TimestampSigner
-
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
-
-from sqlalchemy import text, select
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.agents import fetch_zeno, fetch_zeno_anonymous, fetch_checkpointer
-
+from src.agents.agents import (
+    fetch_checkpointer,
+    fetch_zeno,
+    fetch_zeno_anonymous,
+)
 from src.api.data_models import (
     CustomAreaOrm,
     DailyUsageOrm,
@@ -40,28 +40,25 @@ from src.api.data_models import (
     get_async_session,
 )
 from src.api.schemas import (
-    RatingCreateRequest,
-    RatingModel,
     ChatRequest,
     CustomAreaCreate,
     CustomAreaModel,
     CustomAreaNameRequest,
     GeometryResponse,
+    RatingCreateRequest,
+    RatingModel,
     ThreadModel,
     UserModel,
 )
-
-from src.utils.env_loader import load_environment_variables
-from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.config import APISettings
-from src.utils.llms import HAIKU
+from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
-    SOURCE_ID_MAPPING,
 )
-
+from src.utils.llms import HAIKU
+from src.utils.logging_config import bind_request_logging_context, get_logger
 
 # Load environment variables using shared utility
 load_environment_variables()
@@ -177,7 +174,9 @@ async def anonymous_id_middleware(request: Request, call_next):
     if anon_cookie:
         try:
             # Verify signature & extract payload
-            _ = signer.unsign(anon_cookie, max_age=365 * 24 * 3600)  # Cookie age: 1yr
+            _ = signer.unsign(
+                anon_cookie, max_age=365 * 24 * 3600
+            )  # Cookie age: 1yr
             need_new = False
         except BadSignature:
             pass
@@ -212,14 +211,17 @@ async def replay_chat(thread_id):
     config = {"configurable": {"thread_id": thread_id}}
 
     try:
-
         zeno_async = await fetch_zeno()
 
         # Fetch checkpoints for conversation/thread
         # consume checkpoints and sort them by step to process from
         # oldest to newest. Skip step -1 which is the initial empty state
-        checkpoints = [c async for c in zeno_async.aget_state_history(config=config)]
-        checkpoints = sorted(list(checkpoints), key=lambda x: x.metadata["step"])
+        checkpoints = [
+            c async for c in zeno_async.aget_state_history(config=config)
+        ]
+        checkpoints = sorted(
+            list(checkpoints), key=lambda x: x.metadata["step"]
+        )
         checkpoints = [c for c in checkpoints if c.metadata["step"] >= 0]
 
         # Track rendered state elements and messages.
@@ -260,7 +262,9 @@ async def replay_chat(thread_id):
             node_type = (
                 "agent"
                 if mtypes == {"ai"} or len(mtypes) > 1
-                else "tools" if mtypes == {"tool"} else "human"
+                else "tools"
+                if mtypes == {"tool"}
+                else "human"
             )
 
             update = {
@@ -319,7 +323,9 @@ async def stream_chat(
                     content = f"User selected AOI in UI: {action_data['aoi_name']}\n\n"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
-                    state_updates["subregion_aois"] = action_data["subregion_aois"]
+                    state_updates["subregion_aois"] = action_data[
+                        "subregion_aois"
+                    ]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
@@ -375,8 +381,12 @@ async def stream_chat(
                         "update": dumps(
                             {
                                 "error": True,
-                                "message": str(e),  # String representation of the error
-                                "error_type": type(e).__name__,  # Exception class name
+                                "message": str(
+                                    e
+                                ),  # String representation of the error
+                                "error_type": type(
+                                    e
+                                ).__name__,  # Exception class name
                                 "type": "stream_processing_error",
                             }
                         ),
@@ -404,7 +414,9 @@ async def stream_chat(
                 "update": dumps(
                     {
                         "error": True,
-                        "message": str(e),  # String representation of the error
+                        "message": str(
+                            e
+                        ),  # String representation of the error
                         "error_type": type(e).__name__,  # Exception class name
                         "type": "stream_initialization_error",
                         "fatal": True,  # Indicates stream cannot continue
@@ -621,6 +633,7 @@ async def generate_thread_name(query: str) -> str:
         logger.exception("Error generating thread name: %s", e)
         return "Unnamed Thread"  # Fallback to default name
 
+
 @app.post("/api/chat")
 async def chat(
     request: ChatRequest,
@@ -649,7 +662,9 @@ async def chat(
             session_id=request.session_id,
             query=request.query,
         )
-        stmt = select(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id)
+        stmt = select(ThreadOrm).filter_by(
+            id=request.thread_id, user_id=user.id
+        )
         result = await session.execute(stmt)
         thread = result.scalars().first()
         if not thread:
@@ -659,7 +674,7 @@ async def chat(
                 id=request.thread_id,
                 user_id=user.id,
                 agent_id="UniGuana",
-                name=thread_name
+                name=thread_name,
             )
             session.add(thread)
             await session.commit()
@@ -857,7 +872,9 @@ async def get_geometry(
         # Parse GeoJSON string
         try:
             geometry = (
-                json.loads(result.geometry_json) if result.geometry_json else None
+                json.loads(result.geometry_json)
+                if result.geometry_json
+                else None
             )
         except json.JSONDecodeError:
             logger.error(f"Failed to parse GeoJSON for {source}:{src_id}")
@@ -876,13 +893,15 @@ async def get_geometry(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def send_rating_to_langfuse(trace_id: str, rating: int, comment: str, user_id: str):
+async def send_rating_to_langfuse(
+    trace_id: str, rating: int, comment: str, user_id: str
+):
     """
     Send user rating feedback to Langfuse as a score.
-    
+
     Args:
         trace_id: Langfuse trace ID
-        rating: User rating (1 or -1)  
+        rating: User rating (1 or -1)
         comment: Optional user comment
         user_id: User ID for context
     """
@@ -892,13 +911,13 @@ async def send_rating_to_langfuse(trace_id: str, rating: int, comment: str, user
             name="user-feedback",
             value=rating,
             comment=comment,
-            data_type="NUMERIC"
+            data_type="NUMERIC",
         )
         logger.info(
             "Rating sent to Langfuse",
             trace_id=trace_id,
             rating=rating,
-            user_id=user_id
+            user_id=user_id,
         )
     except Exception as e:
         # Don't fail the rating operation if Langfuse is unavailable
@@ -907,7 +926,7 @@ async def send_rating_to_langfuse(trace_id: str, rating: int, comment: str, user
             trace_id=trace_id,
             rating=rating,
             user_id=user_id,
-            error=str(e)
+            error=str(e),
         )
 
 
@@ -916,7 +935,7 @@ async def create_or_update_rating(
     thread_id: str,
     request: RatingCreateRequest,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Create or update a rating for a trace in a thread.
@@ -947,22 +966,17 @@ async def create_or_update_rating(
     - 422: Invalid rating value (must be 1 or -1)
     """
     # Verify if the thread exists and belongs to the user
-    stmt = select(ThreadOrm).filter_by(
-        id=thread_id, user_id=user.id
-    )
+    stmt = select(ThreadOrm).filter_by(id=thread_id, user_id=user.id)
     result = await session.execute(stmt)
     thread = result.scalars().first()
     if not thread:
         raise HTTPException(
-            status_code=404,
-            detail="Thread not found or access denied"
+            status_code=404, detail="Thread not found or access denied"
         )
 
     # Check if the rating already exists (upsert logic)
     stmt = select(RatingOrm).filter_by(
-        user_id=user.id,
-        thread_id=thread_id,
-        trace_id=request.trace_id
+        user_id=user.id, thread_id=thread_id, trace_id=request.trace_id
     )
     result = await session.execute(stmt)
     existing_rating = result.scalars().first()
@@ -981,11 +995,13 @@ async def create_or_update_rating(
             thread_id=thread_id,
             trace_id=request.trace_id,
             rating=request.rating,
-            comment=request.comment
+            comment=request.comment,
         )
 
         # Send rating to Langfuse
-        await send_rating_to_langfuse(request.trace_id, request.rating, request.comment, user.id)
+        await send_rating_to_langfuse(
+            request.trace_id, request.rating, request.comment, user.id
+        )
 
         return RatingModel.model_validate(existing_rating)
     else:
@@ -996,7 +1012,7 @@ async def create_or_update_rating(
             thread_id=thread_id,
             trace_id=request.trace_id,
             rating=request.rating,
-            comment=request.comment
+            comment=request.comment,
         )
         session.add(new_rating)
         await session.commit()
@@ -1008,11 +1024,13 @@ async def create_or_update_rating(
             thread_id=thread_id,
             trace_id=request.trace_id,
             rating=request.rating,
-            comment=request.comment
+            comment=request.comment,
         )
 
         # Send rating to Langfuse
-        await send_rating_to_langfuse(request.trace_id, request.rating, request.comment, user.id)
+        await send_rating_to_langfuse(
+            request.trace_id, request.rating, request.comment, user.id
+        )
 
         return RatingModel.model_validate(new_rating)
 

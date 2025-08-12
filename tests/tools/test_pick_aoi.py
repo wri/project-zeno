@@ -15,8 +15,8 @@ from uuid import uuid4
 import pytest
 from langfuse.langchain import CallbackHandler
 
-from src.utils.geocoding_helpers import GADM_LEVELS
 from src.tools.pick_aoi import pick_aoi
+from src.utils.geocoding_helpers import GADM_LEVELS
 from tests.utils import (
     create_test_agent,
     load_test_data_from_csv,
@@ -80,7 +80,7 @@ def test_pick_aoi_batch(query, expected_id, expected_name, expected_type):
         "metadata": {"langfuse_tags": ["pick_aoi", "test", DEFAULT_TAG]},
     }
 
-    result = AGENT.invoke({"messages": [("user", query)]}, config=config)
+    AGENT.invoke({"messages": [("user", query)]}, config=config)
     state = AGENT.get_state(config=config)
 
     aoi = state.values.get("aoi")
@@ -90,7 +90,11 @@ def test_pick_aoi_batch(query, expected_id, expected_name, expected_type):
     aoi_name = aoi.get("name", "") if aoi else ""
     aoi_subtype = aoi.get("subtype", "") if aoi else ""
 
-    score = 1 if normalize_gadm_id(aoi_gadm_id) == normalize_gadm_id(expected_id) else 0
+    score = (
+        1
+        if normalize_gadm_id(aoi_gadm_id) == normalize_gadm_id(expected_id)
+        else 0
+    )
 
     # Collect result for CSV export
     test_results.append(

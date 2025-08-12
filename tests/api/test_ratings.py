@@ -1,4 +1,5 @@
 """Tests for ratings API endpoints."""
+
 import pytest
 from httpx import AsyncClient
 
@@ -18,9 +19,9 @@ async def test_create_rating_success(
         json={
             "trace_id": "test-trace-1",
             "rating": 1,
-            "comment": "Great response!"
+            "comment": "Great response!",
         },
-        headers={"Authorization": "Bearer test-user-wri-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"},
     )
 
     assert response.status_code == 200
@@ -39,9 +40,9 @@ async def test_create_rating_success(
         f"/api/threads/{thread.id}/rating",
         json={
             "trace_id": "test-trace-1",
-            "rating": -1  # Change from thumbs up to thumbs down
+            "rating": -1,  # Change from thumbs up to thumbs down
         },
-        headers={"Authorization": "Bearer test-user-wri-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"},
     )
 
     assert update_res.status_code == 200
@@ -63,13 +64,16 @@ async def test_create_rating_invalid_rating_value(
         f"/api/threads/{thread.id}/rating",
         json={
             "trace_id": "test-trace-1",
-            "rating": 5  # Invalid rating (should be 1 or -1)
+            "rating": 5,  # Invalid rating (should be 1 or -1)
         },
-        headers={"Authorization": "Bearer test-user-wri-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"},
     )
 
     assert response.status_code == 422
-    assert "Rating must be either 1 (thumbs up) or -1 (thumbs down)" in response.text
+    assert (
+        "Rating must be either 1 (thumbs up) or -1 (thumbs down)"
+        in response.text
+    )
 
 
 @pytest.mark.asyncio
@@ -80,11 +84,8 @@ async def test_create_rating_nonexistent_thread(
     auth_override("test-user-wri")
     response = await client.post(
         "/api/threads/nonexistent-thread/rating",
-        json={
-            "trace_id": "test-trace-1",
-            "rating": 1
-        },
-        headers={"Authorization": "Bearer test-user-wri-token"}
+        json={"trace_id": "test-trace-1", "rating": 1},
+        headers={"Authorization": "Bearer test-user-wri-token"},
     )
 
     assert response.status_code == 404
@@ -97,7 +98,7 @@ async def test_create_rating_thread_belongs_to_other_user(
     user: UserOrm,
     user_ds: UserOrm,
     client: AsyncClient,
-    auth_override
+    auth_override,
 ):
     """Test creating a rating for a thread that belongs to another user."""
     # Execute the test with a user that is not the owner of the thread
@@ -106,11 +107,8 @@ async def test_create_rating_thread_belongs_to_other_user(
 
     response = await client.post(
         f"/api/threads/{thread.id}/rating",
-        json={
-            "trace_id": "test-trace-1",
-            "rating": 1
-        },
-        headers={"Authorization": "Bearer test-user-wri-token"}
+        json={"trace_id": "test-trace-1", "rating": 1},
+        headers={"Authorization": "Bearer test-user-wri-token"},
     )
 
     assert response.status_code == 404
@@ -126,10 +124,7 @@ async def test_create_rating_unauthorized(
 
     response = await client.post(
         f"/api/threads/{thread.id}/rating",
-        json={
-            "trace_id": "test-trace-1",
-            "rating": 1
-        }
+        json={"trace_id": "test-trace-1", "rating": 1},
         # No Authorization header and not auth_override
     )
 
@@ -147,10 +142,8 @@ async def test_create_rating_missing_fields(
     # Missing trace_id
     response = await client.post(
         f"/api/threads/{thread.id}/rating",
-        json={
-            "rating": 1
-        },
-        headers={"Authorization": "Bearer test-user-wri-token"}
+        json={"rating": 1},
+        headers={"Authorization": "Bearer test-user-wri-token"},
     )
 
     assert response.status_code == 422
@@ -160,8 +153,7 @@ async def test_create_rating_missing_fields(
 async def test_create_multiple_ratings_same_user_different_traces(
     thread_factory, user: UserOrm, client: AsyncClient, auth_override
 ):
-    """Test creating multiple ratings for the same user, but different traces.
-    """
+    """Test creating multiple ratings for the same user, but different traces."""
     thread = await thread_factory(user.id)
     auth_override(user.id)
 
@@ -209,9 +201,9 @@ async def test_create_update_rating_with_comment(
         json={
             "trace_id": "test-trace-comment",
             "rating": 1,
-            "comment": "This is a test comment"
+            "comment": "This is a test comment",
         },
-        headers={"Authorization": "Bearer test-user-wri-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"},
     )
 
     assert response.status_code == 200
@@ -224,9 +216,9 @@ async def test_create_update_rating_with_comment(
         json={
             "trace_id": "test-trace-comment",
             "rating": 1,
-            "comment": "Updated comment"
+            "comment": "Updated comment",
         },
-        headers={"Authorization": "Bearer test-user-wri-token"}
+        headers={"Authorization": "Bearer test-user-wri-token"},
     )
 
     assert response.status_code == 200

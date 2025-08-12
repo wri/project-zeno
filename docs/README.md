@@ -16,13 +16,13 @@ The main chat endpoint is `/api/chat` which accepts POST requests with the follo
 class ChatRequest(BaseModel):
     query: str = Field(..., description="The query")
     user_persona: Optional[str] = Field(None, description="The user persona")
-    
+
     # UI Context - can include multiple selections
     ui_context: Optional[dict] = None  # {"aoi_selected": {...}, "dataset_selected": {...}, "daterange_selected": {...}}
-    
+
     # Pure UI actions - no query
     ui_action_only: Optional[bool] = False
-    
+
     # Chat info
     thread_id: Optional[str] = Field(None, description="The thread ID")
     metadata: Optional[dict] = Field(None, description="The metadata")
@@ -186,7 +186,7 @@ For single aoi
 {
     "aoi": {
         "GID_0": "IND",
-        "COUNTRY": "India", 
+        "COUNTRY": "India",
         "subtype": "district-county",
         "GID_1": "IND.26_1",
         "NAME_1": "Odisha",
@@ -393,7 +393,7 @@ class AgentState(TypedDict):
 
 - `query`: User query providing context for the data pull
 - `start_date`: Start date in YYYY-MM-DD format
-- `end_date`: End date in YYYY-MM-DD format  
+- `end_date`: End date in YYYY-MM-DD format
 - `aoi_name`: Name of the area of interest
 - `dataset_name`: Name of the dataset to pull from
 
@@ -455,7 +455,7 @@ Bar chart example
         "insight": "Brazil leads significantly in forest loss with over 11.5 million hectares lost in 2022, more than double the next highest country, Indonesia (6 million hectares). The Democratic Republic of Congo ranks third with 4.77 million hectares, while Peru and Colombia have considerably lower forest loss at 1.63 and 1.24 million hectares respectively.",
         "data": [
             {"country": "Brazil", "forest_loss_ha": 11568000},
-            {"country": "Indonesia", "forest_loss_ha": 6020000}, 
+            {"country": "Indonesia", "forest_loss_ha": 6020000},
             {"country": "DRC", "forest_loss_ha": 4770000},
             {"country": "Peru", "forest_loss_ha": 1630000},
             {"country": "Colombia", "forest_loss_ha": 1240000}
@@ -474,7 +474,7 @@ Bar chart example
         "data": [
             {"country": "Brazil", "forest_loss_ha": 11568000},
             {"country": "Indonesia", "forest_loss_ha": 6020000},
-            {"country": "DRC", "forest_loss_ha": 4770000}, 
+            {"country": "DRC", "forest_loss_ha": 4770000},
             {"country": "Peru", "forest_loss_ha": 1630000},
             {"country": "Colombia", "forest_loss_ha": 1240000}
         ],

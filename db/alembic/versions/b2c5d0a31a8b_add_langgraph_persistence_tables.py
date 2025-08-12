@@ -8,8 +8,8 @@ Create Date: 2025-06-05 12:31:51.290396
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
@@ -33,12 +33,16 @@ def upgrade() -> None:
             autoincrement=False,
             nullable=False,
         ),
-        sa.Column("checkpoint_id", sa.TEXT(), autoincrement=False, nullable=False),
+        sa.Column(
+            "checkpoint_id", sa.TEXT(), autoincrement=False, nullable=False
+        ),
         sa.Column("task_id", sa.TEXT(), autoincrement=False, nullable=False),
         sa.Column("idx", sa.INTEGER(), autoincrement=False, nullable=False),
         sa.Column("channel", sa.TEXT(), autoincrement=False, nullable=False),
         sa.Column("type", sa.TEXT(), autoincrement=False, nullable=True),
-        sa.Column("blob", postgresql.BYTEA(), autoincrement=False, nullable=False),
+        sa.Column(
+            "blob", postgresql.BYTEA(), autoincrement=False, nullable=False
+        ),
         sa.Column(
             "task_path",
             sa.TEXT(),
@@ -79,7 +83,9 @@ def upgrade() -> None:
         sa.Column("channel", sa.TEXT(), autoincrement=False, nullable=False),
         sa.Column("version", sa.TEXT(), autoincrement=False, nullable=False),
         sa.Column("type", sa.TEXT(), autoincrement=False, nullable=False),
-        sa.Column("blob", postgresql.BYTEA(), autoincrement=False, nullable=True),
+        sa.Column(
+            "blob", postgresql.BYTEA(), autoincrement=False, nullable=True
+        ),
         sa.PrimaryKeyConstraint(
             "thread_id",
             "checkpoint_ns",
@@ -104,9 +110,14 @@ def upgrade() -> None:
             autoincrement=False,
             nullable=False,
         ),
-        sa.Column("checkpoint_id", sa.TEXT(), autoincrement=False, nullable=False),
         sa.Column(
-            "parent_checkpoint_id", sa.TEXT(), autoincrement=False, nullable=True
+            "checkpoint_id", sa.TEXT(), autoincrement=False, nullable=False
+        ),
+        sa.Column(
+            "parent_checkpoint_id",
+            sa.TEXT(),
+            autoincrement=False,
+            nullable=True,
         ),
         sa.Column("type", sa.TEXT(), autoincrement=False, nullable=True),
         sa.Column(
@@ -123,7 +134,10 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.PrimaryKeyConstraint(
-            "thread_id", "checkpoint_ns", "checkpoint_id", name="checkpoints_pkey"
+            "thread_id",
+            "checkpoint_ns",
+            "checkpoint_id",
+            name="checkpoints_pkey",
         ),
     )
     op.create_index(
@@ -143,10 +157,14 @@ def downgrade() -> None:
 
     op.drop_index("checkpoints_thread_id_idx", table_name="checkpoints")
     op.drop_table("checkpoints")
-    op.drop_index("checkpoint_blobs_thread_id_idx", table_name="checkpoint_blobs")
+    op.drop_index(
+        "checkpoint_blobs_thread_id_idx", table_name="checkpoint_blobs"
+    )
     op.drop_table("checkpoint_blobs")
     op.drop_table("checkpoint_migrations")
-    op.drop_index("checkpoint_writes_thread_id_idx", table_name="checkpoint_writes")
+    op.drop_index(
+        "checkpoint_writes_thread_id_idx", table_name="checkpoint_writes"
+    )
     op.drop_table("checkpoint_writes")
     op.add_column(
         "threads",

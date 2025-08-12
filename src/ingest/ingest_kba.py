@@ -1,9 +1,9 @@
 from src.ingest.utils import (
+    create_geometry_index_if_not_exists,
+    create_id_index_if_not_exists,
+    create_text_search_index_if_not_exists,
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
-    create_geometry_index_if_not_exists,
-    create_text_search_index_if_not_exists,
-    create_id_index_if_not_exists,
 )
 from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
 
@@ -21,7 +21,10 @@ def ingest_kba() -> None:
         gdf_chunk = gdf_chunk.rename(columns={"SitRecID": "sitrecid"})
         gdf_chunk["name"] = gdf_chunk.apply(
             lambda row: ", ".join(
-                filter(None, [row.get("NatName"), row.get("IntName"), row.get("ISO3")])
+                filter(
+                    None,
+                    [row.get("NatName"), row.get("IntName"), row.get("ISO3")],
+                )
             ),
             axis=1,
         )
@@ -31,7 +34,9 @@ def ingest_kba() -> None:
 
         if_exists_param = "replace" if i == 0 else "append"
         ingest_to_postgis(
-            table_name="geometries_kba", gdf=gdf_chunk, if_exists=if_exists_param
+            table_name="geometries_kba",
+            gdf=gdf_chunk,
+            if_exists=if_exists_param,
         )
 
     create_geometry_index_if_not_exists(
@@ -42,13 +47,13 @@ def ingest_kba() -> None:
     create_text_search_index_if_not_exists(
         table_name="geometries_kba",
         index_name="idx_geometries_kba_name_gin",
-        column="name"
+        column="name",
     )
     id_column = SOURCE_ID_MAPPING["kba"]["id_column"]
     create_id_index_if_not_exists(
         table_name="geometries_kba",
         index_name=f"idx_geometries_kba_{id_column}",
-        column=id_column
+        column=id_column,
     )
     print("✓ KBA ingestion completed successfully!")
 

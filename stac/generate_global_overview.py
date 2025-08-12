@@ -233,7 +233,7 @@ class STACCOGMosaicCreator:
                 # Process each COG
                 for i, cog_url in enumerate(cog_urls):
                     logger.info(
-                        f"Processing COG {i+1}/{len(cog_urls)}: {cog_url}"
+                        f"Processing COG {i + 1}/{len(cog_urls)}: {cog_url}"
                     )
 
                     overview_data = self.read_cog_overview(cog_url)

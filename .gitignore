@@ -173,7 +173,7 @@ nbs/data
 *.db
 
 # API backup
-.api/ 
+.api/
 
 # OSX
 .DS_Store

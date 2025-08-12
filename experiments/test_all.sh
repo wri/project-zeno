@@ -53,7 +53,7 @@ if [ ! -z "$1" ] && [ "$1" != "--help" ] && [ "$1" != "--lists" ]; then
       break
     fi
   done
-  
+
   if [ "$VALID_LIST" = false ]; then
     echo "Error: List '$1' not found. Available lists: ${LIST_NAMES[@]}"
     exit 1
@@ -98,7 +98,7 @@ echo ""
 # Execute each query in the selected list
 for (( i=0; i<${#QUERIES[@]}; i++ )); do
   CURRENT_QUERY="${QUERIES[$i]}"
-  
+
   # Visual separator for query
   echo -e "\n"
   echo "=================================================================="
@@ -106,7 +106,7 @@ for (( i=0; i<${#QUERIES[@]}; i++ )); do
   echo "=================================================================="
   echo "Running query: $CURRENT_QUERY"
   echo ""
-  
+
   python client.py "$CURRENT_QUERY" -p "$PERSONA" -t "$THREAD_ID" -u "$URL"
 done
 

@@ -18,18 +18,20 @@ async def test_custom_area_endpoints(auth_override, client):
         "/api/custom_areas/",
         json={
             "name": "Test area",
-            "geometries": [{
-                "coordinates": [
-                    [
-                        [29.2263174, -1.641965],
-                        [29.2263174, -1.665582],
-                        [29.2301511, -1.665582],
-                        [29.2301511, -1.641965],
-                        [29.2263174, -1.641965],
-                    ]
-                ],
-                "type": "Polygon",
-            }],
+            "geometries": [
+                {
+                    "coordinates": [
+                        [
+                            [29.2263174, -1.641965],
+                            [29.2263174, -1.665582],
+                            [29.2301511, -1.665582],
+                            [29.2301511, -1.641965],
+                            [29.2263174, -1.641965],
+                        ]
+                    ],
+                    "type": "Polygon",
+                }
+            ],
         },
         headers={"Authorization": "Bearer abc123"},
     )
@@ -61,18 +63,20 @@ async def test_custom_area_endpoints(auth_override, client):
 
     assert res.status_code == 200
     assert len(res.json()) == 1
-    assert res.json()[0]["geometries"] == [{
-                "coordinates": [
-                    [
-                        [29.2263174, -1.641965],
-                        [29.2263174, -1.665582],
-                        [29.2301511, -1.665582],
-                        [29.2301511, -1.641965],
-                        [29.2263174, -1.641965],
-                    ]
-                ],
-                "type": "Polygon",
-            }]
+    assert res.json()[0]["geometries"] == [
+        {
+            "coordinates": [
+                [
+                    [29.2263174, -1.641965],
+                    [29.2263174, -1.665582],
+                    [29.2301511, -1.665582],
+                    [29.2301511, -1.641965],
+                    [29.2263174, -1.641965],
+                ]
+            ],
+            "type": "Polygon",
+        }
+    ]
     assert res.json()[0]["created_at"]
     assert res.json()[0]["name"] == "Test area"
     assert res.json()[0]["id"] == custom_area_id

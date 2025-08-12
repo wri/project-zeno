@@ -5,15 +5,15 @@ Revises: 8182f6394c44
 Create Date: 2025-07-24 15:25:45.904863
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '4d560a99b2c8'
-down_revision: Union[str, None] = '8182f6394c44'
+revision: str = "4d560a99b2c8"
+down_revision: Union[str, None] = "8182f6394c44"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -38,7 +38,12 @@ def upgrade() -> None:
             ["threads.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("user_id", "thread_id", "trace_id", name="uq_user_thread_trace_rating"),
+        sa.UniqueConstraint(
+            "user_id",
+            "thread_id",
+            "trace_id",
+            name="uq_user_thread_trace_rating",
+        ),
     )
     op.create_index("idx_ratings_user_id", "ratings", ["user_id"])
     op.create_index("idx_ratings_thread_id", "ratings", ["thread_id"])
