@@ -603,6 +603,24 @@ async def check_quota(
     return {}
 
 
+async def generate_thread_name(query: str) -> str:
+    """
+    Generate a descriptive name for a chat thread based on the user's query.
+
+    Args:
+        query: The user's initial query in the thread
+
+    Returns:
+        A concise, descriptive name for the thread
+    """
+    try:
+        prompt = f"Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:\n{query}\nReturn strictly the title only, no quotes or explanation."
+        response = HAIKU.invoke(prompt)
+        return response.content[:50]  # Ensure we don't exceed 50 chars
+    except Exception as e:
+        logger.exception("Error generating thread name: %s", e)
+        return "Unnamed Thread"  # Fallback to default name
+
 @app.post("/api/chat")
 async def chat(
     request: ChatRequest,
@@ -635,8 +653,13 @@ async def chat(
         result = await session.execute(stmt)
         thread = result.scalars().first()
         if not thread:
+            # Generate thread name from the first query
+            thread_name = await generate_thread_name(request.query)
             thread = ThreadOrm(
-                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+                id=request.thread_id,
+                user_id=user.id,
+                agent_id="UniGuana",
+                name=thread_name
             )
             session.add(thread)
             await session.commit()
