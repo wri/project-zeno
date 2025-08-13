@@ -2,6 +2,7 @@ import os
 from typing import Annotated, Literal, Optional
 
 import pandas as pd
+import structlog
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -13,6 +14,7 @@ from sqlalchemy import create_engine, text
 
 from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
+    CUSTOM_AREA_TABLE,
     GADM_TABLE,
     KBA_TABLE,
     LANDMARK_TABLE,
@@ -94,6 +96,14 @@ def query_aoi_database(
             logger.warning(f"Table {WDPA_TABLE} does not exist")
             conn.rollback()
 
+        # Check Custom Areas table
+        try:
+            conn.execute(text(f"SELECT 1 FROM {CUSTOM_AREA_TABLE} LIMIT 1"))
+            existing_tables.append("custom")
+        except Exception:
+            logger.warning(f"Table {CUSTOM_AREA_TABLE} does not exist")
+            conn.rollback()
+
         # Build the query based on existing tables
         union_parts = []
 
@@ -142,6 +152,23 @@ def query_aoi_database(
             """
             )
 
+        if "custom" in existing_tables:
+            src_id = SOURCE_ID_MAPPING["custom"]["id_column"]
+            user_id = structlog.contextvars.get_contextvars().get("user_id")
+            if not user_id:
+                raise ValueError("user_id required for custom areas")
+
+            union_parts.append(
+                f"""
+                SELECT CAST({src_id} as TEXT) as src_id,
+                       name,
+                       'custom-area' as subtype,
+                       'custom' as source
+                FROM {CUSTOM_AREA_TABLE}
+                WHERE user_id = :user_id
+            """
+            )
+
         if not union_parts:
             logger.error("No geometry tables exist in the database")
             return pd.DataFrame()
@@ -167,7 +194,11 @@ def query_aoi_database(
         query_results = pd.read_sql(
             text(sql_query),
             conn,
-            params={"place_name": place_name, "limit_val": result_limit},
+            params={
+                "place_name": place_name,
+                "limit_val": result_limit,
+                "user_id": user_id,
+            },
         )
 
     logger.debug(f"AOI query results: {query_results}")
@@ -261,6 +292,8 @@ class AOIIndex(BaseModel):
     )
     source: str = Field(description="`source` of the selected location.")
     src_id: str = Field(description="`src_id` of the selected location.")
+    name: str = Field(description="`name` of the selected location.")
+    subtype: str = Field(description="`subtype` of the selected location.")
 
 
 # Prompt template for selecting the best location match based on user query
@@ -324,6 +357,7 @@ async def pick_aoi(
         # Query the database for place & get top matches using similarity
         engine = get_postgis_connection()
         results = query_aoi_database(engine, place, RESULT_LIMIT)
+        logger.debug(f"Query results: {results}")
 
         candidate_aois = results.to_csv(
             index=False
@@ -333,13 +367,10 @@ async def pick_aoi(
         selected_aoi = await AOI_SELECTION_CHAIN.ainvoke(
             {"candidate_locations": candidate_aois, "user_query": question}
         )
-        selected_aoi_id = selected_aoi.id
         source = selected_aoi.source
         src_id = selected_aoi.src_id
-
-        logger.debug(
-            f"Selected AOI id: {selected_aoi_id}, source: '{source}', src_id: {src_id}"
-        )
+        name = selected_aoi.name
+        subtype = selected_aoi.subtype
 
         # todo: this is redundant with the one in helpers.py, consider refactoring
         source_table_map = {
@@ -347,6 +378,7 @@ async def pick_aoi(
             "kba": KBA_TABLE,
             "landmark": LANDMARK_TABLE,
             "wdpa": WDPA_TABLE,
+            "custom": CUSTOM_AREA_TABLE,
         }
 
         if source not in source_table_map:
@@ -354,27 +386,6 @@ async def pick_aoi(
             raise ValueError(
                 f"Source: {source} does not match to any table in PostGIS database."
             )
-
-        id_column = SOURCE_ID_MAPPING[source]["id_column"]
-        source_table = source_table_map[source]
-
-        sql_query = f"""
-            SELECT name, subtype, "{id_column}" as src_id
-            FROM {source_table}
-            WHERE "{id_column}" = :src_id
-        """
-
-        with engine.connect() as conn:
-            selected_aoi_df = pd.read_sql(
-                text(sql_query), conn, params={"src_id": src_id}
-            )
-
-        if selected_aoi_df.empty:
-            raise ValueError(f"No AOI found with {id_column} = {src_id}")
-
-        selected_aoi = selected_aoi_df.iloc[0].to_dict()
-        selected_aoi[SOURCE_ID_MAPPING[source]["id_column"]] = src_id
-        selected_aoi["source"] = source
 
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
@@ -384,19 +395,25 @@ async def pick_aoi(
             subregion_aois = subregion_aois.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
 
-        tool_message = f"Selected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}"
+        tool_message = f"Selected AOI: {name}, type: {subtype}"
         if subregion:
             tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
 
         logger.debug(f"Pick AOI tool message: {tool_message}")
+        selected_aoi = selected_aoi.model_dump()
+        selected_aoi[SOURCE_ID_MAPPING[source]["id_column"]] = src_id
+
+        logger.info(
+            f"Selected AOI: {name}, type: {subtype}, source: {source}, src_id: {src_id}"
+        )
 
         return Command(
             update={
                 "aoi": selected_aoi,
                 "subregion_aois": subregion_aois if subregion else None,
                 "subregion": subregion,
-                "aoi_name": selected_aoi["name"],
-                "subtype": selected_aoi["subtype"],
+                "aoi_name": name,
+                "subtype": subtype,
                 # Update the message history
                 "messages": [
                     ToolMessage(tool_message, tool_call_id=tool_call_id)

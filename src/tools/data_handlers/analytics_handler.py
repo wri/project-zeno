@@ -14,6 +14,7 @@ from src.tools.data_handlers.base import (
     DataPullResult,
     DataSourceHandler,
 )
+from src.utils.geocoding_helpers import get_geometry_data
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -71,6 +72,10 @@ class AnalyticsHandler(DataSourceHandler):
             aoi_type = "indigenous_land"
         elif aoi["subtype"] == "protected-area":
             aoi_type = "protected_area"
+        elif aoi["subtype"] == "custom-area":
+            # See DistAlertsAnalyticsIn schema
+            # in http://analytics-416617519.us-east-1.elb.amazonaws.com/docs
+            aoi_type = "feature_collection"
         else:
             raise ValueError(f"Unknown AOI subtype: {aoi['subtype']}")
 
@@ -83,7 +88,7 @@ class AnalyticsHandler(DataSourceHandler):
         else:
             return {"type": aoi_type}
 
-    def _build_payload(
+    async def _build_payload(
         self,
         dataset: Dict,
         table_name: str,
@@ -98,12 +103,43 @@ class AnalyticsHandler(DataSourceHandler):
 
         # Base payload structure common to all endpoints
         aoi_type = self._get_aoi_type(aoi)
-        base_payload = {
-            "aoi": {
-                "ids": [aoi["src_id"]],
-                **aoi_type,
+
+        # Handle custom areas differently - they need a feature collection
+        if aoi_type == "feature_collection":
+            geometry_data = await get_geometry_data("custom", aoi["src_id"])
+            if not geometry_data:
+                raise ValueError(f"Custom area not found: {aoi['src_id']}")
+
+            feature_collection = {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": geometry_data["geometry"],
+                        "properties": {
+                            "name": geometry_data["name"],
+                            "id": geometry_data["src_id"],
+                        },
+                    }
+                ],
             }
-        }
+
+            base_payload = {
+                "aoi": {
+                    "type": aoi_type,
+                    "feature_collection": feature_collection,
+                }
+            }
+        else:
+            # Base payload structure for standard AOI types
+            base_payload = {
+                "aoi": {
+                    "ids": [aoi["src_id"]],
+                    **aoi_type,
+                }
+            }
+
+        logger.debug(f"dataset: {dataset}")
 
         # Add dataset-specific parameters
         if table_name == TN_DIST_ALERT:
@@ -149,13 +185,13 @@ class AnalyticsHandler(DataSourceHandler):
         self,
         endpoint_url: str,
         payload: Dict,
-        max_retries: int = 3,
+        max_retries: int = 5,
         poll_interval: float = 0.5,
     ) -> Dict | str:
         """Poll the API until the request is completed or max retries exceeded."""
         for attempt in range(max_retries):
             logger.info(f"Polling attempt {attempt + 1}/{max_retries}")
-            await asyncio.sleep(poll_interval)
+            await asyncio.sleep(poll_interval * (attempt + 1))
 
             try:
                 async with httpx.AsyncClient() as client:
@@ -264,8 +300,10 @@ class AnalyticsHandler(DataSourceHandler):
             # Get the appropriate endpoint URL
             endpoint_url = self._get_endpoint_url(table_name)
 
+            logger.debug(f"Endpoint URL: {endpoint_url}")
+
             # Build the payload based on dataset type
-            payload = self._build_payload(
+            payload = await self._build_payload(
                 dataset, table_name, aoi, start_date, end_date
             )
 
@@ -313,7 +351,7 @@ class AnalyticsHandler(DataSourceHandler):
                     "Analytics request is pending, will retry with polling..."
                 )
                 result = await self._poll_for_completion(
-                    endpoint_url, payload, max_retries=3, poll_interval=0.5
+                    endpoint_url, payload, max_retries=10
                 )
                 if isinstance(result, str):
                     error_msg = f"Failed to get completed result after polling for {aoi_name}. Reason: {result}"

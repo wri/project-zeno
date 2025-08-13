@@ -20,7 +20,7 @@ from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,6 +56,7 @@ from src.utils.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
+    get_geometry_data,
 )
 from src.utils.llms import HAIKU
 from src.utils.logging_config import bind_request_logging_context, get_logger
@@ -374,6 +375,11 @@ async def stream_chat(
                     }
                 )
             except Exception as e:
+                logger.exception(
+                    "Error processing stream update",
+                    error=str(e),
+                    update=update,
+                )
                 # Send error as a stream event instead of raising
                 yield pack(
                     {
@@ -827,15 +833,15 @@ async def delete_thread(
 async def get_geometry(
     source: str,
     src_id: str,
-    session: AsyncSession = Depends(get_async_session),
+    user: UserModel = Depends(require_auth),
 ):
     """
     Get geometry data by source and source ID.
 
     Args:
-        source: Source type (gadm, kba, landmark, wdpa)
-        src_id: Source-specific ID (GID_X for GADM, sitrecid for KBA, etc.)
-        user: Authenticated user
+        source: Source type (gadm, kba, landmark, wdpa, custom)
+        src_id: Source-specific ID (GID_X for GADM, sitrecid for KBA, UUID for custom areas, etc.)
+        user: Authenticated user (required)
 
     Returns:
         Geometry data with name, subtype, and GeoJSON geometry
@@ -843,25 +849,10 @@ async def get_geometry(
     Example:
         GET /api/geometry/gadm/IND.26.2_1
         GET /api/geometry/kba/16595
+        GET /api/geometry/custom/123e4567-e89b-12d3-a456-426614174000
     """
-    if source not in SOURCE_ID_MAPPING:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid source: {source}. Must be one of: {', '.join(SOURCE_ID_MAPPING.keys())}",
-        )
-
-    table_name = SOURCE_ID_MAPPING[source]["table"]
-    id_column = SOURCE_ID_MAPPING[source]["id_column"]
-
-    sql_query = f"""
-        SELECT name, subtype, ST_AsGeoJSON(geometry) as geometry_json
-        FROM {table_name}
-        WHERE "{id_column}" = :src_id
-    """
-
     try:
-        q = await session.execute(text(sql_query), {"src_id": src_id})
-        result = q.first()
+        result = await get_geometry_data(source, src_id)
 
         if not result:
             raise HTTPException(
@@ -869,25 +860,11 @@ async def get_geometry(
                 detail=f"Geometry not found for source '{source}' with ID {src_id}",
             )
 
-        # Parse GeoJSON string
-        try:
-            geometry = (
-                json.loads(result.geometry_json)
-                if result.geometry_json
-                else None
-            )
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse GeoJSON for {source}:{src_id}")
-            geometry = None
+        return GeometryResponse(**result)
 
-        return GeometryResponse(
-            name=result.name,
-            subtype=result.subtype,
-            source=source,
-            src_id=src_id,
-            geometry=geometry,
-        )
-
+    except ValueError as e:
+        logger.exception(f"Error fetching geometry for {source}:{src_id}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"Error fetching geometry for {source}:{src_id}")
         raise HTTPException(status_code=500, detail=str(e))
