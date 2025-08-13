@@ -166,13 +166,13 @@ class AnalyticsHandler(DataSourceHandler):
         self,
         endpoint_url: str,
         payload: Dict,
-        max_retries: int = 3,
-        poll_interval: float = 0.5,
+        max_retries: int = 5,
+        poll_interval: float = 1,
     ) -> Dict | str:
         """Poll the API until the request is completed or max retries exceeded."""
         for attempt in range(max_retries):
             logger.info(f"Polling attempt {attempt + 1}/{max_retries}")
-            await asyncio.sleep(poll_interval)
+            await asyncio.sleep(poll_interval * (attempt + 1))
 
             try:
                 async with httpx.AsyncClient() as client:
@@ -271,6 +271,8 @@ class AnalyticsHandler(DataSourceHandler):
             # Get the appropriate endpoint URL
             endpoint_url = self._get_endpoint_url(table_name)
 
+            logger.debug(f"Endpoint URL: {endpoint_url}")
+
             # Build the payload based on dataset type
             payload = await self._build_payload(
                 dataset, table_name, aoi, start_date, end_date
@@ -310,7 +312,7 @@ class AnalyticsHandler(DataSourceHandler):
             if result["status"] == "pending":
                 logger.info("Analytics request is pending, will retry with polling...")
                 result = await self._poll_for_completion(
-                    endpoint_url, payload, max_retries=3, poll_interval=0.5
+                    endpoint_url, payload, max_retries=5, poll_interval=1
                 )
                 if isinstance(result, str):
                     error_msg = f"Failed to get completed result after polling for {aoi_name}. Reason: {result}"
