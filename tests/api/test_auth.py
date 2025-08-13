@@ -1,13 +1,14 @@
 """Tests for authentication-related endpoints."""
 
 import os
-import pytest
+from contextlib import contextmanager
 from unittest.mock import patch
 
-from contextlib import contextmanager
+import pytest
 
 # Import the API app directly from the src package
 from src.api import app as api
+
 from .mock import mock_rw_api_response
 
 
@@ -41,7 +42,9 @@ def clear_cache():
     ],
 )
 @pytest.mark.asyncio
-async def test_email_domain_authorization(username, expected_status, expected_error, client):
+async def test_email_domain_authorization(
+    username, expected_status, expected_error, client
+):
     """Test that only users with allowed email domains can access the API."""
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch("requests.get") as mock_get:
@@ -74,7 +77,8 @@ async def test_missing_bearer_token(client):
         )
         assert response.status_code == 401
         assert (
-            "Missing Bearer token in Authorization header" in response.json()["detail"]
+            "Missing Bearer token in Authorization header"
+            in response.json()["detail"]
         )
 
 
@@ -84,7 +88,10 @@ async def test_missing_authorization_header(client):
     os.environ["DOMAINS_ALLOWLIST"] = "developmentseed.org,wri.org"
     response = await client.get("/api/auth/me")  # No Authorization header
     assert response.status_code == 401
-    assert "Missing Bearer token in Authorization header" in response.json()["detail"]
+    assert (
+        "Missing Bearer token in Authorization header"
+        in response.json()["detail"]
+    )
 
 
 @pytest.mark.asyncio
@@ -103,4 +110,6 @@ async def test_user_cant_override_email_domain_authorization(client):
             )
 
         assert response.status_code == 403
-        assert "User not allowed to access this API" in response.json()["detail"]
+        assert (
+            "User not allowed to access this API" in response.json()["detail"]
+        )

@@ -52,7 +52,7 @@ WITH unioned AS (
         name,
         subtype,
         geometry,
-        /* provenance flags */ 
+        /* provenance flags */
         TRUE                AS is_gadm,
         FALSE               AS is_kba,
         FALSE               AS is_landmark,
@@ -115,12 +115,3 @@ FROM unioned;
 CREATE INDEX IF NOT EXISTS gadm_plus_geom_rtree
     ON gadm_plus
     USING RTREE (geometry);
-
-
-
-
-
-
-
-
-

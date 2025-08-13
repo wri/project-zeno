@@ -1,10 +1,10 @@
 import json
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 from uuid import UUID
 
-from sqlalchemy import text, select
-from sqlalchemy.ext.asyncio import async_sessionmaker
 import structlog
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from src.api.data_models import CustomAreaOrm
 
@@ -51,7 +51,9 @@ GADM_LEVELS = {
 GADM_SUBTYPE_MAP = {val["col_name"]: key for key, val in GADM_LEVELS.items()}
 
 
-async def get_geometry_data(source: str, src_id: str) -> Optional[Dict[str, Any]]:
+async def get_geometry_data(
+    source: str, src_id: str
+) -> Optional[Dict[str, Any]]:
     """
     Get geometry data by source and source ID.
 
@@ -81,7 +83,9 @@ async def get_geometry_data(source: str, src_id: str) -> Optional[Dict[str, Any]
             try:
                 area_id = UUID(src_id)
             except ValueError:
-                raise ValueError(f"Invalid UUID format for custom area ID: {src_id}")
+                raise ValueError(
+                    f"Invalid UUID format for custom area ID: {src_id}"
+                )
 
             stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user_id)
             result = await session.execute(stmt)
@@ -93,7 +97,10 @@ async def get_geometry_data(source: str, src_id: str) -> Optional[Dict[str, Any]
             # Parse the stored geometries JSONB field
             try:
                 geometries = (
-                    [json.loads(geom_str) for geom_str in custom_area.geometries]
+                    [
+                        json.loads(geom_str)
+                        for geom_str in custom_area.geometries
+                    ]
                     if custom_area.geometries
                     else []
                 )
@@ -104,7 +111,10 @@ async def get_geometry_data(source: str, src_id: str) -> Optional[Dict[str, Any]
                     geometry = geometries[0]
                 else:
                     # Multiple geometries - return as GeometryCollection
-                    geometry = {"type": "GeometryCollection", "geometries": geometries}
+                    geometry = {
+                        "type": "GeometryCollection",
+                        "geometries": geometries,
+                    }
             except (json.JSONDecodeError, IndexError):
                 geometry = None
 
@@ -141,7 +151,9 @@ async def get_geometry_data(source: str, src_id: str) -> Optional[Dict[str, Any]
         # Parse GeoJSON string
         try:
             geometry = (
-                json.loads(result.geometry_json) if result.geometry_json else None
+                json.loads(result.geometry_json)
+                if result.geometry_json
+                else None
             )
         except json.JSONDecodeError:
             geometry = None

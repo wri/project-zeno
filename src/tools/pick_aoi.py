@@ -12,16 +12,15 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, text
 
-
 from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
+    CUSTOM_AREA_TABLE,
     GADM_TABLE,
     KBA_TABLE,
     LANDMARK_TABLE,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
     WDPA_TABLE,
-    CUSTOM_AREA_TABLE,
 )
 from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
@@ -195,14 +194,20 @@ def query_aoi_database(
         query_results = pd.read_sql(
             text(sql_query),
             conn,
-            params={"place_name": place_name, "limit_val": result_limit, "user_id": user_id},
+            params={
+                "place_name": place_name,
+                "limit_val": result_limit,
+                "user_id": user_id,
+            },
         )
 
     logger.debug(f"AOI query results: {query_results}")
     return query_results
 
 
-def query_subregion_database(engine, subregion_name: str, source: str, src_id: int):
+def query_subregion_database(
+    engine, subregion_name: str, source: str, src_id: int
+):
     """Query the right table in PostGIS database for subregions based on the selected AOI.
 
     Args:
@@ -311,7 +316,9 @@ AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 # Chain for selecting the best location match
-AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(AOIIndex)
+AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
+    AOIIndex
+)
 
 
 @tool("pick-aoi")
@@ -344,7 +351,9 @@ async def pick_aoi(
         subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
     try:
-        logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
+        logger.info(
+            f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'"
+        )
         # Query the database for place & get top matches using similarity
         engine = get_postgis_connection()
         results = query_aoi_database(engine, place, RESULT_LIMIT)
@@ -380,13 +389,13 @@ async def pick_aoi(
 
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
-            subregion_aois = query_subregion_database(engine, subregion, source, src_id)
+            subregion_aois = query_subregion_database(
+                engine, subregion, source, src_id
+            )
             subregion_aois = subregion_aois.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
 
-        tool_message = (
-            f"Selected AOI: {name}, type: {subtype}"
-        )
+        tool_message = f"Selected AOI: {name}, type: {subtype}"
         if subregion:
             tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
 
@@ -406,7 +415,9 @@ async def pick_aoi(
                 "aoi_name": name,
                 "subtype": subtype,
                 # Update the message history
-                "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
+                "messages": [
+                    ToolMessage(tool_message, tool_call_id=tool_call_id)
+                ],
             },
         )
     except Exception as e:
@@ -414,7 +425,9 @@ async def pick_aoi(
         return Command(
             update={
                 "messages": [
-                    ToolMessage(str(e), tool_call_id=tool_call_id, status="error")
+                    ToolMessage(
+                        str(e), tool_call_id=tool_call_id, status="error"
+                    )
                 ],
             },
         )

@@ -85,7 +85,7 @@ with st.sidebar:
             st.session_state["user"] = user_info.json()
             st.sidebar.success(
                 f"""
-                Logged in as {st.session_state['user']['name']}
+                Logged in as {st.session_state["user"]["name"]}
                 """
             )
 
@@ -112,9 +112,9 @@ for agent in agents:
     st.markdown(
         f"""
         <div class="agent-card">
-            <div class="agent-name">{agent['name']}</div>
-            <div class="agent-tagline">{agent['tagline']}</div>
-            <div class="agent-description">{agent['description']}</div>
+            <div class="agent-name">{agent["name"]}</div>
+            <div class="agent-tagline">{agent["tagline"]}</div>
+            <div class="agent-description">{agent["description"]}</div>
         </div>
     """,
         unsafe_allow_html=True,

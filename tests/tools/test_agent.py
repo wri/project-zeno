@@ -1,5 +1,4 @@
 import uuid
-import asyncio
 
 import pytest
 
@@ -16,6 +15,18 @@ def test_db():
 @pytest.fixture(scope="function", autouse=True)
 def test_db_session():
     """Override the global test_db_session fixture to avoid database connections."""
+    pass
+
+
+@pytest.fixture(scope="function", autouse=True)
+def user():
+    """Override the global user fixture to avoid database connections."""
+    pass
+
+
+@pytest.fixture(scope="function", autouse=True)
+def user_ds():
+    """Override the global user_ds fixture to avoid database connections."""
     pass
 
 
@@ -88,7 +99,9 @@ async def run_agent(query: str, thread_id: str | None = None):
 )
 @pytest.mark.asyncio
 async def test_full_agent_for_datasets(dataset):
-    query = f"What is the distribution of {dataset} in the canton of Bern, Switzerland?"
+    query = (
+        f"What is the distribution of {dataset} in the state of Arizona, USA?"
+    )
     steps = await run_agent(query)
 
     assert len(steps) > 0
@@ -103,4 +116,21 @@ async def test_full_agent_for_datasets(dataset):
             has_raw_data = True
 
     assert has_insights
+    assert has_raw_data
+
+
+@pytest.mark.asyncio
+async def test_full_agent_for_disturbance_alerts_in_brazil():
+    query = "What is the distribution of disturbance alerts in Belem, Pará, Brazil July 2024?"
+    steps = await run_agent(query)
+
+    assert len(steps) > 0
+
+    has_raw_data = False
+
+    for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
+        if "raw_data" in tool_step:
+            if len(tool_step["raw_data"]["value"]) > 0:
+                has_raw_data = True
+
     assert has_raw_data

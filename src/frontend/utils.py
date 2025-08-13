@@ -1,18 +1,19 @@
-import streamlit as st
 import json
 import os
-import altair as alt
 from datetime import datetime
+
+import altair as alt
 import folium
 import pandas as pd
+import streamlit as st
 from shapely.geometry import shape
 from streamlit_folium import folium_static
 
 from client import ZenoClient
 
-
 API_BASE_URL = os.environ.get(
-    "API_BASE_URL", os.environ.get("LOCAL_API_BASE_URL", "http://localhost:8000")
+    "API_BASE_URL",
+    os.environ.get("LOCAL_API_BASE_URL", "http://localhost:8000"),
 )
 
 
@@ -32,29 +33,29 @@ def generate_markdown(data):
     )
 
     return f"""#### Overview
-{meta.get('overview') or "N/A"}
+{meta.get("overview") or "N/A"}
 {more_info}{download}
 
 #### Function
-{meta.get('function') or "N/A"}
+{meta.get("function") or "N/A"}
 
 #### Cautions
-{meta.get('cautions') or "N/A"}
+{meta.get("cautions") or "N/A"}
 
 #### Citation
-{meta.get('citation') or "N/A"}
+{meta.get("citation") or "N/A"}
 
 #### Metadata
-- **Date:** {meta.get('date_of_content') or "N/A"}
-- **Update frequency:** {meta.get('frequency_of_updates', '')}
-- **Source:** {meta.get('source') or "N/A"}
-- **Tags:** {meta.get('tags', '')}
-- **Spatial Resolution:** {meta.get('resolution') or "N/A"}
-- **Geographic Coverage:** {meta.get('geographic_coverage') or "N/A"}
-- **License:** {meta.get('license') or "N/A"}
-- **Dataset ID:** {meta.get('gfw_dataset_id') or 'N/A'}
-- **Data API:** [link]({meta.get('data_api_url', '#')})
-- **Relevance score:** {meta.get('relevance') or "N/A"}
+- **Date:** {meta.get("date_of_content") or "N/A"}
+- **Update frequency:** {meta.get("frequency_of_updates", "")}
+- **Source:** {meta.get("source") or "N/A"}
+- **Tags:** {meta.get("tags", "")}
+- **Spatial Resolution:** {meta.get("resolution") or "N/A"}
+- **Geographic Coverage:** {meta.get("geographic_coverage") or "N/A"}
+- **License:** {meta.get("license") or "N/A"}
+- **Dataset ID:** {meta.get("gfw_dataset_id") or "N/A"}
+- **Data API:** [link]({meta.get("data_api_url", "#")})
+- **Relevance score:** {meta.get("relevance") or "N/A"}
 """
 
 
@@ -78,7 +79,9 @@ def render_aoi_map(aoi_data, subregion_data=None):
     try:
         src_id = aoi_data.get("src_id")
         # fetch the geometry by src_id
-        client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
+        client = ZenoClient(
+            base_url=API_BASE_URL, token=st.session_state.token
+        )
         geom_response = client.fetch_geometry(
             source=aoi_data.get("source"), src_id=src_id
         )
@@ -136,7 +139,9 @@ def render_aoi_map(aoi_data, subregion_data=None):
                                 "weight": 2,
                                 "fillOpacity": 0.2,
                             },
-                            popup=folium.Popup(subregion_name, parse_html=True),
+                            popup=folium.Popup(
+                                subregion_name, parse_html=True
+                            ),
                             tooltip=subregion_name,
                         ).add_to(m)
             except Exception as e:
@@ -187,7 +192,9 @@ def render_dataset_map(dataset_data, aoi_data=None):
                 zoom_start = 2
 
         # Create folium map
-        m2 = folium.Map(location=center, zoom_start=zoom_start, tiles="OpenStreetMap")
+        m2 = folium.Map(
+            location=center, zoom_start=zoom_start, tiles="OpenStreetMap"
+        )
 
         # Add dataset tile layer
         dataset_name = dataset_data.get("data_layer", "Dataset Layer")
@@ -423,7 +430,6 @@ def render_charts(charts_data):
 
 
 def render_stream(stream):
-
     # node = stream["node"]
     update = json.loads(stream["update"])
 
@@ -433,7 +439,6 @@ def render_stream(stream):
         st.badge(timestamp, icon=":material/schedule:", color="blue")
 
     for msg in update["messages"]:
-
         content = msg["kwargs"]["content"]
 
         if isinstance(content, list):
@@ -461,7 +466,9 @@ def render_stream(stream):
     # if node == "tools" and "dataset" in update:
     if "dataset" in update:
         dataset_data = update["dataset"]
-        aoi_data = update.get("aoi") or aoi_data  # Include AOI as overlay if available
+        aoi_data = (
+            update.get("aoi") or aoi_data
+        )  # Include AOI as overlay if available
         render_dataset_map(dataset_data, aoi_data)
 
     # Render charts if this is a tool node with charts_data
@@ -552,12 +559,10 @@ def display_sidebar_selections():
         st.session_state["aoi_selected"] = AOI_OPTIONS[selected_aoi_name]
         st.session_state["aoi_acknowledged"] = False
         st.success(f"Selected AOI: {selected_aoi_name}")
-        aoi_data = AOI_OPTIONS[selected_aoi_name]["aoi"]
 
     elif selected_aoi_name == "None":
         st.session_state.pop("aoi_selected", None)
         st.session_state.pop("aoi_acknowledged", None)
-        aoi_data = None
 
     # Dataset Dropdown
     selected_dataset_name = st.selectbox(
@@ -570,7 +575,9 @@ def display_sidebar_selections():
     if selected_dataset_name != "None" and DATASET_OPTIONS[
         selected_dataset_name
     ] != st.session_state.get("dataset_selected"):
-        st.session_state["dataset_selected"] = DATASET_OPTIONS[selected_dataset_name]
+        st.session_state["dataset_selected"] = DATASET_OPTIONS[
+            selected_dataset_name
+        ]
         st.session_state["dataset_acknowledged"] = False
         st.success(f"Selected Dataset: {selected_dataset_name}")
     elif selected_dataset_name == "None":

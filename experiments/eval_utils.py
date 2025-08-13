@@ -4,7 +4,6 @@ from datetime import datetime
 
 import langgraph.errors
 from langchain_core.load import dumps
-from langchain_core.messages import HumanMessage
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
@@ -22,14 +21,14 @@ def get_langfuse():
 
 def get_run_name():
     """Generate run name with date and git hash."""
-    date = datetime.now().strftime("%Y%m%d")
+    date = datetime.now().strftime("%Y%m%d_%H%M%S")
     try:
         git_hash = (
             subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
             .decode()
             .strip()
         )
-    except:
+    except:  # noqa: E722
         git_hash = "nogit"
     return f"eval_{date}_{git_hash}"
 
@@ -47,7 +46,6 @@ def run_query(
     }
 
     try:
-        result = zeno.invoke({"messages": [("user", query)]}, config=config)
         state = zeno.get_state(config=config)
 
         return state

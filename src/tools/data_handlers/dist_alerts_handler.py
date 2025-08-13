@@ -1,5 +1,5 @@
-from typing import Any, Dict, List
 import time
+from typing import Any, Dict, List
 
 import httpx
 
@@ -59,7 +59,9 @@ class DistAlertHandler(DataSourceHandler):
                     return None
 
             except Exception as e:
-                logger.warning(f"Poll attempt {attempt + 1} failed with error: {e}")
+                logger.warning(
+                    f"Poll attempt {attempt + 1} failed with error: {e}"
+                )
                 continue
 
         logger.warning(f"Max polling attempts ({max_retries}) exceeded")
@@ -90,7 +92,9 @@ class DistAlertHandler(DataSourceHandler):
                 "start_date": start_date,
                 "end_date": end_date,
                 "intersections": (
-                    [dataset["context_layer"]] if dataset["context_layer"] else []
+                    [dataset["context_layer"]]
+                    if dataset["context_layer"]
+                    else []
                 ),
             }
 
@@ -117,7 +121,9 @@ class DistAlertHandler(DataSourceHandler):
             logger.info(
                 f"DIST-ALERT API Response - Status Code: {response.status_code}"
             )
-            logger.info(f"DIST-ALERT API Response - Headers: {dict(response.headers)}")
+            logger.info(
+                f"DIST-ALERT API Response - Headers: {dict(response.headers)}"
+            )
             logger.info(f"DIST-ALERT API Response - Raw Text: {response.text}")
 
             try:
@@ -126,28 +132,32 @@ class DistAlertHandler(DataSourceHandler):
             except Exception as json_error:
                 error_msg = f"Failed to parse JSON response from DIST-ALERT API. Status: {response.status_code}, Text: {response.text}, Error: {json_error}"
                 logger.error(error_msg)
-                return DataPullResult(success=False, data=[], message=error_msg)
+                return DataPullResult(
+                    success=False, data=[], message=error_msg
+                )
 
             # Check if status key exists before accessing it
             if "status" not in result:
                 error_msg = f"DIST-ALERT API response missing 'status' key. Available keys: {list(result.keys())}, Full response: {result}"
                 logger.error(error_msg)
-                return DataPullResult(success=False, data=[], message=error_msg)
+                return DataPullResult(
+                    success=False, data=[], message=error_msg
+                )
 
             # Handle pending status with retry logic
             if result["status"] == "pending":
                 logger.info(
-                    f"DIST-ALERT request is pending, will retry with polling..."
+                    "DIST-ALERT request is pending, will retry with polling..."
                 )
                 result = await self._poll_for_completion(
                     payload, headers, max_retries=3, poll_interval=0.5
                 )
                 if not result:
-                    error_msg = (
-                        f"Failed to get completed result after polling for {aoi_name}"
-                    )
+                    error_msg = f"Failed to get completed result after polling for {aoi_name}"
                     logger.error(error_msg)
-                    return DataPullResult(success=False, data=[], message=error_msg)
+                    return DataPullResult(
+                        success=False, data=[], message=error_msg
+                    )
 
             if "status" in result and (
                 result["status"] == "success" or result["status"] == "saved"
@@ -168,7 +178,9 @@ class DistAlertHandler(DataSourceHandler):
             else:
                 error_msg = f"Failed to pull data from GFW for {aoi_name} - DIST_ALERT_URL: {self.DIST_ALERT_URL}, payload: {payload}, response: {response.text}"
                 logger.error(error_msg)
-                return DataPullResult(success=False, data=[], message=error_msg)
+                return DataPullResult(
+                    success=False, data=[], message=error_msg
+                )
 
         except Exception as e:
             error_msg = f"Failed to pull DIST-ALERT data: {e}"

@@ -2,7 +2,7 @@ import json
 import os
 import uuid
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime
 from typing import Dict, Optional
 from uuid import UUID
 
@@ -14,22 +14,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 from itsdangerous import BadSignature, TimestampSigner
-
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
+from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
-
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.agents import fetch_zeno, fetch_zeno_anonymous, fetch_checkpointer
-
+from src.agents.agents import (
+    fetch_checkpointer,
+    fetch_zeno,
+    fetch_zeno_anonymous,
+)
 from src.api.data_models import (
     CustomAreaOrm,
     DailyUsageOrm,
+    RatingOrm,
     ThreadOrm,
     UserOrm,
     UserType,
@@ -42,22 +45,21 @@ from src.api.schemas import (
     CustomAreaModel,
     CustomAreaNameRequest,
     GeometryResponse,
+    RatingCreateRequest,
+    RatingModel,
     ThreadModel,
     UserModel,
 )
-
-from src.utils.env_loader import load_environment_variables
-from src.utils.logging_config import bind_request_logging_context, get_logger
 from src.utils.config import APISettings
-from src.utils.llms import HAIKU
+from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
-    SOURCE_ID_MAPPING,
     get_geometry_data,
 )
-
+from src.utils.llms import HAIKU
+from src.utils.logging_config import bind_request_logging_context, get_logger
 
 # Load environment variables using shared utility
 load_environment_variables()
@@ -159,6 +161,7 @@ async def logging_middleware(request: Request, call_next) -> Response:
 
 
 langfuse_handler = CallbackHandler()
+langfuse_client = Langfuse()
 
 # HTTP Middleware to asign/verify anonymous session IDs
 signer = TimestampSigner(os.environ["COOKIE_SIGNER_SECRET_KEY"])
@@ -172,7 +175,9 @@ async def anonymous_id_middleware(request: Request, call_next):
     if anon_cookie:
         try:
             # Verify signature & extract payload
-            _ = signer.unsign(anon_cookie, max_age=365 * 24 * 3600)  # Cookie age: 1yr
+            _ = signer.unsign(
+                anon_cookie, max_age=365 * 24 * 3600
+            )  # Cookie age: 1yr
             need_new = False
         except BadSignature:
             pass
@@ -207,14 +212,17 @@ async def replay_chat(thread_id):
     config = {"configurable": {"thread_id": thread_id}}
 
     try:
-
         zeno_async = await fetch_zeno()
 
         # Fetch checkpoints for conversation/thread
         # consume checkpoints and sort them by step to process from
         # oldest to newest. Skip step -1 which is the initial empty state
-        checkpoints = [c async for c in zeno_async.aget_state_history(config=config)]
-        checkpoints = sorted(list(checkpoints), key=lambda x: x.metadata["step"])
+        checkpoints = [
+            c async for c in zeno_async.aget_state_history(config=config)
+        ]
+        checkpoints = sorted(
+            list(checkpoints), key=lambda x: x.metadata["step"]
+        )
         checkpoints = [c for c in checkpoints if c.metadata["step"] >= 0]
 
         # Track rendered state elements and messages.
@@ -255,7 +263,9 @@ async def replay_chat(thread_id):
             node_type = (
                 "agent"
                 if mtypes == {"ai"} or len(mtypes) > 1
-                else "tools" if mtypes == {"tool"} else "human"
+                else "tools"
+                if mtypes == {"tool"}
+                else "human"
             )
 
             update = {
@@ -314,11 +324,13 @@ async def stream_chat(
                     content = f"User selected AOI in UI: {action_data['aoi_name']}\n\n"
                     state_updates["aoi"] = action_data["aoi"]
                     state_updates["aoi_name"] = action_data["aoi_name"]
-                    state_updates["subregion_aois"] = action_data["subregion_aois"]
+                    state_updates["subregion_aois"] = action_data[
+                        "subregion_aois"
+                    ]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
-                    content = f"User selected dataset in UI: {action_data['dataset']['data_layer']}\n\n"
+                    content = f"User selected dataset in UI: {action_data['dataset']['dataset_name']}\n\n"
                     state_updates["dataset"] = action_data["dataset"]
                 case "daterange_selected":
                     content = f"User selected daterange in UI: start_date: {action_data['start_date']}, end_date: {action_data['end_date']}"
@@ -375,8 +387,12 @@ async def stream_chat(
                         "update": dumps(
                             {
                                 "error": True,
-                                "message": str(e),  # String representation of the error
-                                "error_type": type(e).__name__,  # Exception class name
+                                "message": str(
+                                    e
+                                ),  # String representation of the error
+                                "error_type": type(
+                                    e
+                                ).__name__,  # Exception class name
                                 "type": "stream_processing_error",
                             }
                         ),
@@ -404,7 +420,9 @@ async def stream_chat(
                 "update": dumps(
                     {
                         "error": True,
-                        "message": str(e),  # String representation of the error
+                        "message": str(
+                            e
+                        ),  # String representation of the error
                         "error_type": type(e).__name__,  # Exception class name
                         "type": "stream_initialization_error",
                         "fatal": True,  # Indicates stream cannot continue
@@ -603,6 +621,25 @@ async def check_quota(
     return {}
 
 
+async def generate_thread_name(query: str) -> str:
+    """
+    Generate a descriptive name for a chat thread based on the user's query.
+
+    Args:
+        query: The user's initial query in the thread
+
+    Returns:
+        A concise, descriptive name for the thread
+    """
+    try:
+        prompt = f"Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:\n{query}\nReturn strictly the title only, no quotes or explanation."
+        response = await HAIKU.ainvoke(prompt)
+        return response.content[:50]  # Ensure we don't exceed 50 chars
+    except Exception as e:
+        logger.exception("Error generating thread name: %s", e)
+        return "Unnamed Thread"  # Fallback to default name
+
+
 @app.post("/api/chat")
 async def chat(
     request: ChatRequest,
@@ -631,12 +668,19 @@ async def chat(
             session_id=request.session_id,
             query=request.query,
         )
-        stmt = select(ThreadOrm).filter_by(id=request.thread_id, user_id=user.id)
+        stmt = select(ThreadOrm).filter_by(
+            id=request.thread_id, user_id=user.id
+        )
         result = await session.execute(stmt)
         thread = result.scalars().first()
         if not thread:
+            # Generate thread name from the first query
+            thread_name = await generate_thread_name(request.query)
             thread = ThreadOrm(
-                id=request.thread_id, user_id=user.id, agent_id="UniGuana"
+                id=request.thread_id,
+                user_id=user.id,
+                agent_id="UniGuana",
+                name=thread_name,
             )
             session.add(thread)
             await session.commit()
@@ -754,7 +798,7 @@ async def custom_area_name(
     Requires Authorization.
     """
     try:
-        prompt = f"Name this GeoJSON FeatureCollection neutrally by geography, make sure to check where they are:\n{request.model_dump()}\n return strictly name only and limit to maximum of 150 characters."
+        prompt = f"Name this GeoJSON FeatureCollection neutrally by geography, make sure to check where they are and name as specifically as possible:\n{request.model_dump()}\n return strictly the name only and limit to maximum of 100 characters."
         response = HAIKU.invoke(prompt)
         return {"name": response.content}
     except Exception as e:
@@ -819,10 +863,153 @@ async def get_geometry(
         return GeometryResponse(**result)
 
     except ValueError as e:
+        logger.exception(f"Error fetching geometry for {source}:{src_id}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"Error fetching geometry for {source}:{src_id}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def send_rating_to_langfuse(
+    trace_id: str, rating: int, comment: str, user_id: str
+):
+    """
+    Send user rating feedback to Langfuse as a score.
+
+    Args:
+        trace_id: Langfuse trace ID
+        rating: User rating (1 or -1)
+        comment: Optional user comment
+        user_id: User ID for context
+    """
+    try:
+        langfuse_client.score(
+            trace_id=trace_id,
+            name="user-feedback",
+            value=rating,
+            comment=comment,
+            data_type="NUMERIC",
+        )
+        logger.info(
+            "Rating sent to Langfuse",
+            trace_id=trace_id,
+            rating=rating,
+            user_id=user_id,
+        )
+    except Exception as e:
+        # Don't fail the rating operation if Langfuse is unavailable
+        logger.warning(
+            "Failed to send rating to Langfuse",
+            trace_id=trace_id,
+            rating=rating,
+            user_id=user_id,
+            error=str(e),
+        )
+
+
+@app.post("/api/threads/{thread_id}/rating", response_model=RatingModel)
+async def create_or_update_rating(
+    thread_id: str,
+    request: RatingCreateRequest,
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Create or update a rating for a trace in a thread.
+
+    This endpoint allows authenticated users to provide feedback on AI agent responses
+    by rating specific traces within their conversation threads.
+
+    **Authentication**: Requires Bearer token in Authorization header.
+
+    **Path Parameters**:
+    - thread_id (str): The unique identifier of the thread containing the trace
+
+    **Request Body**:
+    - trace_id (str): The Langfuse trace ID to rate
+    - rating (int): Either 1 (thumbs up) or -1 (thumbs down)
+    - comment (str, optional): Additional feedback text
+
+    **Behavior**:
+    - If a rating already exists for the same user/thread/trace combination, it will be updated
+    - If no rating exists, a new one will be created
+    - The thread must exist and belong to the authenticated user
+
+    **Response**: Returns the created or updated rating with metadata
+
+    **Error Responses**:
+    - 401: Missing or invalid authentication
+    - 404: Thread not found or access denied
+    - 422: Invalid rating value (must be 1 or -1)
+    """
+    # Verify if the thread exists and belongs to the user
+    stmt = select(ThreadOrm).filter_by(id=thread_id, user_id=user.id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
+    if not thread:
+        raise HTTPException(
+            status_code=404, detail="Thread not found or access denied"
+        )
+
+    # Check if the rating already exists (upsert logic)
+    stmt = select(RatingOrm).filter_by(
+        user_id=user.id, thread_id=thread_id, trace_id=request.trace_id
+    )
+    result = await session.execute(stmt)
+    existing_rating = result.scalars().first()
+
+    if existing_rating:
+        # Update existing rating
+        existing_rating.rating = request.rating
+        existing_rating.comment = request.comment
+        existing_rating.updated_at = datetime.now()
+        await session.commit()
+        await session.refresh(existing_rating)
+
+        logger.info(
+            "Rating updated",
+            user_id=user.id,
+            thread_id=thread_id,
+            trace_id=request.trace_id,
+            rating=request.rating,
+            comment=request.comment,
+        )
+
+        # Send rating to Langfuse
+        await send_rating_to_langfuse(
+            request.trace_id, request.rating, request.comment, user.id
+        )
+
+        return RatingModel.model_validate(existing_rating)
+    else:
+        # Create new rating
+        new_rating = RatingOrm(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            thread_id=thread_id,
+            trace_id=request.trace_id,
+            rating=request.rating,
+            comment=request.comment,
+        )
+        session.add(new_rating)
+        await session.commit()
+        await session.refresh(new_rating)
+
+        logger.info(
+            "Rating created",
+            user_id=user.id,
+            thread_id=thread_id,
+            trace_id=request.trace_id,
+            rating=request.rating,
+            comment=request.comment,
+        )
+
+        # Send rating to Langfuse
+        await send_rating_to_langfuse(
+            request.trace_id, request.rating, request.comment, user.id
+        )
+
+        return RatingModel.model_validate(new_rating)
 
 
 @app.get("/api/auth/me", response_model=UserModel)

@@ -1,16 +1,16 @@
-"""Merge previous merge and daily usage
+"""merge rating and other migrations
 
-Revision ID: 14bd7b5fb4a1
-Revises: 169f57df5479, 3e48669fcb4b
-Create Date: 2025-07-29 10:22:46.748359
+Revision ID: b95e6a03dc6a
+Revises: 4d560a99b2c8, bea47fc66d31
+Create Date: 2025-08-07 15:22:40.287340
 
 """
 
 from typing import Sequence, Union
 
 # revision identifiers, used by Alembic.
-revision: str = "14bd7b5fb4a1"
-down_revision: Union[str, None] = ("169f57df5479", "3e48669fcb4b")
+revision: str = "b95e6a03dc6a"
+down_revision: Union[str, None] = ("4d560a99b2c8", "bea47fc66d31")
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -1,7 +1,7 @@
 import argparse
 import json
 import uuid
-from typing import Any, Dict, Iterator, Optional, List
+from typing import Any, Dict, Iterator, List, Optional
 
 import requests
 
@@ -91,7 +91,9 @@ class ZenoClient:
 
         payload = {"thread_id": thread_id}
 
-        with requests.get(url, json=payload, stream=True, headers=headers) as response:
+        with requests.get(
+            url, json=payload, stream=True, headers=headers
+        ) as response:
             if response.status_code != 200:
                 raise Exception(
                     f"Request failed with status code {response.status_code}: {response.text}"
@@ -102,8 +104,7 @@ class ZenoClient:
                     decoded_update = update.decode("utf-8")
                     yield json.loads(decoded_update)
 
-
-    def fetch_geometry(self, source:str, src_id: str):
+    def fetch_geometry(self, source: str, src_id: str):
         """
         Fetch the geometry for a given src_id.
 
@@ -123,7 +124,6 @@ class ZenoClient:
                     f"Request failed with status code {response.status_code}: {response.text}"
                 )
             return response.json()
-
 
     def chat(
         self,
@@ -185,7 +185,9 @@ class ZenoClient:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
-        with requests.post(url, json=payload, stream=True, headers=headers) as response:
+        with requests.post(
+            url, json=payload, stream=True, headers=headers
+        ) as response:
             if response.status_code != 200:
                 raise Exception(
                     f"Request failed with status code {response.status_code}: {response.text}"
@@ -218,7 +220,9 @@ def main():
     parser.add_argument(
         "--url", "-u", default="http://localhost:8000", help="API server URL"
     )
-    parser.add_argument("--token", "-k", help="Bearer token for authentication")
+    parser.add_argument(
+        "--token", "-k", help="Bearer token for authentication"
+    )
 
     args = parser.parse_args()
 
@@ -230,7 +234,6 @@ def main():
             raise ValueError("Thread ID provided but no token provided.")
         print(f"Fetching existing thread: {args.thread_id}")
         try:
-
             for stream in client.fetch(thread_id=args.thread_id):
                 node = stream["node"]
                 update = json.loads(stream["update"])
