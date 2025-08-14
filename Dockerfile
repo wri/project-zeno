@@ -27,6 +27,3 @@ WORKDIR /app
 
 # Install the dependencies
 RUN uv sync --frozen
-
-# Command to build the RAG database
-RUN uv run ingest/embed_datasets.py
