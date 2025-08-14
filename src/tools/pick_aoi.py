@@ -99,7 +99,9 @@ async def query_aoi_database(
 
         # Check Custom Areas table
         try:
-            conn.execute(text(f"SELECT 1 FROM {CUSTOM_AREA_TABLE} LIMIT 1"))
+            await conn.execute(
+                text(f"SELECT 1 FROM {CUSTOM_AREA_TABLE} LIMIT 1")
+            )
             existing_tables.append("custom")
         except Exception:
             logger.warning(f"Table {CUSTOM_AREA_TABLE} does not exist")
@@ -436,7 +438,10 @@ async def pick_aoi(
             tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
 
         logger.debug(f"Pick AOI tool message: {tool_message}")
-        selected_aoi = selected_aoi.model_dump()
+
+        if isinstance(selected_aoi, BaseModel):
+            selected_aoi = selected_aoi.model_dump()
+
         selected_aoi[SOURCE_ID_MAPPING[source]["id_column"]] = src_id
 
         logger.info(
