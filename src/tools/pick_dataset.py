@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import pandas as pd
+import yaml
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -21,12 +22,17 @@ data_dir = Path("data")
 _retriever_cache = {}
 
 
+ANALYTICS_DATASETS_PATH = Path(__file__).parent / "analytics_datasets.yml"
+with open(ANALYTICS_DATASETS_PATH) as f:
+    DATASETS = yaml.safe_load(f)["datasets"]
+
+
 async def _get_openai_retriever():
     if "openai" not in _retriever_cache:
         logger.debug("Loading OpenAI retriever for the first time...")
         openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
         openai_index = InMemoryVectorStore.load(
-            data_dir / "zeno-docs-openai-index-v2", embedding=openai_embeddings
+            data_dir / "zeno-docs-openai-index", embedding=openai_embeddings
         )
         _retriever_cache["openai"] = openai_index.as_retriever(
             search_type="similarity", search_kwargs={"k": 3}
@@ -44,9 +50,12 @@ async def rag_candidate_datasets(query: str, k=3, strategy="openai"):
             openai_retriever = await _get_openai_retriever()
             match_documents = await openai_retriever.ainvoke(query)
             for doc in match_documents:
-                metadata = doc.metadata.copy()
-                metadata["description"] = doc.page_content
-                candidate_datasets.append(metadata)
+                data = [
+                    ds for ds in DATASETS if ds["dataset_id"] == int(doc.id)
+                ]
+                if not data:
+                    raise ValueError(f"No data found for dataset ID: {doc.id}")
+                candidate_datasets.append(data[0])
         case _:
             logger.error(f"Unknown RAG strategy: {strategy}")
             raise ValueError(f"Unknown strategy: {strategy}")
@@ -58,9 +67,6 @@ async def rag_candidate_datasets(query: str, k=3, strategy="openai"):
 class DatasetOption(BaseModel):
     dataset_id: int = Field(
         description="ID of the dataset that best matches the user query."
-    )
-    dataset_name: str = Field(
-        description="Name of the dataset that best matches the user query."
     )
     context_layer: Optional[str] = Field(
         None,
@@ -74,6 +80,37 @@ class DatasetOption(BaseModel):
 class DatasetSelectionResult(DatasetOption):
     tile_url: str = Field(
         description="Tile URL of the dataset that best matches the user query.",
+        default="",
+    )
+    dataset_name: str = Field(
+        description="Name of the dataset that best matches the user query."
+    )
+    analytics_api_endpoint: str = Field(
+        description="Analytics API endpoint of the dataset that best matches the user query.",
+        default="",
+    )
+    description: str = Field(
+        description="Description of the dataset that best matches the user query.",
+        default="",
+    )
+    prompt_instructions: str = Field(
+        description="Prompt instructions of the dataset that best matches the user query.",
+        default="",
+    )
+    methodology: str = Field(
+        description="Methodology of the dataset that best matches the user query.",
+        default="",
+    )
+    cautions: str = Field(
+        description="Cautions of the dataset that best matches the user query.",
+        default="",
+    )
+    function_usage_notes: str = Field(
+        description="Function usage notes of the dataset that best matches the user query.",
+        default="",
+    )
+    citation: str = Field(
+        description="Citation of the dataset that best matches the user query.",
         default="",
     )
 
@@ -109,7 +146,7 @@ async def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
                     "dataset_id",
                     "dataset_name",
                     "description",
-                    "date",
+                    "content_date",
                     "context_layers",
                 ]
             ].to_csv(index=False),
@@ -120,22 +157,23 @@ async def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
         f"Selected dataset ID: {selection_result.dataset_id}. Reason: {selection_result.reason}"
     )
 
-    tile_url = (
-        candidate_datasets[
-            candidate_datasets.dataset_id == selection_result.dataset_id
-        ]
-        .iloc[0]
-        .tile_url
-    )
-    if not isinstance(tile_url, str):
-        tile_url = ""
+    selected_row = candidate_datasets[
+        candidate_datasets.dataset_id == selection_result.dataset_id
+    ].iloc[0]
 
     return DatasetSelectionResult(
-        dataset_id=selection_result.dataset_id,
-        dataset_name=selection_result.dataset_name,
+        dataset_id=selected_row.dataset_id,
+        dataset_name=selected_row.dataset_name,
         context_layer=selection_result.context_layer,
         reason=selection_result.reason,
-        tile_url=tile_url,
+        tile_url=selected_row.tile_url,
+        analytics_api_endpoint=selected_row.analytics_api_endpoint,
+        description=selected_row.description,
+        prompt_instructions=selected_row.prompt_instructions,
+        methodology=selected_row.methodology,
+        cautions=selected_row.cautions,
+        function_usage_notes=selected_row.function_usage_notes,
+        citation=selected_row.citation,
     )
 
 
