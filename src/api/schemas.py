@@ -67,10 +67,10 @@ class UserWithQuotaModel(UserModel):
         populate_by_name=True,
     )
     prompts_used: Optional[int] = Field(
-        ..., description="Number of prompts used today"
+        None, description="Number of prompts used today"
     )
     prompt_quota: Optional[int] = Field(
-        ..., description="Prompt quota for the user"
+        None, description="Prompt quota for the user"
     )
 
 

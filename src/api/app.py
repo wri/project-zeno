@@ -592,7 +592,7 @@ async def check_quota(
         .returning(DailyUsageOrm.usage_count)
     )
     result = await session.execute(stmt)
-    count = len(result.scalars().all())
+    count = result.scalars().first()
     await session.commit()  # commit the upsert
 
     # 3. Enforce the quota
@@ -1115,7 +1115,7 @@ async def auth_me(
     Forwards the JWT to Resource Watch API and returns user info.
     """
     if not APISettings.enable_quota_checking:
-        return user
+        return {**user.model_dump(), "prompts_used": None, "prompt_quota": None}
     return {**user.model_dump(), **quota_info}
 
 
