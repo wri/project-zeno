@@ -726,7 +726,18 @@ async def list_threads(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """List threads."""
+    """
+    List all threads belonging to the authenticated user.
+
+    **Authentication:** Required - returns only threads owned by the authenticated user
+
+    **Response:** Array of thread objects, each containing:
+    - `id`: Thread identifier
+    - `name`: Thread display name
+    - `is_public`: Boolean indicating if thread is publicly accessible
+    - `created_at`, `updated_at`: Timestamps
+    - `user_id`, `agent_id`: Associated user and agent
+    """
     stmt = select(ThreadOrm).filter_by(user_id=user.id)
     result = await session.execute(stmt)
     threads = result.scalars().all()
@@ -736,20 +747,56 @@ async def list_threads(
 @app.get("/api/threads/{thread_id}")
 async def get_thread(
     thread_id: str,
-    user: UserModel = Depends(require_auth),
+    user: Optional[UserModel] = Depends(optional_auth),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Requires Authorization
+    Get thread conversation history - supports both public and private access.
+
+    **Access Control:**
+    - **Public threads** (is_public=True): Can be accessed by anyone, no authentication required
+    - **Private threads** (is_public=False): Require authentication and ownership
+
+    **Authentication:** Optional - provide Bearer token for private threads
+
+    **Response:** Streaming NDJSON format containing conversation history
+
+    **Error Codes:**
+    - 401: Private thread accessed without authentication
+    - 404: Thread not found or access denied (private thread accessed by non-owner)
     """
-    stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
+    # First, try to get the thread to check if it exists and if it's public
+    stmt = select(ThreadOrm).filter_by(id=thread_id)
     result = await session.execute(stmt)
     thread = result.scalars().first()
+
     if not thread:
         logger.warning("Thread not found", thread_id=thread_id)
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    thread_id = thread.id
+    # If thread is public, allow access regardless of authentication
+    if thread.is_public:
+        logger.debug("Accessing public thread", thread_id=thread_id)
+    else:
+        # For private threads, require authentication and ownership
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing Bearer token",
+            )
+
+        if thread.user_id != user.id:
+            logger.warning(
+                "Unauthorized access to private thread",
+                thread_id=thread_id,
+                user_id=user.id,
+                owner_id=thread.user_id,
+            )
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        logger.debug(
+            "Accessing private thread", thread_id=thread_id, user_id=user.id
+        )
 
     try:
         logger.debug("Replaying thread", thread_id=thread_id)
@@ -763,6 +810,10 @@ async def get_thread(
 
 class ThreadUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, description="The name of the thread")
+    is_public: Optional[bool] = Field(
+        None,
+        description="Whether the thread is publicly accessible. True = anyone can view without auth, False = owner only",
+    )
 
 
 @app.patch("/api/threads/{thread_id}", response_model=ThreadModel)
@@ -773,7 +824,37 @@ async def update_thread(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Requires Authorization
+    Update thread properties including name and sharing settings.
+
+    **Authentication:** Required - must be thread owner
+
+    **Request Body:** JSON object with optional fields:
+    - `name` (string, optional): Update the thread's display name
+    - `is_public` (boolean, optional): Set thread visibility
+      - `true`: Makes thread publicly accessible without authentication
+      - `false`: Makes thread private (owner access only)
+
+    **Examples:**
+    ```javascript
+    // Make thread public
+    PATCH /api/threads/{thread_id}
+    { "is_public": true }
+
+    // Make thread private
+    PATCH /api/threads/{thread_id}
+    { "is_public": false }
+
+    // Update both name and sharing
+    PATCH /api/threads/{thread_id}
+    { "name": "My Public Thread", "is_public": true }
+    ```
+
+    **Response:** Updated thread object with current `is_public` status
+
+    **Error Codes:**
+    - 401: Missing or invalid authentication
+    - 404: Thread not found or access denied (not thread owner)
+    - 422: Invalid field values (e.g., non-boolean for is_public)
     """
     stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
     result = await session.execute(stmt)
@@ -781,8 +862,10 @@ async def update_thread(
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    for key, value in request.model_dump().items():
-        setattr(thread, key, value)
+    # Only set fields that are provided (not None) to avoid overwriting with NULL
+    for key, value in request.model_dump(exclude_none=True).items():
+        if value is not None:
+            setattr(thread, key, value)
     await session.commit()
     await session.refresh(thread)
     return ThreadModel.model_validate(thread)
@@ -814,7 +897,20 @@ async def delete_thread(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Delete thread.
+    Delete thread permanently.
+
+    **Authentication:** Required - must be thread owner
+
+    **Behavior:**
+    - Removes thread from database and conversation history
+    - Public threads become inaccessible after deletion
+    - Operation cannot be undone
+
+    **Response:** 204 No Content on success
+
+    **Error Codes:**
+    - 401: Missing or invalid authentication
+    - 404: Thread not found or access denied (not thread owner)
     """
 
     await checkpointer.delete_thread(thread_id)

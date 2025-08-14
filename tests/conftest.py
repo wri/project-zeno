@@ -3,11 +3,12 @@
 import os
 import uuid
 from collections.abc import AsyncGenerator
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import NullPool, text
+from sqlalchemy import NullPool, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -39,6 +40,30 @@ async def override_get_async_session() -> AsyncGenerator[AsyncSession, None]:
 app.dependency_overrides[get_async_session] = override_get_async_session
 
 
+# Mock replay_chat function for tests to avoid checkpointer table dependencies
+async def mock_replay_chat(thread_id):
+    """Mock replay_chat that returns empty conversation history for tests."""
+
+    def pack(data):
+        import json
+
+        return json.dumps(data) + "\n"
+
+    # Return minimal conversation history for tests
+    yield pack(
+        {
+            "node": "agent",
+            "timestamp": "2025-01-01T00:00:00Z",
+            "update": '{"messages": [{"type": "human", "content": "Test message"}]}',
+        }
+    )
+
+
+# Apply the mock globally for all tests
+patcher = patch("src.api.app.replay_chat", mock_replay_chat)
+patcher.start()
+
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def test_db():
     """Create test database and clear it after each test."""
@@ -46,6 +71,8 @@ async def test_db():
     async with engine_test.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
+    # Clean up
+    patcher.stop()  # Stop the replay_chat mock
     # Clean databases
     async with engine_test.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
@@ -59,13 +86,12 @@ async def client() -> AsyncClient:
 
 
 async def clear_tables():
-    """Truncate all tables, except the 'users' table, after running each test."""
+    """Truncate all tables after running each test."""
     async with async_session_maker() as session:
-        for table in Base.metadata.sorted_tables:
-            if table.name != "users":
-                await session.execute(
-                    text(f"TRUNCATE {table.name} RESTART IDENTITY CASCADE;"),
-                )
+        for table in reversed(Base.metadata.sorted_tables):
+            await session.execute(
+                text(f"TRUNCATE {table.name} RESTART IDENTITY CASCADE;"),
+            )
         await session.commit()
 
 
@@ -76,7 +102,15 @@ async def test_db_session():
     await engine_test.dispose()
 
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
+@pytest.fixture(autouse=True, scope="function")
+def clear_auth_state():
+    """Ensure auth state is cleared between tests."""
+    yield
+    # Clean up any auth overrides after each test
+    app.dependency_overrides.pop(fetch_user_from_rw_api, None)
+
+
+@pytest_asyncio.fixture(scope="function")
 async def user() -> UserOrm:
     async with async_session_maker() as session:
         u = UserOrm(
@@ -89,7 +123,7 @@ async def user() -> UserOrm:
         return u
 
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(scope="function")
 async def user_ds() -> UserOrm:
     async with async_session_maker() as session:
         u = UserOrm(
@@ -104,7 +138,8 @@ async def user_ds() -> UserOrm:
 
 @pytest.fixture(scope="function")
 def auth_override():
-    original_dependency = None
+    # Store the original dependency before any changes
+    original_dependency = app.dependency_overrides.get(fetch_user_from_rw_api)
 
     def _auth_override(user_id: str):
         nonlocal original_dependency
@@ -126,6 +161,8 @@ def auth_override():
         )
 
     yield _auth_override
+
+    # Always restore to the original state
     if original_dependency is not None:
         app.dependency_overrides[fetch_user_from_rw_api] = original_dependency
     else:
@@ -140,12 +177,26 @@ async def thread_factory():
         unique_id = str(uuid.uuid4())[:8]
 
         async with async_session_maker() as session:
-            # Create test thread that belongs to the mocked user
+            # First, ensure the user exists (create if not exists)
+            stmt = select(UserOrm).filter_by(id=user_id)
+            result = await session.execute(stmt)
+            user = result.scalars().first()
+
+            if not user:
+                # Create the user if it doesn't exist
+                user = UserOrm(
+                    id=user_id, name=user_id, email=f"{user_id}@example.com"
+                )
+                session.add(user)
+                await session.commit()
+
+            # Create test thread that belongs to the user
             thread = ThreadOrm(
                 id=f"test-thread-{unique_id}",
                 user_id=user_id,  # Must match mocked user ID
                 agent_id="test-agent",
                 name="Test Thread",
+                is_public=False,  # Default to private
             )
             session.add(thread)
             await session.commit()
