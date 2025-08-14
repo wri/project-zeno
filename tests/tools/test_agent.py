@@ -99,9 +99,7 @@ async def run_agent(query: str, thread_id: str | None = None):
 )
 @pytest.mark.asyncio
 async def test_full_agent_for_datasets(dataset):
-    query = (
-        f"What is the distribution of {dataset} in the state of Arizona, USA?"
-    )
+    query = f"What is the distribution of {dataset} in the municipality of Bern, Switzerland for July 2024?"
     steps = await run_agent(query)
 
     assert len(steps) > 0

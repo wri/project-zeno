@@ -11,26 +11,6 @@ from typing import Any, Dict, List
 
 from pydantic import BaseModel
 
-TN_TCL = "tree_cover_loss"
-TN_DIST_ALERT = "DIST-ALERT"
-TN_NATURAL_LANDS = "natural_lands"
-TN_GRASSLANDS = "grasslands"
-TN_LAND_COVER_CHANGE = "land_cover_change"
-
-DS_TCL = "Tree cover loss"
-DS_DIST_ALERT = "Ecosystem disturbance alerts"
-DS_NATURAL_LANDS = "Natural lands"
-DS_GRASSLANDS = "Grassland"
-DS_LAND_COVER_CHANGE = "Global land cover"
-
-DATASET_NAMES = {
-    DS_TCL: TN_TCL,
-    DS_DIST_ALERT: TN_DIST_ALERT,
-    DS_NATURAL_LANDS: TN_NATURAL_LANDS,
-    DS_GRASSLANDS: TN_GRASSLANDS,
-    DS_LAND_COVER_CHANGE: TN_LAND_COVER_CHANGE,
-}
-
 
 class DataPullResult(BaseModel):
     """Result of a data pull operation"""
@@ -45,8 +25,8 @@ class DataSourceHandler(ABC):
     """Abstract base class for data source handlers"""
 
     @abstractmethod
-    def can_handle(self, dataset: Any, table_name: str) -> bool:
-        """Check if this handler can process the given dataset and table"""
+    def can_handle(self, dataset: Any) -> bool:
+        """Check if this handler can process the given dataset"""
         pass
 
     @abstractmethod

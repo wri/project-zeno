@@ -1,0 +1,545 @@
+datasets:
+- dataset_id: 0
+  dataset_name: Ecosystem disturbance alerts
+  context_layers:
+    - value: "driver"
+      description: "Shows the primary driver of disturbance"
+    - value: "natural_lands"
+      description: "Shows intersection with natural lands"
+  variables: null
+  tile_url: "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color"
+  license: "CC by 4.0"
+  geographic_coverage: Global
+  resolution: "30 x 30 meters"
+  update_frequency: "Underlying product updated daily, with image revisit time every 2-4 days. Product on GFW updated weekly."
+  content_date: "1 January 2023 – present"
+  keywords: "land cover, alerts, deforestation, conversion, vegetation disturbance"
+  analytics_api_endpoint: "/v0/land_change/dist_alerts/analytics"
+  prompt_instructions: >
+    This dataset delivers daily alerts of vegetation disturbance, classifying each
+    event by probable driver (fire, flood, land clearing, etc.), but is not available
+    for the last 30 days. Plot disturbed area (area_ha) over time with line charts
+    or aggregate to weeks/month using stacked-bar, dropping rows where area_ha ≤ 0.
+    Pie charts are appropriate for non-temporal questions about the total number of
+    alerts by driver class. Treat alerts as indicative snapshots—do not infer
+    long-term trends and note possible confusion between natural and human causes.
+    Ask the user to clarify whether they care about temporary disturbance or permanent
+    conversion; for historical change, suggest land-cover or tree-loss datasets instead.
+  description: >
+    Global All Ecosystem Disturbance Alerts (DIST-ALERT) provides near-real-time alerts
+    of vegetation disturbance globally at 30-meter resolution, using harmonized
+    Landsat-Sentinel-2 imagery. Users are informed about significant changes to the
+    vegetation, which can indicate human induced changes such as deforestation, as well
+    as drought and other events where actions by land managers may be required.
+    Crucially, this dataset covers all vegetation, not just forest, so that new
+    non-conversion of natural ecosystems commitments can be monitored.
+  methodology: >
+    This dataset is a derivative of the OPERA's DIST-ALERT product (OPERA Land Surface
+    Disturbance Alert from Harmonized Landsat Sentinel-2 product), which is derived
+    through a time-series analysis of harmonized data from the NASA/USGS Landsat and
+    ESA Sentinel-2 satellites (known as the HLS dataset). The product identifies and
+    continuously monitors vegetation cover change in 30-m pixels across the globe. It
+    can be accessed through the LPDAAC website here: [Earthdata Search](https://search.earthdata.nasa.gov/search?q=C2746980408-LPCLOUD),
+    and on Google Earth Engine (GEE) as an Image Collection with asset ID:
+    projects/glad/HLSDIST/current/[Insert Layer Name].
+
+    The DIST-ALERT on GFW is a derivative of this, and additional data layers not used
+    in the GFW product are available through the LPDAAC and GEE such as initial
+    vegetation fraction, and disturbance duration. While the version on the LPDAAC is
+    updated every 2-4 days, the data is updated weekly on GFW. The product detects
+    notable reductions in vegetation cover (measured as "vegetation fraction" or the
+    percent of the ground that is covered by vegetation) for every pixel every time
+    the new satellite data is acquired and the ground is not obscured by clouds or snow.
+
+    The current vegetation fraction estimate is compared to the minimum fraction for
+    the same time period (within 15 days before and after) in the previous 3 years,
+    and if there is a reduction, then the system identifies an alert in that pixel.
+    Anomalies of at least a 10% reduction from the minimum become alerts in the
+    original product, and on GFW, a higher threshold of 30% is used, to reduce noise,
+    and false alerts in the dataset. Because the product compares each pixel to the
+    minimum for the same time period in previous years, it takes into account regular
+    seasonal variation in vegetation cover. As the product is global and detects
+    vegetation anomalies, much of the data may not be applicable to GFW users
+    monitoring forests. Therefore, we also offer the option to mask the alerts with
+    UMD's tree cover map, allowing users to view only alerts within 30% canopy cover.
+  cautions: >
+    These alerts detect vegetation cover loss or disturbance. This product does not
+    distinguish between human-caused and other disturbance types. For example, where
+    alerts are detected within plantation forests, alerts may indicate timber harvesting
+    operations, without a conversion to a non-forest land use, and when alerts are
+    detected within crop land, alerts may represent crop harvesting.
+
+    We do not recommend using the alerts for global or regional trend assessment, nor
+    for area estimates. Rather, we recommend using the annual tree cover loss data for
+    a more accurate comparison of the trends in forest change over time, and for area
+    estimates. For global land cover changes, [20 year data](https://glad.umd.edu/dataset/GLCLUC2020)
+    may be more useful for certain purposes and should be explored. Additionally,
+    updates to the methodologies and variation in cloud cover between months and years
+    pose additional risks to using alerts for inter/intra-annual comparison.
+
+    The alerts can be 'curated' to identify those alerts of interest to a user, such
+    as those alerts which are likely to be deforestation and might be prioritized for
+    action. A user can do this by overlaying other contextual datasets, such as
+    protected areas, or planted trees. The non-curated data are provided here in order
+    that users can define their own prioritization approaches. Curated alert locations
+    within tree cover are provided in the Places to Watch data layer.
+
+    We provide a masked version of the product within "tree cover" which is defined as
+    all vegetation greater than 5 meters in height (2020) with greater than 30% canopy
+    cover (2010), and may take the form of natural forests or plantations. Annual tree
+    cover loss from 2021 is masked out.
+
+    In contrast to other alert systems available on GFW, DIST-ALERT continues to
+    monitor pixels where it has identified an alert in the past. The DIST-ALERT
+    retains the date of the most recent detection of disturbance, keeping users
+    informed of the most up-to-date changes within tree cover.
+
+    Two confidence levels are provided. The approach determines confidence level by the
+    number of anomalous observations, with more observations meaning a higher
+    confidence level. That is, two to three anomalies detected result in a low
+    confidence alert, whereas four or more mean a high confidence alert. UMD's Google
+    Earth Engine app [DIST-ALERT](https://glad.earthengine.app/view/dist-alert)
+    displays alerts, with a different approach used to define confidence, and a
+    different threshold for the vegetation reduction which triggers alerts.
+  function_usage_notes: >
+    Users are informed about significant changes to the vegetation, which can indicate
+    human induced changes such as deforestation, as well as drought and other events
+    where actions by land managers may be required. Crucially, this dataset covers
+    all vegetation, not just forest, so that new non-conversion of natural ecosystems
+    commitments can be monitored.
+  providers: >
+    This land surface disturbance monitoring system known as [OPERA Land Surface
+    Disturbance Alert](https://lpdaac.usgs.gov/products/opera_l3_dist-alert-hls_v1v001/),
+    or DIST-ALERT, was developed by the University of Maryland (UMD) and NASA's
+    [OPERA project](https://www.jpl.nasa.gov/go/opera).
+  citation: >
+    Hansen, M.. OPERA Land Surface Disturbance Alert from Harmonized Landsat
+    Sentinel-2 product (Version 1). 2024, distributed by NASA EOSDIS Land Processes
+    Distributed Active Archive Center, LP DAAC - OPERA_L3_DIST-ALERT-HLS_V1
+
+- dataset_id: 1
+  dataset_name: Global land cover
+  context_layers: null
+  variables: null
+  tile_url: ""
+  license: "CC by 4.0"
+  geographic_coverage: Global
+  resolution: "30 x 30 meters"
+  update_frequency: "Annual"
+  content_date: "2015-2024"
+  keywords: "global, land cover, land cover change, cultivated grasslands, tree cover gain, cropland expansion (or agricultural expansion), urbanization (or urban expansion), bare ground, sparse vegetation, short vegetation, grassland, shrubland, cultivated, cropland, built-up, urban, forest, tree cover, water, wetland, machine learning, annual, Landsat, time series, remote sensing, 30 m"
+  analytics_api_endpoint: "/v0/land_change/land_cover_change/analytics"
+  prompt_instructions: >
+    Maps land-cover classes in 2015 and 2024 and reports pixel-level transitions.
+    Use grouped-bar charts based on land_cover_class_start, land_cover_class_end,
+    and area_ha to show transitions or pie-charts to show single-year composition.
+    Drop zeros. Because only start- and end-states are recorded, do not treat it as
+    an annual time series or intra-annual product. Transitions to "short vegetation"
+    or "bare" may reflect seasonality, not restoration / degradation. When users
+    ask about agriculture, combine "cropland" + "cultivated grassland" unless they
+    specify otherwise.
+  description: >
+    This Global Land Cover dataset is a combination of two global datasets: the GLAD Land
+    Cover and Land Use Change annual data and the Global Pasture Watch Grassland Class
+    Collection 2 Cultivated Grasslands annual data. This combination is annual from 2015
+    through 2024. This dataset shows land covers and uses including bare ground and sparse
+    vegetation, short vegetation, tree cover, wetlands, water, snow/ice, cropland,
+    cultivated grasslands, and built-up land.
+  methodology: >
+    This Global Land Cover time series was created by combining annual GLAD Land Cover and
+    Land Use Change data from the UMD GLAD lab with annual Cultivated Grassland data from
+    the Global Pasture Watch consortium.
+
+    The GLAD Land Cover and Land Use Change data is a combination of separate supervised
+    classification models for each of the major thematic classes. The models were run on
+    Landsat Analysis Ready Data (ARD) and were calibrated locally or regionally. Each class
+    was validated with a statistical sample analysis. The forest height, cropland, snow/ice,
+    built-up, and water were combined with a vegetation fraction layer with a specific
+    hierarchy in order to create the combined land cover map for each year. A wetland layer
+    was overlaid onto the data in forest and short vegetation areas. Because of the
+    continuous nature of the vegetation fraction, forest height, and water classes, we
+    re-classified the values into eight classes: bare ground & sparse vegetation (<20%
+    vegetation fraction), short vegetation (>=20% vegetation fraction <5m in height), tree
+    cover (>=5m in height), wetland short vegetation, water (20-100% of the year), snow &
+    ice, cropland, and built-up. Each land cover was validated separately with overall
+    accuracies as follows: Forest extent in 2020: 97.2% (0.7 s.e.), Cropland extent in
+    2016-2019: 97.2%(0.3 s.e.), Snow/Ice extent in 2020: 99.8% (0.04 s.e.). There was also
+    validation done for the changes over time for each class, available in the full paper.
+
+    The Cultivated Grasslands layer from Global Pasture Watch, which shows the spatiotemporal
+    distribution of cultivated and natural/semi-natural grassland classes, was produced by
+    using GLAD Landsat ARD-2 image archive, accompanied by climatic, landform and proximity
+    covariates, spatiotemporal machine learning (per-class Random Forest) and over 2.3 M
+    reference samples (visually interpreted in Very High Resolution imagery). Custom
+    probability thresholds (based on five-fold spatial cross-validation) were used to derive
+    dominant class maps with balanced user's and producer's accuracy, resulting in f1 score
+    of 0.64 and 0.75 for cultivated and natural/semi-natural grassland, respectively.
+
+    The areas with a probability over 42% for natural/semi-natural grasslands and 38% for
+    cultivated grasslands were combined into a dominant map where the natural/semi-natural
+    class has priority. Cultivated Grassland pixels from the dominant class map were
+    isolated and inserted into the short vegetation and wetland classes in the GLAD data as
+    an eighth class.
+  cautions: >
+    This dataset represents land covers and some land uses, but when calculating areas of
+    change, it should be noted that it shows land cover change, not necessarily land use
+    change. It also does not represent conversion, a concept defined by the Accountability
+    Framework initiative. Caution should be used if using this land cover change data over
+    the full time period since it does not capture all the changes in the time series, only
+    what the pixels were in 2015 and 2024.
+
+    Transitions between the 'bare ground & sparse vegetation' and 'short vegetation' or
+    'wetland short vegetation' classes can be due to precipitation patterns or minor changes
+    in vegetation cover and are not necessarily large changes in vegetation cover or
+    degradation.
+
+    If a user asks about tree cover loss due to another land cover, zeno should answer with
+    both an area of TCL due to a certain driver (TCL grouped by a specific driver) and
+    percent of loss that was due to that driver, NOT with the land cover change areas from
+    this product.
+
+    Land cover transitions to vegetation are not necessarily restoration. Users should
+    exercise caution if using this data at the local scale. We encourage ground-truthing
+    data if using this for decision-making. Data not suitable for within year dynamics like
+    crop cycles and flood pulses.
+  function_usage_notes: >
+    This Global Land Cover dataset is intended to be used for monitoring land cover in
+    individual years as well as change over time. Note that changes over time indicate land
+    cover changes and may or may not capture land use changes.
+
+    This dataset should be used when a user asks about area in a specific year or gain or
+    loss of area between years for bare ground and sparse vegetation, short vegetation,
+    wetlands, water, snow/ice, cropland, cultivated grasslands, and built-up land. Gain of
+    tree cover can be derived from this dataset. Never use this dataset for tree cover loss,
+    instead refer to the Tree Cover Loss (Hansen/UMD/GLAD) data. This dataset may be
+    overlaid with DIST alert data to find alerts in specific land covers. It can also be
+    used to find where land cover has changed since 2020 and then overlaid with the Natural
+    Lands map to identify land cover changes on land that was natural in 2020.
+
+    If a user asks for world area under agricultural use, Zeno should combine cropland +
+    cultivated grassland or it should ask user to clarify which one they are interested in
+    or if they want both combined.
+  providers: >
+    UMD GLAD Lab, Global Pasture Watch consortium, Land & Carbon Lab
+  citation: >
+    Annual 30-m maps of Global Land Cover and Land Use 2015-2024 based on GLAD Land Cover
+    and Land Use Change (https://www.frontiersin.org/articles/10.3389/frsen.2022.856903/full)
+    and Global Pasture Watch Grassland class and extent (https://www.nature.com/articles/s41597-024-04139-6).
+    Land & Carbon Lab 2025.
+
+    Sources:
+    Potapov, P., Hansen, M. C., Pickens, A., Hernandez-Serna, A., Tyukavina, A., Turubanova, S.,
+    Zalles, V., Li, X., Khan, A., Stolle, F., Harris, N., Song, X.-P., Baggett, A., Kommareddy, I.
+    and Kommareddy, A. 2022. The global 2000–2020 land cover and land use change dataset
+    derived from the Landsat archive: first results. – Frontiers in Remote Sensing. 3: 856903.
+
+    Parente, L., Sloat, L., Mesquita, V., Consoli, D., Stanimirova, R., Hengl, T., Bonannella, C.,
+    Teles, N., Wheeler, I., Hunter, M., Ehrmann, S., Ferreira, L., Mattos, A. P., Oliveira, B.,
+    Meyer, C., Şahin, M., Witjes, M., Fritz, S., Malek, Z., & Stolle, F. (2024). Annual 30-m
+    maps of global grassland class and extent (2000–2022) based on spatiotemporal Machine
+    Learning. Scientific Data, 11(1), 1303. https://doi.org/10.1038/s41597-024-04139-6
+
+- dataset_id: 2
+  dataset_name: Grassland
+  context_layers: null
+  variables: Natural/Semi-Natural Grassland, Cultivated Grassland
+  tile_url: ""
+  license: "CC by 4.0"
+  geographic_coverage: "90°N to 90°S"
+  resolution: "30 x 30 meters"
+  update_frequency: "Annual"
+  content_date: "2000-2024, annual"
+  keywords: "grasslands, natural grasslands, semi-natural grasslands, cultivated grasslands, pasturelands, rangeland, livestock, grazing, global, annual, 30 m, remote sensing, time series, change detection, machine learning, Landsat"
+  analytics_api_endpoint: "/v0/land_change/grasslands/analytics"
+  prompt_instructions: >
+    Quantifies natural/semi-natural and cultivated grassland extent for each year
+    since 2015 and its net change. Visualise annual area with line charts or compare
+    regions with bars, using area_ha and omitting 0/nulls. Spectral confusion with
+    cropland or savanna can inflate apparent change—flag small patches and prefer
+    regional aggregation. The dataset lacks intra-year detail; avoid using it for
+    seasonal grazing questions. Clarify whether the user wants natural grassland,
+    pasture, or cropland when "agriculture" is mentioned.
+  description: >
+    Annual 30 m maps of global grassland class and extent from 2000 to 2024. The dataset
+    showing the spatiotemporal distribution of cultivated and natural/semi-natural grassland
+    classes. This dataset defines 'grasslands' very broadly such that they encompass
+    grasslands, shrublands, and savannas by including any land cover type which contains at
+    least 30% of dry or wet low vegetation, dominated by grasses and forbs (less than 3
+    meters) and a: maximum of 50% tree canopy cover (greater than 5 meters), maximum of 70%
+    of other woody vegetation (scrubs and open shrubland), and maximum of 50% active
+    cropland cover in mosaic landscapes of cropland & other vegetation.
+
+    Natural/semi-natural grassland: Relatively undisturbed native grasslands/short-height
+    vegetation, such as steppes and tundra, as well as areas that have experienced varying
+    degrees of human activity in the past, which may contain a mix of native and introduced
+    species due to historical land use and natural processes. In general, they exhibit
+    natural-looking patterns of varied vegetation and clearly ordered hydrological
+    relationships throughout the landscape.
+  methodology: >
+    The dataset showing the spatiotemporal distribution of cultivated and natural/semi-natural
+    grassland classes was produced by using GLAD Landsat ARD-2 image archive, accompanied by
+    climatic, landform and proximity covariates, spatiotemporal machine learning (per-class
+    Random Forest) and over 2.3 M reference samples (visually interpreted in Very High
+    Resolution imagery). Custom probability thresholds (based on five-fold spatial
+    cross-validation) were used to derive dominant class maps with balanced user's and
+    producer's accuracy, resulting in f1 score of 0.64 and 0.75 for cultivated and
+    natural/semi-natural grassland, respectively.
+  cautions: >
+    Despite the flexibility provided by the probability maps, we note several classification
+    issues and limitations in our grassland predictions. Most of these issues (e.g. specially
+    the miss-classification errors) are not trivial to resolve in the face of Random Forest
+    as a complex and non-linear prediction system, as we are not sure these outcomes happen
+    because of (1) extrapolation problems, (2) noise/limited detectability in the Landsat
+    images, (3) fuzzy definition of grassland classes, (4) need of more specialized and
+    regional/local ML models, or (5) simply a lack of training points in these areas.
+
+    It appears that intensively managed grasslands, with high homogeneity under many
+    conditions, have a high chance of being confused with other classes that have very
+    similar spectral properties, such as urban mosaics (i.e. buildings, sparse trees and
+    grass fields with different densities) or (greenish) croplands with similar vegetation
+    height and spatial configuration (such as cereal crops). Less intensively cultivated
+    grasslands, where more diverse plant species can be found and where the landscape may
+    not be very regular, are easily confused with grasslands that are not cultivated or
+    (semi) natural herbaceous vegetation, in general.
+
+    The distinction between cultivated and natural/semi-natural grasslands has been notoriously
+    difficult to map in the past, which has also affected our reference data collection and
+    harmonization process. Hence, our reference labeling protocol relied on more indirect
+    indicators of management, such as fences and other typical infrastructure, hay bales,
+    machine presence, and even animal presence in the field or geometric shapes of the landscape.
+
+    Spectral overlap between natural and cultivated grasslands (especially fallow fields or
+    lightly grazed areas) can result in misclassification. Regional differences in management
+    practices may not be detectable in global models. Data likely reflects a snapshot per year,
+    not intra-annual dynamics or land use rotations (e.g. grazing/fallow cycles). Definitions
+    of "natural", "semi-natural", and "cultivated" vary by region and culture; users should
+    not assume the dataset reflects legal or ecological classifications in every context.
+
+    Short-term disturbances (fire, grazing, flood) might be misclassified as change or
+    undetected if recovery is rapid. Dataset may not represent functional health of grasslands
+    (e.g. degradation, productivity loss). Very long crop rotations or shifting cultivation
+    systems may be captured in our analysis as loss events. While these land use changes may
+    be temporary or part of cyclical agricultural practices, they can resemble permanent
+    conversion in satellite-based land cover datasets, particularly when vegetation structure
+    changes significantly or persists across multiple years.
+
+    Not all gross gains detected in Natural/semi-natural grassland areas reflect deliberate
+    or ecologically desirable restoration. Some observed transitions may result from land
+    abandonment rather than active restoration, and in some cases regrowth may be dominated
+    by invasive species or woody plant encroachment. Area estimates for this analysis were
+    derived using pixel counting, which involves summing the number of 30-m pixels classified
+    as natural/semi-natural grasslands and converting this count to an area estimate. However,
+    pixel counting is not best practice for area estimation, as it does not account for
+    classification uncertainties or biases.
+  function_usage_notes: >
+    This global grasslands dataset is intended to be used for monitoring natural/semi-natural
+    grasslands in individual years as well as change over time. This dataset should be used
+    when a user asks about area in a specific year or gain or loss of area between years for
+    natural/semi-natural grasslands. This dataset may NOT be overlaid with DIST alert data
+    to find alerts in natural/semi-natural grasslands. It can be used to find where
+    natural/semi-natural grasslands were in 2020 and then see how they have changed since then.
+
+    Any questions about snapshot or baseline natural/semi-natural in a given year, any
+    questions about change over time in natural/semi-natural grasslands in a single time
+    step or trends over the full time period. Any questions about spatial patterns of change
+    in a given geography, any questions about hotspots and outlier detection. Any questions
+    about the accuracy of the data (validation) or the cross-dataset consistence with ESA
+    World Cover, UMD LC etc.
+
+    This data should not be used for questions about cultivated grasslands, croplands, or
+    open shrublands. We suggest guiding the LLM to use Global Pasture Watch data for any
+    prompts specific to natural and semi-natural grasslands and to use the harmonized UMD
+    LC data for any questions regarding cultivated, improved, or planted pasture, short
+    vegetation, and croplands.
+  providers: >
+    Global Pasture Watch consortium, Land & Carbon Lab
+  citation: >
+    Parente, L., Sloat, L., Mesquita, V., Consoli, D., Stanimirova, R., Hengl, T., Bonannella, C.,
+    Teles, N., Wheeler, I., Hunter, M., Ehrmann, S., Ferreira, L., Mattos, A. P., Oliveira, B.,
+    Meyer, C., Şahin, M., Witjes, M., Fritz, S., Malek, Z., & Stolle, F. (2024). Annual 30-m
+    maps of global grassland class and extent (2000–2022) based on spatiotemporal Machine
+    Learning. Scientific Data, 11(1), 1303. https://doi.org/10.1038/s41597-024-04139-6
+
+- dataset_id: 3
+  dataset_name: Natural lands
+  context_layers: null
+  variables: binary, classification
+  tile_url: ""
+  license: "CC by 4.0 SA"
+  geographic_coverage: Global
+  resolution: "30 × 30 meters"
+  update_frequency: "Irregular"
+  content_date: "2020"
+  keywords: "land cover, deforestation, conversion, supply chains, natural lands"
+  analytics_api_endpoint: "/v0/land_change/natural_lands/analytics"
+  prompt_instructions: >
+    Classifies each pixel as "natural" or "non-natural" relative to a 2020 baseline,
+    letting users check if later change occurred on natural land. These categories
+    can be further broken down into sub-classes. Compare natural vs non-natural area
+    with bar or pie charts, aggregating area_ha, and excluding zeroes. "Natural"
+    here refers to ecological integrity, not legal protection—avoid assuming
+    conservation status. Users should identify change with land cover change data
+    and then refer to the Natural Lands Map to see if the change occurred on land
+    that was natural in 2020. If the user asks about gains in natural land, clarify
+    whether restoration areas count.
+  description: >
+    The SBTN Natural Lands Map v1.1 is a 2020 baseline map of natural and non-natural land
+    covers intended for use by companies setting science-based targets for nature, specifically
+    the SBTN Land target #1: no conversion of natural ecosystems. This map is global with 30m
+    resolution and was made by compiling existing global and regional data including the GLAD
+    Global Land Cover and Change data, ESA WorldCover, and many other land cover and use datasets.
+
+    "Natural" and "non-natural" definitions were adapted from the Accountability Framework
+    initiative's definition of a natural ecosystem as "one that substantially resembles - in
+    terms of species composition, structure, and ecological function - what would be found in
+    a given area in the absence of major human impacts" and can include managed ecosystems as
+    well as degraded ecosystems that are expected to regenerate either naturally or through
+    management (AFi 2024). The SBTN Natural Lands Map operationalizes this definition by using
+    proxies based on available data that align with AFi guidance to the extent possible.
+  methodology: >
+    The SBTN Natural Lands Map is a compilation of many global and regional land cover and
+    land use datasets through a decision tree to disaggregate natural land from non-natural
+    lands, according to definition of natural by the Accountability Framework. Global land
+    cover and use datasets were overlaid with a hierarchy by land cover class, and then
+    regional data replaced the global data, where available. The binary natural/non-natural
+    classes were validated independently by IIASA.
+  cautions: >
+    "Natural" and "non-natural" definitions were adapted from the Accountability Framework
+    initiative's definition of a natural ecosystem as "one that substantially resembles - in
+    terms of species composition, structure, and ecological function - what would be found in
+    a given area in the absence of major human impacts" and can include managed ecosystems as
+    well as degraded ecosystems that are expected to regenerate either naturally or through
+    management (AFi 2024). The SBTN Natural Lands Map operationalizes this definition by using
+    proxies based on available data that align with AFi guidance to the extent possible. These
+    definitions may not match all uses of the term "natural" so users should exercise caution
+    when using this map out of the conversion-free supply chains context.
+
+    This map overestimates the extent of natural lands, and while remote sensing data, on
+    which the map is based, can provide powerful insights, additional field work should be
+    used for validation and to understand local dynamics. Caution should be used if calculating
+    areas with the SBTN Natural Lands Map.
+
+    Natural forests include the following classes: natural forest, natural peat forests,
+    wetland natural forests, and mangroves (2,5,8,9).
+  function_usage_notes: >
+    The Natural Lands Map was created for companies to use as a baseline when identifying if
+    there has been conversion of natural ecosystems in their supply chains since 2020. Users
+    should identify change with land cover change data and then refer to the Natural Lands Map
+    to see if the change occurred on land that was natural in 2020.
+  providers: >
+    Land & Carbon Lab, WWF, Systemiq, SBTN
+  citation: >
+    Mazur, E., M. Sims, E. Goldman, M. Schneider, M.D. Pirri, C.R. Beatty, F. Stolle, M.
+    Stevenson. 2025. "SBTN Natural Lands Map v1.1: Technical Documentation". Science Based
+    Targets for Land Version 1 - Supplementary Material. Science Based Targets Network.
+    https://sciencebasedtargetsnetwork.org/wp-content/uploads/2025/02/Technical-Guidance-2025-Step3-Land-v1_1-Natural-Lands-Map.pdf
+
+- dataset_id: 4
+  dataset_name: Tree cover loss
+  context_layers:
+    - value: "driver"
+      description: "Shows the primary driver of tree cover loss"
+  variables: ">10, 15, 20, 25, 30, 50, 75%"
+  tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=2001&end_year=2024&tree_cover_density_threshold=25&render_type=true_color"
+  license: "CC by 4.0"
+  geographic_coverage: "Global land area (excluding Antarctica and other Arctic islands)"
+  resolution: "30 × 30 meters"
+  update_frequency: "annual"
+  content_date: "2001-2024 annual"
+  keywords: "deforestation, forest loss, disturbance"
+  analytics_api_endpoint: "/v0/land_change/tree_cover_loss/analytics"
+  prompt_instructions: >
+    Reports gross annual loss of tree cover ≥ 5 m height (2001-2024). Show yearly loss
+    with line charts or cumulative loss with stacked-area charts; plot area_ha and drop
+    zeros. "Tree cover" includes plantations as well as natural forest—loss is not
+    automatically deforestation or carbon loss. The product measures canopy loss only;
+    it doesn't track regrowth or permanence. Use the dominant-driver layer when the
+    user wants to know why trees were lost. Assigns the most likely loss driver
+    (commodity, forestry, wildfire, shifting agriculture, etc.) to each 1 km cell and
+    totals area_ha. Contrast drivers with stacked-bar charts or plot driver trends
+    over time with lines, omitting 0/nulls. Driver classes are coarse and mutually
+    exclusive—interpret them as indicative rather than precise attribution, and avoid
+    mixing resolutions. The layer tracks loss only, not regrowth. Prompt the user to
+    specify which driver categories to aggregate if their question is broad.
+  description: >
+    Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2024 at
+    30-meter resolution using Landsat satellite imagery. It detects stand-replacement
+    disturbances in vegetation over 5 meters tall, including natural forests and plantations.
+    The dataset supports monitoring annual tree cover loss and deforestation trends, fire
+    impacts, and forestry practices, and is widely used for conservation, land-use planning,
+    and environmental policy analysis.
+  methodology: >
+    This data set, a collaboration between the GLAD (Global Land Analysis & Discovery) lab
+    at the University of Maryland (UMD), Google, USGS, and NASA, measures areas of tree cover
+    loss across all global land (except Antarctica and other Arctic islands) at approximately
+    30 × 30 meter resolution. The data were generated using multispectral satellite imagery
+    from the Landsat 5 thematic mapper (TM), the Landsat 7 thematic mapper plus (ETM+), and
+    the Landsat 8 Operational Land Imager (OLI) sensors. Over 1 million satellite images were
+    processed and analyzed, including over 600,000 Landsat 7 images for the 2000-2012 interval,
+    and more than 400,000 Landsat 5, 7, and 8 images for updates for the 2011-2022 interval,
+    and additional images used for 2023 and 2024. The clear land surface observations in the
+    satellite images were assembled and a supervised learning algorithm was applied to identify
+    per pixel tree cover loss.
+
+    In this data set, "tree cover" is defined as all vegetation greater than 5 meters in height,
+    and may take the form of natural forests or plantations across a range of canopy densities.
+    Tree cover loss is defined as "stand replacement disturbance" which is considered to be
+    clearing of at least half of tree cover within a 30-meter pixel. The exact threshold is
+    variable both through space and time, and is biome-dependent. Tree cover loss may be the
+    result of human activities, including forestry practices such as timber harvesting or
+    deforestation (the conversion of natural forest to other land uses), as well as natural
+    causes such as disease or storm damage. Fire is another widespread cause of tree cover loss,
+    and can be either natural or human-induced.
+
+    This data set has been updated five times since its creation, and now includes loss up to
+    2024 (Version 1.12). The analysis method has been modified in numerous ways, including new
+    data for the target year, re-processed data for previous years, and improved modelling and
+    calibration. These modifications improve change detection for 2011-2024, including better
+    detection of boreal loss due to fire, smallholder rotation agriculture in tropical forests,
+    selective losing, and short cycle plantations. Since the entire historical timeseries was
+    not reprocessed with the updated methodology, time-series assessments should be performed
+    with caution.
+
+    When zoomed out (< zoom level 13), pixels of loss are shaded according to the density of
+    loss at the 30 x 30 meter scale. Pixels with darker shading represent areas with a higher
+    concentration of tree cover loss, whereas pixels with lighter shading indicate a lower
+    concentration of tree cover loss. There is no variation in pixel shading when the data is
+    at full resolution (≥ zoom level 13). The tree cover canopy density of the displayed data
+    varies according to the selection - use the legend on the map to change the minimum tree
+    cover canopy density threshold.
+  cautions: >
+    In this data set, "tree cover" is defined as all vegetation greater than 5 meters in height,
+    and may take the form of natural forests or plantations across a range of canopy densities.
+    "Loss" indicates the removal or mortality of tree cover and can be due to a variety of
+    factors, including mechanical harvesting, fire, disease, or storm damage. As such, "loss"
+    does not equate to deforestation.
+
+    Due to variation in research methodology and date of content, tree cover, loss, and gain
+    data sets on GFW cannot be compared accurately against each other. Accordingly, "net" loss
+    cannot be calculated by subtracting figures for tree cover gain from tree cover loss, and
+    current (post-2000) tree cover cannot be determined by subtracting figures for annual tree
+    cover loss from year 2000 tree cover.
+
+    The 2011-2024 data was produced using an updated methodology. Comparisons between the
+    original 2001-2010 data and the 2011-2024 update should be performed with caution.
+
+    In the original publication, the authors evaluated the overall prevalence of false positives
+    (commission errors) in this data at 13%, and the prevalence of false negatives (omission
+    errors) at 12%, though the accuracy varies by biome and thus may be higher or lower in any
+    particular location. The model often misses disturbances in smallholder landscapes, resulting
+    in lower accuracy of the data in sub-Saharan Africa, where this type of disturbance is more
+    common. Largely because of a delay between an actual disturbance and the event being observed
+    by the satellite imagery, the authors are 75% confident that the loss occurred within the
+    stated year, and 97% confident that it occurred within a year before or after. Users of the
+    data can smooth out such uncertainty by examining the average over multiple years.
+  function_usage_notes: >
+    Identifies areas of gross tree cover loss
+  providers: >
+    Hansen, M. C., P. V. Potapov, R. Moore, M. Hancher, S. A. Turubanova, A. Tyukavina, D. Thau,
+    S. V. Stehman, S. J. Goetz, T. R. Loveland, A. Kommareddy, A. Egorov, L. Chini, C. O. Justice,
+    and J. R. G. Townshend. 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change."
+    Science 342 (15 November): 850–53. doi: 10.1126/science.1244693. Data available from:
+    https://glad.earthengine.app/view/global-forest-change.
+  citation: >
+    Hansen et al., 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change."
+    Accessed through Global Forest Watch on [date]. www.globalforestwatch.org
