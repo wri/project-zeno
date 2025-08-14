@@ -20,6 +20,7 @@ class ThreadModel(BaseModel):
     user_id: str
     agent_id: str
     name: str
+    is_public: bool
     created_at: datetime
     updated_at: datetime
 
@@ -55,6 +56,22 @@ class UserModel(BaseModel):
             except ValueError:
                 return value
         return value
+
+
+class UserWithQuotaModel(UserModel):
+    """User model with quota information."""
+
+    model_config = ConfigDict(
+        alias_generator=alias_generators.to_camel,
+        from_attributes=True,
+        populate_by_name=True,
+    )
+    prompts_used: Optional[int] = Field(
+        None, description="Number of prompts used today"
+    )
+    prompt_quota: Optional[int] = Field(
+        None, description="Prompt quota for the user"
+    )
 
 
 class GeometryResponse(BaseModel):

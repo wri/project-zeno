@@ -21,7 +21,7 @@ from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -48,6 +48,7 @@ from src.api.schemas import (
     RatingModel,
     ThreadModel,
     UserModel,
+    UserWithQuotaModel,
 )
 from src.utils.config import APISettings
 from src.utils.database import get_async_engine
@@ -56,6 +57,7 @@ from src.utils.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
+    get_geometry_data,
 )
 from src.utils.llms import HAIKU
 from src.utils.logging_config import bind_request_logging_context, get_logger
@@ -328,7 +330,7 @@ async def stream_chat(
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
-                    content = f"User selected dataset in UI: {action_data['dataset']['data_layer']}\n\n"
+                    content = f"User selected dataset in UI: {action_data['dataset']['dataset_name']}\n\n"
                     state_updates["dataset"] = action_data["dataset"]
                 case "daterange_selected":
                     content = f"User selected daterange in UI: start_date: {action_data['start_date']}, end_date: {action_data['end_date']}"
@@ -373,6 +375,11 @@ async def stream_chat(
                     }
                 )
             except Exception as e:
+                logger.exception(
+                    "Error processing stream update",
+                    error=str(e),
+                    update=update,
+                )
                 # Send error as a stream event instead of raising
                 yield pack(
                     {
@@ -596,7 +603,7 @@ async def check_quota(
         .returning(DailyUsageOrm.usage_count)
     )
     result = await session.execute(stmt)
-    count = len(result.scalars().all())
+    count = result.scalars().first()
     await session.commit()  # commit the upsert
 
     # 3. Enforce the quota
@@ -606,12 +613,7 @@ async def check_quota(
             detail=f"Daily free limit of {daily_quota} exceeded; please try again tomorrow.",
         )
 
-    if count >= daily_quota - APISettings.daily_quota_warning_threshold:
-        return {
-            "warning": f"User {identity} is approaching daily quota limit ({count} prompts out of {daily_quota})"
-        }
-
-    return {}
+    return {"prompts_used": count, "prompt_quota": daily_quota}
 
 
 async def generate_thread_name(query: str) -> str:
@@ -633,6 +635,14 @@ async def generate_thread_name(query: str) -> str:
         return "Unnamed Thread"  # Fallback to default name
 
 
+@app.get("/api/quota")
+async def get_quota(
+    user: UserModel = Depends(require_auth),
+    quota_info: dict = Depends(check_quota),
+):
+    return quota_info
+
+
 @app.post("/api/chat")
 async def chat(
     request: ChatRequest,
@@ -641,14 +651,34 @@ async def chat(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Chat endpoint for Zeno.
+    Chat endpoint for Zeno with quota tracking.
+
+    Accepts a chat query and returns a streamed response. Tracks quota usage
+    and includes quota information in response headers when quota checking is enabled.
 
     Args:
-        request: The chat request
-        user: The user, authenticated against the WRI API (injected via FastAPI dependency)
+        request: The chat request containing query, thread_id, etc.
+        user: The user, authenticated against the WRI API (optional for anonymous users)
 
     Returns:
-        The streamed response
+        Streamed chat response in NDJSON format
+
+    Response Headers (when quota checking enabled):
+        X-Prompts-Used: Current number of prompts used today
+        X-Prompts-Quota: Daily prompt limit for this user/session
+
+    Quota Limits:
+        - Anonymous users: Lower daily limit
+        - Regular users: Standard daily limit
+        - Admin users: Higher daily limit
+
+    Errors:
+        429: Daily quota exceeded - user must wait until tomorrow
+
+    Note:
+        - Each successful call increments the daily quota usage
+        - Anonymous users are tracked by session/IP
+        - Quota headers are only present when quota checking is enabled
     """
 
     thread_id = None
@@ -686,8 +716,9 @@ async def chat(
 
     try:
         headers = {}
-        if "warning" in quota_info:
-            headers["X-Quota-Warning"] = quota_info["warning"]
+        if APISettings.enable_quota_checking and quota_info:
+            headers["X-Prompts-Used"] = str(quota_info["prompts_used"])
+            headers["X-Prompts-Quota"] = str(quota_info["prompt_quota"])
 
         return StreamingResponse(
             stream_chat(
@@ -719,7 +750,18 @@ async def list_threads(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """List threads."""
+    """
+    List all threads belonging to the authenticated user.
+
+    **Authentication:** Required - returns only threads owned by the authenticated user
+
+    **Response:** Array of thread objects, each containing:
+    - `id`: Thread identifier
+    - `name`: Thread display name
+    - `is_public`: Boolean indicating if thread is publicly accessible
+    - `created_at`, `updated_at`: Timestamps
+    - `user_id`, `agent_id`: Associated user and agent
+    """
     stmt = select(ThreadOrm).filter_by(user_id=user.id)
     result = await session.execute(stmt)
     threads = result.scalars().all()
@@ -729,20 +771,56 @@ async def list_threads(
 @app.get("/api/threads/{thread_id}")
 async def get_thread(
     thread_id: str,
-    user: UserModel = Depends(require_auth),
+    user: Optional[UserModel] = Depends(optional_auth),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Requires Authorization
+    Get thread conversation history - supports both public and private access.
+
+    **Access Control:**
+    - **Public threads** (is_public=True): Can be accessed by anyone, no authentication required
+    - **Private threads** (is_public=False): Require authentication and ownership
+
+    **Authentication:** Optional - provide Bearer token for private threads
+
+    **Response:** Streaming NDJSON format containing conversation history
+
+    **Error Codes:**
+    - 401: Private thread accessed without authentication
+    - 404: Thread not found or access denied (private thread accessed by non-owner)
     """
-    stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
+    # First, try to get the thread to check if it exists and if it's public
+    stmt = select(ThreadOrm).filter_by(id=thread_id)
     result = await session.execute(stmt)
     thread = result.scalars().first()
+
     if not thread:
         logger.warning("Thread not found", thread_id=thread_id)
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    thread_id = thread.id
+    # If thread is public, allow access regardless of authentication
+    if thread.is_public:
+        logger.debug("Accessing public thread", thread_id=thread_id)
+    else:
+        # For private threads, require authentication and ownership
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing Bearer token",
+            )
+
+        if thread.user_id != user.id:
+            logger.warning(
+                "Unauthorized access to private thread",
+                thread_id=thread_id,
+                user_id=user.id,
+                owner_id=thread.user_id,
+            )
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        logger.debug(
+            "Accessing private thread", thread_id=thread_id, user_id=user.id
+        )
 
     try:
         logger.debug("Replaying thread", thread_id=thread_id)
@@ -756,6 +834,10 @@ async def get_thread(
 
 class ThreadUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, description="The name of the thread")
+    is_public: Optional[bool] = Field(
+        None,
+        description="Whether the thread is publicly accessible. True = anyone can view without auth, False = owner only",
+    )
 
 
 @app.patch("/api/threads/{thread_id}", response_model=ThreadModel)
@@ -766,7 +848,37 @@ async def update_thread(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Requires Authorization
+    Update thread properties including name and sharing settings.
+
+    **Authentication:** Required - must be thread owner
+
+    **Request Body:** JSON object with optional fields:
+    - `name` (string, optional): Update the thread's display name
+    - `is_public` (boolean, optional): Set thread visibility
+      - `true`: Makes thread publicly accessible without authentication
+      - `false`: Makes thread private (owner access only)
+
+    **Examples:**
+    ```javascript
+    // Make thread public
+    PATCH /api/threads/{thread_id}
+    { "is_public": true }
+
+    // Make thread private
+    PATCH /api/threads/{thread_id}
+    { "is_public": false }
+
+    // Update both name and sharing
+    PATCH /api/threads/{thread_id}
+    { "name": "My Public Thread", "is_public": true }
+    ```
+
+    **Response:** Updated thread object with current `is_public` status
+
+    **Error Codes:**
+    - 401: Missing or invalid authentication
+    - 404: Thread not found or access denied (not thread owner)
+    - 422: Invalid field values (e.g., non-boolean for is_public)
     """
     stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
     result = await session.execute(stmt)
@@ -774,8 +886,10 @@ async def update_thread(
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    for key, value in request.model_dump().items():
-        setattr(thread, key, value)
+    # Only set fields that are provided (not None) to avoid overwriting with NULL
+    for key, value in request.model_dump(exclude_none=True).items():
+        if value is not None:
+            setattr(thread, key, value)
     await session.commit()
     await session.refresh(thread)
     return ThreadModel.model_validate(thread)
@@ -807,7 +921,20 @@ async def delete_thread(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Delete thread.
+    Delete thread permanently.
+
+    **Authentication:** Required - must be thread owner
+
+    **Behavior:**
+    - Removes thread from database and conversation history
+    - Public threads become inaccessible after deletion
+    - Operation cannot be undone
+
+    **Response:** 204 No Content on success
+
+    **Error Codes:**
+    - 401: Missing or invalid authentication
+    - 404: Thread not found or access denied (not thread owner)
     """
 
     await checkpointer.adelete_thread(thread_id)
@@ -826,15 +953,15 @@ async def delete_thread(
 async def get_geometry(
     source: str,
     src_id: str,
-    session: AsyncSession = Depends(get_async_session),
+    user: UserModel = Depends(require_auth),
 ):
     """
     Get geometry data by source and source ID.
 
     Args:
-        source: Source type (gadm, kba, landmark, wdpa)
-        src_id: Source-specific ID (GID_X for GADM, sitrecid for KBA, etc.)
-        user: Authenticated user
+        source: Source type (gadm, kba, landmark, wdpa, custom)
+        src_id: Source-specific ID (GID_X for GADM, sitrecid for KBA, UUID for custom areas, etc.)
+        user: Authenticated user (required)
 
     Returns:
         Geometry data with name, subtype, and GeoJSON geometry
@@ -842,25 +969,10 @@ async def get_geometry(
     Example:
         GET /api/geometry/gadm/IND.26.2_1
         GET /api/geometry/kba/16595
+        GET /api/geometry/custom/123e4567-e89b-12d3-a456-426614174000
     """
-    if source not in SOURCE_ID_MAPPING:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid source: {source}. Must be one of: {', '.join(SOURCE_ID_MAPPING.keys())}",
-        )
-
-    table_name = SOURCE_ID_MAPPING[source]["table"]
-    id_column = SOURCE_ID_MAPPING[source]["id_column"]
-
-    sql_query = f"""
-        SELECT name, subtype, ST_AsGeoJSON(geometry) as geometry_json
-        FROM {table_name}
-        WHERE "{id_column}" = :src_id
-    """
-
     try:
-        q = await session.execute(text(sql_query), {"src_id": src_id})
-        result = q.first()
+        result = await get_geometry_data(source, src_id)
 
         if not result:
             raise HTTPException(
@@ -868,25 +980,11 @@ async def get_geometry(
                 detail=f"Geometry not found for source '{source}' with ID {src_id}",
             )
 
-        # Parse GeoJSON string
-        try:
-            geometry = (
-                json.loads(result.geometry_json)
-                if result.geometry_json
-                else None
-            )
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse GeoJSON for {source}:{src_id}")
-            geometry = None
+        return GeometryResponse(**result)
 
-        return GeometryResponse(
-            name=result.name,
-            subtype=result.subtype,
-            source=source,
-            src_id=src_id,
-            geometry=geometry,
-        )
-
+    except ValueError as e:
+        logger.exception(f"Error fetching geometry for {source}:{src_id}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"Error fetching geometry for {source}:{src_id}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1034,14 +1132,36 @@ async def create_or_update_rating(
         return RatingModel.model_validate(new_rating)
 
 
-@app.get("/api/auth/me", response_model=UserModel)
-async def auth_me(user: UserModel = Depends(require_auth)):
+@app.get("/api/auth/me", response_model=UserWithQuotaModel)
+async def auth_me(
+    user: UserModel = Depends(require_auth),
+    quota_info: dict = Depends(check_quota),
+):
     """
-    Requires Authorization: Bearer <JWT>
-    Forwards the JWT to Resource Watch API and returns user info.
-    """
+    Get current user information with quota usage.
 
-    return user
+    Requires Authorization: Bearer <JWT>
+    Forwards the JWT to Resource Watch API and returns user info
+    with current quota usage information.
+
+    Returns:
+        UserWithQuotaModel containing:
+        - User information (id, name, email, etc.)
+        - promptsUsed: Number of prompts used today (null if quota disabled)
+        - promptQuota: Daily prompt limit for this user (null if quota disabled)
+
+    Note:
+        - Admin users have higher quotas than regular users
+        - When quota checking is disabled, quota fields return null
+        - Calling this endpoint increments the user's daily quota usage
+    """
+    if not APISettings.enable_quota_checking:
+        return {
+            **user.model_dump(),
+            "prompts_used": None,
+            "prompt_quota": None,
+        }
+    return {**user.model_dump(), **quota_info}
 
 
 @app.get("/api/metadata")
