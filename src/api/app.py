@@ -640,14 +640,34 @@ async def chat(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Chat endpoint for Zeno.
+    Chat endpoint for Zeno with quota tracking.
+
+    Accepts a chat query and returns a streamed response. Tracks quota usage
+    and includes quota information in response headers when quota checking is enabled.
 
     Args:
-        request: The chat request
-        user: The user, authenticated against the WRI API (injected via FastAPI dependency)
+        request: The chat request containing query, thread_id, etc.
+        user: The user, authenticated against the WRI API (optional for anonymous users)
 
     Returns:
-        The streamed response
+        Streamed chat response in NDJSON format
+        
+    Response Headers (when quota checking enabled):
+        X-Prompts-Used: Current number of prompts used today
+        X-Prompts-Quota: Daily prompt limit for this user/session
+        
+    Quota Limits:
+        - Anonymous users: Lower daily limit
+        - Regular users: Standard daily limit  
+        - Admin users: Higher daily limit
+        
+    Errors:
+        429: Daily quota exceeded - user must wait until tomorrow
+        
+    Note:
+        - Each successful call increments the daily quota usage
+        - Anonymous users are tracked by session/IP
+        - Quota headers are only present when quota checking is enabled
     """
 
     thread_id = None
@@ -1107,8 +1127,22 @@ async def auth_me(
     quota_info: dict = Depends(check_quota),
 ):
     """
+    Get current user information with quota usage.
+    
     Requires Authorization: Bearer <JWT>
-    Forwards the JWT to Resource Watch API and returns user info.
+    Forwards the JWT to Resource Watch API and returns user info
+    with current quota usage information.
+    
+    Returns:
+        UserWithQuotaModel containing:
+        - User information (id, name, email, etc.)
+        - promptsUsed: Number of prompts used today (null if quota disabled)
+        - promptQuota: Daily prompt limit for this user (null if quota disabled)
+        
+    Note:
+        - Admin users have higher quotas than regular users
+        - When quota checking is disabled, quota fields return null
+        - Calling this endpoint increments the user's daily quota usage
     """
     if not APISettings.enable_quota_checking:
         return {
