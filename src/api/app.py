@@ -596,7 +596,7 @@ async def check_quota(
             detail=f"Daily free limit of {daily_quota} exceeded; please try again tomorrow.",
         )
 
-    return {"daily_prompts_used": count, "daily_prompt_quota": daily_quota}
+    return {"prompts_used": count, "prompt_quota": daily_quota}
 
 
 async def generate_thread_name(query: str) -> str:
@@ -680,11 +680,11 @@ async def chat(
     try:
         headers = {}
         if APISettings.enable_quota_checking and quota_info:
-            headers["X-Daily-Prompts-Used"] = str(
-                quota_info["daily_prompts_used"]
+            headers["X-Prompts-Used"] = str(
+                quota_info["prompts_used"]
             )
-            headers["X-Daily-Prompts-Quota"] = str(
-                quota_info["daily_prompt_quota"]
+            headers["X-Prompts-Quota"] = str(
+                quota_info["prompt_quota"]
             )
 
         return StreamingResponse(
