@@ -651,19 +651,19 @@ async def chat(
 
     Returns:
         Streamed chat response in NDJSON format
-        
+
     Response Headers (when quota checking enabled):
         X-Prompts-Used: Current number of prompts used today
         X-Prompts-Quota: Daily prompt limit for this user/session
-        
+
     Quota Limits:
         - Anonymous users: Lower daily limit
-        - Regular users: Standard daily limit  
+        - Regular users: Standard daily limit
         - Admin users: Higher daily limit
-        
+
     Errors:
         429: Daily quota exceeded - user must wait until tomorrow
-        
+
     Note:
         - Each successful call increments the daily quota usage
         - Anonymous users are tracked by session/IP
@@ -1128,17 +1128,17 @@ async def auth_me(
 ):
     """
     Get current user information with quota usage.
-    
+
     Requires Authorization: Bearer <JWT>
     Forwards the JWT to Resource Watch API and returns user info
     with current quota usage information.
-    
+
     Returns:
         UserWithQuotaModel containing:
         - User information (id, name, email, etc.)
         - promptsUsed: Number of prompts used today (null if quota disabled)
         - promptQuota: Daily prompt limit for this user (null if quota disabled)
-        
+
     Note:
         - Admin users have higher quotas than regular users
         - When quota checking is disabled, quota fields return null
