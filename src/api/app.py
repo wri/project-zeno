@@ -798,7 +798,7 @@ async def custom_area_name(
     Requires Authorization.
     """
     try:
-        prompt = f"Name this GeoJSON FeatureCollection neutrally by geography, make sure to check where they are and name as specifically as possible:\n{request.model_dump()}\n return strictly the name only and limit to maximum of 100 characters."
+        prompt = f"Name this GeoJSON FeatureCollection based on the continent, cardinal directions, and specific location. Do not use the country name:\n{request.model_dump()}\n return strictly the name only and limit to maximum of 100 characters."
         response = HAIKU.invoke(prompt)
         return {"name": response.content}
     except Exception as e:
