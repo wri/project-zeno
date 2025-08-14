@@ -49,6 +49,7 @@ from src.api.schemas import (
     RatingModel,
     ThreadModel,
     UserModel,
+    UserWithQuotaModel,
 )
 from src.utils.config import APISettings
 from src.utils.env_loader import load_environment_variables
@@ -65,18 +66,6 @@ from src.utils.logging_config import bind_request_logging_context, get_logger
 load_environment_variables()
 
 logger = get_logger(__name__)
-
-
-# TODO: how to diferentiate between admin and regular users for limits?
-# For now, we assume all users are regular users
-# Question: will there be only 2 usage tiers? Do we want to set a default
-# daily limit and then set custom limits for specific users? (we can use this
-# approach to set daily quotas to -1 for unlimited users)
-# DAILY_QUOTA_WARNING_THRESHOLD = 5
-# ADMIN_USER_DAILY_QUOTA = 100
-# REGULAR_USER_DAILY_QUOTA = 25
-# ANONYMOUS_USER_DAILY_QUOTA = 10
-# ENABLE_QUOTA_CHECKING = True
 
 
 @asynccontextmanager
@@ -603,7 +592,7 @@ async def check_quota(
         .returning(DailyUsageOrm.usage_count)
     )
     result = await session.execute(stmt)
-    count = len(result.scalars().all())
+    count = result.scalars().first()
     await session.commit()  # commit the upsert
 
     # 3. Enforce the quota
@@ -613,12 +602,7 @@ async def check_quota(
             detail=f"Daily free limit of {daily_quota} exceeded; please try again tomorrow.",
         )
 
-    if count >= daily_quota - APISettings.daily_quota_warning_threshold:
-        return {
-            "warning": f"User {identity} is approaching daily quota limit ({count} prompts out of {daily_quota})"
-        }
-
-    return {}
+    return {"prompts_used": count, "prompt_quota": daily_quota}
 
 
 async def generate_thread_name(query: str) -> str:
@@ -640,6 +624,14 @@ async def generate_thread_name(query: str) -> str:
         return "Unnamed Thread"  # Fallback to default name
 
 
+@app.get("/api/quota")
+async def get_quota(
+    user: UserModel = Depends(require_auth),
+    quota_info: dict = Depends(check_quota),
+):
+    return quota_info
+
+
 @app.post("/api/chat")
 async def chat(
     request: ChatRequest,
@@ -648,14 +640,34 @@ async def chat(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Chat endpoint for Zeno.
+    Chat endpoint for Zeno with quota tracking.
+
+    Accepts a chat query and returns a streamed response. Tracks quota usage
+    and includes quota information in response headers when quota checking is enabled.
 
     Args:
-        request: The chat request
-        user: The user, authenticated against the WRI API (injected via FastAPI dependency)
+        request: The chat request containing query, thread_id, etc.
+        user: The user, authenticated against the WRI API (optional for anonymous users)
 
     Returns:
-        The streamed response
+        Streamed chat response in NDJSON format
+
+    Response Headers (when quota checking enabled):
+        X-Prompts-Used: Current number of prompts used today
+        X-Prompts-Quota: Daily prompt limit for this user/session
+
+    Quota Limits:
+        - Anonymous users: Lower daily limit
+        - Regular users: Standard daily limit
+        - Admin users: Higher daily limit
+
+    Errors:
+        429: Daily quota exceeded - user must wait until tomorrow
+
+    Note:
+        - Each successful call increments the daily quota usage
+        - Anonymous users are tracked by session/IP
+        - Quota headers are only present when quota checking is enabled
     """
 
     thread_id = None
@@ -693,8 +705,9 @@ async def chat(
 
     try:
         headers = {}
-        if "warning" in quota_info:
-            headers["X-Quota-Warning"] = quota_info["warning"]
+        if APISettings.enable_quota_checking and quota_info:
+            headers["X-Prompts-Used"] = str(quota_info["prompts_used"])
+            headers["X-Prompts-Quota"] = str(quota_info["prompt_quota"])
 
         return StreamingResponse(
             stream_chat(
@@ -1108,14 +1121,36 @@ async def create_or_update_rating(
         return RatingModel.model_validate(new_rating)
 
 
-@app.get("/api/auth/me", response_model=UserModel)
-async def auth_me(user: UserModel = Depends(require_auth)):
+@app.get("/api/auth/me", response_model=UserWithQuotaModel)
+async def auth_me(
+    user: UserModel = Depends(require_auth),
+    quota_info: dict = Depends(check_quota),
+):
     """
-    Requires Authorization: Bearer <JWT>
-    Forwards the JWT to Resource Watch API and returns user info.
-    """
+    Get current user information with quota usage.
 
-    return user
+    Requires Authorization: Bearer <JWT>
+    Forwards the JWT to Resource Watch API and returns user info
+    with current quota usage information.
+
+    Returns:
+        UserWithQuotaModel containing:
+        - User information (id, name, email, etc.)
+        - promptsUsed: Number of prompts used today (null if quota disabled)
+        - promptQuota: Daily prompt limit for this user (null if quota disabled)
+
+    Note:
+        - Admin users have higher quotas than regular users
+        - When quota checking is disabled, quota fields return null
+        - Calling this endpoint increments the user's daily quota usage
+    """
+    if not APISettings.enable_quota_checking:
+        return {
+            **user.model_dump(),
+            "prompts_used": None,
+            "prompt_quota": None,
+        }
+    return {**user.model_dump(), **quota_info}
 
 
 @app.get("/api/metadata")
