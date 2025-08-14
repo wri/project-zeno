@@ -3,18 +3,18 @@
 import os
 import uuid
 from collections.abc import AsyncGenerator
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import NullPool, text, select
+from sqlalchemy import NullPool, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.api.app import app, fetch_user_from_rw_api, get_async_session
 from src.api.data_models import Base, ThreadOrm, UserOrm
 from src.api.schemas import UserModel
-from unittest.mock import patch, AsyncMock
 
 # Test database settings
 if os.getenv("TEST_DATABASE_URL"):
@@ -46,16 +46,16 @@ async def mock_replay_chat(thread_id):
     def pack(data):
         import json
         return json.dumps(data) + "\n"
-    
+
     # Return minimal conversation history for tests
     yield pack({
-        "node": "agent", 
+        "node": "agent",
         "timestamp": "2025-01-01T00:00:00Z",
         "update": '{"messages": [{"type": "human", "content": "Test message"}]}'
     })
 
 # Apply the mock globally for all tests
-patcher = patch('src.api.app.replay_chat', mock_replay_chat)
+patcher = patch("src.api.app.replay_chat", mock_replay_chat)
 patcher.start()
 
 
@@ -95,6 +95,14 @@ async def test_db_session():
     yield engine_test
     await clear_tables()
     await engine_test.dispose()
+
+
+@pytest.fixture(autouse=True, scope="function")
+def clear_auth_state():
+    """Ensure auth state is cleared between tests."""
+    yield
+    # Clean up any auth overrides after each test
+    app.dependency_overrides.pop(fetch_user_from_rw_api, None)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -146,7 +154,7 @@ def auth_override():
         )
 
     yield _auth_override
-    
+
     # Always restore to the original state
     if original_dependency is not None:
         app.dependency_overrides[fetch_user_from_rw_api] = original_dependency
@@ -166,7 +174,7 @@ async def thread_factory():
             stmt = select(UserOrm).filter_by(id=user_id)
             result = await session.execute(stmt)
             user = result.scalars().first()
-            
+
             if not user:
                 # Create the user if it doesn't exist
                 user = UserOrm(

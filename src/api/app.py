@@ -763,7 +763,7 @@ async def get_thread(
     stmt = select(ThreadOrm).filter_by(id=thread_id)
     result = await session.execute(stmt)
     thread = result.scalars().first()
-    
+
     if not thread:
         logger.warning("Thread not found", thread_id=thread_id)
         raise HTTPException(status_code=404, detail="Thread not found")
@@ -776,13 +776,13 @@ async def get_thread(
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing Bearer token in Authorization header",
+                detail="Missing Bearer token",
             )
-        
+
         if thread.user_id != user.id:
             logger.warning("Unauthorized access to private thread", thread_id=thread_id, user_id=user.id, owner_id=thread.user_id)
             raise HTTPException(status_code=404, detail="Thread not found")
-        
+
         logger.debug("Accessing private thread", thread_id=thread_id, user_id=user.id)
 
     try:
@@ -798,7 +798,7 @@ async def get_thread(
 class ThreadUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, description="The name of the thread")
     is_public: Optional[bool] = Field(
-        None, 
+        None,
         description="Whether the thread is publicly accessible. True = anyone can view without auth, False = owner only"
     )
 
