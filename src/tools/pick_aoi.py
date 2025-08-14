@@ -398,31 +398,6 @@ async def pick_aoi(
                 f"Source: {source} does not match to any table in PostGIS database."
             )
 
-        id_column = SOURCE_ID_MAPPING[source]["id_column"]
-        source_table = source_table_map[source]
-
-        sql_query = f"""
-            SELECT name, subtype, "{id_column}" as src_id
-            FROM {source_table}
-            WHERE "{id_column}" = :src_id
-        """
-
-        async with engine.connect() as conn:
-
-            def _read(sync_conn):
-                return pd.read_sql(
-                    text(sql_query), sync_conn, params={"src_id": src_id}
-                )
-
-            selected_aoi_df = await conn.run_sync(_read)
-
-        if selected_aoi_df.empty:
-            raise ValueError(f"No AOI found with {id_column} = {src_id}")
-
-        selected_aoi = selected_aoi_df.iloc[0].to_dict()
-        selected_aoi[SOURCE_ID_MAPPING[source]["id_column"]] = src_id
-        selected_aoi["source"] = source
-
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
             subregion_aois = await query_subregion_database(
