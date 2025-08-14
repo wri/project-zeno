@@ -196,7 +196,11 @@ async def query_aoi_database(
             return pd.read_sql(
                 text(sql_query),
                 sync_conn,
-                params={"place_name": place_name, "limit_val": result_limit},
+                params={
+                    "place_name": place_name,
+                    "limit_val": result_limit,
+                    "user_id": user_id,
+                },
             )
 
         query_results = await conn.run_sync(_read)
