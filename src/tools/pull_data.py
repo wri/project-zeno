@@ -7,7 +7,7 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
 from src.tools.data_handlers.analytics_handler import AnalyticsHandler
-from src.tools.data_handlers.base import DATASET_NAMES, DataPullResult
+from src.tools.data_handlers.base import DataPullResult
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -34,17 +34,9 @@ class DataPullOrchestrator:
     ) -> DataPullResult:
         """Pull data using the appropriate handler"""
 
-        table_name = DATASET_NAMES.get(dataset["dataset_name"])
-        if not table_name:
-            return DataPullResult(
-                success=False,
-                data={"data": []},
-                message=f"Dataset {dataset['dataset_name']} is not yet available. We're working on adding support for this dataset soon. Please come back later to the platform with this question.",
-            )
-
         # Find appropriate handler
         for handler in self.handlers:
-            if handler.can_handle(dataset, table_name):
+            if handler.can_handle(dataset):
                 return await handler.pull_data(
                     query=query,
                     aoi=aoi,

@@ -95,7 +95,9 @@ For each insight:
 4. Write a compelling insight description
 
 Return 1 insight if the data is simple/focused, or 2 insights if there are multiple interesting patterns to explore.
-            """,
+
+Take the following important dataset specific instructions into account for generating the insights:
+{prompt_instructions}""",
         ),
     ]
 )
@@ -144,6 +146,8 @@ async def generate_insights(
     else:
         data_csv = str(raw_data)
 
+    prompt_instructions = state.get("dataset").get("prompt_instructions", "")
+
     # Generate insights using the LLM
     try:
         chain = INSIGHT_GENERATION_PROMPT | SONNET.with_structured_output(
@@ -157,6 +161,7 @@ async def generate_insights(
                 # mentioned, so we can use the state to get the area name to pass to the LLM
                 # Otherwise, the insight heading might not mention the name of the area
                 "aoi_name": state.get("aoi_name", ""),
+                "prompt_instructions": prompt_instructions,
             }
         )
 

@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 class ExampleAPIHandler(DataSourceHandler):
     """Example handler for a hypothetical external API"""
 
-    def can_handle(self, dataset: Any, table_name: str) -> bool:
+    def can_handle(self, dataset: Any) -> bool:
         """Check if this handler can process the dataset"""
         # Example: handle datasets from "EXAMPLE_API" source
         return hasattr(dataset, "source") and dataset.source == "EXAMPLE_API"

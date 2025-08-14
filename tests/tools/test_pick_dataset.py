@@ -157,9 +157,17 @@ async def test_queries_return_expected_dataset(
 
 
 @pytest.mark.asyncio
-async def test_query_dist_alerts_with_context_layer():
-    query = "Vegetation disturbances by natural lands"
-
+@pytest.mark.parametrize(
+    "query,expected_dataset_id,expected_context_layer",
+    [
+        ("Vegetation disturbances by natural lands", 0, "natural_lands"),
+        ("Tree cover loss by driver", 4, "driver"),
+        ("Ecosystem problems split by land types", 0, "natural_lands"),
+    ],
+)
+async def test_query_with_context_layer(
+    query, expected_dataset_id, expected_context_layer
+):
     command = await pick_dataset.ainvoke(
         {
             "query": query,
@@ -168,40 +176,6 @@ async def test_query_dist_alerts_with_context_layer():
     )
 
     dataset_id = command.update.get("dataset", {}).get("dataset_id")
-    assert dataset_id == 0
+    assert dataset_id == expected_dataset_id
     context_layer = command.update.get("dataset", {}).get("context_layer")
-    assert context_layer == "natural_lands"
-
-
-@pytest.mark.asyncio
-async def test_query_tree_cover_loss_with_context_layer():
-    query = "Tree cover loss by driver"
-
-    command = await pick_dataset.ainvoke(
-        {
-            "query": query,
-            "tool_call_id": str(uuid.uuid4()),
-        }
-    )
-
-    dataset_id = command.update.get("dataset", {}).get("dataset_id")
-    assert dataset_id == 4
-    context_layer = command.update.get("dataset", {}).get("context_layer")
-    assert context_layer == "driver"
-
-
-@pytest.mark.asyncio
-async def test_query_land_cover_change_with_context_layer():
-    query = "Deforestation split by land types"
-
-    command = await pick_dataset.ainvoke(
-        {
-            "query": query,
-            "tool_call_id": str(uuid.uuid4()),
-        }
-    )
-
-    dataset_id = command.update.get("dataset", {}).get("dataset_id")
-    assert dataset_id == 4
-    context_layer = command.update.get("dataset", {}).get("context_layer")
-    assert context_layer == "natural_lands"
+    assert context_layer == expected_context_layer

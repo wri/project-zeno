@@ -27,7 +27,7 @@ To add support for a new data source:
 
 1. **Create a new handler class** that inherits from `DataSourceHandler`
 2. **Implement the required methods**:
-   - `can_handle(dataset, table_name)`: Return True if this handler should process the request
+   - `can_handle(dataset)`: Return True if this handler should process the request
    - `pull_data(...)`: Implement the actual data pulling logic
 3. **Register the handler** in `DataPullOrchestrator.__init__()`
 
@@ -37,7 +37,7 @@ To add support for a new data source:
 from src.tools.pull_data import DataSourceHandler, DataPullResult
 
 class MyCustomHandler(DataSourceHandler):
-    def can_handle(self, dataset: Any, table_name: str) -> bool:
+    def can_handle(self, dataset: Any) -> bool:
         return dataset.source == "MY_API"
 
     def pull_data(self, query: str, aoi_name: str, dataset: Any, aoi: Dict,

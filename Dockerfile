@@ -27,5 +27,3 @@ WORKDIR /app
 
 # Install the dependencies
 RUN uv sync --frozen
-
-# Command to run the application.
