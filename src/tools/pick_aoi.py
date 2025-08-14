@@ -1,4 +1,3 @@
-import os
 from typing import Annotated, Literal, Optional
 
 import pandas as pd
@@ -10,8 +9,10 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 from pydantic import BaseModel, Field
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
+from src.utils.config import APISettings
+from src.utils.database import get_async_engine
 from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
     CUSTOM_AREA_TABLE,
@@ -32,15 +33,15 @@ load_environment_variables()
 logger = get_logger(__name__)
 
 
-def get_postgis_connection():
-    """Get PostGIS database connection."""
-    database_url = os.environ["DATABASE_URL"].replace(
-        "postgresql+asyncpg://", "postgresql+psycopg2://"
-    )
-    return create_engine(database_url)
+# def get_postgis_connection():
+#     """Get PostGIS database connection."""
+#     database_url = os.environ["DATABASE_URL"].replace(
+#         "postgresql+asyncpg://", "postgresql+psycopg2://"
+#     )
+#     return create_engine(database_url)
 
 
-def query_aoi_database(
+async def query_aoi_database(
     engine,
     place_name: str,
     result_limit: int = 10,
@@ -55,46 +56,46 @@ def query_aoi_database(
     Returns:
         DataFrame containing location information
     """
-    with engine.connect() as conn:
+    async with engine.connect() as conn:
         # Enable pg_trgm extension for similarity function
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
-        conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
-        conn.commit()
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+        await conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
+        await conn.commit()
 
         # Check which tables exist first
         existing_tables = []
 
         # Check GADM table
         try:
-            conn.execute(text(f"SELECT 1 FROM {GADM_TABLE} LIMIT 1"))
+            await conn.execute(text(f"SELECT 1 FROM {GADM_TABLE} LIMIT 1"))
             existing_tables.append("gadm")
         except Exception:
             logger.warning(f"Table {GADM_TABLE} does not exist")
-            conn.rollback()
+            await conn.rollback()
 
         # Check KBA table
         try:
-            conn.execute(text(f"SELECT 1 FROM {KBA_TABLE} LIMIT 1"))
+            await conn.execute(text(f"SELECT 1 FROM {KBA_TABLE} LIMIT 1"))
             existing_tables.append("kba")
         except Exception:
             logger.warning(f"Table {KBA_TABLE} does not exist")
-            conn.rollback()
+            await conn.rollback()
 
         # Check Landmark table
         try:
-            conn.execute(text(f"SELECT 1 FROM {LANDMARK_TABLE} LIMIT 1"))
+            await conn.execute(text(f"SELECT 1 FROM {LANDMARK_TABLE} LIMIT 1"))
             existing_tables.append("landmark")
         except Exception:
             logger.warning(f"Table {LANDMARK_TABLE} does not exist")
-            conn.rollback()
+            await conn.rollback()
 
         # Check WDPA table
         try:
-            conn.execute(text(f"SELECT 1 FROM {WDPA_TABLE} LIMIT 1"))
+            await conn.execute(text(f"SELECT 1 FROM {WDPA_TABLE} LIMIT 1"))
             existing_tables.append("wdpa")
         except Exception:
             logger.warning(f"Table {WDPA_TABLE} does not exist")
-            conn.rollback()
+            await conn.rollback()
 
         # Check Custom Areas table
         try:
@@ -191,21 +192,20 @@ def query_aoi_database(
 
         logger.debug(f"Executing AOI query: {sql_query}")
 
-        query_results = pd.read_sql(
-            text(sql_query),
-            conn,
-            params={
-                "place_name": place_name,
-                "limit_val": result_limit,
-                "user_id": user_id,
-            },
-        )
+        def _read(sync_conn):
+            return pd.read_sql(
+                text(sql_query),
+                sync_conn,
+                params={"place_name": place_name, "limit_val": result_limit},
+            )
+
+        query_results = await conn.run_sync(_read)
 
     logger.debug(f"AOI query results: {query_results}")
     return query_results
 
 
-def query_subregion_database(
+async def query_subregion_database(
     engine, subregion_name: str, source: str, src_id: int
 ):
     """Query the right table in PostGIS database for subregions based on the selected AOI.
@@ -274,12 +274,16 @@ def query_subregion_database(
     """
     logger.debug(f"Executing subregion query: {sql_query}")
 
-    with engine.connect() as conn:
-        results = pd.read_sql(
-            text(sql_query),
-            conn,
-            params={"src_id": src_id, "subtype": subtype},
-        )
+    async with engine.connect() as conn:
+
+        def _read(sync_conn):
+            return pd.read_sql(
+                text(sql_query),
+                sync_conn,
+                params={"src_id": src_id, "subtype": subtype},
+            )
+
+        results = await conn.run_sync(_read)
 
     return results
 
@@ -355,9 +359,12 @@ async def pick_aoi(
             f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'"
         )
         # Query the database for place & get top matches using similarity
-        engine = get_postgis_connection()
-        results = query_aoi_database(engine, place, RESULT_LIMIT)
-        logger.debug(f"Query results: {results}")
+
+        # TODO: we may need to replace `asyncpg` with `psycopg` in the
+        # database URL (this was how the tool was originally setup)
+        engine = await get_async_engine(db_url=APISettings.database_url)
+
+        results = await query_aoi_database(engine, place, RESULT_LIMIT)
 
         candidate_aois = results.to_csv(
             index=False
@@ -387,9 +394,34 @@ async def pick_aoi(
                 f"Source: {source} does not match to any table in PostGIS database."
             )
 
+        id_column = SOURCE_ID_MAPPING[source]["id_column"]
+        source_table = source_table_map[source]
+
+        sql_query = f"""
+            SELECT name, subtype, "{id_column}" as src_id
+            FROM {source_table}
+            WHERE "{id_column}" = :src_id
+        """
+
+        async with engine.connect() as conn:
+
+            def _read(sync_conn):
+                return pd.read_sql(
+                    text(sql_query), sync_conn, params={"src_id": src_id}
+                )
+
+            selected_aoi_df = await conn.run_sync(_read)
+
+        if selected_aoi_df.empty:
+            raise ValueError(f"No AOI found with {id_column} = {src_id}")
+
+        selected_aoi = selected_aoi_df.iloc[0].to_dict()
+        selected_aoi[SOURCE_ID_MAPPING[source]["id_column"]] = src_id
+        selected_aoi["source"] = source
+
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
-            subregion_aois = query_subregion_database(
+            subregion_aois = await query_subregion_database(
                 engine, subregion, source, src_id
             )
             subregion_aois = subregion_aois.to_dict(orient="records")

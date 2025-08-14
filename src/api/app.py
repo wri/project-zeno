@@ -1,6 +1,7 @@
 import json
 import os
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from typing import Dict, Optional
@@ -22,7 +23,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.agents.agents import (
     fetch_checkpointer,
@@ -36,8 +37,6 @@ from src.api.data_models import (
     ThreadOrm,
     UserOrm,
     UserType,
-    get_async_engine,
-    get_async_session,
 )
 from src.api.schemas import (
     ChatRequest,
@@ -52,6 +51,7 @@ from src.api.schemas import (
     UserWithQuotaModel,
 )
 from src.utils.config import APISettings
+from src.utils.database import get_async_engine
 from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
@@ -68,10 +68,21 @@ load_environment_variables()
 logger = get_logger(__name__)
 
 
+async def get_async_session(
+    request: Request,
+) -> AsyncGenerator[AsyncSession, None]:
+    async_session_maker = async_sessionmaker(
+        request.app.state.engine,
+        expire_on_commit=False,
+    )
+
+    async with async_session_maker() as session:
+        yield session
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    db_url = APISettings.database_url
-    app.state.engine = await get_async_engine(db_url)
+    app.state.engine = await get_async_engine(db_url=APISettings.database_url)
     yield
 
 
@@ -926,7 +937,7 @@ async def delete_thread(
     - 404: Thread not found or access denied (not thread owner)
     """
 
-    await checkpointer.delete_thread(thread_id)
+    await checkpointer.adelete_thread(thread_id)
     stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
     result = await session.execute(stmt)
     thread = result.scalars().first()

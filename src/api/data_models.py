@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import enum
-from collections.abc import AsyncGenerator
 from datetime import date, datetime
 
-from fastapi import Request
 from sqlalchemy import (
     Boolean,
     Column,
@@ -18,34 +16,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
-
-
-async def get_async_session(
-    request: Request,
-) -> AsyncGenerator[AsyncSession, None]:
-    async_session_maker = async_sessionmaker(
-        request.app.state.engine,
-        expire_on_commit=False,
-    )
-
-    async with async_session_maker() as session:
-        yield session
-
-
-async def get_async_engine(db_url: str) -> AsyncEngine:
-    engine = create_async_engine(
-        db_url, pool_size=15, max_overflow=5, pool_pre_ping=True
-    )
-    return engine
 
 
 class UserType(str, enum.Enum):
