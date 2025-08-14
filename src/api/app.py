@@ -686,12 +686,8 @@ async def chat(
     try:
         headers = {}
         if APISettings.enable_quota_checking and quota_info:
-            headers["X-Prompts-Used"] = str(
-                quota_info["prompts_used"]
-            )
-            headers["X-Prompts-Quota"] = str(
-                quota_info["prompt_quota"]
-            )
+            headers["X-Prompts-Used"] = str(quota_info["prompts_used"])
+            headers["X-Prompts-Quota"] = str(quota_info["prompt_quota"])
 
         return StreamingResponse(
             stream_chat(
@@ -1115,7 +1111,11 @@ async def auth_me(
     Forwards the JWT to Resource Watch API and returns user info.
     """
     if not APISettings.enable_quota_checking:
-        return {**user.model_dump(), "prompts_used": None, "prompt_quota": None}
+        return {
+            **user.model_dump(),
+            "prompts_used": None,
+            "prompt_quota": None,
+        }
     return {**user.model_dump(), **quota_info}
 
 

@@ -1,9 +1,11 @@
 """Comprehensive tests for quota functionality."""
 
-import pytest
 from unittest.mock import patch
 
+import pytest
+
 from src.utils.config import APISettings
+
 from .mock import mock_rw_api_response
 
 
@@ -11,6 +13,7 @@ from .mock import mock_rw_api_response
 def clear_cache():
     """Clear the user info cache before each test."""
     from src.api import app as api
+
     api._user_info_cache.clear()
 
 
@@ -53,7 +56,8 @@ class TestQuotaFunctionality:
                 mock_get.return_value = mock_response
 
                 response = await client.get(
-                    "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+                    "/api/auth/me",
+                    headers={"Authorization": "Bearer test-token"},
                 )
 
                 assert response.status_code == 200
@@ -97,15 +101,20 @@ class TestQuotaFunctionality:
 
                 response = await client.post(
                     "/api/chat",
-                    json={"query": "Test message", "thread_id": "test-thread-123"},
-                    headers={"Authorization": "Bearer test-token"}
+                    json={
+                        "query": "Test message",
+                        "thread_id": "test-thread-123",
+                    },
+                    headers={"Authorization": "Bearer test-token"},
                 )
 
                 assert response.status_code == 200
                 assert "X-Prompts-Used" in response.headers
                 assert "X-Prompts-Quota" in response.headers
                 assert response.headers["X-Prompts-Used"] == "1"
-                assert response.headers["X-Prompts-Quota"] == str(APISettings.regular_user_daily_quota)
+                assert response.headers["X-Prompts-Quota"] == str(
+                    APISettings.regular_user_daily_quota
+                )
 
     @pytest.mark.asyncio
     async def test_chat_excludes_quota_headers_when_disabled(self, client):
@@ -119,12 +128,17 @@ class TestQuotaFunctionality:
                 mock_get.return_value = mock_response
 
                 with patch("src.api.app.stream_chat") as mock_stream:
-                    mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
+                    mock_stream.return_value = iter(
+                        [b'{"response": "Hello!"}\\n']
+                    )
 
                     response = await client.post(
                         "/api/chat",
-                        json={"query": "Test message", "thread_id": "test-thread-123"},
-                        headers={"Authorization": "Bearer test-token"}
+                        json={
+                            "query": "Test message",
+                            "thread_id": "test-thread-123",
+                        },
+                        headers={"Authorization": "Bearer test-token"},
                     )
 
                     assert response.status_code == 200
@@ -144,9 +158,9 @@ class TestQuotaFunctionality:
                 "email": "admin@wri.org",
                 "createdAt": "2024-01-01T00:00:00Z",
                 "updatedAt": "2024-01-01T00:00:00Z",
-                "userType": "admin"
+                "userType": "admin",
             }
-            
+
             class MockAdminResponse:
                 def __init__(self):
                     self.status_code = 200
@@ -173,14 +187,16 @@ class TestQuotaFunctionality:
 
             response = await anonymous_client.post(
                 "/api/chat",
-                json={"query": "Test message", "thread_id": "test-thread-123"}
+                json={"query": "Test message", "thread_id": "test-thread-123"},
             )
 
             assert response.status_code == 200
             assert "X-Prompts-Used" in response.headers
             assert "X-Prompts-Quota" in response.headers
             assert response.headers["X-Prompts-Used"] == "1"
-            assert response.headers["X-Prompts-Quota"] == str(APISettings.anonymous_user_daily_quota)
+            assert response.headers["X-Prompts-Quota"] == str(
+                APISettings.anonymous_user_daily_quota
+            )
 
     @pytest.mark.asyncio
     async def test_quota_consistency_across_endpoints(self, client):
@@ -202,10 +218,13 @@ class TestQuotaFunctionality:
 
                 chat_response = await client.post(
                     "/api/chat",
-                    json={"query": "Test message", "thread_id": "test-thread-123"},
-                    headers={"Authorization": "Bearer test-token"}
+                    json={
+                        "query": "Test message",
+                        "thread_id": "test-thread-123",
+                    },
+                    headers={"Authorization": "Bearer test-token"},
                 )
-                
+
                 assert chat_response.status_code == 200
                 chat_used = int(chat_response.headers["X-Prompts-Used"])
                 chat_quota = int(chat_response.headers["X-Prompts-Quota"])
@@ -227,24 +246,35 @@ class TestQuotaFunctionality:
                 mock_get.return_value = mock_response
 
                 with patch("src.api.app.stream_chat") as mock_stream:
-                    mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
+                    mock_stream.return_value = iter(
+                        [b'{"response": "Hello!"}\\n']
+                    )
 
                     # First call should succeed
                     response1 = await client.post(
                         "/api/chat",
-                        json={"query": "First message", "thread_id": "test-thread-123"},
-                        headers={"Authorization": "Bearer test-token"}
+                        json={
+                            "query": "First message",
+                            "thread_id": "test-thread-123",
+                        },
+                        headers={"Authorization": "Bearer test-token"},
                     )
                     assert response1.status_code == 200
 
                     # Second call should fail with 429
                     response2 = await client.post(
                         "/api/chat",
-                        json={"query": "Second message", "thread_id": "test-thread-123"},
-                        headers={"Authorization": "Bearer test-token"}
+                        json={
+                            "query": "Second message",
+                            "thread_id": "test-thread-123",
+                        },
+                        headers={"Authorization": "Bearer test-token"},
                     )
                     assert response2.status_code == 429
-                    assert "Daily free limit of 1 exceeded" in response2.json()["detail"]
+                    assert (
+                        "Daily free limit of 1 exceeded"
+                        in response2.json()["detail"]
+                    )
 
         finally:
             APISettings.regular_user_daily_quota = original_quota
