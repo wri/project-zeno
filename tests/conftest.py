@@ -43,16 +43,21 @@ app.dependency_overrides[get_async_session] = override_get_async_session
 # Mock replay_chat function for tests to avoid checkpointer table dependencies
 async def mock_replay_chat(thread_id):
     """Mock replay_chat that returns empty conversation history for tests."""
+
     def pack(data):
         import json
+
         return json.dumps(data) + "\n"
 
     # Return minimal conversation history for tests
-    yield pack({
-        "node": "agent",
-        "timestamp": "2025-01-01T00:00:00Z",
-        "update": '{"messages": [{"type": "human", "content": "Test message"}]}'
-    })
+    yield pack(
+        {
+            "node": "agent",
+            "timestamp": "2025-01-01T00:00:00Z",
+            "update": '{"messages": [{"type": "human", "content": "Test message"}]}',
+        }
+    )
+
 
 # Apply the mock globally for all tests
 patcher = patch("src.api.app.replay_chat", mock_replay_chat)
@@ -143,14 +148,16 @@ def auth_override():
             original_dependency = app.dependency_overrides.get(
                 fetch_user_from_rw_api
             )
-        app.dependency_overrides[fetch_user_from_rw_api] = lambda: UserModel.model_validate(
-            {
-                "id": user_id,
-                "name": user_id,
-                "email": "admin@wri.org",
-                "createdAt": "2024-01-01T00:00:00Z",
-                "updatedAt": "2024-01-01T00:00:00Z",
-            }
+        app.dependency_overrides[fetch_user_from_rw_api] = (
+            lambda: UserModel.model_validate(
+                {
+                    "id": user_id,
+                    "name": user_id,
+                    "email": "admin@wri.org",
+                    "createdAt": "2024-01-01T00:00:00Z",
+                    "updatedAt": "2024-01-01T00:00:00Z",
+                }
+            )
         )
 
     yield _auth_override
@@ -178,9 +185,7 @@ async def thread_factory():
             if not user:
                 # Create the user if it doesn't exist
                 user = UserOrm(
-                    id=user_id,
-                    name=user_id,
-                    email=f"{user_id}@example.com"
+                    id=user_id, name=user_id, email=f"{user_id}@example.com"
                 )
                 session.add(user)
                 await session.commit()

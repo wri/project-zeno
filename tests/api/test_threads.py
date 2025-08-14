@@ -15,7 +15,9 @@ async def test_list_threads_requires_auth(client):
 
 
 @pytest.mark.asyncio
-async def test_list_threads_authenticated(client, auth_override, thread_factory):
+async def test_list_threads_authenticated(
+    client, auth_override, thread_factory
+):
     """Test that authenticated users can list their threads."""
     user_id = "test-user-1"
     auth_override(user_id)
@@ -25,8 +27,7 @@ async def test_list_threads_authenticated(client, auth_override, thread_factory)
     thread2 = await thread_factory(user_id)
 
     response = await client.get(
-        "/api/threads",
-        headers={"Authorization": "Bearer test-token"}
+        "/api/threads", headers={"Authorization": "Bearer test-token"}
     )
 
     assert response.status_code == 200
@@ -43,7 +44,9 @@ async def test_list_threads_authenticated(client, auth_override, thread_factory)
 
 
 @pytest.mark.asyncio
-async def test_get_private_thread_requires_ownership(client, auth_override, thread_factory):
+async def test_get_private_thread_requires_ownership(
+    client, auth_override, thread_factory
+):
     """Test that private threads require ownership to access."""
     owner_id = "owner-user"
     other_user_id = "other-user"
@@ -56,7 +59,7 @@ async def test_get_private_thread_requires_ownership(client, auth_override, thre
     auth_override(other_user_id)
     response = await client.get(
         f"/api/threads/{thread.id}",
-        headers={"Authorization": "Bearer test-token"}
+        headers={"Authorization": "Bearer test-token"},
     )
 
     assert response.status_code == 404
@@ -87,7 +90,7 @@ async def test_update_thread_name(client, auth_override, thread_factory):
     response = await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"name": new_name}
+        json={"name": new_name},
     )
 
     assert response.status_code == 200
@@ -109,7 +112,7 @@ async def test_update_thread_to_public(client, auth_override, thread_factory):
     response = await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"is_public": True}
+        json={"is_public": True},
     )
 
     assert response.status_code == 200
@@ -129,14 +132,14 @@ async def test_update_thread_to_private(client, auth_override, thread_factory):
     await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"is_public": True}
+        json={"is_public": True},
     )
 
     # Then make it private again
     response = await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"is_public": False}
+        json={"is_public": False},
     )
 
     assert response.status_code == 200
@@ -145,7 +148,9 @@ async def test_update_thread_to_private(client, auth_override, thread_factory):
 
 
 @pytest.mark.asyncio
-async def test_update_thread_name_and_public_status(client, auth_override, thread_factory):
+async def test_update_thread_name_and_public_status(
+    client, auth_override, thread_factory
+):
     """Test updating both name and public status in single request."""
     user_id = "test-user"
     auth_override(user_id)
@@ -155,7 +160,7 @@ async def test_update_thread_name_and_public_status(client, auth_override, threa
     response = await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"name": new_name, "is_public": True}
+        json={"name": new_name, "is_public": True},
     )
 
     assert response.status_code == 200
@@ -165,7 +170,9 @@ async def test_update_thread_name_and_public_status(client, auth_override, threa
 
 
 @pytest.mark.asyncio
-async def test_access_public_thread_without_auth(client, auth_override, thread_factory):
+async def test_access_public_thread_without_auth(
+    client, auth_override, thread_factory
+):
     """Test that public threads can be accessed without authentication."""
     user_id = "test-user"
     auth_override(user_id)
@@ -175,7 +182,7 @@ async def test_access_public_thread_without_auth(client, auth_override, thread_f
     await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"is_public": True}
+        json={"is_public": True},
     )
 
     # Access without authentication should work
@@ -186,7 +193,9 @@ async def test_access_public_thread_without_auth(client, auth_override, thread_f
 
 
 @pytest.mark.asyncio
-async def test_access_public_thread_different_user(client, auth_override, thread_factory):
+async def test_access_public_thread_different_user(
+    client, auth_override, thread_factory
+):
     """Test that public threads can be accessed by different users."""
     owner_id = "owner-user"
     other_user_id = "other-user"
@@ -198,21 +207,23 @@ async def test_access_public_thread_different_user(client, auth_override, thread
     await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"is_public": True}
+        json={"is_public": True},
     )
 
     # Access as different user should work
     auth_override(other_user_id)
     response = await client.get(
         f"/api/threads/{thread.id}",
-        headers={"Authorization": "Bearer test-token"}
+        headers={"Authorization": "Bearer test-token"},
     )
 
     assert response.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_cannot_update_other_users_thread(client, auth_override, thread_factory):
+async def test_cannot_update_other_users_thread(
+    client, auth_override, thread_factory
+):
     """Test that users cannot update threads they don't own."""
     owner_id = "owner-user"
     other_user_id = "other-user"
@@ -226,7 +237,7 @@ async def test_cannot_update_other_users_thread(client, auth_override, thread_fa
     response = await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"is_public": True}
+        json={"is_public": True},
     )
 
     assert response.status_code == 404
@@ -242,7 +253,7 @@ async def test_update_nonexistent_thread(client, auth_override):
     response = await client.patch(
         f"/api/threads/{fake_thread_id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"is_public": True}
+        json={"is_public": True},
     )
 
     assert response.status_code == 404
@@ -257,7 +268,7 @@ async def test_get_nonexistent_thread(client, auth_override):
     fake_thread_id = str(uuid.uuid4())
     response = await client.get(
         f"/api/threads/{fake_thread_id}",
-        headers={"Authorization": "Bearer test-token"}
+        headers={"Authorization": "Bearer test-token"},
     )
 
     assert response.status_code == 404
@@ -275,7 +286,9 @@ async def test_get_nonexistent_public_thread_without_auth(client):
 
 
 @pytest.mark.asyncio
-async def test_delete_thread_removes_public_access(client, auth_override, thread_factory):
+async def test_delete_thread_removes_public_access(
+    client, auth_override, thread_factory
+):
     """Test that deleting a public thread removes public access."""
     user_id = "test-user"
     auth_override(user_id)
@@ -285,7 +298,7 @@ async def test_delete_thread_removes_public_access(client, auth_override, thread
     await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"is_public": True}
+        json={"is_public": True},
     )
 
     # Verify public access works
@@ -308,7 +321,7 @@ async def test_delete_thread_removes_public_access(client, auth_override, thread
     try:
         response = await client.delete(
             f"/api/threads/{thread.id}",
-            headers={"Authorization": "Bearer test-token"}
+            headers={"Authorization": "Bearer test-token"},
         )
         assert response.status_code == 204
     finally:
@@ -334,7 +347,7 @@ async def test_invalid_is_public_values(client, auth_override, thread_factory):
     response = await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"is_public": "invalid"}  # String that can't be coerced
+        json={"is_public": "invalid"},  # String that can't be coerced
     )
 
     assert response.status_code == 422  # Validation error
@@ -343,14 +356,16 @@ async def test_invalid_is_public_values(client, auth_override, thread_factory):
     response = await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"is_public": 123}  # Number instead of boolean
+        json={"is_public": 123},  # Number instead of boolean
     )
 
     assert response.status_code == 422  # Validation error
 
 
 @pytest.mark.asyncio
-async def test_partial_update_preserves_other_fields(client, auth_override, thread_factory):
+async def test_partial_update_preserves_other_fields(
+    client, auth_override, thread_factory
+):
     """Test that partial updates don't affect other fields."""
     user_id = "test-user"
     auth_override(user_id)
@@ -362,7 +377,7 @@ async def test_partial_update_preserves_other_fields(client, auth_override, thre
     response = await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"is_public": True}
+        json={"is_public": True},
     )
 
     assert response.status_code == 200

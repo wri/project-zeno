@@ -722,12 +722,12 @@ async def list_threads(
 ):
     """
     List all threads belonging to the authenticated user.
-    
+
     **Authentication:** Required - returns only threads owned by the authenticated user
-    
+
     **Response:** Array of thread objects, each containing:
     - `id`: Thread identifier
-    - `name`: Thread display name  
+    - `name`: Thread display name
     - `is_public`: Boolean indicating if thread is publicly accessible
     - `created_at`, `updated_at`: Timestamps
     - `user_id`, `agent_id`: Associated user and agent
@@ -746,15 +746,15 @@ async def get_thread(
 ):
     """
     Get thread conversation history - supports both public and private access.
-    
+
     **Access Control:**
     - **Public threads** (is_public=True): Can be accessed by anyone, no authentication required
     - **Private threads** (is_public=False): Require authentication and ownership
-    
+
     **Authentication:** Optional - provide Bearer token for private threads
-    
+
     **Response:** Streaming NDJSON format containing conversation history
-    
+
     **Error Codes:**
     - 401: Private thread accessed without authentication
     - 404: Thread not found or access denied (private thread accessed by non-owner)
@@ -780,10 +780,17 @@ async def get_thread(
             )
 
         if thread.user_id != user.id:
-            logger.warning("Unauthorized access to private thread", thread_id=thread_id, user_id=user.id, owner_id=thread.user_id)
+            logger.warning(
+                "Unauthorized access to private thread",
+                thread_id=thread_id,
+                user_id=user.id,
+                owner_id=thread.user_id,
+            )
             raise HTTPException(status_code=404, detail="Thread not found")
 
-        logger.debug("Accessing private thread", thread_id=thread_id, user_id=user.id)
+        logger.debug(
+            "Accessing private thread", thread_id=thread_id, user_id=user.id
+        )
 
     try:
         logger.debug("Replaying thread", thread_id=thread_id)
@@ -799,7 +806,7 @@ class ThreadUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, description="The name of the thread")
     is_public: Optional[bool] = Field(
         None,
-        description="Whether the thread is publicly accessible. True = anyone can view without auth, False = owner only"
+        description="Whether the thread is publicly accessible. True = anyone can view without auth, False = owner only",
     )
 
 
@@ -812,32 +819,32 @@ async def update_thread(
 ):
     """
     Update thread properties including name and sharing settings.
-    
+
     **Authentication:** Required - must be thread owner
-    
+
     **Request Body:** JSON object with optional fields:
     - `name` (string, optional): Update the thread's display name
     - `is_public` (boolean, optional): Set thread visibility
       - `true`: Makes thread publicly accessible without authentication
       - `false`: Makes thread private (owner access only)
-    
+
     **Examples:**
     ```javascript
     // Make thread public
     PATCH /api/threads/{thread_id}
     { "is_public": true }
-    
-    // Make thread private  
+
+    // Make thread private
     PATCH /api/threads/{thread_id}
     { "is_public": false }
-    
+
     // Update both name and sharing
     PATCH /api/threads/{thread_id}
     { "name": "My Public Thread", "is_public": true }
     ```
-    
+
     **Response:** Updated thread object with current `is_public` status
-    
+
     **Error Codes:**
     - 401: Missing or invalid authentication
     - 404: Thread not found or access denied (not thread owner)
@@ -885,18 +892,18 @@ async def delete_thread(
 ):
     """
     Delete thread permanently.
-    
+
     **Authentication:** Required - must be thread owner
-    
+
     **Behavior:**
     - Removes thread from database and conversation history
     - Public threads become inaccessible after deletion
     - Operation cannot be undone
-    
+
     **Response:** 204 No Content on success
-    
+
     **Error Codes:**
-    - 401: Missing or invalid authentication  
+    - 401: Missing or invalid authentication
     - 404: Thread not found or access denied (not thread owner)
     """
 
