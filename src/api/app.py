@@ -169,6 +169,14 @@ signer = TimestampSigner(os.environ["COOKIE_SIGNER_SECRET_KEY"])
 
 @app.middleware("http")
 async def anonymous_id_middleware(request: Request, call_next):
+    # Check auth headers if user is logged in, and if
+    # so proceed to the request without generating an
+    # anonymous user session cookie
+    auth = await security(request)
+    if auth and auth.scheme.lower() == "bearer" and auth.credentials:
+        response: Response = await call_next(request)
+        return response
+
     anon_cookie = request.cookies.get("anonymous_id")
     need_new = True
 
