@@ -576,7 +576,7 @@ async def check_quota(
     # 1. Get calling user and set quota
     if not user:
         daily_quota = APISettings.anonymous_user_daily_quota
-        if anon := request.cookies.get("anon_id"):
+        if anon := request.cookies.get("anonymous_id"):
             identity = f"anon:{anon}"
         else:
             identity = f"anon:{request.state.anonymous_id}"
