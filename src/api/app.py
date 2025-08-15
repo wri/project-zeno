@@ -644,10 +644,7 @@ async def generate_thread_name(query: str) -> str:
 
 
 @app.get("/api/quota")
-async def get_quota(
-    user: UserModel = Depends(require_auth),
-    quota_info: dict = Depends(check_quota),
-):
+async def get_quota(quota_info: dict = Depends(check_quota)):
     return quota_info
 
 
