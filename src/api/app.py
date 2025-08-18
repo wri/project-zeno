@@ -178,6 +178,7 @@ async def anonymous_id_middleware(request: Request, call_next):
         return response
 
     anon_cookie = request.cookies.get("anonymous_id")
+
     need_new = True
 
     if anon_cookie:
@@ -573,14 +574,10 @@ async def fetch_user(
     return await optional_auth(user_info, session)
 
 
-async def check_quota(
+async def get_user_identity_and_daily_quota(
     request: Request,
     user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_async_session),
 ):
-    if not APISettings.enable_quota_checking:
-        return {}
-
     # 1. Get calling user and set quota
     if not user:
         daily_quota = APISettings.anonymous_user_daily_quota
@@ -596,13 +593,44 @@ async def check_quota(
             else APISettings.regular_user_daily_quota
         )
         identity = f"user:{user.id}"
+    return {"identity": identity, "prompt_quota": daily_quota}
+
+
+async def check_quota(
+    identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
+    session: AsyncSession = Depends(get_async_session),
+):
+    if not APISettings.enable_quota_checking:
+        return {}
+
+    today = date.today()
+
+    stmt = select(DailyUsageOrm).filter_by(
+        id=identity_and_quota["identity"], date=today
+    )
+    result = await session.execute(stmt)
+    daily_usage = result.scalars().first()
+
+    # TODO: is the conditional check necessary here?
+    identity_and_quota["prompts_used"] = (
+        daily_usage.usage_count if daily_usage else 0
+    )
+    return identity_and_quota
+
+
+async def enforce_quota(
+    identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
+    session: AsyncSession = Depends(get_async_session),
+):
+    if not APISettings.enable_quota_checking:
+        return {}
 
     today = date.today()
 
     # 2. Atomically "insert or increment" with ON CONFLICT
     stmt = (
         insert(DailyUsageOrm)
-        .values(id=identity, date=today, usage_count=1)
+        .values(id=identity_and_quota["identity"], date=today, usage_count=1)
         # Composite PK = (id, date)
         .on_conflict_do_update(
             index_elements=["id", "date"],
@@ -615,13 +643,15 @@ async def check_quota(
     await session.commit()  # commit the upsert
 
     # 3. Enforce the quota
-    if count > daily_quota:
+    if count > identity_and_quota["prompt_quota"]:
         raise HTTPException(
             status_code=429,
-            detail=f"Daily free limit of {daily_quota} exceeded; please try again tomorrow.",
+            detail=f"Daily free limit of {identity_and_quota['prompt_quota']} exceeded; please try again tomorrow.",
         )
 
-    return {"prompts_used": count, "prompt_quota": daily_quota}
+    identity_and_quota["prompts_used"] = count
+
+    return identity_and_quota
 
 
 async def generate_thread_name(query: str) -> str:
@@ -644,7 +674,9 @@ async def generate_thread_name(query: str) -> str:
 
 
 @app.get("/api/quota")
-async def get_quota(quota_info: dict = Depends(check_quota)):
+async def get_quota(
+    quota_info: Dict = Depends(check_quota),
+):
     return quota_info
 
 
@@ -652,7 +684,7 @@ async def get_quota(quota_info: dict = Depends(check_quota)):
 async def chat(
     request: ChatRequest,
     user: Optional[UserModel] = Depends(optional_auth),
-    quota_info: dict = Depends(check_quota),
+    quota_info: dict = Depends(enforce_quota),
     session: AsyncSession = Depends(get_async_session),
 ):
     """

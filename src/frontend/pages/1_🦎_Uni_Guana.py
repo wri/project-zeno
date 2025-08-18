@@ -85,7 +85,13 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if user_input := st.chat_input("Type your message here..."):
+client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
+quota_info = client.get_quota_info()
+remaining_prompts = quota_info["prompt_quota"] - quota_info["prompts_used"]
+
+if user_input := st.chat_input(
+    f"Type your message here... (remaining prompts: {remaining_prompts})"
+):
     ui_context = {}
 
     if selected_aoi and not st.session_state.get("aoi_acknowledged"):
@@ -105,9 +111,6 @@ if user_input := st.chat_input("Type your message here..."):
         st.markdown(user_input)
 
     with st.chat_message("assistant"):
-        client = ZenoClient(
-            base_url=API_BASE_URL, token=st.session_state.token
-        )
         for stream in client.chat(
             query=user_input,
             user_persona="Researcher",
