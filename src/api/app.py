@@ -905,7 +905,17 @@ async def custom_area_name(
     Requires Authorization.
     """
     try:
-        prompt = f"Name this GeoJSON FeatureCollection based on the continent, cardinal directions, and specific location. Do not use the country name:\n{request.model_dump()}\n return strictly the name only and limit to maximum of 100 characters."
+        prompt = f"""Name this GeoJSON FeatureCollection from physical geography.
+        Pick name in this order:
+        1. Most salient intersecting natural feature (range/peak; desert/plateau/basin; river/lake/watershed; coast/gulf/strait; plain/valley)
+        2. If none clear, use a broader natural unit (ecoregion/physiographic province/biome or climate/latitude bands)
+        3. If still vague, add a directional qualifier (Northern/Upper/Coastal/etc)
+        4. Only if needed, append “near [city/town]” for disambiguation (no countries/states)
+        Exclude all geopolitical terms and demonyms; avoid disputed/historical polities and sovereignty language.
+        Prefer widely used, neutral physical names; do not invent obscure terms.
+        You may combine up to two natural units with a preposition.
+        Return a name only, strictly ≤100 characters.
+        """
         response = HAIKU.invoke(prompt)
         return {"name": response.content}
     except Exception as e:
