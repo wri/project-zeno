@@ -234,11 +234,28 @@ def render_dataset_map(dataset_data, aoi_data=None):
         # Show dataset info
         with st.expander("Dataset Information"):
             dataset_info = {
+                "Dataset ID": dataset_data.get("dataset_id", "N/A"),
+                "Dataset Name": dataset_data.get("dataset_name", "N/A"),
                 "Data Layer": dataset_data.get("data_layer", "N/A"),
                 "Source": dataset_data.get("source", "N/A"),
                 "Context Layer": dataset_data.get("context_layer", "N/A"),
                 "Date Range": dataset_data.get("daterange", "N/A"),
                 "Threshold": dataset_data.get("threshold", "N/A"),
+                "Reason": dataset_data.get("reason", "N/A"),
+                "Tile URL": dataset_data.get("tile_url", "N/A"),
+                "Analytics API Endpoint": dataset_data.get(
+                    "analytics_api_endpoint", "N/A"
+                ),
+                "Description": dataset_data.get("description", "N/A"),
+                "Prompt Instructions": dataset_data.get(
+                    "prompt_instructions", "N/A"
+                ),
+                "Methodology": dataset_data.get("methodology", "N/A"),
+                "Cautions": dataset_data.get("cautions", "N/A"),
+                "Function Usage Notes": dataset_data.get(
+                    "function_usage_notes", "N/A"
+                ),
+                "Citation": dataset_data.get("citation", "N/A"),
             }
             for key, value in dataset_info.items():
                 if value != "N/A":
@@ -258,11 +275,14 @@ def render_charts(charts_data):
         {
             "id": "chart_1",
             "title": "Chart Title",
-            "type": "bar|line|pie|area|scatter|table",
+            "type": "bar|line|pie|area|scatter|table|stacked-bar|grouped-bar",
             "data": [{...}],
             "xAxis": "field_name",
             "yAxis": "field_name",
-            "colorField": "field_name" (optional)
+            "colorField": "field_name" (optional),
+            "stackField": "field_name" (optional, for stacked-bar),
+            "groupField": "field_name" (optional, for grouped-bar),
+            "seriesFields": ["field1", "field2", ...] (optional, for stacked-bar)
         }
     """
     try:
@@ -276,11 +296,14 @@ def render_charts(charts_data):
             chart_title = chart.get("title", "Chart")
             chart_type = chart.get("type", "bar").lower()
             chart_data = chart.get("data", [])
-            x_axis = chart.get("xAxis", "")
-            y_axis = chart.get("yAxis", "")
-            color_field = chart.get("colorField", "")
+            xAxis = chart.get("xAxis", "")
+            yAxis = chart.get("yAxis", "")
+            colorField = chart.get("colorField", "")
+            stackField = chart.get("stackField", "")
+            groupField = chart.get("groupField", "")
+            seriesFields = chart.get("seriesFields", [])
 
-            if not chart_data or not x_axis or not y_axis:
+            if not chart_data or not xAxis or not yAxis:
                 st.warning(f"Incomplete chart data for: {chart_title}")
                 continue
 
@@ -300,16 +323,16 @@ def render_charts(charts_data):
                     .mark_bar()
                     .encode(
                         x=alt.X(
-                            f"{x_axis}:N",
-                            title=x_axis.replace("_", " ").title(),
+                            f"{xAxis}:N",
+                            title=xAxis.replace("_", " ").title(),
                         ),
                         y=alt.Y(
-                            f"{y_axis}:Q",
-                            title=y_axis.replace("_", " ").title(),
+                            f"{yAxis}:Q",
+                            title=yAxis.replace("_", " ").title(),
                         ),
                         color=(
-                            alt.Color(f"{color_field}:N")
-                            if color_field
+                            alt.Color(f"{colorField}:N")
+                            if colorField
                             else alt.value("steelblue")
                         ),
                     )
@@ -322,16 +345,16 @@ def render_charts(charts_data):
                     .mark_line(point=True)
                     .encode(
                         x=alt.X(
-                            f"{x_axis}:O",
-                            title=x_axis.replace("_", " ").title(),
+                            f"{xAxis}:O",
+                            title=xAxis.replace("_", " ").title(),
                         ),
                         y=alt.Y(
-                            f"{y_axis}:Q",
-                            title=y_axis.replace("_", " ").title(),
+                            f"{yAxis}:Q",
+                            title=yAxis.replace("_", " ").title(),
                         ),
                         color=(
-                            alt.Color(f"{color_field}:N")
-                            if color_field
+                            alt.Color(f"{colorField}:N")
+                            if colorField
                             else alt.value("steelblue")
                         ),
                     )
@@ -343,12 +366,12 @@ def render_charts(charts_data):
                     alt.Chart(df)
                     .mark_arc()
                     .encode(
-                        theta=alt.Theta(f"{y_axis}:Q"),
+                        theta=alt.Theta(f"{yAxis}:Q"),
                         color=alt.Color(
-                            f"{x_axis}:N",
-                            title=x_axis.replace("_", " ").title(),
+                            f"{xAxis}:N",
+                            title=xAxis.replace("_", " ").title(),
                         ),
-                        tooltip=[f"{x_axis}:N", f"{y_axis}:Q"],
+                        tooltip=[f"{xAxis}:N", f"{yAxis}:Q"],
                     )
                     .properties(width=400, height=400, title=chart_title)
                 )
@@ -359,16 +382,16 @@ def render_charts(charts_data):
                     .mark_area()
                     .encode(
                         x=alt.X(
-                            f"{x_axis}:O",
-                            title=x_axis.replace("_", " ").title(),
+                            f"{xAxis}:O",
+                            title=xAxis.replace("_", " ").title(),
                         ),
                         y=alt.Y(
-                            f"{y_axis}:Q",
-                            title=y_axis.replace("_", " ").title(),
+                            f"{yAxis}:Q",
+                            title=yAxis.replace("_", " ").title(),
                         ),
                         color=(
-                            alt.Color(f"{color_field}:N")
-                            if color_field
+                            alt.Color(f"{colorField}:N")
+                            if colorField
                             else alt.value("steelblue")
                         ),
                     )
@@ -381,43 +404,128 @@ def render_charts(charts_data):
                     .mark_point()
                     .encode(
                         x=alt.X(
-                            f"{x_axis}:O",
-                            title=x_axis.replace("_", " ").title(),
+                            f"{xAxis}:O",
+                            title=xAxis.replace("_", " ").title(),
                         ),
                         y=alt.Y(
-                            f"{y_axis}:Q",
-                            title=y_axis.replace("_", " ").title(),
+                            f"{yAxis}:Q",
+                            title=yAxis.replace("_", " ").title(),
                         ),
                         color=(
-                            alt.Color(f"{color_field}:N")
-                            if color_field
+                            alt.Color(f"{colorField}:N")
+                            if colorField
                             else alt.value("steelblue")
                         ),
                     )
                     .properties(width=600, height=400, title=chart_title)
                 )
 
-            elif chart_type == "table":
-                chart_obj = (
-                    alt.Chart(df)
-                    .mark_bar()
-                    .encode(
-                        x=alt.X(
-                            f"{x_axis}:N",
-                            title=x_axis.replace("_", " ").title(),
-                        ),
-                        y=alt.Y(
-                            f"{y_axis}:Q",
-                            title=y_axis.replace("_", " ").title(),
-                        ),
-                        color=(
-                            alt.Color(f"{color_field}:N")
-                            if color_field
-                            else alt.value("steelblue")
-                        ),
+            elif chart_type == "stacked-bar":
+                # For stacked bar charts, we need to transform data to long format if seriesFields are provided
+                if seriesFields:
+                    # Transform data from wide to long format for stacking
+                    df_long = pd.melt(
+                        df,
+                        id_vars=[xAxis],
+                        value_vars=seriesFields,
+                        var_name="category",
+                        value_name="value",
                     )
-                    .properties(width=600, height=400, title=chart_title)
-                )
+                    chart_obj = (
+                        alt.Chart(df_long)
+                        .mark_bar()
+                        .encode(
+                            x=alt.X(
+                                f"{xAxis}:N",
+                                title=xAxis.replace("_", " ").title(),
+                            ),
+                            y=alt.Y(
+                                "value:Q",
+                                title="Value",
+                            ),
+                            color=alt.Color(
+                                "category:N",
+                                title="Category",
+                            ),
+                        )
+                        .properties(width=600, height=400, title=chart_title)
+                    )
+                else:
+                    # Use stackField if provided, otherwise use colorField for stacking
+                    stack_field = stackField or colorField
+                    chart_obj = (
+                        alt.Chart(df)
+                        .mark_bar()
+                        .encode(
+                            x=alt.X(
+                                f"{xAxis}:N",
+                                title=xAxis.replace("_", " ").title(),
+                            ),
+                            y=alt.Y(
+                                f"{yAxis}:Q",
+                                title=yAxis.replace("_", " ").title(),
+                            ),
+                            color=alt.Color(
+                                f"{stack_field}:N",
+                                title=stack_field.replace("_", " ").title(),
+                            )
+                            if stack_field
+                            else alt.value("steelblue"),
+                        )
+                        .properties(width=600, height=400, title=chart_title)
+                    )
+
+            elif chart_type == "grouped-bar":
+                # For grouped bar charts, use groupField to create side-by-side bars
+                if groupField:
+                    chart_obj = (
+                        alt.Chart(df)
+                        .mark_bar()
+                        .encode(
+                            x=alt.X(
+                                f"{xAxis}:N",
+                                title=xAxis.replace("_", " ").title(),
+                            ),
+                            y=alt.Y(
+                                f"{yAxis}:Q",
+                                title=yAxis.replace("_", " ").title(),
+                            ),
+                            color=alt.Color(
+                                f"{groupField}:N",
+                                title=groupField.replace("_", " ").title(),
+                            ),
+                            xOffset=alt.XOffset(f"{groupField}:N"),
+                        )
+                        .properties(width=600, height=400, title=chart_title)
+                    )
+                else:
+                    # Fallback to regular bar chart if no groupField
+                    chart_obj = (
+                        alt.Chart(df)
+                        .mark_bar()
+                        .encode(
+                            x=alt.X(
+                                f"{xAxis}:N",
+                                title=xAxis.replace("_", " ").title(),
+                            ),
+                            y=alt.Y(
+                                f"{yAxis}:Q",
+                                title=yAxis.replace("_", " ").title(),
+                            ),
+                            color=(
+                                alt.Color(f"{colorField}:N")
+                                if colorField
+                                else alt.value("steelblue")
+                            ),
+                        )
+                        .properties(width=600, height=400, title=chart_title)
+                    )
+
+            elif chart_type == "table":
+                # For table type, display as a proper table instead of a chart
+                st.dataframe(df, use_container_width=True)
+                continue  # Skip the altair_chart rendering for tables
+
             else:
                 st.warning(f"Unsupported chart type: {chart_type}")
                 continue
@@ -451,7 +559,6 @@ def render_stream(stream):
         else:
             st.text(content)
     # Render map if this is a tool node with AOI data
-    # if node == "tools" and "aoi" in update:
     aoi_data = None
     if "aoi" in update:
         aoi_data = update["aoi"]
@@ -463,7 +570,6 @@ def render_stream(stream):
         render_aoi_map(aoi_data, subregion_data)
 
     # Render dataset map if this is a tool node with dataset data
-    # if node == "tools" and "dataset" in update:
     if "dataset" in update:
         dataset_data = update["dataset"]
         aoi_data = (
@@ -472,7 +578,6 @@ def render_stream(stream):
         render_dataset_map(dataset_data, aoi_data)
 
     # Render charts if this is a tool node with charts_data
-    # if node == "tools" and "charts_data" in update:
     if "charts_data" in update:
         charts_data = update["charts_data"]
         render_charts(charts_data)
