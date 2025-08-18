@@ -44,6 +44,7 @@ from src.api.schemas import (
     CustomAreaModel,
     CustomAreaNameRequest,
     GeometryResponse,
+    QuotaModel,
     RatingCreateRequest,
     RatingModel,
     ThreadModel,
@@ -673,7 +674,7 @@ async def generate_thread_name(query: str) -> str:
         return "Unnamed Thread"  # Fallback to default name
 
 
-@app.get("/api/quota")
+@app.get("/api/quota", response_model=QuotaModel)
 async def get_quota(
     quota_info: Dict = Depends(check_quota),
 ):
