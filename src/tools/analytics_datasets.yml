@@ -416,18 +416,10 @@ datasets:
   keywords: "deforestation, forest loss, disturbance"
   analytics_api_endpoint: "/v0/land_change/tree_cover_loss/analytics"
   prompt_instructions: >
-    Reports gross annual loss of tree cover ≥ 5 m height (2001-2024). Show yearly loss
-    with line charts or cumulative loss with stacked-area charts; plot area_ha and drop
-    zeros. "Tree cover" includes plantations as well as natural forest—loss is not
-    automatically deforestation or carbon loss. The product measures canopy loss only;
-    it doesn't track regrowth or permanence. Use the dominant-driver layer when the
-    user wants to know why trees were lost. Assigns the most likely loss driver
-    (commodity, forestry, wildfire, shifting agriculture, etc.) to each 1 km cell and
-    totals area_ha. Contrast drivers with stacked-bar charts or plot driver trends
-    over time with lines, omitting 0/nulls. Driver classes are coarse and mutually
-    exclusive—interpret them as indicative rather than precise attribution, and avoid
-    mixing resolutions. The layer tracks loss only, not regrowth. Prompt the user to
-    specify which driver categories to aggregate if their question is broad.
+    Reports gross annual loss of tree cover ≥ 5 m height (2001-2024).
+    Show yearly loss with bar charts or cumulative loss with stacked-area charts; plot area_ha and drop zeros.
+    Avoid “deforestation” in favour of “tree cover loss”. “Tree cover” includes plantations as well as natural forest meaning loss is not automatically deforestation or carbon loss.
+    The product measures canopy loss only; it doesn’t track regrowth or permanence. Use 30% canopy cover threshold.
   description: >
     Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2024 at
     30-meter resolution using Landsat satellite imagery. It detects stand-replacement
