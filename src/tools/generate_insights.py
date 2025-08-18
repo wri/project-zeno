@@ -22,7 +22,7 @@ class ChartInsight(BaseModel):
 
     title: str = Field(description="Clear, descriptive title for the chart")
     chart_type: str = Field(
-        description="Chart type: 'line', 'bar', 'pie', 'area', 'scatter', or 'table'"
+        description="Chart type: 'line', 'bar', 'stacked-bar', 'grouped-bar', 'pie', 'area', 'scatter', or 'table'"
     )
     insight: str = Field(
         description="Key insight or finding that this chart reveals (2-3 sentences)"
@@ -40,15 +40,30 @@ class ChartInsight(BaseModel):
         default="",
         description="Optional field name for color grouping/categorization",
     )
+    stack_field: str = Field(
+        default="",
+        description="Field name for stacking data (for stacked-bar charts)",
+    )
+    group_field: str = Field(
+        default="",
+        description="Field name for grouping bars (for grouped-bar charts)",
+    )
+    series_fields: List[str] = Field(
+        default=[],
+        description="List of field names for multiple data series (for multi-bar charts)",
+    )
 
 
 class InsightResponse(BaseModel):
     """
-    Contains 1-2 chart insights generated from the data.
+    Contains 1 main chart insight and follow-up suggestions.
     """
 
-    insights: List[ChartInsight] = Field(
-        description="List of 1-2 chart insights, ordered by importance"
+    insight: ChartInsight = Field(
+        description="The most useful chart insight for the user's query"
+    )
+    follow_up_suggestions: List[str] = Field(
+        description="List of 2-3 follow-up prompt suggestions for additional analysis"
     )
 
 
@@ -59,64 +74,54 @@ INSIGHT_GENERATION_PROMPT = ChatPromptTemplate.from_messages(
             """
 You are Zeno, an AI assistant that analyzes environmental data and creates insightful visualizations.
 
-Your task is to analyze the provided raw data and generate 1-2 compelling chart insights that answer the user's query.
+Analyze the provided data and generate the most useful chart insight that answers the user's query. If the user requests a specific chart type (e.g., "show as bar chart", "make this a pie chart"), prioritize that chart type if it's appropriate for the data.
 
-For each insight, you need to:
-1. Choose the most appropriate chart type based on the data characteristics
-2. Transform the data into Recharts-compatible format (array of objects)
-3. Provide a clear title and key insight
-4. Specify axis fields for the chart
+Chart types available:
+- 'line': Time series/trends
+- 'bar': Categorical comparisons
+- 'stacked-bar': Composition within categories
+- 'grouped-bar': Multiple metrics across categories
+- 'pie': Part-to-whole (max 6-8 categories)
+- 'area': Cumulative trends
+- 'scatter': Correlations
+- 'table': Detailed data
 
-Chart type guidelines:
-- 'line': For time series or continuous data trends
-- 'bar': For categorical comparisons or rankings
-- 'pie': For part-to-whole relationships (max 6-8 categories)
-- 'area': For cumulative data or filled trends
-- 'scatter': For correlation between two variables
-- 'table': For detailed data that doesn't visualize well
+Data format requirements:
+- Array of objects with simple field names (e.g., 'date', 'value', 'category')
+- Numeric values as numbers, not strings
+- For stacked-bar: [{{"category": "2020", "metric1": 100, "metric2": 50}}] + set series_fields
+- For grouped-bar: [{{"year": "2020", "type": "metric1", "value": 100}}] + set group_field
 
-Recharts data format:
-- Array of objects where each object represents one data point
-- Use simple, descriptive field names (e.g., 'date', 'value', 'category', 'count')
-- Ensure numeric values are actual numbers, not strings
-- For time data, use ISO date strings or simple date formats
-
-User's original query: {user_query}
-The name of the area of interest if available: {aoi_name}
-Raw data (in CSV format):
+User query: {user_query}
+Area of interest: {aoi_name}
+Raw data (CSV):
 {raw_data}
 
-Analyze this data and generate 1-2 compelling chart insights. Focus on the most important patterns that answer the user's query.
+Generate:
+1. One chart insight with appropriate chart type, Recharts-compatible data, and clear axis fields
+2. 2-3 specific follow-up suggestions for further exploration
 
-For each insight:
-1. Choose the best chart type for the data pattern
-2. Transform data into Recharts format (array of objects with simple field names)
-3. Provide clear axis field names
-4. Write a compelling insight description
-
-Return 1 insight if the data is simple/focused, or 2 insights if there are multiple interesting patterns to explore.
-
-Take the following important dataset specific instructions into account for generating the insights:
-{prompt_instructions}""",
+Follow-up examples: "Show trend over different period", "Compare with [region]", "Break down by [dimension]", "Top/bottom performers in [metric]"
+            """,
         ),
     ]
 )
 
 
 @tool
-async def generate_insights(
+def generate_insights(
     query: str,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
     """
-    Analyzes raw data and generates 1-2 chart insights with Recharts-compatible data.
+    Analyzes raw data and generates a single chart insight with Recharts-compatible data.
 
-    This simplified tool combines insight planning and chart creation into a single step.
-    It analyzes the raw data and generates compelling visualizations that answer the user's query.
+    This tool analyzes the raw data and generates the most compelling visualization that
+    answers the user's query, along with follow-up suggestions for further exploration.
 
     Args:
-        query: The user's original query to provide context for insights.
+        query: The user's query to guide insight generation and chart type selection.
     """
     logger.info("GENERATE-INSIGHTS-TOOL")
     logger.debug(f"Generating insights for query: {query}")
@@ -165,45 +170,53 @@ async def generate_insights(
             }
         )
 
-        insights = response.insights
-        logger.debug(f"Generated {len(insights)} insights")
+        insight = response.insight
+        follow_ups = response.follow_up_suggestions
+        logger.debug(
+            f"Generated insight: {insight.title} ({insight.chart_type})"
+        )
+        logger.debug(f"Generated {len(follow_ups)} follow-up suggestions")
 
         # Format the response message
         message_parts = []
-        charts_data = []
 
-        for i, insight in enumerate(insights, 1):
-            logger.debug(
-                f"Insight {i}: {insight.title} ({insight.chart_type})"
-            )
+        message_parts.append(f"**{insight.title}**")
+        message_parts.append(f"Chart Type: {insight.chart_type}")
+        message_parts.append(f"Key Finding: {insight.insight}")
+        message_parts.append(f"Data Points: {len(insight.data)}")
+        message_parts.append("")
 
-            message_parts.append(f"**Insight {i}: {insight.title}**")
-            message_parts.append(f"Chart Type: {insight.chart_type}")
-            message_parts.append(f"Key Finding: {insight.insight}")
-            message_parts.append(f"Data Points: {len(insight.data)}")
-            message_parts.append("")
+        # Add follow-up suggestions
+        message_parts.append("**💡 Follow-up suggestions:**")
+        for i, suggestion in enumerate(follow_ups, 1):
+            message_parts.append(f"{i}. {suggestion}")
+        message_parts.append("")
 
-            # Store chart data for frontend
-            charts_data.append(
-                {
-                    "id": f"chart_{i}",
-                    "title": insight.title,
-                    "type": insight.chart_type,
-                    "insight": insight.insight,
-                    "data": insight.data,
-                    "xAxis": insight.x_axis,
-                    "yAxis": insight.y_axis,
-                    "colorField": insight.color_field,
-                }
-            )
+        # Store chart data for frontend
+        charts_data = [
+            {
+                "id": "main_chart",
+                "title": insight.title,
+                "type": insight.chart_type,
+                "insight": insight.insight,
+                "data": insight.data,
+                "xAxis": insight.x_axis,
+                "yAxis": insight.y_axis,
+                "colorField": insight.color_field,
+                "stackField": insight.stack_field,
+                "groupField": insight.group_field,
+                "seriesFields": insight.series_fields,
+            }
+        ]
 
         tool_message = "\n".join(message_parts)
 
-        # Update state with generated insights
+        # Update state with generated insight and follow-ups
         updated_state = {
-            "insights": response.model_dump()["insights"],
+            "insight": response.model_dump()["insight"],
+            "follow_up_suggestions": follow_ups,
             "charts_data": charts_data,
-            "insight_count": len(insights),
+            "insight_count": 1,
         }
 
         return Command(
@@ -235,10 +248,10 @@ async def generate_insights(
 
 
 if __name__ == "__main__":
-    # Example usage for testing
+    # Example usage for testing different chart types
 
-    # Test with time series data
-    mock_state_1 = {
+    # Test 1: Simple Line Chart - Time series data
+    mock_state_line = {
         "raw_data": pd.DataFrame(
             {
                 "date": [
@@ -253,17 +266,17 @@ if __name__ == "__main__":
         )
     }
 
-    result_1 = generate_insights.func(
+    result_line = generate_insights.func(
         query="What are the trends in deforestation alerts over time?",
-        state=mock_state_1,
-        tool_call_id="test-id-1",
+        state=mock_state_line,
+        tool_call_id="test-line",
     )
 
-    print("=== Time Series Test ===")
-    print(result_1.update["messages"][0].content)
+    print("=== Simple Line Chart Test ===")
+    print(result_line.update["messages"][0].content)
 
-    # Test with categorical data
-    mock_state_2 = {
+    # Test 2: Simple Bar Chart - Categorical comparison
+    mock_state_bar = {
         "raw_data": pd.DataFrame(
             {
                 "country": ["Brazil", "Indonesia", "DRC", "Peru", "Colombia"],
@@ -279,11 +292,95 @@ if __name__ == "__main__":
         )
     }
 
-    result_2 = generate_insights.func(
+    result_bar = generate_insights.func(
         query="Which countries have the highest forest loss?",
-        state=mock_state_2,
-        tool_call_id="test-id-2",
+        state=mock_state_bar,
+        tool_call_id="test-bar",
     )
 
-    print("\n=== Categorical Test ===")
-    print(result_2.update["messages"][0].content)
+    print("\n=== Simple Bar Chart Test ===")
+    print(result_bar.update["messages"][0].content)
+
+    # Test 3: Complex Stacked Bar Chart - Composition data
+    mock_state_stacked = {
+        "raw_data": pd.DataFrame(
+            {
+                "year": ["2020", "2021", "2022", "2023"],
+                "deforestation": [1200, 1100, 950, 800],
+                "fires": [800, 900, 1200, 1100],
+                "logging": [400, 350, 300, 250],
+                "agriculture": [600, 700, 800, 750],
+                "region": ["Amazon", "Amazon", "Amazon", "Amazon"],
+            }
+        )
+    }
+
+    result_stacked = generate_insights.func(
+        query="Show me the composition of forest loss causes over time as a stacked bar chart",
+        state=mock_state_stacked,
+        tool_call_id="test-stacked",
+    )
+
+    print("\n=== Complex Stacked Bar Chart Test ===")
+    print(result_stacked.update["messages"][0].content)
+
+    # Test 4: Complex Grouped Bar Chart - Multiple metrics comparison
+    mock_state_grouped = {
+        "raw_data": pd.DataFrame(
+            {
+                "country": [
+                    "Brazil",
+                    "Brazil",
+                    "Indonesia",
+                    "Indonesia",
+                    "DRC",
+                    "DRC",
+                ],
+                "metric": [
+                    "Forest Loss",
+                    "Fire Incidents",
+                    "Forest Loss",
+                    "Fire Incidents",
+                    "Forest Loss",
+                    "Fire Incidents",
+                ],
+                "value": [11568, 8500, 6020, 4200, 4770, 2100],
+                "year": [2022, 2022, 2022, 2022, 2022, 2022],
+            }
+        )
+    }
+
+    result_grouped = generate_insights.func(
+        query="Compare forest loss and fire incidents across countries using grouped bars",
+        state=mock_state_grouped,
+        tool_call_id="test-grouped",
+    )
+
+    print("\n=== Complex Grouped Bar Chart Test ===")
+    print(result_grouped.update["messages"][0].content)
+
+    # Test 5: Pie Chart - Part-to-whole relationship
+    mock_state_pie = {
+        "raw_data": pd.DataFrame(
+            {
+                "cause": [
+                    "Deforestation",
+                    "Fires",
+                    "Logging",
+                    "Agriculture",
+                    "Mining",
+                ],
+                "percentage": [45, 25, 15, 10, 5],
+                "region": ["Global", "Global", "Global", "Global", "Global"],
+            }
+        )
+    }
+
+    result_pie = generate_insights.func(
+        query="What are the main causes of forest loss globally? Show as pie chart",
+        state=mock_state_pie,
+        tool_call_id="test-pie",
+    )
+
+    print("\n=== Pie Chart Test ===")
+    print(result_pie.update["messages"][0].content)

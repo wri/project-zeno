@@ -422,52 +422,79 @@ class AgentState(TypedDict):
 
 ### Generate insights tool
 
-This tool generates insights, either tables, or differnt types of charts. The outuput chart data is compatible with `reachart.js`.
+This tool analyzes raw data and generates a single, focused chart insight with Recharts-compatible data, along with 2-3 follow-up suggestions for further exploration. The tool supports multiple chart types including advanced stacked and grouped bar charts.
 
-The state variables updated are the following.
+#### Supported Chart Types
+
+- **`line`**: Time series/trends
+- **`bar`**: Categorical comparisons
+- **`stacked-bar`**: Composition within categories (parts of a whole across categories)
+- **`grouped-bar`**: Multiple metrics across categories side-by-side
+- **`pie`**: Part-to-whole relationships (max 6-8 categories)
+- **`area`**: Cumulative trends
+- **`scatter`**: Correlations
+- **`table`**: Detailed data that doesn't visualize well
+
+#### User Chart Type Requests
+
+The tool can handle user requests for specific chart types (e.g., "show as bar chart", "make this a pie chart") and will prioritize the requested type if appropriate for the data.
+
+#### State Variables Updated
 
 ```python
 class AgentState(TypedDict):
     # Adds one tool message string to the message history
     messages: Annotated[Sequence[BaseMessage], add_messages]
-    # generate-insights tool
-    insights: list
+    # Single insight (not a list)
+    insight: dict
+    # 2-3 follow-up suggestions for further exploration
+    follow_up_suggestions: list
+    # Chart data for frontend rendering
     charts_data: list
+    # Always 1 (single insight)
     insight_count: int
 ```
 
+#### Advanced Chart Fields
 
-#### Error handling
+For complex chart types, additional fields are provided:
 
-⚠️ This tool sometimes returns only a `message` without actual data when the chart creation fails. This breaks the expected schema of the tool output. We will address this issue soon.
-
-This is a problem also in other tools and needs to be addressed in a better way across the agent tools.
+- **`stackField`**: Category field for stacked bar charts
+- **`groupField`**: Grouping field for grouped bar charts
+- **`seriesFields`**: List of numeric fields for multi-series charts
+- **`colorField`**: Field for color grouping/categorization
 
 #### Example output
 
-Bar chart example
+**Simple Bar Chart Example**
 
 ```json
-"insights": [
-    {
-        "title": "Top 5 Countries with Highest Forest Loss in 2022",
-        "chart_type": "bar",
-        "insight": "Brazil leads significantly in forest loss with over 11.5 million hectares lost in 2022, more than double the next highest country, Indonesia (6 million hectares). The Democratic Republic of Congo ranks third with 4.77 million hectares, while Peru and Colombia have considerably lower forest loss at 1.63 and 1.24 million hectares respectively.",
-        "data": [
-            {"country": "Brazil", "forest_loss_ha": 11568000},
-            {"country": "Indonesia", "forest_loss_ha": 6020000},
-            {"country": "DRC", "forest_loss_ha": 4770000},
-            {"country": "Peru", "forest_loss_ha": 1630000},
-            {"country": "Colombia", "forest_loss_ha": 1240000}
-        ],
-        "x_axis": "country",
-        "y_axis": "forest_loss_ha",
-        "color_field": ""
-    }
+"insight": {
+    "title": "Top 5 Countries with Highest Forest Loss in 2022",
+    "chart_type": "bar",
+    "insight": "Brazil leads significantly in forest loss with over 11.5 million hectares lost in 2022, more than double the next highest country, Indonesia (6 million hectares). The Democratic Republic of Congo ranks third with 4.77 million hectares, while Peru and Colombia have considerably lower forest loss at 1.63 and 1.24 million hectares respectively.",
+    "data": [
+        {"country": "Brazil", "forest_loss_ha": 11568000},
+        {"country": "Indonesia", "forest_loss_ha": 6020000},
+        {"country": "DRC", "forest_loss_ha": 4770000},
+        {"country": "Peru", "forest_loss_ha": 1630000},
+        {"country": "Colombia", "forest_loss_ha": 1240000}
+    ],
+    "x_axis": "country",
+    "y_axis": "forest_loss_ha",
+    "color_field": "",
+    "stack_field": "",
+    "group_field": "",
+    "series_fields": []
+},
+"follow_up_suggestions": [
+    "Show the trend of forest loss for these countries over the past 5 years",
+    "Compare forest loss with reforestation efforts in these regions",
+    "Break down forest loss by primary drivers (agriculture, logging, fires)"
 ],
 "charts_data": [
     {
-        "id": "chart_1",
+        "id": "main_chart",
         "title": "Top 5 Countries with Highest Forest Loss in 2022",
         "type": "bar",
         "insight": "Brazil leads significantly in forest loss with over 11.5 million hectares lost in 2022, more than double the next highest country, Indonesia (6 million hectares). The Democratic Republic of Congo ranks third with 4.77 million hectares, while Peru and Colombia have considerably lower forest loss at 1.63 and 1.24 million hectares respectively.",
@@ -480,59 +507,127 @@ Bar chart example
         ],
         "xAxis": "country",
         "yAxis": "forest_loss_ha",
-        "colorField": ""
+        "colorField": "",
+        "stackField": "",
+        "groupField": "",
+        "seriesFields": []
     }
 ],
 "insight_count": 1,
 "messages": [
     {
-        "content": "**Insight 1: Top 5 Countries with Highest Forest Loss in 2022**\nChart Type: bar\nKey Finding: Brazil leads significantly in forest loss with over 11.5 million hectares lost in 2022, more than double the next highest country, Indonesia (6 million hectares). The Democratic Republic of Congo ranks third with 4.77 million hectares, while Peru and Colombia have considerably lower forest loss at 1.63 and 1.24 million hectares respectively.\nData Points: 5\n",
+        "content": "**Top 5 Countries with Highest Forest Loss in 2022**\nChart Type: bar\nKey Finding: Brazil leads significantly in forest loss with over 11.5 million hectares lost in 2022, more than double the next highest country, Indonesia (6 million hectares). The Democratic Republic of Congo ranks third with 4.77 million hectares, while Peru and Colombia have considerably lower forest loss at 1.63 and 1.24 million hectares respectively.\nData Points: 5\n\n**💡 Follow-up suggestions:**\n1. Show the trend of forest loss for these countries over the past 5 years\n2. Compare forest loss with reforestation efforts in these regions\n3. Break down forest loss by primary drivers (agriculture, logging, fires)\n",
         "tool_call_id": "test-id-2"
     }
 ]
 ```
 
-Line chart example
+**Advanced Stacked Bar Chart Example**
 
 ```json
-"insights": [
-    {
-        "title": "Deforestation Alerts in the Amazon Region (2020-2023)",
-        "chart_type": "line",
-        "insight": "Deforestation alerts in the Amazon region have shown a declining trend over the past four years, decreasing from 1,450 alerts in 2021 to 980 alerts in 2023. After an initial increase of 21% from 2020 to 2021, alerts decreased by 24% in the following two years, suggesting potentially improved conservation efforts or changes in monitoring systems.",
-        "data": [
-            {"date": "2020-01-01", "alerts": 1200, "year": "2020"},
-            {"date": "2021-01-01", "alerts": 1450, "year": "2021"},
-            {"date": "2022-01-01", "alerts": 1100, "year": "2022"},
-            {"date": "2023-01-01", "alerts": 980, "year": "2023"}
-        ],
-        "x_axis": "year",
-        "y_axis": "alerts",
-        "color_field": ""
-    }
+"insight": {
+    "title": "Forest Loss Composition by Cause Over Time",
+    "chart_type": "stacked-bar",
+    "insight": "Forest loss in the Amazon shows varying composition over time, with deforestation being the primary driver but fires becoming increasingly significant. In 2022, fires accounted for the highest proportion of forest loss (1,200 incidents) compared to previous years, while traditional deforestation decreased from 1,200 to 950 incidents.",
+    "data": [
+        {"year": "2020", "deforestation": 1200, "fires": 800, "logging": 400, "agriculture": 600},
+        {"year": "2021", "deforestation": 1100, "fires": 900, "logging": 350, "agriculture": 700},
+        {"year": "2022", "deforestation": 950, "fires": 1200, "logging": 300, "agriculture": 800},
+        {"year": "2023", "deforestation": 800, "fires": 1100, "logging": 250, "agriculture": 750}
+    ],
+    "x_axis": "year",
+    "y_axis": "value",
+    "color_field": "",
+    "stack_field": "year",
+    "group_field": "",
+    "series_fields": ["deforestation", "fires", "logging", "agriculture"]
+},
+"follow_up_suggestions": [
+    "Show the percentage breakdown of each cause by year",
+    "Compare this pattern with other forest regions globally"
 ],
 "charts_data": [
     {
-        "id": "chart_1",
-        "title": "Deforestation Alerts in the Amazon Region (2020-2023)",
-        "type": "line",
-        "insight": "Deforestation alerts in the Amazon region have shown a declining trend over the past four years, decreasing from 1,450 alerts in 2021 to 980 alerts in 2023. After an initial increase of 21% from 2020 to 2021, alerts decreased by 24% in the following two years, suggesting potentially improved conservation efforts or changes in monitoring systems.",
+        "id": "main_chart",
+        "title": "Forest Loss Composition by Cause Over Time",
+        "type": "stacked-bar",
+        "insight": "Forest loss in the Amazon shows varying composition over time, with deforestation being the primary driver but fires becoming increasingly significant. In 2022, fires accounted for the highest proportion of forest loss (1,200 incidents) compared to previous years, while traditional deforestation decreased from 1,200 to 950 incidents.",
         "data": [
-            {"date": "2020-01-01", "alerts": 1200, "year": "2020"},
-            {"date": "2021-01-01", "alerts": 1450, "year": "2021"},
-            {"date": "2022-01-01", "alerts": 1100, "year": "2022"},
-            {"date": "2023-01-01", "alerts": 980, "year": "2023"}
+            {"year": "2020", "deforestation": 1200, "fires": 800, "logging": 400, "agriculture": 600},
+            {"year": "2021", "deforestation": 1100, "fires": 900, "logging": 350, "agriculture": 700},
+            {"year": "2022", "deforestation": 950, "fires": 1200, "logging": 300, "agriculture": 800},
+            {"year": "2023", "deforestation": 800, "fires": 1100, "logging": 250, "agriculture": 750}
         ],
         "xAxis": "year",
-        "yAxis": "alerts",
-        "colorField": ""
+        "yAxis": "value",
+        "colorField": "",
+        "stackField": "year",
+        "groupField": "",
+        "seriesFields": ["deforestation", "fires", "logging", "agriculture"]
     }
 ],
 "insight_count": 1,
 "messages": [
     {
-        "content": "**Insight 1: Deforestation Alerts in the Amazon Region (2020-2023)**\nChart Type: line\nKey Finding: Deforestation alerts in the Amazon region have shown a declining trend over the past four years, decreasing from 1,450 alerts in 2021 to 980 alerts in 2023. After an initial increase of 21% from 2020 to 2021, alerts decreased by 24% in the following two years, suggesting potentially improved conservation efforts or changes in monitoring systems.\nData Points: 4\n",
-        "tool_call_id": "test-id-1"
+        "content": "**Forest Loss Composition by Cause Over Time**\nChart Type: stacked-bar\nKey Finding: Forest loss in the Amazon shows varying composition over time, with deforestation being the primary driver but fires becoming increasingly significant. In 2022, fires accounted for the highest proportion of forest loss (1,200 incidents) compared to previous years, while traditional deforestation decreased from 1,200 to 950 incidents.\nData Points: 4\n\n**💡 Follow-up suggestions:**\n1. Show the percentage breakdown of each cause by year\n2. Compare this pattern with other forest regions globally\n",
+        "tool_call_id": "test-stacked"
+    }
+]
+```
+
+**Advanced Grouped Bar Chart Example**
+
+```json
+"insight": {
+    "title": "Forest Loss vs Fire Incidents Comparison by Country",
+    "chart_type": "grouped-bar",
+    "insight": "Brazil shows the highest forest loss (11,568 thousand hectares) but proportionally fewer fire incidents (8,500) compared to Indonesia, which has 6,020 thousand hectares of forest loss with 4,200 fire incidents. This suggests different primary drivers of forest loss across these regions.",
+    "data": [
+        {"country": "Brazil", "metric": "Forest Loss", "value": 11568},
+        {"country": "Brazil", "metric": "Fire Incidents", "value": 8500},
+        {"country": "Indonesia", "metric": "Forest Loss", "value": 6020},
+        {"country": "Indonesia", "metric": "Fire Incidents", "value": 4200},
+        {"country": "DRC", "metric": "Forest Loss", "value": 4770},
+        {"country": "DRC", "metric": "Fire Incidents", "value": 2100}
+    ],
+    "x_axis": "country",
+    "y_axis": "value",
+    "color_field": "",
+    "stack_field": "",
+    "group_field": "metric",
+    "series_fields": []
+},
+"follow_up_suggestions": [
+    "Calculate the fire-to-forest-loss ratio for each country",
+    "Show this comparison over multiple years to identify trends"
+],
+"charts_data": [
+    {
+        "id": "main_chart",
+        "title": "Forest Loss vs Fire Incidents Comparison by Country",
+        "type": "grouped-bar",
+        "insight": "Brazil shows the highest forest loss (11,568 thousand hectares) but proportionally fewer fire incidents (8,500) compared to Indonesia, which has 6,020 thousand hectares of forest loss with 4,200 fire incidents. This suggests different primary drivers of forest loss across these regions.",
+        "data": [
+            {"country": "Brazil", "metric": "Forest Loss", "value": 11568},
+            {"country": "Brazil", "metric": "Fire Incidents", "value": 8500},
+            {"country": "Indonesia", "metric": "Forest Loss", "value": 6020},
+            {"country": "Indonesia", "metric": "Fire Incidents", "value": 4200},
+            {"country": "DRC", "metric": "Forest Loss", "value": 4770},
+            {"country": "DRC", "metric": "Fire Incidents", "value": 2100}
+        ],
+        "xAxis": "country",
+        "yAxis": "value",
+        "colorField": "",
+        "stackField": "",
+        "groupField": "metric",
+        "seriesFields": []
+    }
+],
+"insight_count": 1,
+"messages": [
+    {
+        "content": "**Forest Loss vs Fire Incidents Comparison by Country**\nChart Type: grouped-bar\nKey Finding: Brazil shows the highest forest loss (11,568 thousand hectares) but proportionally fewer fire incidents (8,500) compared to Indonesia, which has 6,020 thousand hectares of forest loss with 4,200 fire incidents. This suggests different primary drivers of forest loss across these regions.\nData Points: 6\n\n**💡 Follow-up suggestions:**\n1. Calculate the fire-to-forest-loss ratio for each country\n2. Show this comparison over multiple years to identify trends\n",
+        "tool_call_id": "test-grouped"
     }
 ]
 ```
