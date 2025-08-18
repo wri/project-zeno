@@ -332,7 +332,7 @@ datasets:
     Learning. Scientific Data, 11(1), 1303. https://doi.org/10.1038/s41597-024-04139-6
 
 - dataset_id: 3
-  dataset_name: Natural lands
+  dataset_name: SBTN Natural Lands Map
   context_layers: null
   variables: binary, classification
   tile_url: ""
@@ -344,15 +344,11 @@ datasets:
   keywords: "land cover, deforestation, conversion, supply chains, natural lands"
   analytics_api_endpoint: "/v0/land_change/natural_lands/analytics"
   prompt_instructions: >
-    Classifies each pixel as "natural" or "non-natural" relative to a 2020 baseline,
-    letting users check if later change occurred on natural land. These categories
-    can be further broken down into sub-classes. Compare natural vs non-natural area
-    with bar or pie charts, aggregating area_ha, and excluding zeroes. "Natural"
-    here refers to ecological integrity, not legal protection—avoid assuming
-    conservation status. Users should identify change with land cover change data
-    and then refer to the Natural Lands Map to see if the change occurred on land
-    that was natural in 2020. If the user asks about gains in natural land, clarify
-    whether restoration areas count.
+    Natural and non-natural lands in 2020. Created to see if there were natural lands within users' production units in 2020, and can be used with additional monitoring data to see if change occurred on land that was natural.
+    Use bar or pie charts to display areas of natural and non-natural areas in proportion to each other. Show data on map since it is intended to be primarily spatial data. 
+    Natural lands resemble what would be found in the absence of major human impacts and can include managed or degraded ecosystems. These data do not represent protection or legality of land. 
+    If user asks for change, tell them that this dataset only represents one year, but they can use the land cover data to map change. Land cover change on natural lands could represent conversion or natural disturbance.
+    If a users asks about natural forests, combine natural forest, mangrove, natural wetland forest, and natural peat forest into one class. 
   description: >
     The SBTN Natural Lands Map v1.1 is a 2020 baseline map of natural and non-natural land
     covers intended for use by companies setting science-based targets for nature, specifically
