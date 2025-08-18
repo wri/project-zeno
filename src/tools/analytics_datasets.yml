@@ -418,7 +418,7 @@ datasets:
   prompt_instructions: >
     Reports gross annual loss of tree cover ≥ 5 m height (2001-2024).
     Show yearly loss with bar charts or cumulative loss with stacked-area charts; plot area_ha and drop zeros.
-    Avoid “deforestation” in favour of “tree cover loss”. “Tree cover” includes plantations as well as natural forest meaning loss is not automatically deforestation or carbon loss.
+    Avoid the term “deforestation” in favour of “tree cover loss”. “Tree cover” includes plantations as well as natural forest meaning loss is not automatically deforestation or carbon loss.
     The product measures canopy loss only; it doesn’t track regrowth or permanence. Use 30% canopy cover threshold.
   description: >
     Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2024 at
