@@ -1,4 +1,3 @@
-import csv
 import io
 import json
 import os
@@ -10,6 +9,7 @@ from typing import Dict, Optional
 from uuid import UUID
 
 import cachetools
+import pandas as pd
 import requests
 import structlog
 from fastapi import (
@@ -325,7 +325,7 @@ async def stream_chat(
 
     config = {
         "configurable": {"thread_id": thread_id},
-        "callbacks": [langfuse_handler],
+        # "callbacks": [langfuse_handler],
     }
 
     if not thread_id:
@@ -837,6 +837,7 @@ async def get_thread(
     - 401: Private thread accessed without authentication
     - 404: Thread not found or access denied (private thread accessed by non-owner)
     """
+
     # First, try to get the thread to check if it exists and if it's public
     stmt = select(ThreadOrm).filter_by(id=thread_id)
     result = await session.execute(stmt)
@@ -869,7 +870,6 @@ async def get_thread(
         logger.debug(
             "Accessing private thread", thread_id=thread_id, user_id=user.id
         )
-
     try:
         logger.debug("Replaying thread", thread_id=thread_id)
         return StreamingResponse(
@@ -1440,23 +1440,31 @@ async def get_raw_data(
 
     state = await zeno_async.aget_state(config=config)
 
-    raw_data = state.get("raw_data", {})
+    raw_data = state.values.get("raw_data", {})
+
+    # raw data is formatted as:
+    # {col1: [year 1, year 2, ...], col2: [year 1, year 2, ...]}
+
+    df = pd.DataFrame(raw_data)
+
+    if "id" in df.columns:
+        cols = ["id"] + [c for c in df.columns if c != "id"]
+        df = df[cols]
+
+    if content_type == "application/json":
+        return df.to_dict()
 
     if content_type == "text/csv":
-        # Convert raw_data (assumed to be a list of dicts) to CSV
-        output = io.StringIO()
-        if (
-            raw_data
-            and isinstance(raw_data, list)
-            and isinstance(raw_data[0], dict)
-        ):
-            writer = csv.DictWriter(output, fieldnames=raw_data[0].keys())
-            writer.writeheader()
-            writer.writerows(raw_data)
-        else:
-            # If raw_data is not a list of dicts, return empty CSV
-            writer = csv.writer(output)
-            writer.writerow(["No data"])
-        return Response(content=output.getvalue(), media_type="text/csv")
+        buf = io.StringIO()
+        df.to_csv(buf, index=False)
+        csv_data = buf.getvalue()
+        filename = f"thread_{thread_id}_raw_data.csv"
+        headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+        return Response(
+            content=csv_data, media_type="text/csv", headers=headers
+        )
     else:
-        return raw_data
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported Media Type: {content_type}, must be one of [application/json, text/csv]",
+        )

@@ -70,28 +70,29 @@ def update_thread_name_dialog(thread_id):
 # Fetch a single thread
 def fetch_thread(thread_id):
     client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
+    st.header(f"{thread_options[thread_id]['name']}")
 
-    col1, col2, col3, col4 = st.columns([0.7, 0.1, 0.1, 0.1])
+    col1, col2, col3 = st.columns([0.1, 0.1, 0.8], gap=None)
+
     with col1:
-        st.header(f"{thread_options[thread_id]['name']}")
-
-    with col2:
         if st.button(":pencil2:", key=f"save-{thread_id}"):
             update_thread_name_dialog(thread_id)
 
-    with col3:
-        if col3.button(":wastebasket:", key=f"delete-{thread_id}"):
+    with col2:
+        if col2.button(":wastebasket:", key=f"delete-{thread_id}"):
             delete_dialog(thread_id)
 
-    with col4:
-        csv_data = client.download_csv_data(thread_id)
-        print(csv_data)
+    with col3:
         st.download_button(
-            label="Download CSV",
-            data=csv_data,
+            label="Download data CSV",
+            data=client.download_data(thread_id),
             file_name=f"raw_data_thread_{thread_id}.csv",
             mime="text/csv",
         )
+
+    st.text(f"Created: {thread_options[thread_id]['created_at']}")
+
+    return client.fetch(thread_id)
 
 
 threads = []
@@ -174,7 +175,8 @@ if st.session_state.get("thread_update_error"):
     )
 
 if thread_id := st.session_state.get("selected_id"):
-    thread = fetch_thread(thread_id)
+    for stream in fetch_thread(thread_id):
+        render_stream(stream)
 
     if user_input := st.chat_input(
         (
@@ -210,6 +212,7 @@ if thread_id := st.session_state.get("selected_id"):
             client = ZenoClient(
                 base_url=API_BASE_URL, token=st.session_state.token
             )
+
             for stream in client.chat(
                 query=user_input,
                 user_persona="Researcher",

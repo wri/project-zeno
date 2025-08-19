@@ -125,11 +125,11 @@ class ZenoClient:
                 )
             return response.json()
 
-    def download_csv_data(self, thread_id):
+    def download_data(self, thread_id, mime_type: str = "text/csv"):
         url = f"{self.base_url}/api/threads/{thread_id}/raw_data"
         headers = {
             "Authorization": f"Bearer {self.token}",
-            "Content-Type": "text/csv",
+            "Content-Type": mime_type,
         }
 
         with requests.get(url, headers=headers) as response:
@@ -137,7 +137,14 @@ class ZenoClient:
                 raise Exception(
                     f"Request failed with status code {response.status_code}: {response.text}"
                 )
-            return response.content
+            if mime_type == "text/csv":
+                return response.content
+            if mime_type == "application/json":
+                return response.json()
+            else:
+                raise ValueError(
+                    f"Unsupported MIME type: {mime_type}, must be one of ['text/csv', 'application/json']"
+                )
 
     def get_quota_info(self):
         url = f"{self.base_url}/api/quota"
