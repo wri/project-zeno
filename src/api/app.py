@@ -1195,7 +1195,7 @@ async def get_thread_ratings(
     **Response**: Returns an array of ratings with metadata
 
     **Error Responses**:
-    - 401: Missing or invalid authentication  
+    - 401: Missing or invalid authentication
     - 404: Thread not found or access denied
     """
     # Verify if the thread exists and belongs to the user
@@ -1208,9 +1208,11 @@ async def get_thread_ratings(
         )
 
     # Get all ratings for this thread by the user
-    stmt = select(RatingOrm).filter_by(
-        user_id=user.id, thread_id=thread_id
-    ).order_by(RatingOrm.created_at)
+    stmt = (
+        select(RatingOrm)
+        .filter_by(user_id=user.id, thread_id=thread_id)
+        .order_by(RatingOrm.created_at)
+    )
     result = await session.execute(stmt)
     ratings = result.scalars().all()
 

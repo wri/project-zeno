@@ -305,7 +305,7 @@ async def test_get_thread_ratings_nonexistent_thread(
 ):
     """Test getting ratings for a thread that doesn't exist."""
     auth_override("test-user-wri")
-    
+
     response = await client.get(
         "/api/threads/nonexistent-thread/rating",
         headers={"Authorization": "Bearer test-user-wri-token"},
@@ -416,4 +416,6 @@ async def test_full_flow_create_and_get_ratings(
     assert final_ratings[0]["trace_id"] == "test-trace-flow"
     assert final_ratings[0]["rating"] == -1
     assert final_ratings[0]["comment"] == "Updated rating"
-    assert final_ratings[0]["id"] == created_rating["id"]  # Same ID (updated, not created new)
+    assert (
+        final_ratings[0]["id"] == created_rating["id"]
+    )  # Same ID (updated, not created new)
