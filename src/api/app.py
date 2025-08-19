@@ -1170,6 +1170,62 @@ async def create_or_update_rating(
         return RatingModel.model_validate(new_rating)
 
 
+@app.get("/api/threads/{thread_id}/rating", response_model=list[RatingModel])
+async def get_thread_ratings(
+    thread_id: str,
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get all ratings for traces in a thread.
+
+    This endpoint allows authenticated users to retrieve all ratings they have
+    provided for traces within a specific conversation thread.
+
+    **Authentication**: Requires Bearer token in Authorization header.
+
+    **Path Parameters**:
+    - thread_id (str): The unique identifier of the thread
+
+    **Behavior**:
+    - Returns all ratings created by the authenticated user for the specified thread
+    - Returns empty array if no ratings exist for the thread
+    - The thread must exist and belong to the authenticated user
+
+    **Response**: Returns an array of ratings with metadata
+
+    **Error Responses**:
+    - 401: Missing or invalid authentication
+    - 404: Thread not found or access denied
+    """
+    # Verify if the thread exists and belongs to the user
+    stmt = select(ThreadOrm).filter_by(id=thread_id, user_id=user.id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
+    if not thread:
+        raise HTTPException(
+            status_code=404, detail="Thread not found or access denied"
+        )
+
+    # Get all ratings for this thread by the user
+    stmt = (
+        select(RatingOrm)
+        .filter_by(user_id=user.id, thread_id=thread_id)
+        .order_by(RatingOrm.created_at)
+    )
+    result = await session.execute(stmt)
+    ratings = result.scalars().all()
+
+    logger.info(
+        "Thread ratings retrieved",
+        user_id=user.id,
+        thread_id=thread_id,
+        count=len(ratings),
+    )
+
+    return [RatingModel.model_validate(rating) for rating in ratings]
+
+
 @app.get("/api/auth/me", response_model=UserWithQuotaModel)
 async def auth_me(
     user: UserModel = Depends(require_auth),
