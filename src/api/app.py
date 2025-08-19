@@ -1295,7 +1295,7 @@ async def api_metadata() -> dict:
     }
 
 
-@app.post("/api/custom_areas/", response_model=CustomAreaModel)
+@app.post("/api/custom_areas", response_model=CustomAreaModel)
 async def create_custom_area(
     area: CustomAreaCreate,
     user: UserModel = Depends(require_auth),
@@ -1321,7 +1321,7 @@ async def create_custom_area(
     )
 
 
-@app.get("/api/custom_areas/", response_model=list[CustomAreaModel])
+@app.get("/api/custom_areas", response_model=list[CustomAreaModel])
 async def list_custom_areas(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_async_session),
