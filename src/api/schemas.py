@@ -58,8 +58,8 @@ class UserModel(BaseModel):
         return value
 
 
-class UserWithQuotaModel(UserModel):
-    """User model with quota information."""
+class QuotaModel(BaseModel):
+    """Quota information"""
 
     model_config = ConfigDict(
         alias_generator=alias_generators.to_camel,
@@ -72,6 +72,20 @@ class UserWithQuotaModel(UserModel):
     prompt_quota: Optional[int] = Field(
         None, description="Prompt quota for the user"
     )
+
+
+class UserWithQuotaModel(UserModel, QuotaModel):
+    """User model with quota information."""
+
+    # model_config = ConfigDict(
+    #     alias_generator=alias_generators.to_camel,
+    #     from_attributes=True,
+    #     populate_by_name=True,
+    # )
+    # prompts_used: Optional[int] = Field(
+    #     None, description="Number of prompts used today"
+    # )
+    # prompt_quota: Optional[int] = Field(None, description="Prompt quota for the user")
 
 
 class GeometryResponse(BaseModel):
