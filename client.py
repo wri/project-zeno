@@ -125,6 +125,18 @@ class ZenoClient:
                 )
             return response.json()
 
+    def get_quota_info(self):
+        url = f"{self.base_url}/api/quota"
+        headers = (
+            {"Authorization": f"Bearer {self.token}"} if self.token else {}
+        )
+        with requests.get(url, headers=headers) as response:
+            if response.status_code != 200:
+                raise Exception(
+                    f"Request for quota information failed with status code {response.status_code}: {response.text}"
+                )
+            return response.json()
+
     def chat(
         self,
         query: str,

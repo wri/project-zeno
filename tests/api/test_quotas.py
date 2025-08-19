@@ -41,7 +41,7 @@ class TestQuotaFunctionality:
             data = response.json()
             assert "promptsUsed" in data
             assert "promptQuota" in data
-            assert data["promptsUsed"] == 1
+            assert data["promptsUsed"] == 0
             assert data["promptQuota"] == APISettings.regular_user_daily_quota
 
     @pytest.mark.asyncio
@@ -80,14 +80,29 @@ class TestQuotaFunctionality:
                 "/api/auth/me", headers={"Authorization": "Bearer test-token"}
             )
             assert response1.status_code == 200
-            assert response1.json()["promptsUsed"] == 1
+            assert response1.json()["promptsUsed"] == 0
+
+            chat_request = {
+                "query": "Hello, world!",
+                "thread_id": "test-thread-123",
+            }
+
+            # Mock the stream_chat function to avoid actual LLM calls
+            with patch("src.api.app.stream_chat") as mock_stream:
+                mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
+
+                _ = await client.post(
+                    "/api/chat",
+                    json=chat_request,
+                    headers={"Authorization": "Bearer test-token"},
+                )
 
             # Second call
             response2 = await client.get(
                 "/api/auth/me", headers={"Authorization": "Bearer test-token"}
             )
             assert response2.status_code == 200
-            assert response2.json()["promptsUsed"] == 2
+            assert response2.json()["promptsUsed"] == 1
 
     @pytest.mark.asyncio
     async def test_chat_includes_quota_headers_when_enabled(self, client):
@@ -182,6 +197,12 @@ class TestQuotaFunctionality:
     @pytest.mark.asyncio
     async def test_anonymous_user_quota_tracking(self, anonymous_client):
         """Test that anonymous users get proper quota tracking."""
+
+        response = await anonymous_client.get("/api/quota")
+        assert response.status_code == 200
+        assert "promptQuota" in response.json()
+        assert response.json()["promptsUsed"] == 0
+
         with patch("src.api.app.stream_chat") as mock_stream:
             mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
 
@@ -229,8 +250,16 @@ class TestQuotaFunctionality:
                 chat_used = int(chat_response.headers["X-Prompts-Used"])
                 chat_quota = int(chat_response.headers["X-Prompts-Quota"])
 
+            quota_response = await client.get(
+                "/api/quota", headers={"Authorization": "Bearer test-token"}
+            )
+
             # Values should be consistent and incremental
-            assert chat_used == auth_used + 1  # auth(1) -> chat(2)
+            assert (
+                chat_used
+                == quota_response.json()["promptsUsed"]
+                == auth_used + 1
+            )  # auth(1) -> chat(2)
             assert chat_quota == APISettings.regular_user_daily_quota
 
     @pytest.mark.asyncio
