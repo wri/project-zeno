@@ -6,7 +6,7 @@ async def test_custom_area_endpoints(auth_override, client):
     auth_override("test-user-wri")
     # list custom areas
     res = await client.get(
-        "/api/custom_areas/",
+        "/api/custom_areas",
         headers={"Authorization": "Bearer abc123"},
     )
 
@@ -15,7 +15,7 @@ async def test_custom_area_endpoints(auth_override, client):
 
     # create a custom area
     res = await client.post(
-        "/api/custom_areas/",
+        "/api/custom_areas",
         json={
             "name": "Test area",
             "geometries": [
@@ -57,7 +57,7 @@ async def test_custom_area_endpoints(auth_override, client):
 
     # list custom areas again
     res = await client.get(
-        "/api/custom_areas/",
+        "/api/custom_areas",
         headers={"Authorization": "Bearer abc123"},
     )
 
@@ -101,7 +101,7 @@ async def test_custom_area_endpoints(auth_override, client):
 
     # list custom areas after deletion
     res = await client.get(
-        "/api/custom_areas/",
+        "/api/custom_areas",
         headers={"Authorization": "Bearer abc123"},
     )
 

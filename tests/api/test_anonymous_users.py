@@ -46,8 +46,8 @@ class TestAnonymousUserAccess:
         protected_endpoints = [
             ("/api/auth/me", "GET"),
             ("/api/threads", "GET"),
-            ("/api/custom_areas/", "GET"),
-            ("/api/custom_areas/", "POST"),
+            ("/api/custom_areas", "GET"),
+            ("/api/custom_areas", "POST"),
         ]
 
         for endpoint, method in protected_endpoints:
