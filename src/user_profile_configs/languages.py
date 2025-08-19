@@ -6,7 +6,7 @@ LANGUAGES = {
     "zh": "Chinese (Simplified)",
     "zh-TW": "Chinese (Traditional)",
     "nl": "Dutch",
-    "en": "English", 
+    "en": "English",
     "fr": "French",
     "de": "German",
     "hi": "Hindi",
@@ -22,5 +22,5 @@ LANGUAGES = {
     "th": "Thai",
     "tr": "Turkish",
     "vi": "Vietnamese",
-    "other": "Other"
+    "other": "Other",
 }

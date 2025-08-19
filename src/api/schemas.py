@@ -12,10 +12,10 @@ from pydantic import (
 )
 
 from src.api.data_models import UserType
-from src.user_profile_configs.sectors import SECTORS, SECTOR_ROLES
-from src.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.user_profile_configs.countries import COUNTRIES
+from src.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.user_profile_configs.languages import LANGUAGES
+from src.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
 
 
 class ThreadModel(BaseModel):
@@ -51,12 +51,14 @@ class UserModel(BaseModel):
     updated_at: datetime
     threads: list[ThreadModel] = []
     user_type: UserType = UserType.REGULAR
-    
+
     # New profile fields - Basic
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    profile_description: Optional[str] = Field(None, description="What are you looking for or trying to do with Zeno?")
-    
+    profile_description: Optional[str] = Field(
+        None, description="What are you looking for or trying to do with Zeno?"
+    )
+
     # New profile fields - Detailed
     sector_code: Optional[str] = None
     role_code: Optional[str] = None
@@ -88,7 +90,9 @@ class UserModel(BaseModel):
             sector_code = info.data.get("sector_code")
             if sector_code and sector_code in SECTOR_ROLES:
                 if v not in SECTOR_ROLES[sector_code]:
-                    raise ValueError(f"Invalid role code: {v} for sector: {sector_code}")
+                    raise ValueError(
+                        f"Invalid role code: {v} for sector: {sector_code}"
+                    )
             elif v != "other":
                 raise ValueError(f"Invalid role code: {v}")
         return v
@@ -114,12 +118,14 @@ class UserModel(BaseModel):
 
 class UserProfileUpdateRequest(BaseModel):
     """Request schema for updating user profile fields."""
-    
+
     # Basic profile fields
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    profile_description: Optional[str] = Field(None, description="What are you looking for or trying to do with Zeno?")
-    
+    profile_description: Optional[str] = Field(
+        None, description="What are you looking for or trying to do with Zeno?"
+    )
+
     # Detailed profile fields
     sector_code: Optional[str] = None
     role_code: Optional[str] = None
@@ -142,7 +148,9 @@ class UserProfileUpdateRequest(BaseModel):
             sector_code = info.data.get("sector_code")
             if sector_code and sector_code in SECTOR_ROLES:
                 if v not in SECTOR_ROLES[sector_code]:
-                    raise ValueError(f"Invalid role code: {v} for sector: {sector_code}")
+                    raise ValueError(
+                        f"Invalid role code: {v} for sector: {sector_code}"
+                    )
             elif v != "other":
                 raise ValueError(f"Invalid role code: {v}")
         return v
@@ -168,7 +176,7 @@ class UserProfileUpdateRequest(BaseModel):
 
 class ProfileConfigResponse(BaseModel):
     """Response schema for profile configuration options."""
-    
+
     sectors: dict[str, str] = SECTORS
     sector_roles: dict[str, dict[str, str]] = SECTOR_ROLES
     countries: dict[str, str] = COUNTRIES

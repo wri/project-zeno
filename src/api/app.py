@@ -1242,7 +1242,28 @@ async def auth_me(
 
     Returns:
         UserWithQuotaModel containing:
-        - User information (id, name, email, etc.)
+
+        **Core User Fields:**
+        - id: Unique user identifier
+        - name: User's display name (from OAuth, non-editable)
+        - email: User's email address (from OAuth, non-editable)
+        - userType: User type ("regular" or "admin")
+        - createdAt/updatedAt: Timestamps
+
+        **Profile Fields (editable via PATCH /api/auth/profile):**
+        - firstName: User's first name (optional)
+        - lastName: User's last name (optional, required in registration flow)
+        - profileDescription: What they're looking for with Zeno (optional)
+        - sectorCode: Work sector code (optional, see /api/profile/config)
+        - roleCode: Job role code (optional, depends on sector)
+        - jobTitle: Free text job title (optional)
+        - companyOrganization: Company/organization name (optional)
+        - countryCode: ISO country code (optional, see /api/profile/config)
+        - preferredLanguageCode: ISO language code (optional, see /api/profile/config)
+        - gisExpertiseLevel: GIS expertise level (optional, see /api/profile/config)
+        - areasOfInterest: Free text areas of interest (optional)
+
+        **Quota Information:**
         - promptsUsed: Number of prompts used today (null if quota disabled)
         - promptQuota: Daily prompt limit for this user (null if quota disabled)
 
@@ -1250,6 +1271,7 @@ async def auth_me(
         - Admin users have higher quotas than regular users
         - When quota checking is disabled, quota fields return null
         - Calling this endpoint increments the user's daily quota usage
+        - Use GET /api/profile/config to get valid values for dropdown fields
     """
     if not APISettings.enable_quota_checking:
         return {
@@ -1268,34 +1290,87 @@ async def update_user_profile(
 ):
     """
     Update user profile fields.
-    
+
     Requires Authorization: Bearer <JWT>
     Updates the user's profile information with the provided fields.
     Only provided fields will be updated (partial update).
-    
-    Args:
-        profile_update: Profile fields to update
-        
-    Returns:
-        UserModel: Updated user information
+
+    **Updatable Fields:**
+
+    **Basic Profile:**
+    - firstName: User's first name (string, optional)
+    - lastName: User's last name (string, optional, required for registration flow)
+    - profileDescription: What they're looking for with Zeno (string, optional)
+
+    **Detailed Profile:**
+    - sectorCode: Work sector (string, optional)
+      - Valid values: GET /api/profile/config → sectors
+      - Examples: "gov", "ngo", "research", "private"
+    - roleCode: Job role (string, optional)
+      - Valid values depend on selected sector: GET /api/profile/config → sectorRoles[sectorCode]
+      - Must be valid for the specified sector
+    - jobTitle: Free text job title (string, optional)
+    - companyOrganization: Company/organization name (string, optional)
+    - countryCode: ISO 3166-1 alpha-2 country code (string, optional)
+      - Valid values: GET /api/profile/config → countries
+      - Examples: "US", "GB", "CA", "BR"
+    - preferredLanguageCode: ISO 639-1 language code (string, optional)
+      - Valid values: GET /api/profile/config → languages
+      - Examples: "en", "es", "fr", "de"
+    - gisExpertiseLevel: GIS expertise level (string, optional)
+      - Valid values: GET /api/profile/config → gisExpertiseLevels
+      - Examples: "beginner", "intermediate", "advanced", "expert"
+    - areasOfInterest: Free text areas of interest (string, optional)
+
+    **Request Body Example:**
+    ```json
+    {
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "profileDescription": "I work on forest conservation projects",
+      "sectorCode": "ngo",
+      "roleCode": "program",
+      "jobTitle": "Program Manager",
+      "companyOrganization": "Forest Conservation International",
+      "countryCode": "US",
+      "preferredLanguageCode": "en",
+      "gisExpertiseLevel": "intermediate",
+      "areasOfInterest": "Deforestation monitoring, Biodiversity conservation"
+    }
+    ```
+
+    **Validation:**
+    - All dropdown fields are validated against configuration values
+    - roleCode must be valid for the specified sectorCode
+    - Empty/null values are allowed for all fields
+    - Invalid codes return 422 Unprocessable Entity
+
+    **Returns:**
+        UserModel: Complete updated user information (all fields, not just updated ones)
+
+    **Notes:**
+    - Partial updates supported - only send fields you want to change
+    - Original core fields (id, name, email) are never modified
+    - Use GET /api/profile/config to get all valid dropdown values
+    - Users are auto-created on first authenticated request if they don't exist
     """
     # Get the user from database
     result = await session.execute(
         select(UserOrm).where(UserOrm.id == user.id)
     )
     db_user = result.scalar_one_or_none()
-    
+
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     # Update only provided fields
     update_data = profile_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_user, field, value)
-    
+
     await session.commit()
     await session.refresh(db_user)
-    
+
     # Create response data without loading relationships to avoid lazy loading issues
     response_data = {
         "id": db_user.id,
@@ -1317,7 +1392,7 @@ async def update_user_profile(
         "gis_expertise_level": db_user.gis_expertise_level,
         "areas_of_interest": db_user.areas_of_interest,
     }
-    
+
     return UserModel(**response_data)
 
 
@@ -1325,12 +1400,73 @@ async def update_user_profile(
 async def get_profile_config():
     """
     Get configuration options for profile dropdowns.
-    
-    Returns all available options for profile dropdown fields
-    including sectors, roles, countries, languages, and GIS expertise levels.
-    
+
+    **No authentication required** - Public endpoint for form configuration.
+
+    Returns all available options for profile dropdown fields to populate
+    frontend form dropdowns and validate user input.
+
+    **Response Structure:**
+    ```json
+    {
+      "sectors": {
+        "gov": "Government",
+        "ngo": "NGO/Non-Profit",
+        "research": "Research/Academia",
+        "private": "Private Sector",
+        ...
+      },
+      "sectorRoles": {
+        "gov": {
+          "policy": "Policy Maker",
+          "analyst": "Government Analyst",
+          ...
+        },
+        "ngo": {
+          "program": "Program Officer",
+          "research": "Research Coordinator",
+          ...
+        },
+        ...
+      },
+      "countries": {
+        "US": "United States",
+        "GB": "United Kingdom",
+        "CA": "Canada",
+        ...
+      },
+      "languages": {
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French",
+        ...
+      },
+      "gisExpertiseLevels": {
+        "beginner": "Beginner - New to GIS and Global Forest Watch",
+        "intermediate": "Intermediate - Some experience with GIS or Global Forest Watch",
+        "advanced": "Advanced - Experienced with GIS and Global Forest Watch tools",
+        "expert": "Expert - Extensive experience with GIS analysis and Global Forest Watch"
+      }
+    }
+    ```
+
+    **Usage:**
+    - Use `sectors` keys as valid values for `sectorCode` in profile updates
+    - Use `sectorRoles[selectedSectorCode]` keys as valid values for `roleCode`
+    - Use `countries` keys (ISO 3166-1 alpha-2) as valid values for `countryCode`
+    - Use `languages` keys (ISO 639-1) as valid values for `preferredLanguageCode`
+    - Use `gisExpertiseLevels` keys as valid values for `gisExpertiseLevel`
+    - Display values are the human-readable strings for UI
+
+    **Implementation Notes:**
+    - Role options are dependent on sector selection
+    - Country codes follow ISO 3166-1 alpha-2 standard
+    - Language codes follow ISO 639-1 standard
+    - All configurations are static and change infrequently
+    - Consider caching this response on the frontend
+
     Returns:
-        ProfileConfigResponse: Configuration options for profile forms
+        ProfileConfigResponse: All configuration options for profile forms
     """
     return ProfileConfigResponse()
 

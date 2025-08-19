@@ -102,5 +102,5 @@ COUNTRIES = {
     "UZ": "Uzbekistan",
     "VU": "Vanuatu",
     "VN": "Vietnam",
-    "OTHER": "Other"
+    "OTHER": "Other",
 }
