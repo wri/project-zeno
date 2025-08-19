@@ -532,6 +532,18 @@ async def require_auth(
         created_at=user.created_at,
         updated_at=user.updated_at,
         user_type=user.user_type,
+        # Profile fields
+        first_name=user.first_name,
+        last_name=user.last_name,
+        profile_description=user.profile_description,
+        sector_code=user.sector_code,
+        role_code=user.role_code,
+        job_title=user.job_title,
+        company_organization=user.company_organization,
+        country_code=user.country_code,
+        preferred_language_code=user.preferred_language_code,
+        gis_expertise_level=user.gis_expertise_level,
+        areas_of_interest=user.areas_of_interest,
     )
 
 
@@ -563,6 +575,18 @@ async def optional_auth(
         created_at=user.created_at,
         updated_at=user.updated_at,
         user_type=user.user_type,
+        # Profile fields
+        first_name=user.first_name,
+        last_name=user.last_name,
+        profile_description=user.profile_description,
+        sector_code=user.sector_code,
+        role_code=user.role_code,
+        job_title=user.job_title,
+        company_organization=user.company_organization,
+        country_code=user.country_code,
+        preferred_language_code=user.preferred_language_code,
+        gis_expertise_level=user.gis_expertise_level,
+        areas_of_interest=user.areas_of_interest,
     )
 
 
@@ -1353,6 +1377,7 @@ async def update_user_profile(
     - Original core fields (id, name, email) are never modified
     - Use GET /api/profile/config to get all valid dropdown values
     - Users are auto-created on first authenticated request if they don't exist
+    - Profile fields are also returned by GET /api/auth/me (no separate GET needed)
     """
     # Get the user from database
     result = await session.execute(

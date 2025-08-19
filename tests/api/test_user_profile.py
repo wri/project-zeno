@@ -215,6 +215,162 @@ class TestUserProfileAPI:
         assert data["firstName"] == "Alice"
         assert data["id"] == "new-user-id"
 
+    @pytest.mark.asyncio
+    async def test_profile_fields_roundtrip_auth_me(
+        self, client, user, auth_override
+    ):
+        """Test that profile fields saved via PATCH are retrieved via GET /api/auth/me."""
+        auth_override(user.id)
+
+        # Update profile with all field types
+        profile_data = {
+            "first_name": "Jane",
+            "last_name": "Smith",
+            "profile_description": "Forest conservation researcher",
+            "sector_code": self.valid_sector,
+            "role_code": self.valid_role,
+            "job_title": "Senior Research Scientist",
+            "company_organization": "Global Forest Institute",
+            "country_code": self.valid_country,
+            "preferred_language_code": self.valid_language,
+            "gis_expertise_level": self.valid_expertise,
+            "areas_of_interest": "Biodiversity monitoring, Climate change impact",
+        }
+
+        # Save profile via PATCH
+        response = await client.patch("/api/auth/profile", json=profile_data)
+        assert response.status_code == 200
+
+        # Retrieve profile via GET /api/auth/me
+        response = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert response.status_code == 200
+
+        # Verify all profile fields are correctly returned
+        data = response.json()
+        assert data["firstName"] == "Jane"
+        assert data["lastName"] == "Smith"
+        assert data["profileDescription"] == "Forest conservation researcher"
+        assert data["sectorCode"] == self.valid_sector
+        assert data["roleCode"] == self.valid_role
+        assert data["jobTitle"] == "Senior Research Scientist"
+        assert data["companyOrganization"] == "Global Forest Institute"
+        assert data["countryCode"] == self.valid_country
+        assert data["preferredLanguageCode"] == self.valid_language
+        assert data["gisExpertiseLevel"] == self.valid_expertise
+        assert (
+            data["areasOfInterest"]
+            == "Biodiversity monitoring, Climate change impact"
+        )
+
+        # Verify core fields are still present
+        assert data["id"] == user.id
+        assert data["name"] == user.name
+        assert data["email"] == user.email
+
+    @pytest.mark.asyncio
+    async def test_partial_update_roundtrip_auth_me(
+        self, client, user, auth_override
+    ):
+        """Test that partial profile updates are correctly reflected in GET /api/auth/me."""
+        auth_override(user.id)
+
+        # First, set some initial profile data
+        initial_data = {
+            "first_name": "John",
+            "sector_code": self.valid_sector,
+            "job_title": "Analyst",
+        }
+        response = await client.patch("/api/auth/profile", json=initial_data)
+        assert response.status_code == 200
+
+        # Then update only some fields
+        partial_update = {
+            "last_name": "Doe",
+            "profile_description": "Updated description",
+        }
+        response = await client.patch("/api/auth/profile", json=partial_update)
+        assert response.status_code == 200
+
+        # Verify all fields via GET /api/auth/me
+        response = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+        # Previously set fields should remain
+        assert data["firstName"] == "John"
+        assert data["sectorCode"] == self.valid_sector
+        assert data["jobTitle"] == "Analyst"
+        # Newly updated fields should be set
+        assert data["lastName"] == "Doe"
+        assert data["profileDescription"] == "Updated description"
+        # Unset fields should be null
+        assert data["countryCode"] is None
+        assert data["areasOfInterest"] is None
+
+    @pytest.mark.asyncio
+    async def test_profile_fields_null_by_default_in_auth_me(
+        self, client, user, auth_override
+    ):
+        """Test that profile fields are null by default in GET /api/auth/me for existing users."""
+        auth_override(user.id)
+
+        # Get user profile without any updates
+        response = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+
+        # Core fields should be present
+        assert data["id"] == user.id
+        assert data["name"] == user.name
+        assert data["email"] == user.email
+
+        # All profile fields should be null/None for new users
+        assert data["firstName"] is None
+        assert data["lastName"] is None
+        assert data["profileDescription"] is None
+        assert data["sectorCode"] is None
+        assert data["roleCode"] is None
+        assert data["jobTitle"] is None
+        assert data["companyOrganization"] is None
+        assert data["countryCode"] is None
+        assert data["preferredLanguageCode"] is None
+        assert data["gisExpertiseLevel"] is None
+        assert data["areasOfInterest"] is None
+
+    @pytest.mark.asyncio
+    async def test_profile_fields_persist_across_sessions(
+        self, client, user, auth_override
+    ):
+        """Test that profile fields persist across different authentication sessions."""
+        auth_override(user.id)
+
+        # Set profile data
+        profile_data = {
+            "first_name": "Persistent",
+            "job_title": "Data Scientist",
+        }
+        response = await client.patch("/api/auth/profile", json=profile_data)
+        assert response.status_code == 200
+
+        # Simulate new session by making multiple auth/me requests
+        for i in range(3):
+            response = await client.get(
+                "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+            )
+            assert response.status_code == 200
+
+            data = response.json()
+            assert data["firstName"] == "Persistent"
+            assert data["jobTitle"] == "Data Scientist"
+            assert data["id"] == user.id
+
 
 class TestProfileConfigsStructure:
     """Basic tests to ensure configuration files are properly structured."""
