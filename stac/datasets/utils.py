@@ -33,8 +33,37 @@ def get_loader():
     return loader
 
 
-def load_stac_data_to_db(collection: Collection, items: list[Item]):
+def delete_collection_items(collection_id: str):
+    """Delete all items from a collection."""
+    db = PgstacDB()
+    print(f"Deleting all items from collection '{collection_id}'")
+    try:
+        db.query_one(
+            "DELETE FROM pgstac.items WHERE collection = %s", (collection_id,)
+        )
+    except Exception as e:
+        print(f"Error deleting items for collection '{collection_id}': {e}")
+    print(f"Successfully deleted items for collection '{collection_id}'")
+
+
+def load_stac_data_to_db(
+    collection: Collection,
+    items: list[Item],
+    delete_existing_items: bool = False,
+):
+    """
+    Load STAC data to database.
+
+    Args:
+        collection: The STAC collection to load
+        items: List of STAC items to load
+        delete_existing: If True, delete existing items before loading new ones
+    """
     loader = get_loader()
+
+    # Delete existing items if requested
+    if delete_existing_items:
+        delete_collection_items(collection.id)
 
     print("Loading collection to database")
     loader.load_collections(

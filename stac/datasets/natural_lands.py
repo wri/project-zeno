@@ -1,9 +1,6 @@
-import os
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import dotenv
-from google.cloud import storage
 from pystac import (
     Collection,
     Extent,
@@ -15,7 +12,6 @@ from pystac import (
     set_stac_version,
 )
 from rio_stac import create_stac_item
-from tqdm import tqdm
 
 from stac.datasets.utils import load_stac_data_to_db
 
@@ -23,8 +19,6 @@ dotenv.load_dotenv("stac/env/.env_staging")
 
 set_stac_version("1.1.0")
 
-GC_BUCKET = "lcl_public"
-GC_FOLDER = "SBTN_NaturalLands/v1_1/classification"
 COLLECTION_ID = "natural-lands-map-v1-1"
 
 CLASSIFICATION_VALUES = {
@@ -51,26 +45,11 @@ CLASSIFICATION_VALUES = {
 }
 
 
-def get_tif_urls() -> list[str]:
-    # Create an anonymous client for public bucket access
-    client = storage.Client.create_anonymous_client()
-    bucket = client.bucket(GC_BUCKET)
-    blobs = bucket.list_blobs(prefix=GC_FOLDER)
-
-    tif_urls = []
-    print("Fetching TIF URLs from Google Cloud Storage...")
-    for blob in tqdm(blobs, desc="Loading URLs"):
-        if blob.name.endswith(".tif"):
-            url = f"https://storage.googleapis.com/{GC_BUCKET}/{blob.name}"
-            tif_urls.append(url)
-
-    return tif_urls
-
-
-def create_stac_item_with_extensions(url: str) -> Item:
-    item = create_stac_item(
+def create_nl_items() -> list[Item]:
+    url = "s3://lcl-cogs/natural-lands/natural-lands-map-v1-1.tif"
+    nl_item = create_stac_item(
         source=url,
-        id=os.path.basename(url).replace(".tif", ""),
+        id="natural-lands-map-v1-1",
         collection=COLLECTION_ID,
         with_raster=True,
         with_proj=True,
@@ -79,22 +58,15 @@ def create_stac_item_with_extensions(url: str) -> Item:
             "end_datetime": str(datetime(2020, 12, 31)),
         },
     )
-    return item
-
-
-def get_stac_items() -> list[Item]:
-    tif_urls = get_tif_urls()
-    print(f"Creating {len(tif_urls)} STAC items")
-    with ThreadPoolExecutor(max_workers=100) as executor:
-        items = list(
-            tqdm(
-                executor.map(create_stac_item_with_extensions, tif_urls),
-                total=len(tif_urls),
-                desc="Creating STAC items",
-            )
-        )
-
-    return items
+    valid_percent = (
+        nl_item.assets["asset"]
+        .extra_fields["raster:bands"][0]["statistics"]["valid_percent"]
+        .item()
+    )
+    nl_item.assets["asset"].extra_fields["raster:bands"][0]["statistics"][
+        "valid_percent"
+    ] = valid_percent
+    return [nl_item]
 
 
 def create_collection() -> Collection:
@@ -136,11 +108,11 @@ def create_collection() -> Collection:
 
 
 def main():
-    items = get_stac_items()
+    items = create_nl_items()
     print(f"Loaded {len(items)} STAC items")
     collection = create_collection()
     print("Loading STAC data to database...")
-    load_stac_data_to_db(collection, items)
+    load_stac_data_to_db(collection, items, delete_existing_items=True)
     print("Done!")
 
 
