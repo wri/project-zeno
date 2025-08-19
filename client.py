@@ -125,6 +125,20 @@ class ZenoClient:
                 )
             return response.json()
 
+    def download_csv_data(self, thread_id):
+        url = f"{self.base_url}/api/threads/{thread_id}/raw_data"
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "text/csv",
+        }
+
+        with requests.get(url, headers=headers) as response:
+            if response.status_code != 200:
+                raise Exception(
+                    f"Request failed with status code {response.status_code}: {response.text}"
+                )
+            return response.content
+
     def chat(
         self,
         query: str,

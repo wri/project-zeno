@@ -109,3 +109,16 @@ services:
       - APP_DB=zeno-data
     volumes:
       - ./db:/app/db
+
+  ingest:
+    build:
+      context: .
+      dockerfile: src/ingest/Dockerfile
+    volumes:
+      - ./src/ingest:/app/ingest
+      - ~/.aws:/root/.aws
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/zeno-data
+      - AWS_PROFILE=${AWS_PROFILE}
+    depends_on:
+      - api

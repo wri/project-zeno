@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 import os
 import uuid
@@ -10,7 +12,15 @@ from uuid import UUID
 import cachetools
 import requests
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
@@ -1309,3 +1319,50 @@ async def delete_custom_area(
     await session.delete(area)
     await session.commit()
     return {"detail": f"Area {area_id} deleted successfully"}
+
+
+@app.get("/api/threads/{thread_id}/raw_data")
+async def get_raw_data(
+    thread_id: str,
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_async_session),
+    content_type: str = Header(
+        default="application/json", alias="Content-Type"
+    ),
+):
+    # Fetch raw data for the specified thread
+    stmt = select(ThreadOrm).filter_by(id=thread_id, user_id=user.id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
+
+    if not thread:
+        raise HTTPException(
+            status_code=404, detail=f"Thread id: {thread_id} not found"
+        )
+
+    zeno_async = await fetch_zeno()
+
+    config = {"configurable": {"thread_id": thread_id}}
+
+    state = await zeno_async.aget_state(config=config)
+
+    raw_data = state.get("raw_data", {})
+
+    if content_type == "text/csv":
+        # Convert raw_data (assumed to be a list of dicts) to CSV
+        output = io.StringIO()
+        if (
+            raw_data
+            and isinstance(raw_data, list)
+            and isinstance(raw_data[0], dict)
+        ):
+            writer = csv.DictWriter(output, fieldnames=raw_data[0].keys())
+            writer.writeheader()
+            writer.writerows(raw_data)
+        else:
+            # If raw_data is not a list of dicts, return empty CSV
+            writer = csv.writer(output)
+            writer.writerow(["No data"])
+        return Response(content=output.getvalue(), media_type="text/csv")
+    else:
+        return raw_data

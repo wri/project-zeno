@@ -71,7 +71,7 @@ def update_thread_name_dialog(thread_id):
 def fetch_thread(thread_id):
     client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
 
-    col1, col2, col3 = st.columns([0.8, 0.1, 0.1])
+    col1, col2, col3, col4 = st.columns([0.7, 0.1, 0.1, 0.1])
     with col1:
         st.header(f"{thread_options[thread_id]['name']}")
 
@@ -83,8 +83,15 @@ def fetch_thread(thread_id):
         if col3.button(":wastebasket:", key=f"delete-{thread_id}"):
             delete_dialog(thread_id)
 
-    for stream in client.fetch(thread_id):
-        render_stream(stream)
+    with col4:
+        csv_data = client.download_csv_data(thread_id)
+        print(csv_data)
+        st.download_button(
+            label="Download CSV",
+            data=csv_data,
+            file_name=f"raw_data_thread_{thread_id}.csv",
+            mime="text/csv",
+        )
 
 
 threads = []
