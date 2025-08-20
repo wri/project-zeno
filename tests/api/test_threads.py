@@ -2,7 +2,7 @@
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -390,60 +390,62 @@ async def test_partial_update_preserves_other_fields(
 
 
 @pytest.mark.asyncio
-async def test_thread_timestamps_behavior(client, auth_override, thread_factory):
+async def test_thread_timestamps_behavior(
+    client, auth_override, thread_factory
+):
     """Test that created_at and updated_at timestamps behave correctly."""
     user_id = "test-user-timestamps"
     auth_override(user_id)
 
     # Record time before creating thread
     before_create = datetime.now()
-    
+
     # Create a thread
     thread = await thread_factory(user_id)
-    
-    # Record time after creating thread  
+
+    # Record time after creating thread
     after_create = datetime.now()
 
     # Verify created_at is set to approximately current time
     created_at = datetime.fromisoformat(thread.created_at.isoformat())
     updated_at = datetime.fromisoformat(thread.updated_at.isoformat())
-    
+
     # created_at should be between before_create and after_create
     assert before_create <= created_at <= after_create
-    
+
     # Initially, created_at and updated_at should be the same (or very close)
     time_diff = abs((updated_at - created_at).total_seconds())
     assert time_diff < 1  # Should be within 1 second
-    
+
     # Store original timestamps
     original_created_at = created_at
     original_updated_at = updated_at
-    
+
     # Wait a small amount to ensure timestamp difference
     await asyncio.sleep(0.1)
-    
+
     # Update the thread via API
     before_update = datetime.now()
     response = await client.patch(
         f"/api/threads/{thread.id}",
         headers={"Authorization": "Bearer test-token"},
-        json={"name": "Updated Thread Name"}
+        json={"name": "Updated Thread Name"},
     )
     after_update = datetime.now()
-    
+
     assert response.status_code == 200
     updated_thread_data = response.json()
-    
+
     # Parse updated timestamps
     new_created_at = datetime.fromisoformat(updated_thread_data["created_at"])
     new_updated_at = datetime.fromisoformat(updated_thread_data["updated_at"])
-    
+
     # created_at should NOT have changed
     assert new_created_at == original_created_at
-    
+
     # updated_at should have changed and be recent
     assert new_updated_at != original_updated_at
     assert before_update <= new_updated_at <= after_update
-    
+
     # updated_at should be after created_at
     assert new_updated_at > new_created_at
