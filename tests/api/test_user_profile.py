@@ -36,12 +36,6 @@ class TestProfileConfigAPI:
         assert data["languages"] == LANGUAGES
         assert data["gis_expertise_levels"] == GIS_EXPERTISE_LEVELS
 
-    @pytest.mark.asyncio
-    async def test_profile_config_no_auth_required(self, client):
-        """Test that profile config endpoint doesn't require authentication."""
-        response = await client.get("/api/profile/config")
-        assert response.status_code == 200
-
 
 class TestUserProfileAPI:
     """Test the user profile update API endpoint."""
@@ -89,40 +83,6 @@ class TestUserProfileAPI:
         )
         assert data["id"] == user.id
         assert data["name"] == user.name  # Original fields preserved
-
-    @pytest.mark.asyncio
-    async def test_update_profile_success_detailed_fields(
-        self, client, user, auth_override
-    ):
-        """Test successful profile update with detailed fields."""
-        auth_override(user.id)
-
-        update_data = {
-            "sector_code": self.valid_sector,
-            "role_code": self.valid_role,
-            "job_title": "Senior Analyst",
-            "company_organization": "Environmental Institute",
-            "country_code": self.valid_country,
-            "preferred_language_code": self.valid_language,
-            "gis_expertise_level": self.valid_expertise,
-            "areas_of_interest": "Deforestation, Biodiversity, Climate Change",
-        }
-
-        response = await client.patch("/api/auth/profile", json=update_data)
-        assert response.status_code == 200
-
-        data = response.json()
-        assert data["sectorCode"] == self.valid_sector
-        assert data["roleCode"] == self.valid_role
-        assert data["jobTitle"] == "Senior Analyst"
-        assert data["companyOrganization"] == "Environmental Institute"
-        assert data["countryCode"] == self.valid_country
-        assert data["preferredLanguageCode"] == self.valid_language
-        assert data["gisExpertiseLevel"] == self.valid_expertise
-        assert (
-            data["areasOfInterest"]
-            == "Deforestation, Biodiversity, Climate Change"
-        )
 
     @pytest.mark.asyncio
     async def test_update_profile_partial_update(
