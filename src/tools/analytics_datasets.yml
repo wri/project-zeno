@@ -1,6 +1,6 @@
 datasets:
 - dataset_id: 0
-  dataset_name: Ecosystem disturbance alerts
+  dataset_name: Global all ecosystem disturbance alerts (DIST-ALERT)
   context_layers:
     - value: "driver"
       description: "Shows the primary driver of disturbance"
@@ -12,25 +12,40 @@ datasets:
   geographic_coverage: Global
   resolution: "30 x 30 meters"
   update_frequency: "Underlying product updated daily, with image revisit time every 2-4 days. Product on GFW updated weekly."
-  content_date: "1 January 2023 – present"
+  content_date: "1 January 2023 - present"
   keywords: "land cover, alerts, deforestation, conversion, vegetation disturbance"
   analytics_api_endpoint: "/v0/land_change/dist_alerts/analytics"
   prompt_instructions: >
-    This dataset delivers daily alerts of vegetation disturbance, classifying each
-    event by probable driver (fire, flood, land clearing, etc.), but is not available
-    for the last 30 days. Plot disturbed area (area_ha) over time with line charts
-    or aggregate to weeks/month using stacked-bar, dropping rows where area_ha ≤ 0.
-    Pie charts are appropriate for non-temporal questions about the total number of
-    alerts by driver class. Treat alerts as indicative snapshots—do not infer
-    long-term trends and note possible confusion between natural and human causes.
-    Ask the user to clarify whether they care about temporary disturbance or permanent
-    conversion; for historical change, suggest land-cover or tree-loss datasets instead.
+    Use this dataset to show recent vegetation changes across all ecosystems.
+    Show classified alerts (LDACS) by default, which is designed to reveal likely causes of disturbance,
+    identify dominant drivers in a region, and support ecosystem or regional comparisons.
+    LDACS is updated quarterly and covers the most recent 12 months, so classification data are not
+    available for the last 90 days.
+    Clarify whether the user cares about temporary disturbance or permanent conversion; recommend
+    annual land cover or tree cover loss datasets for historical or long-term changes.
+    For recent trends, show alert counts over time using line charts.
+    Use pie charts to show the distribution of disturbance types by specific driver.
+    Use pie charts to show the distribution of alerts by land cover class to show which ecosystems
+    are most affected.
+    Use grouped bar charts with alert date (month) on the x-axis, count or area ha on the y-axis,
+    and class name to differentiate bars, highlighting seasonal patterns.
+    Plot drivers separately if one dominates (makes up > 80% of alerts in any given month) and decide
+    whether to include or exclude unclassified alerts based on whether the goal is to highlight only
+    known drivers or completeness.
+    Potential conversion requires ≥75 days of sustained loss, so recent clearing may not appear;
+    conversion may also be undercounted when fire is used for clearing or when it occurs near rivers.
+    Severe boreal fires may be misclassified as conversion. Always interpret alerts as indicators,
+    not definitive outcomes.
+    Suggest overlaying alerts on satellite imagery for further context.
   description: >
     Global All Ecosystem Disturbance Alerts (DIST-ALERT) provides near-real-time alerts
     of vegetation disturbance globally at 30-meter resolution, using harmonized
-    Landsat-Sentinel-2 imagery. Users are informed about significant changes to the
-    vegetation, which can indicate human induced changes such as deforestation, as well
-    as drought and other events where actions by land managers may be required.
+    Landsat-Sentinel-2 imagery. A filtered subset of these daily alerts (Land Disturbance Alert
+    Classification System or LDACS) can also be classified into potential drivers:
+    conversion, cropland dynamics, fire-related, water-related, or unclassified.
+    Users are informed about significant changes to the vegetation, which can indicate human
+    induced changes such as deforestation, as well as drought and other events where actions
+    by land managers may be required.
     Crucially, this dataset covers all vegetation, not just forest, so that new
     non-conversion of natural ecosystems commitments can be monitored.
   methodology: >
@@ -240,97 +255,137 @@ datasets:
     Learning. Scientific Data, 11(1), 1303. https://doi.org/10.1038/s41597-024-04139-6
 
 - dataset_id: 2
-  dataset_name: Grassland
+  dataset_name: Global natural/semi-natural grassland extent
   context_layers: null
-  variables: Natural/Semi-Natural Grassland, Cultivated Grassland
+  variables: Natural/Semi-Natural Grassland
   tile_url: ""
   license: "CC by 4.0"
   geographic_coverage: "90°N to 90°S"
   resolution: "30 x 30 meters"
   update_frequency: "Annual"
-  content_date: "2000-2024, annual"
-  keywords: "grasslands, natural grasslands, semi-natural grasslands, cultivated grasslands, pasturelands, rangeland, livestock, grazing, global, annual, 30 m, remote sensing, time series, change detection, machine learning, Landsat"
+  content_date: "2000-2022, annual"
+  keywords: "grasslands, natural grasslands, semi-natural grasslands, rangeland, livestock, grazing, global, annual, 30 m, remote sensing, time series, change detection, machine learning, Landsat"
   analytics_api_endpoint: "/v0/land_change/grasslands/analytics"
   prompt_instructions: >
-    Quantifies natural/semi-natural and cultivated grassland extent for each year
-    since 2015 and its net change. Visualise annual area with line charts or compare
-    regions with bars, using area_ha and omitting 0/nulls. Spectral confusion with
-    cropland or savanna can inflate apparent change—flag small patches and prefer
-    regional aggregation. The dataset lacks intra-year detail; avoid using it for
-    seasonal grazing questions. Clarify whether the user wants natural grassland,
-    pasture, or cropland when "agriculture" is mentioned.
+    Natural/semi-natural grassland extent and change for each year from 2000 to 2022.
+    Quantify area of natural/semi-natural grasslands in a given year.
+    Quantify gains and losses in area of natural/semi-natural grasslands through time.
+    Use bar or line charts to show total area of natural/semi-natural grasslands over time where
+    the x axis is years and the y axis is hectares.
+    Use pie chart to visualize natural/semi-natural grassland extent across different continents,
+    countries, and administrative units in cases where user is requesting comparison among 8 or
+    fewer geographic units. Use a table if user is requesting comparison among 9 or more
+    geographic units.
+    Exclude rows where area in a given year is 0 or missing.
+    Gain in natural/semi-natural grassland can mean any of the following: restoration, regeneration,
+    land abandonment, early successional stages, regrowth may be dominated by invasive species or
+    woody plant encroachment, temporary states rather than restored ecosystems.
+    Loss from natural/semi-natural grasslands can mean any of the following: permanent (or
+    semi-permanent) transition to another land cover or land use, natural vegetation dynamics,
+    such as regrowth following disturbance, natural seasonal or interannual variability, such as
+    floodplain inundation, for example.
   description: >
-    Annual 30 m maps of global grassland class and extent from 2000 to 2024. The dataset
-    showing the spatiotemporal distribution of cultivated and natural/semi-natural grassland
-    classes. This dataset defines 'grasslands' very broadly such that they encompass
-    grasslands, shrublands, and savannas by including any land cover type which contains at
-    least 30% of dry or wet low vegetation, dominated by grasses and forbs (less than 3
-    meters) and a: maximum of 50% tree canopy cover (greater than 5 meters), maximum of 70%
-    of other woody vegetation (scrubs and open shrubland), and maximum of 50% active
-    cropland cover in mosaic landscapes of cropland & other vegetation.
-
-    Natural/semi-natural grassland: Relatively undisturbed native grasslands/short-height
-    vegetation, such as steppes and tundra, as well as areas that have experienced varying
-    degrees of human activity in the past, which may contain a mix of native and introduced
-    species due to historical land use and natural processes. In general, they exhibit
-    natural-looking patterns of varied vegetation and clearly ordered hydrological
-    relationships throughout the landscape.
+    Annual 30 m maps of global natural/semi-natural grassland extent from 2000 to 2024.
+    This dataset defines grasslands very broadly such that they encompass grasslands, shrublands,
+    and savannas by including any land cover type which contains at least 30% of dry or wet
+    low vegetation, dominated by grasses and forbs (less than 3 meters) and a:
+      maximum of 50% tree canopy cover (greater than 5 meters),
+      maximum of 70% of other woody vegetation (scrubs and open shrubland), and
+      maximum of 50% active cropland cover in mosaic landscapes of cropland & other vegetation.
+    Natural/semi-natural grassland: Relatively undisturbed native grasslands/short-height vegetation,
+    such as steppes and tundra, as well as areas that have experienced varying degrees of human
+    activity in the past, which may contain a mix of native and introduced species due to
+    historical land use and natural processes. In general, they exhibit natural-looking patterns
+    of varied vegetation and clearly ordered hydrological relationships throughout the landscape.
   methodology: >
-    The dataset showing the spatiotemporal distribution of cultivated and natural/semi-natural
+    The dataset showing the spatiotemporal distribution of natural/semi-natural
     grassland classes was produced by using GLAD Landsat ARD-2 image archive, accompanied by
     climatic, landform and proximity covariates, spatiotemporal machine learning (per-class
     Random Forest) and over 2.3 M reference samples (visually interpreted in Very High
     Resolution imagery). Custom probability thresholds (based on five-fold spatial
     cross-validation) were used to derive dominant class maps with balanced user's and
-    producer's accuracy, resulting in f1 score of 0.64 and 0.75 for cultivated and
-    natural/semi-natural grassland, respectively.
+    producer's accuracy, resulting in f1 score of 0.75 for natural/semi-natural grassland.
   cautions: >
     Despite the flexibility provided by the probability maps, we note several classification
-    issues and limitations in our grassland predictions. Most of these issues (e.g. specially
-    the miss-classification errors) are not trivial to resolve in the face of Random Forest
-    as a complex and non-linear prediction system, as we are not sure these outcomes happen
-    because of (1) extrapolation problems, (2) noise/limited detectability in the Landsat
-    images, (3) fuzzy definition of grassland classes, (4) need of more specialized and
-    regional/local ML models, or (5) simply a lack of training points in these areas.
-
-    It appears that intensively managed grasslands, with high homogeneity under many
-    conditions, have a high chance of being confused with other classes that have very
-    similar spectral properties, such as urban mosaics (i.e. buildings, sparse trees and
-    grass fields with different densities) or (greenish) croplands with similar vegetation
-    height and spatial configuration (such as cereal crops). Less intensively cultivated
-    grasslands, where more diverse plant species can be found and where the landscape may
-    not be very regular, are easily confused with grasslands that are not cultivated or
-    (semi) natural herbaceous vegetation, in general.
-
+    issues and limitation in our natural/semi-natural grassland predictions (see Table 6).
+    Most of these issues (e.g. specially the miss-classification errors) are not trivial to
+    resolve in the face of Random Forest as a complex and non-linear prediction system, as we
+    are not sure these outcomes happen because of (1) extrapolation problems, (2) noise/limited
+    detectability in the Landsat images, (3) fuzzy definition of grassland classes, (4) need
+    of more specialized and regional/local ML models, or (5) simply a lack of training points
+    in these areas.
+    It appears that intensively managed grasslands, with high homogeneity under many conditions,
+    have a high chance of being confused with other classes that have very similar spectral
+    properties, such as urban mosaics (i.e. buildings, sparse trees and grass fields with
+    different densities) or (greenish) croplands with similar vegetation height and spatial
+    configuration (such as cereal crops). Less intensively cultivated grasslands, where more
+    diverse plant species can be found and where the landscape may not be very regular, are
+    easily confused with grasslands that are not cultivated or (semi) natural herbaceous
+    vegetation, in general. In addition, the spectral signal of cultivated grasslands can not
+    be as clearly distinguished from natural/semi-natural grassland as it could be from
+    croplands, where there are clear breaks in vegetation growth in cases where multi-temporal
+    clear-sky images are available.
     The distinction between cultivated and natural/semi-natural grasslands has been notoriously
     difficult to map in the past, which has also affected our reference data collection and
     harmonization process. Hence, our reference labeling protocol relied on more indirect
     indicators of management, such as fences and other typical infrastructure, hay bales,
     machine presence, and even animal presence in the field or geometric shapes of the landscape.
-
+    This may lead to an underestimation of signs of cultivation that may be less intensive or
+    where VHR imagery was not available at the time of management practices.
+    Under-estimation of grassland extent
+      Grassland extent is under-predicted in southeastern Africa (mainly in Zimbabwe and Mozambique)
+      and in eastern Australia (mainly in the shrublands and woodlands of the Mulga ecoregion).
+    Cropland misclassified as grassland
+      In the state of Montana, USA, cropland areas located on historical prairie areas have high
+      probability values for natural/semi-natural grassland and low values for cultivated grassland.
+      Sudan, Niger, Uganda, Kenya, and Mali have several cropland areas with high probability
+      values for natural/semi-natural grassland.
+    Mixed farmland mosaics misclassified as grassland
+      Farmland mosaics in North-Eastern Uganda's present high probability for both grassland classes,
+    Macroscopic errors
+      Although important for grassland separation, the 1-km accessibility maps and MODIS products
+      (MOD11A2 and MCD19A2) introduced curvilinear macroscopic errors (due to the downscaling
+      strategy based on cubicspline) in Uruguay, Southwest Argentina, South of Angola and in
+      Sahel region in Africa.
+      Due to the Landsat 7 Scan Line Corrector failure, regular stripes of grassland probabilities
+      are visible at parcel-level. This issue is more prominent in 2012, where GLAD Landsat ARD-2
+      relies only in Landsat 7 imagery.
     Spectral overlap between natural and cultivated grasslands (especially fallow fields or
-    lightly grazed areas) can result in misclassification. Regional differences in management
-    practices may not be detectable in global models. Data likely reflects a snapshot per year,
-    not intra-annual dynamics or land use rotations (e.g. grazing/fallow cycles). Definitions
-    of "natural", "semi-natural", and "cultivated" vary by region and culture; users should
-    not assume the dataset reflects legal or ecological classifications in every context.
-
-    Short-term disturbances (fire, grazing, flood) might be misclassified as change or
-    undetected if recovery is rapid. Dataset may not represent functional health of grasslands
-    (e.g. degradation, productivity loss). Very long crop rotations or shifting cultivation
-    systems may be captured in our analysis as loss events. While these land use changes may
-    be temporary or part of cyclical agricultural practices, they can resemble permanent
-    conversion in satellite-based land cover datasets, particularly when vegetation structure
-    changes significantly or persists across multiple years.
-
-    Not all gross gains detected in Natural/semi-natural grassland areas reflect deliberate
-    or ecologically desirable restoration. Some observed transitions may result from land
-    abandonment rather than active restoration, and in some cases regrowth may be dominated
-    by invasive species or woody plant encroachment. Area estimates for this analysis were
-    derived using pixel counting, which involves summing the number of 30-m pixels classified
-    as natural/semi-natural grasslands and converting this count to an area estimate. However,
-    pixel counting is not best practice for area estimation, as it does not account for
-    classification uncertainties or biases.
+    lightly grazed areas) can result in misclassification.
+    Regional differences in management practices may not be detectable in global models.
+    Data likely reflects a snapshot per year, not intra-annual dynamics or land use rotations
+    (e.g. grazing/fallow cycles).
+    Definitions of "natural", "semi-natural", and "cultivated" vary by region and culture;
+    users should not assume the dataset reflects legal or ecological classifications in every context.
+    Short-term disturbances (fire, grazing, flood) might be:
+      1. Misclassified as change
+      2. Undetected if recovery is rapid
+      3. Dataset may not represent functional health of grasslands (e.g. degradation, productivity loss).
+    It's important to understand that while natural / semi-natural grassland areas can and do
+    support grazing by wild ruminants and domestic livestock, these areas can still retain
+    significant ecological value. These ecosystems continue to provide carbon storage, biodiversity
+    habitat, and ecosystem services such as water regulation, pollination, and soil stabilization.
+    However, once lost to cropland or pasture (through intensive management actions such as plowing
+    or planting), or built areas (e.g. cities or energy infrastructure), or are seriously degraded
+    (e.g. become bare ground) many of those benefits are lost or severely diminished.
+    Very long crop rotations or shifting cultivation systems may be captured in our analysis as
+    loss events. While these land use changes may be temporary or part of cyclical agricultural
+    practices, they can resemble permanent conversion in satellite-based land cover datasets,
+    particularly when vegetation structure changes significantly or persists across multiple years.
+    Many forms of degradation, such as declines in plant diversity, aboveground productivity,
+    soil health, or subtle structural changes, may not result in a detectable land cover change
+    and are therefore not reflected as Natural / semi-natural grassland loss.
+    Not all gross gains detected in natural / semi-natural grassland areas reflect deliberate or
+    ecologically desirable restoration. Some observed transitions may result from land abandonment
+    rather than active restoration, and in some cases regrowth may be dominated by invasive species
+    or woody plant encroachment. Further, long fallow periods within rotational or shifting
+    agricultural systems may be misclassified as gains when in fact they are part of a temporary
+    cycle.  Some gains may reflect early successful stages or temporary states rather than mature,
+    functioning, and recovered ecosystems.
+    Area estimates for this analysis were derived using pixel counting, which involves summing
+    the number of 30-m pixels classified as natural/semi-natural grasslands and converting this
+    count to an area estimate. However, pixel counting is not best practice for area estimation.,
+    as it does not account for classification uncertainties or biases.
   function_usage_notes: >
     This global grasslands dataset is intended to be used for monitoring natural/semi-natural
     grasslands in individual years as well as change over time. This dataset should be used
@@ -361,7 +416,7 @@ datasets:
     Learning. Scientific Data, 11(1), 1303. https://doi.org/10.1038/s41597-024-04139-6
 
 - dataset_id: 3
-  dataset_name: Natural lands
+  dataset_name: SBTN Natural Lands Map
   context_layers: null
   variables: binary, classification
   tile_url: ""
@@ -373,15 +428,19 @@ datasets:
   keywords: "land cover, deforestation, conversion, supply chains, natural lands"
   analytics_api_endpoint: "/v0/land_change/natural_lands/analytics"
   prompt_instructions: >
-    Classifies each pixel as "natural" or "non-natural" relative to a 2020 baseline,
-    letting users check if later change occurred on natural land. These categories
-    can be further broken down into sub-classes. Compare natural vs non-natural area
-    with bar or pie charts, aggregating area_ha, and excluding zeroes. "Natural"
-    here refers to ecological integrity, not legal protection—avoid assuming
-    conservation status. Users should identify change with land cover change data
-    and then refer to the Natural Lands Map to see if the change occurred on land
-    that was natural in 2020. If the user asks about gains in natural land, clarify
-    whether restoration areas count.
+    Natural and non-natural lands in 2020. Created to see if there were natural lands within
+    users' production units in 2020, and can be used with additional monitoring data to see
+    if change occurred on land that was natural.
+    Use bar or pie charts to display areas of natural and non-natural areas in proportion to
+    each other. Show data on map since it is intended to be primarily spatial data.
+    Natural lands resemble what would be found in the absence of major human impacts and can
+    include managed or degraded ecosystems. These data do not represent protection or legality
+    of land.
+    If user asks for change, tell them that this dataset only represents one year, but they
+    can use the land cover data to map change. Land cover change on natural lands could
+    represent conversion or natural disturbance.
+    If a users asks about natural forests, combine natural forest, mangrove, natural wetland
+    forest, and natural peat forest into one class.
   description: >
     The SBTN Natural Lands Map v1.1 is a 2020 baseline map of natural and non-natural land
     covers intended for use by companies setting science-based targets for nature, specifically
@@ -449,18 +508,20 @@ datasets:
   keywords: "deforestation, forest loss, disturbance"
   analytics_api_endpoint: "/v0/land_change/tree_cover_loss/analytics"
   prompt_instructions: >
-    Reports gross annual loss of tree cover ≥ 5 m height (2001-2024). Show yearly loss
-    with line charts or cumulative loss with stacked-area charts; plot area_ha and drop
-    zeros. "Tree cover" includes plantations as well as natural forest—loss is not
-    automatically deforestation or carbon loss. The product measures canopy loss only;
-    it doesn't track regrowth or permanence. Use the dominant-driver layer when the
-    user wants to know why trees were lost. Assigns the most likely loss driver
-    (commodity, forestry, wildfire, shifting agriculture, etc.) to each 1 km cell and
-    totals area_ha. Contrast drivers with stacked-bar charts or plot driver trends
-    over time with lines, omitting 0/nulls. Driver classes are coarse and mutually
-    exclusive—interpret them as indicative rather than precise attribution, and avoid
-    mixing resolutions. The layer tracks loss only, not regrowth. Prompt the user to
-    specify which driver categories to aggregate if their question is broad.
+    Reports gross annual loss of tree cover ≥ 5 m height (2001-2024).
+    Show yearly loss with bar charts or cumulative loss with stacked-area charts; plot area_ha
+    and drop zeros.
+    Group loss by driver to understand the most likely loss driver (commodity, forestry, wildfire,
+    shifting agriculture, etc.)
+    Contrast drivers with stacked-bar charts or plot driver trends over time with lines,
+    omitting 0/nulls.
+    Driver classes are coarse (assigning most likely cause within each 1km cell) and mutually
+    exclusive—interpret them as indicative rather than precise attribution, and avoid mixing resolutions.
+    Prompt the user to specify which driver categories to aggregate if their question is broad.
+    Avoid the term "deforestation" in favour of "tree cover loss".
+    "Tree cover" includes plantations as well as natural forest meaning loss is not automatically
+    deforestation or carbon loss.
+    The product measures canopy loss only; it doesn't track regrowth or permanence. Use 30% threshold.
   description: >
     Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2024 at
     30-meter resolution using Landsat satellite imagery. It detects stand-replacement

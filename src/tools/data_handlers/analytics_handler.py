@@ -27,12 +27,13 @@ ADMIN_SUBTYPES = (
 DIST_ALERT_ID = [
     ds["dataset_id"]
     for ds in DATASETS
-    if ds["dataset_name"] == "Ecosystem disturbance alerts"
+    if ds["dataset_name"]
+    == "Global all ecosystem disturbance alerts (DIST-ALERT)"
 ][0]
 NATURAL_LANDS_ID = [
     ds["dataset_id"]
     for ds in DATASETS
-    if ds["dataset_name"] == "Natural lands"
+    if ds["dataset_name"] == "SBTN Natural Lands Map"
 ][0]
 LAND_COVER_CHANGE_ID = [
     ds["dataset_id"]
@@ -40,7 +41,9 @@ LAND_COVER_CHANGE_ID = [
     if ds["dataset_name"] == "Global land cover"
 ][0]
 GRASSLANDS_ID = [
-    ds["dataset_id"] for ds in DATASETS if ds["dataset_name"] == "Grassland"
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"] == "Global natural/semi-natural grassland extent"
 ][0]
 TREE_COVER_LOSS_ID = [
     ds["dataset_id"]
