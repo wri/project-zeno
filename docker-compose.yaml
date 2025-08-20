@@ -110,21 +110,18 @@ services:
     volumes:
       - ./db:/app/db
 
-  # ingest:
-  #   build:
-  #     context: .
-  #
-  #   volumes:
-  #     - ./src/ingest:/app/ingest
-  #     - ~/.aws:/root/.aws
-  #   environment:
-  #     - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/zeno-data
-  #     - AWS_PROFILE=${AWS_PROFILE}
-  #   command: ["sh", "-c", "uv run python3 -u src/ingest/ingest_gadm.py && uv run python3 src/ingest/ingest_kba.py && uv run python3 src/ingest/ingest_landmark.py"]
-  #   depends_on:
-  #     - api
+  ingest:
+    profiles:
+      - ingest
+    build:
+      context: .
 
-
-  # AWS_PROFILE=wri DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data uv run python3 -u src/ingest/ingest_gadm.py
-  # AWS_PROFILE=wri DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data uv run python3 src/ingest/ingest_kba.py
-  # AWS_PROFILE=wri DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data uv run python3 src/ingest/ingest_landmark.py
+    volumes:
+      - ./src/ingest:/app/ingest
+      - ~/.aws:/root/.aws
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/zeno-data
+      - AWS_PROFILE=${AWS_PROFILE}
+    command: ["sh", "-c", "uv run python3 -u src/ingest/ingest_gadm.py && uv run python3 src/ingest/ingest_kba.py && uv run python3 src/ingest/ingest_landmark.py"]
+    depends_on:
+      - api
