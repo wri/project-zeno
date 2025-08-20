@@ -36,7 +36,7 @@ jobs:
         uses: astral-sh/setup-uv@v6
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --frozen
 
       - name: Generate test data
         run: |
