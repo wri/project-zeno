@@ -14,7 +14,6 @@ dependencies = [
     "fastapi[standard]==0.116.1",
     "watchdog==6.0.0",
     "uvicorn[standard]==0.35.0",
-    "earthengine-api==1.6.0",
     "geojson-pydantic==2.0.0",
     "fiona==1.10.1",
     "geopandas==1.0.1",
