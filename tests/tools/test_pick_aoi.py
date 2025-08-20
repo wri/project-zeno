@@ -35,6 +35,11 @@ async def test_query_aoi_multiple_matches():
             "Castelo Branco, Portugal",
             "PRT.6_1",
         ),
+        (
+            "Assess natual lands in Anjos, Lisbon",
+            "Lisbon",
+            "PRT.12.7.6_1",
+        ),
     ],
 )
 @pytest.mark.asyncio
