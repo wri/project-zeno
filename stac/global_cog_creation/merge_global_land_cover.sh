@@ -109,4 +109,4 @@ for YEAR in {2016..2024}; do
 
 done
 
-echo "All years (2015-2024) have been processed!"
+echo "All years 2015 to 2024 have been processed"
