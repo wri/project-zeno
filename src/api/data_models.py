@@ -33,7 +33,9 @@ class UserOrm(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
-    updated_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.now, onupdate=datetime.now
+    )
     user_type = Column(String, nullable=False, default=UserType.REGULAR.value)
     threads = relationship("ThreadOrm", back_populates="user")
     custom_areas = relationship("CustomAreaOrm", back_populates="user")
