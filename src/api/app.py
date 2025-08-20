@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import uuid
@@ -8,9 +9,18 @@ from typing import Dict, Optional
 from uuid import UUID
 
 import cachetools
+import pandas as pd
 import requests
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
@@ -853,6 +863,7 @@ async def get_thread(
     - 401: Private thread accessed without authentication
     - 404: Thread not found or access denied (private thread accessed by non-owner)
     """
+
     # First, try to get the thread to check if it exists and if it's public
     stmt = select(ThreadOrm).filter_by(id=thread_id)
     result = await session.execute(stmt)
@@ -885,7 +896,6 @@ async def get_thread(
         logger.debug(
             "Accessing private thread", thread_id=thread_id, user_id=user.id
         )
-
     try:
         logger.debug("Replaying thread", thread_id=thread_id)
         return StreamingResponse(
@@ -1651,3 +1661,84 @@ async def delete_custom_area(
     await session.delete(area)
     await session.commit()
     return {"detail": f"Area {area_id} deleted successfully"}
+
+
+@app.get("/api/threads/{thread_id}/raw_data")
+async def get_raw_data(
+    thread_id: str,
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_async_session),
+    content_type: str = Header(default="text/csv", alias="Content-Type"),
+):
+    """
+    Get insights data for a specific thread. The data returned will reflect the
+    latest state of the `raw_data` key - meaning that if, during a multi-turn
+    conversation, the user has generated insights multiple time (eg: for
+    different locations or different time ranges) only the latest insights will
+    be downloadable.
+
+    **Authentication**: Requires Bearer token in Authorization header.
+    **Content-Type**: Accepts an OPTIONAL Content-Type header to specify
+        whether the data should be returned as a CSV file response or a
+        JSON object.
+
+    **Path Parameters**:
+    - thread_id (str): The unique identifier of the thread for which to gather
+        insights data
+
+    **Behavior**:
+    - Returns insights data in requested format
+    - Returns empty CSV/JSON if no insights data exists for the thread
+    - The thread must exist and belong to the authenticated user
+
+    **Response**: Returns a CSV file or JSON object with insights data
+
+    **Error Responses**:
+    - 401: Missing or invalid authentication
+    - 404: Thread not found or access denied
+    """
+
+    # Fetch raw data for the specified thread
+    stmt = select(ThreadOrm).filter_by(id=thread_id, user_id=user.id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
+
+    if not thread:
+        raise HTTPException(
+            status_code=404, detail=f"Thread id: {thread_id} not found"
+        )
+
+    zeno_async = await fetch_zeno()
+
+    config = {"configurable": {"thread_id": thread_id}}
+
+    state = await zeno_async.aget_state(config=config)
+
+    raw_data = state.values.get("raw_data", {})
+
+    # raw data is formatted as:
+    # {col1: [year 1, year 2, ...], col2: [year 1, year 2, ...]}
+
+    df = pd.DataFrame(raw_data)
+
+    if "id" in df.columns:
+        cols = ["id"] + [c for c in df.columns if c != "id"]
+        df = df[cols]
+
+    if content_type == "application/json":
+        return df.to_dict()
+
+    if content_type == "text/csv":
+        buf = io.StringIO()
+        df.to_csv(buf, index=False)
+        csv_data = buf.getvalue()
+        filename = f"thread_{thread_id}_raw_data.csv"
+        headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+        return Response(
+            content=csv_data, media_type="text/csv", headers=headers
+        )
+    else:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported Media Type: {content_type}, must be one of [application/json, text/csv]",
+        )

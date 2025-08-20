@@ -99,11 +99,13 @@ async def query_aoi_database(
 
         # Check Custom Areas table
         try:
-            conn.execute(text(f"SELECT 1 FROM {CUSTOM_AREA_TABLE} LIMIT 1"))
+            await conn.execute(
+                text(f"SELECT 1 FROM {CUSTOM_AREA_TABLE} LIMIT 1")
+            )
             existing_tables.append("custom")
         except Exception:
             logger.warning(f"Table {CUSTOM_AREA_TABLE} does not exist")
-            conn.rollback()
+            await conn.rollback()
 
         # Build the query based on existing tables
         union_parts = []

@@ -465,12 +465,16 @@ def render_charts(charts_data):
                                 f"{yAxis}:Q",
                                 title=yAxis.replace("_", " ").title(),
                             ),
-                            color=alt.Color(
-                                f"{stack_field}:N",
-                                title=stack_field.replace("_", " ").title(),
-                            )
-                            if stack_field
-                            else alt.value("steelblue"),
+                            color=(
+                                alt.Color(
+                                    f"{stack_field}:N",
+                                    title=stack_field.replace(
+                                        "_", " "
+                                    ).title(),
+                                )
+                                if stack_field
+                                else alt.value("steelblue")
+                            ),
                         )
                         .properties(width=600, height=400, title=chart_title)
                     )
@@ -632,7 +636,7 @@ def display_sidebar_selections():
             "dataset": {
                 "dataset_id": 0,
                 "source": "GFW",
-                "data_layer": "Tree cover loss",
+                "dataset_name": "Tree cover loss",
                 "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=2001&end_year=2024&tree_cover_density_threshold=25&render_type=true_color",
                 "context_layer": "Primary forest",
                 "threshold": "30",
@@ -642,7 +646,7 @@ def display_sidebar_selections():
             "dataset": {
                 "dataset_id": 14,
                 "source": "GFW",
-                "data_layer": "DIST-ALERT",
+                "dataset_name": "DIST-ALERT",
                 "tile_url": "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color",
                 "context_layer": "driver",
                 "threshold": None,
@@ -750,7 +754,7 @@ def display_sidebar_selections():
         st.info(f"Current AOI: {st.session_state['aoi_selected']['aoi_name']}")
     if st.session_state.get("dataset_selected"):
         st.info(
-            f"Current Dataset: {st.session_state['dataset_selected']['dataset']['data_layer']}"
+            f"Current Dataset: {st.session_state['dataset_selected']['dataset']['dataset_name']}"
         )
     if st.session_state.get("daterange_selected"):
         st.info(
