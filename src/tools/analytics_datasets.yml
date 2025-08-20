@@ -1,6 +1,6 @@
 datasets:
 - dataset_id: 0
-  dataset_name: Ecosystem disturbance alerts
+  dataset_name: Global all ecosystem disturbance alerts (DIST-ALERT)
   context_layers:
     - value: "driver"
       description: "Shows the primary driver of disturbance"
@@ -16,19 +16,24 @@ datasets:
   keywords: "land cover, alerts, deforestation, conversion, vegetation disturbance"
   analytics_api_endpoint: "/v0/land_change/dist_alerts/analytics"
   prompt_instructions: >
-    This dataset delivers daily alerts of vegetation disturbance, classifying each
-    event by probable driver (fire, flood, land clearing, etc.), but is not available
-    for the last 30 days. Plot disturbed area (area_ha) over time with line charts
-    or aggregate to weeks/month using stacked-bar, dropping rows where area_ha ≤ 0.
-    Pie charts are appropriate for non-temporal questions about the total number of
-    alerts by driver class. Treat alerts as indicative snapshots—do not infer
-    long-term trends and note possible confusion between natural and human causes.
-    Ask the user to clarify whether they care about temporary disturbance or permanent
-    conversion; for historical change, suggest land-cover or tree-loss datasets instead.
+    Use this dataset to show recent vegetation changes across all ecosystems.
+    Show classified alerts (LDACS) by default, which is designed to reveal likely causes of disturbance, identify dominant drivers in a region, and support ecosystem or regional comparisons.
+    LDACS is updated quarterly and covers the most recent 12 months, so classification data are not available for the last 90 days.
+    Clarify whether the user cares about temporary disturbance or permanent conversion; recommend annual land cover or tree cover loss datasets for historical or long-term changes.
+    For recent trends, show alert counts over time using line charts. 
+    Use pie charts to show the distribution of disturbance types by specific driver.
+    Use pie charts to show the distribution of alerts by land cover class to show which ecosystems are most affected.
+    Use grouped bar charts with alert date (month) on the x-axis, count or area ha on the y-axis, and class name to differentiate bars, highlighting seasonal patterns.
+    Plot drivers separately if one dominates (makes up > 80% of alerts in any given month) and decide whether to include or exclude unclassified alerts based on whether the goal is to highlight only known drivers or completeness.
+    Potential conversion requires ≥75 days of sustained loss, so recent clearing may not appear; conversion may also be undercounted when fire is used for clearing or when it occurs near rivers.
+    Severe boreal fires may be misclassified as conversion. Always interpret alerts as indicators, not definitive outcomes.
+    Suggest overlaying alerts on satellite imagery for further context.
   description: >
     Global All Ecosystem Disturbance Alerts (DIST-ALERT) provides near-real-time alerts
     of vegetation disturbance globally at 30-meter resolution, using harmonized
-    Landsat-Sentinel-2 imagery. Users are informed about significant changes to the
+    Landsat-Sentinel-2 imagery. A filtered subset of these daily alerts (Land Disturbance Alert Classification System or LDACS) can also be classified into potential drivers:
+    conversion, cropland dynamics, fire-related, water-related, or unclassified. 
+    Users are informed about significant changes to the
     vegetation, which can indicate human induced changes such as deforestation, as well
     as drought and other events where actions by land managers may be required.
     Crucially, this dataset covers all vegetation, not just forest, so that new
@@ -416,10 +421,15 @@ datasets:
   keywords: "deforestation, forest loss, disturbance"
   analytics_api_endpoint: "/v0/land_change/tree_cover_loss/analytics"
   prompt_instructions: >
-    Reports gross annual loss of tree cover ≥ 5 m height (2001-2024).
+    Reports gross annual loss of tree cover ≥ 5 m height (2001-2024). 
     Show yearly loss with bar charts or cumulative loss with stacked-area charts; plot area_ha and drop zeros.
-    Avoid the term “deforestation” in favour of “tree cover loss”. “Tree cover” includes plantations as well as natural forest meaning loss is not automatically deforestation or carbon loss.
-    The product measures canopy loss only; it doesn’t track regrowth or permanence. Use 30% canopy cover threshold.
+    Group loss by driver to understand the most likely loss driver (commodity, forestry, wildfire, shifting agriculture, etc.)
+    Contrast drivers with stacked-bar charts or plot driver trends over time with lines, omitting 0/nulls.
+    Driver classes are coarse (assigning most likely cause within each 1km cell) and mutually exclusive—interpret them as indicative rather than precise attribution, and avoid mixing resolutions.
+    Prompt the user to specify which driver categories to aggregate if their question is broad. 
+    Avoid the term “deforestation” in favour of “tree cover loss”.
+    “Tree cover” includes plantations as well as natural forest meaning loss is not automatically deforestation or carbon loss.
+    The product measures canopy loss only; it doesn’t track regrowth or permanence. Use 30% threshold.
   description: >
     Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2024 at
     30-meter resolution using Landsat satellite imagery. It detects stand-replacement
