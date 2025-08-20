@@ -905,7 +905,7 @@ async def custom_area_name(
     Requires Authorization.
     """
     try:
-        prompt = f"""Name this GeoJSON FeatureCollection from physical geography.
+        prompt = """Name this GeoJSON FeatureCollection from physical geography.
         Pick name in this order:
         1. Most salient intersecting natural feature (range/peak; desert/plateau/basin; river/lake/watershed; coast/gulf/strait; plain/valley)
         2. If none clear, use a broader natural unit (ecoregion/physiographic province/biome or climate/latitude bands)
