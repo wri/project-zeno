@@ -1420,10 +1420,36 @@ async def get_raw_data(
     thread_id: str,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_async_session),
-    content_type: str = Header(
-        default="application/json", alias="Content-Type"
-    ),
+    content_type: str = Header(default="text/csv", alias="Content-Type"),
 ):
+    """
+    Get insights data for a specific thread. The data returned will reflect the
+    latest state of the `raw_data` key - meaning that if, during a multi-turn
+    conversation, the user has generated insights multiple time (eg: for
+    different locations or different time ranges) only the latest insights will
+    be downloadable.
+
+    **Authentication**: Requires Bearer token in Authorization header.
+    **Content-Type**: Accepts an OPTIONAL Content-Type header to specify
+        whether the data should be returned as a CSV file response or a
+        JSON object.
+
+    **Path Parameters**:
+    - thread_id (str): The unique identifier of the thread for which to gather
+        insights data
+
+    **Behavior**:
+    - Returns insights data in requested format
+    - Returns empty CSV/JSON if no insights data exists for the thread
+    - The thread must exist and belong to the authenticated user
+
+    **Response**: Returns a CSV file or JSON object with insights data
+
+    **Error Responses**:
+    - 401: Missing or invalid authentication
+    - 404: Thread not found or access denied
+    """
+
     # Fetch raw data for the specified thread
     stmt = select(ThreadOrm).filter_by(id=thread_id, user_id=user.id)
     result = await session.execute(stmt)
