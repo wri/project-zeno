@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm
+FROM python:3.12.8-slim-bookworm
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 
 RUN apt-get update && apt-get install -y build-essential libgdal-dev
 
-ADD https://astral.sh/uv/0.5.4/install.sh /uv-installer.sh
+ADD https://astral.sh/uv/0.8.12/install.sh /uv-installer.sh
 
 # Run the installer then remove it
 RUN sh /uv-installer.sh && rm /uv-installer.sh
