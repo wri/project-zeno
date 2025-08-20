@@ -252,5 +252,5 @@ COUNTRIES = {
     "ZA": "South Africa",
     "ZM": "Zambia",
     "ZW": "Zimbabwe",
-    "OTHER": "Other"
+    "OTHER": "Other",
 }
