@@ -37,6 +37,24 @@ class UserOrm(Base):
         DateTime, nullable=False, default=datetime.now, onupdate=datetime.now
     )
     user_type = Column(String, nullable=False, default=UserType.REGULAR.value)
+
+    # New profile fields - Basic
+    first_name = Column(String, nullable=True)
+    last_name = Column(
+        String, nullable=True
+    )  # Made nullable since existing users won't have this
+    profile_description = Column(String, nullable=True)
+
+    # New profile fields - Detailed
+    sector_code = Column(String, nullable=True)
+    role_code = Column(String, nullable=True)
+    job_title = Column(String, nullable=True)
+    company_organization = Column(String, nullable=True)
+    country_code = Column(String, nullable=True)
+    preferred_language_code = Column(String, nullable=True)
+    gis_expertise_level = Column(String, nullable=True)
+    areas_of_interest = Column(String, nullable=True)
+
     threads = relationship("ThreadOrm", back_populates="user")
     custom_areas = relationship("CustomAreaOrm", back_populates="user")
     ratings = relationship("RatingOrm", back_populates="user")

@@ -1,0 +1,1 @@
+"""User profile configuration module."""

@@ -1,0 +1,100 @@
+"""Sector configuration for user profiles."""
+
+SECTORS = {
+    "government": "Government",
+    "donor": "Donor Institution / Agency",
+    "local_ngo": "Local NGO (national or subnational)",
+    "international_ngo": "International NGO",
+    "un_international": "UN or International Organization",
+    "academic": "Academic / Research Organization",
+    "journalist": "Journalist / Media Organization",
+    "indigenous": "Indigenous or Community-Based Organization",
+    "private_sector": "Private sector",
+    "individual": "Individual / No Affiliation",
+    "other": "Other",
+}
+
+# Mapping of sectors to their available roles
+SECTOR_ROLES = {
+    "government": {
+        "forest_management": "Forest Management/Park Management",
+        "law_enforcement": "Law Enforcement",
+        "legislature": "Legislature/Parliament",
+        "ministry_agency": "Ministry/National Agency",
+        "subnational_agency": "Subnational Agency",
+        "other": "Other:",
+    },
+    "donor": {
+        "director_executive": "Director/Executive",
+        "project_manager": "Project/Program Manager",
+        "researcher": "Researcher",
+        "monitoring_evaluation": "Monitoring/Evaluation",
+        "field_staff": "Field/Country Staff",
+        "other": "Other:",
+    },
+    "local_ngo": {
+        "director_executive": "Director/Executive",
+        "project_manager": "Project/Program Manager",
+        "monitoring_evaluation": "Monitoring/Evaluation Specialist",
+        "gis_technical": "GIS/Technical Specialist",
+        "researcher": "Researcher",
+        "field_staff": "Field Staff",
+        "communications": "Communications Specialist",
+        "park_ranger": "Park/Forest Ranger",
+        "other": "Other:",
+    },
+    "international_ngo": {
+        "director_executive": "Director/Executive",
+        "project_manager": "Project/Program Manager",
+        "monitoring_evaluation": "Monitoring/Evaluation Specialist",
+        "gis_technical": "GIS/Technical Specialist",
+        "field_staff": "Field/Country Staff",
+        "communications": "Communications Specialist",
+        "researcher": "Researcher",
+        "other": "Other:",
+    },
+    "un_international": {
+        "director_executive": "Director/Executive",
+        "project_manager": "Project/Program Manager",
+        "researcher": "Researcher",
+        "field_staff": "Field/Country Staff",
+        "monitoring_evaluation": "Monitoring/Evaluation Specialist",
+        "gis_technical": "GIS/Technical Specialist",
+        "communications": "Communications Specialist",
+        "other": "Other:",
+    },
+    "academic": {
+        "faculty_primary": "Faculty (Primary/Secondary)",
+        "faculty_university": "Faculty (University)",
+        "student_primary": "Student (Primary/Secondary)",
+        "student_university": "Student (University/Graduate)",
+        "researcher_postdoc": "Researcher (Post-Doc, Fellow, etc.)",
+        "other": "Other:",
+    },
+    "journalist": {
+        "reporter": "Reporter",
+        "editor": "Editor",
+        "other": "Other:",
+    },
+    "indigenous": {
+        "community_leader": "Community Leader",
+        "forest_manager": "Forest Manager/Monitor",
+        "gis_technical": "GIS/Technical Specialist",
+        "communications": "Communications Specialist",
+        "other": "Other:",
+    },
+    "private_sector": {
+        "supply_chain_manager": "Supply Chain Manager",
+        "supply_chain_analyst": "Supply Chain Analyst",
+        "procurement_staff": "Procurement Staff",
+        "retailer_trader": "Retailer/Trader",
+        "land_owner": "Land or Concession Owner",
+        "other": "Other:",
+    },
+    "individual": {
+        "other": "Other:",
+    },
+    "other": {
+        "other": "Other:",
+    },
+}
