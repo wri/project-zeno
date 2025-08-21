@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+import structlog
 
 from src.agents.agents import fetch_zeno_anonymous
 
@@ -99,8 +100,10 @@ async def run_agent(query: str, thread_id: str | None = None):
 )
 @pytest.mark.asyncio
 async def test_full_agent_for_datasets(dataset):
-    query = f"What is the distribution of {dataset} in the municipality of Bern, Switzerland for July 2024?"
-    steps = await run_agent(query)
+    query = f"What are the trends of {dataset} in the municipality of Bern, Switzerland for July 2024?"
+
+    with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
+        steps = await run_agent(query)
 
     assert len(steps) > 0
 
@@ -120,7 +123,9 @@ async def test_full_agent_for_datasets(dataset):
 @pytest.mark.asyncio
 async def test_full_agent_for_disturbance_alerts_in_brazil():
     query = "What is the distribution of disturbance alerts in Belem, Pará, Brazil July 2024?"
-    steps = await run_agent(query)
+
+    with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
+        steps = await run_agent(query)
 
     assert len(steps) > 0
 
