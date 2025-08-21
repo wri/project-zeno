@@ -5,8 +5,6 @@ from pystac import (
     Collection,
     Extent,
     Item,
-    Provider,
-    ProviderRole,
     SpatialExtent,
     TemporalExtent,
     set_stac_version,
@@ -15,6 +13,7 @@ from rio_stac import create_stac_item
 
 from stac.datasets.utils import (
     convert_valid_percentage_to_int,
+    get_metadata_from_yaml,
     load_stac_data_to_db,
 )
 
@@ -74,32 +73,19 @@ def create_collection() -> Collection:
         spatial=spatial_extent, temporal=temporal_extent
     )
 
+    metadata = get_metadata_from_yaml(
+        "src/tools/analytics_datasets.yml", "Natural lands"
+    )
+    metadata["classification_values"] = CLASSIFICATION_VALUES
+
     return Collection(
         id=COLLECTION_ID,
-        description="""The SBTN Natural Lands Map v1.1 is a 2020 baseline map of
-        natural and non-natural land covers intended for use by companies setting
-        science-based targets for nature, specifically the SBTN Land target #1:
-        no conversion of natural ecosystems.""",
-        title="SBTN Natural Lands Map v1.1",
-        license="CC-BY-SA-4.0",
-        keywords=["ecosystems", "landcover", "landuse-landcover", "wri"],
-        providers=[
-            Provider(
-                name="World Resources Institute",
-                roles=[ProviderRole.PRODUCER, ProviderRole.LICENSOR],
-                url="https://github.com/wri/natural-lands-map/tree/main",
-            )
-        ],
+        description=metadata.pop("description"),
+        title=metadata.pop("dataset_name"),
+        license=metadata.pop("license"),
+        keywords=metadata.pop("keywords"),
         extent=collection_extent,
-        extra_fields={
-            "classification_values": CLASSIFICATION_VALUES,
-            "classification_band": {
-                "description": "Land cover classification",
-                "min": 2,
-                "max": 21,
-            },
-            "version": "1.1",
-        },
+        extra_fields=metadata,
     )
 
 
@@ -108,7 +94,7 @@ def main():
     print(f"Loaded {len(items)} STAC items")
     collection = create_collection()
     print("Loading STAC data to database...")
-    load_stac_data_to_db(collection, items, delete_existing_items=True)
+    load_stac_data_to_db(collection, items, delete_existing_items=False)
     print("Done!")
 
 
