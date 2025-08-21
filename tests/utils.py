@@ -10,7 +10,7 @@ from langgraph.prebuilt import create_react_agent
 
 from src.graph.state import AgentState
 from src.utils.env_loader import load_environment_variables
-from src.utils.llms import SONNET
+from src.utils.llms import GEMINI
 
 load_environment_variables()
 
@@ -93,7 +93,7 @@ def create_test_agent(tools: list, prompt: str = None):
     default_prompt = """You are a test agent that can help with various tasks using the provided tools."""
 
     return create_react_agent(
-        SONNET,
+        GEMINI,
         tools=tools,
         state_schema=AgentState,
         checkpointer=InMemorySaver(),

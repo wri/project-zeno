@@ -15,7 +15,7 @@ from src.tools import (
     pull_data,
 )
 from src.utils.env_loader import load_environment_variables
-from src.utils.llms import SONNET
+from src.utils.llms import GEMINI
 
 prompt = f"""You are a geospatial agent that has access to tools and user provided selections to help answer user queries. First, think through the problem step-by-step by planning what tools you need to use and in what order. Then execute your plan by using the tools one by one to answer the user's question.
 
@@ -68,7 +68,7 @@ async def fetch_zeno_anonymous() -> CompiledStateGraph:
     # Create the Zeno agent with the provided tools and prompt
 
     zeno_agent = create_react_agent(
-        model=SONNET,
+        model=GEMINI,
         tools=tools,
         state_schema=AgentState,
         prompt=prompt,
@@ -81,7 +81,7 @@ async def fetch_zeno() -> CompiledStateGraph:
 
     checkpointer = await fetch_checkpointer()
     zeno_agent = create_react_agent(
-        model=SONNET,
+        model=GEMINI,
         tools=tools,
         state_schema=AgentState,
         prompt=prompt,

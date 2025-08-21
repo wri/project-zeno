@@ -87,7 +87,7 @@ for message in st.session_state.messages:
 
 client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
 quota_info = client.get_quota_info()
-remaining_prompts = quota_info["prompt_quota"] - quota_info["prompts_used"]
+remaining_prompts = quota_info["promptQuota"] - quota_info["promptsUsed"]
 
 if user_input := st.chat_input(
     f"Type your message here... (remaining prompts: {remaining_prompts})"

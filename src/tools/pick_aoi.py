@@ -23,7 +23,7 @@ from src.utils.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     WDPA_TABLE,
 )
-from src.utils.llms import SONNET
+from src.utils.llms import GEMINI
 from src.utils.logging_config import get_logger
 
 RESULT_LIMIT = 10
@@ -324,7 +324,7 @@ AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 # Chain for selecting the best location match
-AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
+AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | GEMINI.with_structured_output(
     AOIIndex
 )
 
@@ -446,7 +446,7 @@ async def pick_aoi(
 
 if __name__ == "__main__":
     agent = create_react_agent(
-        SONNET,
+        GEMINI,
         tools=[pick_aoi],
         prompt="""You are a Geo Agent that can ONLY HELP PICK an AOI using the `pick-aoi` tool.
         Pick the best AOI based on the user query. You DONT need to answer the user query, just pick the best AOI.""",

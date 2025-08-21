@@ -286,38 +286,217 @@ def render_charts(charts_data):
         }
     """
     try:
-        if not charts_data or not isinstance(charts_data, list):
+        if not charts_data or not isinstance(charts_data, dict):
             return
 
-        for chart in charts_data:
-            if not isinstance(chart, dict):
-                continue
+        chart = charts_data
+        chart_title = chart.get("title", "Chart")
+        chart_type = chart.get("type", "bar").lower()
+        chart_data = chart.get("data", [])
+        xAxis = chart.get("xAxis", "")
+        yAxis = chart.get("yAxis", "")
+        colorField = chart.get("colorField", "")
+        stackField = chart.get("stackField", "")
+        groupField = chart.get("groupField", "")
+        seriesFields = chart.get("seriesFields", [])
 
-            chart_title = chart.get("title", "Chart")
-            chart_type = chart.get("type", "bar").lower()
-            chart_data = chart.get("data", [])
-            xAxis = chart.get("xAxis", "")
-            yAxis = chart.get("yAxis", "")
-            colorField = chart.get("colorField", "")
-            stackField = chart.get("stackField", "")
-            groupField = chart.get("groupField", "")
-            seriesFields = chart.get("seriesFields", [])
+        if not chart_data or not xAxis or not yAxis:
+            st.warning(f"Incomplete chart data for: {chart_title}")
+            return
 
-            if not chart_data or not xAxis or not yAxis:
-                st.warning(f"Incomplete chart data for: {chart_title}")
-                continue
+        # Convert to DataFrame
+        df = pd.DataFrame(chart_data)
 
-            # Convert to DataFrame
-            df = pd.DataFrame(chart_data)
+        st.subheader(chart_title)
 
-            st.subheader(chart_title)
+        # Display insight if available
+        if "insight" in chart:
+            st.info(chart["insight"])
 
-            # Display insight if available
-            if "insight" in chart:
-                st.info(chart["insight"])
+        # Create chart based on type
+        if chart_type == "bar":
+            chart_obj = (
+                alt.Chart(df)
+                .mark_bar()
+                .encode(
+                    x=alt.X(
+                        f"{xAxis}:N",
+                        title=xAxis.replace("_", " ").title(),
+                    ),
+                    y=alt.Y(
+                        f"{yAxis}:Q",
+                        title=yAxis.replace("_", " ").title(),
+                    ),
+                    color=(
+                        alt.Color(f"{colorField}:N")
+                        if colorField
+                        else alt.value("steelblue")
+                    ),
+                )
+                .properties(width=600, height=400, title=chart_title)
+            )
 
-            # Create chart based on type
-            if chart_type == "bar":
+        elif chart_type == "line":
+            chart_obj = (
+                alt.Chart(df)
+                .mark_line(point=True)
+                .encode(
+                    x=alt.X(
+                        f"{xAxis}:O",
+                        title=xAxis.replace("_", " ").title(),
+                    ),
+                    y=alt.Y(
+                        f"{yAxis}:Q",
+                        title=yAxis.replace("_", " ").title(),
+                    ),
+                    color=(
+                        alt.Color(f"{colorField}:N")
+                        if colorField
+                        else alt.value("steelblue")
+                    ),
+                )
+                .properties(width=600, height=400, title=chart_title)
+            )
+
+        elif chart_type == "pie":
+            chart_obj = (
+                alt.Chart(df)
+                .mark_arc()
+                .encode(
+                    theta=alt.Theta(f"{yAxis}:Q"),
+                    color=alt.Color(
+                        f"{xAxis}:N",
+                        title=xAxis.replace("_", " ").title(),
+                    ),
+                    tooltip=[f"{xAxis}:N", f"{yAxis}:Q"],
+                )
+                .properties(width=400, height=400, title=chart_title)
+            )
+
+        elif chart_type == "area":
+            chart_obj = (
+                alt.Chart(df)
+                .mark_area()
+                .encode(
+                    x=alt.X(
+                        f"{xAxis}:O",
+                        title=xAxis.replace("_", " ").title(),
+                    ),
+                    y=alt.Y(
+                        f"{yAxis}:Q",
+                        title=yAxis.replace("_", " ").title(),
+                    ),
+                    color=(
+                        alt.Color(f"{colorField}:N")
+                        if colorField
+                        else alt.value("steelblue")
+                    ),
+                )
+                .properties(width=600, height=400, title=chart_title)
+            )
+
+        elif chart_type == "scatter":
+            chart_obj = (
+                alt.Chart(df)
+                .mark_point()
+                .encode(
+                    x=alt.X(
+                        f"{xAxis}:O",
+                        title=xAxis.replace("_", " ").title(),
+                    ),
+                    y=alt.Y(
+                        f"{yAxis}:Q",
+                        title=yAxis.replace("_", " ").title(),
+                    ),
+                    color=(
+                        alt.Color(f"{colorField}:N")
+                        if colorField
+                        else alt.value("steelblue")
+                    ),
+                )
+                .properties(width=600, height=400, title=chart_title)
+            )
+
+        elif chart_type == "stacked-bar":
+            # For stacked bar charts, we need to transform data to long format if seriesFields are provided
+            if seriesFields:
+                # Transform data from wide to long format for stacking
+                df_long = pd.melt(
+                    df,
+                    id_vars=[xAxis],
+                    value_vars=seriesFields,
+                    var_name="category",
+                    value_name="value",
+                )
+                chart_obj = (
+                    alt.Chart(df_long)
+                    .mark_bar()
+                    .encode(
+                        x=alt.X(
+                            f"{xAxis}:N",
+                            title=xAxis.replace("_", " ").title(),
+                        ),
+                        y=alt.Y(
+                            "value:Q",
+                            title="Value",
+                        ),
+                        color=alt.Color(
+                            "category:N",
+                            title="Category",
+                        ),
+                    )
+                    .properties(width=600, height=400, title=chart_title)
+                )
+            else:
+                # Use stackField if provided, otherwise use colorField for stacking
+                stack_field = stackField or colorField
+                chart_obj = (
+                    alt.Chart(df)
+                    .mark_bar()
+                    .encode(
+                        x=alt.X(
+                            f"{xAxis}:N",
+                            title=xAxis.replace("_", " ").title(),
+                        ),
+                        y=alt.Y(
+                            f"{yAxis}:Q",
+                            title=yAxis.replace("_", " ").title(),
+                        ),
+                        color=alt.Color(
+                            f"{stack_field}:N",
+                            title=stack_field.replace("_", " ").title(),
+                        )
+                        if stack_field
+                        else alt.value("steelblue"),
+                    )
+                    .properties(width=600, height=400, title=chart_title)
+                )
+
+        elif chart_type == "grouped-bar":
+            # For grouped bar charts, use groupField to create side-by-side bars
+            if groupField:
+                chart_obj = (
+                    alt.Chart(df)
+                    .mark_bar()
+                    .encode(
+                        x=alt.X(
+                            f"{xAxis}:N",
+                            title=xAxis.replace("_", " ").title(),
+                        ),
+                        y=alt.Y(
+                            f"{yAxis}:Q",
+                            title=yAxis.replace("_", " ").title(),
+                        ),
+                        color=alt.Color(
+                            f"{groupField}:N",
+                            title=groupField.replace("_", " ").title(),
+                        ),
+                        xOffset=alt.XOffset(f"{groupField}:N"),
+                    )
+                    .properties(width=600, height=400, title=chart_title)
+                )
+            else:
+                # Fallback to regular bar chart if no groupField
                 chart_obj = (
                     alt.Chart(df)
                     .mark_bar()
@@ -339,198 +518,16 @@ def render_charts(charts_data):
                     .properties(width=600, height=400, title=chart_title)
                 )
 
-            elif chart_type == "line":
-                chart_obj = (
-                    alt.Chart(df)
-                    .mark_line(point=True)
-                    .encode(
-                        x=alt.X(
-                            f"{xAxis}:O",
-                            title=xAxis.replace("_", " ").title(),
-                        ),
-                        y=alt.Y(
-                            f"{yAxis}:Q",
-                            title=yAxis.replace("_", " ").title(),
-                        ),
-                        color=(
-                            alt.Color(f"{colorField}:N")
-                            if colorField
-                            else alt.value("steelblue")
-                        ),
-                    )
-                    .properties(width=600, height=400, title=chart_title)
-                )
+        elif chart_type == "table":
+            # For table type, display as a proper table instead of a chart
+            st.dataframe(df, use_container_width=True)
+            return  # Skip the altair_chart rendering for tables
 
-            elif chart_type == "pie":
-                chart_obj = (
-                    alt.Chart(df)
-                    .mark_arc()
-                    .encode(
-                        theta=alt.Theta(f"{yAxis}:Q"),
-                        color=alt.Color(
-                            f"{xAxis}:N",
-                            title=xAxis.replace("_", " ").title(),
-                        ),
-                        tooltip=[f"{xAxis}:N", f"{yAxis}:Q"],
-                    )
-                    .properties(width=400, height=400, title=chart_title)
-                )
+        else:
+            st.warning(f"Unsupported chart type: {chart_type}")
+            return
 
-            elif chart_type == "area":
-                chart_obj = (
-                    alt.Chart(df)
-                    .mark_area()
-                    .encode(
-                        x=alt.X(
-                            f"{xAxis}:O",
-                            title=xAxis.replace("_", " ").title(),
-                        ),
-                        y=alt.Y(
-                            f"{yAxis}:Q",
-                            title=yAxis.replace("_", " ").title(),
-                        ),
-                        color=(
-                            alt.Color(f"{colorField}:N")
-                            if colorField
-                            else alt.value("steelblue")
-                        ),
-                    )
-                    .properties(width=600, height=400, title=chart_title)
-                )
-
-            elif chart_type == "scatter":
-                chart_obj = (
-                    alt.Chart(df)
-                    .mark_point()
-                    .encode(
-                        x=alt.X(
-                            f"{xAxis}:O",
-                            title=xAxis.replace("_", " ").title(),
-                        ),
-                        y=alt.Y(
-                            f"{yAxis}:Q",
-                            title=yAxis.replace("_", " ").title(),
-                        ),
-                        color=(
-                            alt.Color(f"{colorField}:N")
-                            if colorField
-                            else alt.value("steelblue")
-                        ),
-                    )
-                    .properties(width=600, height=400, title=chart_title)
-                )
-
-            elif chart_type == "stacked-bar":
-                # For stacked bar charts, we need to transform data to long format if seriesFields are provided
-                if seriesFields:
-                    # Transform data from wide to long format for stacking
-                    df_long = pd.melt(
-                        df,
-                        id_vars=[xAxis],
-                        value_vars=seriesFields,
-                        var_name="category",
-                        value_name="value",
-                    )
-                    chart_obj = (
-                        alt.Chart(df_long)
-                        .mark_bar()
-                        .encode(
-                            x=alt.X(
-                                f"{xAxis}:N",
-                                title=xAxis.replace("_", " ").title(),
-                            ),
-                            y=alt.Y(
-                                "value:Q",
-                                title="Value",
-                            ),
-                            color=alt.Color(
-                                "category:N",
-                                title="Category",
-                            ),
-                        )
-                        .properties(width=600, height=400, title=chart_title)
-                    )
-                else:
-                    # Use stackField if provided, otherwise use colorField for stacking
-                    stack_field = stackField or colorField
-                    chart_obj = (
-                        alt.Chart(df)
-                        .mark_bar()
-                        .encode(
-                            x=alt.X(
-                                f"{xAxis}:N",
-                                title=xAxis.replace("_", " ").title(),
-                            ),
-                            y=alt.Y(
-                                f"{yAxis}:Q",
-                                title=yAxis.replace("_", " ").title(),
-                            ),
-                            color=alt.Color(
-                                f"{stack_field}:N",
-                                title=stack_field.replace("_", " ").title(),
-                            )
-                            if stack_field
-                            else alt.value("steelblue"),
-                        )
-                        .properties(width=600, height=400, title=chart_title)
-                    )
-
-            elif chart_type == "grouped-bar":
-                # For grouped bar charts, use groupField to create side-by-side bars
-                if groupField:
-                    chart_obj = (
-                        alt.Chart(df)
-                        .mark_bar()
-                        .encode(
-                            x=alt.X(
-                                f"{xAxis}:N",
-                                title=xAxis.replace("_", " ").title(),
-                            ),
-                            y=alt.Y(
-                                f"{yAxis}:Q",
-                                title=yAxis.replace("_", " ").title(),
-                            ),
-                            color=alt.Color(
-                                f"{groupField}:N",
-                                title=groupField.replace("_", " ").title(),
-                            ),
-                            xOffset=alt.XOffset(f"{groupField}:N"),
-                        )
-                        .properties(width=600, height=400, title=chart_title)
-                    )
-                else:
-                    # Fallback to regular bar chart if no groupField
-                    chart_obj = (
-                        alt.Chart(df)
-                        .mark_bar()
-                        .encode(
-                            x=alt.X(
-                                f"{xAxis}:N",
-                                title=xAxis.replace("_", " ").title(),
-                            ),
-                            y=alt.Y(
-                                f"{yAxis}:Q",
-                                title=yAxis.replace("_", " ").title(),
-                            ),
-                            color=(
-                                alt.Color(f"{colorField}:N")
-                                if colorField
-                                else alt.value("steelblue")
-                            ),
-                        )
-                        .properties(width=600, height=400, title=chart_title)
-                    )
-
-            elif chart_type == "table":
-                # For table type, display as a proper table instead of a chart
-                st.dataframe(df, use_container_width=True)
-                continue  # Skip the altair_chart rendering for tables
-
-            else:
-                st.warning(f"Unsupported chart type: {chart_type}")
-                continue
-
-            st.altair_chart(chart_obj, use_container_width=True)
+        st.altair_chart(chart_obj, use_container_width=True)
 
     except Exception as e:
         st.error(f"Error rendering charts: {str(e)}")
@@ -550,12 +547,15 @@ def render_stream(stream):
         content = msg["kwargs"]["content"]
 
         if isinstance(content, list):
-            for msg in content:
-                if msg["type"] == "text":
-                    st.text(msg["text"])
-                elif msg["type"] == "tool_use":
-                    st.code(msg["name"])
-                    st.code(msg["input"], language="json")
+            for content_item in content:
+                if isinstance(content_item, dict):
+                    if content_item["type"] == "text":
+                        st.text(content_item["text"])
+                    elif content_item["type"] == "tool_use":
+                        st.code(content_item["name"])
+                        st.code(content_item["input"], language="json")
+                else:
+                    st.text(content_item)
         else:
             st.text(content)
     # Render map if this is a tool node with AOI data

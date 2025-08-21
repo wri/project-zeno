@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Dict, List
+from typing import Annotated, Dict, List
 
 import pandas as pd
 from langchain_core.messages import ToolMessage
@@ -9,7 +9,7 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from src.utils.llms import SONNET
+from src.utils.llms import GEMINI
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -17,7 +17,8 @@ logger = get_logger(__name__)
 
 class ChartInsight(BaseModel):
     """
-    Represents a chart-based insight with Recharts-compatible data.
+    Represents a chart-based insight with metadata for frontend rendering.
+    The actual data is passed separately as raw chart_data.
     """
 
     title: str = Field(description="Clear, descriptive title for the chart")
@@ -26,9 +27,6 @@ class ChartInsight(BaseModel):
     )
     insight: str = Field(
         description="Key insight or finding that this chart reveals (2-3 sentences)"
-    )
-    data: List[Dict[str, Any]] = Field(
-        description="Recharts-compatible data array with objects containing key-value pairs"
     )
     x_axis: str = Field(
         description="Name of the field to use for X-axis (for applicable chart types)"
@@ -52,16 +50,6 @@ class ChartInsight(BaseModel):
         default=[],
         description="List of field names for multiple data series (for multi-bar charts)",
     )
-
-
-class InsightResponse(BaseModel):
-    """
-    Contains 1 main chart insight and follow-up suggestions.
-    """
-
-    insight: ChartInsight = Field(
-        description="The most useful chart insight for the user's query"
-    )
     follow_up_suggestions: List[str] = Field(
         description="List of 2-3 follow-up prompt suggestions for additional analysis"
     )
@@ -71,38 +59,69 @@ INSIGHT_GENERATION_PROMPT = ChatPromptTemplate.from_messages(
     [
         (
             "user",
-            """
-You are Zeno, an AI assistant that analyzes environmental data and creates insightful visualizations.
+            """You are Zeno, an AI assistant that analyzes environmental data and creates insightful visualizations.
 
-Analyze the provided data and generate the most useful chart insight that answers the user's query. If the user requests a specific chart type (e.g., "show as bar chart", "make this a pie chart"), prioritize that chart type if it's appropriate for the data.
+Your task: Analyze the provided CSV data and generate chart metadata (title, chart type, field mappings, insights).
 
-Chart types available:
-- 'line': Time series/trends
+The actual data will be passed separately to the frontend - you only need to specify which fields to use for visualization.
+
+<chart_types>
+- 'line': Time series/trends over time
 - 'bar': Categorical comparisons
-- 'stacked-bar': Composition within categories
+- 'stacked-bar': Composition within categories (parts of a whole)
 - 'grouped-bar': Multiple metrics across categories
-- 'pie': Part-to-whole (max 6-8 categories)
-- 'area': Cumulative trends
-- 'scatter': Correlations
-- 'table': Detailed data
+- 'pie': Part-to-whole relationships (max 6-8 categories)
+- 'area': Cumulative trends over time
+- 'scatter': Correlations between two variables
+- 'table': Detailed data display
+</chart_types>
 
-Data format requirements:
-- Array of objects with simple field names (e.g., 'date', 'value', 'category')
-- Numeric values as numbers, not strings
-- For stacked-bar: [{{"category": "2020", "metric1": 100, "metric2": 50}}] + set series_fields
-- For grouped-bar: [{{"year": "2020", "type": "metric1", "value": 100}}] + set group_field
+<field_mapping_instructions>
+1. ANALYZE the CSV data structure and identify column names
+2. CHOOSE appropriate chart type based on data characteristics
+3. SPECIFY which CSV column names to use for x_axis, y_axis, color_field, etc.
+4. WRITE insights based on actual data patterns you observe
+5. For stacked-bar: List all numeric columns in series_fields array
+6. For grouped-bar: Specify the grouping column in group_field
+7. For pie charts: Use categorical column for x_axis, numeric column for y_axis
+</field_mapping_instructions>
+
+<field_examples>
+CSV columns: "date,alerts,region,country,src,src_id,confidence"
+x_axis: "date", y_axis: "alerts", color_field: "region", chart_type: "line"
+
+CSV columns: "country,forest_loss_ha,year,region,src,confidence,data_source"
+x_axis: "country", y_axis: "forest_loss_ha", color_field: "region", chart_type: "bar"
+
+CSV columns: "year,agriculture,logging,fires,country,src_id,confidence,region"
+x_axis: "year", series_fields: ["agriculture", "logging", "fires"], chart_type: "stacked-bar"
+
+CSV columns: "country,metric,value,year,region,src,confidence,data_source"
+x_axis: "country", y_axis: "value", group_field: "metric", chart_type: "grouped-bar"
+
+CSV columns: "cause,percentage,country,year,src,confidence,data_quality"
+x_axis: "cause", y_axis: "percentage", chart_type: "pie"
+
+CSV columns: "country,alerts,forest_loss_ha,fires,region,confidence,src,data_source"
+chart_type: "table" (no x_axis/y_axis needed - displays raw data with columns: country, alerts, forest_loss_ha, fires, region)
+
+CSV columns: "forest_loss_ha,fire_incidents,country,region,year,src,confidence,data_source"
+x_axis: "forest_loss_ha", y_axis: "fire_incidents", color_field: "region", chart_type: "scatter"
+
+FIELD SELECTION GUIDELINES:
+- PRIMARY: Choose the most meaningful categorical/temporal field for x_axis
+- SECONDARY: Choose the main numeric metric for y_axis
+- GROUPING: Use categorical fields like region/country for color_field when helpful
+- IGNORE: Metadata fields like src, src_id, lat, lon, data_source, threshold, data_quality
+- SERIES: For stacked/grouped charts, select multiple related numeric columns
+</field_examples>
 
 User query: {user_query}
 Area of interest: {aoi_name}
 Raw data (CSV):
 {raw_data}
 
-Generate:
-1. One chart insight with appropriate chart type, Recharts-compatible data, and clear axis fields
-2. 2-3 specific follow-up suggestions for further exploration
-
-Follow-up examples: "Show trend over different period", "Compare with [region]", "Break down by [dimension]", "Top/bottom performers in [metric]"
-            """,
+Analyze the data structure and generate appropriate chart metadata with field mappings.""",
         ),
     ]
 )
@@ -144,38 +163,31 @@ def generate_insights(
     raw_data = state["raw_data"]
     logger.debug(f"Processing data with {len(raw_data)} rows")
 
-    # Convert DataFrame to CSV string for the prompt
-    if isinstance(raw_data, pd.DataFrame):
-        data_csv = raw_data.to_csv(index=False)
-        logger.debug(f"Data columns: {list(raw_data.columns)}")
-    else:
-        data_csv = str(raw_data)
-
-    prompt_instructions = state.get("dataset").get("prompt_instructions", "")
+    # Convert data to DataFrame and then to CSV string for the prompt
+    raw_data = pd.DataFrame(raw_data)
+    data_csv = raw_data.to_csv(index=False)
+    logger.debug(f"Data columns: {list(raw_data.columns)}")
 
     # Generate insights using the LLM
     try:
-        chain = INSIGHT_GENERATION_PROMPT | SONNET.with_structured_output(
-            InsightResponse
+        chain = INSIGHT_GENERATION_PROMPT | GEMINI.with_structured_output(
+            ChartInsight
         )
-        response = chain.invoke(
+        insight = chain.invoke(
             {
                 "user_query": query,
                 "raw_data": data_csv,
-                # when picking an area of interest manually, the query will not have an area of interest
-                # mentioned, so we can use the state to get the area name to pass to the LLM
-                # Otherwise, the insight heading might not mention the name of the area
                 "aoi_name": state.get("aoi_name", ""),
-                "prompt_instructions": prompt_instructions,
             }
         )
 
-        insight = response.insight
-        follow_ups = response.follow_up_suggestions
         logger.debug(
             f"Generated insight: {insight.title} ({insight.chart_type})"
         )
-        logger.debug(f"Generated {len(follow_ups)} follow-up suggestions")
+
+        # Convert raw_data to dict format for frontend
+        chart_data = raw_data.to_dict("records")
+        data_points_count = len(raw_data)
 
         # Format the response message
         message_parts = []
@@ -183,40 +195,36 @@ def generate_insights(
         message_parts.append(f"**{insight.title}**")
         message_parts.append(f"Chart Type: {insight.chart_type}")
         message_parts.append(f"Key Finding: {insight.insight}")
-        message_parts.append(f"Data Points: {len(insight.data)}")
+        message_parts.append(f"Data Points: {data_points_count}")
         message_parts.append("")
 
         # Add follow-up suggestions
         message_parts.append("**💡 Follow-up suggestions:**")
-        for i, suggestion in enumerate(follow_ups, 1):
+        for i, suggestion in enumerate(insight.follow_up_suggestions, 1):
             message_parts.append(f"{i}. {suggestion}")
         message_parts.append("")
 
-        # Store chart data for frontend
-        charts_data = [
-            {
-                "id": "main_chart",
-                "title": insight.title,
-                "type": insight.chart_type,
-                "insight": insight.insight,
-                "data": insight.data,
-                "xAxis": insight.x_axis,
-                "yAxis": insight.y_axis,
-                "colorField": insight.color_field,
-                "stackField": insight.stack_field,
-                "groupField": insight.group_field,
-                "seriesFields": insight.series_fields,
-            }
-        ]
+        # Store chart data for frontend - pass raw data directly
+        charts_data = {
+            "id": "main_chart",
+            "title": insight.title,
+            "type": insight.chart_type,
+            "insight": insight.insight,
+            "data": chart_data,  # Raw data passed directly
+            "xAxis": insight.x_axis,
+            "yAxis": insight.y_axis,
+            "colorField": insight.color_field,
+            "stackField": insight.stack_field,
+            "groupField": insight.group_field,
+            "seriesFields": insight.series_fields,
+            "followUpSuggestions": insight.follow_up_suggestions,
+        }
 
         tool_message = "\n".join(message_parts)
 
         # Update state with generated insight and follow-ups
         updated_state = {
-            "insight": response.model_dump()["insight"],
-            "follow_up_suggestions": follow_ups,
             "charts_data": charts_data,
-            "insight_count": 1,
         }
 
         return Command(
@@ -273,7 +281,7 @@ if __name__ == "__main__":
     )
 
     print("=== Simple Line Chart Test ===")
-    print(result_line.update["messages"][0].content)
+    print(result_line.update["charts_data"])
 
     # Test 2: Simple Bar Chart - Categorical comparison
     mock_state_bar = {
@@ -299,7 +307,7 @@ if __name__ == "__main__":
     )
 
     print("\n=== Simple Bar Chart Test ===")
-    print(result_bar.update["messages"][0].content)
+    print(result_bar.update["charts_data"])
 
     # Test 3: Complex Stacked Bar Chart - Composition data
     mock_state_stacked = {
@@ -322,7 +330,7 @@ if __name__ == "__main__":
     )
 
     print("\n=== Complex Stacked Bar Chart Test ===")
-    print(result_stacked.update["messages"][0].content)
+    print(result_stacked.update["charts_data"])
 
     # Test 4: Complex Grouped Bar Chart - Multiple metrics comparison
     mock_state_grouped = {
@@ -357,7 +365,7 @@ if __name__ == "__main__":
     )
 
     print("\n=== Complex Grouped Bar Chart Test ===")
-    print(result_grouped.update["messages"][0].content)
+    print(result_grouped.update["charts_data"])
 
     # Test 5: Pie Chart - Part-to-whole relationship
     mock_state_pie = {
@@ -383,4 +391,4 @@ if __name__ == "__main__":
     )
 
     print("\n=== Pie Chart Test ===")
-    print(result_pie.update["messages"][0].content)
+    print(result_pie.update["charts_data"])

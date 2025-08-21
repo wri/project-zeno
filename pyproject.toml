@@ -51,6 +51,7 @@ dependencies = [
     "greenlet>=3.2.3",
     "simsimd>=6.5.0",
     "psycopg2>=2.9.10",
+    "langchain-google-genai>=2.1.9",
 ]
 
 [dependency-groups]
