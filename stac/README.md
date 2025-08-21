@@ -40,6 +40,7 @@ data for years 2016-2024.
 **Usage:** `./merge_global_land_cover.sh <local_dir>`
 
 **What it does:**
+
 - Downloads tiles from Google Cloud Storage (`gs://lcl_tiles/LCL_landCover/v2/`)
 - Creates VRT files combining all tiles for each year
 - Converts to COG format with LZW compression
@@ -59,6 +60,7 @@ Creates a global COG file from Natural Lands classification data.
 **Usage:** `./merge_natural_lands.sh`
 
 **What it does:**
+
 - Downloads Natural Lands classification tiles from `gs://lcl_public/SBTN_NaturalLands/v1_1/classification`
 - Creates a VRT file combining all tiles
 - Converts to COG format with LZW compression
