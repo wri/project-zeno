@@ -13,7 +13,12 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: "Underlying product updated daily, with image revisit time every 2-4 days. Product on GFW updated weekly."
   content_date: "1 January 2023 - present"
-  keywords: "land cover, alerts, deforestation, conversion, vegetation disturbance"
+  keywords:
+    - land cover
+    - alerts
+    - deforestation
+    - conversion
+    - vegetation disturbance
   analytics_api_endpoint: "/v0/land_change/dist_alerts/analytics"
   prompt_instructions: >
     Use this dataset to show recent vegetation changes across all ecosystems.
@@ -142,7 +147,35 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: "Annual"
   content_date: "2015-2024"
-  keywords: "global, land cover, land cover change, cultivated grasslands, tree cover gain, cropland expansion (or agricultural expansion), urbanization (or urban expansion), bare ground, sparse vegetation, short vegetation, grassland, shrubland, cultivated, cropland, built-up, urban, forest, tree cover, water, wetland, machine learning, annual, Landsat, time series, remote sensing, 30 m"
+  keywords:
+    - global
+    - land cover
+    - land cover change
+    - cultivated grasslands
+    - tree cover gain
+    - cropland expansion
+    - agricultural expansion
+    - urbanization
+    - urban expansion
+    - bare ground
+    - sparse vegetation
+    - short vegetation
+    - grassland
+    - shrubland
+    - cultivated
+    - cropland
+    - built-up
+    - urban
+    - forest
+    - tree cover
+    - water
+    - wetland
+    - machine learning
+    - annual
+    - Landsat
+    - time series
+    - remote sensing
+    - 30 m
   analytics_api_endpoint: "/v0/land_change/land_cover_change/analytics"
   prompt_instructions: >
     Maps land-cover classes in 2015 and 2024 and reports pixel-level transitions.
@@ -263,8 +296,24 @@ datasets:
   geographic_coverage: "90°N to 90°S"
   resolution: "30 x 30 meters"
   update_frequency: "Annual"
-  content_date: "2000-2022, annual"
-  keywords: "grasslands, natural grasslands, semi-natural grasslands, rangeland, livestock, grazing, global, annual, 30 m, remote sensing, time series, change detection, machine learning, Landsat"
+  content_date: "2000-2024, annual"
+  keywords:
+    - grasslands
+    - natural grasslands
+    - semi-natural grasslands
+    - cultivated grasslands
+    - pasturelands
+    - rangeland
+    - livestock
+    - grazing
+    - global
+    - annual
+    - 30 m
+    - remote sensing
+    - time series
+    - change detection
+    - machine learning
+    - Landsat
   analytics_api_endpoint: "/v0/land_change/grasslands/analytics"
   prompt_instructions: >
     Natural/semi-natural grassland extent and change for each year from 2000 to 2022.
@@ -412,7 +461,7 @@ datasets:
     Parente, L., Sloat, L., Mesquita, V., Consoli, D., Stanimirova, R., Hengl, T., Bonannella, C.,
     Teles, N., Wheeler, I., Hunter, M., Ehrmann, S., Ferreira, L., Mattos, A. P., Oliveira, B.,
     Meyer, C., Şahin, M., Witjes, M., Fritz, S., Malek, Z., & Stolle, F. (2024). Annual 30-m
-    maps of global grassland class and extent (2000–2022) based on spatiotemporal Machine
+    maps of global grassland class and extent (2000-2022) based on spatiotemporal Machine
     Learning. Scientific Data, 11(1), 1303. https://doi.org/10.1038/s41597-024-04139-6
 
 - dataset_id: 3
@@ -422,10 +471,15 @@ datasets:
   tile_url: ""
   license: "CC by 4.0 SA"
   geographic_coverage: Global
-  resolution: "30 × 30 meters"
+  resolution: "30 x 30 meters"
   update_frequency: "Irregular"
   content_date: "2020"
-  keywords: "land cover, deforestation, conversion, supply chains, natural lands"
+  keywords:
+    - land cover
+    - deforestation
+    - conversion
+    - supply chains
+    - natural lands
   analytics_api_endpoint: "/v0/land_change/natural_lands/analytics"
   prompt_instructions: >
     Natural and non-natural lands in 2020. Created to see if there were natural lands within
@@ -505,7 +559,10 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: "annual"
   content_date: "2001-2024 annual"
-  keywords: "deforestation, forest loss, disturbance"
+  keywords:
+    - deforestation
+    - forest loss
+    - disturbance
   analytics_api_endpoint: "/v0/land_change/tree_cover_loss/analytics"
   prompt_instructions: >
     Reports gross annual loss of tree cover ≥ 5 m height (2001-2024).
@@ -533,7 +590,7 @@ datasets:
     This data set, a collaboration between the GLAD (Global Land Analysis & Discovery) lab
     at the University of Maryland (UMD), Google, USGS, and NASA, measures areas of tree cover
     loss across all global land (except Antarctica and other Arctic islands) at approximately
-    30 × 30 meter resolution. The data were generated using multispectral satellite imagery
+    30 x 30 meter resolution. The data were generated using multispectral satellite imagery
     from the Landsat 5 thematic mapper (TM), the Landsat 7 thematic mapper plus (ETM+), and
     the Landsat 8 Operational Land Imager (OLI) sensors. Over 1 million satellite images were
     processed and analyzed, including over 600,000 Landsat 7 images for the 2000-2012 interval,
