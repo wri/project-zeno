@@ -385,6 +385,64 @@ async def pick_aoi(
         name = selected_aoi.name
         subtype = selected_aoi.subtype
 
+        # Check if NAME of selected AOI is an exact match of any of the names in the results, then ask the user for clarification
+        short_name = name.split(",")[0]
+
+        # For GADM sources, check for exact name matches from different countries
+        if source == "gadm":
+            # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
+            selected_country = src_id.split(".")[0] if "." in src_id else None
+
+            if selected_country:
+                # Filter results to only include AOIs from different countries
+                different_country_results = results[
+                    (results.source == "gadm")
+                    & (~results.src_id.str.startswith(selected_country + "."))
+                ]
+
+                # Find exact matches of the short name in different countries
+                exact_matches_different_countries = different_country_results[
+                    different_country_results.name.str.lower().str.startswith(
+                        short_name.lower()
+                    )
+                ]
+
+                # If we have exact matches from different countries, ask for clarification
+                if len(exact_matches_different_countries) > 0:
+                    # Include the selected AOI and the matches from other countries
+                    all_matches = results[
+                        (
+                            results.name.str.lower().str.startswith(
+                                short_name.lower()
+                            )
+                        )
+                        & (results.source == "gadm")
+                    ]
+
+                    candidate_names = all_matches[
+                        ["name", "subtype", "src_id"]
+                    ].to_dict(orient="records")
+                    candidate_names = "\n".join(
+                        [
+                            f"{candidate['name']} - ({candidate['subtype']}) [{candidate['src_id'].split('.')[0]}]"
+                            for candidate in candidate_names
+                        ]
+                    )
+                    return Command(
+                        update={
+                            "messages": [
+                                ToolMessage(
+                                    f"I found multiple locations named '{short_name}' in different countries. Please tell me which one you meant:\n\n{candidate_names}\n\nWhich location are you looking for?",
+                                    tool_call_id=tool_call_id,
+                                    status="success",
+                                    response_metadata={
+                                        "msg_type": "human_feedback"
+                                    },
+                                )
+                            ],
+                        },
+                    )
+
         # todo: this is redundant with the one in helpers.py, consider refactoring
         source_table_map = {
             "gadm": GADM_TABLE,
