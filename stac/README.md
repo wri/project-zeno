@@ -1,14 +1,9 @@
 # STAC Ingestion for Zeno
 
-## Installation
+## Set up
 
-1. Install dependencies:
-
-   ```bash
-   uv pip install -r requirements.txt
-   ```
-
-2. Set up environment variables in `env/.env_localhost`:
+Set up environment variables in `env/.env_localhost`
+or `env/.env_staging`
 
    ```bash
    PGHOST=localhost
@@ -36,8 +31,6 @@
 These scripts only have been used once to create global COG files for
 Land cover and natural lands. Re-run manually when new data updates
 are available.
-
-**Requirements:** `uv`, `gsutil`, GDAL tools
 
 ### merge_global_land_cover.sh
 
