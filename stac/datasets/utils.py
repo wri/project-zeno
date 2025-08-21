@@ -79,3 +79,21 @@ def load_stac_data_to_db(
         (item.to_dict() for item in items),
         insert_mode=Methods.upsert,
     )
+
+
+def convert_valid_percentage_to_int(
+    item: Item, asset_name: str = "asset"
+) -> Item:
+    """
+    Convert valid percentage from numpy to python float.
+    """
+    valid_percent = (
+        item.assets[asset_name]
+        .extra_fields["raster:bands"][0]["statistics"]["valid_percent"]
+        .item()
+    )
+    item.assets[asset_name].extra_fields["raster:bands"][0]["statistics"][
+        "valid_percent"
+    ] = valid_percent
+
+    return item

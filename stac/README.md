@@ -81,3 +81,9 @@ zonal stats for the DIST alerts layer. This is an example that we
 might not use in zeno. But its added here for reference and if we
 need it in the future. The tool is in the
 [zonal_stats_dist.py](zonal_stats_dist.py) file.
+
+## Command to sync data
+
+```bash
+uv run aws s3 sync lobal_land_cover/ s3://lcl-cogs/global-land-cover/ --exclude "*" --include "*.tif" --exclude "**/*.tif"
+```

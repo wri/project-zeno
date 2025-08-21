@@ -13,7 +13,10 @@ from pystac import (
 )
 from rio_stac import create_stac_item
 
-from stac.datasets.utils import load_stac_data_to_db
+from stac.datasets.utils import (
+    convert_valid_percentage_to_int,
+    load_stac_data_to_db,
+)
 
 dotenv.load_dotenv("stac/env/.env_staging")
 
@@ -58,14 +61,7 @@ def create_nl_items() -> list[Item]:
             "end_datetime": str(datetime(2020, 12, 31)),
         },
     )
-    valid_percent = (
-        nl_item.assets["asset"]
-        .extra_fields["raster:bands"][0]["statistics"]["valid_percent"]
-        .item()
-    )
-    nl_item.assets["asset"].extra_fields["raster:bands"][0]["statistics"][
-        "valid_percent"
-    ] = valid_percent
+    nl_item = convert_valid_percentage_to_int(nl_item)
     return [nl_item]
 
 
