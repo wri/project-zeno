@@ -21,7 +21,7 @@ dotenv.load_dotenv("stac/env/.env_staging")
 
 set_stac_version("1.1.0")
 
-COLLECTION_ID = "natural-lands-map-v1-1"
+COLLECTION_ID = "natural-lands-v-1-1"
 
 CLASSIFICATION_VALUES = {
     2: "natural forests",

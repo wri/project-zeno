@@ -21,7 +21,7 @@ dotenv.load_dotenv("stac/env/.env_staging")
 
 set_stac_version("1.1.0")
 
-COLLECTION_ID = "global-land-cover"
+COLLECTION_ID = "global-land-cover-v-2"
 
 # Default classification values - can be overridden by YAML injection
 DEFAULT_CLASSIFICATION_VALUES = {

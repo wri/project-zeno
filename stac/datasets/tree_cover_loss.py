@@ -21,7 +21,7 @@ dotenv.load_dotenv("stac/env/.env_staging")
 
 set_stac_version("1.1.0")
 
-COLLECTION_ID = "umd-tree-cover-loss"
+COLLECTION_ID = "tree-cover-loss-v-1-12"
 
 
 def create_dist_items() -> list[Item]:

@@ -26,7 +26,7 @@ dotenv.load_dotenv("stac/env/.env_staging")
 
 set_stac_version("1.1.0")
 
-COLLECTION_ID = "global-grasslands-30m"
+COLLECTION_ID = "grasslands-v-1-1"
 
 CLASSIFICATION_VALUES = {
     0: "Other",
