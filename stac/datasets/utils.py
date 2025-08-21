@@ -150,9 +150,7 @@ def get_metadata_from_yaml(
         metadata["content_date"] = dataset["content_date"]
 
     if dataset.get("keywords"):
-        metadata["keywords"] = [
-            k.strip() for k in dataset["keywords"].split(",")
-        ]
+        metadata["keywords"] = dataset["keywords"]
 
     if dataset.get("description"):
         metadata["description"] = dataset["description"]

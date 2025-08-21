@@ -5,7 +5,7 @@
 1. Install dependencies:
 
    ```bash
-   pip install -r requirements.txt
+   uv pip install -r requirements.txt
    ```
 
 2. Set up environment variables in `env/.env_localhost`:
@@ -22,68 +22,51 @@
 
 ## Usage
 
-### Running Locally
+### Running the ingestion scripts
 
-1. Ensure PostgreSQL with pgSTAC is running
-2. Activate the virtual environment
-3. Run the main script:
-
-   ```bash
-   python datasets/natural_lands.py
-   python datasets/dist_alerts.py
-   ```
-
-### Running with Docker
-
-Running docker compose will trigger the ingestion into
-the dockerized STAC DB in the "ingestion" container through
-the entryponit.sh script.
-
-1. Build and start the containers:
+1. Activate the virtual environment
+2. Run the main script:
 
    ```bash
-   docker-compose up
+   ingest_all.sh
    ```
 
-### Running against remote
+## COG Creation Scripts
 
-For ingestion into remote PGSTAC DB, set the env vars
-to point to a remote database and run the python
-scripts directly. The docker setup will not be necessary.
+These scripts only have been used once to create global COG files for
+Land cover and natural lands. Re-run manually when new data updates
+are available.
 
-```bash
-pip install -r requirements.txt
-python datasets/natural_lands.py
-python datasets/dist_alerts.py
-```
+**Requirements:** `uv`, `gsutil`, GDAL tools
 
-## Generate global overviews
+### merge_global_land_cover.sh
 
-Some of the collections to be ingested will be tiled. These will be
-harder to visualize at low zoom levels, because many separate files
-have to be touched.
+Creates global Cloud-Optimized GeoTIFF (COG) files from Global Land Cover
+data for years 2016-2024.
 
-For this reason, we extract the overviews from the COG tiles and stitch
-them together into a global overview layer for lower zoom levels.
+**Usage:** `./merge_global_land_cover.sh <local_dir>`
 
-The `generate_global_overview.py` file can be used to create that global
-overview file. COGs can not be generated incrementally. So after creating
-the merged overview file, use the gdal commandline to covert it into a COG.
+**What it does:**
+- Downloads tiles from Google Cloud Storage (`gs://lcl_tiles/LCL_landCover/v2/`)
+- Creates VRT files combining all tiles for each year
+- Converts to COG format with LZW compression
+- Outputs: `global_land_cover_YYYY.tif` files
 
-```bash
-gdalwarp -of COG natural_lands_mosaic_overview_merged.tif natural_lands_mosaic_overview_cog.tif
-```
+#### Command to sync data
 
-## Tool for creating zonal stats
-
-We also developed a tool that could be used by the agents to obtain
-zonal stats for the DIST alerts layer. This is an example that we
-might not use in zeno. But its added here for reference and if we
-need it in the future. The tool is in the
-[zonal_stats_dist.py](zonal_stats_dist.py) file.
-
-## Command to sync data
+Command to upload land cover data from the output folder to S3.
 
 ```bash
 uv run aws s3 sync lobal_land_cover/ s3://lcl-cogs/global-land-cover/ --exclude "*" --include "*.tif" --exclude "**/*.tif"
 ```
+
+### merge_natural_lands.sh
+Creates a global COG file from Natural Lands classification data.
+
+**Usage:** `./merge_natural_lands.sh`
+
+**What it does:**
+- Downloads Natural Lands classification tiles from `gs://lcl_public/SBTN_NaturalLands/v1_1/classification`
+- Creates a VRT file combining all tiles
+- Converts to COG format with LZW compression
+- Outputs: `natural_lands.tif`
