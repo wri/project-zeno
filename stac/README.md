@@ -55,6 +55,7 @@ uv run aws s3 sync lobal_land_cover/ s3://lcl-cogs/global-land-cover/ --exclude 
 ```
 
 ### merge_natural_lands.sh
+
 Creates a global COG file from Natural Lands classification data.
 
 **Usage:** `./merge_natural_lands.sh`
