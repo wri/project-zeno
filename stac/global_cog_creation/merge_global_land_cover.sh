@@ -1,10 +1,8 @@
 #!/bin/bash
 
-# Script to sync data from Google Cloud Storage bucket
-# Bucket: lcl_tiles
-# Path: LCL_landCover/v2/2015-2024
+# Script to create a global COG file from the
+# global land cover data
 
-# Help function
 show_help() {
     cat << EOF
 Usage: $0 LOCAL_DIR [OPTIONS]

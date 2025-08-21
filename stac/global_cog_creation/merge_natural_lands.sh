@@ -1,3 +1,8 @@
+#!/bin/bash
+
+# Script to create a global COG file from the
+# natural lands classification data
+
 uv run gsutil -m rsync -r "gs://lcl_public/SBTN_NaturalLands/v1_1/classification" SBTN_NaturalLands_classification/classification
 
 # Create vrt file with all the tiles
