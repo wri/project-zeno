@@ -502,7 +502,7 @@ datasets:
   tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=2001&end_year=2024&tree_cover_density_threshold=25&render_type=true_color"
   license: "CC by 4.0"
   geographic_coverage: "Global land area (excluding Antarctica and other Arctic islands)"
-  resolution: "30 × 30 meters"
+  resolution: "30 x 30 meters"
   update_frequency: "annual"
   content_date: "2001-2024 annual"
   keywords: "deforestation, forest loss, disturbance"
