@@ -1,7 +1,9 @@
 import io
 import json
 import os
+from typing import Any, Dict
 
+import yaml
 from pypgstac.db import PgstacDB
 from pypgstac.load import Loader, Methods
 from pystac import Collection, Item
@@ -97,3 +99,69 @@ def convert_valid_percentage_to_int(
     ] = valid_percent
 
     return item
+
+
+def get_metadata_from_yaml(
+    yaml_file_path: str, dataset_key: str
+) -> Dict[str, Any]:
+    """
+    Get metadata from yaml file for a specific dataset key.
+
+    Args:
+        yaml_file_path: Path to the analytics_datasets.yml file
+        dataset_key: The dataset key to extract (e.g., "Global land cover")
+
+    Returns:
+        Dictionary containing the metadata for the STAC collection
+    """
+    with open(yaml_file_path, "r") as f:
+        data = yaml.safe_load(f)
+
+    # Find the dataset by name
+    dataset = None
+    for d in data.get("datasets", []):
+        if d.get("dataset_name") == dataset_key:
+            dataset = d
+            break
+
+    if not dataset:
+        print(
+            f"Warning: Dataset '{dataset_key}' not found in {yaml_file_path}"
+        )
+        return {}
+
+    # Create extra fields from the dataset information
+    metadata = {"dataset_name": dataset_key}
+
+    # Add fields from the YAML dataset
+    if dataset.get("license"):
+        metadata["license"] = dataset["license"]
+
+    if dataset.get("geographic_coverage"):
+        metadata["geographic_coverage"] = dataset["geographic_coverage"]
+
+    if dataset.get("resolution"):
+        metadata["spatial_resolution"] = dataset["resolution"]
+
+    if dataset.get("update_frequency"):
+        metadata["update_frequency"] = dataset["update_frequency"]
+
+    if dataset.get("content_date"):
+        metadata["content_date"] = dataset["content_date"]
+
+    if dataset.get("keywords"):
+        metadata["keywords"] = [
+            k.strip() for k in dataset["keywords"].split(",")
+        ]
+
+    if dataset.get("description"):
+        metadata["description"] = dataset["description"]
+
+    if dataset.get("methodology"):
+        metadata["methodology"] = dataset["methodology"]
+
+    if dataset.get("cautions"):
+        metadata["cautions"] = dataset["cautions"]
+
+    print(f"Metadata created from dataset '{dataset_key}' in {yaml_file_path}")
+    return metadata
