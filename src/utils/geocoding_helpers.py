@@ -142,6 +142,13 @@ async def get_geometry_data(
             WHERE "{id_column}" = :src_id
         """
 
+        if source == "kba":
+            # these sources IDs stored as numeric values
+            try:
+                src_id = int(src_id)
+            except ValueError:
+                pass
+
         q = await session.execute(text(sql_query), {"src_id": src_id})
         result = q.first()
 
