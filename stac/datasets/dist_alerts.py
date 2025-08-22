@@ -24,7 +24,7 @@ dotenv.load_dotenv("stac/env/.env_staging")
 
 set_stac_version("1.1.0")
 
-COLLECTION_ID = "dist-alerts-v1"
+COLLECTION_ID = "dist-alerts-v-1"
 
 
 def get_latest_version_from_s3() -> str:
