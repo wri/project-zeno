@@ -118,6 +118,7 @@ async def query_aoi_database(
                 SELECT gadm_id AS src_id,
                     name, subtype, 'gadm' as source
                 FROM {GADM_TABLE}
+                WHERE name IS NOT NULL AND name % :place_name
             """
             )
 
@@ -130,6 +131,7 @@ async def query_aoi_database(
                        subtype,
                        'kba' as source
                 FROM {KBA_TABLE}
+                WHERE name IS NOT NULL AND name % :place_name
             """
             )
 
@@ -142,6 +144,7 @@ async def query_aoi_database(
                        subtype,
                        'landmark' as source
                 FROM {LANDMARK_TABLE}
+                WHERE name IS NOT NULL AND name % :place_name
             """
             )
 
@@ -154,9 +157,9 @@ async def query_aoi_database(
                        subtype,
                        'wdpa' as source
                 FROM {WDPA_TABLE}
+                WHERE name IS NOT NULL AND name % :place_name
             """
             )
-
         if "custom" in existing_tables:
             src_id = SOURCE_ID_MAPPING["custom"]["id_column"]
             if not user_id:
@@ -169,6 +172,7 @@ async def query_aoi_database(
                        'custom' as source
                 FROM {CUSTOM_AREA_TABLE}
                 WHERE user_id = :user_id
+                AND name IS NOT NULL AND name % :place_name
             """
             )
 
