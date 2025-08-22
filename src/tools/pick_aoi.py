@@ -471,7 +471,10 @@ async def pick_aoi(
             tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
 
         logger.debug(f"Pick AOI tool message: {tool_message}")
-        selected_aoi = selected_aoi.model_dump()
+
+        if isinstance(selected_aoi, BaseModel):
+            selected_aoi = selected_aoi.model_dump()
+
         selected_aoi[SOURCE_ID_MAPPING[source]["id_column"]] = src_id
 
         logger.info(
