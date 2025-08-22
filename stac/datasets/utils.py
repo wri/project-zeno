@@ -1,6 +1,7 @@
 import io
 import json
 import os
+from pathlib import Path
 from typing import Any, Dict
 
 import yaml
@@ -101,19 +102,19 @@ def convert_valid_percentage_to_int(
     return item
 
 
-def get_metadata_from_yaml(
-    yaml_file_path: str, dataset_key: str
-) -> Dict[str, Any]:
+def get_metadata_from_yaml(dataset_key: str) -> Dict[str, Any]:
     """
-    Get metadata from yaml file for a specific dataset key.
+    Get metadata from the analytics_datasets.yml file for a specific dataset key.
 
     Args:
-        yaml_file_path: Path to the analytics_datasets.yml file
         dataset_key: The dataset key to extract (e.g., "Global land cover")
 
     Returns:
         Dictionary containing the metadata for the STAC collection
     """
+    yaml_file_path = (
+        Path(__file__).parents[2] / "src" / "tools" / "analytics_datasets.yml"
+    )
     with open(yaml_file_path, "r") as f:
         data = yaml.safe_load(f)
 
@@ -125,10 +126,9 @@ def get_metadata_from_yaml(
             break
 
     if not dataset:
-        print(
-            f"Warning: Dataset '{dataset_key}' not found in {yaml_file_path}"
+        raise ValueError(
+            f"Dataset '{dataset_key}' not found in {yaml_file_path}"
         )
-        return {}
 
     # Create extra fields from the dataset information
     metadata = {"dataset_name": dataset_key}

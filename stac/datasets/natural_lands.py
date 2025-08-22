@@ -73,9 +73,7 @@ def create_collection() -> Collection:
         spatial=spatial_extent, temporal=temporal_extent
     )
 
-    metadata = get_metadata_from_yaml(
-        "src/tools/analytics_datasets.yml", "Natural lands"
-    )
+    metadata = get_metadata_from_yaml("SBTN Natural Lands Map")
     metadata["classification_values"] = CLASSIFICATION_VALUES
 
     return Collection(

@@ -133,9 +133,7 @@ def create_collection() -> Collection:
     collection_extent = Extent(
         spatial=spatial_extent, temporal=temporal_extent
     )
-    metadata = get_metadata_from_yaml(
-        "src/tools/analytics_datasets.yml", "Global land cover"
-    )
+    metadata = get_metadata_from_yaml("Global land cover")
     metadata["classification_values"] = DEFAULT_CLASSIFICATION_VALUES
     metadata["classification_descriptions"] = (
         DEFAULT_CLASSIFICATION_DESCRIPTIONS

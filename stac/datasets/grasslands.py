@@ -67,7 +67,7 @@ def create_collection() -> Collection:
     )
 
     metadata = get_metadata_from_yaml(
-        "src/tools/analytics_datasets.yml", "Grassland"
+        "Global natural/semi-natural grassland extent"
     )
     metadata["classification_values"] = CLASSIFICATION_VALUES
 

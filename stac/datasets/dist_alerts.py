@@ -150,7 +150,7 @@ def create_collection() -> Collection:
     )
 
     metadata = get_metadata_from_yaml(
-        "src/tools/analytics_datasets.yml", "Ecosystem disturbance alerts"
+        "Global all ecosystem disturbance alerts (DIST-ALERT)"
     )
 
     return Collection(

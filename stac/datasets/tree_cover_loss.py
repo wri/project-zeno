@@ -50,9 +50,7 @@ def create_collection() -> Collection:
     collection_extent = Extent(
         spatial=spatial_extent, temporal=temporal_extent
     )
-    metadata = get_metadata_from_yaml(
-        "src/tools/analytics_datasets.yml", "Tree cover loss"
-    )
+    metadata = get_metadata_from_yaml("Tree cover loss")
 
     return Collection(
         id=COLLECTION_ID,
