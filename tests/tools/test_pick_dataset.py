@@ -179,3 +179,18 @@ async def test_query_with_context_layer(
     assert dataset_id == expected_dataset_id
     context_layer = command.update.get("dataset", {}).get("context_layer")
     assert context_layer == expected_context_layer
+
+
+@pytest.mark.asyncio
+async def test_query_with_wrong_date_range():
+    command = await pick_dataset.ainvoke(
+        {
+            "query": "Find me grasslands data for 2024",
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
+
+    date_request_match = command.update.get("dataset", {}).get(
+        "date_request_match"
+    )
+    assert not date_request_match
