@@ -1,31 +1,27 @@
-import os
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import dotenv
-from google.cloud import storage
 from pystac import (
     Collection,
     Extent,
     Item,
-    Provider,
-    ProviderRole,
     SpatialExtent,
     TemporalExtent,
     set_stac_version,
 )
 from rio_stac import create_stac_item
-from tqdm import tqdm
 
-from stac.datasets.utils import load_stac_data_to_db
+from stac.datasets.utils import (
+    convert_valid_percentage_to_int,
+    get_metadata_from_yaml,
+    load_stac_data_to_db,
+)
 
 dotenv.load_dotenv("stac/env/.env_staging")
 
 set_stac_version("1.1.0")
 
-GC_BUCKET = "lcl_public"
-GC_FOLDER = "SBTN_NaturalLands/v1_1/classification"
-COLLECTION_ID = "natural-lands-map-v1-1"
+COLLECTION_ID = "natural-lands-v-1-1"
 
 CLASSIFICATION_VALUES = {
     2: "natural forests",
@@ -51,26 +47,11 @@ CLASSIFICATION_VALUES = {
 }
 
 
-def get_tif_urls() -> list[str]:
-    # Create an anonymous client for public bucket access
-    client = storage.Client.create_anonymous_client()
-    bucket = client.bucket(GC_BUCKET)
-    blobs = bucket.list_blobs(prefix=GC_FOLDER)
-
-    tif_urls = []
-    print("Fetching TIF URLs from Google Cloud Storage...")
-    for blob in tqdm(blobs, desc="Loading URLs"):
-        if blob.name.endswith(".tif"):
-            url = f"https://storage.googleapis.com/{GC_BUCKET}/{blob.name}"
-            tif_urls.append(url)
-
-    return tif_urls
-
-
-def create_stac_item_with_extensions(url: str) -> Item:
-    item = create_stac_item(
+def create_nl_items() -> list[Item]:
+    url = "s3://lcl-cogs/natural-lands/natural-lands-map-v1-1.tif"
+    nl_item = create_stac_item(
         source=url,
-        id=os.path.basename(url).replace(".tif", ""),
+        id="natural-lands-map-v1-1",
         collection=COLLECTION_ID,
         with_raster=True,
         with_proj=True,
@@ -79,22 +60,8 @@ def create_stac_item_with_extensions(url: str) -> Item:
             "end_datetime": str(datetime(2020, 12, 31)),
         },
     )
-    return item
-
-
-def get_stac_items() -> list[Item]:
-    tif_urls = get_tif_urls()
-    print(f"Creating {len(tif_urls)} STAC items")
-    with ThreadPoolExecutor(max_workers=100) as executor:
-        items = list(
-            tqdm(
-                executor.map(create_stac_item_with_extensions, tif_urls),
-                total=len(tif_urls),
-                desc="Creating STAC items",
-            )
-        )
-
-    return items
+    nl_item = convert_valid_percentage_to_int(nl_item)
+    return [nl_item]
 
 
 def create_collection() -> Collection:
@@ -106,41 +73,26 @@ def create_collection() -> Collection:
         spatial=spatial_extent, temporal=temporal_extent
     )
 
+    metadata = get_metadata_from_yaml("SBTN Natural Lands Map")
+    metadata["classification_values"] = CLASSIFICATION_VALUES
+
     return Collection(
         id=COLLECTION_ID,
-        description="""The SBTN Natural Lands Map v1.1 is a 2020 baseline map of
-        natural and non-natural land covers intended for use by companies setting
-        science-based targets for nature, specifically the SBTN Land target #1:
-        no conversion of natural ecosystems.""",
-        title="SBTN Natural Lands Map v1.1",
-        license="CC-BY-SA-4.0",
-        keywords=["ecosystems", "landcover", "landuse-landcover", "wri"],
-        providers=[
-            Provider(
-                name="World Resources Institute",
-                roles=[ProviderRole.PRODUCER, ProviderRole.LICENSOR],
-                url="https://github.com/wri/natural-lands-map/tree/main",
-            )
-        ],
+        description=metadata.pop("description"),
+        title=metadata.pop("dataset_name"),
+        license=metadata.pop("license"),
+        keywords=metadata.pop("keywords"),
         extent=collection_extent,
-        extra_fields={
-            "classification_values": CLASSIFICATION_VALUES,
-            "classification_band": {
-                "description": "Land cover classification",
-                "min": 2,
-                "max": 21,
-            },
-            "version": "1.1",
-        },
+        extra_fields=metadata,
     )
 
 
 def main():
-    items = get_stac_items()
+    items = create_nl_items()
     print(f"Loaded {len(items)} STAC items")
     collection = create_collection()
     print("Loading STAC data to database...")
-    load_stac_data_to_db(collection, items)
+    load_stac_data_to_db(collection, items, delete_existing_items=False)
     print("Done!")
 
 
