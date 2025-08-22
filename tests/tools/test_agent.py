@@ -109,7 +109,7 @@ async def test_full_agent_for_datasets(structlog_context, dataset):
     has_insights = False
 
     for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
-        if "insights" in tool_step:
+        if tool_step.get("insight_count", 0) > 0:
             has_insights = True
         if "raw_data" in tool_step:
             has_raw_data = True
