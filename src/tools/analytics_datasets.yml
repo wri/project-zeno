@@ -141,7 +141,7 @@ datasets:
   dataset_name: Global land cover
   context_layers: null
   variables: null
-  tile_url: ""
+  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/global-land-cover-v-2/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%220%22%3A%20%5B139%2C%2069%2C%2019%2C%20255%5D%2C%20%221%22%3A%20%5B255%2C%20255%2C%200%2C%20255%5D%2C%20%222%22%3A%20%5B0%2C%20128%2C%200%2C%20255%5D%2C%20%223%22%3A%20%5B0%2C%20255%2C%20255%2C%20255%5D%2C%20%224%22%3A%20%5B0%2C%200%2C%20255%2C%20255%5D%2C%20%225%22%3A%20%5B255%2C%20255%2C%20255%2C%20255%5D%2C%20%226%22%3A%20%5B255%2C%200%2C%200%2C%20255%5D%2C%20%227%22%3A%20%5B128%2C%20128%2C%20128%2C%20255%5D%2C%20%228%22%3A%20%5B255%2C%20165%2C%200%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C9%29%2A%28asset%3E%3D0%29&asset_as_band=True"
   license: "CC by 4.0"
   geographic_coverage: Global
   resolution: "30 x 30 meters"
@@ -291,7 +291,7 @@ datasets:
   dataset_name: Global natural/semi-natural grassland extent
   context_layers: null
   variables: Natural/Semi-Natural Grassland
-  tile_url: ""
+  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/grasslands-v-1-1/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%220%22%3A%20%5B128%2C%20128%2C%20128%2C%20255%5D%2C%20%221%22%3A%20%5B255%2C%20194%2C%20102%2C%20255%5D%2C%20%222%22%3A%20%5B152%2C%20230%2C%2077%2C%20255%5D%2C%20%223%22%3A%20%5B102%2C%20179%2C%20102%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C4%29%2A%28asset%3E%3D0%29&asset_as_band=True"
   license: "CC by 4.0"
   geographic_coverage: "90°N to 90°S"
   resolution: "30 x 30 meters"
@@ -468,7 +468,7 @@ datasets:
   dataset_name: SBTN Natural Lands Map
   context_layers: null
   variables: binary, classification
-  tile_url: ""
+  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/natural-lands-v-1-1/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%222%22%3A%20%5B36%2C%20110%2C%2036%2C%20255%5D%2C%20%223%22%3A%20%5B185%2C%20185%2C%2030%2C%20255%5D%2C%20%224%22%3A%20%5B107%2C%20174%2C%20214%2C%20255%5D%2C%20%225%22%3A%20%5B6%2C%20162%2C%20133%2C%20255%5D%2C%20%226%22%3A%20%5B254%2C%20254%2C%20204%2C%20255%5D%2C%20%227%22%3A%20%5B172%2C%20209%2C%20232%2C%20255%5D%2C%20%228%22%3A%20%5B88%2C%20149%2C%2088%2C%20255%5D%2C%20%229%22%3A%20%5B9%2C%2061%2C%209%2C%20255%5D%2C%20%2210%22%3A%20%5B219%2C%20219%2C%20123%2C%20255%5D%2C%20%2211%22%3A%20%5B153%2C%20153%2C%2026%2C%20255%5D%2C%20%2212%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2213%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2214%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2215%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2216%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2217%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2218%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2219%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2220%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2221%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C22%29%2A%28asset%3E1%29&asset_as_band=True"
   license: "CC by 4.0 SA"
   geographic_coverage: Global
   resolution: "30 x 30 meters"
