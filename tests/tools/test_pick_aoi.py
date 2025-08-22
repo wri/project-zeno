@@ -1,24 +1,22 @@
 import uuid
 
 import pytest
-import structlog
 
 from src.tools.pick_aoi import pick_aoi
 
 
 @pytest.mark.asyncio
-async def test_query_aoi_multiple_matches():
-    with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
-        command = await pick_aoi.ainvoke(
-            {
-                "question": "Measure deforestation in Puri",
-                "place": "Puri",
-                "tool_call_id": str(uuid.uuid4()),
-            }
-        )
-        assert str(command.update.get("messages")[0].content).startswith(
-            "I found multiple locations named 'Puri"
-        )
+async def test_query_aoi_multiple_matches(structlog_context):
+    command = await pick_aoi.ainvoke(
+        {
+            "question": "Measure deforestation in Puri",
+            "place": "Puri",
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
+    assert str(command.update.get("messages")[0].content).startswith(
+        "I found multiple locations named 'Puri"
+    )
 
 
 @pytest.mark.parametrize(
@@ -43,14 +41,13 @@ async def test_query_aoi_multiple_matches():
     ],
 )
 @pytest.mark.asyncio
-async def test_query_aoi(question, place, expected_aoi_id):
-    with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
-        command = await pick_aoi.ainvoke(
-            {
-                "question": question,
-                "place": place,
-                "tool_call_id": str(uuid.uuid4()),
-            }
-        )
+async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
+    command = await pick_aoi.ainvoke(
+        {
+            "question": question,
+            "place": place,
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
 
-        assert command.update.get("aoi", {}).get("src_id") == expected_aoi_id
+    assert command.update.get("aoi", {}).get("src_id") == expected_aoi_id

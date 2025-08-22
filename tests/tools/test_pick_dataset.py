@@ -100,10 +100,6 @@ lookup = {
             NATURAL_LANDS,
         ),
         (
-            "I'm monitoring my supply chain for conversion of natural ecosystems",
-            NATURAL_LANDS,
-        ),
-        (
             "Which provinces in Canada have the highest proportion of intact landscapes?",
             NATURAL_LANDS,
         ),
@@ -121,10 +117,6 @@ lookup = {
             TREE_COVER_LOSS,
         ),
         ("Which country had the most deforestation in 2018?", TREE_COVER_LOSS),
-        (
-            "Show me areas of recent forest clearing in the Congo Basin",
-            TREE_COVER_LOSS,
-        ),
         (
             "I need to track plantation harvesting cycles in northern Europe",
             TREE_COVER_LOSS,

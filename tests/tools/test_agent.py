@@ -1,7 +1,6 @@
 import uuid
 
 import pytest
-import structlog
 
 from src.agents.agents import fetch_zeno_anonymous
 
@@ -89,21 +88,22 @@ async def run_agent(query: str, thread_id: str | None = None):
 
 
 @pytest.mark.parametrize(
-    "dataset",
+    "dataset_name, dataset_year",
     [
-        "ecosystem disturbance alerts",
-        "land cover change",
-        "grasslands",
-        "natural lands",
-        "tree cover loss",
+        ("ecosystem disturbance alerts", 2024),
+        ("land cover change", 2024),
+        ("grasslands", 2022),
+        ("natural lands", 2020),
+        ("tree cover loss", 2024),
     ],
 )
 @pytest.mark.asyncio
-async def test_full_agent_for_datasets(dataset):
-    query = f"What are the trends of {dataset} in the municipality of Bern, Switzerland for July 2024?"
+async def test_full_agent_for_datasets(
+    structlog_context, dataset_name, dataset_year
+):
+    query = f"What are the trends of {dataset_name} in Pima County, Arizona for July {dataset_year}?"
 
-    with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
-        steps = await run_agent(query)
+    steps = await run_agent(query)
 
     assert len(steps) > 0
 
@@ -111,7 +111,7 @@ async def test_full_agent_for_datasets(dataset):
     has_insights = False
 
     for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
-        if "insights" in tool_step:
+        if tool_step.get("insight_count", 0) > 0:
             has_insights = True
         if "raw_data" in tool_step:
             has_raw_data = True
@@ -121,11 +121,10 @@ async def test_full_agent_for_datasets(dataset):
 
 
 @pytest.mark.asyncio
-async def test_full_agent_for_disturbance_alerts_in_brazil():
-    query = "What is the distribution of disturbance alerts in Belem, Pará, Brazil July 2024?"
+async def test_full_agent_for_disturbance_alerts_in_brazil(structlog_context):
+    query = "Tell me what is happening with ecosystem conversion in Para, Brazil in the last 8 months"
 
-    with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
-        steps = await run_agent(query)
+    steps = await run_agent(query)
 
     assert len(steps) > 0
 
