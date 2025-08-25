@@ -28,6 +28,19 @@ SUBREGION_TO_SUBTYPE_MAPPING = {
     "custom": "custom-area",
 }
 
+SUBREGION_TO_AOI_TYPE_MAPPING = {
+    "country": "admin",
+    "state": "admin",
+    "district": "admin",
+    "municipality": "admin",
+    "locality": "admin",
+    "neighbourhood": "admin",
+    "kba": "key_biodiversity_area",
+    "wdpa": "protected_area",
+    "landmark": "indigenous_land",
+    "custom": "feature_collection",
+}
+
 
 SOURCE_ID_MAPPING = {
     "kba": {"table": KBA_TABLE, "id_column": "sitrecid"},
@@ -49,6 +62,16 @@ GADM_LEVELS = {
 }
 
 GADM_SUBTYPE_MAP = {val["col_name"]: key for key, val in GADM_LEVELS.items()}
+
+
+def format_id(idx):
+    """
+    Convert the ID to a string and remove the last two characters if they are '_1', '_2', '_3', '_4', or '_5'.
+    """
+    idx = str(idx)
+    if idx[-2:] in ["_1", "_2", "_3", "_4", "_5"]:
+        return idx[:-2]
+    return idx
 
 
 async def get_geometry_data(

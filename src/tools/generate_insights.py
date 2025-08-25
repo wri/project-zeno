@@ -101,6 +101,8 @@ Generate:
 1. One chart insight with appropriate chart type, Recharts-compatible data, and clear axis fields
 2. 2-3 specific follow-up suggestions for further exploration
 
+IMPORTANT: Generate all insights, titles, and follow-up suggestions in the same language used in the user query.
+
 Follow-up examples: "Show trend over different period", "Compare with [region]", "Break down by [dimension]", "Top/bottom performers in [metric]"
             """,
         ),
