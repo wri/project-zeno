@@ -266,7 +266,7 @@ class AnalyticsHandler(DataSourceHandler):
         self,
         result: Dict,
     ) -> tuple[Any, int, str]:
-        """Process the response data based on dataset type and enrich with names if lookup_table is provided."""
+        """Process the response data based on dataset type."""
 
         if "data" not in result:
             raise ValueError(f"Response missing 'data' key: {result}")
