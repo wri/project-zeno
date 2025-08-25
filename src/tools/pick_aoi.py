@@ -298,41 +298,114 @@ async def query_subregion_database(
     return results
 
 
-class AOIIndex(BaseModel):
-    """Model for storing the index of the selected location."""
+async def select_best_aoi(question, candidate_aois):
+    """Select the best AOI based on the user query.
 
-    id: int = Field(
-        description="`id` of the location that best matches the user query."
-    )
-    source: str = Field(description="`source` of the selected location.")
-    src_id: str = Field(description="`src_id` of the selected location.")
-    name: str = Field(description="`name` of the selected location.")
-    subtype: str = Field(description="`subtype` of the selected location.")
+    Args:
+        question: User's question providing context for selecting the most relevant location
+        candidate_aois: Candidate AOIs to select from
 
+    Returns:
+        Selected AOI: AOIIndex
+    """
 
-# Prompt template for selecting the best location match based on user query
-AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "user",
-            """
-            Based on the query, return the ID of the best location match.
-            When there is a tie, give preference to country > state > district > municipality > locality.
+    class AOIIndex(BaseModel):
+        """Model for storing the best matched location."""
 
-            {candidate_locations}
-
-            Query:
-
-            {user_query}
-            """,
+        source: str = Field(
+            description="`source` of the best matched location."
         )
-    ]
-)
+        src_id: str = Field(
+            description="`src_id` of the best matched location."
+        )
+        name: str = Field(description="`name` of the best matched location.")
+        subtype: str = Field(
+            description="`subtype` of the best matched location."
+        )
 
-# Chain for selecting the best location match
-AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
-    AOIIndex
-)
+    # Prompt template for selecting the best location match based on user query
+    AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
+        [
+            (
+                "user",
+                """
+                From the candidate locations below, select the one place that best matches the user's query intention for location.
+                Consider the context and purpose mentioned in the user query to determine the most appropriate geographic scope.
+
+                When there is a tie, give preference to country > state > district > municipality > locality.
+
+                Candidate locations:
+                {candidate_locations}
+
+                User query:
+                {user_query}
+                """,
+            )
+        ]
+    )
+
+    # Chain for selecting the best location match
+    AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
+        AOIIndex
+    )
+
+    selected_aoi = await AOI_SELECTION_CHAIN.ainvoke(
+        {"candidate_locations": candidate_aois, "user_query": question}
+    )
+    logger.debug(f"Candidate locations: {candidate_aois}")
+    logger.debug(f"Selected AOI: {selected_aoi}")
+
+    return selected_aoi
+
+
+async def translate_to_english(question, place_name):
+    """Translate place name to English if it's in a different language."""
+
+    class Place(BaseModel):
+        name: str
+
+    TRANSLATE_TO_ENGLISH_PROMPT = ChatPromptTemplate.from_messages(
+        [
+            (
+                "user",
+                """
+                Translate or correct the following place name to its standard English form.
+                This includes:
+                - Translating from other languages to English
+                - Removing or correcting accented characters (é→e, ã→a, ç→c, etc.)
+                - Standardizing to the most common English spelling
+
+                Examples:
+                - "Odémire" → "Odemira"
+                - "São Paulo" → "Sao Paulo"
+                - "México" → "Mexico"
+                - "Köln" → "Cologne"
+
+                User query:
+                {question}
+
+                Place name to translate/correct:
+                {place_name}
+
+                Return only the corrected place name, nothing else.
+                """,
+            )
+        ]
+    )
+
+    translate_to_english_chain = (
+        TRANSLATE_TO_ENGLISH_PROMPT | SONNET.with_structured_output(Place)
+    )
+
+    english_place_name = await translate_to_english_chain.ainvoke(
+        {
+            "question": question,
+            "place_name": place_name,
+        }
+    )
+    logger.info(f"English place name: {english_place_name.name}")
+
+    return english_place_name.name
 
 
 @tool("pick-aoi")
@@ -374,16 +447,19 @@ async def pick_aoi(
         # database URL (this was how the tool was originally setup)
         engine = await get_async_engine(db_url=APISettings.database_url)
 
+        # Translate place name to English if it's in a different language
+        place = await translate_to_english(question, place)
+
+        # Query the database for place & get top matches using similarity
         results = await query_aoi_database(engine, place, RESULT_LIMIT)
 
+        # Convert results to CSV
         candidate_aois = results.to_csv(
             index=False
         )  # results: id, name, subtype, source, src_id
 
         # Select the best AOI based on user query
-        selected_aoi = await AOI_SELECTION_CHAIN.ainvoke(
-            {"candidate_locations": candidate_aois, "user_query": question}
-        )
+        selected_aoi = await select_best_aoi(question, candidate_aois)
         source = selected_aoi.source
         src_id = selected_aoi.src_id
         name = selected_aoi.name
