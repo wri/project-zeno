@@ -472,7 +472,18 @@ async def pick_aoi(
 
         tool_message = f"Selected AOI: {name}, type: {subtype}"
         if subregion:
-            tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
+            subregion_aoi_names = [
+                subregion_aoi["name"].split(",")[0]
+                for subregion_aoi in subregion_aois
+            ]
+            if len(subregion_aoi_names) > 5:
+                displayed_names = subregion_aoi_names[:5]
+                remaining = len(subregion_aoi_names) - 5
+                tool_message += f"\nSubregion AOIs: {'\n'.join(displayed_names)}\n... ({remaining} more)"
+            else:
+                tool_message += (
+                    f"\nSubregion AOIs: {'\n'.join(subregion_aoi_names)}"
+                )
 
         logger.debug(f"Pick AOI tool message: {tool_message}")
         selected_aoi = selected_aoi.model_dump()
