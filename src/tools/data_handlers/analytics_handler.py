@@ -404,7 +404,6 @@ class AnalyticsHandler(DataSourceHandler):
                     data_points_count,
                     message_detail,
                 ) = await self._process_response_data(result)
-                logger.debug(f"RAW_DATA: {raw_data}")
 
                 # Enrich raw_data with names
                 if subregion:
