@@ -121,11 +121,13 @@ async def select_best_dataset(
     Look at the dataset description and contextual layers, as well as date & variables. Evaluate if the best dataset is available
     for the date range requested by the user.
 
+    IMPORTANT: Provide the selection reason in the same language used in the user query.
+
     Candidate datasets:
 
     {candidate_datasets}
 
-    Query:
+    User query:
 
     {user_query}
     """,
