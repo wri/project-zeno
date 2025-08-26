@@ -3,9 +3,9 @@ datasets:
   dataset_name: Global all ecosystem disturbance alerts (DIST-ALERT)
   context_layers:
     - value: "driver"
-      description: "Shows the primary driver of disturbance"
+      description: "Shows the primary driver or likely causes of disturbance"
     - value: "natural_lands"
-      description: "Shows intersection with natural lands"
+      description: "Shows intersection with natural lands (2020)"
   variables: null
   tile_url: "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color"
   license: "CC by 4.0"
@@ -21,7 +21,7 @@ datasets:
     - vegetation disturbance
   analytics_api_endpoint: "/v0/land_change/dist_alerts/analytics"
   prompt_instructions: >
-    Use this dataset to show recent vegetation changes across all ecosystems.
+    Use this dataset to show recent vegetation changes across all ecosystems, measured in hectares (ha).
     Show classified alerts (LDACS) by default, which is designed to reveal likely causes of disturbance,
     identify dominant drivers in a region, and support ecosystem or regional comparisons.
     LDACS is updated quarterly and covers the most recent 12 months, so classification data are not
@@ -29,10 +29,10 @@ datasets:
     Clarify whether the user cares about temporary disturbance or permanent conversion; recommend
     annual land cover or tree cover loss datasets for historical or long-term changes.
     For recent trends, show alert counts over time using line charts.
-    Use pie charts to show the distribution of disturbance types by specific driver.
-    Use pie charts to show the distribution of alerts by land cover class to show which ecosystems
+    Use pie charts to show the distribution of disturbed area by specific driver.
+    Use pie charts to show the distribution of disturbed area by land cover class or natural land type to show which ecosystems
     are most affected.
-    Use grouped bar charts with alert date (month) on the x-axis, count or area ha on the y-axis,
+    Use grouped bar charts with alert date (month) on the x-axis, area in hectares on the y-axis,
     and class name to differentiate bars, highlighting seasonal patterns.
     Plot drivers separately if one dominates (makes up > 80% of alerts in any given month) and decide
     whether to include or exclude unclassified alerts based on whether the goal is to highlight only
@@ -179,8 +179,8 @@ datasets:
   analytics_api_endpoint: "/v0/land_change/land_cover_change/analytics"
   prompt_instructions: >
     Maps land-cover classes in 2015 and 2024 and reports pixel-level transitions.
-    Use grouped-bar charts based on land_cover_class_start, land_cover_class_end,
-    and area_ha to show transitions or pie-charts to show single-year composition.
+    Use grouped-bar charts or tables based on land_cover_class_start, land_cover_class_end,
+    and area_ha to show transitions. Use pie-charts to show single-year composition.
     Drop zeros. Because only start- and end-states are recorded, do not treat it as
     an annual time series or intra-annual product. Transitions to "short vegetation"
     or "bare" may reflect seasonality, not restoration / degradation. When users
