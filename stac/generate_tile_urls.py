@@ -129,19 +129,19 @@ natural_lands_classes = {
 
 
 grasslands_classes = {
-    "0": {"name": "Other", "color": [128, 128, 128, 255]},  # Gray
+    "0": {"name": "Other", "color": [128, 128, 128, 255]},
     "1": {
         "name": "Cultivated grassland",
         "color": [255, 194, 102, 255],
-    },  # Light orange
+    },
     "2": {
         "name": "Natural/semi-natural grassland",
-        "color": [152, 230, 77, 255],
-    },  # Light green
+        "color": [255, 153, 22, 255],
+    },
     "3": {
         "name": "Open Shrubland",
         "color": [102, 179, 102, 255],
-    },  # Sage green
+    },
 }
 
 
@@ -284,6 +284,5 @@ print(get_natural_lands_template(enabled_natural))
 print("\n=== Only grasslands enabled ===")
 enabled_grasslands = {
     "2",
-    "3",
 }  # Natural/semi-natural grassland and open shrubland
 print(get_grasslands_template(enabled_grasslands))

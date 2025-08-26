@@ -291,7 +291,7 @@ datasets:
   dataset_name: Global natural/semi-natural grassland extent
   context_layers: null
   variables: Natural/Semi-Natural Grassland
-  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/grasslands-v-1-1/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%220%22%3A%20%5B128%2C%20128%2C%20128%2C%20255%5D%2C%20%221%22%3A%20%5B255%2C%20194%2C%20102%2C%20255%5D%2C%20%222%22%3A%20%5B152%2C%20230%2C%2077%2C%20255%5D%2C%20%223%22%3A%20%5B102%2C%20179%2C%20102%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C4%29%2A%28asset%3E%3D0%29&asset_as_band=True"
+  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/grasslands-v-1-1/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%220%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%2C%20%221%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%2C%20%222%22%3A%20%5B255%2C%20153%2C%2022%2C%20255%5D%2C%20%223%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%7D&assets=asset&expression=asset%2A%28asset%3C4%29%2A%28asset%3E%3D0%29&asset_as_band=True"
   license: "CC by 4.0"
   geographic_coverage: "90°N to 90°S"
   resolution: "30 x 30 meters"
