@@ -17,7 +17,10 @@ from src.tools import (
 from src.utils.env_loader import load_environment_variables
 from src.utils.llms import SONNET
 
-prompt = f"""You are a geospatial agent that has access to tools and user provided selections to help answer user queries. First, think through the problem step-by-step by planning what tools you need to use and in what order. Then execute your plan by using the tools one by one to answer the user's question.
+
+def get_prompt() -> str:
+    """Generate the prompt with current date."""
+    return f"""You are a geospatial agent that has access to tools and user provided selections to help answer user queries. First, think through the problem step-by-step by planning what tools you need to use and in what order. Then execute your plan by using the tools one by one to answer the user's question.
 
 Tools:
 - pick-aoi: Pick the best area of interest (AOI) based on a place name and user's question.
@@ -44,6 +47,7 @@ Notes:
 - Always reply in the same language that the user is using in their query.
 - Current date is {datetime.now().strftime("%Y-%m-%d")}. Use this for relative time queries like "past 3 months", "last week", etc.
 """
+
 
 tools = [pick_aoi, pick_dataset, pull_data, generate_insights]
 
@@ -73,7 +77,7 @@ async def fetch_zeno_anonymous() -> CompiledStateGraph:
         model=SONNET,
         tools=tools,
         state_schema=AgentState,
-        prompt=prompt,
+        prompt=get_prompt(),
     )
     return zeno_agent
 
@@ -86,7 +90,7 @@ async def fetch_zeno() -> CompiledStateGraph:
         model=SONNET,
         tools=tools,
         state_schema=AgentState,
-        prompt=prompt,
+        prompt=get_prompt(),
         checkpointer=checkpointer,
     )
     return zeno_agent
