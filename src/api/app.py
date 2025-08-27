@@ -479,12 +479,7 @@ def fetch_user_from_rw_api(
     # Check if this looks like a malformed anonymous token
     if token and ":" in token:
         [scheme, _] = token.split(":", 1)
-        if (
-            # not sure if the anon/anonymous check is necessary
-            # since I think that any bearer token with : is malformed
-            scheme.lower() in ["anon", "anonymous"]
-            and scheme.lower() != ANONYMOUS_USER_PREFIX
-        ):
+        if scheme.lower() != ANONYMOUS_USER_PREFIX:
             raise HTTPException(
                 status_code=401,
                 detail=f"Unauthorized, anonymous users should use '{ANONYMOUS_USER_PREFIX}' scheme",
