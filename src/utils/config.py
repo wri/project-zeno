@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 from src.utils.env_loader import load_environment_variables
@@ -15,7 +15,10 @@ class _APISettings(BaseSettings):
     admin_user_daily_quota: int = 100
     regular_user_daily_quota: int = 25
     anonymous_user_daily_quota: int = 10
+    ip_address_daily_quota: int = 50
     enable_quota_checking: bool = True
+
+    nextjs_api_key: str = Field(..., alias="NEXTJS_API_KEY")
 
     @property
     def domains_allowlist(self) -> list[str]:
@@ -24,6 +27,14 @@ class _APISettings(BaseSettings):
         return [
             domain.strip() for domain in self.domains_allowlist_str.split(",")
         ]
+
+    @field_validator("nextjs_api_key")
+    def validate_nextjs_api_key(cls, value):
+        if not value or value.strip() == "":
+            raise ValueError(
+                "NEXTJS_API_KEY must be set to a non-empty string"
+            )
+        return value
 
     model_config = {
         "env_file": ".env",

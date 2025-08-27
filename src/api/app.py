@@ -24,14 +24,14 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
-from itsdangerous import BadSignature, TimestampSigner
+from itsdangerous import TimestampSigner
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -79,6 +79,11 @@ from src.utils.logging_config import bind_request_logging_context, get_logger
 load_environment_variables()
 
 logger = get_logger(__name__)
+
+# Constants for NextJS frontend integration
+NEXTJS_API_KEY_HEADER = "X-API-KEY"
+NEXTJS_IP_HEADER = "X-ZENO-FORWARDED-FOR"
+ANONYMOUS_USER_PREFIX = "noauth"
 
 
 async def get_async_session(
@@ -178,52 +183,6 @@ langfuse_client = Langfuse()
 
 # HTTP Middleware to asign/verify anonymous session IDs
 signer = TimestampSigner(os.environ["COOKIE_SIGNER_SECRET_KEY"])
-
-
-@app.middleware("http")
-async def anonymous_id_middleware(request: Request, call_next):
-    # Check auth headers if user is logged in, and if
-    # so proceed to the request without generating an
-    # anonymous user session cookie
-    auth = await security(request)
-    if auth and auth.scheme.lower() == "bearer" and auth.credentials:
-        response: Response = await call_next(request)
-        return response
-
-    anon_cookie = request.cookies.get("anonymous_id")
-
-    need_new = True
-
-    if anon_cookie:
-        try:
-            # Verify signature & extract payload
-            _ = signer.unsign(
-                anon_cookie, max_age=365 * 24 * 3600
-            )  # Cookie age: 1yr
-            need_new = False
-        except BadSignature:
-            pass
-
-    if need_new:
-        raw_uuid = str(uuid.uuid4())
-        signed = signer.sign(raw_uuid).decode()
-    else:
-        signed = anon_cookie
-
-    request.state.anonymous_id = signed
-
-    response: Response = await call_next(request)
-
-    response.set_cookie(
-        "anonymous_id",
-        signed,
-        max_age=365 * 24 * 3600,  # Cookie age: 1yr
-        # secure=True,  # only over HTTPS
-        httponly=True,  # JS cannot read
-        samesite="Lax",
-    )
-
-    return response
 
 
 def pack(data):
@@ -486,12 +445,45 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
 def fetch_user_from_rw_api(
+    request: Request,
     authorization: Optional[str] = Depends(security),
 ) -> UserModel:
     if not authorization:
         return None
 
     token = authorization.credentials
+
+    # Handle anonymous users with noauth prefix
+    if token and token.startswith(f"{ANONYMOUS_USER_PREFIX}:"):
+        # Validate anonymous user requirements early
+        # Check for required NextJS headers
+        if request.headers.get(NEXTJS_API_KEY_HEADER) is None or (
+            request.headers[NEXTJS_API_KEY_HEADER]
+            != APISettings.nextjs_api_key
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid API key from NextJS for anonymous user",
+            )
+
+        # Check for required IP forwarding header
+        anonymous_user_ip = request.headers.get(NEXTJS_IP_HEADER)
+        if anonymous_user_ip is None or anonymous_user_ip.strip() == "":
+            raise HTTPException(
+                status_code=403,
+                detail=f"Missing {NEXTJS_IP_HEADER} header for anonymous user",
+            )
+
+        return None  # Anonymous users should not be authenticated
+
+    # Check if this looks like a malformed anonymous token
+    if token and ":" in token:
+        [scheme, _] = token.split(":", 1)
+        if scheme.lower() != ANONYMOUS_USER_PREFIX:
+            raise HTTPException(
+                status_code=401,
+                detail=f"Unauthorized, anonymous users should use '{ANONYMOUS_USER_PREFIX}' scheme",
+            )
 
     # return cached user info if available
     if token and token in _user_info_cache:
@@ -642,13 +634,30 @@ async def get_user_identity_and_daily_quota(
     request: Request,
     user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
 ):
+    """
+    Determine the user's identity string and their daily prompt quota.
+
+    Args:
+        request (Request): The incoming HTTP request object.
+        user (Optional[UserModel]): The authenticated user model, or None for anonymous.
+
+    Returns:
+        Dict: Dictionary containing:
+            - "identity": str, user identifier string ("user:<id>" or "anon:<id>")
+            - "prompt_quota": int, the daily prompt quota for the user
+
+    Raises:
+        HTTPException: If anonymous user is missing or has invalid API key or authorization scheme.
+    """
     # 1. Get calling user and set quota
     if not user:
         daily_quota = APISettings.anonymous_user_daily_quota
-        if anon := request.cookies.get("anonymous_id"):
-            identity = f"anon:{anon}"
-        else:
-            identity = f"anon:{request.state.anonymous_id}"
+
+        # Extract anonymous session ID from auth header (validation already done in fetch_user_from_rw_api)
+        auth_header = request.headers["Authorization"]
+        credentials = auth_header.strip("Bearer ")
+        [scheme, anonymous_id] = credentials.split(":", 1)
+        identity = f"{ANONYMOUS_USER_PREFIX}:{anonymous_id}"
 
     else:
         daily_quota = (
@@ -664,6 +673,23 @@ async def check_quota(
     identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
     session: AsyncSession = Depends(get_async_session),
 ):
+    """
+    Check the current daily usage quota for a user.
+
+    Args:
+        identity_and_quota (Dict): Dictionary containing user identity string and prompt quota.
+            Expected keys:
+                - "identity": str, user identifier (e.g., "user:<id>" or "anon:<id>")
+                - "prompt_quota": int, maximum allowed prompts per day
+        session (AsyncSession): Async SQLAlchemy session for database operations.
+
+    Returns:
+        Dict: Updated identity_and_quota dictionary including "prompts_used" count.
+
+    Notes:
+        - If quota checking is disabled in settings, returns an empty dictionary.
+        - Does not increment usage count; only retrieves current usage.
+    """
     if not APISettings.enable_quota_checking:
         return {}
 
@@ -675,7 +701,6 @@ async def check_quota(
     result = await session.execute(stmt)
     daily_usage = result.scalars().first()
 
-    # TODO: is the conditional check necessary here?
     identity_and_quota["prompts_used"] = (
         daily_usage.usage_count if daily_usage else 0
     )
@@ -683,19 +708,49 @@ async def check_quota(
 
 
 async def enforce_quota(
+    request: Request,
     identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
     session: AsyncSession = Depends(get_async_session),
 ):
+    """
+    Enforce daily usage quota for users and anonymous clients.
+
+    Args:
+        request (Request): The incoming HTTP request object.
+        identity_and_quota (Dict): Dictionary containing user identity string and prompt quota.
+            Expected keys:
+                - "identity": str, user identifier (e.g., "user:<id>" or "anon:<id>")
+                - "prompt_quota": int, maximum allowed prompts per day
+        session (AsyncSession): Async SQLAlchemy session for database operations.
+
+    Returns:
+        Dict: Updated identity_and_quota dictionary including "prompts_used" count.
+
+    Raises:
+        HTTPException: If quota is exceeded or required headers are missing/invalid.
+    """
     if not APISettings.enable_quota_checking:
         return {}
 
+    anonymous_user_ip = None
+    user_is_anonymous = (
+        identity_and_quota["identity"].split(":")[0] == ANONYMOUS_USER_PREFIX
+    )
+    if user_is_anonymous:
+        # Extract IP address (validation already done in fetch_user_from_rw_api)
+        anonymous_user_ip = request.headers.get(NEXTJS_IP_HEADER)
+
     today = date.today()
 
-    # 2. Atomically "insert or increment" with ON CONFLICT
+    # Atomically insert or increment usage count for the user for today
     stmt = (
         insert(DailyUsageOrm)
-        .values(id=identity_and_quota["identity"], date=today, usage_count=1)
-        # Composite PK = (id, date)
+        .values(
+            id=identity_and_quota["identity"],
+            date=today,
+            usage_count=1,
+            ip_address=anonymous_user_ip,
+        )
         .on_conflict_do_update(
             index_elements=["id", "date"],
             set_={"usage_count": DailyUsageOrm.usage_count + 1},
@@ -704,9 +759,9 @@ async def enforce_quota(
     )
     result = await session.execute(stmt)
     count = result.scalars().first()
-    await session.commit()  # commit the upsert
+    await session.commit()
 
-    # 3. Enforce the quota
+    # Enforce the user's daily prompt quota
     if count > identity_and_quota["prompt_quota"]:
         raise HTTPException(
             status_code=429,
@@ -714,6 +769,20 @@ async def enforce_quota(
         )
 
     identity_and_quota["prompts_used"] = count
+
+    # Additional IP-based quota enforcement for anonymous users
+    if user_is_anonymous:
+        stmt = select(func.sum(DailyUsageOrm.usage_count)).filter_by(
+            date=today, ip_address=anonymous_user_ip
+        )
+        result = await session.execute(stmt)
+        ip_count = result.scalar() or 0
+
+        if ip_count > APISettings.ip_address_daily_quota:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Daily free limit of {APISettings.ip_address_daily_quota} exceeded for IP address",
+            )
 
     return identity_and_quota
 

@@ -86,6 +86,24 @@ async def client() -> AsyncClient:
         yield client
 
 
+@pytest_asyncio.fixture(scope="session")
+async def anonymous_client() -> AsyncClient:
+    """Client configured for anonymous users with required NextJS headers."""
+    t = ASGITransport(app=app)
+
+    # Default headers for anonymous requests
+    headers = {
+        "X-API-KEY": "test-nextjs-api-key",  # Matches .env NEXTJS_API_KEY
+        "X-ZENO-FORWARDED-FOR": "192.168.1.1",  # Test IP address
+        "Authorization": "Bearer noauth:test-session-123",  # Anonymous session
+    }
+
+    async with AsyncClient(
+        transport=t, base_url="http://test", headers=headers
+    ) as client:
+        yield client
+
+
 async def clear_tables():
     """Truncate all tables after running each test."""
     async with async_session_maker() as session:
