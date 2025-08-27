@@ -323,3 +323,208 @@ async def test_pick_aoi_queries():
     assert "charts_data" in command.update
     assert "Pima_Arizona" in command.update["charts_data"][0]["data"][0]
     assert "Bern_Switzerland" in command.update["charts_data"][0]["data"][0]
+
+
+@pytest.mark.asyncio
+async def test_simple_line_chart():
+    """Test simple line chart generation for time series data."""
+    mock_state_line = {
+        "raw_data": {
+            "Amazon Region": {
+                "date": [
+                    "2020-01-01",
+                    "2021-01-01",
+                    "2022-01-01",
+                    "2023-01-01",
+                ],
+                "alerts": [1200, 1450, 1100, 980],
+                "region": ["Amazon", "Amazon", "Amazon", "Amazon"],
+            }
+        },
+        "dataset": {
+            "prompt_instructions": "Analyze deforestation alert trends over time"
+        },
+    }
+
+    result = await generate_insights.ainvoke(
+        {
+            "query": "What are the trends in deforestation alerts over time?",
+            "is_comparison": False,
+            "state": mock_state_line,
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
+
+    assert "charts_data" in result.update
+    assert len(result.update["charts_data"]) > 0
+
+    chart_data = result.update["charts_data"][0]
+    assert "data" in chart_data
+    assert "id" in chart_data
+    assert chart_data["type"] == "line"
+
+
+@pytest.mark.asyncio
+async def test_simple_bar_chart():
+    """Test simple bar chart generation for categorical comparison."""
+    mock_state_bar = {
+        "raw_data": {
+            "Global Forest Loss": {
+                "country": ["Brazil", "Indonesia", "DRC", "Peru", "Colombia"],
+                "forest_loss_ha": [
+                    11568000,
+                    6020000,
+                    4770000,
+                    1630000,
+                    1240000,
+                ],
+                "year": [2022, 2022, 2022, 2022, 2022],
+            }
+        },
+        "dataset": {
+            "prompt_instructions": "Compare forest loss across countries"
+        },
+    }
+
+    result = await generate_insights.ainvoke(
+        {
+            "query": "Which countries have the highest forest loss?",
+            "is_comparison": False,
+            "state": mock_state_bar,
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
+
+    assert "charts_data" in result.update
+    assert len(result.update["charts_data"]) > 0
+
+    chart_data = result.update["charts_data"][0]
+    assert "data" in chart_data
+    assert "id" in chart_data
+    assert chart_data["type"] == "bar"
+
+
+@pytest.mark.asyncio
+async def test_stacked_bar_chart():
+    """Test stacked bar chart generation for composition data."""
+    mock_state_stacked = {
+        "raw_data": {
+            "Amazon Forest Loss Causes": {
+                "year": ["2020", "2021", "2022", "2023"],
+                "deforestation": [1200, 1100, 950, 800],
+                "fires": [800, 900, 1200, 1100],
+                "logging": [400, 350, 300, 250],
+                "agriculture": [600, 700, 800, 750],
+                "region": ["Amazon", "Amazon", "Amazon", "Amazon"],
+            }
+        },
+        "dataset": {
+            "prompt_instructions": "Analyze composition of forest loss causes over time"
+        },
+    }
+
+    result = await generate_insights.ainvoke(
+        {
+            "query": "Show me the composition of forest loss causes over time as a stacked bar chart",
+            "is_comparison": False,
+            "state": mock_state_stacked,
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
+
+    assert "charts_data" in result.update
+    assert len(result.update["charts_data"]) > 0
+
+    chart_data = result.update["charts_data"][0]
+    assert "data" in chart_data
+    assert "id" in chart_data
+    assert chart_data["type"] == "stacked-bar"
+
+
+@pytest.mark.asyncio
+async def test_grouped_bar_chart():
+    """Test grouped bar chart generation for multiple metrics comparison."""
+    mock_state_grouped = {
+        "raw_data": {
+            "Global Forest Metrics": {
+                "country": [
+                    "Brazil",
+                    "Brazil",
+                    "Indonesia",
+                    "Indonesia",
+                    "DRC",
+                    "DRC",
+                ],
+                "metric": [
+                    "Forest Loss",
+                    "Fire Incidents",
+                    "Forest Loss",
+                    "Fire Incidents",
+                    "Forest Loss",
+                    "Fire Incidents",
+                ],
+                "value": [11568, 8500, 6020, 4200, 4770, 2100],
+                "year": [2022, 2022, 2022, 2022, 2022, 2022],
+            }
+        },
+        "dataset": {
+            "prompt_instructions": "Compare forest loss and fire incidents across countries"
+        },
+    }
+
+    result = await generate_insights.ainvoke(
+        {
+            "query": "Compare forest loss and fire incidents across countries using grouped bars",
+            "is_comparison": False,
+            "state": mock_state_grouped,
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
+
+    assert "charts_data" in result.update
+    assert len(result.update["charts_data"]) > 0
+
+    chart_data = result.update["charts_data"][0]
+    assert "data" in chart_data
+    assert "id" in chart_data
+    assert chart_data["type"] == "grouped-bar"
+
+
+@pytest.mark.asyncio
+async def test_pie_chart():
+    """Test pie chart generation for part-to-whole relationship."""
+    mock_state_pie = {
+        "raw_data": {
+            "Global Forest Loss Causes": {
+                "cause": [
+                    "Deforestation",
+                    "Fires",
+                    "Logging",
+                    "Agriculture",
+                    "Mining",
+                ],
+                "percentage": [45, 25, 15, 10, 5],
+                "region": ["Global", "Global", "Global", "Global", "Global"],
+            }
+        },
+        "dataset": {
+            "prompt_instructions": "Analyze main causes of forest loss globally"
+        },
+    }
+
+    result = await generate_insights.ainvoke(
+        {
+            "query": "What are the main causes of forest loss globally? Show as pie chart",
+            "is_comparison": False,
+            "state": mock_state_pie,
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
+
+    assert "charts_data" in result.update
+    assert len(result.update["charts_data"]) > 0
+
+    chart_data = result.update["charts_data"][0]
+    assert "data" in chart_data
+    assert "id" in chart_data
+    assert chart_data["type"] == "pie"
