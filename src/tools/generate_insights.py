@@ -94,8 +94,8 @@ Data format requirements:
 
 User query: {user_query}
 Area of interest: {aoi_name}
-Raw data (CSV):
-{raw_data}
+
+{raw_data_prompt}
 
 Generate:
 1. One chart insight with appropriate chart type, Recharts-compatible data, and clear axis fields
@@ -110,9 +110,20 @@ Follow-up examples: "Show trend over different period", "Compare with [region]",
 )
 
 
+def get_data_csv(raw_data: Dict) -> str:
+    """
+    Convert the raw data to a CSV string and drop constant columns.
+    """
+    df = pd.DataFrame(raw_data)
+    constants = df.nunique() == 1
+    df = df.drop(columns=df.columns[constants])
+    return df.to_csv(index=False)
+
+
 @tool
 async def generate_insights(
     query: str,
+    is_comparison: bool,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
@@ -124,6 +135,7 @@ async def generate_insights(
 
     Args:
         query: The user's query to guide insight generation and chart type selection.
+        is_comparison: Whether the user is comparing two areas of interest.
     """
     logger.info("GENERATE-INSIGHTS-TOOL")
     logger.debug(f"Generating insights for query: {query}")
@@ -144,14 +156,19 @@ async def generate_insights(
         )
 
     raw_data = state["raw_data"]
-    logger.debug(f"Processing data with {len(raw_data)} rows")
 
-    # Convert dict to dataframe, drop constant columns, and convert
-    # to CSV string for the prompt
-    df = pd.DataFrame(raw_data)
-    constants = df.nunique() == 1
-    df = df.drop(columns=df.columns[constants])
-    data_csv = df.to_csv(index=False)
+    raw_data_prompt = "Raw data (CSV):\n"
+    if not is_comparison:
+        key = list(raw_data.keys())[0]
+        data_csv = get_data_csv(raw_data[key])
+        raw_data_prompt += f"{key}:\n{data_csv}\n"
+    else:
+        for key in raw_data.keys():
+            data_csv = get_data_csv(raw_data[key])
+            raw_data_prompt += f"{key}:\n{data_csv}\n"
+
+    dat = {key: len(value) for key, value in raw_data.items()}
+    logger.debug(f"Processing data with row counts: {dat}")
 
     prompt_instructions = state.get("dataset").get("prompt_instructions", "")
 
@@ -163,7 +180,7 @@ async def generate_insights(
         response = await chain.ainvoke(
             {
                 "user_query": query,
-                "raw_data": data_csv,
+                "raw_data_prompt": raw_data_prompt,
                 # when picking an area of interest manually, the query will not have an area of interest
                 # mentioned, so we can use the state to get the area name to pass to the LLM
                 # Otherwise, the insight heading might not mention the name of the area

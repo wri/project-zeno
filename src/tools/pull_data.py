@@ -92,6 +92,10 @@ async def pull_data(
     subregion = state["subregion"]
     subtype = state["subtype"]
     dataset = state["dataset"]
+    current_raw_data = state.get("raw_data", {})
+
+    if current_raw_data is None:
+        current_raw_data = {}
 
     # Use orchestrator to pull data
     result = await data_pull_orchestrator.pull_data(
@@ -125,9 +129,11 @@ async def pull_data(
     else:
         raw_data = None
 
+    current_raw_data.update({aoi_name: raw_data})
+
     return Command(
         update={
-            "raw_data": raw_data,
+            "raw_data": current_raw_data,
             "start_date": start_date,
             "end_date": end_date,
             "messages": [tool_message],
