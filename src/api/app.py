@@ -1676,11 +1676,14 @@ async def get_raw_data(
     content_type: str = Header(default="text/csv", alias="Content-Type"),
 ):
     """
-    Get insights data for a specific thread. The data returned will reflect the
-    latest state of the `raw_data` key - meaning that if, during a multi-turn
-    conversation, the user has generated insights multiple time (eg: for
-    different locations or different time ranges) only the latest insights will
-    be downloadable.
+    Get insights data for a specific thread and checkpoint. The data returned
+    will reflect the state of the `raw_data` key at that point in time,
+    meaning that users can download the data for generated insights at
+    any point during a multi-turn conversation.
+
+    Note: should we make the checkpoint_id optional? (in this case we would
+    return the latest state of the `raw_data` insights when the checkpoint_id
+    is not provided).
 
     **Authentication**: Requires Bearer token in Authorization header.
     **Content-Type**: Accepts an OPTIONAL Content-Type header to specify

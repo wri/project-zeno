@@ -128,7 +128,6 @@ class ZenoClient:
     def download_data(
         self, thread_id, checkpoint_id, mime_type: str = "text/csv"
     ):
-        print("PINGPONG!")
         url = (
             f"{self.base_url}/api/threads/{thread_id}/{checkpoint_id}/raw_data"
         )
