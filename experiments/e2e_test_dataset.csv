@@ -1,0 +1,3 @@
+query,expected_aoi_id,expected_aoi_name,expected_subregion,expected_aoi_subtype,expected_aoi_source,expected_dataset_id,expected_dataset_name,expected_context_layer,expected_start_date,expected_end_date,expected_answer,test_group,priority,status
+Show disturbance alerts by driver in Odisha for January 2024,IND.26_1,"Odisha, India",,state-province,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),driver,2024-01-01,2024-01-31,Lot of high confidence disturbances in January.,group_1,high,ready to run
+Which states in India had the most deforestation in 2022,IND,India,country,country,gadm,4,Tree cover loss,,2022-01-01,2022-12-31,North Eastern States have maximum deforestation.,group_1,medium,ready_to_run
