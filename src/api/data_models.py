@@ -119,6 +119,7 @@ class DailyUsageOrm(Base):
     id = Column(String, primary_key=True, unique=True, nullable=False)
     date = Column(Date, nullable=False, primary_key=True, default=date.today())
     usage_count = Column(Integer, nullable=False, default=0)
+    ip_address = Column(String, nullable=True)
 
 
 class CustomAreaOrm(Base):

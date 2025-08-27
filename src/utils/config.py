@@ -15,7 +15,10 @@ class _APISettings(BaseSettings):
     admin_user_daily_quota: int = 100
     regular_user_daily_quota: int = 25
     anonymous_user_daily_quota: int = 10
+    ip_address_daily_quota: int = 50
     enable_quota_checking: bool = True
+
+    nextjs_api_key: str = Field(..., alias="NEXTJS_API_KEY")
 
     @property
     def domains_allowlist(self) -> list[str]:

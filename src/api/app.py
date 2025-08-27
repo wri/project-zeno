@@ -24,14 +24,14 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
-from itsdangerous import BadSignature, TimestampSigner
+from itsdangerous import TimestampSigner
 from langchain_core.load import dumps
 from langchain_core.messages import HumanMessage
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -178,52 +178,6 @@ langfuse_client = Langfuse()
 
 # HTTP Middleware to asign/verify anonymous session IDs
 signer = TimestampSigner(os.environ["COOKIE_SIGNER_SECRET_KEY"])
-
-
-@app.middleware("http")
-async def anonymous_id_middleware(request: Request, call_next):
-    # Check auth headers if user is logged in, and if
-    # so proceed to the request without generating an
-    # anonymous user session cookie
-    auth = await security(request)
-    if auth and auth.scheme.lower() == "bearer" and auth.credentials:
-        response: Response = await call_next(request)
-        return response
-
-    anon_cookie = request.cookies.get("anonymous_id")
-
-    need_new = True
-
-    if anon_cookie:
-        try:
-            # Verify signature & extract payload
-            _ = signer.unsign(
-                anon_cookie, max_age=365 * 24 * 3600
-            )  # Cookie age: 1yr
-            need_new = False
-        except BadSignature:
-            pass
-
-    if need_new:
-        raw_uuid = str(uuid.uuid4())
-        signed = signer.sign(raw_uuid).decode()
-    else:
-        signed = anon_cookie
-
-    request.state.anonymous_id = signed
-
-    response: Response = await call_next(request)
-
-    response.set_cookie(
-        "anonymous_id",
-        signed,
-        max_age=365 * 24 * 3600,  # Cookie age: 1yr
-        # secure=True,  # only over HTTPS
-        httponly=True,  # JS cannot read
-        samesite="Lax",
-    )
-
-    return response
 
 
 def pack(data):
@@ -618,10 +572,22 @@ async def get_user_identity_and_daily_quota(
     # 1. Get calling user and set quota
     if not user:
         daily_quota = APISettings.anonymous_user_daily_quota
-        if anon := request.cookies.get("anonymous_id"):
-            identity = f"anon:{anon}"
-        else:
-            identity = f"anon:{request.state.anonymous_id}"
+
+        if request.headers.get("X-API-KEY") is None or (
+            request.headers["X-API-KEY"] != APISettings.nextjs_api_key
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid API key from NextJS for anonymous user",
+            )
+
+        [scheme, anonymous_id] = request.headers["Authorization"].split(":")
+        if scheme.lower() != "noauth":
+            raise HTTPException(
+                status_code=401,
+                detail="Unauthorized, anonymous users should use 'noauth' scheme",
+            )
+        identity = f"anon:{anonymous_id}"
 
     else:
         daily_quota = (
@@ -656,6 +622,7 @@ async def check_quota(
 
 
 async def enforce_quota(
+    request: Request,
     identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -687,6 +654,30 @@ async def enforce_quota(
         )
 
     identity_and_quota["prompts_used"] = count
+
+    # Impose IP base limiting on anonymous users
+    if identity_and_quota["identity"].split(":")[0] == "anon":
+        if request.headers.get("X-API-KEY") is None or (
+            request.headers["X-API-KEY"] != APISettings.nextjs_api_key
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid API key from NextJS for anonymous user",
+            )
+
+        # TODO: get IP address for user
+        stmt = select(func.sum(DailyUsageOrm.usage_count)).filter_by(
+            date=today, ip_address=request.headers["X-NEXTJS-CLIENT-IP"]
+        )
+
+        result = await session.execute(stmt)
+        count = result.scalar()
+
+    if count > APISettings.ip_address_daily_quota:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Daily free limit of {APISettings.ip_address_daily_quota} exceeded for IP address",
+        )
 
     return identity_and_quota
 
