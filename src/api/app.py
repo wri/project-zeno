@@ -294,6 +294,10 @@ async def replay_chat(thread_id):
                 "node": node_type,
                 "timestamp": checkpoint.created_at,
                 "update": dumps(update),
+                "checkpoint_id": checkpoint.config["configurable"][
+                    "checkpoint_id"
+                ],
+                "thread_id": checkpoint.config["configurable"]["thread_id"],
             }
 
             yield pack(update)
@@ -1663,9 +1667,10 @@ async def delete_custom_area(
     return {"detail": f"Area {area_id} deleted successfully"}
 
 
-@app.get("/api/threads/{thread_id}/raw_data")
+@app.get("/api/threads/{thread_id}/{checkpoint_id}/raw_data")
 async def get_raw_data(
     thread_id: str,
+    checkpoint_id: str,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_async_session),
     content_type: str = Header(default="text/csv", alias="Content-Type"),
@@ -1710,7 +1715,12 @@ async def get_raw_data(
 
     zeno_async = await fetch_zeno()
 
-    config = {"configurable": {"thread_id": thread_id}}
+    config = {
+        "configurable": {
+            "thread_id": thread_id,
+            "checkpoint_id": checkpoint_id,
+        }
+    }
 
     state = await zeno_async.aget_state(config=config)
 
@@ -1732,7 +1742,9 @@ async def get_raw_data(
         buf = io.StringIO()
         df.to_csv(buf, index=False)
         csv_data = buf.getvalue()
-        filename = f"thread_{thread_id}_raw_data.csv"
+        filename = (
+            f"thread_{thread_id}_checkpoint_{checkpoint_id}_raw_data.csv"
+        )
         headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
         return Response(
             content=csv_data, media_type="text/csv", headers=headers
