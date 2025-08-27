@@ -64,5 +64,6 @@ jobs:
           LOCAL_API_BASE_URL: http://localhost:8000
           STREAMLIT_URL: http://localhost:8501
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
+          NEXTJS_API_KEY: test-nextjs-api-key
         run: |
           uv run pytest tests/api -v
