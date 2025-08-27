@@ -20,11 +20,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
+    # Add ip_address column to daily_usage table
     op.add_column(
-        "daily_user", sa.Column("ip_address", sa.String(), nullable=True)
-    )
+        "daily_usage", sa.Column("ip_address", sa.String(), nullable=True)
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_column("daily_user", "ip_address")
+
+    # Remove ip_address column from daily_usage table
+    op.drop_column("daily_usage", "ip_address")
+

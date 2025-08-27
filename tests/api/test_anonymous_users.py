@@ -6,11 +6,7 @@ import pytest
 
 from src.utils.config import APISettings
 
-
-@pytest.fixture
-def anonymous_client(client):
-    """Client without authentication headers."""
-    return client
+# Remove this fixture - using the one from conftest.py
 
 
 class TestAnonymousUserAccess:
