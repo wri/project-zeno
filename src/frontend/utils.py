@@ -584,7 +584,22 @@ def render_stream(stream):
     # Render charts if this is a tool node with charts_data
     if "charts_data" in update:
         charts_data = update["charts_data"]
+        thread_id = stream["thread_id"]
+        checkpoint_id = stream["checkpoint_id"]
+        client = ZenoClient(
+            base_url=API_BASE_URL, token=st.session_state.token
+        )
+
         render_charts(charts_data)
+
+        st.download_button(
+            label="Download data CSV",
+            data=client.download_data(
+                thread_id=thread_id, checkpoint_id=checkpoint_id
+            ),
+            file_name=f"thread_{thread_id}_checkpoint_{checkpoint_id}_raw_data.csv",
+            mime="text/csv",
+        )
 
     with st.expander("State Updates"):
         for key, value in update.items():

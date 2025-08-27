@@ -231,6 +231,29 @@ def pack(data):
 
 
 async def replay_chat(thread_id):
+    """
+    Fetches an existing thread from Zeno checkpointer (persistent
+    memory), and streams the content from each checkpoint, in a
+    way that is as close as possible to how the /chat endpoint
+    streams updates. Each checkpoint represents a transition from
+    one node to the next in the graph's execution, so for each
+    checkpoint we will track which elements have already been
+    rendered, so as to only include new or updated elements in
+    the stream response. Additional, each streamed update will
+    contain a thread_id and a checkpoint_id.
+
+    Args:
+        thread_id (str): The ID of the thread to replay.
+    Returns:
+        AsyncGenerator[str, None]: A stream of updates for the specified
+        thread. Each update includes the following keys:
+            - node : the type of node (e.g. user, system)
+            - timestamp : the time at which the update was created
+            - update : the actual update content
+            - checkpoint_id : the ID of the checkpoint
+            - thread_id : the ID of the thread
+    """
+
     config = {"configurable": {"thread_id": thread_id}}
 
     try:
@@ -294,6 +317,10 @@ async def replay_chat(thread_id):
                 "node": node_type,
                 "timestamp": checkpoint.created_at,
                 "update": dumps(update),
+                "checkpoint_id": checkpoint.config["configurable"][
+                    "checkpoint_id"
+                ],
+                "thread_id": checkpoint.config["configurable"]["thread_id"],
             }
 
             yield pack(update)
@@ -1663,19 +1690,25 @@ async def delete_custom_area(
     return {"detail": f"Area {area_id} deleted successfully"}
 
 
-@app.get("/api/threads/{thread_id}/raw_data")
+@app.get("/api/threads/{thread_id}/{checkpoint_id}/raw_data")
 async def get_raw_data(
     thread_id: str,
+    checkpoint_id: str,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_async_session),
     content_type: str = Header(default="text/csv", alias="Content-Type"),
 ):
     """
-    Get insights data for a specific thread. The data returned will reflect the
-    latest state of the `raw_data` key - meaning that if, during a multi-turn
-    conversation, the user has generated insights multiple time (eg: for
-    different locations or different time ranges) only the latest insights will
-    be downloadable.
+    Get insights data for a specific thread and checkpoint. The data returned
+    will reflect the state of the `raw_data` key at that point in time,
+    meaning that users can download the data for generated insights at
+    any point during a multi-turn conversation. The thread_id and
+    checkpoint_id will be included in the updates streamed from the
+    fetch thread endpoint.
+
+    Note: should we make the checkpoint_id optional? (in this case we would
+    return the latest state of the `raw_data` insights when the checkpoint_id
+    is not provided).
 
     **Authentication**: Requires Bearer token in Authorization header.
     **Content-Type**: Accepts an OPTIONAL Content-Type header to specify
@@ -1710,7 +1743,12 @@ async def get_raw_data(
 
     zeno_async = await fetch_zeno()
 
-    config = {"configurable": {"thread_id": thread_id}}
+    config = {
+        "configurable": {
+            "thread_id": thread_id,
+            "checkpoint_id": checkpoint_id,
+        }
+    }
 
     state = await zeno_async.aget_state(config=config)
 
@@ -1732,7 +1770,9 @@ async def get_raw_data(
         buf = io.StringIO()
         df.to_csv(buf, index=False)
         csv_data = buf.getvalue()
-        filename = f"thread_{thread_id}_raw_data.csv"
+        filename = (
+            f"thread_{thread_id}_checkpoint_{checkpoint_id}_raw_data.csv"
+        )
         headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
         return Response(
             content=csv_data, media_type="text/csv", headers=headers
