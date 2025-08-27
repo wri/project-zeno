@@ -231,6 +231,29 @@ def pack(data):
 
 
 async def replay_chat(thread_id):
+    """
+    Fetches an existing thread from Zeno checkpointer (persistent
+    memory), and streams the content from each checkpoint, in a
+    way that is as close as possible to how the /chat endpoint
+    streams updates. Each checkpoint represents a transition from
+    one node to the next in the graph's execution, so for each
+    checkpoint we will track which elements have already been
+    rendered, so as to only include new or updated elements in
+    the stream response. Additional, each streamed update will
+    contain a thread_id and a checkpoint_id.
+
+    Args:
+        thread_id (str): The ID of the thread to replay.
+    Returns:
+        AsyncGenerator[str, None]: A stream of updates for the specified
+        thread. Each update includes the following keys:
+            - node : the type of node (e.g. user, system)
+            - timestamp : the time at which the update was created
+            - update : the actual update content
+            - checkpoint_id : the ID of the checkpoint
+            - thread_id : the ID of the thread
+    """
+
     config = {"configurable": {"thread_id": thread_id}}
 
     try:
@@ -1679,7 +1702,9 @@ async def get_raw_data(
     Get insights data for a specific thread and checkpoint. The data returned
     will reflect the state of the `raw_data` key at that point in time,
     meaning that users can download the data for generated insights at
-    any point during a multi-turn conversation.
+    any point during a multi-turn conversation. The thread_id and
+    checkpoint_id will be included in the updates streamed from the
+    fetch thread endpoint.
 
     Note: should we make the checkpoint_id optional? (in this case we would
     return the latest state of the `raw_data` insights when the checkpoint_id
