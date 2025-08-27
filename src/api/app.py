@@ -629,12 +629,36 @@ async def enforce_quota(
     if not APISettings.enable_quota_checking:
         return {}
 
+    # check if user is anonymous, if so, verify API key provided in headers
+    # and extract IP address from request
+    anonymous_user_ip = None
+    user_is_anonymous = identity_and_quota["identity"].split(":")[0] == "anon"
+    if user_is_anonymous:
+        if request.headers.get("X-API-KEY") is None or (
+            request.headers["X-API-KEY"] != APISettings.nextjs_api_key
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid API key from NextJS for anonymous user",
+            )
+        anonymous_user_ip = request.headers.get("X-NEXTJS-CLIENT-IP")
+        if anonymous_user_ip is None or anonymous_user_ip.strip() == "":
+            raise HTTPException(
+                status_code=403,
+                detail="Missing X-NEXTJS-CLIENT-IP header for anonymous user",
+            )
+
     today = date.today()
 
     # 2. Atomically "insert or increment" with ON CONFLICT
     stmt = (
         insert(DailyUsageOrm)
-        .values(id=identity_and_quota["identity"], date=today, usage_count=1)
+        .values(
+            id=identity_and_quota["identity"],
+            date=today,
+            usage_count=1,
+            ip_address=anonymous_user_ip,
+        )
         # Composite PK = (id, date)
         .on_conflict_do_update(
             index_elements=["id", "date"],
@@ -656,18 +680,10 @@ async def enforce_quota(
     identity_and_quota["prompts_used"] = count
 
     # Impose IP base limiting on anonymous users
-    if identity_and_quota["identity"].split(":")[0] == "anon":
-        if request.headers.get("X-API-KEY") is None or (
-            request.headers["X-API-KEY"] != APISettings.nextjs_api_key
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail="Invalid API key from NextJS for anonymous user",
-            )
-
+    if user_is_anonymous:
         # TODO: get IP address for user
         stmt = select(func.sum(DailyUsageOrm.usage_count)).filter_by(
-            date=today, ip_address=request.headers["X-NEXTJS-CLIENT-IP"]
+            date=today, ip_address=anonymous_user_ip
         )
 
         result = await session.execute(stmt)
