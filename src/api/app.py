@@ -480,6 +480,8 @@ def fetch_user_from_rw_api(
     if token and ":" in token:
         [scheme, _] = token.split(":", 1)
         if (
+            # not sure if the anon/anonymous check is necessary
+            # since I think that any bearer token with : is malformed
             scheme.lower() in ["anon", "anonymous"]
             and scheme.lower() != ANONYMOUS_USER_PREFIX
         ):
@@ -658,7 +660,7 @@ async def get_user_identity_and_daily_quota(
 
         # Extract anonymous session ID from auth header (validation already done in fetch_user_from_rw_api)
         auth_header = request.headers["Authorization"]
-        credentials = auth_header[7:]  # Remove "Bearer " prefix
+        credentials = auth_header.strip("Bearer ")
         [scheme, anonymous_id] = credentials.split(":", 1)
         identity = f"{ANONYMOUS_USER_PREFIX}:{anonymous_id}"
 
