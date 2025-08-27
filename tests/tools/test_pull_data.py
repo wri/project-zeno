@@ -152,4 +152,6 @@ async def test_pick_aoi_queries(aoi_data, dataset):
     ):
         assert False
     else:
-        assert command.update.get("raw_data", None) is not None
+        raw_data = command.update.get("raw_data", {})
+        assert aoi_data["name"] in raw_data
+        assert len(raw_data[aoi_data["name"]]) > 0
