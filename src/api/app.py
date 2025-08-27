@@ -569,6 +569,21 @@ async def get_user_identity_and_daily_quota(
     request: Request,
     user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
 ):
+    """
+    Determine the user's identity string and their daily prompt quota.
+
+    Args:
+        request (Request): The incoming HTTP request object.
+        user (Optional[UserModel]): The authenticated user model, or None for anonymous.
+
+    Returns:
+        Dict: Dictionary containing:
+            - "identity": str, user identifier string ("user:<id>" or "anon:<id>")
+            - "prompt_quota": int, the daily prompt quota for the user
+
+    Raises:
+        HTTPException: If anonymous user is missing or has invalid API key or authorization scheme.
+    """
     # 1. Get calling user and set quota
     if not user:
         daily_quota = APISettings.anonymous_user_daily_quota
@@ -603,6 +618,23 @@ async def check_quota(
     identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
     session: AsyncSession = Depends(get_async_session),
 ):
+    """
+    Check the current daily usage quota for a user.
+
+    Args:
+        identity_and_quota (Dict): Dictionary containing user identity string and prompt quota.
+            Expected keys:
+                - "identity": str, user identifier (e.g., "user:<id>" or "anon:<id>")
+                - "prompt_quota": int, maximum allowed prompts per day
+        session (AsyncSession): Async SQLAlchemy session for database operations.
+
+    Returns:
+        Dict: Updated identity_and_quota dictionary including "prompts_used" count.
+
+    Notes:
+        - If quota checking is disabled in settings, returns an empty dictionary.
+        - Does not increment usage count; only retrieves current usage.
+    """
     if not APISettings.enable_quota_checking:
         return {}
 
@@ -614,7 +646,6 @@ async def check_quota(
     result = await session.execute(stmt)
     daily_usage = result.scalars().first()
 
-    # TODO: is the conditional check necessary here?
     identity_and_quota["prompts_used"] = (
         daily_usage.usage_count if daily_usage else 0
     )
@@ -626,11 +657,26 @@ async def enforce_quota(
     identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
     session: AsyncSession = Depends(get_async_session),
 ):
+    """
+    Enforce daily usage quota for users and anonymous clients.
+
+    Args:
+        request (Request): The incoming HTTP request object.
+        identity_and_quota (Dict): Dictionary containing user identity string and prompt quota.
+            Expected keys:
+                - "identity": str, user identifier (e.g., "user:<id>" or "anon:<id>")
+                - "prompt_quota": int, maximum allowed prompts per day
+        session (AsyncSession): Async SQLAlchemy session for database operations.
+
+    Returns:
+        Dict: Updated identity_and_quota dictionary including "prompts_used" count.
+
+    Raises:
+        HTTPException: If quota is exceeded or required headers are missing/invalid.
+    """
     if not APISettings.enable_quota_checking:
         return {}
 
-    # check if user is anonymous, if so, verify API key provided in headers
-    # and extract IP address from request
     anonymous_user_ip = None
     user_is_anonymous = identity_and_quota["identity"].split(":")[0] == "anon"
     if user_is_anonymous:
@@ -650,7 +696,7 @@ async def enforce_quota(
 
     today = date.today()
 
-    # 2. Atomically "insert or increment" with ON CONFLICT
+    # Atomically insert or increment usage count for the user for today
     stmt = (
         insert(DailyUsageOrm)
         .values(
@@ -659,7 +705,6 @@ async def enforce_quota(
             usage_count=1,
             ip_address=anonymous_user_ip,
         )
-        # Composite PK = (id, date)
         .on_conflict_do_update(
             index_elements=["id", "date"],
             set_={"usage_count": DailyUsageOrm.usage_count + 1},
@@ -668,9 +713,9 @@ async def enforce_quota(
     )
     result = await session.execute(stmt)
     count = result.scalars().first()
-    await session.commit()  # commit the upsert
+    await session.commit()
 
-    # 3. Enforce the quota
+    # Enforce the user's daily prompt quota
     if count > identity_and_quota["prompt_quota"]:
         raise HTTPException(
             status_code=429,
@@ -679,21 +724,19 @@ async def enforce_quota(
 
     identity_and_quota["prompts_used"] = count
 
-    # Impose IP base limiting on anonymous users
+    # Additional IP-based quota enforcement for anonymous users
     if user_is_anonymous:
-        # TODO: get IP address for user
         stmt = select(func.sum(DailyUsageOrm.usage_count)).filter_by(
             date=today, ip_address=anonymous_user_ip
         )
-
         result = await session.execute(stmt)
-        count = result.scalar()
+        ip_count = result.scalar() or 0
 
-    if count > APISettings.ip_address_daily_quota:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Daily free limit of {APISettings.ip_address_daily_quota} exceeded for IP address",
-        )
+        if ip_count > APISettings.ip_address_daily_quota:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Daily free limit of {APISettings.ip_address_daily_quota} exceeded for IP address",
+            )
 
     return identity_and_quota
 
