@@ -159,7 +159,8 @@ async def generate_insights(
 
     raw_data_prompt = "Raw data (CSV):\n"
     if not is_comparison:
-        key = list(raw_data.keys())[0]
+        # Get the latest key if not comparing
+        key = list(raw_data.keys())[-1]
         data_csv = get_data_csv(raw_data[key])
         raw_data_prompt += f"{key}:\n{data_csv}\n"
     else:
@@ -172,7 +173,6 @@ async def generate_insights(
 
     prompt_instructions = state.get("dataset").get("prompt_instructions", "")
 
-    # Generate insights using the LLM
     try:
         chain = INSIGHT_GENERATION_PROMPT | SONNET.with_structured_output(
             InsightResponse
