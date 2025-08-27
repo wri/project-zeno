@@ -425,19 +425,20 @@ def fetch_user_from_rw_api(
         return None
 
     token = authorization.credentials
-    
+
     # Handle anonymous users with noauth prefix
     if token and token.startswith(f"{ANONYMOUS_USER_PREFIX}:"):
         # Validate anonymous user requirements early
         # Check for required NextJS headers
         if request.headers.get(NEXTJS_API_KEY_HEADER) is None or (
-            request.headers[NEXTJS_API_KEY_HEADER] != APISettings.nextjs_api_key
+            request.headers[NEXTJS_API_KEY_HEADER]
+            != APISettings.nextjs_api_key
         ):
             raise HTTPException(
                 status_code=403,
                 detail="Invalid API key from NextJS for anonymous user",
             )
-            
+
         # Check for required IP forwarding header
         anonymous_user_ip = request.headers.get(NEXTJS_IP_HEADER)
         if anonymous_user_ip is None or anonymous_user_ip.strip() == "":
@@ -445,13 +446,16 @@ def fetch_user_from_rw_api(
                 status_code=403,
                 detail=f"Missing {NEXTJS_IP_HEADER} header for anonymous user",
             )
-        
+
         return None  # Anonymous users should not be authenticated
-    
-    # Check if this looks like a malformed anonymous token  
+
+    # Check if this looks like a malformed anonymous token
     if token and ":" in token:
         [scheme, _] = token.split(":", 1)
-        if scheme.lower() in ["anon", "anonymous"] and scheme.lower() != ANONYMOUS_USER_PREFIX:
+        if (
+            scheme.lower() in ["anon", "anonymous"]
+            and scheme.lower() != ANONYMOUS_USER_PREFIX
+        ):
             raise HTTPException(
                 status_code=401,
                 detail=f"Unauthorized, anonymous users should use '{ANONYMOUS_USER_PREFIX}' scheme",
@@ -624,7 +628,7 @@ async def get_user_identity_and_daily_quota(
     # 1. Get calling user and set quota
     if not user:
         daily_quota = APISettings.anonymous_user_daily_quota
-        
+
         # Extract anonymous session ID from auth header (validation already done in fetch_user_from_rw_api)
         auth_header = request.headers["Authorization"]
         credentials = auth_header[7:]  # Remove "Bearer " prefix
@@ -705,7 +709,9 @@ async def enforce_quota(
         return {}
 
     anonymous_user_ip = None
-    user_is_anonymous = identity_and_quota["identity"].split(":")[0] == ANONYMOUS_USER_PREFIX
+    user_is_anonymous = (
+        identity_and_quota["identity"].split(":")[0] == ANONYMOUS_USER_PREFIX
+    )
     if user_is_anonymous:
         # Extract IP address (validation already done in fetch_user_from_rw_api)
         anonymous_user_ip = request.headers.get(NEXTJS_IP_HEADER)

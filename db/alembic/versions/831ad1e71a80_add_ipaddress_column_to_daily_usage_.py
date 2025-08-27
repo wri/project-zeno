@@ -19,14 +19,16 @@ def upgrade() -> None:
     """Upgrade schema."""
     import sqlalchemy as sa
     from alembic import op
-    
+
     # Add ip_address column to daily_usage table
-    op.add_column('daily_usage', sa.Column('ip_address', sa.String(), nullable=True))
+    op.add_column(
+        "daily_usage", sa.Column("ip_address", sa.String(), nullable=True)
+    )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     from alembic import op
-    
-    # Remove ip_address column from daily_usage table  
-    op.drop_column('daily_usage', 'ip_address')
+
+    # Remove ip_address column from daily_usage table
+    op.drop_column("daily_usage", "ip_address")

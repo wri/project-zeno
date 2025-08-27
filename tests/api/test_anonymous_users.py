@@ -6,7 +6,6 @@ import pytest
 
 from src.utils.config import APISettings
 
-
 # Remove this fixture - using the one from conftest.py
 
 
