@@ -398,8 +398,7 @@ class AnalyticsHandler(DataSourceHandler):
                         message=error_msg,
                         data_points_count=0,
                     )
-
-            if "status" in result and result["status"] in ["success", "saved"]:
+            elif result["status"] in ["success", "saved"]:
                 (
                     raw_data,
                     data_points_count,
