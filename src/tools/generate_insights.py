@@ -101,6 +101,8 @@ Generate:
 1. One chart insight with appropriate chart type, Recharts-compatible data, and clear axis fields
 2. 2-3 specific follow-up suggestions for further exploration
 
+IMPORTANT: Generate all insights, titles, and follow-up suggestions in the same language used in the user query.
+
 Follow-up examples: "Show trend over different period", "Compare with [region]", "Break down by [dimension]", "Top/bottom performers in [metric]"
             """,
         ),
@@ -144,12 +146,12 @@ def generate_insights(
     raw_data = state["raw_data"]
     logger.debug(f"Processing data with {len(raw_data)} rows")
 
-    # Convert DataFrame to CSV string for the prompt
-    if isinstance(raw_data, pd.DataFrame):
-        data_csv = raw_data.to_csv(index=False)
-        logger.debug(f"Data columns: {list(raw_data.columns)}")
-    else:
-        data_csv = str(raw_data)
+    # Convert dict to dataframe, drop constant columns, and convert
+    # to CSV string for the prompt
+    df = pd.DataFrame(raw_data)
+    constants = df.nunique() == 1
+    df = df.drop(columns=df.columns[constants])
+    data_csv = df.to_csv(index=False)
 
     prompt_instructions = state.get("dataset").get("prompt_instructions", "")
 

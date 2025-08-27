@@ -72,6 +72,9 @@ class DatasetOption(BaseModel):
         None,
         description="Pick a single context layer from the dataset if useful",
     )
+    date_request_match: bool = Field(
+        description="Whether the date request matches the dataset date range.",
+    )
     reason: str = Field(
         description="Short reason why the dataset is the best match."
     )
@@ -80,54 +83,51 @@ class DatasetOption(BaseModel):
 class DatasetSelectionResult(DatasetOption):
     tile_url: str = Field(
         description="Tile URL of the dataset that best matches the user query.",
-        default="",
     )
     dataset_name: str = Field(
         description="Name of the dataset that best matches the user query."
     )
     analytics_api_endpoint: str = Field(
         description="Analytics API endpoint of the dataset that best matches the user query.",
-        default="",
     )
     description: str = Field(
         description="Description of the dataset that best matches the user query.",
-        default="",
     )
     prompt_instructions: str = Field(
         description="Prompt instructions of the dataset that best matches the user query.",
-        default="",
     )
     methodology: str = Field(
         description="Methodology of the dataset that best matches the user query.",
-        default="",
     )
     cautions: str = Field(
         description="Cautions of the dataset that best matches the user query.",
-        default="",
     )
     function_usage_notes: str = Field(
         description="Function usage notes of the dataset that best matches the user query.",
-        default="",
     )
     citation: str = Field(
         description="Citation of the dataset that best matches the user query.",
-        default="",
     )
 
 
-async def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
+async def select_best_dataset(
+    query: str, candidate_datasets: pd.DataFrame
+) -> DatasetSelectionResult:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
             (
                 "user",
                 """Based on the query, return the ID of the dataset that can best answer the user query and provide reason why it is the best match.
-    Look at the dataset description and contextual layers, as well as date & variables.
+    Look at the dataset description and contextual layers, as well as date & variables. Evaluate if the best dataset is available
+    for the date range requested by the user.
+
+    IMPORTANT: Provide the selection reason in the same language used in the user query.
 
     Candidate datasets:
 
     {candidate_datasets}
 
-    Query:
+    User query:
 
     {user_query}
     """,
@@ -174,6 +174,7 @@ async def select_best_dataset(query: str, candidate_datasets: pd.DataFrame):
         cautions=selected_row.cautions,
         function_usage_notes=selected_row.function_usage_notes,
         citation=selected_row.citation,
+        date_request_match=selection_result.date_request_match,
     )
 
 
@@ -194,7 +195,7 @@ async def pick_dataset(
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await select_best_dataset(query, candidate_datasets)
 
-    tool_message = f"""Selected dataset ID: {selection_result.dataset_id}\nContext layer: {selection_result.context_layer}\nReasoning: {selection_result.reason}"""
+    tool_message = f"""Selected dataset ID: {selection_result.dataset_id}\nContext layer: {selection_result.context_layer}\nReasoning: {selection_result.reason}\nDate request match: {selection_result.date_request_match}"""
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
 

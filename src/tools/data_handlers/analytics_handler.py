@@ -9,7 +9,11 @@ from src.tools.data_handlers.base import (
     DataSourceHandler,
 )
 from src.tools.pick_dataset import DATASETS
-from src.utils.geocoding_helpers import get_geometry_data
+from src.utils.geocoding_helpers import (
+    SUBREGION_TO_AOI_TYPE_MAPPING,
+    format_id,
+    get_geometry_data,
+)
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -105,14 +109,15 @@ class AnalyticsHandler(DataSourceHandler):
         aoi: Dict,
         start_date: str,
         end_date: str,
+        subregion_aois: List[Dict],
+        subregion: str,
     ) -> Dict:
         """Build the API payload based on dataset type"""
+        # Base payload structure common to all endpoints
+        aoi_type = self._get_aoi_type(aoi)
         # Fix for GADM IDs which come with a _1 suffix
         if aoi["src_id"][-2:] in ["_1", "_2", "_3", "_4", "_5"]:
             aoi["src_id"] = aoi["src_id"][:-2]
-
-        # Base payload structure common to all endpoints
-        aoi_type = self._get_aoi_type(aoi)
 
         # Handle custom areas differently - they need a feature collection
         if aoi_type == "feature_collection":
@@ -141,13 +146,26 @@ class AnalyticsHandler(DataSourceHandler):
                 }
             }
         else:
-            # Base payload structure for standard AOI types
-            base_payload = {
-                "aoi": {
-                    "ids": [aoi["src_id"]],
-                    **aoi_type,
+            # Handle subregion AOIs
+            if subregion:
+                subregion_ids = [
+                    format_id(subregion_aoi["src_id"])
+                    for subregion_aoi in subregion_aois
+                ]
+                base_payload = {
+                    "aoi": {
+                        "type": SUBREGION_TO_AOI_TYPE_MAPPING[subregion],
+                        "ids": subregion_ids,
+                    }
                 }
-            }
+            else:
+                # Base payload structure for standard AOI types
+                base_payload = {
+                    "aoi": {
+                        "ids": [aoi["src_id"]],
+                        **aoi_type,
+                    }
+                }
 
         logger.debug(f"dataset: {dataset}")
 
@@ -244,11 +262,12 @@ class AnalyticsHandler(DataSourceHandler):
         logger.warning(msg)
         return msg
 
-    def _process_response_data(
+    async def _process_response_data(
         self,
         result: Dict,
     ) -> tuple[Any, int, str]:
-        """Process the response data based on dataset type"""
+        """Process the response data based on dataset type."""
+
         if "data" not in result:
             raise ValueError(f"Response missing 'data' key: {result}")
 
@@ -318,7 +337,7 @@ class AnalyticsHandler(DataSourceHandler):
 
             # Build the payload based on dataset type
             payload = await self._build_payload(
-                dataset, aoi, start_date, end_date
+                dataset, aoi, start_date, end_date, subregion_aois, subregion
             )
 
             # Debug logging for payload
@@ -380,10 +399,28 @@ class AnalyticsHandler(DataSourceHandler):
                     )
 
             if "status" in result and result["status"] in ["success", "saved"]:
-                raw_data, data_points_count, message_detail = (
-                    self._process_response_data(result)
-                )
+                (
+                    raw_data,
+                    data_points_count,
+                    message_detail,
+                ) = await self._process_response_data(result)
 
+                # Enrich raw_data with names
+                if subregion:
+                    subregion_aois_id_to_name = {
+                        format_id(item["src_id"]): item["name"].split(",")[0]
+                        for item in subregion_aois
+                    }
+                    # For tree cover loss, the API returns "id" as the key for the AOI IDs, for other datasets it returns "aoi_id"
+                    api_result_id = (
+                        "id"
+                        if dataset.get("dataset_name") == "Tree cover loss"
+                        else "aoi_id"
+                    )
+                    raw_data["name"] = [
+                        subregion_aois_id_to_name[idx]
+                        for idx in raw_data[api_result_id]
+                    ]
                 return DataPullResult(
                     success=True,
                     data=raw_data,

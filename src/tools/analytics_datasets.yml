@@ -3,9 +3,9 @@ datasets:
   dataset_name: Global all ecosystem disturbance alerts (DIST-ALERT)
   context_layers:
     - value: "driver"
-      description: "Shows the primary driver of disturbance"
+      description: "Shows the primary driver or likely causes of disturbance"
     - value: "natural_lands"
-      description: "Shows intersection with natural lands"
+      description: "Shows intersection with natural lands (2020)"
   variables: null
   tile_url: "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color"
   license: "CC by 4.0"
@@ -13,10 +13,15 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: "Underlying product updated daily, with image revisit time every 2-4 days. Product on GFW updated weekly."
   content_date: "1 January 2023 - present"
-  keywords: "land cover, alerts, deforestation, conversion, vegetation disturbance"
+  keywords:
+    - land cover
+    - alerts
+    - deforestation
+    - conversion
+    - vegetation disturbance
   analytics_api_endpoint: "/v0/land_change/dist_alerts/analytics"
   prompt_instructions: >
-    Use this dataset to show recent vegetation changes across all ecosystems.
+    Use this dataset to show recent vegetation changes across all ecosystems, measured in hectares (ha).
     Show classified alerts (LDACS) by default, which is designed to reveal likely causes of disturbance,
     identify dominant drivers in a region, and support ecosystem or regional comparisons.
     LDACS is updated quarterly and covers the most recent 12 months, so classification data are not
@@ -24,10 +29,10 @@ datasets:
     Clarify whether the user cares about temporary disturbance or permanent conversion; recommend
     annual land cover or tree cover loss datasets for historical or long-term changes.
     For recent trends, show alert counts over time using line charts.
-    Use pie charts to show the distribution of disturbance types by specific driver.
-    Use pie charts to show the distribution of alerts by land cover class to show which ecosystems
+    Use pie charts to show the distribution of disturbed area by specific driver.
+    Use pie charts to show the distribution of disturbed area by land cover class or natural land type to show which ecosystems
     are most affected.
-    Use grouped bar charts with alert date (month) on the x-axis, count or area ha on the y-axis,
+    Use grouped bar charts with alert date (month) on the x-axis, area in hectares on the y-axis,
     and class name to differentiate bars, highlighting seasonal patterns.
     Plot drivers separately if one dominates (makes up > 80% of alerts in any given month) and decide
     whether to include or exclude unclassified alerts based on whether the goal is to highlight only
@@ -136,18 +141,46 @@ datasets:
   dataset_name: Global land cover
   context_layers: null
   variables: null
-  tile_url: ""
+  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/global-land-cover-v-2/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%220%22%3A%20%5B139%2C%2069%2C%2019%2C%20255%5D%2C%20%221%22%3A%20%5B255%2C%20255%2C%200%2C%20255%5D%2C%20%222%22%3A%20%5B0%2C%20128%2C%200%2C%20255%5D%2C%20%223%22%3A%20%5B0%2C%20255%2C%20255%2C%20255%5D%2C%20%224%22%3A%20%5B0%2C%200%2C%20255%2C%20255%5D%2C%20%225%22%3A%20%5B255%2C%20255%2C%20255%2C%20255%5D%2C%20%226%22%3A%20%5B255%2C%200%2C%200%2C%20255%5D%2C%20%227%22%3A%20%5B128%2C%20128%2C%20128%2C%20255%5D%2C%20%228%22%3A%20%5B255%2C%20165%2C%200%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C9%29%2A%28asset%3E%3D0%29&asset_as_band=True"
   license: "CC by 4.0"
   geographic_coverage: Global
   resolution: "30 x 30 meters"
   update_frequency: "Annual"
   content_date: "2015-2024"
-  keywords: "global, land cover, land cover change, cultivated grasslands, tree cover gain, cropland expansion (or agricultural expansion), urbanization (or urban expansion), bare ground, sparse vegetation, short vegetation, grassland, shrubland, cultivated, cropland, built-up, urban, forest, tree cover, water, wetland, machine learning, annual, Landsat, time series, remote sensing, 30 m"
+  keywords:
+    - global
+    - land cover
+    - land cover change
+    - cultivated grasslands
+    - tree cover gain
+    - cropland expansion
+    - agricultural expansion
+    - urbanization
+    - urban expansion
+    - bare ground
+    - sparse vegetation
+    - short vegetation
+    - grassland
+    - shrubland
+    - cultivated
+    - cropland
+    - built-up
+    - urban
+    - forest
+    - tree cover
+    - water
+    - wetland
+    - machine learning
+    - annual
+    - Landsat
+    - time series
+    - remote sensing
+    - 30 m
   analytics_api_endpoint: "/v0/land_change/land_cover_change/analytics"
   prompt_instructions: >
     Maps land-cover classes in 2015 and 2024 and reports pixel-level transitions.
-    Use grouped-bar charts based on land_cover_class_start, land_cover_class_end,
-    and area_ha to show transitions or pie-charts to show single-year composition.
+    Use grouped-bar charts or tables based on land_cover_class_start, land_cover_class_end,
+    and area_ha to show transitions. Use pie-charts to show single-year composition.
     Drop zeros. Because only start- and end-states are recorded, do not treat it as
     an annual time series or intra-annual product. Transitions to "short vegetation"
     or "bare" may reflect seasonality, not restoration / degradation. When users
@@ -245,26 +278,42 @@ datasets:
     Sources:
     Potapov, P., Hansen, M. C., Pickens, A., Hernandez-Serna, A., Tyukavina, A., Turubanova, S.,
     Zalles, V., Li, X., Khan, A., Stolle, F., Harris, N., Song, X.-P., Baggett, A., Kommareddy, I.
-    and Kommareddy, A. 2022. The global 2000–2020 land cover and land use change dataset
-    derived from the Landsat archive: first results. – Frontiers in Remote Sensing. 3: 856903.
+    and Kommareddy, A. 2022. The global 2000-2020 land cover and land use change dataset
+    derived from the Landsat archive: first results. - Frontiers in Remote Sensing. 3: 856903.
 
     Parente, L., Sloat, L., Mesquita, V., Consoli, D., Stanimirova, R., Hengl, T., Bonannella, C.,
     Teles, N., Wheeler, I., Hunter, M., Ehrmann, S., Ferreira, L., Mattos, A. P., Oliveira, B.,
     Meyer, C., Şahin, M., Witjes, M., Fritz, S., Malek, Z., & Stolle, F. (2024). Annual 30-m
-    maps of global grassland class and extent (2000–2022) based on spatiotemporal Machine
+    maps of global grassland class and extent (2000-2022) based on spatiotemporal Machine
     Learning. Scientific Data, 11(1), 1303. https://doi.org/10.1038/s41597-024-04139-6
 
 - dataset_id: 2
   dataset_name: Global natural/semi-natural grassland extent
   context_layers: null
   variables: Natural/Semi-Natural Grassland
-  tile_url: ""
+  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/grasslands-v-1-1/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%220%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%2C%20%221%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%2C%20%222%22%3A%20%5B255%2C%20153%2C%2022%2C%20255%5D%2C%20%223%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%7D&assets=asset&expression=asset%2A%28asset%3C4%29%2A%28asset%3E%3D0%29&asset_as_band=True"
   license: "CC by 4.0"
   geographic_coverage: "90°N to 90°S"
   resolution: "30 x 30 meters"
   update_frequency: "Annual"
-  content_date: "2000-2022, annual"
-  keywords: "grasslands, natural grasslands, semi-natural grasslands, rangeland, livestock, grazing, global, annual, 30 m, remote sensing, time series, change detection, machine learning, Landsat"
+  content_date: "2000-2024, annual"
+  keywords:
+    - grasslands
+    - natural grasslands
+    - semi-natural grasslands
+    - cultivated grasslands
+    - pasturelands
+    - rangeland
+    - livestock
+    - grazing
+    - global
+    - annual
+    - 30 m
+    - remote sensing
+    - time series
+    - change detection
+    - machine learning
+    - Landsat
   analytics_api_endpoint: "/v0/land_change/grasslands/analytics"
   prompt_instructions: >
     Natural/semi-natural grassland extent and change for each year from 2000 to 2022.
@@ -412,20 +461,25 @@ datasets:
     Parente, L., Sloat, L., Mesquita, V., Consoli, D., Stanimirova, R., Hengl, T., Bonannella, C.,
     Teles, N., Wheeler, I., Hunter, M., Ehrmann, S., Ferreira, L., Mattos, A. P., Oliveira, B.,
     Meyer, C., Şahin, M., Witjes, M., Fritz, S., Malek, Z., & Stolle, F. (2024). Annual 30-m
-    maps of global grassland class and extent (2000–2022) based on spatiotemporal Machine
+    maps of global grassland class and extent (2000-2022) based on spatiotemporal Machine
     Learning. Scientific Data, 11(1), 1303. https://doi.org/10.1038/s41597-024-04139-6
 
 - dataset_id: 3
   dataset_name: SBTN Natural Lands Map
   context_layers: null
   variables: binary, classification
-  tile_url: ""
+  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/natural-lands-v-1-1/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%222%22%3A%20%5B36%2C%20110%2C%2036%2C%20255%5D%2C%20%223%22%3A%20%5B185%2C%20185%2C%2030%2C%20255%5D%2C%20%224%22%3A%20%5B107%2C%20174%2C%20214%2C%20255%5D%2C%20%225%22%3A%20%5B6%2C%20162%2C%20133%2C%20255%5D%2C%20%226%22%3A%20%5B254%2C%20254%2C%20204%2C%20255%5D%2C%20%227%22%3A%20%5B172%2C%20209%2C%20232%2C%20255%5D%2C%20%228%22%3A%20%5B88%2C%20149%2C%2088%2C%20255%5D%2C%20%229%22%3A%20%5B9%2C%2061%2C%209%2C%20255%5D%2C%20%2210%22%3A%20%5B219%2C%20219%2C%20123%2C%20255%5D%2C%20%2211%22%3A%20%5B153%2C%20153%2C%2026%2C%20255%5D%2C%20%2212%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2213%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2214%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2215%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2216%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2217%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2218%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2219%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2220%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2221%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C22%29%2A%28asset%3E1%29&asset_as_band=True"
   license: "CC by 4.0 SA"
   geographic_coverage: Global
-  resolution: "30 × 30 meters"
+  resolution: "30 x 30 meters"
   update_frequency: "Irregular"
   content_date: "2020"
-  keywords: "land cover, deforestation, conversion, supply chains, natural lands"
+  keywords:
+    - land cover
+    - deforestation
+    - conversion
+    - supply chains
+    - natural lands
   analytics_api_endpoint: "/v0/land_change/natural_lands/analytics"
   prompt_instructions: >
     Natural and non-natural lands in 2020. Created to see if there were natural lands within
@@ -502,10 +556,13 @@ datasets:
   tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=2001&end_year=2024&tree_cover_density_threshold=25&render_type=true_color"
   license: "CC by 4.0"
   geographic_coverage: "Global land area (excluding Antarctica and other Arctic islands)"
-  resolution: "30 × 30 meters"
+  resolution: "30 x 30 meters"
   update_frequency: "annual"
   content_date: "2001-2024 annual"
-  keywords: "deforestation, forest loss, disturbance"
+  keywords:
+    - deforestation
+    - forest loss
+    - disturbance
   analytics_api_endpoint: "/v0/land_change/tree_cover_loss/analytics"
   prompt_instructions: >
     Reports gross annual loss of tree cover ≥ 5 m height (2001-2024).
@@ -533,7 +590,7 @@ datasets:
     This data set, a collaboration between the GLAD (Global Land Analysis & Discovery) lab
     at the University of Maryland (UMD), Google, USGS, and NASA, measures areas of tree cover
     loss across all global land (except Antarctica and other Arctic islands) at approximately
-    30 × 30 meter resolution. The data were generated using multispectral satellite imagery
+    30 x 30 meter resolution. The data were generated using multispectral satellite imagery
     from the Landsat 5 thematic mapper (TM), the Landsat 7 thematic mapper plus (ETM+), and
     the Landsat 8 Operational Land Imager (OLI) sensors. Over 1 million satellite images were
     processed and analyzed, including over 600,000 Landsat 7 images for the 2000-2012 interval,
@@ -599,7 +656,7 @@ datasets:
     Hansen, M. C., P. V. Potapov, R. Moore, M. Hancher, S. A. Turubanova, A. Tyukavina, D. Thau,
     S. V. Stehman, S. J. Goetz, T. R. Loveland, A. Kommareddy, A. Egorov, L. Chini, C. O. Justice,
     and J. R. G. Townshend. 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change."
-    Science 342 (15 November): 850–53. doi: 10.1126/science.1244693. Data available from:
+    Science 342 (15 November): 850-53. doi: 10.1126/science.1244693. Data available from:
     https://glad.earthengine.app/view/global-forest-change.
   citation: >
     Hansen et al., 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change."

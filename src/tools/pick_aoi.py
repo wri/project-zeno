@@ -62,6 +62,8 @@ async def query_aoi_database(
         await conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
         await conn.commit()
 
+        user_id = structlog.contextvars.get_contextvars().get("user_id")
+
         # Check which tables exist first
         existing_tables = []
 
@@ -116,6 +118,7 @@ async def query_aoi_database(
                 SELECT gadm_id AS src_id,
                     name, subtype, 'gadm' as source
                 FROM {GADM_TABLE}
+                WHERE name IS NOT NULL AND name % :place_name
             """
             )
 
@@ -128,6 +131,7 @@ async def query_aoi_database(
                        subtype,
                        'kba' as source
                 FROM {KBA_TABLE}
+                WHERE name IS NOT NULL AND name % :place_name
             """
             )
 
@@ -140,6 +144,7 @@ async def query_aoi_database(
                        subtype,
                        'landmark' as source
                 FROM {LANDMARK_TABLE}
+                WHERE name IS NOT NULL AND name % :place_name
             """
             )
 
@@ -152,15 +157,13 @@ async def query_aoi_database(
                        subtype,
                        'wdpa' as source
                 FROM {WDPA_TABLE}
+                WHERE name IS NOT NULL AND name % :place_name
             """
             )
-
         if "custom" in existing_tables:
             src_id = SOURCE_ID_MAPPING["custom"]["id_column"]
-            user_id = structlog.contextvars.get_contextvars().get("user_id")
             if not user_id:
                 raise ValueError("user_id required for custom areas")
-
             union_parts.append(
                 f"""
                 SELECT CAST({src_id} as TEXT) as src_id,
@@ -169,6 +172,7 @@ async def query_aoi_database(
                        'custom' as source
                 FROM {CUSTOM_AREA_TABLE}
                 WHERE user_id = :user_id
+                AND name IS NOT NULL AND name % :place_name
             """
             )
 
@@ -294,41 +298,114 @@ async def query_subregion_database(
     return results
 
 
-class AOIIndex(BaseModel):
-    """Model for storing the index of the selected location."""
+async def select_best_aoi(question, candidate_aois):
+    """Select the best AOI based on the user query.
 
-    id: int = Field(
-        description="`id` of the location that best matches the user query."
-    )
-    source: str = Field(description="`source` of the selected location.")
-    src_id: str = Field(description="`src_id` of the selected location.")
-    name: str = Field(description="`name` of the selected location.")
-    subtype: str = Field(description="`subtype` of the selected location.")
+    Args:
+        question: User's question providing context for selecting the most relevant location
+        candidate_aois: Candidate AOIs to select from
 
+    Returns:
+        Selected AOI: AOIIndex
+    """
 
-# Prompt template for selecting the best location match based on user query
-AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "user",
-            """
-            Based on the query, return the ID of the best location match.
-            When there is a tie, give preference to country > state > district > municipality > locality.
+    class AOIIndex(BaseModel):
+        """Model for storing the best matched location."""
 
-            {candidate_locations}
-
-            Query:
-
-            {user_query}
-            """,
+        source: str = Field(
+            description="`source` of the best matched location."
         )
-    ]
-)
+        src_id: str = Field(
+            description="`src_id` of the best matched location."
+        )
+        name: str = Field(description="`name` of the best matched location.")
+        subtype: str = Field(
+            description="`subtype` of the best matched location."
+        )
 
-# Chain for selecting the best location match
-AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
-    AOIIndex
-)
+    # Prompt template for selecting the best location match based on user query
+    AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
+        [
+            (
+                "user",
+                """
+                From the candidate locations below, select the one place that best matches the user's query intention for location.
+                Consider the context and purpose mentioned in the user query to determine the most appropriate geographic scope.
+
+                When there is a tie, give preference to country > state > district > municipality > locality.
+
+                Candidate locations:
+                {candidate_locations}
+
+                User query:
+                {user_query}
+                """,
+            )
+        ]
+    )
+
+    # Chain for selecting the best location match
+    AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
+        AOIIndex
+    )
+
+    selected_aoi = await AOI_SELECTION_CHAIN.ainvoke(
+        {"candidate_locations": candidate_aois, "user_query": question}
+    )
+    logger.debug(f"Candidate locations: {candidate_aois}")
+    logger.debug(f"Selected AOI: {selected_aoi}")
+
+    return selected_aoi
+
+
+async def translate_to_english(question, place_name):
+    """Translate place name to English if it's in a different language."""
+
+    class Place(BaseModel):
+        name: str
+
+    TRANSLATE_TO_ENGLISH_PROMPT = ChatPromptTemplate.from_messages(
+        [
+            (
+                "user",
+                """
+                Translate or correct the following place name to its standard English form.
+                This includes:
+                - Translating from other languages to English
+                - Removing or correcting accented characters (é→e, ã→a, ç→c, etc.)
+                - Standardizing to the most common English spelling
+
+                Examples:
+                - "Odémire" → "Odemira"
+                - "São Paulo" → "Sao Paulo"
+                - "México" → "Mexico"
+                - "Köln" → "Cologne"
+
+                User query:
+                {question}
+
+                Place name to translate/correct:
+                {place_name}
+
+                Return only the corrected place name, nothing else.
+                """,
+            )
+        ]
+    )
+
+    translate_to_english_chain = (
+        TRANSLATE_TO_ENGLISH_PROMPT | SONNET.with_structured_output(Place)
+    )
+
+    english_place_name = await translate_to_english_chain.ainvoke(
+        {
+            "question": question,
+            "place_name": place_name,
+        }
+    )
+    logger.info(f"English place name: {english_place_name.name}")
+
+    return english_place_name.name
 
 
 @tool("pick-aoi")
@@ -370,20 +447,81 @@ async def pick_aoi(
         # database URL (this was how the tool was originally setup)
         engine = await get_async_engine(db_url=APISettings.database_url)
 
+        # Translate place name to English if it's in a different language
+        place = await translate_to_english(question, place)
+
+        # Query the database for place & get top matches using similarity
         results = await query_aoi_database(engine, place, RESULT_LIMIT)
 
+        # Convert results to CSV
         candidate_aois = results.to_csv(
             index=False
         )  # results: id, name, subtype, source, src_id
 
         # Select the best AOI based on user query
-        selected_aoi = await AOI_SELECTION_CHAIN.ainvoke(
-            {"candidate_locations": candidate_aois, "user_query": question}
-        )
+        selected_aoi = await select_best_aoi(question, candidate_aois)
         source = selected_aoi.source
         src_id = selected_aoi.src_id
         name = selected_aoi.name
         subtype = selected_aoi.subtype
+
+        # Check if NAME of selected AOI is an exact match of any of the names in the results, then ask the user for clarification
+        short_name = name.split(",")[0]
+
+        # For GADM sources, check for exact name matches from different countries
+        if source == "gadm":
+            # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
+            selected_country = src_id.split(".")[0] if "." in src_id else None
+
+            if selected_country:
+                # Filter results to only include AOIs from different countries
+                different_country_results = results[
+                    (results.source == "gadm")
+                    & (~results.src_id.str.startswith(selected_country + "."))
+                ]
+
+                # Find exact matches of the short name in different countries
+                exact_matches_different_countries = different_country_results[
+                    different_country_results.name.str.lower().str.startswith(
+                        short_name.lower()
+                    )
+                ]
+
+                # If we have exact matches from different countries, ask for clarification
+                if len(exact_matches_different_countries) > 0:
+                    # Include the selected AOI and the matches from other countries
+                    all_matches = results[
+                        (
+                            results.name.str.lower().str.startswith(
+                                short_name.lower()
+                            )
+                        )
+                        & (results.source == "gadm")
+                    ]
+
+                    candidate_names = all_matches[
+                        ["name", "subtype", "src_id"]
+                    ].to_dict(orient="records")
+                    candidate_names = "\n".join(
+                        [
+                            f"{candidate['name']} - ({candidate['subtype']}) [{candidate['src_id'].split('.')[0]}]"
+                            for candidate in candidate_names
+                        ]
+                    )
+                    return Command(
+                        update={
+                            "messages": [
+                                ToolMessage(
+                                    f"I found multiple locations named '{short_name}' in different countries. Please tell me which one you meant:\n\n{candidate_names}\n\nWhich location are you looking for?",
+                                    tool_call_id=tool_call_id,
+                                    status="success",
+                                    response_metadata={
+                                        "msg_type": "human_feedback"
+                                    },
+                                )
+                            ],
+                        },
+                    )
 
         # todo: this is redundant with the one in helpers.py, consider refactoring
         source_table_map = {
@@ -410,7 +548,18 @@ async def pick_aoi(
 
         tool_message = f"Selected AOI: {name}, type: {subtype}"
         if subregion:
-            tool_message += f"\nSubregion AOIs: {len(subregion_aois)}"
+            subregion_aoi_names = [
+                subregion_aoi["name"].split(",")[0]
+                for subregion_aoi in subregion_aois
+            ]
+            if len(subregion_aoi_names) > 5:
+                displayed_names = subregion_aoi_names[:5]
+                remaining = len(subregion_aoi_names) - 5
+                tool_message += f"\nSubregion AOIs: {'\n'.join(displayed_names)}\n... ({remaining} more)"
+            else:
+                tool_message += (
+                    f"\nSubregion AOIs: {'\n'.join(subregion_aoi_names)}"
+                )
 
         logger.debug(f"Pick AOI tool message: {tool_message}")
         selected_aoi = selected_aoi.model_dump()
