@@ -146,12 +146,12 @@ def generate_insights(
     raw_data = state["raw_data"]
     logger.debug(f"Processing data with {len(raw_data)} rows")
 
-    # Convert DataFrame to CSV string for the prompt
-    if isinstance(raw_data, pd.DataFrame):
-        data_csv = raw_data.to_csv(index=False)
-        logger.debug(f"Data columns: {list(raw_data.columns)}")
-    else:
-        data_csv = str(raw_data)
+    # Convert dict to dataframe, drop constant columns, and convert
+    # to CSV string for the prompt
+    df = pd.DataFrame(raw_data)
+    constants = df.nunique() == 1
+    df = df.drop(columns=df.columns[constants])
+    data_csv = df.to_csv(index=False)
 
     prompt_instructions = state.get("dataset").get("prompt_instructions", "")
 
