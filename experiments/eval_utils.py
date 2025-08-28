@@ -7,8 +7,6 @@ from langchain_core.load import dumps
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
-from src.agents import zeno
-
 
 def get_langfuse():
     """Get Langfuse client."""

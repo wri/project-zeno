@@ -23,6 +23,13 @@ def normalize_gadm_id(gadm_id: str) -> str:
     return gadm_id.split("_")[0].replace("-", ".").lower()
 
 
+def normalize_value(value) -> str:
+    """Normalize values for comparison, handling None, empty strings, and 'None' strings."""
+    if value is None or value == "None" or str(value).strip() == "":
+        return ""
+    return str(value).strip()
+
+
 def evaluate_aoi_selection(
     agent_state: Dict[str, Any],
     expected_aoi_id: str,
@@ -66,11 +73,9 @@ def evaluate_aoi_selection(
 
     match_aoi_id = normalized_actual == normalized_expected
 
-    # Simple string comparison for subregion
-    expected_subregion_str = (
-        str(expected_subregion).strip() if expected_subregion else ""
-    )
-    actual_subregion_str = str(subregion).strip() if subregion else ""
+    # Normalize subregion values for comparison
+    expected_subregion_str = normalize_value(expected_subregion)
+    actual_subregion_str = normalize_value(subregion)
 
     # If expected subregion is empty, skip subregion check
     if not expected_subregion_str:
@@ -121,13 +126,13 @@ def evaluate_dataset_selection(
     actual_dataset_name = dataset.get("dataset_name", "")
     actual_context_layer = dataset.get("context_layer", "")
 
-    # Simple string comparison
-    expected_id_str = str(expected_dataset_id).strip()
-    actual_id_str = str(actual_dataset_id).strip()
+    # Normalize values for comparison
+    expected_id_str = normalize_value(expected_dataset_id)
+    actual_id_str = normalize_value(actual_dataset_id)
     dataset_match = expected_id_str == actual_id_str
 
-    expected_context_str = str(expected_context_layer).strip()
-    actual_context_str = str(actual_context_layer).strip()
+    expected_context_str = normalize_value(expected_context_layer)
+    actual_context_str = normalize_value(actual_context_layer)
 
     # Context layer matching: if expected is empty, skip the check
     if not expected_context_str:
@@ -185,11 +190,11 @@ def evaluate_data_pull(
     actual_end_date = agent_state.get("end_date", "")
 
     if expected_start_date and expected_end_date:
-        # Simple string comparison for dates
-        expected_start_str = str(expected_start_date).strip()
-        expected_end_str = str(expected_end_date).strip()
-        actual_start_str = str(actual_start_date).strip()
-        actual_end_str = str(actual_end_date).strip()
+        # Normalize date values for comparison
+        expected_start_str = normalize_value(expected_start_date)
+        expected_end_str = normalize_value(expected_end_date)
+        actual_start_str = normalize_value(actual_start_date)
+        actual_end_str = normalize_value(actual_end_date)
 
         date_success = (
             expected_start_str == actual_start_str
