@@ -5,6 +5,8 @@ Core orchestration for E2E testing framework.
 import asyncio
 from typing import List
 
+import pytest
+
 from .config import get_test_config
 from .data_handlers import CSVLoader, ResultExporter
 from .langfuse import LangfuseDatasetHandler
@@ -89,6 +91,7 @@ def _print_csv_summary(results: List[TestResult], test_mode: str) -> None:
     print(f"Final Answer: {answer_avg:.2f}")
 
 
+@pytest.mark.asyncio
 async def test_e2e():
     """Main E2E test function supporting both CSV and Langfuse modes."""
     # Get configuration
