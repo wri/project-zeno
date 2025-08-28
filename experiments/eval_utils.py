@@ -7,6 +7,8 @@ from langchain_core.load import dumps
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
+from src.agents import fetch_zeno
+
 
 def get_langfuse():
     """Get Langfuse client."""
@@ -31,7 +33,7 @@ def get_run_name():
     return f"eval_{date}_{git_hash}"
 
 
-def run_query(
+async def run_query(
     query: str,
     handler: CallbackHandler,
     user_persona: str = None,
@@ -44,7 +46,8 @@ def run_query(
     }
 
     try:
-        state = zeno.get_state(config=config)
+        zeno_async = await fetch_zeno()
+        state = await zeno_async.aget_state(config=config)
 
         return state
         # aoi = state.values.get("aoi")

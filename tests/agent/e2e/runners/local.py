@@ -53,7 +53,7 @@ class LocalTestRunner(BaseTestRunner):
             structlog.contextvars.bind_contextvars(user_id="test_user")
 
             # Run agent
-            result = await agent.ainvoke(
+            _ = await agent.ainvoke(
                 {"messages": [("user", query)], "user_persona": "Researcher"},
                 config=config,
             )
