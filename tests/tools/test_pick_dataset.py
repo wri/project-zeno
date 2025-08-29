@@ -177,7 +177,7 @@ async def test_query_with_context_layer(
 async def test_query_with_wrong_date_range():
     command = await pick_dataset.ainvoke(
         {
-            "query": "Find me grasslands data for 2024",
+            "query": "Find me grasslands data for 2030",
             "tool_call_id": str(uuid.uuid4()),
         }
     )
