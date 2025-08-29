@@ -319,6 +319,7 @@ class AnalyticsHandler(DataSourceHandler):
     ) -> DataPullResult:
         try:
             aoi_name = aoi["name"]
+            context_layer = dataset.get("context_layer")
 
             dataset = [
                 ds
@@ -330,6 +331,8 @@ class AnalyticsHandler(DataSourceHandler):
                     f"Dataset not found: {dataset.get('dataset_id')}"
                 )
             dataset = dataset[0]
+            if context_layer:
+                dataset["context_layer"] = context_layer
 
             # Get the appropriate endpoint URL
             endpoint_url = self.BASE_URL + dataset.get(

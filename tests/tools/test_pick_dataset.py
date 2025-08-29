@@ -154,7 +154,7 @@ async def test_queries_return_expected_dataset(
     [
         ("Vegetation disturbances by natural lands", 0, "natural_lands"),
         ("Tree cover loss by driver", 4, "driver"),
-        ("Ecosystem problems split by land types", 0, "natural_lands"),
+        ("Dist alert problems split by land types", 0, "natural_lands"),
     ],
 )
 async def test_query_with_context_layer(

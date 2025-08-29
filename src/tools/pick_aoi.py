@@ -426,7 +426,7 @@ async def pick_aoi(
         ]
     ] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
-    state: Annotated[Dict, InjectedState] = None,
+    state: Annotated[Dict, InjectedState] = {},
 ) -> Command:
     """Selects the most appropriate area of interest (AOI) based on a place name and user's question. Optionally, it can also filter the results by a subregion.
 
