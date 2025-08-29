@@ -138,13 +138,8 @@ async def pull_data(
         )
 
         # Create tool message
-        tool_message = ToolMessage(
-            content=result.message,
-            tool_call_id=tool_call_id,
-        )
-        tool_messages.append(tool_message)
-
-        logger.debug(f"Pull data tool message: {tool_message}")
+        tool_messages.append(result.message)
+        logger.debug(f"Pull data tool message: {result.message}")
 
         # Determine raw data format for backward compatibility
         if (
@@ -170,11 +165,16 @@ async def pull_data(
             {(aoi["src_id"], dataset["dataset_id"]): raw_data}
         )
 
+    tool_message = ToolMessage(
+        content="|".join(tool_messages),
+        tool_call_id=tool_call_id,
+    )
+
     return Command(
         update={
             "raw_data": current_raw_data,
             "start_date": start_date,
             "end_date": end_date,
-            "messages": tool_messages,
+            "messages": [tool_message],
         },
     )

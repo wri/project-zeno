@@ -151,7 +151,10 @@ async def test_agent_disturbance_alerts_with_comparison(structlog_context):
 
     for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
         if "raw_data" in tool_step:
-            if len(next(iter(tool_step["raw_data"].values()))["value"]) > 0:
+            if len(next(iter(tool_step["raw_data"].values()))["name"]) > 0:
                 has_raw_data = True
+        if "charts_data" in tool_step:
+            assert "Mato Grosso" in tool_step["charts_data"]["title"]
+            assert "Pará" in tool_step["charts_data"]["title"]
 
     assert has_raw_data
