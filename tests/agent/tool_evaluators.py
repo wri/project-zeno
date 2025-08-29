@@ -43,7 +43,7 @@ def evaluate_aoi_selection(
         expected_aoi_id: Expected AOI ID (e.g., "BRA", "USA.5_1")
         expected_subregion: Expected subregion (e.g., "state-province", "country")
     Returns:
-        Dict with aoi_score (0 or 1), actual_id, actual_name, actual_subtype, actual_source
+        Dict with aoi_score (0 or 1), actual_id, actual_name, actual_subtype, actual_source, actual_subregion
     """
     aoi = agent_state.get("aoi")
     subregion = agent_state.get("subregion")
@@ -55,6 +55,7 @@ def evaluate_aoi_selection(
             "actual_name": None,
             "actual_subtype": None,
             "actual_source": None,
+            "actual_subregion": None,
         }
 
     # Get actual AOI ID based on subtype
@@ -91,6 +92,7 @@ def evaluate_aoi_selection(
         "actual_name": actual_aoi_name,
         "actual_subtype": actual_aoi_subtype,
         "actual_source": actual_aoi_source,
+        "actual_subregion": actual_subregion_str,
         "match_aoi_id": match_aoi_id,
         "match_subregion": match_subregion,
     }

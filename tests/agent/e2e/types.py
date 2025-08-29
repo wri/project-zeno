@@ -23,6 +23,7 @@ class TestResult:
     actual_name: Optional[str]
     actual_subtype: Optional[str]
     actual_source: Optional[str]
+    actual_subregion: Optional[str]
     match_aoi_id: bool
     match_subregion: bool
 
@@ -76,6 +77,7 @@ class TestResult:
             "actual_name": self.actual_name,
             "actual_subtype": self.actual_subtype,
             "actual_source": self.actual_source,
+            "actual_subregion": self.actual_subregion,
             "match_aoi_id": self.match_aoi_id,
             "match_subregion": self.match_subregion,
             "dataset_score": self.dataset_score,

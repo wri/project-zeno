@@ -51,6 +51,7 @@ class BaseTestRunner(ABC):
             actual_name=None,
             actual_subtype=None,
             actual_source=None,
+            actual_subregion=None,
             match_aoi_id=False,
             match_subregion=False,
             # Dataset evaluation fields
