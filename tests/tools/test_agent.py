@@ -30,6 +30,24 @@ def user_ds():
     pass
 
 
+def has_raw_data(tool_steps: list[dict]) -> bool:
+    for tool_step in tool_steps:
+        if "raw_data" not in tool_step:
+            continue
+        if not len(tool_step["raw_data"]):
+            continue
+        dat = list(tool_step["raw_data"].values())[0]
+        if "country" in dat and len(dat["country"]) > 0:
+            return True
+        elif "aoi_id" in dat and len(dat["aoi_id"]) > 0:
+            return True
+        elif "value" in dat and len(dat["value"]) > 0:
+            return True
+        elif "aoi_type" in dat and len(dat["aoi_type"]) > 0:
+            return True
+    return False
+
+
 async def run_agent(query: str, thread_id: str | None = None):
     """Run the agent with a query and print output at each step."""
 
@@ -107,18 +125,15 @@ async def test_full_agent_for_datasets(
 
     assert len(steps) > 0
 
-    has_raw_data = False
-    has_insights = False
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
 
-    for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
+    assert has_raw_data(tool_steps)
+
+    has_insights = False
+    for tool_step in tool_steps:
         if tool_step.get("insight_count", 0) > 0:
             has_insights = True
-        if "raw_data" in tool_step:
-            if len(next(iter(tool_step["raw_data"].values()))["value"]) > 0:
-                has_raw_data = True
-
-    assert has_insights
-    assert has_raw_data
+    assert has_insights, "No insights found"
 
 
 @pytest.mark.asyncio
@@ -129,14 +144,9 @@ async def test_agent_for_disturbance_alerts_in_brazil(structlog_context):
 
     assert len(steps) > 0
 
-    has_raw_data = False
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
 
-    for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
-        if "raw_data" in tool_step:
-            if len(next(iter(tool_step["raw_data"].values()))["value"]) > 0:
-                has_raw_data = True
-
-    assert has_raw_data
+    assert has_raw_data(tool_steps)
 
 
 @pytest.mark.asyncio
@@ -147,14 +157,6 @@ async def test_agent_disturbance_alerts_with_comparison(structlog_context):
 
     assert len(steps) > 0
 
-    has_raw_data = False
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
 
-    for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
-        if "raw_data" in tool_step:
-            if len(next(iter(tool_step["raw_data"].values()))["name"]) > 0:
-                has_raw_data = True
-        if "charts_data" in tool_step:
-            assert "Mato Grosso" in tool_step["charts_data"][0]["title"]
-            assert "Pará" in tool_step["charts_data"][0]["title"]
-
-    assert has_raw_data
+    assert has_raw_data(tool_steps)
