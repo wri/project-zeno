@@ -119,7 +119,7 @@ async def run_agent(query: str, thread_id: str | None = None):
 async def test_full_agent_for_datasets(
     structlog_context, dataset_name, dataset_year
 ):
-    query = f"What are the trends of {dataset_name} in Pima County, Arizona for July {dataset_year}?"
+    query = f"What are the trends of {dataset_name} in Para Brazil for July {dataset_year}?"
 
     steps = await run_agent(query)
 
