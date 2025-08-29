@@ -1,4 +1,4 @@
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Dict, Literal, Optional
 
 import pandas as pd
 import structlog
@@ -6,7 +6,7 @@ from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
-from langgraph.prebuilt import create_react_agent
+from langgraph.prebuilt import InjectedState, create_react_agent
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -426,6 +426,7 @@ async def pick_aoi(
         ]
     ] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
+    state: Annotated[Dict, InjectedState] = None,
 ) -> Command:
     """Selects the most appropriate area of interest (AOI) based on a place name and user's question. Optionally, it can also filter the results by a subregion.
 
@@ -568,6 +569,10 @@ async def pick_aoi(
         logger.info(
             f"Selected AOI: {name}, type: {subtype}, source: {source}, src_id: {src_id}"
         )
+        aoi_options = state.get("aoi_options", [])
+        if aoi_options is None:
+            aoi_options = []
+        aoi_options.append(selected_aoi)
 
         return Command(
             update={
@@ -576,6 +581,7 @@ async def pick_aoi(
                 "subregion": subregion,
                 "aoi_name": name,
                 "subtype": subtype,
+                "aoi_options": aoi_options,
                 # Update the message history
                 "messages": [
                     ToolMessage(tool_message, tool_call_id=tool_call_id)

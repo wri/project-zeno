@@ -18,7 +18,7 @@ def test_db_session():
 
 
 @pytest.mark.asyncio
-async def test_pick_aoi_queries():
+async def test_generate_insights_comparison():
     update = {
         "aoi": {
             "source": "gadm",
@@ -49,7 +49,9 @@ async def test_pick_aoi_queries():
         "is_last_step": False,
         "remaining_steps": 20,
         "raw_data": {
-            "Pima, Arizona, United States": {
+            ("USA.3.11", 4): {
+                "aoi_name": "Pima, Arizona, United States",
+                "dataset_name": "Tree cover loss",
                 "country": [
                     "USA",
                     "USA",
@@ -178,7 +180,9 @@ async def test_pick_aoi_queries():
                     "admin",
                 ],
             },
-            "Bern, Switzerland": {
+            ("CHE.2.12", 4): {
+                "aoi_name": "Bern, Switzerland",
+                "dataset_name": "Tree cover loss",
                 "country": [
                     "CHE",
                     "CHE",
@@ -308,6 +312,18 @@ async def test_pick_aoi_queries():
                 ],
             },
         },
+        "aoi_options": [
+            {
+                "source": "gadm",
+                "src_id": "USA.3.11",
+                "name": "Pima, Arizona, United States",
+            },
+            {
+                "source": "gadm",
+                "src_id": "CHE.2.12",
+                "name": "Bern, Switzerland",
+            },
+        ],
     }
     command = await generate_insights.ainvoke(
         {
@@ -319,8 +335,8 @@ async def test_pick_aoi_queries():
     )
 
     assert "charts_data" in command.update
-    assert "Pima_Arizona" in command.update["charts_data"][0]["data"][0]
-    assert "Bern_Switzerland" in command.update["charts_data"][0]["data"][0]
+    assert "Pima" in command.update["insight"]["title"]
+    assert "Bern" in command.update["insight"]["title"]
 
 
 @pytest.mark.asyncio
@@ -328,7 +344,9 @@ async def test_simple_line_chart():
     """Test simple line chart generation for time series data."""
     mock_state_line = {
         "raw_data": {
-            "Amazon Region": {
+            ("Amazon Region", 1): {
+                "aoi_name": "Amazon Region",
+                "dataset_name": "Deforestation Alerts",
                 "date": [
                     "2020-01-01",
                     "2021-01-01",
@@ -342,6 +360,13 @@ async def test_simple_line_chart():
         "dataset": {
             "prompt_instructions": "Analyze deforestation alert trends over time"
         },
+        "aoi_options": [
+            {
+                "source": "gadm",
+                "src_id": "Amazon Region",
+                "name": "Amazon Region",
+            }
+        ],
     }
 
     result = await generate_insights.ainvoke(
@@ -367,7 +392,9 @@ async def test_simple_bar_chart():
     """Test simple bar chart generation for categorical comparison."""
     mock_state_bar = {
         "raw_data": {
-            "Global Forest Loss": {
+            ("Global Forest Loss", 1): {
+                "aoi_name": "Global Forest Loss",
+                "dataset_name": "Forest Loss by Country",
                 "country": ["Brazil", "Indonesia", "DRC", "Peru", "Colombia"],
                 "forest_loss_ha": [
                     11568000,
@@ -382,6 +409,13 @@ async def test_simple_bar_chart():
         "dataset": {
             "prompt_instructions": "Compare forest loss across countries"
         },
+        "aoi_options": [
+            {
+                "source": "gadm",
+                "src_id": "Global Forest Loss",
+                "name": "Global Forest Loss",
+            }
+        ],
     }
 
     result = await generate_insights.ainvoke(
@@ -407,7 +441,9 @@ async def test_stacked_bar_chart():
     """Test stacked bar chart generation for composition data."""
     mock_state_stacked = {
         "raw_data": {
-            "Amazon Forest Loss Causes": {
+            ("Amazon Forest Loss Causes", 1): {
+                "aoi_name": "Amazon Forest Loss Causes",
+                "dataset_name": "Forest Loss Causes Over Time",
                 "year": ["2020", "2021", "2022", "2023"],
                 "deforestation": [1200, 1100, 950, 800],
                 "fires": [800, 900, 1200, 1100],
@@ -419,6 +455,13 @@ async def test_stacked_bar_chart():
         "dataset": {
             "prompt_instructions": "Analyze composition of forest loss causes over time"
         },
+        "aoi_options": [
+            {
+                "source": "gadm",
+                "src_id": "Amazon Forest Loss Causes",
+                "name": "Amazon Forest Loss Causes",
+            }
+        ],
     }
 
     result = await generate_insights.ainvoke(
@@ -444,7 +487,9 @@ async def test_grouped_bar_chart():
     """Test grouped bar chart generation for multiple metrics comparison."""
     mock_state_grouped = {
         "raw_data": {
-            "Global Forest Metrics": {
+            ("Global Forest Metrics", 1): {
+                "aoi_name": "Global Forest Metrics",
+                "dataset_name": "Forest Loss and Fire Incidents",
                 "country": [
                     "Brazil",
                     "Brazil",
@@ -468,6 +513,13 @@ async def test_grouped_bar_chart():
         "dataset": {
             "prompt_instructions": "Compare forest loss and fire incidents across countries"
         },
+        "aoi_options": [
+            {
+                "source": "gadm",
+                "src_id": "Global Forest Metrics",
+                "name": "Global Forest Metrics",
+            }
+        ],
     }
 
     result = await generate_insights.ainvoke(
@@ -493,7 +545,9 @@ async def test_pie_chart():
     """Test pie chart generation for part-to-whole relationship."""
     mock_state_pie = {
         "raw_data": {
-            "Global Forest Loss Causes": {
+            ("Global Forest Loss Causes", 1): {
+                "aoi_name": "Global Forest Loss Causes",
+                "dataset_name": "Global Forest Loss Causes",
                 "cause": [
                     "Deforestation",
                     "Fires",
@@ -508,6 +562,13 @@ async def test_pie_chart():
         "dataset": {
             "prompt_instructions": "Analyze main causes of forest loss globally"
         },
+        "aoi_options": [
+            {
+                "source": "gadm",
+                "src_id": "Global Forest Loss Causes",
+                "name": "Global Forest Loss Causes",
+            }
+        ],
     }
 
     result = await generate_insights.ainvoke(

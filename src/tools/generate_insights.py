@@ -157,16 +157,24 @@ async def generate_insights(
 
     raw_data = state["raw_data"]
 
-    raw_data_prompt = "Raw data (CSV):\n"
-    if not is_comparison:
-        # Get the latest key if not comparing
-        key = list(raw_data.keys())[-1]
-        data_csv = get_data_csv(raw_data[key])
-        raw_data_prompt += f"{key}:\n{data_csv}\n"
+    raw_data_prompt = "Raw data (CSV)\n"
+    if is_comparison:
+        for data in raw_data.values():
+            data_copy = data.copy()
+            aoi_name = data_copy.pop("aoi_name")
+            dataset_name = data_copy.pop("dataset_name")
+            data_csv = get_data_csv(data_copy)
+            raw_data_prompt += f"\nFor AOI {aoi_name} and dataset {dataset_name}:\n{data_csv}\n"
     else:
-        for key in raw_data.keys():
-            data_csv = get_data_csv(raw_data[key])
-            raw_data_prompt += f"{key}:\n{data_csv}\n"
+        # Get the latest key if not comparing
+        data = list(raw_data.values())[-1]
+        data_copy = data.copy()
+        aoi_name = data_copy.pop("aoi_name")
+        dataset_name = data_copy.pop("dataset_name")
+        data_csv = get_data_csv(data_copy)
+        raw_data_prompt += (
+            f"\nFor AOI {aoi_name} and dataset {dataset_name}:\n{data_csv}\n"
+        )
 
     dat = {key: len(value) for key, value in raw_data.items()}
     logger.debug(f"Processing data with row counts: {dat}")
@@ -184,7 +192,7 @@ async def generate_insights(
                 # when picking an area of interest manually, the query will not have an area of interest
                 # mentioned, so we can use the state to get the area name to pass to the LLM
                 # Otherwise, the insight heading might not mention the name of the area
-                "aoi_name": state.get("aoi_name", ""),
+                "aoi_name": aoi_name,
                 "prompt_instructions": prompt_instructions,
             }
         )

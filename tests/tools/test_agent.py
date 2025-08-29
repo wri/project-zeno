@@ -114,14 +114,15 @@ async def test_full_agent_for_datasets(
         if tool_step.get("insight_count", 0) > 0:
             has_insights = True
         if "raw_data" in tool_step:
-            has_raw_data = True
+            if len(next(iter(tool_step["raw_data"].values()))["value"]) > 0:
+                has_raw_data = True
 
     assert has_insights
     assert has_raw_data
 
 
 @pytest.mark.asyncio
-async def test_full_agent_for_disturbance_alerts_in_brazil(structlog_context):
+async def test_agent_for_disturbance_alerts_in_brazil(structlog_context):
     query = "Tell me what is happening with ecosystem conversion in Para, Brazil in the last 8 months"
 
     steps = await run_agent(query)
@@ -132,7 +133,25 @@ async def test_full_agent_for_disturbance_alerts_in_brazil(structlog_context):
 
     for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
         if "raw_data" in tool_step:
-            if len(tool_step["raw_data"]["value"]) > 0:
+            if len(next(iter(tool_step["raw_data"].values()))["value"]) > 0:
+                has_raw_data = True
+
+    assert has_raw_data
+
+
+@pytest.mark.asyncio
+async def test_agent_disturbance_alerts_with_comparison(structlog_context):
+    query = "Compare dist alerts in Para and Mato Grosso, Brazil in the last 8 months."
+
+    steps = await run_agent(query)
+
+    assert len(steps) > 0
+
+    has_raw_data = False
+
+    for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
+        if "raw_data" in tool_step:
+            if len(next(iter(tool_step["raw_data"].values()))["value"]) > 0:
                 has_raw_data = True
 
     assert has_raw_data
