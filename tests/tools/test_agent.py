@@ -38,13 +38,15 @@ def has_raw_data(tool_steps: list[dict]) -> bool:
             continue
         dat_by_aoi = list(tool_step["raw_data"].values())[0]
         dat = list(dat_by_aoi.values())[0]
-        if "country" in dat and len(dat["country"]) > 0:
+        if "country" in dat and dat["country"] and len(dat["country"]) > 0:
             return True
-        elif "aoi_id" in dat and len(dat["aoi_id"]) > 0:
+        elif "aoi_id" in dat and dat["aoi_id"] and len(dat["aoi_id"]) > 0:
             return True
-        elif "value" in dat and len(dat["value"]) > 0:
+        elif "value" in dat and dat["value"] and len(dat["value"]) > 0:
             return True
-        elif "aoi_type" in dat and len(dat["aoi_type"]) > 0:
+        elif (
+            "aoi_type" in dat and dat["aoi_type"] and len(dat["aoi_type"]) > 0
+        ):
             return True
     return False
 
