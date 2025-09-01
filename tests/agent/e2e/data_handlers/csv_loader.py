@@ -39,6 +39,22 @@ class CSVLoader:
                 ["nan", "NaN", "null", "NULL", "None"], ""
             )
 
+        # Filter by status - only include tests that should be run
+        # Skip tests with status: done, fail, skip
+        runnable_statuses = ["ready", "rerun"]
+        if "status" in df.columns:
+            original_count = len(df)
+            df = df[
+                df["status"]
+                .str.lower()
+                .isin([s.lower() for s in runnable_statuses])
+            ]
+            filtered_count = len(df)
+            if filtered_count < original_count:
+                print(
+                    f"Filtered {original_count - filtered_count} tests based on status (keeping only: {', '.join(runnable_statuses)})"
+                )
+
         # Sample if requested (-1 means run all rows, 0+ means run that many)
         if sample_size > 0 and sample_size < len(df):
             df = df.sample(n=sample_size)
@@ -59,6 +75,7 @@ class CSVLoader:
                 expected_end_date=row.get("expected_end_date", ""),
                 expected_answer=row.get("expected_answer", ""),
                 test_group=row.get("test_group", "unknown"),
+                status=row.get("status", "ready"),
             )
             # Add query field to the test case
             test_case.query = row.get("query", "")

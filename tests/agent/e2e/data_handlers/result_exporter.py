@@ -77,6 +77,7 @@ class ResultExporter:
             "expected_aoi_name",
             "actual_name",
             "expected_subregion",
+            "actual_subregion",
             "match_subregion",
             "expected_aoi_subtype",
             "actual_subtype",
@@ -92,8 +93,10 @@ class ResultExporter:
             "actual_context_layer",
             # Data Pull: Expected vs Actual
             "expected_start_date",
+            "actual_start_date",
             "pull_data_score",
             "expected_end_date",
+            "actual_end_date",
             "row_count",
             "data_pull_success",
             "date_success",

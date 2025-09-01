@@ -59,6 +59,7 @@ class TestResult:
     expected_end_date: str = ""
     expected_answer: str = ""
     test_group: str = "unknown"
+    status: str = "ready"
 
     # Error handling
     error: Optional[str] = None
@@ -105,6 +106,7 @@ class TestResult:
             "expected_end_date": self.expected_end_date,
             "expected_answer": self.expected_answer,
             "test_group": self.test_group,
+            "status": self.status,
             "error": self.error,
         }
 
@@ -125,6 +127,7 @@ class ExpectedData:
     expected_end_date: str = ""
     expected_answer: str = ""
     test_group: str = "unknown"
+    status: str = "ready"
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -141,4 +144,5 @@ class ExpectedData:
             "expected_end_date": self.expected_end_date,
             "expected_answer": self.expected_answer,
             "test_group": self.test_group,
+            "status": self.status,
         }
