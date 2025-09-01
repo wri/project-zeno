@@ -113,11 +113,12 @@ Follow-up examples: "Show trend over different period", "Compare with [region]",
 def get_data_csv(raw_data: Dict) -> str:
     """
     Convert the raw data to a CSV string and drop constant columns.
+    Only keep first 3 significant digits for numeric values.
     """
     df = pd.DataFrame(raw_data)
     constants = df.nunique() == 1
     df = df.drop(columns=df.columns[constants])
-    return df.to_csv(index=False)
+    return df.to_csv(index=False, float_format="%.3g")
 
 
 @tool
@@ -157,7 +158,9 @@ async def generate_insights(
 
     raw_data = state["raw_data"]
 
-    raw_data_prompt = "Raw data (CSV)\n"
+    raw_data_prompt = (
+        "Below are raw data csv of one or more aois and datasets\n"
+    )
     if is_comparison:
         for data_by_aoi in raw_data.values():
             for data in data_by_aoi.values():
@@ -165,7 +168,7 @@ async def generate_insights(
                 aoi_name = data_copy.pop("aoi_name")
                 dataset_name = data_copy.pop("dataset_name")
                 data_csv = get_data_csv(data_copy)
-                raw_data_prompt += f"\nFor AOI {aoi_name} and dataset {dataset_name}:\n{data_csv}\n"
+                raw_data_prompt += f"\nCSV data for AOI with name {aoi_name} and dataset with name {dataset_name}:\n\n{data_csv}\n"
     else:
         # Get the latest key if not comparing
         data_by_aoi = list(raw_data.values())[-1]
@@ -174,9 +177,7 @@ async def generate_insights(
         aoi_name = data_copy.pop("aoi_name")
         dataset_name = data_copy.pop("dataset_name")
         data_csv = get_data_csv(data_copy)
-        raw_data_prompt += (
-            f"\nFor AOI {aoi_name} and dataset {dataset_name}:\n{data_csv}\n"
-        )
+        raw_data_prompt += f"\nCSV data for AOI with name {aoi_name} and dataset with name {dataset_name}:\n\n{data_csv}\n"
 
     dat = {key: len(value) for key, value in raw_data.items()}
     logger.debug(f"Processing data with row counts: {dat}")

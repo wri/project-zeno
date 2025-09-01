@@ -63,11 +63,15 @@ async def get_aois_to_pull(
     aoi_options: List[Dict], dataset_id: str, previous_pulls: Dict
 ) -> List[Dict]:
     """Check previous pulls for a given dataset"""
-    return [
-        aoi
-        for aoi in aoi_options
-        if (aoi["src_id"], dataset_id) not in previous_pulls
-    ]
+    to_pull = []
+    for aoi_option in aoi_options:
+        if (
+            aoi_option["aoi"]["src_id"] in previous_pulls
+            and dataset_id in previous_pulls[aoi_option["aoi"]["src_id"]]
+        ):
+            continue
+        to_pull.append(aoi_option)
+    return to_pull
 
 
 @tool("pull-data")
@@ -98,13 +102,10 @@ async def pull_data(
         f"PULL-DATA-TOOL: AOI: {aoi_names}, Dataset: {dataset_name}, Start Date: {start_date}, End Date: {end_date}"
     )
 
-    subregion_aois = state["subregion_aois"]
-    subregion = state["subregion"]
-    subtype = state["subtype"]
     dataset = state["dataset"]
     current_raw_data = state.get("raw_data", {})
 
-    # Fuzzy match from aoi available in state, match by ID from all available aois, ingnore input.
+    # Match all AOIs in state that are not in previous pulls
     aois_to_pull = await get_aois_to_pull(
         state["aoi_options"], dataset["dataset_id"], current_raw_data
     )
@@ -125,22 +126,13 @@ async def pull_data(
 
     tool_messages = []
     for aoi in aois_to_pull:
-        if (
-            aoi["src_id"] in current_raw_data
-            and dataset["dataset_id"] in current_raw_data[aoi["src_id"]]
-        ):
-            continue
-
         # Use orchestrator to pull data
         result = await data_pull_orchestrator.pull_data(
             query=query,
-            aoi=aoi,
-            subregion_aois=subregion_aois,
-            subregion=subregion,
-            subtype=subtype,
             dataset=dataset,
             start_date=start_date,
             end_date=end_date,
+            **aoi,
         )
 
         # Create tool message
@@ -161,15 +153,17 @@ async def pull_data(
 
         if raw_data is not None:
             raw_data["dataset_name"] = dataset["dataset_name"]
-            if "name" in aoi:
-                raw_data["aoi_name"] = aoi["name"]
+            if "name" in aoi["aoi"]:
+                raw_data["aoi_name"] = aoi["aoi"]["name"]
             else:
                 # This handles the custom AOIs that might not have a name
-                raw_data["aoi_name"] = aoi["src_id"]
+                raw_data["aoi_name"] = aoi["aoi"]["src_id"]
 
-        if aoi["src_id"] not in current_raw_data:
-            current_raw_data[aoi["src_id"]] = {}
-        current_raw_data[aoi["src_id"]][dataset["dataset_id"]] = raw_data
+        if aoi["aoi"]["src_id"] not in current_raw_data:
+            current_raw_data[aoi["aoi"]["src_id"]] = {}
+        current_raw_data[aoi["aoi"]["src_id"]][dataset["dataset_id"]] = (
+            raw_data
+        )
 
     tool_message = ToolMessage(
         content="|".join(tool_messages) if tool_messages else "No data pulled",

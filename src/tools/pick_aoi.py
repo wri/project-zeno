@@ -572,7 +572,14 @@ async def pick_aoi(
         aoi_options = state.get("aoi_options", [])
         if aoi_options is None:
             aoi_options = []
-        aoi_options.append(selected_aoi)
+        aoi_options.append(
+            {
+                "aoi": selected_aoi,
+                "subregion_aois": subregion_aois,
+                "subregion": subregion,
+                "subtype": subtype,
+            }
+        )
 
         return Command(
             update={
