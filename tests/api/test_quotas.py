@@ -26,9 +26,12 @@ class TestQuotaFunctionality:
     @pytest.mark.asyncio
     async def test_auth_me_includes_quota_info_when_enabled(self, client):
         """Test that /auth/me includes quota information when enabled."""
-        with patch("requests.get") as mock_get:
-            mock_response = mock_rw_api_response("Test User")
-            mock_get.return_value = mock_response
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Mock the AsyncClient context manager and get method
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = mock_rw_api_response("Test User")
 
             response = await client.get(
                 "/api/auth/me", headers={"Authorization": "Bearer test-token"}
@@ -48,9 +51,14 @@ class TestQuotaFunctionality:
         APISettings.enable_quota_checking = False
 
         try:
-            with patch("requests.get") as mock_get:
-                mock_response = mock_rw_api_response("Test User")
-                mock_get.return_value = mock_response
+            with patch("httpx.AsyncClient") as mock_client_class:
+                # Mock the AsyncClient context manager and get method
+                mock_client = (
+                    mock_client_class.return_value.__aenter__.return_value
+                )
+                mock_client.get.return_value = mock_rw_api_response(
+                    "Test User"
+                )
 
                 response = await client.get(
                     "/api/auth/me",
@@ -68,9 +76,12 @@ class TestQuotaFunctionality:
     @pytest.mark.asyncio
     async def test_quota_increments_correctly(self, client):
         """Test that quota usage increments with multiple calls."""
-        with patch("requests.get") as mock_get:
-            mock_response = mock_rw_api_response("Test User")
-            mock_get.return_value = mock_response
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Mock the AsyncClient context manager and get method
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = mock_rw_api_response("Test User")
 
             # First call
             response1 = await client.get(
@@ -104,9 +115,12 @@ class TestQuotaFunctionality:
     @pytest.mark.asyncio
     async def test_chat_includes_quota_headers_when_enabled(self, client):
         """Test that /api/chat includes quota headers when enabled."""
-        with patch("requests.get") as mock_get:
-            mock_response = mock_rw_api_response("Test User")
-            mock_get.return_value = mock_response
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Mock the AsyncClient context manager and get method
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = mock_rw_api_response("Test User")
 
             with patch("src.api.app.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
@@ -135,9 +149,14 @@ class TestQuotaFunctionality:
         APISettings.enable_quota_checking = False
 
         try:
-            with patch("requests.get") as mock_get:
-                mock_response = mock_rw_api_response("Test User")
-                mock_get.return_value = mock_response
+            with patch("httpx.AsyncClient") as mock_client_class:
+                # Mock the AsyncClient context manager and get method
+                mock_client = (
+                    mock_client_class.return_value.__aenter__.return_value
+                )
+                mock_client.get.return_value = mock_rw_api_response(
+                    "Test User"
+                )
 
                 with patch("src.api.app.stream_chat") as mock_stream:
                     mock_stream.return_value = iter(
@@ -163,7 +182,7 @@ class TestQuotaFunctionality:
     @pytest.mark.asyncio
     async def test_admin_user_has_higher_quota(self, client):
         """Test that admin users get higher quota limits."""
-        with patch("requests.get") as mock_get:
+        with patch("httpx.AsyncClient") as mock_client_class:
             admin_user_data = {
                 "id": "test-admin-1",
                 "name": "Admin User",
@@ -181,7 +200,11 @@ class TestQuotaFunctionality:
                 def json(self):
                     return admin_user_data
 
-            mock_get.return_value = MockAdminResponse()
+            # Mock the AsyncClient context manager and get method
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = MockAdminResponse()
 
             response = await client.get(
                 "/api/auth/me", headers={"Authorization": "Bearer test-token"}
@@ -219,9 +242,12 @@ class TestQuotaFunctionality:
     @pytest.mark.asyncio
     async def test_quota_consistency_across_endpoints(self, client):
         """Test that quota state is consistent between /auth/me and /api/chat."""
-        with patch("requests.get") as mock_get:
-            mock_response = mock_rw_api_response("Test User")
-            mock_get.return_value = mock_response
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Mock the AsyncClient context manager and get method
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = mock_rw_api_response("Test User")
 
             # Make /auth/me call first
             auth_response = await client.get(
@@ -267,9 +293,14 @@ class TestQuotaFunctionality:
         APISettings.regular_user_daily_quota = 1
 
         try:
-            with patch("requests.get") as mock_get:
-                mock_response = mock_rw_api_response("Test User")
-                mock_get.return_value = mock_response
+            with patch("httpx.AsyncClient") as mock_client_class:
+                # Mock the AsyncClient context manager and get method
+                mock_client = (
+                    mock_client_class.return_value.__aenter__.return_value
+                )
+                mock_client.get.return_value = mock_rw_api_response(
+                    "Test User"
+                )
 
                 with patch("src.api.app.stream_chat") as mock_stream:
                     mock_stream.return_value = iter(
@@ -528,11 +559,16 @@ class TestAPIKeyValidation:
                 # No X-API-KEY or X-ZENO-FORWARDED-FOR headers
             },
         ) as client:
-            with patch("requests.get") as mock_get:
+            with patch("httpx.AsyncClient") as mock_client_class:
                 from tests.api.mock import mock_rw_api_response
 
-                mock_response = mock_rw_api_response("Test User")
-                mock_get.return_value = mock_response
+                # Mock the AsyncClient context manager and get method
+                mock_client = (
+                    mock_client_class.return_value.__aenter__.return_value
+                )
+                mock_client.get.return_value = mock_rw_api_response(
+                    "Test User"
+                )
 
                 with patch("src.api.app.stream_chat") as mock_stream:
                     mock_stream.return_value = iter([b'{"response": "OK"}\\n'])

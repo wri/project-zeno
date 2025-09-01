@@ -47,10 +47,12 @@ async def test_email_domain_authorization(
 ):
     """Test that only users with allowed email domains can access the API."""
     with domain_allowlist("developmentseed.org,wri.org"):
-        with patch("requests.get") as mock_get:
-            # Mock the RW API response
-            mock_response = mock_rw_api_response(username)
-            mock_get.return_value = mock_response
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Mock the AsyncClient context manager and get method
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = mock_rw_api_response(username)
 
             # Test the auth endpoint
             response = await client.get(
@@ -98,10 +100,14 @@ async def test_missing_authorization_header(client):
 async def test_user_cant_override_email_domain_authorization(client):
     """Test that only users cant override email domain authorization through query params."""
     with domain_allowlist("developmentseed.org,wri.org"):
-        with patch("requests.get") as mock_get:
-            # Mock the RW API response
-            mock_response = mock_rw_api_response("Unauthorized User")
-            mock_get.return_value = mock_response
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # Mock the AsyncClient context manager and get method
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = mock_rw_api_response(
+                "Unauthorized User"
+            )
 
             # Test the auth endpoint
             response = await client.get(
