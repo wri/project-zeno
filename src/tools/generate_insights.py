@@ -159,15 +159,17 @@ async def generate_insights(
 
     raw_data_prompt = "Raw data (CSV)\n"
     if is_comparison:
-        for data in raw_data.values():
-            data_copy = data.copy()
-            aoi_name = data_copy.pop("aoi_name")
-            dataset_name = data_copy.pop("dataset_name")
-            data_csv = get_data_csv(data_copy)
-            raw_data_prompt += f"\nFor AOI {aoi_name} and dataset {dataset_name}:\n{data_csv}\n"
+        for data_by_aoi in raw_data.values():
+            for data in data_by_aoi.values():
+                data_copy = data.copy()
+                aoi_name = data_copy.pop("aoi_name")
+                dataset_name = data_copy.pop("dataset_name")
+                data_csv = get_data_csv(data_copy)
+                raw_data_prompt += f"\nFor AOI {aoi_name} and dataset {dataset_name}:\n{data_csv}\n"
     else:
         # Get the latest key if not comparing
-        data = list(raw_data.values())[-1]
+        data_by_aoi = list(raw_data.values())[-1]
+        data = list(data_by_aoi.values())[-1]
         data_copy = data.copy()
         aoi_name = data_copy.pop("aoi_name")
         dataset_name = data_copy.pop("dataset_name")

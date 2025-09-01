@@ -125,6 +125,12 @@ async def pull_data(
 
     tool_messages = []
     for aoi in aois_to_pull:
+        if (
+            aoi["src_id"] in current_raw_data
+            and dataset["dataset_id"] in current_raw_data[aoi["src_id"]]
+        ):
+            continue
+
         # Use orchestrator to pull data
         result = await data_pull_orchestrator.pull_data(
             query=query,
@@ -161,12 +167,12 @@ async def pull_data(
                 # This handles the custom AOIs that might not have a name
                 raw_data["aoi_name"] = aoi["src_id"]
 
-        current_raw_data.update(
-            {(aoi["src_id"], dataset["dataset_id"]): raw_data}
-        )
+        if aoi["src_id"] not in current_raw_data:
+            current_raw_data[aoi["src_id"]] = {}
+        current_raw_data[aoi["src_id"]][dataset["dataset_id"]] = raw_data
 
     tool_message = ToolMessage(
-        content="|".join(tool_messages),
+        content="|".join(tool_messages) if tool_messages else "No data pulled",
         tool_call_id=tool_call_id,
     )
 

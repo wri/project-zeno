@@ -36,7 +36,8 @@ def has_raw_data(tool_steps: list[dict]) -> bool:
             continue
         if not len(tool_step["raw_data"]):
             continue
-        dat = list(tool_step["raw_data"].values())[0]
+        dat_by_aoi = list(tool_step["raw_data"].values())[0]
+        dat = list(dat_by_aoi.values())[0]
         if "country" in dat and len(dat["country"]) > 0:
             return True
         elif "aoi_id" in dat and len(dat["aoi_id"]) > 0:
