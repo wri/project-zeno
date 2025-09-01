@@ -548,6 +548,7 @@ async def pick_aoi(
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
 
         tool_message = f"Selected AOI: {name}, type: {subtype}"
+        subregion_aois = None
         if subregion:
             subregion_aoi_names = [
                 subregion_aoi["name"].split(",")[0]
