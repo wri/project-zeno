@@ -113,17 +113,11 @@ def test_db_session():
 @pytest.mark.parametrize("dataset", ALL_DATASET_COMBINATIONS)
 async def test_pick_aoi_queries(aoi_data, dataset):
     print(f"Testing {dataset['dataset_name']} with {aoi_data['name']}")
-    if dataset["dataset_name"] == "Tree cover loss":
-        print(
-            "Skipping test because of unsupported dataset, needs update on API"
-        )
-        return
-
     update = {
         "aoi": aoi_data,
         "subregion_aois": None,
         "subregion": None,
-        "aoi_name": aoi_data["name"],
+        "aoi_names": [aoi_data["name"]],
         "subtype": aoi_data["subtype"],
         "dataset": {
             "dataset_id": dataset["dataset_id"],
@@ -132,6 +126,14 @@ async def test_pick_aoi_queries(aoi_data, dataset):
             "tile_url": "",
             "context_layer": dataset["context_layer"],
         },
+        "aoi_options": [
+            {
+                "aoi": aoi_data,
+                "subregion_aois": None,
+                "subregion": None,
+                "subtype": aoi_data["subtype"],
+            }
+        ],
     }
 
     command = await pull_data.ainvoke(
@@ -139,7 +141,7 @@ async def test_pick_aoi_queries(aoi_data, dataset):
             "query": f"find {dataset['dataset_name'].lower()} in {aoi_data['query_description']}",
             "start_date": "2024-01-01",
             "end_date": "2024-01-31",
-            "aoi_name": update["aoi"]["name"],
+            "aoi_names": [update["aoi"]["name"]],
             "dataset_name": dataset["dataset_name"],
             "tool_call_id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
             "state": update,
@@ -152,4 +154,6 @@ async def test_pick_aoi_queries(aoi_data, dataset):
     ):
         assert False
     else:
-        assert command.update.get("raw_data", None) is not None
+        raw_data = command.update.get("raw_data", {})
+        assert aoi_data["src_id"] in raw_data
+        assert dataset["dataset_id"] in raw_data[aoi_data["src_id"]]

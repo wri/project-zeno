@@ -30,6 +30,27 @@ def user_ds():
     pass
 
 
+def has_raw_data(tool_steps: list[dict]) -> bool:
+    for tool_step in tool_steps:
+        if "raw_data" not in tool_step:
+            continue
+        if not len(tool_step["raw_data"]):
+            continue
+        dat_by_aoi = list(tool_step["raw_data"].values())[0]
+        dat = list(dat_by_aoi.values())[0]
+        if "country" in dat and dat["country"] and len(dat["country"]) > 0:
+            return True
+        elif "aoi_id" in dat and dat["aoi_id"] and len(dat["aoi_id"]) > 0:
+            return True
+        elif "value" in dat and dat["value"] and len(dat["value"]) > 0:
+            return True
+        elif (
+            "aoi_type" in dat and dat["aoi_type"] and len(dat["aoi_type"]) > 0
+        ):
+            return True
+    return False
+
+
 async def run_agent(query: str, thread_id: str | None = None):
     """Run the agent with a query and print output at each step."""
 
@@ -101,38 +122,44 @@ async def run_agent(query: str, thread_id: str | None = None):
 async def test_full_agent_for_datasets(
     structlog_context, dataset_name, dataset_year
 ):
-    query = f"What are the trends of {dataset_name} in Pima County, Arizona for July {dataset_year}?"
+    query = f"What are the trends of {dataset_name} in Para Brazil for July {dataset_year}?"
 
     steps = await run_agent(query)
 
     assert len(steps) > 0
 
-    has_raw_data = False
-    has_insights = False
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
 
-    for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
+    assert has_raw_data(tool_steps)
+
+    has_insights = False
+    for tool_step in tool_steps:
         if tool_step.get("insight_count", 0) > 0:
             has_insights = True
-        if "raw_data" in tool_step:
-            has_raw_data = True
-
-    assert has_insights
-    assert has_raw_data
+    assert has_insights, "No insights found"
 
 
 @pytest.mark.asyncio
-async def test_full_agent_for_disturbance_alerts_in_brazil(structlog_context):
+async def test_agent_for_disturbance_alerts_in_brazil(structlog_context):
     query = "Tell me what is happening with ecosystem conversion in Para, Brazil in the last 8 months"
 
     steps = await run_agent(query)
 
     assert len(steps) > 0
 
-    has_raw_data = False
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
 
-    for tool_step in [dat["tools"] for dat in steps if "tools" in dat]:
-        if "raw_data" in tool_step:
-            if len(tool_step["raw_data"]["value"]) > 0:
-                has_raw_data = True
+    assert has_raw_data(tool_steps)
 
-    assert has_raw_data
+
+@pytest.mark.asyncio
+async def test_agent_disturbance_alerts_with_comparison(structlog_context):
+    query = "Compare dist alerts in Para and Mato Grosso, Brazil in the last 8 months."
+
+    steps = await run_agent(query)
+
+    assert len(steps) > 0
+
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
+
+    assert has_raw_data(tool_steps)

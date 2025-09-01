@@ -91,11 +91,12 @@ Data format requirements:
 - Numeric values as numbers, not strings
 - For stacked-bar: [{{"category": "2020", "metric1": 100, "metric2": 50}}] + set series_fields
 - For grouped-bar: [{{"year": "2020", "type": "metric1", "value": 100}}] + set group_field
+- If dates are present, order those in chronological order (not alphabetically)
 
 User query: {user_query}
 Area of interest: {aoi_name}
-Raw data (CSV):
-{raw_data}
+
+{raw_data_prompt}
 
 Generate:
 1. One chart insight with appropriate chart type, Recharts-compatible data, and clear axis fields
@@ -110,9 +111,21 @@ Follow-up examples: "Show trend over different period", "Compare with [region]",
 )
 
 
+def get_data_csv(raw_data: Dict) -> str:
+    """
+    Convert the raw data to a CSV string and drop constant columns.
+    Only keep first 3 significant digits for numeric values.
+    """
+    df = pd.DataFrame(raw_data)
+    constants = df.nunique() == 1
+    df = df.drop(columns=df.columns[constants])
+    return df.to_csv(index=False, float_format="%.3g")
+
+
 @tool
 async def generate_insights(
     query: str,
+    is_comparison: bool,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
@@ -124,6 +137,7 @@ async def generate_insights(
 
     Args:
         query: The user's query to guide insight generation and chart type selection.
+        is_comparison: Whether the user is comparing two areas of interest.
     """
     logger.info("GENERATE-INSIGHTS-TOOL")
     logger.debug(f"Generating insights for query: {query}")
@@ -144,18 +158,33 @@ async def generate_insights(
         )
 
     raw_data = state["raw_data"]
-    logger.debug(f"Processing data with {len(raw_data)} rows")
 
-    # Convert dict to dataframe, drop constant columns, and convert
-    # to CSV string for the prompt
-    df = pd.DataFrame(raw_data)
-    constants = df.nunique() == 1
-    df = df.drop(columns=df.columns[constants])
-    data_csv = df.to_csv(index=False)
+    raw_data_prompt = (
+        "Below are raw data csv of one or more aois and datasets\n"
+    )
+    if is_comparison:
+        for data_by_aoi in raw_data.values():
+            for data in data_by_aoi.values():
+                data_copy = data.copy()
+                aoi_name = data_copy.pop("aoi_name")
+                dataset_name = data_copy.pop("dataset_name")
+                data_csv = get_data_csv(data_copy)
+                raw_data_prompt += f"\nCSV data for AOI with name {aoi_name} and dataset with name {dataset_name}:\n\n{data_csv}\n"
+    else:
+        # Get the latest key if not comparing
+        data_by_aoi = list(raw_data.values())[-1]
+        data = list(data_by_aoi.values())[-1]
+        data_copy = data.copy()
+        aoi_name = data_copy.pop("aoi_name")
+        dataset_name = data_copy.pop("dataset_name")
+        data_csv = get_data_csv(data_copy)
+        raw_data_prompt += f"\nCSV data for AOI with name {aoi_name} and dataset with name {dataset_name}:\n\n{data_csv}\n"
+
+    dat = {key: len(value) for key, value in raw_data.items()}
+    logger.debug(f"Processing data with row counts: {dat}")
 
     prompt_instructions = state.get("dataset").get("prompt_instructions", "")
 
-    # Generate insights using the LLM
     try:
         chain = INSIGHT_GENERATION_PROMPT | SONNET.with_structured_output(
             InsightResponse
@@ -163,11 +192,11 @@ async def generate_insights(
         response = await chain.ainvoke(
             {
                 "user_query": query,
-                "raw_data": data_csv,
+                "raw_data_prompt": raw_data_prompt,
                 # when picking an area of interest manually, the query will not have an area of interest
                 # mentioned, so we can use the state to get the area name to pass to the LLM
                 # Otherwise, the insight heading might not mention the name of the area
-                "aoi_name": state.get("aoi_name", ""),
+                "aoi_name": aoi_name,
                 "prompt_instructions": prompt_instructions,
             }
         )
@@ -247,142 +276,3 @@ async def generate_insights(
                 ]
             }
         )
-
-
-if __name__ == "__main__":
-    # Example usage for testing different chart types
-
-    # Test 1: Simple Line Chart - Time series data
-    mock_state_line = {
-        "raw_data": pd.DataFrame(
-            {
-                "date": [
-                    "2020-01-01",
-                    "2021-01-01",
-                    "2022-01-01",
-                    "2023-01-01",
-                ],
-                "alerts": [1200, 1450, 1100, 980],
-                "region": ["Amazon", "Amazon", "Amazon", "Amazon"],
-            }
-        )
-    }
-
-    result_line = generate_insights.func(
-        query="What are the trends in deforestation alerts over time?",
-        state=mock_state_line,
-        tool_call_id="test-line",
-    )
-
-    print("=== Simple Line Chart Test ===")
-    print(result_line.update["messages"][0].content)
-
-    # Test 2: Simple Bar Chart - Categorical comparison
-    mock_state_bar = {
-        "raw_data": pd.DataFrame(
-            {
-                "country": ["Brazil", "Indonesia", "DRC", "Peru", "Colombia"],
-                "forest_loss_ha": [
-                    11568000,
-                    6020000,
-                    4770000,
-                    1630000,
-                    1240000,
-                ],
-                "year": [2022, 2022, 2022, 2022, 2022],
-            }
-        )
-    }
-
-    result_bar = generate_insights.func(
-        query="Which countries have the highest forest loss?",
-        state=mock_state_bar,
-        tool_call_id="test-bar",
-    )
-
-    print("\n=== Simple Bar Chart Test ===")
-    print(result_bar.update["messages"][0].content)
-
-    # Test 3: Complex Stacked Bar Chart - Composition data
-    mock_state_stacked = {
-        "raw_data": pd.DataFrame(
-            {
-                "year": ["2020", "2021", "2022", "2023"],
-                "deforestation": [1200, 1100, 950, 800],
-                "fires": [800, 900, 1200, 1100],
-                "logging": [400, 350, 300, 250],
-                "agriculture": [600, 700, 800, 750],
-                "region": ["Amazon", "Amazon", "Amazon", "Amazon"],
-            }
-        )
-    }
-
-    result_stacked = generate_insights.func(
-        query="Show me the composition of forest loss causes over time as a stacked bar chart",
-        state=mock_state_stacked,
-        tool_call_id="test-stacked",
-    )
-
-    print("\n=== Complex Stacked Bar Chart Test ===")
-    print(result_stacked.update["messages"][0].content)
-
-    # Test 4: Complex Grouped Bar Chart - Multiple metrics comparison
-    mock_state_grouped = {
-        "raw_data": pd.DataFrame(
-            {
-                "country": [
-                    "Brazil",
-                    "Brazil",
-                    "Indonesia",
-                    "Indonesia",
-                    "DRC",
-                    "DRC",
-                ],
-                "metric": [
-                    "Forest Loss",
-                    "Fire Incidents",
-                    "Forest Loss",
-                    "Fire Incidents",
-                    "Forest Loss",
-                    "Fire Incidents",
-                ],
-                "value": [11568, 8500, 6020, 4200, 4770, 2100],
-                "year": [2022, 2022, 2022, 2022, 2022, 2022],
-            }
-        )
-    }
-
-    result_grouped = generate_insights.func(
-        query="Compare forest loss and fire incidents across countries using grouped bars",
-        state=mock_state_grouped,
-        tool_call_id="test-grouped",
-    )
-
-    print("\n=== Complex Grouped Bar Chart Test ===")
-    print(result_grouped.update["messages"][0].content)
-
-    # Test 5: Pie Chart - Part-to-whole relationship
-    mock_state_pie = {
-        "raw_data": pd.DataFrame(
-            {
-                "cause": [
-                    "Deforestation",
-                    "Fires",
-                    "Logging",
-                    "Agriculture",
-                    "Mining",
-                ],
-                "percentage": [45, 25, 15, 10, 5],
-                "region": ["Global", "Global", "Global", "Global", "Global"],
-            }
-        )
-    }
-
-    result_pie = generate_insights.func(
-        query="What are the main causes of forest loss globally? Show as pie chart",
-        state=mock_state_pie,
-        tool_call_id="test-pie",
-    )
-
-    print("\n=== Pie Chart Test ===")
-    print(result_pie.update["messages"][0].content)

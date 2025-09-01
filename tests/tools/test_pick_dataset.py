@@ -154,7 +154,7 @@ async def test_queries_return_expected_dataset(
     [
         ("Vegetation disturbances by natural lands", 0, "natural_lands"),
         ("Tree cover loss by driver", 4, "driver"),
-        ("Ecosystem problems split by land types", 0, "natural_lands"),
+        ("Dist alert problems split by land types", 0, "natural_lands"),
     ],
 )
 async def test_query_with_context_layer(
@@ -177,7 +177,7 @@ async def test_query_with_context_layer(
 async def test_query_with_wrong_date_range():
     command = await pick_dataset.ainvoke(
         {
-            "query": "Find me grasslands data for 2024",
+            "query": "Find me grasslands data for 2030",
             "tool_call_id": str(uuid.uuid4()),
         }
     )
