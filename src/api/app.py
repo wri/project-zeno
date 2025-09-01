@@ -9,8 +9,8 @@ from typing import Dict, Optional
 from uuid import UUID
 
 import cachetools
+import httpx
 import pandas as pd
-import requests
 import structlog
 from fastapi import (
     Depends,
@@ -444,7 +444,7 @@ async def stream_chat(
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
-def fetch_user_from_rw_api(
+async def fetch_user_from_rw_api(
     request: Request,
     authorization: Optional[str] = Depends(security),
 ) -> UserModel:
@@ -490,14 +490,15 @@ def fetch_user_from_rw_api(
         return _user_info_cache[token]
 
     try:
-        resp = requests.get(
-            "https://api.resourcewatch.org/auth/user/me",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {token}",
-            },
-            timeout=10,
-        )
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://api.resourcewatch.org/auth/user/me",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {token}",
+                },
+                timeout=10,
+            )
     except Exception as e:
         logger.exception(f"Error contacting Resource Watch: {e}")
         raise HTTPException(
@@ -1086,7 +1087,7 @@ async def custom_area_name(
         You may combine up to two natural units with a preposition.
         Return a name only, strictly ≤100 characters.
         """
-        response = HAIKU.invoke(prompt)
+        response = await HAIKU.ainvoke(prompt)
         return {"name": response.content}
     except Exception as e:
         logger.exception("Error generating area name: %s", e)

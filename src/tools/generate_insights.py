@@ -111,7 +111,7 @@ Follow-up examples: "Show trend over different period", "Compare with [region]",
 
 
 @tool
-def generate_insights(
+async def generate_insights(
     query: str,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
@@ -160,7 +160,7 @@ def generate_insights(
         chain = INSIGHT_GENERATION_PROMPT | SONNET.with_structured_output(
             InsightResponse
         )
-        response = chain.invoke(
+        response = await chain.ainvoke(
             {
                 "user_query": query,
                 "raw_data": data_csv,
