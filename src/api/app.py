@@ -529,17 +529,17 @@ async def fetch_user_from_rw_api(
     stmt = select(WhitelistedUserOrm).filter_by(email=user_email)
     result = await session.execute(stmt)
     whitelisted_user = result.scalars().first()
-    
+
     if whitelisted_user:
         # User is on email whitelist, allow access
         return UserModel.model_validate(user_info)
 
     # Check domain whitelist as fallback
     domains_allowlist = APISettings.domains_allowlist
-    
+
     # Normalize domains for comparison (lowercase)
     normalized_domains = [domain.lower() for domain in domains_allowlist]
-    
+
     if user_domain not in normalized_domains:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

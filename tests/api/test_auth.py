@@ -126,14 +126,16 @@ async def test_email_whitelist_allows_access(client):
     """Test that users on email whitelist can access even if domain not allowed."""
     from src.api.data_models import WhitelistedUserOrm
     from tests.conftest import async_session_maker
-    
+
     # Add test email to whitelist
     async with async_session_maker() as session:
         whitelisted_user = WhitelistedUserOrm(email="test@gmail.com")
         session.add(whitelisted_user)
         await session.commit()
-    
-    with domain_allowlist("developmentseed.org,wri.org"):  # gmail.com not in domain list
+
+    with domain_allowlist(
+        "developmentseed.org,wri.org"
+    ):  # gmail.com not in domain list
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = (
                 mock_client_class.return_value.__aenter__.return_value
@@ -157,14 +159,16 @@ async def test_email_whitelist_case_insensitive(client):
     """Test that email whitelist matching is case insensitive."""
     from src.api.data_models import WhitelistedUserOrm
     from tests.conftest import async_session_maker
-    
+
     # Add lowercase email to whitelist
     async with async_session_maker() as session:
         whitelisted_user = WhitelistedUserOrm(email="casetest@example.com")
         session.add(whitelisted_user)
         await session.commit()
-    
-    with domain_allowlist("developmentseed.org"):  # example.com not in domain list
+
+    with domain_allowlist(
+        "developmentseed.org"
+    ):  # example.com not in domain list
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = (
                 mock_client_class.return_value.__aenter__.return_value
@@ -173,7 +177,7 @@ async def test_email_whitelist_case_insensitive(client):
             mock_response = mock_rw_api_response("Gmail User")
             mock_response.json_data = {
                 "id": "test-user-casetest",
-                "name": "Case Test User", 
+                "name": "Case Test User",
                 "email": "CASETEST@EXAMPLE.COM",
                 "createdAt": "2024-01-01T00:00:00Z",
                 "updatedAt": "2024-01-01T00:00:00Z",
@@ -192,7 +196,7 @@ async def test_domain_whitelist_still_works_with_email_feature(client):
     """Test that existing domain whitelist functionality is preserved."""
     # Clear cache to ensure clean state
     api._user_info_cache.clear()
-    
+
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = (
@@ -227,4 +231,6 @@ async def test_user_blocked_when_not_in_domain_or_email_whitelist(client):
             )
 
         assert response.status_code == 403
-        assert "User not allowed to access this API" in response.json()["detail"]
+        assert (
+            "User not allowed to access this API" in response.json()["detail"]
+        )
