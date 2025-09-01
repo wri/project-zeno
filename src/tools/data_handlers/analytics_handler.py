@@ -2,7 +2,6 @@ import asyncio
 from typing import Any, Dict, List
 
 import httpx
-import requests
 
 from src.tools.data_handlers.base import (
     DataPullResult,
@@ -279,7 +278,9 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
         download_link = data_section["link"]
-        data = requests.get(download_link).json()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(download_link)
+            data = response.json()
 
         if "data" not in data:
             raise ValueError(
