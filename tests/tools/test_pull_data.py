@@ -126,7 +126,14 @@ async def test_pick_aoi_queries(aoi_data, dataset):
             "tile_url": "",
             "context_layer": dataset["context_layer"],
         },
-        "aoi_options": [aoi_data],
+        "aoi_options": [
+            {
+                "aoi": aoi_data,
+                "subregion_aois": None,
+                "subregion": None,
+                "subtype": aoi_data["subtype"],
+            }
+        ],
     }
 
     command = await pull_data.ainvoke(
