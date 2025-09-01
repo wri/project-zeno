@@ -59,7 +59,7 @@ class DataPullOrchestrator:
 data_pull_orchestrator = DataPullOrchestrator()
 
 
-def get_aois_to_pull(
+async def get_aois_to_pull(
     aoi_options: List[Dict], dataset_id: str, previous_pulls: Dict
 ) -> List[Dict]:
     """Check previous pulls for a given dataset"""
@@ -105,7 +105,7 @@ async def pull_data(
     current_raw_data = state.get("raw_data", {})
 
     # Fuzzy match from aoi available in state, match by ID from all available aois, ingnore input.
-    aois_to_pull = get_aois_to_pull(
+    aois_to_pull = await get_aois_to_pull(
         state["aoi_options"], dataset["dataset_id"], current_raw_data
     )
     if not aois_to_pull:
