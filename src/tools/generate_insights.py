@@ -91,6 +91,7 @@ Data format requirements:
 - Numeric values as numbers, not strings
 - For stacked-bar: [{{"category": "2020", "metric1": 100, "metric2": 50}}] + set series_fields
 - For grouped-bar: [{{"year": "2020", "type": "metric1", "value": 100}}] + set group_field
+- If dates are present, order those in chronological order (not alphabetically)
 
 User query: {user_query}
 Area of interest: {aoi_name}
