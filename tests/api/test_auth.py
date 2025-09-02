@@ -632,21 +632,26 @@ async def test_authentication_priority_order(client):
 @pytest.mark.asyncio
 async def test_metadata_signup_open_when_under_limit(client):
     """Test that metadata shows is_signup_open as True when under user limit."""
-    from tests.conftest import async_session_maker
-    from src.api.data_models import UserOrm
     from unittest.mock import patch
-    
+
+    from src.api.data_models import UserOrm
+    from tests.conftest import async_session_maker
+
     # Pre-populate with users below limit
     async with async_session_maker() as session:
         for i in range(2):
-            user = UserOrm(id=f"user-{i}", name=f"User {i}", email=f"user{i}@test.com")
+            user = UserOrm(
+                id=f"user-{i}", name=f"User {i}", email=f"user{i}@test.com"
+            )
             session.add(user)
         await session.commit()
-    
+
     with patch.object(api.APISettings, "allow_public_signups", True):
-        with patch.object(api.APISettings, "max_user_signups", 5):  # Limit of 5, have 2
+        with patch.object(
+            api.APISettings, "max_user_signups", 5
+        ):  # Limit of 5, have 2
             response = await client.get("/api/metadata")
-            
+
             assert response.status_code == 200
             metadata = response.json()
             assert metadata["is_signup_open"] is True
@@ -655,21 +660,26 @@ async def test_metadata_signup_open_when_under_limit(client):
 @pytest.mark.asyncio
 async def test_metadata_signup_closed_when_at_limit(client):
     """Test that metadata shows is_signup_open as False when at user limit."""
-    from tests.conftest import async_session_maker
-    from src.api.data_models import UserOrm
     from unittest.mock import patch
-    
+
+    from src.api.data_models import UserOrm
+    from tests.conftest import async_session_maker
+
     # Pre-populate to reach limit
     async with async_session_maker() as session:
         for i in range(3):
-            user = UserOrm(id=f"user-{i}", name=f"User {i}", email=f"user{i}@test.com")
+            user = UserOrm(
+                id=f"user-{i}", name=f"User {i}", email=f"user{i}@test.com"
+            )
             session.add(user)
         await session.commit()
-    
+
     with patch.object(api.APISettings, "allow_public_signups", True):
-        with patch.object(api.APISettings, "max_user_signups", 3):  # Limit of 3, have 3
+        with patch.object(
+            api.APISettings, "max_user_signups", 3
+        ):  # Limit of 3, have 3
             response = await client.get("/api/metadata")
-            
+
             assert response.status_code == 200
             metadata = response.json()
             assert metadata["is_signup_open"] is False
@@ -679,11 +689,13 @@ async def test_metadata_signup_closed_when_at_limit(client):
 async def test_metadata_signup_closed_when_public_disabled(client):
     """Test that metadata shows is_signup_open as False when public signups disabled."""
     from unittest.mock import patch
-    
+
     with patch.object(api.APISettings, "allow_public_signups", False):
-        with patch.object(api.APISettings, "max_user_signups", 100):  # High limit
+        with patch.object(
+            api.APISettings, "max_user_signups", 100
+        ):  # High limit
             response = await client.get("/api/metadata")
-            
+
             assert response.status_code == 200
             metadata = response.json()
             assert metadata["is_signup_open"] is False
@@ -693,11 +705,13 @@ async def test_metadata_signup_closed_when_public_disabled(client):
 async def test_metadata_signup_open_unlimited_users(client):
     """Test that metadata shows is_signup_open as True when user limit is unlimited."""
     from unittest.mock import patch
-    
+
     with patch.object(api.APISettings, "allow_public_signups", True):
-        with patch.object(api.APISettings, "max_user_signups", -1):  # Unlimited
+        with patch.object(
+            api.APISettings, "max_user_signups", -1
+        ):  # Unlimited
             response = await client.get("/api/metadata")
-            
+
             assert response.status_code == 200
             metadata = response.json()
             assert metadata["is_signup_open"] is True

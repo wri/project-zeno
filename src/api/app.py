@@ -1810,7 +1810,9 @@ async def get_profile_config():
 
 
 @app.get("/api/metadata")
-async def api_metadata(session: AsyncSession = Depends(get_async_session)) -> dict:
+async def api_metadata(
+    session: AsyncSession = Depends(get_async_session),
+) -> dict:
     """
     Returns API metadata that's helpful for instantiating the frontend.
 
@@ -1835,7 +1837,7 @@ async def api_metadata(session: AsyncSession = Depends(get_async_session)) -> di
     For example, if the user selects a GADM level 2 geometry,
     the ID will look something like `IND.26.2_1` and should be available in
     the gid_2 field on the vector tile layer.
-    
+
     For `is_signup_open`, this indicates whether new public user signups are
     currently allowed. This is based on the ALLOW_PUBLIC_SIGNUPS setting and
     whether the current user count is below the MAX_USER_SIGNUPS limit.
@@ -1843,7 +1845,7 @@ async def api_metadata(session: AsyncSession = Depends(get_async_session)) -> di
     """
     # Check if public signups are open
     is_signup_open = await is_public_signup_open(session)
-    
+
     return {
         "version": "0.1.0",
         "layer_id_mapping": {
