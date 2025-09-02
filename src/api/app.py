@@ -466,6 +466,28 @@ async def is_user_whitelisted(user_email: str, session: AsyncSession) -> bool:
     return user_domain in normalized_domains
 
 
+async def is_public_signup_open(session: AsyncSession) -> bool:
+    """
+    Check if public signups are currently open.
+    Returns True if public signups are enabled and under user limit.
+    """
+    # Check if public signups are disabled
+    if not APISettings.allow_public_signups:
+        return False
+
+    # Check signup limits
+    max_signups = APISettings.max_user_signups
+    if max_signups < 0:  # Unlimited
+        return True
+
+    # Count existing users
+    stmt = select(func.count(UserOrm.id))
+    result = await session.execute(stmt)
+    current_user_count = result.scalar()
+
+    return current_user_count < max_signups
+
+
 async def check_signup_limit_allows_new_user(
     user_email: str, session: AsyncSession
 ) -> bool:
@@ -478,23 +500,8 @@ async def check_signup_limit_allows_new_user(
     if await is_user_whitelisted(user_email, session):
         return True
 
-    # If public signups disabled, non-whitelisted users can't sign up
-    if not APISettings.allow_public_signups:
-        return False
-
-    # For public users, check signup limit
-    max_signups = APISettings.max_user_signups
-
-    # -1 means unlimited
-    if max_signups < 0:
-        return True
-
-    # Check user count vs limit
-    stmt = select(func.count(UserOrm.id))
-    result = await session.execute(stmt)
-    current_user_count = result.scalar()
-
-    return current_user_count < max_signups
+    # For non-whitelisted users, check if public signups are open
+    return await is_public_signup_open(session)
 
 
 async def fetch_user_from_rw_api(
@@ -1803,7 +1810,7 @@ async def get_profile_config():
 
 
 @app.get("/api/metadata")
-async def api_metadata() -> dict:
+async def api_metadata(session: AsyncSession = Depends(get_async_session)) -> dict:
     """
     Returns API metadata that's helpful for instantiating the frontend.
 
@@ -1828,7 +1835,15 @@ async def api_metadata() -> dict:
     For example, if the user selects a GADM level 2 geometry,
     the ID will look something like `IND.26.2_1` and should be available in
     the gid_2 field on the vector tile layer.
+    
+    For `is_signup_open`, this indicates whether new public user signups are
+    currently allowed. This is based on the ALLOW_PUBLIC_SIGNUPS setting and
+    whether the current user count is below the MAX_USER_SIGNUPS limit.
+    Whitelisted users (email and domain) can always sign up regardless of this status.
     """
+    # Check if public signups are open
+    is_signup_open = await is_public_signup_open(session)
+    
     return {
         "version": "0.1.0",
         "layer_id_mapping": {
@@ -1836,6 +1851,7 @@ async def api_metadata() -> dict:
         },
         "subregion_to_subtype_mapping": SUBREGION_TO_SUBTYPE_MAPPING,
         "gadm_subtype_mapping": GADM_SUBTYPE_MAP,
+        "is_signup_open": is_signup_open,
     }
 
 
