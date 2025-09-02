@@ -146,8 +146,6 @@ class ZenoClient:
                 )
             return response.json()
 
-    def download_data(self, thread_id, mime_type: str = "text/csv"):
-        url = f"{self.base_url}/api/threads/{thread_id}/raw_data"
     def download_data(
         self, thread_id, checkpoint_id, mime_type: str = "text/csv"
     ):
