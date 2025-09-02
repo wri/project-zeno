@@ -556,10 +556,10 @@ datasets:
   context_layers:
     - value: "driver"
       description: "Shows the primary driver of tree cover loss, including commodity-driven deforestation, shifting agriculture, forestry, wildfire, and other drivers"
-    # - value: "primary_forest"
-      # description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
-    # - value: "intact_forest_landscape"
-      # description: "Shows loss within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
+    - value: "primary_forest"
+      description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
+    - value: "ifl"
+      description: "Intact forest landscapes (IFL) show loss within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
   variables: ">10, 15, 20, 25, 30, 50, 75%"
   tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=2001&end_year=2024&tree_cover_density_threshold=25&render_type=true_color"
   license: "CC by 4.0"
@@ -875,7 +875,7 @@ datasets:
   prompt_instructions: >
     Shows tree cover % per pixel for years 2000 and 2010, for woody vegetation greater than 5 meters in height.
     If combined with primary forest or IFL layers, we can use the term ‘forest’ to describe results. Otherwise,
-    only use the term ‘tree cover’. Use 2000 layer for data requests before 2010, and 2010 layer for data
+    only use the term 'tree cover'. Use 2000 layer for data requests before 2010, and 2010 layer for data
     requests after 2010. 
     Binned % tree cover extent can be reported in bar chart or pie chart.
     Default bins are >0-25%, 25-50%, 50-75%, 75-100%, but user can specify bins (i.e. greater and smaller than 30%).
