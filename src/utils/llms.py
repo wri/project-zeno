@@ -54,3 +54,6 @@ SMOLLM2 = ChatOllama(
     temperature=0,
     num_predict=-1,  # num_predict is similar to max_tokens, -1 means no limit
 )
+
+# Base Model
+MODEL = GEMINI

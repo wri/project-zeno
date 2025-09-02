@@ -15,7 +15,7 @@ from src.tools import (
     pull_data,
 )
 from src.utils.env_loader import load_environment_variables
-from src.utils.llms import GEMINI
+from src.utils.llms import MODEL
 
 
 def get_prompt() -> str:
@@ -104,7 +104,7 @@ async def fetch_zeno_anonymous() -> CompiledStateGraph:
     # Create the Zeno agent with the provided tools and prompt
 
     zeno_agent = create_react_agent(
-        model=GEMINI,
+        model=MODEL,
         tools=tools,
         state_schema=AgentState,
         prompt=get_prompt(),
@@ -117,7 +117,7 @@ async def fetch_zeno() -> CompiledStateGraph:
 
     checkpointer = await fetch_checkpointer()
     zeno_agent = create_react_agent(
-        model=GEMINI,
+        model=MODEL,
         tools=tools,
         state_schema=AgentState,
         prompt=get_prompt(),
