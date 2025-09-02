@@ -554,14 +554,22 @@ def render_stream(stream):
         content = msg["kwargs"]["content"]
 
         if isinstance(content, list):
-            for msg in content:
-                if msg["type"] == "text":
-                    st.text(msg["text"])
-                elif msg["type"] == "tool_use":
-                    st.code(msg["name"])
-                    st.code(msg["input"], language="json")
+            for content_item in content:
+                if isinstance(content_item, dict):
+                    if content_item["type"] == "text":
+                        st.markdown(content_item["text"])
+                    elif content_item["type"] == "thinking":
+                        with st.expander("💭 Thinking...", expanded=False):
+                            st.markdown(content_item["thinking"])
+                    elif content_item["type"] == "tool_use":
+                        st.code(content_item["name"])
+                        st.code(content_item["input"], language="json")
+                    else:
+                        st.markdown(content_item)
+                else:
+                    st.markdown(content_item)
         else:
-            st.text(content)
+            st.markdown(content)
     # Render map if this is a tool node with AOI data
     aoi_data = None
     if "aoi" in update:

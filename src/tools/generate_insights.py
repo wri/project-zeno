@@ -100,7 +100,7 @@ Area of interest: {aoi_name}
 
 Generate:
 1. One chart insight with appropriate chart type, Recharts-compatible data, and clear axis fields
-2. 2-3 specific follow-up suggestions for further exploration
+2. 1 or 2 simple follow ups to the user query based on the actual data available
 
 IMPORTANT: Generate all insights, titles, and follow-up suggestions in the same language used in the user query.
 

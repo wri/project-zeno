@@ -11,6 +11,7 @@ dependencies = [
     "langchain-openai==0.3.28",
     "langfuse==3.3.3",
     "langchain-chroma==0.2.5",
+    "langchain-google-genai==2.1.9",
     "fastapi[standard]==0.116.1",
     "watchdog==6.0.0",
     "uvicorn[standard]==0.35.0",

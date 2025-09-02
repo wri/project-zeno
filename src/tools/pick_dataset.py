@@ -12,7 +12,7 @@ from langchain_openai import OpenAIEmbeddings
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from src.utils.llms import SONNET
+from src.utils.llms import GEMINI
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -137,7 +137,7 @@ async def select_best_dataset(
 
     logger.debug("Invoking dataset selection chain...")
     dataset_selection_chain = (
-        DATASET_SELECTION_PROMPT | SONNET.with_structured_output(DatasetOption)
+        DATASET_SELECTION_PROMPT | GEMINI.with_structured_output(DatasetOption)
     )
     selection_result = await dataset_selection_chain.ainvoke(
         {
