@@ -865,7 +865,7 @@ datasets:
   license: "CC by 4.0"
   geographic_coverage: "Global land (excluding Antarctica and Arctic islands)"
   resolution: "30 x 30 meters"
-  update_frequency: "annual"
+  update_frequency: ""
   content_date: "2000, 2010"
   keywords:
     - tree cover
