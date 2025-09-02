@@ -47,6 +47,7 @@ from src.api.data_models import (
     ThreadOrm,
     UserOrm,
     UserType,
+    WhitelistedUserOrm,
 )
 from src.api.schemas import (
     ChatRequest,
@@ -448,6 +449,7 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 async def fetch_user_from_rw_api(
     request: Request,
     authorization: Optional[str] = Depends(security),
+    session: AsyncSession = Depends(get_async_session),
 ) -> UserModel:
     if not authorization:
         return None
@@ -520,12 +522,25 @@ async def fetch_user_from_rw_api(
     # cache user info
     _user_info_cache[token] = UserModel.model_validate(user_info)
 
+    user_email = user_info["email"].lower()
+    user_domain = user_email.split("@")[-1]
+
+    # Check email whitelist first
+    stmt = select(WhitelistedUserOrm).filter_by(email=user_email)
+    result = await session.execute(stmt)
+    whitelisted_user = result.scalars().first()
+
+    if whitelisted_user:
+        # User is on email whitelist, allow access
+        return UserModel.model_validate(user_info)
+
+    # Check domain whitelist as fallback
     domains_allowlist = APISettings.domains_allowlist
 
-    if isinstance(domains_allowlist, str):
-        domains_allowlist = domains_allowlist.split(",")
+    # Normalize domains for comparison (lowercase)
+    normalized_domains = [domain.lower() for domain in domains_allowlist]
 
-    if user_info["email"].split("@")[-1].lower() not in domains_allowlist:
+    if user_domain not in normalized_domains:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not allowed to access this API",

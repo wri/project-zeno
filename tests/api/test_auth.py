@@ -119,3 +119,118 @@ async def test_user_cant_override_email_domain_authorization(client):
         assert (
             "User not allowed to access this API" in response.json()["detail"]
         )
+
+
+@pytest.mark.asyncio
+async def test_email_whitelist_allows_access(client):
+    """Test that users on email whitelist can access even if domain not allowed."""
+    from src.api.data_models import WhitelistedUserOrm
+    from tests.conftest import async_session_maker
+
+    # Add test email to whitelist
+    async with async_session_maker() as session:
+        whitelisted_user = WhitelistedUserOrm(email="test@gmail.com")
+        session.add(whitelisted_user)
+        await session.commit()
+
+    with domain_allowlist(
+        "developmentseed.org,wri.org"
+    ):  # gmail.com not in domain list
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            # Mock user with gmail.com email (not in domain allowlist but in email whitelist)
+            mock_response = mock_rw_api_response("Gmail User")
+            mock_response.json_data["email"] = "test@gmail.com"
+            mock_client.get.return_value = mock_response
+
+            response = await client.get(
+                "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+            )
+
+        assert response.status_code == 200
+        user_data = response.json()
+        assert user_data["email"] == "test@gmail.com"
+
+
+@pytest.mark.asyncio
+async def test_email_whitelist_case_insensitive(client):
+    """Test that email whitelist matching is case insensitive."""
+    from src.api.data_models import WhitelistedUserOrm
+    from tests.conftest import async_session_maker
+
+    # Add lowercase email to whitelist
+    async with async_session_maker() as session:
+        whitelisted_user = WhitelistedUserOrm(email="casetest@example.com")
+        session.add(whitelisted_user)
+        await session.commit()
+
+    with domain_allowlist(
+        "developmentseed.org"
+    ):  # example.com not in domain list
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            # Mock user with uppercase email - create fresh mock
+            mock_response = mock_rw_api_response("Gmail User")
+            mock_response.json_data = {
+                "id": "test-user-casetest",
+                "name": "Case Test User",
+                "email": "CASETEST@EXAMPLE.COM",
+                "createdAt": "2024-01-01T00:00:00Z",
+                "updatedAt": "2024-01-01T00:00:00Z",
+            }
+            mock_client.get.return_value = mock_response
+
+            response = await client.get(
+                "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+            )
+
+        assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_domain_whitelist_still_works_with_email_feature(client):
+    """Test that existing domain whitelist functionality is preserved."""
+    # Clear cache to ensure clean state
+    api._user_info_cache.clear()
+
+    with domain_allowlist("developmentseed.org,wri.org"):
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = mock_rw_api_response("Test User")
+
+            response = await client.get(
+                "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+            )
+
+        assert response.status_code == 200
+        user_data = response.json()
+        assert user_data["name"] == "Test User"
+
+
+@pytest.mark.asyncio
+async def test_user_blocked_when_not_in_domain_or_email_whitelist(client):
+    """Test that users are blocked when not in either domain or email whitelist."""
+    with domain_allowlist("developmentseed.org,wri.org"):
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            # Mock user with unauthorized domain and not in email whitelist
+            mock_response = mock_rw_api_response("Unauthorized User")
+            mock_response.json_data["email"] = "test@blocked.com"
+            mock_client.get.return_value = mock_response
+
+            response = await client.get(
+                "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+            )
+
+        assert response.status_code == 403
+        assert (
+            "User not allowed to access this API" in response.json()["detail"]
+        )
