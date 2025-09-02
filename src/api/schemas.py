@@ -312,25 +312,3 @@ class ThreadStateResponse(BaseModel):
     created_at: Optional[datetime] = Field(None, description="State timestamp")
 
 
-class WhitelistedUserModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    email: str
-    created_at: datetime
-
-
-class WhitelistedUserCreateRequest(BaseModel):
-    email: str
-
-    @field_validator("email")
-    def validate_email(cls, v):
-        import re
-
-        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-        if not re.match(email_pattern, v):
-            raise ValueError("Invalid email format")
-        return v.lower()
-
-
-class WhitelistedUserListResponse(BaseModel):
-    emails: List[WhitelistedUserModel]
-    total: int
