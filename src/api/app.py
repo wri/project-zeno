@@ -655,6 +655,7 @@ async def require_auth(
         preferred_language_code=user.preferred_language_code,
         gis_expertise_level=user.gis_expertise_level,
         areas_of_interest=user.areas_of_interest,
+        has_profile=user.has_profile,
     )
 
 
@@ -706,6 +707,7 @@ async def optional_auth(
         preferred_language_code=user.preferred_language_code,
         gis_expertise_level=user.gis_expertise_level,
         areas_of_interest=user.areas_of_interest,
+        has_profile=user.has_profile,
     )
 
 
@@ -1605,6 +1607,7 @@ async def auth_me(
         - preferredLanguageCode: ISO language code (optional, see /api/profile/config)
         - gisExpertiseLevel: GIS expertise level (optional, see /api/profile/config)
         - areasOfInterest: Free text areas of interest (optional)
+        - hasProfile: Whether the user has completed their profile (boolean, set by frontend)
 
         **Quota Information:**
         - promptsUsed: Number of prompts used today (null if quota disabled)
@@ -1664,6 +1667,7 @@ async def update_user_profile(
       - Valid values: GET /api/profile/config → gisExpertiseLevels
       - Examples: "beginner", "intermediate", "advanced", "expert"
     - areasOfInterest: Free text areas of interest (string, optional)
+    - hasProfile: Whether the user has completed their profile (boolean, optional, set by frontend)
 
     **Request Body Example:**
     ```json
@@ -1678,7 +1682,8 @@ async def update_user_profile(
       "countryCode": "US",
       "preferredLanguageCode": "en",
       "gisExpertiseLevel": "intermediate",
-      "areasOfInterest": "Deforestation monitoring, Biodiversity conservation"
+      "areasOfInterest": "Deforestation monitoring, Biodiversity conservation",
+      "hasProfile": true
     }
     ```
 
@@ -1735,6 +1740,7 @@ async def update_user_profile(
         "preferred_language_code": db_user.preferred_language_code,
         "gis_expertise_level": db_user.gis_expertise_level,
         "areas_of_interest": db_user.areas_of_interest,
+        "has_profile": db_user.has_profile,
     }
 
     return UserModel(**response_data)

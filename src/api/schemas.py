@@ -68,6 +68,7 @@ class UserModel(BaseModel):
     preferred_language_code: Optional[str] = None
     gis_expertise_level: Optional[str] = None
     areas_of_interest: Optional[str] = None
+    has_profile: bool = False
 
     @field_validator("created_at", "updated_at", mode="before")
     def parse_dates(cls, value):
@@ -135,6 +136,7 @@ class UserProfileUpdateRequest(BaseModel):
     preferred_language_code: Optional[str] = None
     gis_expertise_level: Optional[str] = None
     areas_of_interest: Optional[str] = None
+    has_profile: Optional[bool] = None
 
     @field_validator("sector_code")
     def validate_sector_code(cls, v):
