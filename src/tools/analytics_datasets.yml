@@ -688,7 +688,18 @@ datasets:
     - forest regrowth
   analytics_api_endpoint: "/v0/land_change/tree_cover_gain/analytics"
   prompt_instructions: >
-    ...
+    Shows cumulative tree cover gain over the periods  2000-2020, 2005-2020, 2010-2020 or 2015-2020.
+    Tree cover gain is defined as a change in tree height from under 5m to over 5m and is not
+    necessarily the same as forest restoration. Avoid using the term “restoration” (other than to Use
+    it to warn users about the differences between tree cover gain and restoration).
+    Note that "net" loss cannot be calculated by subtracting gain from loss, as the methodologies for
+    the two datasets differ.
+    The data can be displayed as a bar chart showing the gain area per period.
+    If asked for gain area through time, it should be be shown using bar charts with one bar per time period.
+    Gain area for a given time period can be calculated by using the following:
+    Area [Year1 to Year2] = Area [Year1 to 2020] - Area [Year2 to 2020].
+    Warn that these are estimates that can be used as indicators of tree gain but are not suitable for
+    precise verification of restoration activities at local scales. 
   description: >
     Tree Cover Gain (Hansen/UMD/GLAD) identifies areas where new tree canopy was established 
     between 2000 and 2012 at 30-meter resolution, using Landsat 7 imagery. It captures both 
@@ -747,7 +758,7 @@ datasets:
     # - value: "intact_forest_landscape"
       # description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
   variables: ">30, 50, 75%"
-  tile_url: "https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/5/16/8.png?tree_cover_density_threshold=30"
+  tile_url: "https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30"
   license: "CC by 4.0"
   geographic_coverage: "Global"
   resolution: "30 x 30 meters"
@@ -761,7 +772,11 @@ datasets:
     - sequestration
   analytics_api_endpoint: "/v0/land_change/carbon_flux/analytics"
   prompt_instructions: >
-    ...
+    Use 30% canopy density threshold by default, unless a user requests a different threshold.
+    Show net flux as a split bar chart, with emissions in the positive y-axis and removals 
+    in the negative.
+    DO NOT show trends over time and caution users that net flux represents totals over
+    the the period 2001-2024, not an annual time series.
   description: >
     Maps the balance between emissions from forest disturbances and carbon removals from forest growth
     between 2001 and 2024, using a globally consistent model. Negative values indicate forest areas
@@ -843,88 +858,58 @@ datasets:
       # description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
     # - value: "intact_forest_landscape"
       # description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
-  variables: ">30, 50, 75%"
-  tile_url: "https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/5/16/8.png?tree_cover_density_threshold=30"
+  variables:
+    - threshold: ">10, 15, 20, 25, 30, 50, 75%"
+    - year: "2000, 2010"
+  tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_density_{year}/latest/tcd_{threshold}/{z}/{x}/{y}.png"
   license: "CC by 4.0"
-  geographic_coverage: "Global"
+  geographic_coverage: "Global land (excluding Antarctica and Arctic islands)"
   resolution: "30 x 30 meters"
   update_frequency: "annual"
-  content_date: "2001-2024"
+  content_date: "2000, 2010"
   keywords:
-    - 
+    - tree cover
+    - forest
+    - canopy
   analytics_api_endpoint: "/v0/land_change/tree_cover/analytics"
   prompt_instructions: >
-    ...
+    Shows tree cover % per pixel for years 2000 and 2010, for woody vegetation greater than 5 meters in height.
+    If combined with primary forest or IFL layers, we can use the term ‘forest’ to describe results. Otherwise,
+    only use the term ‘tree cover’. Use 2000 layer for data requests before 2010, and 2010 layer for data
+    requests after 2010. 
+    Binned % tree cover extent can be reported in bar chart or pie chart.
+    Default bins are >0-25%, 25-50%, 50-75%, 75-100%, but user can specify bins (i.e. greater and smaller than 30%).
+    When calculating area in bins, exclude tree cover area = 0 (and specify that the exclusion has happened). 
+    Do not compare the 2000 and 2010 areas or changes in density over this time. Use the tree cover loss and gain
+    data for data on change in tree area. Cannot be used to asses pixel-level percent changes (gains and losses).
   description: >
-    Maps the balance between emissions from forest disturbances and carbon removals from forest growth
-    between 2001 and 2024, using a globally consistent model. Negative values indicate forest areas
-    acting as net carbon sinks, while positive values show net greenhouse gas sources.
-    This dataset supports climate reporting, forest-based mitigation strategies, and greenhouse gas
-    inventories by identifying where forests are contributing to or helping mitigate climate change.
-    There is no timeseries; values are annual averages.
+    Tree Cover (Hansen/UMD/GLAD) provides global percent tree canopy cover at 30-meter resolution for the
+    years 2000 and 2010, based on Landsat 7 imagery. It represents the density of vegetation over 5 meters
+    tall, including both natural forests and plantations. This dataset is useful for establishing
+    historical baselines and comparing tree cover density across different landscapes.
 
   methodology: >
-    This net flux layer is part of the forest greenhouse gas flux model described in Harris et al. (2021).
-    This paper introduces a geospatial monitoring framework for estimating global forest fluxes which can
-    assist a variety of actors and organizations with tracking greenhouse gas (GHG) fluxes from forests
-    and in decreasing emissions or increasing removals by forests. Net forest flux represents the exchange
-    of GHGs between forests and the atmosphere, calculated as the difference between GHGs emitted by
-    forests and carbon removed by (or sequestered by) forests during the model period. Net carbon flux
-    is calculated by subtracting average gross removals from annual gross emissions in each forested pixel;
-    negative values are where forests were net sinks of carbon and positive values are where forests were
-    net sources of GHGs between 2001 and 2024. Net fluxes are calculated following IPCC Guidelines for
-    national greenhouse gas inventories in each pixel where forests existed in 2000 or were established
-    between 2000 and 2020 according to Potapov et al. 2022. This layer reflects the cumulative net flux
-    during the model period (2001-2024) and must be divided by 24 to obtain average annual net flux;
-    net flux values cannot be assigned to individual years of the model. All input layers were resampled
-    to a common resolution of 0.00025 x 0.00025 degrees each to match Hansen et al. (2013).
-    We have made several updates to the model since its original release. For documentation through the
-    current version, please refer to this blog. For a more detailed description of the changes included
-    through the 2023 tree cover loss launch (released spring 2024) and a comparison of the model's fluxes
-    with those from the Global Carbon Budget and national greenhouse gas inventories,
-    please refer to Gibbs et al. (2025).
-    Net flux is available for download in two different area units over the model duration:
-    1) megagrams of CO2e emissions/ha, and 2) megagrams of CO2e emissions/pixel. The first is appropriate
-    for visualizing (mapping) net flux because it represents the density of GHG fluxes per hectare.
-    The second is appropriate for calculating the net flux in an area of interest (AOI) because the values
-    of the pixels in the AOI can be summed to obtain the total net flux for that area. The values in the
-    latter were calculated by adjusting the net flux per hectare by the size of each pixel,
-    which varies by latitude. When estimating net flux occurring over a defined number of years
-    between 2001 and 2024, divide the values by the model duration and then multiply by the number of years 
-    n the period of interest. Both datasets only include pixels within forests, as defined in the methods of
-    Harris et al. (2021) and updated with tree cover gain through 2020.
+    This data set, a collaboration between the GLAD (Global Land Analysis & Discovery) lab at the
+    University of Maryland, Google, USGS, and NASA, displays tree cover over all global land
+    (except for Antarctica and a number of Arctic islands) for the years 2000 and 2010 at 30 x 30 meter resolution.
+    “Percent tree cover” is defined as the density of tree canopy coverage of the land surface and is color-coded
+    by density bracket (see legend).
   cautions: >
-    Data are the product of modeling and thus have an inherent degree of error and uncertainty.
-    Users are strongly encouraged to read and fully comprehend the metadata and other availabledocumentation
-    prior to data use. Net flux reflects the total over the model period of 2001-2024, not an annual
-    time series from which a trend can be derived. Thus, values must be divided by 24 to calculate
-    average annual net flux. Uncertainty is higher in gross removals than emissions, particularly driven
-    by uncertainty in removal factors. These uncertainties are propagated to the uncertainty in net flux.
-    Values are applicable to forest areas only (canopy cover >30 percent and >5 m height or areas with
-    tree cover gain). See Harris et al. (2021) for further information on the forest definition used in
-    the analysis. Emissions reflect stand-replacing disturbances as observed in Landsat satellite imagery
-    and do not include emissions from unobserved forest degradation.
-    Activity data used as the basis of the estimates contain temporal inconsistencies:
-    Removals data contain temporal inconsistencies because tree cover gain represents a cumulative total
-    from 2000-2020, rather than annual gains as estimated through 2024.
-    Improvements in the detection of tree cover loss due to the incorporation of new satellite data and
-    methodology changes between 2011 and 2015 may result in higher estimates of emissions in recent years
-    compared to earlier years. Refer here for additional information.
-    Large jumps in net flux along some boundary are due to the use of ecozone-specific removal factors.
-    The changes in net flux occur at ecozone boundaries, where different removal factors are applied on each side.
-    This dataset has been updated since its original publication. See Overview for more information.
+    For the purpose of this study, “tree cover” was defined as all vegetation taller than 5 meters in height.
+    “Tree cover” is the biophysical presence of trees and may take the form of natural forests or plantations
+    existing over a range of canopy densities.
   function_usage_notes: >
-    Displays the net flux of greenhouse gases from forests, calculated as the difference between gross
-    forest greenhouse gas emissions from stand-replacing forest disturbances and gross carbon removals
-    from forest growth.
+    Identifies areas of tree cover
   providers: >
-    Harris, N.L., D.A. Gibbs, A. Baccini, R.A. Birdsey, S. de Bruin, M. Farina, L. Fatoyinbo, M.C. Hansen,
-    M. Herold, R.A. Houghton, P.V. Potapov, D. Requena Suarez, R.M. Roman-Cuesta, S.S. Saatchi, C.M. Slay,
-    S.A. Turubanova, A. Tyukavina. 2021. Global maps of twenty-first century forest carbon fluxes.
-    Nature Climate Change. https://doi.org/10.1038/s41558-020-00976-6
-    Gibbs, D. A., Rose, M., Grassi, G., Melo, J., Rossi, S., Heinrich, V., & Harris, N. L. 2025.
-    Revised and updated geospatial monitoring of 21st century forest carbon fluxes.
-    Earth System Science Data. https://doi.org/10.5194/essd-17-1217-2025"
+    Hansen, M. C., P. V. Potapov, R. Moore, M. Hancher, S. A. Turubanova, A. Tyukavina, D. Thau, S. V. Stehman,
+    S. J. Goetz, T. R. Loveland, A. Kommareddy, A. Egorov, L. Chini, C. O. Justice, and J. R. G. Townshend. 2013.
+    “High-Resolution Global Maps of 21st-Century Forest Cover Change.” Science 342 (15 November): 850–53.
+    doi: 10.1126/science.1244693. Data available from: https://glad.earthengine.app/view/global-forest-change.
   citation: >
-    Harris et al. (2021). Global maps of 21st century forest carbon fluxes.
-    Accessed on <date> from Global Forest Watch.
+    Use the following credit when these data are displayed: Source: Hansen/UMD/Google/USGS/NASA, accessed through
+    Global Forest Watch
+    Use the following credit when these data are cited: Hansen, M. C., P. V. Potapov, R. Moore, M. Hancher,
+    S. A.Turubanova, A. Tyukavina, D. Thau, S. V. Stehman, S. J. Goetz, T. R. Loveland, A. Kommareddy, A. Egorov,
+    L. Chini, C. O. Justice, and J. R. G. Townshend. 2013. “High-Resolution Global Maps of 21st-Century Forest Cover Change.”
+    Science 342 (15 November): 850–53. Data available on-line from:https://glad.umd.edu/dataset/global-2010-tree-cover-30-m.
+    Accessed through Global Forest Watch on <date>. www.globalforestwatch.org
