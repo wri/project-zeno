@@ -7,6 +7,10 @@ USAGE:
     TEST_MODE=api API_TOKEN=your_token python tests/agent/test_e2e.py
     SAMPLE_SIZE=5 python tests/agent/test_e2e.py
 
+    # Parallel execution
+    NUM_WORKERS=10 SAMPLE_SIZE=20 python tests/agent/test_e2e.py
+    NUM_WORKERS=5 TEST_MODE=api API_TOKEN=your_token python tests/agent/test_e2e.py
+
     # Langfuse dataset integration
     LANGFUSE_DATASET="Your Dataset Name" python tests/agent/test_e2e.py
     LANGFUSE_DATASET="Your Dataset Name" TEST_MODE=api API_TOKEN=your_token python tests/agent/test_e2e.py
@@ -20,6 +24,7 @@ ENVIRONMENT VARIABLES:
     # CSV mode only:
     SAMPLE_SIZE: Number of test cases to run (default: 1, use -1 for all rows)
     TEST_FILE: Path to CSV test file (default: experiments/e2e_test_dataset.csv)
+    NUM_WORKERS: Number of parallel workers (default: 1, set to 10 for parallel execution)
 
 OUTPUT:
     # CSV mode: Creates two CSV files in data/tests/
