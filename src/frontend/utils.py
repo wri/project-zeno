@@ -584,8 +584,8 @@ def render_stream(stream):
     # Render charts if this is a tool node with charts_data
     if "charts_data" in update:
         charts_data = update["charts_data"]
-        thread_id = stream.get("thread_id")
-        checkpoint_id = stream.get("checkpoint_id")
+        thread_id = update.get("thread_id")
+        checkpoint_id = update.get("checkpoint_id")
         client = ZenoClient(
             base_url=API_BASE_URL, token=st.session_state.token
         )
