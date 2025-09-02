@@ -310,5 +310,3 @@ class ThreadStateResponse(BaseModel):
         None, description="Available next actions"
     )
     created_at: Optional[datetime] = Field(None, description="State timestamp")
-
-
