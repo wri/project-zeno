@@ -17,6 +17,7 @@ class AgentState(TypedDict):
     subregion: str
     aoi_name: str
     subtype: str
+    aoi_options: list[dict]
 
     # pick-dataset tool
     dataset: dict

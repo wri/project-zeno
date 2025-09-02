@@ -59,18 +59,33 @@ class DataPullOrchestrator:
 data_pull_orchestrator = DataPullOrchestrator()
 
 
+async def get_aois_to_pull(
+    aoi_options: List[Dict], dataset_id: str, previous_pulls: Dict
+) -> List[Dict]:
+    """Check previous pulls for a given dataset"""
+    to_pull = []
+    for aoi_option in aoi_options:
+        if (
+            aoi_option["aoi"]["src_id"] in previous_pulls
+            and dataset_id in previous_pulls[aoi_option["aoi"]["src_id"]]
+        ):
+            continue
+        to_pull.append(aoi_option)
+    return to_pull
+
+
 @tool("pull-data")
 async def pull_data(
     query: str,
     start_date: str,
     end_date: str,
-    aoi_name: str,
+    aoi_names: List[str],
     dataset_name: str,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
     state: Annotated[Dict, InjectedState] = None,
 ) -> Command:
     """
-    Pull data for a specific AOI and dataset in a given time range.
+    Pull data for the previously selected AOIs and dataset in a given time range.
 
     This tool retrieves data from the appropriate data source based on the selected area of interest
     and dataset for the specified time period. It uses specialized handlers to process different
@@ -80,97 +95,86 @@ async def pull_data(
         query: User query providing context for the data pull
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
-        aoi_name: Name of the area of interest
+        aoi_names: List of names of the area of interest
         dataset_name: Name of the dataset to pull from
     """
     logger.info(
-        f"PULL-DATA-TOOL: AOI: {aoi_name}, Dataset: {dataset_name}, Start Date: {start_date}, End Date: {end_date}"
+        f"PULL-DATA-TOOL: AOI: {aoi_names}, Dataset: {dataset_name}, Start Date: {start_date}, End Date: {end_date}"
     )
 
-    aoi = state["aoi"]
-    subregion_aois = state["subregion_aois"]
-    subregion = state["subregion"]
-    subtype = state["subtype"]
     dataset = state["dataset"]
+    current_raw_data = state.get("raw_data", {})
 
-    # Use orchestrator to pull data
-    result = await data_pull_orchestrator.pull_data(
-        query=query,
-        aoi=aoi,
-        subregion_aois=subregion_aois,
-        subregion=subregion,
-        subtype=subtype,
-        dataset=dataset,
-        start_date=start_date,
-        end_date=end_date,
+    # Match all AOIs in state that are not in previous pulls
+    aois_to_pull = await get_aois_to_pull(
+        state["aoi_options"], dataset["dataset_id"], current_raw_data
     )
+    if not aois_to_pull:
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        content="No new AOIs to pull data for. All requested data has already been retrieved.",
+                        tool_call_id=tool_call_id,
+                    )
+                ],
+            },
+        )
 
-    # Create tool message
+    if current_raw_data is None:
+        current_raw_data = {}
+
+    tool_messages = []
+    for aoi in aois_to_pull:
+        # Use orchestrator to pull data
+        result = await data_pull_orchestrator.pull_data(
+            query=query,
+            dataset=dataset,
+            start_date=start_date,
+            end_date=end_date,
+            **aoi,
+        )
+
+        # Create tool message
+        tool_messages.append(result.message)
+        logger.debug(f"Pull data tool message: {result.message}")
+
+        # Determine raw data format for backward compatibility
+        if (
+            result.success
+            and isinstance(result.data, dict)
+            and "data" in result.data
+        ):
+            raw_data = result.data["data"]
+        elif result.success:
+            raw_data = result.data
+        else:
+            raw_data = None
+
+        if raw_data is not None:
+            raw_data["dataset_name"] = dataset["dataset_name"]
+            if "name" in aoi["aoi"]:
+                raw_data["aoi_name"] = aoi["aoi"]["name"]
+            else:
+                # This handles the custom AOIs that might not have a name
+                raw_data["aoi_name"] = aoi["aoi"]["src_id"]
+
+        if aoi["aoi"]["src_id"] not in current_raw_data:
+            current_raw_data[aoi["aoi"]["src_id"]] = {}
+        current_raw_data[aoi["aoi"]["src_id"]][dataset["dataset_id"]] = (
+            raw_data
+        )
+
     tool_message = ToolMessage(
-        content=result.message,
+        content="|".join(tool_messages) if tool_messages else "No data pulled",
         tool_call_id=tool_call_id,
     )
 
-    logger.debug(f"Pull data tool message: {tool_message}")
-
-    # Determine raw data format for backward compatibility
-    if (
-        result.success
-        and isinstance(result.data, dict)
-        and "data" in result.data
-    ):
-        raw_data = result.data["data"]
-    elif result.success:
-        raw_data = result.data
-    else:
-        raw_data = None
-
     return Command(
         update={
-            "raw_data": raw_data,
+            "raw_data": current_raw_data,
             "start_date": start_date,
             "end_date": end_date,
             "messages": [tool_message],
         },
     )
-
-
-if __name__ == "__main__":
-    from src.tools.pick_dataset import DatasetInfo
-
-    # Example usage for testing
-    mock_state = {
-        "messages": [
-            {
-                "role": "user",
-                "content": "How much tree cover was lost in Odisha, India in 2020?",
-            }
-        ],
-        "aoi": {"GID_1": "IND.26_1"},
-        "subregion_aois": [],
-        "subregion": None,
-        "subtype": "state-province",
-        "dataset": DatasetInfo(
-            dataset_id=1,
-            source="GFW",
-            data_layer="Tree cover loss",
-            context_layer="Tree cover",
-            threshold=30,
-        ).model_dump(),
-    }
-
-    user_query = mock_state["messages"][0]["content"]
-    command = pull_data.func(
-        query=user_query,
-        aoi=mock_state["aoi"],
-        subregion_aois=mock_state["subregion_aois"],
-        subregion=mock_state["subregion"],
-        subtype=mock_state["subtype"],
-        dataset=mock_state["dataset"],
-        start_date="2020-01-01",
-        end_date="2020-12-31",
-        tool_call_id="test-id",
-    )
-
-    logger.info("--- Generated Command ---")
-    logger.info(command)

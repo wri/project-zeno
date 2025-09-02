@@ -9,8 +9,8 @@ from typing import Dict, Optional
 from uuid import UUID
 
 import cachetools
+import httpx
 import pandas as pd
-import requests
 import structlog
 from fastapi import (
     Depends,
@@ -59,6 +59,7 @@ from src.api.schemas import (
     RatingCreateRequest,
     RatingModel,
     ThreadModel,
+    ThreadStateResponse,
     UserModel,
     UserProfileUpdateRequest,
     UserWithQuotaModel,
@@ -444,7 +445,7 @@ async def stream_chat(
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
-def fetch_user_from_rw_api(
+async def fetch_user_from_rw_api(
     request: Request,
     authorization: Optional[str] = Depends(security),
 ) -> UserModel:
@@ -490,14 +491,15 @@ def fetch_user_from_rw_api(
         return _user_info_cache[token]
 
     try:
-        resp = requests.get(
-            "https://api.resourcewatch.org/auth/user/me",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {token}",
-            },
-            timeout=10,
-        )
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://api.resourcewatch.org/auth/user/me",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {token}",
+                },
+                timeout=10,
+            )
     except Exception as e:
         logger.exception(f"Error contacting Resource Watch: {e}")
         raise HTTPException(
@@ -1065,6 +1067,118 @@ async def update_thread(
     return ThreadModel.model_validate(thread)
 
 
+@app.get("/api/threads/{thread_id}/state", response_model=ThreadStateResponse)
+async def get_thread_state(
+    thread_id: str,
+    user: Optional[UserModel] = Depends(optional_auth),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get the current agent state for a thread.
+
+    **Access Control:**
+    - **Public threads** (is_public=True): Can be accessed by anyone, no authentication required
+    - **Private threads** (is_public=False): Require authentication and ownership
+
+    **Authentication:** Optional - provide Bearer token for private threads
+
+    **Response:** JSON object containing:
+    - `thread_id`: The thread identifier
+    - `state`: Current agent state (AOI, dataset, raw_data, etc.)
+    - `next_actions`: Available next actions (if any)
+    - `created_at`: State timestamp
+
+    **Error Codes:**
+    - 401: Private thread accessed without authentication
+    - 404: Thread not found or access denied
+    - 500: Error retrieving thread state
+    """
+
+    # First, try to get the thread to check if it exists and if it's public
+    stmt = select(ThreadOrm).filter_by(id=thread_id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
+
+    if not thread:
+        logger.warning("Thread not found", thread_id=thread_id)
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    # If thread is public, allow access regardless of authentication
+    if thread.is_public:
+        logger.debug("Accessing public thread state", thread_id=thread_id)
+    else:
+        # For private threads, require authentication and ownership
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing Bearer token",
+            )
+
+        if thread.user_id != user.id:
+            logger.warning(
+                "Unauthorized access to private thread state",
+                thread_id=thread_id,
+                user_id=user.id,
+                owner_id=thread.user_id,
+            )
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        logger.debug(
+            "Accessing private thread state",
+            thread_id=thread_id,
+            user_id=user.id,
+        )
+
+    try:
+        # Get the agent and retrieve current state
+        zeno_async = await fetch_zeno()
+        config = {"configurable": {"thread_id": thread_id}}
+
+        # Get current state
+        state = await zeno_async.aget_state(config=config)
+
+        # Serialize state values, handling complex objects
+        serialized_state = {}
+        for key, value in state.values.items():
+            try:
+                # Try to serialize the value
+                json.dumps(value)
+                serialized_state[key] = value
+            except (TypeError, ValueError):
+                # If serialization fails, convert to string representation
+                serialized_state[key] = str(value)
+
+        # Determine next actions based on current state
+        next_actions = []
+        if "aoi" not in serialized_state or not serialized_state.get("aoi"):
+            next_actions.append("select_aoi")
+        elif "dataset" not in serialized_state or not serialized_state.get(
+            "dataset"
+        ):
+            next_actions.append("select_dataset")
+        elif "raw_data" not in serialized_state or not serialized_state.get(
+            "raw_data"
+        ):
+            next_actions.append("pull_data")
+        else:
+            next_actions.append("generate_insights")
+
+        return ThreadStateResponse(
+            thread_id=thread_id,
+            state=serialized_state,
+            next_actions=next_actions,
+            created_at=state.created_at
+            if hasattr(state, "created_at")
+            else None,
+        )
+
+    except Exception as e:
+        logger.exception("Error retrieving thread state", thread_id=thread_id)
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving thread state: {str(e)}"
+        )
+
+
 @app.post("/api/custom_area_name")
 async def custom_area_name(
     request: CustomAreaNameRequest, user: UserModel = Depends(fetch_user)
@@ -1086,7 +1200,7 @@ async def custom_area_name(
         You may combine up to two natural units with a preposition.
         Return a name only, strictly ≤100 characters.
         """
-        response = HAIKU.invoke(prompt)
+        response = await HAIKU.ainvoke(prompt)
         return {"name": response.content}
     except Exception as e:
         logger.exception("Error generating area name: %s", e)
