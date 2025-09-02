@@ -58,7 +58,7 @@ def ingest_kba() -> None:
     create_id_index_if_not_exists(
         table_name="geometries_kba",
         index_name="idx_geometries_kba_sitrecid_text",
-        column="sitrecid::text",
+        column="(sitrecid::text)",
     )
 
     print("✓ KBA ingestion completed successfully!")
