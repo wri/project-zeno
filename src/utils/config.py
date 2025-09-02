@@ -20,7 +20,9 @@ class _APISettings(BaseSettings):
 
     nextjs_api_key: str = Field(..., alias="NEXTJS_API_KEY")
     max_user_signups: int = Field(default=-1, alias="MAX_USER_SIGNUPS")
-    allow_public_signups: bool = Field(default=False, alias="ALLOW_PUBLIC_SIGNUPS")
+    allow_public_signups: bool = Field(
+        default=False, alias="ALLOW_PUBLIC_SIGNUPS"
+    )
 
     @property
     def domains_allowlist(self) -> list[str]:

@@ -453,13 +453,13 @@ async def is_user_whitelisted(user_email: str, session: AsyncSession) -> bool:
     """
     user_email_lower = user_email.lower()
     user_domain = user_email_lower.split("@")[-1]
-    
+
     # Check email whitelist first
     stmt = select(WhitelistedUserOrm).filter_by(email=user_email_lower)
     result = await session.execute(stmt)
     if result.scalars().first():
         return True
-    
+
     # Check domain whitelist
     domains_allowlist = APISettings.domains_allowlist
     normalized_domains = [domain.lower() for domain in domains_allowlist]
@@ -477,23 +477,23 @@ async def check_signup_limit_allows_new_user(
     # Whitelisted users always bypass limits
     if await is_user_whitelisted(user_email, session):
         return True
-    
+
     # If public signups disabled, non-whitelisted users can't sign up
     if not APISettings.allow_public_signups:
         return False
-    
+
     # For public users, check signup limit
     max_signups = APISettings.max_user_signups
-    
+
     # -1 means unlimited
     if max_signups < 0:
         return True
-    
+
     # Check user count vs limit
     stmt = select(func.count(UserOrm.id))
     result = await session.execute(stmt)
     current_user_count = result.scalar()
-    
+
     return current_user_count < max_signups
 
 
@@ -574,16 +574,16 @@ async def fetch_user_from_rw_api(
     _user_info_cache[token] = UserModel.model_validate(user_info)
 
     user_email = user_info["email"]
-    
+
     # Check 3-tier access model:
     # Tier 1: Email whitelist (always allowed)
-    # Tier 2: Domain whitelist (always allowed) 
+    # Tier 2: Domain whitelist (always allowed)
     # Tier 3: Public users (allowed only if ALLOW_PUBLIC_SIGNUPS=true)
-    
+
     if await is_user_whitelisted(user_email, session):
         # User is whitelisted (email or domain), allow access
         return UserModel.model_validate(user_info)
-    
+
     if not APISettings.allow_public_signups:
         # Public signups disabled, only whitelisted users allowed
         raise HTTPException(
@@ -612,7 +612,9 @@ async def require_auth(
     user = result.scalars().first()
     if not user:
         # Check signup limits for new users
-        if not await check_signup_limit_allows_new_user(user_info.email, session):
+        if not await check_signup_limit_allows_new_user(
+            user_info.email, session
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User signups are currently closed",
@@ -660,7 +662,9 @@ async def optional_auth(
     user = result.scalars().first()
     if not user:
         # Check signup limits for new users
-        if not await check_signup_limit_allows_new_user(user_info.email, session):
+        if not await check_signup_limit_allows_new_user(
+            user_info.email, session
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User signups are currently closed",
