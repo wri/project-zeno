@@ -28,5 +28,5 @@ ADD ./client.py /app/src/frontend/client.py
 
 WORKDIR /app
 
-# Install only the main dependencies (no dev or frontend groups)
+# Install only the main dependencies - no dev deps
 RUN uv sync --frozen --no-dev
