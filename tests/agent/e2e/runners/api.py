@@ -6,6 +6,8 @@ import json
 from datetime import datetime
 from uuid import uuid4
 
+from langfuse import get_client
+
 from client import ZenoClient
 
 from ..types import ExpectedData, TestResult
@@ -33,6 +35,8 @@ class APITestRunner(BaseTestRunner):
             TestResult with evaluation scores and metadata
         """
         thread_id = uuid4().hex
+        langfuse = get_client()
+        trace_url = None
 
         try:
             # Collect all streaming responses to ensure conversation completes
@@ -52,6 +56,7 @@ class APITestRunner(BaseTestRunner):
                     update_data = json.loads(stream.get("update", "{}"))
                     trace_id = update_data.get("trace_id")
 
+            trace_url = langfuse.get_trace_url(trace_id=trace_id)
             # Get final agent state using the state endpoint
             state_response = self.client.get_thread_state(thread_id)
             agent_state = state_response["state"]
@@ -63,6 +68,7 @@ class APITestRunner(BaseTestRunner):
             return TestResult(
                 thread_id=thread_id,
                 trace_id=trace_id,
+                trace_url=trace_url,
                 query=query,
                 overall_score=overall_score,
                 execution_time=datetime.now().isoformat(),
@@ -73,5 +79,5 @@ class APITestRunner(BaseTestRunner):
 
         except Exception as e:
             return self._create_empty_evaluation_result(
-                thread_id, query, expected_data, str(e), "api"
+                thread_id, trace_url or "", query, expected_data, str(e), "api"
             )

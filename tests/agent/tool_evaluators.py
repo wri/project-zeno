@@ -78,13 +78,18 @@ def evaluate_aoi_selection(
     expected_subregion_str = normalize_value(expected_subregion)
     actual_subregion_str = normalize_value(subregion)
 
-    # If expected subregion is empty, skip subregion check
+    # Additive scoring: AOI match = 0.75, subregion match = 0.25
+    aoi_score = 0.75 if match_aoi_id else 0
+
+    # If expected subregion is empty, treat as positive match (0.25)
     if not expected_subregion_str:
         match_subregion = True
-        score = 1 if match_aoi_id else 0
+        subregion_score = 0.25
     else:
         match_subregion = expected_subregion_str == actual_subregion_str
-        score = 1 if match_aoi_id and match_subregion else 0
+        subregion_score = 0.25 if match_subregion else 0
+
+    score = aoi_score + subregion_score
 
     return {
         "aoi_score": score,
@@ -136,13 +141,18 @@ def evaluate_dataset_selection(
     expected_context_str = normalize_value(expected_context_layer)
     actual_context_str = normalize_value(actual_context_layer)
 
-    # Context layer matching: if expected is empty, skip the check
+    # Additive scoring: dataset match = 0.75, context layer match = 0.25
+    dataset_score = 0.75 if dataset_match else 0
+
+    # Context layer matching: if expected is empty, treat as positive match (0.25)
     if not expected_context_str:
         context_layer_match = True
+        context_score = 0.25
     else:
         context_layer_match = expected_context_str == actual_context_str
+        context_score = 0.25 if context_layer_match else 0
 
-    score = 1 if dataset_match and context_layer_match else 0
+    score = dataset_score + context_score
 
     return {
         "dataset_score": score,
@@ -191,6 +201,9 @@ def evaluate_data_pull(
     actual_start_date = agent_state.get("start_date", "")
     actual_end_date = agent_state.get("end_date", "")
 
+    # Additive scoring: data pull success = 0.75, date success = 0.25
+    pull_score = 0.75 if data_pull_success else 0
+
     if expected_start_date and expected_end_date:
         # Normalize date values for comparison
         expected_start_str = normalize_value(expected_start_date)
@@ -202,10 +215,12 @@ def evaluate_data_pull(
             expected_start_str == actual_start_str
             and expected_end_str == actual_end_str
         )
+        date_score = 0.25 if date_success else 0
     else:
         date_success = True
+        date_score = 0.25  # Treat missing expected dates as positive match
 
-    score = 1 if data_pull_success and date_success else 0
+    score = pull_score + date_score
 
     return {
         "pull_data_score": score,

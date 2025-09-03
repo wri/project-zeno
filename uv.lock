@@ -1963,22 +1963,22 @@ wheels = [
 
 [[package]]
 name = "langfuse"
-version = "3.2.1"
+version = "3.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "backoff" },
     { name = "httpx" },
     { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-sdk" },
     { name = "packaging" },
     { name = "pydantic" },
     { name = "requests" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/61/0d/8fc51099cf337fb3b56cb7d305074bc0223c62e1ccabf80cc6285ccf5b31/langfuse-3.2.1.tar.gz", hash = "sha256:f79b0380dfcf52c7525bb5d7f8e9d8786a6fc8b37867def047bb388930a7beb3", size = 153369 }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/f4/dcb9fcee318eab93f1919e4c3c0590069a0e4e621560fed5cedca7d6f1f3/langfuse-3.3.3.tar.gz", hash = "sha256:f28dd46f5412de83daa32d428aee96ee73eacc9f5d43bed0e5518e8579a14d81", size = 164329 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/92/b0/8f08df3f0fa584c4132937690c6dd33e0a116f963ecf2b35567f614e0ca7/langfuse-3.2.1-py3-none-any.whl", hash = "sha256:07a84e8c1eed6ac8e149bdda1431fd866e4aee741b66124316336fb2bc7e6a32", size = 299315 },
+    { url = "https://files.pythonhosted.org/packages/5f/1c/6649037228f66352a6c58144d5adaf54acfab101f1e5d82d9846ec43ba28/langfuse-3.3.3-py3-none-any.whl", hash = "sha256:3db3a878dd6f6fab529790490bccf5cc07fd75cb8701f30cd51a5d120660d898", size = 317979 },
 ]
 
 [[package]]
@@ -2619,19 +2619,6 @@ wheels = [
 ]
 
 [[package]]
-name = "opentelemetry-exporter-otlp"
-version = "1.36.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "opentelemetry-exporter-otlp-proto-grpc" },
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/95/7f/d31294ac28d567a14aefd855756bab79fed69c5a75df712f228f10c47e04/opentelemetry_exporter_otlp-1.36.0.tar.gz", hash = "sha256:72f166ea5a8923ac42889337f903e93af57db8893de200369b07401e98e4e06b", size = 6144 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/a2/8966111a285124f3d6156a663ddf2aeddd52843c1a3d6b56cbd9b6c3fd0e/opentelemetry_exporter_otlp-1.36.0-py3-none-any.whl", hash = "sha256:de93b7c45bcc78296998775d52add7c63729e83ef2cd6560730a6b336d7f6494", size = 7018 },
-]
-
-[[package]]
 name = "opentelemetry-exporter-otlp-proto-common"
 version = "1.36.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2996,7 +2983,7 @@ requires-dist = [
     { name = "langchain-google-genai", specifier = "==2.1.9" },
     { name = "langchain-ollama", specifier = "==0.3.6" },
     { name = "langchain-openai", specifier = "==0.3.28" },
-    { name = "langfuse", specifier = "==3.2.1" },
+    { name = "langfuse", specifier = "==3.3.3" },
     { name = "langgraph", specifier = "==0.5.4" },
     { name = "langgraph-checkpoint-postgres", specifier = "==2.0.23" },
     { name = "pandas", specifier = "==2.2.3" },
