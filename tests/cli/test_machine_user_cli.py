@@ -40,8 +40,8 @@ class TestGenerateApiKey:
         """Test that generated API keys have the correct format."""
         full_token, prefix, token_hash = generate_api_key()
 
-        # Check format: zeno-key_<prefix>_<secret>
-        parts = full_token.split("_")
+        # Check format: zeno-key:prefix:secret
+        parts = full_token.split(":")
         assert len(parts) == 3
         assert parts[0] == "zeno-key"
         assert parts[1] == prefix
@@ -81,7 +81,6 @@ class TestMachineUserFunctions:
             assert user.email == test_user_data["email"]
             assert user.machine_description == test_user_data["description"]
             assert user.user_type == UserType.MACHINE.value
-            assert user.is_machine_user is True
             assert user.id.startswith("machine_")
 
     @pytest.mark.asyncio
@@ -129,7 +128,7 @@ class TestMachineUserFunctions:
             assert len(api_key.key_prefix) == 8
 
             # Verify token format
-            parts = full_token.split("_")
+            parts = full_token.split(":")
             assert len(parts) == 3
             assert parts[0] == "zeno-key"
             assert parts[1] == api_key.key_prefix
@@ -172,7 +171,6 @@ class TestMachineUserFunctions:
                 name="Regular User",
                 email="regular@example.com",
                 user_type=UserType.REGULAR.value,
-                is_machine_user=False,
                 created_at=datetime.now(),
                 updated_at=datetime.now(),
             )
@@ -206,7 +204,6 @@ class TestMachineUserFunctions:
                 name="Regular User",
                 email="regular@example.com",
                 user_type=UserType.REGULAR.value,
-                is_machine_user=False,
                 created_at=datetime.now(),
                 updated_at=datetime.now(),
             )
@@ -377,7 +374,7 @@ class TestCLICommands:
         mock_key.key_prefix = "abc12345"
         mock_key.created_at = datetime.now()
         mock_create_key.return_value = (
-            "zeno-key_abc12345_secret123",
+            "zeno-key:abc12345:secret123",
             mock_key,
         )
 
@@ -398,7 +395,7 @@ class TestCLICommands:
         assert "✅ Created machine user:" in result.output
         assert "🔑 Creating initial API key..." in result.output
         assert "✅ Created API key:" in result.output
-        assert "zeno-key_abc12345_secret123" in result.output
+        assert "zeno-key:abc12345:secret123" in result.output
         mock_create_user.assert_called_once()
         mock_create_key.assert_called_once()
 

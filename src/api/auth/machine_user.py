@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.api.data_models import MachineUserKeyOrm, UserOrm
+from src.api.data_models import MachineUserKeyOrm, UserOrm, UserType
 from src.api.schemas import UserModel
 
 logger = structlog.get_logger()
@@ -19,8 +19,8 @@ async def validate_machine_user_token(
     token: str, session: AsyncSession
 ) -> UserModel:
     """Validate machine user API key and return associated user."""
-    # Parse token format: zeno-key_<prefix>_<secret>
-    parts = token.split("_")
+    # Parse token format: zeno-key:prefix:secret
+    parts = token.split(":")
     if len(parts) != 3 or parts[0] != MACHINE_USER_PREFIX:
         raise HTTPException(
             status_code=401, detail="Invalid machine user token format"
@@ -37,7 +37,7 @@ async def validate_machine_user_token(
         .where(
             MachineUserKeyOrm.key_prefix == key_prefix,
             MachineUserKeyOrm.is_active == True,  # noqa: E712
-            UserOrm.is_machine_user == True,  # noqa: E712
+            UserOrm.user_type == UserType.MACHINE.value,
         )
     )
 

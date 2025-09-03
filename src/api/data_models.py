@@ -58,7 +58,6 @@ class UserOrm(Base):
     areas_of_interest = Column(String, nullable=True)
 
     # Machine user fields
-    is_machine_user = Column(Boolean, default=False)
     machine_description = Column(String, nullable=True)
 
     threads = relationship("ThreadOrm", back_populates="user")

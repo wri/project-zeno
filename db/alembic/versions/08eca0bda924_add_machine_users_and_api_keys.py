@@ -1,7 +1,7 @@
 """add_machine_users_and_api_keys
 
 Revision ID: 08eca0bda924
-Revises: 831ad1e71a80
+Revises: 95d9d8ca3bf1
 Create Date: 2025-09-01 09:06:34.832320
 
 """
@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "08eca0bda924"
-down_revision: Union[str, None] = "831ad1e71a80"
+down_revision: Union[str, None] = "95d9d8ca3bf1"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -22,9 +22,6 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
     # Add machine user fields to users table
-    op.add_column(
-        "users", sa.Column("is_machine_user", sa.Boolean(), default=False)
-    )
     op.add_column(
         "users", sa.Column("machine_description", sa.String(), nullable=True)
     )
@@ -76,7 +73,6 @@ def downgrade() -> None:
 
     # Remove machine user fields from users table
     op.drop_column("users", "machine_description")
-    op.drop_column("users", "is_machine_user")
 
     # Note: Cannot easily remove enum value from PostgreSQL enum type
     # The 'machine' value will remain but be unused
