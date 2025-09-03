@@ -117,8 +117,10 @@ def get_data_csv(raw_data: Dict) -> str:
     Only keep first 3 significant digits for numeric values.
     """
     df = pd.DataFrame(raw_data)
-    constants = df.nunique() == 1
-    df = df.drop(columns=df.columns[constants])
+    # Only drop constant columns if we have multiple rows
+    if len(df) > 1:
+        constants = df.nunique() == 1
+        df = df.drop(columns=df.columns[constants])
     return df.to_csv(index=False, float_format="%.3g")
 
 
