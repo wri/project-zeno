@@ -30,6 +30,7 @@ class BaseTestRunner(ABC):
     def _create_empty_evaluation_result(
         self,
         thread_id: str,
+        trace_url: str,
         query: str,
         expected_data: ExpectedData,
         error: str,
@@ -41,6 +42,7 @@ class BaseTestRunner(ABC):
         return TestResult(
             thread_id=thread_id,
             trace_id=None,
+            trace_url=trace_url,
             query=query,
             overall_score=0.0,
             execution_time=datetime.now().isoformat(),

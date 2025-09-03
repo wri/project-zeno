@@ -23,7 +23,7 @@ from src.utils.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     WDPA_TABLE,
 )
-from src.utils.llms import SONNET
+from src.utils.llms import MODEL
 from src.utils.logging_config import get_logger
 
 RESULT_LIMIT = 10
@@ -345,7 +345,7 @@ async def select_best_aoi(question, candidate_aois):
     )
 
     # Chain for selecting the best location match
-    AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | SONNET.with_structured_output(
+    AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | MODEL.with_structured_output(
         AOIIndex
     )
 
@@ -394,7 +394,7 @@ async def translate_to_english(question, place_name):
     )
 
     translate_to_english_chain = (
-        TRANSLATE_TO_ENGLISH_PROMPT | SONNET.with_structured_output(Place)
+        TRANSLATE_TO_ENGLISH_PROMPT | MODEL.with_structured_output(Place)
     )
 
     english_place_name = await translate_to_english_chain.ainvoke(
@@ -612,7 +612,7 @@ async def pick_aoi(
 
 if __name__ == "__main__":
     agent = create_react_agent(
-        SONNET,
+        MODEL,
         tools=[pick_aoi],
         prompt="""You are a Geo Agent that can ONLY HELP PICK an AOI using the `pick-aoi` tool.
         Pick the best AOI based on the user query. You DONT need to answer the user query, just pick the best AOI.""",

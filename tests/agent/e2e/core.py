@@ -3,6 +3,7 @@ Core orchestration for E2E testing framework.
 """
 
 import asyncio
+import time
 from typing import List
 
 import pytest
@@ -14,14 +15,44 @@ from .runners import APITestRunner, LocalTestRunner
 from .types import ExpectedData, TestResult
 
 
+async def run_single_test(
+    runner, test_case, test_index, total_tests
+) -> TestResult:
+    """Run a single test case."""
+    start_time = time.time()
+    print(
+        f"[STARTED] Test {test_index+1}/{total_tests}: {test_case.query[:60]}..."
+    )
+
+    # Convert test case to ExpectedData (remove query field)
+    expected_data = ExpectedData(
+        **{k: v for k, v in test_case.__dict__.items() if k != "query"}
+    )
+    result = await runner.run_test(test_case.query, expected_data)
+
+    # Print completion with timing
+    duration = time.time() - start_time
+    score = result.overall_score
+    print(
+        f"[COMPLETED] Test {test_index+1}/{total_tests}: Score {score:.2f} ({duration:.1f}s)"
+    )
+    print(
+        f"  AOI: {result.aoi_score} | Dataset: {result.dataset_score} | Data: {result.pull_data_score} | Answer: {result.answer_score}"
+    )
+
+    return result
+
+
 async def run_csv_tests(config) -> List[TestResult]:
-    """Run E2E tests using CSV data files."""
+    """Run E2E tests using CSV data files with parallel execution."""
     print(f"Loading test data from: {config.test_file}")
 
     # Load test data
     loader = CSVLoader()
     test_cases = loader.load_test_data(config.test_file, config.sample_size)
-    print(f"Running {len(test_cases)} tests in {config.test_mode} mode...")
+    print(
+        f"Running {len(test_cases)} tests in {config.test_mode} mode with {config.num_workers} workers..."
+    )
 
     # Setup test runner
     if config.test_mode == "local":
@@ -35,24 +66,38 @@ async def run_csv_tests(config) -> List[TestResult]:
         runner = APITestRunner(client)
         print(f"Using API endpoint: {config.api_base_url}")
 
-    # Run tests
-    results = []
-    for i, test_case in enumerate(test_cases):
-        print(f"\nTest {i+1}/{len(test_cases)}: {test_case.query[:60]}...")
+    # Run tests in parallel
+    start_time = time.time()
 
-        # Convert test case to ExpectedData (remove query field)
-        expected_data = ExpectedData(
-            **{k: v for k, v in test_case.__dict__.items() if k != "query"}
-        )
-        result = await runner.run_test(test_case.query, expected_data)
-        results.append(result)
+    if config.num_workers == 1:
+        # Sequential execution for single worker
+        results = []
+        for i, test_case in enumerate(test_cases):
+            result = await run_single_test(
+                runner, test_case, i, len(test_cases)
+            )
+            results.append(result)
+    else:
+        # Parallel execution with semaphore
+        semaphore = asyncio.Semaphore(config.num_workers)
 
-        # Print quick result
-        score = result.overall_score
-        print(f"Overall Score: {score:.2f}")
-        print(
-            f"AOI: {result.aoi_score} | Dataset: {result.dataset_score} | Data: {result.pull_data_score} | Answer: {result.answer_score}"
-        )
+        async def run_test_with_semaphore(test_case, test_index):
+            async with semaphore:
+                return await run_single_test(
+                    runner, test_case, test_index, len(test_cases)
+                )
+
+        # Create tasks for all tests
+        tasks = [
+            run_test_with_semaphore(test_case, i)
+            for i, test_case in enumerate(test_cases)
+        ]
+
+        # Execute all tasks concurrently
+        results = await asyncio.gather(*tasks)
+
+    total_duration = time.time() - start_time
+    print(f"\nAll tests completed in {total_duration:.1f} seconds")
 
     # Save results
     exporter = ResultExporter()

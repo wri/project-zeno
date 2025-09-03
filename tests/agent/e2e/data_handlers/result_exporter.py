@@ -51,6 +51,7 @@ class ResultExporter:
             "answer_score",
             "execution_time",
             "error",
+            "trace_url",
         ]
 
         summary_filename = f"{base_filename}_summary.csv"
@@ -66,6 +67,8 @@ class ResultExporter:
             # Basic info
             "query",
             "thread_id",
+            "trace_id",
+            "trace_url",
             "overall_score",
             "execution_time",
             "test_mode",

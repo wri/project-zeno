@@ -25,6 +25,9 @@ class TestConfig:
     )
     test_file: str = "experiments/e2e_test_dataset.csv"
 
+    # Parallel execution configuration
+    num_workers: int = 1  # Number of parallel workers for test execution
+
     @classmethod
     def from_environment(cls) -> "TestConfig":
         """Create configuration from environment variables."""
@@ -37,6 +40,7 @@ class TestConfig:
             test_file=os.getenv(
                 "TEST_FILE", "experiments/e2e_test_dataset.csv"
             ),
+            num_workers=int(os.getenv("NUM_WORKERS", "1")),
         )
 
     def validate(self) -> None:
@@ -54,6 +58,11 @@ class TestConfig:
         if self.sample_size < -1:
             raise ValueError(
                 f"SAMPLE_SIZE must be >= -1, got {self.sample_size}"
+            )
+
+        if self.num_workers < 1:
+            raise ValueError(
+                f"NUM_WORKERS must be >= 1, got {self.num_workers}"
             )
 
     def is_langfuse_mode(self) -> bool:

@@ -9,7 +9,7 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from src.utils.llms import SONNET
+from src.utils.llms import MODEL
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -100,7 +100,7 @@ Area of interest: {aoi_name}
 
 Generate:
 1. One chart insight with appropriate chart type, Recharts-compatible data, and clear axis fields
-2. 2-3 specific follow-up suggestions for further exploration
+2. 1 or 2 simple follow ups to the user query based on the actual data available
 
 IMPORTANT: Generate all insights, titles, and follow-up suggestions in the same language used in the user query.
 
@@ -186,7 +186,7 @@ async def generate_insights(
     prompt_instructions = state.get("dataset").get("prompt_instructions", "")
 
     try:
-        chain = INSIGHT_GENERATION_PROMPT | SONNET.with_structured_output(
+        chain = INSIGHT_GENERATION_PROMPT | MODEL.with_structured_output(
             InsightResponse
         )
         response = await chain.ainvoke(

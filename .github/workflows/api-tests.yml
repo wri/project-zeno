@@ -49,6 +49,7 @@ jobs:
           DOMAINS_ALLOWLIST: developmentseed.org,wri.org
           OPENAI_API_KEY: fake-key-for-testing
           ANTHROPIC_API_KEY: fake-key-for-testing
+          GOOGLE_API_KEY: fake-key-for-testing
           LANGFUSE_SECRET_KEY: fake-secret-key
           LANGFUSE_PUBLIC_KEY: fake-public-key
           LANGFUSE_HOST: http://localhost:3000
