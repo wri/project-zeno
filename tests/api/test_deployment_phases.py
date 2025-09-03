@@ -11,7 +11,9 @@ class TestDeploymentPhases:
     """Test different deployment phase configurations."""
 
     @pytest.mark.asyncio
-    async def test_phase_1_whitelisted_only(self, anonymous_client, client, auth_override):
+    async def test_phase_1_whitelisted_only(
+        self, anonymous_client, client, auth_override
+    ):
         """Test Phase 1: Whitelisted users only configuration."""
         # Set Phase 1 configuration
         original_public_signups = APISettings.allow_public_signups
@@ -29,9 +31,14 @@ class TestDeploymentPhases:
             }
 
             # Anonymous users should be blocked
-            response = await anonymous_client.post("/api/chat", json=chat_request)
+            response = await anonymous_client.post(
+                "/api/chat", json=chat_request
+            )
             assert response.status_code == 401
-            assert "Anonymous chat access is disabled" in response.json()["detail"]
+            assert (
+                "Anonymous chat access is disabled"
+                in response.json()["detail"]
+            )
 
             # Authenticated users should work
             auth_override("test-user-wri")
@@ -46,7 +53,9 @@ class TestDeploymentPhases:
             APISettings.max_user_signups = original_max_signups
 
     @pytest.mark.asyncio
-    async def test_phase_2_public_with_limits(self, anonymous_client, client, auth_override):
+    async def test_phase_2_public_with_limits(
+        self, anonymous_client, client, auth_override
+    ):
         """Test Phase 2: Public signups with limits configuration."""
         # Set Phase 2 configuration
         original_public_signups = APISettings.allow_public_signups
@@ -64,9 +73,14 @@ class TestDeploymentPhases:
             }
 
             # Anonymous users should still be blocked
-            response = await anonymous_client.post("/api/chat", json=chat_request)
+            response = await anonymous_client.post(
+                "/api/chat", json=chat_request
+            )
             assert response.status_code == 401
-            assert "Anonymous chat access is disabled" in response.json()["detail"]
+            assert (
+                "Anonymous chat access is disabled"
+                in response.json()["detail"]
+            )
 
             # Authenticated users should work
             auth_override("test-user-wri")
@@ -81,7 +95,9 @@ class TestDeploymentPhases:
             APISettings.max_user_signups = original_max_signups
 
     @pytest.mark.asyncio
-    async def test_phase_3_fully_public_with_login(self, anonymous_client, client, auth_override):
+    async def test_phase_3_fully_public_with_login(
+        self, anonymous_client, client, auth_override
+    ):
         """Test Phase 3: Fully public with required login configuration."""
         # Set Phase 3 configuration
         original_public_signups = APISettings.allow_public_signups
@@ -99,9 +115,14 @@ class TestDeploymentPhases:
             }
 
             # Anonymous users should still be blocked
-            response = await anonymous_client.post("/api/chat", json=chat_request)
+            response = await anonymous_client.post(
+                "/api/chat", json=chat_request
+            )
             assert response.status_code == 401
-            assert "Anonymous chat access is disabled" in response.json()["detail"]
+            assert (
+                "Anonymous chat access is disabled"
+                in response.json()["detail"]
+            )
 
             # Authenticated users should work
             auth_override("test-user-wri")
@@ -116,7 +137,9 @@ class TestDeploymentPhases:
             APISettings.max_user_signups = original_max_signups
 
     @pytest.mark.asyncio
-    async def test_phase_4_anonymous_allowed(self, anonymous_client, client, auth_override):
+    async def test_phase_4_anonymous_allowed(
+        self, anonymous_client, client, auth_override
+    ):
         """Test Phase 4: Anonymous access allowed configuration."""
         # Set Phase 4 configuration
         original_public_signups = APISettings.allow_public_signups
@@ -137,7 +160,9 @@ class TestDeploymentPhases:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
 
                 # Anonymous users should now work
-                response = await anonymous_client.post("/api/chat", json=chat_request)
+                response = await anonymous_client.post(
+                    "/api/chat", json=chat_request
+                )
                 assert response.status_code == 200
 
                 # Authenticated users should still work
