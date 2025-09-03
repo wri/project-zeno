@@ -17,22 +17,31 @@ class TestAnonymousUserAccess:
         self, anonymous_client
     ):
         """Test that anonymous users can access the /api/chat endpoint."""
-        chat_request = {
-            "query": "Hello, world!",
-            "thread_id": "test-thread-123",
-        }
+        # Enable anonymous chat for this test
+        original_setting = APISettings.allow_anonymous_chat
+        APISettings.allow_anonymous_chat = True
 
-        # Mock the stream_chat function to avoid actual LLM calls
-        with patch("src.api.app.stream_chat") as mock_stream:
-            mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
+        try:
+            chat_request = {
+                "query": "Hello, world!",
+                "thread_id": "test-thread-123",
+            }
 
-            response = await anonymous_client.post(
-                "/api/chat", json=chat_request
-            )
+            # Mock the stream_chat function to avoid actual LLM calls
+            with patch("src.api.app.stream_chat") as mock_stream:
+                mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
 
-            # Should succeed for anonymous users
-            assert response.status_code == 200
-            assert response.headers["content-type"] == "application/x-ndjson"
+                response = await anonymous_client.post(
+                    "/api/chat", json=chat_request
+                )
+
+                # Should succeed for anonymous users
+                assert response.status_code == 200
+                assert (
+                    response.headers["content-type"] == "application/x-ndjson"
+                )
+        finally:
+            APISettings.allow_anonymous_chat = original_setting
 
     @pytest.mark.asyncio
     async def test_anonymous_user_cannot_access_protected_endpoints(
@@ -62,9 +71,13 @@ class TestAnonymousUserAccess:
     @pytest.mark.asyncio
     async def test_quota_disabled_allows_chat_access(self, anonymous_client):
         """Test that disabling quotas allows unlimited chat access."""
-        # Disable quota checking
-        original_setting = APISettings.enable_quota_checking
+        # Store original settings
+        original_quota_setting = APISettings.enable_quota_checking
+        original_anonymous_setting = APISettings.allow_anonymous_chat
+
+        # Disable quota checking and enable anonymous chat
         APISettings.enable_quota_checking = False
+        APISettings.allow_anonymous_chat = True
 
         try:
             chat_request = {
@@ -81,7 +94,8 @@ class TestAnonymousUserAccess:
 
                 assert response.status_code == 200
         finally:
-            APISettings.enable_quota_checking = original_setting
+            APISettings.enable_quota_checking = original_quota_setting
+            APISettings.allow_anonymous_chat = original_anonymous_setting
 
     @pytest.mark.asyncio
     async def test_anonymous_thread_continuity_via_thread_id(
@@ -90,30 +104,37 @@ class TestAnonymousUserAccess:
         """Test that anonymous users can maintain conversation continuity
         via thread_id.
         """
-        thread_id = "continuous-thread-456"
+        # Enable anonymous chat for this test
+        original_setting = APISettings.allow_anonymous_chat
+        APISettings.allow_anonymous_chat = True
 
-        with patch("src.api.app.stream_chat") as mock_stream:
-            mock_stream.return_value = iter([b'{"response": "OK"}\\n'])
+        try:
+            thread_id = "continuous-thread-456"
 
-            # First message
-            response1 = await anonymous_client.post(
-                "/api/chat",
-                json={"query": "First message", "thread_id": thread_id},
-            )
-            assert response1.status_code == 200
+            with patch("src.api.app.stream_chat") as mock_stream:
+                mock_stream.return_value = iter([b'{"response": "OK"}\\n'])
 
-            # Second message with same thread_id
-            response2 = await anonymous_client.post(
-                "/api/chat",
-                json={"query": "Second message", "thread_id": thread_id},
-            )
-            assert response2.status_code == 200
+                # First message
+                response1 = await anonymous_client.post(
+                    "/api/chat",
+                    json={"query": "First message", "thread_id": thread_id},
+                )
+                assert response1.status_code == 200
 
-            # Verify stream_chat was called with correct thread_id both times
-            calls = mock_stream.call_args_list
-            assert len(calls) == 2
-            assert calls[0][1]["thread_id"] == thread_id
-            assert calls[1][1]["thread_id"] == thread_id
+                # Second message with same thread_id
+                response2 = await anonymous_client.post(
+                    "/api/chat",
+                    json={"query": "Second message", "thread_id": thread_id},
+                )
+                assert response2.status_code == 200
+
+                # Verify stream_chat was called with correct thread_id both times
+                calls = mock_stream.call_args_list
+                assert len(calls) == 2
+                assert calls[0][1]["thread_id"] == thread_id
+                assert calls[1][1]["thread_id"] == thread_id
+        finally:
+            APISettings.allow_anonymous_chat = original_setting
 
     @pytest.mark.asyncio
     async def test_anonymous_chat_disabled_blocks_anonymous_users(
