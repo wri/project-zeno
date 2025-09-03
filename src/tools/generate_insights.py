@@ -92,6 +92,7 @@ Data format requirements:
 - For stacked-bar: [{{"category": "2020", "metric1": 100, "metric2": 50}}] + set series_fields
 - For grouped-bar: [{{"year": "2020", "type": "metric1", "value": 100}}] + set group_field
 - If dates are present, order those in chronological order (not alphabetically)
+- By default report the data as-is. Only do aggregation if asked for by the user. For example, if the user asks to compare kba's in two regions, report the data at the kba level, not the region level.
 
 User query: {user_query}
 
