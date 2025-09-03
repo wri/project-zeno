@@ -103,8 +103,23 @@ async def get_async_session(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize SQLAlchemy engine
     app.state.engine = await get_async_engine(db_url=APISettings.database_url)
+
+    # Initialize checkpointer connection pool
+    from src.agents.agents import get_checkpointer_pool
+
+    await get_checkpointer_pool()
+
     yield
+
+    # Cleanup on shutdown
+    await app.state.engine.dispose()
+
+    # Close checkpointer pool
+    from src.agents.agents import close_checkpointer_pool
+
+    await close_checkpointer_pool()
 
 
 app = FastAPI(
