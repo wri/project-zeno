@@ -554,8 +554,8 @@ datasets:
 - dataset_id: 4
   dataset_name: Tree cover loss
   context_layers:
-    - value: "driver"
-      description: "Shows the primary driver of tree cover loss, including commodity-driven deforestation, shifting agriculture, forestry, wildfire, and other drivers"
+    # - value: "driver"
+    #   description: "Shows the primary driver of tree cover loss, including commodity-driven deforestation, shifting agriculture, forestry, wildfire, and other drivers"
     - value: "primary_forest"
       description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
     - value: "ifl"
@@ -576,15 +576,8 @@ datasets:
     Reports gross annual loss of tree cover ≥ 5 m height (2001-2024).
     Show yearly loss with bar charts or cumulative loss with stacked-area charts; plot area_ha
     and drop zeros.
-    Group loss by driver to understand the most likely loss driver (commodity, forestry, wildfire,
-    shifting agriculture, etc.)
-    Contrast drivers with stacked-bar charts or plot driver trends over time with lines,
-    omitting 0/nulls.
-    Driver classes are coarse (assigning most likely cause within each 1km cell) and mutually
-    exclusive—interpret them as indicative rather than precise attribution, and avoid mixing resolutions.
-    Prompt the user to specify which driver categories to aggregate if their question is broad.
-    Avoid the term "deforestation" in favour of "tree cover loss".
-    "Tree cover" includes plantations as well as natural forest meaning loss is not automatically
+    DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover"
+    includes plantations as well as natural forest meaning loss is not automatically
     deforestation or carbon loss.
     The product measures canopy loss only; it doesn't track regrowth or permanence. Use 30% threshold.
   description: >
