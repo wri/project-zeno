@@ -47,13 +47,13 @@ class LoadTestConfig:
                 "ZENO_MACHINE_USER_TOKEN environment variable must be set"
             )
 
-        if not cls.MACHINE_USER_TOKEN.startswith("zeno-key_"):
-            raise ValueError("Machine user token must start with 'zeno-key_'")
+        if not cls.MACHINE_USER_TOKEN.startswith("zeno-key:"):
+            raise ValueError("Machine user token must start with 'zeno-key:'")
 
-        parts = cls.MACHINE_USER_TOKEN.split("_")
+        parts = cls.MACHINE_USER_TOKEN.split(":")
         if len(parts) != 3:
             raise ValueError(
-                "Machine user token format invalid (should be zeno-key_<prefix>_<secret>)"
+                "Machine user token format invalid (should be zeno-key:<prefix>:<secret>)"
             )
 
 
