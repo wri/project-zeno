@@ -62,6 +62,7 @@ dev = [
     "geopandas==1.0.1",
     "lancedb==0.24.1",
     "pytest-asyncio==1.1.0",
+    "locust==2.32.5",
 ]
 frontend = [
     "streamlit==1.47.0",

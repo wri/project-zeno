@@ -516,7 +516,7 @@ async def fetch_user_from_rw_api(
     token = authorization.credentials
 
     # Handle machine user tokens with zeno-key prefix
-    if token and token.startswith(f"{MACHINE_USER_PREFIX}_"):
+    if token and token.startswith(f"{MACHINE_USER_PREFIX}:"):
         return await validate_machine_user_token(token, session)
 
     # Handle anonymous users with noauth prefix
