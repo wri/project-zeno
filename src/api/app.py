@@ -446,6 +446,64 @@ async def stream_chat(
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
+async def is_user_whitelisted(user_email: str, session: AsyncSession) -> bool:
+    """
+    Check if user is whitelisted via email or domain.
+    Returns True if user is in email whitelist or domain whitelist.
+    """
+    user_email_lower = user_email.lower()
+    user_domain = user_email_lower.split("@")[-1]
+
+    # Check email whitelist first
+    stmt = select(WhitelistedUserOrm).filter_by(email=user_email_lower)
+    result = await session.execute(stmt)
+    if result.scalars().first():
+        return True
+
+    # Check domain whitelist
+    domains_allowlist = APISettings.domains_allowlist
+    normalized_domains = [domain.lower() for domain in domains_allowlist]
+    return user_domain in normalized_domains
+
+
+async def is_public_signup_open(session: AsyncSession) -> bool:
+    """
+    Check if public signups are currently open.
+    Returns True if public signups are enabled and under user limit.
+    """
+    # Check if public signups are disabled
+    if not APISettings.allow_public_signups:
+        return False
+
+    # Check signup limits
+    max_signups = APISettings.max_user_signups
+    if max_signups < 0:  # Unlimited
+        return True
+
+    # Count existing users
+    stmt = select(func.count(UserOrm.id))
+    result = await session.execute(stmt)
+    current_user_count = result.scalar()
+
+    return current_user_count < max_signups
+
+
+async def check_signup_limit_allows_new_user(
+    user_email: str, session: AsyncSession
+) -> bool:
+    """
+    Check if signup limits allow a new user to be created.
+    Only applies to non-whitelisted users when public signups are enabled.
+    Returns True if user can sign up, False if blocked by limits.
+    """
+    # Whitelisted users always bypass limits
+    if await is_user_whitelisted(user_email, session):
+        return True
+
+    # For non-whitelisted users, check if public signups are open
+    return await is_public_signup_open(session)
+
+
 async def fetch_user_from_rw_api(
     request: Request,
     authorization: Optional[str] = Depends(security),
@@ -522,25 +580,19 @@ async def fetch_user_from_rw_api(
     # cache user info
     _user_info_cache[token] = UserModel.model_validate(user_info)
 
-    user_email = user_info["email"].lower()
-    user_domain = user_email.split("@")[-1]
+    user_email = user_info["email"]
 
-    # Check email whitelist first
-    stmt = select(WhitelistedUserOrm).filter_by(email=user_email)
-    result = await session.execute(stmt)
-    whitelisted_user = result.scalars().first()
+    # Check 3-tier access model:
+    # Tier 1: Email whitelist (always allowed)
+    # Tier 2: Domain whitelist (always allowed)
+    # Tier 3: Public users (allowed only if ALLOW_PUBLIC_SIGNUPS=true)
 
-    if whitelisted_user:
-        # User is on email whitelist, allow access
+    if await is_user_whitelisted(user_email, session):
+        # User is whitelisted (email or domain), allow access
         return UserModel.model_validate(user_info)
 
-    # Check domain whitelist as fallback
-    domains_allowlist = APISettings.domains_allowlist
-
-    # Normalize domains for comparison (lowercase)
-    normalized_domains = [domain.lower() for domain in domains_allowlist]
-
-    if user_domain not in normalized_domains:
+    if not APISettings.allow_public_signups:
+        # Public signups disabled, only whitelisted users allowed
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not allowed to access this API",
@@ -566,6 +618,14 @@ async def require_auth(
     result = await session.execute(stmt)
     user = result.scalars().first()
     if not user:
+        # Check signup limits for new users
+        if not await check_signup_limit_allows_new_user(
+            user_info.email, session
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User signups are currently closed",
+            )
         user = UserOrm(**user_info.model_dump())
         session.add(user)
         await session.commit()
@@ -608,6 +668,14 @@ async def optional_auth(
     result = await session.execute(stmt)
     user = result.scalars().first()
     if not user:
+        # Check signup limits for new users
+        if not await check_signup_limit_allows_new_user(
+            user_info.email, session
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User signups are currently closed",
+            )
         user = UserOrm(**user_info.model_dump())
         session.add(user)
         await session.commit()
@@ -1742,7 +1810,9 @@ async def get_profile_config():
 
 
 @app.get("/api/metadata")
-async def api_metadata() -> dict:
+async def api_metadata(
+    session: AsyncSession = Depends(get_async_session),
+) -> dict:
     """
     Returns API metadata that's helpful for instantiating the frontend.
 
@@ -1767,7 +1837,15 @@ async def api_metadata() -> dict:
     For example, if the user selects a GADM level 2 geometry,
     the ID will look something like `IND.26.2_1` and should be available in
     the gid_2 field on the vector tile layer.
+
+    For `is_signup_open`, this indicates whether new public user signups are
+    currently allowed. This is based on the ALLOW_PUBLIC_SIGNUPS setting and
+    whether the current user count is below the MAX_USER_SIGNUPS limit.
+    Whitelisted users (email and domain) can always sign up regardless of this status.
     """
+    # Check if public signups are open
+    is_signup_open = await is_public_signup_open(session)
+
     return {
         "version": "0.1.0",
         "layer_id_mapping": {
@@ -1775,6 +1853,7 @@ async def api_metadata() -> dict:
         },
         "subregion_to_subtype_mapping": SUBREGION_TO_SUBTYPE_MAPPING,
         "gadm_subtype_mapping": GADM_SUBTYPE_MAP,
+        "is_signup_open": is_signup_open,
     }
 
 
