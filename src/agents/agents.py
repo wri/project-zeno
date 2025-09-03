@@ -4,8 +4,8 @@ from datetime import datetime
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
-from psycopg import AsyncConnection
 from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
 
 from src.graph import AgentState
 from src.tools import (
@@ -89,12 +89,41 @@ DATABASE_URL = os.environ["DATABASE_URL"].replace(
     "postgresql+asyncpg://", "postgresql://"
 )
 
+# Global connection pool for checkpointer
+_checkpointer_pool: AsyncConnectionPool = None
+
+
+async def get_checkpointer_pool() -> AsyncConnectionPool:
+    """Get or create the global checkpointer connection pool."""
+    global _checkpointer_pool
+    if _checkpointer_pool is None:
+        _checkpointer_pool = AsyncConnectionPool(
+            DATABASE_URL,
+            min_size=5,
+            max_size=20,
+            kwargs={
+                "row_factory": dict_row,
+                "autocommit": True,
+                "prepare_threshold": 0,
+            },
+            open=False,  # Don't open automatically, we'll open it explicitly
+        )
+        await _checkpointer_pool.open()
+    return _checkpointer_pool
+
+
+async def close_checkpointer_pool():
+    """Close the global checkpointer connection pool."""
+    global _checkpointer_pool
+    if _checkpointer_pool:
+        await _checkpointer_pool.close()
+        _checkpointer_pool = None
+
 
 async def fetch_checkpointer() -> AsyncPostgresSaver:
-    connection = await AsyncConnection.connect(
-        DATABASE_URL, row_factory=dict_row, autocommit=True
-    )
-    checkpointer = AsyncPostgresSaver(conn=connection)
+    """Get an AsyncPostgresSaver using the connection pool."""
+    pool = await get_checkpointer_pool()
+    checkpointer = AsyncPostgresSaver(pool)
     return checkpointer
 
 
