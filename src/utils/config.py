@@ -24,6 +24,9 @@ class _APISettings(BaseSettings):
     allow_public_signups: bool = Field(
         default=False, alias="ALLOW_PUBLIC_SIGNUPS"
     )
+    allow_anonymous_chat: bool = Field(
+        default=False, alias="ALLOW_ANONYMOUS_CHAT"
+    )
 
     @property
     def domains_allowlist(self) -> list[str]:

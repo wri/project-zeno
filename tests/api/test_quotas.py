@@ -217,27 +217,36 @@ class TestQuotaFunctionality:
     @pytest.mark.asyncio
     async def test_anonymous_user_quota_tracking(self, anonymous_client):
         """Test that anonymous users get proper quota tracking."""
+        # Enable anonymous chat for this test
+        original_setting = APISettings.allow_anonymous_chat
+        APISettings.allow_anonymous_chat = True
 
-        response = await anonymous_client.get("/api/quota")
-        assert response.status_code == 200
-        assert "promptQuota" in response.json()
-        assert response.json()["promptsUsed"] == 0
-
-        with patch("src.api.app.stream_chat") as mock_stream:
-            mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
-
-            response = await anonymous_client.post(
-                "/api/chat",
-                json={"query": "Test message", "thread_id": "test-thread-123"},
-            )
-
+        try:
+            response = await anonymous_client.get("/api/quota")
             assert response.status_code == 200
-            assert "X-Prompts-Used" in response.headers
-            assert "X-Prompts-Quota" in response.headers
-            assert response.headers["X-Prompts-Used"] == "1"
-            assert response.headers["X-Prompts-Quota"] == str(
-                APISettings.anonymous_user_daily_quota
-            )
+            assert "promptQuota" in response.json()
+            assert response.json()["promptsUsed"] == 0
+
+            with patch("src.api.app.stream_chat") as mock_stream:
+                mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
+
+                response = await anonymous_client.post(
+                    "/api/chat",
+                    json={
+                        "query": "Test message",
+                        "thread_id": "test-thread-123",
+                    },
+                )
+
+                assert response.status_code == 200
+                assert "X-Prompts-Used" in response.headers
+                assert "X-Prompts-Quota" in response.headers
+                assert response.headers["X-Prompts-Used"] == "1"
+                assert response.headers["X-Prompts-Quota"] == str(
+                    APISettings.anonymous_user_daily_quota
+                )
+        finally:
+            APISettings.allow_anonymous_chat = original_setting
 
     @pytest.mark.asyncio
     async def test_quota_consistency_across_endpoints(self, client):
@@ -345,9 +354,13 @@ class TestQuotaFunctionality:
 
         from src.api.app import app
 
-        # Temporarily reduce IP quota to test more easily
+        # Store original settings
         original_ip_quota = APISettings.ip_address_daily_quota
+        original_anonymous_setting = APISettings.allow_anonymous_chat
+
+        # Set test configuration
         APISettings.ip_address_daily_quota = 3  # Set to low number for testing
+        APISettings.allow_anonymous_chat = True  # Enable anonymous chat
 
         try:
             # Use a unique IP address for this test to avoid conflicts
@@ -408,8 +421,9 @@ class TestQuotaFunctionality:
                         )
 
         finally:
-            # Restore original IP quota
+            # Restore original settings
             APISettings.ip_address_daily_quota = original_ip_quota
+            APISettings.allow_anonymous_chat = original_anonymous_setting
 
     @pytest.mark.asyncio
     async def test_different_ips_have_separate_quotas(self):
@@ -418,48 +432,57 @@ class TestQuotaFunctionality:
 
         from src.api.app import app
 
-        # Create clients with different IP addresses
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-            headers={
-                "X-API-KEY": "test-nextjs-api-key",
-                "X-ZENO-FORWARDED-FOR": "192.168.1.10",
-                "Authorization": "Bearer noauth:session-ip1",
-            },
-        ) as client1:
+        # Enable anonymous chat for this test
+        original_setting = APISettings.allow_anonymous_chat
+        APISettings.allow_anonymous_chat = True
+
+        try:
+            # Create clients with different IP addresses
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
                 headers={
                     "X-API-KEY": "test-nextjs-api-key",
-                    "X-ZENO-FORWARDED-FOR": "192.168.1.20",  # Different IP
-                    "Authorization": "Bearer noauth:session-ip2",
+                    "X-ZENO-FORWARDED-FOR": "192.168.1.10",
+                    "Authorization": "Bearer noauth:session-ip1",
                 },
-            ) as client2:
-                with patch("src.api.app.stream_chat") as mock_stream:
-                    mock_stream.return_value = iter([b'{"response": "OK"}\\n'])
-
-                    # Both clients should be able to make requests independently
-                    # up to their respective quota limits
-                    for i in range(5):  # Make a few requests from each IP
-                        response1 = await client1.post(
-                            "/api/chat",
-                            json={
-                                "query": f"IP1 Message {i}",
-                                "thread_id": f"thread1-{i}",
-                            },
+            ) as client1:
+                async with AsyncClient(
+                    transport=ASGITransport(app=app),
+                    base_url="http://test",
+                    headers={
+                        "X-API-KEY": "test-nextjs-api-key",
+                        "X-ZENO-FORWARDED-FOR": "192.168.1.20",  # Different IP
+                        "Authorization": "Bearer noauth:session-ip2",
+                    },
+                ) as client2:
+                    with patch("src.api.app.stream_chat") as mock_stream:
+                        mock_stream.return_value = iter(
+                            [b'{"response": "OK"}\\n']
                         )
-                        assert response1.status_code == 200
 
-                        response2 = await client2.post(
-                            "/api/chat",
-                            json={
-                                "query": f"IP2 Message {i}",
-                                "thread_id": f"thread2-{i}",
-                            },
-                        )
-                        assert response2.status_code == 200
+                        # Both clients should be able to make requests independently
+                        # up to their respective quota limits
+                        for i in range(5):  # Make a few requests from each IP
+                            response1 = await client1.post(
+                                "/api/chat",
+                                json={
+                                    "query": f"IP1 Message {i}",
+                                    "thread_id": f"thread1-{i}",
+                                },
+                            )
+                            assert response1.status_code == 200
+
+                            response2 = await client2.post(
+                                "/api/chat",
+                                json={
+                                    "query": f"IP2 Message {i}",
+                                    "thread_id": f"thread2-{i}",
+                                },
+                            )
+                            assert response2.status_code == 200
+        finally:
+            APISettings.allow_anonymous_chat = original_setting
 
 
 class TestAPIKeyValidation:
