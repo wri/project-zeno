@@ -171,3 +171,10 @@ class MachineUserKeyOrm(Base):
     is_active = Column(Boolean, default=True)
 
     user = relationship("UserOrm", back_populates="machine_user_keys")
+
+
+class WhitelistedUserOrm(Base):
+    __tablename__ = "whitelisted_users"
+
+    email = Column(String, primary_key=True, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)

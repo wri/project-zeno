@@ -125,6 +125,27 @@ class ZenoClient:
                 )
             return response.json()
 
+    def get_thread_state(self, thread_id: str):
+        """
+        Get the current agent state for a thread.
+
+        Args:
+            thread_id: The ID of the thread to get state for
+        Returns:
+            The thread state data as a dictionary
+        """
+        url = f"{self.base_url}/api/threads/{thread_id}/state"
+        headers = {}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+
+        with requests.get(url, headers=headers) as response:
+            if response.status_code != 200:
+                raise Exception(
+                    f"Request failed with status code {response.status_code}: {response.text}"
+                )
+            return response.json()
+
     def download_data(
         self, thread_id, checkpoint_id, mime_type: str = "text/csv"
     ):

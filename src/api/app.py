@@ -48,6 +48,7 @@ from src.api.data_models import (
     ThreadOrm,
     UserOrm,
     UserType,
+    WhitelistedUserOrm,
 )
 from src.api.schemas import (
     ChatRequest,
@@ -60,6 +61,7 @@ from src.api.schemas import (
     RatingCreateRequest,
     RatingModel,
     ThreadModel,
+    ThreadStateResponse,
     UserModel,
     UserProfileUpdateRequest,
     UserWithQuotaModel,
@@ -445,6 +447,64 @@ async def stream_chat(
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
+async def is_user_whitelisted(user_email: str, session: AsyncSession) -> bool:
+    """
+    Check if user is whitelisted via email or domain.
+    Returns True if user is in email whitelist or domain whitelist.
+    """
+    user_email_lower = user_email.lower()
+    user_domain = user_email_lower.split("@")[-1]
+
+    # Check email whitelist first
+    stmt = select(WhitelistedUserOrm).filter_by(email=user_email_lower)
+    result = await session.execute(stmt)
+    if result.scalars().first():
+        return True
+
+    # Check domain whitelist
+    domains_allowlist = APISettings.domains_allowlist
+    normalized_domains = [domain.lower() for domain in domains_allowlist]
+    return user_domain in normalized_domains
+
+
+async def is_public_signup_open(session: AsyncSession) -> bool:
+    """
+    Check if public signups are currently open.
+    Returns True if public signups are enabled and under user limit.
+    """
+    # Check if public signups are disabled
+    if not APISettings.allow_public_signups:
+        return False
+
+    # Check signup limits
+    max_signups = APISettings.max_user_signups
+    if max_signups < 0:  # Unlimited
+        return True
+
+    # Count existing users
+    stmt = select(func.count(UserOrm.id))
+    result = await session.execute(stmt)
+    current_user_count = result.scalar()
+
+    return current_user_count < max_signups
+
+
+async def check_signup_limit_allows_new_user(
+    user_email: str, session: AsyncSession
+) -> bool:
+    """
+    Check if signup limits allow a new user to be created.
+    Only applies to non-whitelisted users when public signups are enabled.
+    Returns True if user can sign up, False if blocked by limits.
+    """
+    # Whitelisted users always bypass limits
+    if await is_user_whitelisted(user_email, session):
+        return True
+
+    # For non-whitelisted users, check if public signups are open
+    return await is_public_signup_open(session)
+
+
 async def fetch_user_from_rw_api(
     request: Request,
     authorization: Optional[str] = Depends(security),
@@ -525,12 +585,19 @@ async def fetch_user_from_rw_api(
     # cache user info
     _user_info_cache[token] = UserModel.model_validate(user_info)
 
-    domains_allowlist = APISettings.domains_allowlist
+    user_email = user_info["email"]
 
-    if isinstance(domains_allowlist, str):
-        domains_allowlist = domains_allowlist.split(",")
+    # Check 3-tier access model:
+    # Tier 1: Email whitelist (always allowed)
+    # Tier 2: Domain whitelist (always allowed)
+    # Tier 3: Public users (allowed only if ALLOW_PUBLIC_SIGNUPS=true)
 
-    if user_info["email"].split("@")[-1].lower() not in domains_allowlist:
+    if await is_user_whitelisted(user_email, session):
+        # User is whitelisted (email or domain), allow access
+        return UserModel.model_validate(user_info)
+
+    if not APISettings.allow_public_signups:
+        # Public signups disabled, only whitelisted users allowed
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not allowed to access this API",
@@ -556,6 +623,14 @@ async def require_auth(
     result = await session.execute(stmt)
     user = result.scalars().first()
     if not user:
+        # Check signup limits for new users
+        if not await check_signup_limit_allows_new_user(
+            user_info.email, session
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User signups are currently closed",
+            )
         user = UserOrm(**user_info.model_dump())
         session.add(user)
         await session.commit()
@@ -598,6 +673,14 @@ async def optional_auth(
     result = await session.execute(stmt)
     user = result.scalars().first()
     if not user:
+        # Check signup limits for new users
+        if not await check_signup_limit_allows_new_user(
+            user_info.email, session
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User signups are currently closed",
+            )
         user = UserOrm(**user_info.model_dump())
         session.add(user)
         await session.commit()
@@ -1071,6 +1154,118 @@ async def update_thread(
     await session.commit()
     await session.refresh(thread)
     return ThreadModel.model_validate(thread)
+
+
+@app.get("/api/threads/{thread_id}/state", response_model=ThreadStateResponse)
+async def get_thread_state(
+    thread_id: str,
+    user: Optional[UserModel] = Depends(optional_auth),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get the current agent state for a thread.
+
+    **Access Control:**
+    - **Public threads** (is_public=True): Can be accessed by anyone, no authentication required
+    - **Private threads** (is_public=False): Require authentication and ownership
+
+    **Authentication:** Optional - provide Bearer token for private threads
+
+    **Response:** JSON object containing:
+    - `thread_id`: The thread identifier
+    - `state`: Current agent state (AOI, dataset, raw_data, etc.)
+    - `next_actions`: Available next actions (if any)
+    - `created_at`: State timestamp
+
+    **Error Codes:**
+    - 401: Private thread accessed without authentication
+    - 404: Thread not found or access denied
+    - 500: Error retrieving thread state
+    """
+
+    # First, try to get the thread to check if it exists and if it's public
+    stmt = select(ThreadOrm).filter_by(id=thread_id)
+    result = await session.execute(stmt)
+    thread = result.scalars().first()
+
+    if not thread:
+        logger.warning("Thread not found", thread_id=thread_id)
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    # If thread is public, allow access regardless of authentication
+    if thread.is_public:
+        logger.debug("Accessing public thread state", thread_id=thread_id)
+    else:
+        # For private threads, require authentication and ownership
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing Bearer token",
+            )
+
+        if thread.user_id != user.id:
+            logger.warning(
+                "Unauthorized access to private thread state",
+                thread_id=thread_id,
+                user_id=user.id,
+                owner_id=thread.user_id,
+            )
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        logger.debug(
+            "Accessing private thread state",
+            thread_id=thread_id,
+            user_id=user.id,
+        )
+
+    try:
+        # Get the agent and retrieve current state
+        zeno_async = await fetch_zeno()
+        config = {"configurable": {"thread_id": thread_id}}
+
+        # Get current state
+        state = await zeno_async.aget_state(config=config)
+
+        # Serialize state values, handling complex objects
+        serialized_state = {}
+        for key, value in state.values.items():
+            try:
+                # Try to serialize the value
+                json.dumps(value)
+                serialized_state[key] = value
+            except (TypeError, ValueError):
+                # If serialization fails, convert to string representation
+                serialized_state[key] = str(value)
+
+        # Determine next actions based on current state
+        next_actions = []
+        if "aoi" not in serialized_state or not serialized_state.get("aoi"):
+            next_actions.append("select_aoi")
+        elif "dataset" not in serialized_state or not serialized_state.get(
+            "dataset"
+        ):
+            next_actions.append("select_dataset")
+        elif "raw_data" not in serialized_state or not serialized_state.get(
+            "raw_data"
+        ):
+            next_actions.append("pull_data")
+        else:
+            next_actions.append("generate_insights")
+
+        return ThreadStateResponse(
+            thread_id=thread_id,
+            state=serialized_state,
+            next_actions=next_actions,
+            created_at=state.created_at
+            if hasattr(state, "created_at")
+            else None,
+        )
+
+    except Exception as e:
+        logger.exception("Error retrieving thread state", thread_id=thread_id)
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving thread state: {str(e)}"
+        )
 
 
 @app.post("/api/custom_area_name")
@@ -1621,7 +1816,9 @@ async def get_profile_config():
 
 
 @app.get("/api/metadata")
-async def api_metadata() -> dict:
+async def api_metadata(
+    session: AsyncSession = Depends(get_async_session),
+) -> dict:
     """
     Returns API metadata that's helpful for instantiating the frontend.
 
@@ -1646,7 +1843,15 @@ async def api_metadata() -> dict:
     For example, if the user selects a GADM level 2 geometry,
     the ID will look something like `IND.26.2_1` and should be available in
     the gid_2 field on the vector tile layer.
+
+    For `is_signup_open`, this indicates whether new public user signups are
+    currently allowed. This is based on the ALLOW_PUBLIC_SIGNUPS setting and
+    whether the current user count is below the MAX_USER_SIGNUPS limit.
+    Whitelisted users (email and domain) can always sign up regardless of this status.
     """
+    # Check if public signups are open
+    is_signup_open = await is_public_signup_open(session)
+
     return {
         "version": "0.1.0",
         "layer_id_mapping": {
@@ -1654,6 +1859,7 @@ async def api_metadata() -> dict:
         },
         "subregion_to_subtype_mapping": SUBREGION_TO_SUBTYPE_MAPPING,
         "gadm_subtype_mapping": GADM_SUBTYPE_MAP,
+        "is_signup_open": is_signup_open,
     }
 
 

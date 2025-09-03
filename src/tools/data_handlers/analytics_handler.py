@@ -264,6 +264,9 @@ class AnalyticsHandler(DataSourceHandler):
     async def _process_response_data(
         self,
         result: Dict,
+        subregion: str,
+        subregion_aois: List[Dict],
+        dataset: Dict,
     ) -> tuple[Any, int, str]:
         """Process the response data based on dataset type."""
 
@@ -304,6 +307,16 @@ class AnalyticsHandler(DataSourceHandler):
 
         message_detail = f"Found {data_points_count} data points"
 
+        # Enrich raw_data with names
+        if subregion:
+            subregion_aois_id_to_name = {
+                format_id(item["src_id"]): item["name"].split(",")[0]
+                for item in subregion_aois
+            }
+            raw_data["name"] = [
+                subregion_aois_id_to_name[idx] for idx in raw_data["aoi_id"]
+            ]
+
         return raw_data, data_points_count, message_detail
 
     async def pull_data(
@@ -319,6 +332,7 @@ class AnalyticsHandler(DataSourceHandler):
     ) -> DataPullResult:
         try:
             aoi_name = aoi["name"]
+            context_layer = dataset.get("context_layer")
 
             dataset = [
                 ds
@@ -330,6 +344,8 @@ class AnalyticsHandler(DataSourceHandler):
                     f"Dataset not found: {dataset.get('dataset_id')}"
                 )
             dataset = dataset[0]
+            if context_layer:
+                dataset["context_layer"] = context_layer
 
             # Get the appropriate endpoint URL
             endpoint_url = self.BASE_URL + dataset.get(
@@ -398,30 +414,28 @@ class AnalyticsHandler(DataSourceHandler):
                         message=error_msg,
                         data_points_count=0,
                     )
-
-            if "status" in result and result["status"] in ["success", "saved"]:
+                else:
+                    (
+                        raw_data,
+                        data_points_count,
+                        message_detail,
+                    ) = await self._process_response_data(
+                        result, subregion, subregion_aois, dataset
+                    )
+                    return DataPullResult(
+                        success=True,
+                        data=raw_data,
+                        message=f"Successfully pulled {dataset.get('dataset_name')} data from GFW Analytics for {aoi_name}. {message_detail}.",
+                        data_points_count=data_points_count,
+                    )
+            elif result["status"] in ["success", "saved"]:
                 (
                     raw_data,
                     data_points_count,
                     message_detail,
-                ) = await self._process_response_data(result)
-
-                # Enrich raw_data with names
-                if subregion:
-                    subregion_aois_id_to_name = {
-                        format_id(item["src_id"]): item["name"].split(",")[0]
-                        for item in subregion_aois
-                    }
-                    # For tree cover loss, the API returns "id" as the key for the AOI IDs, for other datasets it returns "aoi_id"
-                    api_result_id = (
-                        "id"
-                        if dataset.get("dataset_name") == "Tree cover loss"
-                        else "aoi_id"
-                    )
-                    raw_data["name"] = [
-                        subregion_aois_id_to_name[idx]
-                        for idx in raw_data[api_result_id]
-                    ]
+                ) = await self._process_response_data(
+                    result, subregion, subregion_aois, dataset
+                )
                 return DataPullResult(
                     success=True,
                     data=raw_data,
