@@ -7,7 +7,8 @@ Machine users are special user accounts designed for programmatic access to the 
 
 Usage:
     python src/cli.py create-machine-user --name "Load Testing Bot" --email "load@test.com" --description "For load testing"
-    python src/cli.py create-api-key --user-id "user_123" --key-name "test-key"
+    python src/cli.py create-machine-user --name "API Bot" --email "api@test.com" --create-key --key-name "prod-key"
+    python src/cli.py create-api-key --user-id "user_123" --key-name "test-key" --expires-days 90
     python src/cli.py list-machine-users
     python src/cli.py list-api-keys --user-id "user_123"
     python src/cli.py rotate-key --key-id "key_456"
