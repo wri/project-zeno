@@ -4,6 +4,7 @@ Project Zeno Machine User CLI
 
 A single-file CLI tool for managing machine users and API keys.
 Machine users are special user accounts designed for programmatic access to the API.
+API keys use the format: zeno-key:prefix:secret
 
 Usage:
     python src/cli.py create-machine-user --name "Load Testing Bot" --email "load@test.com" --description "For load testing"
@@ -59,12 +60,12 @@ def generate_api_key() -> tuple[str, str, str]:
         tuple: (full_token, prefix, hash_for_storage)
     """
     # Generate 8-character prefix and 32-character secret
-    # Use token_hex to avoid underscores in prefix
-    prefix = secrets.token_hex(4)[:8]  # 8 chars, no underscores
+    # Use token_hex to avoid colons in prefix
+    prefix = secrets.token_hex(4)[:8]  # 8 chars, no colons
     secret = secrets.token_hex(16)  # 32 chars
 
-    # Create full token: zeno-key_<prefix>_<secret>
-    full_token = f"{MACHINE_USER_PREFIX}_{prefix}_{secret}"
+    # Create full token: zeno-key:prefix:secret
+    full_token = f"{MACHINE_USER_PREFIX}:{prefix}:{secret}"
 
     # Hash the secret for storage
     secret_hash = bcrypt.hashpw(secret.encode(), bcrypt.gensalt()).decode()
@@ -94,7 +95,6 @@ async def create_machine_user(
         name=name,
         email=email,
         user_type=UserType.MACHINE.value,
-        is_machine_user=True,
         machine_description=description,
         created_at=datetime.now(),
         updated_at=datetime.now(),
@@ -120,7 +120,7 @@ async def create_api_key(
     user = user.scalar_one_or_none()
     if not user:
         raise ValueError(f"User {user_id} not found")
-    if not user.is_machine_user:
+    if user.user_type != UserType.MACHINE.value:
         raise ValueError(f"User {user_id} is not a machine user")
 
     # Generate API key
@@ -147,7 +147,7 @@ async def create_api_key(
 async def list_machine_users(session: AsyncSession) -> list[UserOrm]:
     """List all machine users"""
     result = await session.execute(
-        select(UserOrm).where(UserOrm.is_machine_user == True)  # noqa: E712
+        select(UserOrm).where(UserOrm.user_type == UserType.MACHINE.value)
     )
     return result.scalars().all()
 
@@ -177,7 +177,7 @@ async def rotate_api_key(
 
     # Generate new secret with same prefix
     secret = secrets.token_hex(16)
-    full_token = f"{MACHINE_USER_PREFIX}_{key.key_prefix}_{secret}"
+    full_token = f"{MACHINE_USER_PREFIX}:{key.key_prefix}:{secret}"
     secret_hash = bcrypt.hashpw(secret.encode(), bcrypt.gensalt()).decode()
 
     # Update key

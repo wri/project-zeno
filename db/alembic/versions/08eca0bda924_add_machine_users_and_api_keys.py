@@ -23,9 +23,6 @@ def upgrade() -> None:
     """Upgrade schema."""
     # Add machine user fields to users table
     op.add_column(
-        "users", sa.Column("is_machine_user", sa.Boolean(), default=False)
-    )
-    op.add_column(
         "users", sa.Column("machine_description", sa.String(), nullable=True)
     )
 
@@ -76,7 +73,6 @@ def downgrade() -> None:
 
     # Remove machine user fields from users table
     op.drop_column("users", "machine_description")
-    op.drop_column("users", "is_machine_user")
 
     # Note: Cannot easily remove enum value from PostgreSQL enum type
     # The 'machine' value will remain but be unused
