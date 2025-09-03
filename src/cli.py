@@ -27,6 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.api.auth.machine_user import MACHINE_USER_PREFIX
 from src.api.data_models import MachineUserKeyOrm, UserOrm, UserType
 from src.utils.config import APISettings
 
@@ -57,9 +58,6 @@ def generate_api_key() -> tuple[str, str, str]:
     Returns:
         tuple: (full_token, prefix, hash_for_storage)
     """
-    # Import here to avoid circular imports
-    from src.api.app import MACHINE_USER_PREFIX
-
     # Generate 8-character prefix and 32-character secret
     # Use token_hex to avoid underscores in prefix
     prefix = secrets.token_hex(4)[:8]  # 8 chars, no underscores
@@ -178,8 +176,6 @@ async def rotate_api_key(
         raise ValueError(f"API key {key_id} not found")
 
     # Generate new secret with same prefix
-    from src.api.app import MACHINE_USER_PREFIX
-
     secret = secrets.token_hex(16)
     full_token = f"{MACHINE_USER_PREFIX}_{key.key_prefix}_{secret}"
     secret_hash = bcrypt.hashpw(secret.encode(), bcrypt.gensalt()).decode()
