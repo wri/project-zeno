@@ -40,6 +40,7 @@ from src.agents.agents import (
     fetch_zeno,
     fetch_zeno_anonymous,
 )
+from src.api.auth import MACHINE_USER_PREFIX, validate_machine_user_token
 from src.api.data_models import (
     CustomAreaOrm,
     DailyUsageOrm,
@@ -447,11 +448,16 @@ _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 async def fetch_user_from_rw_api(
     request: Request,
     authorization: Optional[str] = Depends(security),
+    session: AsyncSession = Depends(get_async_session),
 ) -> UserModel:
     if not authorization:
         return None
 
     token = authorization.credentials
+
+    # Handle machine user tokens with zeno-key prefix
+    if token and token.startswith(f"{MACHINE_USER_PREFIX}_"):
+        return await validate_machine_user_token(token, session)
 
     # Handle anonymous users with noauth prefix
     if token and token.startswith(f"{ANONYMOUS_USER_PREFIX}:"):
@@ -661,11 +667,12 @@ async def get_user_identity_and_daily_quota(
         identity = f"{ANONYMOUS_USER_PREFIX}:{anonymous_id}"
 
     else:
-        daily_quota = (
-            APISettings.admin_user_daily_quota
-            if user.user_type == UserType.ADMIN
-            else APISettings.regular_user_daily_quota
-        )
+        if user.user_type == UserType.ADMIN:
+            daily_quota = APISettings.admin_user_daily_quota
+        elif user.user_type == UserType.MACHINE:
+            daily_quota = APISettings.machine_user_daily_quota
+        else:
+            daily_quota = APISettings.regular_user_daily_quota
         identity = f"user:{user.id}"
     return {"identity": identity, "prompt_quota": daily_quota}
 

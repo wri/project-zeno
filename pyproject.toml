@@ -47,6 +47,8 @@ dependencies = [
     "greenlet==3.2.3",
     "simsimd==6.5.0",
     "psycopg2==2.9.10",
+    "bcrypt==4.2.1",
+    "click==8.1.8",
 ]
 
 [dependency-groups]

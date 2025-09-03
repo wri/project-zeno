@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import uuid
 from datetime import date, datetime
 
 from sqlalchemy import (
@@ -24,6 +25,7 @@ Base = declarative_base()
 class UserType(str, enum.Enum):
     ADMIN = "admin"
     REGULAR = "regular"
+    MACHINE = "machine"
 
 
 class UserOrm(Base):
@@ -55,9 +57,16 @@ class UserOrm(Base):
     gis_expertise_level = Column(String, nullable=True)
     areas_of_interest = Column(String, nullable=True)
 
+    # Machine user fields
+    is_machine_user = Column(Boolean, default=False)
+    machine_description = Column(String, nullable=True)
+
     threads = relationship("ThreadOrm", back_populates="user")
     custom_areas = relationship("CustomAreaOrm", back_populates="user")
     ratings = relationship("RatingOrm", back_populates="user")
+    machine_user_keys = relationship(
+        "MachineUserKeyOrm", back_populates="user"
+    )
 
 
 class ThreadOrm(Base):
@@ -142,3 +151,23 @@ class CustomAreaOrm(Base):
     )
 
     user = relationship("UserOrm", back_populates="custom_areas")
+
+
+class MachineUserKeyOrm(Base):
+    __tablename__ = "machine_user_keys"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    key_name = Column(String, nullable=False)
+    key_hash = Column(String, nullable=False)
+    key_prefix = Column(String(8), nullable=False, unique=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    last_used_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+
+    user = relationship("UserOrm", back_populates="machine_user_keys")
