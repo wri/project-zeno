@@ -944,6 +944,13 @@ async def chat(
         - Quota headers are only present when quota checking is enabled
     """
 
+    # Check if anonymous chat is allowed
+    if not user and not APISettings.allow_anonymous_chat:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Anonymous chat access is disabled. Please log in to continue.",
+        )
+
     thread_id = None
     thread = None
 
@@ -1854,6 +1861,10 @@ async def api_metadata(
     currently allowed. This is based on the ALLOW_PUBLIC_SIGNUPS setting and
     whether the current user count is below the MAX_USER_SIGNUPS limit.
     Whitelisted users (email and domain) can always sign up regardless of this status.
+
+    For `allow_anonymous_chat`, this indicates whether anonymous users can access
+    the /api/chat endpoint without authentication. When false, all users must
+    authenticate to use the chat functionality.
     """
     # Check if public signups are open
     is_signup_open = await is_public_signup_open(session)
@@ -1866,6 +1877,7 @@ async def api_metadata(
         "subregion_to_subtype_mapping": SUBREGION_TO_SUBTYPE_MAPPING,
         "gadm_subtype_mapping": GADM_SUBTYPE_MAP,
         "is_signup_open": is_signup_open,
+        "allow_anonymous_chat": APISettings.allow_anonymous_chat,
     }
 
 

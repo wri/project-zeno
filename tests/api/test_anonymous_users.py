@@ -114,3 +114,62 @@ class TestAnonymousUserAccess:
             assert len(calls) == 2
             assert calls[0][1]["thread_id"] == thread_id
             assert calls[1][1]["thread_id"] == thread_id
+
+    @pytest.mark.asyncio
+    async def test_anonymous_chat_disabled_blocks_anonymous_users(
+        self, anonymous_client
+    ):
+        """Test that disabling anonymous chat blocks anonymous users."""
+        # Disable anonymous chat
+        original_setting = APISettings.allow_anonymous_chat
+        APISettings.allow_anonymous_chat = False
+
+        try:
+            chat_request = {
+                "query": "Hello, world!",
+                "thread_id": "test-thread-123",
+            }
+
+            response = await anonymous_client.post(
+                "/api/chat", json=chat_request
+            )
+
+            # Should return 401 (unauthorized) when anonymous chat is disabled
+            assert response.status_code == 401
+            assert (
+                "Anonymous chat access is disabled"
+                in response.json()["detail"]
+            )
+        finally:
+            APISettings.allow_anonymous_chat = original_setting
+
+    @pytest.mark.asyncio
+    async def test_anonymous_chat_enabled_allows_anonymous_users(
+        self, anonymous_client
+    ):
+        """Test that enabling anonymous chat allows anonymous users."""
+        # Enable anonymous chat
+        original_setting = APISettings.allow_anonymous_chat
+        APISettings.allow_anonymous_chat = True
+
+        try:
+            chat_request = {
+                "query": "Hello, world!",
+                "thread_id": "test-thread-123",
+            }
+
+            # Mock the stream_chat function to avoid actual LLM calls
+            with patch("src.api.app.stream_chat") as mock_stream:
+                mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
+
+                response = await anonymous_client.post(
+                    "/api/chat", json=chat_request
+                )
+
+                # Should succeed when anonymous chat is enabled
+                assert response.status_code == 200
+                assert (
+                    response.headers["content-type"] == "application/x-ndjson"
+                )
+        finally:
+            APISettings.allow_anonymous_chat = original_setting
