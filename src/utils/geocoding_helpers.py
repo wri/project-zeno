@@ -4,9 +4,9 @@ from uuid import UUID
 
 import structlog
 from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from src.api.data_models import CustomAreaOrm
+from src.utils.database import get_session_from_pool
 
 GADM_TABLE = "geometries_gadm"
 KBA_TABLE = "geometries_kba"
@@ -93,11 +93,7 @@ async def get_geometry_data(
         ValueError: For invalid source or missing user_id for custom areas
     """
 
-    from src.api.app import app
-
-    engine = app.state.engine
-    async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
-    async with async_session_maker() as session:
+    async with get_session_from_pool() as session:
         if source == "custom":
             user_id = structlog.contextvars.get_contextvars().get("user_id")
             if not user_id:

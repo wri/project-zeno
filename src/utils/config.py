@@ -11,10 +11,16 @@ class _APISettings(BaseSettings):
     domains_allowlist_str: str = Field(default="", alias="DOMAINS_ALLOWLIST")
     database_url: str
 
+    # Database connection pool settings
+    db_pool_size: int = Field(default=20, alias="DB_POOL_SIZE")
+    db_max_overflow: int = Field(default=10, alias="DB_MAX_OVERFLOW")
+    db_pool_timeout: int = Field(default=30, alias="DB_POOL_TIMEOUT")
+    db_pool_recycle: int = Field(default=3600, alias="DB_POOL_RECYCLE")
+
     daily_quota_warning_threshold: int = 5
     admin_user_daily_quota: int = 100
     regular_user_daily_quota: int = 25
-    machine_user_daily_quota: int = 25
+    machine_user_daily_quota: int = 99999
     anonymous_user_daily_quota: int = 10
     ip_address_daily_quota: int = 50
     enable_quota_checking: bool = True
