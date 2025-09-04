@@ -56,4 +56,4 @@ SMOLLM2 = ChatOllama(
 )
 
 # Base Model
-MODEL = GEMINI
+MODEL = SONNET

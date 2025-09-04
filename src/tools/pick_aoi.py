@@ -11,8 +11,7 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
-from src.utils.config import APISettings
-from src.utils.database import get_async_engine
+from src.utils.database import get_connection_from_pool
 from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
     CUSTOM_AREA_TABLE,
@@ -42,21 +41,19 @@ logger = get_logger(__name__)
 
 
 async def query_aoi_database(
-    engine,
     place_name: str,
     result_limit: int = 10,
 ):
     """Query the PostGIS database for location information.
 
     Args:
-        engine: SQLAlchemy engine object
         place_name: Name of the place to search for
         result_limit: Maximum number of results to return
 
     Returns:
         DataFrame containing location information
     """
-    async with engine.connect() as conn:
+    async with get_connection_from_pool() as conn:
         # Enable pg_trgm extension for similarity function
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
         await conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
@@ -216,12 +213,11 @@ async def query_aoi_database(
 
 
 async def query_subregion_database(
-    engine, subregion_name: str, source: str, src_id: int
+    subregion_name: str, source: str, src_id: int
 ):
     """Query the right table in PostGIS database for subregions based on the selected AOI.
 
     Args:
-        engine: SQLAlchemy engine object
         subregion_name: Name of the subregion to search for
         source: Source of the selected AOI
         src_id: id of the selected AOI in source table: gadm_id, kba_id, landmark_id, wdpa_id
@@ -284,7 +280,7 @@ async def query_subregion_database(
     """
     logger.debug(f"Executing subregion query: {sql_query}")
 
-    async with engine.connect() as conn:
+    async with get_connection_from_pool() as conn:
 
         def _read(sync_conn):
             return pd.read_sql(
@@ -444,15 +440,11 @@ async def pick_aoi(
         )
         # Query the database for place & get top matches using similarity
 
-        # TODO: we may need to replace `asyncpg` with `psycopg` in the
-        # database URL (this was how the tool was originally setup)
-        engine = await get_async_engine(db_url=APISettings.database_url)
-
         # Translate place name to English if it's in a different language
         place = await translate_to_english(question, place)
 
         # Query the database for place & get top matches using similarity
-        results = await query_aoi_database(engine, place, RESULT_LIMIT)
+        results = await query_aoi_database(place, RESULT_LIMIT)
 
         # Convert results to CSV
         candidate_aois = results.to_csv(
@@ -542,7 +534,7 @@ async def pick_aoi(
         if subregion:
             logger.info(f"Querying for subregion: '{subregion}'")
             subregion_aois = await query_subregion_database(
-                engine, subregion, source, src_id
+                subregion, source, src_id
             )
             subregion_aois = subregion_aois.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")

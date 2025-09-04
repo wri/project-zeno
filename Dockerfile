@@ -4,11 +4,14 @@ FROM python:3.12.8-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# The installer requires curl (and certificates) to download the release archive
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates libexpat1 \
+# Install system dependencies including PostgreSQL development libraries
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    build-essential \
+    libpq-dev \
+    ca-certificates \
+    libexpat1 \
     && rm -rf /var/lib/apt/lists/*
-
-RUN apt-get update && apt-get install -y build-essential libgdal-dev
 
 ADD https://astral.sh/uv/0.8.12/install.sh /uv-installer.sh
 
@@ -25,5 +28,5 @@ ADD ./client.py /app/src/frontend/client.py
 
 WORKDIR /app
 
-# Install the dependencies
-RUN uv sync --frozen
+# Install only the main dependencies - no dev deps
+RUN uv sync --frozen --no-dev

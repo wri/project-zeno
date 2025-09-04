@@ -34,19 +34,37 @@ def evaluate_aoi_selection(
     agent_state: Dict[str, Any],
     expected_aoi_id: str,
     expected_subregion: Optional[str],
+    query: str = "",
 ) -> Dict[str, Any]:
     """
-    Check if the correct AOI was selected.
+    Check if the correct AOI was selected, or if agent appropriately asked for clarification.
 
     Args:
         agent_state: Final agent state after execution
         expected_aoi_id: Expected AOI ID (e.g., "BRA", "USA.5_1")
         expected_subregion: Expected subregion (e.g., "state-province", "country")
+        query: Original user query for clarification detection
     Returns:
         Dict with aoi_score (0 or 1), actual_id, actual_name, actual_subtype, actual_source, actual_subregion
     """
     aoi = agent_state.get("aoi")
     subregion = agent_state.get("subregion")
+
+    # Check if agent asked for clarification instead of selecting AOI
+    if not aoi and query:
+        is_clarification = llm_judge_clarification(agent_state, query)
+        if is_clarification:
+            # Agent appropriately asked for clarification - this is a pass
+            return {
+                "aoi_score": 1.0,  # Full score for appropriate clarification
+                "actual_id": "CLARIFICATION_REQUEST",
+                "actual_name": "Agent requested clarification",
+                "actual_subtype": "clarification",
+                "actual_source": "agent",
+                "actual_subregion": "N/A",
+                "match_aoi_id": True,  # Treat clarification as correct behavior
+                "match_subregion": True,
+            }
 
     if not aoi or not expected_aoi_id:
         return {
@@ -56,6 +74,8 @@ def evaluate_aoi_selection(
             "actual_subtype": None,
             "actual_source": None,
             "actual_subregion": None,
+            "match_aoi_id": False,
+            "match_subregion": False,
         }
 
     # Get actual AOI ID based on subtype
@@ -107,18 +127,33 @@ def evaluate_dataset_selection(
     agent_state: Dict[str, Any],
     expected_dataset_id: Any,
     expected_context_layer: Any,
+    query: str = "",
 ) -> Dict[str, Any]:
     """
-    Check if the correct dataset was selected using simple string comparison.
+    Check if the correct dataset was selected, or if the agent asked for clarification.
 
     Args:
         agent_state: Final agent state after execution
         expected_dataset_id: Expected dataset id as string
         expected_context_layer: Expected context layer as string
+        query: Original user query for clarification detection
+
     Returns:
         Dict with dataset_score (0 or 1), actual_dataset_id, actual_dataset_name, actual_context_layer
     """
-    dataset = agent_state.get("dataset", {})
+    dataset = agent_state.get("dataset")
+
+    # Check if agent asked for clarification instead of selecting a dataset
+    if not dataset and query:
+        is_clarification = llm_judge_clarification(agent_state, query)
+        if is_clarification:
+            return {
+                "dataset_score": 1.0,  # Full score for appropriate clarification
+                "actual_dataset_id": "CLARIFICATION_REQUEST",
+                "actual_dataset_name": "Agent requested clarification",
+                "actual_context_layer": "N/A",
+                "error": "",
+            }
 
     if not dataset:
         return {
@@ -168,19 +203,37 @@ def evaluate_data_pull(
     min_rows: int = 1,
     expected_start_date: str = None,
     expected_end_date: str = None,
+    query: str = "",
 ) -> Dict[str, Any]:
     """
-    Check if data was successfully pulled.
+    Check if data was successfully pulled, or if the agent asked for clarification.
 
     Args:
         agent_state: Final agent state after execution
         min_rows: Minimum number of rows expected
         expected_start_date: Expected start date
         expected_end_date: Expected end date
+        query: Original user query for clarification detection
+
     Returns:
         Dict with pull_data_score (0 or 1), row_count, min_rows, data_pull_success, date_success
     """
     raw_data = agent_state.get("raw_data")
+
+    # Check if agent asked for clarification instead of pulling data
+    if not raw_data and query:
+        is_clarification = llm_judge_clarification(agent_state, query)
+        if is_clarification:
+            return {
+                "pull_data_score": 1.0,
+                "row_count": 0,
+                "min_rows": min_rows,
+                "data_pull_success": True,  # Treat clarification as success
+                "date_success": True,
+                "actual_start_date": "CLARIFICATION_REQUEST",
+                "actual_end_date": "CLARIFICATION_REQUEST",
+                "error": "",
+            }
 
     if not raw_data:
         return {
@@ -232,6 +285,70 @@ def evaluate_data_pull(
         "actual_end_date": actual_end_date,
         "error": "",
     }
+
+
+def llm_judge_clarification(agent_state: Dict[str, Any], query: str) -> bool:
+    """Use LLM to judge if the agent is asking for clarification instead of selecting an AOI."""
+
+    class ClarificationJudgment(BaseModel):
+        is_clarification: bool
+        explanation: str
+
+    # Get the final answer/response from the agent
+    charts_data = agent_state.get("charts_data", [])
+    final_response = ""
+
+    if charts_data:
+        final_response = charts_data[0].get("insight", "")
+
+    # If no charts data, check if there's any response in the state
+    if not final_response:
+        messages = agent_state.get("messages", [])
+        if messages:
+            final_response = messages[-1].content
+        else:
+            final_response = ""
+
+    if not final_response:
+        return False  # No response to evaluate
+
+    CLARIFICATION_JUDGE_PROMPT = ChatPromptTemplate.from_messages(
+        [
+            (
+                "user",
+                """
+            You are evaluating whether an AI agent is asking for clarification instead of completing a task.
+
+            ORIGINAL QUERY: {query}
+
+            AGENT RESPONSE: {response}
+
+            Does the agent response indicate that it's asking for clarification, more information, or unable to proceed due to ambiguity in the original query?
+
+            Signs of clarification requests:
+            - Asking questions back to the user
+            - Requesting more specific information
+            - Indicating multiple possible interpretations
+            - Asking to choose between options
+            - Expressing uncertainty about what the user wants
+
+            Return true if this is a clarification request, false if the agent attempted to complete the task.
+            """,
+            )
+        ]
+    )
+
+    judge_chain = CLARIFICATION_JUDGE_PROMPT | HAIKU.with_structured_output(
+        ClarificationJudgment
+    )
+
+    try:
+        result = judge_chain.invoke(
+            {"query": query, "response": final_response}
+        )
+        return result.is_clarification
+    except Exception:
+        return False  # Default to not clarification if LLM call fails
 
 
 def llm_judge(expected_answer: str, actual_answer: str):

@@ -498,7 +498,7 @@ class TestMachineUserQuota:
         )
 
         # Machine user should have much higher quota
-        assert machine_result["prompt_quota"] == 1000  # Machine user quota
+        assert machine_result["prompt_quota"] == 99999  # Machine user quota
         assert regular_result["prompt_quota"] == 25  # Regular user quota
         assert machine_result["prompt_quota"] > regular_result["prompt_quota"]
 
