@@ -4,6 +4,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
+from src.utils.config import APISettings
+
 load_dotenv()
 
 # Anthropic
@@ -55,5 +57,30 @@ SMOLLM2 = ChatOllama(
     num_predict=-1,  # num_predict is similar to max_tokens, -1 means no limit
 )
 
-# Base Model
-MODEL = SONNET
+# Model Registry for dynamic selection
+MODEL_REGISTRY = {
+    "sonnet": SONNET,
+    "haiku": HAIKU,
+    "gemini": GEMINI,
+    "gemini-flash": GEMINI_FLASH,
+    "gpt": GPT,
+    "phi4": PHI4,
+    "smollm2": SMOLLM2,
+}
+
+# Available models list for frontend
+AVAILABLE_MODELS = list(MODEL_REGISTRY.keys())
+
+
+def get_model():
+    """Get the configured model from environment or default to sonnet."""
+    model_name = APISettings.model.lower()
+    if model_name not in MODEL_REGISTRY:
+        raise ValueError(
+            f"Unknown model: {model_name}. Available models: {AVAILABLE_MODELS}"
+        )
+    return MODEL_REGISTRY[model_name]
+
+
+# Base Model - dynamically selected from environment
+MODEL = get_model()
