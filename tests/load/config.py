@@ -21,8 +21,15 @@ class LoadTestConfig:
     RUN_TIME = "5m"  # Test duration
 
     # Request Timeouts
-    REQUEST_TIMEOUT = 30  # seconds
-    STREAMING_TIMEOUT = 60  # seconds for streaming responses
+    REQUEST_TIMEOUT = 120  # seconds (increased for streaming responses)
+    STREAMING_TIMEOUT = 180  # seconds for streaming responses
+    CONNECT_TIMEOUT = 10  # seconds for initial connection
+    READ_TIMEOUT = 120  # seconds for reading response data
+
+    # Connection Pool Configuration
+    MAX_POOL_SIZE = 50  # Maximum connections per pool
+    MAX_POOL_CONNECTIONS = 200  # Total connections across all pools
+    POOL_BLOCK = False  # Don't block when pool is full
 
     # User Behavior Weights
     QUICK_QUERY_WEIGHT = 30  # % of users doing quick queries
