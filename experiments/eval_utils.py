@@ -3,7 +3,7 @@ import subprocess
 from datetime import datetime
 
 import langgraph.errors
-from langchain_core.load import dumps
+from langchain_core.messages import HumanMessage
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
@@ -39,7 +39,7 @@ async def run_query(
     user_persona: str = None,
     thread_id: str = None,
 ):
-    """Run a query through Zeno and return JSON response."""
+    """Run a query through Zeno and return the final state."""
     config = {
         "configurable": {"thread_id": thread_id},
         "callbacks": [handler],
@@ -47,33 +47,39 @@ async def run_query(
 
     try:
         zeno_async = await fetch_zeno()
+
+        # Prepare the state updates with the query message
+        state_updates = {
+            "messages": [HumanMessage(content=query)],
+            "user_persona": user_persona,
+        }
+
+        # Run the agent with the query
+        stream = zeno_async.astream(
+            state_updates,
+            config=config,
+            stream_mode="updates",
+            subgraphs=False,
+        )
+
+        # Consume the stream to ensure the agent completes
+        async for _ in stream:
+            pass  # Just consume the updates
+
+        # Now get the final state after execution
         state = await zeno_async.aget_state(config=config)
 
         return state
-        # aoi = state.values.get("aoi")
-        # subtype = state.values.get("subtype")
-        # gadm_level = gadm_levels[subtype]
-        # aoi_gadm_id = aoi.get(gadm_level['col_name'])
 
-        # response = zeno.stream(
-        #     {
-        #         "messages": [HumanMessage(content=query)],
-        #         "user_persona": user_persona,
-        #     },
-        #     config=config,
-        #     stream_mode="updates",
-        #     subgraphs=False,
-        # )
-        # return dumps(list(response))
     except langgraph.errors.GraphRecursionError as e:
         # Log the error for debugging
         print(f"GraphRecursionError for query '{query}': {str(e)}")
-        # Return empty list to maintain expected structure
-        return dumps([])
+        # Return None to indicate error
+        return None
     except Exception as e:
         # Catch any other unexpected errors
         print(
             f"Unexpected error for query '{query}': {type(e).__name__}: {str(e)}"
         )
-        # Return empty list to maintain expected structure
-        return dumps([])
+        # Return None to indicate error
+        return None

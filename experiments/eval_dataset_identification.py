@@ -8,6 +8,7 @@ This evaluates high-level questions (e.g., deforestation in Amazon) with expert-
 Unlike GADM evaluation, this uses LLM-based scoring to compare non-exact matches.
 """
 
+import asyncio
 import argparse
 import code
 import json
@@ -210,11 +211,13 @@ def main(dataset_name: str):
     for item in active_items:
         with item.run(run_name=run_name) as root_span:
             # Execute
-            response = run_query(
-                query=item.input,
-                handler=handler,
-                user_persona="researcher",
-                thread_id=item.id,
+            response = asyncio.run(
+                run_query(
+                    query=item.input,
+                    handler=handler,
+                    user_persona="researcher",
+                    thread_id=item.id,
+                )
             )
             # Score
             try:

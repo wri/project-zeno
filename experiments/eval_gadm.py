@@ -5,6 +5,7 @@ Results are published to LangFuse (either localhost or staging instance).
 See experiments/upload_dataset.py for how to add new test data.
 """
 
+import asyncio
 import json
 from collections import Counter
 from dataclasses import dataclass
@@ -151,7 +152,9 @@ for item in dataset.items:
         run_name=run_name,
     ) as span:
         # Execute
-        state = run_query(item.input, handler, "researcher", item.id)
+        state = asyncio.run(
+            run_query(item.input, handler, "researcher", item.id)
+        )
 
         # Score
         actual = extract_gadm_from_state(state)
