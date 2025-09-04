@@ -79,7 +79,10 @@ class BaseTestRunner(ABC):
         )
 
     def _run_evaluations(
-        self, agent_state: Dict[str, Any], expected_data: ExpectedData
+        self,
+        agent_state: Dict[str, Any],
+        expected_data: ExpectedData,
+        query: str = "",
     ) -> Dict[str, Any]:
         """Run all evaluation functions on agent state."""
         from tests.agent.tool_evaluators import (
@@ -93,16 +96,19 @@ class BaseTestRunner(ABC):
             agent_state,
             expected_data.expected_aoi_id,
             expected_data.expected_subregion,
+            query,
         )
         dataset_eval = evaluate_dataset_selection(
             agent_state,
             expected_data.expected_dataset_id,
             expected_data.expected_context_layer,
+            query,
         )
         data_eval = evaluate_data_pull(
             agent_state,
             expected_start_date=expected_data.expected_start_date,
             expected_end_date=expected_data.expected_end_date,
+            query=query,
         )
         answer_eval = evaluate_final_answer(
             agent_state, expected_data.expected_answer
