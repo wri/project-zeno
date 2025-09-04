@@ -62,7 +62,9 @@ class APITestRunner(BaseTestRunner):
             agent_state = state_response["state"]
 
             # Run evaluations
-            evaluations = self._run_evaluations(agent_state, expected_data)
+            evaluations = self._run_evaluations(
+                agent_state, expected_data, query
+            )
             overall_score = self._calculate_overall_score(evaluations)
 
             return TestResult(
