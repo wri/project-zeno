@@ -2,7 +2,6 @@ import io
 import json
 import os
 import uuid
-from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from typing import Dict, Optional
@@ -33,12 +32,14 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.agents import (
+    close_checkpointer_pool,
     fetch_checkpointer,
     fetch_zeno,
     fetch_zeno_anonymous,
+    get_checkpointer_pool,
 )
 from src.api.auth import MACHINE_USER_PREFIX, validate_machine_user_token
 from src.api.data_models import (
@@ -67,7 +68,11 @@ from src.api.schemas import (
     UserWithQuotaModel,
 )
 from src.utils.config import APISettings
-from src.utils.database import get_async_engine
+from src.utils.database import (
+    close_global_pool,
+    get_session_from_pool_dependency,
+    initialize_global_pool,
+)
 from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
@@ -89,36 +94,21 @@ NEXTJS_IP_HEADER = "X-ZENO-FORWARDED-FOR"
 ANONYMOUS_USER_PREFIX = "noauth"
 
 
-async def get_async_session(
-    request: Request,
-) -> AsyncGenerator[AsyncSession, None]:
-    async_session_maker = async_sessionmaker(
-        request.app.state.engine,
-        expire_on_commit=False,
-    )
-
-    async with async_session_maker() as session:
-        yield session
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize SQLAlchemy engine
-    app.state.engine = await get_async_engine(db_url=APISettings.database_url)
+    # Initialize global database connection pool for API and tools
+    await initialize_global_pool()
 
-    # Initialize checkpointer connection pool
-    from src.agents.agents import get_checkpointer_pool
-
+    # Initialize separate checkpointer connection pool
+    # (Required due to asyncpg vs psycopg driver compatibility)
     await get_checkpointer_pool()
 
     yield
 
     # Cleanup on shutdown
-    await app.state.engine.dispose()
+    await close_global_pool()
 
     # Close checkpointer pool
-    from src.agents.agents import close_checkpointer_pool
-
     await close_checkpointer_pool()
 
 
@@ -523,7 +513,7 @@ async def check_signup_limit_allows_new_user(
 async def fetch_user_from_rw_api(
     request: Request,
     authorization: Optional[str] = Depends(security),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> UserModel:
     if not authorization:
         return None
@@ -623,7 +613,7 @@ async def fetch_user_from_rw_api(
 
 async def require_auth(
     user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> UserModel:
     """
     Requires Authorization - raises HTTPException if not authenticated
@@ -676,7 +666,7 @@ async def require_auth(
 
 async def optional_auth(
     user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> Optional[UserModel]:
     """
     Optional Authorization - returns None if not authenticated,
@@ -729,7 +719,7 @@ async def optional_auth(
 # Keep the old function for backward compatibility during transition
 async def fetch_user(
     user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Deprecated: Use require_auth() or optional_auth() instead
@@ -779,7 +769,7 @@ async def get_user_identity_and_daily_quota(
 
 async def check_quota(
     identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Check the current daily usage quota for a user.
@@ -818,7 +808,7 @@ async def check_quota(
 async def enforce_quota(
     request: Request,
     identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Enforce daily usage quota for users and anonymous clients.
@@ -926,7 +916,7 @@ async def chat(
     request: ChatRequest,
     user: Optional[UserModel] = Depends(optional_auth),
     quota_info: dict = Depends(enforce_quota),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Chat endpoint for Zeno with quota tracking.
@@ -1026,7 +1016,7 @@ async def chat(
 @app.get("/api/threads", response_model=list[ThreadModel])
 async def list_threads(
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     List all threads belonging to the authenticated user.
@@ -1050,7 +1040,7 @@ async def list_threads(
 async def get_thread(
     thread_id: str,
     user: Optional[UserModel] = Depends(optional_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Get thread conversation history - supports both public and private access.
@@ -1123,7 +1113,7 @@ async def update_thread(
     thread_id: str,
     request: ThreadUpdateRequest,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Update thread properties including name and sharing settings.
@@ -1177,7 +1167,7 @@ async def update_thread(
 async def get_thread_state(
     thread_id: str,
     user: Optional[UserModel] = Depends(optional_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Get the current agent state for a thread.
@@ -1318,7 +1308,7 @@ async def delete_thread(
     thread_id: str,
     user: UserModel = Depends(require_auth),
     checkpointer: AsyncPostgresSaver = Depends(fetch_checkpointer),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Delete thread permanently.
@@ -1432,7 +1422,7 @@ async def create_or_update_rating(
     thread_id: str,
     request: RatingCreateRequest,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Create or update a rating for a trace in a thread.
@@ -1536,7 +1526,7 @@ async def create_or_update_rating(
 async def get_thread_ratings(
     thread_id: str,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Get all ratings for traces in a thread.
@@ -1647,7 +1637,7 @@ async def auth_me(
 async def update_user_profile(
     profile_update: UserProfileUpdateRequest,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Update user profile fields.
@@ -1838,7 +1828,7 @@ async def get_profile_config():
 
 @app.get("/api/metadata")
 async def api_metadata(
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> dict:
     """
     Returns API metadata that's helpful for instantiating the frontend.
@@ -1888,7 +1878,7 @@ async def api_metadata(
 async def create_custom_area(
     area: CustomAreaCreate,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Create a new custom area for the authenticated user."""
     custom_area = CustomAreaOrm(
@@ -1913,7 +1903,7 @@ async def create_custom_area(
 @app.get("/api/custom_areas", response_model=list[CustomAreaModel])
 async def list_custom_areas(
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """List all custom areas belonging to the authenticated user."""
     stmt = select(CustomAreaOrm).filter_by(user_id=user.id)
@@ -1930,7 +1920,7 @@ async def list_custom_areas(
 async def get_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Get a specific custom area by ID."""
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
@@ -1955,7 +1945,7 @@ async def update_custom_area_name(
     area_id: UUID,
     payload: dict,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Update the name of a custom area."""
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
@@ -1981,7 +1971,7 @@ async def update_custom_area_name(
 async def delete_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Delete a custom area."""
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
@@ -1999,7 +1989,7 @@ async def get_raw_data(
     thread_id: str,
     checkpoint_id: str,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
     content_type: str = Header(default="text/csv", alias="Content-Type"),
 ):
     """
