@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.pool import NullPool
 
 from src.utils.config import APISettings
 from src.utils.logging_config import get_logger
@@ -195,52 +194,3 @@ async def get_session_from_pool_dependency():
     """
     async with get_session_from_pool() as session:
         yield session
-
-
-# For testing: create engine with NullPool to avoid connection issues
-async def initialize_test_pool(database_url: str) -> None:
-    """
-    Initialize global pool for testing with NullPool.
-
-    Args:
-        database_url: Test database URL
-    """
-    global _global_engine, _global_session_maker
-
-    async with _engine_lock:
-        if _global_engine is not None:
-            await _global_engine.dispose()
-
-        _global_engine = create_async_engine(
-            database_url,
-            poolclass=NullPool,  # No connection pooling for tests
-            echo=False,
-        )
-
-        _global_session_maker = async_sessionmaker(
-            _global_engine, expire_on_commit=False, class_=AsyncSession
-        )
-
-        logger.info("Test database pool initialized")
-
-
-# Health check function for monitoring
-async def get_pool_status() -> dict:
-    """
-    Get current connection pool status for monitoring.
-
-    Returns:
-        Dictionary with pool statistics
-    """
-    if _global_engine is None:
-        return {"status": "not_initialized"}
-
-    pool = _global_engine.pool
-    return {
-        "status": "initialized",
-        "pool_size": pool.size(),
-        "checked_in": pool.checkedin(),
-        "checked_out": pool.checkedout(),
-        "overflow": pool.overflow(),
-        "invalid": pool.invalid(),
-    }
