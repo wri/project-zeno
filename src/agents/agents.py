@@ -89,7 +89,13 @@ DATABASE_URL = os.environ["DATABASE_URL"].replace(
     "postgresql+asyncpg://", "postgresql://"
 )
 
-# Global connection pool for checkpointer
+# Separate checkpointer connection pool
+#
+# NOTE: We maintain a separate psycopg pool for the checkpointer because:
+# 1. AsyncPostgresSaver requires a psycopg AsyncConnectionPool (not SQLAlchemy)
+# 2. Our global pool uses asyncpg driver (postgresql+asyncpg://) via SQLAlchemy
+# 3. These are different PostgreSQL drivers and aren't directly compatible
+# 4. Both pools connect to the same database but use different connection libraries
 _checkpointer_pool: AsyncConnectionPool = None
 
 
@@ -121,7 +127,7 @@ async def close_checkpointer_pool():
 
 
 async def fetch_checkpointer() -> AsyncPostgresSaver:
-    """Get an AsyncPostgresSaver using the connection pool."""
+    """Get an AsyncPostgresSaver using the checkpointer connection pool."""
     pool = await get_checkpointer_pool()
     checkpointer = AsyncPostgresSaver(pool)
     return checkpointer
