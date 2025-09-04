@@ -121,12 +121,21 @@ class BaseTestRunner(ABC):
             **answer_eval,
         }
 
-    def _calculate_overall_score(self, evaluations: Dict[str, Any]) -> float:
+    def _calculate_overall_score(
+        self, evaluations: Dict[str, Any], expected_data: ExpectedData
+    ) -> float:
         """Calculate overall score from individual evaluation scores."""
-        scores = [
-            evaluations["aoi_score"],
-            evaluations["dataset_score"],
-            evaluations["pull_data_score"],
-            evaluations["answer_score"],
-        ]
+        scores = []
+        if expected_data.expected_aoi_id:
+            scores.append(evaluations["aoi_score"])
+        if expected_data.expected_dataset_id:
+            scores.append(evaluations["dataset_score"])
+            # If a dataset is expected, data pull should also be evaluated
+            scores.append(evaluations["pull_data_score"])
+        if expected_data.expected_answer:
+            scores.append(evaluations["answer_score"])
+
+        if not scores:
+            return 0.0
+
         return round(sum(scores) / len(scores), 2)

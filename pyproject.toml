@@ -68,6 +68,7 @@ frontend = [
     "streamlit==1.47.0",
     "streamlit_folium==0.25.0",
     "pandas==2.2.3",
+    "plotly==6.3.0",
     "python-dotenv==1.0.1",
     "geopandas==1.0.1",
     "folium-vectorgrid==0.1.3",
