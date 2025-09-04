@@ -193,7 +193,7 @@ langfuse = Langfuse(
     host=os.environ["LANGFUSE_HOST"],
     environment=os.getenv("STAGE", "production"),
 )
-langfuse_handler = CallbackHandler()
+langfuse_handler = CallbackHandler(update_trace=True)
 langfuse_client = Langfuse()
 
 # HTTP Middleware to asign/verify anonymous session IDs

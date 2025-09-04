@@ -43,7 +43,6 @@ services:
       - LOCAL_API_BASE_URL=http://api:8000
       - STREAMLIT_URL=${STREAMLIT_URL:-http://localhost:8501}
 
-
   db:
     image: postgis/postgis:17-3.5
     platform: linux/x86_64
@@ -58,7 +57,6 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
       - POSTGRES_DB=zeno-data
-
     ports:
       - 5432:5432
     volumes:
@@ -70,7 +68,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -78,6 +75,7 @@ services:
       - APP_DB=zeno-data
     volumes:
       - ./db:/app/db
+
   # =========================== Local langfuse services ============================
   langfuse-worker:
     image: docker.io/langfuse/langfuse-worker:3
@@ -117,7 +115,7 @@ services:
       LANGFUSE_S3_MEDIA_UPLOAD_REGION: ${LANGFUSE_S3_MEDIA_UPLOAD_REGION:-auto}
       LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID:-minio}
       LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY:-miniosecret} # CHANGEME
-      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: ${LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT:-http://minio:9090}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: ${LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT:-http://localhost:9090}
       LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: ${LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE:-true}
       LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: ${LANGFUSE_S3_MEDIA_UPLOAD_PREFIX:-media/}
       LANGFUSE_S3_BATCH_EXPORT_ENABLED: ${LANGFUSE_S3_BATCH_EXPORT_ENABLED:-false}
@@ -149,6 +147,9 @@ services:
       - 3000:3000
     environment:
       <<: *langfuse-worker-env
+      environment:
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
       NEXTAUTH_SECRET: mysecret # CHANGEME
       LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:-developmentseed}
       LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME:-Development Seed}
@@ -159,6 +160,17 @@ services:
       LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-leo@developmentseed.org}
       LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-leo}
       LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-Password123!}
+      #LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: ${LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT:-http://minio:9000}
+      #LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: ${LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT:-http://minio:9090}
+      #LANGFUSE_S3_BATCH_EXPORT_ENDPOINT: ${LANGFUSE_S3_BATCH_EXPORT_ENDPOINT:-http://minio:9000}
+      #LANGFUSE_S3_BATCH_EXPORT_EXTERNAL_ENDPOINT: ${LANGFUSE_S3_BATCH_EXPORT_EXTERNAL_ENDPOINT:-http://minio:9090}
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/public/ready || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   clickhouse:
     image: docker.io/clickhouse/clickhouse-server
