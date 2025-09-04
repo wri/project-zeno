@@ -187,6 +187,12 @@ async def logging_middleware(request: Request, call_next) -> Response:
     return response
 
 
+langfuse = Langfuse(
+    public_key=os.environ["LANGFUSE_PUBLIC_KEY"],
+    secret_key=os.environ["LANGFUSE_SECRET_KEY"],
+    host=os.environ["LANGFUSE_HOST"],
+    environment=os.getenv("STAGE", "production"),
+)
 langfuse_handler = CallbackHandler()
 langfuse_client = Langfuse()
 
@@ -305,25 +311,13 @@ async def stream_chat(
     ui_context: Optional[dict] = None,
     ui_action_only: Optional[bool] = False,
     thread_id: Optional[str] = None,
-    metadata: Optional[Dict] = None,
-    session_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    tags: Optional[list] = None,
+    langfuse_metadata: Optional[Dict] = {},
     user: Optional[dict] = None,
 ):
-    # Populate langfuse metadata
-    if metadata:
-        langfuse_handler.metadata = metadata
-    if session_id:
-        langfuse_handler.session_id = session_id
-    if user_id:
-        langfuse_handler.user_id = user_id
-    if tags:
-        langfuse_handler.tags = tags
-
     config = {
         "configurable": {"thread_id": thread_id},
         "callbacks": [langfuse_handler],
+        "metadata": langfuse_metadata,
     }
 
     if not thread_id:
@@ -922,7 +916,11 @@ async def chat(
 
     Args:
         request: The chat request containing query, thread_id, etc.
-        user: The user, authenticated against the WRI API (optional for anonymous users)
+        user (dependency injection): The user, authenticated against the WRI
+            API (optional for anonymous users)
+        quota_info (dependency injection): The user's quota information, including
+            identity, current usage and limits
+        session (dependency injection): The database session for the request
 
     Returns:
         Streamed chat response in NDJSON format
@@ -978,6 +976,36 @@ async def chat(
         # This allows conversation continuity within the same session
         thread_id = request.thread_id
 
+    # Populate langfuse metadata
+    langfuse_metadata = {}
+
+    # Note: should this be user.email or user.id?
+    langfuse_metadata["langfuse_user_id"] = (
+        user.email if user else quota_info["identity"]
+    )
+
+    langfuse_metadata["langfuse_session_id"] = thread_id
+
+    # store additional user metadata if user is logged in
+    if user:
+        langfuse_metadata["user_internal_id"] = user.id
+
+        for attr in [
+            "profile_description",
+            "sector_code",
+            "role_code",
+            "job_title",
+            "company_organization",
+            "country_code",
+            "preferred_language_code",
+            "gis_expertise_level",
+            "areas_of_interest",
+            "has_profile",
+        ]:
+            langfuse_metadata[attr] = getattr(user, attr, None)
+
+    print(f"LANGFUSE METADATA: {langfuse_metadata}")
+
     try:
         headers = {}
         if APISettings.enable_quota_checking and quota_info:
@@ -1009,10 +1037,7 @@ async def chat(
                 thread_id=thread_id,
                 ui_context=request.ui_context,
                 ui_action_only=request.ui_action_only,
-                metadata=request.metadata,
-                session_id=request.session_id,
-                user_id=request.user_id,
-                tags=request.tags,
+                langfuse_metadata=langfuse_metadata,
                 user=user_dict,
             ),
             media_type="application/x-ndjson",
