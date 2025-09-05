@@ -8,6 +8,7 @@ This evaluates high-level questions (e.g., deforestation in Amazon) with expert-
 Unlike GADM evaluation, this uses LLM-based scoring to compare non-exact matches.
 """
 
+import asyncio
 import json
 import traceback
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ from langfuse.langchain import CallbackHandler
 from langgraph.types import StateSnapshot
 from typing_extensions import Annotated, Literal, TypedDict
 
+from src.utils.database import initialize_global_pool, close_global_pool
 from experiments.eval_utils import get_langfuse, get_run_name, run_query
 
 
@@ -194,62 +196,75 @@ def evaluation_to_score(evaluation: EvaluationResult) -> float:
 
 
 # Main execution
-langfuse = get_langfuse()
-run_name = get_run_name()
-dataset = langfuse.get_dataset("S3 T1-07 DIST & LDACS")
-chat_model = ChatAnthropic(
-    model="claude-opus-4-20250514",
-    max_tokens=20000,
-    thinking={"type": "enabled", "budget_tokens": 10000},
-)
+asyncio.run(initialize_global_pool())
 
-# This iterates through dataset items automatically like unit tests.
-# Run locally for development, but use staging for accurate latency/cost measurements.
-# Future: Integrate with CI/CD pipeline for automated testing on code changes.
-active_items = [item for item in dataset.items if item.status == "ACTIVE"]
-print(
-    f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
-)
+try:
+    langfuse = get_langfuse()
+    run_name = get_run_name()
+    dataset = langfuse.get_dataset("S3 T1-07 DIST & LDACS")
+    chat_model = ChatAnthropic(
+        model="claude-opus-4-20250514",
+        max_tokens=20000,
+        thinking={"type": "enabled", "budget_tokens": 10000},
+    )
 
+    # This iterates through dataset items automatically like unit tests.
+    # Run locally for development, but use staging for accurate latency/cost measurements.
+    # Future: Integrate with CI/CD pipeline for automated testing on code changes.
+    active_items = [item for item in dataset.items if item.status == "ACTIVE"]
+    print(
+        f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
+    )
 
-handler = CallbackHandler()
+    handler = CallbackHandler()
 
-for item in active_items:
-    with item.run(run_name=run_name) as root_span:
-        # Execute
-        response = run_query(
-            query=item.input,
-            handler=handler,
-            user_persona="researcher",
-            thread_id=item.id,
-        )
-        # Score
-        try:
-            actual = parse_output_state_snapshot(response)
-            evaluation = evaluate_answer(
-                actual, item.input, item.expected_output, chat_model
+    for item in active_items:
+        with item.run(run_name=run_name) as root_span:
+            # Execute
+            response = asyncio.run(
+                run_query(
+                    query=item.input,
+                    handler=handler,
+                    user_persona="researcher",
+                    thread_id=item.id,
+                )
             )
-            score = evaluation_to_score(evaluation)
+            # Score
+            try:
+                if response is None:
+                    print(f"✗ Skipping item '{item.input}': response is None")
+                    continue
 
-            # Upload
-            root_span.update_trace(input=item.input, output=actual)
+                actual = parse_output_state_snapshot(response)
 
-            root_span.score_trace(
-                name="data_interpretation_score",
-                value=score,
-                comment=f"Analysis: {evaluation['analysis']}",
-            )
-        except TypeError as e:
-            # Skip this item if response is not in expected format
-            print(f"✗ TypeError processing item '{item.input}': {str(e)}")
-            print(f"  Response type: {type(response)}")
-            if response:
-                print(f"  Response preview: {str(response)[:200]}...")
-            print(f"  Traceback:\n{traceback.format_exc()}")
-            continue
-        finally:
-            langfuse.flush()
+                evaluation = evaluate_answer(
+                    actual, item.input, item.expected_output, chat_model
+                )
+                score = evaluation_to_score(evaluation)
 
-    # LLM-based scoring with analysis helps understand evaluation reasoning
-    # Check LangFuse UI for detailed trace analysis of failures
-    print(f"✓ {item.input} -> {score}")
+                # Upload
+                root_span.update_trace(input=item.input, output=actual)
+
+                root_span.score_trace(
+                    name="data_interpretation_score",
+                    value=score,
+                    comment=f"Analysis: {evaluation['analysis']}",
+                )
+            except TypeError as e:
+                # Skip this item if response is not in expected format
+                print(f"✗ TypeError processing item '{item.input}': {str(e)}")
+                print(f"  Response type: {type(response)}")
+                if response:
+                    print(f"  Response preview: {str(response)[:200]}...")
+                print(f"  Traceback:\n{traceback.format_exc()}")
+                continue
+            finally:
+                langfuse.flush()
+
+        # LLM-based scoring with analysis helps understand evaluation reasoning
+        # Check LangFuse UI for detailed trace analysis of failures
+        print(f"✓ {item.input} -> {score}")
+
+finally:
+    # Clean up database pool
+    asyncio.run(close_global_pool())
