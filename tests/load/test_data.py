@@ -17,7 +17,7 @@ class QueryPatterns:
         "Rainfall patterns in India from 2020 to 2023",
         "Land use changes in Ghana between 2019 and 2023",
         "Tree cover in the Amazon from 2021 to 2024",
-        "Conservation areas in Tanzania established 2020-2023",
+        # "Conservation areas in Tanzania established 2020-2023",
         "Agricultural land in Bangladesh changes from 2020 to 2023",
         "Mangrove forests in Vietnam trends 2021-2024",
         "Desert expansion in Niger from 2020 to 2023",
