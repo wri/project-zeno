@@ -80,7 +80,7 @@ from src.utils.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     get_geometry_data,
 )
-from src.utils.llms import AVAILABLE_MODELS, HAIKU, get_model
+from src.utils.llms import HAIKU, get_model
 from src.utils.logging_config import bind_request_logging_context, get_logger
 
 # Load environment variables using shared utility
@@ -1877,7 +1877,6 @@ async def api_metadata(
         "is_signup_open": is_signup_open,
         "model": {
             "current": current_model_name,
-            "available": AVAILABLE_MODELS,
             "model_class": current_model.__class__.__name__,
         },
     }
