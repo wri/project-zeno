@@ -31,6 +31,9 @@ class _APISettings(BaseSettings):
         default=False, alias="ALLOW_PUBLIC_SIGNUPS"
     )
 
+    # Model configuration
+    model: str = Field(default="sonnet", alias="MODEL")
+
     @property
     def domains_allowlist(self) -> list[str]:
         if not self.domains_allowlist_str.strip():
