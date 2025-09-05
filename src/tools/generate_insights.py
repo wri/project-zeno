@@ -102,9 +102,11 @@ Generate:
 1. One chart insight with appropriate chart type, Recharts-compatible data, and clear axis fields
 2. 1 or 2 simple follow ups to the user query based on the actual data available
 
+Your capabilities: You can analyze data for any area of interest, pull data from datasets like DIST-ALERT, Global Land Cover, Tree Cover Loss, and Grasslands for different time periods, and create charts/insights. Base follow-ups on what's actually possible with available data and tools.
+
 IMPORTANT: Generate all insights, titles, and follow-up suggestions in the same language used in the user query.
 
-Follow-up examples: "Show trend over different period", "Compare with [region]", "Break down by [dimension]", "Top/bottom performers in [metric]"
+Follow-up examples: "Show trend over different period", "Compare with another [region] near by", "Top/bottom performers in [metric]"
             """,
         ),
     ]
