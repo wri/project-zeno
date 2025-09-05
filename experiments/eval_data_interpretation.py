@@ -14,15 +14,18 @@ import traceback
 from dataclasses import dataclass
 from typing import Optional
 
-from langchain_anthropic import ChatAnthropic
 from langfuse.langchain import CallbackHandler
 from langgraph.types import StateSnapshot
 from typing_extensions import Annotated, Literal, TypedDict
 
-from experiments.eval_utils import get_langfuse, get_run_name, run_query
+from experiments.eval_utils import (
+    get_langfuse,
+    get_run_name,
+    reason_and_structure,
+    run_query,
+)
 from src.agents.agents import close_checkpointer_pool
 from src.utils.database import close_global_pool, initialize_global_pool
-
 
 # Global variables for REPL access
 last_response = None
@@ -168,7 +171,7 @@ def _extract_final_response(messages):
 
 # Scoring
 def evaluate_answer(
-    conversation: dict, user_query: str, golden_answer: dict, chat_model
+    conversation: dict, user_query: str, golden_answer: dict
 ) -> EvaluationResult:
     """Evaluate the agent's final response and reasoning.
 
@@ -176,9 +179,6 @@ def evaluate_answer(
     performed necessary calculations, and produced a final answer that
     matches the golden answer. It considers the entire conversation trace.
     """
-    # Create a model with structured output
-    evaluator = chat_model.with_structured_output(EvaluationResult)
-
     prompt = f"""As an expert evaluator, your task is to assess the agent's performance in answering a user query. You must evaluate the entire process, from understanding the query to generating the final response.
 
 **Evaluation Criteria:**
@@ -207,10 +207,12 @@ def evaluate_answer(
 {json.dumps(golden_answer)}
 </Golden Answer>
 
-Now, evaluate the agent's performance and provide your assessment.
-"""
+Now, evaluate the agent's performance and provide your assessment."""
 
-    result = evaluator.invoke(prompt)
+    result = reason_and_structure(
+        prompt=prompt,
+        schema=EvaluationResult,
+    )
     return result
 
 
@@ -225,7 +227,7 @@ def evaluation_to_score(evaluation: EvaluationResult) -> float:
 
 
 def evaluate_hallucination_risk(
-    conversation: dict, user_query: str, golden_answer: dict, chat_model
+    conversation: dict, user_query: str, golden_answer: dict
 ) -> HallucinationSeverity:
     """Evaluate the agent's response for dangerous environmental data hallucinations.
 
@@ -235,8 +237,6 @@ def evaluate_hallucination_risk(
     - minor_deviation: Small discrepancies with limited practical impact
     - factually_sound: Accurate information or appropriate acknowledgment of uncertainty
     """
-
-    evaluator = chat_model.with_structured_output(HallucinationSeverity)
 
     prompt = f"""You are an environmental data integrity specialist evaluating AI responses for potential misinformation that could harm conservation efforts, misdirect resources, or corrupt environmental baselines.
 
@@ -296,7 +296,10 @@ def evaluate_hallucination_risk(
 
 Evaluate the agent's response for environmental data hallucinations. Focus on claims that could misdirect conservation efforts if taken as fact."""
 
-    result = evaluator.invoke(prompt)
+    result = reason_and_structure(
+        prompt=prompt,
+        schema=HallucinationSeverity,
+    )
     return result
 
 
@@ -311,11 +314,6 @@ async def main():
         langfuse = get_langfuse()
         run_name = get_run_name()
         dataset = langfuse.get_dataset("S3 T1-07 DIST & LDACS")
-        chat_model = ChatAnthropic(
-            model="claude-opus-4-20250514",
-            max_tokens=20000,
-            thinking={"type": "enabled", "budget_tokens": 10000},
-        )
 
         # This iterates through dataset items automatically like unit tests.
         # Run locally for development, but use staging for accurate latency/cost measurements.
@@ -361,14 +359,14 @@ async def main():
 
                     print("  Evaluating answer...")
                     evaluation = evaluate_answer(
-                        actual, item.input, item.expected_output, chat_model
+                        actual, item.input, item.expected_output
                     )
                     score = evaluation_to_score(evaluation)
 
                     # New hallucination check
                     print("  Evaluating hallucination risk...")
                     hallucination_check = evaluate_hallucination_risk(
-                        actual, item.input, item.expected_output, chat_model
+                        actual, item.input, item.expected_output
                     )
 
                     # Upload
