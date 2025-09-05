@@ -19,8 +19,9 @@ from langfuse.langchain import CallbackHandler
 from langgraph.types import StateSnapshot
 from typing_extensions import Annotated, Literal, TypedDict
 
-from src.utils.database import initialize_global_pool, close_global_pool
 from experiments.eval_utils import get_langfuse, get_run_name, run_query
+from src.agents.agents import close_checkpointer_pool
+from src.utils.database import close_global_pool, initialize_global_pool
 
 
 # Data structures
@@ -196,75 +197,86 @@ def evaluation_to_score(evaluation: EvaluationResult) -> float:
 
 
 # Main execution
-asyncio.run(initialize_global_pool())
+async def main():
+    """Main async function to run the evaluation."""
+    await initialize_global_pool()
 
-try:
-    langfuse = get_langfuse()
-    run_name = get_run_name()
-    dataset = langfuse.get_dataset("S3 T1-07 DIST & LDACS")
-    chat_model = ChatAnthropic(
-        model="claude-opus-4-20250514",
-        max_tokens=20000,
-        thinking={"type": "enabled", "budget_tokens": 10000},
-    )
+    try:
+        langfuse = get_langfuse()
+        run_name = get_run_name()
+        dataset = langfuse.get_dataset("S3 T1-07 DIST & LDACS")
+        chat_model = ChatAnthropic(
+            model="claude-opus-4-20250514",
+            max_tokens=20000,
+            thinking={"type": "enabled", "budget_tokens": 10000},
+        )
 
-    # This iterates through dataset items automatically like unit tests.
-    # Run locally for development, but use staging for accurate latency/cost measurements.
-    # Future: Integrate with CI/CD pipeline for automated testing on code changes.
-    active_items = [item for item in dataset.items if item.status == "ACTIVE"]
-    print(
-        f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
-    )
+        # This iterates through dataset items automatically like unit tests.
+        # Run locally for development, but use staging for accurate latency/cost measurements.
+        # Future: Integrate with CI/CD pipeline for automated testing on code changes.
+        active_items = [
+            item for item in dataset.items if item.status == "ACTIVE"
+        ]
+        print(
+            f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
+        )
 
-    handler = CallbackHandler()
+        handler = CallbackHandler()
 
-    for item in active_items:
-        with item.run(run_name=run_name) as root_span:
-            # Execute
-            response = asyncio.run(
-                run_query(
+        for item in active_items:
+            with item.run(run_name=run_name) as root_span:
+                # Execute
+                response = await run_query(
                     query=item.input,
                     handler=handler,
                     user_persona="researcher",
                     thread_id=item.id,
                 )
-            )
-            # Score
-            try:
-                if response is None:
-                    print(f"✗ Skipping item '{item.input}': response is None")
+                # Score
+                try:
+                    if response is None:
+                        print(
+                            f"✗ Skipping item '{item.input}': response is None"
+                        )
+                        continue
+
+                    actual = parse_output_state_snapshot(response)
+
+                    evaluation = evaluate_answer(
+                        actual, item.input, item.expected_output, chat_model
+                    )
+                    score = evaluation_to_score(evaluation)
+
+                    # Upload
+                    root_span.update_trace(input=item.input, output=actual)
+
+                    root_span.score_trace(
+                        name="data_interpretation_score",
+                        value=score,
+                        comment=f"Analysis: {evaluation['analysis']}",
+                    )
+                except TypeError as e:
+                    # Skip this item if response is not in expected format
+                    print(
+                        f"✗ TypeError processing item '{item.input}': {str(e)}"
+                    )
+                    print(f"  Response type: {type(response)}")
+                    if response:
+                        print(f"  Response preview: {str(response)[:200]}...")
+                    print(f"  Traceback:\n{traceback.format_exc()}")
                     continue
+                finally:
+                    langfuse.flush()
 
-                actual = parse_output_state_snapshot(response)
+            # LLM-based scoring with analysis helps understand evaluation reasoning
+            # Check LangFuse UI for detailed trace analysis of failures
+            print(f"✓ {item.input} -> {score}")
 
-                evaluation = evaluate_answer(
-                    actual, item.input, item.expected_output, chat_model
-                )
-                score = evaluation_to_score(evaluation)
+    finally:
+        # Clean up both database pool and checkpointer pool
+        await close_global_pool()
+        await close_checkpointer_pool()
 
-                # Upload
-                root_span.update_trace(input=item.input, output=actual)
 
-                root_span.score_trace(
-                    name="data_interpretation_score",
-                    value=score,
-                    comment=f"Analysis: {evaluation['analysis']}",
-                )
-            except TypeError as e:
-                # Skip this item if response is not in expected format
-                print(f"✗ TypeError processing item '{item.input}': {str(e)}")
-                print(f"  Response type: {type(response)}")
-                if response:
-                    print(f"  Response preview: {str(response)[:200]}...")
-                print(f"  Traceback:\n{traceback.format_exc()}")
-                continue
-            finally:
-                langfuse.flush()
-
-        # LLM-based scoring with analysis helps understand evaluation reasoning
-        # Check LangFuse UI for detailed trace analysis of failures
-        print(f"✓ {item.input} -> {score}")
-
-finally:
-    # Clean up database pool
-    asyncio.run(close_global_pool())
+if __name__ == "__main__":
+    asyncio.run(main())
