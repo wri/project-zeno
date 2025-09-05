@@ -223,10 +223,12 @@ async def main():
 
         handler = CallbackHandler()
 
-        for idx, item in enumerate(active_items):
-            print(f"\n{'='*60}")
-            print(f"Processing item {idx+1}/{len(active_items)}: {item.input[:50]}...")
-            
+        for idx, item in enumerate(active_items[:1]):
+            print(f"\n{'=' * 60}")
+            print(
+                f"Processing item {idx + 1}/{len(active_items)}: {item.input[:50]}..."
+            )
+
             with item.run(run_name=run_name) as root_span:
                 # Execute
                 print(f"  Calling run_query...")
@@ -237,11 +239,13 @@ async def main():
                     thread_id=item.id,
                 )
                 print(f"  run_query completed")
-                
+
                 # Score
                 try:
                     if response is None:
-                        print(f"✗ Skipping item '{item.input}': response is None")
+                        print(
+                            f"✗ Skipping item '{item.input}': response is None"
+                        )
                         continue
 
                     print(f"  Parsing output...")
@@ -264,7 +268,9 @@ async def main():
                     )
                 except TypeError as e:
                     # Skip this item if response is not in expected format
-                    print(f"✗ TypeError processing item '{item.input}': {str(e)}")
+                    print(
+                        f"✗ TypeError processing item '{item.input}': {str(e)}"
+                    )
                     print(f"  Response type: {type(response)}")
                     if response:
                         print(f"  Response preview: {str(response)[:200]}...")
@@ -277,7 +283,7 @@ async def main():
             # LLM-based scoring with analysis helps understand evaluation reasoning
             # Check LangFuse UI for detailed trace analysis of failures
             print(f"✓ {item.input} -> {score}")
-            print(f"Item {idx+1} completed")
+            print(f"Item {idx + 1} completed")
 
     finally:
         # Clean up both database pool and checkpointer pool
