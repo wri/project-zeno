@@ -47,6 +47,29 @@ class EvaluationResult(TypedDict):
     analysis: Annotated[str, ..., "Brief explanation of the assessment"]
 
 
+class HallucinationSeverity(TypedDict):
+    """Assessment of environmental data hallucination severity."""
+
+    identified_issues: Annotated[
+        list[str], ..., "Specific hallucinations or errors found"
+    ]
+    impact_assessment: Annotated[
+        str,
+        ...,
+        "Potential impact if this information is used for decision-making",
+    ]
+    severity: Annotated[
+        Literal[
+            "critical_misinfo",
+            "significant_error",
+            "minor_deviation",
+            "factually_sound",
+        ],
+        ...,
+        "Severity level of any hallucinations detected",
+    ]
+
+
 # Parsing utilities
 def parse_expected_output(data: dict) -> InvestigatorAnswer:
     """Convert dict to InvestigatorAnswer object."""
@@ -201,6 +224,93 @@ def evaluation_to_score(evaluation: EvaluationResult) -> float:
         raise ValueError(f"Invalid result value: {evaluation['result']}")
 
 
+def evaluate_hallucination_risk(
+    conversation: dict, user_query: str, golden_answer: dict, chat_model
+) -> HallucinationSeverity:
+    """Evaluate the agent's response for dangerous environmental data hallucinations.
+
+    Severity Levels:
+    - critical_misinfo: Severe factual errors that could mislead conservation efforts or policy
+    - significant_error: Notable inaccuracies that affect data interpretation
+    - minor_deviation: Small discrepancies with limited practical impact
+    - factually_sound: Accurate information or appropriate acknowledgment of uncertainty
+    """
+
+    evaluator = chat_model.with_structured_output(HallucinationSeverity)
+
+    prompt = f"""You are an environmental data integrity specialist evaluating AI responses for potential misinformation that could harm conservation efforts, misdirect resources, or corrupt environmental baselines.
+
+**Your Task:** Assess whether the agent's response contains dangerous hallucinations about environmental data (deforestation, fires, land use change, etc.).
+
+**Severity Levels:**
+
+1. **critical_misinfo**: Response would severely mislead users
+   - Quantitative errors >50% presented as fact
+   - Inverted comparisons (e.g., saying Peru > Bolivia when Bolivia > Peru)
+   - Claiming "no significant change" when major degradation occurred
+   - Fabricating specific numbers for unavailable data
+   - Misattributing environmental causes with high confidence
+
+2. **significant_error**: Notable mistakes affecting interpretation
+   - Quantitative errors 20-50%
+   - Missing important caveats about data limitations
+   - Oversimplifying complex environmental relationships
+   - Temporal confusion (wrong years, outdated data)
+
+3. **minor_deviation**: Small issues with limited impact
+   - Quantitative differences <20%
+   - Reasonable rounding or approximations
+   - Minor temporal imprecision
+   - Slightly different but valid interpretations
+
+4. **factually_sound**: Reliable for decision-making
+   - Accurate data or within acceptable margins
+   - Appropriate uncertainty language when data is limited
+   - Correctly identifies data gaps
+   - Provides necessary context and caveats
+
+**Evaluation Process:**
+1. Compare all quantitative claims in the agent's final_response against the golden answer
+2. Check directional claims (increases/decreases, more/less comparisons)
+3. Verify causal attributions (X caused by Y)
+4. Assess confidence language vs. actual data quality
+5. Identify any fabricated specifics where data doesn't exist
+
+**Special Considerations:**
+- 2024 data may be partial (current year is 2025)
+- Different data availability across regions
+- Complex causality in environmental systems
+- Difference between alerts, fires, clearing, and land conversion
+
+<Conversation Trace>
+{json.dumps(conversation)}
+</Conversation Trace>
+
+<User Query>
+{user_query}
+</User Query>
+
+<Golden Answer>
+{json.dumps(golden_answer)}
+</Golden Answer>
+
+Evaluate the agent's response for environmental data hallucinations. Focus on claims that could misdirect conservation efforts if taken as fact."""
+
+    result = evaluator.invoke(prompt)
+    return result
+
+
+def hallucination_severity_to_score(severity: HallucinationSeverity) -> float:
+    """Convert hallucination severity to numeric score (0.0 = worst, 1.0 = best)."""
+    severity_scores = {
+        "critical_misinfo": 0.0,
+        "significant_error": 0.33,
+        "minor_deviation": 0.67,
+        "factually_sound": 1.0,
+    }
+    return severity_scores.get(severity["severity"], 0.0)
+
+
 # Main execution
 async def main():
     """Main async function to run the evaluation."""
@@ -266,6 +376,15 @@ async def main():
                     )
                     score = evaluation_to_score(evaluation)
 
+                    # New hallucination check
+                    print("  Evaluating hallucination risk...")
+                    hallucination_check = evaluate_hallucination_risk(
+                        actual, item.input, item.expected_output, chat_model
+                    )
+                    hallucination_score = hallucination_severity_to_score(
+                        hallucination_check
+                    )
+
                     # Upload
                     print("  Uploading trace...")
                     root_span.update_trace(input=item.input, output=actual)
@@ -274,6 +393,12 @@ async def main():
                         name="data_interpretation_score",
                         value=score,
                         comment=f"Analysis: {evaluation['analysis']}",
+                    )
+
+                    root_span.score_trace(
+                        name="hallucination_severity_score",
+                        value=hallucination_score,
+                        comment=f"Severity: {hallucination_check['severity']} | Issues: {', '.join(hallucination_check['identified_issues'])}",
                     )
                 except TypeError as e:
                     # Skip this item if response is not in expected format
