@@ -76,6 +76,25 @@ async def run_query(
         print(f"GraphRecursionError for query '{query}': {str(e)}")
         # Return None to indicate error
         return None
+    except ValueError as e:
+        # Handle the specific case of missing ToolMessages
+        if "AIMessages with tool_calls that do not have a corresponding ToolMessage" in str(e):
+            print(f"Incomplete execution for query '{query}': Tool calls without responses detected")
+            # Try to get the state anyway with a different approach
+            try:
+                # Get the state with snapshot=True to get whatever state is available
+                state = await zeno_async.aget_state(config=config, subgraphs=True)
+                if state:
+                    print(f"  Retrieved partial state for query '{query}'")
+                    return state
+            except:
+                pass
+            # If we still can't get the state, return None
+            print(f"  Could not retrieve any state for query '{query}'")
+            return None
+        else:
+            # Re-raise other ValueErrors
+            raise
     except Exception as e:
         # Catch any other unexpected errors
         print(
