@@ -44,9 +44,19 @@ def normalize_gadm_id(gadm_id: str) -> str:
     return gadm_id
 
 
-def parse_expected_output(gadm_id: str) -> List[GadmLocation]:
+def parse_expected_output(expected_data) -> List[GadmLocation]:
     """Convert list of dicts to list of GadmLocation objects."""
-    return [GadmLocation(gadm_id=gadm_id)]
+    if isinstance(expected_data, list):
+        return [
+            GadmLocation(gadm_id=item["gadm_id"], name=item["name"])
+            for item in expected_data
+            if "gadm_id" in item
+        ]
+    elif isinstance(expected_data, str):
+        # Handle legacy case if it's just a string
+        return [GadmLocation(gadm_id=expected_data)]
+    else:
+        return []
 
 
 def parse_gadm_from_json(json_str: str) -> List[GadmLocation]:
@@ -123,7 +133,6 @@ def extract_gadm_from_state(state):
 
             if aoi_gadm_id:
                 return [GadmLocation(name=aoi_name, gadm_id=aoi_gadm_id)]
-
         return []
 
     return []
