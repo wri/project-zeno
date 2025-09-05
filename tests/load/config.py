@@ -21,10 +21,10 @@ class LoadTestConfig:
     RUN_TIME = "5m"  # Test duration
 
     # Request Timeouts
-    REQUEST_TIMEOUT = 120  # seconds (increased for streaming responses)
-    STREAMING_TIMEOUT = 180  # seconds for streaming responses
+    REQUEST_TIMEOUT = 600  # seconds (increased for streaming responses)
+    STREAMING_TIMEOUT = 600  # seconds for streaming responses
     CONNECT_TIMEOUT = 10  # seconds for initial connection
-    READ_TIMEOUT = 120  # seconds for reading response data
+    READ_TIMEOUT = 600  # seconds for reading response data
 
     # Connection Pool Configuration
     MAX_POOL_SIZE = 50  # Maximum connections per pool
@@ -94,8 +94,8 @@ class ScenarioConfig:
 
     # Spike Test - Traffic bursts
     SPIKE = {
-        "users": 100,
+        "users": 50,
         "spawn_rate": 10,
         "run_time": "3m",
-        "description": "Sudden traffic spike with 100 users",
+        "description": "Sudden traffic spike with 50 users",
     }

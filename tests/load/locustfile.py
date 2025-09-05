@@ -110,10 +110,7 @@ class ZenoChatUser(HttpUser):
                 bytes_received = 0
 
                 try:
-                    # Use chunk_size to improve streaming performance
-                    for line in response.iter_lines(
-                        chunk_size=8192, decode_unicode=True
-                    ):
+                    for line in response.iter_lines():
                         if line:
                             line = line.strip()
                             if line:
@@ -133,10 +130,7 @@ class ZenoChatUser(HttpUser):
                                     continue
 
                                 # Add a small yield to prevent blocking
-                                if len(response_data) % 10 == 0:
-                                    time.sleep(
-                                        0.001
-                                    )  # 1ms yield every 10 chunks
+                                time.sleep(0.001)
 
                     # Mark as success if we received data
                     if response_data:
