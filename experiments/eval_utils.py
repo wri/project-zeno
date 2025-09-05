@@ -40,12 +40,18 @@ async def run_query(
     thread_id: str = None,
 ):
     """Run a query through Zeno and return the final state."""
+    import uuid
+    
+    # Use a unique thread_id for each evaluation to avoid locking issues
+    eval_thread_id = f"eval_{thread_id}_{uuid.uuid4().hex[:8]}"
+    
     config = {
-        "configurable": {"thread_id": thread_id},
+        "configurable": {"thread_id": eval_thread_id},  # Unique thread ID
         "callbacks": [handler],
     }
 
     try:
+        print(f"  Creating agent for query: {query[:50]}...")
         zeno_async = await fetch_zeno()
 
         # Prepare the state updates with the query message
@@ -54,6 +60,7 @@ async def run_query(
             "user_persona": user_persona,
         }
 
+        print(f"  Starting stream for thread {eval_thread_id}...")
         # Run the agent with the query
         stream = zeno_async.astream(
             state_updates,
@@ -63,11 +70,17 @@ async def run_query(
         )
 
         # Consume the stream to ensure the agent completes
-        async for _ in stream:
-            pass  # Just consume the updates
+        update_count = 0
+        async for update in stream:
+            update_count += 1
+            print(f"    Update {update_count} received")
+            
+        print(f"  Stream completed with {update_count} updates")
 
         # Now get the final state after execution
+        print(f"  Getting final state...")
         state = await zeno_async.aget_state(config=config)
+        print(f"  State retrieved successfully")
 
         return state
 
@@ -100,5 +113,7 @@ async def run_query(
         print(
             f"Unexpected error for query '{query}': {type(e).__name__}: {str(e)}"
         )
+        import traceback
+        traceback.print_exc()
         # Return None to indicate error
         return None

@@ -223,31 +223,38 @@ async def main():
 
         handler = CallbackHandler()
 
-        for item in active_items:
+        for idx, item in enumerate(active_items):
+            print(f"\n{'='*60}")
+            print(f"Processing item {idx+1}/{len(active_items)}: {item.input[:50]}...")
+            
             with item.run(run_name=run_name) as root_span:
                 # Execute
+                print(f"  Calling run_query...")
                 response = await run_query(
                     query=item.input,
                     handler=handler,
                     user_persona="researcher",
                     thread_id=item.id,
                 )
+                print(f"  run_query completed")
+                
                 # Score
                 try:
                     if response is None:
-                        print(
-                            f"✗ Skipping item '{item.input}': response is None"
-                        )
+                        print(f"✗ Skipping item '{item.input}': response is None")
                         continue
 
+                    print(f"  Parsing output...")
                     actual = parse_output_state_snapshot(response)
 
+                    print(f"  Evaluating answer...")
                     evaluation = evaluate_answer(
                         actual, item.input, item.expected_output, chat_model
                     )
                     score = evaluation_to_score(evaluation)
 
                     # Upload
+                    print(f"  Uploading trace...")
                     root_span.update_trace(input=item.input, output=actual)
 
                     root_span.score_trace(
@@ -257,20 +264,20 @@ async def main():
                     )
                 except TypeError as e:
                     # Skip this item if response is not in expected format
-                    print(
-                        f"✗ TypeError processing item '{item.input}': {str(e)}"
-                    )
+                    print(f"✗ TypeError processing item '{item.input}': {str(e)}")
                     print(f"  Response type: {type(response)}")
                     if response:
                         print(f"  Response preview: {str(response)[:200]}...")
                     print(f"  Traceback:\n{traceback.format_exc()}")
                     continue
                 finally:
+                    print(f"  Flushing langfuse...")
                     langfuse.flush()
 
             # LLM-based scoring with analysis helps understand evaluation reasoning
             # Check LangFuse UI for detailed trace analysis of failures
             print(f"✓ {item.input} -> {score}")
+            print(f"Item {idx+1} completed")
 
     finally:
         # Clean up both database pool and checkpointer pool
