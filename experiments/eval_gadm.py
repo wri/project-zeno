@@ -40,6 +40,24 @@ class GadmLocation:
 
 # Parsing utilities
 def normalize_gadm_id(gadm_id: str) -> str:
+    """Normalize GADM IDs to enable consistent comparison between different formats.
+
+    Normalization steps:
+    1. Remove suffix after underscore (e.g., CUB.7_1 → CUB.7)
+    2. Replace hyphens with dots (e.g., CUB-7 → CUB.7)
+    3. Convert to lowercase (e.g., CUB.7 → cub.7)
+
+    Examples:
+        CUB.7_1 → cub.7
+        CUB-7 → cub.7
+        CUB.7 → cub.7
+
+    Args:
+        gadm_id: The GADM ID to normalize
+
+    Returns:
+        Normalized GADM ID string
+    """
     gadm_id = gadm_id.split("_")[0].replace("-", ".").lower()
     return gadm_id
 
