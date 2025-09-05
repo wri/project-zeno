@@ -24,6 +24,11 @@ from src.agents.agents import close_checkpointer_pool
 from src.utils.database import close_global_pool, initialize_global_pool
 
 
+# Global variables for REPL access
+last_response = None
+last_item = None
+
+
 # Data structures
 @dataclass
 class InvestigatorAnswer:
@@ -199,6 +204,8 @@ def evaluation_to_score(evaluation: EvaluationResult) -> float:
 # Main execution
 async def main():
     """Main async function to run the evaluation."""
+    global last_response, last_item
+
     await initialize_global_pool()
 
     try:
@@ -223,7 +230,7 @@ async def main():
 
         handler = CallbackHandler()
 
-        for idx, item in enumerate(active_items[:1]):
+        for idx, item in enumerate(active_items):
             print(f"\n{'=' * 60}")
             print(
                 f"Processing item {idx + 1}/{len(active_items)}: {item.input[:50]}..."
@@ -231,14 +238,16 @@ async def main():
 
             with item.run(run_name=run_name) as root_span:
                 # Execute
-                print(f"  Calling run_query...")
+                print("  Calling run_query...")
                 response = await run_query(
                     query=item.input,
                     handler=handler,
                     user_persona="researcher",
                     thread_id=item.id,
                 )
-                print(f"  run_query completed")
+                last_response = response
+                last_item = item
+                print("  run_query completed")
 
                 # Score
                 try:
@@ -248,17 +257,17 @@ async def main():
                         )
                         continue
 
-                    print(f"  Parsing output...")
+                    print("  Parsing output...")
                     actual = parse_output_state_snapshot(response)
 
-                    print(f"  Evaluating answer...")
+                    print("  Evaluating answer...")
                     evaluation = evaluate_answer(
                         actual, item.input, item.expected_output, chat_model
                     )
                     score = evaluation_to_score(evaluation)
 
                     # Upload
-                    print(f"  Uploading trace...")
+                    print("  Uploading trace...")
                     root_span.update_trace(input=item.input, output=actual)
 
                     root_span.score_trace(
