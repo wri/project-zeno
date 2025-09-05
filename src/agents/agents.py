@@ -14,6 +14,7 @@ from src.tools import (
     pick_dataset,
     pull_data,
 )
+from src.utils.config import APISettings
 from src.utils.env_loader import load_environment_variables
 from src.utils.llms import MODEL
 
@@ -105,8 +106,8 @@ async def get_checkpointer_pool() -> AsyncConnectionPool:
     if _checkpointer_pool is None:
         _checkpointer_pool = AsyncConnectionPool(
             DATABASE_URL,
-            min_size=5,
-            max_size=20,
+            min_size=APISettings.db_pool_size,
+            max_size=APISettings.db_max_overflow + APISettings.db_pool_size,
             kwargs={
                 "row_factory": dict_row,
                 "autocommit": True,

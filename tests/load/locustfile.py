@@ -23,10 +23,12 @@ Usage:
 import json
 import logging
 import random
+import time
 from typing import Dict, Optional
 
 from config import LoadTestConfig, ScenarioConfig
 from locust import HttpUser, between, events, task
+from requests.adapters import HTTPAdapter
 from test_data import TestDataGenerator
 
 # Configure logging
@@ -37,18 +39,39 @@ logger = logging.getLogger(__name__)
 class ZenoChatUser(HttpUser):
     """Simulates a user interacting with the Zeno chat endpoint."""
 
+    host = LoadTestConfig.BASE_URL  # Set default host
     wait_time = between(LoadTestConfig.MIN_WAIT, LoadTestConfig.MAX_WAIT)
     weight = 1
 
+    # Configure connection pooling and retries
+    connection_timeout = LoadTestConfig.CONNECT_TIMEOUT
+    network_timeout = LoadTestConfig.READ_TIMEOUT
+
     def on_start(self):
-        """Initialize user session."""
+        """Initialize user session with optimized HTTP client."""
         LoadTestConfig.validate_config()
         self.data_generator = TestDataGenerator()
         self.thread_id = None  # For conversation continuity
         self.conversation_turns = 0
         self.max_conversation_turns = random.randint(3, 6)
 
+        # Configure HTTP client with connection pooling and retries
+        self._configure_http_client()
+
         logger.info(f"User {self.environment.runner.user_count} started")
+
+    def _configure_http_client(self):
+        """Configure HTTP client with optimized connection pooling."""
+        # Create adapter with connection pooling (no retries for realistic user behavior)
+        adapter = HTTPAdapter(
+            pool_connections=LoadTestConfig.MAX_POOL_SIZE,
+            pool_maxsize=LoadTestConfig.MAX_POOL_CONNECTIONS,
+            pool_block=LoadTestConfig.POOL_BLOCK,
+        )
+
+        # Mount adapter for both HTTP and HTTPS
+        self.client.mount("http://", adapter)
+        self.client.mount("https://", adapter)
 
     def make_chat_request(
         self, payload: Dict, request_name: str = "chat"
@@ -61,11 +84,17 @@ class ZenoChatUser(HttpUser):
         }
 
         try:
+            # Use separate connect and read timeouts for better control
+            timeout = (
+                LoadTestConfig.CONNECT_TIMEOUT,
+                LoadTestConfig.READ_TIMEOUT,
+            )
+
             with self.client.post(
                 LoadTestConfig.API_ENDPOINT,
                 json=payload,
                 headers=headers,
-                timeout=LoadTestConfig.REQUEST_TIMEOUT,
+                timeout=timeout,
                 stream=True,
                 name=request_name,
                 catch_response=True,
@@ -83,10 +112,6 @@ class ZenoChatUser(HttpUser):
                 try:
                     for line in response.iter_lines():
                         if line:
-                            # Decode bytes to string if needed
-                            if isinstance(line, bytes):
-                                line = line.decode("utf-8")
-
                             line = line.strip()
                             if line:
                                 bytes_received += len(line)
@@ -103,6 +128,9 @@ class ZenoChatUser(HttpUser):
                                         f"JSON decode error: {e}, line: {line[:100]}"
                                     )
                                     continue
+
+                                # Add a small yield to prevent blocking
+                                time.sleep(0.001)
 
                     # Mark as success if we received data
                     if response_data:
