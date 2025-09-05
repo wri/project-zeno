@@ -13,7 +13,7 @@ class _APISettings(BaseSettings):
 
     # Database connection pool settings
     db_pool_size: int = Field(default=5, alias="DB_POOL_SIZE")
-    db_max_overflow: int = Field(default=20, alias="DB_MAX_OVERFLOW")
+    db_max_overflow: int = Field(default=10, alias="DB_MAX_OVERFLOW")
     db_pool_timeout: int = Field(default=30, alias="DB_POOL_TIMEOUT")
     db_pool_recycle: int = Field(default=3600, alias="DB_POOL_RECYCLE")
 
