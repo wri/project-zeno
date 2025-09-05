@@ -300,17 +300,6 @@ Evaluate the agent's response for environmental data hallucinations. Focus on cl
     return result
 
 
-def hallucination_severity_to_score(severity: HallucinationSeverity) -> float:
-    """Convert hallucination severity to numeric score (0.0 = worst, 1.0 = best)."""
-    severity_scores = {
-        "critical_misinfo": 0.0,
-        "significant_error": 0.33,
-        "minor_deviation": 0.67,
-        "factually_sound": 1.0,
-    }
-    return severity_scores.get(severity["severity"], 0.0)
-
-
 # Main execution
 async def main():
     """Main async function to run the evaluation."""
@@ -381,9 +370,6 @@ async def main():
                     hallucination_check = evaluate_hallucination_risk(
                         actual, item.input, item.expected_output, chat_model
                     )
-                    hallucination_score = hallucination_severity_to_score(
-                        hallucination_check
-                    )
 
                     # Upload
                     print("  Uploading trace...")
@@ -396,10 +382,12 @@ async def main():
                     )
 
                     root_span.score_trace(
-                        name="hallucination_severity_score",
-                        value=hallucination_score,
-                        comment=f"Severity: {hallucination_check['severity']} | Issues: {', '.join(hallucination_check['identified_issues'])}",
+                        name="hallucination_severity_category",
+                        value=hallucination_check["severity"],
+                        data_type="CATEGORICAL",
+                        comment=f"Issues: {', '.join(hallucination_check['identified_issues'])}",
                     )
+
                 except TypeError as e:
                     # Skip this item if response is not in expected format
                     print(
