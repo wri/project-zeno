@@ -27,18 +27,24 @@ class _APISettings(BaseSettings):
 
     nextjs_api_key: str = Field(..., alias="NEXTJS_API_KEY")
     max_user_signups: int = Field(default=-1, alias="MAX_USER_SIGNUPS")
-    allow_public_signups: bool = Field(default=False, alias="ALLOW_PUBLIC_SIGNUPS")
+    allow_public_signups: bool = Field(
+        default=False, alias="ALLOW_PUBLIC_SIGNUPS"
+    )
 
     @property
     def domains_allowlist(self) -> list[str]:
         if not self.domains_allowlist_str.strip():
             return []
-        return [domain.strip() for domain in self.domains_allowlist_str.split(",")]
+        return [
+            domain.strip() for domain in self.domains_allowlist_str.split(",")
+        ]
 
     @field_validator("nextjs_api_key")
     def validate_nextjs_api_key(cls, value):
         if not value or value.strip() == "":
-            raise ValueError("NEXTJS_API_KEY must be set to a non-empty string")
+            raise ValueError(
+                "NEXTJS_API_KEY must be set to a non-empty string"
+            )
         return value
 
     model_config = {
