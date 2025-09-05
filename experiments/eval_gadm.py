@@ -58,8 +58,11 @@ def normalize_gadm_id(gadm_id: str) -> str:
     Returns:
         Normalized GADM ID string
     """
-    gadm_id = gadm_id.split("_")[0].replace("-", ".").lower()
-    return gadm_id
+    try:
+        return gadm_id.split("_")[0].replace("-", ".").lower()
+    except AttributeError:
+        # If gadm_id is not a string (e.g., int), return as-is
+        return gadm_id
 
 
 def parse_expected_output(expected_data) -> List[GadmLocation]:
