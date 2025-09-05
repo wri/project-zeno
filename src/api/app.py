@@ -1,4 +1,3 @@
-import asyncio
 import io
 import json
 import os
@@ -292,7 +291,6 @@ async def replay_chat(thread_id):
             }
 
             yield pack(update)
-            await asyncio.sleep(0)  # Yield to event loop
 
     except Exception as e:
         # TODO: yield a stream event with the error?
@@ -392,7 +390,6 @@ async def stream_chat(
                         "update": dumps(update[node]),
                     }
                 )
-                await asyncio.sleep(0)  # Yield to event loop
             except Exception as e:
                 logger.exception(
                     "Error processing stream update",

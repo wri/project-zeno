@@ -10,7 +10,7 @@ class QueryPatterns:
     # Quick geographic queries (30% of traffic)
     QUICK_QUERIES = [
         "What's the deforestation rate in Brazil from 2020 to 2023?",
-        "Show me protected areas in Costa Rica established between 2019-2024",
+        # "Show me protected areas in Costa Rica established between 2019-2024",
         "Climate data for Kenya from 2021 to 2023",
         "Forest loss in Indonesia 2020-2023",
         "Biodiversity hotspots in Madagascar - data from 2022 to 2024",
@@ -30,8 +30,8 @@ class QueryPatterns:
     ANALYSIS_QUERIES = [
         "Compare deforestation rates between Brazil and Indonesia from 2020 to 2023, focusing on primary forest loss",
         "Analyze the correlation between rainfall patterns and agricultural productivity in sub-Saharan Africa",
-        "What are the trends in protected area coverage across Southeast Asian countries in the last decade?",
-        "Show me biodiversity threat levels in Central American countries and their protected area effectiveness",
+        # "What are the trends in protected area coverage across Southeast Asian countries in the last decade?",
+        # "Show me biodiversity threat levels in Central American countries and their protected area effectiveness",
         "Compare forest fire frequency and intensity between Australia and California over the past 5 years",
         "Analyze land use change patterns in the Congo Basin and their impact on wildlife corridors",
         "What's the relationship between climate variables and species distribution in the Himalayas?",
@@ -51,7 +51,7 @@ class QueryPatterns:
         "I need to understand climate impacts on agriculture",
         "I'm researching biodiversity loss patterns",
         "Show me data about coastal ecosystem changes",
-        "I want to analyze protected area effectiveness",
+        # "I want to analyze protected area effectiveness",
         "Help me understand deforestation drivers",
         "I'm looking at wildlife habitat connectivity",
         "Can you help me with carbon storage analysis?",

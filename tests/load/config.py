@@ -94,8 +94,8 @@ class ScenarioConfig:
 
     # Spike Test - Traffic bursts
     SPIKE = {
-        "users": 50,
+        "users": 100,
         "spawn_rate": 10,
         "run_time": "3m",
-        "description": "Sudden traffic spike with 50 users",
+        "description": "Sudden traffic spike with 100 users",
     }
