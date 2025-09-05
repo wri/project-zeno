@@ -14,7 +14,6 @@ from typing import List, Optional
 from langfuse.langchain import CallbackHandler
 
 from experiments.eval_utils import get_langfuse, get_run_name, run_query
-from src.utils.geocoding_helpers import GADM_LEVELS
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -120,9 +119,7 @@ def extract_gadm_from_state(state):
         aoi = state.values.get("aoi")
 
         if aoi is not None and aoi_name:
-            subtype = state.values.get("subtype")
-            gadm_level = GADM_LEVELS.get(subtype, {})
-            aoi_gadm_id = aoi.get(gadm_level.get("col_name", ""))
+            aoi_gadm_id = aoi.get("gadm_id")
 
             if aoi_gadm_id:
                 return [GadmLocation(name=aoi_name, gadm_id=aoi_gadm_id)]
