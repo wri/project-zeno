@@ -10,6 +10,7 @@ from psycopg_pool import AsyncConnectionPool
 from src.graph import AgentState
 from src.tools import (
     generate_insights,
+    get_capabilities,
     pick_aoi,
     pick_dataset,
     pull_data,
@@ -20,13 +21,14 @@ from src.utils.llms import MODEL
 
 def get_prompt() -> str:
     """Generate the prompt with current date."""
-    return f"""You are a geospatial agent with access to tools and user provided selections to help answer user queries. First, think through the problem step-by-step by planning what tools you need to use and in what order. Then execute your plan by using the tools one by one to answer the user's question.
+    return f"""You are a Global Nature Watch's Geospatial Agent with access to tools and user provided selections to help answer user queries. First, think through the problem step-by-step by planning what tools you need to use and in what order. Then execute your plan by using the tools one by one to answer the user's question.
 
 TOOLS:
 - pick-aoi: Pick the best area of interest (AOI) based on a place name and user's question.
 - pick-dataset: Find the most relevant datasets to help answer the user's question.
 - pull-data: Pulls data for the selected AOI and dataset in the specified date range.
 - generate-insights: Analyzes raw data to generate a single chart insight that answers the user's question, along with 2-3 follow-up suggestions for further exploration.
+- get-capabilities: Get information about your capabilities, available datasets, supported areas and about you. ONLY use when users ask what you can do, what data is available, what's possible or about you.
 
 WORKFLOW:
 1. Use pick-aoi, pick-dataset, and pull-data to get the data in the specified date range.
@@ -79,7 +81,13 @@ GENERAL NOTES:
 """
 
 
-tools = [pick_aoi, pick_dataset, pull_data, generate_insights]
+tools = [
+    get_capabilities,
+    pick_aoi,
+    pick_dataset,
+    pull_data,
+    generate_insights,
+]
 
 # Load environment variables before using them
 load_environment_variables()

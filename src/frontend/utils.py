@@ -551,6 +551,10 @@ def render_stream(stream):
         st.badge(timestamp, icon=":material/schedule:", color="blue")
 
     for msg in update["messages"]:
+        msg_type = msg["kwargs"].get("type")
+        if msg_type == "tool" and msg["kwargs"].get("name") == "get_capabilities":
+            continue
+        
         content = msg["kwargs"]["content"]
 
         if isinstance(content, list):
