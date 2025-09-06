@@ -379,12 +379,15 @@ async def main():
                         comment=f"Analysis: {evaluation['analysis']}",
                     )
 
-                    root_span.score_trace(
-                        name="hallucination_severity_category",
-                        value=hallucination_check["severity"],
-                        data_type="CATEGORICAL",
-                        comment=f"Issues: {', '.join(hallucination_check['identified_issues'])}",
-                    )
+                    # TODO: factually_sound prognosis seem buggy. i.e. answre is outright wrong but
+                    # it's marked as factually_sound
+                    if hallucination_check["severity"] != "factually_sound":
+                        root_span.score_trace(
+                            name="hallucination_severity_category",
+                            value=hallucination_check["severity"],
+                            data_type="CATEGORICAL",
+                            comment=f"Issues: {', '.join(hallucination_check['identified_issues'])}",
+                        )
 
                 except TypeError as e:
                     # Skip this item if response is not in expected format
@@ -397,7 +400,7 @@ async def main():
                     print(f"  Traceback:\n{traceback.format_exc()}")
                     continue
                 finally:
-                    print(f"  Flushing langfuse...")
+                    print("  Flushing langfuse...")
                     langfuse.flush()
 
             # LLM-based scoring with analysis helps understand evaluation reasoning
