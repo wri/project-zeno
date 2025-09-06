@@ -63,10 +63,9 @@ class HallucinationSeverity(TypedDict):
     ]
     severity: Annotated[
         Literal[
-            "critical_misinfo",
-            "significant_error",
-            "minor_deviation",
-            "factually_sound",
+            "misleading",
+            "imprecise",
+            "accurate",
         ],
         ...,
         "Severity level of any hallucinations detected",
@@ -232,55 +231,41 @@ def evaluate_hallucination_risk(
     """Evaluate the agent's response for dangerous environmental data hallucinations.
 
     Severity Levels:
-    - critical_misinfo: Severe factual errors that could mislead conservation efforts or policy
-    - significant_error: Notable inaccuracies that affect data interpretation
-    - minor_deviation: Small discrepancies with limited practical impact
-    - factually_sound: Accurate information or appropriate acknowledgment of uncertainty
+    - misleading: Response would lead to wrong decisions
+    - imprecise: Generally correct but has noticeable issues
+    - accurate: Reliable for decision-making
     """
 
-    prompt = f"""You are an environmental data integrity specialist evaluating AI responses for potential misinformation that could harm conservation efforts, misdirect resources, or corrupt environmental baselines.
+    prompt = f"""You are an environmental data integrity specialist evaluating AI responses for potential misinformation that could impact conservation decisions.
 
-**Your Task:** Assess whether the agent's response contains dangerous hallucinations about environmental data (deforestation, fires, land use change, etc.).
+**Your Task:** Assess whether the agent's response contains problematic inaccuracies about environmental data.
 
-**Severity Levels:**
+**Assessment Categories (choose one):**
 
-1. **critical_misinfo**: Response would severely mislead users
-   - Quantitative errors >50% presented as fact
-   - Inverted comparisons (e.g., saying Peru > Bolivia when Bolivia > Peru)
-   - Claiming "no significant change" when major degradation occurred
-   - Fabricating specific numbers for unavailable data
-   - Misattributing environmental causes with high confidence
+1. **misleading**: Response would lead to wrong decisions
+   - Major factual errors (wrong order of magnitude, inverted trends)
+   - Fabricated specific numbers presented as fact
+   - Claiming opposite of what data shows (e.g., "decreasing" when actually increasing)
+   - Missing critical context that changes interpretation
+   - High confidence claims about unavailable data
 
-2. **significant_error**: Notable mistakes affecting interpretation
-   - Quantitative errors 20-50%
-   - Missing important caveats about data limitations
-   - Oversimplifying complex environmental relationships
-   - Temporal confusion (wrong years, outdated data)
+2. **imprecise**: Generally correct but has noticeable issues
+   - Correct overall trends but inaccurate specific values
+   - Missing helpful caveats or uncertainty acknowledgments
+   - Oversimplified but not fundamentally wrong
+   - Minor temporal confusion that doesn't change conclusions
 
-3. **minor_deviation**: Small issues with limited impact
-   - Quantitative differences <20%
-   - Reasonable rounding or approximations
-   - Minor temporal imprecision
-   - Slightly different but valid interpretations
+3. **accurate**: Reliable for decision-making
+   - Factually correct or acknowledges uncertainty appropriately
+   - Provides necessary context and limitations
+   - Correctly identifies when data is unavailable
+   - Any approximations are reasonable and acknowledged
 
-4. **factually_sound**: Reliable for decision-making
-   - Accurate data or within acceptable margins
-   - Appropriate uncertainty language when data is limited
-   - Correctly identifies data gaps
-   - Provides necessary context and caveats
-
-**Evaluation Process:**
-1. Compare all quantitative claims in the agent's final_response against the golden answer
-2. Check directional claims (increases/decreases, more/less comparisons)
-3. Verify causal attributions (X caused by Y)
-4. Assess confidence language vs. actual data quality
-5. Identify any fabricated specifics where data doesn't exist
-
-**Special Considerations:**
-- 2024 data may be partial (current year is 2025)
-- Different data availability across regions
-- Complex causality in environmental systems
-- Difference between alerts, fires, clearing, and land conversion
+**Key Evaluation Points:**
+- Focus on whether errors would change decision-making, not exact percentages
+- Consider if the response correctly captures the general magnitude and direction
+- Check if uncertainty is appropriately communicated
+- Verify no data is fabricated where it doesn't exist
 
 <Conversation Trace>
 {json.dumps(conversation)}
@@ -294,7 +279,7 @@ def evaluate_hallucination_risk(
 {json.dumps(golden_answer)}
 </Golden Answer>
 
-Evaluate the agent's response for environmental data hallucinations. Focus on claims that could misdirect conservation efforts if taken as fact."""
+Assess the practical impact of any inaccuracies in the agent's response. Would a conservation organization make wrong decisions based on this information?"""
 
     result = reason_and_structure(
         prompt=prompt,
@@ -379,9 +364,9 @@ async def main():
                         comment=f"Analysis: {evaluation['analysis']}",
                     )
 
-                    # TODO: factually_sound prognosis seem buggy. i.e. answre is outright wrong but
-                    # it's marked as factually_sound
-                    if hallucination_check["severity"] != "factually_sound":
+                    # TODO: accurate prognosis seem buggy. i.e. answer is outright wrong but
+                    # it's marked as accurate
+                    if hallucination_check["severity"] != "accurate":
                         root_span.score_trace(
                             name="hallucination_severity_category",
                             value=hallucination_check["severity"],
