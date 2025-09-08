@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - load-testing-connection-pool
 
 env:
   REGISTRY: public.ecr.aws/b7u8b0a6
