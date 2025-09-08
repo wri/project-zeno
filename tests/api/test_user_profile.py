@@ -51,7 +51,9 @@ class TestUserProfileAPI:
         self.valid_country = next(iter(COUNTRIES.keys()))
         self.valid_language = next(iter(LANGUAGES.keys()))
         self.valid_expertise = next(iter(GIS_EXPERTISE_LEVELS.keys()))
-        self.valid_topics = list(TOPICS.keys())[:2]  # Get first 2 topics for testing
+        self.valid_topics = list(TOPICS.keys())[
+            :2
+        ]  # Get first 2 topics for testing
 
     @pytest.mark.asyncio
     async def test_update_profile_requires_auth(self, client):
@@ -165,7 +167,9 @@ class TestUserProfileAPI:
         assert "Invalid GIS expertise level" in str(response.json())
 
     @pytest.mark.asyncio
-    async def test_update_profile_new_fields(self, client, user, auth_override):
+    async def test_update_profile_new_fields(
+        self, client, user, auth_override
+    ):
         """Test updating the new profile fields: topics, receive_news_emails, help_test_features."""
         auth_override(user.id)
 
@@ -180,11 +184,13 @@ class TestUserProfileAPI:
 
         data = response.json()
         assert data["topics"] == self.valid_topics
-        assert data["receiveNewsEmails"] == True
-        assert data["helpTestFeatures"] == True
+        assert data["receiveNewsEmails"]
+        assert data["helpTestFeatures"]
 
     @pytest.mark.asyncio
-    async def test_update_profile_topics_validation(self, client, user, auth_override):
+    async def test_update_profile_topics_validation(
+        self, client, user, auth_override
+    ):
         """Test topics field validation."""
         auth_override(user.id)
 
@@ -211,7 +217,9 @@ class TestUserProfileAPI:
         assert data["topics"] == self.valid_topics
 
     @pytest.mark.asyncio
-    async def test_update_profile_topics_empty_list(self, client, user, auth_override):
+    async def test_update_profile_topics_empty_list(
+        self, client, user, auth_override
+    ):
         """Test topics can be set to empty list."""
         auth_override(user.id)
 
@@ -223,14 +231,14 @@ class TestUserProfileAPI:
         assert response.json()["topics"] == self.valid_topics
 
         # Then set to empty list
-        response = await client.patch(
-            "/api/auth/profile", json={"topics": []}
-        )
+        response = await client.patch("/api/auth/profile", json={"topics": []})
         assert response.status_code == 200
         assert response.json()["topics"] == []
 
     @pytest.mark.asyncio
-    async def test_update_profile_topics_null(self, client, user, auth_override):
+    async def test_update_profile_topics_null(
+        self, client, user, auth_override
+    ):
         """Test topics can be set to null."""
         auth_override(user.id)
 
@@ -249,27 +257,31 @@ class TestUserProfileAPI:
         assert response.json()["topics"] is None
 
     @pytest.mark.asyncio
-    async def test_update_profile_boolean_fields(self, client, user, auth_override):
+    async def test_update_profile_boolean_fields(
+        self, client, user, auth_override
+    ):
         """Test boolean fields can be set to true/false."""
         auth_override(user.id)
 
         # Test setting to True
         response = await client.patch(
-            "/api/auth/profile", json={"receive_news_emails": True, "help_test_features": True}
+            "/api/auth/profile",
+            json={"receive_news_emails": True, "help_test_features": True},
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["receiveNewsEmails"] == True
-        assert data["helpTestFeatures"] == True
+        assert data["receiveNewsEmails"]
+        assert data["helpTestFeatures"]
 
         # Test setting to False
         response = await client.patch(
-            "/api/auth/profile", json={"receive_news_emails": False, "help_test_features": False}
+            "/api/auth/profile",
+            json={"receive_news_emails": False, "help_test_features": False},
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["receiveNewsEmails"] == False
-        assert data["helpTestFeatures"] == False
+        assert not data["receiveNewsEmails"]
+        assert not data["helpTestFeatures"]
 
     @pytest.mark.asyncio
     async def test_user_auto_creation(self, client, auth_override):
