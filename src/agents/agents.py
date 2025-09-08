@@ -18,6 +18,7 @@ from src.tools import (
 )
 from src.user_profile_configs.countries import COUNTRIES
 from src.user_profile_configs.languages import LANGUAGES
+from src.utils.config import APISettings
 from src.utils.env_loader import load_environment_variables
 from src.utils.llms import MODEL
 
