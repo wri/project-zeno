@@ -3,13 +3,13 @@ datasets:
   dataset_name: Global all ecosystem disturbance alerts (DIST-ALERT)
   context_layers:
     - value: "driver"
-      description: "Shows the primary driver or likely causes of disturbance"
+      description: "Shows the primary driver or likely causes of disturbance to natural land due to: conversion, cropland dynamics, fire-related, water-related, or unclassified."
     - value: "natural_lands"
       description: "Shows intersection with natural lands (2020)"
-    # - value: "grasslands"
-    #   description: ""
-    # - value: "land_cover"
-    #   description: ""
+    - value: "grasslands"
+      description: "Shows disturbances to natural grasslands, shrublands, and savannas"
+    - value: "land_cover"
+      description: "Shows disturbance within different land cover/land use classes: bare ground and sparse, vegetation, short vegetation, tree cover, wetlands, water, snow/ice, cropland, cultivated grasslands, and built-up land."
   variables: null
   tile_url: "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color"
   license: "CC by 4.0"
@@ -194,7 +194,7 @@ datasets:
     This Global Land Cover dataset is a combination of two global datasets: the GLAD Land
     Cover and Land Use Change annual data and the Global Pasture Watch Grassland Class
     Collection 2 Cultivated Grasslands annual data. This combination is annual from 2015
-    through 2024. This dataset shows land covers and uses including bare ground and sparse
+    through 2024. This dataset shows land covers and uses including: bare ground and sparse
     vegetation, short vegetation, tree cover, wetlands, water, snow/ice, cropland,
     cultivated grasslands, and built-up land.
   methodology: >
@@ -554,8 +554,8 @@ datasets:
 - dataset_id: 4
   dataset_name: Tree cover loss
   context_layers:
-    # - value: "driver"
-    #   description: "Shows the primary driver of tree cover loss, including commodity-driven deforestation, shifting agriculture, forestry, wildfire, and other drivers"
+    - value: "driver"
+      description: "Shows the primary driver of tree cover loss, including: commodity-driven deforestation, shifting agriculture, forestry, wildfire, and other drivers"
     - value: "primary_forest"
       description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
     - value: "ifl"
@@ -665,10 +665,10 @@ datasets:
 - dataset_id: 5
   dataset_name: Tree cover gain
   context_layers:
-    # - value: "primary_forest"
-      # description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
-    # - value: "intact_forest_landscape"
-      # description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
+    - value: "primary_forest"
+      description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
+    - value: "intact_forest_landscape"
+      description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
   variables: ""
   tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_gain_from_height/latest/default/{z}/{x}/{y}.png"
   license: "CC by 4.0"
@@ -746,10 +746,10 @@ datasets:
 - dataset_id: 6
   dataset_name: Forest greenhouse gas net flux
   context_layers:
-    # - value: "primary_forest"
-      # description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
-    # - value: "intact_forest_landscape"
-      # description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
+    - value: "primary_forest"
+      description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
+    - value: "intact_forest_landscape"
+      description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
   variables: ">30, 50, 75%"
   tile_url: "https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30"
   license: "CC by 4.0"
@@ -847,10 +847,10 @@ datasets:
 - dataset_id: 7
   dataset_name: Tree cover
   context_layers:
-    # - value: "primary_forest"
-      # description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
-    # - value: "intact_forest_landscape"
-      # description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
+    - value: "primary_forest"
+      description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
+    - value: "intact_forest_landscape"
+      description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
   variables:
     - threshold: ">10, 15, 20, 25, 30, 50, 75%"
     - year: "2000, 2010"
@@ -859,7 +859,7 @@ datasets:
   geographic_coverage: "Global land (excluding Antarctica and Arctic islands)"
   resolution: "30 x 30 meters"
   update_frequency: ""
-  content_date: "2000, 2010"
+  content_date: "2000"
   keywords:
     - tree cover
     - forest
