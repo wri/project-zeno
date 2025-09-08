@@ -1612,6 +1612,9 @@ async def auth_me(
         - preferredLanguageCode: ISO language code (optional, see /api/profile/config)
         - gisExpertiseLevel: GIS expertise level (optional, see /api/profile/config)
         - areasOfInterest: Free text areas of interest (optional)
+        - topics: Selected interest topics (array of strings, see /api/profile/config)
+        - receiveNewsEmails: Whether user wants news emails (boolean, defaults to false)
+        - helpTestFeatures: Whether user wants to help test features (boolean, defaults to false)
         - hasProfile: Whether the user has completed their profile (boolean, set by frontend)
 
         **Quota Information:**
@@ -1672,6 +1675,11 @@ async def update_user_profile(
       - Valid values: GET /api/profile/config → gisExpertiseLevels
       - Examples: "beginner", "intermediate", "advanced", "expert"
     - areasOfInterest: Free text areas of interest (string, optional)
+    - topics: Selected interest topics (array of strings, optional)
+      - Valid values: GET /api/profile/config → topics
+      - Examples: ["restoring_degraded_landscapes", "combating_deforestation"]
+    - receiveNewsEmails: Whether user wants to receive news emails (boolean, optional, defaults to false)
+    - helpTestFeatures: Whether user wants to help test new features (boolean, optional, defaults to false)
     - hasProfile: Whether the user has completed their profile (boolean, optional, set by frontend)
 
     **Request Body Example:**
@@ -1688,6 +1696,9 @@ async def update_user_profile(
       "preferredLanguageCode": "en",
       "gisExpertiseLevel": "intermediate",
       "areasOfInterest": "Deforestation monitoring, Biodiversity conservation",
+      "topics": ["combating_deforestation", "protecting_ecosystems"],
+      "receiveNewsEmails": true,
+      "helpTestFeatures": false,
       "hasProfile": true
     }
     ```
@@ -1695,6 +1706,7 @@ async def update_user_profile(
     **Validation:**
     - All dropdown fields are validated against configuration values
     - roleCode must be valid for the specified sectorCode
+    - topics must be an array of valid topic codes (see /api/profile/config → topics)
     - Empty/null values are allowed for all fields
     - Invalid codes return 422 Unprocessable Entity
 
@@ -1720,6 +1732,9 @@ async def update_user_profile(
     # Update only provided fields
     update_data = profile_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
+        # Convert topics list to JSON string for database storage
+        if field == "topics" and value is not None:
+            value = json.dumps(value)
         setattr(db_user, field, value)
 
     await session.commit()
@@ -1745,6 +1760,9 @@ async def update_user_profile(
         "preferred_language_code": db_user.preferred_language_code,
         "gis_expertise_level": db_user.gis_expertise_level,
         "areas_of_interest": db_user.areas_of_interest,
+        "topics": json.loads(db_user.topics) if db_user.topics else None,
+        "receive_news_emails": db_user.receive_news_emails,
+        "help_test_features": db_user.help_test_features,
         "has_profile": db_user.has_profile,
     }
 
@@ -1801,6 +1819,12 @@ async def get_profile_config():
         "intermediate": "Intermediate - Some experience with GIS or Global Forest Watch",
         "advanced": "Advanced - Experienced with GIS and Global Forest Watch tools",
         "expert": "Expert - Extensive experience with GIS analysis and Global Forest Watch"
+      },
+      "topics": {
+        "restoring_degraded_landscapes": "Restoring Degraded Landscapes",
+        "combating_deforestation": "Combating Deforestation",
+        "responsible_supply_chains": "Responsible Supply Chains",
+        ...
       }
     }
     ```
@@ -1811,6 +1835,7 @@ async def get_profile_config():
     - Use `countries` keys (ISO 3166-1 alpha-2) as valid values for `countryCode`
     - Use `languages` keys (ISO 639-1) as valid values for `preferredLanguageCode`
     - Use `gisExpertiseLevels` keys as valid values for `gisExpertiseLevel`
+    - Use `topics` keys as valid values in `topics` array for multi-select interests
     - Display values are the human-readable strings for UI
 
     **Implementation Notes:**
