@@ -715,3 +715,59 @@ async def test_metadata_signup_open_unlimited_users(client):
             assert response.status_code == 200
             metadata = response.json()
             assert metadata["is_signup_open"] is True
+
+
+@pytest.mark.asyncio
+async def test_non_whitelisted_user_blocked_on_repeated_requests(client):
+    """
+    Test that non-whitelisted users are blocked on every request, not just the first.
+
+    This test catches the caching bug where a user could get cached before whitelist
+    validation, allowing subsequent requests to bypass the whitelist check entirely.
+    """
+    with domain_allowlist("developmentseed.org,wri.org"):
+        with patch.object(
+            api.APISettings, "allow_public_signups", False
+        ):  # Disable public signups
+            with patch("httpx.AsyncClient") as mock_client_class:
+                mock_client = (
+                    mock_client_class.return_value.__aenter__.return_value
+                )
+                # Mock user with unauthorized domain and not in email whitelist
+                mock_response = mock_rw_api_response("Unauthorized User")
+                mock_response.json_data["email"] = "blocked@notwhitelisted.com"
+                mock_client.get.return_value = mock_response
+
+                # First request - should be blocked
+                response1 = await client.get(
+                    "/api/auth/me",
+                    headers={"Authorization": "Bearer blocked-user-token"},
+                )
+                assert response1.status_code == 403
+                assert (
+                    "User not allowed to access this API"
+                    in response1.json()["detail"]
+                )
+
+                # Second request with SAME token - should also be blocked
+                # This would pass with the old buggy code due to caching
+                response2 = await client.get(
+                    "/api/auth/me",
+                    headers={"Authorization": "Bearer blocked-user-token"},
+                )
+                assert response2.status_code == 403
+                assert (
+                    "User not allowed to access this API"
+                    in response2.json()["detail"]
+                )
+
+                # Third request - should still be blocked
+                response3 = await client.get(
+                    "/api/auth/me",
+                    headers={"Authorization": "Bearer blocked-user-token"},
+                )
+                assert response3.status_code == 403
+                assert (
+                    "User not allowed to access this API"
+                    in response3.json()["detail"]
+                )

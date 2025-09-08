@@ -587,9 +587,6 @@ async def fetch_user_from_rw_api(
         )
         user_info["name"] = user_info["email"].split("@")[0]
 
-    # cache user info
-    _user_info_cache[token] = UserModel.model_validate(user_info)
-
     user_email = user_info["email"]
 
     # Check 3-tier access model:
@@ -599,7 +596,10 @@ async def fetch_user_from_rw_api(
 
     if await is_user_whitelisted(user_email, session):
         # User is whitelisted (email or domain), allow access
-        return UserModel.model_validate(user_info)
+        user_model = UserModel.model_validate(user_info)
+        # Cache user info AFTER successful whitelist validation
+        _user_info_cache[token] = user_model
+        return user_model
 
     if not APISettings.allow_public_signups:
         # Public signups disabled, only whitelisted users allowed
@@ -608,7 +608,11 @@ async def fetch_user_from_rw_api(
             detail="User not allowed to access this API",
         )
 
-    return UserModel.model_validate(user_info)
+    # Public signups enabled, allow non-whitelisted user
+    user_model = UserModel.model_validate(user_info)
+    # Cache user info AFTER successful validation
+    _user_info_cache[token] = user_model
+    return user_model
 
 
 async def require_auth(
