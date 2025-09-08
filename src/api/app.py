@@ -308,6 +308,7 @@ async def stream_chat(
     session_id: Optional[str] = None,
     user_id: Optional[str] = None,
     tags: Optional[list] = None,
+    user: Optional[dict] = None,
 ):
     # Populate langfuse metadata
     if metadata:
@@ -325,9 +326,9 @@ async def stream_chat(
     }
 
     if not thread_id:
-        zeno_async = await fetch_zeno_anonymous()
+        zeno_async = await fetch_zeno_anonymous(user)
     else:
-        zeno_async = await fetch_zeno()
+        zeno_async = await fetch_zeno(user)
 
     messages = []
     ui_action_message = []
@@ -988,6 +989,26 @@ async def chat(
             headers["X-Prompts-Used"] = str(quota_info["prompts_used"])
             headers["X-Prompts-Quota"] = str(quota_info["prompt_quota"])
 
+        # Convert user model to dict for prompt context if user is authenticated
+        user_dict = None
+        if user:
+            user_dict = {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "job_title": user.job_title,
+                "company_organization": user.company_organization,
+                "country_code": user.country_code,
+                "preferred_language_code": user.preferred_language_code,
+                "gis_expertise_level": user.gis_expertise_level,
+                "areas_of_interest": user.areas_of_interest,
+                "profile_description": user.profile_description,
+                "sector_code": user.sector_code,
+                "role_code": user.role_code,
+            }
+
         return StreamingResponse(
             stream_chat(
                 query=request.query,
@@ -999,6 +1020,7 @@ async def chat(
                 session_id=request.session_id,
                 user_id=request.user_id,
                 tags=request.tags,
+                user=user_dict,
             ),
             media_type="application/x-ndjson",
             headers=headers if headers else None,
