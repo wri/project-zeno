@@ -14,7 +14,6 @@ from src.tools import (
     pick_aoi,
     pick_dataset,
     pull_data,
-    visualize_data
 )
 from src.utils.config import APISettings
 from src.utils.env_loader import load_environment_variables
@@ -31,12 +30,10 @@ TOOLS:
 - pull-data: Pulls data for the selected AOI and dataset in the specified date range.
 - generate-insights: Analyzes raw data to generate a single chart insight that answers the user's question, along with 2-3 follow-up suggestions for further exploration.
 - get-capabilities: Get information about your capabilities, available datasets, supported areas and about you. ONLY use when users ask what you can do, what data is available, what's possible or about you.
-- visualize-data: Visualize a Sentinel-2 true color composite for your AOI and date range.
 
 WORKFLOW:
 1. Use pick-aoi, pick-dataset, and pull-data to get the data in the specified date range.
 2. Use generate-insights to analyze the data and create a single chart insight.
-3. Use visualize-data to look at your AOI.
 
 When you see UI action messages:
 1. Acknowledge the user's selection: "I see you've selected [item name]"
@@ -91,7 +88,6 @@ tools = [
     pick_dataset,
     pull_data,
     generate_insights,
-    visualize_data
 ]
 
 # Load environment variables before using them
