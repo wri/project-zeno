@@ -116,6 +116,9 @@ async def run_agent(query: str, thread_id: str | None = None):
         ("grasslands", 2022),
         ("natural lands", 2020),
         ("tree cover loss", 2024),
+        ("tree cover gain", 2024),
+        ("forest greenhouse gas net flux", 2024),
+        ("tree cover", 2024),
     ],
 )
 @pytest.mark.asyncio
