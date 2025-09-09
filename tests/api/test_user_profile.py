@@ -303,6 +303,7 @@ class TestUserProfileAPI:
         assert data["preferredLanguageCode"] is None
         assert data["gisExpertiseLevel"] is None
         assert data["areasOfInterest"] is None
+        assert data["hasProfile"] is False
 
     @pytest.mark.asyncio
     async def test_profile_fields_persist_across_sessions(
@@ -330,6 +331,64 @@ class TestUserProfileAPI:
             assert data["firstName"] == "Persistent"
             assert data["jobTitle"] == "Data Scientist"
             assert data["id"] == user.id
+            assert data["hasProfile"] is False
+
+    @pytest.mark.asyncio
+    async def test_has_profile_field_update(self, client, user, auth_override):
+        """Test that has_profile field can be updated independently."""
+        auth_override(user.id)
+
+        # Initially has_profile should be False
+        response = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert response.status_code == 200
+        assert response.json()["hasProfile"] is False
+
+        # Update has_profile to True
+        response = await client.patch(
+            "/api/auth/profile", json={"has_profile": True}
+        )
+        assert response.status_code == 200
+        assert response.json()["hasProfile"] is True
+
+        # Verify it persists in subsequent requests
+        response = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert response.status_code == 200
+        assert response.json()["hasProfile"] is True
+
+        # Update back to False
+        response = await client.patch(
+            "/api/auth/profile", json={"has_profile": False}
+        )
+        assert response.status_code == 200
+        assert response.json()["hasProfile"] is False
+
+    @pytest.mark.asyncio
+    async def test_has_profile_with_other_fields(
+        self, client, user, auth_override
+    ):
+        """Test that has_profile can be updated alongside other profile fields."""
+        auth_override(user.id)
+
+        # Update multiple fields including has_profile
+        update_data = {
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "has_profile": True,
+            "job_title": "Researcher",
+        }
+
+        response = await client.patch("/api/auth/profile", json=update_data)
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["firstName"] == "Jane"
+        assert data["lastName"] == "Doe"
+        assert data["hasProfile"] is True
+        assert data["jobTitle"] == "Researcher"
 
 
 class TestProfileConfigsStructure:

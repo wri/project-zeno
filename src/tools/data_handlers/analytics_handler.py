@@ -313,15 +313,8 @@ class AnalyticsHandler(DataSourceHandler):
                 format_id(item["src_id"]): item["name"].split(",")[0]
                 for item in subregion_aois
             }
-            # For tree cover loss, the API returns "id" as the key for the AOI IDs, for other datasets it returns "aoi_id"
-            api_result_id = (
-                "id"
-                if dataset.get("dataset_name") == "Tree cover loss"
-                else "aoi_id"
-            )
             raw_data["name"] = [
-                subregion_aois_id_to_name[idx]
-                for idx in raw_data[api_result_id]
+                subregion_aois_id_to_name[idx] for idx in raw_data["aoi_id"]
             ]
 
         return raw_data, data_points_count, message_detail

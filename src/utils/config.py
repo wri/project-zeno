@@ -11,14 +11,28 @@ class _APISettings(BaseSettings):
     domains_allowlist_str: str = Field(default="", alias="DOMAINS_ALLOWLIST")
     database_url: str
 
+    # Database connection pool settings
+    db_pool_size: int = Field(default=5, alias="DB_POOL_SIZE")
+    db_max_overflow: int = Field(default=30, alias="DB_MAX_OVERFLOW")
+    db_pool_timeout: int = Field(default=30, alias="DB_POOL_TIMEOUT")
+    db_pool_recycle: int = Field(default=3600, alias="DB_POOL_RECYCLE")
+
     daily_quota_warning_threshold: int = 5
     admin_user_daily_quota: int = 100
     regular_user_daily_quota: int = 25
+    machine_user_daily_quota: int = 99999
     anonymous_user_daily_quota: int = 10
     ip_address_daily_quota: int = 50
     enable_quota_checking: bool = True
 
     nextjs_api_key: str = Field(..., alias="NEXTJS_API_KEY")
+    max_user_signups: int = Field(default=-1, alias="MAX_USER_SIGNUPS")
+    allow_public_signups: bool = Field(
+        default=False, alias="ALLOW_PUBLIC_SIGNUPS"
+    )
+
+    # Model configuration
+    model: str = Field(default="sonnet", alias="MODEL")
 
     @property
     def domains_allowlist(self) -> list[str]:

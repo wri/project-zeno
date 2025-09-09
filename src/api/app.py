@@ -2,7 +2,6 @@ import io
 import json
 import os
 import uuid
-from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from typing import Dict, Optional
@@ -33,13 +32,16 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.agents import (
+    close_checkpointer_pool,
     fetch_checkpointer,
     fetch_zeno,
     fetch_zeno_anonymous,
+    get_checkpointer_pool,
 )
+from src.api.auth import MACHINE_USER_PREFIX, validate_machine_user_token
 from src.api.data_models import (
     CustomAreaOrm,
     DailyUsageOrm,
@@ -47,6 +49,7 @@ from src.api.data_models import (
     ThreadOrm,
     UserOrm,
     UserType,
+    WhitelistedUserOrm,
 )
 from src.api.schemas import (
     ChatRequest,
@@ -65,7 +68,11 @@ from src.api.schemas import (
     UserWithQuotaModel,
 )
 from src.utils.config import APISettings
-from src.utils.database import get_async_engine
+from src.utils.database import (
+    close_global_pool,
+    get_session_from_pool_dependency,
+    initialize_global_pool,
+)
 from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
@@ -73,7 +80,7 @@ from src.utils.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     get_geometry_data,
 )
-from src.utils.llms import HAIKU
+from src.utils.llms import HAIKU, get_model
 from src.utils.logging_config import bind_request_logging_context, get_logger
 
 # Load environment variables using shared utility
@@ -87,22 +94,22 @@ NEXTJS_IP_HEADER = "X-ZENO-FORWARDED-FOR"
 ANONYMOUS_USER_PREFIX = "noauth"
 
 
-async def get_async_session(
-    request: Request,
-) -> AsyncGenerator[AsyncSession, None]:
-    async_session_maker = async_sessionmaker(
-        request.app.state.engine,
-        expire_on_commit=False,
-    )
-
-    async with async_session_maker() as session:
-        yield session
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.engine = await get_async_engine(db_url=APISettings.database_url)
+    # Initialize global database connection pool for API and tools
+    await initialize_global_pool()
+
+    # Initialize separate checkpointer connection pool
+    # (Required due to asyncpg vs psycopg driver compatibility)
+    await get_checkpointer_pool()
+
     yield
+
+    # Cleanup on shutdown
+    await close_global_pool()
+
+    # Close checkpointer pool
+    await close_checkpointer_pool()
 
 
 app = FastAPI(
@@ -445,14 +452,77 @@ async def stream_chat(
 _user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
 
 
+async def is_user_whitelisted(user_email: str, session: AsyncSession) -> bool:
+    """
+    Check if user is whitelisted via email or domain.
+    Returns True if user is in email whitelist or domain whitelist.
+    """
+    user_email_lower = user_email.lower()
+    user_domain = user_email_lower.split("@")[-1]
+
+    # Check email whitelist first
+    stmt = select(WhitelistedUserOrm).filter_by(email=user_email_lower)
+    result = await session.execute(stmt)
+    if result.scalars().first():
+        return True
+
+    # Check domain whitelist
+    domains_allowlist = APISettings.domains_allowlist
+    normalized_domains = [domain.lower() for domain in domains_allowlist]
+    return user_domain in normalized_domains
+
+
+async def is_public_signup_open(session: AsyncSession) -> bool:
+    """
+    Check if public signups are currently open.
+    Returns True if public signups are enabled and under user limit.
+    """
+    # Check if public signups are disabled
+    if not APISettings.allow_public_signups:
+        return False
+
+    # Check signup limits
+    max_signups = APISettings.max_user_signups
+    if max_signups < 0:  # Unlimited
+        return True
+
+    # Count existing users
+    stmt = select(func.count(UserOrm.id))
+    result = await session.execute(stmt)
+    current_user_count = result.scalar()
+
+    return current_user_count < max_signups
+
+
+async def check_signup_limit_allows_new_user(
+    user_email: str, session: AsyncSession
+) -> bool:
+    """
+    Check if signup limits allow a new user to be created.
+    Only applies to non-whitelisted users when public signups are enabled.
+    Returns True if user can sign up, False if blocked by limits.
+    """
+    # Whitelisted users always bypass limits
+    if await is_user_whitelisted(user_email, session):
+        return True
+
+    # For non-whitelisted users, check if public signups are open
+    return await is_public_signup_open(session)
+
+
 async def fetch_user_from_rw_api(
     request: Request,
     authorization: Optional[str] = Depends(security),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> UserModel:
     if not authorization:
         return None
 
     token = authorization.credentials
+
+    # Handle machine user tokens with zeno-key prefix
+    if token and token.startswith(f"{MACHINE_USER_PREFIX}:"):
+        return await validate_machine_user_token(token, session)
 
     # Handle anonymous users with noauth prefix
     if token and token.startswith(f"{ANONYMOUS_USER_PREFIX}:"):
@@ -517,26 +587,27 @@ async def fetch_user_from_rw_api(
         )
         user_info["name"] = user_info["email"].split("@")[0]
 
-    # cache user info
-    _user_info_cache[token] = UserModel.model_validate(user_info)
+    user_email = user_info["email"]
 
-    domains_allowlist = APISettings.domains_allowlist
-
-    if isinstance(domains_allowlist, str):
-        domains_allowlist = domains_allowlist.split(",")
-
-    if user_info["email"].split("@")[-1].lower() not in domains_allowlist:
+    if (
+        not await is_user_whitelisted(user_email, session)
+        and not APISettings.allow_public_signups
+    ):
+        # Only block if user is NOT whitelisted AND public signups are disabled
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not allowed to access this API",
         )
 
-    return UserModel.model_validate(user_info)
+    # Allow access (either whitelisted or public signups enabled)
+    user_model = UserModel.model_validate(user_info)
+    _user_info_cache[token] = user_model
+    return user_model
 
 
 async def require_auth(
     user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> UserModel:
     """
     Requires Authorization - raises HTTPException if not authenticated
@@ -551,6 +622,14 @@ async def require_auth(
     result = await session.execute(stmt)
     user = result.scalars().first()
     if not user:
+        # Check signup limits for new users
+        if not await check_signup_limit_allows_new_user(
+            user_info.email, session
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User signups are currently closed",
+            )
         user = UserOrm(**user_info.model_dump())
         session.add(user)
         await session.commit()
@@ -575,12 +654,13 @@ async def require_auth(
         preferred_language_code=user.preferred_language_code,
         gis_expertise_level=user.gis_expertise_level,
         areas_of_interest=user.areas_of_interest,
+        has_profile=user.has_profile,
     )
 
 
 async def optional_auth(
     user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> Optional[UserModel]:
     """
     Optional Authorization - returns None if not authenticated,
@@ -593,6 +673,14 @@ async def optional_auth(
     result = await session.execute(stmt)
     user = result.scalars().first()
     if not user:
+        # Check signup limits for new users
+        if not await check_signup_limit_allows_new_user(
+            user_info.email, session
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User signups are currently closed",
+            )
         user = UserOrm(**user_info.model_dump())
         session.add(user)
         await session.commit()
@@ -618,13 +706,14 @@ async def optional_auth(
         preferred_language_code=user.preferred_language_code,
         gis_expertise_level=user.gis_expertise_level,
         areas_of_interest=user.areas_of_interest,
+        has_profile=user.has_profile,
     )
 
 
 # Keep the old function for backward compatibility during transition
 async def fetch_user(
     user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Deprecated: Use require_auth() or optional_auth() instead
@@ -662,18 +751,19 @@ async def get_user_identity_and_daily_quota(
         identity = f"{ANONYMOUS_USER_PREFIX}:{anonymous_id}"
 
     else:
-        daily_quota = (
-            APISettings.admin_user_daily_quota
-            if user.user_type == UserType.ADMIN
-            else APISettings.regular_user_daily_quota
-        )
+        if user.user_type == UserType.ADMIN:
+            daily_quota = APISettings.admin_user_daily_quota
+        elif user.user_type == UserType.MACHINE:
+            daily_quota = APISettings.machine_user_daily_quota
+        else:
+            daily_quota = APISettings.regular_user_daily_quota
         identity = f"user:{user.id}"
     return {"identity": identity, "prompt_quota": daily_quota}
 
 
 async def check_quota(
     identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Check the current daily usage quota for a user.
@@ -712,7 +802,7 @@ async def check_quota(
 async def enforce_quota(
     request: Request,
     identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Enforce daily usage quota for users and anonymous clients.
@@ -820,7 +910,7 @@ async def chat(
     request: ChatRequest,
     user: Optional[UserModel] = Depends(optional_auth),
     quota_info: dict = Depends(enforce_quota),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Chat endpoint for Zeno with quota tracking.
@@ -920,7 +1010,7 @@ async def chat(
 @app.get("/api/threads", response_model=list[ThreadModel])
 async def list_threads(
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     List all threads belonging to the authenticated user.
@@ -944,7 +1034,7 @@ async def list_threads(
 async def get_thread(
     thread_id: str,
     user: Optional[UserModel] = Depends(optional_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Get thread conversation history - supports both public and private access.
@@ -1017,7 +1107,7 @@ async def update_thread(
     thread_id: str,
     request: ThreadUpdateRequest,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Update thread properties including name and sharing settings.
@@ -1071,7 +1161,7 @@ async def update_thread(
 async def get_thread_state(
     thread_id: str,
     user: Optional[UserModel] = Depends(optional_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Get the current agent state for a thread.
@@ -1212,7 +1302,7 @@ async def delete_thread(
     thread_id: str,
     user: UserModel = Depends(require_auth),
     checkpointer: AsyncPostgresSaver = Depends(fetch_checkpointer),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Delete thread permanently.
@@ -1326,7 +1416,7 @@ async def create_or_update_rating(
     thread_id: str,
     request: RatingCreateRequest,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Create or update a rating for a trace in a thread.
@@ -1430,7 +1520,7 @@ async def create_or_update_rating(
 async def get_thread_ratings(
     thread_id: str,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Get all ratings for traces in a thread.
@@ -1516,6 +1606,7 @@ async def auth_me(
         - preferredLanguageCode: ISO language code (optional, see /api/profile/config)
         - gisExpertiseLevel: GIS expertise level (optional, see /api/profile/config)
         - areasOfInterest: Free text areas of interest (optional)
+        - hasProfile: Whether the user has completed their profile (boolean, set by frontend)
 
         **Quota Information:**
         - promptsUsed: Number of prompts used today (null if quota disabled)
@@ -1540,7 +1631,7 @@ async def auth_me(
 async def update_user_profile(
     profile_update: UserProfileUpdateRequest,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Update user profile fields.
@@ -1575,6 +1666,7 @@ async def update_user_profile(
       - Valid values: GET /api/profile/config → gisExpertiseLevels
       - Examples: "beginner", "intermediate", "advanced", "expert"
     - areasOfInterest: Free text areas of interest (string, optional)
+    - hasProfile: Whether the user has completed their profile (boolean, optional, set by frontend)
 
     **Request Body Example:**
     ```json
@@ -1589,7 +1681,8 @@ async def update_user_profile(
       "countryCode": "US",
       "preferredLanguageCode": "en",
       "gisExpertiseLevel": "intermediate",
-      "areasOfInterest": "Deforestation monitoring, Biodiversity conservation"
+      "areasOfInterest": "Deforestation monitoring, Biodiversity conservation",
+      "hasProfile": true
     }
     ```
 
@@ -1646,6 +1739,7 @@ async def update_user_profile(
         "preferred_language_code": db_user.preferred_language_code,
         "gis_expertise_level": db_user.gis_expertise_level,
         "areas_of_interest": db_user.areas_of_interest,
+        "has_profile": db_user.has_profile,
     }
 
     return UserModel(**response_data)
@@ -1727,7 +1821,9 @@ async def get_profile_config():
 
 
 @app.get("/api/metadata")
-async def api_metadata() -> dict:
+async def api_metadata(
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+) -> dict:
     """
     Returns API metadata that's helpful for instantiating the frontend.
 
@@ -1752,7 +1848,19 @@ async def api_metadata() -> dict:
     For example, if the user selects a GADM level 2 geometry,
     the ID will look something like `IND.26.2_1` and should be available in
     the gid_2 field on the vector tile layer.
+
+    For `is_signup_open`, this indicates whether new public user signups are
+    currently allowed. This is based on the ALLOW_PUBLIC_SIGNUPS setting and
+    whether the current user count is below the MAX_USER_SIGNUPS limit.
+    Whitelisted users (email and domain) can always sign up regardless of this status.
     """
+    # Check if public signups are open
+    is_signup_open = await is_public_signup_open(session)
+
+    # Get current model information
+    current_model = get_model()
+    current_model_name = APISettings.model.lower()
+
     return {
         "version": "0.1.0",
         "layer_id_mapping": {
@@ -1760,6 +1868,11 @@ async def api_metadata() -> dict:
         },
         "subregion_to_subtype_mapping": SUBREGION_TO_SUBTYPE_MAPPING,
         "gadm_subtype_mapping": GADM_SUBTYPE_MAP,
+        "is_signup_open": is_signup_open,
+        "model": {
+            "current": current_model_name,
+            "model_class": current_model.__class__.__name__,
+        },
     }
 
 
@@ -1767,7 +1880,7 @@ async def api_metadata() -> dict:
 async def create_custom_area(
     area: CustomAreaCreate,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Create a new custom area for the authenticated user."""
     custom_area = CustomAreaOrm(
@@ -1792,7 +1905,7 @@ async def create_custom_area(
 @app.get("/api/custom_areas", response_model=list[CustomAreaModel])
 async def list_custom_areas(
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """List all custom areas belonging to the authenticated user."""
     stmt = select(CustomAreaOrm).filter_by(user_id=user.id)
@@ -1809,7 +1922,7 @@ async def list_custom_areas(
 async def get_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Get a specific custom area by ID."""
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
@@ -1834,7 +1947,7 @@ async def update_custom_area_name(
     area_id: UUID,
     payload: dict,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Update the name of a custom area."""
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
@@ -1860,7 +1973,7 @@ async def update_custom_area_name(
 async def delete_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Delete a custom area."""
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
@@ -1878,7 +1991,7 @@ async def get_raw_data(
     thread_id: str,
     checkpoint_id: str,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
     content_type: str = Header(default="text/csv", alias="Content-Type"),
 ):
     """

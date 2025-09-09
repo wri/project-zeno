@@ -1,11 +1,424 @@
 query,expected_aoi_id,expected_aoi_name,expected_subregion,expected_aoi_subtype,expected_aoi_source,expected_dataset_id,expected_dataset_name,expected_context_layer,expected_start_date,expected_end_date,expected_answer,test_group,priority,status
-Show disturbance alerts by driver in Odisha for Feb 2024,IND.26_1,"Odisha, India",,state-province,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),driver,2024-02-01,2024-02-29,Lot of high confidence disturbances in February.,group_1,high,skip
-Which states in India had the most deforestation in 2022,IND,India,state,country,gadm,4,Tree cover loss,,2022-01-01,2022-12-31,North Eastern States have maximum deforestation.,group_1,medium,rerun
-"Which had more cropland in 2015, Nigeria or Ghana",NGA,Nigeria,,country,gadm,1,Global land cover,,2015-01-01,2015-12-31,Nigeria had significantly more cropland area than Ghana.,group_1,medium,skip
-Show me recent vegetation disturbances in Bavaria over the past month,BGR,Bavaria,,state-province,gadm,0,Global all ecosystem disturbance alerts (DIST-ALERT),driver,2025-07-29,2025-08-29,Moderate disturbance alerts in Bavarian forest regions.,group_1,high,rerun
-"Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2023 or 2024",PER.26_1,"Ucayali, Peru",,state-province,gadm,0,Global all ecosystem disturbance alerts (DIST-ALERT),driver,2023-01-01,2024-12-31,2023 had fewer alerts compared to 2024 in Protected Areas.,group_1,medium,skip
-"Show me neighborhood-level land cover statistics for Hillsborough County, Florida in 2020",USA.10_1,"Hillsborough County, Florida",neighborhood,county,gadm,1,Global land cover,,2020-01-01,2020-12-31,Urban neighborhoods show higher built-up area compared to suburban areas.,group_2,high,rerun
-What percentage of land area in Brazil consists of natural ecosystems according to the 2020 baseline,BRA,Brazil,,country,gadm,3,SBTN Natural Lands Map,,2020-01-01,2020-12-31,Approximately 66% of Brazil remains natural ecosystems.,group_2,medium,skip
-Which provinces in Canada have the highest proportion of intact landscapes,CAN,Canada,state,country,gadm,3,SBTN Natural Lands Map,,2020-01-01,2020-12-31,"Northern provinces (Nunavut, Northwest Territories) have highest intact landscapes.",group_2,low,rerun
-What percent of 2000 forest did Kalimantan Barat lose from 2001 through 2024,IDN.12_1,"Kalimantan Barat, Indonesia",,state-province,gadm,4,Tree cover loss,driver,2001-01-01,2024-12-31,Kalimantan Barat lost around 27% of its 2000 forest by 2024.,group_3,high,rerun
-Which districts in Jordan had the most vegetation loss last year,JOR,Jordan,district,country,gadm,4,Tree cover loss,driver,2024-01-01,2024-12-31,Northern districts showed higher vegetation loss due to drought conditions.,group_3,medium,rerun
+Show disturbance alerts by driver in Puri for Feb 2024,IND.26_1,"Odisha, India",,state-province,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),driver,2/1/2024,2/29/2024,Koraput & Rayagada had lot of disturbances.,g1,high,rerun
+Which states in India had the most deforestation in 2022,IND,India,state,country,gadm,4,Tree cover loss,,1/1/2022,12/31/2022,North Eastern States have maximum deforestation.,g1,medium,rerun
+"Which had more cropland in 2015, Nigeria or Ghana",GHA,Ghana,,country,gadm,1,Global land cover,,1/1/2015,12/31/2015,Nigeria had significantly more cropland area than Ghana.,g1,medium,rerun
+Show me recent vegetation disturbances in Bavaria over the past month,DEU.2_1,Bavaria,,state-province,gadm,0,Global all ecosystem disturbance alerts (DIST-ALERT),,7/29/2025,8/29/2025,Moderate disturbance alerts in Bavarian forest regions.,g1,high,rerun
+"Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2023 or 2024",PER.26_1,"Ucayali, Peru",,state-province,gadm,0,Global all ecosystem disturbance alerts (DIST-ALERT),driver,1/1/2023,12/31/2024,2023 had fewer alerts compared to 2024 in Protected Areas.,g1,medium,rerun
+"Show me neighborhood-level land cover statistics for Hillsborough County, Florida in 2020",USA.10_1,"Hillsborough County, Florida",neighborhood,county,gadm,1,Global land cover,,1/1/2020,12/31/2020,Urban neighborhoods show higher built-up area compared to suburban areas.,g1,high,rerun
+What percentage of land area in Brazil consists of natural ecosystems according to the 2020 baseline,BRA,Brazil,,country,gadm,3,SBTN Natural Lands Map,,1/1/2020,12/31/2020,Approximately 66% of Brazil remains natural ecosystems.,g1,medium,rerun
+Which provinces in Canada have the highest proportion of intact landscapes,CAN,Canada,state,country,gadm,3,SBTN Natural Lands Map,,1/1/2020,12/31/2020,"Northern provinces (Nunavut, Northwest Territories) have highest intact landscapes.",g1,low,rerun
+What percent of 2000 forest did Kalimantan Barat lose from 2001 through 2024,IDN.12_1,"Kalimantan Barat, Indonesia",,state-province,gadm,4,Tree cover loss,driver,1/1/2001,12/31/2024,Kalimantan Barat lost around 27% of its 2000 forest by 2024.,g1,high,rerun
+Which districts in Jordan had the most deforestation last year,JOR,Jordan,district,country,gadm,4,Tree cover loss,driver,1/1/2024,12/31/2024,Northern districts showed higher vegetation loss due to drought conditions.,g1,medium,rerun
+How much tree cover is in protected areas in Myanmar?,MMR,Myanmar,,country,gadm,,,,,,3.74 Mha,abs-accuracy,medium,rerun
+How much forest do protected areas in Myanmar have?,MMR,Myanmar,,country,gadm,,,,,,3.74 Mha,abs-accuracy,medium,rerun
+What percent of Johor was tree cover in 2000?,MYS-1,"Johor, Malaysia",,state-province,gadm,,,,,,25%,abs-accuracy,medium,rerun
+What percent of Johor was forested in 2000?,MYS-1,"Johor, Malaysia",,state-province,gadm,,,,,,25%,abs-accuracy,medium,rerun
+How much tree cover does Cà Mau have?,VNM.13.1_1,Cà Mau,,district,gadm,,,,,,368 ha,abs-accuracy,medium,rerun
+How much forest does Cà Mau have?,VNM.13.1_1,Cà Mau,,district,gadm,,,,,,368 ha,abs-accuracy,medium,rerun
+How much tree cover loss did Russia have in KBAs in 2005-2010?,RUS,Russia,,country,gadm,4,Tree cover loss,,1/1/2005,12/31/2010,211 kha,abs-accuracy,medium,rerun
+How much forest did Russia lose in KBAs from 2005 through 2010?,RUS,Russia,,country,gadm,4,Tree cover loss,,1/1/2005,12/31/2010,211 kha,abs-accuracy,medium,rerun
+What percent of 2000 tree cover did Kalimantan Barat lose 2001-2024?,IDN-12,"Kalimantan Barat, Indonesia",,state-province,gadm,4,Tree cover loss,,1/1/2001,12/31/2024,31%,abs-accuracy,medium,rerun
+What percent of 2000 forest did Kalimantan Barat lose from 2001 through 2024?,IDN-12,"Kalimantan Barat, Indonesia",,state-province,gadm,4,Tree cover loss,,1/1/2001,12/31/2024,31%,abs-accuracy,medium,rerun
+How much tree cover loss (50%) occurred in Rajnandgaon in 2015?,IND.7.23_1,"Rajnandgaon, India",,district,gadm,4,Tree cover loss,,1/1/2015,12/31/2015,15 ha,abs-accuracy,medium,rerun
+How much forest (50%) did Rajnandgaon lose in 2015?,IND.7.23_1,"Rajnandgaon, India",,district,gadm,4,Tree cover loss,,1/1/2015,12/31/2015,15 ha,abs-accuracy,medium,rerun
+How much tree cover gain did Germany have in protected areas in 2005-2020?,DEU,Germany,,country,gadm,1,Global land cover,,1/1/2005,12/31/2020,82.8 kha,abs-accuracy,medium,rerun
+How much tree cover did Germany gain in protected areas in from 2005 through 2020?,DEU,Germany,,country,gadm,1,Global land cover,,1/1/2005,12/31/2020,82.8 kha,abs-accuracy,medium,rerun
+What percent of 2010 tree cover did Borgou gain in 2010-2020?,BEN-4,"Borgou, Benin",,state-province,gadm,1,Global land cover,,1/1/2010,12/31/2020,23 kha,abs-accuracy,medium,rerun
+What percent of 2010 forest did Borgou gain in 2010-2020?,BEN-4,"Borgou, Benin",,state-province,gadm,1,Global land cover,,1/1/2010,12/31/2020,23 kha,abs-accuracy,medium,rerun
+What percent of 2010 tree cover did Porto gain 2010-2020?,PRT.15.12_1,Porto,,district,gadm,1,Global land cover,,1/1/2010,12/31/2020,2.70%,abs-accuracy,medium,rerun
+What percent of 2010 forest did Porto gain from 2010 through 2020?,PRT.15.12_1,Porto,,district,gadm,1,Global land cover,,1/1/2010,12/31/2020,2.70%,abs-accuracy,medium,rerun
+How many deforestation alerts were reported in protected areas of the Republic of the Congo april 2024 - april 2025?,COD,Republic of Congo,,country,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),,4/1/2024,4/30/2025,1806286,abs-accuracy,medium,rerun
+What was the total number of deforestation alerts reported across all protected areas in the Republic of the Congo from April 2024 to April 2025?,COD,Republic of Congo,,country,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),,4/1/2024,4/30/2025,1806286,abs-accuracy,medium,rerun
+"What was the total area affected by deforestation alerts between January 2025 to April 2025 across Indigenous and Community lands in Ucayali, Peru?",PER-26,"Ucayali, Peru",,state-province,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),,1/1/2025,4/30/2025,3.69 kha,abs-accuracy,medium,rerun
+"How many hectares do the deforestation alerts detected between January and April of 2025 on Indigenous and Community lands in Ucayali, Peru cover?",PER-26,"Ucayali, Peru",,state-province,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),,1/1/2025,4/30/2025,3.69 kha,abs-accuracy,medium,rerun
+How many high-confidence deforestation alerts occurred in Ngoma in 2023?,RWA.3.5_1,"Ngoma, Iburasirazuba, Rwanda",,district,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),,1/1/2023,12/31/2023,29,abs-accuracy,medium,rerun
+What was the total number of high-confidence deforestation alerts in Ngoma in 2023?,RWA.3.5_1,"Ngoma, Iburasirazuba, Rwanda",,district,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),,1/1/2023,12/31/2023,29,abs-accuracy,medium,rerun
+What is the total amount of carbon that has been sequestered by forests in Indonesian KBAs from 2000 to 2024?,IDN,Indonesia,,country,gadm,,,,,,-57.9 MtCO₂e/year,abs-accuracy,medium,rerun
+"I'm researching carbon sequestration in Indonesian forests. Specifically, for Key Biodiversity Areas (KBAs), how much carbon has been absorbed from the atmosphere between 2000 and 2024?",IDN,Indonesia,,country,gadm,,,,,,-57.9 MtCO₂e/year,abs-accuracy,medium,rerun
+"Provide the average annual carbon emissions due to tree cover loss in Chai Nat, Thailand, per year from 2001 to the present.",THA-7,"Chai Nat, Thailand",,state-province,gadm,,,,,,10.8 ktCO₂e/year,abs-accuracy,medium,rerun
+"What is the average annual amount of carbon missions resulting from forest loss in Chai Nat province, Thailand, from 2001 to the most recent available year?",THA-7,"Chai Nat, Thailand",,state-province,gadm,,,,,,10.8 ktCO₂e/year,abs-accuracy,medium,rerun
+"What's the annual net carbon sink of Gomba, Uganda?",UGA.42.2_1,"Gomba, Mpigi, Uganda",,district,gadm,,,,,,-344 ktCO₂e/year,abs-accuracy,medium,rerun
+"On an annual basis, what is the net amount of carbon absorbed in the period from 2001 to 2024 in Gomba, Uganda?",UGA.42.2_1,"Gomba, Mpigi, Uganda",,district,gadm,,,,,,-344 ktCO₂e/year,abs-accuracy,medium,rerun
+Has tree cover in Switzerland increased or decreased since 2000?,CHE,Switzerland,,country,gadm,,,,,,increased,rel-accuracy,medium,rerun
+Did Papua or Kalimantan Tengah have more tree cover in 2010?,IDN.11_1,"Papua, Indonesia",,state-province,gadm,,,,1/1/2010,12/31/2010,Papua,rel-accuracy,medium,rerun
+"Does Papua, Indonesia or Amazonas Brazil have more tree cover ?",BRA.4_1,"Amazonas, Brazil",,state-province,gadm,,,,1/1/2010,12/31/2010,Amazonas,rel-accuracy,medium,rerun
+"Has annual tree cover loss in Russia in the last 5 years increased, decreased or remained stable?",RUS,Russia,,country,gadm,4,Tree cover loss,,1/1/2020,12/31/2024,decreased,rel-accuracy,medium,rerun
+Did tree cover loss in Kalimantan Barat go up or down 2023-2024?,IDN.12_1,"Kalimantan Barat, Indonesia",,state-province,gadm,4,Tree cover loss,,1/1/2023,12/31/2024,down,rel-accuracy,medium,rerun
+"Was there more or less tree cover loss in Rajnandgaon, Chhattisgarh, India in 2024 compared to 2001?",IND.7.23_1,"Rajnandgaon, India",,district,gadm,4,Tree cover loss,,1/1/2001,12/31/2024,less,rel-accuracy,medium,rerun
+"Which 5 regions in Germany showed the most significant tree cover gain between 2000 and 2020? For each, provide the total gain in hectares.",DEU,Germany,state,country,gadm,1,Global land cover,,1/1/2000,12/31/2020,"Niedersachsen (59.1 kha), Brandenburg (46.2 kha), Nordrhein-Westfalen (40.3 kha), Bayern (35.7 kha), Mecklenburg-Vorpommern (32.7 kha)",rel-accuracy,medium,rerun
+"Which of the Borgou, Atakora, and Alibori departments in Benin from 2000 to the most recent available year had the most tree cover gain?",BEN.4_1,"Borgou, Benin",,state-province,gadm,1,Global land cover,,1/1/2000,12/31/2020,Borgou,rel-accuracy,medium,rerun
+"For the period 2010 to 2020, did Porto or Peñafiel, Portugal have more tree cover gain?",PRT.15.12_1,Peñafiel,,district,gadm,1,Global land cover,,1/1/2010,12/31/2020,Peñafiel,rel-accuracy,medium,rerun
+"Which country had more integrated deforestation alerts within Intact Forest Landscapes during April 2025, the Republic of the Congo or Gabon?",COD,Republic of the Congo,,country,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),,4/1/2025,4/30/2025,Republic of the Congo,rel-accuracy,medium,rerun
+"Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2023 or 2024?",PER.26_1,"Ucayali, Peru",,state-province,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),,1/1/2023,12/31/2024,2024,rel-accuracy,medium,rerun
+"Which month from January to April 2025 recorded the highest number of deforestation alerts in Ngoma, Rwanda?",RWA.3.5_1,"Ngoma, Rwanda",,district,gadm,0,Global All Ecosystem Disturbance Alerts (DIST-ALERT),,1/1/2025,4/30/2025,March,rel-accuracy,medium,rerun
+Did total forest-related greenhouse gas emissions in Indonesia increase or decrease in 2024 compared to 2004?,IDN,Indonesia,,country,gadm,,,,1/1/2004,12/31/2024,Decreased,rel-accuracy,medium,rerun
+Has Chai Nat or Krabi in Thailand has had the most forest-related annual carbon emissions since 2001?,THA.77_1,"Krabi, Thailand",,state-province,gadm,,,,1/1/2001,,Krabi,rel-accuracy,medium,rerun
+"Since 2001, do the forests within Gomba's KBAs act as a net carbon source or a net carbon sink, and by how much?",UGA.42.2_1,"Gomba, Uganda",,district,gadm,,,,1/1/2001,,Net carbon source by 2.55 ktCO₂e/year,rel-accuracy,medium,rerun
+What data can tell me how much deforestation happened in the Amazon last year?,,,,,gadm,4,Tree cover loss,,,,,dataset,medium,skip
+"Which county in Acre, Brazil lost the most forests since 2001?",,,,,gadm,4,Tree cover loss,,,,,dataset,medium,skip
+I'm researching tropical forest loss. What data might help me with my research?,,,,,gadm,4,Tree cover loss,,,,,dataset,medium,skip
+Where have forests grown the most in the past 20 years?,,,,,gadm,1,Global land cover,,,,,dataset,medium,skip
+How much forest did Russia gain frm 2010-2015?,,,,,gadm,1,Global land cover,,,,,dataset,medium,skip
+What has been the increase in forest area in Vietnam since 2000?,,,,,gadm,1,Global land cover,,,,,dataset,medium,skip
+What data are available to quantify the impact of forests on climate?,,,,,,,,,,,,dataset,medium,skip
+How large is the carbon footprint of deforestation in PNG since 2001?,,,,,,,,,,,,dataset,medium,skip
+Do forests emit or sequester more carbon?,,,,,,,,,,,,dataset,medium,skip
+Show me deforestation trends in Brazil's Amazon rainforest,BRA,Brazil,,,,,,,,,,gadm_01,medium,skip
+forest fires indonisia last month,IDN,Indonesia,,,,,,,,,,gadm_01,medium,skip
+Compare logging rates between Peru and Columbia over past 5 years,PER; COL,Peru; Colombia,,,,,,,,,,gadm_01,medium,skip
+recent forest loss near Kinshasa,COD-10,"Kinshasa, Democratic Republic of the Congo",,,,,,,,,,gadm_01,medium,skip
+What's the current forest coverage in Deutschland?,DEU,Germany,,,,,,,,,,gadm_01,medium,skip
+how much rainforest is left in the world,,,,,,,,,,,,gadm_01,medium,skip
+forest fires in cote d'ivoire 2023,CIV,Côte d'Ivoire,,,,,,,,,,gadm_01,medium,skip
+deforestation in congo basin who is responsible,COD,Democratic Republic of the Congo,,,,,,,,,,gadm_01,medium,skip
+tree cover loss yanomami territory,555542521,"Yanomami, Brazil",,,,,,,,,,gadm_01,medium,skip
+palm oil plantations in MY and ID,MYS; IDN,Malaysia; Indonesia,,,,,,,,,,gadm_01,medium,skip
+How many hectares of forest burned in Rusia this summer???,RUS,Russia,,,,,,,,,,gadm_01,medium,skip
+forest conservation projects southeast asia,IDN,Indonesia,,,,,,,,,,gadm_01,medium,skip
+Show me illegal logging hotspots near Mae Hong Son,THA-23,"Mae Hong Son, Thailand",,,,,,,,,,gadm_01,medium,skip
+chile AND argentina mountain forest loss,CHL; ARG,Chile; Argentina,,,,,,,,,,gadm_01,medium,skip
+plz show deforestation in phillipines since 2020,PHL,Philippines,,,,,,,,,,gadm_01,medium,skip
+satellite imagery nueva zelandia forests,NZL,New Zealand,,,,,,,,,,gadm_01,medium,skip
+Is the amazon getting smaller?,BRA,Brazil,,,,,,,,,,gadm_01,medium,skip
+forest monitoring systms in PNG,PNG,Papua New Guinea,,,,,,,,,,gadm_01,medium,skip
+What happened to the forests in Myanmar (Burma)?,MMR,Myanmar,,,,,,,,,,gadm_01,medium,skip
+Need data on forest fires near São Paulo last week,BRA-25,"São Paulo, Brazil",,,,,,,,,,gadm_01,medium,skip
+comparing forest loss DRC vs ROC,COD; COG,Democratic Republic of the Congo; Republic of Congo,,,,,,,,,,gadm_01,medium,skip
+how many trees r left in amazon???!!!,BRA,Brazil,,,,,,,,,,gadm_01,medium,skip
+"forest coverage maps for Côte d'Ivoire, Ghana, and Burkina",CIV; GHA; BFA,Côte d'Ivoire; Ghana; Burkina Faso,,,,,,,,,,gadm_01,medium,skip
+timber harvest in British Columbia,CAN-2,"British Columbia, Canada",,,,,,,,,,gadm_01,medium,skip
+deforestación en México y Guatemala,MEX; GTM,Mexico; Guatemala,,,,,,,,,,gadm_01,medium,skip
+Show me forest data for congo not drc,COD,Republic of Congo,,,,,,,,,,gadm_01,medium,skip
+whats happening to forests in scandinavia,DNK; NOR; SWE,Denmark; Norway; Sweden,,,,,,,,,,gadm_01,medium,skip
+Forest fires near hanoi affecting air quality,VNM-27,"Hà Nội, Vietnam",,,,,,,,,,gadm_01,medium,skip
+madagaskar forest loss 2022-2023,MDG,Madagascar,,,,,,,,,,gadm_01,medium,skip
+recent satellite images of forests around Mt. Kilimanjaro,TZA-9,"Kilimanjaro, Tanzania",,,,,,,,,,gadm_01,medium,skip
+show me deforestation hotspots in Mato Grosso,BRA-12,"Mato Grosso, Brazil",,,,,,,,,,gadm_01,medium,skip
+How much forest did Sabah loose in 2022?,MYS-13,"Sabah, Malaysia",,,,,,,,,,gadm_01,medium,skip
+recent fires in Kalimantan,IDN-12,"Kalimantan Barat, Indonesia",,,,,,,,,,gadm_01,medium,skip
+illegal logging activities near pahang forest reserves,MYS-8,"Pahang, Malaysia",,,,,,,,,,gadm_01,medium,skip
+What's happening to forests in amazons Para region??,BRA-14,"Pará, Brazil",,,,,,,,,,gadm_01,medium,skip
+What is the deforestation rate in Ontario last year?,CAN-9,"Ontario, Canada",,,,,,,,,,gadm_01,medium,skip
+forest fires in Chiuahua mexico,MEX-6,"Chihuahua, Mexico",,,,,,,,,,gadm_01,medium,skip
+Compare logging activities between Bayern and Baden-Württemberg,DEU-2; DEU-1,"Bayern, Germany; Baden-Württemberg, Germany",,,,,,,,,,gadm_01,medium,skip
+How much rainforest was lost in Para Brasil since 2015?,BRA-14,"Pará, Brazil",,,,,,,,,,gadm_01,medium,skip
+need satellite imagery for queensland bushfires asap!!,AUS-7,"Queensland, Australia",,,,,,,,,,gadm_01,medium,skip
+What's the forest coverage in Kalimantan Timur Kutai?,IDN-15,"Kalimantan Timur, Indonesia",,,,,,,,,,gadm_01,medium,skip
+deforestation rates in Ucayali Atalaya,PER-26,"Ucayali, Peru",,,,,,,,,,gadm_01,medium,skip
+"Find me tree cover in Johor bahru, I want to study forest loss",MYS-1,"Johor, Malaysia",,,,,,,,,,gadm_01,medium,skip
+I need urgent data on ilegal logging in Borgou!!,BEN-4,"Borgou, Benin",,,,,,,,,,gadm_01,medium,skip
+what is the forest coverage in distrito de Puerto Plata DR compared to last year?,DOM-21,"Puerto Plata, Dominican Republic",,,,,,,,,,gadm_01,medium,skip
+show me fires near Preah Vihéar area,KHM-18,"Preah Vihéar, Cambodia",,,,,,,,,,gadm_01,medium,skip
+What's the rate of forest loss in Sulawesi over the last decade?,IDN-25,"Sulawesi Barat, Indonesia",,,,,,,,,,gadm_01,medium,skip
+How much tree cover has been lost in Sumatera since 2000?,IDN-30,"Sumatera Barat, Indonesia",,,,,,,,,,gadm_01,medium,skip
+Which areas in the Congo Basin are most affected by deforestation?,COD,Democratic Republic of the Congo,,,,,,,,,,gadm_01,medium,skip
+Are there new forest restoration projects in the Amazon region?,BRA,Brazil,,,,,,,,,,gadm_01,medium,skip
+Can you map recent wildfire damage in Victoria?,AUS-10,"Victoria, Australia",,,,,,,,,,gadm_01,medium,skip
+Is there any reforestation effort happening in the Sahel region?,SSD,South Sudan,,,,,,,,,,gadm_01,medium,skip
+Show me forest degradation trends in Kalimantan since 2015.,IDN-12,"Kalimantan Barat, Indonesia",,,,,,,,,,gadm_01,medium,skip
+What are the main drivers of deforestation Fier?,ALB-5,"Fier, Albania",,,,,,,,,,gadm_01,medium,skip
+Can you provide a map of tree cover gain in Shandong and Qinghai?,CHN-23; CHN-21,"Shandong, China; Qinghai, China",,,,,,,,,,gadm_01,medium,skip
+Does Riau or Ocotepeque have the highest forest loss?,IDN-24; HND-14,"Riau, Indonesia; Ocotepeque, Honduras",,,,,,,,,,gadm_01,medium,skip
+Has there been an increase in illegal logging in the kisil?,KEN-16,"Kisii, Kenya",,,,,,,,,,gadm_01,medium,skip
+How are mangrove forests changing in the Nkhata?,MWI-19,"Nkhata Bay, Malawi",,,,,,,,,,gadm_01,medium,skip
+Which areas in Sør-Trøndelag have seen the most deforestation since 2010?,NOR-15,"Sør-Trøndelag, Norway",,,,,,,,,,gadm_01,medium,skip
+What percentage of forest has been lost in Thies this year?,SEN-13,"Thiès, Senegal",,,,,,,,,,gadm_01,medium,skip
+Are there any forest fires near the Pantanal in Lakes?,SSD-4,"Lakes, South Sudan",,,,,,,,,,gadm_01,medium,skip
+"How much forest cover is left in Chai Nat, Thailand?",THA-7,"Chai Nat, Thailand",,,,,,,,,,gadm_01,medium,skip
+Can you compare deforestation rates in Ermera TL?,TLS-8,"Ermera, Timor-Leste",,,,,,,,,,gadm_01,medium,skip
+What's the current state of the boreal forest in Davao del n?,PHL-27,"Davao del Norte, Philippines",,,,,,,,,,gadm_01,medium,skip
+How has forest cover in the Minsk and Mahilyow changed since 1990?,BLR-5; BLR-4,"Minsk, Belarus; Mahilyow, Belarus",,,,,,,,,,gadm_01,medium,skip
+ouest?,CMR-8,"Ouest, Cameroon",,,,,,,,,,gadm_01,medium,skip
+what's driving mangrove deforestation in Brașov?,ROU-8,"Brașov, Romania",,,,,,,,,,gadm_01,medium,skip
+Which regions in Glarus are experiencing the fastest forest loss?,CHE-9,"Glarus, Switzerland",,,,,,,,,,gadm_01,medium,skip
+Can you show forest regrowth areas in Holguín?,CUB-7,"Holguín, Cuba",,,,,,,,,,gadm_01,medium,skip
+MMR-5,MMR-5,"Kayah, Myanmar",,,,,,,,,,gadm_01,medium,skip
+nor 12 and nor 13,NOR-12; NOR-13,"Oslo, Norway; Rogaland, Norway",,,,,,,,,,gadm_01,medium,skip
+What are the recent deforestation trends in Mefou et Afamba?,CMR.2.5_1,Mefou et Afamba,,,,,,,,,,gadm_2,medium,skip
+How effective are protected areas in Ngoma at preventing forest loss?,RWA.3.5_1,Ngoma,,,,,,,,,,gadm_2,medium,skip
+What recent satellite‑detected tree‑cover changes have occurred in Maine‑et‑Loire?,FRA.12.2_1,Maine-et-Loire,,,,,,,,,,gadm_2,medium,skip
+What is the current extent of natural forest in Rivadavia?,ARG.17.19_1,Rivadavia,,,,,,,,,,gadm_2,medium,skip
+How much primary canopy remains in Huesca?,ESP.2.1_1,Huesca,,,,,,,,,,gadm_2,medium,skip
+What recent forest degradation has Purbalingga experienced?,IDN.10.24_1,Purbalingga,,,,,,,,,,gadm_2,medium,skip
+What are the most recent tree‑cover loss events in Gannan Tibetan?,CHN.5.3_1,Gannan Tibetan,,,,,,,,,,gadm_2,medium,skip
+What illegal logging activities have been recorded in Bulukumba this year?,IDN.26.4_1,Bulukumba,,,,,,,,,,gadm_2,medium,skip
+What recent forest disturbances have been observed in Sheffield?,GBR.1.83_1,Sheffield,,,,,,,,,,gadm_2,medium,skip
+What's the current percentage of forest cover in Kelheim?,DEU.2.44_1,Kelheim,,,,,,,,,,gadm_2,medium,skip
+What recent satellite‑observed forest loss has occurred in TA Chikulamayembe?,MWI.25.9_1,TA Chikulamayembe,,,,,,,,,,gadm_2,medium,skip
+How much tree canopy remains in Porto?,PRT.15.12_1,Porto,,,,,,,,,,gadm_2,medium,skip
+What are the recent deforestation hotspots in Sandamu?,NGA.21.33_1,Sandamu,,,,,,,,,,gadm_2,medium,skip
+What forest loss has been detected recently in Sumba Barat Daya?,IDN.21.16_1,Sumba Barat Daya,,,,,,,,,,gadm_2,medium,skip
+How effective are conservation measures in the Ardennes at curbing deforestation?,FRA.6.1_1,Ardennes,,,,,,,,,,gadm_2,medium,skip
+What changes in canopy density have been recorded in Mazowe?,ZWE.4.5_2,Mazowe,,,,,,,,,,gadm_2,medium,skip
+What recent forest loss has taken place in Tulang Bawang Barat?,IDN.17.12_1,Tulang Bawang Barat,,,,,,,,,,gadm_2,medium,skip
+What's the current extent of primary forest in Pavia?,ITA.10.10_1,Pavia,,,,,,,,,,gadm_2,medium,skip
+What recent tree‑cover decline has been detected in South Ubian?,PHL.77.9_1,South Ubian,,,,,,,,,,gadm_2,medium,skip
+What's the current forest‑cover percentage in Bas‑Rhin?,FRA.6.3_1,Bas-Rhin,,,,,,,,,,gadm_2,medium,skip
+What recent mangrove loss has occurred in Cà Mau?,VNM.13.1_1,Cà Mau,,,,,,,,,,gadm_2,medium,skip
+How much forest cover remains in Bregenz?,AUT.8.2_2,Bregenz,,,,,,,,,,gadm_2,medium,skip
+What recent forest disturbances have been observed in Probolinggo?,IDN.11.30_1,Probolinggo,,,,,,,,,,gadm_2,medium,skip
+What illegal logging events have been documented in Payakumbuh this year?,IDN.30.14_1,Payakumbuh,,,,,,,,,,gadm_2,medium,skip
+What recent tree‑cover loss has been detected in Jalgaon?,IND.20.13_1,Jalgaon,,,,,,,,,,gadm_2,medium,skip
+What is the current percentage of canopy cover in Cirebon?,IDN.9.9_1,Cirebon,,,,,,,,,,gadm_2,medium,skip
+What recent deforestation trends are evident in Vlaams Brabant?,BEL.2.4_1,Vlaams Brabant,,,,,,,,,,gadm_2,medium,skip
+What forest degradation has occurred recently in Jhalawar?,IND.29.20_1,Jhalawar,,,,,,,,,,gadm_2,medium,skip
+What recent canopy cover loss has been detected in Cariboo?,CAN.2.4_1,Cariboo,,,,,,,,,,gadm_2,medium,skip
+What's the current extent of natural forest in Cher?,FRA.4.1_1,Cher,,,,,,,,,,gadm_2,medium,skip
+What recent tree‑cover change has been observed in Gresik?,IDN.11.7_1,Gresik,,,,,,,,,,gadm_2,medium,skip
+How effective are protected areas in Côtes‑d'Armor at preventing forest loss?,FRA.3.1_1,Côtes-d'Armor,,,,,,,,,,gadm_2,medium,skip
+What recent satellite‑detected canopy reduction has taken place in Tanjung Jabung T?,IDN.8.10_1,Tanjung Jabung T,,,,,,,,,,gadm_2,medium,skip
+What is the current forest‑cover percentage in Münchwilen?,CHE.20.7_1,Münchwilen,,,,,,,,,,gadm_2,medium,skip
+What recent deforestation trends have been observed in Lampung Timur?,IDN.17.5_1,Lampung Timur,,,,,,,,,,gadm_2,medium,skip
+What's the current extent of primary forest in Corse‑du‑Sud?,FRA.5.1_1,Corse-du-Sud,,,,,,,,,,gadm_2,medium,skip
+What long‑term deforestation trends have been observed in Gresik?,IDN.11.7_1,Gresik,,,,,,,,,,gadm_2,medium,skip
+What recent canopy density decline has been recorded in TA M'Mbelwa?,MWI.17.7_1,TA M'Mbelwa,,,,,,,,,,gadm_2,medium,skip
+What's the current percentage of natural forest in Lalitpur?,IND.34.48_1,Lalitpur,,,,,,,,,,gadm_2,medium,skip
+What recent tree‑cover loss has occurred in Gomba?,UGA.42.2_1,Gomba,,,,,,,,,,gadm_2,medium,skip
+What recent forest disturbances have been detected in Momo?,CMR.6.6_1,Momo,,,,,,,,,,gadm_2,medium,skip
+What's the current forest cover in Kota Medan?,IDN.32.9_1,Kota Medan,,,,,,,,,,gadm_2,medium,skip
+What recent canopy changes have been recorded in the City of Tshwane?,ZAF.3.2_1,City of Tshwane,,,,,,,,,,gadm_2,medium,skip
+What's the current extent of primary forest in La Spezia?,ITA.9.3_1,La Spezia,,,,,,,,,,gadm_2,medium,skip
+What recent deforestation trends have been observed in Cangzhou?,CHN.10.2_1,Cangzhou,,,,,,,,,,gadm_2,medium,skip
+What tree‑cover loss has been detected recently in Nyaruguru?,RWA.2.7_1,Nyaruguru,,,,,,,,,,gadm_2,medium,skip
+What recent forest degradation has been recorded in Kadrina?,EST.6.2_1,Kadrina,,,,,,,,,,gadm_2,medium,skip
+What's the current percentage of forest cover in Maulvibazar?,BGD.7.2_1,Maulvibazar,,,,,,,,,,gadm_2,medium,skip
+What recent canopy loss has been detected in Bungo?,IDN.8.2_1,Bungo,,,,,,,,,,gadm_2,medium,skip
+What's the current forest extent in Loir‑et‑Cher?,FRA.4.5_1,Loir-et-Cher,,,,,,,,,,gadm_2,medium,skip
+What recent deforestation events have been observed in Nam?,KOR.17.4_2,Nam,,,,,,,,,,gadm_2,medium,skip
+What recent tree‑cover decline has been detected in Ventanas?,ECU.13.12_1,Ventanas,,,,,,,,,,gadm_2,medium,skip
+What recent tree‑cover loss has been detected in Baggao?,PHL.18.6_1,Baggao,,,,,,,,,,gadm_2,medium,skip
+What are the current deforestation trends in Vogtlandkreis?,DEU.14.12_1,Vogtlandkreis,,,,,,,,,,gadm_2,medium,skip
+How much primary forest remains in Nabatiyeh as of the latest assessment?,LBN.6.4_1,Nabatiyeh,,,,,,,,,,gadm_2,medium,skip
+What recent forest disturbances have been observed in Habiganj?,BGD.7.1_1,Habiganj,,,,,,,,,,gadm_2,medium,skip
+What's the current percentage of canopy cover in Alaminos City?,PHL.61.3_1,Alaminos City,,,,,,,,,,gadm_2,medium,skip
+What recent deforestation hotspots have emerged in Nyabihu?,RWA.4.3_1,Nyabihu,,,,,,,,,,gadm_2,medium,skip
+What's the most recent satellite‑observed forest loss in Guntur?,IND.2.4_1,Guntur,,,,,,,,,,gadm_2,medium,skip
+What illegal logging activities have been recorded in Indragiri Hilir this year?,IDN.24.3_1,Indragiri Hilir,,,,,,,,,,gadm_2,medium,skip
+What recent canopy cover changes have been detected in Ain?,FRA.1.1_1,Ain,,,,,,,,,,gadm_2,medium,skip
+How effective are protected areas in Rajnandgaon at preventing deforestation?,IND.7.23_1,Rajnandgaon,,,,,,,,,,gadm_2,medium,skip
+What's the current extent of natural forest in Medio Campidano?,ITA.14.3_1,Medio Campidano,,,,,,,,,,gadm_2,medium,skip
+What recent tree‑cover decline has been measured in Nyaruguru?,RWA.2.7_1,Nyaruguru,,,,,,,,,,gadm_2,medium,skip
+What forest‑loss trends are evident in Traunstein over the past five years?,DEU.2.89_1,Traunstein,,,,,,,,,,gadm_2,medium,skip
+What's the current percentage of primary forest in Luwu?,IDN.26.11_1,Luwu,,,,,,,,,,gadm_2,medium,skip
+What recent satellite‑detected canopy reduction has occurred in Klungkung?,IDN.2.8_1,Klungkung,,,,,,,,,,gadm_2,medium,skip
+What deforestation events have been observed in Simeulue this year?,IDN.1.22_1,Simeulue,,,,,,,,,,gadm_2,medium,skip
+How much forest cover remains in Yonne compared to a decade ago?,FRA.2.8_1,Yonne,,,,,,,,,,gadm_2,medium,skip
+What recent tree‑cover loss has been detected in Maidla?,EST.3.14_1,Maidla,,,,,,,,,,gadm_2,medium,skip
+What are the recent deforestation trends in Grant?,AUS.8.21_1,Grant,,,,,,,,,,gadm_2,medium,skip
+What recent canopy changes have been recorded in Gresik?,IDN.11.7_1,Gresik,,,,,,,,,,gadm_2,medium,skip
+What's the current extent of natural forest in Alicia?,PHL.81.1_1,Alicia,,,,,,,,,,gadm_2,medium,skip
+What recent forest‑loss events have been observed in Maasim?,PHL.67.4_1,Maasim,,,,,,,,,,gadm_2,medium,skip
+What's the most recent satellite‑observed canopy decline in Jayawijaya?,IDN.23.8_1,Jayawijaya,,,,,,,,,,gadm_2,medium,skip
+What recent illegal logging activities have been recorded in Polomolok?,PHL.70.6_1,Polomolok,,,,,,,,,,gadm_2,medium,skip
+What recent deforestation trends have been detected in Chichaoua?,MAR.8.2_1,Chichaoua,,,,,,,,,,gadm_2,medium,skip
+What's the current percentage of canopy cover in Simeulue?,IDN.1.22_1,Simeulue,,,,,,,,,,gadm_2,medium,skip
+What recent tree‑cover loss has been detected in Ambla?,EST.4.2_1,Ambla,,,,,,,,,,gadm_2,medium,skip
+How much primary forest remains in Bauan as of the latest survey?,PHL.12.6_1,Bauan,,,,,,,,,,gadm_2,medium,skip
+What recent forest disturbances have been observed in Susuka?,SLB.2.9_1,Susuka,,,,,,,,,,gadm_2,medium,skip
+What's the current forest‑cover percentage in Hautes‑Alpes?,FRA.13.4_1,Hautes-Alpes,,,,,,,,,,gadm_2,medium,skip
+What recent canopy height changes have been measured in Inabanga?,PHL.15.25_1,Inabanga,,,,,,,,,,gadm_2,medium,skip
+What deforestation hotspots have emerged in Ntega this year?,BDI.10.6_1,Ntega,,,,,,,,,,gadm_2,medium,skip
+What's the current extent of natural forest in Candaba?,PHL.60.5_1,Candaba,,,,,,,,,,gadm_2,medium,skip
+What recent forest‑loss events have been detected in Plön?,DEU.15.10_1,Plön,,,,,,,,,,gadm_2,medium,skip
+What are the deforestation trends in Albi?,FRA.11.13.1_1,Albi,,,,,,,,,,gadm_3,medium,skip
+How many forest fires occurred in Comaguingking last month?,PHL.20.10.14_1,Comaguingking,,,,,,,,,,gadm_3,medium,skip
+What recent forest loss has been detected in Sungai Bahar?,IDN.8.6.7_1,Sungai Bahar,,,,,,,,,,gadm_3,medium,skip
+What's the current forest cover in Fajã De Baixo?,PRT.2.10.6_1,Fajã De Baixo,,,,,,,,,,gadm_3,medium,skip
+How much tree cover remains in Tabunoc?,PHL.25.51.20_1,Tabunoc,,,,,,,,,,gadm_3,medium,skip
+Track agricultural expansion around Nätsi.,EST.8.7.21_1,Nätsi,,,,,,,,,,gadm_3,medium,skip
+"What illegal logging activities have been recorded in Bontonompo, and what is their impact?",IDN.26.6.8_1,Bontonompo,,,,,,,,,,gadm_3,medium,skip
+What changes in tree canopy have been recorded in Pasir Belengkong?,IDN.34.10.8_1,Pasir Belengkong,,,,,,,,,,gadm_3,medium,skip
+Are community reserves in Maba Tengah effective against forest loss?,IDN.18.4.3_1,Maba Tengah,,,,,,,,,,gadm_3,medium,skip
+What's the latest satellite‑observed forest disturbance in Sukaresmi?,IDN.9.7.29_1,Sukaresmi,,,,,,,,,,gadm_3,medium,skip
+How much primary forest remains in Gars am Kamp?,AUT.3.7.6_2,Gars am Kamp,,,,,,,,,,gadm_3,medium,skip
+What recent tree‑cover loss has been detected in Sungai Serut?,IDN.5.4.7_1,Sungai Serut,,,,,,,,,,gadm_3,medium,skip
+What's the current percentage of canopy cover in Sarconi?,ITA.3.2.83_1,Sarconi,,,,,,,,,,gadm_3,medium,skip
+What deforestation trends are evident in Montecchio Emilia?,ITA.6.8.27_1,Montecchio Emilia,,,,,,,,,,gadm_3,medium,skip
+How many illegal timber extraction events have been documented in Areias this year?,PRT.4.2.12_1,Areias,,,,,,,,,,gadm_3,medium,skip
+What recent canopy height changes have been measured in Laon?,FRA.7.1.2_1,Laon,,,,,,,,,,gadm_3,medium,skip
+How effective are protected areas in Püha at preventing forest degradation?,EST.12.11.24_1,Püha,,,,,,,,,,gadm_3,medium,skip
+What's the current extent of natural forest in Vĩnh Tiến?,VNM.30.5.28_1,Vĩnh Tiến,,,,,,,,,,gadm_3,medium,skip
+What recent forest‑loss trends have been observed in Calcinato?,ITA.10.2.32_1,Calcinato,,,,,,,,,,gadm_3,medium,skip
+How much canopy density has declined in Maloro over the past five years?,PHL.48.16.28_1,Maloro,,,,,,,,,,gadm_3,medium,skip
+What illegal logging hotspots have emerged in Torre Pallavicina?,ITA.10.1.216_1,Torre Pallavicina,,,,,,,,,,gadm_3,medium,skip
+What's the most recent satellite‑detected tree‑cover change in Torgamba?,IDN.32.11.5_1,Torgamba,,,,,,,,,,gadm_3,medium,skip
+What deforestation trends are evident in Oberbergkirchen since 2020?,DEU.2.59.13_1,Oberbergkirchen,,,,,,,,,,gadm_3,medium,skip
+How effective are community forests in Leuwiliang at curbing deforestation?,IDN.9.5.24_1,Leuwiliang,,,,,,,,,,gadm_3,medium,skip
+What's the latest measured forest disturbance in Daudkandi?,BGD.2.5.8_1,Daudkandi,,,,,,,,,,gadm_3,medium,skip
+What recent tree‑cover loss has been detected in Laem Pradu?,THA.6.1.9_1,Laem Pradu,,,,,,,,,,gadm_3,medium,skip
+What's the current percentage of primary forest in Sampara?,IDN.28.10.17_1,Sampara,,,,,,,,,,gadm_3,medium,skip
+What illegal timber extraction events have been recorded in Kotwali this year?,BGD.4.3.6_1,Kotwali,,,,,,,,,,gadm_3,medium,skip
+What recent canopy cover changes have been observed in Krupa na Uni?,BIH.3.1.9_1,Krupa na Uni,,,,,,,,,,gadm_3,medium,skip
+How much natural forest remains in Morotai Jaya compared to a decade ago?,IDN.18.7.1_1,Morotai Jaya,,,,,,,,,,gadm_3,medium,skip
+What recent forest disturbances have been detected in Sơn Công?,VNM.27.1.21_1,Sơn Công,,,,,,,,,,gadm_3,medium,skip
+What's the current extent of tree canopy in Murora?,UGA.26.1.8_1,Murora,,,,,,,,,,gadm_3,medium,skip
+What deforestation trends are evident in Abbadia San Salvatore?,ITA.16.10.1_1,Abbadia San Salvatore,,,,,,,,,,gadm_3,medium,skip
+What recent tree‑cover loss has been detected in Sarirejo?,IDN.11.18.20_1,Sarirejo,,,,,,,,,,gadm_3,medium,skip
+How many forest fires occurred in Bol last month?,TCD.10.1.1_1,Bol,,,,,,,,,,gadm_3,medium,skip
+What's the current forest cover in Barangay 624?,PHL.47.6.572_1,Barangay 624,,,,,,,,,,gadm_3,medium,skip
+What recent deforestation trends are evident in Bongomeme?,IDN.6.5.6_1,Bongomeme,,,,,,,,,,gadm_3,medium,skip
+What's the percentage of primary canopy remaining in Tanete Riattang?,IDN.26.3.23_1,Tanete Riattang,,,,,,,,,,gadm_3,medium,skip
+How much forest degradation has Suppa experienced over the past year?,IDN.26.17.10_1,Suppa,,,,,,,,,,gadm_3,medium,skip
+What illegal logging activities have been recorded in Bongti this year?,THA.16.8.1_1,Bongti,,,,,,,,,,gadm_3,medium,skip
+What recent satellite‑observed forest disturbances have occurred in Guttaring?,AUT.2.5.9_2,Guttaring,,,,,,,,,,gadm_3,medium,skip
+What's the current extent of natural forest in Mittelholstein?,DEU.15.11.15_1,Mittelholstein,,,,,,,,,,gadm_3,medium,skip
+What recent tree‑cover loss has been detected in Gyobingauk?,MMR.2.4.1_1,Gyobingauk,,,,,,,,,,gadm_3,medium,skip
+How effective are protected areas in Nkomazi at preventing deforestation?,ZAF.6.1.3_1,Nkomazi,,,,,,,,,,gadm_3,medium,skip
+What's the most recent forest‑loss measurement for Kirekura?,BDI.3.11.3_1,Kirekura,,,,,,,,,,gadm_3,medium,skip
+What changes in forest structure have been recorded in Muara Pinang?,IDN.31.2.2_1,Muara Pinang,,,,,,,,,,gadm_3,medium,skip
+What recent canopy cover loss has been detected in Blaye?,FRA.10.7.2_1,Blaye,,,,,,,,,,gadm_3,medium,skip
+How much primary forest remains in Karangazi compared to 2015 levels?,RWA.3.6.3_1,Karangazi,,,,,,,,,,gadm_3,medium,skip
+What recent deforestation hotspots have emerged in Tân Lập?,VNM.35.1.13_1,Tân Lập,,,,,,,,,,gadm_3,medium,skip
+What's the current percentage of canopy cover in Guéret?,FRA.10.4.2_1,Guéret,,,,,,,,,,gadm_3,medium,skip
+What recent tree‑cover loss has been recorded in Semidang Alas?,IDN.5.10.10_1,Semidang Alas,,,,,,,,,,gadm_3,medium,skip
+How many illegal timber extraction events have been documented in Daulatkhan this year?,BGD.1.3.4_1,Daulatkhan,,,,,,,,,,gadm_3,medium,skip
+What recent forest disturbance trends are evident in Manding?,IDN.11.34.18_1,Manding,,,,,,,,,,gadm_3,medium,skip
+What's the current extent of natural forest in Lalawa?,TLS.6.6.4_1,Lalawa,,,,,,,,,,gadm_3,medium,skip
+What recent deforestation events have been detected in Besançon?,FRA.2.2.1_1,Besançon,,,,,,,,,,gadm_3,medium,skip
+What's the current tree‑cover percentage in Bukit Tusam?,IDN.1.9.6_1,Bukit Tusam,,,,,,,,,,gadm_3,medium,skip
+What forest‑loss trends are evident in Changqing over the last five years?,CHN.23.5.1_1,Changqing,,,,,,,,,,gadm_3,medium,skip
+What recent canopy density changes have been measured in Kottes‑Purk?,AUT.3.24.13_2,Kottes-Purk,,,,,,,,,,gadm_3,medium,skip
+How effective are community forests in Buay Pematang Ribu Ranau at curbing deforestation?,IDN.31.10.4_1,Buay Pematang Ribu Ranau,,,,,,,,,,gadm_3,medium,skip
+What's the latest satellite‑observed forest disturbance in Mabunga?,PHL.55.8.6_1,Mabunga,,,,,,,,,,gadm_3,medium,skip
+What recent tree‑cover loss has been detected in Sukakarya?,IDN.1.21.2_1,Sukakarya,,,,,,,,,,gadm_3,medium,skip
+What's the current percentage of primary forest in Grijó?,PRT.5.5.15_1,Grijó,,,,,,,,,,gadm_3,medium,skip
+How much forest degradation has Pinra experienced since 2020?,PER.10.3.4_1,Pinra,,,,,,,,,,gadm_3,medium,skip
+What recent canopy cover changes have been observed in Fonte Coberta?,PRT.4.2.37_1,Fonte Coberta,,,,,,,,,,gadm_3,medium,skip
+What's the current extent of tree canopy in Barrie?,CAN.9.45.2_1,Barrie,,,,,,,,,,gadm_3,medium,skip
+What recent deforestation trends are evident in Muko?,RWA.1.4.9_1,Muko,,,,,,,,,,gadm_3,medium,skip
+How much primary forest remains in Eastmain compared to a decade ago?,CAN.11.84.11_1,Eastmain,,,,,,,,,,gadm_3,medium,skip
+What recent tree‑cover loss has been detected in Wawa?,PHL.58.10.33_1,Wawa,,,,,,,,,,gadm_3,medium,skip
+What's the current forest cover in Luec?,PHL.18.10.22_1,Luec,,,,,,,,,,gadm_3,medium,skip
+What illegal logging activities have been recorded in Agadir Banl this year?,MAR.12.1.1_1,Agadir Banl,,,,,,,,,,gadm_3,medium,skip
+What recent forest disturbances have been detected in Hongeun 1(il)?,KOR.16.19.6_2,Hongeun 1(il),,,,,,,,,,gadm_3,medium,skip
+How effective are protected areas in Biashara at preventing canopy loss?,KEN.31.7.1_1,Biashara,,,,,,,,,,gadm_3,medium,skip
+What's the latest satellite‑observed forest loss in Araibo?,PHL.26.11.1_1,Araibo,,,,,,,,,,gadm_3,medium,skip
+What recent tree‑cover decline has been recorded in Galim Tignère?,CMR.1.2.1_1,Galim Tignère,,,,,,,,,,gadm_3,medium,skip
+What's the current percentage of canopy cover in Yem?,ETH.10.22.1_1,Yem,,,,,,,,,,gadm_3,medium,skip
+What deforestation trends are evident in Gulmi over the past five years?,NPL.5.3.2_1,Gulmi,,,,,,,,,,gadm_3,medium,skip
+What recent forest disturbances have been observed in El‑Barta?,KEN.37.2.3_1,El-Barta,,,,,,,,,,gadm_3,medium,skip
+How much natural forest remains in Eoyang as of the latest assessment?,KOR.13.5.3_2,Eoyang,,,,,,,,,,gadm_3,medium,skip
+What's the current extent of primary forest in Kalaroa?,BGD.4.10.3_1,Kalaroa,,,,,,,,,,gadm_3,medium,skip
+What recent canopy density changes have been measured in Dabo Hana?,ETH.8.7.10_1,Dabo Hana,,,,,,,,,,gadm_3,medium,skip
+What illegal logging hotspots have emerged in Kibingo this year?,BDI.9.5.11_1,Kibingo,,,,,,,,,,gadm_3,medium,skip
+What recent tree‑cover loss has been detected in Aguiã?,PRT.18.1.2_1,Aguiã,,,,,,,,,,gadm_3,medium,skip
+What's the current percentage of forest cover in Passe?,AGO.2.4.5_1,Passe,,,,,,,,,,gadm_3,medium,skip
+What recent deforestation trends are evident in Guingamp?,FRA.3.1.2_1,Guingamp,,,,,,,,,,gadm_3,medium,skip
+What's the most recent satellite‑observed forest disturbance in Parmupalu?,EST.16.6.8_1,Parmupalu,,,,,,,,,,gadm_3,medium,skip
+How much primary forest remains in Gikingo compared to 2010 levels?,BDI.15.7.5_1,Gikingo,,,,,,,,,,gadm_3,medium,skip
+What recent canopy cover changes have been recorded in Eberau?,AUT.1.3.4_2,Eberau,,,,,,,,,,gadm_3,medium,skip
+How effective are protected areas in Una at curbing forest degradation?,IND.13.12.2_1,Una,,,,,,,,,,gadm_3,medium,skip
+What's the current tree‑cover percentage in Anapog‑Sibucao?,PHL.45.4.1_1,Anapog-Sibucao,,,,,,,,,,gadm_3,medium,skip
+What recent forest‑loss trends have been observed in Ingliste?,EST.11.5.7_1,Ingliste,,,,,,,,,,gadm_3,medium,skip
+What's the current extent of natural forest in Satkania?,BGD.2.4.24_1,Satkania,,,,,,,,,,gadm_3,medium,skip
+What recent tree‑cover loss has been detected along the Oli River corridor?,UGA.3.1.2_1,Oli River,,,,,,,,,,gadm_3,medium,skip
+How much forest degradation has Patnitala experienced over the past five years?,BGD.5.3.8_1,Patnitala,,,,,,,,,,gadm_3,medium,skip
+What's the current forest cover in Wohlen bei Bern?,CHE.6.3.12_1,Wohlen bei Bern,,,,,,,,,,gadm_3,medium,skip
+What recent canopy height changes have been measured in Saphan Krai?,THA.43.2.13_1,Saphan Krai,,,,,,,,,,gadm_3,medium,skip
+What recent deforestation trends have been observed in Makacoulibantang?,SEN.12.4.2_1,Makacoulibantang,,,,,,,,,,gadm_3,medium,skip
+What's the current percentage of primary forest in Turku?,FIN.5.3.4_1,Turku,,,,,,,,,,gadm_3,medium,skip
+How much forest loss has Tauripampa experienced since 2018?,PER.16.9.28_1,Tauripampa,,,,,,,,,,gadm_3,medium,skip
+What recent tree‑cover decline has been detected in Paki Masabong?,SLE.2.1.8_1,Paki Masabong,,,,,,,,,,gadm_3,medium,skip
+What deforestation hotspots have emerged in Farafangana this year?,MDG.3.2.2_1,Farafangana,,,,,,,,,,gadm_3,medium,skip
+What have been the long‑term deforestation trends in Couptrain?,FRA.12.3.3.3_1,Couptrain,,,,,,,,,,gadm_4,medium,skip
+How many wildfire incidents did Gadudero experience in the past 12 months?,IDN.10.21.15.4_1,Gadudero,,,,,,,,,,gadm_4,medium,skip
+What recent forest loss has been detected in Charny‑sur‑Meuse?,FRA.6.8.3.1_1,Charny-sur-Meuse,,,,,,,,,,gadm_4,medium,skip
+What's the current percentage of forest cover remaining in Cerme?,IDN.11.18.16.1_1,Cerme,,,,,,,,,,gadm_4,medium,skip
+How much primary tree canopy remains in Rwesero?,RWA.5.3.3.5_1,Rwesero,,,,,,,,,,gadm_4,medium,skip
+Track agricultural expansion around Banyuanyar.,IDN.11.10.5.3_1,Banyuanyar,,,,,,,,,,gadm_4,medium,skip
+"What illegal logging hotspots have been identified in Greenhithe, and what is their estimated impact?",GBR.1.44.3.5_1,Greenhithe,,,,,,,,,,gadm_4,medium,skip
+What changes in tree canopy density have been recorded in Karang Berombak?,IDN.32.9.3.2_1,Karang Berombak,,,,,,,,,,gadm_4,medium,skip
+Are community‑managed reserves in Willaston and Rope effective at preventing forest loss?,GBR.1.18.1.45_1,Willaston and Rope,,,,,,,,,,gadm_4,medium,skip
+What recent satellite‑observed forest disturbances have occurred in Spincourt?,FRA.6.8.3.10_1,Spincourt,,,,,,,,,,gadm_4,medium,skip
+How effective are local protected areas in Apenyoweo at curbing deforestation?,UGA.33.1.5.4_1,Apenyoweo,,,,,,,,,,gadm_4,medium,skip
+What's the rate of plantation conversion in Athis‑Mons over the past three years?,FRA.8.1.3.2_1,Athis-Mons,,,,,,,,,,gadm_4,medium,skip
+How much natural forest remains in Jaya Sakti compared to its extent a decade ago?,IDN.17.7.6.5_1,Jaya Sakti,,,,,,,,,,gadm_4,medium,skip
+What illegal timber extraction events have been documented in Kasano this year?,IDN.25.3.3.4_1,Kasano,,,,,,,,,,gadm_4,medium,skip
+What is the most recent tree‑cover loss observed in Savane Carrée?,HTI.3.3.1.4_1,Savane Carrée,,,,,,,,,,gadm_4,medium,skip
+How have mangrove forests in Sovu changed over the last five years?,RWA.2.5.11.4_1,Sovu,,,,,,,,,,gadm_4,medium,skip
+What forest degradation trends are evident in Butambamo?,RWA.4.6.18.1_1,Butambamo,,,,,,,,,,gadm_4,medium,skip
+What's the current extent of primary forest in Soria?,ESP.5.7.2.50_1,Soria,,,,,,,,,,gadm_4,medium,skip
+How effective are protected areas in Iriaga Ward at preventing canopy loss?,UGA.8.2.2.2_1,Iriaga Ward,,,,,,,,,,gadm_4,medium,skip
+What's the most recent satellite‑detected forest loss in Air Rupik?,IDN.31.10.1.1_1,Air Rupik,,,,,,,,,,gadm_4,medium,skip
+How have land‑use changes around Pasar Onan Hurlang affected tree cover since 2018?,IDN.32.31.5.5_1,Pasar Onan Hurlang,,,,,,,,,,gadm_4,medium,skip
+What shifts in canopy height have been measured in Simbang Wetan over the last five years?,IDN.10.22.2.8_1,Simbang Wetan,,,,,,,,,,gadm_4,medium,skip
+What deforestation hotspots have emerged in Ndego during the past year?,RWA.3.6.2.6_1,Ndego,,,,,,,,,,gadm_4,medium,skip
+How much primary forest remains in Nkondo as of the latest assessment?,RWA.3.3.12.4_1,Nkondo,,,,,,,,,,gadm_4,medium,skip
+What recent clear‑cut events have been observed near Fère‑en‑Tardenois?,FRA.7.1.1.4_1,Fère-en-Tardenois,,,,,,,,,,gadm_4,medium,skip
+What's the trend in mangrove extent within Sandwip Paurashava over the last decade?,BGD.2.4.23.13_1,Sandwip Paurashava,,,,,,,,,,gadm_4,medium,skip
+How much forest cover loss has Ujung Gunung Cut experienced in the past 12 months?,IDN.1.5.2.12_1,Ujung Gunung Cut,,,,,,,,,,gadm_4,medium,skip
+"What illegal logging activities have been recorded in Clifton, Newton and Churchover this year?",GBR.1.108.3.5_1,"Clifton, Newton and Churchover",,,,,,,,,,gadm_4,medium,skip
+What's the current percentage of tree canopy in Karegamazi?,RWA.1.5.7.2_1,Karegamazi,,,,,,,,,,gadm_4,medium,skip
+How has plantation expansion around Payaman impacted natural forests since 2020?,IDN.11.18.22.5_1,Payaman,,,,,,,,,,gadm_4,medium,skip
+What recent satellite imagery reveals about forest degradation in Chitalmari?,BGD.4.1.2.3_1,Chitalmari,,,,,,,,,,gadm_4,medium,skip
+What's the latest measured loss of tree cover in Cabañas de la Sagra?,ESP.4.5.6.7_1,Cabañas de la Sagra,,,,,,,,,,gadm_4,medium,skip
+How effective are community forests in Pers Muara Tembulih at preventing deforestation?,IDN.17.2.10.4_1,Pers Muara Tembulih,,,,,,,,,,gadm_4,medium,skip
+What recent forest disturbances have been detected in Borna?,DEU.14.7.4.1_1,Borna,,,,,,,,,,gadm_4,medium,skip
+What's the current state of primary forest in Majasih?,IDN.9.12.26.4_1,Majasih,,,,,,,,,,gadm_4,medium,skip
+What illegal timber extraction events have occurred in Holmer this year?,GBR.1.40.1.23_1,Holmer,,,,,,,,,,gadm_4,medium,skip
+How much canopy density has declined in Mubumbano over the past five years?,RWA.4.4.5.2_1,Mubumbano,,,,,,,,,,gadm_4,medium,skip
+What recent forest‑loss trends are evident in Niederdürenbach?,DEU.11.1.5.9_1,Niederdürenbach,,,,,,,,,,gadm_4,medium,skip
+What's the latest observed change in tree cover in Außerfahrafeld?,AUT.3.11.14.2_2,Außerfahrafeld,,,,,,,,,,gadm_4,medium,skip
+What shifts in forest structure have been recorded in Trimbs since 2019?,DEU.11.21.3.16_1,Trimbs,,,,,,,,,,gadm_4,medium,skip
+What recent tree‑cover loss has been detected in Kanyoni?,BDI.10.6.12.3_1,Kanyoni,,,,,,,,,,gadm_4,medium,skip
+How many forest fires occurred in Chandpur over the past year?,BGD.3.2.3.3_1,Chandpur,,,,,,,,,,gadm_4,medium,skip
+What's the current percentage of canopy cover in Pinggau?,AUT.6.5.23.3_2,Pinggau,,,,,,,,,,gadm_4,medium,skip
+What deforestation trends have emerged in Kyamate Ward since 2020?,UGA.48.2.2.4_1,Kyamate Ward,,,,,,,,,,gadm_4,medium,skip
+How much primary forest remains in Kedama as of the latest survey?,IDN.12.7.4.3_1,Kedama,,,,,,,,,,gadm_4,medium,skip
+What recent clear‑cut events have been observed near Châtillon‑sur‑Indre?,FRA.4.4.1.7_1,Châtillon-sur-Indre,,,,,,,,,,gadm_4,medium,skip
+What's the rate of agricultural expansion in Banjar Balam over the last five years?,IDN.24.4.6.1_1,Banjar Balam,,,,,,,,,,gadm_4,medium,skip
+What illegal logging hotspots have been identified in Fénétrange this year?,FRA.6.9.6.1_1,Fénétrange,,,,,,,,,,gadm_4,medium,skip
+How has mangrove extent changed in Semerap since 2018?,IDN.8.4.11.15_1,Semerap,,,,,,,,,,gadm_4,medium,skip
+What forest degradation trends are evident in Wawolimbue?,IDN.28.10.17.21_1,Wawolimbue,,,,,,,,,,gadm_4,medium,skip
+What's the latest satellite‑observed forest disturbance in Churamankati?,BGD.4.3.6.4_1,Churamankati,,,,,,,,,,gadm_4,medium,skip
+How effective are protected areas in Pangarungan at preventing canopy loss?,IDN.32.11.5.8_1,Pangarungan,,,,,,,,,,gadm_4,medium,skip
+What recent tree‑cover loss has been recorded in Zangberg?,DEU.2.59.13.4_1,Zangberg,,,,,,,,,,gadm_4,medium,skip
+What's the current extent of natural forest in Karacak?,IDN.9.5.24.4_1,Karacak,,,,,,,,,,gadm_4,medium,skip
+What illegal timber extraction events have been documented in Daulatpur (Purba Panchgachh)?,BGD.2.5.8.5_1,Daulatpur (Purba Panchgachh,,,,,,,,,,gadm_4,medium,skip
+What's the most recent forest‑loss measurement for Désarmes?,HTI.3.5.3.3_1,Désarmes,,,,,,,,,,gadm_4,medium,skip
+How much canopy density has declined in Massalima over the past five years?,IDN.11.34.19.3_1,Massalima,,,,,,,,,,gadm_4,medium,skip
+What deforestation hotspots have emerged in Gaggenau this year?,DEU.1.31.5.1_1,Gaggenau,,,,,,,,,,gadm_4,medium,skip
+How effective are community reserves in Sid L'Mokhtar at curbing forest loss?,MAR.8.2.1.6_1,Sid L'Mokhtar,,,,,,,,,,gadm_4,medium,skip
+What's the current tree‑cover percentage in Bagasura?,BGD.7.1.7.3_1,Bagasura,,,,,,,,,,gadm_4,medium,skip
+What recent forest disturbances have been detected in Egg?,AUT.8.2.11.1_2,Egg,,,,,,,,,,gadm_4,medium,skip
+What's the rate of plantation conversion in Gasave since 2019?,RWA.2.5.12.1_1,Gasave,,,,,,,,,,gadm_4,medium,skip
+What forest‑loss trends are evident in Mariba?,RWA.4.4.13.3_1,Mariba,,,,,,,,,,gadm_4,medium,skip
+How much primary forest remains in Gasenyi as of the latest assessment?,BDI.14.4.1.2_1,Gasenyi,,,,,,,,,,gadm_4,medium,skip
+What illegal logging activities have been recorded in Herstappe this year?,BEL.2.2.3.5_1,Herstappe,,,,,,,,,,gadm_4,medium,skip
+What's the latest observed tree‑cover loss in Ngange?,RWA.1.3.11.4_1,Ngange,,,,,,,,,,gadm_4,medium,skip
+How effective are protected areas in Leubok Beutong at preventing deforestation?,IDN.1.2.9.8_1,Leubok Beutong,,,,,,,,,,gadm_4,medium,skip
+What recent satellite imagery reveals about canopy change in Riba?,BDI.11.6.6.3_1,Riba,,,,,,,,,,gadm_4,medium,skip
+What's the current extent of natural forest in Palasah?,IDN.9.21.19.6_1,Palasah,,,,,,,,,,gadm_4,medium,skip
+What recent tree‑cover loss has been detected in Kinyami?,RWA.1.3.16.4_1,Kinyami,,,,,,,,,,gadm_4,medium,skip
+What forest degradation trends have been observed in Duria since 2020?,IDN.32.17.2.3_1,Duria,,,,,,,,,,gadm_4,medium,skip
+What's the most recent satellite‑detected forest disturbance in Juzennecourt?,FRA.6.5.1.9_1,Juzennecourt,,,,,,,,,,gadm_4,medium,skip
+How much primary forest remains in Écos compared to a decade ago?,FRA.9.2.3.1_1,Écos,,,,,,,,,,gadm_4,medium,skip
+What illegal timber extraction events have been documented in Tanjung Beringin this year?,IDN.32.4.18.29_1,Tanjung Beringin,,,,,,,,,,gadm_4,medium,skip
+What's the current tree‑cover percentage in Biescas?,ESP.2.1.8.5_1,Biescas,,,,,,,,,,gadm_4,medium,skip
+What recent canopy height changes have been measured in Matzerath?,DEU.11.10.4.19_1,Matzerath,,,,,,,,,,gadm_4,medium,skip
+How have land‑use changes around Sumberjati affected forest cover since 2018?,IDN.11.4.6.14_1,Sumberjati,,,,,,,,,,gadm_4,medium,skip
+What's the most recent forest‑loss measurement for Altkirch?,FRA.6.4.1.1_1,Altkirch,,,,,,,,,,gadm_4,medium,skip
+What deforestation trends are evident in Garanta?,IDN.26.4.10.5_1,Garanta,,,,,,,,,,gadm_4,medium,skip
+What recent forest‑loss trends have been observed in Maroalomainte?,MDG.6.1.1.15_1,Maroalomainte,,,,,,,,,,gadm_4,medium,skip
+How much primary tree canopy remains in Chanuwa as of the latest assessment?,NPL.2.1.2.10_1,Chanuwa,,,,,,,,,,gadm_4,medium,skip
+What's the current percentage of forest cover in Kulia?,IDN.23.12.7.8_1,Kulia,,,,,,,,,,gadm_4,medium,skip
+What recent clear‑cut events have been detected near Campillo de Aragón?,ESP.2.3.5.17_1,Campillo de Aragón,,,,,,,,,,gadm_4,medium,skip
+What deforestation hotspots have emerged in Villersexel this year?,FRA.2.3.1.16_1,Villersexel,,,,,,,,,,gadm_4,medium,skip
+How effective are community forests in Jagadishpur at preventing canopy loss?,BGD.4.3.3.5_1,Jagadishpur,,,,,,,,,,gadm_4,medium,skip
+What recent tree‑cover loss has been recorded in Bukweto?,BDI.12.1.7.1_1,Bukweto,,,,,,,,,,gadm_4,medium,skip
+What's the rate of agricultural expansion in Bashaha over the past five years?,NPL.2.3.6.6_1,Bashaha,,,,,,,,,,gadm_4,medium,skip
+What illegal logging activities have been documented in Ngoma this year?,RWA.4.2.4.5_1,Ngoma,,,,,,,,,,gadm_4,medium,skip
+How much natural forest remains in Mugongo compared to 2015 levels?,BDI.9.4.19.2_1,Mugongo,,,,,,,,,,gadm_4,medium,skip
+What recent satellite‑observed forest disturbances have occurred in Rutovu?,BDI.4.6.6.3_1,Rutovu,,,,,,,,,,gadm_4,medium,skip
+What's the latest measured tree‑cover loss in Château‑la‑Vallière?,FRA.4.3.3.5_1,Château-la-Vallière,,,,,,,,,,gadm_4,medium,skip
+How effective are protected areas in Saint‑André‑de‑l'Eure at curbing deforestation?,FRA.9.2.2.13_1,Saint-André-de-l'Eure,,,,,,,,,,gadm_4,medium,skip
+What recent forest‑loss trends are evident in Bwera Township?,UGA.21.1.1.2_1,Bwera Township,,,,,,,,,,gadm_4,medium,skip
+What's the current extent of primary forest in Kakinzi?,UGA.25.1.3.1_1,Kakinzi,,,,,,,,,,gadm_4,medium,skip
+What illegal timber extraction events have been recorded in Rougemont this year?,FRA.2.2.1.11_1,Rougemont,,,,,,,,,,gadm_4,medium,skip
+What's the most recent satellite‑detected canopy change in Ocetoke?,UGA.27.1.5.1_1,Ocetoke,,,,,,,,,,gadm_4,medium,skip
+How much canopy density has declined in Marnay over the past five years?,FRA.2.3.2.10_1,Marnay,,,,,,,,,,gadm_4,medium,skip
+What deforestation trends have been observed in Marembo since 2020?,RWA.2.3.7.3_1,Marembo,,,,,,,,,,gadm_4,medium,skip
+What recent tree‑cover loss has been detected in Pegau?,DEU.14.7.21.2_1,Pegau,,,,,,,,,,gadm_4,medium,skip
+What's the current percentage of forest cover in Molonggota?,IDN.6.4.3.5_1,Molonggota,,,,,,,,,,gadm_4,medium,skip
+What recent forest disturbances have been recorded in Obertiefenbach?,AUT.6.5.16.4_2,Obertiefenbach,,,,,,,,,,gadm_4,medium,skip
+How much natural forest remains in Kingking as of the latest survey?,IDN.11.37.19.6_1,Kingking,,,,,,,,,,gadm_4,medium,skip

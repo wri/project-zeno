@@ -1,6 +1,8 @@
+from pathlib import Path
 from typing import Annotated, Any, Dict, List
 
 import pandas as pd
+import yaml
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -13,6 +15,28 @@ from src.utils.llms import SONNET
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+
+def _get_available_datasets() -> str:
+    """Get a concise list of available datasets from the analytics_datasets.yml file."""
+    try:
+        # Get the path to the YAML file relative to this script
+        current_dir = Path(__file__).parent
+        yaml_path = current_dir / "analytics_datasets.yml"
+
+        with open(yaml_path, "r") as f:
+            data = yaml.safe_load(f)
+
+        dataset_names = []
+        for dataset in data.get("datasets", []):
+            name = dataset.get("dataset_name", "Unknown")
+            dataset_names.append(name)
+
+        return ", ".join(dataset_names)
+
+    except Exception:
+        # Fallback to hardcoded list if YAML loading fails
+        return "DIST-ALERT, Global Land Cover, Tree Cover Loss, and Grasslands"
 
 
 class ChartInsight(BaseModel):
@@ -67,11 +91,15 @@ class InsightResponse(BaseModel):
     )
 
 
-INSIGHT_GENERATION_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "user",
-            """
+def _create_insight_generation_prompt() -> ChatPromptTemplate:
+    """Create the insight generation prompt with dynamic dataset information."""
+    available_datasets = _get_available_datasets()
+
+    return ChatPromptTemplate.from_messages(
+        [
+            (
+                "user",
+                f"""
 You are Zeno, an AI assistant that analyzes environmental data and creates insightful visualizations.
 
 Analyze the provided data and generate the most useful chart insight that answers the user's query. If the user requests a specific chart type (e.g., "show as bar chart", "make this a pie chart"), prioritize that chart type if it's appropriate for the data.
@@ -89,26 +117,28 @@ Chart types available:
 Data format requirements:
 - Array of objects with simple field names (e.g., 'date', 'value', 'category')
 - Numeric values as numbers, not strings
-- For stacked-bar: [{{"category": "2020", "metric1": 100, "metric2": 50}}] + set series_fields
-- For grouped-bar: [{{"year": "2020", "type": "metric1", "value": 100}}] + set group_field
+- For stacked-bar: [{{{{\"category\": \"2020\", \"metric1\": 100, \"metric2\": 50}}}}] + set series_fields
+- For grouped-bar: [{{{{\"year\": \"2020\", \"type\": \"metric1\", \"value\": 100}}}}] + set group_field
 - If dates are present, order those in chronological order (not alphabetically)
 
-User query: {user_query}
-Area of interest: {aoi_name}
+User query: {{user_query}}
+Area of interest: {{aoi_name}}
 
-{raw_data_prompt}
+{{raw_data_prompt}}
 
 Generate:
 1. One chart insight with appropriate chart type, Recharts-compatible data, and clear axis fields
-2. 2-3 specific follow-up suggestions for further exploration
+2. 1 or 2 simple follow ups to the user query based on the actual data available
+
+Your capabilities: You can analyze data for any area of interest, pull data from datasets like {available_datasets} for different time periods, and create charts/insights. Base follow-ups on what's actually possible with available data and tools.
 
 IMPORTANT: Generate all insights, titles, and follow-up suggestions in the same language used in the user query.
 
-Follow-up examples: "Show trend over different period", "Compare with [region]", "Break down by [dimension]", "Top/bottom performers in [metric]"
-            """,
-        ),
-    ]
-)
+Follow-up examples: "Show trend over different period", "Compare with another [region] near by", "Top/bottom performers in [metric]"
+                """,
+            ),
+        ]
+    )
 
 
 def get_data_csv(raw_data: Dict) -> str:
@@ -117,8 +147,10 @@ def get_data_csv(raw_data: Dict) -> str:
     Only keep first 3 significant digits for numeric values.
     """
     df = pd.DataFrame(raw_data)
-    constants = df.nunique() == 1
-    df = df.drop(columns=df.columns[constants])
+    # Only drop constant columns if we have multiple rows
+    if len(df) > 1:
+        constants = df.nunique() == 1
+        df = df.drop(columns=df.columns[constants])
     return df.to_csv(index=False, float_format="%.3g")
 
 
@@ -186,9 +218,8 @@ async def generate_insights(
     prompt_instructions = state.get("dataset").get("prompt_instructions", "")
 
     try:
-        chain = INSIGHT_GENERATION_PROMPT | SONNET.with_structured_output(
-            InsightResponse
-        )
+        prompt = _create_insight_generation_prompt()
+        chain = prompt | SONNET.with_structured_output(InsightResponse)
         response = await chain.ainvoke(
             {
                 "user_query": query,

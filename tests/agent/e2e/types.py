@@ -12,6 +12,7 @@ class TestResult:
 
     thread_id: str
     trace_id: Optional[str]
+    trace_url: Optional[str]
     query: str
     overall_score: float
     execution_time: str
@@ -69,6 +70,7 @@ class TestResult:
         return {
             "thread_id": self.thread_id,
             "trace_id": self.trace_id,
+            "trace_url": self.trace_url,
             "query": self.query,
             "overall_score": self.overall_score,
             "execution_time": self.execution_time,

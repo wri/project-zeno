@@ -13,9 +13,10 @@ from sqlalchemy import NullPool, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.api.app import app, fetch_user_from_rw_api, get_async_session
+from src.api.app import app, fetch_user_from_rw_api
 from src.api.data_models import Base, ThreadOrm, UserOrm
 from src.api.schemas import UserModel
+from src.utils.database import get_session_from_pool_dependency
 
 # Test database settings
 if os.getenv("TEST_DATABASE_URL"):
@@ -33,12 +34,16 @@ async_session_maker = sessionmaker(
 Base.metadata.bind = engine_test
 
 
-async def override_get_async_session() -> AsyncGenerator[AsyncSession, None]:
+async def override_get_session_from_pool_dependency() -> (
+    AsyncGenerator[AsyncSession, None]
+):
     async with async_session_maker() as session:
         yield session
 
 
-app.dependency_overrides[get_async_session] = override_get_async_session
+app.dependency_overrides[get_session_from_pool_dependency] = (
+    override_get_session_from_pool_dependency
+)
 
 
 # Mock replay_chat function for tests to avoid checkpointer table dependencies

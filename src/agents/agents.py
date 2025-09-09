@@ -4,29 +4,32 @@ from datetime import datetime
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
-from psycopg import AsyncConnection
 from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
 
 from src.graph import AgentState
 from src.tools import (
     generate_insights,
+    get_capabilities,
     pick_aoi,
     pick_dataset,
     pull_data,
 )
+from src.utils.config import APISettings
 from src.utils.env_loader import load_environment_variables
-from src.utils.llms import SONNET
+from src.utils.llms import MODEL
 
 
 def get_prompt() -> str:
     """Generate the prompt with current date."""
-    return f"""You are a geospatial agent with access to tools and user provided selections to help answer user queries. First, think through the problem step-by-step by planning what tools you need to use and in what order. Then execute your plan by using the tools one by one to answer the user's question.
+    return f"""You are a Global Nature Watch's Geospatial Agent with access to tools and user provided selections to help answer user queries. First, think through the problem step-by-step by planning what tools you need to use and in what order. Then execute your plan by using the tools one by one to answer the user's question.
 
 TOOLS:
 - pick-aoi: Pick the best area of interest (AOI) based on a place name and user's question.
 - pick-dataset: Find the most relevant datasets to help answer the user's question.
 - pull-data: Pulls data for the selected AOI and dataset in the specified date range.
 - generate-insights: Analyzes raw data to generate a single chart insight that answers the user's question, along with 2-3 follow-up suggestions for further exploration.
+- get-capabilities: Get information about your capabilities, available datasets, supported areas and about you. ONLY use when users ask what you can do, what data is available, what's possible or about you.
 
 WORKFLOW:
 1. Use pick-aoi, pick-dataset, and pull-data to get the data in the specified date range.
@@ -79,7 +82,13 @@ GENERAL NOTES:
 """
 
 
-tools = [pick_aoi, pick_dataset, pull_data, generate_insights]
+tools = [
+    get_capabilities,
+    pick_aoi,
+    pick_dataset,
+    pull_data,
+    generate_insights,
+]
 
 # Load environment variables before using them
 load_environment_variables()
@@ -89,12 +98,47 @@ DATABASE_URL = os.environ["DATABASE_URL"].replace(
     "postgresql+asyncpg://", "postgresql://"
 )
 
+# Separate checkpointer connection pool
+#
+# NOTE: We maintain a separate psycopg pool for the checkpointer because:
+# 1. AsyncPostgresSaver requires a psycopg AsyncConnectionPool (not SQLAlchemy)
+# 2. Our global pool uses asyncpg driver (postgresql+asyncpg://) via SQLAlchemy
+# 3. These are different PostgreSQL drivers and aren't directly compatible
+# 4. Both pools connect to the same database but use different connection libraries
+_checkpointer_pool: AsyncConnectionPool = None
+
+
+async def get_checkpointer_pool() -> AsyncConnectionPool:
+    """Get or create the global checkpointer connection pool."""
+    global _checkpointer_pool
+    if _checkpointer_pool is None:
+        _checkpointer_pool = AsyncConnectionPool(
+            DATABASE_URL,
+            min_size=APISettings.db_pool_size,
+            max_size=APISettings.db_max_overflow + APISettings.db_pool_size,
+            kwargs={
+                "row_factory": dict_row,
+                "autocommit": True,
+                "prepare_threshold": 0,
+            },
+            open=False,  # Don't open automatically, we'll open it explicitly
+        )
+        await _checkpointer_pool.open()
+    return _checkpointer_pool
+
+
+async def close_checkpointer_pool():
+    """Close the global checkpointer connection pool."""
+    global _checkpointer_pool
+    if _checkpointer_pool:
+        await _checkpointer_pool.close()
+        _checkpointer_pool = None
+
 
 async def fetch_checkpointer() -> AsyncPostgresSaver:
-    connection = await AsyncConnection.connect(
-        DATABASE_URL, row_factory=dict_row, autocommit=True
-    )
-    checkpointer = AsyncPostgresSaver(conn=connection)
+    """Get an AsyncPostgresSaver using the checkpointer connection pool."""
+    pool = await get_checkpointer_pool()
+    checkpointer = AsyncPostgresSaver(pool)
     return checkpointer
 
 
@@ -104,7 +148,7 @@ async def fetch_zeno_anonymous() -> CompiledStateGraph:
     # Create the Zeno agent with the provided tools and prompt
 
     zeno_agent = create_react_agent(
-        model=SONNET,
+        model=MODEL,
         tools=tools,
         state_schema=AgentState,
         prompt=get_prompt(),
@@ -117,7 +161,7 @@ async def fetch_zeno() -> CompiledStateGraph:
 
     checkpointer = await fetch_checkpointer()
     zeno_agent = create_react_agent(
-        model=SONNET,
+        model=MODEL,
         tools=tools,
         state_schema=AgentState,
         prompt=get_prompt(),

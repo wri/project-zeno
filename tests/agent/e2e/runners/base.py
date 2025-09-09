@@ -30,6 +30,7 @@ class BaseTestRunner(ABC):
     def _create_empty_evaluation_result(
         self,
         thread_id: str,
+        trace_url: str,
         query: str,
         expected_data: ExpectedData,
         error: str,
@@ -41,6 +42,7 @@ class BaseTestRunner(ABC):
         return TestResult(
             thread_id=thread_id,
             trace_id=None,
+            trace_url=trace_url,
             query=query,
             overall_score=0.0,
             execution_time=datetime.now().isoformat(),
@@ -77,7 +79,10 @@ class BaseTestRunner(ABC):
         )
 
     def _run_evaluations(
-        self, agent_state: Dict[str, Any], expected_data: ExpectedData
+        self,
+        agent_state: Dict[str, Any],
+        expected_data: ExpectedData,
+        query: str = "",
     ) -> Dict[str, Any]:
         """Run all evaluation functions on agent state."""
         from tests.agent.tool_evaluators import (
@@ -91,16 +96,19 @@ class BaseTestRunner(ABC):
             agent_state,
             expected_data.expected_aoi_id,
             expected_data.expected_subregion,
+            query,
         )
         dataset_eval = evaluate_dataset_selection(
             agent_state,
             expected_data.expected_dataset_id,
             expected_data.expected_context_layer,
+            query,
         )
         data_eval = evaluate_data_pull(
             agent_state,
             expected_start_date=expected_data.expected_start_date,
             expected_end_date=expected_data.expected_end_date,
+            query=query,
         )
         answer_eval = evaluate_final_answer(
             agent_state, expected_data.expected_answer
@@ -113,12 +121,21 @@ class BaseTestRunner(ABC):
             **answer_eval,
         }
 
-    def _calculate_overall_score(self, evaluations: Dict[str, Any]) -> float:
+    def _calculate_overall_score(
+        self, evaluations: Dict[str, Any], expected_data: ExpectedData
+    ) -> float:
         """Calculate overall score from individual evaluation scores."""
-        scores = [
-            evaluations["aoi_score"],
-            evaluations["dataset_score"],
-            evaluations["pull_data_score"],
-            evaluations["answer_score"],
-        ]
+        scores = []
+        if expected_data.expected_aoi_id:
+            scores.append(evaluations["aoi_score"])
+        if expected_data.expected_dataset_id:
+            scores.append(evaluations["dataset_score"])
+            # If a dataset is expected, data pull should also be evaluated
+            scores.append(evaluations["pull_data_score"])
+        if expected_data.expected_answer:
+            scores.append(evaluations["answer_score"])
+
+        if not scores:
+            return 0.0
+
         return round(sum(scores) / len(scores), 2)
