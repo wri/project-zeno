@@ -96,33 +96,39 @@ async def run_visualization_from_query(query: str) -> Command:
             collections=["sentinel-2-l2a"],
             datetime=f"{start_date}/{end_date}",
             bbox=geometry.bounds,
-            limit=100,
+            #limit=100,
         )
         items = list(search.items())
         print("items ", len(items))
-        items = items[0:10]
-        print("items reduced ", len(items))
+
         if not items:
             raise ValueError("No Sentinel-2 items found.")
 
         stack_arr = stac_load(
             items,
-            bands=("red", "green", "blue"),
+            bands=("red", "green", "blue", "scl"),
             resolution=60,
             chunks={'x': 1024, 'y': 1024, 'bands': -1, 'time': -1},
             bounds=geometry.bounds,
         )
         print("stack_arr.dims ", stack_arr.dims)
 
-        rgb = stack_arr[["red","green","blue"]].isel(time=-1)
-        print("rgb.dims ", rgb.dims)
-        rgb_np = np.stack([rgb[b].values for b in ["red", "green", "blue"]], axis=-1)  # [y, x, band]
-
-        # Normalize if needed
-        rgb_img = np.clip(rgb_np / rgb_np.max(), 0, 1)
+        # Define invalid SCL classes
+        invalid_scl = [0, 1, 3, 8, 9, 10, 11]
+        # Mask using SCL band
+        mask = ~stack_arr['scl'].isin(invalid_scl)
+        # Apply mask only to RGB bands
+        stack_arr_rgb = stack_arr[["red", "green", "blue"]].where(mask)
+        # Temporal composite
+        rgb = stack_arr_rgb.median(dim='time', skipna=True)
+        # Convert to numpy
+        rgb_np = np.stack([rgb[b].values for b in ["red", "green", "blue"]], axis=-1)
+        # Normalize with contrast stretch
+        rgb_min, rgb_max = np.nanpercentile(rgb_np, (2, 98))
+        rgb_img = np.clip((rgb_np - rgb_min) / (rgb_max - rgb_min), 0, 1)
 
         # Save as PNG
-        png_path = f"s2_{aoi_name.replace(' ', '_')}_{start_date}.png"
+        png_path = f"s2_{aoi_name.replace(' ', '_').replace(',', '')}_{start_date}_{end_date}.png"
         plt.imsave(png_path, rgb_img)
         print("Saved PNG to:", png_path)
 
@@ -158,7 +164,7 @@ async def visualize_sentinel2_from_query(query: str) -> Command:
 
 if __name__ == "__main__":
     result = asyncio.run(
-        visualize_sentinel2_from_query.ainvoke({"query": "show me disturbances in California in january 2025"})
+        visualize_sentinel2_from_query.ainvoke({"query": "show me Lisbon Portugal in summer of 2025"})
     )
     print("Image saved to:", result.update.get("s2_image_path"))
     print("Full command result:", result.update)
