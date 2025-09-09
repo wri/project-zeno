@@ -12,7 +12,7 @@ from langchain_openai import OpenAIEmbeddings
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from src.utils.llms import GEMINI_FLASH as MODEL
+from src.utils.llms import MODEL
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
