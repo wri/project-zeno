@@ -30,33 +30,10 @@ def get_prompt(user: Optional[dict] = None) -> str:
         # Build user context string with available information
         user_parts = []
 
-        # Add greeting with first name if available
-        if user.get("first_name"):
-            user_parts.append(f"You are speaking with {user['first_name']}")
-        elif user.get("name"):
-            # Fallback to name if first_name not available
-            user_parts.append(f"You are speaking with {user['name']}")
-
-        # Add role/job information
-        if user.get("job_title") and user.get("company_organization"):
-            user_parts.append(
-                f"who works as {user['job_title']} at {user['company_organization']}"
-            )
-        elif user.get("job_title"):
-            user_parts.append(f"who works as {user['job_title']}")
-        elif user.get("company_organization"):
-            user_parts.append(f"who works at {user['company_organization']}")
-
         # Add areas of interest
         if user.get("areas_of_interest"):
             user_parts.append(
                 f"Their areas of interest include: {user['areas_of_interest']}"
-            )
-
-        # Add GIS expertise level
-        if user.get("gis_expertise_level"):
-            user_parts.append(
-                f"Their GIS expertise level is: {user['gis_expertise_level']}"
             )
 
         # Add preferred language
@@ -78,7 +55,7 @@ def get_prompt(user: Optional[dict] = None) -> str:
             user_parts.append(f"They are located in: {country_name}")
 
         if user_parts:
-            user_context = f"\n\nUSER CONTEXT:\n{'. '.join(user_parts)}.\nPlease address them by their first name when possible and tailor your responses to their expertise level and interests.\n"
+            user_context = f"\n\nUSER CONTEXT:\n{'. '.join(user_parts)}.\nPlease tailor your responses to their interests.\n"
 
     return f"""You are a Global Nature Watch's Geospatial Agent with access to tools and user provided selections to help answer user queries. First, think through the problem step-by-step by planning what tools you need to use and in what order. Then execute your plan by using the tools one by one to answer the user's question.{user_context}
 
