@@ -62,7 +62,7 @@ def load_indexes():
         data_dir / "zeno-docs-nomic-index", embedding=nomic_embeddings
     )
     openai_index = InMemoryVectorStore.load(
-        data_dir / "zeno-docs-openai-index", embedding=openai_embeddings
+        data_dir / "zeno-docs-openai-index-v2", embedding=openai_embeddings
     )
 
     nomic_retriever = nomic_index.as_retriever(

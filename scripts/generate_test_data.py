@@ -157,7 +157,7 @@ def main():
 
     # 2. Create mock vector indices
     print("Creating mock vector indices...")
-    create_mock_vector_index(data_dir / "zeno-docs-openai-index")
+    create_mock_vector_index(data_dir / "zeno-docs-openai-index-v2")
     create_mock_vector_index(data_dir / "zeno-docs-nomic-index")
 
     # 3. Create mock ColBERT index

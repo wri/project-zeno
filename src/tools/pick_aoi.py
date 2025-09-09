@@ -22,7 +22,7 @@ from src.utils.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     WDPA_TABLE,
 )
-from src.utils.llms import MODEL
+from src.utils.llms import GEMINI_FLASH, MODEL
 from src.utils.logging_config import get_logger
 
 RESULT_LIMIT = 10
@@ -390,7 +390,8 @@ async def translate_to_english(question, place_name):
     )
 
     translate_to_english_chain = (
-        TRANSLATE_TO_ENGLISH_PROMPT | MODEL.with_structured_output(Place)
+        TRANSLATE_TO_ENGLISH_PROMPT
+        | GEMINI_FLASH.with_structured_output(Place)
     )
 
     english_place_name = await translate_to_english_chain.ainvoke(
@@ -404,7 +405,7 @@ async def translate_to_english(question, place_name):
     return english_place_name.name
 
 
-@tool("pick-aoi")
+@tool("pick_aoi")
 async def pick_aoi(
     question: str,
     place: str,

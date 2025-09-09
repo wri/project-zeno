@@ -74,7 +74,7 @@ async def get_aois_to_pull(
     return to_pull
 
 
-@tool("pull-data")
+@tool("pull_data")
 async def pull_data(
     query: str,
     start_date: str,
