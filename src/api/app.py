@@ -187,12 +187,9 @@ async def logging_middleware(request: Request, call_next) -> Response:
     return response
 
 
-langfuse = Langfuse(
-    public_key=os.environ["LANGFUSE_PUBLIC_KEY"],
-    secret_key=os.environ["LANGFUSE_SECRET_KEY"],
-    host=os.environ["LANGFUSE_HOST"],
-    environment=os.getenv("STAGE", "production"),
-)
+os.environ["LANGFUSE_TRACING_ENVIRONMENT"] = os.getenv("STAGE", "production")
+
+langfuse = Langfuse()
 langfuse_handler = CallbackHandler(update_trace=True)
 langfuse_client = Langfuse()
 
