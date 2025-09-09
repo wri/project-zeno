@@ -67,6 +67,7 @@ from src.api.schemas import (
     UserProfileUpdateRequest,
     UserWithQuotaModel,
 )
+from src.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
 from src.utils.config import APISettings
 from src.utils.database import (
     close_global_pool,
@@ -993,21 +994,19 @@ async def chat(
         user_dict = None
         if user:
             user_dict = {
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "job_title": user.job_title,
-                "company_organization": user.company_organization,
                 "country_code": user.country_code,
                 "preferred_language_code": user.preferred_language_code,
-                "gis_expertise_level": user.gis_expertise_level,
                 "areas_of_interest": user.areas_of_interest,
-                "profile_description": user.profile_description,
-                "sector_code": user.sector_code,
-                "role_code": user.role_code,
             }
+            # Add sector and role information if available
+            if user.sector_code and user.sector_code in SECTORS:
+                user_dict["sector_code"] = SECTORS[user.sector_code]
+                if user.role_code and user.role_code in SECTOR_ROLES.get(
+                    user.sector_code, {}
+                ):
+                    user_dict["role_code"] = SECTOR_ROLES[user.sector_code][
+                        user.role_code
+                    ]
 
         return StreamingResponse(
             stream_chat(

@@ -54,8 +54,16 @@ def get_prompt(user: Optional[dict] = None) -> str:
             )
             user_parts.append(f"They are located in: {country_name}")
 
+        # Add sector context
+        if user.get("sector_code"):
+            user_parts.append(f"They work in the {user['sector_code']} sector")
+
+        # Add role context
+        if user.get("role_code"):
+            user_parts.append(f"Their role is: {user['role_code']}")
+
         if user_parts:
-            user_context = f"\n\nUSER CONTEXT:\n{'. '.join(user_parts)}.\nPlease tailor your responses to their interests.\n"
+            user_context = f"\n\nUSER CONTEXT:\n{'. '.join(user_parts)}.\nPlease tailor your responses to their profile.\n"
 
     return f"""You are a Global Nature Watch's Geospatial Agent with access to tools and user provided selections to help answer user queries. First, think through the problem step-by-step by planning what tools you need to use and in what order. Then execute your plan by using the tools one by one to answer the user's question.{user_context}
 
