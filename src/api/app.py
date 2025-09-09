@@ -587,28 +587,22 @@ async def fetch_user_from_rw_api(
         )
         user_info["name"] = user_info["email"].split("@")[0]
 
-    # cache user info
-    _user_info_cache[token] = UserModel.model_validate(user_info)
-
     user_email = user_info["email"]
 
-    # Check 3-tier access model:
-    # Tier 1: Email whitelist (always allowed)
-    # Tier 2: Domain whitelist (always allowed)
-    # Tier 3: Public users (allowed only if ALLOW_PUBLIC_SIGNUPS=true)
-
-    if await is_user_whitelisted(user_email, session):
-        # User is whitelisted (email or domain), allow access
-        return UserModel.model_validate(user_info)
-
-    if not APISettings.allow_public_signups:
-        # Public signups disabled, only whitelisted users allowed
+    if (
+        not await is_user_whitelisted(user_email, session)
+        and not APISettings.allow_public_signups
+    ):
+        # Only block if user is NOT whitelisted AND public signups are disabled
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not allowed to access this API",
         )
 
-    return UserModel.model_validate(user_info)
+    # Allow access (either whitelisted or public signups enabled)
+    user_model = UserModel.model_validate(user_info)
+    _user_info_cache[token] = user_model
+    return user_model
 
 
 async def require_auth(
