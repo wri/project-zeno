@@ -51,6 +51,13 @@ def has_raw_data(tool_steps: list[dict]) -> bool:
     return False
 
 
+def has_insights(tool_steps: list[dict]) -> bool:
+    for tool_step in tool_steps:
+        if tool_step.get("insight_count", 0) > 0:
+            return True
+    return False
+
+
 async def run_agent(query: str, thread_id: str | None = None):
     """Run the agent with a query and print output at each step."""
 
@@ -116,7 +123,7 @@ async def run_agent(query: str, thread_id: str | None = None):
         ("trend of grasslands", 2022),
         ("distribution of natural lands", 2020),
         ("trend of tree cover loss", 2023),
-        ("trend of tree cover gain", 2019),
+        ("trend of tree cover gain", "2000-2020"),
         ("trend of forest greenhouse gas net flux", 2023),
         ("trend of tree cover", 2010),
     ],
@@ -135,11 +142,7 @@ async def test_full_agent_for_datasets(
 
     assert has_raw_data(tool_steps)
 
-    has_insights = False
-    for tool_step in tool_steps:
-        if tool_step.get("insight_count", 0) > 0:
-            has_insights = True
-    assert has_insights, "No insights found"
+    assert has_insights(tool_steps), "No insights found"
 
 
 @pytest.mark.asyncio
@@ -166,3 +169,31 @@ async def test_agent_disturbance_alerts_with_comparison(structlog_context):
     tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
 
     assert has_raw_data(tool_steps)
+
+
+@pytest.mark.asyncio
+async def test_agent_tc_gain_date_range_adjustment(structlog_context):
+    query = "Analyze tree cover gain in 2019 in Sweden."
+
+    steps = await run_agent(query)
+
+    assert len(steps) > 0
+
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
+
+    assert has_raw_data(tool_steps)
+
+    assert has_insights(tool_steps), "No insights found"
+
+
+@pytest.mark.asyncio
+async def test_agent_tc_gain_date_range_clarification(structlog_context):
+    query = "Analyze tree cover gain in 1990 in Sweden."
+
+    steps = await run_agent(query)
+
+    assert len(steps) > 0
+
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
+
+    assert not has_raw_data(tool_steps)
