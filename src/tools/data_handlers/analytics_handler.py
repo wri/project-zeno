@@ -86,6 +86,9 @@ class AnalyticsHandler(DataSourceHandler):
             LAND_COVER_CHANGE_ID,
             GRASSLANDS_ID,
             TREE_COVER_LOSS_ID,
+            TREE_COVER_GAIN_ID,
+            FOREST_CARBON_FLUX_ID,
+            TREE_COVER_ID,
         ]
 
     def _get_aoi_type(self, aoi: Dict) -> str:
@@ -229,8 +232,6 @@ class AnalyticsHandler(DataSourceHandler):
         elif dataset.get("dataset_id") == FOREST_CARBON_FLUX_ID:
             payload = {
                 **base_payload,
-                "start_year": start_date[:4],
-                "end_year": end_date[:4],
                 "canopy_cover": 30,
             }
         elif dataset.get("dataset_id") == TREE_COVER_ID:
