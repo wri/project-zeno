@@ -692,10 +692,10 @@ datasets:
     Gain area for a given time period can be calculated by using the following:
     Area [Year1 to Year2] = Area [Year1 to 2020] - Area [Year2 to 2020].
     Warn that these are estimates that can be used as indicators of tree gain but are not suitable for
-    precise verification of restoration activities at local scales. 
+    precise verification of restoration activities at local scales.
   description: >
-    Tree Cover Gain (Hansen/UMD/GLAD) identifies areas where new tree canopy was established 
-    between 2000 and 2012 at 30-meter resolution, using Landsat 7 imagery. It captures both 
+    Tree Cover Gain (Hansen/UMD/GLAD) identifies areas where new tree canopy was established
+    between 2000 and 2012 at 30-meter resolution, using Landsat 7 imagery. It captures both
     natural forest regrowth and tree plantation cycles, and is useful for tracking large-scale
     forest recovery trends. Users should note that it is a cumulative layer and should not
     be combined directly with loss or tree cover data to calculate net change.
@@ -711,23 +711,23 @@ datasets:
     of vegetation structure, including forest canopy height at latitudes between 52°N and 52°S globally.
     Gain was identified where pixels had tree height ≥5 m in 2020 and tree height <5 m in 2000.
     Tree cover gain may indicate a number of potential activities, including natural forest growth,
-    the tree crop rotation cycle, or tree plantation management. 
+    the tree crop rotation cycle, or tree plantation management.
     When zoomed out (< zoom level 12), pixels of gain are shaded according to the density of gain
     at the 30 x 30 meter scale. Pixels with darker shading represent areas with a higher concentration
     of tree cover gain, whereas pixels with lighter shading indicate a lower concentration of tree cover gain.
-    There is no variation in pixel shading when the data is at full resolution (≥ zoom level 12). 
+    There is no variation in pixel shading when the data is at full resolution (≥ zoom level 12).
   cautions: >
     In this data set, “tree cover” is defined as woody vegetation with the height of 5 m and taller,
-    and may take the form of natural woodlands, forests, or tree plantations across a range of canopy densities. 
-    Tree cover gain does not equate directly to restoration, afforestation or reforestation. 
-    Integrated use of other products such as canopy cover density data also available on GFW should be performed with caution. 
-    The authors evaluated the accuracy of the product, and the overall accuracy was found to be 99.3%, 
-    commission error (false positives) of 28.6%, and omission error (false negatives) of 42.2%. 
-    The accuracy does vary by biome and thus may be higher or lower in any particular location. 
+    and may take the form of natural woodlands, forests, or tree plantations across a range of canopy densities.
+    Tree cover gain does not equate directly to restoration, afforestation or reforestation.
+    Integrated use of other products such as canopy cover density data also available on GFW should be performed with caution.
+    The authors evaluated the accuracy of the product, and the overall accuracy was found to be 99.3%,
+    commission error (false positives) of 28.6%, and omission error (false negatives) of 42.2%.
+    The accuracy does vary by biome and thus may be higher or lower in any particular location.
     As the omission error is higher than the commission error, this indicates that the product provides conservative
-    estimates of forest dynamics. There was confusion between forest enhancement (existing forest height increase) 
+    estimates of forest dynamics. There was confusion between forest enhancement (existing forest height increase)
     and forest gain (establishment of forests within the year 2000 non-forest land), and this was more prominent
-    in boreal forest areas where forest height in the year 2000 was difficult to determine. 
+    in boreal forest areas where forest height in the year 2000 was difficult to determine.
   function_usage_notes: >
     Identifies areas of tree cover gain.
   providers: >
@@ -738,8 +738,8 @@ datasets:
     Frontiers in Remote Sensing, 13, April 2022. https://doi.org/10.3389/frsen.2022.856903
   citation: >
     Use the following credit when this data is displayed: Accessed through Global Forest Watch on <date>. www.globalforestwatch.org.
-    Use the following credit when this data is cited: Potapov, P., Hansen, M.C., Pickens, A., Hernandez-Serna, A., Tyukavina, A., 
-    Turubanova, S., Zalles, V., Li, X., Khan, A., Stolle, F., Harris, N., Song, X-P., Baggett, A., Kommareddy, I., and Kommareddy, A. 2022. 
+    Use the following credit when this data is cited: Potapov, P., Hansen, M.C., Pickens, A., Hernandez-Serna, A., Tyukavina, A.,
+    Turubanova, S., Zalles, V., Li, X., Khan, A., Stolle, F., Harris, N., Song, X-P., Baggett, A., Kommareddy, I., and Kommareddy, A. 2022.
     The Global 2000-2020 Land Cover and Land Use Change Dataset Derived From the Landsat Archive: First Results.
     Frontiers in Remote Sensing, 13, April 2022. https://doi.org/10.3389/frsen.2022.856903
 
@@ -766,7 +766,7 @@ datasets:
   analytics_api_endpoint: "/v0/land_change/carbon_flux/analytics"
   prompt_instructions: >
     Use 30% canopy density threshold by default, unless a user requests a different threshold.
-    Show net flux as a split bar chart, with emissions in the positive y-axis and removals 
+    Show net flux as a split bar chart, with emissions in the positive y-axis and removals
     in the negative.
     DO NOT show trends over time and caution users that net flux represents totals over
     the the period 2001-2024, not an annual time series.
@@ -805,7 +805,7 @@ datasets:
     of the pixels in the AOI can be summed to obtain the total net flux for that area. The values in the
     latter were calculated by adjusting the net flux per hectare by the size of each pixel,
     which varies by latitude. When estimating net flux occurring over a defined number of years
-    between 2001 and 2024, divide the values by the model duration and then multiply by the number of years 
+    between 2001 and 2024, divide the values by the model duration and then multiply by the number of years
     n the period of interest. Both datasets only include pixels within forests, as defined in the methods of
     Harris et al. (2021) and updated with tree cover gain through 2020.
   cautions: >
@@ -869,10 +869,10 @@ datasets:
     Shows tree cover % per pixel for years 2000 and 2010, for woody vegetation greater than 5 meters in height.
     If combined with primary forest or IFL layers, we can use the term ‘forest’ to describe results. Otherwise,
     only use the term 'tree cover'. Use 2000 layer for data requests before 2010, and 2010 layer for data
-    requests after 2010. 
+    requests after 2010.
     Binned % tree cover extent can be reported in bar chart or pie chart.
     Default bins are >0-25%, 25-50%, 50-75%, 75-100%, but user can specify bins (i.e. greater and smaller than 30%).
-    When calculating area in bins, exclude tree cover area = 0 (and specify that the exclusion has happened). 
+    When calculating area in bins, exclude tree cover area = 0 (and specify that the exclusion has happened).
     Do not compare the 2000 and 2010 areas or changes in density over this time. Use the tree cover loss and gain
     data for data on change in tree area. Cannot be used to asses pixel-level percent changes (gains and losses).
   description: >
