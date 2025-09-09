@@ -1,7 +1,6 @@
 import os
 from datetime import datetime
 from typing import Optional
-from typing import Optional
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
