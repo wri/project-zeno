@@ -556,11 +556,11 @@ datasets:
   context_layers:
     - value: "driver"
       description: "Shows the primary driver of tree cover loss, including: commodity-driven deforestation, shifting agriculture, forestry, wildfire, and other drivers"
+  variables:
     - value: "primary_forest"
       description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
-    - value: "ifl"
+    - value: "intact_forest"
       description: "Intact forest landscapes (IFL) show loss within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
-  variables: ">10, 15, 20, 25, 30, 50, 75%"
   tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=2001&end_year=2024&tree_cover_density_threshold=25&render_type=true_color"
   license: "CC by 4.0"
   geographic_coverage: "Global land area (excluding Antarctica and other Arctic islands)"
@@ -662,20 +662,21 @@ datasets:
   citation: >
     Hansen et al., 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change."
     Accessed through Global Forest Watch on [date]. www.globalforestwatch.org
+
 - dataset_id: 5
   dataset_name: Tree cover gain
-  context_layers:
+  context_layers: null
+  variables:
     - value: "primary_forest"
       description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
-    - value: "intact_forest_landscape"
+    - value: "intact_forest"
       description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
-  variables: ""
   tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_gain_from_height/latest/default/{z}/{x}/{y}.png"
   license: "CC by 4.0"
   geographic_coverage: "Global land area (excluding Antarctica and other Arctic islands)"
   resolution: "30 x 30 meters"
   update_frequency: ""
-  content_date: "2000, 2005, 2010, 2015, 2020"
+  content_date: "2000-2020 five year intervals"
   keywords:
     - gain
     - forest regrowth
@@ -699,12 +700,12 @@ datasets:
     natural forest regrowth and tree plantation cycles, and is useful for tracking large-scale
     forest recovery trends. Users should note that it is a cumulative layer and should not
     be combined directly with loss or tree cover data to calculate net change.
-
-  methodology: >
     This data set from the GLAD (Global Land Analysis & Discovery) lab at the University of Maryland
     measures areas of tree cover gain from the year 2000 to 2020 across the globe at 30 x 30 meter resolution,
     displayed as a 20-year cumulative layer. Tree cover gain was determined using tree height
-    information from the years 2000 and 2020. Tree height was modeled by the integration of the
+    information from the years 2000 and 2020.
+  methodology: >
+    Tree height was modeled by the integration of the
     Global Ecosystem Dynamics Investigation (GEDI) lidar forest structure measurements and Landsat
     analysis-ready data time-series. The NASA GEDI is a spaceborne lidar instrument operating onboard
     the International Space Station since April 2019. It provides point-based measurements
@@ -745,12 +746,12 @@ datasets:
 
 - dataset_id: 6
   dataset_name: Forest greenhouse gas net flux
-  context_layers:
+  context_layers: null
+  variables:
     - value: "primary_forest"
       description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
     - value: "intact_forest_landscape"
       description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
-  variables: ">30, 50, 75%"
   tile_url: "https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30"
   license: "CC by 4.0"
   geographic_coverage: "Global"
@@ -777,7 +778,6 @@ datasets:
     This dataset supports climate reporting, forest-based mitigation strategies, and greenhouse gas
     inventories by identifying where forests are contributing to or helping mitigate climate change.
     There is no timeseries; values are annual averages.
-
   methodology: >
     This net flux layer is part of the forest greenhouse gas flux model described in Harris et al. (2021).
     This paper introduces a geospatial monitoring framework for estimating global forest fluxes which can
@@ -846,20 +846,18 @@ datasets:
 
 - dataset_id: 7
   dataset_name: Tree cover
-  context_layers:
+  context_layers: null
+  variables:
     - value: "primary_forest"
       description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
-    - value: "intact_forest_landscape"
+    - value: "intact_forest"
       description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
-  variables:
-    - threshold: ">10, 15, 20, 25, 30, 50, 75%"
-    - year: "2000, 2010"
   tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_density_{year}/latest/tcd_{threshold}/{z}/{x}/{y}.png"
   license: "CC by 4.0"
   geographic_coverage: "Global land (excluding Antarctica and Arctic islands)"
   resolution: "30 x 30 meters"
   update_frequency: ""
-  content_date: "2000"
+  content_date: "2000, 2010"
   keywords:
     - tree cover
     - forest
