@@ -996,7 +996,7 @@ async def chat(
     identity = None
 
     if user:
-        identity = user.email
+        identity = user.id
     else:
         identity = await extract_anonymous_session_cookie(request)
 
@@ -1005,23 +1005,10 @@ async def chat(
 
     langfuse_metadata["langfuse_session_id"] = thread_id
 
-    # store additional user metadata if user is logged in
-    if user:
-        langfuse_metadata["user_internal_id"] = user.id
-
-        for attr in [
-            "profile_description",
-            "sector_code",
-            "role_code",
-            "job_title",
-            "company_organization",
-            "country_code",
-            "preferred_language_code",
-            "gis_expertise_level",
-            "areas_of_interest",
-            "has_profile",
-        ]:
-            langfuse_metadata[attr] = getattr(user, attr, None)
+    # if we want to store any additional user metadata (
+    # if user is logged in) we can add any other key/value
+    # pairs (as long as the keys don't begin with `langfuse_*`)
+    # eg: langfuse_metadata["job_title"] = user.job_title
 
     try:
         headers = {}
