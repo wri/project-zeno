@@ -53,6 +53,19 @@ TREE_COVER_LOSS_ID = [
     for ds in DATASETS
     if ds["dataset_name"] == "Tree cover loss"
 ][0]
+TREE_COVER_GAIN_ID = [
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"] == "Tree cover gain"
+][0]
+FOREST_CARBON_FLUX_ID = [
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"] == "Forest greenhouse gas net flux"
+][0]
+TREE_COVER_ID = [
+    ds["dataset_id"] for ds in DATASETS if ds["dataset_name"] == "Tree cover"
+][0]
 
 
 class AnalyticsHandler(DataSourceHandler):
@@ -196,9 +209,35 @@ class AnalyticsHandler(DataSourceHandler):
         elif dataset.get("dataset_id") == TREE_COVER_LOSS_ID:
             payload = {
                 **base_payload,
-                "start_year": start_date[:4],  # Extract year from YYYY-MM-DD
+                "start_year": start_date[:4],
                 "end_year": end_date[:4],
-                "canopy_cover": 30,  # Default canopy cover threshold
+                "canopy_cover": 30,
+                "forest_filter": "primary_forest",
+                "intersections": (
+                    [dataset["context_layer"]]
+                    if dataset.get("context_layer")
+                    else []
+                ),
+            }
+        elif dataset.get("dataset_id") == TREE_COVER_GAIN_ID:
+            payload = {
+                **base_payload,
+                "start_year": start_date[:4],
+                "end_year": end_date[:4],
+                "forest_filter": "primary_forest",
+            }
+        elif dataset.get("dataset_id") == FOREST_CARBON_FLUX_ID:
+            payload = {
+                **base_payload,
+                "start_year": start_date[:4],
+                "end_year": end_date[:4],
+                "canopy_cover": 30,
+            }
+        elif dataset.get("dataset_id") == TREE_COVER_ID:
+            payload = {
+                **base_payload,
+                "canopy_cover": 30,
+                "forest_filter": "primary_forest",
                 "intersections": (
                     [dataset["context_layer"]]
                     if dataset.get("context_layer")

@@ -119,7 +119,8 @@ async def select_best_dataset(
                 "user",
                 """Based on the query, return the ID of the dataset that can best answer the user query and provide reason why it is the best match.
     Look at the dataset description and contextual layers, as well as date & variables. Evaluate if the best dataset is available
-    for the date range requested by the user.
+    for the date range requested by the user, if not, pick the closest date range but make it clear in your response that there
+    is not an exact match with the query requested by the user.
 
     IMPORTANT: Provide the selection reason in the same language used in the user query.
 

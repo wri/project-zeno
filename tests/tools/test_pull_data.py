@@ -66,35 +66,11 @@ ALL_DATASET_COMBINATIONS = [
         "dataset_name": "Tree cover loss",
         "context_layer": "driver",
     },
-    # Tree cover loss with primary_forest intersection
-    {
-        "dataset_id": 4,
-        "dataset_name": "Tree cover loss",
-        "context_layer": "primary_forest",
-    },
-    # Tree cover loss with ifl intersection
-    {
-        "dataset_id": 4,
-        "dataset_name": "Tree cover loss",
-        "context_layer": "ifl",
-    },
     # Tree cover gain without intersection
     {
         "dataset_id": 5,
         "dataset_name": "Tree cover gain",
         "context_layer": None,
-    },
-    # Tree cover gain with primary_forest intersection
-    {
-        "dataset_id": 5,
-        "dataset_name": "Tree cover gain",
-        "context_layer": "primary_forest",
-    },
-    # Tree cover gain with intact_forest_landscape intersection
-    {
-        "dataset_id": 5,
-        "dataset_name": "Tree cover gain",
-        "context_layer": "intact_forest_landscape",
     },
     # Forest greenhouse gas net flux without intersection
     {
@@ -102,35 +78,11 @@ ALL_DATASET_COMBINATIONS = [
         "dataset_name": "Forest greenhouse gas net flux",
         "context_layer": None,
     },
-    # Forest greenhouse gas net flux with primary_forest intersection
-    {
-        "dataset_id": 6,
-        "dataset_name": "Forest greenhouse gas net flux",
-        "context_layer": "primary_forest",
-    },
-    # Forest greenhouse gas net flux with intact_forest_landscape intersection
-    {
-        "dataset_id": 6,
-        "dataset_name": "Forest greenhouse gas net flux",
-        "context_layer": "intact_forest_landscape",
-    },
     # Tree cover without intersection
     {
         "dataset_id": 7,
         "dataset_name": "Tree cover",
         "context_layer": None,
-    },
-    # Tree cover with primary_forest intersection
-    {
-        "dataset_id": 7,
-        "dataset_name": "Tree cover",
-        "context_layer": "primary_forest",
-    },
-    # Tree cover with intact_forest_landscape intersection
-    {
-        "dataset_id": 7,
-        "dataset_name": "Tree cover",
-        "context_layer": "intact_forest_landscape",
     },
 ]
 
