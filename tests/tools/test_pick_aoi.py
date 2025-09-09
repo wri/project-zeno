@@ -1,18 +1,8 @@
 import uuid
 
 import pytest
-import pytest_asyncio
 
 from src.tools.pick_aoi import pick_aoi
-from src.utils.database import close_global_pool, initialize_global_pool
-
-
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def test_db_pool():
-    """Initialize global database pool for pick_aoi tests."""
-    await initialize_global_pool()
-    yield
-    await close_global_pool()
 
 
 @pytest.mark.asyncio
