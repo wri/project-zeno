@@ -111,21 +111,23 @@ async def run_agent(query: str, thread_id: str | None = None):
 @pytest.mark.parametrize(
     "dataset_name, dataset_year",
     [
-        ("ecosystem disturbance alerts", 2024),
-        ("land cover change", 2024),
-        ("grasslands", 2022),
-        ("natural lands", 2020),
-        ("tree cover loss", 2024),
-        ("tree cover gain", 2024),
-        ("forest greenhouse gas net flux", 2024),
-        ("tree cover", 2024),
+        ("trend of ecosystem disturbance alerts", 2024),
+        ("trend of land cover change", 2024),
+        ("trend of grasslands", 2022),
+        ("distribution of natural lands", 2020),
+        ("trend of tree cover loss", 2024),
+        ("trend of tree cover gain", 2024),
+        ("trend of forest greenhouse gas net flux", 2024),
+        ("trend of tree cover", 2024),
     ],
 )
 @pytest.mark.asyncio
 async def test_full_agent_for_datasets(
     structlog_context, dataset_name, dataset_year
 ):
-    query = f"What are the trends of {dataset_name} in Para Brazil for July {dataset_year}?"
+    query = (
+        f"What is the {dataset_name} in Para Brazil for July {dataset_year}?"
+    )
 
     steps = await run_agent(query)
 
