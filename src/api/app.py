@@ -81,7 +81,7 @@ from src.utils.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     get_geometry_data,
 )
-from src.utils.llms import HAIKU, get_model
+from src.utils.llms import HAIKU, get_model, get_small_model
 from src.utils.logging_config import bind_request_logging_context, get_logger
 
 # Load environment variables using shared utility
@@ -1881,6 +1881,8 @@ async def api_metadata(
     # Get current model information
     current_model = get_model()
     current_model_name = APISettings.model.lower()
+    small_model = get_small_model()
+    small_model_name = APISettings.small_model.lower()
 
     return {
         "version": "0.1.0",
@@ -1893,6 +1895,8 @@ async def api_metadata(
         "model": {
             "current": current_model_name,
             "model_class": current_model.__class__.__name__,
+            "small": small_model_name,
+            "small_model_class": small_model.__class__.__name__,
         },
     }
 
