@@ -1,15 +1,15 @@
 """Sector configuration for user profiles."""
 
 SECTORS = {
-    "government": "Government",
-    "donor": "Donor Institution / Agency",
+    "government": "Government/ Public Sector",
+    "donor": "Philanthropic Organization",
     "local_ngo": "Local NGO (national or subnational)",
     "international_ngo": "International NGO",
-    "un_international": "UN or International Organization",
+    "un_international": "Intergovernmental / Multilateral Organization",
     "academic": "Academic / Research Organization",
     "journalist": "Journalist / Media Organization",
-    "indigenous": "Indigenous or Community-Based Organization",
-    "private_sector": "Private sector",
+    "indigenous": "Indigenous of Community-Based Organization",
+    "private_sector": "Private Sector / Business",
     "individual": "Individual / No Affiliation",
     "other": "Other",
 }
@@ -22,6 +22,7 @@ SECTOR_ROLES = {
         "legislature": "Legislature/Parliament",
         "ministry_agency": "Ministry/National Agency",
         "subnational_agency": "Subnational Agency",
+        "donor_agency": "Donor Agency",
         "other": "Other:",
     },
     "donor": {
@@ -38,9 +39,8 @@ SECTOR_ROLES = {
         "monitoring_evaluation": "Monitoring/Evaluation Specialist",
         "gis_technical": "GIS/Technical Specialist",
         "researcher": "Researcher",
-        "field_staff": "Field Staff",
+        "field_staff": "Field Staff/ Country Staff",
         "communications": "Communications Specialist",
-        "park_ranger": "Park/Forest Ranger",
         "other": "Other:",
     },
     "international_ngo": {
@@ -84,11 +84,12 @@ SECTOR_ROLES = {
         "other": "Other:",
     },
     "private_sector": {
-        "supply_chain_manager": "Supply Chain Manager",
-        "supply_chain_analyst": "Supply Chain Analyst",
-        "procurement_staff": "Procurement Staff",
-        "retailer_trader": "Retailer/Trader",
-        "land_owner": "Land or Concession Owner",
+        "director_executive": "Director / Executive",
+        "sustainability_esg": "Sustainability / ESG Manager",
+        "supply_chain_manager": "Supply Chain / Procurement Manager",
+        "finance_risk_investment": "Finance / Risk / Investment Manager",
+        "data_technology_analytics": "Data / Technology / Analytics Specialist",
+        "partnerships_certification": "Partnerships / Certification / Standards Specialist",
         "other": "Other:",
     },
     "individual": {

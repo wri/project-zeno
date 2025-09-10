@@ -56,6 +56,11 @@ class UserOrm(Base):
     preferred_language_code = Column(String, nullable=True)
     gis_expertise_level = Column(String, nullable=True)
     areas_of_interest = Column(String, nullable=True)
+    topics = Column(
+        String, nullable=True
+    )  # JSON array of selected topic codes
+    receive_news_emails = Column(Boolean, nullable=False, default=False)
+    help_test_features = Column(Boolean, nullable=False, default=False)
     has_profile = Column(Boolean, nullable=False, default=False)
 
     # Machine user fields

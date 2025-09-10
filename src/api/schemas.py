@@ -16,6 +16,7 @@ from src.user_profile_configs.countries import COUNTRIES
 from src.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.user_profile_configs.languages import LANGUAGES
 from src.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
+from src.user_profile_configs.topics import TOPICS
 
 
 class ThreadModel(BaseModel):
@@ -68,6 +69,9 @@ class UserModel(BaseModel):
     preferred_language_code: Optional[str] = None
     gis_expertise_level: Optional[str] = None
     areas_of_interest: Optional[str] = None
+    topics: Optional[List[str]] = None
+    receive_news_emails: bool = False
+    help_test_features: bool = False
     has_profile: bool = False
 
     @field_validator("created_at", "updated_at", mode="before")
@@ -116,6 +120,16 @@ class UserModel(BaseModel):
             raise ValueError(f"Invalid GIS expertise level: {v}")
         return v
 
+    @field_validator("topics")
+    def validate_topics(cls, v):
+        if v is not None:
+            if not isinstance(v, list):
+                raise ValueError("Topics must be a list")
+            for topic in v:
+                if topic not in TOPICS:
+                    raise ValueError(f"Invalid topic: {topic}")
+        return v
+
 
 class UserProfileUpdateRequest(BaseModel):
     """Request schema for updating user profile fields."""
@@ -136,6 +150,9 @@ class UserProfileUpdateRequest(BaseModel):
     preferred_language_code: Optional[str] = None
     gis_expertise_level: Optional[str] = None
     areas_of_interest: Optional[str] = None
+    topics: Optional[List[str]] = None
+    receive_news_emails: Optional[bool] = None
+    help_test_features: Optional[bool] = None
     has_profile: Optional[bool] = None
 
     @field_validator("sector_code")
@@ -175,6 +192,16 @@ class UserProfileUpdateRequest(BaseModel):
             raise ValueError(f"Invalid GIS expertise level: {v}")
         return v
 
+    @field_validator("topics")
+    def validate_topics(cls, v):
+        if v is not None:
+            if not isinstance(v, list):
+                raise ValueError("Topics must be a list")
+            for topic in v:
+                if topic not in TOPICS:
+                    raise ValueError(f"Invalid topic: {topic}")
+        return v
+
 
 class ProfileConfigResponse(BaseModel):
     """Response schema for profile configuration options."""
@@ -184,6 +211,7 @@ class ProfileConfigResponse(BaseModel):
     countries: dict[str, str] = COUNTRIES
     languages: dict[str, str] = LANGUAGES
     gis_expertise_levels: dict[str, str] = GIS_EXPERTISE_LEVELS
+    topics: dict[str, str] = TOPICS
 
 
 class QuotaModel(BaseModel):
