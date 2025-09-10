@@ -299,7 +299,7 @@ datasets:
   geographic_coverage: "90°N to 90°S"
   resolution: "30 x 30 meters"
   update_frequency: "Annual"
-  content_date: "2000-2024, annual"
+  content_date: "2000-2022, annual"
   keywords:
     - grasslands
     - natural grasslands
@@ -337,7 +337,7 @@ datasets:
     such as regrowth following disturbance, natural seasonal or interannual variability, such as
     floodplain inundation, for example.
   description: >
-    Annual 30 m maps of global natural/semi-natural grassland extent from 2000 to 2024.
+    Annual 30 m maps of global natural/semi-natural grassland extent from 2000 to 2022.
     This dataset defines grasslands very broadly such that they encompass grasslands, shrublands,
     and savannas by including any land cover type which contains at least 30% of dry or wet
     low vegetation, dominated by grasses and forbs (less than 3 meters) and a:
