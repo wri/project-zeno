@@ -17,7 +17,6 @@ from src.tools import (
     pull_data,
 )
 from src.user_profile_configs.countries import COUNTRIES
-from src.user_profile_configs.languages import LANGUAGES
 from src.utils.config import APISettings
 from src.utils.env_loader import load_environment_variables
 from src.utils.llms import MODEL
@@ -37,15 +36,15 @@ def get_prompt(user: Optional[dict] = None) -> str:
             )
 
         # Add preferred language
-        if (
-            user.get("preferred_language_code")
-            and user["preferred_language_code"] != "en"
-        ):
-            language_name = LANGUAGES.get(
-                user["preferred_language_code"],
-                user["preferred_language_code"],
-            )
-            user_parts.append(f"Their preferred language is: {language_name}")
+        # if (
+        #     user.get("preferred_language_code")
+        #     and user["preferred_language_code"] != "en"
+        # ):
+        #     language_name = LANGUAGES.get(
+        #         user["preferred_language_code"],
+        #         user["preferred_language_code"],
+        #     )
+        #     user_parts.append(f"Their preferred language is: {language_name}")
 
         # Add country context
         if user.get("country_code"):
