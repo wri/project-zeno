@@ -581,7 +581,9 @@ datasets:
   prompt_instructions: >
     Reports gross annual loss of tree cover ≥ 5 m height (2001-2024).
     Show yearly loss with bar charts or cumulative loss with stacked-area charts; plot area_ha
-    and drop zeros.
+    and drop zeros. When reporting tree cover loss, always include the GHG emissions associated
+    with that loss, in MgCO2e (tonnes of CO2 equivalent). If users ask for intra-year
+    or seasonal tree ocver loss OR emissions, refuse and remind that the data is annually only. 
     DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover"
     includes plantations as well as natural forest meaning loss is not automatically
     deforestation or carbon loss.
@@ -592,7 +594,8 @@ datasets:
     disturbances in vegetation over 5 meters tall, including natural forests and plantations.
     The dataset supports monitoring annual tree cover loss and deforestation trends, fire
     impacts, and forestry practices, and is widely used for conservation, land-use planning,
-    and environmental policy analysis.
+    and environmental policy analysis. This dataset also includes annual greenhouse gas
+    emissions due to tree cover loss, measure in MgCO2e (tonnes of CO2 equivalent).
   methodology: >
     This data set, a collaboration between the GLAD (Global Land Analysis & Discovery) lab
     at the University of Maryland (UMD), Google, USGS, and NASA, measures areas of tree cover
@@ -863,32 +866,31 @@ datasets:
   geographic_coverage: "Global land (excluding Antarctica and Arctic islands)"
   resolution: "30 x 30 meters"
   update_frequency: ""
-  content_date: "2000, 2010"
+  content_date: "2000"
   keywords:
     - tree cover
     - forest
     - canopy
   analytics_api_endpoint: "/v0/land_change/tree_cover/analytics"
   prompt_instructions: >
-    Shows tree cover % per pixel for years 2000 and 2010, for woody vegetation greater than 5 meters in height.
+    Shows tree cover % per pixel for years 2000, for woody vegetation greater than 5 meters in height.
     If combined with primary forest or IFL layers, we can use the term ‘forest’ to describe results. Otherwise,
-    only use the term 'tree cover'. Use 2000 layer for data requests before 2010, and 2010 layer for data
-    requests after 2010.
+    only use the term 'tree cover'.
     Binned % tree cover extent can be reported in bar chart or pie chart.
     Default bins are >0-25%, 25-50%, 50-75%, 75-100%, but user can specify bins (i.e. greater and smaller than 30%).
     When calculating area in bins, exclude tree cover area = 0 (and specify that the exclusion has happened).
-    Do not compare the 2000 and 2010 areas or changes in density over this time. Use the tree cover loss and gain
+    Use the tree cover loss and gain
     data for data on change in tree area. Cannot be used to asses pixel-level percent changes (gains and losses).
   description: >
     Tree Cover (Hansen/UMD/GLAD) provides global percent tree canopy cover at 30-meter resolution for the
-    years 2000 and 2010, based on Landsat 7 imagery. It represents the density of vegetation over 5 meters
+    years 2000, based on Landsat 7 imagery. It represents the density of vegetation over 5 meters
     tall, including both natural forests and plantations. This dataset is useful for establishing
     historical baselines and comparing tree cover density across different landscapes.
 
   methodology: >
     This data set, a collaboration between the GLAD (Global Land Analysis & Discovery) lab at the
     University of Maryland, Google, USGS, and NASA, displays tree cover over all global land
-    (except for Antarctica and a number of Arctic islands) for the years 2000 and 2010 at 30 x 30 meter resolution.
+    (except for Antarctica and a number of Arctic islands) for the years 2000 at 30 x 30 meter resolution.
     “Percent tree cover” is defined as the density of tree canopy coverage of the land surface and is color-coded
     by density bracket (see legend).
   cautions: >
