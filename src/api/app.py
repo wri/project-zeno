@@ -1935,7 +1935,7 @@ async def api_metadata(
             "model_class": current_model.__class__.__name__,
             "small": small_model_name,
             "small_model_class": small_model.__class__.__name__,
-        }
+        },
     }
 
 
