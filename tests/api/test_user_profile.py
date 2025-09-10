@@ -6,6 +6,7 @@ from src.user_profile_configs.countries import COUNTRIES
 from src.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.user_profile_configs.languages import LANGUAGES
 from src.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
+from src.user_profile_configs.topics import TOPICS
 
 
 class TestProfileConfigAPI:
@@ -28,6 +29,7 @@ class TestProfileConfigAPI:
             "gis_expertise_levels" in data
             and len(data["gis_expertise_levels"]) > 0
         )
+        assert "topics" in data and len(data["topics"]) > 0
 
         # Verify data matches our configs
         assert data["sectors"] == SECTORS
@@ -35,6 +37,7 @@ class TestProfileConfigAPI:
         assert data["countries"] == COUNTRIES
         assert data["languages"] == LANGUAGES
         assert data["gis_expertise_levels"] == GIS_EXPERTISE_LEVELS
+        assert data["topics"] == TOPICS
 
 
 class TestUserProfileAPI:
@@ -48,6 +51,9 @@ class TestUserProfileAPI:
         self.valid_country = next(iter(COUNTRIES.keys()))
         self.valid_language = next(iter(LANGUAGES.keys()))
         self.valid_expertise = next(iter(GIS_EXPERTISE_LEVELS.keys()))
+        self.valid_topics = list(TOPICS.keys())[
+            :2
+        ]  # Get first 2 topics for testing
 
     @pytest.mark.asyncio
     async def test_update_profile_requires_auth(self, client):
@@ -159,6 +165,123 @@ class TestUserProfileAPI:
         )
         assert response.status_code == 422
         assert "Invalid GIS expertise level" in str(response.json())
+
+    @pytest.mark.asyncio
+    async def test_update_profile_new_fields(
+        self, client, user, auth_override
+    ):
+        """Test updating the new profile fields: topics, receive_news_emails, help_test_features."""
+        auth_override(user.id)
+
+        update_data = {
+            "topics": self.valid_topics,
+            "receive_news_emails": True,
+            "help_test_features": True,
+        }
+
+        response = await client.patch("/api/auth/profile", json=update_data)
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["topics"] == self.valid_topics
+        assert data["receiveNewsEmails"]
+        assert data["helpTestFeatures"]
+
+    @pytest.mark.asyncio
+    async def test_update_profile_topics_validation(
+        self, client, user, auth_override
+    ):
+        """Test topics field validation."""
+        auth_override(user.id)
+
+        # Test invalid topic
+        response = await client.patch(
+            "/api/auth/profile", json={"topics": ["invalid_topic"]}
+        )
+        assert response.status_code == 422
+        assert "Invalid topic" in str(response.json())
+
+        # Test non-list topics
+        response = await client.patch(
+            "/api/auth/profile", json={"topics": "not_a_list"}
+        )
+        assert response.status_code == 422
+        assert "Input should be a valid list" in str(response.json())
+
+        # Test valid topics
+        response = await client.patch(
+            "/api/auth/profile", json={"topics": self.valid_topics}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["topics"] == self.valid_topics
+
+    @pytest.mark.asyncio
+    async def test_update_profile_topics_empty_list(
+        self, client, user, auth_override
+    ):
+        """Test topics can be set to empty list."""
+        auth_override(user.id)
+
+        # First set some topics
+        response = await client.patch(
+            "/api/auth/profile", json={"topics": self.valid_topics}
+        )
+        assert response.status_code == 200
+        assert response.json()["topics"] == self.valid_topics
+
+        # Then set to empty list
+        response = await client.patch("/api/auth/profile", json={"topics": []})
+        assert response.status_code == 200
+        assert response.json()["topics"] == []
+
+    @pytest.mark.asyncio
+    async def test_update_profile_topics_null(
+        self, client, user, auth_override
+    ):
+        """Test topics can be set to null."""
+        auth_override(user.id)
+
+        # First set some topics
+        response = await client.patch(
+            "/api/auth/profile", json={"topics": self.valid_topics}
+        )
+        assert response.status_code == 200
+        assert response.json()["topics"] == self.valid_topics
+
+        # Then set to null
+        response = await client.patch(
+            "/api/auth/profile", json={"topics": None}
+        )
+        assert response.status_code == 200
+        assert response.json()["topics"] is None
+
+    @pytest.mark.asyncio
+    async def test_update_profile_boolean_fields(
+        self, client, user, auth_override
+    ):
+        """Test boolean fields can be set to true/false."""
+        auth_override(user.id)
+
+        # Test setting to True
+        response = await client.patch(
+            "/api/auth/profile",
+            json={"receive_news_emails": True, "help_test_features": True},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["receiveNewsEmails"]
+        assert data["helpTestFeatures"]
+
+        # Test setting to False
+        response = await client.patch(
+            "/api/auth/profile",
+            json={"receive_news_emails": False, "help_test_features": False},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert not data["receiveNewsEmails"]
+        assert not data["helpTestFeatures"]
 
     @pytest.mark.asyncio
     async def test_user_auto_creation(self, client, auth_override):
