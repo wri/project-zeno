@@ -60,7 +60,6 @@ jobs:
           AWS_ACCESS_KEY_ID: fake-aws-access-key
           AWS_SECRET_ACCESS_KEY: fake-aws-secret-key
           AWS_DEFAULT_REGION: us-east-1
-          OLLAMA_BASE_URL: http://localhost:11434
           API_BASE_URL: http://localhost:8000
           LOCAL_API_BASE_URL: http://localhost:8000
           STREAMLIT_URL: http://localhost:8501

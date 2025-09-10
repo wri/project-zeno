@@ -7,7 +7,6 @@ requires-python = "==3.12.8"
 dependencies = [
     "langchain==0.3.26",
     "langchain-community==0.3.27",
-    "langchain-ollama==0.3.6",
     "langchain-openai==0.3.28",
     "langfuse==3.3.3",
     "langchain-chroma==0.2.5",
