@@ -187,7 +187,10 @@ async def logging_middleware(request: Request, call_next) -> Response:
     return response
 
 
-langfuse_handler = CallbackHandler()
+os.environ["LANGFUSE_TRACING_ENVIRONMENT"] = os.getenv("STAGE", "production")
+
+langfuse = Langfuse()
+langfuse_handler = CallbackHandler(update_trace=True)
 langfuse_client = Langfuse()
 
 # HTTP Middleware to asign/verify anonymous session IDs
@@ -305,25 +308,13 @@ async def stream_chat(
     ui_context: Optional[dict] = None,
     ui_action_only: Optional[bool] = False,
     thread_id: Optional[str] = None,
-    metadata: Optional[Dict] = None,
-    session_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    tags: Optional[list] = None,
+    langfuse_metadata: Optional[Dict] = {},
     user: Optional[dict] = None,
 ):
-    # Populate langfuse metadata
-    if metadata:
-        langfuse_handler.metadata = metadata
-    if session_id:
-        langfuse_handler.session_id = session_id
-    if user_id:
-        langfuse_handler.user_id = user_id
-    if tags:
-        langfuse_handler.tags = tags
-
     config = {
         "configurable": {"thread_id": thread_id},
         "callbacks": [langfuse_handler],
+        "metadata": langfuse_metadata,
     }
 
     if not thread_id:
@@ -723,6 +714,24 @@ async def fetch_user(
     return await optional_auth(user_info, session)
 
 
+async def extract_anonymous_session_cookie(request: Request) -> Optional[str]:
+    """
+    Extract the anonymous session cookie from the request headers.
+
+    Args:
+        request (Request): The incoming HTTP request object.
+
+    Returns:
+        Optional[str]: The anonymous session ID if found, otherwise None.
+    """
+
+    # Extract anonymous session ID from auth header (validation already done in fetch_user_from_rw_api)
+    auth_header = request.headers["Authorization"]
+    credentials = auth_header.strip("Bearer ")
+    [scheme, anonymous_id] = credentials.split(":", 1)
+    return f"{ANONYMOUS_USER_PREFIX}:{anonymous_id}"
+
+
 async def get_user_identity_and_daily_quota(
     request: Request,
     user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
@@ -745,12 +754,7 @@ async def get_user_identity_and_daily_quota(
     # 1. Get calling user and set quota
     if not user:
         daily_quota = APISettings.anonymous_user_daily_quota
-
-        # Extract anonymous session ID from auth header (validation already done in fetch_user_from_rw_api)
-        auth_header = request.headers["Authorization"]
-        credentials = auth_header.strip("Bearer ")
-        [scheme, anonymous_id] = credentials.split(":", 1)
-        identity = f"{ANONYMOUS_USER_PREFIX}:{anonymous_id}"
+        identity = await extract_anonymous_session_cookie(request)
 
     else:
         if user.user_type == UserType.ADMIN:
@@ -909,7 +913,8 @@ async def get_quota(
 
 @app.post("/api/chat")
 async def chat(
-    request: ChatRequest,
+    request: Request,
+    chat_request: ChatRequest,
     user: Optional[UserModel] = Depends(optional_auth),
     quota_info: dict = Depends(enforce_quota),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
@@ -922,7 +927,11 @@ async def chat(
 
     Args:
         request: The chat request containing query, thread_id, etc.
-        user: The user, authenticated against the WRI API (optional for anonymous users)
+        user (dependency injection): The user, authenticated against the WRI
+            API (optional for anonymous users)
+        quota_info (dependency injection): The user's quota information, including
+            identity, current usage and limits
+        session (dependency injection): The database session for the request
 
     Returns:
         Streamed chat response in NDJSON format
@@ -951,20 +960,20 @@ async def chat(
     if user:
         # For authenticated users, persist threads in database
         bind_request_logging_context(
-            thread_id=request.thread_id,
-            session_id=request.session_id,
-            query=request.query,
+            thread_id=chat_request.thread_id,
+            session_id=chat_request.session_id,
+            query=chat_request.query,
         )
         stmt = select(ThreadOrm).filter_by(
-            id=request.thread_id, user_id=user.id
+            id=chat_request.thread_id, user_id=user.id
         )
         result = await session.execute(stmt)
         thread = result.scalars().first()
         if not thread:
             # Generate thread name from the first query
-            thread_name = await generate_thread_name(request.query)
+            thread_name = await generate_thread_name(chat_request.query)
             thread = ThreadOrm(
-                id=request.thread_id,
+                id=chat_request.thread_id,
                 user_id=user.id,
                 agent_id="UniGuana",
                 name=thread_name,
@@ -976,7 +985,27 @@ async def chat(
     else:
         # For anonymous users, use the thread_id from request but don't persist
         # This allows conversation continuity within the same session
-        thread_id = request.thread_id
+        thread_id = chat_request.thread_id
+
+    # Populate langfuse metadata
+    langfuse_metadata = {}
+
+    identity = None
+
+    if user:
+        identity = user.id
+    else:
+        identity = await extract_anonymous_session_cookie(request)
+
+    # Note: should this be user.email or user.id?
+    langfuse_metadata["langfuse_user_id"] = identity
+
+    langfuse_metadata["langfuse_session_id"] = thread_id
+
+    # if we want to store any additional user metadata (
+    # if user is logged in) we can add any other key/value
+    # pairs (as long as the keys don't begin with `langfuse_*`)
+    # eg: langfuse_metadata["job_title"] = user.job_title
 
     try:
         headers = {}
@@ -1004,15 +1033,12 @@ async def chat(
 
         return StreamingResponse(
             stream_chat(
-                query=request.query,
-                user_persona=request.user_persona,
+                query=chat_request.query,
+                user_persona=chat_request.user_persona,
                 thread_id=thread_id,
-                ui_context=request.ui_context,
-                ui_action_only=request.ui_action_only,
-                metadata=request.metadata,
-                session_id=request.session_id,
-                user_id=request.user_id,
-                tags=request.tags,
+                ui_context=chat_request.ui_context,
+                ui_action_only=chat_request.ui_action_only,
+                langfuse_metadata=langfuse_metadata,
                 user=user_dict,
             ),
             media_type="application/x-ndjson",
@@ -1023,7 +1049,7 @@ async def chat(
             "Chat request failed",
             error=str(e),
             error_type=type(e).__name__,
-            thread_id=request.thread_id,
+            thread_id=chat_request.thread_id,
         )
         raise HTTPException(status_code=500, detail=str(e))
 
