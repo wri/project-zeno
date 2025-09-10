@@ -37,6 +37,14 @@ class CustomAreaNameRequest(BaseModel):
     features: list = Field(..., description="Array of GeoJSON Feature objects")
 
 
+class CustomAreaNameResponse(BaseModel):
+    name: str = Field(
+        ...,
+        description="Generated geographic name for the area",
+        max_length=100,
+    )
+
+
 class UserModel(BaseModel):
     """User model with relationships to threads and custom areas."""
 

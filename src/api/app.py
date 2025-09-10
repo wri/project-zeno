@@ -56,6 +56,7 @@ from src.api.schemas import (
     CustomAreaCreate,
     CustomAreaModel,
     CustomAreaNameRequest,
+    CustomAreaNameResponse,
     GeometryResponse,
     ProfileConfigResponse,
     QuotaModel,
@@ -1323,7 +1324,7 @@ async def get_thread_state(
         )
 
 
-@app.post("/api/custom_area_name")
+@app.post("/api/custom_area_name", response_model=CustomAreaNameResponse)
 async def custom_area_name(
     request: CustomAreaNameRequest, user: UserModel = Depends(require_auth)
 ):
