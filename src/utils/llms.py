@@ -82,5 +82,18 @@ def get_model():
     return MODEL_REGISTRY[model_name]
 
 
+def get_small_model():
+    """Get the configured small model from environment or default to haiku."""
+    model_name = APISettings.small_model.lower()
+    if model_name not in MODEL_REGISTRY:
+        raise ValueError(
+            f"Unknown small model: {model_name}. Available models: {AVAILABLE_MODELS}"
+        )
+    return MODEL_REGISTRY[model_name]
+
+
 # Base Model - dynamically selected from environment
 MODEL = get_model()
+
+# Small Model - dynamically selected from environment
+SMALL_MODEL = get_small_model()

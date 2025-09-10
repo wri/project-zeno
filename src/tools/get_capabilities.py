@@ -57,7 +57,7 @@ def _load_datasets_info() -> str:
 - Tree Cover Loss: Annual gross tree cover loss data from 2001 to 2024, 30m resolution"""
 
 
-@tool
+@tool("get_capabilities")
 def get_capabilities() -> str:
     """
     Get comprehensive information about the agent's capabilities, available datasets, and supported areas of interest.

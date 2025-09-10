@@ -178,7 +178,7 @@ async def select_best_dataset(
     )
 
 
-@tool("pick-dataset")
+@tool("pick_dataset")
 async def pick_dataset(
     query: str, tool_call_id: Annotated[str, InjectedToolCallId] = None
 ) -> Command:

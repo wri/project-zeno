@@ -154,7 +154,7 @@ def get_data_csv(raw_data: Dict) -> str:
     return df.to_csv(index=False, float_format="%.3g")
 
 
-@tool
+@tool("generate_insights")
 async def generate_insights(
     query: str,
     is_comparison: bool,
