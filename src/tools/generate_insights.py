@@ -122,7 +122,6 @@ Data format requirements:
 - If dates are present, order those in chronological order (not alphabetically)
 
 User query: {{user_query}}
-Area of interest: {{aoi_name}}
 
 {{raw_data_prompt}}
 
@@ -224,10 +223,6 @@ async def generate_insights(
             {
                 "user_query": query,
                 "raw_data_prompt": raw_data_prompt,
-                # when picking an area of interest manually, the query will not have an area of interest
-                # mentioned, so we can use the state to get the area name to pass to the LLM
-                # Otherwise, the insight heading might not mention the name of the area
-                "aoi_name": aoi_name,
                 "prompt_instructions": prompt_instructions,
             }
         )
