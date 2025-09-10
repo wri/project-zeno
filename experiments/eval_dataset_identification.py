@@ -8,8 +8,8 @@ This evaluates high-level questions (e.g., deforestation in Amazon) with expert-
 Unlike GADM evaluation, this uses LLM-based scoring to compare non-exact matches.
 """
 
-import asyncio
 import argparse
+import asyncio
 import code
 import json
 import sys
@@ -23,7 +23,7 @@ from langgraph.types import StateSnapshot
 from typing_extensions import Annotated, Literal, TypedDict
 
 from experiments.eval_utils import get_langfuse, get_run_name, run_query
-from src.utils.database import initialize_global_pool, close_global_pool
+from src.utils.database import close_global_pool, initialize_global_pool
 
 
 # Data structures
