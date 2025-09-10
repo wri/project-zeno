@@ -81,7 +81,7 @@ from src.utils.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     get_geometry_data,
 )
-from src.utils.llms import HAIKU, get_model, get_small_model
+from src.utils.llms import SMALL_MODEL, get_model, get_small_model
 from src.utils.logging_config import bind_request_logging_context, get_logger
 
 # Load environment variables using shared utility
@@ -897,7 +897,7 @@ async def generate_thread_name(query: str) -> str:
     """
     try:
         prompt = f"Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:\n{query}\nReturn strictly the title only, no quotes or explanation."
-        response = await HAIKU.ainvoke(prompt)
+        response = await SMALL_MODEL.ainvoke(prompt)
         return response.content[:50]  # Ensure we don't exceed 50 chars
     except Exception as e:
         logger.exception("Error generating thread name: %s", e)
@@ -1325,7 +1325,7 @@ async def get_thread_state(
 
 @app.post("/api/custom_area_name")
 async def custom_area_name(
-    request: CustomAreaNameRequest, user: UserModel = Depends(fetch_user)
+    request: CustomAreaNameRequest, user: UserModel = Depends(require_auth)
 ):
     """
     Generate a neutral geographic name for a GeoJSON FeatureCollection of
@@ -1333,7 +1333,7 @@ async def custom_area_name(
     Requires Authorization.
     """
     try:
-        prompt = """Name this GeoJSON FeatureCollection from physical geography.
+        prompt = """Name this GeoJSON Features from physical geography.
         Pick name in this order:
         1. Most salient intersecting natural feature (range/peak; desert/plateau/basin; river/lake/watershed; coast/gulf/strait; plain/valley)
         2. If none clear, use a broader natural unit (ecoregion/physiographic province/biome or climate/latitude bands)
@@ -1343,8 +1343,12 @@ async def custom_area_name(
         Prefer widely used, neutral physical names; do not invent obscure terms.
         You may combine up to two natural units with a preposition.
         Return a name only, strictly ≤100 characters.
+
+        Features: {features}
         """
-        response = await HAIKU.ainvoke(prompt)
+        response = await SMALL_MODEL.ainvoke(
+            prompt.format(features=request.features[0])
+        )
         return {"name": response.content}
     except Exception as e:
         logger.exception("Error generating area name: %s", e)
