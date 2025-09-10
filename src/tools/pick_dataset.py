@@ -195,7 +195,7 @@ async def pick_dataset(
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await select_best_dataset(query, candidate_datasets)
 
-    tool_message = f"""Selected dataset ID: {selection_result.dataset_id}\nContext layer: {selection_result.context_layer}\nReasoning: {selection_result.reason}"""
+    tool_message = f"""Selected dataset: {selection_result.dataset_name}\nContext layer: {selection_result.context_layer}\nReasoning: {selection_result.reason}"""
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
 
