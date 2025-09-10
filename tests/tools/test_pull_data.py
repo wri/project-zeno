@@ -6,47 +6,70 @@ from src.tools.pull_data import pull_data
 # http://analytics-416617519.us-east-1.elb.amazonaws.com/openapi.json
 # as of 2025-08-06
 ALL_DATASET_COMBINATIONS = [
-    # Ecosystem disturbance alerts without intersection
     {
         "dataset_id": 0,
         "dataset_name": "Ecosystem disturbance alerts",
         "context_layer": None,
     },
-    # Ecosystem disturbance alerts with driver intersection
     {
         "dataset_id": 0,
         "dataset_name": "Ecosystem disturbance alerts",
         "context_layer": "driver",
     },
-    # Global land cover (no intersections available)
+    {
+        "dataset_id": 0,
+        "dataset_name": "Ecosystem disturbance alerts",
+        "context_layer": "natural_lands",
+    },
+    {
+        "dataset_id": 0,
+        "dataset_name": "Ecosystem disturbance alerts",
+        "context_layer": "grasslands",
+    },
+    {
+        "dataset_id": 0,
+        "dataset_name": "Ecosystem disturbance alerts",
+        "context_layer": "land_cover",
+    },
     {
         "dataset_id": 1,
         "dataset_name": "Global land cover",
         "context_layer": None,
     },
-    # Grassland (no intersections available)
     {
         "dataset_id": 2,
         "dataset_name": "Grassland",
         "context_layer": None,
     },
-    # Natural lands (no intersections available)
     {
         "dataset_id": 3,
         "dataset_name": "Natural lands",
         "context_layer": None,
     },
-    # Tree cover loss without intersection
     {
         "dataset_id": 4,
         "dataset_name": "Tree cover loss",
         "context_layer": None,
     },
-    # Tree cover loss with driver intersection
     {
         "dataset_id": 4,
         "dataset_name": "Tree cover loss",
         "context_layer": "driver",
+    },
+    {
+        "dataset_id": 5,
+        "dataset_name": "Tree cover gain",
+        "context_layer": None,
+    },
+    {
+        "dataset_id": 6,
+        "dataset_name": "Forest greenhouse gas net flux",
+        "context_layer": None,
+    },
+    {
+        "dataset_id": 7,
+        "dataset_name": "Tree cover",
+        "context_layer": None,
     },
 ]
 
@@ -111,7 +134,7 @@ def test_db_session():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("aoi_data", TEST_AOIS)
 @pytest.mark.parametrize("dataset", ALL_DATASET_COMBINATIONS)
-async def test_pick_aoi_queries(aoi_data, dataset):
+async def test_pull_data_queries(aoi_data, dataset):
     print(f"Testing {dataset['dataset_name']} with {aoi_data['name']}")
     update = {
         "aoi": aoi_data,

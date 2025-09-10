@@ -100,7 +100,7 @@ def _create_insight_generation_prompt() -> ChatPromptTemplate:
             (
                 "user",
                 f"""
-You are Zeno, an AI assistant that analyzes environmental data and creates insightful visualizations.
+You are the Global Nature Watch's Geospatial Assistant that analyzes environmental data and creates insightful visualizations.
 
 Analyze the provided data and generate the most useful chart insight that answers the user's query. If the user requests a specific chart type (e.g., "show as bar chart", "make this a pie chart"), prioritize that chart type if it's appropriate for the data.
 

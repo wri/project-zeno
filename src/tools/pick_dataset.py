@@ -32,7 +32,7 @@ async def _get_openai_retriever():
         logger.debug("Loading OpenAI retriever for the first time...")
         openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
         openai_index = InMemoryVectorStore.load(
-            data_dir / "zeno-docs-openai-index", embedding=openai_embeddings
+            data_dir / "zeno-docs-openai-index-v2", embedding=openai_embeddings
         )
         _retriever_cache["openai"] = openai_index.as_retriever(
             search_type="similarity", search_kwargs={"k": 3}
@@ -71,9 +71,6 @@ class DatasetOption(BaseModel):
     context_layer: Optional[str] = Field(
         None,
         description="Pick a single context layer from the dataset if useful",
-    )
-    date_request_match: bool = Field(
-        description="Whether the date request matches the dataset date range.",
     )
     reason: str = Field(
         description="Short reason why the dataset is the best match."
@@ -117,9 +114,13 @@ async def select_best_dataset(
         [
             (
                 "user",
-                """Based on the query, return the ID of the dataset that can best answer the user query and provide reason why it is the best match.
-    Look at the dataset description and contextual layers, as well as date & variables. Evaluate if the best dataset is available
-    for the date range requested by the user.
+                """Based on the query, return the ID of the dataset that can best answer the
+                user query and provide reason why it is the best match.
+    Look at the dataset description and contextual layers, as well as date & variables.
+
+    Evaluate if the best dataset is available for the date range requested by the user,
+    if not, pick the closest date range but warn the user that there
+    is not an exact match with the query requested by the user in the reason field.
 
     IMPORTANT: Provide the selection reason in the same language used in the user query.
 
@@ -174,7 +175,6 @@ async def select_best_dataset(
         cautions=selected_row.cautions,
         function_usage_notes=selected_row.function_usage_notes,
         citation=selected_row.citation,
-        date_request_match=selection_result.date_request_match,
     )
 
 
@@ -195,7 +195,7 @@ async def pick_dataset(
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await select_best_dataset(query, candidate_datasets)
 
-    tool_message = f"""Selected dataset ID: {selection_result.dataset_id}\nContext layer: {selection_result.context_layer}\nReasoning: {selection_result.reason}\nDate request match: {selection_result.date_request_match}"""
+    tool_message = f"""Selected dataset: {selection_result.dataset_name}\nContext layer: {selection_result.context_layer}\nReasoning: {selection_result.reason}"""
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
 

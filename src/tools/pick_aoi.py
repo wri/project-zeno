@@ -376,6 +376,8 @@ async def translate_to_english(question, place_name):
                 - "São Paulo" → "Sao Paulo"
                 - "México" → "Mexico"
                 - "Köln" → "Cologne"
+                - "Bern, Schweiz" → "Bern, Switzerland"
+                - "Lisboa em Portugal" → "Lisbon, Portugal"
 
                 User query:
                 {question}

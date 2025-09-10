@@ -53,6 +53,19 @@ TREE_COVER_LOSS_ID = [
     for ds in DATASETS
     if ds["dataset_name"] == "Tree cover loss"
 ][0]
+TREE_COVER_GAIN_ID = [
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"] == "Tree cover gain"
+][0]
+FOREST_CARBON_FLUX_ID = [
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"] == "Forest greenhouse gas net flux"
+][0]
+TREE_COVER_ID = [
+    ds["dataset_id"] for ds in DATASETS if ds["dataset_name"] == "Tree cover"
+][0]
 
 
 class AnalyticsHandler(DataSourceHandler):
@@ -73,6 +86,9 @@ class AnalyticsHandler(DataSourceHandler):
             LAND_COVER_CHANGE_ID,
             GRASSLANDS_ID,
             TREE_COVER_LOSS_ID,
+            TREE_COVER_GAIN_ID,
+            FOREST_CARBON_FLUX_ID,
+            TREE_COVER_ID,
         ]
 
     def _get_aoi_type(self, aoi: Dict) -> str:
@@ -196,9 +212,38 @@ class AnalyticsHandler(DataSourceHandler):
         elif dataset.get("dataset_id") == TREE_COVER_LOSS_ID:
             payload = {
                 **base_payload,
-                "start_year": start_date[:4],  # Extract year from YYYY-MM-DD
+                "start_year": start_date[:4],
                 "end_year": end_date[:4],
-                "canopy_cover": 30,  # Default canopy cover threshold
+                "canopy_cover": 30,
+                "forest_filter": "primary_forest",
+                "intersections": (
+                    [dataset["context_layer"]]
+                    if dataset.get("context_layer")
+                    else []
+                ),
+            }
+        elif dataset.get("dataset_id") == TREE_COVER_GAIN_ID:
+            # Tree cover gain is only available in 5-year intervals
+            start_year = int(start_date[:4]) - int(start_date[:4]) % 5
+            end_year = int(end_date[:4]) - int(end_date[:4]) % 5
+            if start_year == end_year:
+                end_year += 5
+            payload = {
+                **base_payload,
+                "start_year": str(max(2000, start_year)),
+                "end_year": str(max(2005, end_year)),
+                "forest_filter": "primary_forest",
+            }
+        elif dataset.get("dataset_id") == FOREST_CARBON_FLUX_ID:
+            payload = {
+                **base_payload,
+                "canopy_cover": 30,
+            }
+        elif dataset.get("dataset_id") == TREE_COVER_ID:
+            payload = {
+                **base_payload,
+                "canopy_cover": 30,
+                "forest_filter": "primary_forest",
                 "intersections": (
                     [dataset["context_layer"]]
                     if dataset.get("context_layer")

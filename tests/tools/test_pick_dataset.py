@@ -22,6 +22,9 @@ LAND_COVER_CHANGE = "land cover change"
 GRASSLANDS = "grasslands"
 NATURAL_LANDS = "natural lands"
 TREE_COVER_LOSS = "tree cover loss"
+TREE_COVER_GAIN = "tree cover gain"
+CARBON_FLUX = "forest greenhouse gas net flux"
+TREE_COVER = "tree cover"
 
 lookup = {
     DIST_ALERT: 0,
@@ -29,6 +32,9 @@ lookup = {
     GRASSLANDS: 2,
     NATURAL_LANDS: 3,
     TREE_COVER_LOSS: 4,
+    TREE_COVER_GAIN: 5,
+    CARBON_FLUX: 6,
+    TREE_COVER: 7,
 }
 
 
@@ -125,6 +131,45 @@ lookup = {
             "What regions experienced the most fire-related forest damage last year?",
             TREE_COVER_LOSS,
         ),
+        # Dataset 5 queries (Tree cover gain) - cumulative forest regrowth
+        (
+            "Where has forest regrowth occurred in the Amazon basin between 2000 and 2020?",
+            TREE_COVER_GAIN,
+        ),
+        (
+            "Show me areas of tree cover gain in Southeast Asia over the past two decades",
+            TREE_COVER_GAIN,
+        ),
+        (
+            "Which regions show the most significant forest recovery since 2000?",
+            TREE_COVER_GAIN,
+        ),
+        # Dataset 6 queries (Forest greenhouse gas net flux) - carbon emissions and removals
+        (
+            "What areas of forest are acting as net carbon sinks versus sources?",
+            CARBON_FLUX,
+        ),
+        (
+            "Show me forest carbon emissions and removals in the Congo Basin",
+            CARBON_FLUX,
+        ),
+        (
+            "Which forest regions contribute most to greenhouse gas emissions?",
+            CARBON_FLUX,
+        ),
+        # Dataset 7 queries (Tree cover) - baseline tree canopy density
+        (
+            "What percentage of land area in Brazil has tree cover above 30%?",
+            TREE_COVER,
+        ),
+        (
+            "Show me areas with high tree cover density in the Pacific Northwest",
+            TREE_COVER,
+        ),
+        (
+            "Which regions have the highest tree canopy cover globally?",
+            TREE_COVER,
+        ),
     ]
 )
 def test_query_with_expected_dataset(request):
@@ -154,7 +199,11 @@ async def test_queries_return_expected_dataset(
     [
         ("Vegetation disturbances by natural lands", 0, "natural_lands"),
         ("Tree cover loss by driver", 4, "driver"),
-        ("Dist alert problems split by land types", 0, "natural_lands"),
+        (
+            "Dist alert problems split by natural land types",
+            0,
+            "natural_lands",
+        ),
     ],
 )
 async def test_query_with_context_layer(

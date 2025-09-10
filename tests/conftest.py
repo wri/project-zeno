@@ -16,7 +16,11 @@ from sqlalchemy.orm import sessionmaker
 from src.api.app import app, fetch_user_from_rw_api
 from src.api.data_models import Base, ThreadOrm, UserOrm
 from src.api.schemas import UserModel
-from src.utils.database import get_session_from_pool_dependency
+from src.utils.database import (
+    close_global_pool,
+    get_session_from_pool_dependency,
+    initialize_global_pool,
+)
 
 # Test database settings
 if os.getenv("TEST_DATABASE_URL"):
@@ -236,3 +240,11 @@ def structlog_context():
     """Provide structlog context with test user ID for all tests."""
     with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
         yield
+
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def test_db_pool():
+    """Initialize global database pool for pick_aoi tests."""
+    await initialize_global_pool()
+    yield
+    await close_global_pool()
