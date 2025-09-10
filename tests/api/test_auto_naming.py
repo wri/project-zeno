@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.api import app as api
+from src.api.app import generate_thread_name
 
 
 @contextmanager
@@ -152,3 +153,27 @@ async def test_custom_area_name_with_realistic_geometry(client, auth_override):
     data = response.json()
     assert "name" in data
     assert data["name"] == "Equatorial Coast"
+
+
+@pytest.mark.asyncio
+async def test_generate_thread_name():
+    """Test thread name generation with mocked AI response."""
+    test_query = "What is the deforestation rate in Brazil?"
+
+    # Create a mock AIMessage object
+    mock_response = AsyncMock()
+    mock_response.content = "Brazil Deforestation Analysis"
+
+    with patch("src.api.app.SMALL_MODEL") as mock_model:
+        mock_model.ainvoke = AsyncMock(return_value=mock_response)
+
+        result = await generate_thread_name(test_query)
+
+    assert result == "Brazil Deforestation Analysis"
+    mock_model.ainvoke.assert_called_once()
+
+    # Verify the prompt contains the query
+    call_args = mock_model.ainvoke.call_args[0][0]
+    assert test_query in call_args
+    assert "concise, descriptive title" in call_args
+    assert "max 50 chars" in call_args
