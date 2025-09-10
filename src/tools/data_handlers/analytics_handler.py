@@ -2,6 +2,7 @@ import asyncio
 from typing import Any, Dict, List
 
 import httpx
+from pydantic import BaseModel
 
 from src.tools.data_handlers.base import (
     DataPullResult,
@@ -13,9 +14,17 @@ from src.utils.geocoding_helpers import (
     format_id,
     get_geometry_data,
 )
+from src.utils.llms import SMALL_MODEL
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+
+class BooleanResponse(BaseModel):
+    """Response model for boolean queries"""
+
+    result: bool
+
 
 ADMIN_SUBTYPES = (
     "country",
@@ -66,6 +75,21 @@ FOREST_CARBON_FLUX_ID = [
 TREE_COVER_ID = [
     ds["dataset_id"] for ds in DATASETS if ds["dataset_name"] == "Tree cover"
 ][0]
+
+
+async def check_for_composition(query: str) -> bool:
+    prompt = f"""
+    You decide if the user is asking for land cover status or change.
+
+    If it is about composition or current status, return True.
+    If it is about dynamics or change, return False.
+
+    Query: {query}
+    """
+    response = await SMALL_MODEL.with_structured_output(
+        BooleanResponse
+    ).ainvoke(prompt)
+    return response.result
 
 
 class AnalyticsHandler(DataSourceHandler):
@@ -393,9 +417,18 @@ class AnalyticsHandler(DataSourceHandler):
                 dataset["context_layer"] = context_layer
 
             # Get the appropriate endpoint URL
-            endpoint_url = self.BASE_URL + dataset.get(
-                "analytics_api_endpoint"
-            )
+            endpoint_url = None
+            if dataset.get(
+                "dataset_id"
+            ) == LAND_COVER_CHANGE_ID and await check_for_composition(query):
+                endpoint_url = (
+                    self.BASE_URL
+                    + "/v0/land_change/land_cover_composition/analytics"
+                )
+            else:
+                endpoint_url = self.BASE_URL + dataset.get(
+                    "analytics_api_endpoint"
+                )
 
             # Build the payload based on dataset type
             payload = await self._build_payload(
