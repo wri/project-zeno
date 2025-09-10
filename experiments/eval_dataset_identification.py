@@ -8,6 +8,7 @@ This evaluates high-level questions (e.g., deforestation in Amazon) with expert-
 Unlike GADM evaluation, this uses LLM-based scoring to compare non-exact matches.
 """
 
+import asyncio
 import argparse
 import code
 import json
@@ -22,6 +23,7 @@ from langgraph.types import StateSnapshot
 from typing_extensions import Annotated, Literal, TypedDict
 
 from experiments.eval_utils import get_langfuse, get_run_name, run_query
+from src.utils.database import initialize_global_pool, close_global_pool
 
 
 # Data structures
@@ -188,70 +190,83 @@ def evaluation_to_score(evaluation: EvaluationResult) -> float:
 
 
 def main(dataset_name: str):
-    langfuse = get_langfuse()
-    run_name = get_run_name()
-    dataset = langfuse.get_dataset(dataset_name)
-    chat_model = ChatAnthropic(
-        model="claude-opus-4-20250514",
-        max_tokens=20000,
-        thinking={"type": "enabled", "budget_tokens": 10000},
-    )
+    # Initialize the database pool for tools
+    asyncio.run(initialize_global_pool())
 
-    # This iterates through dataset items automatically like unit tests.
-    # Run locally for development, but use staging for accurate latency/cost measurements.
-    # Future: Integrate with CI/CD pipeline for automated testing on code changes.
-    active_items = [item for item in dataset.items if item.status == "ACTIVE"]
-    print(
-        f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
-    )
-
-    handler = CallbackHandler()
-
-    for item in active_items:
-        with item.run(run_name=run_name) as root_span:
-            # Execute
-            response = run_query(
-                query=item.input,
-                handler=handler,
-                user_persona="researcher",
-                thread_id=item.id,
-            )
-            # Score
-            try:
-                actual = parse_output_state_snapshot(response)
-                evaluation = evaluate_answer(
-                    actual, item.input, item.expected_output, chat_model
-                )
-                score = evaluation_to_score(evaluation)
-
-                # Upload
-                root_span.update_trace(input=item.input, output=actual)
-
-                root_span.score_trace(
-                    name="dataset_identification_score",
-                    value=score,
-                    comment=f"Analysis: {evaluation['analysis']}",
-                )
-            except TypeError as e:
-                # Skip this item if response is not in expected format
-                print(f"✗ TypeError processing item '{item.input}': {str(e)}")
-                print(f"  Response type: {type(response)}")
-                if response:
-                    print(f"  Response preview: {str(response)[:200]}...")
-                print(f"  Traceback:\n{traceback.format_exc()}")
-                continue
-            finally:
-                langfuse.flush()
-
-        # LLM-based scoring with analysis helps understand evaluation reasoning
-        # Check LangFuse UI for detailed trace analysis of failures
-        print(f"✓ {item.input} -> {score}")
-
-    if hasattr(sys, "flags") and sys.flags.interactive:
-        print(
-            "\nEvaluation complete. Starting interactive console to inspect variables (e.g., 'item', 'response', 'evaluation')."
+    try:
+        langfuse = get_langfuse()
+        run_name = get_run_name()
+        dataset = langfuse.get_dataset(dataset_name)
+        chat_model = ChatAnthropic(
+            model="claude-opus-4-20250514",
+            max_tokens=20000,
+            thinking={"type": "enabled", "budget_tokens": 10000},
         )
-        code.interact(local=locals())
+
+        # This iterates through dataset items automatically like unit tests.
+        # Run locally for development, but use staging for accurate latency/cost measurements.
+        # Future: Integrate with CI/CD pipeline for automated testing on code changes.
+        active_items = [
+            item for item in dataset.items if item.status == "ACTIVE"
+        ]
+        print(
+            f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
+        )
+
+        handler = CallbackHandler()
+
+        for item in active_items:
+            with item.run(run_name=run_name) as root_span:
+                # Execute
+                response = asyncio.run(
+                    run_query(
+                        query=item.input,
+                        handler=handler,
+                        user_persona="researcher",
+                        thread_id=item.id,
+                    )
+                )
+                # Score
+                try:
+                    actual = parse_output_state_snapshot(response)
+                    evaluation = evaluate_answer(
+                        actual, item.input, item.expected_output, chat_model
+                    )
+                    score = evaluation_to_score(evaluation)
+
+                    # Upload
+                    root_span.update_trace(input=item.input, output=actual)
+
+                    root_span.score_trace(
+                        name="dataset_identification_score",
+                        value=score,
+                        comment=f"Analysis: {evaluation['analysis']}",
+                    )
+                except TypeError as e:
+                    # Skip this item if response is not in expected format
+                    print(
+                        f"✗ TypeError processing item '{item.input}': {str(e)}"
+                    )
+                    print(f"  Response type: {type(response)}")
+                    if response:
+                        print(f"  Response preview: {str(response)[:200]}...")
+                    print(f"  Traceback:\n{traceback.format_exc()}")
+                    continue
+                finally:
+                    langfuse.flush()
+
+            # LLM-based scoring with analysis helps understand evaluation reasoning
+            # Check LangFuse UI for detailed trace analysis of failures
+            print(f"✓ {item.input} -> {score}")
+
+            if hasattr(sys, "flags") and sys.flags.interactive:
+                print(
+                    "\nEvaluation complete. Starting interactive console to inspect variables (e.g., 'item', 'response', 'evaluation')."
+                )
+                code.interact(local=locals())
+    finally:
+        # Clean up database pool
+        asyncio.run(close_global_pool())
 
 
 if __name__ == "__main__":

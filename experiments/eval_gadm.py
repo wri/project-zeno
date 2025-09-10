@@ -5,6 +5,7 @@ Results are published to LangFuse (either localhost or staging instance).
 See experiments/upload_dataset.py for how to add new test data.
 """
 
+import asyncio
 import json
 from collections import Counter
 from dataclasses import dataclass
@@ -13,7 +14,6 @@ from typing import List, Optional
 from langfuse.langchain import CallbackHandler
 
 from experiments.eval_utils import get_langfuse, get_run_name, run_query
-from src.utils.geocoding_helpers import GADM_LEVELS
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -40,13 +40,44 @@ class GadmLocation:
 
 # Parsing utilities
 def normalize_gadm_id(gadm_id: str) -> str:
-    gadm_id = gadm_id.split("_")[0].replace("-", ".").lower()
-    return gadm_id
+    """Normalize GADM IDs to enable consistent comparison between different formats.
+
+    Normalization steps:
+    1. Remove suffix after underscore (e.g., CUB.7_1 → CUB.7)
+    2. Replace hyphens with dots (e.g., CUB-7 → CUB.7)
+    3. Convert to lowercase (e.g., CUB.7 → cub.7)
+
+    Examples:
+        CUB.7_1 → cub.7
+        CUB-7 → cub.7
+        CUB.7 → cub.7
+
+    Args:
+        gadm_id: The GADM ID to normalize
+
+    Returns:
+        Normalized GADM ID string
+    """
+    try:
+        return gadm_id.split("_")[0].replace("-", ".").lower()
+    except AttributeError:
+        # If gadm_id is not a string (e.g., int), return as-is
+        return gadm_id
 
 
-def parse_expected_output(gadm_id: str) -> List[GadmLocation]:
+def parse_expected_output(expected_data) -> List[GadmLocation]:
     """Convert list of dicts to list of GadmLocation objects."""
-    return [GadmLocation(gadm_id=gadm_id)]
+    if isinstance(expected_data, list):
+        return [
+            GadmLocation(gadm_id=item["gadm_id"], name=item["name"])
+            for item in expected_data
+            if "gadm_id" in item
+        ]
+    elif isinstance(expected_data, str):
+        # Handle legacy case if it's just a string
+        return [GadmLocation(gadm_id=expected_data)]
+    else:
+        return []
 
 
 def parse_gadm_from_json(json_str: str) -> List[GadmLocation]:
@@ -119,13 +150,10 @@ def extract_gadm_from_state(state):
         aoi = state.values.get("aoi")
 
         if aoi is not None and aoi_name:
-            subtype = state.values.get("subtype")
-            gadm_level = GADM_LEVELS.get(subtype, {})
-            aoi_gadm_id = aoi.get(gadm_level.get("col_name", ""))
+            aoi_gadm_id = aoi.get("gadm_id")
 
             if aoi_gadm_id:
                 return [GadmLocation(name=aoi_name, gadm_id=aoi_gadm_id)]
-
         return []
 
     return []
@@ -151,7 +179,9 @@ for item in dataset.items:
         run_name=run_name,
     ) as span:
         # Execute
-        state = run_query(item.input, handler, "researcher", item.id)
+        state = asyncio.run(
+            run_query(item.input, handler, "researcher", item.id)
+        )
 
         # Score
         actual = extract_gadm_from_state(state)

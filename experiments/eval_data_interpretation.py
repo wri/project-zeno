@@ -8,17 +8,28 @@ This evaluates high-level questions (e.g., deforestation in Amazon) with expert-
 Unlike GADM evaluation, this uses LLM-based scoring to compare non-exact matches.
 """
 
+import asyncio
 import json
 import traceback
 from dataclasses import dataclass
 from typing import Optional
 
-from langchain_anthropic import ChatAnthropic
 from langfuse.langchain import CallbackHandler
 from langgraph.types import StateSnapshot
 from typing_extensions import Annotated, Literal, TypedDict
 
-from experiments.eval_utils import get_langfuse, get_run_name, run_query
+from experiments.eval_utils import (
+    get_langfuse,
+    get_run_name,
+    reason_and_structure,
+    run_query,
+)
+from src.agents.agents import close_checkpointer_pool
+from src.utils.database import close_global_pool, initialize_global_pool
+
+# Global variables for REPL access
+last_response = None
+last_item = None
 
 
 # Data structures
@@ -37,6 +48,28 @@ class EvaluationResult(TypedDict):
         "Either 'pass', 'fail', or 'unanswered' based on evaluation",
     ]
     analysis: Annotated[str, ..., "Brief explanation of the assessment"]
+
+
+class HallucinationSeverity(TypedDict):
+    """Assessment of environmental data hallucination severity."""
+
+    identified_issues: Annotated[
+        list[str], ..., "Specific hallucinations or errors found"
+    ]
+    impact_assessment: Annotated[
+        str,
+        ...,
+        "Potential impact if this information is used for decision-making",
+    ]
+    severity: Annotated[
+        Literal[
+            "misleading",
+            "imprecise",
+            "accurate",
+        ],
+        ...,
+        "Severity level of any hallucinations detected",
+    ]
 
 
 # Parsing utilities
@@ -137,7 +170,7 @@ def _extract_final_response(messages):
 
 # Scoring
 def evaluate_answer(
-    conversation: dict, user_query: str, golden_answer: dict, chat_model
+    conversation: dict, user_query: str, golden_answer: dict
 ) -> EvaluationResult:
     """Evaluate the agent's final response and reasoning.
 
@@ -145,9 +178,6 @@ def evaluate_answer(
     performed necessary calculations, and produced a final answer that
     matches the golden answer. It considers the entire conversation trace.
     """
-    # Create a model with structured output
-    evaluator = chat_model.with_structured_output(EvaluationResult)
-
     prompt = f"""As an expert evaluator, your task is to assess the agent's performance in answering a user query. You must evaluate the entire process, from understanding the query to generating the final response.
 
 **Evaluation Criteria:**
@@ -176,10 +206,12 @@ def evaluate_answer(
 {json.dumps(golden_answer)}
 </Golden Answer>
 
-Now, evaluate the agent's performance and provide your assessment.
-"""
+Now, evaluate the agent's performance and provide your assessment."""
 
-    result = evaluator.invoke(prompt)
+    result = reason_and_structure(
+        prompt=prompt,
+        schema=EvaluationResult,
+    )
     return result
 
 
@@ -193,63 +225,179 @@ def evaluation_to_score(evaluation: EvaluationResult) -> float:
         raise ValueError(f"Invalid result value: {evaluation['result']}")
 
 
+def evaluate_hallucination_risk(
+    conversation: dict, user_query: str, golden_answer: dict
+) -> HallucinationSeverity:
+    """Evaluate the agent's response for dangerous environmental data hallucinations.
+
+    Severity Levels:
+    - misleading: Response would lead to wrong decisions
+    - imprecise: Generally correct but has noticeable issues
+    - accurate: Reliable for decision-making
+    """
+
+    prompt = f"""You are an environmental data integrity specialist evaluating AI responses for potential misinformation that could impact conservation decisions.
+
+**Your Task:** Assess whether the agent's response contains problematic inaccuracies about environmental data.
+
+**Assessment Categories (choose one):**
+
+1. **misleading**: Response would lead to wrong decisions
+   - Major factual errors (wrong order of magnitude, inverted trends)
+   - Fabricated specific numbers presented as fact
+   - Claiming opposite of what data shows (e.g., "decreasing" when actually increasing)
+   - Missing critical context that changes interpretation
+   - High confidence claims about unavailable data
+
+2. **imprecise**: Generally correct but has noticeable issues
+   - Correct overall trends but inaccurate specific values
+   - Missing helpful caveats or uncertainty acknowledgments
+   - Oversimplified but not fundamentally wrong
+   - Minor temporal confusion that doesn't change conclusions
+
+3. **accurate**: Reliable for decision-making
+   - Factually correct or acknowledges uncertainty appropriately
+   - Provides necessary context and limitations
+   - Correctly identifies when data is unavailable
+   - Any approximations are reasonable and acknowledged
+
+**Key Evaluation Points:**
+- Focus on whether errors would change decision-making, not exact percentages
+- Consider if the response correctly captures the general magnitude and direction
+- Check if uncertainty is appropriately communicated
+- Verify no data is fabricated where it doesn't exist
+
+<Conversation Trace>
+{json.dumps(conversation)}
+</Conversation Trace>
+
+<User Query>
+{user_query}
+</User Query>
+
+<Golden Answer>
+{json.dumps(golden_answer)}
+</Golden Answer>
+
+Assess the practical impact of any inaccuracies in the agent's response. Would a conservation organization make wrong decisions based on this information?"""
+
+    result = reason_and_structure(
+        prompt=prompt,
+        schema=HallucinationSeverity,
+    )
+    return result
+
+
 # Main execution
-langfuse = get_langfuse()
-run_name = get_run_name()
-dataset = langfuse.get_dataset("S3 T1-07 DIST & LDACS")
-chat_model = ChatAnthropic(
-    model="claude-opus-4-20250514",
-    max_tokens=20000,
-    thinking={"type": "enabled", "budget_tokens": 10000},
-)
+async def main():
+    """Main async function to run the evaluation."""
+    global last_response, last_item
 
-# This iterates through dataset items automatically like unit tests.
-# Run locally for development, but use staging for accurate latency/cost measurements.
-# Future: Integrate with CI/CD pipeline for automated testing on code changes.
-active_items = [item for item in dataset.items if item.status == "ACTIVE"]
-print(
-    f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
-)
+    await initialize_global_pool()
 
+    try:
+        langfuse = get_langfuse()
+        run_name = get_run_name()
+        dataset = langfuse.get_dataset("S3 T1-07 DIST & LDACS")
 
-handler = CallbackHandler()
-
-for item in active_items:
-    with item.run(run_name=run_name) as root_span:
-        # Execute
-        response = run_query(
-            query=item.input,
-            handler=handler,
-            user_persona="researcher",
-            thread_id=item.id,
+        # This iterates through dataset items automatically like unit tests.
+        # Run locally for development, but use staging for accurate latency/cost measurements.
+        # Future: Integrate with CI/CD pipeline for automated testing on code changes.
+        active_items = [
+            item for item in dataset.items if item.status == "ACTIVE"
+        ]
+        print(
+            f"Evaluating {len(active_items)} active items (out of {len(dataset.items)} total)..."
         )
-        # Score
-        try:
-            actual = parse_output_state_snapshot(response)
-            evaluation = evaluate_answer(
-                actual, item.input, item.expected_output, chat_model
+
+        handler = CallbackHandler()
+
+        for idx, item in enumerate(active_items):
+            print(f"\n{'=' * 60}")
+            print(
+                f"Processing item {idx + 1}/{len(active_items)}: {item.input[:50]}..."
             )
-            score = evaluation_to_score(evaluation)
 
-            # Upload
-            root_span.update_trace(input=item.input, output=actual)
+            with item.run(run_name=run_name) as root_span:
+                # Execute
+                print("  Calling run_query...")
+                response = await run_query(
+                    query=item.input,
+                    handler=handler,
+                    user_persona="researcher",
+                    thread_id=item.id,
+                )
+                last_response = response
+                last_item = item
+                print("  run_query completed")
 
-            root_span.score_trace(
-                name="data_interpretation_score",
-                value=score,
-                comment=f"Analysis: {evaluation['analysis']}",
-            )
-        except TypeError as e:
-            # Skip this item if response is not in expected format
-            print(f"✗ TypeError processing item '{item.input}': {str(e)}")
-            print(f"  Response type: {type(response)}")
-            if response:
-                print(f"  Response preview: {str(response)[:200]}...")
-            print(f"  Traceback:\n{traceback.format_exc()}")
-            continue
-        finally:
-            langfuse.flush()
+                # Score
+                try:
+                    if response is None:
+                        print(
+                            f"✗ Skipping item '{item.input}': response is None"
+                        )
+                        continue
 
-    # LLM-based scoring with analysis helps understand evaluation reasoning
-    # Check LangFuse UI for detailed trace analysis of failures
-    print(f"✓ {item.input} -> {score}")
+                    print("  Parsing output...")
+                    actual = parse_output_state_snapshot(response)
+
+                    print("  Evaluating answer...")
+                    evaluation = evaluate_answer(
+                        actual, item.input, item.expected_output
+                    )
+                    score = evaluation_to_score(evaluation)
+
+                    # New hallucination check
+                    print("  Evaluating hallucination risk...")
+                    hallucination_check = evaluate_hallucination_risk(
+                        actual, item.input, item.expected_output
+                    )
+
+                    # Upload
+                    print("  Uploading trace...")
+                    root_span.update_trace(input=item.input, output=actual)
+
+                    root_span.score_trace(
+                        name="data_interpretation_score",
+                        value=score,
+                        comment=f"Analysis: {evaluation['analysis']}",
+                    )
+
+                    # TODO: accurate prognosis seem buggy. i.e. answer is outright wrong but
+                    # it's marked as accurate
+                    if hallucination_check["severity"] != "accurate":
+                        root_span.score_trace(
+                            name="hallucination_severity_category",
+                            value=hallucination_check["severity"],
+                            data_type="CATEGORICAL",
+                            comment=f"Issues: {', '.join(hallucination_check['identified_issues'])}",
+                        )
+
+                except TypeError as e:
+                    # Skip this item if response is not in expected format
+                    print(
+                        f"✗ TypeError processing item '{item.input}': {str(e)}"
+                    )
+                    print(f"  Response type: {type(response)}")
+                    if response:
+                        print(f"  Response preview: {str(response)[:200]}...")
+                    print(f"  Traceback:\n{traceback.format_exc()}")
+                    continue
+                finally:
+                    print("  Flushing langfuse...")
+                    langfuse.flush()
+
+            # LLM-based scoring with analysis helps understand evaluation reasoning
+            # Check LangFuse UI for detailed trace analysis of failures
+            print(f"✓ {item.input} -> {score}")
+            print(f"Item {idx + 1} completed")
+
+    finally:
+        # Clean up both database pool and checkpointer pool
+        await close_global_pool()
+        await close_checkpointer_pool()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
