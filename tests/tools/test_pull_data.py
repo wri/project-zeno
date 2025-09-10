@@ -37,6 +37,12 @@ ALL_DATASET_COMBINATIONS = [
         "context_layer": None,
     },
     {
+        "dataset_id": 1,
+        "dataset_name": "Global land cover",
+        "context_layer": None,
+        "check_composition": True,
+    },
+    {
         "dataset_id": 2,
         "dataset_name": "Grassland",
         "context_layer": None,
@@ -158,10 +164,13 @@ async def test_pull_data_queries(aoi_data, dataset):
             }
         ],
     }
-
+    if dataset.get("check_composition"):
+        query = f"find composition of {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
+    else:
+        query = f"find {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
     command = await pull_data.ainvoke(
         {
-            "query": f"find {dataset['dataset_name'].lower()} in {aoi_data['query_description']}",
+            "query": query,
             "start_date": "2024-01-01",
             "end_date": "2024-01-31",
             "aoi_names": [update["aoi"]["name"]],
