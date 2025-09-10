@@ -181,14 +181,18 @@ datasets:
     - 30 m
   analytics_api_endpoint: "/v0/land_change/land_cover_change/analytics"
   prompt_instructions: >
-    Maps land-cover classes in 2015 and 2024 and reports pixel-level transitions.
-    Use grouped-bar charts or tables based on land_cover_class_start, land_cover_class_end,
-    and area_ha to show transitions. Use pie-charts to show single-year composition.
-    Drop zeros. Because only start- and end-states are recorded, do not treat it as
-    an annual time series or intra-annual product. Transitions to "short vegetation"
-    or "bare" may reflect seasonality, not restoration / degradation. When users
-    ask about agriculture, combine "cropland" + "cultivated grassland" unless they
-    specify otherwise.
+    This datset contains land-cover class snapshots in 2015 and 2024, reporting
+    pixel-level class changes, measured in hectares (ha).
+    For change questions, use tables with land_cover_class_start,
+    land_cover_class_end, and area_ha columns to show transitions. Warn users that
+    the data only shows start- and end-states, not intra-annual changes. Clarify
+    that this is not an annual time series or intra-annual product. Warn users that
+    this data does not capture classes that remained the same between 2015 and 2024.
+    For composition questions, use pie-charts to show the area of each land cover
+    class in 2024, and for ONLY 2024.
+    Drop zeros. Transitions to "short vegetation" or "bare" may reflect seasonality,
+    not restoration/degradation. When users ask about agriculture,
+    combine "cropland"+"cultivated grassland" unless they specify otherwise.
   description: >
     This Global Land Cover dataset is a combination of two global datasets: the GLAD Land
     Cover and Land Use Change annual data and the Global Pasture Watch Grassland Class
