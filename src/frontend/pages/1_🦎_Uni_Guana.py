@@ -86,7 +86,9 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
+
 quota_info = client.get_quota_info()
+
 remaining_prompts = quota_info["promptQuota"] - quota_info["promptsUsed"]
 
 # Initialize pending input state
@@ -137,6 +139,7 @@ if user_input:
             user_persona="Researcher",
             ui_context=ui_context,
             thread_id=st.session_state.session_id,
+            user_id=st.session_state.get("user", {}).get("email", "anonymous"),
         ):
             # Handle trace_info node to capture trace ID
             if stream.get("node") == "trace_info":

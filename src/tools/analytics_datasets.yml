@@ -587,7 +587,7 @@ datasets:
     Show yearly loss with bar charts or cumulative loss with stacked-area charts; plot area_ha
     and drop zeros. When reporting tree cover loss, always include the GHG emissions associated
     with that loss, in MgCO2e (tonnes of CO2 equivalent). If users ask for intra-year
-    or seasonal tree ocver loss OR emissions, refuse and remind that the data is annually only. 
+    or seasonal tree ocver loss OR emissions, refuse and remind that the data is annually only.
     DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover"
     includes plantations as well as natural forest meaning loss is not automatically
     deforestation or carbon loss.
