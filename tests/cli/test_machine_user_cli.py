@@ -6,8 +6,9 @@ from unittest.mock import AsyncMock, patch
 import bcrypt
 import pytest
 from click.testing import CliRunner
+from sqlalchemy import select
 
-from src.api.data_models import UserOrm, UserType
+from src.api.data_models import MachineUserKeyOrm, UserOrm, UserType
 from src.cli import (
     cli,
     create_api_key,
@@ -18,8 +19,6 @@ from src.cli import (
     revoke_api_key,
     rotate_api_key,
 )
-
-# Import the async_session_maker from conftest.py
 from tests.conftest import async_session_maker
 
 
@@ -499,6 +498,61 @@ class TestMachineUserQuota:
         )
 
         # Machine user should have much higher quota
-        assert machine_result["prompt_quota"] == 1000  # Machine user quota
+        assert machine_result["prompt_quota"] == 99999  # Machine user quota
         assert regular_result["prompt_quota"] == 25  # Regular user quota
         assert machine_result["prompt_quota"] > regular_result["prompt_quota"]
+
+
+class TestMachineUserAPIAuthentication:
+    """Test machine user API authentication with actual HTTP requests."""
+
+    @pytest.mark.asyncio
+    async def test_machine_user_auth_me_endpoint(self, client):
+        """Test that machine user tokens work with the /api/auth/me endpoint."""
+        async with async_session_maker() as session:
+            # Create a machine user
+            user = await create_machine_user(
+                session=session,
+                name="API Test User",
+                email="apitest@example.com",
+                description="For API authentication testing",
+            )
+
+            # Create an API key
+            full_token, api_key = await create_api_key(
+                session=session, user_id=user.id, key_name="api-test-key"
+            )
+
+            api_key_id = api_key.id  # Store the ID for later lookup
+
+            # Verify token format uses colon separators
+            parts = full_token.split(":")
+            assert len(parts) == 3
+            assert parts[0] == "zeno-key"
+            assert parts[1] == api_key.key_prefix
+
+        # Make actual HTTP request to /api/auth/me with machine user token
+        response = await client.get(
+            "/api/auth/me", headers={"Authorization": f"Bearer {full_token}"}
+        )
+
+        # Should return 200 with user data
+        assert response.status_code == 200
+
+        user_data = response.json()
+        assert user_data["id"] == user.id
+        assert user_data["name"] == user.name
+        assert user_data["email"] == user.email
+        assert (
+            user_data["userType"] == "machine"
+        )  # Should be machine user type
+
+        # Verify the API key's last_used_at was updated during authentication
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(MachineUserKeyOrm).where(
+                    MachineUserKeyOrm.id == api_key_id
+                )
+            )
+            updated_key = result.scalar_one()
+            assert updated_key.last_used_at is not None

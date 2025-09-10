@@ -5,7 +5,6 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from pylate import indexes, models, retrieve
 
@@ -13,17 +12,9 @@ _ = load_dotenv()
 st.set_page_config(page_title="Zeno Search Engine", layout="wide")
 
 
-def get_relevant_documents(query, indexer="nomic"):
+def get_relevant_documents(query, indexer="openai"):
     results = []
     match indexer:
-        case "nomic":
-            match_documents = nomic_retriever.invoke(query)
-            for doc in match_documents:
-                results.append(
-                    zeno_data[zeno_data.dataset_id == int(doc.id)]
-                    .iloc[0]
-                    .to_dict()
-                )
         case "openai":
             match_documents = openai_retriever.invoke(query)
             for doc in match_documents:
@@ -55,19 +46,12 @@ def load_indexes():
     data_dir = Path("data")
     zeno_data = pd.read_csv(data_dir / "zeno_data_clean.csv")
 
-    nomic_embeddings = OllamaEmbeddings(model="nomic-embed-text")
     openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
 
-    nomic_index = InMemoryVectorStore.load(
-        data_dir / "zeno-docs-nomic-index", embedding=nomic_embeddings
-    )
     openai_index = InMemoryVectorStore.load(
         data_dir / "zeno-docs-openai-index", embedding=openai_embeddings
     )
 
-    nomic_retriever = nomic_index.as_retriever(
-        search_type="similarity", search_kwargs={"k": 3}
-    )
     openai_retriever = openai_index.as_retriever(
         search_type="similarity", search_kwargs={"k": 3}
     )
@@ -81,7 +65,6 @@ def load_indexes():
     colbert_retriever = retrieve.ColBERT(index=colbert_index)
 
     return (
-        nomic_retriever,
         openai_retriever,
         colbert_retriever,
         colbert_model,
@@ -90,7 +73,6 @@ def load_indexes():
 
 
 (
-    nomic_retriever,
     openai_retriever,
     colbert_retriever,
     colbert_model,
@@ -140,10 +122,6 @@ if st.session_state.get("run_query"):
     col1, col2, col3 = st.columns(3)
     with st.spinner("Retrieving documents..."):
         t0 = time.perf_counter()
-        nomic_results = get_relevant_documents(query, "nomic")
-        t_nomic = time.perf_counter() - t0
-
-        t0 = time.perf_counter()
         openai_results = get_relevant_documents(query, "openai")
         t_openai = time.perf_counter() - t0
 
@@ -167,11 +145,6 @@ Date: {ds.get("date", "")}
 Dataset ID: {ds["dataset_id"]}
 """
             st.code(block, language="markdown")
-
-    with col1:
-        st.subheader("Nomic Embedding")
-        st.write("nomic-embed-text")
-        display_results(nomic_results, "Nomic", t_nomic)
 
     with col2:
         st.subheader("OpenAI Embedding")

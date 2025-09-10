@@ -86,12 +86,35 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
+
 quota_info = client.get_quota_info()
+
 remaining_prompts = quota_info["promptQuota"] - quota_info["promptsUsed"]
 
-if user_input := st.chat_input(
-    f"Type your message here... (remaining prompts: {remaining_prompts})"
-):
+# Initialize pending input state
+if "pending_input" not in st.session_state:
+    st.session_state.pending_input = None
+
+
+def handle_input():
+    # Get the current input value from the widget
+    current_input = st.session_state.get("user_input", "")
+    if current_input and current_input.strip():
+        st.session_state.pending_input = current_input.strip()
+
+
+user_input = st.chat_input(
+    f"Type your message here... (remaining prompts: {remaining_prompts})",
+    key="user_input",
+    on_submit=handle_input,
+)
+
+# Check for pending input from session state
+if st.session_state.pending_input:
+    user_input = st.session_state.pending_input
+    st.session_state.pending_input = None  # Clear after use
+
+if user_input:
     ui_context = {}
 
     if selected_aoi and not st.session_state.get("aoi_acknowledged"):
@@ -116,6 +139,7 @@ if user_input := st.chat_input(
             user_persona="Researcher",
             ui_context=ui_context,
             thread_id=st.session_state.session_id,
+            user_id=st.session_state.get("user", {}).get("email", "anonymous"),
         ):
             # Handle trace_info node to capture trace ID
             if stream.get("node") == "trace_info":

@@ -2,7 +2,6 @@ import io
 import json
 import os
 import uuid
-from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from typing import Dict, Optional
@@ -33,12 +32,14 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.agents import (
+    close_checkpointer_pool,
     fetch_checkpointer,
     fetch_zeno,
     fetch_zeno_anonymous,
+    get_checkpointer_pool,
 )
 from src.api.auth import MACHINE_USER_PREFIX, validate_machine_user_token
 from src.api.data_models import (
@@ -66,8 +67,13 @@ from src.api.schemas import (
     UserProfileUpdateRequest,
     UserWithQuotaModel,
 )
+from src.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
 from src.utils.config import APISettings
-from src.utils.database import get_async_engine
+from src.utils.database import (
+    close_global_pool,
+    get_session_from_pool_dependency,
+    initialize_global_pool,
+)
 from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
@@ -75,7 +81,7 @@ from src.utils.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     get_geometry_data,
 )
-from src.utils.llms import HAIKU
+from src.utils.llms import HAIKU, get_model, get_small_model
 from src.utils.logging_config import bind_request_logging_context, get_logger
 
 # Load environment variables using shared utility
@@ -89,22 +95,22 @@ NEXTJS_IP_HEADER = "X-ZENO-FORWARDED-FOR"
 ANONYMOUS_USER_PREFIX = "noauth"
 
 
-async def get_async_session(
-    request: Request,
-) -> AsyncGenerator[AsyncSession, None]:
-    async_session_maker = async_sessionmaker(
-        request.app.state.engine,
-        expire_on_commit=False,
-    )
-
-    async with async_session_maker() as session:
-        yield session
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.engine = await get_async_engine(db_url=APISettings.database_url)
+    # Initialize global database connection pool for API and tools
+    await initialize_global_pool()
+
+    # Initialize separate checkpointer connection pool
+    # (Required due to asyncpg vs psycopg driver compatibility)
+    await get_checkpointer_pool()
+
     yield
+
+    # Cleanup on shutdown
+    await close_global_pool()
+
+    # Close checkpointer pool
+    await close_checkpointer_pool()
 
 
 app = FastAPI(
@@ -181,7 +187,10 @@ async def logging_middleware(request: Request, call_next) -> Response:
     return response
 
 
-langfuse_handler = CallbackHandler()
+os.environ["LANGFUSE_TRACING_ENVIRONMENT"] = os.getenv("STAGE", "production")
+
+langfuse = Langfuse()
+langfuse_handler = CallbackHandler(update_trace=True)
 langfuse_client = Langfuse()
 
 # HTTP Middleware to asign/verify anonymous session IDs
@@ -299,30 +308,19 @@ async def stream_chat(
     ui_context: Optional[dict] = None,
     ui_action_only: Optional[bool] = False,
     thread_id: Optional[str] = None,
-    metadata: Optional[Dict] = None,
-    session_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    tags: Optional[list] = None,
+    langfuse_metadata: Optional[Dict] = {},
+    user: Optional[dict] = None,
 ):
-    # Populate langfuse metadata
-    if metadata:
-        langfuse_handler.metadata = metadata
-    if session_id:
-        langfuse_handler.session_id = session_id
-    if user_id:
-        langfuse_handler.user_id = user_id
-    if tags:
-        langfuse_handler.tags = tags
-
     config = {
         "configurable": {"thread_id": thread_id},
         "callbacks": [langfuse_handler],
+        "metadata": langfuse_metadata,
     }
 
     if not thread_id:
-        zeno_async = await fetch_zeno_anonymous()
+        zeno_async = await fetch_zeno_anonymous(user)
     else:
-        zeno_async = await fetch_zeno()
+        zeno_async = await fetch_zeno(user)
 
     messages = []
     ui_action_message = []
@@ -508,7 +506,7 @@ async def check_signup_limit_allows_new_user(
 async def fetch_user_from_rw_api(
     request: Request,
     authorization: Optional[str] = Depends(security),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> UserModel:
     if not authorization:
         return None
@@ -516,7 +514,7 @@ async def fetch_user_from_rw_api(
     token = authorization.credentials
 
     # Handle machine user tokens with zeno-key prefix
-    if token and token.startswith(f"{MACHINE_USER_PREFIX}_"):
+    if token and token.startswith(f"{MACHINE_USER_PREFIX}:"):
         return await validate_machine_user_token(token, session)
 
     # Handle anonymous users with noauth prefix
@@ -582,33 +580,27 @@ async def fetch_user_from_rw_api(
         )
         user_info["name"] = user_info["email"].split("@")[0]
 
-    # cache user info
-    _user_info_cache[token] = UserModel.model_validate(user_info)
-
     user_email = user_info["email"]
 
-    # Check 3-tier access model:
-    # Tier 1: Email whitelist (always allowed)
-    # Tier 2: Domain whitelist (always allowed)
-    # Tier 3: Public users (allowed only if ALLOW_PUBLIC_SIGNUPS=true)
-
-    if await is_user_whitelisted(user_email, session):
-        # User is whitelisted (email or domain), allow access
-        return UserModel.model_validate(user_info)
-
-    if not APISettings.allow_public_signups:
-        # Public signups disabled, only whitelisted users allowed
+    if (
+        not await is_user_whitelisted(user_email, session)
+        and not APISettings.allow_public_signups
+    ):
+        # Only block if user is NOT whitelisted AND public signups are disabled
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not allowed to access this API",
         )
 
-    return UserModel.model_validate(user_info)
+    # Allow access (either whitelisted or public signups enabled)
+    user_model = UserModel.model_validate(user_info)
+    _user_info_cache[token] = user_model
+    return user_model
 
 
 async def require_auth(
     user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> UserModel:
     """
     Requires Authorization - raises HTTPException if not authenticated
@@ -661,7 +653,7 @@ async def require_auth(
 
 async def optional_auth(
     user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> Optional[UserModel]:
     """
     Optional Authorization - returns None if not authenticated,
@@ -714,12 +706,30 @@ async def optional_auth(
 # Keep the old function for backward compatibility during transition
 async def fetch_user(
     user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Deprecated: Use require_auth() or optional_auth() instead
     """
     return await optional_auth(user_info, session)
+
+
+async def extract_anonymous_session_cookie(request: Request) -> Optional[str]:
+    """
+    Extract the anonymous session cookie from the request headers.
+
+    Args:
+        request (Request): The incoming HTTP request object.
+
+    Returns:
+        Optional[str]: The anonymous session ID if found, otherwise None.
+    """
+
+    # Extract anonymous session ID from auth header (validation already done in fetch_user_from_rw_api)
+    auth_header = request.headers["Authorization"]
+    credentials = auth_header.strip("Bearer ")
+    [scheme, anonymous_id] = credentials.split(":", 1)
+    return f"{ANONYMOUS_USER_PREFIX}:{anonymous_id}"
 
 
 async def get_user_identity_and_daily_quota(
@@ -744,12 +754,7 @@ async def get_user_identity_and_daily_quota(
     # 1. Get calling user and set quota
     if not user:
         daily_quota = APISettings.anonymous_user_daily_quota
-
-        # Extract anonymous session ID from auth header (validation already done in fetch_user_from_rw_api)
-        auth_header = request.headers["Authorization"]
-        credentials = auth_header.strip("Bearer ")
-        [scheme, anonymous_id] = credentials.split(":", 1)
-        identity = f"{ANONYMOUS_USER_PREFIX}:{anonymous_id}"
+        identity = await extract_anonymous_session_cookie(request)
 
     else:
         if user.user_type == UserType.ADMIN:
@@ -764,7 +769,7 @@ async def get_user_identity_and_daily_quota(
 
 async def check_quota(
     identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Check the current daily usage quota for a user.
@@ -803,7 +808,7 @@ async def check_quota(
 async def enforce_quota(
     request: Request,
     identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Enforce daily usage quota for users and anonymous clients.
@@ -908,10 +913,11 @@ async def get_quota(
 
 @app.post("/api/chat")
 async def chat(
-    request: ChatRequest,
+    request: Request,
+    chat_request: ChatRequest,
     user: Optional[UserModel] = Depends(optional_auth),
     quota_info: dict = Depends(enforce_quota),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Chat endpoint for Zeno with quota tracking.
@@ -921,7 +927,11 @@ async def chat(
 
     Args:
         request: The chat request containing query, thread_id, etc.
-        user: The user, authenticated against the WRI API (optional for anonymous users)
+        user (dependency injection): The user, authenticated against the WRI
+            API (optional for anonymous users)
+        quota_info (dependency injection): The user's quota information, including
+            identity, current usage and limits
+        session (dependency injection): The database session for the request
 
     Returns:
         Streamed chat response in NDJSON format
@@ -957,20 +967,20 @@ async def chat(
     if user:
         # For authenticated users, persist threads in database
         bind_request_logging_context(
-            thread_id=request.thread_id,
-            session_id=request.session_id,
-            query=request.query,
+            thread_id=chat_request.thread_id,
+            session_id=chat_request.session_id,
+            query=chat_request.query,
         )
         stmt = select(ThreadOrm).filter_by(
-            id=request.thread_id, user_id=user.id
+            id=chat_request.thread_id, user_id=user.id
         )
         result = await session.execute(stmt)
         thread = result.scalars().first()
         if not thread:
             # Generate thread name from the first query
-            thread_name = await generate_thread_name(request.query)
+            thread_name = await generate_thread_name(chat_request.query)
             thread = ThreadOrm(
-                id=request.thread_id,
+                id=chat_request.thread_id,
                 user_id=user.id,
                 agent_id="UniGuana",
                 name=thread_name,
@@ -982,7 +992,27 @@ async def chat(
     else:
         # For anonymous users, use the thread_id from request but don't persist
         # This allows conversation continuity within the same session
-        thread_id = request.thread_id
+        thread_id = chat_request.thread_id
+
+    # Populate langfuse metadata
+    langfuse_metadata = {}
+
+    identity = None
+
+    if user:
+        identity = user.id
+    else:
+        identity = await extract_anonymous_session_cookie(request)
+
+    # Note: should this be user.email or user.id?
+    langfuse_metadata["langfuse_user_id"] = identity
+
+    langfuse_metadata["langfuse_session_id"] = thread_id
+
+    # if we want to store any additional user metadata (
+    # if user is logged in) we can add any other key/value
+    # pairs (as long as the keys don't begin with `langfuse_*`)
+    # eg: langfuse_metadata["job_title"] = user.job_title
 
     try:
         headers = {}
@@ -990,17 +1020,33 @@ async def chat(
             headers["X-Prompts-Used"] = str(quota_info["prompts_used"])
             headers["X-Prompts-Quota"] = str(quota_info["prompt_quota"])
 
+        # Convert user model to dict for prompt context if user is authenticated
+        user_dict = None
+        if user:
+            user_dict = {
+                "country_code": user.country_code,
+                "preferred_language_code": user.preferred_language_code,
+                "areas_of_interest": user.areas_of_interest,
+            }
+            # Add sector and role information if available
+            if user.sector_code and user.sector_code in SECTORS:
+                user_dict["sector_code"] = SECTORS[user.sector_code]
+                if user.role_code and user.role_code in SECTOR_ROLES.get(
+                    user.sector_code, {}
+                ):
+                    user_dict["role_code"] = SECTOR_ROLES[user.sector_code][
+                        user.role_code
+                    ]
+
         return StreamingResponse(
             stream_chat(
-                query=request.query,
-                user_persona=request.user_persona,
+                query=chat_request.query,
+                user_persona=chat_request.user_persona,
                 thread_id=thread_id,
-                ui_context=request.ui_context,
-                ui_action_only=request.ui_action_only,
-                metadata=request.metadata,
-                session_id=request.session_id,
-                user_id=request.user_id,
-                tags=request.tags,
+                ui_context=chat_request.ui_context,
+                ui_action_only=chat_request.ui_action_only,
+                langfuse_metadata=langfuse_metadata,
+                user=user_dict,
             ),
             media_type="application/x-ndjson",
             headers=headers if headers else None,
@@ -1010,7 +1056,7 @@ async def chat(
             "Chat request failed",
             error=str(e),
             error_type=type(e).__name__,
-            thread_id=request.thread_id,
+            thread_id=chat_request.thread_id,
         )
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1018,7 +1064,7 @@ async def chat(
 @app.get("/api/threads", response_model=list[ThreadModel])
 async def list_threads(
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     List all threads belonging to the authenticated user.
@@ -1042,7 +1088,7 @@ async def list_threads(
 async def get_thread(
     thread_id: str,
     user: Optional[UserModel] = Depends(optional_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Get thread conversation history - supports both public and private access.
@@ -1115,7 +1161,7 @@ async def update_thread(
     thread_id: str,
     request: ThreadUpdateRequest,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Update thread properties including name and sharing settings.
@@ -1169,7 +1215,7 @@ async def update_thread(
 async def get_thread_state(
     thread_id: str,
     user: Optional[UserModel] = Depends(optional_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Get the current agent state for a thread.
@@ -1310,7 +1356,7 @@ async def delete_thread(
     thread_id: str,
     user: UserModel = Depends(require_auth),
     checkpointer: AsyncPostgresSaver = Depends(fetch_checkpointer),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Delete thread permanently.
@@ -1424,7 +1470,7 @@ async def create_or_update_rating(
     thread_id: str,
     request: RatingCreateRequest,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Create or update a rating for a trace in a thread.
@@ -1528,7 +1574,7 @@ async def create_or_update_rating(
 async def get_thread_ratings(
     thread_id: str,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Get all ratings for traces in a thread.
@@ -1639,7 +1685,7 @@ async def auth_me(
 async def update_user_profile(
     profile_update: UserProfileUpdateRequest,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Update user profile fields.
@@ -1830,7 +1876,7 @@ async def get_profile_config():
 
 @app.get("/api/metadata")
 async def api_metadata(
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> dict:
     """
     Returns API metadata that's helpful for instantiating the frontend.
@@ -1869,6 +1915,12 @@ async def api_metadata(
     # Check if public signups are open
     is_signup_open = await is_public_signup_open(session)
 
+    # Get current model information
+    current_model = get_model()
+    current_model_name = APISettings.model.lower()
+    small_model = get_small_model()
+    small_model_name = APISettings.small_model.lower()
+
     return {
         "version": "0.1.0",
         "layer_id_mapping": {
@@ -1878,6 +1930,12 @@ async def api_metadata(
         "gadm_subtype_mapping": GADM_SUBTYPE_MAP,
         "is_signup_open": is_signup_open,
         "allow_anonymous_chat": APISettings.allow_anonymous_chat,
+        "model": {
+            "current": current_model_name,
+            "model_class": current_model.__class__.__name__,
+            "small": small_model_name,
+            "small_model_class": small_model.__class__.__name__,
+        }
     }
 
 
@@ -1885,7 +1943,7 @@ async def api_metadata(
 async def create_custom_area(
     area: CustomAreaCreate,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Create a new custom area for the authenticated user."""
     custom_area = CustomAreaOrm(
@@ -1910,7 +1968,7 @@ async def create_custom_area(
 @app.get("/api/custom_areas", response_model=list[CustomAreaModel])
 async def list_custom_areas(
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """List all custom areas belonging to the authenticated user."""
     stmt = select(CustomAreaOrm).filter_by(user_id=user.id)
@@ -1927,7 +1985,7 @@ async def list_custom_areas(
 async def get_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Get a specific custom area by ID."""
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
@@ -1952,7 +2010,7 @@ async def update_custom_area_name(
     area_id: UUID,
     payload: dict,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Update the name of a custom area."""
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
@@ -1978,7 +2036,7 @@ async def update_custom_area_name(
 async def delete_custom_area(
     area_id: UUID,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Delete a custom area."""
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
@@ -1996,7 +2054,7 @@ async def get_raw_data(
     thread_id: str,
     checkpoint_id: str,
     user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
     content_type: str = Header(default="text/csv", alias="Content-Type"),
 ):
     """

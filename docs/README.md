@@ -157,6 +157,19 @@ The state includes a lot of variables that are for internal use only and that th
 
 Tool updates create new messages in the message history, but more importantly directly update other state variables. These state variable udpates are the pieces of data that the frontend can use to render. Below a list of tools and their respective updates.
 
+### Get capabilities
+
+Provides agent capabilities and available datasets when users ask "What can you do?" or similar questions. Prevents hallucination by returning factual information about datasets, supported areas, and limitations.
+
+**State variables updated:**
+```python
+class AgentState(TypedDict):
+    # Adds one tool message string to the message history
+    messages: Annotated[Sequence[BaseMessage], add_messages]
+```
+
+No additional state variables are updated - this tool only adds informational content to the message history.
+
 ### Pick aoi
 
 The first tool is picking an AOI. It updates either the `aoi`, or the `subregion_aois` fields.
