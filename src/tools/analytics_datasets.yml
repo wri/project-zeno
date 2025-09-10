@@ -5,7 +5,7 @@ datasets:
     - value: "driver"
       description: "Shows the primary driver or likely causes of disturbance to natural land due to: conversion, cropland dynamics, fire-related, water-related, or unclassified."
     - value: "natural_lands"
-      description: "Shows intersection with natural lands (2020)"
+      description: "Shows intersection with natural lands classes (2020): "
     - value: "grasslands"
       description: "Shows disturbances to natural grasslands, shrublands, and savannas"
     - value: "land_cover"
@@ -45,7 +45,6 @@ datasets:
     conversion may also be undercounted when fire is used for clearing or when it occurs near rivers.
     Severe boreal fires may be misclassified as conversion. Always interpret alerts as indicators,
     not definitive outcomes.
-    Suggest overlaying alerts on satellite imagery for further context.
   description: >
     Global All Ecosystem Disturbance Alerts (DIST-ALERT) provides near-real-time alerts
     of vegetation disturbance globally at 30-meter resolution, using harmonized
