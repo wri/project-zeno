@@ -121,7 +121,7 @@ Data format requirements:
 - For grouped-bar: [{{{{\"year\": \"2020\", \"type\": \"metric1\", \"value\": 100}}}}] + set group_field
 - If dates are present, order those in chronological order (not alphabetically)
 
-User query: {user_query}
+User query: {{user_query}}
 
 {{raw_data_prompt}}
 
