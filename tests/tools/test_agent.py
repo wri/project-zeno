@@ -120,6 +120,7 @@ async def run_agent(query: str, thread_id: str | None = None):
     [
         ("trend of ecosystem disturbance alerts", 2024),
         ("trend of land cover change", 2024),
+        ("land cover composition", 2024),
         ("trend of grasslands", 2022),
         ("distribution of natural lands", 2020),
         ("trend of tree cover loss", 2023),

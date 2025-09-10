@@ -1,7 +1,7 @@
 """Tests for automatic area naming endpoint."""
 
 from contextlib import contextmanager
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -61,19 +61,23 @@ async def test_custom_area_name_success(client, auth_override):
         ],
     }
 
+    # Create a mock AIMessage object
+    mock_response = AsyncMock()
+    mock_response.content = "Equatorial Coast"
+
     with domain_allowlist("wri.org"):  # Allow wri.org domain
-        response = await client.post(
-            "/api/custom_area_name",
-            json=test_geojson,
-            headers={"Authorization": "Bearer test-token"},
-        )
+        with patch("src.api.app.SMALL_MODEL") as mock_model:
+            mock_model.ainvoke = AsyncMock(return_value=mock_response)
+            response = await client.post(
+                "/api/custom_area_name",
+                json=test_geojson,
+                headers={"Authorization": "Bearer test-token"},
+            )
 
     assert response.status_code == 200
     data = response.json()
     assert "name" in data
-    assert isinstance(data["name"], str)
-    assert len(data["name"]) > 0
-    assert len(data["name"]) <= 100  # As specified in the prompt
+    assert data["name"] == "Equatorial Coast"
 
 
 @pytest.mark.asyncio
@@ -131,18 +135,20 @@ async def test_custom_area_name_with_realistic_geometry(client, auth_override):
         ],
     }
 
+    # Create a mock AIMessage object
+    mock_response = AsyncMock()
+    mock_response.content = "Equatorial Coast"
+
     with domain_allowlist("wri.org"):  # Allow wri.org domain
-        response = await client.post(
-            "/api/custom_area_name",
-            json=test_geojson,
-            headers={"Authorization": "Bearer test-token"},
-        )
+        with patch("src.api.app.SMALL_MODEL") as mock_model:
+            mock_model.ainvoke = AsyncMock(return_value=mock_response)
+            response = await client.post(
+                "/api/custom_area_name",
+                json=test_geojson,
+                headers={"Authorization": "Bearer test-token"},
+            )
 
     assert response.status_code == 200
     data = response.json()
     assert "name" in data
-    assert isinstance(data["name"], str)
-    assert len(data["name"]) > 0
-    assert len(data["name"]) <= 100  # As specified in the prompt
-    # The name should be a geographic/physical description
-    print(f"Generated name: {data['name']}")  # For debugging/verification
+    assert data["name"] == "Equatorial Coast"
