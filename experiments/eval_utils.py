@@ -161,8 +161,8 @@ async def run_query(
                 if state:
                     print(f"  Retrieved partial state for query '{query}'")
                     return state
-            except:
-                pass
+            except Exception as e:
+                print(f"  Error retrieving state: {e}")
             # If we still can't get the state, return None
             print(f"  Could not retrieve any state for query '{query}'")
             return None
