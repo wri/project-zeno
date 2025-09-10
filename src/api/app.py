@@ -67,6 +67,7 @@ from src.api.schemas import (
     UserProfileUpdateRequest,
     UserWithQuotaModel,
 )
+from src.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
 from src.utils.config import APISettings
 from src.utils.database import (
     close_global_pool,
@@ -308,6 +309,7 @@ async def stream_chat(
     session_id: Optional[str] = None,
     user_id: Optional[str] = None,
     tags: Optional[list] = None,
+    user: Optional[dict] = None,
 ):
     # Populate langfuse metadata
     if metadata:
@@ -325,9 +327,9 @@ async def stream_chat(
     }
 
     if not thread_id:
-        zeno_async = await fetch_zeno_anonymous()
+        zeno_async = await fetch_zeno_anonymous(user)
     else:
-        zeno_async = await fetch_zeno()
+        zeno_async = await fetch_zeno(user)
 
     messages = []
     ui_action_message = []
@@ -982,6 +984,24 @@ async def chat(
             headers["X-Prompts-Used"] = str(quota_info["prompts_used"])
             headers["X-Prompts-Quota"] = str(quota_info["prompt_quota"])
 
+        # Convert user model to dict for prompt context if user is authenticated
+        user_dict = None
+        if user:
+            user_dict = {
+                "country_code": user.country_code,
+                "preferred_language_code": user.preferred_language_code,
+                "areas_of_interest": user.areas_of_interest,
+            }
+            # Add sector and role information if available
+            if user.sector_code and user.sector_code in SECTORS:
+                user_dict["sector_code"] = SECTORS[user.sector_code]
+                if user.role_code and user.role_code in SECTOR_ROLES.get(
+                    user.sector_code, {}
+                ):
+                    user_dict["role_code"] = SECTOR_ROLES[user.sector_code][
+                        user.role_code
+                    ]
+
         return StreamingResponse(
             stream_chat(
                 query=request.query,
@@ -993,6 +1013,7 @@ async def chat(
                 session_id=request.session_id,
                 user_id=request.user_id,
                 tags=request.tags,
+                user=user_dict,
             ),
             media_type="application/x-ndjson",
             headers=headers if headers else None,

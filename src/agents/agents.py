@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from typing import Optional
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
@@ -15,14 +16,55 @@ from src.tools import (
     pick_dataset,
     pull_data,
 )
+from src.user_profile_configs.countries import COUNTRIES
 from src.utils.config import APISettings
 from src.utils.env_loader import load_environment_variables
 from src.utils.llms import MODEL
 
 
-def get_prompt() -> str:
-    """Generate the prompt with current date."""
-    return f"""You are a Global Nature Watch's Geospatial Agent with access to tools and user provided selections to help answer user queries. First, think through the problem step-by-step by planning what tools you need to use and in what order. Then execute your plan by using the tools one by one to answer the user's question.
+def get_prompt(user: Optional[dict] = None) -> str:
+    """Generate the prompt with current date and optional user information."""
+    user_context = ""
+    if user:
+        # Build user context string with available information
+        user_parts = []
+
+        # Add areas of interest
+        if user.get("areas_of_interest"):
+            user_parts.append(
+                f"Their areas of interest include: {user['areas_of_interest']}"
+            )
+
+        # Add preferred language
+        # if (
+        #     user.get("preferred_language_code")
+        #     and user["preferred_language_code"] != "en"
+        # ):
+        #     language_name = LANGUAGES.get(
+        #         user["preferred_language_code"],
+        #         user["preferred_language_code"],
+        #     )
+        #     user_parts.append(f"Their preferred language is: {language_name}")
+
+        # Add country context
+        if user.get("country_code"):
+            country_name = COUNTRIES.get(
+                user["country_code"], user["country_code"]
+            )
+            user_parts.append(f"They are located in: {country_name}")
+
+        # Add sector context
+        if user.get("sector_code"):
+            user_parts.append(f"They work in the {user['sector_code']} sector")
+
+        # Add role context
+        if user.get("role_code"):
+            user_parts.append(f"Their role is: {user['role_code']}")
+
+        if user_parts:
+            user_context = f"\n\nUSER CONTEXT:\n{'. '.join(user_parts)}.\nPlease tailor your responses to their profile.\n"
+
+    return f"""You are a Global Nature Watch's Geospatial Agent with access to tools and user provided selections to help answer user queries. First, think through the problem step-by-step by planning what tools you need to use and in what order. Then execute your plan by using the tools one by one to answer the user's question.{user_context}
 
 TOOLS:
 - pick-aoi: Pick the best area of interest (AOI) based on a place name and user's question.
@@ -142,7 +184,9 @@ async def fetch_checkpointer() -> AsyncPostgresSaver:
     return checkpointer
 
 
-async def fetch_zeno_anonymous() -> CompiledStateGraph:
+async def fetch_zeno_anonymous(
+    user: Optional[dict] = None,
+) -> CompiledStateGraph:
     """Setup the Zeno agent for anonymous users with the provided tools and prompt."""
     # async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
     # Create the Zeno agent with the provided tools and prompt
@@ -151,12 +195,12 @@ async def fetch_zeno_anonymous() -> CompiledStateGraph:
         model=MODEL,
         tools=tools,
         state_schema=AgentState,
-        prompt=get_prompt(),
+        prompt=get_prompt(user),
     )
     return zeno_agent
 
 
-async def fetch_zeno() -> CompiledStateGraph:
+async def fetch_zeno(user: Optional[dict] = None) -> CompiledStateGraph:
     """Setup the Zeno agent with the provided tools and prompt."""
 
     checkpointer = await fetch_checkpointer()
@@ -164,7 +208,7 @@ async def fetch_zeno() -> CompiledStateGraph:
         model=MODEL,
         tools=tools,
         state_schema=AgentState,
-        prompt=get_prompt(),
+        prompt=get_prompt(user),
         checkpointer=checkpointer,
     )
     return zeno_agent
