@@ -132,9 +132,9 @@ async def run_query(
         print(f"  Stream completed with {update_count} updates")
 
         # Now get the final state after execution
-        print(f"  Getting final state...")
+        print("  Getting final state...")
         state = await zeno_async.aget_state(config=config)
-        print(f"  State retrieved successfully")
+        print("  State retrieved successfully")
 
         return state
 
@@ -161,8 +161,8 @@ async def run_query(
                 if state:
                     print(f"  Retrieved partial state for query '{query}'")
                     return state
-            except:
-                pass
+            except Exception as e:
+                print(f"  Error retrieving state: {e}")
             # If we still can't get the state, return None
             print(f"  Could not retrieve any state for query '{query}'")
             return None
