@@ -158,7 +158,6 @@ def main():
     # 2. Create mock vector indices
     print("Creating mock vector indices...")
     create_mock_vector_index(data_dir / "zeno-docs-openai-index-v2")
-    create_mock_vector_index(data_dir / "zeno-docs-nomic-index")
 
     # 3. Create mock ColBERT index
     print("Creating mock ColBERT index...")
@@ -168,7 +167,6 @@ def main():
     print("\nChecked/created files:")
     print(f"  📄 {csv_path}")
     print(f"  📁 {data_dir / 'zeno-docs-openai-index'}")
-    print(f"  📁 {data_dir / 'zeno-docs-nomic-index'}")
     print(f"  📁 {data_dir / 'colbert-index' / 'dataset'}")
     print("\nNote: Existing files were preserved and not overwritten.")
 

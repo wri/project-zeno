@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
 from src.utils.config import APISettings
@@ -45,18 +44,6 @@ GPT = ChatOpenAI(
     max_tokens=None,  # max_tokens=None means no limit
 )
 
-# Open Models
-PHI4 = ChatOllama(
-    model="phi4-mini",
-    temperature=0,
-    num_predict=-1,  # num_predict is similar to max_tokens, -1 means no limit
-)
-SMOLLM2 = ChatOllama(
-    model="smollm2",
-    temperature=0,
-    num_predict=-1,  # num_predict is similar to max_tokens, -1 means no limit
-)
-
 # Model Registry for dynamic selection
 MODEL_REGISTRY = {
     "sonnet": SONNET,
@@ -64,8 +51,6 @@ MODEL_REGISTRY = {
     "gemini": GEMINI,
     "gemini-flash": GEMINI_FLASH,
     "gpt": GPT,
-    "phi4": PHI4,
-    "smollm2": SMOLLM2,
 }
 
 # Available models list for frontend
@@ -82,5 +67,18 @@ def get_model():
     return MODEL_REGISTRY[model_name]
 
 
+def get_small_model():
+    """Get the configured small model from environment or default to haiku."""
+    model_name = APISettings.small_model.lower()
+    if model_name not in MODEL_REGISTRY:
+        raise ValueError(
+            f"Unknown small model: {model_name}. Available models: {AVAILABLE_MODELS}"
+        )
+    return MODEL_REGISTRY[model_name]
+
+
 # Base Model - dynamically selected from environment
 MODEL = get_model()
+
+# Small Model - dynamically selected from environment
+SMALL_MODEL = get_small_model()

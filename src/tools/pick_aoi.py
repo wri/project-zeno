@@ -22,7 +22,7 @@ from src.utils.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     WDPA_TABLE,
 )
-from src.utils.llms import GEMINI_FLASH, MODEL
+from src.utils.llms import MODEL, SMALL_MODEL
 from src.utils.logging_config import get_logger
 
 RESULT_LIMIT = 10
@@ -392,8 +392,7 @@ async def translate_to_english(question, place_name):
     )
 
     translate_to_english_chain = (
-        TRANSLATE_TO_ENGLISH_PROMPT
-        | GEMINI_FLASH.with_structured_output(Place)
+        TRANSLATE_TO_ENGLISH_PROMPT | SMALL_MODEL.with_structured_output(Place)
     )
 
     english_place_name = await translate_to_english_chain.ainvoke(
@@ -609,7 +608,7 @@ if __name__ == "__main__":
     agent = create_react_agent(
         MODEL,
         tools=[pick_aoi],
-        prompt="""You are a Geo Agent that can ONLY HELP PICK an AOI using the `pick-aoi` tool.
+        prompt="""You are a Geo Agent that can ONLY HELP PICK an AOI using the `pick_aoi` tool.
         Pick the best AOI based on the user query. You DONT need to answer the user query, just pick the best AOI.""",
     )
 

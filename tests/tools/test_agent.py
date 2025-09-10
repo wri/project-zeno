@@ -172,6 +172,21 @@ async def test_agent_disturbance_alerts_with_comparison(structlog_context):
 
 
 @pytest.mark.asyncio
+async def test_agent_disturbance_alerts_with_comparison_and_subregion(
+    structlog_context,
+):
+    query = "Compare dist alerts in kba's in Para and Mato Grosso, Brazil in the last 8 months."
+
+    steps = await run_agent(query)
+
+    assert len(steps) > 0
+
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
+
+    assert has_raw_data(tool_steps)
+
+
+@pytest.mark.asyncio
 async def test_agent_tc_gain_date_range_adjustment(structlog_context):
     query = "Analyze tree cover gain in 2019 in Sweden."
 

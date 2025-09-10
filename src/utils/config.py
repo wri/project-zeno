@@ -33,6 +33,7 @@ class _APISettings(BaseSettings):
 
     # Model configuration
     model: str = Field(default="sonnet", alias="MODEL")
+    small_model: str = Field(default="haiku", alias="SMALL_MODEL")
 
     @property
     def domains_allowlist(self) -> list[str]:
