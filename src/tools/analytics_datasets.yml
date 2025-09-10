@@ -512,6 +512,13 @@ datasets:
     well as degraded ecosystems that are expected to regenerate either naturally or through
     management (AFi 2024). The SBTN Natural Lands Map operationalizes this definition by using
     proxies based on available data that align with AFi guidance to the extent possible.
+
+    Classes includes natural: natural forests, natural short vegetation, natural water, mangroves,
+    bare, snow, wet natural forests, natural peat forests, wet natural short vegetation,
+    natural peat short vegetation; and Non-natural: crop, built, non-natural tree cover,
+    non-natural short vegetation, non-natural water, wet non-natural tree cover,
+    non-natural peat tree cover, wet non-natural short vegetation,
+    non-natural peat short vegetation, non-natural bare.
   methodology: >
     The SBTN Natural Lands Map is a compilation of many global and regional land cover and
     land use datasets through a decision tree to disaggregate natural land from non-natural
