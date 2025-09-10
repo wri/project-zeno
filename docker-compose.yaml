@@ -6,7 +6,6 @@ services:
       - "8000:8000"
     command: ["uv", "run", "uvicorn", "src.api.app:app", "--reload", "--reload-exclude", "*data*", "--host", "0.0.0.0"]
     environment:
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - LANGFUSE_HOST=http://langfuse-server:3000
       - LANGFUSE_PUBLIC_KEY=lf_pk_1234567890
       - LANGFUSE_SECRET_KEY=lf_sk_1234567890
