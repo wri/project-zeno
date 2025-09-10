@@ -1349,7 +1349,7 @@ async def custom_area_name(
         response = await SMALL_MODEL.ainvoke(
             prompt.format(features=request.features[0])
         )
-        return {"name": response.content}
+        return {"name": response.content[:100]}
     except Exception as e:
         logger.exception("Error generating area name: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
