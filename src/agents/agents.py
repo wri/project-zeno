@@ -144,7 +144,11 @@ async def fetch_checkpointer() -> AsyncPostgresSaver:
     # Convert to psycopg format and disable prepared statements for PgBouncer compatibility
     db_url = db_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
 
-    return AsyncPostgresSaver.from_conn_string(db_url + "?prepare_threshold=0")
+    checkpointer = AsyncPostgresSaver.from_conn_string(
+        db_url + "?prepare_threshold=0"
+    )
+    await checkpointer.setup()
+    return checkpointer
 
 
 async def fetch_zeno_anonymous(
