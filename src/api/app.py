@@ -1295,39 +1295,9 @@ async def get_thread_state(
         # Get current state
         state = await zeno_async.aget_state(config=config)
 
-        # Serialize state values, handling complex objects
-        serialized_state = {}
-        for key, value in state.values.items():
-            try:
-                # Try to serialize the value
-                json.dumps(value)
-                serialized_state[key] = value
-            except (TypeError, ValueError):
-                # If serialization fails, convert to string representation
-                serialized_state[key] = str(value)
-
-        # Determine next actions based on current state
-        next_actions = []
-        if "aoi" not in serialized_state or not serialized_state.get("aoi"):
-            next_actions.append("select_aoi")
-        elif "dataset" not in serialized_state or not serialized_state.get(
-            "dataset"
-        ):
-            next_actions.append("select_dataset")
-        elif "raw_data" not in serialized_state or not serialized_state.get(
-            "raw_data"
-        ):
-            next_actions.append("pull_data")
-        else:
-            next_actions.append("generate_insights")
-
         return ThreadStateResponse(
             thread_id=thread_id,
-            state=serialized_state,
-            next_actions=next_actions,
-            created_at=state.created_at
-            if hasattr(state, "created_at")
-            else None,
+            state=dumps(state.values),
         )
 
     except Exception as e:

@@ -61,8 +61,7 @@ async def run_csv_tests(config) -> List[TestResult]:
         runner = LocalTestRunner()
     else:
         runner = APITestRunner(
-            api_base_url=config.api_base_url, 
-            api_token=config.api_token
+            api_base_url=config.api_base_url, api_token=config.api_token
         )
         print(f"Using API endpoint: {config.api_base_url}")
 

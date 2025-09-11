@@ -52,12 +52,12 @@ def evaluate_aoi_selection(
 
     # Check if agent asked for clarification instead of selecting AOI
     if not aoi and query:
-        is_clarification = llm_judge_clarification(agent_state, query)
-        if is_clarification:
+        clarification = llm_judge_clarification(agent_state, query)
+        if clarification["is_clarification"]:
             # Agent appropriately asked for clarification - this is a pass
             return {
                 "aoi_score": 1.0,  # Full score for appropriate clarification
-                "actual_id": "CLARIFICATION_REQUEST",
+                "actual_id": f"CLARIFICATION_REQUEST: {clarification['explanation']}",
                 "actual_name": "Agent requested clarification",
                 "actual_subtype": "clarification",
                 "actual_source": "agent",
@@ -145,11 +145,11 @@ def evaluate_dataset_selection(
 
     # Check if agent asked for clarification instead of selecting a dataset
     if not dataset and query:
-        is_clarification = llm_judge_clarification(agent_state, query)
-        if is_clarification:
+        clarification = llm_judge_clarification(agent_state, query)
+        if clarification["is_clarification"]:
             return {
                 "dataset_score": 1.0,  # Full score for appropriate clarification
-                "actual_dataset_id": "CLARIFICATION_REQUEST",
+                "actual_dataset_id": f"CLARIFICATION_REQUEST: {clarification['explanation']}",
                 "actual_dataset_name": "Agent requested clarification",
                 "actual_context_layer": "N/A",
                 "error": "",
@@ -222,15 +222,15 @@ def evaluate_data_pull(
 
     # Check if agent asked for clarification instead of pulling data
     if not raw_data and query:
-        is_clarification = llm_judge_clarification(agent_state, query)
-        if is_clarification:
+        clarification = llm_judge_clarification(agent_state, query)
+        if clarification["is_clarification"]:
             return {
                 "pull_data_score": 1.0,
                 "row_count": 0,
                 "min_rows": min_rows,
                 "data_pull_success": True,  # Treat clarification as success
                 "date_success": True,
-                "actual_start_date": "CLARIFICATION_REQUEST",
+                "actual_start_date": f"CLARIFICATION_REQUEST: {clarification['explanation']}",
                 "actual_end_date": "CLARIFICATION_REQUEST",
                 "error": "",
             }
@@ -304,8 +304,14 @@ def llm_judge_clarification(agent_state: Dict[str, Any], query: str) -> bool:
     # If no charts data, check if there's any response in the state
     if not final_response:
         messages = agent_state.get("messages", [])
+
         if messages:
-            final_response = messages[-1].content
+            content = messages[-1].content
+            # For Gemini, content is a list, with thinking and query as separate messages
+            if isinstance(content, list):
+                final_response = content[-1]
+            else:
+                final_response = content
         else:
             final_response = ""
 
@@ -346,7 +352,7 @@ def llm_judge_clarification(agent_state: Dict[str, Any], query: str) -> bool:
         result = judge_chain.invoke(
             {"query": query, "response": final_response}
         )
-        return result.is_clarification
+        return result.model_dump()
     except Exception:
         return False  # Default to not clarification if LLM call fails
 
@@ -406,10 +412,21 @@ def evaluate_final_answer(
     charts_data = agent_state.get("charts_data", [])
 
     if not charts_data or not expected_answer:
+        messages = agent_state.get("messages", [])
+
+        if messages:
+            content = messages[-1].content
+            # For Gemini, content is a list, with thinking and query as separate messages
+            if isinstance(content, list):
+                final_response = content[-1]
+            else:
+                final_response = content
+        else:
+            final_response = "Missing charts data or expected answer"
         return {
             "answer_score": 0,
             "actual_answer": None,
-            "error": "Missing charts data or expected answer",
+            "error": final_response,
         }
 
     # Get Zeno Insight from charts data

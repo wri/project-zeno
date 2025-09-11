@@ -7,6 +7,7 @@ from datetime import datetime
 from uuid import uuid4
 
 import httpx
+from langchain_core.load import loads
 from langfuse import get_client
 
 from ..types import ExpectedData, TestResult
@@ -66,19 +67,21 @@ class APITestRunner(BaseTestRunner):
                     headers=headers,
                 ) as response:
                     response.raise_for_status()
-                    
+
                     async for line in response.aiter_lines():
                         if line.strip():
                             stream_data = json.loads(line)
                             responses.append(stream_data)
-                            
+
                             # Capture trace ID from stream
                             if stream_data.get("node") == "trace_info":
-                                update_data = json.loads(stream_data.get("update", "{}"))
+                                update_data = json.loads(
+                                    stream_data.get("update", "{}")
+                                )
                                 trace_id = update_data.get("trace_id")
 
                 trace_url = langfuse.get_trace_url(trace_id=trace_id)
-                
+
                 # Get final agent state using the state endpoint
                 state_response = await client.get(
                     f"{self.api_base_url}/api/threads/{thread_id}/state",
@@ -87,6 +90,7 @@ class APITestRunner(BaseTestRunner):
                 state_response.raise_for_status()
                 response_data = state_response.json()
                 agent_state = response_data.get("state", {})
+                agent_state = loads(agent_state)
 
             # Run evaluations
             evaluations = self._run_evaluations(
