@@ -4,6 +4,8 @@ from typing import Optional
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
+from psycopg import AsyncConnection
+from psycopg.rows import dict_row
 
 from src.graph import AgentState
 from src.tools import (
@@ -138,17 +140,16 @@ load_environment_variables()
 
 
 async def fetch_checkpointer() -> AsyncPostgresSaver:
-    """Get an AsyncPostgresSaver using same database configuration as main application."""
-    # Use the same database URL transformation and settings as database.py
-    db_url = APISettings.database_url
-    # Convert to psycopg format and disable prepared statements for PgBouncer compatibility
-    db_url = db_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
-
-    checkpointer = AsyncPostgresSaver.from_conn_string(
-        db_url + "?prepare_threshold=0"
+    """Get an AsyncPostgresSaver using a new database connection."""
+    db_url = APISettings.database_url.replace(
+        "postgresql+asyncpg://", "postgresql://"
     )
-    await checkpointer.setup()
-    return checkpointer
+
+    connection = await AsyncConnection.connect(
+        db_url, row_factory=dict_row, autocommit=True, prepare_threshold=0
+    )
+
+    return AsyncPostgresSaver(conn=connection)
 
 
 async def fetch_zeno_anonymous(
