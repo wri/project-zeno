@@ -144,7 +144,7 @@ datasets:
   dataset_name: Global land cover
   context_layers: null
   variables: null
-  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/global-land-cover-v-2/items/global-land-cover-{year}/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png?colormap=%7B%220%22%3A%20%5B139%2C%2069%2C%2019%2C%20255%5D%2C%20%221%22%3A%20%5B255%2C%20255%2C%200%2C%20255%5D%2C%20%222%22%3A%20%5B0%2C%20128%2C%200%2C%20255%5D%2C%20%223%22%3A%20%5B0%2C%20255%2C%20255%2C%20255%5D%2C%20%224%22%3A%20%5B0%2C%200%2C%20255%2C%20255%5D%2C%20%225%22%3A%20%5B255%2C%20255%2C%20255%2C%20255%5D%2C%20%226%22%3A%20%5B255%2C%200%2C%200%2C%20255%5D%2C%20%227%22%3A%20%5B128%2C%20128%2C%20128%2C%20255%5D%2C%20%228%22%3A%20%5B255%2C%20165%2C%200%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C9%29%2A%28asset%3E%3D0%29&asset_as_band=True"
+  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/global-land-cover-v-2/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%220%22%3A%20%5B139%2C%2069%2C%2019%2C%20255%5D%2C%20%221%22%3A%20%5B255%2C%20255%2C%200%2C%20255%5D%2C%20%222%22%3A%20%5B0%2C%20128%2C%200%2C%20255%5D%2C%20%223%22%3A%20%5B0%2C%20255%2C%20255%2C%20255%5D%2C%20%224%22%3A%20%5B0%2C%200%2C%20255%2C%20255%5D%2C%20%225%22%3A%20%5B255%2C%20255%2C%20255%2C%20255%5D%2C%20%226%22%3A%20%5B255%2C%200%2C%200%2C%20255%5D%2C%20%227%22%3A%20%5B128%2C%20128%2C%20128%2C%20255%5D%2C%20%228%22%3A%20%5B255%2C%20165%2C%200%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C9%29%2A%28asset%3E%3D0%29&asset_as_band=True"
   license: "CC by 4.0"
   geographic_coverage: Global
   resolution: "30 x 30 meters"
@@ -298,7 +298,7 @@ datasets:
   dataset_name: Global natural/semi-natural grassland extent
   context_layers: null
   variables: Natural/Semi-Natural Grassland
-  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/grasslands-v-1-1/items/grasslands-{year}/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png?colormap=%7B%220%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%2C%20%221%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%2C%20%222%22%3A%20%5B255%2C%20153%2C%2022%2C%20255%5D%2C%20%223%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%7D&assets=asset&expression=asset%2A%28asset%3C4%29%2A%28asset%3E%3D0%29&asset_as_band=True"
+  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/grasslands-v-1-1/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%220%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%2C%20%221%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%2C%20%222%22%3A%20%5B255%2C%20153%2C%2022%2C%20255%5D%2C%20%223%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%7D&assets=asset&expression=asset%2A%28asset%3C4%29%2A%28asset%3E%3D0%29&asset_as_band=True"
   license: "CC by 4.0"
   geographic_coverage: "90°N to 90°S"
   resolution: "30 x 30 meters"
@@ -571,7 +571,7 @@ datasets:
       description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
     - value: "intact_forest"
       description: "Intact forest landscapes (IFL) show loss within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
-  tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=25&render_type=true_color"
+  tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=2001&end_year=2024&tree_cover_density_threshold=25&render_type=true_color"
   license: "CC by 4.0"
   geographic_coverage: "Global land area (excluding Antarctica and other Arctic islands)"
   resolution: "30 x 30 meters"
@@ -865,7 +865,7 @@ datasets:
       description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
     - value: "intact_forest"
       description: "Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
-  tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_density_{year}/latest/tcd_{threshold}/{{z}}/{{x}}/{{y}}.png"
+  tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_density_{year}/latest/tcd_{threshold}/{z}/{x}/{y}.png"
   license: "CC by 4.0"
   geographic_coverage: "Global land (excluding Antarctica and Arctic islands)"
   resolution: "30 x 30 meters"
