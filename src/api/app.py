@@ -649,6 +649,9 @@ async def require_auth(
         preferred_language_code=user.preferred_language_code,
         gis_expertise_level=user.gis_expertise_level,
         areas_of_interest=user.areas_of_interest,
+        topics=json.loads(user.topics) if user.topics else None,
+        receive_news_emails=user.receive_news_emails,
+        help_test_features=user.help_test_features,
         has_profile=user.has_profile,
     )
 
@@ -701,6 +704,9 @@ async def optional_auth(
         preferred_language_code=user.preferred_language_code,
         gis_expertise_level=user.gis_expertise_level,
         areas_of_interest=user.areas_of_interest,
+        topics=json.loads(user.topics) if user.topics else None,
+        receive_news_emails=user.receive_news_emails,
+        help_test_features=user.help_test_features,
         has_profile=user.has_profile,
     )
 

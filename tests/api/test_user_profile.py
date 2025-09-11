@@ -513,6 +513,66 @@ class TestUserProfileAPI:
         assert data["hasProfile"] is True
         assert data["jobTitle"] == "Researcher"
 
+    @pytest.mark.asyncio
+    async def test_new_profile_fields_in_auth_me(
+        self, client, user, auth_override
+    ):
+        """Test that topics, receive_news_emails, and help_test_features appear in /auth/me after being set."""
+        auth_override(user.id)
+
+        # Set the new profile fields
+        update_data = {
+            "topics": self.valid_topics,
+            "receive_news_emails": True,
+            "help_test_features": False,
+        }
+
+        # Update profile via PATCH
+        response = await client.patch("/api/auth/profile", json=update_data)
+        assert response.status_code == 200
+
+        # Verify the fields are returned in the PATCH response
+        patch_data = response.json()
+        assert patch_data["topics"] == self.valid_topics
+        assert patch_data["receiveNewsEmails"] is True
+        assert patch_data["helpTestFeatures"] is False
+
+        # Verify the fields are also returned in /auth/me
+        response = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert response.status_code == 200
+
+        auth_me_data = response.json()
+        assert auth_me_data["topics"] == self.valid_topics
+        assert auth_me_data["receiveNewsEmails"] is True
+        assert auth_me_data["helpTestFeatures"] is False
+
+        # Verify other profile fields are still present
+        assert auth_me_data["id"] == user.id
+        assert auth_me_data["name"] == user.name
+        assert auth_me_data["email"] == user.email
+
+    @pytest.mark.asyncio
+    async def test_new_profile_fields_null_by_default_in_auth_me(
+        self, client, user, auth_override
+    ):
+        """Test that new profile fields are null/false by default in /auth/me."""
+        auth_override(user.id)
+
+        # Get user profile without any updates
+        response = await client.get(
+            "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+
+        # New fields should have their default values
+        assert data["topics"] is None
+        assert data["receiveNewsEmails"] is False
+        assert data["helpTestFeatures"] is False
+
 
 class TestProfileConfigsStructure:
     """Basic tests to ensure configuration files are properly structured."""
