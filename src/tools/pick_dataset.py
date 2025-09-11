@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import pandas as pd
-import yaml
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -15,16 +14,13 @@ from pydantic import BaseModel, Field
 from src.utils.llms import MODEL
 from src.utils.logging_config import get_logger
 
+from .datasets_config import DATASETS
+
 logger = get_logger(__name__)
 
 data_dir = Path("data")
 
 _retriever_cache = {}
-
-
-ANALYTICS_DATASETS_PATH = Path(__file__).parent / "analytics_datasets.yml"
-with open(ANALYTICS_DATASETS_PATH) as f:
-    DATASETS = yaml.safe_load(f)["datasets"]
 
 
 async def _get_openai_retriever():
