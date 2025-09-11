@@ -52,6 +52,8 @@ async def initialize_global_pool(database_url: Optional[str] = None) -> None:
             db_url,
             # Use NullPool - no application-level pooling, rely on PgBouncer
             poolclass=NullPool,
+            # Disable prepared statements for PgBouncer compatibility
+            connect_args={"statement_cache_size": 0},
             # Logging and debugging
             echo=False,  # Set to True for SQL debugging
         )

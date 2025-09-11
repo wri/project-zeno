@@ -144,7 +144,10 @@ DATABASE_URL = os.environ["DATABASE_URL"].replace(
 
 async def fetch_checkpointer() -> AsyncPostgresSaver:
     """Get an AsyncPostgresSaver using direct connection string."""
-    return AsyncPostgresSaver.from_conn_string(DATABASE_URL)
+    # Disable prepared statements for PgBouncer compatibility
+    return AsyncPostgresSaver.from_conn_string(
+        DATABASE_URL, connection_kwargs={"prepared_statement_cache_size": 0}
+    )
 
 
 async def fetch_zeno_anonymous(
