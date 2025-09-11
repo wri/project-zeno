@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+import requests
 
 from src.tools.pick_dataset import pick_dataset
 
@@ -214,6 +215,8 @@ async def test_query_with_context_layer(
     command = await pick_dataset.ainvoke(
         {
             "query": query,
+            "start_date": "2022-01-01",
+            "end_date": "2022-12-31",
             "tool_call_id": str(uuid.uuid4()),
         }
     )
@@ -229,6 +232,8 @@ async def test_query_with_wrong_date_range():
     command = await pick_dataset.ainvoke(
         {
             "query": "Find me grasslands data for 2030",
+            "start_date": "2030-01-01",
+            "end_date": "2030-12-31",
             "tool_call_id": str(uuid.uuid4()),
         }
     )
@@ -237,3 +242,34 @@ async def test_query_with_wrong_date_range():
         "date_request_match"
     )
     assert not date_request_match
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "dataset",
+    [
+        DIST_ALERT,
+        LAND_COVER_CHANGE,
+        GRASSLANDS,
+        NATURAL_LANDS,
+        TREE_COVER,
+        TREE_COVER_LOSS,
+        TREE_COVER_GAIN,
+        CARBON_FLUX,
+    ],
+)
+async def test_tile_url_contains_date(dataset):
+    command = await pick_dataset.ainvoke(
+        {
+            "query": f"Find me {dataset} data for 2020",
+            "start_date": "2020-01-01",
+            "end_date": "2020-12-31",
+            "tool_call_id": str(uuid.uuid4()),
+        }
+    )
+
+    tile_url = command.update.get("dataset", {}).get("tile_url")
+    if dataset not in [NATURAL_LANDS, TREE_COVER_GAIN, CARBON_FLUX]:
+        assert "2020" in tile_url
+    response = requests.get(tile_url.format(z=3, x=5, y=3))
+    assert response.status_code == 200

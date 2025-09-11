@@ -144,7 +144,7 @@ datasets:
   dataset_name: Global land cover
   context_layers: null
   variables: null
-  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/global-land-cover-v-2/items/global-land-cover-{year}/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png?colormap=%7B%220%22%3A%20%5B139%2C%2069%2C%2019%2C%20255%5D%2C%20%221%22%3A%20%5B255%2C%20255%2C%200%2C%20255%5D%2C%20%222%22%3A%20%5B0%2C%20128%2C%200%2C%20255%5D%2C%20%223%22%3A%20%5B0%2C%20255%2C%20255%2C%20255%5D%2C%20%224%22%3A%20%5B0%2C%200%2C%20255%2C%20255%5D%2C%20%225%22%3A%20%5B255%2C%20255%2C%20255%2C%20255%5D%2C%20%226%22%3A%20%5B255%2C%200%2C%200%2C%20255%5D%2C%20%227%22%3A%20%5B128%2C%20128%2C%20128%2C%20255%5D%2C%20%228%22%3A%20%5B255%2C%20165%2C%200%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C9%29%2A%28asset%3E%3D0%29&asset_as_band=True"
+  tile_url: "https://eoapi.zeno-staging.ds.io/raster/collections/global-land-cover-v-2/items/global-land-cover-{year}/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png?colormap=%7B%221%22%3A%20%5B139%2C%2069%2C%2019%2C%20255%5D%2C%20%222%22%3A%20%5B255%2C%20255%2C%200%2C%20255%5D%2C%20%223%22%3A%20%5B0%2C%20128%2C%200%2C%20255%5D%2C%20%224%22%3A%20%5B0%2C%20255%2C%20255%2C%20255%5D%2C%20%225%22%3A%20%5B0%2C%200%2C%20255%2C%20255%5D%2C%20%226%22%3A%20%5B255%2C%20255%2C%20255%2C%20255%5D%2C%20%227%22%3A%20%5B255%2C%200%2C%200%2C%20255%5D%2C%20%228%22%3A%20%5B128%2C%20128%2C%20128%2C%20255%5D%2C%20%229%22%3A%20%5B255%2C%20165%2C%200%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C9%29%2A%28asset%3E%3D0%29&asset_as_band=True"
   license: "CC by 4.0"
   geographic_coverage: Global
   resolution: "30 x 30 meters"

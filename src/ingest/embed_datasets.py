@@ -8,7 +8,7 @@ from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_openai import OpenAIEmbeddings
 
-from src.tools.pick_dataset import DATASETS
+from src.tools.data_handlers.analytics_handler import DATASETS
 from src.utils.env_loader import load_environment_variables
 
 load_environment_variables()

@@ -12,6 +12,7 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from src.tools.data_handlers.analytics_handler import (
+    DATASETS,
     DIST_ALERT_ID,
     GRASSLANDS_ID,
     LAND_COVER_CHANGE_ID,
@@ -221,20 +222,16 @@ async def pick_dataset(
             )
         else:
             selection_result.tile_url = selection_result.tile_url.format(
-                year=2024
+                year="2024"
             )
     elif selection_result.dataset_id == TREE_COVER_LOSS_ID:
-        if int(end_date[:4]) in range(2015, 2025):
-            selection_result.tile_url = selection_result.tile_url.format(
-                year=end_date[:4]
-            )
+        if int(end_date[:4]) in range(2001, 2025):
+            selection_result.tile_url += f"&year={end_date[:4]}"
         else:
-            selection_result.tile_url = selection_result.tile_url.format(
-                year=2024
-            )
+            selection_result.tile_url += "&year=2024"
     elif selection_result.dataset_id == TREE_COVER_ID:
-        selection_result.tile_url += (
-            f"&start_date={start_date}&end_date={end_date}"
+        selection_result.tile_url.format(
+            f"?start_date={start_date}&end_date={end_date}"
         )
 
     return Command(
