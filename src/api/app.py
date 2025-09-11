@@ -793,7 +793,7 @@ async def check_quota(
 
     # Get user identity and quota
     identity_and_quota = await get_user_identity_and_daily_quota(request, user)
-    
+
     today = date.today()
 
     stmt = select(DailyUsageOrm).filter_by(
@@ -1022,7 +1022,7 @@ async def chat(
     try:
         # Enforce quota and get quota info using the authenticated user
         quota_info = await enforce_quota(request, user, session)
-        
+
         headers = {}
         if APISettings.enable_quota_checking and quota_info:
             headers["X-Prompts-Used"] = str(quota_info["prompts_used"])
@@ -1694,7 +1694,7 @@ async def auth_me(
             "prompts_used": None,
             "prompt_quota": None,
         }
-    
+
     # Get quota info using the authenticated user (not from WRI API)
     quota_info = await check_quota(request, user, session)
     return {**user.model_dump(), **quota_info}

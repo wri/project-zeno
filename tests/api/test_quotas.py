@@ -489,15 +489,15 @@ class TestQuotaFunctionality:
         """
         Test that reproduces the bug where a user is admin in the database
         but the WRI API returns regular userType, causing incorrect quota.
-        
+
         This test:
         1. Mocks WRI API to return userType="regular"
-        2. Pre-creates user in database with user_type="admin" 
+        2. Pre-creates user in database with user_type="admin"
         3. Calls /auth/me and expects admin quota, not regular quota
         """
         from src.api.data_models import UserOrm, UserType
         from src.utils.database import get_session_from_pool_dependency
-        
+
         # Mock WRI API to return regular user (not admin)
         with patch("httpx.AsyncClient") as mock_client_class:
             regular_user_from_api = {
@@ -542,13 +542,12 @@ class TestQuotaFunctionality:
 
             # Now call /auth/me - it should recognize admin quota
             response = await client.get(
-                "/api/auth/me", 
-                headers={"Authorization": "Bearer test-token"}
+                "/api/auth/me", headers={"Authorization": "Bearer test-token"}
             )
 
             assert response.status_code == 200
             data = response.json()
-            
+
             # This should be admin quota, but currently fails due to the bug
             assert data["promptQuota"] == APISettings.admin_user_daily_quota, (
                 f"Expected admin quota {APISettings.admin_user_daily_quota}, "
