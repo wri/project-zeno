@@ -898,7 +898,7 @@ async def generate_thread_name(query: str) -> str:
         A concise, descriptive name for the thread
     """
     try:
-        prompt = f"Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:\n{query}\nReturn strictly the title only, no quotes or explanation."
+        prompt = f"Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:\n{query}\nReturn strictly the title only, no quotes or explanation. Dist usually stands for disturbance."
         response = await SMALL_MODEL.with_structured_output(
             ThreadNameOutput
         ).ainvoke(prompt)
