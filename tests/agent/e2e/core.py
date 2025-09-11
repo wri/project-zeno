@@ -60,12 +60,10 @@ async def run_csv_tests(config) -> List[TestResult]:
     if config.test_mode == "local":
         runner = LocalTestRunner()
     else:
-        from client import ZenoClient
-
-        client = ZenoClient(
-            base_url=config.api_base_url, token=config.api_token
+        runner = APITestRunner(
+            api_base_url=config.api_base_url, 
+            api_token=config.api_token
         )
-        runner = APITestRunner(client)
         print(f"Using API endpoint: {config.api_base_url}")
 
     # Run tests in parallel

@@ -6,9 +6,8 @@ import json
 from datetime import datetime
 from uuid import uuid4
 
+import httpx
 from langfuse import get_client
-
-from client import ZenoClient
 
 from ..types import ExpectedData, TestResult
 from .base import BaseTestRunner
@@ -17,9 +16,10 @@ from .base import BaseTestRunner
 class APITestRunner(BaseTestRunner):
     """Test runner for API endpoint execution."""
 
-    def __init__(self, client: ZenoClient):
-        """Initialize with ZenoClient instance."""
-        self.client = client
+    def __init__(self, api_base_url: str, api_token: str = None):
+        """Initialize with API configuration."""
+        self.api_base_url = api_base_url
+        self.api_token = api_token
 
     async def run_test(
         self, query: str, expected_data: ExpectedData
@@ -43,23 +43,50 @@ class APITestRunner(BaseTestRunner):
             responses = []
             trace_id = None
 
-            for stream in self.client.chat(
-                query=query,
-                user_persona="Researcher",
-                thread_id=thread_id,
-                metadata={"langfuse_tags": ["simple_e2e_test"]},
-                user_id="test_user",
-            ):
-                responses.append(stream)
-                # Capture trace ID from stream
-                if stream.get("node") == "trace_info":
-                    update_data = json.loads(stream.get("update", "{}"))
-                    trace_id = update_data.get("trace_id")
+            # Prepare request payload
+            payload = {
+                "query": query,
+                "user_persona": "Researcher",
+                "thread_id": thread_id,
+                "metadata": {"langfuse_tags": ["simple_e2e_test"]},
+                "user_id": "test_user",
+            }
 
-            trace_url = langfuse.get_trace_url(trace_id=trace_id)
-            # Get final agent state using the state endpoint
-            state_response = self.client.get_thread_state(thread_id)
-            agent_state = state_response["state"]
+            headers = {}
+            if self.api_token:
+                headers["Authorization"] = f"Bearer {self.api_token}"
+
+            # Use httpx async client for streaming
+            async with httpx.AsyncClient(timeout=240.0) as client:
+                # Stream chat responses
+                async with client.stream(
+                    "POST",
+                    f"{self.api_base_url}/api/chat",
+                    json=payload,
+                    headers=headers,
+                ) as response:
+                    response.raise_for_status()
+                    
+                    async for line in response.aiter_lines():
+                        if line.strip():
+                            stream_data = json.loads(line)
+                            responses.append(stream_data)
+                            
+                            # Capture trace ID from stream
+                            if stream_data.get("node") == "trace_info":
+                                update_data = json.loads(stream_data.get("update", "{}"))
+                                trace_id = update_data.get("trace_id")
+
+                trace_url = langfuse.get_trace_url(trace_id=trace_id)
+                
+                # Get final agent state using the state endpoint
+                state_response = await client.get(
+                    f"{self.api_base_url}/api/threads/{thread_id}/state",
+                    headers=headers,
+                )
+                state_response.raise_for_status()
+                response_data = state_response.json()
+                agent_state = response_data.get("state", {})
 
             # Run evaluations
             evaluations = self._run_evaluations(
