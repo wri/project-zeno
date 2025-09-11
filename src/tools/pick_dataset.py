@@ -226,9 +226,11 @@ async def pick_dataset(
             )
     elif selection_result.dataset_id == TREE_COVER_LOSS_ID:
         if int(end_date[:4]) in range(2001, 2025):
-            selection_result.tile_url += f"&year={end_date[:4]}"
+            selection_result.tile_url += (
+                f"&start_year={start_date[:4]}&end_year={end_date[:4]}"
+            )
         else:
-            selection_result.tile_url += "&year=2024"
+            selection_result.tile_url += "&start_year=2001&end_year=2024"
     elif selection_result.dataset_id == TREE_COVER_ID:
         selection_result.tile_url.format(
             f"?start_date={start_date}&end_date={end_date}"
