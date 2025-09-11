@@ -771,7 +771,7 @@ async def get_user_identity_and_daily_quota(
 async def check_quota(
     request: Request,
     user: Optional[UserModel],
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
+    session: AsyncSession,
 ):
     """
     Check the current daily usage quota for a user.
@@ -811,7 +811,7 @@ async def check_quota(
 async def enforce_quota(
     request: Request,
     user: Optional[UserModel],
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
+    session: AsyncSession,
 ):
     """
     Enforce daily usage quota for users and anonymous clients.
@@ -1059,6 +1059,9 @@ async def chat(
             media_type="application/x-ndjson",
             headers=headers if headers else None,
         )
+    except HTTPException:
+        # Re-raise HTTPExceptions (like 429 quota exceeded) without converting to 500
+        raise
     except Exception as e:
         logger.exception(
             "Chat request failed",
