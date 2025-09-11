@@ -484,6 +484,77 @@ class TestQuotaFunctionality:
         finally:
             APISettings.allow_anonymous_chat = original_setting
 
+    @pytest.mark.asyncio
+    async def test_admin_user_database_vs_api_mismatch(self, client):
+        """
+        Test that reproduces the bug where a user is admin in the database
+        but the WRI API returns regular userType, causing incorrect quota.
+
+        This test:
+        1. Mocks WRI API to return userType="regular"
+        2. Pre-creates user in database with user_type="admin"
+        3. Calls /auth/me and expects admin quota, not regular quota
+        """
+        from src.api.data_models import UserOrm, UserType
+        from src.utils.database import get_session_from_pool_dependency
+
+        # Mock WRI API to return regular user (not admin)
+        with patch("httpx.AsyncClient") as mock_client_class:
+            regular_user_from_api = {
+                "id": "test-admin-mismatch",
+                "name": "Admin User",
+                "email": "admin-mismatch@wri.org",
+                "createdAt": "2024-01-01T00:00:00Z",
+                "updatedAt": "2024-01-01T00:00:00Z",
+                "userType": "regular",  # WRI API says regular!
+            }
+
+            class MockRegularResponse:
+                def __init__(self):
+                    self.status_code = 200
+                    self.text = str(regular_user_from_api)
+
+                def json(self):
+                    return regular_user_from_api
+
+            # Mock the AsyncClient context manager and get method
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = MockRegularResponse()
+
+            # Pre-create the user in database with admin type
+            async def setup_admin_user():
+                async for session in get_session_from_pool_dependency():
+                    # Create new admin user in database with minimal fields
+                    admin_user = UserOrm(
+                        id="test-admin-mismatch",
+                        name="Admin User",
+                        email="admin-mismatch@wri.org",
+                        user_type=UserType.ADMIN.value,  # Admin in database!
+                        # Don't set topics field to avoid column issues
+                    )
+                    session.add(admin_user)
+                    await session.commit()
+                    break
+
+            await setup_admin_user()
+
+            # Now call /auth/me - it should recognize admin quota
+            response = await client.get(
+                "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+
+            # This should be admin quota, but currently fails due to the bug
+            assert data["promptQuota"] == APISettings.admin_user_daily_quota, (
+                f"Expected admin quota {APISettings.admin_user_daily_quota}, "
+                f"but got {data['promptQuota']} (regular quota is {APISettings.regular_user_daily_quota}). "
+                f"This indicates the bug where database admin user_type is ignored in favor of WRI API userType."
+            )
+
 
 class TestAPIKeyValidation:
     """Test API key validation for NextJS integration."""
