@@ -63,6 +63,7 @@ from src.api.schemas import (
     RatingCreateRequest,
     RatingModel,
     ThreadModel,
+    ThreadNameOutput,
     ThreadStateResponse,
     UserModel,
     UserProfileUpdateRequest,
@@ -897,9 +898,11 @@ async def generate_thread_name(query: str) -> str:
         A concise, descriptive name for the thread
     """
     try:
-        prompt = f"Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:\n{query}\nReturn strictly the title only, no quotes or explanation."
-        response = await SMALL_MODEL.ainvoke(prompt)
-        return response.content[:50]  # Ensure we don't exceed 50 chars
+        prompt = f"Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:\n{query}\nReturn strictly the title only, no quotes or explanation. Dist usually stands for disturbance."
+        response = await SMALL_MODEL.with_structured_output(
+            ThreadNameOutput
+        ).ainvoke(prompt)
+        return response.name
     except Exception as e:
         logger.exception("Error generating thread name: %s", e)
         return "Unnamed Thread"  # Fallback to default name
@@ -1343,14 +1346,14 @@ async def custom_area_name(
         Exclude all geopolitical terms and demonyms; avoid disputed/historical polities and sovereignty language.
         Prefer widely used, neutral physical names; do not invent obscure terms.
         You may combine up to two natural units with a preposition.
-        Return a name only, strictly ≤100 characters.
+        Return a name only, strictly ≤50 characters.
 
         Features: {features}
         """
-        response = await SMALL_MODEL.ainvoke(
-            prompt.format(features=request.features[0])
-        )
-        return {"name": response.content[:100]}
+        response = await SMALL_MODEL.with_structured_output(
+            CustomAreaNameResponse
+        ).ainvoke(prompt.format(features=request.features[0]))
+        return {"name": response.name}
     except Exception as e:
         logger.exception("Error generating area name: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
