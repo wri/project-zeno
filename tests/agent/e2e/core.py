@@ -49,7 +49,9 @@ async def run_csv_tests(config) -> List[TestResult]:
 
     # Load test data
     loader = CSVLoader()
-    test_cases = loader.load_test_data(config.test_file, config.sample_size)
+    test_cases = loader.load_test_data(
+        config.test_file, config.sample_size, config.test_group_filter
+    )
     print(
         f"Running {len(test_cases)} tests in {config.test_mode} mode with {config.num_workers} workers..."
     )
@@ -101,7 +103,7 @@ async def run_csv_tests(config) -> List[TestResult]:
 
     # Save results
     exporter = ResultExporter()
-    exporter.save_results_to_csv(results)
+    exporter.save_results_to_csv(results, config.output_filename)
 
     # Print summary
     _print_csv_summary(results, config.test_mode)

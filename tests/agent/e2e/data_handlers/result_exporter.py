@@ -30,11 +30,15 @@ class ResultExporter:
         if not results:
             return ""
 
+        # Always append timestamp to filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
         if not filename:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             base_filename = f"data/tests/simple_e2e_{timestamp}"
         else:
-            base_filename = filename.replace(".csv", "")
+            # Remove .csv extension if present and append timestamp
+            clean_filename = filename.replace(".csv", "")
+            base_filename = f"data/tests/{clean_filename}_{timestamp}"
 
         # Create directory if needed
         os.makedirs(
