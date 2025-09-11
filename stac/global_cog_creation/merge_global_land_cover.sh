@@ -77,13 +77,13 @@ cd "$LOCAL_DIR"
 
 
 # Loop through years 2015-2024
-for YEAR in {2016..2024}; do
+for YEAR in {2015..2024}; do
     echo "Processing year: $YEAR"
 
     # Create local directory if it doesn't exist
     mkdir -p "$YEAR"
 
-    uv run gsutil -m rsync -r "gs://lcl_tiles/LCL_landCover/v2/$YEAR" "$YEAR"
+    uv run gsutil -m rsync -r "gs://lcl_tiles/LCL_landCover/v3/$YEAR" "$YEAR"
 
     # Create vrt file with all the tiles
     uv run gdalbuildvrt \
