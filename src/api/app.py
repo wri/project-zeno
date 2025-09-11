@@ -35,11 +35,9 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.agents import (
-    close_checkpointer_pool,
     fetch_checkpointer,
     fetch_zeno,
     fetch_zeno_anonymous,
-    get_checkpointer_pool,
 )
 from src.api.auth import MACHINE_USER_PREFIX, validate_machine_user_token
 from src.api.data_models import (
@@ -98,20 +96,13 @@ ANONYMOUS_USER_PREFIX = "noauth"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize global database connection pool for API and tools
+    # Initialize global database engine with NullPool for PgBouncer compatibility
     await initialize_global_pool()
-
-    # Initialize separate checkpointer connection pool
-    # (Required due to asyncpg vs psycopg driver compatibility)
-    await get_checkpointer_pool()
 
     yield
 
     # Cleanup on shutdown
     await close_global_pool()
-
-    # Close checkpointer pool
-    await close_checkpointer_pool()
 
 
 app = FastAPI(

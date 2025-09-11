@@ -5,8 +5,6 @@ from typing import Optional
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
-from psycopg.rows import dict_row
-from psycopg_pool import AsyncConnectionPool
 
 from src.graph import AgentState
 from src.tools import (
@@ -17,7 +15,6 @@ from src.tools import (
     pull_data,
 )
 from src.user_profile_configs.countries import COUNTRIES
-from src.utils.config import APISettings
 from src.utils.env_loader import load_environment_variables
 from src.utils.llms import MODEL
 
@@ -144,48 +141,10 @@ DATABASE_URL = os.environ["DATABASE_URL"].replace(
     "postgresql+asyncpg://", "postgresql://"
 )
 
-# Separate checkpointer connection pool
-#
-# NOTE: We maintain a separate psycopg pool for the checkpointer because:
-# 1. AsyncPostgresSaver requires a psycopg AsyncConnectionPool (not SQLAlchemy)
-# 2. Our global pool uses asyncpg driver (postgresql+asyncpg://) via SQLAlchemy
-# 3. These are different PostgreSQL drivers and aren't directly compatible
-# 4. Both pools connect to the same database but use different connection libraries
-_checkpointer_pool: AsyncConnectionPool = None
-
-
-async def get_checkpointer_pool() -> AsyncConnectionPool:
-    """Get or create the global checkpointer connection pool."""
-    global _checkpointer_pool
-    if _checkpointer_pool is None:
-        _checkpointer_pool = AsyncConnectionPool(
-            DATABASE_URL,
-            min_size=APISettings.db_pool_size,
-            max_size=APISettings.db_max_overflow + APISettings.db_pool_size,
-            kwargs={
-                "row_factory": dict_row,
-                "autocommit": True,
-                "prepare_threshold": 0,
-            },
-            open=False,  # Don't open automatically, we'll open it explicitly
-        )
-        await _checkpointer_pool.open()
-    return _checkpointer_pool
-
-
-async def close_checkpointer_pool():
-    """Close the global checkpointer connection pool."""
-    global _checkpointer_pool
-    if _checkpointer_pool:
-        await _checkpointer_pool.close()
-        _checkpointer_pool = None
-
 
 async def fetch_checkpointer() -> AsyncPostgresSaver:
-    """Get an AsyncPostgresSaver using the checkpointer connection pool."""
-    pool = await get_checkpointer_pool()
-    checkpointer = AsyncPostgresSaver(pool)
-    return checkpointer
+    """Get an AsyncPostgresSaver using direct connection string."""
+    return AsyncPostgresSaver.from_conn_string(DATABASE_URL)
 
 
 async def fetch_zeno_anonymous(
