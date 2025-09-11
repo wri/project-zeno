@@ -34,7 +34,7 @@ GEMINI_FLASH = ChatGoogleGenerativeAI(
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=True,
     max_retries=2,
-    thinking_budget=-1,
+    thinking_budget=0,
 )
 
 # OpenAI
