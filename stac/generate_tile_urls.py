@@ -30,18 +30,18 @@ def generate_colormap(land_cover_classes, enabled_classes):
 
 
 global_land_cover_classes = {
-    "0": {
+    "1": {
         "name": "Bare ground & sparse vegetation",
         "color": [139, 69, 19, 255],
     },
-    "1": {"name": "Short vegetation", "color": [255, 255, 0, 255]},
-    "2": {"name": "Tree cover", "color": [0, 128, 0, 255]},
-    "3": {"name": "Wetland - short vegetation", "color": [0, 255, 255, 255]},
-    "4": {"name": "Water", "color": [0, 0, 255, 255]},
-    "5": {"name": "Snow/ice", "color": [255, 255, 255, 255]},
-    "6": {"name": "Cropland", "color": [255, 0, 0, 255]},
-    "7": {"name": "Built-up", "color": [128, 128, 128, 255]},
-    "8": {"name": "Cultivated grasslands", "color": [255, 165, 0, 255]},
+    "2": {"name": "Short vegetation", "color": [255, 255, 0, 255]},
+    "3": {"name": "Tree cover", "color": [0, 128, 0, 255]},
+    "4": {"name": "Wetland - short vegetation", "color": [0, 255, 255, 255]},
+    "5": {"name": "Water", "color": [0, 0, 255, 255]},
+    "6": {"name": "Snow/ice", "color": [255, 255, 255, 255]},
+    "7": {"name": "Cropland", "color": [255, 0, 0, 255]},
+    "8": {"name": "Built-up", "color": [128, 128, 128, 255]},
+    "9": {"name": "Cultivated grasslands", "color": [255, 165, 0, 255]},
 }
 
 natural_lands_classes = {
