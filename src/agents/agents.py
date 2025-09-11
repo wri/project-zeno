@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from typing import Optional
 
@@ -15,6 +14,7 @@ from src.tools import (
     pull_data,
 )
 from src.user_profile_configs.countries import COUNTRIES
+from src.utils.config import APISettings
 from src.utils.env_loader import load_environment_variables
 from src.utils.llms import MODEL
 
@@ -137,17 +137,14 @@ tools = [
 load_environment_variables()
 
 
-DATABASE_URL = os.environ["DATABASE_URL"].replace(
-    "postgresql+asyncpg://", "postgresql://"
-)
-
-
 async def fetch_checkpointer() -> AsyncPostgresSaver:
-    """Get an AsyncPostgresSaver using direct connection string."""
-    # Disable prepared statements for PgBouncer compatibility
-    return AsyncPostgresSaver.from_conn_string(
-        DATABASE_URL, connection_kwargs={"prepared_statement_cache_size": 0}
-    )
+    """Get an AsyncPostgresSaver using same database configuration as main application."""
+    # Use the same database URL transformation and settings as database.py
+    db_url = APISettings.database_url
+    # Convert to psycopg format and disable prepared statements for PgBouncer compatibility
+    db_url = db_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
+
+    return AsyncPostgresSaver.from_conn_string(db_url + "?prepare_threshold=0")
 
 
 async def fetch_zeno_anonymous(
