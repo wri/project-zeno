@@ -185,6 +185,8 @@ async def test_queries_return_expected_dataset(
     command = await pick_dataset.ainvoke(
         {
             "query": query,
+            "start_date": "2024-01-01",
+            "end_date": "2024-12-31",
             "tool_call_id": str(uuid.uuid4()),
         }
     )
