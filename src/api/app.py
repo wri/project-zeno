@@ -507,7 +507,13 @@ async def fetch_user_from_rw_api(
 
     # Handle machine user tokens with zeno-key prefix
     if token and token.startswith(f"{MACHINE_USER_PREFIX}:"):
-        return await validate_machine_user_token(token, session)
+        # Check cache first for machine users too
+        if token in _user_info_cache:
+            return _user_info_cache[token]
+
+        user_model = await validate_machine_user_token(token, session)
+        _user_info_cache[token] = user_model
+        return user_model
 
     # Handle anonymous users with noauth prefix
     if token and token.startswith(f"{ANONYMOUS_USER_PREFIX}:"):
