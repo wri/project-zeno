@@ -8,14 +8,16 @@ import pytest
 from click.testing import CliRunner
 from sqlalchemy import select
 
-from src.api.data_models import MachineUserKeyOrm, UserOrm, UserType
+from src.api.data_models import MachineUserKeyOrm, UserOrm, UserType, WhitelistedUserOrm
 from src.cli import (
+    add_whitelisted_user,
     cli,
     create_api_key,
     create_machine_user,
     generate_api_key,
     list_api_keys,
     list_machine_users,
+    make_user_admin,
     revoke_api_key,
     rotate_api_key,
 )
@@ -556,3 +558,208 @@ class TestMachineUserAPIAuthentication:
             )
             updated_key = result.scalar_one()
             assert updated_key.last_used_at is not None
+
+
+class TestUserAdminFunctions:
+    """Test user admin management functions."""
+
+    @pytest.mark.asyncio
+    async def test_make_user_admin_success(self):
+        """Test successful user admin conversion."""
+        async with async_session_maker() as session:
+            # Create a regular user
+            user = UserOrm(
+                id="user_123",
+                name="Test User",
+                email="test@example.com",
+                user_type=UserType.REGULAR.value,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+            session.add(user)
+            await session.commit()
+
+            # Make user admin
+            admin_user = await make_user_admin(session, "test@example.com")
+
+            assert admin_user.id == user.id
+            assert admin_user.user_type == UserType.ADMIN.value
+            assert admin_user.updated_at > user.created_at
+
+    @pytest.mark.asyncio
+    async def test_make_user_admin_user_not_found(self):
+        """Test making non-existent user admin fails."""
+        async with async_session_maker() as session:
+            with pytest.raises(ValueError, match="not found"):
+                await make_user_admin(session, "nonexistent@example.com")
+
+    @pytest.mark.asyncio
+    async def test_make_user_admin_already_admin(self):
+        """Test making an already admin user admin works."""
+        async with async_session_maker() as session:
+            # Create an admin user
+            user = UserOrm(
+                id="admin_123",
+                name="Admin User",
+                email="admin@example.com",
+                user_type=UserType.ADMIN.value,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+            session.add(user)
+            await session.commit()
+            original_updated_at = user.updated_at
+
+            # Make user admin again
+            admin_user = await make_user_admin(session, "admin@example.com")
+
+            assert admin_user.user_type == UserType.ADMIN.value
+            assert admin_user.updated_at > original_updated_at
+
+
+class TestWhitelistFunctions:
+    """Test whitelist management functions."""
+
+    @pytest.mark.asyncio
+    async def test_add_whitelisted_user_success(self):
+        """Test successful whitelist addition."""
+        async with async_session_maker() as session:
+            whitelisted_user = await add_whitelisted_user(session, "test@example.com")
+
+            assert whitelisted_user.email == "test@example.com"
+            assert whitelisted_user.created_at is not None
+
+    @pytest.mark.asyncio
+    async def test_add_whitelisted_user_duplicate(self):
+        """Test adding duplicate email returns existing record."""
+        async with async_session_maker() as session:
+            # Add first time
+            first_user = await add_whitelisted_user(session, "test@example.com")
+            first_created_at = first_user.created_at
+
+            # Add second time (should return existing)
+            second_user = await add_whitelisted_user(session, "test@example.com")
+
+            assert second_user.email == first_user.email
+            assert second_user.created_at == first_created_at
+
+            # Verify only one record exists
+            result = await session.execute(
+                select(WhitelistedUserOrm).where(
+                    WhitelistedUserOrm.email == "test@example.com"
+                )
+            )
+            all_records = result.scalars().all()
+            assert len(all_records) == 1
+
+
+class TestUserManagementCLICommands:
+    """Test user management CLI command functionality."""
+
+    def setup_method(self):
+        """Set up test runner."""
+        self.runner = CliRunner()
+
+    @patch("src.cli.DatabaseManager")
+    @patch("src.cli.make_user_admin")
+    def test_make_user_admin_command_success(self, mock_make_admin, mock_db_manager):
+        """Test make-user-admin CLI command success."""
+        # Mock database operations
+        mock_session = AsyncMock()
+        mock_db_manager.return_value.async_session.return_value.__aenter__.return_value = mock_session
+        mock_db_manager.return_value.close = AsyncMock()
+
+        # Mock admin user
+        mock_user = AsyncMock()
+        mock_user.id = "user_123"
+        mock_user.name = "Test User"
+        mock_user.email = "test@example.com"
+        mock_user.user_type = UserType.ADMIN.value
+        mock_user.updated_at = datetime.now()
+        mock_make_admin.return_value = mock_user
+
+        # Run command
+        result = self.runner.invoke(
+            cli,
+            ["make-user-admin", "--email", "test@example.com"],
+        )
+
+        assert result.exit_code == 0
+        assert "✅ Made user admin:" in result.output
+        assert "test@example.com" in result.output
+        assert UserType.ADMIN.value in result.output
+        mock_make_admin.assert_called_once()
+
+    @patch("src.cli.DatabaseManager")
+    @patch("src.cli.make_user_admin")
+    def test_make_user_admin_command_user_not_found(
+        self, mock_make_admin, mock_db_manager
+    ):
+        """Test make-user-admin CLI command with non-existent user."""
+        # Mock database operations
+        mock_session = AsyncMock()
+        mock_db_manager.return_value.async_session.return_value.__aenter__.return_value = mock_session
+        mock_db_manager.return_value.close = AsyncMock()
+
+        # Mock error
+        mock_make_admin.side_effect = ValueError("User with email test@example.com not found")
+
+        # Run command
+        result = self.runner.invoke(
+            cli,
+            ["make-user-admin", "--email", "test@example.com"],
+        )
+
+        assert result.exit_code == 0  # Click doesn't change exit code for our error handling
+        assert "❌ Error:" in result.output
+        assert "not found" in result.output
+
+    @patch("src.cli.DatabaseManager")
+    @patch("src.cli.add_whitelisted_user")
+    def test_whitelist_email_command_success(
+        self, mock_add_whitelist, mock_db_manager
+    ):
+        """Test whitelist-email CLI command success."""
+        # Mock database operations
+        mock_session = AsyncMock()
+        mock_db_manager.return_value.async_session.return_value.__aenter__.return_value = mock_session
+        mock_db_manager.return_value.close = AsyncMock()
+
+        # Mock whitelisted user
+        mock_whitelist_user = AsyncMock()
+        mock_whitelist_user.email = "test@example.com"
+        mock_whitelist_user.created_at = datetime.now()
+        mock_add_whitelist.return_value = mock_whitelist_user
+
+        # Run command
+        result = self.runner.invoke(
+            cli,
+            ["whitelist-email", "--email", "test@example.com"],
+        )
+
+        assert result.exit_code == 0
+        assert "✅ Added email to whitelist:" in result.output
+        assert "test@example.com" in result.output
+        mock_add_whitelist.assert_called_once()
+
+    @patch("src.cli.DatabaseManager")
+    @patch("src.cli.add_whitelisted_user")
+    def test_whitelist_email_command_error(self, mock_add_whitelist, mock_db_manager):
+        """Test whitelist-email CLI command with error."""
+        # Mock database operations
+        mock_session = AsyncMock()
+        mock_db_manager.return_value.async_session.return_value.__aenter__.return_value = mock_session
+        mock_db_manager.return_value.close = AsyncMock()
+
+        # Mock error
+        mock_add_whitelist.side_effect = Exception("Database error")
+
+        # Run command
+        result = self.runner.invoke(
+            cli,
+            ["whitelist-email", "--email", "test@example.com"],
+        )
+
+        assert result.exit_code == 0  # Click doesn't change exit code for our error handling
+        assert "❌ Error:" in result.output
+        assert "Database error" in result.output
