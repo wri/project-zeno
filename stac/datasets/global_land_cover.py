@@ -17,7 +17,7 @@ from stac.datasets.utils import (
     load_stac_data_to_db,
 )
 
-dotenv.load_dotenv("stac/env/.env_staging")
+dotenv.load_dotenv("stac/env/.env_production")
 
 set_stac_version("1.1.0")
 
@@ -25,50 +25,50 @@ COLLECTION_ID = "global-land-cover-v-2"
 
 # Default classification values - can be overridden by YAML injection
 DEFAULT_CLASSIFICATION_VALUES = {
-    0: "Bare ground & sparse vegetation",
-    1: "Short vegetation",
-    2: "Tree cover",
-    3: "Wetland - short vegetation",
-    4: "Water",
-    5: "Snow/ice",
-    6: "Cropland",
-    7: "Built-up",
-    8: "Cultivated grasslands",
+    1: "Bare ground & sparse vegetation",
+    2: "Short vegetation",
+    3: "Tree cover",
+    4: "Wetland - short vegetation",
+    5: "Water",
+    6: "Snow/ice",
+    7: "Cropland",
+    8: "Built-up",
+    9: "Cultivated grasslands",
 }
 
 DEFAULT_CLASSIFICATION_DESCRIPTIONS = {
-    0: "Land with 0-19% vegetation fraction.",
-    1: "Non-treed vegetation cover with 20% or more vegetation fraction.",
-    2: (
+    1: "Land with 0-19% vegetation fraction.",
+    2: "Non-treed vegetation cover with 20% or more vegetation fraction.",
+    3: (
         "Forest is an area with tree height ≥5 m at the Landsat pixel scale. "
         "Our definition includes wildland, managed, and planted forests, "
         "agroforestry, orchards, and natural tree regrowth."
     ),
-    3: (
+    4: (
         "Non-treed vegetation cover with 20% or more vegetation fraction that "
         "are transitional between terrestrial and aquatic systems where the "
         "water table is usually at or near the surface or the land is covered "
         "by shallow water."
     ),
-    4: (
+    5: (
         "Open surface water, or simply water, is defined as inland water that "
         "covers ≥50% of a pixel for 20% or more of the year and is not "
         "obscured by objects above the surface (e.g., tree canopy, floating "
         "aquatic vegetation, bridges, or ice)."
     ),
-    5: "Includes land covered by glaciers and snow which remains during the entire year.",
-    6: (
+    6: "Includes land covered by glaciers and snow which remains during the entire year.",
+    7: (
         "Land used to produce annual and perennial herbaceous crops for human "
         "consumption, forage, and biofuel. Our definition excludes tree crops, "
         "permanent pastures, and shifting cultivation."
     ),
-    7: (
+    8: (
         "Consists of man-made land surfaces associated with infrastructure, "
         "commercial and residential land uses. At the Landsat spatial resolution, "
         "we define the built-up land class as pixels that include man-made surfaces, "
         "even if such surfaces do not dominate within the pixel."
     ),
-    8: (
+    9: (
         "Cultivated grassland includes areas where grasses and other forage plants "
         "have been intentionally planted and managed, as well as areas of native "
         "grassland-type vegetation where they clearly exhibit active and 'heavy' "

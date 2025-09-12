@@ -17,12 +17,13 @@ from stac.datasets.utils import (
     load_stac_data_to_db,
 )
 
+dotenv.load_dotenv("stac/env/.env_production")
+
+
 S3_URLS = [
     f"s3://gfw-data-lake/gfw_grasslands/v1.1/geotiff/grasslands_{year}.tif"
     for year in range(2000, 2025)
 ]
-
-dotenv.load_dotenv("stac/env/.env_staging")
 
 set_stac_version("1.1.0")
 

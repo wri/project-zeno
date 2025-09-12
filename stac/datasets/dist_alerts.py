@@ -20,7 +20,7 @@ from stac.datasets.utils import (
     load_stac_data_to_db,
 )
 
-dotenv.load_dotenv("stac/env/.env_staging")
+dotenv.load_dotenv("stac/env/.env_production")
 
 set_stac_version("1.1.0")
 

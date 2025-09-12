@@ -2,7 +2,7 @@ import dotenv
 import psycopg
 from pypgstac.db import PgstacDB
 
-env_file = "stac/env/.env_staging"
+env_file = "stac/env/.env_production"
 
 dotenv.load_dotenv(env_file)
 
