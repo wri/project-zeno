@@ -61,6 +61,7 @@ from src.api.schemas import (
     RatingCreateRequest,
     RatingModel,
     ThreadModel,
+    ThreadNameOutput,
     ThreadStateResponse,
     UserModel,
     UserProfileUpdateRequest,
@@ -732,7 +733,7 @@ async def extract_anonymous_session_cookie(request: Request) -> Optional[str]:
 
 async def get_user_identity_and_daily_quota(
     request: Request,
-    user: Optional[UserModel] = Depends(fetch_user_from_rw_api),
+    user: Optional[UserModel],
 ):
     """
     Determine the user's identity string and their daily prompt quota.
@@ -766,21 +767,20 @@ async def get_user_identity_and_daily_quota(
 
 
 async def check_quota(
-    identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
+    request: Request,
+    user: Optional[UserModel],
+    session: AsyncSession,
 ):
     """
     Check the current daily usage quota for a user.
 
     Args:
-        identity_and_quota (Dict): Dictionary containing user identity string and prompt quota.
-            Expected keys:
-                - "identity": str, user identifier (e.g., "user:<id>" or "anon:<id>")
-                - "prompt_quota": int, maximum allowed prompts per day
+        request (Request): The incoming HTTP request object.
+        user (Optional[UserModel]): The authenticated user model, or None for anonymous.
         session (AsyncSession): Async SQLAlchemy session for database operations.
 
     Returns:
-        Dict: Updated identity_and_quota dictionary including "prompts_used" count.
+        Dict: Dictionary including user identity, prompt quota, and prompts used count.
 
     Notes:
         - If quota checking is disabled in settings, returns an empty dictionary.
@@ -788,6 +788,9 @@ async def check_quota(
     """
     if not APISettings.enable_quota_checking:
         return {}
+
+    # Get user identity and quota
+    identity_and_quota = await get_user_identity_and_daily_quota(request, user)
 
     today = date.today()
 
@@ -805,18 +808,15 @@ async def check_quota(
 
 async def enforce_quota(
     request: Request,
-    identity_and_quota: Dict = Depends(get_user_identity_and_daily_quota),
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
+    user: Optional[UserModel],
+    session: AsyncSession,
 ):
     """
     Enforce daily usage quota for users and anonymous clients.
 
     Args:
         request (Request): The incoming HTTP request object.
-        identity_and_quota (Dict): Dictionary containing user identity string and prompt quota.
-            Expected keys:
-                - "identity": str, user identifier (e.g., "user:<id>" or "anon:<id>")
-                - "prompt_quota": int, maximum allowed prompts per day
+        user (Optional[UserModel]): The authenticated user model, or None for anonymous.
         session (AsyncSession): Async SQLAlchemy session for database operations.
 
     Returns:
@@ -827,6 +827,9 @@ async def enforce_quota(
     """
     if not APISettings.enable_quota_checking:
         return {}
+
+    # Get user identity and quota
+    identity_and_quota = await get_user_identity_and_daily_quota(request, user)
 
     anonymous_user_ip = None
     user_is_anonymous = (
@@ -894,9 +897,11 @@ async def generate_thread_name(query: str) -> str:
         A concise, descriptive name for the thread
     """
     try:
-        prompt = f"Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:\n{query}\nReturn strictly the title only, no quotes or explanation."
-        response = await SMALL_MODEL.ainvoke(prompt)
-        return response.content[:50]  # Ensure we don't exceed 50 chars
+        prompt = f"Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:\n{query}\nReturn strictly the title only, no quotes or explanation. Dist usually stands for disturbance."
+        response = await SMALL_MODEL.with_structured_output(
+            ThreadNameOutput
+        ).ainvoke(prompt)
+        return response.name
     except Exception as e:
         logger.exception("Error generating thread name: %s", e)
         return "Unnamed Thread"  # Fallback to default name
@@ -904,8 +909,11 @@ async def generate_thread_name(query: str) -> str:
 
 @app.get("/api/quota", response_model=QuotaModel)
 async def get_quota(
-    quota_info: Dict = Depends(check_quota),
+    request: Request,
+    user: Optional[UserModel] = Depends(optional_auth),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
+    quota_info = await check_quota(request, user, session)
     return quota_info
 
 
@@ -914,7 +922,6 @@ async def chat(
     request: Request,
     chat_request: ChatRequest,
     user: Optional[UserModel] = Depends(optional_auth),
-    quota_info: dict = Depends(enforce_quota),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
@@ -1013,6 +1020,9 @@ async def chat(
     # eg: langfuse_metadata["job_title"] = user.job_title
 
     try:
+        # Enforce quota and get quota info using the authenticated user
+        quota_info = await enforce_quota(request, user, session)
+
         headers = {}
         if APISettings.enable_quota_checking and quota_info:
             headers["X-Prompts-Used"] = str(quota_info["prompts_used"])
@@ -1049,6 +1059,9 @@ async def chat(
             media_type="application/x-ndjson",
             headers=headers if headers else None,
         )
+    except HTTPException:
+        # Re-raise HTTPExceptions (like 429 quota exceeded) without converting to 500
+        raise
     except Exception as e:
         logger.exception(
             "Chat request failed",
@@ -1340,14 +1353,14 @@ async def custom_area_name(
         Exclude all geopolitical terms and demonyms; avoid disputed/historical polities and sovereignty language.
         Prefer widely used, neutral physical names; do not invent obscure terms.
         You may combine up to two natural units with a preposition.
-        Return a name only, strictly ≤100 characters.
+        Return a name only, strictly ≤50 characters.
 
         Features: {features}
         """
-        response = await SMALL_MODEL.ainvoke(
-            prompt.format(features=request.features[0])
-        )
-        return {"name": response.content[:100]}
+        response = await SMALL_MODEL.with_structured_output(
+            CustomAreaNameResponse
+        ).ainvoke(prompt.format(features=request.features[0]))
+        return {"name": response.name}
     except Exception as e:
         logger.exception("Error generating area name: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -1630,8 +1643,9 @@ async def get_thread_ratings(
 
 @app.get("/api/auth/me", response_model=UserWithQuotaModel)
 async def auth_me(
+    request: Request,
     user: UserModel = Depends(require_auth),
-    quota_info: dict = Depends(check_quota),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Get current user information with quota usage.
@@ -1683,6 +1697,9 @@ async def auth_me(
             "prompts_used": None,
             "prompt_quota": None,
         }
+
+    # Get quota info using the authenticated user (not from WRI API)
+    quota_info = await check_quota(request, user, session)
     return {**user.model_dump(), **quota_info}
 
 

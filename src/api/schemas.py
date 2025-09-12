@@ -45,6 +45,14 @@ class CustomAreaNameResponse(BaseModel):
     )
 
 
+class ThreadNameOutput(BaseModel):
+    name: str = Field(
+        ...,
+        description="Generated name for thread",
+        max_length=50,
+    )
+
+
 class UserModel(BaseModel):
     """User model with relationships to threads and custom areas."""
 
