@@ -271,6 +271,26 @@ async def generate_insights(
     dat = {key: len(value) for key, value in raw_data.items()}
     logger.debug(f"Processing data with row counts: {dat}")
 
+    tokens = encoder.encode(raw_data_prompt)
+    token_count = len(tokens)
+    logger.debug(f"Raw data prompt token count: {token_count}")
+
+    # 24_000 tokens is an approximate window size that would make sure the agent doesn't hallucinate
+    if token_count > 23_000:
+        return Command(
+            update={
+                "raw_data": {},  # reset raw data
+                "messages": [
+                    ToolMessage(
+                        content="I've reached my processing limit - you may have requested a large set of areas or too many data points. I'm clearing the current dataset to prevent errors. To continue your analysis, please start a new chat conversation and re-select your areas and datasets.",
+                        tool_call_id=tool_call_id,
+                        status="success",
+                        response_metadata={"msg_type": "human_feedback"},
+                    )
+                ],
+            }
+        )
+
     dataset_guidelines = state.get("dataset").get("prompt_instructions", "")
     if dataset_guidelines:
         dataset_guidelines = (
@@ -281,27 +301,6 @@ async def generate_insights(
 
     try:
         prompt = _create_insight_generation_prompt()
-        tokens = encoder.encode(prompt)
-        token_count = len(tokens)
-        logger.debug(f"Token count: {token_count}")
-
-        if (
-            token_count > 24_000
-        ):  # 24_000 tokens is an approximate window size that would make sure the agent doesn't hallucinate
-            return Command(
-                update={
-                    "raw_data": {},  # reset raw data
-                    "messages": [
-                        ToolMessage(
-                            content="I've reached my processing limit - you may have requested a large set of areas or too many data points. I'm clearing the current dataset to prevent errors. To continue your analysis, please start a new chat conversation and re-select your areas and datasets.",
-                            tool_call_id=tool_call_id,
-                            status="success",
-                            response_metadata={"msg_type": "human_feedback"},
-                        )
-                    ],
-                }
-            )
-
         chain = prompt | SONNET.with_structured_output(InsightResponse)
         response = await chain.ainvoke(
             {
