@@ -7,6 +7,7 @@ pool fragmentation and prevents connection exhaustion.
 """
 
 import asyncio
+import uuid
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import (
@@ -46,22 +47,17 @@ async def initialize_global_pool(database_url: Optional[str] = None) -> None:
             return
 
         db_url = database_url or APISettings.database_url
-        # force use of psycopg driver for connection pooling compatibility
-        # see https://github.com/sqlalchemy/sqlalchemy/issues/12836#issuecomment-3233627601
-        db_url = db_url.replace(
-            "postgresql+asyncpg://", "postgresql+psycopg://"
-        )
 
         # Create engine with NullPool since PgBouncer handles connection pooling
         _global_engine = create_async_engine(
             db_url,
             # Use NullPool - no application-level pooling, rely on PgBouncer
             poolclass=NullPool,
-            # Disable prepared statements for PgBouncer compatibility
-            # https://github.com/sqlalchemy/sqlalchemy/issues/12836#issuecomment-3233627601
-            connect_args={"prepare_threshold": None},
-            # Logging and debugging
-            echo=False,  # Set to True for SQL debugging
+            connect_args={
+                "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4()}__",
+                "statement_cache_size": 0,
+                "prepared_statement_cache_size": 0,
+            },
         )
 
         # Create session factory
