@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -12,17 +13,15 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from src.tools.data_handlers.analytics_handler import (
-    DATASETS,
     DIST_ALERT_ID,
     GRASSLANDS_ID,
     LAND_COVER_CHANGE_ID,
     TREE_COVER_ID,
     TREE_COVER_LOSS_ID,
 )
+from src.tools.datasets_config import DATASETS
 from src.utils.llms import MODEL
 from src.utils.logging_config import get_logger
-
-from .datasets_config import DATASETS
 
 logger = get_logger(__name__)
 
@@ -211,23 +210,26 @@ async def pick_dataset(
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
 
+    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+
     if selection_result.dataset_id == DIST_ALERT_ID:
         selection_result.tile_url += (
             f"&start_date={start_date}&end_date={end_date}"
         )
     elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
-        if int(end_date[:4]) in range(2015, 2025):
+        if end_date.year in range(2015, 2025):
             selection_result.tile_url = selection_result.tile_url.format(
-                year=end_date[:4]
+                year=end_date.year
             )
         else:
             selection_result.tile_url = selection_result.tile_url.format(
                 year="2024"
             )
     elif selection_result.dataset_id == TREE_COVER_LOSS_ID:
-        if int(end_date[:4]) in range(2001, 2025):
+        if end_date.year in range(2001, 2025):
             selection_result.tile_url += (
-                f"&start_year={start_date[:4]}&end_year={end_date[:4]}"
+                f"&start_year={start_date.year}&end_year={end_date.year}"
             )
         else:
             selection_result.tile_url += "&start_year=2001&end_year=2024"
