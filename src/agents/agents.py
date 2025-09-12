@@ -146,7 +146,7 @@ async def fetch_checkpointer() -> AsyncPostgresSaver:
     )
 
     connection = await AsyncConnection.connect(
-        db_url, row_factory=dict_row, autocommit=True, prepare_threshold=0
+        db_url, row_factory=dict_row, autocommit=True, prepare_threshold=None
     )
 
     return AsyncPostgresSaver(conn=connection)
