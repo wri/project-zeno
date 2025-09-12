@@ -45,6 +45,11 @@ async def override_get_session_from_pool_dependency() -> (
         yield session
 
 
+def override_get_session_from_pool():
+    """Override get_session_from_pool to use test database session maker."""
+    return async_session_maker()
+
+
 app.dependency_overrides[get_session_from_pool_dependency] = (
     override_get_session_from_pool_dependency
 )
@@ -70,8 +75,14 @@ async def mock_replay_chat(thread_id):
 
 
 # Apply the mock globally for all tests
-patcher = patch("src.api.app.replay_chat", mock_replay_chat)
-patcher.start()
+replay_patcher = patch("src.api.app.replay_chat", mock_replay_chat)
+replay_patcher.start()
+
+# Patch get_session_from_pool to use test database
+session_patcher = patch(
+    "src.api.app.get_session_from_pool", override_get_session_from_pool
+)
+session_patcher.start()
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -82,7 +93,8 @@ async def test_db():
         await conn.run_sync(Base.metadata.create_all)
     yield
     # Clean up
-    patcher.stop()  # Stop the replay_chat mock
+    replay_patcher.stop()  # Stop the replay_chat mock
+    session_patcher.stop()  # Stop the session pool mock
     # Clean databases
     async with engine_test.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

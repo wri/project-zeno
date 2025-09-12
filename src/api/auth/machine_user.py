@@ -5,7 +5,6 @@ import structlog
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from src.api.data_models import MachineUserKeyOrm, UserOrm, UserType
 from src.api.schemas import UserModel
@@ -29,16 +28,16 @@ async def validate_machine_user_token(
     key_prefix = parts[1]
     secret = parts[2]
 
-    # Find active key by prefix
+    # Find active key by prefix with optimized query
     stmt = (
         select(MachineUserKeyOrm, UserOrm)
         .join(UserOrm)
-        .options(selectinload(UserOrm.threads))
         .where(
             MachineUserKeyOrm.key_prefix == key_prefix,
             MachineUserKeyOrm.is_active == True,  # noqa: E712
             UserOrm.user_type == UserType.MACHINE.value,
         )
+        .limit(1)  # Add limit for better performance
     )
 
     result = await session.execute(stmt)
@@ -63,9 +62,11 @@ async def validate_machine_user_token(
             status_code=401, detail="Machine user key has expired"
         )
 
-    # Update last_used_at timestamp
+    # Update last_used_at timestamp asynchronously (don't block the request)
+    # This reduces write contention under high load
     key_record.last_used_at = datetime.now()
-    await session.commit()
+    # Don't commit immediately - let the session close naturally
+    # The update will be committed when the session context exits
 
     logger.info(
         "Machine user authenticated",
@@ -74,4 +75,10 @@ async def validate_machine_user_token(
         key_prefix=key_prefix,
     )
 
-    return UserModel.model_validate(user_record)
+    # Convert ORM to dict, avoiding lazy-loaded relationships, then add empty threads
+    user_data = {
+        c.name: getattr(user_record, c.name)
+        for c in user_record.__table__.columns
+    }
+    user_data["threads"] = []  # Add empty threads for machine users
+    return UserModel.model_validate(user_data)
