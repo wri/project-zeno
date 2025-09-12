@@ -242,17 +242,20 @@ async def test_query_with_context_layer(
     ],
 )
 async def test_tile_url_contains_date(dataset):
+    year = "2020"
+    if dataset == TREE_COVER:
+        year = "2000"
     command = await pick_dataset.ainvoke(
         {
-            "query": f"Find me {dataset} data for 2020",
-            "start_date": "2020-01-01",
-            "end_date": "2020-12-31",
+            "query": f"Find me {dataset} data for {year}",
+            "start_date": f"{year}-01-01",
+            "end_date": f"{year}-12-31",
             "tool_call_id": str(uuid.uuid4()),
         }
     )
 
     tile_url = command.update.get("dataset", {}).get("tile_url")
     if dataset not in [NATURAL_LANDS, TREE_COVER_GAIN, CARBON_FLUX]:
-        assert "2020" in tile_url
+        assert year in tile_url
     response = requests.get(tile_url.format(z=3, x=5, y=3))
     assert response.status_code == 200

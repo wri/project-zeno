@@ -16,7 +16,6 @@ from src.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
     GRASSLANDS_ID,
     LAND_COVER_CHANGE_ID,
-    TREE_COVER_ID,
     TREE_COVER_LOSS_ID,
 )
 from src.tools.datasets_config import DATASETS
@@ -233,10 +232,6 @@ async def pick_dataset(
             )
         else:
             selection_result.tile_url += "&start_year=2001&end_year=2024"
-    elif selection_result.dataset_id == TREE_COVER_ID:
-        selection_result.tile_url.format(
-            f"?start_date={start_date}&end_date={end_date}"
-        )
 
     return Command(
         update={
