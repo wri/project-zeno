@@ -5,7 +5,6 @@ import structlog
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from src.api.data_models import MachineUserKeyOrm, UserOrm, UserType
 from src.api.schemas import UserModel
@@ -33,7 +32,6 @@ async def validate_machine_user_token(
     stmt = (
         select(MachineUserKeyOrm, UserOrm)
         .join(UserOrm)
-        .options(selectinload(UserOrm.threads))
         .where(
             MachineUserKeyOrm.key_prefix == key_prefix,
             MachineUserKeyOrm.is_active == True,  # noqa: E712
@@ -74,4 +72,10 @@ async def validate_machine_user_token(
         key_prefix=key_prefix,
     )
 
-    return UserModel.model_validate(user_record)
+    # Convert ORM to dict, avoiding lazy-loaded relationships, then add empty threads
+    user_data = {
+        c.name: getattr(user_record, c.name)
+        for c in user_record.__table__.columns
+    }
+    user_data["threads"] = []  # Add empty threads for machine users
+    return UserModel.model_validate(user_data)
