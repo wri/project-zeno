@@ -8,7 +8,6 @@ from uuid import uuid4
 
 import httpx
 from langchain_core.load import loads
-from langfuse import get_client
 
 from ..types import ExpectedData, TestResult
 from .base import BaseTestRunner
@@ -36,7 +35,6 @@ class APITestRunner(BaseTestRunner):
             TestResult with evaluation scores and metadata
         """
         thread_id = uuid4().hex
-        langfuse = get_client()
         trace_url = None
 
         try:
@@ -79,8 +77,7 @@ class APITestRunner(BaseTestRunner):
                                     stream_data.get("update", "{}")
                                 )
                                 trace_id = update_data.get("trace_id")
-
-                trace_url = langfuse.get_trace_url(trace_id=trace_id)
+                                trace_url = update_data.get("trace_url")
 
                 # Get final agent state using the state endpoint
                 state_response = await client.get(

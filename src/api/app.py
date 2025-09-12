@@ -414,11 +414,14 @@ async def stream_chat(
 
         # Send trace ID after stream completes
         trace_id = getattr(langfuse_handler, "last_trace_id", None)
+        trace_url = langfuse_client.get_trace_url(trace_id=trace_id)
         if trace_id:
             yield pack(
                 {
                     "node": "trace_info",
-                    "update": dumps({"trace_id": trace_id}),
+                    "update": dumps(
+                        {"trace_id": trace_id, "trace_url": trace_url}
+                    ),
                 }
             )
 
