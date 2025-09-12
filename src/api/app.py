@@ -976,11 +976,13 @@ async def chat(
             session_id=chat_request.session_id,
             query=chat_request.query,
         )
+
         stmt = select(ThreadOrm).filter_by(
             id=chat_request.thread_id, user_id=user.id
         )
         result = await session.execute(stmt)
         thread = result.scalars().first()
+
         if not thread:
             # Generate thread name from the first query
             thread_name = await generate_thread_name(chat_request.query)
@@ -1019,10 +1021,13 @@ async def chat(
     # pairs (as long as the keys don't begin with `langfuse_*`)
     # eg: langfuse_metadata["job_title"] = user.job_title
 
-    try:
-        # Enforce quota and get quota info using the authenticated user
-        quota_info = await enforce_quota(request, user, session)
+    # Enforce quota upfront using the session
+    quota_info = await enforce_quota(request, user, session)
 
+    # Close session immediately after all database operations are complete
+    await session.close()
+
+    try:
         headers = {}
         if APISettings.enable_quota_checking and quota_info:
             headers["X-Prompts-Used"] = str(quota_info["prompts_used"])
