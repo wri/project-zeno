@@ -540,6 +540,27 @@ async def pick_aoi(
             )
             subregion_aois = subregion_aois.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
+
+            # Check if too many subregions found
+            if len(subregion_aois) > 50:
+                return Command(
+                    update={
+                        "messages": [
+                            ToolMessage(
+                                f"Found {len(subregion_aois)} subregions, which is too many to process efficiently. "
+                                f"Please narrow down your search by either:\n"
+                                f"1. Being more specific with the AOI selection (choose a smaller area)\n"
+                                f"2. Being more specific with the subregion query (e.g., 'kbas' instead of 'areas')\n"
+                                f"Try to limit results to under 50 subregions for optimal performance.",
+                                tool_call_id=tool_call_id,
+                                status="success",
+                                response_metadata={
+                                    "msg_type": "human_feedback"
+                                },
+                            )
+                        ],
+                    },
+                )
         else:
             subregion_aois = []
 
