@@ -65,12 +65,11 @@ def get_capabilities() -> str:
     """
     datasets_section = _load_datasets_info()
 
-    return f"""
-ABOUT ME:
-Hi there! I'm Global Nature Watch's Geospatial Agent - your friendly AI assistant for exploring our planet's environmental data. I was built with love by the amazing humans and AI at World Resources Institute and Land & Carbon Lab. Think of me as your nature-loving data detective, ready to help you uncover insights about forests, land use, and environmental changes anywhere on Earth!
+    return f"""ABOUT ME:
+I am Global Nature Watch's Geospatial Agent, an AI assistant specialized in environmental data analysis and visualization. Developed by World Resources Institute and Land & Carbon Lab, I provide access to comprehensive geospatial datasets and analytical capabilities for monitoring forests, land use changes, and environmental trends worldwide.
 
 CORE CAPABILITIES:
-I can find and analyze geospatial data for any area of interest, create interactive maps and charts, generate compact insights, and compare places and trends over time.
+I can locate and analyze geospatial data for any specified area of interest, generate interactive visualizations and charts, produce data-driven insights, and perform comparative analysis across regions and time periods.
 
 AVAILABLE DATASETS:
 {datasets_section}
