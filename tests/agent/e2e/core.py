@@ -49,7 +49,9 @@ async def run_csv_tests(config) -> List[TestResult]:
 
     # Load test data
     loader = CSVLoader()
-    test_cases = loader.load_test_data(config.test_file, config.sample_size)
+    test_cases = loader.load_test_data(
+        config.test_file, config.sample_size, config.test_group_filter
+    )
     print(
         f"Running {len(test_cases)} tests in {config.test_mode} mode with {config.num_workers} workers..."
     )
@@ -58,12 +60,9 @@ async def run_csv_tests(config) -> List[TestResult]:
     if config.test_mode == "local":
         runner = LocalTestRunner()
     else:
-        from client import ZenoClient
-
-        client = ZenoClient(
-            base_url=config.api_base_url, token=config.api_token
+        runner = APITestRunner(
+            api_base_url=config.api_base_url, api_token=config.api_token
         )
-        runner = APITestRunner(client)
         print(f"Using API endpoint: {config.api_base_url}")
 
     # Run tests in parallel
@@ -101,7 +100,7 @@ async def run_csv_tests(config) -> List[TestResult]:
 
     # Save results
     exporter = ResultExporter()
-    exporter.save_results_to_csv(results)
+    exporter.save_results_to_csv(results, config.output_filename)
 
     # Print summary
     _print_csv_summary(results, config.test_mode)

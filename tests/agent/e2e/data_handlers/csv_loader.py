@@ -14,7 +14,7 @@ class CSVLoader:
 
     @staticmethod
     def load_test_data(
-        csv_file: str, sample_size: int = 0
+        csv_file: str, sample_size: int = 0, test_group_filter: str = None
     ) -> List[ExpectedData]:
         """
         Load test data from CSV file.
@@ -22,6 +22,7 @@ class CSVLoader:
         Args:
             csv_file: Path to CSV test file
             sample_size: Number of test cases to load (0 means all)
+            test_group_filter: Filter by test_group column (optional)
 
         Returns:
             List of ExpectedData objects
@@ -55,10 +56,26 @@ class CSVLoader:
                     f"Filtered {original_count - filtered_count} tests based on status (keeping only: {', '.join(runnable_statuses)})"
                 )
 
+        # Filter by test_group if specified
+        if test_group_filter and "test_group" in df.columns:
+            original_count = len(df)
+            df = df[
+                df["test_group"]
+                .str.lower()
+                .str.contains(test_group_filter.lower(), na=False)
+            ]
+            filtered_count = len(df)
+            if filtered_count < original_count:
+                print(
+                    f"Filtered {original_count - filtered_count} tests based on test_group filter '{test_group_filter}'"
+                )
+
         # Sample if requested (-1 means run all rows, 0+ means run that many)
         if sample_size > 0 and sample_size < len(df):
             df = df.sample(n=sample_size)
         # sample_size == -1 means run all rows (no sampling)
+
+        print(f"Final test count after all filters: {len(df)} tests")
 
         test_cases = []
         for _, row in df.iterrows():

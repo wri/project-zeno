@@ -8,7 +8,7 @@ from src.tools.data_handlers.base import (
     DataPullResult,
     DataSourceHandler,
 )
-from src.tools.pick_dataset import DATASETS
+from src.tools.datasets_config import DATASETS
 from src.utils.geocoding_helpers import (
     SUBREGION_TO_AOI_TYPE_MAPPING,
     format_id,

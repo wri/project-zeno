@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -349,10 +349,6 @@ class ThreadStateResponse(BaseModel):
     """Response model for thread state endpoint."""
 
     thread_id: str
-    state: Dict[str, Any] = Field(
-        ..., description="Current agent state for the thread"
+    state: str = Field(
+        ..., description="JSON serialized agent state for the thread"
     )
-    next_actions: Optional[List[str]] = Field(
-        None, description="Available next actions"
-    )
-    created_at: Optional[datetime] = Field(None, description="State timestamp")

@@ -24,6 +24,10 @@ class TestConfig:
         1  # 1 means run single test (CI/CD friendly), -1 means run all rows
     )
     test_file: str = "experiments/e2e_test_dataset.csv"
+    test_group_filter: Optional[str] = None  # Filter by test_group column
+    output_filename: Optional[str] = (
+        None  # Custom filename (timestamp will be appended)
+    )
 
     # Parallel execution configuration
     num_workers: int = 1  # Number of parallel workers for test execution
@@ -40,6 +44,8 @@ class TestConfig:
             test_file=os.getenv(
                 "TEST_FILE", "experiments/e2e_test_dataset.csv"
             ),
+            test_group_filter=os.getenv("TEST_GROUP_FILTER"),
+            output_filename=os.getenv("OUTPUT_FILENAME"),
             num_workers=int(os.getenv("NUM_WORKERS", "1")),
         )
 

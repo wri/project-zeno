@@ -7,6 +7,14 @@ USAGE:
     TEST_MODE=api API_TOKEN=your_token python tests/agent/test_e2e.py
     SAMPLE_SIZE=5 python tests/agent/test_e2e.py
 
+    # Filter by test group
+    TEST_GROUP_FILTER=rel-accuracy python tests/agent/test_e2e.py
+    TEST_GROUP_FILTER=dataset SAMPLE_SIZE=10 python tests/agent/test_e2e.py
+
+    # Custom output filename (timestamp always appended)
+    OUTPUT_FILENAME=my_test_run python tests/agent/test_e2e.py
+    OUTPUT_FILENAME=alerts_test TEST_GROUP_FILTER=alerts python tests/agent/test_e2e.py
+
     # Parallel execution
     NUM_WORKERS=10 SAMPLE_SIZE=20 python tests/agent/test_e2e.py
     NUM_WORKERS=5 TEST_MODE=api API_TOKEN=your_token python tests/agent/test_e2e.py
@@ -24,6 +32,8 @@ ENVIRONMENT VARIABLES:
     # CSV mode only:
     SAMPLE_SIZE: Number of test cases to run (default: 1, use -1 for all rows)
     TEST_FILE: Path to CSV test file (default: experiments/e2e_test_dataset.csv)
+    TEST_GROUP_FILTER: Filter tests by test_group column (optional)
+    OUTPUT_FILENAME: Custom filename for results (timestamp will be appended)
     NUM_WORKERS: Number of parallel workers (default: 1, set to 10 for parallel execution)
 
 OUTPUT:
