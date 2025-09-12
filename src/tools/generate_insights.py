@@ -237,17 +237,13 @@ async def generate_insights(
         # Format the response message
         message_parts = []
 
-        message_parts.append(f"**{insight.title}**")
-        message_parts.append(f"Chart Type: {insight.chart_type}")
+        message_parts.append(f"Title: {insight.title}")
         message_parts.append(f"Key Finding: {insight.insight}")
-        message_parts.append(f"Data Points: {len(insight.data)}")
-        message_parts.append("")
 
         # Add follow-up suggestions
-        message_parts.append("**💡 Follow-up suggestions:**")
+        message_parts.append("Follow-up suggestions:")
         for i, suggestion in enumerate(follow_ups, 1):
             message_parts.append(f"{i}. {suggestion}")
-        message_parts.append("")
 
         # Store chart data for frontend
         charts_data = [
