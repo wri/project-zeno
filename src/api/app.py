@@ -71,6 +71,7 @@ from src.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
 from src.utils.config import APISettings
 from src.utils.database import (
     close_global_pool,
+    get_session_from_pool,
     get_session_from_pool_dependency,
     initialize_global_pool,
 )
@@ -499,7 +500,6 @@ async def check_signup_limit_allows_new_user(
 async def fetch_user_from_rw_api(
     request: Request,
     authorization: Optional[str] = Depends(security),
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> UserModel:
     if not authorization:
         return None
@@ -512,7 +512,9 @@ async def fetch_user_from_rw_api(
         if token in _user_info_cache:
             return _user_info_cache[token]
 
-        user_model = await validate_machine_user_token(token, session)
+        # Only create database session if not cached
+        async with get_session_from_pool() as session:
+            user_model = await validate_machine_user_token(token, session)
         _user_info_cache[token] = user_model
         return user_model
 
@@ -581,15 +583,17 @@ async def fetch_user_from_rw_api(
 
     user_email = user_info["email"]
 
-    if (
-        not await is_user_whitelisted(user_email, session)
-        and not APISettings.allow_public_signups
-    ):
-        # Only block if user is NOT whitelisted AND public signups are disabled
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User not allowed to access this API",
-        )
+    # Only create database session if needed for whitelist check
+    async with get_session_from_pool() as session:
+        if (
+            not await is_user_whitelisted(user_email, session)
+            and not APISettings.allow_public_signups
+        ):
+            # Only block if user is NOT whitelisted AND public signups are disabled
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User not allowed to access this API",
+            )
 
     # Allow access (either whitelisted or public signups enabled)
     user_model = UserModel.model_validate(user_info)
@@ -599,7 +603,6 @@ async def fetch_user_from_rw_api(
 
 async def require_auth(
     user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> UserModel:
     """
     Requires Authorization - raises HTTPException if not authenticated
@@ -610,21 +613,22 @@ async def require_auth(
             detail="Missing Bearer token in Authorization header",
         )
 
-    stmt = select(UserOrm).filter_by(id=user_info.id)
-    result = await session.execute(stmt)
-    user = result.scalars().first()
-    if not user:
-        # Check signup limits for new users
-        if not await check_signup_limit_allows_new_user(
-            user_info.email, session
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User signups are currently closed",
-            )
-        user = UserOrm(**user_info.model_dump())
-        session.add(user)
-        await session.commit()
+    async with get_session_from_pool() as session:
+        stmt = select(UserOrm).filter_by(id=user_info.id)
+        result = await session.execute(stmt)
+        user = result.scalars().first()
+        if not user:
+            # Check signup limits for new users
+            if not await check_signup_limit_allows_new_user(
+                user_info.email, session
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User signups are currently closed",
+                )
+            user = UserOrm(**user_info.model_dump())
+            session.add(user)
+            await session.commit()
     # Bind user info to request context for logging
     bind_request_logging_context(user_id=user.id)
     return UserModel(
@@ -652,7 +656,6 @@ async def require_auth(
 
 async def optional_auth(
     user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> Optional[UserModel]:
     """
     Optional Authorization - returns None if not authenticated,
@@ -661,22 +664,23 @@ async def optional_auth(
     if not user_info:
         return None
 
-    stmt = select(UserOrm).filter_by(id=user_info.id)
-    result = await session.execute(stmt)
-    user = result.scalars().first()
-    if not user:
-        # Check signup limits for new users
-        if not await check_signup_limit_allows_new_user(
-            user_info.email, session
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User signups are currently closed",
-            )
-        user = UserOrm(**user_info.model_dump())
-        session.add(user)
-        await session.commit()
-        await session.refresh(user)
+    async with get_session_from_pool() as session:
+        stmt = select(UserOrm).filter_by(id=user_info.id)
+        result = await session.execute(stmt)
+        user = result.scalars().first()
+        if not user:
+            # Check signup limits for new users
+            if not await check_signup_limit_allows_new_user(
+                user_info.email, session
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User signups are currently closed",
+                )
+            user = UserOrm(**user_info.model_dump())
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
     # Bind user info to request context for logging
     bind_request_logging_context(user_id=user.id)
     return UserModel(
@@ -700,17 +704,6 @@ async def optional_auth(
         areas_of_interest=user.areas_of_interest,
         has_profile=user.has_profile,
     )
-
-
-# Keep the old function for backward compatibility during transition
-async def fetch_user(
-    user_info: UserModel = Depends(fetch_user_from_rw_api),
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
-):
-    """
-    Deprecated: Use require_auth() or optional_auth() instead
-    """
-    return await optional_auth(user_info, session)
 
 
 async def extract_anonymous_session_cookie(request: Request) -> Optional[str]:
@@ -922,7 +915,6 @@ async def chat(
     request: Request,
     chat_request: ChatRequest,
     user: Optional[UserModel] = Depends(optional_auth),
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """
     Chat endpoint for Zeno with quota tracking.
@@ -936,7 +928,6 @@ async def chat(
             API (optional for anonymous users)
         quota_info (dependency injection): The user's quota information, including
             identity, current usage and limits
-        session (dependency injection): The database session for the request
 
     Returns:
         Streamed chat response in NDJSON format
@@ -977,24 +968,26 @@ async def chat(
             query=chat_request.query,
         )
 
-        stmt = select(ThreadOrm).filter_by(
-            id=chat_request.thread_id, user_id=user.id
-        )
-        result = await session.execute(stmt)
-        thread = result.scalars().first()
+        async with get_session_from_pool() as session:
+            stmt = select(ThreadOrm).filter_by(
+                id=chat_request.thread_id, user_id=user.id
+            )
+            result = await session.execute(stmt)
+            thread = result.scalars().first()
 
         if not thread:
             # Generate thread name from the first query
             thread_name = await generate_thread_name(chat_request.query)
-            thread = ThreadOrm(
-                id=chat_request.thread_id,
-                user_id=user.id,
-                agent_id="UniGuana",
-                name=thread_name,
-            )
-            session.add(thread)
-            await session.commit()
-            await session.refresh(thread)
+            async with get_session_from_pool() as session:
+                thread = ThreadOrm(
+                    id=chat_request.thread_id,
+                    user_id=user.id,
+                    agent_id="UniGuana",
+                    name=thread_name,
+                )
+                session.add(thread)
+                await session.commit()
+                await session.refresh(thread)
         thread_id = thread.id
     else:
         # For anonymous users, use the thread_id from request but don't persist
@@ -1021,11 +1014,8 @@ async def chat(
     # pairs (as long as the keys don't begin with `langfuse_*`)
     # eg: langfuse_metadata["job_title"] = user.job_title
 
-    # Enforce quota upfront using the session
-    quota_info = await enforce_quota(request, user, session)
-
-    # Close session immediately after all database operations are complete
-    await session.close()
+    async with get_session_from_pool() as session:
+        quota_info = await enforce_quota(request, user, session)
 
     try:
         headers = {}

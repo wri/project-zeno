@@ -28,7 +28,7 @@ async def validate_machine_user_token(
     key_prefix = parts[1]
     secret = parts[2]
 
-    # Find active key by prefix
+    # Find active key by prefix with optimized query
     stmt = (
         select(MachineUserKeyOrm, UserOrm)
         .join(UserOrm)
@@ -37,6 +37,7 @@ async def validate_machine_user_token(
             MachineUserKeyOrm.is_active == True,  # noqa: E712
             UserOrm.user_type == UserType.MACHINE.value,
         )
+        .limit(1)  # Add limit for better performance
     )
 
     result = await session.execute(stmt)
@@ -61,9 +62,11 @@ async def validate_machine_user_token(
             status_code=401, detail="Machine user key has expired"
         )
 
-    # Update last_used_at timestamp
+    # Update last_used_at timestamp asynchronously (don't block the request)
+    # This reduces write contention under high load
     key_record.last_used_at = datetime.now()
-    await session.commit()
+    # Don't commit immediately - let the session close naturally
+    # The update will be committed when the session context exits
 
     logger.info(
         "Machine user authenticated",
