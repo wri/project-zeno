@@ -19,6 +19,7 @@ from src.tools.data_handlers.analytics_handler import (
     TREE_COVER_LOSS_ID,
 )
 from src.tools.datasets_config import DATASETS
+from src.utils.config import APISettings
 from src.utils.llms import MODEL
 from src.utils.logging_config import get_logger
 
@@ -211,6 +212,11 @@ async def pick_dataset(
 
     start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    if not selection_result.tile_url.startswith("http"):
+        selection_result.tile_url = (
+            APISettings.eoapi_base_url + selection_result.tile_url
+        )
 
     if selection_result.dataset_id == DIST_ALERT_ID:
         selection_result.tile_url += (
