@@ -295,7 +295,8 @@ async def generate_insights(
                         ToolMessage(
                             content="I've reached my processing limit - you may have requested a large set of areas or too many data points. I'm clearing the current dataset to prevent errors. To continue your analysis, please start a new chat conversation and re-select your areas and datasets.",
                             tool_call_id=tool_call_id,
-                            status="error",
+                            status="success",
+                            response_metadata={"msg_type": "human_feedback"},
                         )
                     ],
                 }

@@ -86,7 +86,7 @@ When you see UI action messages:
 4. If user asks to change selections, override UI selections
 
 PICK-AOI TOOL NOTES:
-Use subregion parameter ONLY when the user wants to analyze or compare data ACROSS multiple administrative units within a parent area. If you ask for AOI clarification, call pick_aoi again after the user responds.
+Use subregion parameter ONLY when the user wants to analyze or compare data ACROSS multiple administrative units within a parent area.
 
 CRITICAL: If you ask the user to clarify which AOI they mean, you MUST call pick_aoi tool again with their clarified choice. Do NOT skip to pull_data or other tools without first calling pick_aoi with the user's specified location.
 
