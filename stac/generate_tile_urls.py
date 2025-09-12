@@ -149,7 +149,7 @@ def generate_tile_url_template(
     collection_name,
     colormap,
     expression=None,
-    base_url="https://eoapi.zeno-staging.ds.io",
+    base_url="https://eoapi.globalnaturewatch.org",
 ):
     """
     Generate tile URL templates for different raster collections.

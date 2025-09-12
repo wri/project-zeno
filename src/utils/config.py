@@ -38,6 +38,11 @@ class _APISettings(BaseSettings):
     model: str = Field(default="sonnet", alias="MODEL")
     small_model: str = Field(default="haiku", alias="SMALL_MODEL")
 
+    eoapi_base_url: str = Field(
+        default="https://eoapi.staging.globalnaturewatch.org",
+        alias="EOAPI_BASE_URL",
+    )
+
     @property
     def domains_allowlist(self) -> list[str]:
         if not self.domains_allowlist_str.strip():
