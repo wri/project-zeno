@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any, Dict, List
 
@@ -94,47 +95,88 @@ class InsightResponse(BaseModel):
 def _create_insight_generation_prompt() -> ChatPromptTemplate:
     """Create the insight generation prompt with dynamic dataset information."""
     available_datasets = _get_available_datasets()
+    current_date = datetime.now().strftime("%Y-%m-%d")
 
     return ChatPromptTemplate.from_messages(
         [
             (
                 "user",
-                f"""
-You are the Global Nature Watch's Geospatial Assistant that analyzes environmental data and creates insightful visualizations.
+                f"""# ROLE
+You are the Global Nature Watch's Geospatial Assistant, an expert at analyzing environmental data and creating insightful visualizations.
 
-Analyze the provided data and generate the most useful chart insight that answers the user's query. If the user requests a specific chart type (e.g., "show as bar chart", "make this a pie chart"), prioritize that chart type if it's appropriate for the data.
+# CONTEXT
+Current date: {current_date}
 
-Chart types available:
-- 'line': Time series/trends
-- 'bar': Categorical comparisons
-- 'stacked-bar': Composition within categories
-- 'grouped-bar': Multiple metrics across categories
-- 'pie': Part-to-whole (max 6-8 categories)
-- 'area': Cumulative trends
-- 'scatter': Correlations
-- 'table': Detailed data
+# TASK
+First, evaluate if the provided data can answer the user's query. If not, provide feedback on missing data requirements instead of generating a chart.
 
-Data format requirements:
-- Array of objects with simple field names (e.g., 'date', 'value', 'category')
-- Numeric values as numbers, not strings
-- For stacked-bar: [{{{{\"category\": \"2020\", \"metric1\": 100, \"metric2\": 50}}}}] + set series_fields
-- For grouped-bar: [{{{{\"year\": \"2020\", \"type\": \"metric1\", \"value\": 100}}}}] + set group_field
-- If dates are present, order those in chronological order (not alphabetically)
+If data is sufficient, generate ONE chart insight that best answers the user's query. If the user specifies a chart type (e.g., "show as bar chart", "make this a pie chart"), prioritize that type if appropriate for the data.
 
-User query: {{user_query}}
+# USER QUERY
+{{user_query}}
 
+# DATA TO ANALYZE
 {{raw_data_prompt}}
 
-Generate:
-1. One chart insight with appropriate chart type, Recharts-compatible data, and clear axis fields
-2. 1 or 2 simple follow ups to the user query based on the actual data available
+# DATASET-SPECIFIC GUIDELINES
+{{dataset_guidelines}}
 
-Your capabilities: You can analyze data for any area of interest, pull data from datasets like {available_datasets} for different time periods, and create charts/insights. Base follow-ups on what's actually possible with available data and tools.
+# CRITICAL DATA EVALUATION
+**BEFORE PROCEEDING**: Carefully examine if the available data can answer the user's query:
 
-IMPORTANT: Generate all insights, titles, and follow-up suggestions in the same language used in the user query.
+**If data is INSUFFICIENT or MISSING required fields:**
+- DO NOT generate any chart insight
+- Instead, respond with specific feedback explaining:
+  * What exact data/fields are missing for the analysis
+  * Which dataset(s) would contain the required information
+  * Which region(s) need additional data collection
+  * Suggest: "Please select [specific dataset] for [specific region] and pull the data again"
 
-Follow-up examples: "Show trend over different period", "Compare with another [region] near by", "Top/bottom performers in [metric]"
-                """,
+**Only proceed to chart generation if data is SUFFICIENT for the query.**
+
+# CHART TYPE SELECTION
+Choose the most appropriate chart type:
+- **line**: Time series data, trends over time
+- **bar**: Categorical comparisons, rankings
+- **stacked-bar**: Show composition within categories (requires series_fields)
+- **grouped-bar**: Compare multiple metrics across categories (requires group_field)
+- **pie**: Part-to-whole relationships (limit to 6-8 categories max)
+- **area**: Cumulative trends, stacked time series
+- **scatter**: Show correlations between two variables
+- **table**: Detailed data when visualization isn't optimal
+
+# DATA FORMAT REQUIREMENTS
+Your chart data MUST follow these rules:
+1. **Structure**: Array of objects with simple field names
+2. **Field names**: Use clear names like 'date', 'value', 'category', 'year'
+3. **Numeric values**: Always numbers, never strings (e.g., 100 not "100")
+4. **Date ordering**: Chronological order, not alphabetical
+5. **Special formats**:
+   - Stacked-bar: [{{{{\"category\": \"2020\", \"metric1\": 100, \"metric2\": 50}}}}] + set series_fields
+   - Grouped-bar: [{{{{\"year\": \"2020\", \"type\": \"metric1\", \"value\": 100}}}}] + set group_field
+
+# OUTPUT REQUIREMENTS
+Generate exactly:
+1. **One chart insight** with:
+   - Appropriate chart type for the data
+   - Recharts-compatible data array
+   - Clear x_axis and y_axis field mappings
+   - Insightful title and analysis
+
+2. **1-2 follow-up suggestions** based on available data and capabilities
+
+# CAPABILITIES CONTEXT
+You can analyze data for any area of interest, pull data from datasets like {available_datasets} for different time periods, and create various charts/insights. Base follow-ups on what's actually possible with available data and tools.
+
+# LANGUAGE REQUIREMENT
+Generate ALL content (insights, titles, follow-ups) in the SAME LANGUAGE as the user query.
+
+# FOLLOW-UP EXAMPLES
+- "Show trend over different time period"
+- "Compare with nearby [region/area]"
+- "Identify top/bottom performers in [metric]"
+- "Break down by [relevant category]"
+""",
             ),
         ]
     )
@@ -167,8 +209,12 @@ async def generate_insights(
     answers the user's query, along with follow-up suggestions for further exploration.
 
     Args:
-        query: The user's query to guide insight generation and chart type selection.
-        is_comparison: Whether the user is comparing two areas of interest.
+        query: Improved query from the user including relevant context that will help in
+               better insight generation. Should include specific chart type requests,
+               temporal focus, comparison aspects, and any domain-specific context.
+        is_comparison: Whether the user is comparing two or more different AOIs (e.g.,
+                      comparing Brazil vs Indonesia). Set to False for comparisons within
+                      a specific AOI (e.g., provinces in a country, KBAs in a region, counties in a state).
     """
     logger.info("GENERATE-INSIGHTS-TOOL")
     logger.debug(f"Generating insights for query: {query}")
@@ -190,18 +236,24 @@ async def generate_insights(
 
     raw_data = state["raw_data"]
 
-    raw_data_prompt = (
-        "Below are raw data csv of one or more aois and datasets\n"
-    )
+    raw_data_prompt = "## RAW DATA FOR ANALYSIS\n\n"
+
     if is_comparison:
-        for data_by_aoi in raw_data.values():
-            for data in data_by_aoi.values():
+        raw_data_prompt += "**COMPARISON MODE**: Multiple areas/datasets provided for comparative analysis.\n\n"
+        for i, data_by_aoi in enumerate(raw_data.values(), 1):
+            for j, data in enumerate(data_by_aoi.values(), 1):
                 data_copy = data.copy()
                 aoi_name = data_copy.pop("aoi_name")
                 dataset_name = data_copy.pop("dataset_name")
                 data_csv = get_data_csv(data_copy)
-                raw_data_prompt += f"\nCSV data for AOI with name {aoi_name} and dataset with name {dataset_name}:\n\n{data_csv}\n"
+                raw_data_prompt += (
+                    f"### Dataset {i}.{j}: {aoi_name} - {dataset_name}\n"
+                )
+                raw_data_prompt += f"```csv\n{data_csv}\n```\n\n"
     else:
+        raw_data_prompt += (
+            "**SINGLE ANALYSIS MODE**: One area and dataset provided.\n\n"
+        )
         # Get the latest key if not comparing
         data_by_aoi = list(raw_data.values())[-1]
         data = list(data_by_aoi.values())[-1]
@@ -209,12 +261,19 @@ async def generate_insights(
         aoi_name = data_copy.pop("aoi_name")
         dataset_name = data_copy.pop("dataset_name")
         data_csv = get_data_csv(data_copy)
-        raw_data_prompt += f"\nCSV data for AOI with name {aoi_name} and dataset with name {dataset_name}:\n\n{data_csv}\n"
+        raw_data_prompt += f"### Dataset: {aoi_name} - {dataset_name}\n"
+        raw_data_prompt += f"```csv\n{data_csv}\n```\n\n"
 
     dat = {key: len(value) for key, value in raw_data.items()}
     logger.debug(f"Processing data with row counts: {dat}")
 
-    prompt_instructions = state.get("dataset").get("prompt_instructions", "")
+    dataset_guidelines = state.get("dataset").get("prompt_instructions", "")
+    if dataset_guidelines:
+        dataset_guidelines = (
+            f"**Important guidelines for this dataset:**\n{dataset_guidelines}"
+        )
+    else:
+        dataset_guidelines = "No specific dataset guidelines provided."
 
     try:
         prompt = _create_insight_generation_prompt()
@@ -223,7 +282,7 @@ async def generate_insights(
             {
                 "user_query": query,
                 "raw_data_prompt": raw_data_prompt,
-                "prompt_instructions": prompt_instructions,
+                "dataset_guidelines": dataset_guidelines,
             }
         )
 
