@@ -31,7 +31,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.api.auth.machine_user import MACHINE_USER_PREFIX
-from src.api.data_models import MachineUserKeyOrm, UserOrm, UserType, WhitelistedUserOrm
+from src.api.data_models import (
+    MachineUserKeyOrm,
+    UserOrm,
+    UserType,
+    WhitelistedUserOrm,
+)
 from src.utils.config import APISettings
 
 
@@ -217,7 +222,7 @@ async def revoke_api_key(
 
 async def make_user_admin(session: AsyncSession, email: str) -> UserOrm:
     """Make a user admin by setting their user_type to admin"""
-    
+
     # Find user by email
     result = await session.execute(
         select(UserOrm).where(UserOrm.email == email)
@@ -225,39 +230,40 @@ async def make_user_admin(session: AsyncSession, email: str) -> UserOrm:
     user = result.scalar_one_or_none()
     if not user:
         raise ValueError(f"User with email {email} not found")
-    
+
     # Update user type to admin
     user.user_type = UserType.ADMIN.value
     user.updated_at = datetime.now()
-    
+
     await session.commit()
     await session.refresh(user)
-    
+
     return user
 
 
-async def add_whitelisted_user(session: AsyncSession, email: str) -> WhitelistedUserOrm:
+async def add_whitelisted_user(
+    session: AsyncSession, email: str
+) -> WhitelistedUserOrm:
     """Add an email address to the whitelisted_users table"""
-    
+
     # Check if email already exists
     result = await session.execute(
         select(WhitelistedUserOrm).where(WhitelistedUserOrm.email == email)
     )
     existing_user = result.scalar_one_or_none()
-    
+
     if existing_user:
         return existing_user
-    
+
     # Create new whitelisted user
     whitelisted_user = WhitelistedUserOrm(
-        email=email,
-        created_at=datetime.now()
+        email=email, created_at=datetime.now()
     )
-    
+
     session.add(whitelisted_user)
     await session.commit()
     await session.refresh(whitelisted_user)
-    
+
     return whitelisted_user
 
 
@@ -497,7 +503,7 @@ def make_user_admin_command(email: str):
         try:
             async with db.async_session() as session:
                 user = await make_user_admin(session, email)
-                
+
                 click.echo("✅ Made user admin:")
                 click.echo(f"   ID: {user.id}")
                 click.echo(f"   Name: {user.name}")
@@ -513,7 +519,9 @@ def make_user_admin_command(email: str):
 
 
 @cli.command("whitelist-email")
-@click.option("--email", required=True, help="Email address to add to whitelist")
+@click.option(
+    "--email", required=True, help="Email address to add to whitelist"
+)
 def whitelist_email_command(email: str):
     """Add an email address to the whitelisted_users table"""
 
@@ -522,7 +530,7 @@ def whitelist_email_command(email: str):
         try:
             async with db.async_session() as session:
                 whitelisted_user = await add_whitelisted_user(session, email)
-                
+
                 click.echo("✅ Added email to whitelist:")
                 click.echo(f"   Email: {whitelisted_user.email}")
                 click.echo(f"   Created: {whitelisted_user.created_at}")

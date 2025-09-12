@@ -8,7 +8,12 @@ import pytest
 from click.testing import CliRunner
 from sqlalchemy import select
 
-from src.api.data_models import MachineUserKeyOrm, UserOrm, UserType, WhitelistedUserOrm
+from src.api.data_models import (
+    MachineUserKeyOrm,
+    UserOrm,
+    UserType,
+    WhitelistedUserOrm,
+)
 from src.cli import (
     add_whitelisted_user,
     cli,
@@ -624,7 +629,9 @@ class TestWhitelistFunctions:
     async def test_add_whitelisted_user_success(self):
         """Test successful whitelist addition."""
         async with async_session_maker() as session:
-            whitelisted_user = await add_whitelisted_user(session, "test@example.com")
+            whitelisted_user = await add_whitelisted_user(
+                session, "test@example.com"
+            )
 
             assert whitelisted_user.email == "test@example.com"
             assert whitelisted_user.created_at is not None
@@ -634,11 +641,15 @@ class TestWhitelistFunctions:
         """Test adding duplicate email returns existing record."""
         async with async_session_maker() as session:
             # Add first time
-            first_user = await add_whitelisted_user(session, "test@example.com")
+            first_user = await add_whitelisted_user(
+                session, "test@example.com"
+            )
             first_created_at = first_user.created_at
 
             # Add second time (should return existing)
-            second_user = await add_whitelisted_user(session, "test@example.com")
+            second_user = await add_whitelisted_user(
+                session, "test@example.com"
+            )
 
             assert second_user.email == first_user.email
             assert second_user.created_at == first_created_at
@@ -662,7 +673,9 @@ class TestUserManagementCLICommands:
 
     @patch("src.cli.DatabaseManager")
     @patch("src.cli.make_user_admin")
-    def test_make_user_admin_command_success(self, mock_make_admin, mock_db_manager):
+    def test_make_user_admin_command_success(
+        self, mock_make_admin, mock_db_manager
+    ):
         """Test make-user-admin CLI command success."""
         # Mock database operations
         mock_session = AsyncMock()
@@ -702,7 +715,9 @@ class TestUserManagementCLICommands:
         mock_db_manager.return_value.close = AsyncMock()
 
         # Mock error
-        mock_make_admin.side_effect = ValueError("User with email test@example.com not found")
+        mock_make_admin.side_effect = ValueError(
+            "User with email test@example.com not found"
+        )
 
         # Run command
         result = self.runner.invoke(
@@ -710,7 +725,9 @@ class TestUserManagementCLICommands:
             ["make-user-admin", "--email", "test@example.com"],
         )
 
-        assert result.exit_code == 0  # Click doesn't change exit code for our error handling
+        assert (
+            result.exit_code == 0
+        )  # Click doesn't change exit code for our error handling
         assert "❌ Error:" in result.output
         assert "not found" in result.output
 
@@ -744,7 +761,9 @@ class TestUserManagementCLICommands:
 
     @patch("src.cli.DatabaseManager")
     @patch("src.cli.add_whitelisted_user")
-    def test_whitelist_email_command_error(self, mock_add_whitelist, mock_db_manager):
+    def test_whitelist_email_command_error(
+        self, mock_add_whitelist, mock_db_manager
+    ):
         """Test whitelist-email CLI command with error."""
         # Mock database operations
         mock_session = AsyncMock()
@@ -760,6 +779,8 @@ class TestUserManagementCLICommands:
             ["whitelist-email", "--email", "test@example.com"],
         )
 
-        assert result.exit_code == 0  # Click doesn't change exit code for our error handling
+        assert (
+            result.exit_code == 0
+        )  # Click doesn't change exit code for our error handling
         assert "❌ Error:" in result.output
         assert "Database error" in result.output
