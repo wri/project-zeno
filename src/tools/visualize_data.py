@@ -75,20 +75,31 @@ async def run_visualization_from_query(query: str) -> Command:
         start_date, end_date = dates.start_date, dates.end_date
 
         # Build Titiler-STACAPI tile URL
-        titiler_url = "http://127.0.0.1:8080"
-        tile_url = (
-            f"{titiler_url}/collections/sentinel-2-l2a/WebMercatorQuad/map"
+        titiler_base_url = "http://127.0.0.1:8080"
+        titiler_url = (
+            f"{titiler_base_url}/collections/sentinel-2-l2a/WebMercatorQuad/map"
             f"?assets=red&assets=green&assets=blue"
-            f"&rescale=0,10000"
+            f"&rescale=0,3000"
             f"&datetime={start_date}/{end_date}"
             f"&bbox={','.join(map(str, bbox))}"
             f"&minzoom=11"
         )
 
-        print(f"{tile_url}")
+        # Build Titiler-STACAPI slippy map URL
+        slippymap_url = (
+            f"{titiler_base_url}/collections/sentinel-2-l2a/WebMercatorQuad/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png"
+            f"?assets=red&assets=green&assets=blue"
+            f"&rescale=0,3000"
+            f"&datetime={start_date}/{end_date}"
+            f"&bbox={','.join(map(str, bbox))}"
+            f"&minzoom=11"
+        )
+
+        print(f"{titiler_url}, {slippymap_url}")
 
         return Command(update={
-            "titiler_url": tile_url,
+            "titiler_url": slippymap_url,
+            "daterange": f"{start_date}/{end_date}",
             "aoi": aoi_name,
             "source": source,
             "src_id": src_id,
@@ -96,7 +107,7 @@ async def run_visualization_from_query(query: str) -> Command:
             "end_date": end_date,
             "messages": [
                 {
-                    "content": f"Sentinel-2 RGB composite for **{aoi_name}** ({start_date} → {end_date}) → `{tile_url}`"
+                    "content": f"Sentinel-2 RGB composite for **{aoi_name}** ({start_date} → {end_date}) → `{slippymap_url}`"
                 }
             ]
         })
@@ -120,7 +131,7 @@ async def visualize_sentinel2_from_query(query: str) -> Command:
 
 if __name__ == "__main__":
     result = asyncio.run(
-        visualize_sentinel2_from_query.ainvoke({"query": "show me Lisbon Portugal in summer of 2025"})
+        visualize_sentinel2_from_query.ainvoke({"query": "show me Lisbon Portugal in the first week of August of 2025"})
     )
     print("Titiler URL:", result.update.get("titiler_url"))
     print("Full command result:", result.update)
