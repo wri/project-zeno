@@ -91,7 +91,7 @@ async def run_visualization_from_query(query: str) -> Command:
             f"?assets=red&assets=green&assets=blue"
             f"&rescale=0,3000"
             f"&datetime={start_date}/{end_date}"
-            f"&bbox={','.join(map(str, bbox))}"
+            #f"&bbox={','.join(map(str, bbox))}"
             f"&minzoom=11"
         )
 
