@@ -128,6 +128,9 @@ async def pull_data(
                 # This handles the custom AOIs that might not have a name
                 raw_data["aoi_name"] = aoi["aoi"]["src_id"]
 
+            raw_data["start_date"] = [start_date]
+            raw_data["end_date"] = [end_date]
+
         if aoi["aoi"]["src_id"] not in current_raw_data:
             current_raw_data[aoi["aoi"]["src_id"]] = {}
         current_raw_data[aoi["aoi"]["src_id"]][dataset["dataset_id"]] = (
