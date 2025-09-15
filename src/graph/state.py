@@ -1,3 +1,4 @@
+import operator
 from typing import Annotated, Sequence
 
 from langchain_core.messages import BaseMessage
@@ -17,7 +18,7 @@ class AgentState(TypedDict):
     subregion: str
     aoi_name: str
     subtype: str
-    aoi_options: list[dict]
+    aoi_options: Annotated[list[dict], operator.add] = []
 
     # pick-dataset tool
     dataset: dict

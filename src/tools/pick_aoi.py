@@ -593,17 +593,15 @@ async def pick_aoi(
         logger.info(
             f"Selected AOI: {name}, type: {subtype}, source: {source}, src_id: {src_id}"
         )
-        aoi_options = state.get("aoi_options", [])
-        if aoi_options is None:
-            aoi_options = []
-        aoi_options.append(
+
+        aoi_options_update = [
             {
                 "aoi": selected_aoi,
                 "subregion_aois": subregion_aois,
                 "subregion": subregion,
                 "subtype": subtype,
             }
-        )
+        ]
 
         return Command(
             update={
@@ -612,7 +610,7 @@ async def pick_aoi(
                 "subregion": subregion,
                 "aoi_name": name,
                 "subtype": subtype,
-                "aoi_options": aoi_options,
+                "aoi_options": aoi_options_update,
                 # Update the message history
                 "messages": [
                     ToolMessage(tool_message, tool_call_id=tool_call_id)
