@@ -563,9 +563,7 @@ datasets:
 
 - dataset_id: 4
   dataset_name: Tree cover loss
-  context_layers:
-    - value: "driver"
-      description: "Shows the primary driver of tree cover loss, including: commodity-driven deforestation, shifting agriculture, forestry, wildfire, and other drivers"
+  context_layers: null
   variables:
     - value: "primary_forest"
       description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
