@@ -189,7 +189,7 @@ async def pick_dataset(
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
     """
-    Given a user query, runs RAG to retrieve relevant datasets, selects the best matching dataset with reasoning,
+    Given a user query, runs RAG to retrieve relevant datasets, selects the best matching dataset within the specified time range with reasoning,
     and extracts relevant metadata needed for downstream querying.
 
     Args:
