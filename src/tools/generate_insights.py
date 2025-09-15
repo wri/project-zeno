@@ -61,6 +61,10 @@ class ChartInsight(BaseModel):
     y_axis: str = Field(
         description="Name of the field to use for Y-axis (for applicable chart types)"
     )
+    unit: str = Field(
+        default="",
+        description="Unit of measurement for the y-axis values (e.g., 'hectares', 'alerts', '%', 'km²')",
+    )
     color_field: str = Field(
         default="",
         description="Optional field name for color grouping/categorization",
@@ -161,6 +165,7 @@ Generate exactly:
    - Appropriate chart type for the data
    - Recharts-compatible data array
    - Clear x_axis and y_axis field mappings
+   - Appropriate unit for y-axis values (e.g., 'hectares', 'alerts', '%', 'km²', 'count')
    - Insightful title and analysis
 
 2. **1-2 follow-up suggestions** based on available data and capabilities
@@ -314,6 +319,7 @@ async def generate_insights(
                 "data": insight.data,
                 "xAxis": insight.x_axis,
                 "yAxis": insight.y_axis,
+                "unit": insight.unit,
                 "colorField": insight.color_field,
                 "stackField": insight.stack_field,
                 "groupField": insight.group_field,
