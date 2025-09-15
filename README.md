@@ -186,6 +186,10 @@ Then run the API tests using pytest:
 uv run pytest tests/api/
 ```
 
+## CLI User Management
+
+For user administration commands (making users admin, whitelisting emails), see [CLI Documentation](docs/CLI.md).
+
 ## Environment Files
 
 - `.env` - Base configuration (production settings)
