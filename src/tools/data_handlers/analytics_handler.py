@@ -268,11 +268,6 @@ class AnalyticsHandler(DataSourceHandler):
                 **base_payload,
                 "canopy_cover": 30,
                 "forest_filter": "primary_forest",
-                "intersections": (
-                    [dataset["context_layer"]]
-                    if dataset.get("context_layer")
-                    else []
-                ),
             }
         else:
             raise ValueError(
