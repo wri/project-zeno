@@ -26,7 +26,7 @@ from typing import Optional
 
 import bcrypt
 import click
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -223,9 +223,10 @@ async def revoke_api_key(
 async def make_user_admin(session: AsyncSession, email: str) -> UserOrm:
     """Make a user admin by setting their user_type to admin"""
 
-    # Find user by email
+    # Find user by email (case-insensitive)
+    email_lower = email.lower()
     result = await session.execute(
-        select(UserOrm).where(UserOrm.email == email)
+        select(UserOrm).where(func.lower(UserOrm.email) == email_lower)
     )
     user = result.scalar_one_or_none()
     if not user:
