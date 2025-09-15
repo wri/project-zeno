@@ -59,21 +59,6 @@ class DataPullOrchestrator:
 data_pull_orchestrator = DataPullOrchestrator()
 
 
-async def get_aois_to_pull(
-    aoi_options: List[Dict], dataset_id: str, previous_pulls: Dict
-) -> List[Dict]:
-    """Check previous pulls for a given dataset"""
-    to_pull = []
-    for aoi_option in aoi_options:
-        if (
-            aoi_option["aoi"]["src_id"] in previous_pulls
-            and dataset_id in previous_pulls[aoi_option["aoi"]["src_id"]]
-        ):
-            continue
-        to_pull.append(aoi_option)
-    return to_pull
-
-
 @tool("pull_data")
 async def pull_data(
     query: str,
@@ -105,27 +90,11 @@ async def pull_data(
     dataset = state["dataset"]
     current_raw_data = state.get("raw_data", {})
 
-    # Match all AOIs in state that are not in previous pulls
-    aois_to_pull = await get_aois_to_pull(
-        state["aoi_options"], dataset["dataset_id"], current_raw_data
-    )
-    if not aois_to_pull:
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(
-                        content="No new AOIs to pull data for. All requested data has already been retrieved.",
-                        tool_call_id=tool_call_id,
-                    )
-                ],
-            },
-        )
-
     if current_raw_data is None:
         current_raw_data = {}
 
     tool_messages = []
-    for aoi in aois_to_pull:
+    for aoi in state["aoi_options"]:
         # Use orchestrator to pull data
         result = await data_pull_orchestrator.pull_data(
             query=query,
