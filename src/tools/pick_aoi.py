@@ -283,6 +283,12 @@ async def query_subregion_database(
     async with get_connection_from_pool() as conn:
 
         def _read(sync_conn):
+            if source == "kba":
+                # for these sources IDs stored as numeric values
+                try:
+                    src_id = int(src_id)
+                except ValueError:
+                    pass
             return pd.read_sql(
                 text(sql_query),
                 sync_conn,
