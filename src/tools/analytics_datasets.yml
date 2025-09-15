@@ -23,7 +23,7 @@ datasets:
     - deforestation
     - conversion
     - vegetation disturbance
-  analytics_api_endpoint: "/v0/land_change/dist_alerts/analytics"
+  analytics_api_endpoint: "/v0/land_cover_change/dist_alerts/analytics"
   prompt_instructions: >
     Use this dataset to show recent vegetation changes across all ecosystems, measured in hectares (ha).
     Show classified alerts (LDACS) by default, which is designed to reveal likely causes of disturbance,
