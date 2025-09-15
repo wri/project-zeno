@@ -38,6 +38,16 @@ async def test_query_aoi_multiple_matches(structlog_context):
             "Lisbon",
             "PRT.12.7.6_1",
         ),
+        (
+            "Assess natural lands in Resex Catua-Ipixuna",
+            "Resex Catua-Ipixuna",
+            "BRA79",
+        ),
+        (
+            "Assess natural lands in the Osceola, Research Natural Area, USA",
+            "Osceola, Research Natural Area, USA",
+            "555608530",
+        ),
     ],
 )
 @pytest.mark.asyncio
