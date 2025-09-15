@@ -22,6 +22,33 @@ def ingest_wdpa() -> None:
             columns={"id": "wdpa_id", "name": "wdpa_name"}
         )
 
+        # Simplify geometries with adaptive tolerance based on area
+        def simplify_geometry(geom):
+            if geom is None or geom.is_empty:
+                return geom
+
+            # Calculate area in square degrees (approximate)
+            area = geom.area
+
+            # Adaptive tolerance: larger geometries get more aggressive simplification
+            # Small geometries (< 0.01 sq degrees): tolerance = 0.001 (~111m at equator)
+            # Medium geometries (0.01-1 sq degrees): tolerance = 0.005 (~555m at equator)
+            # Large geometries (> 1 sq degrees): tolerance = 0.01 (~1.1km at equator)
+            if area < 0.01:
+                tolerance = 0.001
+            elif area < 1.0:
+                tolerance = 0.005
+            else:
+                tolerance = 0.01
+
+            try:
+                simplified = geom.simplify(tolerance, preserve_topology=True)
+                return simplified if simplified.is_valid else geom
+            except Exception:
+                return geom
+
+        gdf_chunk["geometry"] = gdf_chunk["geometry"].apply(simplify_geometry)
+
         # Add new name column
         gdf_chunk["name"] = gdf_chunk.apply(
             lambda row: ", ".join(
