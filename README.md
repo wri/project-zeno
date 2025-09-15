@@ -20,8 +20,10 @@ uses tools. The tools at a high level do the following things
 - Retrieve statistics from the WRI analytics api
 - Generate insights including charts from the data
 
-The LLM to use is plug and play, we rely mostly on Gemini
+The LLM to use is plug and play, we rely mostly on Sonnet & Gemini
 for planning and tool calling.
+
+For detailed technical architecture, see [Agent Architecture Documentation](docs/AGENT_ARCHITECTURE.md).
 
 ### Infrastructure
 
