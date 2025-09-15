@@ -621,6 +621,40 @@ class TestUserAdminFunctions:
             assert admin_user.user_type == UserType.ADMIN.value
             assert admin_user.updated_at > original_updated_at
 
+    @pytest.mark.asyncio
+    async def test_make_user_admin_case_insensitive(self):
+        """Test making user admin with case-insensitive email lookup."""
+        async with async_session_maker() as session:
+            # Create a regular user with mixed case email
+            user = UserOrm(
+                id="user_456",
+                name="Case Test User",
+                email="CaseTest@Example.COM",
+                user_type=UserType.REGULAR.value,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+            session.add(user)
+            await session.commit()
+
+            # Make user admin using lowercase email
+            admin_user = await make_user_admin(session, "casetest@example.com")
+
+            assert admin_user.id == user.id
+            assert (
+                admin_user.email == "CaseTest@Example.COM"
+            )  # Original case preserved
+            assert admin_user.user_type == UserType.ADMIN.value
+            assert admin_user.updated_at > user.created_at
+
+            # Test with uppercase email
+            admin_user2 = await make_user_admin(
+                session, "CASETEST@EXAMPLE.COM"
+            )
+
+            assert admin_user2.id == user.id
+            assert admin_user2.user_type == UserType.ADMIN.value
+
 
 class TestWhitelistFunctions:
     """Test whitelist management functions."""
