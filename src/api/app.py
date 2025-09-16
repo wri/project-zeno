@@ -191,8 +191,6 @@ async def logging_middleware(request: Request, call_next) -> Response:
 
 os.environ["LANGFUSE_TRACING_ENVIRONMENT"] = os.getenv("STAGE", "production")
 
-langfuse = Langfuse()
-langfuse_handler = CallbackHandler(update_trace=True)
 langfuse_client = Langfuse()
 
 # HTTP Middleware to asign/verify anonymous session IDs
@@ -313,6 +311,7 @@ async def stream_chat(
     langfuse_metadata: Optional[Dict] = {},
     user: Optional[dict] = None,
 ):
+    langfuse_handler = CallbackHandler(update_trace=True)
     config = {
         "configurable": {"thread_id": thread_id},
         "callbacks": [langfuse_handler],
