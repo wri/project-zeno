@@ -239,7 +239,10 @@ class AnalyticsHandler(DataSourceHandler):
                 "start_year": start_date[:4],  # Extract year from YYYY-MM-DD
                 "end_year": end_date[:4],
             }
-        elif dataset.get("dataset_id") == TREE_COVER_LOSS_ID:
+        elif dataset.get("dataset_id") in [
+            TREE_COVER_LOSS_ID,
+            TREE_COVER_LOSS_BY_DRIVER_ID,
+        ]:
             payload = {
                 **base_payload,
                 "start_year": start_date[:4],
@@ -269,10 +272,7 @@ class AnalyticsHandler(DataSourceHandler):
                 **base_payload,
                 "canopy_cover": 30,
             }
-        elif dataset.get("dataset_id") in [
-            TREE_COVER_ID,
-            TREE_COVER_LOSS_BY_DRIVER_ID,
-        ]:
+        elif dataset.get("dataset_id") == TREE_COVER_ID:
             payload = {
                 **base_payload,
                 "canopy_cover": 30,

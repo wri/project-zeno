@@ -77,6 +77,11 @@ ALL_DATASET_COMBINATIONS = [
         "dataset_name": "Tree cover",
         "context_layer": None,
     },
+    {
+        "dataset_id": 8,
+        "dataset_name": "Tree cover loss by driver",
+        "context_layer": "driver",
+    },
 ]
 
 

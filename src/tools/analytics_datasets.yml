@@ -17,6 +17,8 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: "Underlying product updated daily, with image revisit time every 2-4 days. Product on GFW updated weekly."
   content_date: "1 January 2023 - present"
+  start_date: "2023-01-01"
+  content_date_fixed: false
   keywords:
     - land cover
     - alerts
@@ -150,6 +152,9 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: "Annual"
   content_date: "2015-2024"
+  start_date: "2015-01-01"
+  end_date: "2024-12-31"
+  content_date_fixed: false
   keywords:
     - global
     - land cover
@@ -304,6 +309,9 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: "Annual"
   content_date: "2000-2022, annual"
+  start_date: "2000-01-01"
+  end_date: "2022-12-31"
+  content_date_fixed: false
   keywords:
     - grasslands
     - natural grasslands
@@ -481,6 +489,9 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: "Irregular"
   content_date: "2020"
+  start_date: "2020-01-01"
+  end_date: "2020-12-31"
+  content_date_fixed: true
   keywords:
     - land cover
     - deforestation
@@ -575,6 +586,9 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: "annual"
   content_date: "2001-2024 annual"
+  start_date: "2001-01-01"
+  end_date: "2024-12-31"
+  content_date_fixed: false
   keywords:
     - deforestation
     - forest loss
@@ -688,6 +702,9 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: ""
   content_date: "2000-2020 five year intervals"
+  start_date: "2000-01-01"
+  end_date: "2020-12-31"
+  content_date_fixed: false
   keywords:
     - gain
     - forest regrowth
@@ -769,6 +786,9 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: "annual"
   content_date: "2001-2024"
+  start_date: "2001-01-01"
+  end_date: "2024-12-31"
+  content_date_fixed: false
   keywords:
     - ghg flux
     - greenhouse gas
@@ -869,6 +889,9 @@ datasets:
   resolution: "30 x 30 meters"
   update_frequency: ""
   content_date: "2000"
+  start_date: "2000-01-01"
+  end_date: "2000-12-31"
+  content_date_fixed: true
   keywords:
     - tree cover
     - forest
@@ -925,6 +948,9 @@ datasets:
   resolution: "0.01 x 0.01 degree (approximately 1 km at the equator)"
   update_frequency: "annual"
   content_date: "2001-2024"
+  start_date: "2001-01-01"
+  end_date: "2024-12-31"
+  content_date_fixed: true
   keywords:
     - deforestation
     - forest loss

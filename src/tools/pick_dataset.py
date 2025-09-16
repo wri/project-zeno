@@ -16,6 +16,7 @@ from src.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
     GRASSLANDS_ID,
     LAND_COVER_CHANGE_ID,
+    TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
 from src.tools.datasets_config import DATASETS
@@ -205,6 +206,9 @@ async def pick_dataset(
 
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await select_best_dataset(query, candidate_datasets)
+
+    if selection_result.dataset_id == TREE_COVER_LOSS_BY_DRIVER_ID:
+        selection_result.context_layer = "driver"
 
     tool_message = f"""Selected dataset: {selection_result.dataset_name}\nContext layer: {selection_result.context_layer}\nReasoning: {selection_result.reason}"""
 
