@@ -8,6 +8,7 @@ from langgraph.types import Command
 
 from src.tools.data_handlers.analytics_handler import AnalyticsHandler
 from src.tools.data_handlers.base import DataPullResult
+from src.tools.datasets_config import DATASETS
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -128,8 +129,27 @@ async def pull_data(
                 # This handles the custom AOIs that might not have a name
                 raw_data["aoi_name"] = aoi["aoi"]["src_id"]
 
-            raw_data["start_date"] = start_date
-            raw_data["end_date"] = end_date
+            ds_original = [
+                ds
+                for ds in DATASETS
+                if ds["dataset_id"] == dataset.get("dataset_id")
+            ]
+            if not ds_original:
+                raise ValueError(
+                    f"Dataset not found: {dataset.get('dataset_id')}"
+                )
+            ds_original = ds_original[0]
+
+            if ds_original.get("content_date_fixed"):
+                raw_data["start_date"] = ds_original.get("start_date")
+                raw_data["end_date"] = ds_original.get("end_date")
+            else:
+                raw_data["start_date"] = max(
+                    start_date, ds_original.get("start_date", "1900-01-01")
+                )
+                raw_data["end_date"] = min(
+                    end_date, ds_original.get("end_date", "9999-12-31")
+                )
 
         if aoi["aoi"]["src_id"] not in current_raw_data:
             current_raw_data[aoi["aoi"]["src_id"]] = {}
