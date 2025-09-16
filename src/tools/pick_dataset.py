@@ -227,13 +227,13 @@ async def pick_dataset(
             f"&start_date={start_date}&end_date={end_date}"
         )
     elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
-        if end_date.year in range(2015, 2025):
+        if end_date.year in range(2000, 2023):
             selection_result.tile_url = selection_result.tile_url.format(
                 year=end_date.year
             )
         else:
             selection_result.tile_url = selection_result.tile_url.format(
-                year="2024"
+                year="2022"
             )
     elif selection_result.dataset_id == TREE_COVER_LOSS_ID:
         if end_date.year in range(2001, 2025):
