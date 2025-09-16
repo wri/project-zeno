@@ -47,4 +47,4 @@ for ds in DATASETS:
 
 openai_index.add_documents(documents=analytics_docs)
 
-openai_index.dump(data_dir / "zeno-docs-openai-index-v2")
+openai_index.dump(data_dir / "zeno-docs-openai-index-v3")

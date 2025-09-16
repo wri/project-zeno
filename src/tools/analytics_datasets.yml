@@ -919,7 +919,7 @@ datasets:
   dataset_name: Tree cover loss by dominant driver
   context_layers: null
   variables: null
-  tile_url: "https://tiles.globalforestwatch.org/wri_google_tree_cover_loss_drivers/v1.12/dynamic/5/18/10.png?tree_cover_density_threshold=30&render_type=true_color"
+  tile_url: "https://tiles.globalforestwatch.org/wri_google_tree_cover_loss_drivers/v1.12/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30&render_type=true_color"
   license: "CC by 4.0"
   geographic_coverage: "Global"
   resolution: "0.01 x 0.01 degree (approximately 1 km at the equator)"
@@ -938,7 +938,7 @@ datasets:
     - settlements
   analytics_api_endpoint: "/v0/land_change/tree_cover_loss/analytics"
   prompt_instructions: >
-    Shows the primary driver or cause of tree cover loss over the entire range 2001-2024. 
+    Shows the primary driver or cause of tree cover loss over the entire range 2001-2024.
     Driver classes are permanent agriculture, hard commodities, shifting cultivation, logging,
     wildfire, settlements & infrastructure, and other natural disturbances.
     Ignore the Unknown class.
@@ -958,14 +958,14 @@ datasets:
     a non-forest land use (e.g., deforestation).  The dominant driver is defined as the direct
     driver that caused the majority of tree cover loss within each 1 km cell over the time period.
     Classes are defined as follows:
-    - Permanent agriculture: Long-term, permanent tree cover loss for small- tolarge-scale agriculture. 
+    - Permanent agriculture: Long-term, permanent tree cover loss for small- tolarge-scale agriculture.
     - Hard commodities: Loss due to the establishment or expansion of mining or energy infrastructure.
     - Shifting cultivation: Tree cover loss due to small- to medium-scale clearing for temporary
-      cultivation that is later abandoned and followed by subsequent regrowth of secondary forest or 
+      cultivation that is later abandoned and followed by subsequent regrowth of secondary forest or
       vegetation.
-    - Logging: Forest management and logging activities occurring within managed, natural or 
-      semi-natural forests and plantations, often with evidence of forest regrowth or planting in 
-      subsequent years. 
+    - Logging: Forest management and logging activities occurring within managed, natural or
+      semi-natural forests and plantations, often with evidence of forest regrowth or planting in
+      subsequent years.
     - Wildfire: Tree cover loss due to fire with no visible human conversion or agricultural
       activity afterward. Fires may be started by natural causes (e.g. lightning) or may be
       related to human activities (accidental or deliberate).
@@ -990,7 +990,7 @@ datasets:
     The grouping of drivers into deforestation and temporary disturbances (i.e., likely
     followed by regrowth) is indicative of how these classes are defined in the data and
     should be considered an approximation. This product does not monitor regrowth or
-    permanence of loss following each loss event. 
+    permanence of loss following each loss event.
     This product does not distinguish between the loss of natural forest and planted trees
     (e.g., plantations, tree crops, or agroforestry systems). While tree cover loss associated
     with the permanent agriculture, hard commodities, and settlements & infrastructure classes
@@ -998,7 +998,7 @@ datasets:
     of natural forests to other land uses and in some cases may represent loss of planted trees.
     Similarly, replacement of natural forest with wood fiber plantations is not distinguished
     from routine harvesting within existing plantations established before 2000, as these
-    are both included in the logging class. 
+    are both included in the logging class.
     These data are limited in scope to attributing drivers to tree cover loss as mapped by the
     Hansen et al. 2013 tree cover loss product, and therefore the detection of loss is subject
     to the accuracy of that product. This product shows the dominant driver in each 1 km cell
@@ -1020,4 +1020,3 @@ datasets:
     J. Jupiter, C. Stanton, D. Morris, C. M. Slay, D. Purves, and N. Harris. 2025.
     “Global Drivers of Forest Loss at 1 Km Resolution.”
     Environmental Research Letters 20 (7): 074027.  doi:10.1088/1748-9326/add606.
-    

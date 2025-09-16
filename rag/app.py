@@ -49,7 +49,7 @@ def load_indexes():
     openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
 
     openai_index = InMemoryVectorStore.load(
-        data_dir / "zeno-docs-openai-index-v2", embedding=openai_embeddings
+        data_dir / "zeno-docs-openai-index-v3", embedding=openai_embeddings
     )
 
     openai_retriever = openai_index.as_retriever(

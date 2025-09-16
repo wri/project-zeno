@@ -75,6 +75,11 @@ FOREST_CARBON_FLUX_ID = [
 TREE_COVER_ID = [
     ds["dataset_id"] for ds in DATASETS if ds["dataset_name"] == "Tree cover"
 ][0]
+TREE_COVER_LOSS_BY_DRIVER_ID = [
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"] == "Tree cover loss by dominant driver"
+][0]
 
 
 async def check_for_composition(query: str) -> bool:
@@ -113,6 +118,7 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_GAIN_ID,
             FOREST_CARBON_FLUX_ID,
             TREE_COVER_ID,
+            TREE_COVER_LOSS_BY_DRIVER_ID,
         ]
 
     def _get_aoi_type(self, aoi: Dict) -> str:
@@ -263,7 +269,10 @@ class AnalyticsHandler(DataSourceHandler):
                 **base_payload,
                 "canopy_cover": 30,
             }
-        elif dataset.get("dataset_id") == TREE_COVER_ID:
+        elif dataset.get("dataset_id") in [
+            TREE_COVER_ID,
+            TREE_COVER_LOSS_BY_DRIVER_ID,
+        ]:
             payload = {
                 **base_payload,
                 "canopy_cover": 30,
