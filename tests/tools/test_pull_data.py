@@ -116,7 +116,7 @@ TEST_AOIS = [
     {
         "name": "Indigenous land",
         "subtype": "indigenous-and-community-land",
-        "src_id": "1918",
+        "src_id": "MEX9713",
         "gadm_id": None,
         "aoi_type": "indigenous-and-community-land",
         "query_description": "Indigenous land",
