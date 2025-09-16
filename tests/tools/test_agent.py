@@ -148,8 +148,10 @@ async def test_full_agent_for_datasets(
 
 @pytest.mark.asyncio
 async def test_agent_for_disturbance_alerts_in_brazil(structlog_context):
-    query = "Tell me what is happening with ecosystem conversion in Para, Brazil in the last 8 months"
-
+    # query = "Tell me what is happening with ecosystem conversion in Para, Brazil in the last 8 months"
+    # query = "land cover change in philipines in the past 5 years"
+    # query = "how much forest does bolivia have?"
+    query = "tree cover loss in bolivia in past 4 years?"
     steps = await run_agent(query)
 
     assert len(steps) > 0

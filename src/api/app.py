@@ -340,6 +340,13 @@ async def stream_chat(
                     ]
                     state_updates["subregion"] = action_data["subregion"]
                     state_updates["subtype"] = action_data["subtype"]
+                    # also update aoi_options
+                    state_updates["aoi_options"] = {
+                        "aoi": action_data["aoi"],
+                        "subregion_aois": action_data["subregion_aois"],
+                        "subregion": action_data["subregion"],
+                        "subtype": action_data["subtype"],
+                    }
                 case "dataset_selected":
                     content = f"User selected dataset in UI: {action_data['dataset']['dataset_name']}\n\n"
                     state_updates["dataset"] = action_data["dataset"]

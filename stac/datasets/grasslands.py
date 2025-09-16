@@ -17,16 +17,11 @@ from stac.datasets.utils import (
     load_stac_data_to_db,
 )
 
-S3_URLS = [
-    f"s3://gfw-data-lake/gfw_grasslands/v1.1/geotiff/grasslands_{year}.tif"
-    for year in range(2000, 2025)
-]
-
 dotenv.load_dotenv("stac/env/.env_staging")
 
 set_stac_version("1.1.0")
 
-COLLECTION_ID = "grasslands-v-1-1"
+COLLECTION_ID = "grasslands-v-1"
 
 CLASSIFICATION_VALUES = {
     0: "Other",
@@ -38,9 +33,9 @@ CLASSIFICATION_VALUES = {
 
 def create_grasslands_items() -> Item:
     items = []
-    for year in range(2000, 2025):
+    for year in range(2000, 2023):
         print(f"Creating item for {year}")
-        url = f"s3://gfw-data-lake/gfw_grasslands/v1.1/geotiff/grasslands_{year}.tif"
+        url = f"s3://gfw-data-lake/gfw_grasslands/v1/geotiff/grasslands_{year}.tif"
         item = create_stac_item(
             source=url,
             id=f"grasslands-{year}",
