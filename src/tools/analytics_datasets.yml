@@ -564,8 +564,7 @@ datasets:
 - dataset_id: 4
   dataset_name: Tree cover loss
   context_layers:
-    - value: "driver"
-      description: "Shows the primary driver of tree cover loss, including: commodity-driven deforestation, shifting agriculture, forestry, wildfire, and other drivers"
+    - value: null
   variables:
     - value: "primary_forest"
       description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
@@ -587,7 +586,7 @@ datasets:
     Show yearly loss with bar charts or cumulative loss with stacked-area charts; plot area_ha
     and drop zeros. When reporting tree cover loss, always include the GHG emissions associated
     with that loss, in MgCO2e (tonnes of CO2 equivalent). If users ask for intra-year
-    or seasonal tree ocver loss OR emissions, refuse and remind that the data is annually only.
+    or seasonal tree cover loss OR emissions, refuse and remind that the data is annually only.
     DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover"
     includes plantations as well as natural forest meaning loss is not automatically
     deforestation or carbon loss.
@@ -916,3 +915,109 @@ datasets:
     L. Chini, C. O. Justice, and J. R. G. Townshend. 2013. “High-Resolution Global Maps of 21st-Century Forest Cover Change.”
     Science 342 (15 November): 850–53. Data available on-line from:https://glad.umd.edu/dataset/global-2010-tree-cover-30-m.
     Accessed through Global Forest Watch on <date>. www.globalforestwatch.org
+
+- dataset_id: 8
+  dataset_name: Tree cover loss by dominant driver
+  context_layers: null
+  variables: null
+  tile_url: "https://tiles.globalforestwatch.org/wri_google_tree_cover_loss_drivers/v1.12/dynamic/5/18/10.png?tree_cover_density_threshold=30&render_type=true_color"
+  license: "CC by 4.0"
+  geographic_coverage: "Global"
+  resolution: "0.01 x 0.01 degree (approximately 1 km at the equator)"
+  update_frequency: "annual"
+  content_date: "2001-2024"
+  keywords:
+    - deforestation
+    - forest loss
+    - driver
+    - agriculture
+    - commodities
+    - shifting cultivation
+    - logging
+    - wildfire
+    - infrastructure
+    - settlements
+  analytics_api_endpoint: "/v0/land_change/tree_cover_loss/analytics"
+  prompt_instructions: >
+    Shows the primary driver or cause of tree cover loss over the entire range 2001-2024. 
+    Driver classes are permanent agriculture, hard commodities, shifting cultivation, logging,
+    wildfire, settlements & infrastructure, and other natural disturbances.
+    Ignore the Unknown class.
+    Show total area of loss (ha) or total emissions (MgCO2e) due to loss per driver class
+    over the entire time period 2001-2024. DO NOT attempt a timeseries. If asked for annual
+    tree cover loss OR emissions timeseries, refuse and suggest Tree cover loss analysis
+    instead.
+    Data should be represented in a pie chart or table with each segment representing loss area
+    or emissions due per driver class.
+    DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover"
+    includes plantations as well as natural forest meaning loss is not automatically
+    deforestation or carbon loss.
+  description: >
+    Shows the dominant driver of tree cover loss over the time period 2001-2024.
+    A driver is defined as the direct cause of tree cover loss, and can include both temporary
+    disturbances (natural or anthropogenic) or permanent loss of tree cover due to a change to
+    a non-forest land use (e.g., deforestation).  The dominant driver is defined as the direct
+    driver that caused the majority of tree cover loss within each 1 km cell over the time period.
+    Classes are defined as follows:
+    - Permanent agriculture: Long-term, permanent tree cover loss for small- tolarge-scale agriculture. 
+    - Hard commodities: Loss due to the establishment or expansion of mining or energy infrastructure.
+    - Shifting cultivation: Tree cover loss due to small- to medium-scale clearing for temporary
+      cultivation that is later abandoned and followed by subsequent regrowth of secondary forest or 
+      vegetation.
+    - Logging: Forest management and logging activities occurring within managed, natural or 
+      semi-natural forests and plantations, often with evidence of forest regrowth or planting in 
+      subsequent years. 
+    - Wildfire: Tree cover loss due to fire with no visible human conversion or agricultural
+      activity afterward. Fires may be started by natural causes (e.g. lightning) or may be
+      related to human activities (accidental or deliberate).
+    - Settlements and infrastructure: Tree cover loss due to expansion and intensification of roads,
+      settlements, urban areas, or built infrastructure (not associated with other classes).
+      Other natural disturbances: Tree cover loss due to other non-fire natural disturbances
+      (e.g., landslides, insect outbreaks, river meandering). If loss due to natural causes is
+      followed by salvage or sanitation logging, it is classified as logging.
+  methodology: >
+    These data were produced in a collaboration between the World Resources Institute and
+    Google DeepMind. The data were developed using a global neural network model (ResNet)
+    trained on a set of samples collected through visual interpretation of very high-resolution
+    satellite imagery. The model used satellite imagery (Landsat 7 & 8, Sentinel-2) and ancillary
+    data to classify the seven driver categories. Overall accuracy of the model is 90.5%, with
+    regional accuracies varying from 82.8% in Southeast Asia to 94.1% in Asia. Global per class
+    producer's and user's accuracy are highest for the permanent agriculture, logging, and
+    wildfire classes (over 90%), and generally lower for rarer classes, such as hard commodities,
+    settlements and infrastructure, and other natural disturbances. A full description of the
+    methods and accuracy statistics are available in the publication.
+    The data is also available on [Google Earth Engine](https://developers.google.com/earth-engine/datasets/catalog/projects_landandcarbon_assets_wri_gdm_drivers_forest_loss_1km_v1_2_2001_2024)
+  cautions: >
+    The grouping of drivers into deforestation and temporary disturbances (i.e., likely
+    followed by regrowth) is indicative of how these classes are defined in the data and
+    should be considered an approximation. This product does not monitor regrowth or
+    permanence of loss following each loss event. 
+    This product does not distinguish between the loss of natural forest and planted trees
+    (e.g., plantations, tree crops, or agroforestry systems). While tree cover loss associated
+    with the permanent agriculture, hard commodities, and settlements & infrastructure classes
+    represent a close approximation of deforestation, they do not always represent the conversion
+    of natural forests to other land uses and in some cases may represent loss of planted trees.
+    Similarly, replacement of natural forest with wood fiber plantations is not distinguished
+    from routine harvesting within existing plantations established before 2000, as these
+    are both included in the logging class. 
+    These data are limited in scope to attributing drivers to tree cover loss as mapped by the
+    Hansen et al. 2013 tree cover loss product, and therefore the detection of loss is subject
+    to the accuracy of that product. This product shows the dominant driver in each 1 km cell
+    over the entire period. It does not show multiple drivers if they occur in the same cell at
+    smaller scales, nor does it detail the sequence of drivers if multiple occurred at different
+    times within the period. A full description of limitations is included in the publication.
+  function_usage_notes: >
+    Identifies areas of gross tree cover loss
+  providers: >
+    Sims, M.J., R. Stanimirova, A. Raichuk, M. Neumann, J. Richter, F. Follett, J. MacCarthy,
+    K. Lister, C. Randle, L. Sloat, E. Esipova, J. Jupiter, C. Stanton, D. Morris, C. M. Slay,
+    D. Purves, and N. Harris. 2025. “Global Drivers of Forest Loss at 1 Km Resolution.”
+    Environmental Research Letters 20 (7): 074027. doi:10.1088/1748-9326/add606.
+  citation: >
+    Use the following credit when these data are displayed: “Tree cover loss by dominant driver”.
+    WRI/Google DeepMind. Accessed from Global Forest Watch on [Date]. www.globalforestwatch.org
+    Use the following credit when these data are cited: Sims, M.J., R. Stanimirova, A. Raichuk,
+    M. Neumann, J. Richter, F. Follett, J. MacCarthy, K. Lister, C. Randle, L. Sloat, E. Esipova,
+    J. Jupiter, C. Stanton, D. Morris, C. M. Slay, D. Purves, and N. Harris. 2025.
+    “Global Drivers of Forest Loss at 1 Km Resolution.”
+    Environmental Research Letters 20 (7): 074027.  doi:10.1088/1748-9326/add606.
