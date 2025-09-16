@@ -916,11 +916,21 @@ async def generate_thread_name(query: str) -> str:
         A concise, descriptive name for the thread
     """
     try:
-        prompt = f"Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:\n{query}\nReturn strictly the title only, no quotes or explanation. Dist usually stands for disturbance."
+        prompt = f"""Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:
+
+        QUERY:
+        {query}
+
+        CONTEXT:
+        Current date is {datetime.now().strftime("%Y-%m-%d")}. Use this for relative time queries like "past 3 months", "last week", etc.
+        """
         response = await SMALL_MODEL.with_structured_output(
             ThreadNameOutput
         ).ainvoke(prompt)
-        return response.name
+        name = response.name
+        if len(name) > 50:
+            return name[:47] + "..."
+        return name
     except Exception as e:
         logger.exception("Error generating thread name: %s", e)
         return "Unnamed Thread"  # Fallback to default name
