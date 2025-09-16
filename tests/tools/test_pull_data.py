@@ -176,8 +176,12 @@ async def test_pull_data_queries(aoi_data, dataset):
     command = await pull_data.ainvoke(
         {
             "query": query,
-            "start_date": "2024-01-01",
-            "end_date": "2024-01-31",
+            "start_date": "2024-01-01"
+            if dataset["dataset_id"] != 8
+            else "2024-01-01",
+            "end_date": "2024-01-31"
+            if dataset["dataset_id"] != 8
+            else "2024-01-31",
             "aoi_names": [update["aoi"]["name"]],
             "dataset_name": dataset["dataset_name"],
             "tool_call_id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
