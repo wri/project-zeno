@@ -548,8 +548,14 @@ async def pick_aoi(
             subregion_aois = subregion_aois.to_dict(orient="records")
             logger.info(f"Found {len(subregion_aois)} subregion AOIs")
 
+            # Limit subregions based on source
+            if subregion in {"kba", "wdpa", "landmark"}:
+                subregion_limit = 25
+            else:
+                subregion_limit = 50
+
             # Check if too many subregions found
-            if len(subregion_aois) > 50:
+            if len(subregion_aois) > subregion_limit:
                 return Command(
                     update={
                         "messages": [
@@ -558,7 +564,7 @@ async def pick_aoi(
                                 f"Please narrow down your search by either:\n"
                                 f"1. Being more specific with the AOI selection (choose a smaller area)\n"
                                 f"2. Being more specific with the subregion query (e.g., 'kbas' instead of 'areas')\n"
-                                f"Try to limit results to under 50 subregions for optimal performance.",
+                                f"For optimal performance, please limit results to under 25 subregions for KBA, WDPA, and Indigenous Lands, or under 50 for other area types.",
                                 tool_call_id=tool_call_id,
                                 status="success",
                                 response_metadata={
