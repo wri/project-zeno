@@ -569,7 +569,7 @@ datasets:
       description: "Shows loss within humid tropical primary forest in global pan-tropical regions"
     - value: "intact_forest"
       description: "Intact forest landscapes (IFL) show loss within large, unfragmented areas of natural forest ecosystems that were free from significant human disturbance as of 2000."
-  tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=25&render_type=true_color"
+  tile_url: "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30&render_type=true_color"
   license: "CC by 4.0"
   geographic_coverage: "Global land area (excluding Antarctica and other Arctic islands)"
   resolution: "30 x 30 meters"
