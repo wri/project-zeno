@@ -239,7 +239,7 @@ class AnalyticsHandler(DataSourceHandler):
                 "start_year": start_date[:4],
                 "end_year": end_date[:4],
                 "canopy_cover": 30,
-                "forest_filter": "primary_forest",
+                "forest_filter": None,
                 "intersections": (
                     [dataset["context_layer"]]
                     if dataset.get("context_layer")
@@ -256,7 +256,7 @@ class AnalyticsHandler(DataSourceHandler):
                 **base_payload,
                 "start_year": str(max(2000, start_year)),
                 "end_year": str(max(2005, end_year)),
-                "forest_filter": "primary_forest",
+                "forest_filter": None,
             }
         elif dataset.get("dataset_id") == FOREST_CARBON_FLUX_ID:
             payload = {
@@ -267,7 +267,7 @@ class AnalyticsHandler(DataSourceHandler):
             payload = {
                 **base_payload,
                 "canopy_cover": 30,
-                "forest_filter": "primary_forest",
+                "forest_filter": None,
             }
         else:
             raise ValueError(
