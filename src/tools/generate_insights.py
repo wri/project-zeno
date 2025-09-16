@@ -189,14 +189,16 @@ Generate ALL content (insights, titles, follow-ups) in the SAME LANGUAGE as the 
 def get_data_csv(raw_data: Dict) -> str:
     """
     Convert the raw data to a CSV string and drop constant columns.
-    Only keep first 3 significant digits for numeric values.
+    Keep first 6 significant digits for numeric values.
     """
     df = pd.DataFrame(raw_data)
-    # Only drop constant columns if we have multiple rows
     if len(df) > 1:
         constants = df.nunique() == 1
+        logger.debug(
+            f"Dropping constant columns: {list(df.columns[constants])}"
+        )
         df = df.drop(columns=df.columns[constants])
-    return df.to_csv(index=False, float_format="%.3g")
+    return df.to_csv(index=False, float_format="%.6g")
 
 
 @tool("generate_insights")
@@ -249,10 +251,10 @@ async def generate_insights(
                 data_copy = data.copy()
                 aoi_name = data_copy.pop("aoi_name")
                 dataset_name = data_copy.pop("dataset_name")
+                start_date = data_copy.pop("start_date")
+                end_date = data_copy.pop("end_date")
                 data_csv = get_data_csv(data_copy)
-                raw_data_prompt += (
-                    f"### Dataset {i}.{j}: {aoi_name} - {dataset_name}\n"
-                )
+                raw_data_prompt += f"### Dataset {i}.{j}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
                 raw_data_prompt += f"```csv\n{data_csv}\n```\n\n"
     else:
         raw_data_prompt += (
@@ -264,12 +266,11 @@ async def generate_insights(
         data_copy = data.copy()
         aoi_name = data_copy.pop("aoi_name")
         dataset_name = data_copy.pop("dataset_name")
+        start_date = data_copy.pop("start_date")
+        end_date = data_copy.pop("end_date")
         data_csv = get_data_csv(data_copy)
-        raw_data_prompt += f"### Dataset: {aoi_name} - {dataset_name}\n"
+        raw_data_prompt += f"### Dataset: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
         raw_data_prompt += f"```csv\n{data_csv}\n```\n\n"
-
-    dat = {key: len(value) for key, value in raw_data.items()}
-    logger.debug(f"Processing data with row counts: {dat}")
 
     tokens = encoder.encode(raw_data_prompt)
     token_count = len(tokens)
