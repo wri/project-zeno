@@ -16,55 +16,14 @@ from src.tools import (
     pick_dataset,
     pull_data,
 )
-from src.user_profile_configs.countries import COUNTRIES
 from src.utils.config import APISettings
 from src.utils.env_loader import load_environment_variables
 from src.utils.llms import MODEL
 
 
 def get_prompt(user: Optional[dict] = None) -> str:
-    """Generate the prompt with current date and optional user information."""
-    user_context = ""
-    if user:
-        # Build user context string with available information
-        user_parts = []
-
-        # Add areas of interest
-        if user.get("areas_of_interest"):
-            user_parts.append(
-                f"Their areas of interest include: {user['areas_of_interest']}"
-            )
-
-        # Add preferred language
-        # if (
-        #     user.get("preferred_language_code")
-        #     and user["preferred_language_code"] != "en"
-        # ):
-        #     language_name = LANGUAGES.get(
-        #         user["preferred_language_code"],
-        #         user["preferred_language_code"],
-        #     )
-        #     user_parts.append(f"Their preferred language is: {language_name}")
-
-        # Add country context
-        if user.get("country_code"):
-            country_name = COUNTRIES.get(
-                user["country_code"], user["country_code"]
-            )
-            user_parts.append(f"They are located in: {country_name}")
-
-        # Add sector context
-        if user.get("sector_code"):
-            user_parts.append(f"They work in the {user['sector_code']} sector")
-
-        # Add role context
-        if user.get("role_code"):
-            user_parts.append(f"Their role is: {user['role_code']}")
-
-        if user_parts:
-            user_context = f"\n\nUSER CONTEXT:\n{'. '.join(user_parts)}.\nPlease tailor your responses to their profile.\n"
-
-    return f"""You are a Global Nature Watch's Geospatial Agent with access to tools and user provided selections. Think step-by-step to help answer user queries.{user_context}
+    """Generate the prompt with current date. (Ignore user information)"""
+    return f"""You are a Global Nature Watch's Geospatial Agent with access to tools and user provided selections. Think step-by-step to help answer user queries.
 
 CRITICAL: You ALWAYS need AOI + dataset + date range to perform analysis. If ANY are missing or unclear, ask for clarification.
 
