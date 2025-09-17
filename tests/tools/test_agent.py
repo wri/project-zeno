@@ -216,3 +216,15 @@ async def test_agent_tc_gain_date_range_clarification(structlog_context):
     tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
 
     assert not has_raw_data(tool_steps)
+
+
+@pytest.mark.asyncio
+async def test_agent_for_global_data_requests(structlog_context):
+    query = "What are the top 3 places in Africa in 2020 with the most tree cover loss?"
+    steps = await run_agent(query)
+
+    assert len(steps) > 0
+
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
+
+    assert not tool_steps
