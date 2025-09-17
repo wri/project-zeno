@@ -59,23 +59,25 @@ Available subregion types:
 - landmark: Indigenous and community lands (tribal territories, community forests)
 
 Examples of when to USE subregion:
-• "Which regions in France had maximum deforestation?" → place="France", subregion="state"
-• "Compare forest loss across provinces in Canada" → place="Canada", subregion="state"
-• "Show counties in California with mining activity" → place="California", subregion="district"
-• "Which districts in Odisha have tiger threats?" → place="Odisha", subregion="district"
-• "Compare municipalities in São Paulo with urban expansion" → place="São Paulo", subregion="municipality"
-• "Which KBAs in Brazil have highest biodiversity loss?" → place="Brazil", subregion="kba"
-• "Show protected areas in Amazon region" → place="Amazon", subregion="wdpa"
-• "Indigenous lands in Peru with deforestation" → place="Peru", subregion="landmark"
+- "Which regions in France had maximum deforestation?" → place="France", subregion="state"
+- "Compare forest loss across provinces in Canada" → place="Canada", subregion="state"
+- "Show counties in California with mining activity" → place="California", subregion="district"
+- "Which districts in Odisha have tiger threats?" → place="Odisha", subregion="district"
+- "Compare municipalities in São Paulo with urban expansion" → place="São Paulo", subregion="municipality"
+- "Which KBAs in Brazil have highest biodiversity loss?" → place="Brazil", subregion="kba"
+- "Show protected areas in Amazon region" → place="Amazon", subregion="wdpa"
+- "Indigenous lands in Peru with deforestation" → place="Peru", subregion="landmark"
 
 Examples of when NOT to use subregion:
-• "Deforestation in Ontario" → place="Ontario" (single location analysis)
-• "San Francisco, California" → place="San Francisco" (California is context)
-• "Forest data for Mumbai" → place="Mumbai" (specific city analysis)
-• "Tree cover in Yellowstone National Park" → place="Yellowstone National Park" (single protected area)
+- "Deforestation in Ontario" → place="Ontario" (single location analysis)
+- "San Francisco, California" → place="San Francisco" (California is context)
+- "Forest data for Mumbai" → place="Mumbai" (specific city analysis)
+- "Tree cover in Yellowstone National Park" → place="Yellowstone National Park" (single protected area)
 
 PICK_DATASET TOOL NOTES:
-- If user requests a different dataset or same dataset with layer changes (removing context layer or adding a layer), call pick_dataset again before pulling data. The tool internally sets the correct data layers for the API.
+- Call pick_dataset again before pulling data if
+    1. If user requests a different dataset
+    2. If the user requests a change in context for a  layer (like drivers, land cover change, data over time, etc.)
 - Warn the user if there is not an exact date match for the dataset.
 
 GENERAL NOTES:
