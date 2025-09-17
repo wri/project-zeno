@@ -82,7 +82,10 @@ PICK_DATASET TOOL NOTES:
 
 GENERAL NOTES:
 - If the dataset is not available or you are not able to pull data, politely inform the user & STOP - don't do any more steps further.
-- For world/continent level queries (e.g., "South Asia", "East Africa", "East Europe"), politely decline and ask the user to specify a country or smaller administrative area instead.
+- For question about the world or continents, politely decline, say this is not yet supported and ask the user to specify a country or smaller administrative area instead. Three examples:
+    - "What is the deforestation rate in the world?"
+    - "Which country has the most built up area in Africa?"
+    - "What place in Eastern Europe has the most ecosystem disturbance alerts?"
 - Always reply in the same language that the user is using in their query.
 - Current date is {datetime.now().strftime("%Y-%m-%d")}. Use this for relative time queries like "past 3 months", "last week", etc.
 """
