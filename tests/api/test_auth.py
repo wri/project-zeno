@@ -718,6 +718,65 @@ async def test_metadata_signup_open_unlimited_users(client):
 
 
 @pytest.mark.asyncio
+async def test_email_whitelist_case_insensitive_with_mixed_case_storage(
+    client,
+):
+    """
+    Test that email whitelist works when email is stored with mixed case
+    but authentication comes in with different case.
+    This tests the real-world scenario where CLI stores 'Foo.Bar@example.com'
+    but OAuth provider sends 'foo.bar@example.com'.
+    """
+    from src.api.data_models import WhitelistedUserOrm
+    from tests.conftest import async_session_maker
+
+    # Simulate CLI storing email with mixed case (as it currently does)
+    async with async_session_maker() as session:
+        from sqlalchemy import delete
+
+        # Clear any existing test emails
+        await session.execute(
+            delete(WhitelistedUserOrm).where(
+                WhitelistedUserOrm.email.ilike("%mixedcase%")
+            )
+        )
+        await session.commit()
+
+        # Store email with mixed case as CLI would do
+        whitelisted_user = WhitelistedUserOrm(
+            email="MixedCase.Test@Example.Com"
+        )
+        session.add(whitelisted_user)
+        await session.commit()
+
+    with domain_allowlist(
+        "developmentseed.org"
+    ):  # example.com not in domain list
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            # Mock user with lowercase email (as OAuth providers typically send)
+            mock_response = mock_rw_api_response("Mixed Case User")
+            mock_response.json_data = {
+                "id": "mixedcase-test-user",
+                "name": "Mixed Case User",
+                "email": "mixedcase.test@example.com",  # lowercase from OAuth
+                "createdAt": "2024-01-01T00:00:00Z",
+                "updatedAt": "2024-01-01T00:00:00Z",
+            }
+            mock_client.get.return_value = mock_response
+
+            response = await client.get(
+                "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+            )
+
+        assert response.status_code == 200
+        user_data = response.json()
+        assert user_data["email"] == "mixedcase.test@example.com"
+
+
+@pytest.mark.asyncio
 async def test_non_whitelisted_user_blocked_on_repeated_requests(client):
     """
     Test that non-whitelisted users are blocked on every request, not just the first.
