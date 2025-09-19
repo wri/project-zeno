@@ -464,8 +464,10 @@ async def is_user_whitelisted(user_email: str, session: AsyncSession) -> bool:
     user_email_lower = user_email.lower()
     user_domain = user_email_lower.split("@")[-1]
 
-    # Check email whitelist first
-    stmt = select(WhitelistedUserOrm).filter_by(email=user_email_lower)
+    # Check email whitelist first - use case-insensitive comparison
+    stmt = select(WhitelistedUserOrm).where(
+        func.lower(WhitelistedUserOrm.email) == user_email_lower
+    )
     result = await session.execute(stmt)
     if result.scalars().first():
         return True
