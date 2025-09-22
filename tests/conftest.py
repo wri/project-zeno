@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.api.app import app, fetch_user_from_rw_api
-from src.api.data_models import Base, ThreadOrm, UserOrm
+from src.api.data_models import Base, ThreadOrm, UserOrm, UserType
 from src.api.schemas import UserModel
 from src.utils.database import (
     close_global_pool,
@@ -248,3 +248,24 @@ async def test_db_pool():
     await initialize_global_pool()
     yield
     await close_global_pool()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def admin_user_factory():
+    """Create admin user fixture."""
+
+    async def _admin_user(email: str):
+        async with async_session_maker() as session:
+            # Create admin user
+            admin_user = UserOrm(
+                id=f"admin-{email.split('@')[0]}",
+                name=f"Admin {email.split('@')[0]}",
+                email=email,
+                user_type=UserType.ADMIN.value,
+            )
+            session.add(admin_user)
+            await session.commit()
+            await session.refresh(admin_user)
+            return admin_user
+
+    return _admin_user
