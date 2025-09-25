@@ -1456,7 +1456,7 @@ async def send_rating_to_langfuse(
         user_id: User ID for context
     """
     try:
-        langfuse_client.score(
+        langfuse_client.create_score(
             trace_id=trace_id,
             name="user-feedback",
             value=rating,
