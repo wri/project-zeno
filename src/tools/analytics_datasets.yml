@@ -802,6 +802,8 @@ datasets:
     in the negative.
     DO NOT show trends over time and caution users that net flux represents totals over
     the the period 2001-2024, not an annual time series.
+    Use the term "net sink" for net-negative flux values (removals/sequestration) and "net source"
+    for net-positive (emissions)
   description: >
     Maps the balance between emissions from forest disturbances and carbon removals from forest growth
     between 2001 and 2024, using a globally consistent model. Negative values indicate forest areas
