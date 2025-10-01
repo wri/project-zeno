@@ -606,6 +606,7 @@ datasets:
     The product measures canopy loss only; it doesn't track regrowth or permanence. Use 30% threshold.
     If a user asks for net gain/loss, refuse and explain that the methodologies for the two datasets differ
     and thus they cannot be combined directly to calculate net change.
+    DO NOT show emissions and loss in the same chart, use separate charts.
   description: >
     Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2024 at
     30-meter resolution using Landsat satellite imagery. It detects stand-replacement
