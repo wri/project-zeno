@@ -604,6 +604,8 @@ datasets:
     includes plantations as well as natural forest meaning loss is not automatically
     deforestation or carbon loss.
     The product measures canopy loss only; it doesn't track regrowth or permanence. Use 30% threshold.
+    If a user asks for net gain/loss, refuse and explain that the methodologies for the two datasets differ
+    and thus they cannot be combined directly to calculate net change.
   description: >
     Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2024 at
     30-meter resolution using Landsat satellite imagery. It detects stand-replacement
@@ -722,6 +724,8 @@ datasets:
     Area [Year1 to Year2] = Area [Year1 to 2020] - Area [Year2 to 2020].
     Warn that these are estimates that can be used as indicators of tree gain but are not suitable for
     precise verification of restoration activities at local scales.
+    If a user asks for net gain/loss, refuse and explain that the methodologies for the two datasets differ
+    and thus they cannot be combined directly to calculate net change.
   description: >
     Tree Cover Gain (Hansen/UMD/GLAD) identifies areas where new tree canopy was established
     between 2000 and 2012 at 30-meter resolution, using Landsat 7 imagery. It captures both
