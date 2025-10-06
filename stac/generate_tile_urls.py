@@ -32,16 +32,16 @@ def generate_colormap(land_cover_classes, enabled_classes):
 global_land_cover_classes = {
     "1": {
         "name": "Bare ground & sparse vegetation",
-        "color": [139, 69, 19, 255],
+        "color": [254, 254, 204, 255],
     },
-    "2": {"name": "Short vegetation", "color": [255, 255, 0, 255]},
-    "3": {"name": "Tree cover", "color": [0, 128, 0, 255]},
-    "4": {"name": "Wetland - short vegetation", "color": [0, 255, 255, 255]},
-    "5": {"name": "Water", "color": [0, 0, 255, 255]},
-    "6": {"name": "Snow/ice", "color": [255, 255, 255, 255]},
-    "7": {"name": "Cropland", "color": [255, 0, 0, 255]},
-    "8": {"name": "Built-up", "color": [128, 128, 128, 255]},
-    "9": {"name": "Cultivated grasslands", "color": [255, 165, 0, 255]},
+    "2": {"name": "Short vegetation", "color": [185, 185, 30]},
+    "3": {"name": "Tree cover", "color": [36, 110, 36]},
+    "4": {"name": "Wetland - short vegetation", "color": [116, 214, 180]},
+    "5": {"name": "Water", "color": [107, 174, 214]},
+    "6": {"name": "Snow/ice", "color": [172, 209, 232]},
+    "7": {"name": "Cropland", "color": [255, 241, 131]},
+    "8": {"name": "Built-up", "color": [232, 118, 93]},
+    "9": {"name": "Cultivated grasslands", "color": [255, 205, 115]},
 }
 
 natural_lands_classes = {
@@ -238,7 +238,7 @@ def get_global_land_cover_template(enabled_classes=None):
     return generate_tile_url_template(
         "global-land-cover-v-2",
         dynamic_colormap,
-        expression="asset*(asset<9)*(asset>=0)",
+        expression="asset*(asset<10)*(asset>0)",
     )
 
 
