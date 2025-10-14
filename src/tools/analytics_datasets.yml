@@ -1053,3 +1053,33 @@ datasets:
     J. Jupiter, C. Stanton, D. Morris, C. M. Slay, D. Purves, and N. Harris. 2025.
     “Global Drivers of Forest Loss at 1 Km Resolution.”
     Environmental Research Letters 20 (7): 074027.  doi:10.1088/1748-9326/add606.
+- dataset_id: 9
+  dataset_name: Commodities
+  context_layers: null
+  variables: null
+  tile_url: ""
+  license: "CC by 4.0"
+  geographic_coverage: "Global"
+  resolution: "Admin areas"
+  update_frequency: "annual"
+  content_date: "2020-2024"
+  start_date: "2022-01-01"
+  end_date: "2024-12-31"
+  content_date_fixed: false
+  keywords:
+    - commodities
+  analytics_api_endpoint: ""
+  prompt_instructions: >
+    Commodities data is available at the admin level.
+  description: >
+    Commodities data.
+  methodology: >
+    Commodities data.
+  cautions: >
+    Commodities data.
+  function_usage_notes: >
+    Commodities data.
+  providers: >
+    Commodities data.
+  citation: >
+    Commodities data.

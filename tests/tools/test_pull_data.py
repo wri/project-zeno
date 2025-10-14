@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 
 from src.tools.pull_data import pull_data
@@ -147,6 +149,7 @@ def test_db_session():
 @pytest.mark.parametrize("dataset", ALL_DATASET_COMBINATIONS)
 async def test_pull_data_queries(aoi_data, dataset):
     print(f"Testing {dataset['dataset_name']} with {aoi_data['name']}")
+
     update = {
         "aoi": aoi_data,
         "subregion_aois": None,
@@ -198,3 +201,53 @@ async def test_pull_data_queries(aoi_data, dataset):
         raw_data = command.update.get("raw_data", {})
         assert aoi_data["src_id"] in raw_data
         assert dataset["dataset_id"] in raw_data[aoi_data["src_id"]]
+
+
+@pytest.mark.asyncio
+async def test_pull_data_queries_commodities():
+    aoi_data = {
+        "name": "Baharak",
+        "subtype": "district-county",
+        "src_id": "AFG.1.1_1",
+        "gadm_id": "AFG.1.1_1",
+        "aoi_type": "district-county",
+        "query_description": "Baharak district-county",
+    }
+    update = {
+        "aoi": aoi_data,
+        "subregion_aois": None,
+        "subregion": None,
+        "aoi_names": [aoi_data["name"]],
+        "subtype": aoi_data["subtype"],
+        "dataset": {
+            "dataset_id": 9,
+            "dataset_name": "commodities",
+            "reason": "",
+            "tile_url": "",
+            "context_layer": None,
+        },
+        "aoi_options": [
+            {
+                "aoi": aoi_data,
+                "subregion_aois": None,
+                "subregion": None,
+                "subtype": aoi_data["subtype"],
+            }
+        ],
+    }
+    query = f"find commodities in {aoi_data['query_description']}"
+    command = await pull_data.ainvoke(
+        {
+            "query": query,
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-31",
+            "aoi_names": [update["aoi"]["name"]],
+            "dataset_name": "commodities",
+            "tool_call_id": str(uuid.uuid4()),
+            "state": update,
+        }
+    )
+
+    raw_data = command.update.get("raw_data", {})
+    assert aoi_data["src_id"] in raw_data
+    assert "commodities" in raw_data[aoi_data["src_id"]]

@@ -152,7 +152,8 @@ async def test_agent_for_disturbance_alerts_in_brazil(structlog_context):
     # query = "Tell me what is happening with ecosystem conversion in Para, Brazil in the last 8 months"
     # query = "land cover change in philipines in the past 5 years"
     # query = "how much forest does bolivia have?"
-    query = "tree cover loss in bolivia in past 4 years?"
+    # query = "tree cover loss in bolivia in past 4 years?"
+    query = "What were the top three causes of tree loss in Brazil last year?"
     steps = await run_agent(query)
 
     assert len(steps) > 0
@@ -228,3 +229,17 @@ async def test_agent_for_global_data_requests(structlog_context):
     tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
 
     assert not tool_steps
+
+
+@pytest.mark.asyncio
+async def test_agent_for_commodities_dataset(structlog_context):
+    query = (
+        "Show data for commodities in Baharak, Afghanistan from 2020 to 2024"
+    )
+    steps = await run_agent(query)
+
+    assert len(steps) > 0
+
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
+
+    assert has_raw_data(tool_steps)
