@@ -1053,3 +1053,99 @@ datasets:
     J. Jupiter, C. Stanton, D. Morris, C. M. Slay, D. Purves, and N. Harris. 2025.
     “Global Drivers of Forest Loss at 1 Km Resolution.”
     Environmental Research Letters 20 (7): 074027.  doi:10.1088/1748-9326/add606.
+
+- dataset_id: 9
+  dataset_name: "Deforestation (sLUC) Emission Factors by Agricultural Crop"
+  context_layers: null
+  variables: null
+  tile_url: ""
+  license: "CC by 4.0"
+  geographic_coverage: "Global"
+  resolution: "n/a, tabular data at Admin 0, 1, 2 levels"
+  update_frequency: "annual"
+  content_date: "2020-2024"
+  start_date: "2020-01-01"
+  end_date: "2024-12-31"
+  content_date_fixed: true
+  keywords:
+    - statistical land use change
+    - sLUC
+    - Greenhouse Gas Protocol
+    - corporate GHG inventory
+    - greenhouse gas
+    - land use change
+    - emissions reporting
+    - traceability
+    - supply chains
+    - agriculture
+  analytics_api_endpoint: null
+  prompt_instructions: >
+    Shows the primary driver or cause of tree cover loss over the entire range 2001-2024.
+    Driver classes are permanent agriculture, hard commodities, shifting cultivation, logging,
+    wildfire, settlements & infrastructure, and other natural disturbances.
+    Ignore the Unknown class.
+    Show total area of loss (ha) or total emissions (MgCO2e) due to loss per driver class
+    over the entire time period 2001-2024. DO NOT attempt a timeseries. If asked for annual
+    tree cover loss OR emissions timeseries, refuse and suggest Tree cover loss analysis
+    instead.
+    Data should be represented in a pie chart or table with each segment representing loss area
+    or emissions due per driver class.
+    DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover"
+    includes plantations as well as natural forest meaning loss is not automatically
+    deforestation or carbon loss.
+  description: >
+    The dataset developed by Fitts et al. (2025) provides globally consistent, spatially explicit
+    estimates of statistical land use change (sLUC) emission factors for 42 agricultural crops
+    across multiple spatial scales—global, national (ADM0), subnational (ADM1),and local
+    administrative units (ADM2). Emission factors quantify greenhouse gas emissions from
+    deforestation linked to agricultural expansion over a 20-year assessment period (2001-2020),
+    aligning with the first full time span of Global Forest Watch's annual tree cover loss and
+    forest carbon flux data.  Emission factors are available for reporting years 2020 through 2024
+    and we expect to update the dataset annually as new tree cover loss and emissions data
+    become available. The dataset integrates several harmonized, open-source geospatial inputs:
+      - the SPAM 2020 v2.0 cropland maps (10 km resolution) for crop distribution and production
+      - Global Forest Watch's tree cover loss (Hansen et al. 2013, annual updates)
+      - forest carbon flux model (Harris et al. 2021; Gibbs et al. 2025) for estimating deforestation-related emissions
+      - Global Pasture Watch (Parente et al. 2024) for pasture extent
+      - drivers of forest loss (Sims et al. 2025) to isolate agriculture-driven deforestation. 
+  methodology: >
+    Fitts et al. (2025) developed a standardized, transparent, and globally consistent approach
+    for estimating land use change (LUC) emissions, focusing on statistical land use change (sLUC)
+    emission factors. The method integrates publicly available geospatial datasets—including
+    SPAM 2020 cropland data, Global Forest Watch’s tree cover loss and carbon flux models, and
+    Global Pasture Watch—to quantify deforestation-related greenhouse gas emissions associated with
+    agricultural expansion. Using a 20-year assessment period, the approach identifies
+    forest-to-agriculture conversions, estimates annual emissions, allocates them to crops via a
+    product expansion allocation factor, and applies linear discounting to weight recent emissions
+    more heavily.
+    Emissions are then normalized by crop production (from SPAM and FAOSTAT) to yield crop- and
+    jurisdiction-specific sLUC emission factors (tCO₂e per tonne of crop commodity), enabling
+    consistent corporate greenhouse gas accounting across spatial scales.
+  cautions: >
+    The grouping of drivers into deforestation and temporary disturbances (i.e., likely
+    followed by regrowth) is indicative of how these classes are defined in the data and
+    should be considered an approximation. This product does not monitor regrowth or
+    permanence of loss following each loss event.
+    This product does not distinguish between the loss of natural forest and planted trees
+    (e.g., plantations, tree crops, or agroforestry systems). While tree cover loss associated
+    with the permanent agriculture, hard commodities, and settlements & infrastructure classes
+    represent a close approximation of deforestation, they do not always represent the conversion
+    of natural forests to other land uses and in some cases may represent loss of planted trees.
+    Similarly, replacement of natural forest with wood fiber plantations is not distinguished
+    from routine harvesting within existing plantations established before 2000, as these
+    are both included in the logging class.
+    These data are limited in scope to attributing drivers to tree cover loss as mapped by the
+    Hansen et al. 2013 tree cover loss product, and therefore the detection of loss is subject
+    to the accuracy of that product. This product shows the dominant driver in each 1 km cell
+    over the entire period. It does not show multiple drivers if they occur in the same cell at
+    smaller scales, nor does it detail the sequence of drivers if multiple occurred at different
+    times within the period. A full description of limitations is included in the publication.
+  function_usage_notes: >
+    Identifies areas of gross tree cover loss
+  providers: >
+    Land & Carbon Lab
+  citation: >
+    Fitts, L.A., O. James, D. Gibbs, E. Goldman, N. Harris, M. Ramlow, L. Sloat, B. Wielgosz,
+    C. Wilson, C. Winchester, A. Ernstoff, T. Hohmann, V. Rossi, A. Stern. 2025.
+    Statistical land use change emissions from deforestation and land occupation for
+    42 agricultural crop categories. WRI Technical Note. [url pending].
