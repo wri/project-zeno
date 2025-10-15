@@ -37,7 +37,7 @@ CODE_TO_COMMODITY = {
 }
 
 # Drop geometry
-tab = gpd.read_file("data/all_commodities_adm2_ch4.gpkg")
+tab = gpd.read_file("data/all_commodities_adm2_co2e.gpkg")
 tab = tab.drop(columns="geometry")
 
 # Melt and save to parquet
@@ -57,4 +57,4 @@ tab = tab.assign(year=year, commodity=commodity)
 tab = tab.reset_index()
 tab = tab.drop(columns="variable")
 
-tab.to_parquet("data/all_commodities_adm2_ch4_nogeom.parquet")
+tab.to_parquet("data/all_commodities_adm2_co2e_nogeom.parquet")

@@ -203,16 +203,40 @@ async def test_pull_data_queries(aoi_data, dataset):
         assert dataset["dataset_id"] in raw_data[aoi_data["src_id"]]
 
 
-@pytest.mark.asyncio
-async def test_pull_data_queries_commodities():
-    aoi_data = {
+COMMODITIES_TEST_AOIS = [
+    {
+        "name": "Afghanistan",
+        "subtype": "country",
+        "src_id": "AFG",
+        "gadm_id": "AFG",
+        "aoi_type": "country",
+        "query_description": "Afghanistan country",
+        "gadm_level": 0,
+    },
+    {
+        "name": "Badakhshan",
+        "subtype": "state-province",
+        "src_id": "AFG.1_1",
+        "gadm_id": "AFG.1_1",
+        "aoi_type": "state-province",
+        "query_description": "Badakhshan state-province",
+        "gadm_level": 1,
+    },
+    {
         "name": "Baharak",
         "subtype": "district-county",
         "src_id": "AFG.1.1_1",
         "gadm_id": "AFG.1.1_1",
         "aoi_type": "district-county",
         "query_description": "Baharak district-county",
-    }
+        "gadm_level": 2,
+    },
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("aoi_data", COMMODITIES_TEST_AOIS)
+async def test_pull_data_queries_commodities(aoi_data):
     update = {
         "aoi": aoi_data,
         "subregion_aois": None,
@@ -221,7 +245,7 @@ async def test_pull_data_queries_commodities():
         "subtype": aoi_data["subtype"],
         "dataset": {
             "dataset_id": 9,
-            "dataset_name": "commodities",
+            "dataset_name": "Deforestation (sLUC) Emission Factors by Agricultural Crop",
             "reason": "",
             "tile_url": "",
             "context_layer": None,
@@ -250,4 +274,4 @@ async def test_pull_data_queries_commodities():
 
     raw_data = command.update.get("raw_data", {})
     assert aoi_data["src_id"] in raw_data
-    assert "commodities" in raw_data[aoi_data["src_id"]]
+    assert update["dataset"]["dataset_id"] in raw_data[aoi_data["src_id"]]

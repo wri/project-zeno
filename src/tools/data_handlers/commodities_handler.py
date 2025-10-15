@@ -25,7 +25,7 @@ class CommoditiesHandler(DataSourceHandler):
     def _get_commodities_data(self):
         if self._commodities is None:
             self._commodities = pd.read_parquet(
-                "data/all_commodities_adm2_ch4_nogeom.parquet"
+                "data/all_commodities_adm2_co2e_nogeom.parquet"
             )
             print(self._commodities.head())
         return self._commodities
@@ -49,10 +49,34 @@ class CommoditiesHandler(DataSourceHandler):
                 message=msg,
                 data_points_count=0,
             )
+
         aoi_name = aoi["name"]
         data = self._get_commodities_data()
         level = GADM_LEVELS[aoi["subtype"]]
         selected_rows = data[data[level] == aoi["gadm_id"]]
+
+        if selected_rows.empty:
+            return DataPullResult(
+                success=False,
+                data=None,
+                message=f"No data found for {aoi_name}",
+                data_points_count=0,
+            )
+
+        if level == "GID_0":
+            selected_rows = (
+                selected_rows.groupby(["GID_0", "NAME_0", "year", "commodity"])
+                .sum()
+                .reset_index()
+            )
+        elif level == "GID_1":
+            selected_rows = (
+                selected_rows.groupby(
+                    ["GID_0", "GID_1", "NAME_0", "NAME_1", "year", "commodity"]
+                )
+                .sum()
+                .reset_index()
+            )
 
         result = selected_rows.to_dict(orient="list")
 
