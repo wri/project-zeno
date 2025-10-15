@@ -4,7 +4,9 @@ import pytest
 import structlog
 from sqlalchemy import select
 
+from src.api.app import app, fetch_user_from_rw_api
 from src.api.data_models import WhitelistedUserOrm
+from src.api.schemas import UserModel
 from src.tools.pull_data import pull_data
 from tests.conftest import async_session_maker
 
@@ -305,10 +307,6 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
     # Whitelist the test user to bypass signup restrictions
     await whitelist_test_user()
 
-    # Override auth to use the whitelisted email
-    from src.api.app import fetch_user_from_rw_api
-    from src.api.schemas import UserModel
-
     def mock_auth():
         return UserModel.model_validate(
             {
@@ -321,7 +319,6 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
         )
 
     # Apply the override
-    from src.api.app import app
 
     app.dependency_overrides[fetch_user_from_rw_api] = mock_auth
 
