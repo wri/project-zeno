@@ -1100,12 +1100,12 @@ datasets:
     aligning with the first full time span of Global Forest Watch's annual tree cover loss and
     forest carbon flux data.  Emission factors are available for reporting years 2020 through 2024
     and we expect to update the dataset annually as new tree cover loss and emissions data
-    become available. The dataset integrates several harmonized, open-source geospatial inputs:
-      - the SPAM 2020 v2.0 cropland maps (10 km resolution) for crop distribution and production
-      - Global Forest Watch's tree cover loss (Hansen et al. 2013, annual updates)
-      - forest carbon flux model (Harris et al. 2021; Gibbs et al. 2025) for estimating deforestation-related emissions
-      - Global Pasture Watch (Parente et al. 2024) for pasture extent
-      - drivers of forest loss (Sims et al. 2025) to isolate agriculture-driven deforestation. 
+    become available. The dataset integrates several harmonized, open-source geospatial inputs: the 
+    SPAM 2020 v2.0 cropland maps (10 km resolution) for crop distribution and production;
+    Global Forest Watch's tree cover loss (Hansen et al. 2013, annual updates); the forest carbon flux
+    model (Harris et al. 2021; Gibbs et al. 2025) for estimating deforestation-related emissions;
+    Global Pasture Watch (Parente et al. 2024) for pasture extent; and the drivers of forest loss
+    (Sims et al. 2025) to isolate agriculture-driven deforestation. 
   methodology: >
     Fitts et al. (2025) developed a standardized, transparent, and globally consistent approach
     for estimating land use change (LUC) emissions, focusing on statistical land use change (sLUC)
@@ -1146,4 +1146,4 @@ datasets:
     Fitts, L.A., O. James, D. Gibbs, E. Goldman, N. Harris, M. Ramlow, L. Sloat, B. Wielgosz,
     C. Wilson, C. Winchester, A. Ernstoff, T. Hohmann, V. Rossi, A. Stern. 2025.
     Statistical land use change emissions from deforestation and land occupation for
-    42 agricultural crop categories. WRI Technical Note. [url pending].
+    42 agricultural crop categories. WRI Technical Note. [url pending]
