@@ -1105,7 +1105,7 @@ datasets:
     Global Forest Watch's tree cover loss (Hansen et al. 2013, annual updates); the forest carbon flux
     model (Harris et al. 2021; Gibbs et al. 2025) for estimating deforestation-related emissions;
     Global Pasture Watch (Parente et al. 2024) for pasture extent; and the drivers of forest loss
-    (Sims et al. 2025) to isolate agriculture-driven deforestation. 
+    (Sims et al. 2025) to isolate agriculture-driven deforestation.
   methodology: >
     Fitts et al. (2025) developed a standardized, transparent, and globally consistent approach
     for estimating land use change (LUC) emissions, focusing on statistical land use change (sLUC)
@@ -1147,4 +1147,3 @@ datasets:
     C. Wilson, C. Winchester, A. Ernstoff, T. Hohmann, V. Rossi, A. Stern. 2025.
     Statistical land use change emissions from deforestation and land occupation for
     42 agricultural crop categories. WRI Technical Note. [url pending]
-    
