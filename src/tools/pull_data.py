@@ -8,6 +8,7 @@ from langgraph.types import Command
 
 from src.tools.data_handlers.analytics_handler import AnalyticsHandler
 from src.tools.data_handlers.base import DataPullResult
+from src.tools.data_handlers.commodities_handler import CommoditiesHandler
 from src.tools.datasets_config import DATASETS
 from src.utils.logging_config import get_logger
 
@@ -19,6 +20,7 @@ class DataPullOrchestrator:
 
     def __init__(self):
         self.handlers = [
+            CommoditiesHandler(),
             AnalyticsHandler(),
         ]
 
