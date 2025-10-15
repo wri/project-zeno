@@ -1080,10 +1080,10 @@ datasets:
     - agriculture
   analytics_api_endpoint: ""
   prompt_instructions: >
-    This dataset provides statistical land use change (sLUC) emission factors for 42 agricultural crops
-    across multiple spatial scales—global, national (ADM0), subnational (ADM1),and local administrative
+    This dataset provides statistical land use change (sLUC) emission factors for up to 42 agricultural crops
+    across multiple spatial scales—global, national (ADM0), subnational (ADM1), and local administrative
     units (ADM2). Emission factors quantify greenhouse gas emissions in tCO2e per tonne of product from
-    deforestation linked to agricultural expansion.
+    deforestation linked to agricultural expansion. Not all crops are available for all regions.
     If asked for a map, refuse and explain that this is tabular data only.
     Emission factors are expressed in tCO₂e per tonne of crop commodity produced.
     Use bar charts to show emission factor over time for a specific crop in a single administrative unit.

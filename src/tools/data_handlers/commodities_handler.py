@@ -65,7 +65,7 @@ class CommoditiesHandler(DataSourceHandler):
         if level == "GID_0":
             selected_rows = (
                 selected_rows.groupby(["GID_0", "NAME_0", "year", "commodity"])
-                .sum()
+                .sum("value")
                 .reset_index()
             )
         elif level == "GID_1":
@@ -73,7 +73,7 @@ class CommoditiesHandler(DataSourceHandler):
                 selected_rows.groupby(
                     ["GID_0", "GID_1", "NAME_0", "NAME_1", "year", "commodity"]
                 )
-                .sum()
+                .sum("value")
                 .reset_index()
             )
 
