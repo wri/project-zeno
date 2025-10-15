@@ -233,9 +233,7 @@ async def test_agent_for_global_data_requests(structlog_context):
 
 @pytest.mark.asyncio
 async def test_agent_for_commodities_dataset(structlog_context):
-    query = (
-        "Show data for commodities in Baharak, Afghanistan from 2020 to 2024"
-    )
+    query = "Show data for emission factors for Arabica_Coffee in Baharak, Afghanistan from 2020 to 2024"
     steps = await run_agent(query)
 
     assert len(steps) > 0

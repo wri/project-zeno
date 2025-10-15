@@ -1078,7 +1078,7 @@ datasets:
     - traceability
     - supply chains
     - agriculture
-  analytics_api_endpoint: null
+  analytics_api_endpoint: ""
   prompt_instructions: >
     This dataset provides statistical land use change (sLUC) emission factors for 42 agricultural crops
     across multiple spatial scales—global, national (ADM0), subnational (ADM1),and local administrative
@@ -1100,7 +1100,7 @@ datasets:
     aligning with the first full time span of Global Forest Watch's annual tree cover loss and
     forest carbon flux data.  Emission factors are available for reporting years 2020 through 2024
     and we expect to update the dataset annually as new tree cover loss and emissions data
-    become available. The dataset integrates several harmonized, open-source geospatial inputs: the 
+    become available. The dataset integrates several harmonized, open-source geospatial inputs: the
     SPAM 2020 v2.0 cropland maps (10 km resolution) for crop distribution and production;
     Global Forest Watch's tree cover loss (Hansen et al. 2013, annual updates); the forest carbon flux
     model (Harris et al. 2021; Gibbs et al. 2025) for estimating deforestation-related emissions;

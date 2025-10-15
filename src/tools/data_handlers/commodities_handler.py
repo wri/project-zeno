@@ -27,7 +27,6 @@ class CommoditiesHandler(DataSourceHandler):
             self._commodities = pd.read_parquet(
                 "data/all_commodities_adm2_co2e_nogeom.parquet"
             )
-            print(self._commodities.head())
         return self._commodities
 
     async def pull_data(
