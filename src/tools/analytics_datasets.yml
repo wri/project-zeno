@@ -1080,19 +1080,17 @@ datasets:
     - agriculture
   analytics_api_endpoint: null
   prompt_instructions: >
-    Shows the primary driver or cause of tree cover loss over the entire range 2001-2024.
-    Driver classes are permanent agriculture, hard commodities, shifting cultivation, logging,
-    wildfire, settlements & infrastructure, and other natural disturbances.
-    Ignore the Unknown class.
-    Show total area of loss (ha) or total emissions (MgCO2e) due to loss per driver class
-    over the entire time period 2001-2024. DO NOT attempt a timeseries. If asked for annual
-    tree cover loss OR emissions timeseries, refuse and suggest Tree cover loss analysis
-    instead.
-    Data should be represented in a pie chart or table with each segment representing loss area
-    or emissions due per driver class.
-    DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover"
-    includes plantations as well as natural forest meaning loss is not automatically
-    deforestation or carbon loss.
+    This dataset provides statistical land use change (sLUC) emission factors for 42 agricultural crops
+    across multiple spatial scales—global, national (ADM0), subnational (ADM1),and local administrative
+    units (ADM2). Emission factors quantify greenhouse gas emissions in tCO2e per tonne of product from
+    deforestation linked to agricultural expansion.
+    If asked for a map, refuse and explain that this is tabular data only.
+    Emission factors are expressed in tCO₂e per tonne of crop commodity produced.
+    Use bar charts to show emission factor over time for a specific crop in a single administrative unit.
+    Use tables to show emission factors for multiple crops in a single administrative unit
+    or for a single crop across multiple administrative units.
+    If asked for total emissions, refuse and explain that this dataset provides emission factors only,
+    not total emissions estimates.
   description: >
     The dataset developed by Fitts et al. (2025) provides globally consistent, spatially explicit
     estimates of statistical land use change (sLUC) emission factors for 42 agricultural crops
