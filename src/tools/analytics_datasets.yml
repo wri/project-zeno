@@ -1110,7 +1110,7 @@ datasets:
     Fitts et al. (2025) developed a standardized, transparent, and globally consistent approach
     for estimating land use change (LUC) emissions, focusing on statistical land use change (sLUC)
     emission factors. The method integrates publicly available geospatial datasets—including
-    SPAM 2020 cropland data, Global Forest Watch’s tree cover loss and carbon flux models, and
+    SPAM 2020 cropland data, Global Forest Watch's tree cover loss and carbon flux models, and
     Global Pasture Watch—to quantify deforestation-related greenhouse gas emissions associated with
     agricultural expansion. Using a 20-year assessment period, the approach identifies
     forest-to-agriculture conversions, estimates annual emissions, allocates them to crops via a
