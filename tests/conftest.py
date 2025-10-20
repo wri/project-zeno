@@ -245,7 +245,7 @@ def structlog_context():
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def test_db_pool():
     """Initialize global database pool for pick_aoi tests."""
-    await initialize_global_pool(TEST_DB_URL)
+    await initialize_global_pool()
     yield
     await close_global_pool()
 
