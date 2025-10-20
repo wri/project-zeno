@@ -77,6 +77,7 @@ class DataPullOrchestrator:
 ## Error Handling
 
 All handlers should:
+
 - Return `DataPullResult` objects with consistent structure
 - Handle exceptions gracefully and return appropriate error messages
 - Log errors using the project's logging system
@@ -85,6 +86,7 @@ All handlers should:
 ## Testing
 
 Each handler should have corresponding unit tests that verify:
+
 - Correct identification of supported datasets (`can_handle`)
 - Successful data pulling scenarios
 - Error handling and edge cases

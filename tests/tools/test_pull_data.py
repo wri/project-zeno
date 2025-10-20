@@ -155,6 +155,7 @@ def test_db_session():
 @pytest.mark.parametrize("dataset", ALL_DATASET_COMBINATIONS)
 async def test_pull_data_queries(aoi_data, dataset):
     print(f"Testing {dataset['dataset_name']} with {aoi_data['name']}")
+
     update = {
         "aoi": aoi_data,
         "subregion_aois": None,
