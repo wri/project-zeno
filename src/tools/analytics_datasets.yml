@@ -1091,6 +1091,8 @@ datasets:
     or for a single crop across multiple administrative units.
     If asked for total emissions, refuse and explain that this dataset provides emission factors only,
     not total emissions estimates.
+    In the data, LD stands for linearly discounted emissions, EF stands for emission factors,
+    production stands for crop production.
   description: >
     The dataset developed by Fitts et al. (2025) provides globally consistent, spatially explicit
     estimates of statistical land use change (sLUC) emission factors for 42 agricultural crops
