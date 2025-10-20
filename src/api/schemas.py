@@ -44,6 +44,12 @@ class CustomAreaNameResponse(BaseModel):
         max_length=100,
     )
 
+    @field_validator("name", mode="before")
+    def truncate_area_name(cls, value):
+        if isinstance(value, str) and len(value) > 100:
+            return value[:100]
+        return value
+
 
 class ThreadNameOutput(BaseModel):
     name: str = Field(
@@ -51,6 +57,12 @@ class ThreadNameOutput(BaseModel):
         description="Generated name for thread",
         max_length=50,
     )
+
+    @field_validator("name", mode="before")
+    def truncate_thread_name(cls, value):
+        if isinstance(value, str) and len(value) > 50:
+            return value[:50]
+        return value
 
 
 class UserModel(BaseModel):
