@@ -8,9 +8,9 @@ from src.utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 GADM_LEVELS = {
-    "country": "GID_0",
-    "state-province": "GID_1",
-    "district-county": "GID_2",
+    "country": 0,
+    "state-province": 1,
+    "district-county": 2,
 }
 
 COMMODITIES_DATASET_ID = 9
@@ -20,14 +20,14 @@ class CommoditiesHandler(DataSourceHandler):
     def can_handle(self, dataset: Any) -> bool:
         return dataset.get("dataset_id") == COMMODITIES_DATASET_ID
 
-    _commodities = None
+    _commodities = {}
 
-    def _get_commodities_data(self):
-        if self._commodities is None:
-            self._commodities = pd.read_parquet(
-                "data/all_commodities_adm2_co2e_nogeom.parquet"
+    def _get_commodities_data(self, admin_level):
+        if admin_level not in self._commodities:
+            self._commodities[admin_level] = pd.read_parquet(
+                f"data/emission_factors_CO2e_ADM{admin_level}_master.parquet"
             )
-        return self._commodities
+        return self._commodities[admin_level]
 
     async def pull_data(
         self,
@@ -48,33 +48,16 @@ class CommoditiesHandler(DataSourceHandler):
                 message=msg,
                 data_points_count=0,
             )
-
-        aoi_name = aoi["name"]
-        data = self._get_commodities_data()
-        level = GADM_LEVELS[aoi["subtype"]]
-        selected_rows = data[data[level] == aoi["gadm_id"]]
+        admin_level = GADM_LEVELS[aoi["subtype"]]
+        data = self._get_commodities_data(admin_level)
+        selected_rows = data[data[f"GID_{admin_level}"] == aoi["gadm_id"]]
 
         if selected_rows.empty:
             return DataPullResult(
                 success=False,
                 data=None,
-                message=f"No data found for {aoi_name}",
+                message=f"No data found for {aoi['name']}",
                 data_points_count=0,
-            )
-
-        if level == "GID_0":
-            selected_rows = (
-                selected_rows.groupby(["GID_0", "NAME_0", "year", "commodity"])
-                .sum("value")
-                .reset_index()
-            )
-        elif level == "GID_1":
-            selected_rows = (
-                selected_rows.groupby(
-                    ["GID_0", "GID_1", "NAME_0", "NAME_1", "year", "commodity"]
-                )
-                .sum("value")
-                .reset_index()
             )
 
         result = selected_rows.to_dict(orient="list")
@@ -84,6 +67,6 @@ class CommoditiesHandler(DataSourceHandler):
         return DataPullResult(
             success=True,
             data=result,
-            message=f"Successfully pulled {count} data points from commodities data for {aoi_name}",
+            message=f"Successfully pulled {count} data points from commodities data for {aoi['name']}",
             data_points_count=count,
         )

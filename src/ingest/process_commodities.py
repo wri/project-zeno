@@ -1,4 +1,4 @@
-import geopandas as gpd
+import pandas as pd
 
 CODE_TO_COMMODITY = {
     "BANA": "Banana",
@@ -8,28 +8,28 @@ CODE_TO_COMMODITY = {
     "CHIC": "Chickpea",
     "CNUT": "Coconut",
     "COCO": "Cocoa",
-    "ACOF": "Arabica_Coffee",
-    "RCOF": "Robusta_Coffee",
+    "ACOF": "Arabica Coffee",
+    "RCOF": "Robusta Coffee",
     "COTT": "Cotton",
     "COWP": "Cowpea",
     "GROU": "Groundnut",
     "LENT": "Lentil",
     "MAIZ": "Maize",
-    "PMIL": "Pearl_Millet",
-    "SMIL": "Small_Millet",
-    "OILP": "Oil_Palm",
-    "PIGE": "Pigeon_Pea",
+    "PMIL": "Pearl Millet",
+    "SMIL": "Small Millet",
+    "OILP": "Oil Palm",
+    "PIGE": "Pigeon Pea",
     "PLNT": "Plantain",
     "POTA": "Potato",
     "RAPE": "Rapeseed",
     "RICE": "Rice",
-    "SESA": "Sesame_Seed",
+    "SESA": "Sesame Seed",
     "SORG": "Sorghum",
     "SOYB": "Soybean",
     "SUGB": "Sugarbeet",
     "SUGC": "Sugarcane",
     "SUNF": "Sunflower",
-    "SWPO": "Sweet_Potato",
+    "SWPO": "Sweet Potato",
     "TEAS": "Tea",
     "TOBA": "Tobacco",
     "WHEA": "Wheat",
@@ -37,24 +37,47 @@ CODE_TO_COMMODITY = {
 }
 
 # Drop geometry
-tab = gpd.read_file("data/all_commodities_adm2_co2e.gpkg")
-tab = tab.drop(columns="geometry")
+for admin_level in range(3):
+    print(f"Admin level {admin_level}")
 
-# Melt and save to parquet
-index = ["GID_0", "GID_1", "GID_2", "NAME_0", "NAME_1", "NAME_2"]
+    tab = pd.read_csv(
+        f"data/emission_factors_CO2e_ADM{admin_level}_master.csv"
+    )
+    print(tab.head())
 
-tab = tab.set_index(index).melt(ignore_index=False)
+    # Melt and save to parquet
+    for i in range(admin_level):
+        print(f"Dropping column {i}")
+        tab = tab.drop(columns=f"GID_{i}")
 
-tab = tab.dropna()
+    index = [f"GID_{admin_level}", "crop_type"]
 
-split = tab.variable.str.split("_", expand=True)
+    tab = tab.set_index(index).melt(ignore_index=False)
 
-year = split[0].str.split("EF", expand=True)[1]
+    print(f"Count before dropping {tab.shape}")
+    tab = tab.dropna(how="all")
+    print(f"Count after dropping {tab.shape}")
 
-commodity = split[1].map(CODE_TO_COMMODITY)
+    split = tab.variable.str.split("_", expand=True)
 
-tab = tab.assign(year=year, commodity=commodity)
-tab = tab.reset_index()
-tab = tab.drop(columns="variable")
+    year = split[1].astype("uint16")
 
-tab.to_parquet("data/all_commodities_adm2_co2e_nogeom.parquet")
+    variable = split[0]
+
+    tab = tab.drop(columns="variable")
+    tab = tab.assign(year=year, variable=variable)
+    tab = tab.reset_index()
+
+    cols = [col for col in tab.columns if col != "value"] + ["value"]
+    tab = tab[cols]
+
+    tab["crop_type"] = tab.crop_type.map(CODE_TO_COMMODITY)
+
+    tab.to_parquet(
+        f"data/emission_factors_CO2e_ADM{admin_level}_master.parquet"
+    )
+
+
+# aws s3 cp data/emission_factors_CO2e_ADM0_master.parquet s3://zeno-static-data/emission_factors_CO2e_ADM0_master.parquet
+# aws s3 cp data/emission_factors_CO2e_ADM1_master.parquet s3://zeno-static-data/emission_factors_CO2e_ADM1_master.parquet
+# aws s3 cp data/emission_factors_CO2e_ADM2_master.parquet s3://zeno-static-data/emission_factors_CO2e_ADM2_master.parquet
