@@ -165,7 +165,7 @@ class AnalyticsHandler(DataSourceHandler):
             aoi["src_id"] = aoi["src_id"][:-2]
 
         # Handle custom areas differently - they need a feature collection
-        if aoi_type == "feature_collection":
+        if aoi_type["type"] == "feature_collection":
             geometry_data = await get_geometry_data("custom", aoi["src_id"])
             if not geometry_data:
                 raise ValueError(f"Custom area not found: {aoi['src_id']}")
@@ -186,7 +186,7 @@ class AnalyticsHandler(DataSourceHandler):
 
             base_payload = {
                 "aoi": {
-                    "type": aoi_type,
+                    "type": aoi_type["type"],
                     "feature_collection": feature_collection,
                 }
             }
