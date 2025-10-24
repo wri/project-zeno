@@ -1,60 +1,47 @@
-from pathlib import Path
-
-import yaml
 from langchain_core.tools import tool
+
+from src.tools.datasets_config import DATASETS
 
 
 def _load_datasets_info() -> str:
-    """Load dataset information from the analytics_datasets.yml file."""
-    try:
-        # Get the path to the YAML file relative to this script
-        current_dir = Path(__file__).parent
-        yaml_path = current_dir / "analytics_datasets.yml"
+    """Load dataset information from the datasets configuration."""
+    datasets_info = []
+    for dataset in DATASETS:
+        print(dataset.get("dataset_name"))
+        name = dataset.get("dataset_name", "Unknown")
+        content_date = dataset.get("content_date", "Unknown")
+        resolution = dataset.get("resolution", "Unknown")
+        update_frequency = dataset.get("update_frequency", "Unknown")
+        description = dataset.get("description", "Unknown")
 
-        with open(yaml_path, "r") as f:
-            data = yaml.safe_load(f)
+        # Create a concise description
+        description_parts = []
+        if content_date != "Unknown":
+            description_parts.append(f"from {content_date}")
+        if resolution != "Unknown":
+            description_parts.append(f"{resolution} resolution")
+        if update_frequency != "Unknown":
+            description_parts.append(f"{update_frequency} updates")
+        if description != "Unknown":
+            description_parts.append(f"{description}")
 
-        datasets_info = []
-        for dataset in data.get("datasets", []):
-            name = dataset.get("dataset_name", "Unknown")
-            content_date = dataset.get("content_date", "Unknown")
-            resolution = dataset.get("resolution", "Unknown")
-            update_frequency = dataset.get("update_frequency", "Unknown")
-
-            # Create a concise description
-            description_parts = []
-            if content_date != "Unknown":
-                description_parts.append(f"from {content_date}")
-            if resolution != "Unknown":
-                description_parts.append(f"{resolution} resolution")
-            if update_frequency != "Unknown":
-                description_parts.append(f"{update_frequency} updates")
-
-            # Add context layers info if available
-            context_layers = dataset.get("context_layers")
-            if context_layers:
-                context_desc = ", ".join(
-                    [layer.get("description", "") for layer in context_layers]
-                )
-                if context_desc:
-                    description_parts.append(f"with {context_desc.lower()}")
-
-            description = (
-                ", ".join(description_parts)
-                if description_parts
-                else "detailed environmental data"
+        # Add context layers info if available
+        context_layers = dataset.get("context_layers")
+        if context_layers:
+            context_desc = ", ".join(
+                [layer.get("description", "") for layer in context_layers]
             )
-            datasets_info.append(f"- {name}: {description.capitalize()}")
+            if context_desc:
+                description_parts.append(f"with {context_desc.lower()}")
 
-        return "\n".join(datasets_info)
+        description = (
+            ", ".join(description_parts)
+            if description_parts
+            else "detailed environmental data"
+        )
+        datasets_info.append(f"- {name}: {description.capitalize()}")
 
-    except Exception:
-        # Fallback to hardcoded list if YAML loading fails
-        return """- DIST-ALERT: Vegetation disturbance alerts from 2023 to present, 30m resolution, weekly updates, covers all land types with optional driver context
-- Global Land Cover: Land cover composition data for 2015 and 2024, 30m resolution, shows transitions between years
-- Natural/Semi-natural Grasslands: Annual grassland extent data from 2000 to 2024, 30m resolution
-- SBTN Natural Lands Map: Natural vs non-natural land baseline from 2020, 30m resolution, used for conversion screening
-- Tree Cover Loss: Annual gross tree cover loss data from 2001 to 2024, 30m resolution"""
+    return "\n".join(datasets_info)
 
 
 @tool("get_capabilities")
