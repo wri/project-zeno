@@ -193,7 +193,7 @@ async def test_agent_disturbance_alerts_with_comparison_and_subregion(
 
 @pytest.mark.asyncio
 async def test_agent_tc_gain_date_range_adjustment(structlog_context):
-    query = "Analyze tree cover gain in 2019 in Sweden."
+    query = "Analyze tree cover gain from 2015 to 2020 in Sweden."
 
     steps = await run_agent(query)
 

@@ -1,13 +1,13 @@
 import io
 import json
 import os
-from pathlib import Path
 from typing import Any, Dict
 
-import yaml
 from pypgstac.db import PgstacDB
 from pypgstac.load import Loader, Methods
 from pystac import Collection, Item
+
+from src.tools.datasets_config import DATASETS
 
 
 def get_loader():
@@ -104,7 +104,7 @@ def convert_valid_percentage_to_int(
 
 def get_metadata_from_yaml(dataset_key: str) -> Dict[str, Any]:
     """
-    Get metadata from the analytics_datasets.yml file for a specific dataset key.
+    Get metadata from the daset configuration for a specific dataset key.
 
     Args:
         dataset_key: The dataset key to extract (e.g., "Global land cover")
@@ -112,22 +112,16 @@ def get_metadata_from_yaml(dataset_key: str) -> Dict[str, Any]:
     Returns:
         Dictionary containing the metadata for the STAC collection
     """
-    yaml_file_path = (
-        Path(__file__).parents[2] / "src" / "tools" / "analytics_datasets.yml"
-    )
-    with open(yaml_file_path, "r") as f:
-        data = yaml.safe_load(f)
-
     # Find the dataset by name
     dataset = None
-    for d in data.get("datasets", []):
+    for d in DATASETS:
         if d.get("dataset_name") == dataset_key:
             dataset = d
             break
 
     if not dataset:
         raise ValueError(
-            f"Dataset '{dataset_key}' not found in {yaml_file_path}"
+            f"Dataset '{dataset_key}' not found in datasets configuration"
         )
 
     # Create extra fields from the dataset information
@@ -161,5 +155,7 @@ def get_metadata_from_yaml(dataset_key: str) -> Dict[str, Any]:
     if dataset.get("cautions"):
         metadata["cautions"] = dataset["cautions"]
 
-    print(f"Metadata created from dataset '{dataset_key}' in {yaml_file_path}")
+    print(
+        f"Metadata created from dataset '{dataset_key}' in datasets configuration"
+    )
     return metadata
