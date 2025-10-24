@@ -210,7 +210,42 @@ async def pick_dataset(
     if selection_result.dataset_id == TREE_COVER_LOSS_BY_DRIVER_ID:
         selection_result.context_layer = "driver"
 
-    tool_message = f"""Selected dataset: {selection_result.dataset_name}\nContext layer: {selection_result.context_layer}\nReasoning: {selection_result.reason}"""
+    selected_dataset = [
+        ds
+        for ds in DATASETS
+        if ds["dataset_id"] == selection_result.dataset_id
+    ][0]
+
+    tool_message = f"""# About the selection
+    Selected dataset name: {selection_result.dataset_name}
+    Selected context layer: {selection_result.context_layer}
+    Reasoning for selection: {selection_result.reason}
+
+    # Additional dataset information
+
+    ## Description
+    {selected_dataset["description"]}
+
+    ## Function usage notes:
+
+    {selected_dataset["function_usage_notes"]}
+
+    ## Usage cautions
+
+    {selected_dataset["cautions"]}
+
+    ## Citation
+
+    {selected_dataset["citation"]}
+
+    ## Methodology
+
+    {selected_dataset["methodology"]}
+
+    ## Content date
+
+    {selected_dataset["content_date"]}
+    """
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
 
