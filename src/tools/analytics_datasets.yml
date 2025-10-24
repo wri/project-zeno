@@ -905,11 +905,11 @@ datasets:
     - canopy
   analytics_api_endpoint: "/v0/land_change/tree_cover/analytics"
   prompt_instructions: >
-    Shows tree cover % per pixel for years 2000, for woody vegetation greater than 5 meters in height.
+    Shows tree cover area (area_ha) per pixel for year 2000 with a given tree cover threshold,
+    for woody vegetation greater than 5 meters in height.
     If combined with primary forest or IFL layers, we can use the term ‘forest’ to describe results. Otherwise,
     only use the term 'tree cover'.
     Binned % tree cover extent can be reported in bar chart or pie chart.
-    Default bins are >0-25%, 25-50%, 50-75%, 75-100%, but user can specify bins (i.e. greater and smaller than 30%).
     When calculating area in bins, exclude tree cover area = 0 (and specify that the exclusion has happened).
     Use the tree cover loss and gain
     data for data on change in tree area. Cannot be used to asses pixel-level percent changes (gains and losses).
