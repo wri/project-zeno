@@ -224,6 +224,7 @@ async def pick_dataset(
     # Additional dataset information
 
     ## Description
+
     {selected_dataset["description"]}
 
     ## Function usage notes:
@@ -233,14 +234,6 @@ async def pick_dataset(
     ## Usage cautions
 
     {selected_dataset["cautions"]}
-
-    ## Citation
-
-    {selected_dataset["citation"]}
-
-    ## Methodology
-
-    {selected_dataset["methodology"]}
 
     ## Content date
 
