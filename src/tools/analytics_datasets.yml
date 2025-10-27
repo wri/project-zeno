@@ -1078,7 +1078,7 @@ datasets:
     - traceability
     - supply chains
     - agriculture
-  analytics_api_endpoint: ""
+  analytics_api_endpoint: "/v0/land_change/deforestation_luc_emissions_factor/analytics"
   prompt_instructions: >
     This dataset provides statistical land use change (sLUC) emission factors, total emissions, and
     production volume for 42 agricultural crops across multiple spatial scales: national (ADM0),

@@ -7,7 +7,7 @@ preventing circular imports.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -19,6 +19,7 @@ class DataPullResult(BaseModel):
     data: Any
     message: str
     data_points_count: int = 0
+    analytics_api_url: Optional[str] = None
 
 
 class DataSourceHandler(ABC):
