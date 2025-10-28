@@ -36,7 +36,8 @@ async def _get_openai_retriever():
         logger.debug("Loading OpenAI retriever for the first time...")
         openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
         openai_index = InMemoryVectorStore.load(
-            data_dir / "zeno-docs-openai-index-v4", embedding=openai_embeddings
+            data_dir / APISettings.dataset_embeddings_db,
+            embedding=openai_embeddings,
         )
         _retriever_cache["openai"] = openai_index.as_retriever(
             search_type="similarity", search_kwargs={"k": 3}
