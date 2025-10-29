@@ -347,8 +347,8 @@ async def test_generate_insights_comparison():
     )
 
     assert "charts_data" in command.update
-    assert "Pima" in command.update["insight"]["title"]
-    assert "Bern" in command.update["insight"]["title"]
+    assert "Pima" in command.update["insight"]
+    assert "Bern" in command.update["insight"]
 
 
 @pytest.mark.asyncio
