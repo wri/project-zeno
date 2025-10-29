@@ -290,37 +290,25 @@ async def generate_insights(
         raw_data_prompt = f"""User Query: {query}
 
 You have access to the following datasets - pick the ones you need for analysis:
+
 """
 
         local_files = []
 
-        if is_comparison:
-            for i, data_by_aoi in enumerate(raw_data.values(), 1):
-                for j, data in enumerate(data_by_aoi.values(), 1):
-                    data_copy = data.copy()
-                    aoi_name = data_copy.pop("aoi_name")
-                    dataset_name = data_copy.pop("dataset_name")
-                    start_date = data_copy.pop("start_date")
-                    end_date = data_copy.pop("end_date")
+        for data_by_aoi in raw_data.values():
+            for data in data_by_aoi.values():
+                data_copy = data.copy()
+                aoi_name = data_copy.pop("aoi_name")
+                dataset_name = data_copy.pop("dataset_name")
+                start_date = data_copy.pop("start_date")
+                end_date = data_copy.pop("end_date")
 
-                    filename = f"{aoi_name}_{dataset_name}_{start_date}_{end_date}.csv"
-                    local_path = sandbox.prepare_file(data_copy, filename)
-                    local_files.append(local_path)
-                    raw_data_prompt += f"- {filename}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
-        else:
-            # Get the latest key if not comparing
-            data_by_aoi = list(raw_data.values())[-1]
-            data = list(data_by_aoi.values())[-1]
-            data_copy = data.copy()
-            aoi_name = data_copy.pop("aoi_name")
-            dataset_name = data_copy.pop("dataset_name")
-            start_date = data_copy.pop("start_date")
-            end_date = data_copy.pop("end_date")
-
-            filename = f"{aoi_name}_{dataset_name}_{start_date}_{end_date}.csv"
-            local_path = sandbox.prepare_file(data_copy, filename)
-            local_files.append(local_path)
-            raw_data_prompt += f"- {filename}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
+                filename = (
+                    f"{aoi_name}_{dataset_name}_{start_date}_{end_date}.csv"
+                )
+                local_path = sandbox.prepare_file(data_copy, filename)
+                local_files.append(local_path)
+                raw_data_prompt += f"- {filename}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
 
         # 2. COPY FILES TO SANDBOX: one-time bulk copy of all files
         _ = await sandbox.copy_files_to_sandbox(local_files)
