@@ -340,7 +340,6 @@ async def test_generate_insights_comparison():
     command = await generate_insights.ainvoke(
         {
             "query": "Compare tree cover loss in Pima County, Arizona with Bern, Switzerland",
-            "is_comparison": True,
             "tool_call_id": str(uuid.uuid4()),
             "state": update,
         }
@@ -388,7 +387,6 @@ async def test_simple_line_chart():
     result = await generate_insights.ainvoke(
         {
             "query": "What are the trends in deforestation alerts over time?",
-            "is_comparison": False,
             "state": mock_state_line,
             "tool_call_id": str(uuid.uuid4()),
         }
@@ -445,7 +443,6 @@ async def test_simple_bar_chart():
     result = await generate_insights.ainvoke(
         {
             "query": "Which district have the highest forest loss in Odisha?",
-            "is_comparison": False,
             "state": mock_state_bar,
             "tool_call_id": str(uuid.uuid4()),
         }
@@ -495,7 +492,6 @@ async def test_stacked_bar_chart():
     result = await generate_insights.ainvoke(
         {
             "query": "Show me the composition of forest loss causes over time as a stacked bar chart",
-            "is_comparison": False,
             "state": mock_state_stacked,
             "tool_call_id": str(uuid.uuid4()),
         }
@@ -557,7 +553,6 @@ async def test_grouped_bar_chart():
     result = await generate_insights.ainvoke(
         {
             "query": "Compare forest loss and fire incidents across countries using grouped bars",
-            "is_comparison": False,
             "state": mock_state_grouped,
             "tool_call_id": str(uuid.uuid4()),
         }
@@ -616,7 +611,6 @@ async def test_pie_chart():
     result = await generate_insights.ainvoke(
         {
             "query": "What are the main causes of forest loss globally? Show as pie chart",
-            "is_comparison": False,
             "state": mock_state_pie,
             "tool_call_id": str(uuid.uuid4()),
         }

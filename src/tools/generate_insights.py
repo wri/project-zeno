@@ -245,7 +245,6 @@ class ChartInsight(BaseModel):
 @tool("generate_insights")
 async def generate_insights(
     query: str,
-    is_comparison: bool,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
@@ -259,9 +258,6 @@ async def generate_insights(
         query: Improved query from the user including relevant context that will help in
                better insight generation. Should include specific chart type requests,
                temporal focus, comparison aspects, and any domain-specific context.
-        is_comparison: Whether the user is comparing two or more different AOIs (e.g.,
-                      comparing Brazil vs Indonesia). Set to False for comparisons within
-                      a specific AOI (e.g., provinces in a country, KBAs in a region, counties in a state).
     """
     logger.info("GENERATE-INSIGHTS-TOOL")
     logger.debug(f"Generating insights for query: {query}")
