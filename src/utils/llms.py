@@ -1,9 +1,9 @@
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
-from langchain_ollama import ChatOllama, OllamaLLM
 from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 
 from src.utils.config import APISettings
 

@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 
 import pytest
@@ -20,19 +19,6 @@ def test_db():
 def test_db_session():
     """Override the global test_db_session fixture to avoid database connections."""
     pass
-
-
-@pytest.fixture(scope="module")
-def event_loop():
-    """Create a single event loop for all tests in this module."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
-    # Don't close the loop immediately - let pytest-asyncio handle it
-    try:
-        loop.close()
-    except:
-        pass
 
 
 @pytest.mark.asyncio
@@ -446,9 +432,7 @@ async def test_simple_bar_chart():
                 }
             }
         },
-        "dataset": {
-            "prompt_instructions": "Compare forest loss"
-        },
+        "dataset": {"prompt_instructions": "Compare forest loss"},
         "aoi_options": [
             {
                 "source": "gadm",

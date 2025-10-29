@@ -1,45 +1,47 @@
-from datetime import datetime
-from pathlib import Path
-from typing import Annotated, Any, Dict, List
 import asyncio
-import os
 import shutil
-import warnings
 import tempfile
+import warnings
+from pathlib import Path
+from typing import Annotated, Dict, List
 
 import pandas as pd
-import tiktoken
 import yaml
 from langchain_core.messages import ToolMessage
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState, create_react_agent
 from langgraph.types import Command
+from llm_sandbox import SandboxSession
 from pydantic import BaseModel, Field
 
-from src.utils.llms import SONNET, GEMINI_FLASH, QWEN3, GROQ, GPT_OSS, GLM, MINIMAX
+from src.utils.llms import GEMINI_FLASH
 from src.utils.logging_config import get_logger
-
-from llm_sandbox import SandboxSession
 
 logger = get_logger(__name__)
 
+
 class PersistentPythonSandbox:
     """Manages a persistent sandbox session with automatic lifecycle management."""
-    
+
     def __init__(self):
         self.session = None
-        self.session_dir = None # Isolated temp dir for sandbox session
-        self.sandbox_files = [] # Files to be copied to sandbox session
+        self.session_dir = None  # Isolated temp dir for sandbox session
+        self.sandbox_files = []  # Files to be copied to sandbox session
         # Suppress tar extraction deprecation warning from llm_sandbox library
-        warnings.filterwarnings('ignore', category=DeprecationWarning, module='llm_sandbox.core.mixins')
-    
+        warnings.filterwarnings(
+            "ignore",
+            category=DeprecationWarning,
+            module="llm_sandbox.core.mixins",
+        )
+
     async def __aenter__(self):
         """Start the sandbox session asynchronously and create isolated temp dir."""
-        self.session_dir = Path(tempfile.mkdtemp(prefix="zeno_sandbox_", dir="/tmp"))
+        self.session_dir = Path(
+            tempfile.mkdtemp(prefix="zeno_sandbox_", dir="/tmp")
+        )
         logger.info(f"Created sandbox session directory: {self.session_dir}")
-        
+
         def _open_session():
             self.session = SandboxSession(
                 lang="python",
@@ -51,13 +53,13 @@ class PersistentPythonSandbox:
                 default_timeout=360.0,
                 execution_timeout=360.0,
                 session_timeout=300.0,
-                image="quay.io/jupyter/scipy-notebook"
+                image="quay.io/jupyter/scipy-notebook",
             )
             self.session.open()
-        
+
         await asyncio.to_thread(_open_session)
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Clean up the sandbox session and delete temp dir."""
         if self.session:
@@ -66,7 +68,9 @@ class PersistentPythonSandbox:
         # Clean up session dir
         if self.session_dir and self.session_dir.exists():
             shutil.rmtree(self.session_dir)
-            logger.info(f"Deleted sandbox session directory: {self.session_dir}")
+            logger.info(
+                f"Deleted sandbox session directory: {self.session_dir}"
+            )
 
         return False
 
@@ -85,16 +89,19 @@ class PersistentPythonSandbox:
                 f"Dropping constant columns: {list(df.columns[constants])}"
             )
             df = df.drop(columns=df.columns[constants])
-        
+
         df.to_csv(local_path, index=False)
         logger.debug(f"Prepared file : {local_path}")
         return local_path
 
-    async def copy_files_to_sandbox(self, local_files: List[Path]) -> List[str]:
+    async def copy_files_to_sandbox(
+        self, local_files: List[Path]
+    ) -> List[str]:
         """
         Copy files from session dir to sandbox container.
         Returns list of filenames (not full path) for tool use.
         """
+
         def _copy_sync():
             filenames = []
             for local_path in local_files:
@@ -109,28 +116,33 @@ class PersistentPythonSandbox:
     async def execute(self, code: str, files: List[str]) -> str:
         """Execute code in the persistent session (async)."""
         if not self.session:
-            raise RuntimeError("Sandbox not initialized. Use within async context manager.")
-        
+            raise RuntimeError(
+                "Sandbox not initialized. Use within async context manager."
+            )
+
         def _execute_sync():
             """All blocking operations in one function."""
             logger.info("CODE")
             logger.info(code)
             logger.info("FILES")
             logger.info(files)
-            
+
             # Execute code (blocking)
             result = self.session.run(code)
-            
+
             return result.stdout if result.exit_code == 0 else result.stderr
-        
+
         # Run all blocking operations in a thread
         return await asyncio.to_thread(_execute_sync)
 
-    async def retrieve_output(self, output_filename: str = "chart_data.csv") -> Path:
+    async def retrieve_output(
+        self, output_filename: str = "chart_data.csv"
+    ) -> Path:
         """
         Retrieve output file from sandbox to session directory.
         Returns local path to the file, or None if not found.
         """
+
         def _retrieve_sync():
             # Check if file exists in sandbox
             check_code = f"""
@@ -138,30 +150,34 @@ from pathlib import Path
 print(Path('/sandbox/{output_filename}').exists())
 """
             check_result = self.session.run(check_code)
-            
-            if check_result.stdout.strip() == 'True':
+
+            if check_result.stdout.strip() == "True":
                 local_path = self.session_dir / output_filename
                 print(f"Retrieving /sandbox/{output_filename} -> {local_path}")
-                self.session.copy_from_runtime(f"/sandbox/{output_filename}", str(local_path))
+                self.session.copy_from_runtime(
+                    f"/sandbox/{output_filename}", str(local_path)
+                )
                 return local_path
             else:
-                logger.warning(f"Output file {output_filename} not found in sandbox")
+                logger.warning(
+                    f"Output file {output_filename} not found in sandbox"
+                )
                 return None
-        
+
         return await asyncio.to_thread(_retrieve_sync)
-    
+
     def get_tool(self):
         """Create a LangChain tool bound to this sandbox instance."""
-        
+
         @tool("python_sandbox")
         async def python_sandbox(code: str, files: List[str]) -> str:
             """Execute Python code in a secure sandbox.
-            
+
             code: python code to be executed inside a sandbox container
             files: list of file names accessible inside the sandbox container
             """
             return await self.execute(code, files)
-        
+
         return python_sandbox
 
 
@@ -187,10 +203,11 @@ def _get_available_datasets() -> str:
         return "DIST-ALERT, Global Land Cover, Tree Cover Loss, and Grasslands"
 
 
-class ChartInsight(BaseModel, extra='allow'):
+class ChartInsight(BaseModel, extra="allow"):
     """
     Represents a chart-based insight with Recharts-compatible data.
     """
+
     title: str = Field(description="Clear, descriptive title for the chart")
     chart_type: str = Field(
         description="Chart type: 'line', 'bar', 'stacked-bar', 'grouped-bar', 'pie', 'area', 'scatter', or 'table'"
@@ -223,6 +240,7 @@ class ChartInsight(BaseModel, extra='allow'):
     follow_up_suggestions: List[str] = Field(
         description="List of 2-3 follow-up prompt suggestions for additional analysis"
     )
+
 
 @tool("generate_insights")
 async def generate_insights(
@@ -268,13 +286,12 @@ async def generate_insights(
     # Create persistent sandbox with isolated session directory
     async with PersistentPythonSandbox() as sandbox:
         # 1. PREPARE FILES: Save raw_data to CSVs inside session directory
-    
 
         raw_data_prompt = f"""User Query: {query}
 
 You have access to the following datasets - pick the ones you need for analysis:
 """
-    
+
         local_files = []
 
         if is_comparison:
@@ -306,32 +323,29 @@ You have access to the following datasets - pick the ones you need for analysis:
             raw_data_prompt += f"- {filename}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
 
         # 2. COPY FILES TO SANDBOX: one-time bulk copy of all files
-        filenames = await sandbox.copy_files_to_sandbox(local_files)
+        _ = await sandbox.copy_files_to_sandbox(local_files)
         raw_data_prompt += "\nPass ONLY the files necessary to answer user query to the 'python_sandbox' tool's files argument, they are present inside /sandbox directory."
 
         logger.info(raw_data_prompt)
 
         # 3. RUN AGENT: Multiple calls to the python_sandbox tool, files already present in sandbox
         python_sandbox = sandbox.get_tool()
-            
+
         codeact_agent = create_react_agent(
-                model=GEMINI_FLASH,
-                tools=[python_sandbox],
-                prompt="""You are an expert Analyst helping users analyze datasets via code execution using the 'python_sandbox' tool.
+            model=GEMINI_FLASH,
+            tools=[python_sandbox],
+            prompt="""You are an expert Analyst helping users analyze datasets via code execution using the 'python_sandbox' tool.
 
 Workflow:
 1. **Explore datasets first**: Identify datasets relevant to user query, load them, use head(), info(), describe() to understand structure, columns, dtypes, and units. Never assume column names or formats.
 2. **Analyze**: Write code to extract insights using pandas operations and print statements. DO NOT create plots or visualizations.
-3. **Output**: Recommend an appropriate chart type and save the prepared chart data to `/sandbox/chart_data.csv`."""
+3. **Output**: Recommend an appropriate chart type and save the prepared chart data to `/sandbox/chart_data.csv`.""",
         )
 
         try:
-            codeact_response = await codeact_agent.ainvoke({
-                "messages": [{
-                    "role": "user",
-                    "content": raw_data_prompt
-                }]
-            })
+            codeact_response = await codeact_agent.ainvoke(
+                {"messages": [{"role": "user", "content": raw_data_prompt}]}
+            )
         except Exception as e:
             logger.error(f"Error in codeact agent: {e}")
             return Command(
@@ -376,14 +390,12 @@ Workflow:
 {chart_data.head().to_csv(index=False)}
 """
 
-        chart_insight_response = await (
-            GEMINI_FLASH
-                .with_structured_output(ChartInsight)
-                .ainvoke(chart_insight_prompt)
-        )
+        chart_insight_response = await GEMINI_FLASH.with_structured_output(
+            ChartInsight
+        ).ainvoke(chart_insight_prompt)
 
         # Convert chart data to list of dicts for frontend
-        chart_insight_response.data = chart_data.to_dict('records')
+        chart_insight_response.data = chart_data.to_dict("records")
 
         message_parts = []
 
@@ -392,7 +404,9 @@ Workflow:
 
         # Add follow-up suggestions
         message_parts.append("Follow-up suggestions:")
-        for i, suggestion in enumerate(chart_insight_response.follow_up_suggestions, 1):
+        for i, suggestion in enumerate(
+            chart_insight_response.follow_up_suggestions, 1
+        ):
             message_parts.append(f"{i}. {suggestion}")
 
         # Store chart data for frontend
@@ -417,7 +431,9 @@ Workflow:
         # Update state with generated insight and follow-ups
         updated_state = {
             "insight": chart_insight_response.model_dump()["insight"],
-            "follow_up_suggestions": chart_insight_response.model_dump()["follow_up_suggestions"],
+            "follow_up_suggestions": chart_insight_response.model_dump()[
+                "follow_up_suggestions"
+            ],
             "charts_data": charts_data,
             "messages": [
                 ToolMessage(
