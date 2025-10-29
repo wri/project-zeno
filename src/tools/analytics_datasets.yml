@@ -729,7 +729,7 @@ datasets:
     and thus they cannot be combined directly to calculate net change.
   description: >
     Tree Cover Gain (Hansen/UMD/GLAD) identifies areas where new tree canopy was established
-    between 2000 and 2012 at 30-meter resolution, using Landsat 7 imagery. It captures both
+    between 2000 and 2020 at 30-meter resolution, using Landsat 7 imagery. It captures both
     natural forest regrowth and tree plantation cycles, and is useful for tracking large-scale
     forest recovery trends. Users should note that it is a cumulative layer and should not
     be combined directly with loss or tree cover data to calculate net change.
