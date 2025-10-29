@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_groq import ChatGroq
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
@@ -74,13 +73,6 @@ MINIMAX = ChatOllama(
     max_tokens=None,  # max_tokens=None means no limit
 )
 
-# GROQ
-GROQ = ChatGroq(
-    model="qwen/qwen3-32b",
-    temperature=0,
-    max_tokens=None,  # max_tokens=None means no limit
-)
-
 # Model Registry for dynamic selection
 MODEL_REGISTRY = {
     "sonnet": SONNET,
@@ -92,7 +84,7 @@ MODEL_REGISTRY = {
     "gpt-oss": GPT_OSS,
     "glm": GLM,
     "minimax": MINIMAX,
-    "groq": GROQ,
+    # "groq": GROQ,
 }
 
 # Available models list for frontend

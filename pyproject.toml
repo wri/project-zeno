@@ -50,7 +50,6 @@ dependencies = [
     "click==8.1.8",
     "llm-sandbox[docker]>=0.3.24",
     "langchain-ollama>=0.3.7",
-    "langchain-groq>=0.3.7",
 ]
 
 [dependency-groups]
