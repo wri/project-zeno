@@ -84,7 +84,6 @@ MODEL_REGISTRY = {
     "gpt-oss": GPT_OSS,
     "glm": GLM,
     "minimax": MINIMAX,
-    # "groq": GROQ,
 }
 
 # Available models list for frontend
