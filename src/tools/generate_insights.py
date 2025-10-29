@@ -203,7 +203,7 @@ def _get_available_datasets() -> str:
         return "DIST-ALERT, Global Land Cover, Tree Cover Loss, and Grasslands"
 
 
-class ChartInsight(BaseModel, extra="allow"):
+class ChartInsight(BaseModel):
     """
     Represents a chart-based insight with Recharts-compatible data.
     """
@@ -394,20 +394,13 @@ Workflow:
             ChartInsight
         ).ainvoke(chart_insight_prompt)
 
-        # Convert chart data to list of dicts for frontend
-        chart_insight_response.data = chart_data.to_dict("records")
-
-        message_parts = []
-
-        message_parts.append(f"Title: {chart_insight_response.title}")
-        message_parts.append(f"Key Finding: {chart_insight_response.insight}")
-
-        # Add follow-up suggestions
-        message_parts.append("Follow-up suggestions:")
+        tool_message = f"Title: {chart_insight_response.title}"
+        tool_message += f"\nKey Finding: {chart_insight_response.insight}"
+        tool_message += "\nFollow-up suggestions:"
         for i, suggestion in enumerate(
             chart_insight_response.follow_up_suggestions, 1
         ):
-            message_parts.append(f"{i}. {suggestion}")
+            tool_message += f"\n{i}. {suggestion}"
 
         # Store chart data for frontend
         charts_data = [
@@ -416,7 +409,7 @@ Workflow:
                 "title": chart_insight_response.title,
                 "type": chart_insight_response.chart_type,
                 "insight": chart_insight_response.insight,
-                "data": chart_insight_response.data,  # CSV data converted to list of dicts
+                "data": chart_data.to_dict("records"),
                 "xAxis": chart_insight_response.x_axis,
                 "yAxis": chart_insight_response.y_axis,
                 "colorField": chart_insight_response.color_field,
@@ -425,8 +418,6 @@ Workflow:
                 "seriesFields": chart_insight_response.series_fields,
             }
         ]
-
-        tool_message = "\n".join(message_parts)
 
         # Update state with generated insight and follow-ups
         updated_state = {
