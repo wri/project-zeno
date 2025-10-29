@@ -1,6 +1,11 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any, Dict, List
+import asyncio
+import os
+import shutil
+import warnings
+import tempfile
 
 import pandas as pd
 import tiktoken
@@ -9,17 +14,155 @@ from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
-from langgraph.prebuilt import InjectedState
+from langgraph.prebuilt import InjectedState, create_react_agent
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from src.utils.llms import SONNET
+from src.utils.llms import SONNET, GEMINI_FLASH, QWEN3, GROQ, GPT_OSS, GLM, MINIMAX
 from src.utils.logging_config import get_logger
 
+from llm_sandbox import SandboxSession
+
 logger = get_logger(__name__)
-encoder = tiktoken.get_encoding(
-    "o200k_base"
-)  # tiktoken encoding for OpenAI's GPT-4o, used for approximate token counting
+
+class PersistentPythonSandbox:
+    """Manages a persistent sandbox session with automatic lifecycle management."""
+    
+    def __init__(self):
+        self.session = None
+        self.session_dir = None # Isolated temp dir for sandbox session
+        self.sandbox_files = [] # Files to be copied to sandbox session
+        # Suppress tar extraction deprecation warning from llm_sandbox library
+        warnings.filterwarnings('ignore', category=DeprecationWarning, module='llm_sandbox.core.mixins')
+    
+    async def __aenter__(self):
+        """Start the sandbox session asynchronously and create isolated temp dir."""
+        self.session_dir = Path(tempfile.mkdtemp(prefix="zeno_sandbox_", dir="/tmp"))
+        logger.info(f"Created sandbox session directory: {self.session_dir}")
+        
+        def _open_session():
+            self.session = SandboxSession(
+                lang="python",
+                verbose=True,
+                keep_template=True,
+                commit_container=False,
+                workdir="/sandbox",
+                skip_environment_setup=False,
+                default_timeout=360.0,
+                execution_timeout=360.0,
+                session_timeout=300.0,
+                image="quay.io/jupyter/scipy-notebook"
+            )
+            self.session.open()
+        
+        await asyncio.to_thread(_open_session)
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Clean up the sandbox session and delete temp dir."""
+        if self.session:
+            await asyncio.to_thread(self.session.close)
+
+        # Clean up session dir
+        if self.session_dir and self.session_dir.exists():
+            shutil.rmtree(self.session_dir)
+            logger.info(f"Deleted sandbox session directory: {self.session_dir}")
+
+        return False
+
+    def prepare_file(self, raw_data: Dict, filename: str) -> Path:
+        """
+        Save raw_data to a CSV file in the sandbox session directory.
+        Returns the local path (not yet copied to sandbox).
+        """
+        local_path = self.session_dir / filename
+        df = pd.DataFrame(raw_data)
+
+        # Drop constant columns if more then 1 row
+        if len(df) > 1:
+            constants = df.nunique() == 1
+            logger.debug(
+                f"Dropping constant columns: {list(df.columns[constants])}"
+            )
+            df = df.drop(columns=df.columns[constants])
+        
+        df.to_csv(local_path, index=False)
+        logger.debug(f"Prepared file : {local_path}")
+        return local_path
+
+    async def copy_files_to_sandbox(self, local_files: List[Path]) -> List[str]:
+        """
+        Copy files from session dir to sandbox container.
+        Returns list of filenames (not full path) for tool use.
+        """
+        def _copy_sync():
+            filenames = []
+            for local_path in local_files:
+                sandbox_path = f"/sandbox/{local_path.name}"
+                self.session.copy_to_runtime(str(local_path), sandbox_path)
+                filenames.append(local_path.name)
+                self.sandbox_files.append(local_path.name)
+            return filenames
+
+        return await asyncio.to_thread(_copy_sync)
+
+    async def execute(self, code: str, files: List[str]) -> str:
+        """Execute code in the persistent session (async)."""
+        if not self.session:
+            raise RuntimeError("Sandbox not initialized. Use within async context manager.")
+        
+        def _execute_sync():
+            """All blocking operations in one function."""
+            logger.info("CODE")
+            logger.info(code)
+            logger.info("FILES")
+            logger.info(files)
+            
+            # Execute code (blocking)
+            result = self.session.run(code)
+            
+            return result.stdout if result.exit_code == 0 else result.stderr
+        
+        # Run all blocking operations in a thread
+        return await asyncio.to_thread(_execute_sync)
+
+    async def retrieve_output(self, output_filename: str = "chart_data.csv") -> Path:
+        """
+        Retrieve output file from sandbox to session directory.
+        Returns local path to the file, or None if not found.
+        """
+        def _retrieve_sync():
+            # Check if file exists in sandbox
+            check_code = f"""
+from pathlib import Path
+print(Path('/sandbox/{output_filename}').exists())
+"""
+            check_result = self.session.run(check_code)
+            
+            if check_result.stdout.strip() == 'True':
+                local_path = self.session_dir / output_filename
+                print(f"Retrieving /sandbox/{output_filename} -> {local_path}")
+                self.session.copy_from_runtime(f"/sandbox/{output_filename}", str(local_path))
+                return local_path
+            else:
+                logger.warning(f"Output file {output_filename} not found in sandbox")
+                return None
+        
+        return await asyncio.to_thread(_retrieve_sync)
+    
+    def get_tool(self):
+        """Create a LangChain tool bound to this sandbox instance."""
+        
+        @tool("python_sandbox")
+        async def python_sandbox(code: str, files: List[str]) -> str:
+            """Execute Python code in a secure sandbox.
+            
+            code: python code to be executed inside a sandbox container
+            files: list of file names accessible inside the sandbox container
+            """
+            return await self.execute(code, files)
+        
+        return python_sandbox
 
 
 def _get_available_datasets() -> str:
@@ -44,20 +187,16 @@ def _get_available_datasets() -> str:
         return "DIST-ALERT, Global Land Cover, Tree Cover Loss, and Grasslands"
 
 
-class ChartInsight(BaseModel):
+class ChartInsight(BaseModel, extra='allow'):
     """
     Represents a chart-based insight with Recharts-compatible data.
     """
-
     title: str = Field(description="Clear, descriptive title for the chart")
     chart_type: str = Field(
         description="Chart type: 'line', 'bar', 'stacked-bar', 'grouped-bar', 'pie', 'area', 'scatter', or 'table'"
     )
     insight: str = Field(
         description="Key insight or finding that this chart reveals (2-3 sentences)"
-    )
-    data: List[Dict[str, Any]] = Field(
-        description="Recharts-compatible data array with objects containing key-value pairs"
     )
     x_axis: str = Field(
         description="Name of the field to use for X-axis (for applicable chart types)"
@@ -81,125 +220,9 @@ class ChartInsight(BaseModel):
         default=[],
         description="List of field names for multiple data series (for multi-bar charts)",
     )
-
-
-class InsightResponse(BaseModel):
-    """
-    Contains 1 main chart insight and follow-up suggestions.
-    """
-
-    insight: ChartInsight = Field(
-        description="The most useful chart insight for the user's query"
-    )
     follow_up_suggestions: List[str] = Field(
         description="List of 2-3 follow-up prompt suggestions for additional analysis"
     )
-
-
-def _create_insight_generation_prompt() -> ChatPromptTemplate:
-    """Create the insight generation prompt with dynamic dataset information."""
-    available_datasets = _get_available_datasets()
-    current_date = datetime.now().strftime("%Y-%m-%d")
-
-    return ChatPromptTemplate.from_messages(
-        [
-            (
-                "user",
-                f"""# ROLE
-You are the Global Nature Watch's Geospatial Assistant, an expert at analyzing environmental data and creating insightful visualizations.
-
-# CONTEXT
-Current date: {current_date}
-
-# TASK
-First, evaluate if the provided data can answer the user's query. If not, provide feedback on missing data requirements instead of generating a chart.
-
-If data is sufficient, generate ONE chart insight that best answers the user's query. If the user specifies a chart type (e.g., "show as bar chart", "make this a pie chart"), prioritize that type if appropriate for the data.
-
-# USER QUERY
-{{user_query}}
-
-# DATA TO ANALYZE
-{{raw_data_prompt}}
-
-# DATASET-SPECIFIC GUIDELINES
-{{dataset_guidelines}}
-
-# CRITICAL DATA EVALUATION
-**BEFORE PROCEEDING**: Carefully examine if the available data can answer the user's query:
-
-**If data is INSUFFICIENT or MISSING required fields:**
-- DO NOT generate any chart insight
-- Instead, respond with specific feedback explaining:
-  * What exact data/fields are missing for the analysis
-  * Which dataset(s) would contain the required information
-  * Which region(s) need additional data collection
-  * Suggest: "Please select [specific dataset] for [specific region] and pull the data again"
-
-**Only proceed to chart generation if data is SUFFICIENT for the query.**
-
-# CHART TYPE SELECTION
-Choose the most appropriate chart type:
-- **line**: Time series data, trends over time
-- **bar**: Categorical comparisons, rankings
-- **stacked-bar**: Show composition within categories (requires series_fields)
-- **grouped-bar**: Compare multiple metrics across categories (requires group_field)
-- **pie**: Part-to-whole relationships (limit to 6-8 categories max)
-- **area**: Cumulative trends, stacked time series
-- **scatter**: Show correlations between two variables
-- **table**: Detailed data when visualization isn't optimal
-
-# DATA FORMAT REQUIREMENTS
-Your chart data MUST follow these rules:
-1. **Structure**: Array of objects with simple field names
-2. **Field names**: Use clear names like 'date', 'value', 'category', 'year'
-3. **Numeric values**: Always numbers, never strings (e.g., 100 not "100")
-4. **Date ordering**: Chronological order, not alphabetical
-5. **Special formats**:
-   - Stacked-bar: [{{{{\"category\": \"2020\", \"metric1\": 100, \"metric2\": 50}}}}] + set series_fields
-   - Grouped-bar: [{{{{\"year\": \"2020\", \"type\": \"metric1\", \"value\": 100}}}}] + set group_field
-
-# OUTPUT REQUIREMENTS
-Generate exactly:
-1. **One chart insight** with:
-   - Appropriate chart type for the data
-   - Recharts-compatible data array
-   - Clear x_axis and y_axis field mappings
-   - Insightful title and analysis
-
-2. **1-2 follow-up suggestions** based on available data and capabilities
-
-# CAPABILITIES CONTEXT
-You can analyze data for any area of interest, pull data from datasets like {available_datasets} for different time periods, and create various charts/insights. Base follow-ups on what's actually possible with available data and tools.
-
-# LANGUAGE REQUIREMENT
-Generate ALL content (insights, titles, follow-ups) in the SAME LANGUAGE as the user query.
-
-# FOLLOW-UP EXAMPLES
-- "Show trend over different time period"
-- "Compare with nearby [region/area]"
-- "Identify top/bottom performers in [metric]"
-- "Break down by [relevant category]"
-""",
-            ),
-        ]
-    )
-
-
-def get_data_csv(raw_data: Dict) -> str:
-    """
-    Convert the raw data to a CSV string and drop constant columns.
-    Keep first 6 significant digits for numeric values.
-    """
-    df = pd.DataFrame(raw_data)
-    if len(df) > 1:
-        constants = df.nunique() == 1
-        logger.debug(
-            f"Dropping constant columns: {list(df.columns[constants])}"
-        )
-        df = df.drop(columns=df.columns[constants])
-    return df.to_csv(index=False, float_format="%.6g")
-
 
 @tool("generate_insights")
 async def generate_insights(
@@ -242,107 +265,150 @@ async def generate_insights(
 
     raw_data = state["raw_data"]
 
-    raw_data_prompt = "## RAW DATA FOR ANALYSIS\n\n"
+    # Create persistent sandbox with isolated session directory
+    async with PersistentPythonSandbox() as sandbox:
+        # 1. PREPARE FILES: Save raw_data to CSVs inside session directory
+    
 
-    if is_comparison:
-        raw_data_prompt += "**COMPARISON MODE**: Multiple areas/datasets provided for comparative analysis.\n\n"
-        for i, data_by_aoi in enumerate(raw_data.values(), 1):
-            for j, data in enumerate(data_by_aoi.values(), 1):
-                data_copy = data.copy()
-                aoi_name = data_copy.pop("aoi_name")
-                dataset_name = data_copy.pop("dataset_name")
-                start_date = data_copy.pop("start_date")
-                end_date = data_copy.pop("end_date")
-                data_csv = get_data_csv(data_copy)
-                raw_data_prompt += f"### Dataset {i}.{j}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
-                raw_data_prompt += f"```csv\n{data_csv}\n```\n\n"
-    else:
-        raw_data_prompt += (
-            "**SINGLE ANALYSIS MODE**: One area and dataset provided.\n\n"
-        )
-        # Get the latest key if not comparing
-        data_by_aoi = list(raw_data.values())[-1]
-        data = list(data_by_aoi.values())[-1]
-        data_copy = data.copy()
-        aoi_name = data_copy.pop("aoi_name")
-        dataset_name = data_copy.pop("dataset_name")
-        start_date = data_copy.pop("start_date")
-        end_date = data_copy.pop("end_date")
-        data_csv = get_data_csv(data_copy)
-        raw_data_prompt += f"### Dataset: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
-        raw_data_prompt += f"```csv\n{data_csv}\n```\n\n"
+        raw_data_prompt = f"""User Query: {query}
 
-    tokens = encoder.encode(raw_data_prompt)
-    token_count = len(tokens)
-    logger.debug(f"Raw data prompt token count: {token_count}")
+You have access to the following datasets - pick the ones you need for analysis:
+"""
+    
+        local_files = []
 
-    # 24_000 tokens is an approximate window size that would make sure the agent doesn't hallucinate
-    if token_count > 23_000:
-        return Command(
-            update={
-                "raw_data": {},  # reset raw data
-                "messages": [
-                    ToolMessage(
-                        content="I've reached my processing limit - you may have requested a large set of areas or too many data points. I'm clearing the current dataset to prevent errors. To continue your analysis, please start a new chat conversation and re-select your areas and datasets.",
-                        tool_call_id=tool_call_id,
-                        status="success",
-                        response_metadata={"msg_type": "human_feedback"},
-                    )
-                ],
-            }
-        )
+        if is_comparison:
+            for i, data_by_aoi in enumerate(raw_data.values(), 1):
+                for j, data in enumerate(data_by_aoi.values(), 1):
+                    data_copy = data.copy()
+                    aoi_name = data_copy.pop("aoi_name")
+                    dataset_name = data_copy.pop("dataset_name")
+                    start_date = data_copy.pop("start_date")
+                    end_date = data_copy.pop("end_date")
 
-    dataset_guidelines = state.get("dataset").get("prompt_instructions", "")
-    if dataset_guidelines:
-        dataset_guidelines = (
-            f"**Important guidelines for this dataset:**\n{dataset_guidelines}"
-        )
-    else:
-        dataset_guidelines = "No specific dataset guidelines provided."
+                    filename = f"{aoi_name}_{dataset_name}_{start_date}_{end_date}.csv"
+                    local_path = sandbox.prepare_file(data_copy, filename)
+                    local_files.append(local_path)
+                    raw_data_prompt += f"- {filename}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
+        else:
+            # Get the latest key if not comparing
+            data_by_aoi = list(raw_data.values())[-1]
+            data = list(data_by_aoi.values())[-1]
+            data_copy = data.copy()
+            aoi_name = data_copy.pop("aoi_name")
+            dataset_name = data_copy.pop("dataset_name")
+            start_date = data_copy.pop("start_date")
+            end_date = data_copy.pop("end_date")
 
-    try:
-        prompt = _create_insight_generation_prompt()
-        chain = prompt | SONNET.with_structured_output(InsightResponse)
-        response = await chain.ainvoke(
-            {
-                "user_query": query,
-                "raw_data_prompt": raw_data_prompt,
-                "dataset_guidelines": dataset_guidelines,
-            }
+            filename = f"{aoi_name}_{dataset_name}_{start_date}_{end_date}.csv"
+            local_path = sandbox.prepare_file(data_copy, filename)
+            local_files.append(local_path)
+            raw_data_prompt += f"- {filename}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
+
+        # 2. COPY FILES TO SANDBOX: one-time bulk copy of all files
+        filenames = await sandbox.copy_files_to_sandbox(local_files)
+        raw_data_prompt += "\nPass ONLY the files necessary to answer user query to the 'python_sandbox' tool's files argument, they are present inside /sandbox directory."
+
+        logger.info(raw_data_prompt)
+
+        # 3. RUN AGENT: Multiple calls to the python_sandbox tool, files already present in sandbox
+        python_sandbox = sandbox.get_tool()
+            
+        codeact_agent = create_react_agent(
+                model=GEMINI_FLASH,
+                tools=[python_sandbox],
+                prompt="""You are an expert Analyst helping users analyze datasets via code execution using the 'python_sandbox' tool.
+
+Workflow:
+1. **Explore datasets first**: Identify datasets relevant to user query, load them, use head(), info(), describe() to understand structure, columns, dtypes, and units. Never assume column names or formats.
+2. **Analyze**: Write code to extract insights using pandas operations and print statements. DO NOT create plots or visualizations.
+3. **Output**: Recommend an appropriate chart type and save the prepared chart data to `/sandbox/chart_data.csv`."""
         )
 
-        insight = response.insight
-        follow_ups = response.follow_up_suggestions
-        logger.debug(
-            f"Generated insight: {insight.title} ({insight.chart_type})"
-        )
-        logger.debug(f"Generated {len(follow_ups)} follow-up suggestions")
+        try:
+            codeact_response = await codeact_agent.ainvoke({
+                "messages": [{
+                    "role": "user",
+                    "content": raw_data_prompt
+                }]
+            })
+        except Exception as e:
+            logger.error(f"Error in codeact agent: {e}")
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            content="I've reached my processing limit - you may have requested a large set of areas or too many data points. I'm clearing the current dataset to prevent errors. To continue your analysis, please start a new chat conversation and re-select your areas and datasets.",
+                            tool_call_id=tool_call_id,
+                            status="success",
+                            response_metadata={"msg_type": "human_feedback"},
+                        )
+                    ],
+                }
+            )
 
-        # Format the response message
+        # 4. GET CHART DATA: Read chart data from sandbox
+        chart_data_path = await sandbox.retrieve_output("chart_data.csv")
+
+        if not chart_data_path or not chart_data_path.exists():
+            logger.error("chart_data.csv not found after sandbox execution")
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            content="Failed to generate chart data. Please try again.",
+                            tool_call_id=tool_call_id,
+                            status="error",
+                        )
+                    ]
+                }
+            )
+
+        # 5. GENERATE CHART SCHEMA
+        chart_data = pd.read_csv(chart_data_path)
+
+        chart_insight_prompt = f"""Based on analysis done by an expert & data saved for visualization, generate structured response.
+
+### Analysis
+{codeact_response["messages"][-1].content}
+
+### Saved chart data - head 5 rows
+{chart_data.head().to_csv(index=False)}
+"""
+
+        chart_insight_response = await (
+            GEMINI_FLASH
+                .with_structured_output(ChartInsight)
+                .ainvoke(chart_insight_prompt)
+        )
+
+        # Convert chart data to list of dicts for frontend
+        chart_insight_response.data = chart_data.to_dict('records')
+
         message_parts = []
 
-        message_parts.append(f"Title: {insight.title}")
-        message_parts.append(f"Key Finding: {insight.insight}")
+        message_parts.append(f"Title: {chart_insight_response.title}")
+        message_parts.append(f"Key Finding: {chart_insight_response.insight}")
 
         # Add follow-up suggestions
         message_parts.append("Follow-up suggestions:")
-        for i, suggestion in enumerate(follow_ups, 1):
+        for i, suggestion in enumerate(chart_insight_response.follow_up_suggestions, 1):
             message_parts.append(f"{i}. {suggestion}")
 
         # Store chart data for frontend
         charts_data = [
             {
                 "id": "main_chart",
-                "title": insight.title,
-                "type": insight.chart_type,
-                "insight": insight.insight,
-                "data": insight.data,
-                "xAxis": insight.x_axis,
-                "yAxis": insight.y_axis,
-                "colorField": insight.color_field,
-                "stackField": insight.stack_field,
-                "groupField": insight.group_field,
-                "seriesFields": insight.series_fields,
+                "title": chart_insight_response.title,
+                "type": chart_insight_response.chart_type,
+                "insight": chart_insight_response.insight,
+                "data": chart_insight_response.data,  # CSV data converted to list of dicts
+                "xAxis": chart_insight_response.x_axis,
+                "yAxis": chart_insight_response.y_axis,
+                "colorField": chart_insight_response.color_field,
+                "stackField": chart_insight_response.stack_field,
+                "groupField": chart_insight_response.group_field,
+                "seriesFields": chart_insight_response.series_fields,
             }
         ]
 
@@ -350,35 +416,18 @@ async def generate_insights(
 
         # Update state with generated insight and follow-ups
         updated_state = {
-            "insight": response.model_dump()["insight"],
-            "follow_up_suggestions": follow_ups,
+            "insight": chart_insight_response.model_dump()["insight"],
+            "follow_up_suggestions": chart_insight_response.model_dump()["follow_up_suggestions"],
             "charts_data": charts_data,
-            "insight_count": 1,
+            "messages": [
+                ToolMessage(
+                    content=tool_message,
+                    tool_call_id=tool_call_id,
+                    status="success",
+                    response_metadata={"msg_type": "human_feedback"},
+                )
+            ],
         }
 
-        return Command(
-            update={
-                **updated_state,
-                "messages": [
-                    ToolMessage(
-                        content=tool_message,
-                        tool_call_id=tool_call_id,
-                    )
-                ],
-            }
-        )
-
-    except Exception as e:
-        error_msg = f"Error generating insights: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(
-                        content=error_msg,
-                        tool_call_id=tool_call_id,
-                        status="error",
-                    )
-                ]
-            }
-        )
+        return Command(update=updated_state)
+    # Sandbox automatically cleaned up here
