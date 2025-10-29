@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Annotated, Dict, List
 
 import pandas as pd
-import yaml
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
@@ -179,28 +178,6 @@ print(Path('/sandbox/{output_filename}').exists())
             return await self.execute(code, files)
 
         return python_sandbox
-
-
-def _get_available_datasets() -> str:
-    """Get a concise list of available datasets from the analytics_datasets.yml file."""
-    try:
-        # Get the path to the YAML file relative to this script
-        current_dir = Path(__file__).parent
-        yaml_path = current_dir / "analytics_datasets.yml"
-
-        with open(yaml_path, "r") as f:
-            data = yaml.safe_load(f)
-
-        dataset_names = []
-        for dataset in data.get("datasets", []):
-            name = dataset.get("dataset_name", "Unknown")
-            dataset_names.append(name)
-
-        return ", ".join(dataset_names)
-
-    except Exception:
-        # Fallback to hardcoded list if YAML loading fails
-        return "DIST-ALERT, Global Land Cover, Tree Cover Loss, and Grasslands"
 
 
 class ChartInsight(BaseModel):
