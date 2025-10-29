@@ -188,3 +188,7 @@ ee-zeno-service-account.json
 
 # Logs
 logs/
+
+# Ignore node modules
+node_modules
+

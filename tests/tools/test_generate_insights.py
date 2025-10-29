@@ -1,8 +1,13 @@
+import asyncio
 import uuid
 
 import pytest
 
 from src.tools.generate_insights import generate_insights
+
+# Force sequential execution to avoid race conditions with shared sandbox container
+# Mark as sandbox tests requiring Docker
+pytestmark = [pytest.mark.serial, pytest.mark.sandbox, pytest.mark.asyncio]
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -15,6 +20,19 @@ def test_db():
 def test_db_session():
     """Override the global test_db_session fixture to avoid database connections."""
     pass
+
+
+@pytest.fixture(scope="module")
+def event_loop():
+    """Create a single event loop for all tests in this module."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    # Don't close the loop immediately - let pytest-asyncio handle it
+    try:
+        loop.close()
+    except:
+        pass
 
 
 @pytest.mark.asyncio
@@ -53,6 +71,8 @@ async def test_generate_insights_comparison():
                 4: {
                     "aoi_name": "Pima, Arizona, United States",
                     "dataset_name": "Tree cover loss",
+                    "start_date": "2024-07-01",
+                    "end_date": "2024-07-31",
                     "country": [
                         "USA",
                         "USA",
@@ -186,6 +206,8 @@ async def test_generate_insights_comparison():
                 4: {
                     "aoi_name": "Bern, Switzerland",
                     "dataset_name": "Tree cover loss",
+                    "start_date": "2024-07-01",
+                    "end_date": "2024-07-31",
                     "country": [
                         "CHE",
                         "CHE",
@@ -352,6 +374,8 @@ async def test_simple_line_chart():
                 1: {
                     "aoi_name": "Amazon Region",
                     "dataset_name": "Deforestation Alerts",
+                    "start_date": "2020-01-01",
+                    "end_date": "2023-12-31",
                     "date": [
                         "2020-01-01",
                         "2021-01-01",
@@ -400,14 +424,16 @@ async def test_simple_bar_chart():
         "raw_data": {
             "BRA.15": {
                 1: {
-                    "aoi_name": "Global Forest Loss",
-                    "dataset_name": "Forest Loss by Country",
-                    "country": [
-                        "Brazil",
-                        "Indonesia",
-                        "DRC",
-                        "Peru",
-                        "Colombia",
+                    "aoi_name": "Odisha",
+                    "dataset_name": "Tree cover loss",
+                    "start_date": "2022-01-01",
+                    "end_date": "2022-12-31",
+                    "districts": [
+                        "Rayagada",
+                        "Khurdha",
+                        "Puri",
+                        "Koraput",
+                        "Ganjam",
                     ],
                     "forest_loss_ha": [
                         11568000,
@@ -421,20 +447,20 @@ async def test_simple_bar_chart():
             }
         },
         "dataset": {
-            "prompt_instructions": "Compare forest loss across countries"
+            "prompt_instructions": "Compare forest loss"
         },
         "aoi_options": [
             {
                 "source": "gadm",
-                "src_id": "Global Forest Loss",
-                "name": "Global Forest Loss",
+                "src_id": "ODI",
+                "name": "Tree cover loss",
             }
         ],
     }
 
     result = await generate_insights.ainvoke(
         {
-            "query": "Which countries have the highest forest loss?",
+            "query": "Which district have the highest forest loss in Odisha?",
             "is_comparison": False,
             "state": mock_state_bar,
             "tool_call_id": str(uuid.uuid4()),
@@ -459,6 +485,8 @@ async def test_stacked_bar_chart():
                 1: {
                     "aoi_name": "Amazon Forest Loss Causes",
                     "dataset_name": "Forest Loss Causes Over Time",
+                    "start_date": "2020-01-01",
+                    "end_date": "2023-12-31",
                     "year": ["2020", "2021", "2022", "2023"],
                     "deforestation": [1200, 1100, 950, 800],
                     "fires": [800, 900, 1200, 1100],
@@ -507,6 +535,8 @@ async def test_grouped_bar_chart():
                 1: {
                     "aoi_name": "Global Forest Metrics",
                     "dataset_name": "Forest Loss and Fire Incidents",
+                    "start_date": "2022-01-01",
+                    "end_date": "2022-12-31",
                     "country": [
                         "Brazil",
                         "Brazil",
@@ -567,6 +597,8 @@ async def test_pie_chart():
                 1: {
                     "aoi_name": "Global Forest Loss Causes",
                     "dataset_name": "Global Forest Loss Causes",
+                    "start_date": "2022-01-01",
+                    "end_date": "2022-12-31",
                     "cause": [
                         "Deforestation",
                         "Fires",
