@@ -278,13 +278,12 @@ async def generate_insights(
             }
         )
 
-    dataset_guidelines = state.get("dataset").get("prompt_instructions", "")
-    if dataset_guidelines:
-        dataset_guidelines = (
-            f"**Important guidelines for this dataset:**\n{dataset_guidelines}"
-        )
-    else:
-        dataset_guidelines = "No specific dataset guidelines provided."
+    dataset_guidelines = state.get("dataset").get(
+        "prompt_instructions", "No specific dataset guidelines provided."
+    )
+    dataset_cautions = state.get("dataset").get(
+        "cautions", "No specific dataset cautions provided."
+    )
 
     try:
         prompt = _create_insight_generation_prompt()
@@ -294,6 +293,7 @@ async def generate_insights(
                 "user_query": query,
                 "raw_data_prompt": raw_data_prompt,
                 "dataset_guidelines": dataset_guidelines,
+                "dataset_cautions": dataset_cautions,
             }
         )
 

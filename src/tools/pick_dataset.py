@@ -153,6 +153,8 @@ async def select_best_dataset(
                     "dataset_name",
                     "description",
                     "content_date",
+                    "cautions",
+                    "prompt_instructions",
                     "context_layers",
                 ]
             ].to_csv(index=False),
