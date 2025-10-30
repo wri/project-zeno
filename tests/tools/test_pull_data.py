@@ -90,6 +90,11 @@ ALL_DATASET_COMBINATIONS = [
         "dataset_name": "Tree cover loss by driver",
         "context_layer": "driver",
     },
+    {
+        "dataset_id": 9,
+        "dataset_name": "Deforestation (sLUC) Emission Factors by Agricultural Crop",
+        "context_layer": None,
+    },
 ]
 
 
@@ -105,8 +110,8 @@ TEST_AOIS = [
     {
         "name": "Berne, Bern, Bern, Switzerland",
         "subtype": "municipality",
-        "src_id": "CHE.6.3.1_1",
-        "gadm_id": "CHE.6.3.1_1",
+        "src_id": "CHE.6.3_1",
+        "gadm_id": "CHE.6.3_1",
         "aoi_type": "municipality",
         "query_description": "municipality of Bern, Switzerland",
     },
@@ -207,80 +212,9 @@ async def test_pull_data_queries(aoi_data, dataset):
         raw_data = command.update.get("raw_data", {})
         assert aoi_data["src_id"] in raw_data
         assert dataset["dataset_id"] in raw_data[aoi_data["src_id"]]
-
-
-COMMODITIES_TEST_AOIS = [
-    {
-        "name": "Afghanistan",
-        "subtype": "country",
-        "src_id": "AFG",
-        "gadm_id": "AFG",
-        "aoi_type": "country",
-        "query_description": "Afghanistan country",
-        "gadm_level": 0,
-    },
-    {
-        "name": "Badakhshan",
-        "subtype": "state-province",
-        "src_id": "AFG.1_1",
-        "gadm_id": "AFG.1_1",
-        "aoi_type": "state-province",
-        "query_description": "Badakhshan state-province",
-        "gadm_level": 1,
-    },
-    {
-        "name": "Baharak",
-        "subtype": "district-county",
-        "src_id": "AFG.1.1_1",
-        "gadm_id": "AFG.1.1_1",
-        "aoi_type": "district-county",
-        "query_description": "Baharak district-county",
-        "gadm_level": 2,
-    },
-]
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("aoi_data", COMMODITIES_TEST_AOIS)
-async def test_pull_data_queries_commodities(aoi_data):
-    update = {
-        "aoi": aoi_data,
-        "subregion_aois": None,
-        "subregion": None,
-        "aoi_names": [aoi_data["name"]],
-        "subtype": aoi_data["subtype"],
-        "dataset": {
-            "dataset_id": 9,
-            "dataset_name": "Deforestation (sLUC) Emission Factors by Agricultural Crop",
-            "reason": "",
-            "tile_url": "",
-            "context_layer": None,
-        },
-        "aoi_options": [
-            {
-                "aoi": aoi_data,
-                "subregion_aois": None,
-                "subregion": None,
-                "subtype": aoi_data["subtype"],
-            }
-        ],
-    }
-    query = f"find commodities in {aoi_data['query_description']}"
-    command = await pull_data.ainvoke(
-        {
-            "query": query,
-            "start_date": "2024-01-01",
-            "end_date": "2024-01-31",
-            "aoi_names": [update["aoi"]["name"]],
-            "dataset_name": "commodities",
-            "tool_call_id": str(uuid.uuid4()),
-            "state": update,
-        }
-    )
-
-    raw_data = command.update.get("raw_data", {})
-    assert aoi_data["src_id"] in raw_data
-    assert update["dataset"]["dataset_id"] in raw_data[aoi_data["src_id"]]
+        assert (
+            raw_data[aoi_data["src_id"]][dataset["dataset_id"]] is not None
+        ), "No raw data retrieved"
 
 
 async def whitelist_test_user():

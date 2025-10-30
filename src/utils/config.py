@@ -43,6 +43,12 @@ class _APISettings(BaseSettings):
         alias="EOAPI_BASE_URL",
     )
 
+    # Dataset embeddings database
+    dataset_embeddings_db: str = Field(
+        default="zeno-docs-openai-index-v4",
+        alias="DATASET_EMBEDDINGS_DB",
+    )
+
     @property
     def domains_allowlist(self) -> list[str]:
         if not self.domains_allowlist_str.strip():
