@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Annotated, Dict, List
 
 import pandas as pd
-import yaml
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
@@ -181,29 +180,7 @@ print(Path('/sandbox/{output_filename}').exists())
         return python_sandbox
 
 
-def _get_available_datasets() -> str:
-    """Get a concise list of available datasets from the analytics_datasets.yml file."""
-    try:
-        # Get the path to the YAML file relative to this script
-        current_dir = Path(__file__).parent
-        yaml_path = current_dir / "analytics_datasets.yml"
-
-        with open(yaml_path, "r") as f:
-            data = yaml.safe_load(f)
-
-        dataset_names = []
-        for dataset in data.get("datasets", []):
-            name = dataset.get("dataset_name", "Unknown")
-            dataset_names.append(name)
-
-        return ", ".join(dataset_names)
-
-    except Exception:
-        # Fallback to hardcoded list if YAML loading fails
-        return "DIST-ALERT, Global Land Cover, Tree Cover Loss, and Grasslands"
-
-
-class ChartInsight(BaseModel, extra="allow"):
+class ChartInsight(BaseModel):
     """
     Represents a chart-based insight with Recharts-compatible data.
     """
@@ -245,7 +222,6 @@ class ChartInsight(BaseModel, extra="allow"):
 @tool("generate_insights")
 async def generate_insights(
     query: str,
-    is_comparison: bool,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
@@ -259,9 +235,6 @@ async def generate_insights(
         query: Improved query from the user including relevant context that will help in
                better insight generation. Should include specific chart type requests,
                temporal focus, comparison aspects, and any domain-specific context.
-        is_comparison: Whether the user is comparing two or more different AOIs (e.g.,
-                      comparing Brazil vs Indonesia). Set to False for comparisons within
-                      a specific AOI (e.g., provinces in a country, KBAs in a region, counties in a state).
     """
     logger.info("GENERATE-INSIGHTS-TOOL")
     logger.debug(f"Generating insights for query: {query}")
@@ -290,37 +263,25 @@ async def generate_insights(
         raw_data_prompt = f"""User Query: {query}
 
 You have access to the following datasets - pick the ones you need for analysis:
+
 """
 
         local_files = []
 
-        if is_comparison:
-            for i, data_by_aoi in enumerate(raw_data.values(), 1):
-                for j, data in enumerate(data_by_aoi.values(), 1):
-                    data_copy = data.copy()
-                    aoi_name = data_copy.pop("aoi_name")
-                    dataset_name = data_copy.pop("dataset_name")
-                    start_date = data_copy.pop("start_date")
-                    end_date = data_copy.pop("end_date")
+        for data_by_aoi in raw_data.values():
+            for data in data_by_aoi.values():
+                data_copy = data.copy()
+                aoi_name = data_copy.pop("aoi_name")
+                dataset_name = data_copy.pop("dataset_name")
+                start_date = data_copy.pop("start_date")
+                end_date = data_copy.pop("end_date")
 
-                    filename = f"{aoi_name}_{dataset_name}_{start_date}_{end_date}.csv"
-                    local_path = sandbox.prepare_file(data_copy, filename)
-                    local_files.append(local_path)
-                    raw_data_prompt += f"- {filename}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
-        else:
-            # Get the latest key if not comparing
-            data_by_aoi = list(raw_data.values())[-1]
-            data = list(data_by_aoi.values())[-1]
-            data_copy = data.copy()
-            aoi_name = data_copy.pop("aoi_name")
-            dataset_name = data_copy.pop("dataset_name")
-            start_date = data_copy.pop("start_date")
-            end_date = data_copy.pop("end_date")
-
-            filename = f"{aoi_name}_{dataset_name}_{start_date}_{end_date}.csv"
-            local_path = sandbox.prepare_file(data_copy, filename)
-            local_files.append(local_path)
-            raw_data_prompt += f"- {filename}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
+                filename = (
+                    f"{aoi_name}_{dataset_name}_{start_date}_{end_date}.csv"
+                )
+                local_path = sandbox.prepare_file(data_copy, filename)
+                local_files.append(local_path)
+                raw_data_prompt += f"- {filename}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
 
         # 2. COPY FILES TO SANDBOX: one-time bulk copy of all files
         _ = await sandbox.copy_files_to_sandbox(local_files)
@@ -394,20 +355,13 @@ Workflow:
             ChartInsight
         ).ainvoke(chart_insight_prompt)
 
-        # Convert chart data to list of dicts for frontend
-        chart_insight_response.data = chart_data.to_dict("records")
-
-        message_parts = []
-
-        message_parts.append(f"Title: {chart_insight_response.title}")
-        message_parts.append(f"Key Finding: {chart_insight_response.insight}")
-
-        # Add follow-up suggestions
-        message_parts.append("Follow-up suggestions:")
+        tool_message = f"Title: {chart_insight_response.title}"
+        tool_message += f"\nKey Finding: {chart_insight_response.insight}"
+        tool_message += "\nFollow-up suggestions:"
         for i, suggestion in enumerate(
             chart_insight_response.follow_up_suggestions, 1
         ):
-            message_parts.append(f"{i}. {suggestion}")
+            tool_message += f"\n{i}. {suggestion}"
 
         # Store chart data for frontend
         charts_data = [
@@ -416,7 +370,7 @@ Workflow:
                 "title": chart_insight_response.title,
                 "type": chart_insight_response.chart_type,
                 "insight": chart_insight_response.insight,
-                "data": chart_insight_response.data,  # CSV data converted to list of dicts
+                "data": chart_data.to_dict("records"),
                 "xAxis": chart_insight_response.x_axis,
                 "yAxis": chart_insight_response.y_axis,
                 "colorField": chart_insight_response.color_field,
@@ -425,8 +379,6 @@ Workflow:
                 "seriesFields": chart_insight_response.series_fields,
             }
         ]
-
-        tool_message = "\n".join(message_parts)
 
         # Update state with generated insight and follow-ups
         updated_state = {
