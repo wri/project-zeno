@@ -1085,20 +1085,25 @@ datasets:
     subnational (ADM1),and local administrative units (ADM2).
     Emission factors quantify total greenhouse gas emissions in tCO2e per tonne of product from
     deforestation linked to agricultural expansion. Not all crops are available for all regions.
-    In the data, LD stands for linearly discounted emissions, EF stands for emission factors,
-    production stands for crop production or production volume.
-    When referencing total emissions, always include units (tCO₂e).
+    Emissions can be reported by specific gas types: CO2, CH4, N2O; or the total greenhouse gas
+    emissions (tCO2e).
+    In the data, emissions_tCO2e stands for linearly discounted emissions,
+    emissions_factor_tCO2e_per_tonne_production stands for emission factors, and production_tonnes
+    for crop production or production volume.
+    When referencing emissions, always include units (tCO₂e).
     When referencing production volume, always include units (tonnes).
     If asked for a map, refuse and explain that this is tabular data only.
     When providing emission factors, always clarify the year of reporting (2020-2024) and show the
     both total emissions and production volume used to calculate the emission factor.
     DO NOT show combinations of EF, total emissions, and production volume together on a bar chart.
+    Use pie charts to show proportional contributions of total emissions by gas type (CO2, CH4, N2O)
+    for a specific crop and yearm in a single administrative unit.
     Use bar charts to show changes in emissions factor, total emissions, or production volume
     over time for a specific crop in a single administrative unit.
     Use tables to show emission factors for multiple crops in a single administrative unit
     or for a single crop across multiple administrative units.
     Use tables to compare a single crop across multiple locations.
-    Use tables summarise EF, total emissions, and production volume.
+    Use tables summarise emissions factors, total emissions, and production volume.
   description: >
     The dataset developed by Fitts et al. (2025) provides globally consistent, spatially explicit
     estimates of statistical land use change (sLUC) emission factors for 42 agricultural crops
