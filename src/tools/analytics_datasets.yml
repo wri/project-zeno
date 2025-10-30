@@ -972,8 +972,23 @@ datasets:
   analytics_api_endpoint: "/v0/land_change/tree_cover_loss/analytics"
   prompt_instructions: >
     Shows the primary driver or cause of tree cover loss over the entire range 2001-2024.
-    Driver classes are permanent agriculture, hard commodities, shifting cultivation, logging,
-    wildfire, settlements & infrastructure, and other natural disturbances.
+    Classes are defined as follows:
+    - Permanent agriculture: Long-term, permanent tree cover loss for small- tolarge-scale agriculture.
+    - Hard commodities: Loss due to the establishment or expansion of mining or energy infrastructure.
+    - Shifting cultivation: Tree cover loss due to small- to medium-scale clearing for temporary
+      cultivation that is later abandoned and followed by subsequent regrowth of secondary forest or
+      vegetation.
+    - Logging: Forest management and logging activities occurring within managed, natural or
+      semi-natural forests and plantations, often with evidence of forest regrowth or planting in
+      subsequent years.
+    - Wildfire: Tree cover loss due to fire with no visible human conversion or agricultural
+      activity afterward. Fires may be started by natural causes (e.g. lightning) or may be
+      related to human activities (accidental or deliberate).
+    - Settlements and infrastructure: Tree cover loss due to expansion and intensification of roads,
+      settlements, urban areas, or built infrastructure (not associated with other classes).
+      Other natural disturbances: Tree cover loss due to other non-fire natural disturbances
+      (e.g., landslides, insect outbreaks, river meandering). If loss due to natural causes is
+      followed by salvage or sanitation logging, it is classified as logging.
     Ignore the Unknown class.
     Show total area of loss (ha) or total emissions (MgCO2e) due to loss per driver class
     over the entire time period 2001-2024. DO NOT attempt a timeseries. If asked for annual
