@@ -1102,6 +1102,7 @@ datasets:
     deforestation linked to agricultural expansion. Not all crops are available for all regions.
     Emissions can be reported by specific gas types: CO2, CH4, N2O; or the total greenhouse gas
     emissions (tCO2e).
+    Data available between 2020-2024, use 2024 as the default year unless otherwise specified.
     In the data, emissions_tCO2e stands for linearly discounted emissions,
     emissions_factor_tCO2e_per_tonne_production stands for emission factors, and production_tonnes
     for crop production or production volume.
@@ -1148,26 +1149,24 @@ datasets:
     jurisdiction-specific sLUC emission factors (tCO₂e per tonne of crop commodity), enabling
     consistent corporate greenhouse gas accounting across spatial scales.
   cautions: >
-    The grouping of drivers into deforestation and temporary disturbances (i.e., likely
-    followed by regrowth) is indicative of how these classes are defined in the data and
-    should be considered an approximation. This product does not monitor regrowth or
-    permanence of loss following each loss event.
-    This product does not distinguish between the loss of natural forest and planted trees
-    (e.g., plantations, tree crops, or agroforestry systems). While tree cover loss associated
-    with the permanent agriculture, hard commodities, and settlements & infrastructure classes
-    represent a close approximation of deforestation, they do not always represent the conversion
-    of natural forests to other land uses and in some cases may represent loss of planted trees.
-    Similarly, replacement of natural forest with wood fiber plantations is not distinguished
-    from routine harvesting within existing plantations established before 2000, as these
-    are both included in the logging class.
-    These data are limited in scope to attributing drivers to tree cover loss as mapped by the
-    Hansen et al. 2013 tree cover loss product, and therefore the detection of loss is subject
-    to the accuracy of that product. This product shows the dominant driver in each 1 km cell
-    over the entire period. It does not show multiple drivers if they occur in the same cell at
-    smaller scales, nor does it detail the sequence of drivers if multiple occurred at different
-    times within the period. A full description of limitations is included in the publication.
+    Users should be aware of several limitations when utilizing the sLUC emission factors:
+    - Data Resolution: The underlying geospatial datasets vary in resolution, which may affect
+      accuracy at finer spatial scales, particularly for small administrative units (ADM2).
+    - Crop Coverage: Not all 42 crops are available for every region due to data constraints,
+      potentially limiting comprehensive assessments in certain areas.
+    - Temporal Alignment: While the assessment period is 2001-2020, emission factors are reported
+      for 2020-2024, which may introduce discrepancies if land use dynamics have shifted significantly.
+    - Methodological Assumptions: The linear discounting approach assumes a uniform decay of emissions
+      relevance over time, which may not capture complex land use change dynamics.
+    Users are encouraged to review the full methodology and associated publications to understand
+    these limitations and ensure appropriate application of the data in their specific contexts.
   function_usage_notes: >
-    Identifies areas of gross tree cover loss
+    This dataset provides statistical land use change (sLUC) emission factors, total emissions,
+    and production volume for 42 agricultural crops across multiple spatial scales:
+    national (ADM0), subnational (ADM1),and local administrative units (ADM2).
+    Emission factors quantify total greenhouse gas emissions in tCO2e per tonne of product
+    from deforestation linked to agricultural expansion. Emissions can be broken down by gas
+    type (CO2, CH4, N2O) upon request.
   providers: >
     Land & Carbon Lab
   citation: >
