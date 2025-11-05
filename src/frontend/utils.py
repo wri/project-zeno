@@ -617,6 +617,17 @@ def render_stream(stream):
                 mime="text/csv",
             )
 
+    # Render code blocks if this is a tool node with code_blocks
+    if "code_blocks" in update:
+        with st.expander("Code Blocks", expanded=False):
+            code_blocks = "\n".join(update["code_blocks"])
+            execution_outputs = "\n".join(update.get("execution_outputs", []))
+            text_output = update.get("text_output")
+
+            st.code(code_blocks, language="python")
+            st.code(execution_outputs, language="python")
+            st.markdown(text_output)
+
     with st.expander("State Updates"):
         for key, value in update.items():
             if key == "messages" or key == "aoi":

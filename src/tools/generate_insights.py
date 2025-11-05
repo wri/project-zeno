@@ -1,183 +1,105 @@
-import asyncio
-import shutil
-import tempfile
-import warnings
-from pathlib import Path
 from typing import Annotated, Dict, List
 
 import pandas as pd
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
-from langgraph.prebuilt import InjectedState, create_react_agent
+from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
-from llm_sandbox import SandboxSession
 from pydantic import BaseModel, Field
 
+from src.tools.code_executors import GeminiCodeExecutor
+from src.tools.datasets_config import DATASETS
 from src.utils.llms import GEMINI_FLASH
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 
-class PersistentPythonSandbox:
-    """Manages a persistent sandbox session with automatic lifecycle management."""
+def _get_available_datasets() -> str:
+    """Get a concise list of available datasets from the datasets configuration."""
+    dataset_names = []
+    for dataset in DATASETS:
+        dataset_names.append(dataset["dataset_name"])
 
-    def __init__(self):
-        self.session = None
-        self.session_dir = None  # Isolated temp dir for sandbox session
-        self.sandbox_files = []  # Files to be copied to sandbox session
-        # Suppress tar extraction deprecation warning from llm_sandbox library
-        warnings.filterwarnings(
-            "ignore",
-            category=DeprecationWarning,
-            module="llm_sandbox.core.mixins",
-        )
+    return ", ".join(dataset_names)
 
-    async def __aenter__(self):
-        """Start the sandbox session asynchronously and create isolated temp dir."""
-        self.session_dir = Path(
-            tempfile.mkdtemp(prefix="zeno_sandbox_", dir="/tmp")
-        )
-        logger.info(f"Created sandbox session directory: {self.session_dir}")
 
-        def _open_session():
-            self.session = SandboxSession(
-                lang="python",
-                verbose=True,
-                keep_template=True,
-                commit_container=False,
-                workdir="/sandbox",
-                skip_environment_setup=False,
-                default_timeout=360.0,
-                execution_timeout=360.0,
-                session_timeout=300.0,
-                image="quay.io/jupyter/scipy-notebook",
+def prepare_dataframes(raw_data: Dict) -> List[tuple[pd.DataFrame, str]]:
+    """
+    Prepare DataFrames from raw data for code executor.
+
+    Args:
+        raw_data: Nested dict of data by AOI and dataset
+
+    Returns:
+        List of tuples (DataFrame, display_name)
+    """
+    dataframes = []
+
+    for data_by_aoi in raw_data.values():
+        for data in data_by_aoi.values():
+            data_copy = data.copy()
+            aoi_name = data_copy.pop("aoi_name")
+            dataset_name = data_copy.pop("dataset_name")
+            start_date = data_copy.pop("start_date")
+            end_date = data_copy.pop("end_date")
+
+            # Create DataFrame and drop constant columns
+            df = pd.DataFrame(data_copy)
+            if len(df) > 1:
+                constants = df.nunique() == 1
+                logger.debug(
+                    f"Dropping constant columns: {list(df.columns[constants])}"
+                )
+                df = df.drop(columns=df.columns[constants])
+
+            display_name = (
+                f"{aoi_name} — {dataset_name} ({start_date} to {end_date})"
             )
-            self.session.open()
+            dataframes.append((df, display_name))
 
-        await asyncio.to_thread(_open_session)
-        return self
+            logger.info(f"Prepared: {display_name}")
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Clean up the sandbox session and delete temp dir."""
-        if self.session:
-            await asyncio.to_thread(self.session.close)
+    return dataframes
 
-        # Clean up session dir
-        if self.session_dir and self.session_dir.exists():
-            shutil.rmtree(self.session_dir)
-            logger.info(
-                f"Deleted sandbox session directory: {self.session_dir}"
-            )
 
-        return False
+def build_analysis_prompt(
+    query: str, dataframes: List[tuple[pd.DataFrame, str]]
+) -> str:
+    """
+    Build the analysis prompt for the code executor.
 
-    def prepare_file(self, raw_data: Dict, filename: str) -> Path:
-        """
-        Save raw_data to a CSV file in the sandbox session directory.
-        Returns the local path (not yet copied to sandbox).
-        """
-        local_path = self.session_dir / filename
-        df = pd.DataFrame(raw_data)
+    Args:
+        query: User's analysis query
+        dataframes: List of tuples (DataFrame, display_name)
 
-        # Drop constant columns if more then 1 row
-        if len(df) > 1:
-            constants = df.nunique() == 1
-            logger.debug(
-                f"Dropping constant columns: {list(df.columns[constants])}"
-            )
-            df = df.drop(columns=df.columns[constants])
+    Returns:
+        Formatted prompt string
+    """
+    prompt = f"""### User Query:
+{query}
 
-        df.to_csv(local_path, index=False)
-        logger.debug(f"Prepared file : {local_path}")
-        return local_path
 
-    async def copy_files_to_sandbox(
-        self, local_files: List[Path]
-    ) -> List[str]:
-        """
-        Copy files from session dir to sandbox container.
-        Returns list of filenames (not full path) for tool use.
-        """
-
-        def _copy_sync():
-            filenames = []
-            for local_path in local_files:
-                sandbox_path = f"/sandbox/{local_path.name}"
-                self.session.copy_to_runtime(str(local_path), sandbox_path)
-                filenames.append(local_path.name)
-                self.sandbox_files.append(local_path.name)
-            return filenames
-
-        return await asyncio.to_thread(_copy_sync)
-
-    async def execute(self, code: str, files: List[str]) -> str:
-        """Execute code in the persistent session (async)."""
-        if not self.session:
-            raise RuntimeError(
-                "Sandbox not initialized. Use within async context manager."
-            )
-
-        def _execute_sync():
-            """All blocking operations in one function."""
-            logger.info("CODE")
-            logger.info(code)
-            logger.info("FILES")
-            logger.info(files)
-
-            # Execute code (blocking)
-            result = self.session.run(code)
-
-            return result.stdout if result.exit_code == 0 else result.stderr
-
-        # Run all blocking operations in a thread
-        return await asyncio.to_thread(_execute_sync)
-
-    async def retrieve_output(
-        self, output_filename: str = "chart_data.csv"
-    ) -> Path:
-        """
-        Retrieve output file from sandbox to session directory.
-        Returns local path to the file, or None if not found.
-        """
-
-        def _retrieve_sync():
-            # Check if file exists in sandbox
-            check_code = f"""
-from pathlib import Path
-print(Path('/sandbox/{output_filename}').exists())
+You have access to the following datasets (read-only):
 """
-            check_result = self.session.run(check_code)
 
-            if check_result.stdout.strip() == "True":
-                local_path = self.session_dir / output_filename
-                print(f"Retrieving /sandbox/{output_filename} -> {local_path}")
-                self.session.copy_from_runtime(
-                    f"/sandbox/{output_filename}", str(local_path)
-                )
-                return local_path
-            else:
-                logger.warning(
-                    f"Output file {output_filename} not found in sandbox"
-                )
-                return None
+    for i, (_, display_name) in enumerate(dataframes):
+        prompt += f"- input_file_{i}.csv → {display_name}\n"
 
-        return await asyncio.to_thread(_retrieve_sync)
+    prompt += """---
 
-    def get_tool(self):
-        """Create a LangChain tool bound to this sandbox instance."""
 
-        @tool("python_sandbox")
-        async def python_sandbox(code: str, files: List[str]) -> str:
-            """Execute Python code in a secure sandbox.
+### Workflow:
 
-            code: python code to be executed inside a sandbox container
-            files: list of file names accessible inside the sandbox container
-            """
-            return await self.execute(code, files)
+1. **Analyze**: Use pandas to extract insights or summarize data relevant to the query. Print key findings clearly. Do **not** create any plots or charts.
+2. **Prepare output**:
+    - Recommend a suitable chart type for visualization, choose ONE from: line, bar, area, pie, stacked-bar, grouped-bar, table.
+    - Create a clean DataFrame for the chart with appropriate columns for the chart type and save it as: `chart_data.csv`.
+3. **Summarize**: Provide a data-driven insight based on your analysis at the end.
+"""
 
-        return python_sandbox
+    return prompt
 
 
 class ChartInsight(BaseModel):
@@ -215,7 +137,7 @@ class ChartInsight(BaseModel):
         description="List of field names for multiple data series (for multi-bar charts)",
     )
     follow_up_suggestions: List[str] = Field(
-        description="List of 2-3 follow-up prompt suggestions for additional analysis"
+        description="List of 1-2 follow-up suggestions based on available data & capability"
     )
 
 
@@ -256,82 +178,33 @@ async def generate_insights(
 
     raw_data = state["raw_data"]
 
-    # Create persistent sandbox with isolated session directory
-    async with PersistentPythonSandbox() as sandbox:
-        # 1. PREPARE FILES: Save raw_data to CSVs inside session directory
+    try:
+        # 1. PREPARE DATAFRAMES: Convert raw_data to DataFrames
+        dataframes = prepare_dataframes(raw_data)
+        logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
-        raw_data_prompt = f"""User Query: {query}
+        # 2. BUILD PROMPT: Create analysis prompt with file references
+        analysis_prompt = build_analysis_prompt(query, dataframes)
+        logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 
-You have access to the following datasets - pick the ones you need for analysis:
+        # 3. EXECUTE CODE: Use Gemini code executor
+        executor = GeminiCodeExecutor()
 
-"""
+        # Prepare inline data from DataFrames
+        file_refs = await executor.prepare_dataframes(dataframes)
+        logger.info(f"Prepared {len(file_refs)} inline data parts for Gemini")
 
-        local_files = []
+        # Execute analysis
+        result = await executor.execute(analysis_prompt, file_refs)
 
-        for data_by_aoi in raw_data.values():
-            for data in data_by_aoi.values():
-                data_copy = data.copy()
-                aoi_name = data_copy.pop("aoi_name")
-                dataset_name = data_copy.pop("dataset_name")
-                start_date = data_copy.pop("start_date")
-                end_date = data_copy.pop("end_date")
-
-                filename = (
-                    f"{aoi_name}_{dataset_name}_{start_date}_{end_date}.csv"
-                )
-                local_path = sandbox.prepare_file(data_copy, filename)
-                local_files.append(local_path)
-                raw_data_prompt += f"- {filename}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
-
-        # 2. COPY FILES TO SANDBOX: one-time bulk copy of all files
-        _ = await sandbox.copy_files_to_sandbox(local_files)
-        raw_data_prompt += "\nPass ONLY the files necessary to answer user query to the 'python_sandbox' tool's files argument, they are present inside /sandbox directory."
-
-        logger.info(raw_data_prompt)
-
-        # 3. RUN AGENT: Multiple calls to the python_sandbox tool, files already present in sandbox
-        python_sandbox = sandbox.get_tool()
-
-        codeact_agent = create_react_agent(
-            model=GEMINI_FLASH,
-            tools=[python_sandbox],
-            prompt="""You are an expert Analyst helping users analyze datasets via code execution using the 'python_sandbox' tool.
-
-Workflow:
-1. **Explore datasets first**: Identify datasets relevant to user query, load them, use head(), info(), describe() to understand structure, columns, dtypes, and units. Never assume column names or formats.
-2. **Analyze**: Write code to extract insights using pandas operations and print statements. DO NOT create plots or visualizations.
-3. **Output**: Recommend an appropriate chart type and save the prepared chart data to `/sandbox/chart_data.csv`.""",
-        )
-
-        try:
-            codeact_response = await codeact_agent.ainvoke(
-                {"messages": [{"role": "user", "content": raw_data_prompt}]}
-            )
-        except Exception as e:
-            logger.error(f"Error in codeact agent: {e}")
+        # Check for errors
+        if result.error:
+            logger.error(f"Code execution error: {result.error}")
             return Command(
                 update={
                     "messages": [
                         ToolMessage(
-                            content="I've reached my processing limit - you may have requested a large set of areas or too many data points. I'm clearing the current dataset to prevent errors. To continue your analysis, please start a new chat conversation and re-select your areas and datasets.",
-                            tool_call_id=tool_call_id,
-                            status="success",
-                            response_metadata={"msg_type": "human_feedback"},
-                        )
-                    ],
-                }
-            )
-
-        # 4. GET CHART DATA: Read chart data from sandbox
-        chart_data_path = await sandbox.retrieve_output("chart_data.csv")
-
-        if not chart_data_path or not chart_data_path.exists():
-            logger.error("chart_data.csv not found after sandbox execution")
-            return Command(
-                update={
-                    "messages": [
-                        ToolMessage(
-                            content="Failed to generate chart data. Please try again.",
+                            content=f"Analysis failed: {result.error}",
                             tool_call_id=tool_call_id,
                             status="error",
                         )
@@ -339,22 +212,66 @@ Workflow:
                 }
             )
 
-        # 5. GENERATE CHART SCHEMA
-        chart_data = pd.read_csv(chart_data_path)
+        # Check for chart data
+        if not result.chart_data:
+            logger.error("No chart data generated")
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            content=f"Failed to generate chart data. Feedback: {result.text_output}",
+                            tool_call_id=tool_call_id,
+                            status="error",
+                        )
+                    ]
+                }
+            )
+
+        logger.info(f"Generated chart data with {len(result.chart_data)} rows")
+
+        # 4. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
+        chart_data_df = pd.DataFrame(result.chart_data)
+        available_datasets = _get_available_datasets()
+        dataset_guidelines = state.get("dataset").get(
+            "prompt_instructions", "No specific dataset guidelines provided."
+        )
+        dataset_cautions = state.get("dataset").get(
+            "cautions", "No specific dataset cautions provided."
+        )
 
         chart_insight_prompt = f"""Based on analysis done by an expert & data saved for visualization, generate structured response.
 
-### Analysis
-{codeact_response["messages"][-1].content}
+### Analysis Output
+{result.text_output}
 
 ### Saved chart data - head 5 rows
-{chart_data.head().to_csv(index=False)}
+{chart_data_df.head().to_csv(index=False)}
+
+Total rows: {len(chart_data_df)}
+
+### Language Context
+Generate ALL content (insights, titles, follow-ups) in the SAME LANGUAGE as the user query.
+Dataset specific guidelines: {dataset_guidelines}
+Dataset specific cautions: {dataset_cautions}
+
+#### Capability Context
+You can analyze data for any area of interest, pull data from datasets like {available_datasets} for different time periods, and create various charts/insights. Base follow-ups on what's actually possible with available data and tools.
+
+#### Language Context
+Generate ALL content (insights, titles, follow-ups) in the SAME LANGUAGE as the user query.
+
+#### Follow-up Examples
+- "Show trend over different time period"
+- "Compare with nearby [region/area]"
+- "Identify top/bottom performers in [metric]"
+- "Break down by [relevant category]"
 """
 
         chart_insight_response = await GEMINI_FLASH.with_structured_output(
             ChartInsight
         ).ainvoke(chart_insight_prompt)
 
+        # 5. BUILD RESPONSE
         tool_message = f"Title: {chart_insight_response.title}"
         tool_message += f"\nKey Finding: {chart_insight_response.insight}"
         tool_message += "\nFollow-up suggestions:"
@@ -370,7 +287,7 @@ Workflow:
                 "title": chart_insight_response.title,
                 "type": chart_insight_response.chart_type,
                 "insight": chart_insight_response.insight,
-                "data": chart_data.to_dict("records"),
+                "data": result.chart_data,
                 "xAxis": chart_insight_response.x_axis,
                 "yAxis": chart_insight_response.y_axis,
                 "colorField": chart_insight_response.color_field,
@@ -387,6 +304,9 @@ Workflow:
                 "follow_up_suggestions"
             ],
             "charts_data": charts_data,
+            "text_output": result.text_output,
+            "code_blocks": result.code_blocks,
+            "execution_outputs": result.execution_outputs,
             "messages": [
                 ToolMessage(
                     content=tool_message,
@@ -398,4 +318,18 @@ Workflow:
         }
 
         return Command(update=updated_state)
-    # Sandbox automatically cleaned up here
+
+    except Exception as e:
+        logger.error(f"Unexpected error in generate_insights: {e}")
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        content=f"Unexpected error in generate_insights: {e}",
+                        tool_call_id=tool_call_id,
+                        status="error",
+                        response_metadata={"msg_type": "human_feedback"},
+                    )
+                ],
+            }
+        )
