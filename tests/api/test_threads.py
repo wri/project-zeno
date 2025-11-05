@@ -449,3 +449,179 @@ async def test_thread_timestamps_behavior(
 
     # updated_at should be after created_at
     assert new_updated_at > new_created_at
+
+
+@pytest.mark.asyncio
+async def test_admin_can_only_list_own_threads(
+    client, auth_override, thread_factory, admin_user_factory
+):
+    """Test that admin users can only list their own threads (not all threads)."""
+    # Create regular user and their threads
+    regular_user_id = "regular-user"
+    auth_override(regular_user_id)
+    thread1 = await thread_factory(regular_user_id)
+    thread2 = await thread_factory(regular_user_id)
+
+    # Create admin user and their own thread
+    admin_user = await admin_user_factory("admin@example.com")
+    auth_override(admin_user.id)
+    admin_thread = await thread_factory(admin_user.id)
+
+    # Test admin can only see their own threads
+    response = await client.get(
+        "/api/threads", headers={"Authorization": "Bearer test-token"}
+    )
+
+    assert response.status_code == 200
+    threads = response.json()
+    assert len(threads) == 1  # Only admin's own thread
+
+    thread_ids = [t["id"] for t in threads]
+    assert admin_thread.id in thread_ids
+    assert thread1.id not in thread_ids
+    assert thread2.id not in thread_ids
+
+
+@pytest.mark.asyncio
+async def test_admin_can_access_private_threads(
+    client, auth_override, thread_factory, admin_user_factory
+):
+    """Test that admin users can access private threads from any user."""
+    # Create regular user and private thread
+    owner_id = "owner-user"
+    auth_override(owner_id)
+    thread = await thread_factory(owner_id)
+
+    # Create admin user
+    admin_user = await admin_user_factory("admin@example.com")
+
+    # Test admin can access private thread
+    auth_override(admin_user.id)
+    response = await client.get(
+        f"/api/threads/{thread.id}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_regular_user_cannot_access_other_users_private_threads(
+    client, auth_override, thread_factory
+):
+    """Test that regular users still cannot access other users' private threads."""
+    # Create thread as owner
+    owner_id = "owner-user"
+    other_user_id = "other-user"
+
+    auth_override(owner_id)
+    thread = await thread_factory(owner_id)
+
+    # Try to access as different regular user
+    auth_override(other_user_id)
+    response = await client.get(
+        f"/api/threads/{thread.id}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 404
+    assert "Thread not found" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_admin_can_access_public_threads_without_auth(
+    client, auth_override, thread_factory, admin_user_factory
+):
+    """Test that admin users can access public threads (same as regular users)."""
+    # Create regular user and public thread
+    owner_id = "owner-user"
+    auth_override(owner_id)
+    thread = await thread_factory(owner_id)
+
+    # Make thread public
+    await client.patch(
+        f"/api/threads/{thread.id}",
+        headers={"Authorization": "Bearer test-token"},
+        json={"is_public": True},
+    )
+
+    # Create admin user
+    admin_user = await admin_user_factory("admin@example.com")
+
+    # Test admin can access public thread (should work without auth too)
+    auth_override(admin_user.id)
+    response = await client.get(
+        f"/api/threads/{thread.id}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_update_other_users_threads(
+    client, auth_override, thread_factory, admin_user_factory
+):
+    """Test that admin users still cannot update threads they don't own."""
+    # Create regular user and thread
+    owner_id = "owner-user"
+    auth_override(owner_id)
+    thread = await thread_factory(owner_id)
+
+    # Create admin user
+    admin_user = await admin_user_factory("admin@example.com")
+
+    # Test admin cannot update other user's thread
+    auth_override(admin_user.id)
+    response = await client.patch(
+        f"/api/threads/{thread.id}",
+        headers={"Authorization": "Bearer test-token"},
+        json={"name": "Admin Updated Name"},
+    )
+
+    assert response.status_code == 404
+    assert "Thread not found" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_delete_other_users_threads(
+    client, auth_override, thread_factory, admin_user_factory
+):
+    """Test that admin users still cannot delete threads they don't own."""
+    # Create regular user and thread
+    owner_id = "owner-user"
+    auth_override(owner_id)
+    thread = await thread_factory(owner_id)
+
+    # Create admin user
+    admin_user = await admin_user_factory("admin@example.com")
+
+    # Mock the checkpointer dependency
+    from src.agents.agents import fetch_checkpointer
+    from src.api.app import app
+
+    async def mock_checkpointer_func():
+        mock = AsyncMock()
+        mock.delete_thread = AsyncMock()
+        return mock
+
+    # Override the dependency
+    original_dependency = app.dependency_overrides.get(fetch_checkpointer)
+    app.dependency_overrides[fetch_checkpointer] = mock_checkpointer_func
+
+    try:
+        # Test admin cannot delete other user's thread
+        auth_override(admin_user.id)
+        response = await client.delete(
+            f"/api/threads/{thread.id}",
+            headers={"Authorization": "Bearer test-token"},
+        )
+
+        assert response.status_code == 404
+        assert "Thread not found" in response.json()["detail"]
+    finally:
+        # Restore original dependency
+        if original_dependency:
+            app.dependency_overrides[fetch_checkpointer] = original_dependency
+        else:
+            app.dependency_overrides.pop(fetch_checkpointer, None)

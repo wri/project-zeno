@@ -95,6 +95,7 @@ async def pull_data(
         current_raw_data = {}
 
     tool_messages = []
+    analytics_api_urls = []
     for aoi in state["aoi_options"]:
         # Use orchestrator to pull data
         result = await data_pull_orchestrator.pull_data(
@@ -108,6 +109,10 @@ async def pull_data(
         # Create tool message
         tool_messages.append(result.message)
         logger.debug(f"Pull data tool message: {result.message}")
+
+        # Collect analytics API URL if available
+        if result.analytics_api_url:
+            analytics_api_urls.append(result.analytics_api_url)
 
         # Determine raw data format for backward compatibility
         if (
@@ -164,6 +169,7 @@ async def pull_data(
 
     return Command(
         update={
+            "analytics_api_urls": analytics_api_urls,
             "raw_data": current_raw_data,
             "start_date": start_date,
             "end_date": end_date,

@@ -27,7 +27,7 @@ GEMINI = ChatGoogleGenerativeAI(
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
     max_retries=2,
-    thinking_budget=256,
+    thinking_budget=512,
 )
 GEMINI_FLASH = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",

@@ -1160,14 +1160,15 @@ async def get_thread(
     if thread.is_public:
         logger.debug("Accessing public thread", thread_id=thread_id)
     else:
-        # For private threads, require authentication and ownership
+        # For private threads, require authentication and ownership (or admin access)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Missing Bearer token",
             )
 
-        if thread.user_id != user.id:
+        # Allow access if user is admin or owns the thread
+        if thread.user_id != user.id and user.user_type != UserType.ADMIN:
             logger.warning(
                 "Unauthorized access to private thread",
                 thread_id=thread_id,
@@ -1176,9 +1177,19 @@ async def get_thread(
             )
             raise HTTPException(status_code=404, detail="Thread not found")
 
-        logger.debug(
-            "Accessing private thread", thread_id=thread_id, user_id=user.id
-        )
+        if user.user_type == UserType.ADMIN:
+            logger.debug(
+                "Admin accessing private thread",
+                thread_id=thread_id,
+                admin_user_id=user.id,
+                owner_id=thread.user_id,
+            )
+        else:
+            logger.debug(
+                "Accessing private thread",
+                thread_id=thread_id,
+                user_id=user.id,
+            )
     try:
         logger.debug("Replaying thread", thread_id=thread_id)
         return StreamingResponse(

@@ -729,7 +729,7 @@ datasets:
     and thus they cannot be combined directly to calculate net change.
   description: >
     Tree Cover Gain (Hansen/UMD/GLAD) identifies areas where new tree canopy was established
-    between 2000 and 2012 at 30-meter resolution, using Landsat 7 imagery. It captures both
+    between 2000 and 2020 at 30-meter resolution, using Landsat 7 imagery. It captures both
     natural forest regrowth and tree plantation cycles, and is useful for tracking large-scale
     forest recovery trends. Users should note that it is a cumulative layer and should not
     be combined directly with loss or tree cover data to calculate net change.
@@ -905,11 +905,11 @@ datasets:
     - canopy
   analytics_api_endpoint: "/v0/land_change/tree_cover/analytics"
   prompt_instructions: >
-    Shows tree cover % per pixel for years 2000, for woody vegetation greater than 5 meters in height.
+    Shows tree cover area (area_ha) per pixel for year 2000 with a given tree cover threshold,
+    for woody vegetation greater than 5 meters in height.
     If combined with primary forest or IFL layers, we can use the term ‘forest’ to describe results. Otherwise,
     only use the term 'tree cover'.
     Binned % tree cover extent can be reported in bar chart or pie chart.
-    Default bins are >0-25%, 25-50%, 50-75%, 75-100%, but user can specify bins (i.e. greater and smaller than 30%).
     When calculating area in bins, exclude tree cover area = 0 (and specify that the exclusion has happened).
     Use the tree cover loss and gain
     data for data on change in tree area. Cannot be used to asses pixel-level percent changes (gains and losses).
@@ -972,8 +972,23 @@ datasets:
   analytics_api_endpoint: "/v0/land_change/tree_cover_loss/analytics"
   prompt_instructions: >
     Shows the primary driver or cause of tree cover loss over the entire range 2001-2024.
-    Driver classes are permanent agriculture, hard commodities, shifting cultivation, logging,
-    wildfire, settlements & infrastructure, and other natural disturbances.
+    Classes are defined as follows:
+    - Permanent agriculture: Long-term, permanent tree cover loss for small- tolarge-scale agriculture.
+    - Hard commodities: Loss due to the establishment or expansion of mining or energy infrastructure.
+    - Shifting cultivation: Tree cover loss due to small- to medium-scale clearing for temporary
+      cultivation that is later abandoned and followed by subsequent regrowth of secondary forest or
+      vegetation.
+    - Logging: Forest management and logging activities occurring within managed, natural or
+      semi-natural forests and plantations, often with evidence of forest regrowth or planting in
+      subsequent years.
+    - Wildfire: Tree cover loss due to fire with no visible human conversion or agricultural
+      activity afterward. Fires may be started by natural causes (e.g. lightning) or may be
+      related to human activities (accidental or deliberate).
+    - Settlements and infrastructure: Tree cover loss due to expansion and intensification of roads,
+      settlements, urban areas, or built infrastructure (not associated with other classes).
+      Other natural disturbances: Tree cover loss due to other non-fire natural disturbances
+      (e.g., landslides, insect outbreaks, river meandering). If loss due to natural causes is
+      followed by salvage or sanitation logging, it is classified as logging.
     Ignore the Unknown class.
     Show total area of loss (ha) or total emissions (MgCO2e) due to loss per driver class
     over the entire time period 2001-2024. DO NOT attempt a timeseries. If asked for annual
@@ -1053,3 +1068,109 @@ datasets:
     J. Jupiter, C. Stanton, D. Morris, C. M. Slay, D. Purves, and N. Harris. 2025.
     “Global Drivers of Forest Loss at 1 Km Resolution.”
     Environmental Research Letters 20 (7): 074027.  doi:10.1088/1748-9326/add606.
+
+- dataset_id: 9
+  dataset_name: "Deforestation (sLUC) Emission Factors by Agricultural Crop"
+  context_layers: null
+  variables: null
+  tile_url: ""
+  license: "CC by 4.0"
+  geographic_coverage: "Global"
+  resolution: "n/a, tabular data at Admin 0, 1, 2 levels"
+  update_frequency: "annual"
+  content_date: "2020-2024"
+  start_date: "2020-01-01"
+  end_date: "2024-12-31"
+  content_date_fixed: true
+  keywords:
+    - statistical land use change
+    - sLUC
+    - Greenhouse Gas Protocol
+    - corporate GHG inventory
+    - greenhouse gas
+    - land use change
+    - emissions reporting
+    - traceability
+    - supply chains
+    - agriculture
+  analytics_api_endpoint: "/v0/land_change/deforestation_luc_emissions_factor/analytics"
+  prompt_instructions: >
+    This dataset provides statistical land use change (sLUC) emission factors, total emissions, and
+    production volume for 42 agricultural crops across multiple spatial scales: national (ADM0),
+    subnational (ADM1),and local administrative units (ADM2).
+    Emission factors quantify total greenhouse gas emissions in tCO2e per tonne of product from
+    deforestation linked to agricultural expansion. Not all crops are available for all regions.
+    Emissions can be reported by specific gas types: CO2, CH4, N2O; or the total greenhouse gas
+    emissions (tCO2e).
+    Data available between 2020-2024, use 2024 as the default year unless otherwise specified.
+    In the data, emissions_tCO2e stands for linearly discounted emissions,
+    emissions_factor_tCO2e_per_tonne_production stands for emission factors, and production_tonnes
+    for crop production or production volume.
+    When referencing emissions, always include units (tCO₂e).
+    When referencing production volume, always include units (tonnes).
+    If asked for a map, refuse and explain that this is tabular data only.
+    When providing emission factors, always clarify the year of reporting (2020-2024) and show the
+    both total emissions and production volume used to calculate the emission factor.
+    DO NOT show combinations of EF, total emissions, and production volume together on a bar chart.
+    Use pie charts to show proportional contributions of total emissions by gas type (CO2, CH4, N2O)
+    for a specific crop and yearm in a single administrative unit.
+    Use bar charts to show changes in emissions factor, total emissions, or production volume
+    over time for a specific crop in a single administrative unit.
+    Use tables to show emission factors for multiple crops in a single administrative unit
+    or for a single crop across multiple administrative units.
+    Use tables to compare a single crop across multiple locations.
+    Use tables summarise emissions factors, total emissions, and production volume.
+  description: >
+    The dataset developed by Fitts et al. (2025) provides globally consistent, spatially explicit
+    estimates of statistical land use change (sLUC) emission factors for 42 agricultural crops
+    across multiple spatial scales—global, national (ADM0), subnational (ADM1),and local
+    administrative units (ADM2). Emission factors quantify greenhouse gas emissions from
+    deforestation linked to agricultural expansion over a 20-year assessment period (2001-2020),
+    aligning with the first full time span of Global Forest Watch's annual tree cover loss and
+    forest carbon flux data.  Emission factors are available for reporting years 2020 through 2024
+    and we expect to update the dataset annually as new tree cover loss and emissions data
+    become available. The dataset integrates several harmonized, open-source geospatial inputs: the
+    SPAM 2020 v2.0 cropland maps (10 km resolution) for crop distribution and production;
+    Global Forest Watch's tree cover loss (Hansen et al. 2013, annual updates); the forest carbon flux
+    model (Harris et al. 2021; Gibbs et al. 2025) for estimating deforestation-related emissions;
+    Global Pasture Watch (Parente et al. 2024) for pasture extent; and the drivers of forest loss
+    (Sims et al. 2025) to isolate agriculture-driven deforestation.
+  methodology: >
+    Fitts et al. (2025) developed a standardized, transparent, and globally consistent approach
+    for estimating land use change (LUC) emissions, focusing on statistical land use change (sLUC)
+    emission factors. The method integrates publicly available geospatial datasets—including
+    SPAM 2020 cropland data, Global Forest Watch's tree cover loss and carbon flux models, and
+    Global Pasture Watch—to quantify deforestation-related greenhouse gas emissions associated with
+    agricultural expansion. Using a 20-year assessment period, the approach identifies
+    forest-to-agriculture conversions, estimates annual emissions, allocates them to crops via a
+    product expansion allocation factor, and applies linear discounting to weight recent emissions
+    more heavily.
+    Emissions are then normalized by crop production (from SPAM and FAOSTAT) to yield crop- and
+    jurisdiction-specific sLUC emission factors (tCO₂e per tonne of crop commodity), enabling
+    consistent corporate greenhouse gas accounting across spatial scales.
+  cautions: >
+    Users should be aware of several limitations when utilizing the sLUC emission factors:
+    - Data Resolution: The underlying geospatial datasets vary in resolution, which may affect
+      accuracy at finer spatial scales, particularly for small administrative units (ADM2).
+    - Crop Coverage: Not all 42 crops are available for every region due to data constraints,
+      potentially limiting comprehensive assessments in certain areas.
+    - Temporal Alignment: While the assessment period is 2001-2020, emission factors are reported
+      for 2020-2024, which may introduce discrepancies if land use dynamics have shifted significantly.
+    - Methodological Assumptions: The linear discounting approach assumes a uniform decay of emissions
+      relevance over time, which may not capture complex land use change dynamics.
+    Users are encouraged to review the full methodology and associated publications to understand
+    these limitations and ensure appropriate application of the data in their specific contexts.
+  function_usage_notes: >
+    This dataset provides statistical land use change (sLUC) emission factors, total emissions,
+    and production volume for 42 agricultural crops across multiple spatial scales:
+    national (ADM0), subnational (ADM1),and local administrative units (ADM2).
+    Emission factors quantify total greenhouse gas emissions in tCO2e per tonne of product
+    from deforestation linked to agricultural expansion. Emissions can be broken down by gas
+    type (CO2, CH4, N2O) upon request.
+  providers: >
+    Land & Carbon Lab
+  citation: >
+    Fitts, L.A., O. James, D. Gibbs, E. Goldman, N. Harris, M. Ramlow, L. Sloat, B. Wielgosz,
+    C. Wilson, C. Winchester, A. Ernstoff, T. Hohmann, V. Rossi, A. Stern. 2025.
+    Statistical land use change emissions from deforestation and land occupation for
+    42 agricultural crop categories. WRI Technical Note. [url pending]

@@ -10,6 +10,14 @@ The E2E testing framework evaluates the complete agent workflow by testing four 
 
 ## Test Dataset Structure
 
+### Multiple Values in Test Cases
+
+When a test case can have multiple valid values for a field (e.g., comparing multiple AOIs, accepting multiple datasets), separate the values with semicolons (;). For example:
+
+- `expected_aoi_id = "IND.21_1;IND.27_1"` - Test passes if either Odisha (21) or Maharashtra (27) is selected
+- `expected_dataset_id = "0;1"` - Test passes if either dataset 0 or 1 is selected
+- `expected_context_layer = "driver;natural_lands"` - Test passes if either driver or natural_lands context layer is selected
+
 ### Essential Columns (Required for Tests)
 
 The following columns are **required** for the E2E tests to run properly:
@@ -23,7 +31,7 @@ The following columns are **required** for the E2E tests to run properly:
   - `"skip"` - Test should be skipped/ignored during execution
 
 #### AOI Selection Evaluation
-- **`expected_aoi_id`** - Expected AOI identifier (e.g., "BRA", "USA.5_1", "IND.26_1")
+- **`expected_aoi_id`** - Expected AOI identifier (e.g., "BRA", "USA.5_1", "IND.26_1"). For queries comparing multiple areas, use semicolons to separate values (e.g., "IND.21_1;IND.27_1" for Odisha and Maharashtra).
 - **`expected_subregion`** - Expected subregion filter when user explicitly requests sub-administrative units. Only used when query explicitly mentions comparing or analyzing sub-units within a larger area. Valid values:
   - `"country"` - Countries within a region
   - `"state"` - States/provinces within a country
@@ -41,12 +49,12 @@ The following columns are **required** for the E2E tests to run properly:
   - Query: "Deforestation in Brazil" (no sub-unit mentioned) → `expected_subregion: ""` (empty)
 
 #### Dataset Selection Evaluation
-- **`expected_dataset_id`** - Expected dataset ID (0-8 for current datasets)
-- **`expected_context_layer`** - Expected context layer (varies by dataset)
+- **`expected_dataset_id`** - Expected dataset ID (0-8 for current datasets). For queries that may match multiple datasets, separate IDs with semicolons (e.g., "0;1" for DIST-ALERT and another dataset).
+- **`expected_context_layer`** - Expected context layer (varies by dataset). Multiple values can be separated by semicolons if multiple layers are acceptable.
 
 #### Data Pull Evaluation
-- **`expected_start_date`** - Expected start date (YYYY-MM-DD)
-- **`expected_end_date`** - Expected end date (YYYY-MM-DD)
+- **`expected_start_date`** - Expected start date (YYYY-MM-DD). For date ranges, use the earliest expected date.
+- **`expected_end_date`** - Expected end date (YYYY-MM-DD). For date ranges, use the latest expected date.
 
 #### Answer Quality Evaluation
 - **`expected_answer`** - Expected answer text for LLM-as-a-judge comparison

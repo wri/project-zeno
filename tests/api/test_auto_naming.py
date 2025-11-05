@@ -196,3 +196,31 @@ async def test_generate_thread_name():
     assert test_query in call_args
     assert "concise, descriptive title" in call_args
     assert "max 50 chars" in call_args
+
+
+@pytest.mark.asyncio
+async def test_custom_area_name_truncation():
+    """Test that CustomAreaNameResponse truncates names longer than 100 characters."""
+    from src.api.schemas import CustomAreaNameResponse
+
+    # Test with a name longer than 100 characters
+    long_name = "A" * 150  # 150 characters
+    response = CustomAreaNameResponse(name=long_name)
+
+    # Should be truncated to 100 characters
+    assert len(response.name) == 100
+    assert response.name == "A" * 100
+
+
+@pytest.mark.asyncio
+async def test_thread_name_truncation():
+    """Test that ThreadNameOutput truncates names longer than 50 characters."""
+    from src.api.schemas import ThreadNameOutput
+
+    # Test with a name longer than 50 characters
+    long_name = "B" * 75  # 75 characters
+    response = ThreadNameOutput(name=long_name)
+
+    # Should be truncated to 50 characters
+    assert len(response.name) == 50
+    assert response.name == "B" * 50

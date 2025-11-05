@@ -34,6 +34,54 @@ ADMIN_SUBTYPES = (
     "locality",
     "neighbourhood",
 )
+SLUC_GADM_LEVELS = ["country", "state-province", "district-county"]
+
+SLUC_CROPS = [
+    "Banana",
+    "Barley",
+    "Bean",
+    "Cassava",
+    "Chickpea",
+    "Coconut",
+    "Cocoa",
+    "Arabica Coffee",
+    "Robusta Coffee",
+    "Cotton",
+    "Cowpea",
+    "Groundnut",
+    "Lentil",
+    "Maize",
+    "Pearl Millet",
+    "Small Millet",
+    "Oil Palm",
+    "Pigeon Pea",
+    "Plantain",
+    "Potato",
+    "Rapeseed",
+    "Rice",
+    "Sesame Seed",
+    "Sorghum",
+    "Soybean",
+    "Sugarbeet",
+    "Sugarcane",
+    "Sunflower",
+    "Sweet Potato",
+    "Tea",
+    "Tobacco",
+    "Wheat",
+    "Yams",
+    "Other Cereals",
+    "Other Fibre Crops",
+    "Other Oil Crops",
+    "Other Pulses",
+    "Other Roots",
+    "Rest of Crops",
+    "Temperate Fruit",
+    "Tropical Fruit",
+    "Vegetables",
+]
+
+SLUC_GAS_TYPES = ["CO2e", "CO2", "CH4", "N20"]
 
 # Add dataset-specific parameters
 DIST_ALERT_ID = [
@@ -80,6 +128,12 @@ TREE_COVER_LOSS_BY_DRIVER_ID = [
     for ds in DATASETS
     if ds["dataset_name"] == "Tree cover loss by dominant driver"
 ][0]
+SLUC_EMISSION_FACTORS_ID = [
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"]
+    == "Deforestation (sLUC) Emission Factors by Agricultural Crop"
+][0]
 
 
 async def check_for_composition(query: str) -> bool:
@@ -119,6 +173,7 @@ class AnalyticsHandler(DataSourceHandler):
             FOREST_CARBON_FLUX_ID,
             TREE_COVER_ID,
             TREE_COVER_LOSS_BY_DRIVER_ID,
+            SLUC_EMISSION_FACTORS_ID,
         ]
 
     def _get_aoi_type(self, aoi: Dict) -> str:
@@ -165,7 +220,7 @@ class AnalyticsHandler(DataSourceHandler):
             aoi["src_id"] = aoi["src_id"][:-2]
 
         # Handle custom areas differently - they need a feature collection
-        if aoi_type == "feature_collection":
+        if aoi_type["type"] == "feature_collection":
             geometry_data = await get_geometry_data("custom", aoi["src_id"])
             if not geometry_data:
                 raise ValueError(f"Custom area not found: {aoi['src_id']}")
@@ -186,7 +241,7 @@ class AnalyticsHandler(DataSourceHandler):
 
             base_payload = {
                 "aoi": {
-                    "type": aoi_type,
+                    "type": aoi_type["type"],
                     "feature_collection": feature_collection,
                 }
             }
@@ -278,6 +333,14 @@ class AnalyticsHandler(DataSourceHandler):
                 "canopy_cover": 30,
                 "forest_filter": None,
             }
+        elif dataset.get("dataset_id") == SLUC_EMISSION_FACTORS_ID:
+            payload = {
+                **base_payload,
+                "gas_types": SLUC_GAS_TYPES,
+                "crop_types": SLUC_CROPS,
+                "start_year": start_date[:4],
+                "end_year": end_date[:4],
+            }
         else:
             raise ValueError(
                 f"Unknown dataset ID: {dataset.get('dataset_id')}"
@@ -339,7 +402,6 @@ class AnalyticsHandler(DataSourceHandler):
         result: Dict,
         subregion: str,
         subregion_aois: List[Dict],
-        dataset: Dict,
     ) -> tuple[Any, int, str]:
         """Process the response data based on dataset type."""
 
@@ -389,8 +451,10 @@ class AnalyticsHandler(DataSourceHandler):
             raw_data["name"] = [
                 subregion_aois_id_to_name[idx] for idx in raw_data["aoi_id"]
             ]
+        # Get analytics url from result
+        analytics_url = result["data"]["link"]
 
-        return raw_data, data_points_count, message_detail
+        return raw_data, data_points_count, message_detail, analytics_url
 
     async def pull_data(
         self,
@@ -403,6 +467,20 @@ class AnalyticsHandler(DataSourceHandler):
         start_date: str,
         end_date: str,
     ) -> DataPullResult:
+        # SLUC emission factors are only available for GADM levels 0, 1, and 2
+        if (
+            dataset.get("dataset_id") == SLUC_EMISSION_FACTORS_ID
+            and aoi["subtype"] not in SLUC_GADM_LEVELS
+        ):
+            msg = f"AOI subtype {aoi['subtype']} not supported for SLUC emission factors data"
+            return DataPullResult(
+                success=False,
+                data=None,
+                message=msg,
+                data_points_count=0,
+                analytics_api_url=None,
+            )
+
         try:
             aoi_name = aoi["name"]
             context_layer = dataset.get("context_layer")
@@ -421,7 +499,6 @@ class AnalyticsHandler(DataSourceHandler):
                 dataset["context_layer"] = context_layer
 
             # Get the appropriate endpoint URL
-            endpoint_url = None
             if dataset.get(
                 "dataset_id"
             ) == LAND_COVER_CHANGE_ID and await check_for_composition(query):
@@ -468,7 +545,10 @@ class AnalyticsHandler(DataSourceHandler):
                 error_msg = f"Failed to parse JSON response from Analytics API. Status: {response.status_code}, Text: {response.text}, Error: {json_error}"
                 logger.error(error_msg)
                 return DataPullResult(
-                    success=False, data=[], message=error_msg
+                    success=False,
+                    data=[],
+                    message=error_msg,
+                    analytics_api_url=None,
                 )
 
             # Check if status key exists before accessing it
@@ -476,7 +556,10 @@ class AnalyticsHandler(DataSourceHandler):
                 error_msg = f"Analytics API response missing 'status' key. Available keys: {list(result.keys())}, Full response: {result}"
                 logger.error(error_msg)
                 return DataPullResult(
-                    success=False, data=[], message=error_msg
+                    success=False,
+                    data=[],
+                    message=error_msg,
+                    analytics_api_url=None,
                 )
 
             # Handle pending status with retry logic
@@ -495,43 +578,56 @@ class AnalyticsHandler(DataSourceHandler):
                         data=[],
                         message=error_msg,
                         data_points_count=0,
+                        analytics_api_url=None,
                     )
                 else:
                     (
                         raw_data,
                         data_points_count,
                         message_detail,
+                        analytics_url,
                     ) = await self._process_response_data(
-                        result, subregion, subregion_aois, dataset
+                        result, subregion, subregion_aois
                     )
                     return DataPullResult(
                         success=True,
                         data=raw_data,
                         message=f"Successfully pulled {dataset.get('dataset_name')} data from GFW Analytics for {aoi_name}. {message_detail}.",
                         data_points_count=data_points_count,
+                        analytics_api_url=analytics_url,
                     )
             elif result["status"] in ["success", "saved"]:
                 (
                     raw_data,
                     data_points_count,
                     message_detail,
+                    analytics_url,
                 ) = await self._process_response_data(
-                    result, subregion, subregion_aois, dataset
+                    result, subregion, subregion_aois
                 )
                 return DataPullResult(
                     success=True,
                     data=raw_data,
                     message=f"Successfully pulled {dataset.get('dataset_name')} data from GFW Analytics for {aoi_name}. {message_detail}.",
                     data_points_count=data_points_count,
+                    analytics_api_url=analytics_url,
                 )
             else:
                 error_msg = f"Failed to pull {dataset.get('dataset_name')} data from GFW Analytics for {aoi_name} - URL: {endpoint_url}, payload: {payload}, response: {response.text}"
                 logger.error(error_msg)
                 return DataPullResult(
-                    success=False, data=[], message=error_msg
+                    success=False,
+                    data=[],
+                    message=error_msg,
+                    analytics_api_url=None,
                 )
 
         except Exception as e:
             error_msg = f"Failed to pull {dataset.get('dataset_name')} data from Analytics API: {e}"
             logger.error(error_msg, exc_info=True)
-            return DataPullResult(success=False, data=[], message=error_msg)
+            return DataPullResult(
+                success=False,
+                data=[],
+                message=error_msg,
+                analytics_api_url=None,
+            )
