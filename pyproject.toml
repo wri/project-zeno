@@ -48,8 +48,6 @@ dependencies = [
     "psycopg2==2.9.10",
     "bcrypt==4.2.1",
     "click==8.1.8",
-    "llm-sandbox[docker]>=0.3.24",
-    "langchain-ollama>=0.3.7",
     "google-genai>=1.47.0",
 ]
 
@@ -95,11 +93,3 @@ packages = ["src"]
 
 [tool.uv]
 default-groups = ["dev", "frontend"]
-
-[tool.pytest.ini_options]
-markers = [
-    "serial: mark test to run serially (not in parallel)",
-    "sandbox: mark test as requiring Docker sandbox (integration test)",
-]
-asyncio_mode = "strict"
-asyncio_default_fixture_loop_scope = "module"

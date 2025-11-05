@@ -154,15 +154,7 @@ for running the sytem locally.
    LANGFUSE_SECRET_KEY=your_secret_key_here
    ```
 
-8. **Setup docker for sandbox**
-
-   For insights generation, we use a docker based sandbox. Pull the necessary image, and set the `DOCKER_HOST` variable in the .env file.
-
-   ```bash
-   docker pull quay.io/jupyter/scipy-notebook
-   ```
-
-9. **Access the application:**
+8. **Access the application:**
 
    - Frontend: <http://localhost:8501>
    - API: <http://localhost:8000>

@@ -4,10 +4,6 @@ import pytest
 
 from src.tools.generate_insights import generate_insights
 
-# Force sequential execution to avoid race conditions with shared sandbox container
-# Mark as sandbox tests requiring Docker
-pytestmark = [pytest.mark.serial, pytest.mark.sandbox, pytest.mark.asyncio]
-
 
 @pytest.fixture(scope="function", autouse=True)
 def test_db():

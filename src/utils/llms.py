@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
 from src.utils.config import APISettings
@@ -45,34 +44,6 @@ GPT = ChatOpenAI(
     max_tokens=None,  # max_tokens=None means no limit
 )
 
-# DEEPSEEK
-QWEN3 = ChatOllama(
-    model="qwen3:8b",
-    temperature=0,
-    max_tokens=None,  # max_tokens=None means no limit
-)
-
-# GPT-OSS
-GPT_OSS = ChatOllama(
-    model="gpt-oss:120b-cloud",
-    temperature=0,
-    max_tokens=None,  # max_tokens=None means no limit
-)
-
-# GLM
-GLM = ChatOllama(
-    model="glm-4.6:cloud",
-    temperature=0,
-    max_tokens=None,  # max_tokens=None means no limit
-)
-
-# Minimax
-MINIMAX = ChatOllama(
-    model="minimax-m2:cloud",
-    temperature=0,
-    max_tokens=None,  # max_tokens=None means no limit
-)
-
 # Model Registry for dynamic selection
 MODEL_REGISTRY = {
     "sonnet": SONNET,
@@ -80,10 +51,6 @@ MODEL_REGISTRY = {
     "gemini": GEMINI,
     "gemini-flash": GEMINI_FLASH,
     "gpt": GPT,
-    "qwen3": QWEN3,
-    "gpt-oss": GPT_OSS,
-    "glm": GLM,
-    "minimax": MINIMAX,
 }
 
 # Available models list for frontend

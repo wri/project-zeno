@@ -731,20 +731,6 @@ wheels = [
 ]
 
 [[package]]
-name = "docker"
-version = "7.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pywin32", marker = "sys_platform == 'win32'" },
-    { name = "requests" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/91/9b/4a2ea29aeba62471211598dac5d96825bb49348fa07e906ea930394a83ce/docker-7.1.0.tar.gz", hash = "sha256:ad8c70e6e3f8926cb8a92619b832b4ea5299e2831c14284663184e200546fa6c", size = 117834 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/26/57c6fb270950d476074c087527a558ccb6f4436657314bfb6cdf484114c4/docker-7.1.0-py3-none-any.whl", hash = "sha256:c96b93b7f0a746f9e77d325bcfb87422a3d8bd4f03136ae8a85b37f1898d5fc0", size = 147774 },
-]
-
-[[package]]
 name = "durationpy"
 version = "0.10"
 source = { registry = "https://pypi.org/simple" }
@@ -1987,19 +1973,6 @@ wheels = [
 ]
 
 [[package]]
-name = "langchain-ollama"
-version = "0.3.7"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "langchain-core" },
-    { name = "ollama" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c1/34/c94ec1ea0f1bae7ed4e8a05c79bdf7f49a5f0b5af1a9a0da88ace03450a7/langchain_ollama-0.3.7.tar.gz", hash = "sha256:9deeca09a44fb8c5a46b1e43d670a7301f1d1e73196fa9191a89f9883217903b", size = 31924 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b9/df/5d92427eabc2b070689de9d37ea90636ea51c1ec0ee75c362fa1995201cc/langchain_ollama-0.3.7-py3-none-any.whl", hash = "sha256:845192a75a1671bd36bc8c54baae2e929c3b1b0e3c8c618438df20354b0231de", size = 24905 },
-]
-
-[[package]]
 name = "langchain-openai"
 version = "0.3.28"
 source = { registry = "https://pypi.org/simple" }
@@ -2141,23 +2114,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/af/60/bc7622aefb2aee1c0b4ba23c1446d3e30225c8770b38d7aedbfb65ca9d5a/lark-1.2.2.tar.gz", hash = "sha256:ca807d0162cd16cef15a8feecb862d7319e7a09bdb13aef927968e45040fed80", size = 252132 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2d/00/d90b10b962b4277f5e64a78b6609968859ff86889f5b898c1a778c06ec00/lark-1.2.2-py3-none-any.whl", hash = "sha256:c2276486b02f0f1b90be155f2c8ba4a8e194d42775786db622faccd652d8e80c", size = 111036 },
-]
-
-[[package]]
-name = "llm-sandbox"
-version = "0.3.24"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/21/84/43a5c6ae2cb91949868a49cd9c0af242ddda23e014739f2242b6e8763f17/llm_sandbox-0.3.24.tar.gz", hash = "sha256:b7a2052bbc02dd59f55c2a429edb4677da6c2bd1e4b206da52740a71ae5c73aa", size = 495698 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/aa/4b/d6963e1c147c21c96f3a14d7abb14d756384d733e93356ed929451217479/llm_sandbox-0.3.24-py3-none-any.whl", hash = "sha256:10bb356832b21a01cf42951fa123c542da28984d779a555e81a92300a18d0905", size = 70030 },
-]
-
-[package.optional-dependencies]
-docker = [
-    { name = "docker" },
 ]
 
 [[package]]
@@ -2499,19 +2455,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/0b/5f/19930f824ffeb0ad4372da4812c50edbd1434f678c90c2733e1188edfc63/oauthlib-3.3.1.tar.gz", hash = "sha256:0f0f8aa759826a193cf66c12ea1af1637f87b9b4622d46e866952bb022e538c9", size = 185918 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/be/9c/92789c596b8df838baa98fa71844d84283302f7604ed565dafe5a6b5041a/oauthlib-3.3.1-py3-none-any.whl", hash = "sha256:88119c938d2b8fb88561af5f6ee0eec8cc8d552b7bb1f712743136eb7523b7a1", size = 160065 },
-]
-
-[[package]]
-name = "ollama"
-version = "0.6.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "httpx" },
-    { name = "pydantic" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/d6/47/f9ee32467fe92744474a8c72e138113f3b529fc266eea76abfdec9a33f3b/ollama-0.6.0.tar.gz", hash = "sha256:da2b2d846b5944cfbcee1ca1e6ee0585f6c9d45a2fe9467cbcd096a37383da2f", size = 50811 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b5/c1/edc9f41b425ca40b26b7c104c5f6841a4537bb2552bfa6ca66e81405bb95/ollama-0.6.0-py3-none-any.whl", hash = "sha256:534511b3ccea2dff419ae06c3b58d7f217c55be7897c8ce5868dfb6b219cf7a0", size = 14130 },
 ]
 
 [[package]]
@@ -2877,12 +2820,10 @@ dependencies = [
     { name = "langchain-community" },
     { name = "langchain-core" },
     { name = "langchain-google-genai" },
-    { name = "langchain-ollama" },
     { name = "langchain-openai" },
     { name = "langfuse" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-postgres" },
-    { name = "llm-sandbox", extra = ["docker"] },
     { name = "pandas" },
     { name = "psycopg" },
     { name = "psycopg-pool" },
@@ -2949,12 +2890,10 @@ requires-dist = [
     { name = "langchain-community", specifier = "==0.3.27" },
     { name = "langchain-core", specifier = "==0.3.74" },
     { name = "langchain-google-genai", specifier = "==2.1.9" },
-    { name = "langchain-ollama", specifier = ">=0.3.7" },
     { name = "langchain-openai", specifier = "==0.3.28" },
     { name = "langfuse", specifier = "==3.3.4" },
     { name = "langgraph", specifier = "==0.5.4" },
     { name = "langgraph-checkpoint-postgres", specifier = "==2.0.23" },
-    { name = "llm-sandbox", extras = ["docker"], specifier = ">=0.3.24" },
     { name = "pandas", specifier = "==2.2.3" },
     { name = "psycopg", specifier = "==3.2.9" },
     { name = "psycopg-pool", specifier = "==3.2.6" },

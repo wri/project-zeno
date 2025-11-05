@@ -21,10 +21,6 @@ def _get_available_datasets() -> str:
     dataset_names = []
     for dataset in DATASETS:
         dataset_names.append(dataset["dataset_name"])
-    """Get a concise list of available datasets from the datasets configuration."""
-    dataset_names = []
-    for dataset in DATASETS:
-        dataset_names.append(dataset["dataset_name"])
 
     return ", ".join(dataset_names)
     return ", ".join(dataset_names)
