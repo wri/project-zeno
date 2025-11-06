@@ -993,8 +993,7 @@ datasets:
     Ignore the Unknown class.
     Show total area of loss (ha) or total emissions (MgCO2e) due to loss per driver class
     over the entire time period 2001-2024. DO NOT attempt a timeseries. If asked for annual
-    tree cover loss OR emissions timeseries, refuse and suggest Tree cover loss analysis
-    instead.
+    tree cover loss OR emissions timeseries, refuse and suggest Tree cover loss analysis instead.
     Data should be represented in a pie chart or table with each segment representing loss area
     or emissions due per driver class.
     DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover"
@@ -1002,11 +1001,11 @@ datasets:
     deforestation or carbon loss.
     Common groupings of classes that can be mentioned where relevant:
     - Permanent agriculture, hard commodities, and settlements and infrastructure can be combined
-    to represent drivers of deforestation.
+      to represent drivers of deforestation.
     - Shifting cultivation, logging, wildfire, and other natural disturbances can be combined
-    to represent drivers of temporary disturbances.
+      to represent drivers of temporary disturbances.
     - Permanent agriculture and shifting cultivation can be combined to represent all
-    agriculture-driven disturbances. 
+      agriculture-driven disturbances.
   description: >
     Shows the dominant driver of tree cover loss over the time period 2001-2024.
     A driver is defined as the direct cause of tree cover loss, and can include both temporary
