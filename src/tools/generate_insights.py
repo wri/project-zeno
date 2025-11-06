@@ -85,15 +85,71 @@ You have access to the following datasets (read-only):
 ---
 
 
-### Workflow:
+### STEP-BY-STEP WORKFLOW (follow in order):
 
-1. **Analyze**: Use pandas to extract insights or summarize data relevant to the query. Print key findings clearly. Do **not** create any plots or charts.
-2. **Prepare output**:
-    - Recommend a suitable chart type for visualization, choose ONE from: line, bar, area, pie, stacked-bar, grouped-bar, table. Make sure to print your recommended chart type in the output.
-    - Create a clean DataFrame for the chart with appropriate columns for the chart type and save it as: `chart_data.csv`.
-3. **Summarize**: Provide a data-driven insight based on your analysis at the end.
+**STEP 1: ANALYZE THE DATA**
+- Load the relevant dataset(s) using pandas
+- Print which dataset(s) you are using (name and date range)
+- Explore the data structure, columns, and data types
+- Calculate key statistics relevant to the user query
+- Print your key findings clearly
+- Do **NOT** create any plots or charts yet
+
+**STEP 2: SUMMARIZE INSIGHTS**
+- Summarize the data relevant to the user query
+- Identify the most important patterns, trends, or comparisons
+- Print a clear summary of what the data shows
+
+**STEP 3: GENERATE CHART DATA**
+Now prepare the data for visualization in Recharts.js:
+
+   a) **CHART TYPE SELECTION** - Choose the most appropriate chart type:
+      - **line**: Time series data, trends over time (supports multi-series)
+      - **bar**: Categorical comparisons, rankings (supports multi-series for grouped bars)
+      - **stacked-bar**: Show composition within categories (use wide format with multiple metric columns)
+      - **grouped-bar**: Compare multiple metrics side-by-side (use long format with group column)
+      - **pie**: Part-to-whole relationships (limit to 6-8 categories max)
+      - **area**: Cumulative trends, stacked time series (supports multi-series)
+      - **scatter**: Show correlations between two variables
+      - **table**: Detailed data when visualization isn't optimal
+   
+   b) **CREATE CHART DATA** following these requirements:
+      1. **Structure**: Array of objects (rows) with simple field names as columns
+      2. **Field names**: Use clear, lowercase names like 'date', 'value', 'category', 'year', 'count'
+      3. **Numeric values**: Always numbers, never strings (e.g., 100 not "100")
+      4. **Date ordering**: Chronological order for time series, not alphabetical
+      5. **Data format by chart type**:
+         - **Single-series line/bar**: [{{"date": "2020-01", "value": 100}}]
+           → One metric column, use y_axis="value"
+         
+         - **Multi-series line/bar/area**: [{{"year": "2020", "metric1": 100, "metric2": 50}}]
+           → Multiple metric columns in WIDE format
+           → Use series_fields=["metric1", "metric2"], leave y_axis empty
+         
+         - **Stacked-bar**: [{{"category": "Region A", "forest": 100, "grassland": 50, "urban": 30}}]
+           → Multiple metric columns in WIDE format (same as multi-series)
+           → Use series_fields=["forest", "grassland", "urban"], leave y_axis empty
+           → Bars will stack vertically to show composition
+         
+         - **Grouped-bar**: [{{"year": "2020", "metric": "forest_loss", "value": 100}}, {{"year": "2020", "metric": "forest_gain", "value": 50}}]
+           → LONG format with a grouping column
+           → Use group_field="metric", y_axis="value"
+           → Bars will appear side-by-side for comparison
+         
+         - **Pie**: [{{"name": "Category A", "value": 100}}]
+           → Limited to 6-8 slices, use x_axis="name", y_axis="value"
+   
+   c) **SAVE THE DATA**: Save the DataFrame as `chart_data.csv` with column names for the frontend
+   
+   d) **PRINT CHART TYPE**: Clearly state your recommended chart type in the output
+
+**STEP 4: FINAL DATA-DRIVEN INSIGHT**
+- Provide a concise, data-driven insight (2-3 sentences)
+- Focus on what the data reveals and why it matters
+- Base this on the actual numbers and patterns you found
 """
 
+    logger.info(f"Analysis prompt:\n{prompt}")
     return prompt
 
 
@@ -235,10 +291,16 @@ async def generate_insights(
         "cautions", "No specific dataset cautions provided."
     )
 
+    # Build dataset list
+    dataset_list = "\n".join([f"- {display_name}" for _, display_name in dataframes])
+    
     chart_insight_prompt = f"""Generate structured chart metadata from the analysis output below.
 
 ### User Query
 {query}
+
+### Available Datasets (only a subset of these was used in the analysis)
+{dataset_list}
 
 ### Analysis Output (includes recommended chart type)
 {result.text_output}
@@ -254,13 +316,50 @@ Cautions: {dataset_cautions}
 ### Requirements
 1. **Language**: Generate ALL content in the SAME LANGUAGE as the user query
 2. **Data Format**: Generate structure in Recharts.js data format - specify field names that map to the chart data columns
-3. **Follow-ups**: Base suggestions on available capabilities - analyze any area, pull data from {available_datasets}, create charts for different time periods
-4. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
+
+3. **Field Mapping Rules by Chart Type**:
+   
+   **Single-series (line/bar/area/scatter):**
+   - x_axis: Column name for X-axis (e.g., 'year', 'date', 'category')
+   - y_axis: Column name for Y-axis (e.g., 'value', 'count')
+   - series_fields: [] (empty)
+   - group_field: "" (empty)
+   
+   **Multi-series line/bar/area (WIDE format):**
+   - x_axis: Column name for X-axis (e.g., 'year')
+   - y_axis: "" (empty or descriptive label like "Tree Cover Loss (hectares)")
+   - series_fields: List of metric column names (e.g., ['jharkhand_loss', 'odisha_loss'])
+   - group_field: "" (empty)
+   
+   **Stacked-bar (WIDE format):**
+   - x_axis: Column name for categories (e.g., 'region', 'year')
+   - y_axis: "" (empty or descriptive label)
+   - series_fields: List of metric column names to stack (e.g., ['forest', 'grassland', 'urban'])
+   - group_field: "" (empty)
+   
+   **Grouped-bar (LONG format):**
+   - x_axis: Column name for X-axis (e.g., 'year')
+   - y_axis: Column name for values (e.g., 'value', 'hectares')
+   - series_fields: [] (empty)
+   - group_field: Column name for grouping (e.g., 'metric', 'type')
+   
+   **Pie:**
+   - x_axis: Column name for categories (e.g., 'name', 'category')
+   - y_axis: Column name for values (e.g., 'value', 'count')
+   - series_fields: [] (empty)
+   - group_field: "" (empty)
+
+4. **Follow-ups**: Base suggestions on available capabilities - analyze any area, pull data from {available_datasets}, create charts for different time periods
+5. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
 """
+
+    logger.info(f"Chart insight prompt:\n{chart_insight_prompt}")
 
     chart_insight_response = await GEMINI_FLASH.with_structured_output(
         ChartInsight
     ).ainvoke(chart_insight_prompt)
+
+    logger.info(f"Chart insight response:\n{chart_insight_response}")
 
     # 7. BUILD RESPONSE
     tool_message = f"Title: {chart_insight_response.title}"
