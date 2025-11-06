@@ -802,11 +802,12 @@ datasets:
     - sequestration
   analytics_api_endpoint: "/v0/land_change/carbon_flux/analytics"
   prompt_instructions: >
-    Use 30% canopy density threshold by default, unless a user requests a different threshold.
+    DO NOT show trends over time or annual values. Caution users that this data shows net flux,
+    gross emissions and removals as total values over the model period of 2001-2024,
+    not an annual values.
     Show net flux as a split bar chart, with emissions in the positive y-axis and removals
     in the negative.
-    DO NOT show trends over time and caution users that net flux represents totals over
-    the the period 2001-2024, not an annual time series.
+    Use 30% canopy density threshold by default, unless a user requests a different threshold.
     Use the term "net sink" for net-negative flux values (removals/sequestration) and "net source"
     for net-positive (emissions)
   description: >
@@ -973,7 +974,7 @@ datasets:
   prompt_instructions: >
     Shows the primary driver or cause of tree cover loss over the entire range 2001-2024.
     Classes are defined as follows:
-    - Permanent agriculture: Long-term, permanent tree cover loss for small- tolarge-scale agriculture.
+    - Permanent agriculture: Long-term, permanent tree cover loss for small- to large-scale agriculture.
     - Hard commodities: Loss due to the establishment or expansion of mining or energy infrastructure.
     - Shifting cultivation: Tree cover loss due to small- to medium-scale clearing for temporary
       cultivation that is later abandoned and followed by subsequent regrowth of secondary forest or
@@ -999,6 +1000,13 @@ datasets:
     DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover"
     includes plantations as well as natural forest meaning loss is not automatically
     deforestation or carbon loss.
+    Common groupings of classes that can be mentioned where relevant:
+    - Permanent agriculture, hard commodities, and settlements and infrastructure can be combined
+    to represent drivers of deforestation.
+    - Shifting cultivation, logging, wildfire, and other natural disturbances can be combined
+    to represent drivers of temporary disturbances.
+    - Permanent agriculture and shifting cultivation can be combined to represent all
+    agriculture-driven disturbances. 
   description: >
     Shows the dominant driver of tree cover loss over the time period 2001-2024.
     A driver is defined as the direct cause of tree cover loss, and can include both temporary
