@@ -303,8 +303,14 @@ def render_charts(charts_data):
             groupField = chart.get("groupField", "")
             seriesFields = chart.get("seriesFields", [])
 
-            if not chart_data or not xAxis or not yAxis:
+            # Validate required fields based on chart type
+            if not chart_data or not xAxis:
                 st.warning(f"Incomplete chart data for: {chart_title}")
+                continue
+            
+            # For multi-series charts, seriesFields can replace yAxis
+            if not yAxis and not seriesFields:
+                st.warning(f"Incomplete chart data for: {chart_title} (missing yAxis or seriesFields)")
                 continue
 
             # Convert to DataFrame
@@ -318,48 +324,113 @@ def render_charts(charts_data):
 
             # Create chart based on type
             if chart_type == "bar":
-                chart_obj = (
-                    alt.Chart(df)
-                    .mark_bar()
-                    .encode(
-                        x=alt.X(
-                            f"{xAxis}:N",
-                            title=xAxis.replace("_", " ").title(),
-                        ),
-                        y=alt.Y(
-                            f"{yAxis}:Q",
-                            title=yAxis.replace("_", " ").title(),
-                        ),
-                        color=(
-                            alt.Color(f"{colorField}:N")
-                            if colorField
-                            else alt.value("steelblue")
-                        ),
+                # Handle multi-series bar charts
+                if seriesFields:
+                    # Transform data from wide to long format for multiple series
+                    df_long = pd.melt(
+                        df,
+                        id_vars=[xAxis],
+                        value_vars=seriesFields,
+                        var_name="series",
+                        value_name="value",
                     )
-                    .properties(width=600, height=400, title=chart_title)
-                )
+                    chart_obj = (
+                        alt.Chart(df_long)
+                        .mark_bar()
+                        .encode(
+                            x=alt.X(
+                                f"{xAxis}:N",
+                                title=xAxis.replace("_", " ").title(),
+                            ),
+                            y=alt.Y(
+                                "value:Q",
+                                title=yAxis if yAxis else "Value",
+                            ),
+                            color=alt.Color(
+                                "series:N",
+                                title="Series",
+                            ),
+                            xOffset=alt.XOffset("series:N"),
+                            tooltip=[f"{xAxis}:N", "series:N", "value:Q"],
+                        )
+                        .properties(width=600, height=400, title=chart_title)
+                    )
+                else:
+                    # Single-series bar chart
+                    chart_obj = (
+                        alt.Chart(df)
+                        .mark_bar()
+                        .encode(
+                            x=alt.X(
+                                f"{xAxis}:N",
+                                title=xAxis.replace("_", " ").title(),
+                            ),
+                            y=alt.Y(
+                                f"{yAxis}:Q",
+                                title=yAxis.replace("_", " ").title(),
+                            ),
+                            color=(
+                                alt.Color(f"{colorField}:N")
+                                if colorField
+                                else alt.value("steelblue")
+                            ),
+                        )
+                        .properties(width=600, height=400, title=chart_title)
+                    )
 
             elif chart_type == "line":
-                chart_obj = (
-                    alt.Chart(df)
-                    .mark_line(point=True)
-                    .encode(
-                        x=alt.X(
-                            f"{xAxis}:O",
-                            title=xAxis.replace("_", " ").title(),
-                        ),
-                        y=alt.Y(
-                            f"{yAxis}:Q",
-                            title=yAxis.replace("_", " ").title(),
-                        ),
-                        color=(
-                            alt.Color(f"{colorField}:N")
-                            if colorField
-                            else alt.value("steelblue")
-                        ),
+                # Handle multi-series line charts
+                if seriesFields:
+                    # Transform data from wide to long format for multiple series
+                    df_long = pd.melt(
+                        df,
+                        id_vars=[xAxis],
+                        value_vars=seriesFields,
+                        var_name="series",
+                        value_name="value",
                     )
-                    .properties(width=600, height=400, title=chart_title)
-                )
+                    chart_obj = (
+                        alt.Chart(df_long)
+                        .mark_line(point=True)
+                        .encode(
+                            x=alt.X(
+                                f"{xAxis}:O",
+                                title=xAxis.replace("_", " ").title(),
+                            ),
+                            y=alt.Y(
+                                "value:Q",
+                                title=yAxis if yAxis else "Value",
+                            ),
+                            color=alt.Color(
+                                "series:N",
+                                title="Series",
+                            ),
+                            tooltip=[f"{xAxis}:O", "series:N", "value:Q"],
+                        )
+                        .properties(width=600, height=400, title=chart_title)
+                    )
+                else:
+                    # Single-series line chart
+                    chart_obj = (
+                        alt.Chart(df)
+                        .mark_line(point=True)
+                        .encode(
+                            x=alt.X(
+                                f"{xAxis}:O",
+                                title=xAxis.replace("_", " ").title(),
+                            ),
+                            y=alt.Y(
+                                f"{yAxis}:Q",
+                                title=yAxis.replace("_", " ").title(),
+                            ),
+                            color=(
+                                alt.Color(f"{colorField}:N")
+                                if colorField
+                                else alt.value("steelblue")
+                            ),
+                        )
+                        .properties(width=600, height=400, title=chart_title)
+                    )
 
             elif chart_type == "pie":
                 chart_obj = (
@@ -377,26 +448,58 @@ def render_charts(charts_data):
                 )
 
             elif chart_type == "area":
-                chart_obj = (
-                    alt.Chart(df)
-                    .mark_area()
-                    .encode(
-                        x=alt.X(
-                            f"{xAxis}:O",
-                            title=xAxis.replace("_", " ").title(),
-                        ),
-                        y=alt.Y(
-                            f"{yAxis}:Q",
-                            title=yAxis.replace("_", " ").title(),
-                        ),
-                        color=(
-                            alt.Color(f"{colorField}:N")
-                            if colorField
-                            else alt.value("steelblue")
-                        ),
+                # Handle multi-series area charts
+                if seriesFields:
+                    # Transform data from wide to long format for multiple series
+                    df_long = pd.melt(
+                        df,
+                        id_vars=[xAxis],
+                        value_vars=seriesFields,
+                        var_name="series",
+                        value_name="value",
                     )
-                    .properties(width=600, height=400, title=chart_title)
-                )
+                    chart_obj = (
+                        alt.Chart(df_long)
+                        .mark_area()
+                        .encode(
+                            x=alt.X(
+                                f"{xAxis}:O",
+                                title=xAxis.replace("_", " ").title(),
+                            ),
+                            y=alt.Y(
+                                "value:Q",
+                                title=yAxis if yAxis else "Value",
+                            ),
+                            color=alt.Color(
+                                "series:N",
+                                title="Series",
+                            ),
+                            tooltip=[f"{xAxis}:O", "series:N", "value:Q"],
+                        )
+                        .properties(width=600, height=400, title=chart_title)
+                    )
+                else:
+                    # Single-series area chart
+                    chart_obj = (
+                        alt.Chart(df)
+                        .mark_area()
+                        .encode(
+                            x=alt.X(
+                                f"{xAxis}:O",
+                                title=xAxis.replace("_", " ").title(),
+                            ),
+                            y=alt.Y(
+                                f"{yAxis}:Q",
+                                title=yAxis.replace("_", " ").title(),
+                            ),
+                            color=(
+                                alt.Color(f"{colorField}:N")
+                                if colorField
+                                else alt.value("steelblue")
+                            ),
+                        )
+                        .properties(width=600, height=400, title=chart_title)
+                    )
 
             elif chart_type == "scatter":
                 chart_obj = (
