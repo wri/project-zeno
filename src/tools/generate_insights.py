@@ -89,7 +89,7 @@ You have access to the following datasets (read-only):
 
 1. **Analyze**: Use pandas to extract insights or summarize data relevant to the query. Print key findings clearly. Do **not** create any plots or charts.
 2. **Prepare output**:
-    - Recommend a suitable chart type for visualization, choose ONE from: line, bar, area, pie, stacked-bar, grouped-bar, table.
+    - Recommend a suitable chart type for visualization, choose ONE from: line, bar, area, pie, stacked-bar, grouped-bar, table. Make sure to print your recommended chart type in the output.
     - Create a clean DataFrame for the chart with appropriate columns for the chart type and save it as: `chart_data.csv`.
 3. **Summarize**: Provide a data-driven insight based on your analysis at the end.
 """
@@ -173,159 +173,139 @@ async def generate_insights(
 
     raw_data = state["raw_data"]
 
-    try:
-        # 1. PREPARE DATAFRAMES: Convert raw_data to DataFrames
-        dataframes = prepare_dataframes(raw_data)
-        logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
+    # 1. PREPARE DATAFRAMES: Convert raw_data to DataFrames
+    dataframes = prepare_dataframes(raw_data)
+    logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
-        # 2. INITIALIZE EXECUTOR: Create Gemini code executor
-        executor = GeminiCodeExecutor()
+    # 2. INITIALIZE EXECUTOR: Create Gemini code executor
+    executor = GeminiCodeExecutor()
 
-        # 3. BUILD PROMPT: Create analysis prompt with executor-specific file references
-        file_references = executor.build_file_references(dataframes)
-        analysis_prompt = build_analysis_prompt(query, file_references)
-        logger.debug(f"Analysis prompt:\n{analysis_prompt}")
+    # 3. BUILD PROMPT: Create analysis prompt with executor-specific file references
+    file_references = executor.build_file_references(dataframes)
+    analysis_prompt = build_analysis_prompt(query, file_references)
+    logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 
-        # 4. PREPARE DATA: Convert DataFrames to inline data format
-        file_refs = await executor.prepare_dataframes(dataframes)
-        logger.info(f"Prepared {len(file_refs)} inline data parts for Gemini")
+    # 4. PREPARE DATA: Convert DataFrames to inline data format
+    file_refs = await executor.prepare_dataframes(dataframes)
+    logger.info(f"Prepared {len(file_refs)} inline data parts for Gemini")
 
-        # 5. EXECUTE CODE: Run analysis with Gemini
-        result = await executor.execute(analysis_prompt, file_refs)
+    # 5. EXECUTE CODE: Run analysis with Gemini
+    result = await executor.execute(analysis_prompt, file_refs)
 
-        # Check for errors
-        if result.error:
-            logger.error(f"Code execution error: {result.error}")
-            return Command(
-                update={
-                    "messages": [
-                        ToolMessage(
-                            content=f"Analysis failed: {result.error}",
-                            tool_call_id=tool_call_id,
-                            status="error",
-                        )
-                    ]
-                }
-            )
-
-        # Check for chart data
-        if not result.chart_data:
-            logger.error("No chart data generated")
-            return Command(
-                update={
-                    "messages": [
-                        ToolMessage(
-                            content=f"Failed to generate chart data. Feedback: {result.text_output}",
-                            tool_call_id=tool_call_id,
-                            status="error",
-                        )
-                    ]
-                }
-            )
-
-        logger.info(f"Generated chart data with {len(result.chart_data)} rows")
-
-        # 6. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
-        chart_data_df = pd.DataFrame(result.chart_data)
-        available_datasets = _get_available_datasets()
-        dataset_guidelines = state.get("dataset").get(
-            "prompt_instructions", "No specific dataset guidelines provided."
-        )
-        dataset_cautions = state.get("dataset").get(
-            "cautions", "No specific dataset cautions provided."
-        )
-
-        chart_insight_prompt = f"""Based on analysis done by an expert & data saved for visualization, generate structured response.
-
-### Analysis Output
-{result.text_output}
-
-### Saved chart data - head 5 rows
-{chart_data_df.head().to_csv(index=False)}
-
-Total rows: {len(chart_data_df)}
-
-### Language Context
-Generate ALL content (insights, titles, follow-ups) in the SAME LANGUAGE as the user query.
-Dataset specific guidelines: {dataset_guidelines}
-Dataset specific cautions: {dataset_cautions}
-
-#### Capability Context
-You can analyze data for any area of interest, pull data from datasets like {available_datasets} for different time periods, and create various charts/insights. Base follow-ups on what's actually possible with available data and tools.
-
-#### Language Context
-Generate ALL content (insights, titles, follow-ups) in the SAME LANGUAGE as the user query.
-
-#### Follow-up Examples
-- "Show trend over different time period"
-- "Compare with nearby [region/area]"
-- "Identify top/bottom performers in [metric]"
-- "Break down by [relevant category]"
-"""
-
-        chart_insight_response = await GEMINI_FLASH.with_structured_output(
-            ChartInsight
-        ).ainvoke(chart_insight_prompt)
-
-        # 7. BUILD RESPONSE
-        tool_message = f"Title: {chart_insight_response.title}"
-        tool_message += f"\nKey Finding: {chart_insight_response.insight}"
-        tool_message += "\nFollow-up suggestions:"
-        for i, suggestion in enumerate(
-            chart_insight_response.follow_up_suggestions, 1
-        ):
-            tool_message += f"\n{i}. {suggestion}"
-
-        # Store chart data for frontend
-        charts_data = [
-            {
-                "id": "main_chart",
-                "title": chart_insight_response.title,
-                "type": chart_insight_response.chart_type,
-                "insight": chart_insight_response.insight,
-                "data": result.chart_data,
-                "xAxis": chart_insight_response.x_axis,
-                "yAxis": chart_insight_response.y_axis,
-                "colorField": chart_insight_response.color_field,
-                "stackField": chart_insight_response.stack_field,
-                "groupField": chart_insight_response.group_field,
-                "seriesFields": chart_insight_response.series_fields,
-            }
-        ]
-
-        # Update state with generated insight and follow-ups
-        updated_state = {
-            "insight": chart_insight_response.model_dump()["insight"],
-            "follow_up_suggestions": chart_insight_response.model_dump()[
-                "follow_up_suggestions"
-            ],
-            "charts_data": charts_data,
-            "text_output": result.text_output,
-            "code_blocks": result.code_blocks,
-            "execution_outputs": result.execution_outputs,
-            "messages": [
-                ToolMessage(
-                    content=tool_message,
-                    tool_call_id=tool_call_id,
-                    status="success",
-                    response_metadata={"msg_type": "human_feedback"},
-                )
-            ],
-        }
-
-        return Command(update=updated_state)
-
-    except Exception as e:
-        logger.error(f"Unexpected error in generate_insights: {e}")
+    # Check for errors
+    if result.error:
+        logger.error(f"Code execution error: {result.error}")
         return Command(
             update={
                 "messages": [
                     ToolMessage(
-                        content=f"Unexpected error in generate_insights: {e}",
+                        content=f"Analysis failed: {result.error}",
                         tool_call_id=tool_call_id,
                         status="error",
-                        response_metadata={"msg_type": "human_feedback"},
                     )
-                ],
+                ]
             }
         )
+
+    # Check for chart data
+    if not result.chart_data:
+        logger.error("No chart data generated")
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        content=f"Failed to generate chart data. Feedback: {result.text_output}",
+                        tool_call_id=tool_call_id,
+                        status="error",
+                    )
+                ]
+            }
+        )
+
+    logger.info(f"Generated chart data with {len(result.chart_data)} rows")
+
+    # 6. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
+    chart_data_df = pd.DataFrame(result.chart_data)
+    logger.info(f"Chart data preview:\n{chart_data_df.head().to_csv(index=False)}")
+    available_datasets = _get_available_datasets()
+    dataset_guidelines = state.get("dataset").get(
+        "prompt_instructions", "No specific dataset guidelines provided."
+    )
+    dataset_cautions = state.get("dataset").get(
+        "cautions", "No specific dataset cautions provided."
+    )
+
+    chart_insight_prompt = f"""Generate structured chart metadata from the analysis output below.
+
+### User Query
+{query}
+
+### Analysis Output (includes recommended chart type)
+{result.text_output}
+
+### Chart Data Preview (first 5 rows)
+{chart_data_df.head().to_csv(index=False)}
+Total rows: {len(chart_data_df)}
+
+### Dataset Context
+Guidelines: {dataset_guidelines}
+Cautions: {dataset_cautions}
+
+### Requirements
+1. **Language**: Generate ALL content in the SAME LANGUAGE as the user query
+2. **Data Format**: Generate structure in Recharts.js data format - specify field names that map to the chart data columns
+3. **Follow-ups**: Base suggestions on available capabilities - analyze any area, pull data from {available_datasets}, create charts for different time periods
+4. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
+"""
+
+    chart_insight_response = await GEMINI_FLASH.with_structured_output(
+        ChartInsight
+    ).ainvoke(chart_insight_prompt)
+
+    # 7. BUILD RESPONSE
+    tool_message = f"Title: {chart_insight_response.title}"
+    tool_message += f"\nKey Finding: {chart_insight_response.insight}"
+    tool_message += "\nFollow-up suggestions:"
+    for i, suggestion in enumerate(
+        chart_insight_response.follow_up_suggestions, 1
+    ):
+        tool_message += f"\n{i}. {suggestion}"
+
+    # Store chart data for frontend
+    charts_data = [
+        {
+            "id": "main_chart",
+            "title": chart_insight_response.title,
+            "type": chart_insight_response.chart_type,
+            "insight": chart_insight_response.insight,
+            "data": result.chart_data,
+            "xAxis": chart_insight_response.x_axis,
+            "yAxis": chart_insight_response.y_axis,
+            "colorField": chart_insight_response.color_field,
+            "stackField": chart_insight_response.stack_field,
+            "groupField": chart_insight_response.group_field,
+            "seriesFields": chart_insight_response.series_fields,
+        }
+    ]
+
+    # Update state with generated insight and follow-ups
+    updated_state = {
+        "insight": chart_insight_response.model_dump()["insight"],
+        "follow_up_suggestions": chart_insight_response.model_dump()[
+            "follow_up_suggestions"
+        ],
+        "charts_data": charts_data,
+        "text_output": result.text_output,
+        "code_blocks": result.code_blocks,
+        "execution_outputs": result.execution_outputs,
+        "messages": [
+            ToolMessage(
+                content=tool_message,
+                tool_call_id=tool_call_id,
+                status="success",
+                response_metadata={"msg_type": "human_feedback"},
+            )
+        ],
+    }
+
+    return Command(update=updated_state)
