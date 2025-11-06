@@ -149,7 +149,6 @@ Now prepare the data for visualization in Recharts.js:
 - Base this on the actual numbers and patterns you found
 """
 
-    logger.info(f"Analysis prompt:\n{prompt}")
     return prompt
 
 
@@ -282,9 +281,6 @@ async def generate_insights(
 
     # 6. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
     chart_data_df = pd.DataFrame(result.chart_data)
-    logger.info(
-        f"Chart data preview:\n{chart_data_df.head().to_csv(index=False)}"
-    )
     available_datasets = _get_available_datasets()
     dataset_guidelines = state.get("dataset").get(
         "prompt_instructions", "No specific dataset guidelines provided."
@@ -357,13 +353,9 @@ Cautions: {dataset_cautions}
 5. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
 """
 
-    logger.info(f"Chart insight prompt:\n{chart_insight_prompt}")
-
     chart_insight_response = await GEMINI_FLASH.with_structured_output(
         ChartInsight
     ).ainvoke(chart_insight_prompt)
-
-    logger.info(f"Chart insight response:\n{chart_insight_response}")
 
     # 7. BUILD RESPONSE
     tool_message = f"Title: {chart_insight_response.title}"
