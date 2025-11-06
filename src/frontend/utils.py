@@ -307,10 +307,12 @@ def render_charts(charts_data):
             if not chart_data or not xAxis:
                 st.warning(f"Incomplete chart data for: {chart_title}")
                 continue
-            
+
             # For multi-series charts, seriesFields can replace yAxis
             if not yAxis and not seriesFields:
-                st.warning(f"Incomplete chart data for: {chart_title} (missing yAxis or seriesFields)")
+                st.warning(
+                    f"Incomplete chart data for: {chart_title} (missing yAxis or seriesFields)"
+                )
                 continue
 
             # Convert to DataFrame
