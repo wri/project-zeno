@@ -65,15 +65,13 @@ def prepare_dataframes(raw_data: Dict) -> List[tuple[pd.DataFrame, str]]:
     return dataframes
 
 
-def build_analysis_prompt(
-    query: str, dataframes: List[tuple[pd.DataFrame, str]]
-) -> str:
+def build_analysis_prompt(query: str, file_references: str) -> str:
     """
     Build the analysis prompt for the code executor.
 
     Args:
         query: User's analysis query
-        dataframes: List of tuples (DataFrame, display_name)
+        file_references: Executor-specific file reference section
 
     Returns:
         Formatted prompt string
@@ -83,12 +81,8 @@ def build_analysis_prompt(
 
 
 You have access to the following datasets (read-only):
-"""
-
-    for i, (_, display_name) in enumerate(dataframes):
-        prompt += f"- input_file_{i}.csv → {display_name}\n"
-
-    prompt += """---
+{file_references}
+---
 
 
 ### Workflow:
@@ -184,18 +178,19 @@ async def generate_insights(
         dataframes = prepare_dataframes(raw_data)
         logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
-        # 2. BUILD PROMPT: Create analysis prompt with file references
-        analysis_prompt = build_analysis_prompt(query, dataframes)
-        logger.debug(f"Analysis prompt:\n{analysis_prompt}")
-
-        # 3. EXECUTE CODE: Use Gemini code executor
+        # 2. INITIALIZE EXECUTOR: Create Gemini code executor
         executor = GeminiCodeExecutor()
 
-        # Prepare inline data from DataFrames
+        # 3. BUILD PROMPT: Create analysis prompt with executor-specific file references
+        file_references = executor.build_file_references(dataframes)
+        analysis_prompt = build_analysis_prompt(query, file_references)
+        logger.debug(f"Analysis prompt:\n{analysis_prompt}")
+
+        # 4. PREPARE DATA: Convert DataFrames to inline data format
         file_refs = await executor.prepare_dataframes(dataframes)
         logger.info(f"Prepared {len(file_refs)} inline data parts for Gemini")
 
-        # Execute analysis
+        # 5. EXECUTE CODE: Run analysis with Gemini
         result = await executor.execute(analysis_prompt, file_refs)
 
         # Check for errors
@@ -230,7 +225,7 @@ async def generate_insights(
 
         logger.info(f"Generated chart data with {len(result.chart_data)} rows")
 
-        # 4. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
+        # 6. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
         chart_data_df = pd.DataFrame(result.chart_data)
         available_datasets = _get_available_datasets()
         dataset_guidelines = state.get("dataset").get(
@@ -272,7 +267,7 @@ Generate ALL content (insights, titles, follow-ups) in the SAME LANGUAGE as the 
             ChartInsight
         ).ainvoke(chart_insight_prompt)
 
-        # 5. BUILD RESPONSE
+        # 7. BUILD RESPONSE
         tool_message = f"Title: {chart_insight_response.title}"
         tool_message += f"\nKey Finding: {chart_insight_response.insight}"
         tool_message += "\nFollow-up suggestions:"

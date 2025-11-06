@@ -1,27 +1,16 @@
 """Gemini code executor using inline data and native code execution."""
 
 import io
-from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import pandas as pd
 from google import genai
 from google.genai import types
 
+from src.tools.code_executors.base import ExecutionResult
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class ExecutionResult:
-    """Result from code execution."""
-
-    text_output: str
-    code_blocks: List[str]
-    execution_outputs: List[str]
-    chart_data: Optional[List[Dict]]
-    error: Optional[str] = None
 
 
 class GeminiCodeExecutor:
@@ -36,6 +25,23 @@ class GeminiCodeExecutor:
         """
         self.model = model
         self.client = genai.Client()
+
+    def build_file_references(
+        self, dataframes: List[tuple[pd.DataFrame, str]]
+    ) -> str:
+        """
+        Build Gemini-specific file reference section for prompt.
+
+        Args:
+            dataframes: List of (DataFrame, display_name) tuples
+
+        Returns:
+            Formatted string describing available files
+        """
+        lines = []
+        for i, (_, display_name) in enumerate(dataframes):
+            lines.append(f"- input_file_{i}.csv → {display_name}")
+        return "\n".join(lines)
 
     async def prepare_dataframes(
         self, dataframes: List[tuple[pd.DataFrame, str]]

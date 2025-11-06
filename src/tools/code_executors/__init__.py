@@ -1,5 +1,6 @@
-"""Gemini code executor for generate_insights."""
+"""Code executors for generate_insights."""
 
-from .gemini_executor import ExecutionResult, GeminiCodeExecutor
+from .base import ExecutionResult
+from .gemini_executor import GeminiCodeExecutor
 
 __all__ = ["GeminiCodeExecutor", "ExecutionResult"]
