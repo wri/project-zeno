@@ -1,24 +1,19 @@
-from datetime import datetime
-from typing import Annotated, Any, Dict, List
+from typing import Annotated, Dict, List
 
 import pandas as pd
-import tiktoken
 from langchain_core.messages import ToolMessage
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
+from src.tools.code_executors import GeminiCodeExecutor
 from src.tools.datasets_config import DATASETS
-from src.utils.llms import SONNET
+from src.utils.llms import GEMINI_FLASH
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
-encoder = tiktoken.get_encoding(
-    "o200k_base"
-)  # tiktoken encoding for OpenAI's GPT-4o, used for approximate token counting
 
 
 def _get_available_datasets() -> str:
@@ -28,6 +23,133 @@ def _get_available_datasets() -> str:
         dataset_names.append(dataset["dataset_name"])
 
     return ", ".join(dataset_names)
+    return ", ".join(dataset_names)
+
+
+def prepare_dataframes(raw_data: Dict) -> List[tuple[pd.DataFrame, str]]:
+    """
+    Prepare DataFrames from raw data for code executor.
+
+    Args:
+        raw_data: Nested dict of data by AOI and dataset
+
+    Returns:
+        List of tuples (DataFrame, display_name)
+    """
+    dataframes = []
+
+    for data_by_aoi in raw_data.values():
+        for data in data_by_aoi.values():
+            data_copy = data.copy()
+            aoi_name = data_copy.pop("aoi_name")
+            dataset_name = data_copy.pop("dataset_name")
+            start_date = data_copy.pop("start_date")
+            end_date = data_copy.pop("end_date")
+
+            # Create DataFrame and drop constant columns
+            df = pd.DataFrame(data_copy)
+            if len(df) > 1:
+                constants = df.nunique() == 1
+                logger.debug(
+                    f"Dropping constant columns: {list(df.columns[constants])}"
+                )
+                df = df.drop(columns=df.columns[constants])
+
+            display_name = (
+                f"{aoi_name} — {dataset_name} ({start_date} to {end_date})"
+            )
+            dataframes.append((df, display_name))
+
+            logger.info(f"Prepared: {display_name}")
+
+    return dataframes
+
+
+def build_analysis_prompt(query: str, file_references: str) -> str:
+    """
+    Build the analysis prompt for the code executor.
+
+    Args:
+        query: User's analysis query
+        file_references: Executor-specific file reference section
+
+    Returns:
+        Formatted prompt string
+    """
+    prompt = f"""### User Query:
+{query}
+
+
+You have access to the following datasets (read-only):
+{file_references}
+---
+
+
+### STEP-BY-STEP WORKFLOW (follow in order):
+
+**STEP 1: ANALYZE THE DATA**
+- Load the relevant dataset(s) using pandas
+- Print which dataset(s) you are using (name and date range)
+- Explore the data structure, columns, and data types
+- Calculate key statistics relevant to the user query
+- Print your key findings clearly
+- Do **NOT** create any plots or charts yet
+
+**STEP 2: SUMMARIZE INSIGHTS**
+- Summarize the data relevant to the user query
+- Identify the most important patterns, trends, or comparisons
+- Print a clear summary of what the data shows
+
+**STEP 3: GENERATE CHART DATA**
+Now prepare the data for visualization in Recharts.js:
+
+   a) **CHART TYPE SELECTION** - Choose the most appropriate chart type:
+      - **line**: Time series data, trends over time (supports multi-series)
+      - **bar**: Categorical comparisons, rankings (supports multi-series for grouped bars)
+      - **stacked-bar**: Show composition within categories (use wide format with multiple metric columns)
+      - **grouped-bar**: Compare multiple metrics side-by-side (use long format with group column)
+      - **pie**: Part-to-whole relationships (limit to 6-8 categories max)
+      - **area**: Cumulative trends, stacked time series (supports multi-series)
+      - **scatter**: Show correlations between two variables
+      - **table**: Detailed data when visualization isn't optimal
+
+   b) **CREATE CHART DATA** following these requirements:
+      1. **Structure**: Array of objects (rows) with simple field names as columns
+      2. **Field names**: Use clear, lowercase names like 'date', 'value', 'category', 'year', 'count'
+      3. **Numeric values**: Always numbers, never strings (e.g., 100 not "100")
+      4. **Date ordering**: Chronological order for time series, not alphabetical
+      5. **Data format by chart type**:
+         - **Single-series line/bar**: [{{"date": "2020-01", "value": 100}}]
+           → One metric column, use y_axis="value"
+
+         - **Multi-series line/bar/area**: [{{"year": "2020", "metric1": 100, "metric2": 50}}]
+           → Multiple metric columns in WIDE format
+           → Use series_fields=["metric1", "metric2"], leave y_axis empty
+
+         - **Stacked-bar**: [{{"category": "Region A", "forest": 100, "grassland": 50, "urban": 30}}]
+           → Multiple metric columns in WIDE format (same as multi-series)
+           → Use series_fields=["forest", "grassland", "urban"], leave y_axis empty
+           → Bars will stack vertically to show composition
+
+         - **Grouped-bar**: [{{"year": "2020", "metric": "forest_loss", "value": 100}}, {{"year": "2020", "metric": "forest_gain", "value": 50}}]
+           → LONG format with a grouping column
+           → Use group_field="metric", y_axis="value"
+           → Bars will appear side-by-side for comparison
+
+         - **Pie**: [{{"name": "Category A", "value": 100}}]
+           → Limited to 6-8 slices, use x_axis="name", y_axis="value"
+
+   c) **SAVE THE DATA**: Save the DataFrame as `chart_data.csv` with column names for the frontend
+
+   d) **PRINT CHART TYPE**: Clearly state your recommended chart type in the output
+
+**STEP 4: FINAL DATA-DRIVEN INSIGHT**
+- Provide a concise, data-driven insight (2-3 sentences)
+- Focus on what the data reveals and why it matters
+- Base this on the actual numbers and patterns you found
+"""
+
+    return prompt
 
 
 class ChartInsight(BaseModel):
@@ -41,9 +163,6 @@ class ChartInsight(BaseModel):
     )
     insight: str = Field(
         description="Key insight or finding that this chart reveals (2-3 sentences)"
-    )
-    data: List[Dict[str, Any]] = Field(
-        description="Recharts-compatible data array with objects containing key-value pairs"
     )
     x_axis: str = Field(
         description="Name of the field to use for X-axis (for applicable chart types)"
@@ -67,130 +186,14 @@ class ChartInsight(BaseModel):
         default=[],
         description="List of field names for multiple data series (for multi-bar charts)",
     )
-
-
-class InsightResponse(BaseModel):
-    """
-    Contains 1 main chart insight and follow-up suggestions.
-    """
-
-    insight: ChartInsight = Field(
-        description="The most useful chart insight for the user's query"
-    )
     follow_up_suggestions: List[str] = Field(
-        description="List of 2-3 follow-up prompt suggestions for additional analysis"
+        description="List of 1-2 follow-up suggestions based on available data & capability"
     )
-
-
-def _create_insight_generation_prompt() -> ChatPromptTemplate:
-    """Create the insight generation prompt with dynamic dataset information."""
-    available_datasets = _get_available_datasets()
-    current_date = datetime.now().strftime("%Y-%m-%d")
-
-    return ChatPromptTemplate.from_messages(
-        [
-            (
-                "user",
-                f"""# ROLE
-You are the Global Nature Watch's Geospatial Assistant, an expert at analyzing environmental data and creating insightful visualizations.
-
-# CONTEXT
-Current date: {current_date}
-
-# TASK
-First, evaluate if the provided data can answer the user's query. If not, provide feedback on missing data requirements instead of generating a chart.
-
-If data is sufficient, generate ONE chart insight that best answers the user's query. If the user specifies a chart type (e.g., "show as bar chart", "make this a pie chart"), prioritize that type if appropriate for the data.
-
-# USER QUERY
-{{user_query}}
-
-# DATA TO ANALYZE
-{{raw_data_prompt}}
-
-# DATASET-SPECIFIC GUIDELINES
-{{dataset_guidelines}}
-
-# CRITICAL DATA EVALUATION
-**BEFORE PROCEEDING**: Carefully examine if the available data can answer the user's query:
-
-**If data is INSUFFICIENT or MISSING required fields:**
-- DO NOT generate any chart insight
-- Instead, respond with specific feedback explaining:
-  * What exact data/fields are missing for the analysis
-  * Which dataset(s) would contain the required information
-  * Which region(s) need additional data collection
-  * Suggest: "Please select [specific dataset] for [specific region] and pull the data again"
-
-**Only proceed to chart generation if data is SUFFICIENT for the query.**
-
-# CHART TYPE SELECTION
-Choose the most appropriate chart type:
-- **line**: Time series data, trends over time
-- **bar**: Categorical comparisons, rankings
-- **stacked-bar**: Show composition within categories (requires series_fields)
-- **grouped-bar**: Compare multiple metrics across categories (requires group_field)
-- **pie**: Part-to-whole relationships (limit to 6-8 categories max)
-- **area**: Cumulative trends, stacked time series
-- **scatter**: Show correlations between two variables
-- **table**: Detailed data when visualization isn't optimal
-
-# DATA FORMAT REQUIREMENTS
-Your chart data MUST follow these rules:
-1. **Structure**: Array of objects with simple field names
-2. **Field names**: Use clear names like 'date', 'value', 'category', 'year'
-3. **Numeric values**: Always numbers, never strings (e.g., 100 not "100")
-4. **Date ordering**: Chronological order, not alphabetical
-5. **Special formats**:
-   - Stacked-bar: [{{{{\"category\": \"2020\", \"metric1\": 100, \"metric2\": 50}}}}] + set series_fields
-   - Grouped-bar: [{{{{\"year\": \"2020\", \"type\": \"metric1\", \"value\": 100}}}}] + set group_field
-
-# OUTPUT REQUIREMENTS
-Generate exactly:
-1. **One chart insight** with:
-   - Appropriate chart type for the data
-   - Recharts-compatible data array
-   - Clear x_axis and y_axis field mappings
-   - Insightful title and analysis
-
-2. **1-2 follow-up suggestions** based on available data and capabilities
-
-# CAPABILITIES CONTEXT
-You can analyze data for any area of interest, pull data from datasets like {available_datasets} for different time periods, and create various charts/insights. Base follow-ups on what's actually possible with available data and tools.
-
-# LANGUAGE REQUIREMENT
-Generate ALL content (insights, titles, follow-ups) in the SAME LANGUAGE as the user query.
-
-# FOLLOW-UP EXAMPLES
-- "Show trend over different time period"
-- "Compare with nearby [region/area]"
-- "Identify top/bottom performers in [metric]"
-- "Break down by [relevant category]"
-""",
-            ),
-        ]
-    )
-
-
-def get_data_csv(raw_data: Dict) -> str:
-    """
-    Convert the raw data to a CSV string and drop constant columns.
-    Keep first 6 significant digits for numeric values.
-    """
-    df = pd.DataFrame(raw_data)
-    if len(df) > 1:
-        constants = df.nunique() == 1
-        logger.debug(
-            f"Dropping constant columns: {list(df.columns[constants])}"
-        )
-        df = df.drop(columns=df.columns[constants])
-    return df.to_csv(index=False, float_format="%.6g")
 
 
 @tool("generate_insights")
 async def generate_insights(
     query: str,
-    is_comparison: bool,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
@@ -204,9 +207,6 @@ async def generate_insights(
         query: Improved query from the user including relevant context that will help in
                better insight generation. Should include specific chart type requests,
                temporal focus, comparison aspects, and any domain-specific context.
-        is_comparison: Whether the user is comparing two or more different AOIs (e.g.,
-                      comparing Brazil vs Indonesia). Set to False for comparisons within
-                      a specific AOI (e.g., provinces in a country, KBAs in a region, counties in a state).
     """
     logger.info("GENERATE-INSIGHTS-TOOL")
     logger.debug(f"Generating insights for query: {query}")
@@ -228,56 +228,60 @@ async def generate_insights(
 
     raw_data = state["raw_data"]
 
-    raw_data_prompt = "## RAW DATA FOR ANALYSIS\n\n"
+    # 1. PREPARE DATAFRAMES: Convert raw_data to DataFrames
+    dataframes = prepare_dataframes(raw_data)
+    logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
-    if is_comparison:
-        raw_data_prompt += "**COMPARISON MODE**: Multiple areas/datasets provided for comparative analysis.\n\n"
-        for i, data_by_aoi in enumerate(raw_data.values(), 1):
-            for j, data in enumerate(data_by_aoi.values(), 1):
-                data_copy = data.copy()
-                aoi_name = data_copy.pop("aoi_name")
-                dataset_name = data_copy.pop("dataset_name")
-                start_date = data_copy.pop("start_date")
-                end_date = data_copy.pop("end_date")
-                data_csv = get_data_csv(data_copy)
-                raw_data_prompt += f"### Dataset {i}.{j}: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
-                raw_data_prompt += f"```csv\n{data_csv}\n```\n\n"
-    else:
-        raw_data_prompt += (
-            "**SINGLE ANALYSIS MODE**: One area and dataset provided.\n\n"
-        )
-        # Get the latest key if not comparing
-        data_by_aoi = list(raw_data.values())[-1]
-        data = list(data_by_aoi.values())[-1]
-        data_copy = data.copy()
-        aoi_name = data_copy.pop("aoi_name")
-        dataset_name = data_copy.pop("dataset_name")
-        start_date = data_copy.pop("start_date")
-        end_date = data_copy.pop("end_date")
-        data_csv = get_data_csv(data_copy)
-        raw_data_prompt += f"### Dataset: {aoi_name} - {dataset_name} for date range {start_date} - {end_date}\n"
-        raw_data_prompt += f"```csv\n{data_csv}\n```\n\n"
+    # 2. INITIALIZE EXECUTOR: Create Gemini code executor
+    executor = GeminiCodeExecutor()
 
-    tokens = encoder.encode(raw_data_prompt)
-    token_count = len(tokens)
-    logger.debug(f"Raw data prompt token count: {token_count}")
+    # 3. BUILD PROMPT: Create analysis prompt with executor-specific file references
+    file_references = executor.build_file_references(dataframes)
+    analysis_prompt = build_analysis_prompt(query, file_references)
+    logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 
-    # 24_000 tokens is an approximate window size that would make sure the agent doesn't hallucinate
-    if token_count > 23_000:
+    # 4. PREPARE DATA: Convert DataFrames to inline data format
+    file_refs = await executor.prepare_dataframes(dataframes)
+    logger.info(f"Prepared {len(file_refs)} inline data parts for Gemini")
+
+    # 5. EXECUTE CODE: Run analysis with Gemini
+    result = await executor.execute(analysis_prompt, file_refs)
+
+    # Check for errors
+    if result.error:
+        logger.error(f"Code execution error: {result.error}")
         return Command(
             update={
-                "raw_data": {},  # reset raw data
                 "messages": [
                     ToolMessage(
-                        content="I've reached my processing limit - you may have requested a large set of areas or too many data points. I'm clearing the current dataset to prevent errors. To continue your analysis, please start a new chat conversation and re-select your areas and datasets.",
+                        content=f"Analysis failed: {result.error}",
                         tool_call_id=tool_call_id,
-                        status="success",
-                        response_metadata={"msg_type": "human_feedback"},
+                        status="error",
                     )
-                ],
+                ]
             }
         )
 
+    # Check for chart data
+    if not result.chart_data:
+        logger.error("No chart data generated")
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        content=f"Failed to generate chart data. Feedback: {result.text_output}",
+                        tool_call_id=tool_call_id,
+                        status="error",
+                    )
+                ]
+            }
+        )
+
+    logger.info(f"Generated chart data with {len(result.chart_data)} rows")
+
+    # 6. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
+    chart_data_df = pd.DataFrame(result.chart_data)
+    available_datasets = _get_available_datasets()
     dataset_guidelines = state.get("dataset").get(
         "prompt_instructions", "No specific dataset guidelines provided."
     )
@@ -285,86 +289,118 @@ async def generate_insights(
         "cautions", "No specific dataset cautions provided."
     )
 
-    try:
-        prompt = _create_insight_generation_prompt()
-        chain = prompt | SONNET.with_structured_output(InsightResponse)
-        response = await chain.ainvoke(
-            {
-                "user_query": query,
-                "raw_data_prompt": raw_data_prompt,
-                "dataset_guidelines": dataset_guidelines,
-                "dataset_cautions": dataset_cautions,
-            }
-        )
+    # Build dataset list
+    dataset_list = "\n".join(
+        [f"- {display_name}" for _, display_name in dataframes]
+    )
 
-        insight = response.insight
-        follow_ups = response.follow_up_suggestions
-        logger.debug(
-            f"Generated insight: {insight.title} ({insight.chart_type})"
-        )
-        logger.debug(f"Generated {len(follow_ups)} follow-up suggestions")
+    chart_insight_prompt = f"""Generate structured chart metadata from the analysis output below.
 
-        # Format the response message
-        message_parts = []
+### User Query
+{query}
 
-        message_parts.append(f"Title: {insight.title}")
-        message_parts.append(f"Key Finding: {insight.insight}")
+### Available Datasets (only a subset of these was used in the analysis)
+{dataset_list}
 
-        # Add follow-up suggestions
-        message_parts.append("Follow-up suggestions:")
-        for i, suggestion in enumerate(follow_ups, 1):
-            message_parts.append(f"{i}. {suggestion}")
+### Analysis Output (includes recommended chart type)
+{result.text_output}
 
-        # Store chart data for frontend
-        charts_data = [
-            {
-                "id": "main_chart",
-                "title": insight.title,
-                "type": insight.chart_type,
-                "insight": insight.insight,
-                "data": insight.data,
-                "xAxis": insight.x_axis,
-                "yAxis": insight.y_axis,
-                "colorField": insight.color_field,
-                "stackField": insight.stack_field,
-                "groupField": insight.group_field,
-                "seriesFields": insight.series_fields,
-            }
-        ]
+### Chart Data Preview (first 5 rows)
+{chart_data_df.head().to_csv(index=False)}
+Total rows: {len(chart_data_df)}
 
-        tool_message = "\n".join(message_parts)
+### Dataset Context
+Guidelines: {dataset_guidelines}
+Cautions: {dataset_cautions}
 
-        # Update state with generated insight and follow-ups
-        updated_state = {
-            "insight": response.model_dump()["insight"],
-            "follow_up_suggestions": follow_ups,
-            "charts_data": charts_data,
-            "insight_count": 1,
+### Requirements
+1. **Language**: Generate ALL content in the SAME LANGUAGE as the user query
+2. **Data Format**: Generate structure in Recharts.js data format - specify field names that map to the chart data columns
+
+3. **Field Mapping Rules by Chart Type**:
+
+   **Single-series (line/bar/area/scatter):**
+   - x_axis: Column name for X-axis (e.g., 'year', 'date', 'category')
+   - y_axis: Column name for Y-axis (e.g., 'value', 'count')
+   - series_fields: [] (empty)
+   - group_field: "" (empty)
+
+   **Multi-series line/bar/area (WIDE format):**
+   - x_axis: Column name for X-axis (e.g., 'year')
+   - y_axis: "" (empty or descriptive label like "Tree Cover Loss (hectares)")
+   - series_fields: List of metric column names (e.g., ['jharkhand_loss', 'odisha_loss'])
+   - group_field: "" (empty)
+
+   **Stacked-bar (WIDE format):**
+   - x_axis: Column name for categories (e.g., 'region', 'year')
+   - y_axis: "" (empty or descriptive label)
+   - series_fields: List of metric column names to stack (e.g., ['forest', 'grassland', 'urban'])
+   - group_field: "" (empty)
+
+   **Grouped-bar (LONG format):**
+   - x_axis: Column name for X-axis (e.g., 'year')
+   - y_axis: Column name for values (e.g., 'value', 'hectares')
+   - series_fields: [] (empty)
+   - group_field: Column name for grouping (e.g., 'metric', 'type')
+
+   **Pie:**
+   - x_axis: Column name for categories (e.g., 'name', 'category')
+   - y_axis: Column name for values (e.g., 'value', 'count')
+   - series_fields: [] (empty)
+   - group_field: "" (empty)
+
+4. **Follow-ups**: Base suggestions on available capabilities - analyze any area, pull data from {available_datasets}, create charts for different time periods
+5. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
+"""
+
+    chart_insight_response = await GEMINI_FLASH.with_structured_output(
+        ChartInsight
+    ).ainvoke(chart_insight_prompt)
+
+    # 7. BUILD RESPONSE
+    tool_message = f"Title: {chart_insight_response.title}"
+    tool_message += f"\nKey Finding: {chart_insight_response.insight}"
+    tool_message += "\nFollow-up suggestions:"
+    for i, suggestion in enumerate(
+        chart_insight_response.follow_up_suggestions, 1
+    ):
+        tool_message += f"\n{i}. {suggestion}"
+
+    # Store chart data for frontend
+    charts_data = [
+        {
+            "id": "main_chart",
+            "title": chart_insight_response.title,
+            "type": chart_insight_response.chart_type,
+            "insight": chart_insight_response.insight,
+            "data": result.chart_data,
+            "xAxis": chart_insight_response.x_axis,
+            "yAxis": chart_insight_response.y_axis,
+            "colorField": chart_insight_response.color_field,
+            "stackField": chart_insight_response.stack_field,
+            "groupField": chart_insight_response.group_field,
+            "seriesFields": chart_insight_response.series_fields,
         }
+    ]
 
-        return Command(
-            update={
-                **updated_state,
-                "messages": [
-                    ToolMessage(
-                        content=tool_message,
-                        tool_call_id=tool_call_id,
-                    )
-                ],
-            }
-        )
+    # Update state with generated insight and follow-ups
+    updated_state = {
+        "insight": chart_insight_response.model_dump()["insight"],
+        "follow_up_suggestions": chart_insight_response.model_dump()[
+            "follow_up_suggestions"
+        ],
+        "charts_data": charts_data,
+        "text_output": result.text_output,
+        "code_blocks": result.code_blocks,
+        "execution_outputs": result.execution_outputs,
+        "messages": [
+            ToolMessage(
+                content=tool_message,
+                tool_call_id=tool_call_id,
+                status="success",
+                response_metadata={"msg_type": "human_feedback"},
+            )
+        ],
+    }
 
-    except Exception as e:
-        error_msg = f"Error generating insights: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(
-                        content=error_msg,
-                        tool_call_id=tool_call_id,
-                        status="error",
-                    )
-                ]
-            }
-        )
+    return Command(update=updated_state)

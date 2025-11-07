@@ -41,6 +41,9 @@ class AgentState(TypedDict):
     insights: list
     charts_data: list
     insight_count: int
+    text_output: str
+    code_blocks: list[str]
+    execution_outputs: list[str]
 
     # langgraph managed
     is_last_step: IsLastStep

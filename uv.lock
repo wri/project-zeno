@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = "==3.12.8"
 
 [[package]]
@@ -545,7 +546,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
 wheels = [
@@ -1191,6 +1192,25 @@ wheels = [
 ]
 
 [[package]]
+name = "google-genai"
+version = "1.47.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "google-auth" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "tenacity" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9f/97/784fba9bc6c41263ff90cb9063eadfdd755dde79cfa5a8d0e397b067dcf9/google_genai-1.47.0.tar.gz", hash = "sha256:ecece00d0a04e6739ea76cc8dad82ec9593d9380aaabef078990e60574e5bf59", size = 241471 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/89/ef/e080e8d67c270ea320956bb911a9359664fc46d3b87d1f029decd33e5c4c/google_genai-1.47.0-py3-none-any.whl", hash = "sha256:e3851237556cbdec96007d8028b4b1f2425cdc5c099a8dc36b72a57e42821b60", size = 241506 },
+]
+
+[[package]]
 name = "googleapis-common-protos"
 version = "1.70.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1433,7 +1453,7 @@ name = "ipykernel"
 version = "6.30.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "platform_system == 'Darwin'" },
+    { name = "appnope", marker = "sys_platform == 'darwin'" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -2790,6 +2810,7 @@ dependencies = [
     { name = "geoalchemy2" },
     { name = "geojson-pydantic" },
     { name = "geopandas" },
+    { name = "google-genai" },
     { name = "greenlet" },
     { name = "httpx" },
     { name = "itsdangerous" },
@@ -2797,6 +2818,7 @@ dependencies = [
     { name = "langchain-anthropic" },
     { name = "langchain-chroma" },
     { name = "langchain-community" },
+    { name = "langchain-core" },
     { name = "langchain-google-genai" },
     { name = "langchain-openai" },
     { name = "langfuse" },
@@ -2858,6 +2880,7 @@ requires-dist = [
     { name = "geoalchemy2", specifier = "==0.18.0" },
     { name = "geojson-pydantic", specifier = "==2.0.0" },
     { name = "geopandas", specifier = "==1.0.1" },
+    { name = "google-genai", specifier = ">=1.47.0" },
     { name = "greenlet", specifier = "==3.2.3" },
     { name = "httpx", specifier = "==0.28.1" },
     { name = "itsdangerous", specifier = "==2.2.0" },
@@ -2865,6 +2888,7 @@ requires-dist = [
     { name = "langchain-anthropic", specifier = "==0.3.17" },
     { name = "langchain-chroma", specifier = "==0.2.5" },
     { name = "langchain-community", specifier = "==0.3.27" },
+    { name = "langchain-core", specifier = "==0.3.74" },
     { name = "langchain-google-genai", specifier = "==2.1.9" },
     { name = "langchain-openai", specifier = "==0.3.28" },
     { name = "langfuse", specifier = "==3.3.4" },
@@ -3114,11 +3138,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d3/67/e2b6cb32c782e12304d467418e70da0212567f42bd4d3b5eb1fdf64920ad/pybase64-1.4.2-cp312-cp312-win32.whl", hash = "sha256:a6e5688b18d558e8c6b8701cc8560836c4bbeba61d33c836b4dba56b19423716", size = 33683 },
     { url = "https://files.pythonhosted.org/packages/4f/bc/d5c277496063a09707486180f17abbdbdebbf2f5c4441b20b11d3cb7dc7c/pybase64-1.4.2-cp312-cp312-win_amd64.whl", hash = "sha256:c995d21b8bd08aa179cd7dd4db0695c185486ecc72da1e8f6c37ec86cadb8182", size = 35817 },
     { url = "https://files.pythonhosted.org/packages/e6/69/e4be18ae685acff0ae77f75d4586590f29d2cd187bf603290cf1d635cad4/pybase64-1.4.2-cp312-cp312-win_arm64.whl", hash = "sha256:e254b9258c40509c2ea063a7784f6994988f3f26099d6e08704e3c15dfed9a55", size = 30900 },
-    { url = "https://files.pythonhosted.org/packages/32/34/b67371f4fcedd5e2def29b1cf92a4311a72f590c04850f370c75297b48ce/pybase64-1.4.2-graalpy311-graalpy242_311_native-macosx_10_9_x86_64.whl", hash = "sha256:b4eed40a5f1627ee65613a6ac834a33f8ba24066656f569c852f98eb16f6ab5d", size = 38667 },
-    { url = "https://files.pythonhosted.org/packages/aa/3e/e57fe09ed1c7e740d21c37023c5f7c8963b4c36380f41d10261cc76f93b4/pybase64-1.4.2-graalpy311-graalpy242_311_native-macosx_11_0_arm64.whl", hash = "sha256:57885fa521e9add235af4db13e9e048d3a2934cd27d7c5efac1925e1b4d6538d", size = 32094 },
-    { url = "https://files.pythonhosted.org/packages/51/34/f40d3262c3953814b9bcdcf858436bd5bc1133a698be4bcc7ed2a8c0730d/pybase64-1.4.2-graalpy311-graalpy242_311_native-manylinux1_x86_64.manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:eef9255d926c64e2fca021d3aee98023bacb98e1518e5986d6aab04102411b04", size = 43212 },
-    { url = "https://files.pythonhosted.org/packages/8c/2a/5e05d25718cb8ffd68bd46553ddfd2b660893d937feda1716b8a3b21fb38/pybase64-1.4.2-graalpy311-graalpy242_311_native-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:89614ea2d2329b6708746c540e0f14d692125df99fb1203ff0de948d9e68dfc9", size = 35789 },
-    { url = "https://files.pythonhosted.org/packages/d5/9d/f56c3ee6e94faaae2896ecaf666428330cb24096abf7d2427371bb2b403a/pybase64-1.4.2-graalpy311-graalpy242_311_native-win_amd64.whl", hash = "sha256:e401cecd2d7ddcd558768b2140fd4430746be4d17fb14c99eec9e40789df136d", size = 35861 },
 ]
 
 [[package]]
@@ -3946,7 +3965,7 @@ dependencies = [
     { name = "toml" },
     { name = "tornado" },
     { name = "typing-extensions" },
-    { name = "watchdog", marker = "platform_system != 'Darwin'" },
+    { name = "watchdog", marker = "sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e9/10/46e1e71fd52d7137402f5b2abee20c57d315dd9f8a88e123f03c36ad6260/streamlit-1.47.0.tar.gz", hash = "sha256:b4ff3b8fa01de1e1dc572930b420897f0870ed2ae44e23a815999b62c0778c30", size = 9540444 }
 wheels = [
@@ -4118,7 +4137,7 @@ name = "tqdm"
 version = "4.67.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737 }
 wheels = [
