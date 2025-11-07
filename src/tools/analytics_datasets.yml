@@ -807,7 +807,7 @@ datasets:
     not an annual values.
     Show net flux as a split bar chart, with emissions in the positive y-axis and removals
     in the negative.
-    Use 30% canopy density threshold by default, unless a user requests a different threshold.
+    The data is calculcated witha  30% canopy density threshold, requests for a different threshold are not yet possible.
     Use the term "net sink" for net-negative flux values (removals/sequestration) and "net source"
     for net-positive (emissions)
   description: >
