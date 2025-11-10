@@ -526,26 +526,19 @@ class TestQuotaFunctionality:
             # Pre-create the user in database with admin type
             async def setup_admin_user():
                 from sqlalchemy import select
-
                 async for session in get_session_from_pool_dependency():
                     # DIAGNOSTIC: Check if user already exists before we try to create it
                     result = await session.execute(
-                        select(UserOrm).where(
-                            UserOrm.id == "test-admin-mismatch"
-                        )
+                        select(UserOrm).where(UserOrm.id == "test-admin-mismatch")
                     )
                     existing_user = result.scalar_one_or_none()
-
+                    
                     if existing_user:
-                        print(
-                            f"DIAGNOSTIC: User test-admin-mismatch already exists! user_type={existing_user.user_type}"
-                        )
+                        print(f"DIAGNOSTIC: User test-admin-mismatch already exists! user_type={existing_user.user_type}")
                         return
                     else:
-                        print(
-                            "DIAGNOSTIC: User test-admin-mismatch does not exist, creating it now"
-                        )
-
+                        print("DIAGNOSTIC: User test-admin-mismatch does not exist, creating it now")
+                    
                     # Create new admin user in database with minimal fields
                     admin_user = UserOrm(
                         id="test-admin-mismatch",
@@ -556,9 +549,7 @@ class TestQuotaFunctionality:
                     )
                     session.add(admin_user)
                     await session.commit()
-                    print(
-                        "DIAGNOSTIC: Successfully created user test-admin-mismatch"
-                    )
+                    print("DIAGNOSTIC: Successfully created user test-admin-mismatch")
                     break
 
             await setup_admin_user()
