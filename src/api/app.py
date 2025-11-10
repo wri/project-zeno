@@ -780,6 +780,8 @@ async def get_user_identity_and_daily_quota(
             daily_quota = APISettings.admin_user_daily_quota
         elif user.user_type == UserType.MACHINE:
             daily_quota = APISettings.machine_user_daily_quota
+        elif user.user_type == UserType.PRO:
+            daily_quota = APISettings.pro_user_daily_quota
         else:
             daily_quota = APISettings.regular_user_daily_quota
         identity = f"user:{user.id}"

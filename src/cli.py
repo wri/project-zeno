@@ -242,6 +242,28 @@ async def make_user_admin(session: AsyncSession, email: str) -> UserOrm:
     return user
 
 
+async def make_user_pro(session: AsyncSession, email: str) -> UserOrm:
+    """Make a user pro by setting their user_type to pro"""
+
+    # Find user by email (case-insensitive)
+    email_lower = email.lower()
+    result = await session.execute(
+        select(UserOrm).where(func.lower(UserOrm.email) == email_lower)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise ValueError(f"User with email {email} not found")
+
+    # Update user type to pro
+    user.user_type = UserType.PRO.value
+    user.updated_at = datetime.now()
+
+    await session.commit()
+    await session.refresh(user)
+
+    return user
+
+
 async def add_whitelisted_user(
     session: AsyncSession, email: str
 ) -> WhitelistedUserOrm:
@@ -517,6 +539,56 @@ def make_user_admin_command(email: str):
             await db.close()
 
     asyncio.run(_make_admin())
+
+
+@cli.command("make-user-pro")
+@click.option("--email", required=True, help="Email of the user to make pro")
+def make_user_pro_command(email: str):
+    """Make a user pro by setting their user_type to pro"""
+
+    async def _make_pro():
+        db = DatabaseManager()
+        try:
+            async with db.async_session() as session:
+                user = await make_user_pro(session, email)
+
+                click.echo("✅ Made user pro:")
+                click.echo(f"   ID: {user.id}")
+                click.echo(f"   Name: {user.name}")
+                click.echo(f"   Email: {user.email}")
+                click.echo(f"   User Type: {user.user_type}")
+                click.echo(f"   Updated: {user.updated_at}")
+        except ValueError as e:
+            click.echo(f"❌ Error: {e}", err=True)
+        finally:
+            await db.close()
+
+    asyncio.run(_make_pro())
+
+
+@cli.command("list-pro-users")
+def list_pro_users_command():
+    """List all pro users"""
+
+    async def _list_pro_users():
+        db = DatabaseManager()
+        try:
+            async with db.async_session() as session:
+                result = await session.execute(
+                    select(UserOrm).where(UserOrm.user_type == UserType.PRO.value)
+                )
+                pro_users = result.scalars().all()
+
+                if not pro_users:
+                    click.echo("No pro users found")
+                else:
+                    click.echo(f"\nFound {len(pro_users)} pro user(s):\n")
+                    for user in pro_users:
+                        click.echo(f"  • {user.name} ({user.email}) - ID: {user.id}")
+        finally:
+            await db.close()
+
+    asyncio.run(_list_pro_users())
 
 
 @cli.command("whitelist-email")
