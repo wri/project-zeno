@@ -575,7 +575,9 @@ def list_pro_users_command():
         try:
             async with db.async_session() as session:
                 result = await session.execute(
-                    select(UserOrm).where(UserOrm.user_type == UserType.PRO.value)
+                    select(UserOrm).where(
+                        UserOrm.user_type == UserType.PRO.value
+                    )
                 )
                 pro_users = result.scalars().all()
 
@@ -584,7 +586,9 @@ def list_pro_users_command():
                 else:
                     click.echo(f"\nFound {len(pro_users)} pro user(s):\n")
                     for user in pro_users:
-                        click.echo(f"  • {user.name} ({user.email}) - ID: {user.id}")
+                        click.echo(
+                            f"  • {user.name} ({user.email}) - ID: {user.id}"
+                        )
         finally:
             await db.close()
 

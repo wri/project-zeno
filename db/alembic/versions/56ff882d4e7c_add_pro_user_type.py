@@ -5,22 +5,19 @@ Revises: cccd7f25f096
 Create Date: 2025-11-10 18:23:38.298020
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
-import sqlalchemy as sa
-
-
 # revision identifiers, used by Alembic.
-revision: str = '56ff882d4e7c'
-down_revision: Union[str, None] = 'cccd7f25f096'
+revision: str = "56ff882d4e7c"
+down_revision: Union[str, None] = "cccd7f25f096"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
     """Upgrade schema.
-    
+
     Add 'pro' as a valid user_type value.
     No schema changes needed since user_type is a String column.
     The UserType enum in the code now accepts 'pro' as a valid value.
@@ -33,7 +30,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema.
-    
+
     Remove 'pro' user type support.
     Note: Any existing users with user_type='pro' would need to be
     updated to a different type before this downgrade.
