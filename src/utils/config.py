@@ -20,6 +20,7 @@ class _APISettings(BaseSettings):
     daily_quota_warning_threshold: int = 5
     admin_user_daily_quota: int = 100
     regular_user_daily_quota: int = 25
+    pro_user_daily_quota: int = 50
     machine_user_daily_quota: int = 99999
     anonymous_user_daily_quota: int = 10
     ip_address_daily_quota: int = 50

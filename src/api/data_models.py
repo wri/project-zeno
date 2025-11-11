@@ -26,6 +26,7 @@ class UserType(str, enum.Enum):
     ADMIN = "admin"
     REGULAR = "regular"
     MACHINE = "machine"
+    PRO = "pro"
 
 
 class UserOrm(Base):

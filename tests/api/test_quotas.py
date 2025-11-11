@@ -485,6 +485,276 @@ class TestQuotaFunctionality:
             APISettings.allow_anonymous_chat = original_setting
 
     @pytest.mark.asyncio
+    async def test_pro_user_has_custom_quota(self, client):
+        """Test that pro users get their own specific quota limits."""
+        from src.api.data_models import UserOrm, UserType
+        from src.utils.database import get_session_from_pool_dependency
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            # WRI API returns regular user data (no userType field needed)
+            wri_user_data = {
+                "id": "test-pro-1",
+                "name": "Pro User",
+                "email": "pro@wri.org",
+                "createdAt": "2024-01-01T00:00:00Z",
+                "updatedAt": "2024-01-01T00:00:00Z",
+                # No userType field - WRI API doesn't know about 'pro'
+            }
+
+            class MockResponse:
+                def __init__(self):
+                    self.status_code = 200
+                    self.text = str(wri_user_data)
+
+                def json(self):
+                    return wri_user_data
+
+            # Mock the AsyncClient context manager and get method
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = MockResponse()
+
+            # Pre-create the user in database with PRO type
+            async def setup_pro_user():
+                async for session in get_session_from_pool_dependency():
+                    pro_user = UserOrm(
+                        id="test-pro-1",
+                        name="Pro User",
+                        email="pro@wri.org",
+                        user_type=UserType.PRO.value,  # PRO is set in our database
+                    )
+                    session.add(pro_user)
+                    await session.commit()
+                    break
+
+            await setup_pro_user()
+
+            response = await client.get(
+                "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            # This should be pro quota (50), not regular (25) or admin (100)
+            assert data["promptQuota"] == APISettings.pro_user_daily_quota
+            assert data["promptQuota"] != APISettings.regular_user_daily_quota
+            assert data["promptQuota"] != APISettings.admin_user_daily_quota
+
+    @pytest.mark.asyncio
+    async def test_pro_user_quota_enforcement(self, client):
+        """Test that pro users quota is properly enforced."""
+        from src.api.data_models import UserOrm, UserType
+        from src.utils.database import get_session_from_pool_dependency
+
+        # Set pro quota for testing
+        original_quota = APISettings.pro_user_daily_quota
+        APISettings.pro_user_daily_quota = 2  # Set very low for testing
+
+        try:
+            with patch("httpx.AsyncClient") as mock_client_class:
+                # WRI API returns regular user data
+                wri_user_data = {
+                    "id": "test-pro-2",
+                    "name": "Pro User",
+                    "email": "pro2@wri.org",
+                    "createdAt": "2024-01-01T00:00:00Z",
+                    "updatedAt": "2024-01-01T00:00:00Z",
+                }
+
+                class MockResponse:
+                    def __init__(self):
+                        self.status_code = 200
+                        self.text = str(wri_user_data)
+
+                    def json(self):
+                        return wri_user_data
+
+                # Mock the AsyncClient context manager and get method
+                mock_client = (
+                    mock_client_class.return_value.__aenter__.return_value
+                )
+                mock_client.get.return_value = MockResponse()
+
+                # Pre-create the user in database with PRO type
+                async def setup_pro_user():
+                    async for session in get_session_from_pool_dependency():
+                        pro_user = UserOrm(
+                            id="test-pro-2",
+                            name="Pro User",
+                            email="pro2@wri.org",
+                            user_type=UserType.PRO.value,
+                        )
+                        session.add(pro_user)
+                        await session.commit()
+                        break
+
+                await setup_pro_user()
+
+                with patch("src.api.app.stream_chat") as mock_stream:
+                    mock_stream.return_value = iter(
+                        [b'{"response": "Hello!"}\n']
+                    )
+
+                    # First call should succeed
+                    response1 = await client.post(
+                        "/api/chat",
+                        json={
+                            "query": "First message",
+                            "thread_id": "test-thread-123",
+                        },
+                        headers={"Authorization": "Bearer test-token"},
+                    )
+                    assert response1.status_code == 200
+
+                    # Second call should succeed (within quota of 2)
+                    response2 = await client.post(
+                        "/api/chat",
+                        json={
+                            "query": "Second message",
+                            "thread_id": "test-thread-124",
+                        },
+                        headers={"Authorization": "Bearer test-token"},
+                    )
+                    assert response2.status_code == 200
+
+                    # Third call should fail with 429 (exceeds quota of 2)
+                    response3 = await client.post(
+                        "/api/chat",
+                        json={
+                            "query": "Third message",
+                            "thread_id": "test-thread-125",
+                        },
+                        headers={"Authorization": "Bearer test-token"},
+                    )
+                    assert response3.status_code == 429
+                    assert (
+                        "Daily free limit of 2 exceeded"
+                        in response3.json()["detail"]
+                    )
+
+        finally:
+            APISettings.pro_user_daily_quota = original_quota
+
+    @pytest.mark.asyncio
+    async def test_pro_user_chat_headers_include_quota(self, client):
+        """Test that /api/chat includes correct quota headers for pro users."""
+        from src.api.data_models import UserOrm, UserType
+        from src.utils.database import get_session_from_pool_dependency
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            wri_user_data = {
+                "id": "test-pro-headers",
+                "name": "Pro User",
+                "email": "pro-headers@wri.org",
+                "createdAt": "2024-01-01T00:00:00Z",
+                "updatedAt": "2024-01-01T00:00:00Z",
+            }
+
+            class MockResponse:
+                def __init__(self):
+                    self.status_code = 200
+                    self.text = str(wri_user_data)
+
+                def json(self):
+                    return wri_user_data
+
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = MockResponse()
+
+            # Setup pro user in database
+            async def setup_pro_user():
+                async for session in get_session_from_pool_dependency():
+                    pro_user = UserOrm(
+                        id="test-pro-headers",
+                        name="Pro User",
+                        email="pro-headers@wri.org",
+                        user_type=UserType.PRO.value,
+                    )
+                    session.add(pro_user)
+                    await session.commit()
+                    break
+
+            await setup_pro_user()
+
+            with patch("src.api.app.stream_chat") as mock_stream:
+                mock_stream.return_value = iter([b'{"response": "Hello!"}\n'])
+
+                response = await client.post(
+                    "/api/chat",
+                    json={
+                        "query": "Test message",
+                        "thread_id": "test-thread-123",
+                    },
+                    headers={"Authorization": "Bearer test-token"},
+                )
+
+                assert response.status_code == 200
+                assert "X-Prompts-Used" in response.headers
+                assert "X-Prompts-Quota" in response.headers
+                assert response.headers["X-Prompts-Quota"] == str(
+                    APISettings.pro_user_daily_quota
+                )
+
+    @pytest.mark.asyncio
+    async def test_pro_user_no_admin_privileges(self, client):
+        """Test that pro users don't have admin privileges (can't access all threads)."""
+        from src.api.data_models import UserOrm, UserType
+        from src.utils.database import get_session_from_pool_dependency
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            wri_user_data = {
+                "id": "test-pro-no-admin",
+                "name": "Pro User",
+                "email": "pro-no-admin@wri.org",
+                "createdAt": "2024-01-01T00:00:00Z",
+                "updatedAt": "2024-01-01T00:00:00Z",
+            }
+
+            class MockResponse:
+                def __init__(self):
+                    self.status_code = 200
+                    self.text = str(wri_user_data)
+
+                def json(self):
+                    return wri_user_data
+
+            mock_client = (
+                mock_client_class.return_value.__aenter__.return_value
+            )
+            mock_client.get.return_value = MockResponse()
+
+            # Setup pro user in database
+            async def setup_pro_user():
+                async for session in get_session_from_pool_dependency():
+                    pro_user = UserOrm(
+                        id="test-pro-no-admin",
+                        name="Pro User",
+                        email="pro-no-admin@wri.org",
+                        user_type=UserType.PRO.value,
+                        # Pro users should not have can_read_all_threads set to True
+                    )
+                    session.add(pro_user)
+                    await session.commit()
+                    break
+
+            await setup_pro_user()
+
+            # Call /auth/me to check user properties
+            response = await client.get(
+                "/api/auth/me", headers={"Authorization": "Bearer test-token"}
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+
+            # Pro users should have pro quota but not admin quota
+            assert data["promptQuota"] == APISettings.pro_user_daily_quota
+            assert data["promptQuota"] != APISettings.admin_user_daily_quota
+
+    @pytest.mark.asyncio
     async def test_admin_user_database_vs_api_mismatch(self, client):
         """
         Test that reproduces the bug where a user is admin in the database
