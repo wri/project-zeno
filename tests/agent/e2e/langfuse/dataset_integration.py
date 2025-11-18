@@ -65,7 +65,7 @@ class LangfuseDatasetHandler:
 
             # Prepare expected data from dataset item
             expected_data = ExpectedData(
-                expected_aoi_id=item.metadata.get("expected_aoi_id", ""),
+                expected_aoi_ids=item.metadata.get("expected_aoi_ids", ""),
                 expected_aoi_name=item.metadata.get("expected_aoi_name", ""),
                 expected_subregion=item.metadata.get("expected_subregion", ""),
                 expected_aoi_subtype=item.metadata.get(

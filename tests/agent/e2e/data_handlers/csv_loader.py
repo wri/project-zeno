@@ -42,7 +42,8 @@ class CSVLoader:
 
         # Filter by status - only include tests that should be run
         # Skip tests with status: done, fail, skip
-        runnable_statuses = ["ready", "rerun"]
+        # runnable_statuses = ["ready", "rerun"]
+        runnable_statuses = [""]
         if "status" in df.columns:
             original_count = len(df)
             df = df[
@@ -79,8 +80,10 @@ class CSVLoader:
 
         test_cases = []
         for _, row in df.iterrows():
+            # TODO: handle multiple AOIs
+            aoi_ids = row.get("expected_aoi_ids", "").split(";")
             test_case = ExpectedData(
-                expected_aoi_id=row.get("expected_aoi_id", ""),
+                expected_aoi_ids=aoi_ids,
                 expected_aoi_name=row.get("expected_aoi_name", ""),
                 expected_subregion=row.get("expected_subregion", ""),
                 expected_aoi_subtype=row.get("expected_aoi_subtype", ""),

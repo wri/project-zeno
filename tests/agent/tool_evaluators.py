@@ -8,7 +8,7 @@ Basic functions to evaluate each step of the agent workflow:
 - evaluate_final_answer: Check if final answer aligns with expected result
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
@@ -32,7 +32,7 @@ def normalize_value(value) -> str:
 
 def evaluate_aoi_selection(
     agent_state: Dict[str, Any],
-    expected_aoi_id: str,
+    expected_aoi_ids: List[str],
     expected_subregion: Optional[str],
     query: str = "",
 ) -> Dict[str, Any]:
@@ -65,8 +65,7 @@ def evaluate_aoi_selection(
                 "match_aoi_id": True,  # Treat clarification as correct behavior
                 "match_subregion": True,
             }
-
-    if not aoi or not expected_aoi_id:
+    if not aoi or not expected_aoi_ids or len(expected_aoi_ids) == 0:
         return {
             "aoi_score": 0,
             "actual_id": None,
@@ -87,12 +86,14 @@ def evaluate_aoi_selection(
     if actual_aoi_source == "gadm":
         # Normalize GADM ids
         normalized_actual = normalize_gadm_id(actual_aoi_id)
-        normalized_expected = normalize_gadm_id(expected_aoi_id)
+        normalized_expected = [
+            normalize_gadm_id(id) for id in expected_aoi_ids
+        ]
     else:
         normalized_actual = actual_aoi_id.lower()
-        normalized_expected = expected_aoi_id.lower()
+        normalized_expected = [aoi_id.lower() for aoi_id in expected_aoi_ids]
 
-    match_aoi_id = normalized_actual == normalized_expected
+    match_aoi_id = normalized_actual in normalized_expected
 
     # Normalize subregion values for comparison
     expected_subregion_str = normalize_value(expected_subregion)

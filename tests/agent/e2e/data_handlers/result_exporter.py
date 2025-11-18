@@ -77,7 +77,7 @@ class ResultExporter:
             "execution_time",
             "test_mode",
             # AOI: Expected vs Actual
-            "expected_aoi_id",
+            "expected_aoi_ids",
             "actual_id",
             "aoi_score",
             "match_aoi_id",

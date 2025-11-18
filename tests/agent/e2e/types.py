@@ -3,7 +3,7 @@ Type definitions for E2E testing framework.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -48,7 +48,7 @@ class TestResult:
     actual_answer: Optional[str]
 
     # Expected data fields
-    expected_aoi_id: str = ""
+    expected_aoi_ids: List[str]
     expected_aoi_name: str = ""
     expected_subregion: str = ""
     expected_aoi_subtype: str = ""
@@ -96,7 +96,7 @@ class TestResult:
             "actual_end_date": self.actual_end_date,
             "answer_score": self.answer_score,
             "actual_answer": self.actual_answer,
-            "expected_aoi_id": self.expected_aoi_id,
+            "expected_aoi_ids": self.expected_aoi_ids,
             "expected_aoi_name": self.expected_aoi_name,
             "expected_subregion": self.expected_subregion,
             "expected_aoi_subtype": self.expected_aoi_subtype,
@@ -117,7 +117,7 @@ class TestResult:
 class ExpectedData:
     """Expected test data for evaluation."""
 
-    expected_aoi_id: str = ""
+    expected_aoi_ids: List[str]
     expected_aoi_name: str = ""
     expected_subregion: str = ""
     expected_aoi_subtype: str = ""
@@ -134,7 +134,7 @@ class ExpectedData:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
-            "expected_aoi_id": self.expected_aoi_id,
+            "expected_aoi_ids": self.expected_aoi_ids,
             "expected_aoi_name": self.expected_aoi_name,
             "expected_subregion": self.expected_subregion,
             "expected_aoi_subtype": self.expected_aoi_subtype,
