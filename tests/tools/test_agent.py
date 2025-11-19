@@ -153,7 +153,9 @@ async def test_agent_for_disturbance_alerts_in_brazil(structlog_context):
     # query = "land cover change in philipines in the past 5 years"
     # query = "how much forest does bolivia have?"
     # query = "tree cover loss in bolivia in past 4 years?"
-    query = "What were the top three causes of tree loss in Brazil last year?"
+    query = (
+        "What were the top three causes of deforestation in Brazil last year?"
+    )
     steps = await run_agent(query)
 
     assert len(steps) > 0
