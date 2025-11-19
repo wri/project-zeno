@@ -464,8 +464,6 @@ class AgentState(TypedDict):
     follow_up_suggestions: list
     # Chart data for frontend rendering
     charts_data: list
-    # Always 1 (single insight)
-    insight_count: int
 ```
 
 #### Advanced Chart Fields
@@ -526,7 +524,6 @@ For complex chart types, additional fields are provided:
         "seriesFields": []
     }
 ],
-"insight_count": 1,
 "messages": [
     {
         "content": "**Top 5 Countries with Highest Forest Loss in 2022**\nChart Type: bar\nKey Finding: Brazil leads significantly in forest loss with over 11.5 million hectares lost in 2022, more than double the next highest country, Indonesia (6 million hectares). The Democratic Republic of Congo ranks third with 4.77 million hectares, while Peru and Colombia have considerably lower forest loss at 1.63 and 1.24 million hectares respectively.\nData Points: 5\n\n**💡 Follow-up suggestions:**\n1. Show the trend of forest loss for these countries over the past 5 years\n2. Compare forest loss with reforestation efforts in these regions\n3. Break down forest loss by primary drivers (agriculture, logging, fires)\n",
@@ -579,7 +576,6 @@ For complex chart types, additional fields are provided:
         "seriesFields": ["deforestation", "fires", "logging", "agriculture"]
     }
 ],
-"insight_count": 1,
 "messages": [
     {
         "content": "**Forest Loss Composition by Cause Over Time**\nChart Type: stacked-bar\nKey Finding: Forest loss in the Amazon shows varying composition over time, with deforestation being the primary driver but fires becoming increasingly significant. In 2022, fires accounted for the highest proportion of forest loss (1,200 incidents) compared to previous years, while traditional deforestation decreased from 1,200 to 950 incidents.\nData Points: 4\n\n**💡 Follow-up suggestions:**\n1. Show the percentage breakdown of each cause by year\n2. Compare this pattern with other forest regions globally\n",
@@ -636,7 +632,6 @@ For complex chart types, additional fields are provided:
         "seriesFields": []
     }
 ],
-"insight_count": 1,
 "messages": [
     {
         "content": "**Forest Loss vs Fire Incidents Comparison by Country**\nChart Type: grouped-bar\nKey Finding: Brazil shows the highest forest loss (11,568 thousand hectares) but proportionally fewer fire incidents (8,500) compared to Indonesia, which has 6,020 thousand hectares of forest loss with 4,200 fire incidents. This suggests different primary drivers of forest loss across these regions.\nData Points: 6\n\n**💡 Follow-up suggestions:**\n1. Calculate the fire-to-forest-loss ratio for each country\n2. Show this comparison over multiple years to identify trends\n",
