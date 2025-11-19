@@ -53,7 +53,7 @@ def has_raw_data(tool_steps: list[dict]) -> bool:
 
 def has_insights(tool_steps: list[dict]) -> bool:
     for tool_step in tool_steps:
-        if tool_step.get("insight_count", 0) > 0:
+        if len(tool_step.get("charts_data", [])) > 0:
             return True
     return False
 

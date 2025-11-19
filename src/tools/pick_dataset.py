@@ -21,7 +21,7 @@ from src.tools.data_handlers.analytics_handler import (
 )
 from src.tools.datasets_config import DATASETS
 from src.utils.config import APISettings
-from src.utils.llms import MODEL
+from src.utils.llms import SMALL_MODEL
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -127,7 +127,10 @@ async def select_best_dataset(
     if not, pick the closest date range but warn the user that there
     is not an exact match with the query requested by the user in the reason field.
 
-    IMPORTANT: Provide the selection reason in the same language used in the user query.
+    IMPORTANT:
+    Provide the selection reason in the same language used in the user query,
+    but keep explanations short and concise. Do not use datset IDs to describe the dataset.
+    For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
 
     Candidate datasets:
 
@@ -143,7 +146,8 @@ async def select_best_dataset(
 
     logger.debug("Invoking dataset selection chain...")
     dataset_selection_chain = (
-        DATASET_SELECTION_PROMPT | MODEL.with_structured_output(DatasetOption)
+        DATASET_SELECTION_PROMPT
+        | SMALL_MODEL.with_structured_output(DatasetOption)
     )
     selection_result = await dataset_selection_chain.ainvoke(
         {
