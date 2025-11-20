@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
@@ -148,14 +149,25 @@ class UserModel(BaseModel):
             raise ValueError(f"Invalid GIS expertise level: {v}")
         return v
 
-    @field_validator("topics")
-    def validate_topics(cls, v):
-        if v is not None:
-            if not isinstance(v, list):
-                raise ValueError("Topics must be a list")
-            for topic in v:
-                if topic not in TOPICS:
-                    raise ValueError(f"Invalid topic: {topic}")
+    @field_validator("topics", mode="before")
+    def parse_topics(cls, v):
+        """Parse topics from JSON string if needed, then validate."""
+        if v is None:
+            return None
+        # If it's a string, try to parse it as JSON
+        if isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                # If parsing fails, return None or empty list
+                return None
+        # Ensure it's a list
+        if not isinstance(v, list):
+            raise ValueError("Topics must be a list")
+        # Validate each topic
+        for topic in v:
+            if topic not in TOPICS:
+                raise ValueError(f"Invalid topic: {topic}")
         return v
 
 
@@ -220,14 +232,25 @@ class UserProfileUpdateRequest(BaseModel):
             raise ValueError(f"Invalid GIS expertise level: {v}")
         return v
 
-    @field_validator("topics")
-    def validate_topics(cls, v):
-        if v is not None:
-            if not isinstance(v, list):
-                raise ValueError("Topics must be a list")
-            for topic in v:
-                if topic not in TOPICS:
-                    raise ValueError(f"Invalid topic: {topic}")
+    @field_validator("topics", mode="before")
+    def parse_topics(cls, v):
+        """Parse topics from JSON string if needed, then validate."""
+        if v is None:
+            return None
+        # If it's a string, try to parse it as JSON
+        if isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                # If parsing fails, return None or empty list
+                return None
+        # Ensure it's a list
+        if not isinstance(v, list):
+            raise ValueError("Topics must be a list")
+        # Validate each topic
+        for topic in v:
+            if topic not in TOPICS:
+                raise ValueError(f"Invalid topic: {topic}")
         return v
 
 
