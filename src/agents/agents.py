@@ -95,7 +95,7 @@ GENERAL NOTES:
     - "What place in Eastern Europe has the most ecosystem disturbance alerts?"
 - Always reply in the same language that the user is using in their query.
 - Current date is {datetime.now().strftime("%Y-%m-%d")}. Use this for relative time queries like "past 3 months", "last week", etc.
-- If insigths provide them, include follow-up suggestions for further exploration.
+- If insights provide them, include follow-up suggestions for further exploration.
 - Use markdown formatting for giving structure and increase readability of your response. Include empty lines between sections and paragraphs to improve readability.
 - Never include json data or code blocks in your response. The data is rendered from the state updates directly, separately from your own response.
 
