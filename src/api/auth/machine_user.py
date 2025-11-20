@@ -74,4 +74,42 @@ async def validate_machine_user_token(
         key_prefix=key_prefix,
     )
 
+    # Ensure machine user has a full profile to pass validation.
+    # this is useful for local development with profiles that are
+    # not complete.
+    # user_record.topics = json.loads(user_record.topics) if user_record.topics else None
+    # user_record.topics = []#json.loads(user_record.topics) if user_record.topics else None,
+    # print("=="*50, user_record.topics)
+    # print()
+    # user_record.receive_news_emails = user_record.receive_news_emails or False
+    # user_record.help_test_features = user_record.help_test_features or False
+    # user_record.has_profile = True
+    # user_record.threads = []
+    # user_record.topics = []
+
+    # user_dict = {
+    #     "id": user_record.id,
+    #     "name": user_record.name,
+    #     "email": user_record.email,
+    #     "created_at": user_record.created_at,
+    #     "updated_at": user_record.updated_at,
+    #     "user_type": user_record.user_type,
+    #     "threads": [],
+    #     "first_name": user_record.first_name,
+    #     "last_name": user_record.last_name,
+    #     "profile_description": user_record.profile_description,
+    #     "sector_code": user_record.sector_code,
+    #     "role_code": user_record.role_code,
+    #     "job_title": user_record.job_title,
+    #     "company_organization": user_record.company_organization,
+    #     "country_code": user_record.country_code,
+    #     "preferred_language_code": user_record.preferred_language_code,
+    #     "gis_expertise_level": user_record.gis_expertise_level,
+    #     "areas_of_interest": user_record.areas_of_interest,
+    #     "topics": json.loads(user_record.topics) if user_record.topics else None,
+    #     "receive_news_emails": user_record.receive_news_emails or False,
+    #     "help_test_features": user_record.help_test_features or False,
+    #     "has_profile": True,
+    # }
+    # return UserModel.model_validate(user_dict)
     return UserModel.model_validate(user_record)
