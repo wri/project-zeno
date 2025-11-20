@@ -129,7 +129,7 @@ async def select_best_dataset(
 
     IMPORTANT:
     Provide the selection reason in the same language used in the user query,
-    but keep explanations short and concise. Do not use datset IDs to describe the dataset.
+    but keep explanations concise. Do not use datset IDs to describe the dataset.
     For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
 
     Candidate datasets:

@@ -8,6 +8,7 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
+from src.agents.prompts import WORDING_INSTRUCTIONS
 from src.tools.code_executors import GeminiCodeExecutor
 from src.tools.datasets_config import DATASETS
 from src.utils.llms import GEMINI_FLASH
@@ -352,13 +353,7 @@ Cautions: {dataset_cautions}
 4. **Follow-ups**: Base suggestions on available capabilities - analyze any area, pull data from {available_datasets}, create charts for different time periods
 5. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
 
-Notes about wording:
-- Proactively use the information on cautions in your response, but keep explanations short and concise. For instance, if a user asks about deforestation, clarify the difference between deforestation and tree cover loss.
-- Avoid using strong statements in your anwswers.
-    - Avoid words like: overwheliming, severe, exceptional, critical, concerning, highly, substantial, considerable, notable, remarkable, important, major, crucial, key, strong, robust, dramatic, meaningful (vague unless defined), alarming, worrying, problematic, challenging, unfavorable, promising, encouraging, favorable
-    - Use neutral, measurement-first words: decline, decrease, increase, remain stable, fluctuate,
-- Other words that need scientific justification and actual tests when used: trend (when trend wasn't actually calculated), significant (when not tied to statistical significance), validated (when not actually measured), accurate (without comparison or error bars)
-- Use markdown formatting for giving structure and increase readability of your response. Include empty lines between sections and paragraphs to improve readability.
+{WORDING_INSTRUCTIONS}
 """
 
     chart_insight_response = await GEMINI_FLASH.with_structured_output(

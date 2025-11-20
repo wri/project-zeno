@@ -8,6 +8,7 @@ from langgraph.prebuilt import create_react_agent
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
+from src.agents.prompts import WORDING_INSTRUCTIONS
 from src.graph import AgentState
 from src.tools import (
     generate_insights,
@@ -30,6 +31,7 @@ CRITICAL INSTRUCTIONS:
 - Be PROACTIVE in tool calling, do not ask for clarification or user input unless you absolutely need it.
   For instance, if dates, places, or datasets dont match exactly, warn the user but move forward with the analysis.,
 - You MUST call tools sequentially, never in parallel. No parallel tool calling allowed.
+- Provide intermediate messages between tool calls to the user to keep them updated on the progress of the analysis.
 
 TOOLS:
 - pick_aoi: Pick the best area of interest (AOI) based on a place name and user's question.
@@ -99,12 +101,7 @@ GENERAL NOTES:
 - Use markdown formatting for giving structure and increase readability of your response. Include empty lines between sections and paragraphs to improve readability.
 - Never include json data or code blocks in your response. The data is rendered from the state updates directly, separately from your own response.
 
-NOTES ABOUT WORDING:
-- Proactively use the information on cautions and limitations in your response, but keep explanations short and concise. For instance, if a user asks about deforestation, clarify the difference between deforestation and tree cover loss.
-- Avoid using strong statements in your anwswers.
-    - Avoid words like: overwheliming, severe, exceptional, critical, concerning, highly, substantial, considerable, notable, remarkable, important, major, crucial, key, strong, robust, dramatic, meaningful (vague unless defined), alarming, worrying, problematic, challenging, unfavorable, promising, encouraging, favorable
-    - Use neutral, measurement-first words: decline, decrease, increase, remain stable, fluctuate,
-- Other words that need scientific justification and actual tests when used: trend (when trend wasn't actually calculated), significant (when not tied to statistical significance), validated (when not actually measured), accurate (without comparison or error bars)
+{WORDING_INSTRUCTIONS}
 """
 
 

@@ -23,8 +23,8 @@ HAIKU = ChatAnthropic(
 GEMINI = ChatGoogleGenerativeAI(
     model="gemini-3-pro-preview",
     temperature=1.0,
-    max_tokens=None,
-    include_thoughts=True,
+    max_tokens=None,  # max_tokens=None means no limit
+    include_thoughts=False,
     max_retries=2,
     thinking_config={"thinking_level": "low"},
 )
