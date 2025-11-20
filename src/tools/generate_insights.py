@@ -148,6 +148,7 @@ Now prepare the data for visualization in Recharts.js:
 - Provide a concise, data-driven insight (2-3 sentences)
 - Focus on what the data reveals and why it matters
 - Base this on the actual numbers and patterns you found
+- Be transparent about your working. Concisely explain the steps ten to transform the original data for the chart
 """
 
     return prompt
