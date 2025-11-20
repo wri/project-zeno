@@ -420,8 +420,18 @@ async def stream_chat(
 
         # Send trace ID after stream completes
         trace_id = getattr(langfuse_handler, "last_trace_id", None)
-        trace_url = langfuse_client.get_trace_url(trace_id=trace_id)
         if trace_id:
+            try:
+                trace_url = langfuse_client.get_trace_url(trace_id=trace_id)
+            except (AttributeError, Exception) as e:
+                # Fallback if get_trace_url fails (e.g., client not properly initialized)
+                logger.warning(
+                    "Failed to get trace URL from Langfuse client",
+                    error=str(e),
+                    trace_id=trace_id,
+                )
+                trace_url = None
+
             yield pack(
                 {
                     "node": "trace_info",

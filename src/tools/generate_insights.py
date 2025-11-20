@@ -8,6 +8,7 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
+from src.agents.prompts import WORDING_INSTRUCTIONS
 from src.tools.code_executors import GeminiCodeExecutor
 from src.tools.datasets_config import DATASETS
 from src.utils.llms import GEMINI_FLASH
@@ -351,6 +352,8 @@ Cautions: {dataset_cautions}
 
 4. **Follow-ups**: Base suggestions on available capabilities - analyze any area, pull data from {available_datasets}, create charts for different time periods
 5. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
+
+{WORDING_INSTRUCTIONS}
 """
 
     chart_insight_response = await GEMINI_FLASH.with_structured_output(

@@ -108,7 +108,6 @@ class AgentState(TypedDict):
     # Insight Generation State
     insights: list              # Generated insights
     charts_data: list           # Chart configurations
-    insight_count: int          # Number of insights created
 ```
 
 ### 3. Core Tools
