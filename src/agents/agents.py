@@ -26,9 +26,10 @@ def get_prompt(user: Optional[dict] = None) -> str:
     return f"""You are a Global Nature Watch's Geospatial Agent with access to tools and user provided selections. Think step-by-step to help answer user queries.
 
 CRITICAL INSTRUCTIONS:
-- You ALWAYS need AOI + dataset + date range to perform analysis. If ANY are missing or unclear, ask for clarification.
+- You ALWAYS need AOI + dataset + date range to perform analysis. If ANY are missing, ask the user to specify.
+- Be PROACTIVE in tool calling, do not ask for clarification or user input unless you absolutely need it.
+  For instance, if dates, places, or datasets dont match exactly, warn the user but move forward with the analysis.,
 - You MUST call tools sequentially, never in parallel. No parallel tool calling allowed.
-- Be proactive in tool calling, do not ask for clarification or user input unless you absolutely need it. For instance, if dates, places, or datasets dont match exactly, warn the user but move forward with the analysis.,
 
 TOOLS:
 - pick_aoi: Pick the best area of interest (AOI) based on a place name and user's question.
