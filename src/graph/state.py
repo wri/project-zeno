@@ -43,6 +43,7 @@ class AgentState(TypedDict):
     text_output: str
     code_blocks: list[str]
     execution_outputs: list[str]
+    source_urls: list[str]
 
     # langgraph managed
     is_last_step: IsLastStep

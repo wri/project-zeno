@@ -24,7 +24,6 @@ def _get_available_datasets() -> str:
         dataset_names.append(dataset["dataset_name"])
 
     return ", ".join(dataset_names)
-    return ", ".join(dataset_names)
 
 
 def prepare_dataframes(raw_data: Dict) -> List[tuple[pd.DataFrame, str]]:
@@ -38,6 +37,7 @@ def prepare_dataframes(raw_data: Dict) -> List[tuple[pd.DataFrame, str]]:
         List of tuples (DataFrame, display_name)
     """
     dataframes = []
+    source_urls = []
 
     for data_by_aoi in raw_data.values():
         for data in data_by_aoi.values():
@@ -60,10 +60,11 @@ def prepare_dataframes(raw_data: Dict) -> List[tuple[pd.DataFrame, str]]:
                 f"{aoi_name} — {dataset_name} ({start_date} to {end_date})"
             )
             dataframes.append((df, display_name))
+            source_urls.append(data["source_url"])
 
             logger.info(f"Prepared: {display_name}")
 
-    return dataframes
+    return dataframes, source_urls
 
 
 def build_analysis_prompt(query: str, file_references: str) -> str:
@@ -230,7 +231,7 @@ async def generate_insights(
     raw_data = state["raw_data"]
 
     # 1. PREPARE DATAFRAMES: Convert raw_data to DataFrames
-    dataframes = prepare_dataframes(raw_data)
+    dataframes, source_urls = prepare_dataframes(raw_data)
     logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
     # 2. INITIALIZE EXECUTOR: Create Gemini code executor
@@ -396,6 +397,7 @@ Cautions: {dataset_cautions}
         "text_output": result.text_output,
         "code_blocks": result.code_blocks,
         "execution_outputs": result.execution_outputs,
+        "source_urls": source_urls,
         "messages": [
             ToolMessage(
                 content=tool_message,

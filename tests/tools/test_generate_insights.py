@@ -53,6 +53,7 @@ async def test_generate_insights_comparison():
                 4: {
                     "aoi_name": "Pima, Arizona, United States",
                     "dataset_name": "Tree cover loss",
+                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                     "start_date": "2024-07-01",
                     "end_date": "2024-07-31",
                     "country": [
@@ -188,6 +189,7 @@ async def test_generate_insights_comparison():
                 4: {
                     "aoi_name": "Bern, Switzerland",
                     "dataset_name": "Tree cover loss",
+                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                     "start_date": "2024-07-01",
                     "end_date": "2024-07-31",
                     "country": [
@@ -333,11 +335,16 @@ async def test_generate_insights_comparison():
             },
         ],
     }
+    tool_call_id = str(uuid.uuid4())
     command = await generate_insights.ainvoke(
         {
-            "query": "Compare tree cover loss in Pima County, Arizona with Bern, Switzerland",
-            "tool_call_id": str(uuid.uuid4()),
-            "state": update,
+            "type": "tool_call",
+            "name": "generate_insights",
+            "id": tool_call_id,
+            "args": {
+                "query": "Compare tree cover loss in Pima County, Arizona with Bern, Switzerland",
+                "state": update,
+            },
         }
     )
 
@@ -365,6 +372,7 @@ async def test_simple_line_chart():
                     ],
                     "alerts": [1200, 1450, 1100, 980],
                     "region": ["Amazon", "Amazon", "Amazon", "Amazon"],
+                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                 }
             }
         },
@@ -380,11 +388,16 @@ async def test_simple_line_chart():
         ],
     }
 
+    tool_call_id = str(uuid.uuid4())
     result = await generate_insights.ainvoke(
         {
-            "query": "What are the trends in deforestation alerts over time?",
-            "state": mock_state_line,
-            "tool_call_id": str(uuid.uuid4()),
+            "type": "tool_call",
+            "name": "generate_insights",
+            "id": tool_call_id,
+            "args": {
+                "query": "What are the trends in deforestation alerts over time?",
+                "state": mock_state_line,
+            },
         }
     )
 
@@ -406,6 +419,7 @@ async def test_simple_bar_chart():
                 1: {
                     "aoi_name": "Odisha",
                     "dataset_name": "Tree cover loss",
+                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                     "start_date": "2022-01-01",
                     "end_date": "2022-12-31",
                     "districts": [
@@ -436,11 +450,16 @@ async def test_simple_bar_chart():
         ],
     }
 
+    tool_call_id = str(uuid.uuid4())
     result = await generate_insights.ainvoke(
         {
-            "query": "Which district have the highest forest loss in Odisha?",
-            "state": mock_state_bar,
-            "tool_call_id": str(uuid.uuid4()),
+            "type": "tool_call",
+            "name": "generate_insights",
+            "id": tool_call_id,
+            "args": {
+                "query": "Which district have the highest forest loss in Odisha?",
+                "state": mock_state_bar,
+            },
         }
     )
 
@@ -462,6 +481,7 @@ async def test_stacked_bar_chart():
                 1: {
                     "aoi_name": "Amazon Forest Loss Causes",
                     "dataset_name": "Forest Loss Causes Over Time",
+                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                     "start_date": "2020-01-01",
                     "end_date": "2023-12-31",
                     "year": ["2020", "2021", "2022", "2023"],
@@ -485,11 +505,16 @@ async def test_stacked_bar_chart():
         ],
     }
 
+    tool_call_id = str(uuid.uuid4())
     result = await generate_insights.ainvoke(
         {
-            "query": "Show me the composition of forest loss causes over time as a stacked bar chart",
-            "state": mock_state_stacked,
-            "tool_call_id": str(uuid.uuid4()),
+            "type": "tool_call",
+            "name": "generate_insights",
+            "id": tool_call_id,
+            "args": {
+                "query": "Show me the composition of forest loss causes over time as a stacked bar chart",
+                "state": mock_state_stacked,
+            },
         }
     )
 
@@ -511,6 +536,7 @@ async def test_grouped_bar_chart():
                 1: {
                     "aoi_name": "Global Forest Metrics",
                     "dataset_name": "Forest Loss and Fire Incidents",
+                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                     "start_date": "2022-01-01",
                     "end_date": "2022-12-31",
                     "country": [
@@ -546,11 +572,16 @@ async def test_grouped_bar_chart():
         ],
     }
 
+    tool_call_id = str(uuid.uuid4())
     result = await generate_insights.ainvoke(
         {
-            "query": "Compare forest loss and fire incidents across countries using grouped bars",
-            "state": mock_state_grouped,
-            "tool_call_id": str(uuid.uuid4()),
+            "type": "tool_call",
+            "name": "generate_insights",
+            "id": tool_call_id,
+            "args": {
+                "query": "Compare forest loss and fire incidents across countries using grouped bars",
+                "state": mock_state_grouped,
+            },
         }
     )
 
@@ -572,6 +603,7 @@ async def test_pie_chart():
                 1: {
                     "aoi_name": "Global Forest Loss Causes",
                     "dataset_name": "Global Forest Loss Causes",
+                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                     "start_date": "2022-01-01",
                     "end_date": "2022-12-31",
                     "cause": [
@@ -604,11 +636,16 @@ async def test_pie_chart():
         ],
     }
 
+    tool_call_id = str(uuid.uuid4())
     result = await generate_insights.ainvoke(
         {
-            "query": "What are the main causes of forest loss globally? Show as pie chart",
-            "state": mock_state_pie,
-            "tool_call_id": str(uuid.uuid4()),
+            "type": "tool_call",
+            "name": "generate_insights",
+            "id": tool_call_id,
+            "args": {
+                "query": "What are the main causes of forest loss globally? Show as pie chart",
+                "state": mock_state_pie,
+            },
         }
     )
 
