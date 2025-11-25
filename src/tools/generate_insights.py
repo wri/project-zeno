@@ -476,7 +476,6 @@ Cautions: {dataset_cautions}
         "text_output": result.text_output,
         "code_blocks": replaced_code_blocks,
         "execution_outputs": result.execution_outputs,
-        "source_urls": source_urls,
         "messages": [
             ToolMessage(
                 content=tool_message,
