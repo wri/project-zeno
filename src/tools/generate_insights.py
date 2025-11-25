@@ -90,7 +90,7 @@ def replace_csv_paths_with_urls(
             url = "http://..."
             df = pd.DataFrame(pd.read_json(url)["data"]["result"])
     """
-    replaced_blocks = []
+    edited_code_blocks = []
 
     for code_block in code_blocks:
         modified_code = code_block
@@ -135,9 +135,9 @@ def replace_csv_paths_with_urls(
             standalone_pattern, replace_standalone, modified_code
         )
 
-        replaced_blocks.append(modified_code)
+        edited_code_blocks.append(modified_code)
 
-    return replaced_blocks
+    return edited_code_blocks
 
 
 def build_analysis_prompt(query: str, file_references: str) -> str:
@@ -356,7 +356,7 @@ async def generate_insights(
 
     # 5.5. REPLACE CSV PATHS: Replace CSV file paths with URL-based loading
     # This makes the code blocks runnable in any environment.
-    replaced_code_blocks = replace_csv_paths_with_urls(
+    edited_code_blocks = replace_csv_paths_with_urls(
         result.code_blocks, source_urls
     )
 
@@ -474,7 +474,7 @@ Cautions: {dataset_cautions}
         ],
         "charts_data": charts_data,
         "text_output": result.text_output,
-        "code_blocks": replaced_code_blocks,
+        "code_blocks": edited_code_blocks,
         "execution_outputs": result.execution_outputs,
         "messages": [
             ToolMessage(
