@@ -1,3 +1,4 @@
+import re
 from typing import Annotated, Dict, List
 
 import pandas as pd
@@ -65,6 +66,78 @@ def prepare_dataframes(raw_data: Dict) -> List[tuple[pd.DataFrame, str]]:
             logger.info(f"Prepared: {display_name}")
 
     return dataframes, source_urls
+
+
+def replace_csv_paths_with_urls(
+    code_blocks: List[str], source_urls: List[str]
+) -> List[str]:
+    """
+    Replace CSV file paths in code blocks with URL-based data loading.
+
+    This function replaces references to input_file_{i}.csv with code that
+    reads data from the corresponding source URL using pd.read_json().
+
+    Args:
+        code_blocks: List of code block strings that may contain CSV file references
+        source_urls: List of source URLs corresponding to input_file_{i}.csv files
+
+    Returns:
+        List of code blocks with CSV paths replaced by URL-based loading
+
+    Example:
+        Input code: df = pd.read_csv("input_file_0.csv")
+        Output code:
+            url = "http://..."
+            df = pd.DataFrame(pd.read_json(url)["data"]["result"])
+    """
+    replaced_blocks = []
+
+    for code_block in code_blocks:
+        modified_code = code_block
+
+        # Pattern to match pd.read_csv("input_file_{i}.csv") or pd.read_csv('input_file_{i}.csv')
+        # Also handles variations like pd.read_csv( "input_file_0.csv" ) with spaces
+        pattern = r'pd\.read_csv\s*\(\s*["\']input_file_(\d+)\.csv["\']\s*\)'
+
+        def replace_match(match):
+            file_index = int(match.group(1))
+            if file_index < len(source_urls):
+                url = source_urls[file_index]
+                # Replace the entire pd.read_csv(...) call with URL-based loading
+                return f'pd.DataFrame(pd.read_json("{url}")["data"]["result"])'
+            else:
+                # If URL not available, return original match
+                logger.warning(
+                    f"No source URL found for input_file_{file_index}.csv"
+                )
+                return match.group(0)
+
+        # Replace all occurrences
+        modified_code = re.sub(pattern, replace_match, modified_code)
+
+        # Also handle standalone file references (e.g., "input_file_0.csv" as a string)
+        # This is less common but might occur in some contexts
+        standalone_pattern = r'["\']input_file_(\d+)\.csv["\']'
+
+        def replace_standalone(match):
+            file_index = int(match.group(1))
+            if file_index < len(source_urls):
+                url = source_urls[file_index]
+                # Replace with URL string
+                return f'"{url}"'
+            else:
+                logger.warning(
+                    f"No source URL found for input_file_{file_index}.csv"
+                )
+                return match.group(0)
+
+        modified_code = re.sub(
+            standalone_pattern, replace_standalone, modified_code
+        )
+
+        replaced_blocks.append(modified_code)
+
+    return replaced_blocks
 
 
 def build_analysis_prompt(query: str, file_references: str) -> str:
@@ -281,6 +354,12 @@ async def generate_insights(
 
     logger.info(f"Generated chart data with {len(result.chart_data)} rows")
 
+    # 5.5. REPLACE CSV PATHS: Replace CSV file paths with URL-based loading
+    # This makes the code blocks runnable in any environment.
+    replaced_code_blocks = replace_csv_paths_with_urls(
+        result.code_blocks, source_urls
+    )
+
     # 6. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
     chart_data_df = pd.DataFrame(result.chart_data)
     available_datasets = _get_available_datasets()
@@ -395,7 +474,7 @@ Cautions: {dataset_cautions}
         ],
         "charts_data": charts_data,
         "text_output": result.text_output,
-        "code_blocks": result.code_blocks,
+        "code_blocks": replaced_code_blocks,
         "execution_outputs": result.execution_outputs,
         "source_urls": source_urls,
         "messages": [
