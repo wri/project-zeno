@@ -87,8 +87,7 @@ def replace_csv_paths_with_urls(
     Example:
         Input code: df = pd.read_csv("input_file_0.csv")
         Output code:
-            url = "http://..."
-            df = pd.DataFrame(pd.read_json(url)["data"]["result"])
+            df = pd.DataFrame(pd.read_json("https://analytics.globalnaturewatch.org/...")["data"]["result"])
     """
     edited_code_blocks = []
 
