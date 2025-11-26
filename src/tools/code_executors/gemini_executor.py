@@ -132,7 +132,7 @@ class GeminiCodeExecutor:
                         logger.error(f"Failed to parse chart_data: {e}")
 
             return ExecutionResult(
-                text_output="\n\n".join(text_parts),
+                text_output=text_parts,
                 code_blocks=code_blocks,
                 execution_outputs=execution_outputs,
                 chart_data=chart_data,
@@ -142,7 +142,7 @@ class GeminiCodeExecutor:
         except Exception as e:
             logger.error(f"Execution failed: {e}")
             return ExecutionResult(
-                text_output="",
+                text_output=[],
                 code_blocks=[],
                 execution_outputs=[],
                 chart_data=None,

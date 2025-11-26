@@ -154,7 +154,7 @@ async def check_for_composition(query: str) -> bool:
 class AnalyticsHandler(DataSourceHandler):
     """Generalized handler for GFW Analytics API endpoints"""
 
-    BASE_URL = "http://analytics-416617519.us-east-1.elb.amazonaws.com"
+    BASE_URL = "https://analytics.globalnaturewatch.org"
 
     HEADERS = {
         "Accept": "application/json",
@@ -189,7 +189,7 @@ class AnalyticsHandler(DataSourceHandler):
             aoi_type = "protected_area"
         elif aoi["subtype"] == "custom-area":
             # See DistAlertsAnalyticsIn schema
-            # in http://analytics-416617519.us-east-1.elb.amazonaws.com/docs
+            # in https://analytics.globalnaturewatch.org/docs
             aoi_type = "feature_collection"
         else:
             raise ValueError(f"Unknown AOI subtype: {aoi['subtype']}")

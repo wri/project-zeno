@@ -11,7 +11,7 @@ from src.tools.pull_data import pull_data
 from tests.conftest import async_session_maker
 
 # All dataset and intersection combinations from OpenAPI spec
-# http://analytics-416617519.us-east-1.elb.amazonaws.com/openapi.json
+# https://analytics.globalnaturewatch.org/openapi.json
 # as of 2025-08-06
 ALL_DATASET_COMBINATIONS = [
     {
