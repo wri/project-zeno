@@ -16,8 +16,8 @@ datasets:
   geographic_coverage: Global
   resolution: "30 x 30 meters"
   update_frequency: "Underlying product updated daily, with image revisit time every 2-4 days. Product on GFW updated weekly."
-  content_date: "1 January 2023 - present"
-  start_date: "2023-01-01"
+  content_date: "1 December 2023 - present"
+  start_date: "2023-12-01"
   content_date_fixed: false
   keywords:
     - land cover
