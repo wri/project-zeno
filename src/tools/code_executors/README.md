@@ -85,12 +85,14 @@ Gemini returns:
 ```python
 @dataclass
 class ExecutionResult:
-    text_output: str              # Combined analysis text
-    code_blocks: List[str]        # Code that was executed
-    execution_outputs: List[str]  # Print outputs
+    text_output: str              # Combined analysis text (base64 encoded)
+    code_blocks: List[str]        # Code that was executed (base64 encoded)
+    execution_outputs: List[str]  # Print outputs (base64 encoded)
     chart_data: Optional[List[Dict]]  # Parsed chart_data.csv
     error: Optional[str] = None   # Error if failed
 ```
+
+**Note**: When `ExecutionResult` fields are stored in the agent state (via `generate_insights` tool), `text_output`, `code_blocks`, and `execution_outputs` are base64 encoded to avoid JSON parsing issues on the frontend. Consumers of the agent state should decode these fields using `base64.b64decode()` before use.
 
 ## Best Practices
 

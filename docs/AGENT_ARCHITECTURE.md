@@ -108,6 +108,9 @@ class AgentState(TypedDict):
     # Insight Generation State
     insights: list              # Generated insights
     charts_data: list           # Chart configurations
+    text_output: list[str]            # Analysis text output (base64 encoded)
+    code_blocks: list[str]      # Executed code blocks (base64 encoded)
+    execution_outputs: list[str] # Code execution outputs (base64 encoded)
 ```
 
 ### 3. Core Tools
