@@ -1,3 +1,4 @@
+import base64
 import re
 from typing import Annotated, Dict, List
 
@@ -16,6 +17,22 @@ from src.utils.llms import GEMINI_FLASH
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+
+def _encode_strings_base64(strings: List[str]) -> List[str]:
+    """
+    Base64 encode a list of strings to avoid JSON parsing issues on frontend.
+
+    Args:
+        strings: List of strings to encode
+
+    Returns:
+        List of base64-encoded strings
+    """
+    return [
+        base64.b64encode(text.encode("utf-8")).decode("utf-8")
+        for text in strings
+    ]
 
 
 def _get_available_datasets() -> str:
@@ -472,9 +489,9 @@ Cautions: {dataset_cautions}
             "follow_up_suggestions"
         ],
         "charts_data": charts_data,
-        "text_output": result.text_output,
-        "code_blocks": edited_code_blocks,
-        "execution_outputs": result.execution_outputs,
+        "text_output": _encode_strings_base64(result.text_output),
+        "code_blocks": _encode_strings_base64(edited_code_blocks),
+        "execution_outputs": _encode_strings_base64(result.execution_outputs),
         "messages": [
             ToolMessage(
                 content=tool_message,
