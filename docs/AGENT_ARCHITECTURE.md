@@ -108,9 +108,26 @@ class AgentState(TypedDict):
     # Insight Generation State
     insights: list              # Generated insights
     charts_data: list           # Chart configurations
-    text_output: list[str]            # Analysis text output (base64 encoded)
-    code_blocks: list[str]      # Executed code blocks (base64 encoded)
-    execution_outputs: list[str] # Code execution outputs (base64 encoded)
+    codeact_parts: list[dict]           # output parts (base64 encoded)
+```
+
+The `codeact_parts` field contains a list of `CodeActPart` objects (from `src.tools.code_executors.base`). Each `CodeActPart` is a Pydantic model with:
+
+```python
+class CodeActPart(BaseModel):
+    type: PartType  # Enum: TEXT_OUTPUT, CODE_BLOCK, or EXECUTION_OUTPUT
+    content: str    # The actual content (code, output, or text)
+```
+
+The `PartType` enum defines three types:
+- `TEXT_OUTPUT = "text_output"` - Plain text analysis or explanations
+- `CODE_BLOCK = "code_block"` - Python code blocks for execution
+- `EXECUTION_OUTPUT = "execution_output"` - Results from code execution
+
+Each output part is dumped as json with base64 encoding content. For example
+
+```json
+{"type": "code_block", "content": "IyMjIFNURVAgMTogQU5B..."}
 ```
 
 ### 3. Core Tools

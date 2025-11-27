@@ -6,6 +6,8 @@ from langgraph.managed import IsLastStep
 from langgraph.managed.is_last_step import RemainingSteps
 from typing_extensions import TypedDict
 
+from src.tools.code_executors.base import CodeActPart
+
 
 def add_aois(left, right):
     """Merges two AOIs and returns the merged AOI."""
@@ -40,9 +42,7 @@ class AgentState(TypedDict):
     # generate-insights tool
     insights: list
     charts_data: list
-    text_output: str
-    code_blocks: list[str]
-    execution_outputs: list[str]
+    codeact_parts: list[CodeActPart]
 
     # langgraph managed
     is_last_step: IsLastStep
