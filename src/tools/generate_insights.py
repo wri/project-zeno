@@ -147,8 +147,11 @@ def build_analysis_prompt(query: str, file_references: str) -> str:
 
 You have access to the following datasets (read-only):
 {file_references}
----
 
+For your text output , don't use first person, but imperative or neutral language.
+
+For example: "I will begin by loading and examining" -> "Load and examine"
+---
 
 ### STEP-BY-STEP WORKFLOW (follow in order):
 
