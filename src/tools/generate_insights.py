@@ -1,4 +1,3 @@
-import base64
 import re
 from typing import Annotated, Dict, List
 
@@ -12,27 +11,12 @@ from pydantic import BaseModel, Field
 
 from src.agents.prompts import WORDING_INSTRUCTIONS
 from src.tools.code_executors import GeminiCodeExecutor
+from src.tools.code_executors.base import PartType
 from src.tools.datasets_config import DATASETS
 from src.utils.llms import GEMINI_FLASH
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-
-def _encode_strings_base64(strings: List[str]) -> List[str]:
-    """
-    Base64 encode a list of strings to avoid JSON parsing issues on frontend.
-
-    Args:
-        strings: List of strings to encode
-
-    Returns:
-        List of base64-encoded strings
-    """
-    return [
-        base64.b64encode(text.encode("utf-8")).decode("utf-8")
-        for text in strings
-    ]
 
 
 def _get_available_datasets() -> str:
@@ -86,7 +70,7 @@ def prepare_dataframes(raw_data: Dict) -> List[tuple[pd.DataFrame, str]]:
 
 
 def replace_csv_paths_with_urls(
-    code_blocks: List[str], source_urls: List[str]
+    code_block: str, source_urls: List[str]
 ) -> List[str]:
     """
     Replace CSV file paths in code blocks with URL-based data loading.
@@ -95,7 +79,7 @@ def replace_csv_paths_with_urls(
     reads data from the corresponding source URL using pd.read_json().
 
     Args:
-        code_blocks: List of code block strings that may contain CSV file references
+        code_block: Code block string that may contain CSV file references
         source_urls: List of source URLs corresponding to input_file_{i}.csv files
 
     Returns:
@@ -106,54 +90,44 @@ def replace_csv_paths_with_urls(
         Output code:
             df = pd.DataFrame(pd.read_json("https://analytics.globalnaturewatch.org/...")["data"]["result"])
     """
-    edited_code_blocks = []
+    # Pattern to match pd.read_csv("input_file_{i}.csv") or pd.read_csv('input_file_{i}.csv')
+    # Also handles variations like pd.read_csv( "input_file_0.csv" ) with spaces
+    pattern = r'pd\.read_csv\s*\(\s*["\']input_file_(\d+)\.csv["\']\s*\)'
 
-    for code_block in code_blocks:
-        modified_code = code_block
+    def replace_match(match):
+        file_index = int(match.group(1))
+        if file_index < len(source_urls):
+            url = source_urls[file_index]
+            # Replace the entire pd.read_csv(...) call with URL-based loading
+            return f'pd.DataFrame(pd.read_json("{url}")["data"]["result"])'
+        else:
+            # If URL not available, return original match
+            logger.warning(
+                f"No source URL found for input_file_{file_index}.csv"
+            )
+            return match.group(0)
 
-        # Pattern to match pd.read_csv("input_file_{i}.csv") or pd.read_csv('input_file_{i}.csv')
-        # Also handles variations like pd.read_csv( "input_file_0.csv" ) with spaces
-        pattern = r'pd\.read_csv\s*\(\s*["\']input_file_(\d+)\.csv["\']\s*\)'
+    # Replace all occurrences
+    code_block = re.sub(pattern, replace_match, code_block)
 
-        def replace_match(match):
-            file_index = int(match.group(1))
-            if file_index < len(source_urls):
-                url = source_urls[file_index]
-                # Replace the entire pd.read_csv(...) call with URL-based loading
-                return f'pd.DataFrame(pd.read_json("{url}")["data"]["result"])'
-            else:
-                # If URL not available, return original match
-                logger.warning(
-                    f"No source URL found for input_file_{file_index}.csv"
-                )
-                return match.group(0)
+    # Also handle standalone file references (e.g., "input_file_0.csv" as a string)
+    # This is less common but might occur in some contexts
+    standalone_pattern = r'["\']input_file_(\d+)\.csv["\']'
 
-        # Replace all occurrences
-        modified_code = re.sub(pattern, replace_match, modified_code)
+    def replace_standalone(match):
+        file_index = int(match.group(1))
+        if file_index < len(source_urls):
+            url = source_urls[file_index]
+            # Replace with URL string
+            return f'"{url}"'
+        else:
+            logger.warning(
+                f"No source URL found for input_file_{file_index}.csv"
+            )
+            return match.group(0)
 
-        # Also handle standalone file references (e.g., "input_file_0.csv" as a string)
-        # This is less common but might occur in some contexts
-        standalone_pattern = r'["\']input_file_(\d+)\.csv["\']'
-
-        def replace_standalone(match):
-            file_index = int(match.group(1))
-            if file_index < len(source_urls):
-                url = source_urls[file_index]
-                # Replace with URL string
-                return f'"{url}"'
-            else:
-                logger.warning(
-                    f"No source URL found for input_file_{file_index}.csv"
-                )
-                return match.group(0)
-
-        modified_code = re.sub(
-            standalone_pattern, replace_standalone, modified_code
-        )
-
-        edited_code_blocks.append(modified_code)
-
-    return edited_code_blocks
+    code_block = re.sub(standalone_pattern, replace_standalone, code_block)
+    return code_block
 
 
 def build_analysis_prompt(query: str, file_references: str) -> str:
@@ -173,8 +147,11 @@ def build_analysis_prompt(query: str, file_references: str) -> str:
 
 You have access to the following datasets (read-only):
 {file_references}
----
 
+For your text output , don't use first person, but imperative or neutral language.
+
+For example: "I will begin by loading and examining" -> "Load and examine"
+---
 
 ### STEP-BY-STEP WORKFLOW (follow in order):
 
@@ -353,6 +330,14 @@ async def generate_insights(
             }
         )
 
+    text_output = " ".join(
+        [
+            part.content
+            for part in result.parts
+            if part.type == PartType.TEXT_OUTPUT
+        ]
+    )
+
     # Check for chart data
     if not result.chart_data:
         logger.error("No chart data generated")
@@ -360,7 +345,7 @@ async def generate_insights(
             update={
                 "messages": [
                     ToolMessage(
-                        content=f"Failed to generate chart data. Feedback: {result.text_output}",
+                        content=f"Failed to generate chart data. Feedback:{text_output}",
                         tool_call_id=tool_call_id,
                         status="error",
                     )
@@ -372,9 +357,11 @@ async def generate_insights(
 
     # 5.5. REPLACE CSV PATHS: Replace CSV file paths with URL-based loading
     # This makes the code blocks runnable in any environment.
-    edited_code_blocks = replace_csv_paths_with_urls(
-        result.code_blocks, source_urls
-    )
+    for part in result.parts:
+        if part.type == PartType.CODE_BLOCK:
+            part.content = replace_csv_paths_with_urls(
+                part.content, source_urls
+            )
 
     # 6. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
     chart_data_df = pd.DataFrame(result.chart_data)
@@ -400,7 +387,7 @@ async def generate_insights(
 {dataset_list}
 
 ### Analysis Output (includes recommended chart type)
-{result.text_output}
+{text_output}
 
 ### Chart Data Preview (first 5 rows)
 {chart_data_df.head().to_csv(index=False)}
@@ -488,10 +475,8 @@ Cautions: {dataset_cautions}
         "follow_up_suggestions": chart_insight_response.model_dump()[
             "follow_up_suggestions"
         ],
+        "codeact_parts": result.get_encoded_parts(),
         "charts_data": charts_data,
-        "text_output": _encode_strings_base64(result.text_output),
-        "code_blocks": _encode_strings_base64(edited_code_blocks),
-        "execution_outputs": _encode_strings_base64(result.execution_outputs),
         "messages": [
             ToolMessage(
                 content=tool_message,

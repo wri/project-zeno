@@ -7,7 +7,11 @@ import pandas as pd
 from google import genai
 from google.genai import types
 
-from src.tools.code_executors.base import ExecutionResult
+from src.tools.code_executors.base import (
+    CodeActPart,
+    ExecutionResult,
+    PartType,
+)
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -45,7 +49,7 @@ class GeminiCodeExecutor:
 
     async def prepare_dataframes(
         self, dataframes: List[tuple[pd.DataFrame, str]]
-    ) -> List[Dict]:
+    ) -> List[CodeActPart]:
         """
         Convert DataFrames to inline_data format for Gemini.
 
@@ -105,18 +109,30 @@ class GeminiCodeExecutor:
             )
 
             # Parse response
-            text_parts = []
-            code_blocks = []
-            execution_outputs = []
+            parts = []
             chart_data = None
 
             for part in response.candidates[0].content.parts:
                 if part.text:
-                    text_parts.append(part.text)
+                    parts.append(
+                        CodeActPart(
+                            type=PartType.TEXT_OUTPUT, content=part.text
+                        )
+                    )
                 if part.executable_code:
-                    code_blocks.append(part.executable_code.code)
+                    parts.append(
+                        CodeActPart(
+                            type=PartType.CODE_BLOCK,
+                            content=part.executable_code.code,
+                        )
+                    )
                 if part.code_execution_result:
-                    execution_outputs.append(part.code_execution_result.output)
+                    parts.append(
+                        CodeActPart(
+                            type=PartType.EXECUTION_OUTPUT,
+                            content=part.code_execution_result.output,
+                        )
+                    )
                 if (
                     part.inline_data
                     and part.inline_data.mime_type == "text/csv"
@@ -132,9 +148,7 @@ class GeminiCodeExecutor:
                         logger.error(f"Failed to parse chart_data: {e}")
 
             return ExecutionResult(
-                text_output=text_parts,
-                code_blocks=code_blocks,
-                execution_outputs=execution_outputs,
+                parts=parts,
                 chart_data=chart_data,
                 error=None,
             )
@@ -142,9 +156,7 @@ class GeminiCodeExecutor:
         except Exception as e:
             logger.error(f"Execution failed: {e}")
             return ExecutionResult(
-                text_output=[],
-                code_blocks=[],
-                execution_outputs=[],
+                parts=[],
                 chart_data=None,
                 error=str(e),
             )
