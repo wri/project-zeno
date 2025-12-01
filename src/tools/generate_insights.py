@@ -75,15 +75,16 @@ def replace_csv_paths_with_urls(
     """
     Replace CSV file paths in code blocks with URL-based data loading.
 
-    This function replaces references to input_file_{i}.csv with code that
+    This function replaces pd.read_csv("input_file_{i}.csv") calls with code that
     reads data from the corresponding source URL using pd.read_json().
+    Only full matches of the pd.read_csv pattern are replaced.
 
     Args:
         code_block: Code block string that may contain CSV file references
         source_urls: List of source URLs corresponding to input_file_{i}.csv files
 
     Returns:
-        List of code blocks with CSV paths replaced by URL-based loading
+        Code block with pd.read_csv calls replaced by URL-based loading
 
     Example:
         Input code: df = pd.read_csv("input_file_0.csv")
@@ -110,23 +111,6 @@ def replace_csv_paths_with_urls(
     # Replace all occurrences
     code_block = re.sub(pattern, replace_match, code_block)
 
-    # Also handle standalone file references (e.g., "input_file_0.csv" as a string)
-    # This is less common but might occur in some contexts
-    standalone_pattern = r'["\']input_file_(\d+)\.csv["\']'
-
-    def replace_standalone(match):
-        file_index = int(match.group(1))
-        if file_index < len(source_urls):
-            url = source_urls[file_index]
-            # Replace with URL string
-            return f'"{url}"'
-        else:
-            logger.warning(
-                f"No source URL found for input_file_{file_index}.csv"
-            )
-            return match.group(0)
-
-    code_block = re.sub(standalone_pattern, replace_standalone, code_block)
     return code_block
 
 
