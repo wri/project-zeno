@@ -2,80 +2,122 @@
 Configuration management for E2E testing framework.
 """
 
-import os
-from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
+
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-@dataclass
-class TestConfig:
+class TestConfig(BaseSettings):
     """Configuration for E2E test execution."""
 
+    model_config = SettingsConfigDict(
+        env_prefix="",  # No prefix, use exact env var names
+        case_sensitive=False,  # Case-insensitive env var matching
+        extra="ignore",  # Ignore extra env vars
+    )
+
     # Test mode configuration
-    test_mode: str = "local"  # "local" or "api"
-    langfuse_dataset: Optional[str] = None
+    test_mode: str = Field(
+        default="local",
+        description="Test mode: 'local' or 'api'",
+    )
+    langfuse_dataset: Optional[str] = Field(
+        default=None,
+        description="Langfuse dataset name",
+    )
 
     # API configuration
-    api_base_url: str = "http://localhost:8000"
-    api_token: Optional[str] = None
+    api_base_url: str = Field(
+        default="http://localhost:8000",
+        description="Base URL for API tests",
+    )
+    api_token: Optional[str] = Field(
+        default=None,
+        description="API token for authentication",
+    )
 
     # CSV mode configuration
-    sample_size: int = (
-        1  # 1 means run single test (CI/CD friendly), -1 means run all rows
+    sample_size: int = Field(
+        default=1,
+        description="Sample size: 1 means run single test (CI/CD friendly), -1 means run all rows",
     )
-    test_file: str = "experiments/e2e_test_dataset.csv"
-    test_group_filter: Optional[str] = None  # Filter by test_group column
-    status_filter: Optional[str] = None  # Filter by status column
-    output_filename: Optional[str] = (
-        None  # Custom filename (timestamp will be appended)
+    test_file: str = Field(
+        default="experiments/e2e_test_dataset.csv",
+        description="Path to test dataset CSV file",
+    )
+    test_group_filter: Optional[str] = Field(
+        default=None,
+        description="Filter by test_group column",
+    )
+    status_filter: Optional[List[str]] = Field(
+        default=None,
+        description="Filter by status column (comma-separated string from env will be converted to list)",
+    )
+    output_filename: Optional[str] = Field(
+        default=None,
+        description="Custom filename (timestamp will be appended)",
     )
 
     # Parallel execution configuration
-    num_workers: int = 1  # Number of parallel workers for test execution
-    random_seed: int = 42  # Random seed for sampling
-    offset: int = 0  # Offset for sampling
+    num_workers: int = Field(
+        default=1,
+        description="Number of parallel workers for test execution",
+    )
+    random_seed: int = Field(
+        default=42,
+        description="Random seed for sampling",
+    )
+    offset: int = Field(
+        default=0,
+        description="Offset for sampling",
+    )
 
+    @field_validator("status_filter", mode="before")
     @classmethod
-    def from_environment(cls) -> "TestConfig":
-        """Create configuration from environment variables."""
-        return cls(
-            test_mode=os.getenv("TEST_MODE", "local"),
-            langfuse_dataset=os.getenv("LANGFUSE_DATASET"),
-            api_base_url=os.getenv("API_BASE_URL", "http://localhost:8000"),
-            api_token=os.getenv("API_TOKEN"),
-            sample_size=int(os.getenv("SAMPLE_SIZE", "1")),
-            test_file=os.getenv(
-                "TEST_FILE", "experiments/e2e_test_dataset.csv"
-            ),
-            test_group_filter=os.getenv("TEST_GROUP_FILTER"),
-            output_filename=os.getenv("OUTPUT_FILENAME"),
-            num_workers=int(os.getenv("NUM_WORKERS", "1")),
-            status_filter=os.getenv("STATUS_FILTER", "").split(","),
-            random_seed=int(os.getenv("RANDOM_SEED", "42")),
-            offset=int(os.getenv("OFFSET", "0")),
-        )
+    def parse_status_filter(cls, v) -> Optional[List[str]]:
+        """Convert comma-separated string to list, or return None."""
+        if v is None or v == "":
+            return None
+        if isinstance(v, str):
+            # Split by comma and strip whitespace
+            return [s.strip() for s in v.split(",") if s.strip()]
+        return v
 
-    def validate(self) -> None:
-        """Validate configuration settings."""
-        if self.test_mode not in ["local", "api"]:
+    @field_validator("test_mode")
+    @classmethod
+    def validate_test_mode(cls, v: str) -> str:
+        """Validate test_mode is 'local' or 'api'."""
+        if v not in ["local", "api"]:
             raise ValueError(
-                f"Invalid test_mode: {self.test_mode}. Must be 'local' or 'api'"
+                f"Invalid test_mode: {v}. Must be 'local' or 'api'"
             )
+        return v
 
+    @field_validator("sample_size")
+    @classmethod
+    def validate_sample_size(cls, v: int) -> int:
+        """Validate sample_size is >= -1."""
+        if v < -1:
+            raise ValueError(f"SAMPLE_SIZE must be >= -1, got {v}")
+        return v
+
+    @field_validator("num_workers")
+    @classmethod
+    def validate_num_workers(cls, v: int) -> int:
+        """Validate num_workers is >= 1."""
+        if v < 1:
+            raise ValueError(f"NUM_WORKERS must be >= 1, got {v}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_api_token(self) -> "TestConfig":
+        """Validate API token is provided when test_mode is 'api'."""
         if self.test_mode == "api" and not self.api_token:
             raise ValueError(
                 "API_TOKEN environment variable is required when TEST_MODE=api"
             )
-
-        if self.sample_size < -1:
-            raise ValueError(
-                f"SAMPLE_SIZE must be >= -1, got {self.sample_size}"
-            )
-
-        if self.num_workers < 1:
-            raise ValueError(
-                f"NUM_WORKERS must be >= 1, got {self.num_workers}"
-            )
+        return self
 
     def is_langfuse_mode(self) -> bool:
         """Check if Langfuse dataset mode is enabled."""
@@ -88,6 +130,4 @@ class TestConfig:
 
 def get_test_config() -> TestConfig:
     """Get validated test configuration from environment."""
-    config = TestConfig.from_environment()
-    config.validate()
-    return config
+    return TestConfig()
