@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from typing import List
 
-from ..types import TestResult
+from evals.utils.eval_types import TestResult
 
 
 class ResultExporter:

@@ -6,7 +6,7 @@ from typing import List
 
 import pandas as pd
 
-from ..types import ExpectedData
+from evals.utils.eval_types import ExpectedData
 
 
 class CSVLoader:

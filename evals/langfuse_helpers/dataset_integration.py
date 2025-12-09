@@ -6,12 +6,11 @@ from typing import List
 
 from langfuse.langchain import CallbackHandler
 
+from evals.langfuse_helpers.scoring import LangfuseScorer
+from evals.runners import APITestRunner, LocalTestRunner
+from evals.utils.config import TestConfig
+from evals.utils.eval_types import ExpectedData, TestResult
 from experiments.eval_utils import get_langfuse, get_run_name
-
-from ..config import TestConfig
-from ..runners import APITestRunner, LocalTestRunner
-from ..types import ExpectedData, TestResult
-from .scoring import LangfuseScorer
 
 
 class LangfuseDatasetHandler:

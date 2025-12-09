@@ -5,7 +5,13 @@ Base test runner interface for E2E testing framework.
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
-from ..types import ExpectedData, TestResult
+from evals.tool_evaluators import (
+    evaluate_aoi_selection,
+    evaluate_data_pull,
+    evaluate_dataset_selection,
+    evaluate_final_answer,
+)
+from evals.utils.eval_types import ExpectedData, TestResult
 
 
 class BaseTestRunner(ABC):
@@ -85,12 +91,6 @@ class BaseTestRunner(ABC):
         query: str = "",
     ) -> Dict[str, Any]:
         """Run all evaluation functions on agent state."""
-        from tests.agent.tool_evaluators import (
-            evaluate_aoi_selection,
-            evaluate_data_pull,
-            evaluate_dataset_selection,
-            evaluate_final_answer,
-        )
 
         aoi_eval = evaluate_aoi_selection(
             agent_state,

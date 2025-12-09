@@ -4,7 +4,7 @@ Langfuse scoring functionality for E2E testing framework.
 
 from langfuse import Langfuse
 
-from ..types import ExpectedData, TestResult
+from evals.utils.eval_types import ExpectedData, TestResult
 
 
 class LangfuseScorer:

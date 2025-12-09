@@ -9,8 +9,8 @@ from uuid import uuid4
 import httpx
 from langchain_core.load import loads
 
-from ..types import ExpectedData, TestResult
-from .base import BaseTestRunner
+from evals.runners.base import BaseTestRunner
+from evals.utils.eval_types import ExpectedData, TestResult
 
 
 class APITestRunner(BaseTestRunner):

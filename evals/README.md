@@ -191,50 +191,50 @@ This YAML file contains the authoritative dataset definitions including:
 
 ```bash
 # Run single test (default)
-python tests/agent/test_e2e.py
+python evals/run_evals.py
 
 # Run specific number of tests
-SAMPLE_SIZE=10 python tests/agent/test_e2e.py
+SAMPLE_SIZE=10 python evals/run_evals.py
 
 # Run all tests
-SAMPLE_SIZE=-1 python tests/agent/test_e2e.py
+SAMPLE_SIZE=-1 python evals/run_evals.py
 
 # Filter by test group
-TEST_GROUP_FILTER=dataset python tests/agent/test_e2e.py
-TEST_GROUP_FILTER=rel-accuracy SAMPLE_SIZE=5 python tests/agent/test_e2e.py
+TEST_GROUP_FILTER=dataset python evals/run_evals.py
+TEST_GROUP_FILTER=rel-accuracy SAMPLE_SIZE=5 python evals/run_evals.py
 ```
 
 ### Parallel Execution
 
 ```bash
 # Run 10 tests with 5 parallel workers
-NUM_WORKERS=5 SAMPLE_SIZE=10 python tests/agent/test_e2e.py
+NUM_WORKERS=5 SAMPLE_SIZE=10 python evals/run_evals.py
 
 # Run all tests with 10 parallel workers
-NUM_WORKERS=10 SAMPLE_SIZE=-1 python tests/agent/test_e2e.py
+NUM_WORKERS=10 SAMPLE_SIZE=-1 python evals/run_evals.py
 ```
 
 ### API Mode Testing
 
 ```bash
 # Test against API endpoint
-TEST_MODE=api API_TOKEN=your_token python tests/agent/test_e2e.py
+TEST_MODE=api API_TOKEN=your_token python evals/run_evals.py
 
 # API mode with parallel execution
-TEST_MODE=api API_TOKEN=your_token NUM_WORKERS=5 SAMPLE_SIZE=20 python tests/agent/test_e2e.py
+TEST_MODE=api API_TOKEN=your_token NUM_WORKERS=5 SAMPLE_SIZE=20 python evals/run_evals.py
 ```
 
 ### Custom Configuration
 
 ```bash
 # Custom test file
-TEST_FILE=path/to/custom_dataset.csv python tests/agent/test_e2e.py
+TEST_FILE=path/to/custom_dataset.csv python evals/run_evals.py
 
 # Custom output filename
-OUTPUT_FILENAME=my_test_run python tests/agent/test_e2e.py
+OUTPUT_FILENAME=my_test_run python evals/run_evals.py
 
 # Custom API endpoint
-TEST_MODE=api API_BASE_URL=https://api.example.com API_TOKEN=token python tests/agent/test_e2e.py
+TEST_MODE=api API_BASE_URL=https://api.example.com API_TOKEN=token python evals/run_evals.py
 ```
 
 ## Environment Variables
