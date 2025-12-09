@@ -8,7 +8,7 @@ Basic functions to evaluate each step of the agent workflow:
 - evaluate_final_answer: Check if final answer aligns with expected result
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
@@ -32,7 +32,7 @@ def normalize_value(value) -> str:
 
 def evaluate_aoi_selection(
     agent_state: Dict[str, Any],
-    expected_aoi_id: str,
+    expected_aoi_ids: List[str],
     expected_subregion: Optional[str],
     query: str = "",
 ) -> Dict[str, Any]:
@@ -41,13 +41,13 @@ def evaluate_aoi_selection(
 
     Args:
         agent_state: Final agent state after execution
-        expected_aoi_id: Expected AOI ID (e.g., "BRA", "USA.5_1")
+        expected_aoi_ids: Expected AOI IDs (e.g., ["BRA", "USA.5_1"])
         expected_subregion: Expected subregion (e.g., "state-province", "country")
         query: Original user query for clarification detection
     Returns:
         Dict with aoi_score (0 or 1), actual_id, actual_name, actual_subtype, actual_source, actual_subregion
     """
-    if not expected_aoi_id:
+    if not expected_aoi_ids:
         return {
             "aoi_score": None,
             "actual_id": None,
@@ -78,7 +78,7 @@ def evaluate_aoi_selection(
                 "match_subregion": True,
             }
 
-    if not aoi or not expected_aoi_id:
+    if not aoi or not expected_aoi_ids:
         return {
             "aoi_score": None,
             "actual_id": None,
@@ -99,12 +99,22 @@ def evaluate_aoi_selection(
     if actual_aoi_source == "gadm":
         # Normalize GADM ids
         normalized_actual = normalize_gadm_id(actual_aoi_id)
-        normalized_expected = normalize_gadm_id(expected_aoi_id)
+        normalized_expected = [
+            normalize_gadm_id(expected_aoi_id)
+            for expected_aoi_id in expected_aoi_ids
+        ]
     else:
         normalized_actual = actual_aoi_id.lower()
-        normalized_expected = expected_aoi_id.lower()
+        normalized_expected = [
+            expected_aoi_id.lower() for expected_aoi_id in expected_aoi_ids
+        ]
 
-    match_aoi_id = normalized_actual == normalized_expected
+    match_aoi_id = all(
+        [
+            actual_aoi_id in normalized_expected
+            for actual_aoi_id in normalized_actual
+        ]
+    )
 
     # Normalize subregion values for comparison
     expected_subregion_str = normalize_value(expected_subregion)

@@ -94,7 +94,7 @@ class BaseTestRunner(ABC):
 
         aoi_eval = evaluate_aoi_selection(
             agent_state,
-            expected_data.expected_aoi_id,
+            expected_data.expected_aoi_ids,
             expected_data.expected_subregion,
             query,
         )
@@ -126,7 +126,7 @@ class BaseTestRunner(ABC):
     ) -> float:
         """Calculate overall score from individual evaluation scores."""
         scores = []
-        if expected_data.expected_aoi_id:
+        if expected_data.expected_aoi_ids:
             scores.append(evaluations["aoi_score"])
         if expected_data.expected_dataset_id:
             scores.append(evaluations["dataset_score"])

@@ -37,6 +37,12 @@ class CSVLoader:
         # Read CSV as strings and clean up
         df = pd.read_csv(csv_file, dtype=str, keep_default_na=False)
 
+        for fields in ExpectedData.model_fields.keys():
+            if fields not in df.columns:
+                raise ValueError(
+                    f"Column {fields} not in CSV file. Please check the CSV file and make sure all required columns are present."
+                )
+
         # Simple cleanup: replace NaN/null with empty string
         df = df.fillna("")
 
@@ -85,23 +91,7 @@ class CSVLoader:
 
         test_cases = []
         for _, row in df.iterrows():
-            test_case = ExpectedData(
-                expected_aoi_id=row.get("expected_aoi_id", ""),
-                expected_aoi_name=row.get("expected_aoi_name", ""),
-                expected_subregion=row.get("expected_subregion", ""),
-                expected_aoi_subtype=row.get("expected_aoi_subtype", ""),
-                expected_aoi_source=row.get("expected_aoi_source", ""),
-                expected_dataset_id=row.get("expected_dataset_id", ""),
-                expected_dataset_name=row.get("expected_dataset_name", ""),
-                expected_context_layer=row.get("expected_context_layer", ""),
-                expected_start_date=row.get("expected_start_date", ""),
-                expected_end_date=row.get("expected_end_date", ""),
-                expected_answer=row.get("expected_answer", ""),
-                test_group=row.get("test_group", "unknown"),
-                status=row.get("status", "ready"),
-            )
-            # Add query field to the test case
-            test_case.query = row.get("query", "")
+            test_case = ExpectedData(**row.to_dict())
             test_cases.append(test_case)
 
         return test_cases

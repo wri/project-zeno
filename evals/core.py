@@ -72,8 +72,9 @@ async def run_single_test(
     )
 
     # Convert test case to ExpectedData (remove query field)
+    test_dict = test_case.model_dump()
     expected_data = ExpectedData(
-        **{k: v for k, v in test_case.__dict__.items() if k != "query"}
+        **{k: v for k, v in test_dict.items() if k != "query"}
     )
     result = await runner.run_test(test_case.query, expected_data)
 

@@ -14,7 +14,7 @@ The E2E testing framework evaluates the complete agent workflow by testing four 
 
 When a test case can have multiple valid values for a field (e.g., comparing multiple AOIs, accepting multiple datasets), separate the values with semicolons (;). For example:
 
-- `expected_aoi_id = "IND.21_1;IND.27_1"` - Test passes if either Odisha (21) or Maharashtra (27) is selected
+- `expected_aoi_ids = "IND.21_1;IND.27_1"` - Test passes if either Odisha (21) or Maharashtra (27) is selected
 - `expected_dataset_id = "0;1"` - Test passes if either dataset 0 or 1 is selected
 - `expected_context_layer = "driver;natural_lands"` - Test passes if either driver or natural_lands context layer is selected
 
@@ -31,7 +31,7 @@ The following columns are **required** for the E2E tests to run properly:
   - `"skip"` - Test should be skipped/ignored during execution
 
 #### AOI Selection Evaluation
-- **`expected_aoi_id`** - Expected AOI identifier (e.g., "BRA", "USA.5_1", "IND.26_1"). For queries comparing multiple areas, use semicolons to separate values (e.g., "IND.21_1;IND.27_1" for Odisha and Maharashtra).
+- **`expected_aoi_ids`** - Expected AOI identifier (e.g., "BRA", "USA.5_1", "IND.26_1"). For queries comparing multiple areas, use semicolons to separate values (e.g., "IND.21_1;IND.27_1" for Odisha and Maharashtra).
 - **`expected_subregion`** - Expected subregion filter when user explicitly requests sub-administrative units. Only used when query explicitly mentions comparing or analyzing sub-units within a larger area. Valid values:
   - `"country"` - Countries within a region
   - `"state"` - States/provinces within a country
@@ -285,7 +285,7 @@ overall_score = (aoi_score + dataset_score + pull_data_score + answer_score) / 4
 
 ### Minimum Required Columns for Functional Tests:
 ```
-query, expected_aoi_id, expected_subregion, expected_dataset_id,
+query, expected_aoi_ids, expected_subregion, expected_dataset_id,
 expected_context_layer, expected_start_date, expected_end_date,
 expected_answer, test_group, status
 ```

@@ -3,7 +3,9 @@ Type definitions for E2E testing framework.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
+
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 @dataclass
@@ -48,10 +50,8 @@ class TestResult:
     actual_answer: Optional[str]
 
     # Expected data fields
-    expected_aoi_id: str = ""
-    expected_aoi_name: str = ""
+    expected_aoi_ids: List[str] = []
     expected_subregion: str = ""
-    expected_aoi_subtype: str = ""
     expected_aoi_source: str = ""
     expected_dataset_id: str = ""
     expected_dataset_name: str = ""
@@ -96,10 +96,8 @@ class TestResult:
             "actual_end_date": self.actual_end_date,
             "answer_score": self.answer_score,
             "actual_answer": self.actual_answer,
-            "expected_aoi_id": self.expected_aoi_id,
-            "expected_aoi_name": self.expected_aoi_name,
+            "expected_aoi_ids": self.expected_aoi_ids,
             "expected_subregion": self.expected_subregion,
-            "expected_aoi_subtype": self.expected_aoi_subtype,
             "expected_aoi_source": self.expected_aoi_source,
             "expected_dataset_id": self.expected_dataset_id,
             "expected_dataset_name": self.expected_dataset_name,
@@ -113,14 +111,14 @@ class TestResult:
         }
 
 
-@dataclass
-class ExpectedData:
+class ExpectedData(BaseModel):
     """Expected test data for evaluation."""
 
-    expected_aoi_id: str = ""
-    expected_aoi_name: str = ""
+    model_config = ConfigDict(extra="allow")
+
+    expected_aoi_ids: List[str] = []
     expected_subregion: str = ""
-    expected_aoi_subtype: str = ""
+    expected_subregion: str = ""
     expected_aoi_source: str = ""
     expected_dataset_id: str = ""
     expected_dataset_name: str = ""
@@ -131,20 +129,16 @@ class ExpectedData:
     test_group: str = "unknown"
     status: str = "ready"
 
+    @field_validator("expected_aoi_ids", mode="before")
+    @classmethod
+    def split_aoi_ids(cls, v: Union[str, List[str]]) -> List[str]:
+        """Split string input into a list of strings."""
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            # Split by comma and strip whitespace, filter out empty strings
+            return [item.strip() for item in v.split(";") if item.strip()]
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
-        return {
-            "expected_aoi_id": self.expected_aoi_id,
-            "expected_aoi_name": self.expected_aoi_name,
-            "expected_subregion": self.expected_subregion,
-            "expected_aoi_subtype": self.expected_aoi_subtype,
-            "expected_aoi_source": self.expected_aoi_source,
-            "expected_dataset_id": self.expected_dataset_id,
-            "expected_dataset_name": self.expected_dataset_name,
-            "expected_context_layer": self.expected_context_layer,
-            "expected_start_date": self.expected_start_date,
-            "expected_end_date": self.expected_end_date,
-            "expected_answer": self.expected_answer,
-            "test_group": self.test_group,
-            "status": self.status,
-        }
+        return self.model_dump(exclude_none=False)
