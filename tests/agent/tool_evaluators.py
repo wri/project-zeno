@@ -47,6 +47,18 @@ def evaluate_aoi_selection(
     Returns:
         Dict with aoi_score (0 or 1), actual_id, actual_name, actual_subtype, actual_source, actual_subregion
     """
+    if not expected_aoi_id:
+        return {
+            "aoi_score": None,
+            "actual_id": None,
+            "actual_name": None,
+            "actual_subtype": None,
+            "actual_source": None,
+            "actual_subregion": None,
+            "match_aoi_id": False,
+            "match_subregion": False,
+        }
+
     aoi = agent_state.get("aoi")
     subregion = agent_state.get("subregion")
 
@@ -68,7 +80,7 @@ def evaluate_aoi_selection(
 
     if not aoi or not expected_aoi_id:
         return {
-            "aoi_score": 0,
+            "aoi_score": None,
             "actual_id": None,
             "actual_name": None,
             "actual_subtype": None,
@@ -141,6 +153,14 @@ def evaluate_dataset_selection(
     Returns:
         Dict with dataset_score (0 or 1), actual_dataset_id, actual_dataset_name, actual_context_layer
     """
+    if not expected_dataset_id:
+        return {
+            "dataset_score": None,
+            "actual_dataset_id": None,
+            "actual_dataset_name": None,
+            "actual_context_layer": None,
+            "error": "Missing dataset data",
+        }
     dataset = agent_state.get("dataset")
 
     # Check if agent asked for clarification instead of selecting a dataset
@@ -408,6 +428,12 @@ def evaluate_final_answer(
     Returns:
         Dict with answer_score (0 or 1), actual_answer
     """
+    if not expected_answer:
+        return {
+            "answer_score": None,
+            "actual_answer": None,
+            "error": "Missing expected answer",
+        }
 
     charts_data = agent_state.get("charts_data", [])
 

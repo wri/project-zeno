@@ -48,7 +48,7 @@ class BaseTestRunner(ABC):
             execution_time=datetime.now().isoformat(),
             test_mode=test_mode,
             # AOI evaluation fields
-            aoi_score=0,
+            aoi_score=None,
             actual_id=None,
             actual_name=None,
             actual_subtype=None,
@@ -57,12 +57,12 @@ class BaseTestRunner(ABC):
             match_aoi_id=False,
             match_subregion=False,
             # Dataset evaluation fields
-            dataset_score=0,
+            dataset_score=None,
             actual_dataset_id=None,
             actual_dataset_name=None,
             actual_context_layer=None,
             # Data pull evaluation fields
-            pull_data_score=0,
+            pull_data_score=None,
             row_count=0,
             min_rows=1,
             data_pull_success=False,
@@ -70,7 +70,7 @@ class BaseTestRunner(ABC):
             actual_start_date=None,
             actual_end_date=None,
             # Answer evaluation fields
-            answer_score=0,
+            answer_score=None,
             actual_answer=None,
             # Expected data
             **expected_data.to_dict(),

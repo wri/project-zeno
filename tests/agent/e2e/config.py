@@ -25,12 +25,15 @@ class TestConfig:
     )
     test_file: str = "experiments/e2e_test_dataset.csv"
     test_group_filter: Optional[str] = None  # Filter by test_group column
+    status_filter: Optional[str] = None  # Filter by status column
     output_filename: Optional[str] = (
         None  # Custom filename (timestamp will be appended)
     )
 
     # Parallel execution configuration
     num_workers: int = 1  # Number of parallel workers for test execution
+    random_seed: int = 42  # Random seed for sampling
+    offset: int = 0  # Offset for sampling
 
     @classmethod
     def from_environment(cls) -> "TestConfig":
@@ -47,6 +50,9 @@ class TestConfig:
             test_group_filter=os.getenv("TEST_GROUP_FILTER"),
             output_filename=os.getenv("OUTPUT_FILENAME"),
             num_workers=int(os.getenv("NUM_WORKERS", "1")),
+            status_filter=os.getenv("STATUS_FILTER", "").split(","),
+            random_seed=int(os.getenv("RANDOM_SEED", "42")),
+            offset=int(os.getenv("OFFSET", "0")),
         )
 
     def validate(self) -> None:
