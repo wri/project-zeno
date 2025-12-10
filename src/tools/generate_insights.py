@@ -156,7 +156,8 @@ For example: "I will begin by loading and examining" -> "Load and examine"
 ### STEP-BY-STEP WORKFLOW (follow in order):
 
 **STEP 1: ANALYZE THE DATA**
-- Load the relevant dataset(s) using pandas
+- Load the relevant dataset(s) using pandas.
+- Always use the pattern `df = pd.read_csv("input_file_{{i}}.csv")` to load the data, do not assign the file name to a variable first.
 - Print which dataset(s) you are using (name and date range)
 - Explore the data structure, columns, and data types
 - Calculate key statistics relevant to the user query
