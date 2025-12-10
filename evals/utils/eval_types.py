@@ -5,7 +5,7 @@ Type definitions for E2E testing framework.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 @dataclass
@@ -50,7 +50,7 @@ class TestResult:
     actual_answer: Optional[str]
 
     # Expected data fields
-    expected_aoi_ids: List[str] = []
+    expected_aoi_ids: List[str] = Field(default_factory=list)
     expected_subregion: str = ""
     expected_aoi_source: str = ""
     expected_dataset_id: str = ""

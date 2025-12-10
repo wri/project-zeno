@@ -3,9 +3,10 @@ Base test runner interface for E2E testing framework.
 """
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Dict
 
-from evals.tool_evaluators import (
+from evals.evaluators import (
     evaluate_aoi_selection,
     evaluate_data_pull,
     evaluate_dataset_selection,
@@ -43,7 +44,6 @@ class BaseTestRunner(ABC):
         test_mode: str,
     ) -> TestResult:
         """Create empty evaluation result for error cases."""
-        from datetime import datetime
 
         return TestResult(
             thread_id=thread_id,
