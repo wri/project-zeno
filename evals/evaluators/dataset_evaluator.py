@@ -2,8 +2,8 @@
 
 from typing import Any, Dict
 
-from .llm_judges import llm_judge_clarification
-from .utils import normalize_value
+from evals.evaluators.llm_judges import llm_judge_clarification
+from evals.evaluators.utils import normalize_value
 
 
 def evaluate_dataset_selection(

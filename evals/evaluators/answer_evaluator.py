@@ -2,7 +2,7 @@
 
 from typing import Any, Dict
 
-from .llm_judges import llm_judge
+from evals.evaluators.llm_judges import llm_judge
 
 
 def evaluate_final_answer(
