@@ -55,7 +55,7 @@ def evaluate_dataset_selection(
             "error": "Missing dataset data",
         }
 
-    actual_dataset_id = dataset.get("dataset_id", "")
+    actual_dataset_id = str(dataset.get("dataset_id", ""))
     actual_dataset_name = dataset.get("dataset_name", "")
     actual_context_layer = dataset.get("context_layer", "")
 

@@ -2,55 +2,55 @@
 Type definitions for E2E testing framework.
 """
 
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
-@dataclass
-class TestResult:
+class TestResult(BaseModel):
     """Result of a single E2E test execution."""
 
+    model_config = ConfigDict(extra="allow")
+
     thread_id: str
-    trace_id: Optional[str]
-    trace_url: Optional[str]
+    trace_id: Optional[str] = None
+    trace_url: Optional[str] = None
     query: str
     overall_score: float
     execution_time: str
     test_mode: str
 
     # AOI evaluation fields
-    aoi_score: float
-    actual_id: Optional[str]
-    actual_name: Optional[str]
-    actual_subtype: Optional[str]
-    actual_source: Optional[str]
-    actual_subregion: Optional[str]
-    match_aoi_id: bool
-    match_subregion: bool
+    aoi_score: Optional[float] = None
+    actual_id: Optional[str] = None
+    actual_name: Optional[str] = None
+    actual_subtype: Optional[str] = None
+    actual_source: Optional[str] = None
+    actual_subregion: Optional[str] = None
+    match_aoi_id: bool = False
+    match_subregion: bool = False
 
     # Dataset evaluation fields
-    dataset_score: float
-    actual_dataset_id: Optional[str]
-    actual_dataset_name: Optional[str]
-    actual_context_layer: Optional[str]
+    dataset_score: Optional[float] = None
+    actual_dataset_id: Optional[str] = None
+    actual_dataset_name: Optional[str] = None
+    actual_context_layer: Optional[str] = None
 
     # Data pull evaluation fields
-    pull_data_score: float
-    row_count: int
-    min_rows: int
-    data_pull_success: bool
-    date_success: bool
-    actual_start_date: Optional[str]
-    actual_end_date: Optional[str]
+    pull_data_score: Optional[float] = None
+    row_count: int = 0
+    min_rows: int = 1
+    data_pull_success: bool = False
+    date_success: bool = False
+    actual_start_date: Optional[str] = None
+    actual_end_date: Optional[str] = None
 
     # Answer evaluation fields
-    answer_score: float
-    actual_answer: Optional[str]
+    answer_score: Optional[float] = None
+    actual_answer: Optional[str] = None
 
     # Expected data fields
-    expected_aoi_ids: List[str] = Field(default_factory=list)
+    expected_aoi_ids: List[str] = []
     expected_subregion: str = ""
     expected_aoi_source: str = ""
     expected_dataset_id: str = ""
@@ -67,48 +67,7 @@ class TestResult:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for CSV export."""
-        return {
-            "thread_id": self.thread_id,
-            "trace_id": self.trace_id,
-            "trace_url": self.trace_url,
-            "query": self.query,
-            "overall_score": self.overall_score,
-            "execution_time": self.execution_time,
-            "test_mode": self.test_mode,
-            "aoi_score": self.aoi_score,
-            "actual_id": self.actual_id,
-            "actual_name": self.actual_name,
-            "actual_subtype": self.actual_subtype,
-            "actual_source": self.actual_source,
-            "actual_subregion": self.actual_subregion,
-            "match_aoi_id": self.match_aoi_id,
-            "match_subregion": self.match_subregion,
-            "dataset_score": self.dataset_score,
-            "actual_dataset_id": self.actual_dataset_id,
-            "actual_dataset_name": self.actual_dataset_name,
-            "actual_context_layer": self.actual_context_layer,
-            "pull_data_score": self.pull_data_score,
-            "row_count": self.row_count,
-            "min_rows": self.min_rows,
-            "data_pull_success": self.data_pull_success,
-            "date_success": self.date_success,
-            "actual_start_date": self.actual_start_date,
-            "actual_end_date": self.actual_end_date,
-            "answer_score": self.answer_score,
-            "actual_answer": self.actual_answer,
-            "expected_aoi_ids": self.expected_aoi_ids,
-            "expected_subregion": self.expected_subregion,
-            "expected_aoi_source": self.expected_aoi_source,
-            "expected_dataset_id": self.expected_dataset_id,
-            "expected_dataset_name": self.expected_dataset_name,
-            "expected_context_layer": self.expected_context_layer,
-            "expected_start_date": self.expected_start_date,
-            "expected_end_date": self.expected_end_date,
-            "expected_answer": self.expected_answer,
-            "test_group": self.test_group,
-            "status": self.status,
-            "error": self.error,
-        }
+        return self.model_dump(exclude_none=False)
 
 
 class ExpectedData(BaseModel):
@@ -117,7 +76,6 @@ class ExpectedData(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     expected_aoi_ids: List[str] = []
-    expected_subregion: str = ""
     expected_subregion: str = ""
     expected_aoi_source: str = ""
     expected_dataset_id: str = ""

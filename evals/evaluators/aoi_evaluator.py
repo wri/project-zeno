@@ -85,12 +85,7 @@ def evaluate_aoi_selection(
             expected_aoi_id.lower() for expected_aoi_id in expected_aoi_ids
         ]
 
-    match_aoi_id = all(
-        [
-            actual_aoi_id in normalized_expected
-            for actual_aoi_id in normalized_actual
-        ]
-    )
+    match_aoi_id = normalized_actual in normalized_expected
 
     # Normalize subregion values for comparison
     expected_subregion_str = normalize_value(expected_subregion)

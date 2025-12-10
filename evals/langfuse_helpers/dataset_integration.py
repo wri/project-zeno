@@ -119,6 +119,10 @@ class LangfuseDatasetHandler:
                 # API mode: Use trace ID to send scores to server-side trace
                 result = await runner.run_test(item.input, expected_data)
 
+                if result is None:
+                    print("⚠️  Failed extracting result from API response")
+                    continue
+
                 # Send evaluation scores to the server-side Langfuse trace
                 if result.trace_id:
                     self.scorer.send_scores_to_trace(
