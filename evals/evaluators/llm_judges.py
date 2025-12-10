@@ -3,7 +3,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
 
-from src.utils.llms import HAIKU
+from evals.utils.models import HAIKU
 
 
 def llm_judge_clarification(agent_state: dict, query: str) -> dict:
