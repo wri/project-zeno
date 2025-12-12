@@ -6,12 +6,11 @@ from typing import List
 
 from langfuse.langchain import CallbackHandler
 
+from evals.langfuse_helpers.scoring import LangfuseScorer
+from evals.runners import APITestRunner, LocalTestRunner
+from evals.utils.config import TestConfig
+from evals.utils.eval_types import ExpectedData, TestResult
 from experiments.eval_utils import get_langfuse, get_run_name
-
-from ..config import TestConfig
-from ..runners import APITestRunner, LocalTestRunner
-from ..types import ExpectedData, TestResult
-from .scoring import LangfuseScorer
 
 
 class LangfuseDatasetHandler:
@@ -65,7 +64,7 @@ class LangfuseDatasetHandler:
 
             # Prepare expected data from dataset item
             expected_data = ExpectedData(
-                expected_aoi_id=item.metadata.get("expected_aoi_id", ""),
+                expected_aoi_ids=item.metadata.get("expected_aoi_ids", ""),
                 expected_aoi_name=item.metadata.get("expected_aoi_name", ""),
                 expected_subregion=item.metadata.get("expected_subregion", ""),
                 expected_aoi_subtype=item.metadata.get(
@@ -119,6 +118,10 @@ class LangfuseDatasetHandler:
             else:
                 # API mode: Use trace ID to send scores to server-side trace
                 result = await runner.run_test(item.input, expected_data)
+
+                if result is None:
+                    print("⚠️  Failed extracting result from API response")
+                    continue
 
                 # Send evaluation scores to the server-side Langfuse trace
                 if result.trace_id:

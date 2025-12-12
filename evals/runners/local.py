@@ -10,8 +10,8 @@ import structlog
 from langfuse import get_client
 from langfuse.langchain import CallbackHandler
 
-from ..types import ExpectedData, TestResult
-from .base import BaseTestRunner
+from evals.runners import BaseTestRunner
+from evals.utils.eval_types import ExpectedData, TestResult
 
 
 class LocalTestRunner(BaseTestRunner):

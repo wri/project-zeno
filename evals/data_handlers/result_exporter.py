@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from typing import List
 
-from ..types import TestResult
+from evals.utils.eval_types import TestResult
 
 
 class ResultExporter:
@@ -77,16 +77,15 @@ class ResultExporter:
             "execution_time",
             "test_mode",
             # AOI: Expected vs Actual
-            "expected_aoi_id",
+            "expected_aoi_ids",
             "actual_id",
             "aoi_score",
             "match_aoi_id",
-            "expected_aoi_name",
             "actual_name",
             "expected_subregion",
             "actual_subregion",
             "match_subregion",
-            "expected_aoi_subtype",
+            "expected_subregion",
             "actual_subtype",
             "expected_aoi_source",
             "actual_source",

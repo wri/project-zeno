@@ -14,7 +14,7 @@ The E2E testing framework evaluates the complete agent workflow by testing four 
 
 When a test case can have multiple valid values for a field (e.g., comparing multiple AOIs, accepting multiple datasets), separate the values with semicolons (;). For example:
 
-- `expected_aoi_id = "IND.21_1;IND.27_1"` - Test passes if either Odisha (21) or Maharashtra (27) is selected
+- `expected_aoi_ids = "IND.21_1;IND.27_1"` - Test passes if either Odisha (21) or Maharashtra (27) is selected
 - `expected_dataset_id = "0;1"` - Test passes if either dataset 0 or 1 is selected
 - `expected_context_layer = "driver;natural_lands"` - Test passes if either driver or natural_lands context layer is selected
 
@@ -31,7 +31,7 @@ The following columns are **required** for the E2E tests to run properly:
   - `"skip"` - Test should be skipped/ignored during execution
 
 #### AOI Selection Evaluation
-- **`expected_aoi_id`** - Expected AOI identifier (e.g., "BRA", "USA.5_1", "IND.26_1"). For queries comparing multiple areas, use semicolons to separate values (e.g., "IND.21_1;IND.27_1" for Odisha and Maharashtra).
+- **`expected_aoi_ids`** - Expected AOI identifier (e.g., "BRA", "USA.5_1", "IND.26_1"). For queries comparing multiple areas, use semicolons to separate values (e.g., "IND.21_1;IND.27_1" for Odisha and Maharashtra).
 - **`expected_subregion`** - Expected subregion filter when user explicitly requests sub-administrative units. Only used when query explicitly mentions comparing or analyzing sub-units within a larger area. Valid values:
   - `"country"` - Countries within a region
   - `"state"` - States/provinces within a country
@@ -187,70 +187,81 @@ This YAML file contains the authoritative dataset definitions including:
 
 ## Running E2E Tests
 
-### Basic Usage
+Simple end-to-end agent test runner with support for both local and API testing.
 
+### Usage Examples
+
+#### CSV-based testing
 ```bash
-# Run single test (default)
-python tests/agent/test_e2e.py
+# Basic run
+python -m evals.core
+
+# API mode
+TEST_MODE=api API_TOKEN=your_token python -m evals.core
 
 # Run specific number of tests
-SAMPLE_SIZE=10 python tests/agent/test_e2e.py
-
-# Run all tests
-SAMPLE_SIZE=-1 python tests/agent/test_e2e.py
-
-# Filter by test group
-TEST_GROUP_FILTER=dataset python tests/agent/test_e2e.py
-TEST_GROUP_FILTER=rel-accuracy SAMPLE_SIZE=5 python tests/agent/test_e2e.py
+SAMPLE_SIZE=5 python -m evals.core
 ```
 
-### Parallel Execution
-
+#### Filter by test group
 ```bash
-# Run 10 tests with 5 parallel workers
-NUM_WORKERS=5 SAMPLE_SIZE=10 python tests/agent/test_e2e.py
-
-# Run all tests with 10 parallel workers
-NUM_WORKERS=10 SAMPLE_SIZE=-1 python tests/agent/test_e2e.py
+TEST_GROUP_FILTER=rel-accuracy python -m evals.core
+TEST_GROUP_FILTER=dataset SAMPLE_SIZE=10 python -m evals.core
 ```
 
-### API Mode Testing
-
+#### Filter by status
 ```bash
-# Test against API endpoint
-TEST_MODE=api API_TOKEN=your_token python tests/agent/test_e2e.py
+# Run only tests with status "ready"
+STATUS_FILTER=ready python -m evals.core
 
-# API mode with parallel execution
-TEST_MODE=api API_TOKEN=your_token NUM_WORKERS=5 SAMPLE_SIZE=20 python tests/agent/test_e2e.py
+# Run tests with status "ready" or "rerun"
+STATUS_FILTER=ready,rerun python -m evals.core
 ```
 
-### Custom Configuration
-
+#### Custom output filename (timestamp always appended)
 ```bash
-# Custom test file
-TEST_FILE=path/to/custom_dataset.csv python tests/agent/test_e2e.py
-
-# Custom output filename
-OUTPUT_FILENAME=my_test_run python tests/agent/test_e2e.py
-
-# Custom API endpoint
-TEST_MODE=api API_BASE_URL=https://api.example.com API_TOKEN=token python tests/agent/test_e2e.py
+OUTPUT_FILENAME=my_test_run python -m evals.core
+OUTPUT_FILENAME=alerts_test TEST_GROUP_FILTER=alerts python -m evals.core
 ```
 
-## Environment Variables
+#### Parallel execution
+```bash
+NUM_WORKERS=10 SAMPLE_SIZE=20 python -m evals.core
+NUM_WORKERS=5 TEST_MODE=api API_TOKEN=your_token python -m evals.core
+```
 
-### Required for API Mode
-- **`API_TOKEN`** - Bearer token for API authentication
+#### Sampling configuration
+```bash
+# Use specific random seed for reproducible sampling
+RANDOM_SEED=123 SAMPLE_SIZE=10 python -m evals.core
 
-### Optional Configuration
+# Start sampling from a specific offset
+OFFSET=5 SAMPLE_SIZE=10 python -m evals.core
+```
+
+#### Langfuse dataset integration
+```bash
+LANGFUSE_DATASET="Your Dataset Name" python -m evals.core
+LANGFUSE_DATASET="Your Dataset Name" TEST_MODE=api API_TOKEN=your_token python -m evals.core
+```
+
+### Environment Variables
+
+#### General Configuration
+- **`LANGFUSE_DATASET`** - Dataset name in Langfuse (enables Langfuse mode)
 - **`TEST_MODE`** - "local" (default) or "api"
-- **`API_BASE_URL`** - API endpoint (default: http://localhost:8000)
-- **`SAMPLE_SIZE`** - Number of tests (default: 1, use -1 for all)
-- **`TEST_FILE`** - CSV file path (default: experiments/e2e_test_dataset.csv)
-- **`TEST_GROUP_FILTER`** - Filter by test_group column
-- **`OUTPUT_FILENAME`** - Custom output filename prefix
-- **`NUM_WORKERS`** - Parallel workers (default: 1)
-- **`LANGFUSE_DATASET`** - Langfuse dataset name (enables Langfuse mode)
+- **`API_BASE_URL`** - API endpoint URL (default: http://localhost:8000)
+- **`API_TOKEN`** - Bearer token for API authentication (required for API mode)
+
+#### CSV Mode Only
+- **`SAMPLE_SIZE`** - Number of test cases to run (default: 1, use -1 for all rows)
+- **`TEST_FILE`** - Path to CSV test file (default: experiments/e2e_test_dataset.csv)
+- **`TEST_GROUP_FILTER`** - Filter tests by test_group column (optional)
+- **`STATUS_FILTER`** - Filter tests by status column, comma-separated (e.g., "ready,rerun"). Default: None (allows all statuses)
+- **`OUTPUT_FILENAME`** - Custom filename for results (timestamp will be appended)
+- **`NUM_WORKERS`** - Number of parallel workers (default: 1, set to 10 for parallel execution)
+- **`RANDOM_SEED`** - Random seed for sampling (default: 42)
+- **`OFFSET`** - Offset for sampling (default: 0)
 
 ## Output Files
 
@@ -285,7 +296,7 @@ overall_score = (aoi_score + dataset_score + pull_data_score + answer_score) / 4
 
 ### Minimum Required Columns for Functional Tests:
 ```
-query, expected_aoi_id, expected_subregion, expected_dataset_id,
+query, expected_aoi_ids, expected_subregion, expected_dataset_id,
 expected_context_layer, expected_start_date, expected_end_date,
 expected_answer, test_group, status
 ```
@@ -391,6 +402,6 @@ For gold standard tests:
 
 1. **Empty Results:** Check that `status` column contains "ready" or "rerun"
 2. **AOI Mismatches:** Verify GADM ID format (e.g., "USA.5_1" not "USA_5_1")
-3. **Date Format Issues:** Use consistent date format ( YYYY-MM-DD)
+3. **Date Format Issues:** Use consistent date format (YYYY-MM-DD)
 4. **API Authentication:** Ensure `API_TOKEN` is set for API mode
 5. **Parallel Execution:** Reduce `NUM_WORKERS` if hitting rate limits

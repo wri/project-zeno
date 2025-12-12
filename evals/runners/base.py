@@ -3,9 +3,16 @@ Base test runner interface for E2E testing framework.
 """
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Dict
 
-from ..types import ExpectedData, TestResult
+from evals.evaluators import (
+    evaluate_aoi_selection,
+    evaluate_data_pull,
+    evaluate_dataset_selection,
+    evaluate_final_answer,
+)
+from evals.utils.eval_types import ExpectedData, TestResult
 
 
 class BaseTestRunner(ABC):
@@ -37,7 +44,6 @@ class BaseTestRunner(ABC):
         test_mode: str,
     ) -> TestResult:
         """Create empty evaluation result for error cases."""
-        from datetime import datetime
 
         return TestResult(
             thread_id=thread_id,
@@ -48,7 +54,7 @@ class BaseTestRunner(ABC):
             execution_time=datetime.now().isoformat(),
             test_mode=test_mode,
             # AOI evaluation fields
-            aoi_score=0,
+            aoi_score=None,
             actual_id=None,
             actual_name=None,
             actual_subtype=None,
@@ -57,12 +63,12 @@ class BaseTestRunner(ABC):
             match_aoi_id=False,
             match_subregion=False,
             # Dataset evaluation fields
-            dataset_score=0,
+            dataset_score=None,
             actual_dataset_id=None,
             actual_dataset_name=None,
             actual_context_layer=None,
             # Data pull evaluation fields
-            pull_data_score=0,
+            pull_data_score=None,
             row_count=0,
             min_rows=1,
             data_pull_success=False,
@@ -70,7 +76,7 @@ class BaseTestRunner(ABC):
             actual_start_date=None,
             actual_end_date=None,
             # Answer evaluation fields
-            answer_score=0,
+            answer_score=None,
             actual_answer=None,
             # Expected data
             **expected_data.to_dict(),
@@ -85,16 +91,10 @@ class BaseTestRunner(ABC):
         query: str = "",
     ) -> Dict[str, Any]:
         """Run all evaluation functions on agent state."""
-        from tests.agent.tool_evaluators import (
-            evaluate_aoi_selection,
-            evaluate_data_pull,
-            evaluate_dataset_selection,
-            evaluate_final_answer,
-        )
 
         aoi_eval = evaluate_aoi_selection(
             agent_state,
-            expected_data.expected_aoi_id,
+            expected_data.expected_aoi_ids,
             expected_data.expected_subregion,
             query,
         )
@@ -126,7 +126,7 @@ class BaseTestRunner(ABC):
     ) -> float:
         """Calculate overall score from individual evaluation scores."""
         scores = []
-        if expected_data.expected_aoi_id:
+        if expected_data.expected_aoi_ids:
             scores.append(evaluations["aoi_score"])
         if expected_data.expected_dataset_id:
             scores.append(evaluations["dataset_score"])

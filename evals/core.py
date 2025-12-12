@@ -1,18 +1,14 @@
-"""
-Core orchestration for E2E testing framework.
-"""
-
 import asyncio
 import time
 from typing import List
 
 import pytest
 
-from .config import get_test_config
-from .data_handlers import CSVLoader, ResultExporter
-from .langfuse import LangfuseDatasetHandler
-from .runners import APITestRunner, LocalTestRunner
-from .types import ExpectedData, TestResult
+from evals.data_handlers import CSVLoader, ResultExporter
+from evals.langfuse_helpers import LangfuseDatasetHandler
+from evals.runners import APITestRunner, LocalTestRunner
+from evals.utils.config import get_test_config
+from evals.utils.eval_types import ExpectedData, TestResult
 
 
 async def run_single_test(
@@ -25,8 +21,9 @@ async def run_single_test(
     )
 
     # Convert test case to ExpectedData (remove query field)
+    test_dict = test_case.model_dump()
     expected_data = ExpectedData(
-        **{k: v for k, v in test_case.__dict__.items() if k != "query"}
+        **{k: v for k, v in test_dict.items() if k != "query"}
     )
     result = await runner.run_test(test_case.query, expected_data)
 
@@ -50,7 +47,12 @@ async def run_csv_tests(config) -> List[TestResult]:
     # Load test data
     loader = CSVLoader()
     test_cases = loader.load_test_data(
-        config.test_file, config.sample_size, config.test_group_filter
+        config.test_file,
+        config.sample_size,
+        config.test_group_filter,
+        config.status_filter,
+        config.random_seed,
+        config.offset,
     )
     print(
         f"Running {len(test_cases)} tests in {config.test_mode} mode with {config.num_workers} workers..."
@@ -124,19 +126,49 @@ def _print_csv_summary(results: List[TestResult], test_mode: str) -> None:
     print(f"Passed (≥0.7): {passed}/{total_tests} ({passed/total_tests:.1%})")
 
     # Tool-specific stats
-    aoi_avg = sum(r.aoi_score for r in results) / total_tests
-    dataset_avg = sum(r.dataset_score for r in results) / total_tests
-    data_avg = sum(r.pull_data_score for r in results) / total_tests
-    answer_avg = sum(r.answer_score for r in results) / total_tests
+    aoi_nones = len([r for r in results if r.aoi_score is None])
+    if total_tests - aoi_nones > 0:
+        aoi_avg = sum(
+            r.aoi_score for r in results if r.aoi_score is not None
+        ) / (total_tests - aoi_nones)
+        aoi_avg = f"{aoi_avg:.2f}"
+    else:
+        aoi_avg = None
+    print(f"AOI Selection: {aoi_avg} ({aoi_nones} None)")
 
-    print(f"AOI Selection: {aoi_avg:.2f}")
-    print(f"Dataset Selection: {dataset_avg:.2f}")
-    print(f"Data Pull: {data_avg:.2f}")
-    print(f"Final Answer: {answer_avg:.2f}")
+    dataset_nones = len([r for r in results if r.dataset_score is None])
+    if total_tests - dataset_nones > 0:
+        dataset_avg = sum(
+            r.dataset_score for r in results if r.dataset_score is not None
+        ) / (total_tests - dataset_nones)
+        dataset_avg = f"{dataset_avg:.2f}"
+    else:
+        dataset_avg = None
+    print(f"Dataset Selection: {dataset_avg} ({dataset_nones} None)")
+
+    data_nones = len([r for r in results if r.pull_data_score is None])
+    if total_tests - data_nones > 0:
+        data_avg = sum(
+            r.pull_data_score for r in results if r.pull_data_score is not None
+        ) / (total_tests - data_nones)
+        data_avg = f"{data_avg:.2f}"
+    else:
+        data_avg = None
+    print(f"Data Pull: {data_avg} ({data_nones} None)")
+
+    answer_nones = len([r for r in results if r.answer_score is None])
+    if total_tests - answer_nones > 0:
+        answer_avg = sum(
+            r.answer_score for r in results if r.answer_score is not None
+        ) / (total_tests - answer_nones)
+        answer_avg = f"{answer_avg:.2f}"
+    else:
+        answer_avg = None
+    print(f"Final Answer: {answer_avg} ({answer_nones} None)")
 
 
 @pytest.mark.asyncio
-async def test_e2e():
+async def run_evals():
     """Main E2E test function supporting both CSV and Langfuse modes."""
     # Get configuration
     config = get_test_config()
@@ -153,4 +185,4 @@ async def test_e2e():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_e2e())
+    asyncio.run(run_evals())

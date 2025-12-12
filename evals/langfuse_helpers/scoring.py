@@ -4,7 +4,7 @@ Langfuse scoring functionality for E2E testing framework.
 
 from langfuse import Langfuse
 
-from ..types import ExpectedData, TestResult
+from evals.utils.eval_types import ExpectedData, TestResult
 
 
 class LangfuseScorer:
@@ -42,7 +42,7 @@ class LangfuseScorer:
                 trace_id=trace_id,
                 name="aoi_selection_score",
                 value=result.aoi_score,
-                comment=f"Expected AOI: {expected_data.expected_aoi_id}, Actual: {result.actual_id or 'None'}",
+                comment=f"Expected AOI: {expected_data.expected_aoi_ids}, Actual: {result.actual_id or 'None'}",
             )
 
             self.langfuse_client.create_score(
@@ -95,7 +95,7 @@ class LangfuseScorer:
             span.score_trace(
                 name="aoi_selection_score",
                 value=result.aoi_score,
-                comment=f"Expected AOI: {expected_data.expected_aoi_id}, Actual: {result.actual_id or 'None'}",
+                comment=f"Expected AOI: {expected_data.expected_aoi_ids}, Actual: {result.actual_id or 'None'}",
             )
 
             span.score_trace(
