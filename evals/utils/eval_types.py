@@ -86,6 +86,7 @@ class ExpectedData(BaseModel):
     expected_answer: str = ""
     test_group: str = "unknown"
     status: str = "ready"
+    thread_id: Optional[str] = None
 
     @field_validator("expected_aoi_ids", mode="before")
     @classmethod

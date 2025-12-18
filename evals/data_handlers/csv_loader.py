@@ -8,6 +8,8 @@ import pandas as pd
 
 from evals.utils.eval_types import ExpectedData
 
+FIELD_EXCLUDE_FROM_EXPECTED_DATA = ["thread_id", "status"]
+
 
 class CSVLoader:
     """Handles loading test data from CSV files."""
@@ -37,10 +39,13 @@ class CSVLoader:
         # Read CSV as strings and clean up
         df = pd.read_csv(csv_file, dtype=str, keep_default_na=False)
 
-        for fields in ExpectedData.model_fields.keys():
-            if fields not in df.columns:
+        for field in ExpectedData.model_fields.keys():
+            if (
+                field not in df.columns
+                and field not in FIELD_EXCLUDE_FROM_EXPECTED_DATA
+            ):
                 raise ValueError(
-                    f"Column {fields} not in CSV file. Please check the CSV file and make sure all required columns are present."
+                    f"Column {field} not in CSV file. Please check the CSV file and make sure all required columns are present."
                 )
 
         # Simple cleanup: replace NaN/null with empty string
@@ -84,8 +89,10 @@ class CSVLoader:
 
         # Sample if requested (-1 means run all rows, 0+ means run that many)
         if sample_size > 0 and sample_size < len(df):
-            df = df.sample(n=sample_size, random_state=42)
-        # sample_size == -1 means run all rows (no sampling)
+            if random_seed:
+                df = df.sample(n=sample_size, random_state=random_seed)
+            else:
+                df = df.iloc[offset : offset + sample_size]
 
         print(f"Final test count after all filters: {len(df)} tests")
 

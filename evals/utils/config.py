@@ -65,12 +65,12 @@ class TestConfig(BaseSettings):
         description="Number of parallel workers for test execution",
     )
     random_seed: int = Field(
-        default=42,
-        description="Random seed for sampling",
+        default=0,
+        description="Random seed for sampling (0 means no random sampling)",
     )
     offset: int = Field(
         default=0,
-        description="Offset for sampling",
+        description="Offset for getting subset. Ignored if random_seed is not 0",
     )
 
     @field_validator("status_filter", mode="before")
