@@ -43,6 +43,8 @@ def prepare_dataframes(raw_data: Dict) -> List[tuple[pd.DataFrame, str]]:
 
     for data_by_aoi in raw_data.values():
         for data in data_by_aoi.values():
+            if not data:
+                continue
             data_copy = data.copy()
             aoi_name = data_copy.pop("aoi_name")
             dataset_name = data_copy.pop("dataset_name")

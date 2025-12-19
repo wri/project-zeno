@@ -472,7 +472,7 @@ class AnalyticsHandler(DataSourceHandler):
             dataset.get("dataset_id") == SLUC_EMISSION_FACTORS_ID
             and aoi["subtype"] not in SLUC_GADM_LEVELS
         ):
-            msg = f"AOI subtype {aoi['subtype']} not supported for SLUC emission factors data"
+            msg = f"Can not pull data for aoi {aoi.get('name', '')}. Subtype {aoi['subtype']} not supported for SLUC emission factors data, it is only available for GADM admin areas."
             return DataPullResult(
                 success=False,
                 data=None,
@@ -546,7 +546,7 @@ class AnalyticsHandler(DataSourceHandler):
                 logger.error(error_msg)
                 return DataPullResult(
                     success=False,
-                    data=[],
+                    data=None,
                     message=error_msg,
                     analytics_api_url=None,
                 )
@@ -557,7 +557,7 @@ class AnalyticsHandler(DataSourceHandler):
                 logger.error(error_msg)
                 return DataPullResult(
                     success=False,
-                    data=[],
+                    data=None,
                     message=error_msg,
                     analytics_api_url=None,
                 )
@@ -575,7 +575,7 @@ class AnalyticsHandler(DataSourceHandler):
                     logger.error(error_msg)
                     return DataPullResult(
                         success=False,
-                        data=[],
+                        data=None,
                         message=error_msg,
                         data_points_count=0,
                         analytics_api_url=None,
@@ -617,7 +617,7 @@ class AnalyticsHandler(DataSourceHandler):
                 logger.error(error_msg)
                 return DataPullResult(
                     success=False,
-                    data=[],
+                    data=None,
                     message=error_msg,
                     analytics_api_url=None,
                 )
@@ -627,7 +627,7 @@ class AnalyticsHandler(DataSourceHandler):
             logger.error(error_msg, exc_info=True)
             return DataPullResult(
                 success=False,
-                data=[],
+                data=None,
                 message=error_msg,
                 analytics_api_url=None,
             )
