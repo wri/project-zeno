@@ -38,6 +38,10 @@ def evaluate_aoi_selection(
     aoi = agent_state.get("aoi")
     subregion = agent_state.get("subregion")
 
+    # If subregions were not selected, use the subregion type from the main aoi
+    if not subregion:
+        subregion = agent_state.get("subtype")
+
     # Check if agent asked for clarification instead of selecting AOI
     if not aoi and query:
         clarification = llm_judge_clarification(agent_state, query)

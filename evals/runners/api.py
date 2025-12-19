@@ -34,7 +34,7 @@ class APITestRunner(BaseTestRunner):
         Returns:
             TestResult with evaluation scores and metadata
         """
-        thread_id = uuid4().hex
+        thread_id = expected_data.thread_id or uuid4().hex
         trace_url = None
 
         try:
@@ -57,27 +57,27 @@ class APITestRunner(BaseTestRunner):
 
             # Use httpx async client for streaming
             async with httpx.AsyncClient(timeout=240.0) as client:
-                # Stream chat responses
-                async with client.stream(
-                    "POST",
-                    f"{self.api_base_url}/api/chat",
-                    json=payload,
-                    headers=headers,
-                ) as response:
-                    response.raise_for_status()
+                if not expected_data.thread_id:
+                    async with client.stream(
+                        "POST",
+                        f"{self.api_base_url}/api/chat",
+                        json=payload,
+                        headers=headers,
+                    ) as response:
+                        response.raise_for_status()
 
-                    async for line in response.aiter_lines():
-                        if line.strip():
-                            stream_data = json.loads(line)
-                            responses.append(stream_data)
+                        async for line in response.aiter_lines():
+                            if line.strip():
+                                stream_data = json.loads(line)
+                                responses.append(stream_data)
 
-                            # Capture trace ID from stream
-                            if stream_data.get("node") == "trace_info":
-                                update_data = json.loads(
-                                    stream_data.get("update", "{}")
-                                )
-                                trace_id = update_data.get("trace_id")
-                                trace_url = update_data.get("trace_url")
+                                # Capture trace ID from stream
+                                if stream_data.get("node") == "trace_info":
+                                    update_data = json.loads(
+                                        stream_data.get("update", "{}")
+                                    )
+                                    trace_id = update_data.get("trace_id")
+                                    trace_url = update_data.get("trace_url")
 
                 # Get final agent state using the state endpoint
                 state_response = await client.get(
@@ -97,6 +97,16 @@ class APITestRunner(BaseTestRunner):
                 evaluations, expected_data
             )
 
+            kwargs = expected_data.to_dict()
+            kwargs.update(evaluations)
+            kwargs.pop("thread_id", None)
+            kwargs.pop("trace_id", None)
+            kwargs.pop("trace_url", None)
+            kwargs.pop("query", None)
+            kwargs.pop("overall_score", None)
+            kwargs.pop("execution_time", None)
+            kwargs.pop("test_mode", None)
+
             return TestResult(
                 thread_id=thread_id,
                 trace_id=trace_id,
@@ -105,8 +115,7 @@ class APITestRunner(BaseTestRunner):
                 overall_score=overall_score,
                 execution_time=datetime.now().isoformat(),
                 test_mode="api",
-                **evaluations,
-                **expected_data.to_dict(),
+                **kwargs,
             )
 
         except Exception as e:

@@ -44,6 +44,15 @@ class BaseTestRunner(ABC):
         test_mode: str,
     ) -> TestResult:
         """Create empty evaluation result for error cases."""
+        kwargs = expected_data.to_dict()
+
+        kwargs.pop("thread_id", None)
+        kwargs.pop("trace_id", None)
+        kwargs.pop("trace_url", None)
+        kwargs.pop("query", None)
+        kwargs.pop("overall_score", None)
+        kwargs.pop("execution_time", None)
+        kwargs.pop("test_mode", None)
 
         return TestResult(
             thread_id=thread_id,
@@ -79,7 +88,7 @@ class BaseTestRunner(ABC):
             answer_score=None,
             actual_answer=None,
             # Expected data
-            **expected_data.to_dict(),
+            **kwargs,
             # Error
             error=error,
         )
