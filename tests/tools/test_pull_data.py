@@ -187,8 +187,11 @@ async def test_pull_data_queries(aoi_data, dataset):
         query = f"find composition of {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
     else:
         query = f"find {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
-    command = await pull_data.ainvoke(
-        {
+    tool_call = {
+        "type": "tool_call",
+        "name": "pull_data",
+        "id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
+        "args": {
             "query": query,
             "start_date": "2024-01-01"
             if dataset["dataset_id"] != 8
@@ -200,8 +203,9 @@ async def test_pull_data_queries(aoi_data, dataset):
             "dataset_name": dataset["dataset_name"],
             "tool_call_id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
             "state": update,
-        }
-    )
+        },
+    }
+    command = await pull_data.ainvoke(tool_call)
 
     msg = command.update.get("messages", [None])[0]
     if msg and msg.content.startswith(
