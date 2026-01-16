@@ -42,6 +42,16 @@ repository at [project-zeno-deploy](https://github.com/wri/project-zeno-deploy)
 The frontend application for this project is a nextjs project
 that can be found at [project-zeno-next](https://github.com/wri/project-zeno-next)
 
+### Evals
+
+We have an evaluation framework we use to do end-to-end testing of the
+agent on the deployed API. The framework can be found in the [gnw-evals](https://github.com/wri/gnw-evals) repository.
+
+### STAC
+
+We have a set of scripts to ingest STAC data into the eoAPI deployment. The ingestion code
+for STAC can be found in the [gnw-stac](https://github.com/wri/gnw-stac) repository.
+
 ## Dependencies
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
@@ -81,7 +91,7 @@ for running the sytem locally.
    uv run python src/ingest/embed_datasets.py
    ```
 
-   As an alternative ,the current production table can also be
+   As an alternative, the current production table can also be
    retrieved from S3 if you have the corresponding access permissions.
 
    ```bash
