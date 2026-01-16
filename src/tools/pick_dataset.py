@@ -32,6 +32,7 @@ retriever_cache = None
 
 
 async def _get_retriever():
+    global retriever_cache
     if retriever_cache is None:
         logger.debug("Loading retriever for the first time...")
         embeddings = GoogleGenerativeAIEmbeddings(
@@ -41,10 +42,10 @@ async def _get_retriever():
             data_dir / APISettings.dataset_embeddings_db,
             embedding=embeddings,
         )
-        _retriever_cache = index.as_retriever(
+        retriever_cache = index.as_retriever(
             search_type="similarity", search_kwargs={"k": 3}
         )
-    return _retriever_cache
+    return retriever_cache
 
 
 async def rag_candidate_datasets(query: str, k=3):
