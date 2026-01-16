@@ -10,6 +10,11 @@ from src.api.schemas import UserModel
 from src.tools.pull_data import pull_data
 from tests.conftest import async_session_maker
 
+# Use module-scoped event loop for all async tests in this module
+# This prevents the "Event loop is closed" error when Google's gRPC clients
+# cache their event loop reference across parameterized tests
+pytestmark = pytest.mark.asyncio(loop_scope="module")
+
 # All dataset and intersection combinations from OpenAPI spec
 # https://analytics.globalnaturewatch.org/openapi.json
 # as of 2025-08-06
@@ -155,7 +160,12 @@ def test_db_session():
     pass
 
 
-@pytest.mark.asyncio
+@pytest.fixture(scope="function", autouse=True)
+def test_db_pool():
+    """Override the global test_db_pool fixture to avoid database pool operations."""
+    pass
+
+
 @pytest.mark.parametrize("aoi_data", TEST_AOIS)
 @pytest.mark.parametrize("dataset", ALL_DATASET_COMBINATIONS)
 async def test_pull_data_queries(aoi_data, dataset):
@@ -241,7 +251,6 @@ async def whitelist_test_user():
         await session.commit()
 
 
-@pytest.mark.asyncio
 async def test_pull_data_custom_area(auth_override, client, structlog_context):
     # Whitelist the test user to bypass signup restrictions
     await whitelist_test_user()

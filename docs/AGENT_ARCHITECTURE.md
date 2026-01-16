@@ -146,7 +146,7 @@ The agent has access to 5 specialized tools that execute sequentially:
 
 #### 3.2 `pick_dataset` - Dataset Selection via RAG
 - **Purpose**: Selects the most relevant environmental dataset for user queries
-- **Method**: Retrieval-Augmented Generation (RAG) with OpenAI embeddings
+- **Method**: Retrieval-Augmented Generation (RAG) with Gemini embeddings
 - **Process**:
   1. Vector similarity search against dataset documentation
   2. LLM evaluation of candidate datasets
@@ -221,7 +221,7 @@ UI Selection → Agent Acknowledgment → Missing Component Tools → generate_i
 ## External APIs
 - **GFW Analytics API**: Primary data source for environmental datasets
 - **PostGIS Database**: Geometry storage and spatial queries
-- **OpenAI Embeddings**: RAG-based dataset selection
+- **Gemini Embeddings**: RAG-based dataset selection
 - **LLM APIs**: Multiple model support (Gemini, Claude, GPT-4)
 
 ## Extensibility

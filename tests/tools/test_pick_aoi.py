@@ -8,6 +8,11 @@ from src.api.data_models import WhitelistedUserOrm
 from src.tools.pick_aoi import pick_aoi
 from tests.conftest import async_session_maker
 
+# Use module-scoped event loop for all async tests in this module
+# This prevents the "Event loop is closed" error when Google's gRPC clients
+# cache their event loop reference across parameterized tests
+pytestmark = pytest.mark.asyncio(loop_scope="module")
+
 
 async def whitelist_test_user():
     """Add the test user email to the whitelist to bypass signup restrictions."""
@@ -29,7 +34,6 @@ async def whitelist_test_user():
         await session.commit()
 
 
-@pytest.mark.asyncio
 async def test_query_aoi_multiple_matches(structlog_context):
     command = await pick_aoi.ainvoke(
         {
@@ -74,7 +78,6 @@ async def test_query_aoi_multiple_matches(structlog_context):
         ),
     ],
 )
-@pytest.mark.asyncio
 async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
     command = await pick_aoi.ainvoke(
         {
@@ -87,7 +90,6 @@ async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
     assert command.update.get("aoi", {}).get("src_id") == expected_aoi_id
 
 
-@pytest.mark.asyncio
 async def test_custom_area_selection(auth_override, client, structlog_context):
     # Whitelist the test user to bypass signup restrictions
     await whitelist_test_user()

@@ -1,8 +1,14 @@
+import sys
 import uuid
 
 import pytest
 
 from src.agents.agents import fetch_zeno_anonymous
+
+# Use module-scoped event loop for all async tests in this module
+# This prevents the "Event loop is closed" error when Google's gRPC clients
+# cache their event loop reference across parameterized tests
+pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
 # Override database fixtures to avoid database connections for these unit tests
@@ -19,6 +25,12 @@ def test_db_session():
 
 
 @pytest.fixture(scope="function", autouse=True)
+def test_db_pool():
+    """Override the global test_db_pool fixture to avoid database pool operations."""
+    pass
+
+
+@pytest.fixture(scope="function", autouse=True)
 def user():
     """Override the global user fixture to avoid database connections."""
     pass
@@ -28,6 +40,18 @@ def user():
 def user_ds():
     """Override the global user_ds fixture to avoid database connections."""
     pass
+
+
+@pytest.fixture(scope="module", autouse=True)
+def reset_google_clients():
+    """Reset cached Google clients at module start to use the correct event loop."""
+    pd_module = sys.modules["src.tools.pick_dataset"]
+    llms_module = sys.modules["src.utils.llms"]
+
+    pd_module.retriever_cache = None
+    llms_module.SMALL_MODEL = llms_module.get_small_model()
+    yield
+    pd_module.retriever_cache = None
 
 
 def has_raw_data(tool_steps: list[dict]) -> bool:
@@ -130,7 +154,6 @@ async def run_agent(query: str, thread_id: str | None = None):
         ("trend of tree cover by driver", 2020),
     ],
 )
-@pytest.mark.asyncio
 async def test_full_agent_for_datasets(
     structlog_context, dataset_name, dataset_year
 ):
@@ -147,7 +170,6 @@ async def test_full_agent_for_datasets(
     assert has_insights(tool_steps), "No insights found"
 
 
-@pytest.mark.asyncio
 async def test_agent_for_disturbance_alerts_in_brazil(structlog_context):
     # query = "Tell me what is happening with ecosystem conversion in Para, Brazil in the last 8 months"
     # query = "land cover change in philipines in the past 5 years"
@@ -167,7 +189,6 @@ async def test_agent_for_disturbance_alerts_in_brazil(structlog_context):
     assert has_raw_data(tool_steps)
 
 
-@pytest.mark.asyncio
 async def test_agent_disturbance_alerts_with_comparison(structlog_context):
     query = "Compare dist alerts in Para and Mato Grosso, Brazil in the last 8 months."
 
@@ -180,7 +201,6 @@ async def test_agent_disturbance_alerts_with_comparison(structlog_context):
     assert has_raw_data(tool_steps)
 
 
-@pytest.mark.asyncio
 async def test_agent_disturbance_alerts_with_comparison_and_subregion(
     structlog_context,
 ):
@@ -195,7 +215,6 @@ async def test_agent_disturbance_alerts_with_comparison_and_subregion(
     assert has_raw_data(tool_steps)
 
 
-@pytest.mark.asyncio
 async def test_agent_tc_gain_date_range_adjustment(structlog_context):
     query = "Analyze tree cover gain from 2015 to 2020 in Sweden."
 
@@ -210,7 +229,6 @@ async def test_agent_tc_gain_date_range_adjustment(structlog_context):
     assert has_insights(tool_steps), "No insights found"
 
 
-@pytest.mark.asyncio
 async def test_agent_tc_gain_date_range_clarification(structlog_context):
     query = "Analyze tree cover gain in 1990 in Sweden."
 
@@ -223,7 +241,6 @@ async def test_agent_tc_gain_date_range_clarification(structlog_context):
     assert not has_raw_data(tool_steps)
 
 
-@pytest.mark.asyncio
 async def test_agent_for_global_data_requests(structlog_context):
     query = "What are the top 3 places in Africa in 2020 with the most tree cover loss?"
     steps = await run_agent(query)
@@ -235,7 +252,6 @@ async def test_agent_for_global_data_requests(structlog_context):
     assert not tool_steps
 
 
-@pytest.mark.asyncio
 async def test_agent_for_commodities_dataset(structlog_context):
     query = "Show data for emission factors for Arabica Coffee in Parana, Brazil from 2020 to 2024"
     steps = await run_agent(query)
