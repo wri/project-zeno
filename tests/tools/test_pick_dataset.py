@@ -200,15 +200,21 @@ async def test_queries_return_expected_dataset(
     test_query_with_expected_dataset,
 ):
     query, expected_dataset = test_query_with_expected_dataset
+    tool_call_id = str(uuid.uuid4())
 
-    command = await pick_dataset.ainvoke(
-        {
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
             "query": query,
             "start_date": "2024-01-01",
             "end_date": "2024-12-31",
-            "tool_call_id": str(uuid.uuid4()),
-        }
-    )
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
 
     dataset_id = command.update.get("dataset", {}).get("dataset_id")
     assert dataset_id == lookup[expected_dataset]
@@ -230,14 +236,21 @@ async def test_queries_return_expected_dataset(
 async def test_query_with_context_layer(
     query, expected_dataset_id, expected_context_layer
 ):
-    command = await pick_dataset.ainvoke(
-        {
+    tool_call_id = str(uuid.uuid4())
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
             "query": query,
             "start_date": "2022-01-01",
             "end_date": "2022-12-31",
-            "tool_call_id": str(uuid.uuid4()),
-        }
-    )
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
 
     dataset_id = command.update.get("dataset", {}).get("dataset_id")
     assert dataset_id == expected_dataset_id
@@ -263,14 +276,21 @@ async def test_tile_url_contains_date(dataset):
     year = "2020"
     if dataset == TREE_COVER:
         year = "2000"
-    command = await pick_dataset.ainvoke(
-        {
+    tool_call_id = str(uuid.uuid4())
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
             "query": f"Find me {dataset} data for {year}",
             "start_date": f"{year}-01-01",
             "end_date": f"{year}-12-31",
-            "tool_call_id": str(uuid.uuid4()),
-        }
-    )
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
 
     tile_url = command.update.get("dataset", {}).get("tile_url")
     if dataset not in [NATURAL_LANDS, TREE_COVER_GAIN, CARBON_FLUX]:
