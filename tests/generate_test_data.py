@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.utils.config import APISettings
+
 
 def create_test_csv():
     """Create a minimal zeno_data_clean.csv for testing."""
@@ -91,52 +93,6 @@ def create_mock_vector_index(index_path: Path):
     print(f"✅ Created mock vector index at {index_path}")
 
 
-def create_mock_colbert_index(index_path: Path):
-    """Create a minimal mock ColBERT index structure."""
-    if index_path.exists():
-        if index_path.is_file():
-            print(f"⏭️  Skipping {index_path} - file already exists")
-            return
-        elif index_path.is_dir() and any(index_path.iterdir()):
-            print(
-                f"⏭️  Skipping {index_path} - directory exists and is not empty"
-            )
-            return
-
-    index_path.mkdir(parents=True, exist_ok=True)
-
-    # ColBERT expects specific files - create minimal versions
-    files_to_create = [
-        "0.codes.pt",
-        "0.metadata.json",
-        "0.residuals.pt",
-        "avg_residual.pt",
-        "buckets.pt",
-        "centroids.pt",
-        "doclens.0.json",
-        "documents_ids_to_plaid_ids.sqlite",
-        "ivf.pid.pt",
-        "metadata.json",
-        "plaid_ids_to_documents_ids.sqlite",
-        "plan.json",
-    ]
-
-    for filename in files_to_create:
-        filepath = index_path / filename
-        if filename.endswith(".json"):
-            # Create minimal JSON files
-            with open(filepath, "w") as f:
-                json.dump({"test": True, "mock": True}, f)
-        elif filename.endswith(".sqlite"):
-            # Create empty sqlite files (just touch them)
-            filepath.touch()
-        else:
-            # Create empty files for other types
-            filepath.touch()
-
-    print(f"✅ Created mock ColBERT index at {index_path}")
-
-
 def main():
     """Generate all required test data files."""
     print("Generating test data files for CI/testing environment...")
@@ -157,17 +113,12 @@ def main():
 
     # 2. Create mock vector indices
     print("Creating mock vector indices...")
-    create_mock_vector_index(data_dir / "zeno-docs-openai-index-v3")
-
-    # 3. Create mock ColBERT index
-    print("Creating mock ColBERT index...")
-    create_mock_colbert_index(data_dir / "colbert-index" / "dataset")
+    create_mock_vector_index(data_dir / APISettings.dataset_embeddings_db)
 
     print("✅ Test data generation complete!")
     print("\nChecked/created files:")
     print(f"  📄 {csv_path}")
-    print(f"  📁 {data_dir / 'zeno-docs-openai-index'}")
-    print(f"  📁 {data_dir / 'colbert-index' / 'dataset'}")
+    print(f"  📁 {data_dir / APISettings.dataset_embeddings_db}")
     print("\nNote: Existing files were preserved and not overwritten.")
 
 

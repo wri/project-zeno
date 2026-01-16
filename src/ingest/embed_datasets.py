@@ -6,7 +6,7 @@ from pathlib import Path
 
 from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_openai import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 from src.tools.data_handlers.analytics_handler import DATASETS
 from src.utils.config import APISettings
@@ -14,9 +14,10 @@ from src.utils.env_loader import load_environment_variables
 
 load_environment_variables()
 
-openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-
-openai_index = InMemoryVectorStore(openai_embeddings)
+embeddings = GoogleGenerativeAIEmbeddings(
+    model=APISettings.dataset_embeddings_model
+)
+index = InMemoryVectorStore(embeddings)
 
 data_dir = Path("data").absolute()
 
@@ -46,6 +47,6 @@ for ds in DATASETS:
         )
     )
 
-openai_index.add_documents(documents=analytics_docs)
+index.add_documents(documents=analytics_docs)
 
-openai_index.dump(data_dir / APISettings.dataset_embeddings_db)
+index.dump(data_dir / APISettings.dataset_embeddings_db)

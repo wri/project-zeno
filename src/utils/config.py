@@ -46,8 +46,12 @@ class _APISettings(BaseSettings):
 
     # Dataset embeddings database
     dataset_embeddings_db: str = Field(
-        default="zeno-docs-openai-index-v4",
+        default="gnw-dataset-index-gemini-v1",
         alias="DATASET_EMBEDDINGS_DB",
+    )
+    dataset_embeddings_model: str = Field(
+        default="models/gemini-embedding-001",
+        alias="DATASET_EMBEDDINGS_MODEL",
     )
 
     @property
