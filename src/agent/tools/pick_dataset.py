@@ -12,6 +12,7 @@ from langchain_openai import OpenAIEmbeddings
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
+from src.agent.llms import SMALL_MODEL
 from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
     GRASSLANDS_ID,
@@ -20,9 +21,8 @@ from src.agent.tools.data_handlers.analytics_handler import (
     TREE_COVER_LOSS_ID,
 )
 from src.agent.tools.datasets_config import DATASETS
-from src.utils.config import APISettings
-from src.utils.llms import SMALL_MODEL
-from src.utils.logging_config import get_logger
+from src.shared.config import SharedSettings
+from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -36,7 +36,7 @@ async def _get_openai_retriever():
         logger.debug("Loading OpenAI retriever for the first time...")
         openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
         openai_index = InMemoryVectorStore.load(
-            data_dir / APISettings.dataset_embeddings_db,
+            data_dir / SharedSettings.dataset_embeddings_db,
             embedding=openai_embeddings,
         )
         _retriever_cache["openai"] = openai_index.as_retriever(
@@ -254,7 +254,7 @@ async def pick_dataset(
 
     if not selection_result.tile_url.startswith("http"):
         selection_result.tile_url = (
-            APISettings.eoapi_base_url + selection_result.tile_url
+            SharedSettings.eoapi_base_url + selection_result.tile_url
         )
 
     if selection_result.dataset_id == DIST_ALERT_ID:

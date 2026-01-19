@@ -17,8 +17,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from src.utils.config import APISettings
-from src.utils.logging_config import get_logger
+from src.shared.config import SharedSettings
+from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -44,19 +44,19 @@ async def initialize_global_pool(database_url: Optional[str] = None) -> None:
             logger.warning("Global database pool already initialized")
             return
 
-        db_url = database_url or APISettings.database_url
+        db_url = database_url or SharedSettings.database_url
 
         # Create engine with optimized pool settings for combined workload
         # (API requests + tool operations)
         _global_engine = create_async_engine(
             db_url,
             # Large pool to handle API + tools concurrently
-            pool_size=APISettings.db_pool_size,
-            max_overflow=APISettings.db_max_overflow,
+            pool_size=SharedSettings.db_pool_size,
+            max_overflow=SharedSettings.db_max_overflow,
             # Connection health and lifecycle management
             pool_pre_ping=True,  # Validate connections before use
-            pool_recycle=APISettings.db_pool_recycle,  # Prevent stale connections
-            pool_timeout=APISettings.db_pool_timeout,  # Max wait time for connection
+            pool_recycle=SharedSettings.db_pool_recycle,  # Prevent stale connections
+            pool_timeout=SharedSettings.db_pool_timeout,  # Max wait time for connection
             # Logging and debugging
             echo=False,  # Set to True for SQL debugging
         )
@@ -68,10 +68,10 @@ async def initialize_global_pool(database_url: Optional[str] = None) -> None:
 
         logger.info(
             "Global database pool initialized",
-            pool_size=APISettings.db_pool_size,
-            max_overflow=APISettings.db_max_overflow,
-            total_connections=APISettings.db_pool_size
-            + APISettings.db_max_overflow,
+            pool_size=SharedSettings.db_pool_size,
+            max_overflow=SharedSettings.db_max_overflow,
+            total_connections=SharedSettings.db_pool_size
+            + SharedSettings.db_max_overflow,
         )
 
 

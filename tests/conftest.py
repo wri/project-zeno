@@ -16,7 +16,7 @@ from sqlalchemy.orm import sessionmaker
 from src.api.app import app, fetch_user_from_rw_api
 from src.api.data_models import Base, ThreadOrm, UserOrm, UserType
 from src.api.schemas import UserModel
-from src.utils.database import (
+from src.shared.database import (
     close_global_pool,
     get_session_from_pool_dependency,
     initialize_global_pool,

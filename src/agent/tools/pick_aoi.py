@@ -12,8 +12,9 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
-from src.utils.database import get_connection_from_pool
-from src.utils.geocoding_helpers import (
+from src.agent.llms import MODEL, SMALL_MODEL
+from src.shared.database import get_connection_from_pool
+from src.shared.geocoding_helpers import (
     CUSTOM_AREA_TABLE,
     GADM_TABLE,
     KBA_TABLE,
@@ -22,8 +23,7 @@ from src.utils.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     WDPA_TABLE,
 )
-from src.utils.llms import MODEL, SMALL_MODEL
-from src.utils.logging_config import get_logger
+from src.shared.logging_config import get_logger
 
 RESULT_LIMIT = 10
 

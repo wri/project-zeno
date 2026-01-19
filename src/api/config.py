@@ -6,15 +6,11 @@ load_dotenv()
 
 
 class _APISettings(BaseSettings):
+    """API-specific settings for quotas, authentication, and access control."""
+
     domains_allowlist_str: str = Field(default="", alias="DOMAINS_ALLOWLIST")
-    database_url: str
 
-    # Database connection pool settings
-    db_pool_size: int = Field(default=5, alias="DB_POOL_SIZE")
-    db_max_overflow: int = Field(default=30, alias="DB_MAX_OVERFLOW")
-    db_pool_timeout: int = Field(default=30, alias="DB_POOL_TIMEOUT")
-    db_pool_recycle: int = Field(default=3600, alias="DB_POOL_RECYCLE")
-
+    # Quota settings
     daily_quota_warning_threshold: int = 5
     admin_user_daily_quota: int = 100
     regular_user_daily_quota: int = 25
@@ -24,6 +20,7 @@ class _APISettings(BaseSettings):
     ip_address_daily_quota: int = 50
     enable_quota_checking: bool = True
 
+    # Authentication and access control
     nextjs_api_key: str = Field(..., alias="NEXTJS_API_KEY")
     max_user_signups: int = Field(default=-1, alias="MAX_USER_SIGNUPS")
     allow_public_signups: bool = Field(
@@ -31,21 +28,6 @@ class _APISettings(BaseSettings):
     )
     allow_anonymous_chat: bool = Field(
         default=False, alias="ALLOW_ANONYMOUS_CHAT"
-    )
-
-    # Model configuration
-    model: str = Field(default="sonnet", alias="MODEL")
-    small_model: str = Field(default="haiku", alias="SMALL_MODEL")
-
-    eoapi_base_url: str = Field(
-        default="https://eoapi.staging.globalnaturewatch.org",
-        alias="EOAPI_BASE_URL",
-    )
-
-    # Dataset embeddings database
-    dataset_embeddings_db: str = Field(
-        default="zeno-docs-openai-index-v4",
-        alias="DATASET_EMBEDDINGS_DB",
     )
 
     @property

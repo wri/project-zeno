@@ -9,6 +9,7 @@ from langgraph.prebuilt import create_react_agent
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
+from src.agent.llms import MODEL
 from src.agent.prompts import WORDING_INSTRUCTIONS
 from src.agent.state import AgentState
 from src.agent.tools import (
@@ -18,8 +19,7 @@ from src.agent.tools import (
     pick_dataset,
     pull_data,
 )
-from src.utils.config import APISettings
-from src.utils.llms import MODEL
+from src.shared.config import SharedSettings
 
 
 def get_prompt(user: Optional[dict] = None) -> str:
@@ -137,8 +137,9 @@ async def get_checkpointer_pool() -> AsyncConnectionPool:
     if _checkpointer_pool is None:
         _checkpointer_pool = AsyncConnectionPool(
             DATABASE_URL,
-            min_size=APISettings.db_pool_size,
-            max_size=APISettings.db_max_overflow + APISettings.db_pool_size,
+            min_size=SharedSettings.db_pool_size,
+            max_size=SharedSettings.db_max_overflow
+            + SharedSettings.db_pool_size,
             kwargs={
                 "row_factory": dict_row,
                 "autocommit": True,

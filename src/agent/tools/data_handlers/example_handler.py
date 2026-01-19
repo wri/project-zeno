@@ -10,7 +10,7 @@ from src.agent.tools.data_handlers.base import (
     DataPullResult,
     DataSourceHandler,
 )
-from src.utils.logging_config import get_logger
+from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 

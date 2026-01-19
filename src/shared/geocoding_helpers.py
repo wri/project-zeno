@@ -6,7 +6,7 @@ import structlog
 from sqlalchemy import select, text
 
 from src.api.data_models import CustomAreaOrm
-from src.utils.database import get_session_from_pool
+from src.shared.database import get_session_from_pool
 
 GADM_TABLE = "geometries_gadm"
 KBA_TABLE = "geometries_kba"

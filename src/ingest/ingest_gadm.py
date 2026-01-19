@@ -13,7 +13,7 @@ from src.ingest.utils import (
     create_id_index_if_not_exists,
     create_text_search_index_if_not_exists,
 )
-from src.utils.geocoding_helpers import GADM_LEVELS, SOURCE_ID_MAPPING
+from src.shared.geocoding_helpers import GADM_LEVELS, SOURCE_ID_MAPPING
 
 load_dotenv()
 

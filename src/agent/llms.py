@@ -3,7 +3,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 
-from src.utils.config import APISettings
+from src.agent.config import AgentSettings
 
 load_dotenv()
 
@@ -58,7 +58,7 @@ AVAILABLE_MODELS = list(MODEL_REGISTRY.keys())
 
 def get_model():
     """Get the configured model from environment or default to sonnet."""
-    model_name = APISettings.model.lower()
+    model_name = AgentSettings.model.lower()
     if model_name not in MODEL_REGISTRY:
         raise ValueError(
             f"Unknown model: {model_name}. Available models: {AVAILABLE_MODELS}"
@@ -68,7 +68,7 @@ def get_model():
 
 def get_small_model():
     """Get the configured small model from environment or default to haiku."""
-    model_name = APISettings.small_model.lower()
+    model_name = AgentSettings.small_model.lower()
     if model_name not in MODEL_REGISTRY:
         raise ValueError(
             f"Unknown small model: {model_name}. Available models: {AVAILABLE_MODELS}"

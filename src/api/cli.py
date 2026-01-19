@@ -37,14 +37,14 @@ from src.api.data_models import (
     UserType,
     WhitelistedUserOrm,
 )
-from src.utils.config import APISettings
+from src.shared.config import SharedSettings
 
 
 class DatabaseManager:
     """Handles database connections and operations"""
 
     def __init__(self):
-        self.engine = create_async_engine(APISettings.database_url)
+        self.engine = create_async_engine(SharedSettings.database_url)
         self.async_session = sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False
         )

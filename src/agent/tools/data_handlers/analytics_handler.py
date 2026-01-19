@@ -4,18 +4,18 @@ from typing import Any, Dict, List
 import httpx
 from pydantic import BaseModel
 
+from src.agent.llms import SMALL_MODEL
 from src.agent.tools.data_handlers.base import (
     DataPullResult,
     DataSourceHandler,
 )
 from src.agent.tools.datasets_config import DATASETS
-from src.utils.geocoding_helpers import (
+from src.shared.geocoding_helpers import (
     SUBREGION_TO_AOI_TYPE_MAPPING,
     format_id,
     get_geometry_data,
 )
-from src.utils.llms import SMALL_MODEL
-from src.utils.logging_config import get_logger
+from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 

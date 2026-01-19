@@ -42,7 +42,9 @@ from src.agent.graph import (
     fetch_zeno_anonymous,
     get_checkpointer_pool,
 )
+from src.agent.llms import SMALL_MODEL, get_model, get_small_model
 from src.api.auth import MACHINE_USER_PREFIX, validate_machine_user_token
+from src.api.config import APISettings
 from src.api.data_models import (
     CustomAreaOrm,
     DailyUsageOrm,
@@ -71,20 +73,18 @@ from src.api.schemas import (
     UserWithQuotaModel,
 )
 from src.api.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
-from src.utils.config import APISettings
-from src.utils.database import (
+from src.shared.database import (
     close_global_pool,
     get_session_from_pool_dependency,
     initialize_global_pool,
 )
-from src.utils.geocoding_helpers import (
+from src.shared.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
     get_geometry_data,
 )
-from src.utils.llms import SMALL_MODEL, get_model, get_small_model
-from src.utils.logging_config import bind_request_logging_context, get_logger
+from src.shared.logging_config import bind_request_logging_context, get_logger
 
 load_dotenv()
 
