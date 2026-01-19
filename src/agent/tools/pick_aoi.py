@@ -2,6 +2,7 @@ from typing import Annotated, Dict, Literal, Optional
 
 import pandas as pd
 import structlog
+from dotenv import load_dotenv
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -12,7 +13,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from src.utils.database import get_connection_from_pool
-from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
     CUSTOM_AREA_TABLE,
     GADM_TABLE,
@@ -27,8 +27,7 @@ from src.utils.logging_config import get_logger
 
 RESULT_LIMIT = 10
 
-
-load_environment_variables()
+load_dotenv()
 logger = get_logger(__name__)
 
 

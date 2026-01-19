@@ -11,6 +11,7 @@ import cachetools
 import httpx
 import pandas as pd
 import structlog
+from dotenv import load_dotenv
 from fastapi import (
     Depends,
     FastAPI,
@@ -76,7 +77,6 @@ from src.utils.database import (
     get_session_from_pool_dependency,
     initialize_global_pool,
 )
-from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
     SOURCE_ID_MAPPING,
@@ -86,8 +86,7 @@ from src.utils.geocoding_helpers import (
 from src.utils.llms import SMALL_MODEL, get_model, get_small_model
 from src.utils.logging_config import bind_request_logging_context, get_logger
 
-# Load environment variables using shared utility
-load_environment_variables()
+load_dotenv()
 
 logger = get_logger(__name__)
 

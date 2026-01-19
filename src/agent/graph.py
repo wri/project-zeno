@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
+from dotenv import load_dotenv
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
@@ -18,7 +19,6 @@ from src.agent.tools import (
     pull_data,
 )
 from src.utils.config import APISettings
-from src.utils.env_loader import load_environment_variables
 from src.utils.llms import MODEL
 
 
@@ -114,8 +114,7 @@ tools = [
     generate_insights,
 ]
 
-# Load environment variables before using them
-load_environment_variables()
+load_dotenv()
 
 
 DATABASE_URL = os.environ["DATABASE_URL"].replace(

@@ -4,15 +4,15 @@ https://onewri.sharepoint.com/:x:/s/LandandCarbonWatch/ESllWse7dmFAnobmcA4IMXABb
 
 from pathlib import Path
 
+from dotenv import load_dotenv
 from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_openai import OpenAIEmbeddings
 
 from src.agent.tools.data_handlers.analytics_handler import DATASETS
 from src.utils.config import APISettings
-from src.utils.env_loader import load_environment_variables
 
-load_environment_variables()
+load_dotenv()
 
 openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
 

@@ -1,10 +1,8 @@
+from dotenv import load_dotenv
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
-from src.utils.env_loader import load_environment_variables
-
-# Load environment variables first
-load_environment_variables()
+load_dotenv()
 
 
 class _APISettings(BaseSettings):

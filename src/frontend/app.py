@@ -2,11 +2,9 @@ import os
 
 import requests
 import streamlit as st
+from dotenv import load_dotenv
 
-# Load environment variables using shared utility
-from src.utils.env_loader import load_environment_variables
-
-load_environment_variables()
+load_dotenv()
 st.set_page_config(page_title="Zeno", page_icon="🦣")
 
 # API_BASE_URL = os.environ["API_BASE_URL"]

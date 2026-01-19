@@ -5,14 +5,14 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
+from dotenv import load_dotenv
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.prebuilt import create_react_agent
 
 from src.agent.state import AgentState
-from src.utils.env_loader import load_environment_variables
 from src.utils.llms import SONNET
 
-load_environment_variables()
+load_dotenv()
 
 
 def get_run_name():

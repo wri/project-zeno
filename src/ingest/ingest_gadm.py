@@ -5,6 +5,7 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 import requests
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
 from src.ingest.utils import (
@@ -12,10 +13,9 @@ from src.ingest.utils import (
     create_id_index_if_not_exists,
     create_text_search_index_if_not_exists,
 )
-from src.utils.env_loader import load_environment_variables
 from src.utils.geocoding_helpers import GADM_LEVELS, SOURCE_ID_MAPPING
 
-load_environment_variables()
+load_dotenv()
 
 
 GADM_ZIP_URL = "https://geodata.ucdavis.edu/gadm/gadm4.1/gadm_410-levels.zip"
