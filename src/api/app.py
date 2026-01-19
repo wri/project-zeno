@@ -69,7 +69,7 @@ from src.api.schemas import (
     UserProfileUpdateRequest,
     UserWithQuotaModel,
 )
-from src.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
+from src.api.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
 from src.utils.config import APISettings
 from src.utils.database import (
     close_global_pool,
