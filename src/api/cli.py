@@ -7,15 +7,15 @@ Machine users are special user accounts designed for programmatic access to the 
 API keys use the format: zeno-key:prefix:secret
 
 Usage:
-    python src/cli.py create-machine-user --name "Load Testing Bot" --email "load@test.com" --description "For load testing"
-    python src/cli.py create-machine-user --name "API Bot" --email "api@test.com" --create-key --key-name "prod-key"
-    python src/cli.py create-api-key --user-id "user_123" --key-name "test-key" --expires-days 90
-    python src/cli.py list-machine-users
-    python src/cli.py list-api-keys --user-id "user_123"
-    python src/cli.py rotate-key --key-id "key_456"
-    python src/cli.py revoke-key --key-id "key_456"
-    python src/cli.py make-user-admin --email "admin@example.com"
-    python src/cli.py whitelist-email --email "user@example.com"
+    python src/api/cli.py create-machine-user --name "Load Testing Bot" --email "load@test.com" --description "For load testing"
+    python src/api/cli.py create-machine-user --name "API Bot" --email "api@test.com" --create-key --key-name "prod-key"
+    python src/api/cli.py create-api-key --user-id "user_123" --key-name "test-key" --expires-days 90
+    python src/api/cli.py list-machine-users
+    python src/api/cli.py list-api-keys --user-id "user_123"
+    python src/api/cli.py rotate-key --key-id "key_456"
+    python src/api/cli.py revoke-key --key-id "key_456"
+    python src/api/cli.py make-user-admin --email "admin@example.com"
+    python src/api/cli.py whitelist-email --email "user@example.com"
 """
 
 import asyncio
