@@ -1,7 +1,6 @@
 import requests
 import streamlit as st
 from app import API_BASE_URL
-
 from client import ZenoClient
 from utils import display_sidebar_selections, render_stream
 

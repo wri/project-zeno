@@ -6,10 +6,9 @@ import altair as alt
 import folium
 import pandas as pd
 import streamlit as st
+from client import ZenoClient
 from shapely.geometry import shape
 from streamlit_folium import folium_static
-
-from client import ZenoClient
 
 API_BASE_URL = os.environ.get(
     "API_BASE_URL",
