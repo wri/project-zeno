@@ -12,14 +12,14 @@ from langchain_openai import OpenAIEmbeddings
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from src.tools.data_handlers.analytics_handler import (
+from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
     GRASSLANDS_ID,
     LAND_COVER_CHANGE_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
-from src.tools.datasets_config import DATASETS
+from src.agent.tools.datasets_config import DATASETS
 from src.utils.config import APISettings
 from src.utils.llms import SMALL_MODEL
 from src.utils.logging_config import get_logger

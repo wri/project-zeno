@@ -6,7 +6,10 @@ This shows how to add support for a new data source by implementing the DataSour
 
 from typing import Any, Dict
 
-from src.tools.data_handlers.base import DataPullResult, DataSourceHandler
+from src.agent.tools.data_handlers.base import (
+    DataPullResult,
+    DataSourceHandler,
+)
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -67,7 +70,7 @@ class ExampleAPIHandler(DataSourceHandler):
 
 
 # To use this handler, you would add it to the DataPullOrchestrator:
-# from src.tools.data_handlers.example_handler import ExampleAPIHandler
+# from src.agent.tools.data_handlers.example_handler import ExampleAPIHandler
 #
 # # In DataPullOrchestrator.__init__():
 # self.handlers = [

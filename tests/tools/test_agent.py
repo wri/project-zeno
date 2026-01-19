@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from src.agents.agents import fetch_zeno_anonymous
+from src.agent.graph import fetch_zeno_anonymous
 
 
 # Override database fixtures to avoid database connections for these unit tests

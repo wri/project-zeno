@@ -3,7 +3,7 @@ import uuid
 import pytest
 import requests
 
-from src.tools.pick_dataset import pick_dataset
+from src.agent.tools.pick_dataset import pick_dataset
 
 
 @pytest.fixture(scope="function", autouse=True)

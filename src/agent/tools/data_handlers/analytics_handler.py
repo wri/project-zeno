@@ -4,11 +4,11 @@ from typing import Any, Dict, List
 import httpx
 from pydantic import BaseModel
 
-from src.tools.data_handlers.base import (
+from src.agent.tools.data_handlers.base import (
     DataPullResult,
     DataSourceHandler,
 )
-from src.tools.datasets_config import DATASETS
+from src.agent.tools.datasets_config import DATASETS
 from src.utils.geocoding_helpers import (
     SUBREGION_TO_AOI_TYPE_MAPPING,
     format_id,

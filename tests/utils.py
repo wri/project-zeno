@@ -8,7 +8,7 @@ import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.prebuilt import create_react_agent
 
-from src.graph.state import AgentState
+from src.agent.state import AgentState
 from src.utils.env_loader import load_environment_variables
 from src.utils.llms import SONNET
 

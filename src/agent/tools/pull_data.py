@@ -6,9 +6,9 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from src.tools.data_handlers.analytics_handler import AnalyticsHandler
-from src.tools.data_handlers.base import DataPullResult
-from src.tools.datasets_config import DATASETS
+from src.agent.tools.data_handlers.analytics_handler import AnalyticsHandler
+from src.agent.tools.data_handlers.base import DataPullResult
+from src.agent.tools.datasets_config import DATASETS
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)

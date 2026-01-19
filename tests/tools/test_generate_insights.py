@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from src.tools.generate_insights import generate_insights
+from src.agent.tools.generate_insights import generate_insights
 
 
 @pytest.fixture(scope="function", autouse=True)

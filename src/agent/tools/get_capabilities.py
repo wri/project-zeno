@@ -1,6 +1,6 @@
 from langchain_core.tools import tool
 
-from src.tools.datasets_config import DATASETS
+from src.agent.tools.datasets_config import DATASETS
 
 
 def _load_datasets_info() -> str:

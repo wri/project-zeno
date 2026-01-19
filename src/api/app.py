@@ -34,7 +34,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.agents import (
+from src.agent.graph import (
     close_checkpointer_pool,
     fetch_checkpointer,
     fetch_zeno,

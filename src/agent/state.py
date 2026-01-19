@@ -6,7 +6,7 @@ from langgraph.managed import IsLastStep
 from langgraph.managed.is_last_step import RemainingSteps
 from typing_extensions import TypedDict
 
-from src.tools.code_executors.base import CodeActPart
+from src.agent.tools.code_executors.base import CodeActPart
 
 
 def add_aois(left, right):

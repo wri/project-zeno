@@ -20,7 +20,7 @@ Simple code executor for `generate_insights` using Gemini's native code executio
 ## Usage
 
 ```python
-from src.tools.code_executors import GeminiCodeExecutor
+from src.agent.tools.code_executors import GeminiCodeExecutor
 import pandas as pd
 
 # Prepare DataFrames

@@ -4,10 +4,10 @@ import pytest
 import structlog
 from sqlalchemy import select
 
+from src.agent.tools.pull_data import pull_data
 from src.api.app import app, fetch_user_from_rw_api
 from src.api.data_models import WhitelistedUserOrm
 from src.api.schemas import UserModel
-from src.tools.pull_data import pull_data
 from tests.conftest import async_session_maker
 
 # All dataset and intersection combinations from OpenAPI spec
