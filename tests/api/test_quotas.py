@@ -5,8 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from src.api.config import APISettings
-
-from .mock import mock_rw_api_response
+from tests.api.mock import mock_rw_api_response
 
 
 @pytest.fixture(autouse=True)
