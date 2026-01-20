@@ -38,10 +38,6 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Generate test data
-        run: |
-          uv run python tests/generate_test_data.py
-
       - name: Run API tests
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data

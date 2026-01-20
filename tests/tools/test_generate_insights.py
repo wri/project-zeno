@@ -1,8 +1,14 @@
+import sys
 import uuid
 
 import pytest
 
 from src.agent.tools.generate_insights import generate_insights
+
+# Use module-scoped event loop for all async tests in this module
+# This prevents the "Event loop is closed" error when Google's gRPC clients
+# cache their event loop reference across parameterized tests
+pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -17,7 +23,20 @@ def test_db_session():
     pass
 
 
-@pytest.mark.asyncio
+@pytest.fixture(scope="function", autouse=True)
+def test_db_pool():
+    """Override the global test_db_pool fixture to avoid database pool operations."""
+    pass
+
+
+@pytest.fixture(scope="module", autouse=True)
+def reset_google_clients():
+    """Reset cached Google clients at module start to use the correct event loop."""
+    llms_module = sys.modules["src.utils.llms"]
+    llms_module.SMALL_MODEL = llms_module.get_small_model()
+    yield
+
+
 async def test_generate_insights_comparison():
     update = {
         "aoi": {
@@ -353,7 +372,6 @@ async def test_generate_insights_comparison():
     assert "Bern" in command.update["insight"]
 
 
-@pytest.mark.asyncio
 async def test_simple_line_chart():
     """Test simple line chart generation for time series data."""
     mock_state_line = {
@@ -410,7 +428,6 @@ async def test_simple_line_chart():
     assert chart_data["type"] == "line"
 
 
-@pytest.mark.asyncio
 async def test_simple_bar_chart():
     """Test simple bar chart generation for categorical comparison."""
     mock_state_bar = {
@@ -472,7 +489,6 @@ async def test_simple_bar_chart():
     assert chart_data["type"] == "bar"
 
 
-@pytest.mark.asyncio
 async def test_stacked_bar_chart():
     """Test stacked bar chart generation for composition data."""
     mock_state_stacked = {
@@ -527,7 +543,6 @@ async def test_stacked_bar_chart():
     assert chart_data["type"] == "stacked-bar"
 
 
-@pytest.mark.asyncio
 async def test_grouped_bar_chart():
     """Test grouped bar chart generation for multiple metrics comparison."""
     mock_state_grouped = {
@@ -594,7 +609,6 @@ async def test_grouped_bar_chart():
     assert chart_data["type"] == "grouped-bar"
 
 
-@pytest.mark.asyncio
 async def test_pie_chart():
     """Test pie chart generation for part-to-whole relationship."""
     mock_state_pie = {

@@ -8,7 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_openai import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
@@ -28,42 +28,37 @@ logger = get_logger(__name__)
 
 data_dir = Path("data")
 
-_retriever_cache = {}
+retriever_cache = None
 
 
-async def _get_openai_retriever():
-    if "openai" not in _retriever_cache:
-        logger.debug("Loading OpenAI retriever for the first time...")
-        openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-        openai_index = InMemoryVectorStore.load(
-            data_dir / SharedSettings.dataset_embeddings_db,
-            embedding=openai_embeddings,
+async def _get_retriever():
+    global retriever_cache
+    if retriever_cache is None:
+        logger.debug("Loading retriever for the first time...")
+        embeddings = GoogleGenerativeAIEmbeddings(
+            model=SharedSettings.dataset_embeddings_model,
+            task_type=SharedSettings.dataset_embeddings_task_type,
         )
-        _retriever_cache["openai"] = openai_index.as_retriever(
+        index = InMemoryVectorStore.load(
+            data_dir / SharedSettings.dataset_embeddings_db,
+            embedding=embeddings,
+        )
+        retriever_cache = index.as_retriever(
             search_type="similarity", search_kwargs={"k": 3}
         )
-    return _retriever_cache["openai"]
+    return retriever_cache
 
 
-async def rag_candidate_datasets(query: str, k=3, strategy="openai"):
-    logger.debug(
-        f"Retrieving candidate datasets for query: '{query}' using strategy: '{strategy}'"
-    )
+async def rag_candidate_datasets(query: str, k=3):
+    logger.debug(f"Retrieving candidate datasets for query: '{query}'")
     candidate_datasets = []
-    match strategy:
-        case "openai":
-            openai_retriever = await _get_openai_retriever()
-            match_documents = await openai_retriever.ainvoke(query)
-            for doc in match_documents:
-                data = [
-                    ds for ds in DATASETS if ds["dataset_id"] == int(doc.id)
-                ]
-                if not data:
-                    raise ValueError(f"No data found for dataset ID: {doc.id}")
-                candidate_datasets.append(data[0])
-        case _:
-            logger.error(f"Unknown RAG strategy: {strategy}")
-            raise ValueError(f"Unknown strategy: {strategy}")
+    retriever = await _get_retriever()
+    match_documents = await retriever.ainvoke(query)
+    for doc in match_documents:
+        data = [ds for ds in DATASETS if ds["dataset_id"] == int(doc.id)]
+        if not data:
+            raise ValueError(f"No data found for dataset ID: {doc.id}")
+        candidate_datasets.append(data[0])
 
     logger.debug(f"Found {len(candidate_datasets)} candidate datasets.")
     return pd.DataFrame(candidate_datasets)
@@ -207,9 +202,7 @@ async def pick_dataset(
     """
     logger.info("PICK-DATASET-TOOL")
     # Step 1: RAG lookup
-    candidate_datasets = await rag_candidate_datasets(
-        query, k=3, strategy="openai"
-    )
+    candidate_datasets = await rag_candidate_datasets(query, k=3)
 
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await select_best_dataset(query, candidate_datasets)
