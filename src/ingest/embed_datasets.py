@@ -15,7 +15,8 @@ from src.utils.env_loader import load_environment_variables
 load_environment_variables()
 
 embeddings = GoogleGenerativeAIEmbeddings(
-    model=APISettings.dataset_embeddings_model
+    model=APISettings.dataset_embeddings_model,
+    task_type="RETRIEVAL_DOCUMENT",
 )
 index = InMemoryVectorStore(embeddings)
 

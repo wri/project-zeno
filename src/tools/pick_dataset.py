@@ -36,7 +36,8 @@ async def _get_retriever():
     if retriever_cache is None:
         logger.debug("Loading retriever for the first time...")
         embeddings = GoogleGenerativeAIEmbeddings(
-            model=APISettings.dataset_embeddings_model
+            model=APISettings.dataset_embeddings_model,
+            task_type=APISettings.dataset_embeddings_task_type,
         )
         index = InMemoryVectorStore.load(
             data_dir / APISettings.dataset_embeddings_db,

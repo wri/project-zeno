@@ -53,6 +53,10 @@ class _APISettings(BaseSettings):
         default="models/gemini-embedding-001",
         alias="DATASET_EMBEDDINGS_MODEL",
     )
+    dataset_embeddings_task_type: str = Field(
+        default="RETRIEVAL_QUERY",
+        alias="DATASET_EMBEDDINGS_TASK_TYPE",
+    )
 
     @property
     def domains_allowlist(self) -> list[str]:
