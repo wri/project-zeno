@@ -35,6 +35,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.agent.config import AgentSettings
 from src.agent.graph import (
     close_checkpointer_pool,
     fetch_checkpointer,
@@ -1983,9 +1984,9 @@ async def api_metadata(
 
     # Get current model information
     current_model = get_model()
-    current_model_name = APISettings.model.lower()
+    current_model_name = AgentSettings.model.lower()
     small_model = get_small_model()
-    small_model_name = APISettings.small_model.lower()
+    small_model_name = AgentSettings.small_model.lower()
 
     return {
         "version": "0.1.0",
