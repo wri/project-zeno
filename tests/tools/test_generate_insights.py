@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 
-from src.tools.generate_insights import generate_insights
+from src.agent.tools.generate_insights import generate_insights
 
 # Use module-scoped event loop for all async tests in this module
 # This prevents the "Event loop is closed" error when Google's gRPC clients

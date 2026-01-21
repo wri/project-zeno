@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.utils.config import APISettings
+from src.api.config import APISettings
 
 
 class TestDeploymentPhases:

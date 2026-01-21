@@ -308,7 +308,7 @@ async def test_delete_thread_removes_public_access(
     assert response.status_code == 200
 
     # Delete the thread - mock the dependency injection properly
-    from src.agents.agents import fetch_checkpointer
+    from src.agent.graph import fetch_checkpointer
     from src.api.app import app
 
     async def mock_checkpointer_func():
@@ -597,7 +597,7 @@ async def test_admin_cannot_delete_other_users_threads(
     admin_user = await admin_user_factory("admin@example.com")
 
     # Mock the checkpointer dependency
-    from src.agents.agents import fetch_checkpointer
+    from src.agent.graph import fetch_checkpointer
     from src.api.app import app
 
     async def mock_checkpointer_func():

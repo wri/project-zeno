@@ -5,7 +5,7 @@ from src.ingest.utils import (
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
 )
-from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
+from src.shared.geocoding_helpers import SOURCE_ID_MAPPING
 
 WDPA_DATA_SOURCE = "s3://gfw-data-lake/wdpa_protected_areas/v202407/vector/epsg-4326/wdpa_protected_areas_v202407.ndjson"
 

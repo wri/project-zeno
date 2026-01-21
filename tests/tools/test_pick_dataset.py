@@ -4,7 +4,7 @@ import uuid
 import pytest
 import requests
 
-from src.tools.pick_dataset import pick_dataset
+from src.agent.tools.pick_dataset import pick_dataset
 
 # Use session-scoped event loop for all async tests in this module
 # This prevents the "Event loop is closed" error when Google's gRPC clients
@@ -34,8 +34,8 @@ def test_db_pool():
 def reset_google_clients():
     """Reset cached Google clients at module start to use the correct event loop."""
     # Access the actual modules via sys.modules to avoid the __init__.py re-exports
-    pd_module = sys.modules["src.tools.pick_dataset"]
-    llms_module = sys.modules["src.utils.llms"]
+    pd_module = sys.modules["src.agent.tools.pick_dataset"]
+    llms_module = sys.modules["src.agent.llms"]
 
     # Reset retriever cache so a fresh embeddings client is created
     pd_module.retriever_cache = None

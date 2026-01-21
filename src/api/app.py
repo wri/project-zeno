@@ -11,6 +11,7 @@ import cachetools
 import httpx
 import pandas as pd
 import structlog
+from dotenv import load_dotenv
 from fastapi import (
     Depends,
     FastAPI,
@@ -34,14 +35,17 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.agents import (
+from src.agent.config import AgentSettings
+from src.agent.graph import (
     close_checkpointer_pool,
     fetch_checkpointer,
     fetch_zeno,
     fetch_zeno_anonymous,
     get_checkpointer_pool,
 )
+from src.agent.llms import SMALL_MODEL, get_model, get_small_model
 from src.api.auth import MACHINE_USER_PREFIX, validate_machine_user_token
+from src.api.config import APISettings
 from src.api.data_models import (
     CustomAreaOrm,
     DailyUsageOrm,
@@ -69,25 +73,21 @@ from src.api.schemas import (
     UserProfileUpdateRequest,
     UserWithQuotaModel,
 )
-from src.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
-from src.utils.config import APISettings
-from src.utils.database import (
+from src.api.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
+from src.shared.database import (
     close_global_pool,
     get_session_from_pool_dependency,
     initialize_global_pool,
 )
-from src.utils.env_loader import load_environment_variables
-from src.utils.geocoding_helpers import (
+from src.shared.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
     get_geometry_data,
 )
-from src.utils.llms import SMALL_MODEL, get_model, get_small_model
-from src.utils.logging_config import bind_request_logging_context, get_logger
+from src.shared.logging_config import bind_request_logging_context, get_logger
 
-# Load environment variables using shared utility
-load_environment_variables()
+load_dotenv()
 
 logger = get_logger(__name__)
 
@@ -1984,9 +1984,9 @@ async def api_metadata(
 
     # Get current model information
     current_model = get_model()
-    current_model_name = APISettings.model.lower()
+    current_model_name = AgentSettings.model.lower()
     small_model = get_small_model()
-    small_model_name = APISettings.small_model.lower()
+    small_model_name = AgentSettings.small_model.lower()
 
     return {
         "version": "0.1.0",

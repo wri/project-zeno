@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 
-from src.agents.agents import fetch_zeno_anonymous
+from src.agent.graph import fetch_zeno_anonymous
 
 # Use module-scoped event loop for all async tests in this module
 # This prevents the "Event loop is closed" error when Google's gRPC clients

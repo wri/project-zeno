@@ -5,7 +5,7 @@ from src.ingest.utils import (
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
 )
-from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
+from src.shared.geocoding_helpers import SOURCE_ID_MAPPING
 
 LANDMARK_DATA_SOURCE = "s3://gfw-data-lake/landmark_ip_lc_and_indicative_poly/v20250625/vector/epsg-4326/default.ndjson"
 
