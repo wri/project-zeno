@@ -8,13 +8,7 @@ import pytest
 from click.testing import CliRunner
 from sqlalchemy import select
 
-from src.api.data_models import (
-    MachineUserKeyOrm,
-    UserOrm,
-    UserType,
-    WhitelistedUserOrm,
-)
-from src.cli import (
+from src.api.cli import (
     add_whitelisted_user,
     cli,
     create_api_key,
@@ -25,6 +19,12 @@ from src.cli import (
     make_user_admin,
     revoke_api_key,
     rotate_api_key,
+)
+from src.api.data_models import (
+    MachineUserKeyOrm,
+    UserOrm,
+    UserType,
+    WhitelistedUserOrm,
 )
 from tests.conftest import async_session_maker
 
