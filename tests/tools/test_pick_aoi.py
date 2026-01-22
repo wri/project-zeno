@@ -37,8 +37,12 @@ async def whitelist_test_user():
 async def test_query_aoi_multiple_matches(structlog_context):
     command = await pick_aoi.ainvoke(
         {
-            "question": "Measure deforestation in Puri",
-            "place": "Puri",
+            "args": {
+                "question": "Measure deforestation in Puri",
+                "place": "Puri",
+            },
+            "name": "pick_aoi",
+            "type": "tool_call",
             "tool_call_id": str(uuid.uuid4()),
         }
     )
@@ -81,8 +85,12 @@ async def test_query_aoi_multiple_matches(structlog_context):
 async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
     command = await pick_aoi.ainvoke(
         {
-            "question": question,
-            "place": place,
+            "args": {
+                "question": question,
+                "place": place,
+            },
+            "name": "pick_aoi",
+            "type": "tool_call",
             "tool_call_id": str(uuid.uuid4()),
         }
     )
@@ -151,8 +159,12 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
     with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
         command = await pick_aoi.ainvoke(
             {
-                "question": "Measure deforestation in My Custom Area",
-                "place": "My Custom Area",
+                "args": {
+                    "question": "Measure deforestation in My Custom Area",
+                    "place": "My Custom Area",
+                },
+                "name": "pick_aoi",
+                "type": "tool_call",
                 "tool_call_id": str(uuid.uuid4()),
             }
         )
