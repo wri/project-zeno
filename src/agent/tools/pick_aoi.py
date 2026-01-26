@@ -3,11 +3,12 @@ from typing import Annotated, Dict, Literal, Optional
 import pandas as pd
 import structlog
 from dotenv import load_dotenv
+from langchain.agents import create_agent
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
-from langgraph.prebuilt import InjectedState, create_react_agent
+from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -634,7 +635,7 @@ async def pick_aoi(
 
 
 if __name__ == "__main__":
-    agent = create_react_agent(
+    agent = create_agent(
         MODEL,
         tools=[pick_aoi],
         prompt="""You are a Geo Agent that can ONLY HELP PICK an AOI using the `pick_aoi` tool.
