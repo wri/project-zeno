@@ -32,7 +32,7 @@ def test_db_pool():
 @pytest.fixture(scope="module", autouse=True)
 def reset_google_clients():
     """Reset cached Google clients at module start to use the correct event loop."""
-    llms_module = sys.modules["src.utils.llms"]
+    llms_module = sys.modules["src.agent.llms"]
     llms_module.SMALL_MODEL = llms_module.get_small_model()
     yield
 

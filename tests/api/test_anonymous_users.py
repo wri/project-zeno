@@ -19,7 +19,9 @@ class TestAnonymousUserAccess:
         """Test that anonymous users can access the /api/chat endpoint."""
         # Enable anonymous chat for this test
         original_setting = APISettings.allow_anonymous_chat
+        original_api_key = APISettings.nextjs_api_key
         APISettings.allow_anonymous_chat = True
+        APISettings.nextjs_api_key = "test-nextjs-api-key"
 
         try:
             chat_request = {
@@ -42,31 +44,39 @@ class TestAnonymousUserAccess:
                 )
         finally:
             APISettings.allow_anonymous_chat = original_setting
+            APISettings.nextjs_api_key = original_api_key
 
     @pytest.mark.asyncio
     async def test_anonymous_user_cannot_access_protected_endpoints(
         self, anonymous_client
     ):
         """Test that anonymous users cannot access protected endpoints."""
-        protected_endpoints = [
-            ("/api/auth/me", "GET"),
-            ("/api/threads", "GET"),
-            ("/api/custom_areas", "GET"),
-            ("/api/custom_areas", "POST"),
-        ]
+        # Patch API key to allow anonymous client to pass validation
+        original_api_key = APISettings.nextjs_api_key
+        APISettings.nextjs_api_key = "test-nextjs-api-key"
 
-        for endpoint, method in protected_endpoints:
-            if method == "GET":
-                response = await anonymous_client.get(endpoint)
-            elif method == "POST":
-                response = await anonymous_client.post(endpoint, json={})
+        try:
+            protected_endpoints = [
+                ("/api/auth/me", "GET"),
+                ("/api/threads", "GET"),
+                ("/api/custom_areas", "GET"),
+                ("/api/custom_areas", "POST"),
+            ]
 
-            # Should return 401 (unauthorized) for missing auth
-            assert response.status_code == 401
-            assert (
-                "Missing Bearer token in Authorization header"
-                in response.json()["detail"]
-            )
+            for endpoint, method in protected_endpoints:
+                if method == "GET":
+                    response = await anonymous_client.get(endpoint)
+                elif method == "POST":
+                    response = await anonymous_client.post(endpoint, json={})
+
+                # Should return 401 (unauthorized) for missing auth
+                assert response.status_code == 401
+                assert (
+                    "Missing Bearer token in Authorization header"
+                    in response.json()["detail"]
+                )
+        finally:
+            APISettings.nextjs_api_key = original_api_key
 
     @pytest.mark.asyncio
     async def test_quota_disabled_allows_chat_access(self, anonymous_client):
@@ -74,10 +84,12 @@ class TestAnonymousUserAccess:
         # Store original settings
         original_quota_setting = APISettings.enable_quota_checking
         original_anonymous_setting = APISettings.allow_anonymous_chat
+        original_api_key = APISettings.nextjs_api_key
 
         # Disable quota checking and enable anonymous chat
         APISettings.enable_quota_checking = False
         APISettings.allow_anonymous_chat = True
+        APISettings.nextjs_api_key = "test-nextjs-api-key"
 
         try:
             chat_request = {
@@ -96,6 +108,7 @@ class TestAnonymousUserAccess:
         finally:
             APISettings.enable_quota_checking = original_quota_setting
             APISettings.allow_anonymous_chat = original_anonymous_setting
+            APISettings.nextjs_api_key = original_api_key
 
     @pytest.mark.asyncio
     async def test_anonymous_thread_continuity_via_thread_id(
@@ -106,7 +119,9 @@ class TestAnonymousUserAccess:
         """
         # Enable anonymous chat for this test
         original_setting = APISettings.allow_anonymous_chat
+        original_api_key = APISettings.nextjs_api_key
         APISettings.allow_anonymous_chat = True
+        APISettings.nextjs_api_key = "test-nextjs-api-key"
 
         try:
             thread_id = "continuous-thread-456"
@@ -135,6 +150,7 @@ class TestAnonymousUserAccess:
                 assert calls[1][1]["thread_id"] == thread_id
         finally:
             APISettings.allow_anonymous_chat = original_setting
+            APISettings.nextjs_api_key = original_api_key
 
     @pytest.mark.asyncio
     async def test_anonymous_chat_disabled_blocks_anonymous_users(
@@ -143,7 +159,9 @@ class TestAnonymousUserAccess:
         """Test that disabling anonymous chat blocks anonymous users."""
         # Disable anonymous chat
         original_setting = APISettings.allow_anonymous_chat
+        original_api_key = APISettings.nextjs_api_key
         APISettings.allow_anonymous_chat = False
+        APISettings.nextjs_api_key = "test-nextjs-api-key"
 
         try:
             chat_request = {
@@ -163,6 +181,7 @@ class TestAnonymousUserAccess:
             )
         finally:
             APISettings.allow_anonymous_chat = original_setting
+            APISettings.nextjs_api_key = original_api_key
 
     @pytest.mark.asyncio
     async def test_anonymous_chat_enabled_allows_anonymous_users(
@@ -171,7 +190,9 @@ class TestAnonymousUserAccess:
         """Test that enabling anonymous chat allows anonymous users."""
         # Enable anonymous chat
         original_setting = APISettings.allow_anonymous_chat
+        original_api_key = APISettings.nextjs_api_key
         APISettings.allow_anonymous_chat = True
+        APISettings.nextjs_api_key = "test-nextjs-api-key"
 
         try:
             chat_request = {
@@ -194,3 +215,4 @@ class TestAnonymousUserAccess:
                 )
         finally:
             APISettings.allow_anonymous_chat = original_setting
+            APISettings.nextjs_api_key = original_api_key

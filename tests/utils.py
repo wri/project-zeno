@@ -6,8 +6,8 @@ from datetime import datetime
 import pandas as pd
 import pytest
 from dotenv import load_dotenv
+from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.prebuilt import create_react_agent
 
 from src.agent.llms import SONNET
 from src.agent.state import AgentState
@@ -92,12 +92,12 @@ def create_test_agent(tools: list, prompt: str = None):
     """
     default_prompt = """You are a test agent that can help with various tasks using the provided tools."""
 
-    return create_react_agent(
+    return create_agent(
         SONNET,
         tools=tools,
+        system_prompt=prompt or default_prompt,
         state_schema=AgentState,
         checkpointer=InMemorySaver(),
-        prompt=prompt or default_prompt,
     )
 
 

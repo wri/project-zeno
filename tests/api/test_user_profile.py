@@ -1,7 +1,10 @@
 """Tests for user profile API functionality."""
 
+from unittest.mock import patch
+
 import pytest
 
+from src.api import app as api
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.api.user_profile_configs.languages import LANGUAGES
@@ -289,14 +292,16 @@ class TestUserProfileAPI:
         # Use non-existent user (will be auto-created by require_auth)
         auth_override("new-user-id")
 
-        response = await client.patch(
-            "/api/auth/profile", json={"first_name": "Alice"}
-        )
-        assert response.status_code == 200
+        # Enable public signups to allow auto-creation
+        with patch.object(api.APISettings, "allow_public_signups", True):
+            response = await client.patch(
+                "/api/auth/profile", json={"first_name": "Alice"}
+            )
+            assert response.status_code == 200
 
-        data = response.json()
-        assert data["firstName"] == "Alice"
-        assert data["id"] == "new-user-id"
+            data = response.json()
+            assert data["firstName"] == "Alice"
+            assert data["id"] == "new-user-id"
 
     @pytest.mark.asyncio
     async def test_profile_fields_roundtrip_auth_me(

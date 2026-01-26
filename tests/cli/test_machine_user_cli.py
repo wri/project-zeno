@@ -314,8 +314,8 @@ class TestCLICommands:
         """Set up test runner."""
         self.runner = CliRunner()
 
-    @patch("src.cli.DatabaseManager")
-    @patch("src.cli.create_machine_user")
+    @patch("src.api.cli.DatabaseManager")
+    @patch("src.api.cli.create_machine_user")
     def test_create_machine_user_command(
         self, mock_create_user, mock_db_manager
     ):
@@ -353,9 +353,9 @@ class TestCLICommands:
         assert "Test User" in result.output
         mock_create_user.assert_called_once()
 
-    @patch("src.cli.DatabaseManager")
-    @patch("src.cli.create_machine_user")
-    @patch("src.cli.create_api_key")
+    @patch("src.api.cli.DatabaseManager")
+    @patch("src.api.cli.create_machine_user")
+    @patch("src.api.cli.create_api_key")
     def test_create_machine_user_with_key(
         self, mock_create_key, mock_create_user, mock_db_manager
     ):
@@ -405,8 +405,8 @@ class TestCLICommands:
         mock_create_user.assert_called_once()
         mock_create_key.assert_called_once()
 
-    @patch("src.cli.DatabaseManager")
-    @patch("src.cli.list_machine_users")
+    @patch("src.api.cli.DatabaseManager")
+    @patch("src.api.cli.list_machine_users")
     def test_list_machine_users_command(
         self, mock_list_users, mock_db_manager
     ):
@@ -442,8 +442,8 @@ class TestCLICommands:
         assert "🤖 Test User 2" in result.output
         mock_list_users.assert_called_once()
 
-    @patch("src.cli.DatabaseManager")
-    @patch("src.cli.list_machine_users")
+    @patch("src.api.cli.DatabaseManager")
+    @patch("src.api.cli.list_machine_users")
     def test_list_machine_users_empty(self, mock_list_users, mock_db_manager):
         """Test list-machine-users CLI command with no users."""
         # Mock database operations
@@ -705,8 +705,8 @@ class TestUserManagementCLICommands:
         """Set up test runner."""
         self.runner = CliRunner()
 
-    @patch("src.cli.DatabaseManager")
-    @patch("src.cli.make_user_admin")
+    @patch("src.api.cli.DatabaseManager")
+    @patch("src.api.cli.make_user_admin")
     def test_make_user_admin_command_success(
         self, mock_make_admin, mock_db_manager
     ):
@@ -737,8 +737,8 @@ class TestUserManagementCLICommands:
         assert UserType.ADMIN.value in result.output
         mock_make_admin.assert_called_once()
 
-    @patch("src.cli.DatabaseManager")
-    @patch("src.cli.make_user_admin")
+    @patch("src.api.cli.DatabaseManager")
+    @patch("src.api.cli.make_user_admin")
     def test_make_user_admin_command_user_not_found(
         self, mock_make_admin, mock_db_manager
     ):
@@ -765,8 +765,8 @@ class TestUserManagementCLICommands:
         assert "❌ Error:" in result.output
         assert "not found" in result.output
 
-    @patch("src.cli.DatabaseManager")
-    @patch("src.cli.add_whitelisted_user")
+    @patch("src.api.cli.DatabaseManager")
+    @patch("src.api.cli.add_whitelisted_user")
     def test_whitelist_email_command_success(
         self, mock_add_whitelist, mock_db_manager
     ):
@@ -793,8 +793,8 @@ class TestUserManagementCLICommands:
         assert "test@example.com" in result.output
         mock_add_whitelist.assert_called_once()
 
-    @patch("src.cli.DatabaseManager")
-    @patch("src.cli.add_whitelisted_user")
+    @patch("src.api.cli.DatabaseManager")
+    @patch("src.api.cli.add_whitelisted_user")
     def test_whitelist_email_command_error(
         self, mock_add_whitelist, mock_db_manager
     ):

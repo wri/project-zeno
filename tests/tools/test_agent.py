@@ -25,12 +25,6 @@ def test_db_session():
 
 
 @pytest.fixture(scope="function", autouse=True)
-def test_db_pool():
-    """Override the global test_db_pool fixture to avoid database pool operations."""
-    pass
-
-
-@pytest.fixture(scope="function", autouse=True)
 def user():
     """Override the global user fixture to avoid database connections."""
     pass
@@ -45,8 +39,8 @@ def user_ds():
 @pytest.fixture(scope="module", autouse=True)
 def reset_google_clients():
     """Reset cached Google clients at module start to use the correct event loop."""
-    pd_module = sys.modules["src.tools.pick_dataset"]
-    llms_module = sys.modules["src.utils.llms"]
+    pd_module = sys.modules["src.agent.tools.pick_dataset"]
+    llms_module = sys.modules["src.agent.llms"]
 
     pd_module.retriever_cache = None
     llms_module.SMALL_MODEL = llms_module.get_small_model()

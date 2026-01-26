@@ -5,7 +5,7 @@ import structlog
 from sqlalchemy import select
 
 from src.agent.tools.pick_aoi import pick_aoi
-from src.api.data_models import WhitelistedUserOrm
+from src.api.data_models import UserOrm, WhitelistedUserOrm
 from tests.conftest import async_session_maker
 
 # Use module-scoped event loop for all async tests in this module
@@ -43,7 +43,7 @@ async def test_query_aoi_multiple_matches(structlog_context):
             },
             "name": "pick_aoi",
             "type": "tool_call",
-            "tool_call_id": str(uuid.uuid4()),
+            "id": str(uuid.uuid4()),
         }
     )
     assert str(command.update.get("messages")[0].content).startswith(
@@ -91,7 +91,7 @@ async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
             },
             "name": "pick_aoi",
             "type": "tool_call",
-            "tool_call_id": str(uuid.uuid4()),
+            "id": str(uuid.uuid4()),
         }
     )
 
@@ -101,6 +101,22 @@ async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
 async def test_custom_area_selection(auth_override, client, structlog_context):
     # Whitelist the test user to bypass signup restrictions
     await whitelist_test_user()
+
+    # Create the user in the database (required for foreign key constraint)
+    async with async_session_maker() as session:
+        # Check if user already exists
+        stmt = select(UserOrm).where(UserOrm.id == "test-user-123")
+        result = await session.execute(stmt)
+        user = result.scalars().first()
+
+        if not user:
+            user = UserOrm(
+                id="test-user-123",
+                name="test-user-123",
+                email="test-custom-area@wri.org",
+            )
+            session.add(user)
+            await session.commit()
 
     # Override auth to use the whitelisted email
     from src.api.app import fetch_user_from_rw_api
@@ -165,7 +181,7 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
                 },
                 "name": "pick_aoi",
                 "type": "tool_call",
-                "tool_call_id": str(uuid.uuid4()),
+                "id": str(uuid.uuid4()),
             }
         )
 
