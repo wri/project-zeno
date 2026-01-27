@@ -43,6 +43,8 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
           TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
           DOMAINS_ALLOWLIST: developmentseed.org,wri.org
+          OPENAI_API_KEY: fake-key-for-testing
+          ANTHROPIC_API_KEY: fake-key-for-testing
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           LANGFUSE_SECRET_KEY: fake-secret-key
           LANGFUSE_PUBLIC_KEY: fake-public-key
