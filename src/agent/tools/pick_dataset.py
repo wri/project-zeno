@@ -61,6 +61,7 @@ async def rag_candidate_datasets(query: str, k=3):
         candidate_datasets.append(data[0])
 
     logger.debug(f"Found {len(candidate_datasets)} candidate datasets.")
+    print(f"Candidate datasets: {candidate_datasets}")
     return pd.DataFrame(candidate_datasets)
 
 

@@ -64,4 +64,5 @@ jobs:
         run: |
           uv run pytest tests/api -v
           uv run pytest tests/cli -v
+          uv run pytest tests/tools/test_pick_aoi.py -v
           uv run pytest tests/tools/test_generate_insights.py::test_simple_bar_chart -v
