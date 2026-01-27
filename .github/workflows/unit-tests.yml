@@ -1,4 +1,4 @@
-name: API Tests
+name: Unit Tests
 
 on:
   pull_request:
@@ -38,14 +38,12 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Run API tests
+      - name: Run Unit tests
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
           TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
           DOMAINS_ALLOWLIST: developmentseed.org,wri.org
-          OPENAI_API_KEY: fake-key-for-testing
-          ANTHROPIC_API_KEY: fake-key-for-testing
-          GOOGLE_API_KEY: fake-key-for-testing
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           LANGFUSE_SECRET_KEY: fake-secret-key
           LANGFUSE_PUBLIC_KEY: fake-public-key
           LANGFUSE_HOST: http://localhost:3000
@@ -62,4 +60,6 @@ jobs:
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
           NEXTJS_API_KEY: test-nextjs-api-key
         run: |
-          uv run pytest tests/api tests/cli -v
+          uv run pytest tests/api -v
+          uv run pytest tests/cli -v
+          uv run pytest tests/tools/test_generate_insights.py::test_simple_bar_chart -v
