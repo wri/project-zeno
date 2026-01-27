@@ -3,7 +3,6 @@ from typing import Annotated, Dict, Literal, Optional
 import pandas as pd
 import structlog
 from dotenv import load_dotenv
-from langchain.agents import create_agent
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -632,35 +631,3 @@ async def pick_aoi(
                 ],
             },
         )
-
-
-if __name__ == "__main__":
-    agent = create_agent(
-        MODEL,
-        tools=[pick_aoi],
-        prompt="""You are a Geo Agent that can ONLY HELP PICK an AOI using the `pick_aoi` tool.
-        Pick the best AOI based on the user query. You DONT need to answer the user query, just pick the best AOI.""",
-    )
-
-    user_queries = [
-        "find threats to tigers in kbas of Odisha",
-        "Show me forest data for congo not drc",
-        "What is the deforestation rate in Ontario last year?",
-        "I need urgent data on ilegal logging in Borgou!!",
-        "How much tree cover has been lost in Sumatera since 2000?",
-        "find threats to tigers in Simlipal Park",
-        "find deforestation rate in Amazon",
-        "find crocodile statistics in Satkosia Gorge",
-        "find deforestation rate in PNG",
-    ]
-
-    for query in user_queries[:1]:
-        for step in agent.stream(
-            {"messages": [{"role": "user", "content": query}]},
-            stream_mode="values",
-        ):
-            message = step["messages"][-1]
-            if isinstance(message, tuple):
-                logger.info(message)
-            else:
-                message.pretty_print()
