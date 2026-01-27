@@ -27,6 +27,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Cache S3 dataset index
+        id: cache-dataset
+        uses: actions/cache@v4
+        with:
+          path: data/gnw-dataset-index-gemini-v1
+          key: dataset-index-gnw-gemini-v1
+
+      - name: Download dataset index from S3
+        if: steps.cache-dataset.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p data
+          aws s3 cp s3://zeno-static-data/gnw-dataset-index-gemini-v1 data/
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -65,4 +85,5 @@ jobs:
           uv run pytest tests/api -v
           uv run pytest tests/cli -v
           uv run pytest tests/tools/test_pick_aoi.py -v
+          uv run pytest tests/tools/test_pick_dataset.py -v
           uv run pytest tests/tools/test_generate_insights.py::test_simple_bar_chart -v
