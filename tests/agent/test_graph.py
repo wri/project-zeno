@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from src.agent.graph import fetch_zeno_anonymous
 from src.agent.tools.datasets_config import DATASETS
@@ -138,12 +139,48 @@ def mock_rag_candidate_datasets():
 
 @pytest.fixture(scope="module", autouse=True)
 def reset_google_clients():
-    """Reset cached Google clients at module start to use the correct event loop."""
-    pd_module = sys.modules["src.agent.tools.pick_dataset"]
-    llms_module = sys.modules["src.agent.llms"]
+    """Reset cached Google clients at module start to use the correct event loop.
 
-    pd_module.retriever_cache = None
-    llms_module.SMALL_MODEL = llms_module.get_small_model()
+    Modules that did 'from src.agent.llms import SMALL_MODEL' at import time
+    hold a reference to the old client; we must update those references too
+    so they use the new client bound to this test module's event loop.
+
+    IMPORTANT: We must create NEW model instances, not fetch from MODEL_REGISTRY,
+    because the cached models have gRPC clients bound to the old event loop.
+    """
+    # Create fresh GEMINI_FLASH instance (used as SMALL_MODEL and in generate_insights)
+    new_gemini_flash = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        temperature=0.3,
+        max_tokens=None,
+        include_thoughts=False,
+        max_retries=2,
+        thinking_budget=0,
+        timeout=300,
+    )
+
+    # Update module-level references
+    llms_module = sys.modules["src.agent.llms"]
+    llms_module.SMALL_MODEL = new_gemini_flash
+    llms_module.GEMINI_FLASH = new_gemini_flash
+
+    pd_module = sys.modules.get("src.agent.tools.pick_dataset")
+    if pd_module is not None:
+        pd_module.retriever_cache = None
+        pd_module.SMALL_MODEL = new_gemini_flash
+
+    for module_name in (
+        "src.agent.tools.pick_aoi",
+        "src.agent.tools.data_handlers.analytics_handler",
+    ):
+        mod = sys.modules.get(module_name)
+        if mod is not None and hasattr(mod, "SMALL_MODEL"):
+            mod.SMALL_MODEL = new_gemini_flash
+
+    # Reset GEMINI_FLASH in generate_insights module
+    gi_module = sys.modules.get("src.agent.tools.generate_insights")
+    if gi_module is not None:
+        gi_module.GEMINI_FLASH = new_gemini_flash
 
 
 def has_insights(tool_steps: list[dict]) -> bool:
