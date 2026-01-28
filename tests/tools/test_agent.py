@@ -167,9 +167,9 @@ async def test_full_agent_for_datasets(
 async def test_agent_for_disturbance_alerts_in_brazil(structlog_context):
     # query = "Tell me what is happening with ecosystem conversion in Para, Brazil in the last 8 months"
     # query = "land cover change in philipines in the past 5 years"
-    # query = "how much forest does bolivia have?"
+    query = "how much forest does bolivia have?"
     # query = "tree cover loss in bolivia in past 4 years?"
-    query = "Which country had the most distrubed area in November 2023, Australia or Brazil?"
+    # query = "Which country had the most distrubed area in November 2023, Australia or Brazil?"
     # query = "For mato grosso in Brazil, which municipality had the highest soy-linked deforestation emissions?"
     # query = (
     #     "What were the top three causes of deforestation in Brazil last year?"
