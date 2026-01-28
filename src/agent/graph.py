@@ -172,9 +172,9 @@ async def fetch_checkpointer() -> AsyncPostgresSaver:
 
 
 @wrap_tool_call
-def handle_tool_errors(request, handler):
+async def handle_tool_errors(request, handler):
     try:
-        return handler(request)
+        return await handler(request)
     except Exception:
         logger.exception("Tool execution failed")
         return ToolMessage(

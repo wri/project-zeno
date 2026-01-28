@@ -1,0 +1,64 @@
+name: Agent Tests
+
+on:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: zeno-data
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run API tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
+          TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
+          DOMAINS_ALLOWLIST: developmentseed.org,wri.org
+          OPENAI_API_KEY: fake-key-for-testing
+          ANTHROPIC_API_KEY: fake-key-for-testing
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          MODEL: gemini-flash
+          SMALL_MODEL: gemini-flash
+          MAPBOX_API_TOKEN: fake-mapbox-token
+          WRI_API_KEY: fake-wri-api-key
+          WRI_BEARER_TOKEN: fake-wri-bearer-token
+          GFW_DATA_API_KEY: fake-gfw-api-key
+          AWS_ACCESS_KEY_ID: fake-aws-access-key
+          AWS_SECRET_ACCESS_KEY: fake-aws-secret-key
+          AWS_DEFAULT_REGION: us-east-1
+          API_BASE_URL: http://localhost:8000
+          LOCAL_API_BASE_URL: http://localhost:8000
+          STREAMLIT_URL: http://localhost:8501
+          COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
+          NEXTJS_API_KEY: test-nextjs-api-key
+        run: |
+          uv run pytest tests/agent -v

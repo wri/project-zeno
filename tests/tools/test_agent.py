@@ -45,8 +45,8 @@ def user_ds():
 @pytest.fixture(scope="module", autouse=True)
 def reset_google_clients():
     """Reset cached Google clients at module start to use the correct event loop."""
-    pd_module = sys.modules["src.tools.pick_dataset"]
-    llms_module = sys.modules["src.utils.llms"]
+    pd_module = sys.modules["src.agent.tools.pick_dataset"]
+    llms_module = sys.modules["src.agent.llms"]
 
     pd_module.retriever_cache = None
     llms_module.SMALL_MODEL = llms_module.get_small_model()
@@ -186,7 +186,7 @@ async def test_agent_for_disturbance_alerts_in_brazil(structlog_context):
 
     tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
 
-    assert has_raw_data(tool_steps)
+    assert has_insights(tool_steps), "No insights found"
 
 
 async def test_agent_disturbance_alerts_with_comparison(structlog_context):

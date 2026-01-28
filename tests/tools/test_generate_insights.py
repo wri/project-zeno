@@ -65,8 +65,6 @@ async def test_generate_insights_comparison():
             "function_usage_notes": "Identifies areas of gross tree cover loss\n",
             "citation": 'Hansen et al., 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change." Accessed through Global Forest Watch on [date]. www.globalforestwatch.org\n',
         },
-        "is_last_step": False,
-        "remaining_steps": 20,
         "raw_data": {
             "USA.3.11": {
                 4: {
