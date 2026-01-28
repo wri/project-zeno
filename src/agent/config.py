@@ -9,8 +9,9 @@ class _AgentSettings(BaseSettings):
     """Agent-specific settings for model configuration."""
 
     # Model configuration
-    model: str = Field(default="sonnet", alias="MODEL")
-    small_model: str = Field(default="haiku", alias="SMALL_MODEL")
+    model: str = Field(default="gemini", alias="MODEL")
+    small_model: str = Field(default="gemini-flash", alias="SMALL_MODEL")
+    coding_model: str = Field(default="gemini-2.5-pro", alias="CODING_MODEL")
 
     model_config = {
         "env_file": ".env",
