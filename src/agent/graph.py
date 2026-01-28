@@ -175,10 +175,10 @@ async def fetch_checkpointer() -> AsyncPostgresSaver:
 async def handle_tool_errors(request, handler):
     try:
         return await handler(request)
-    except Exception:
+    except Exception as e:
         logger.exception("Tool execution failed")
         return ToolMessage(
-            content="Tool error: Please check your input and try again.",
+            content=f"Tool error: {str(e)}",
             tool_call_id=request.tool_call["id"],
         )
 
