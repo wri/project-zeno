@@ -3,9 +3,11 @@ from datetime import datetime
 from typing import Optional
 
 from dotenv import load_dotenv
+from langchain.agents import create_agent
+from langchain.agents.middleware import wrap_tool_call
+from langchain.messages import ToolMessage
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
-from langgraph.prebuilt import create_react_agent
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
@@ -20,6 +22,9 @@ from src.agent.tools import (
     pull_data,
 )
 from src.shared.config import SharedSettings
+from src.shared.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_prompt(user: Optional[dict] = None) -> str:
@@ -166,6 +171,18 @@ async def fetch_checkpointer() -> AsyncPostgresSaver:
     return checkpointer
 
 
+@wrap_tool_call
+def handle_tool_errors(request, handler):
+    try:
+        return handler(request)
+    except Exception:
+        logger.exception("Tool execution failed")
+        return ToolMessage(
+            content="Tool error: Please check your input and try again.",
+            tool_call_id=request.tool_call["id"],
+        )
+
+
 async def fetch_zeno_anonymous(
     user: Optional[dict] = None,
 ) -> CompiledStateGraph:
@@ -173,11 +190,12 @@ async def fetch_zeno_anonymous(
     # async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
     # Create the Zeno agent with the provided tools and prompt
 
-    zeno_agent = create_react_agent(
+    zeno_agent = create_agent(
         model=MODEL,
         tools=tools,
         state_schema=AgentState,
-        prompt=get_prompt(user),
+        system_prompt=get_prompt(user),
+        middleware=[handle_tool_errors],
     )
     return zeno_agent
 
@@ -186,11 +204,12 @@ async def fetch_zeno(user: Optional[dict] = None) -> CompiledStateGraph:
     """Setup the Zeno agent with the provided tools and prompt."""
 
     checkpointer = await fetch_checkpointer()
-    zeno_agent = create_react_agent(
+    zeno_agent = create_agent(
         model=MODEL,
         tools=tools,
         state_schema=AgentState,
-        prompt=get_prompt(user),
+        system_prompt=get_prompt(user),
+        middleware=[handle_tool_errors],
         checkpointer=checkpointer,
     )
     return zeno_agent
