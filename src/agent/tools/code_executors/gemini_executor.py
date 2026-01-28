@@ -7,6 +7,7 @@ import pandas as pd
 from google import genai
 from google.genai import types
 
+from src.agent.config import AgentSettings
 from src.agent.tools.code_executors.base import (
     CodeActPart,
     ExecutionResult,
@@ -20,14 +21,14 @@ logger = get_logger(__name__)
 class GeminiCodeExecutor:
     """Simple Gemini code executor with inline data support."""
 
-    def __init__(self, model: str = "gemini-2.5-pro"):
+    def __init__(self):
         """
         Initialize Gemini code executor.
 
         Args:
             model: Gemini model to use (must support code execution)
         """
-        self.model = model
+        self.model = AgentSettings.coding_model
         self.client = genai.Client()
 
     def build_file_references(
