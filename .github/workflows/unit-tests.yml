@@ -1,4 +1,4 @@
-name: API Tests
+name: Unit Tests
 
 on:
   pull_request:
@@ -60,7 +60,4 @@ jobs:
           STREAMLIT_URL: http://localhost:8501
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
           NEXTJS_API_KEY: test-nextjs-api-key
-        run: |
-          uv run pytest tests/api -v
-          uv run pytest tests/cli -v
-          uv run pytest tests/agent -v
+        run: uv run pytest tests/api tests/cli tests/agent -v
