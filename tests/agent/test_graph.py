@@ -1,3 +1,4 @@
+import sys
 import uuid
 from unittest.mock import AsyncMock, patch
 
@@ -6,6 +7,58 @@ import pytest
 
 from src.agent.graph import fetch_zeno_anonymous
 from src.agent.tools.datasets_config import DATASETS
+
+# Use module-scoped event loop for all async tests in this module
+# This prevents the "Event loop is closed" error when Google's gRPC clients
+# cache their event loop reference across parameterized tests
+pytestmark = pytest.mark.asyncio(loop_scope="module")
+
+
+# Override database fixtures to avoid database connections for these unit tests
+@pytest.fixture(scope="function", autouse=True)
+def test_db():
+    """Override the global test_db fixture to avoid database connections."""
+    pass
+
+
+@pytest.fixture(scope="function", autouse=True)
+def test_db_session():
+    """Override the global test_db_session fixture to avoid database connections."""
+    pass
+
+
+@pytest.fixture(scope="function", autouse=True)
+def test_db_pool():
+    """Override the global test_db_pool fixture to avoid database pool operations."""
+    pass
+
+
+@pytest.fixture(scope="function", autouse=True)
+def user():
+    """Override the global user fixture to avoid database connections."""
+    pass
+
+
+@pytest.fixture(scope="function", autouse=True)
+def user_ds():
+    """Override the global user_ds fixture to avoid database connections."""
+    pass
+
+
+@pytest.fixture(scope="function", autouse=True)
+def mock_query_aoi_database():
+    """Mock query_aoi_database to return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL."""
+
+    async def _return_mock_df(_place_name, result_limit=10):
+        return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL.copy()
+
+    with patch(
+        "src.agent.tools.pick_aoi.query_aoi_database",
+        new_callable=AsyncMock,
+        side_effect=_return_mock_df,
+    ):
+        yield
+
 
 MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL = pd.DataFrame(
     {
@@ -69,21 +122,6 @@ MOCK_CANDIDATE_DATASETS_ECOSYSTEM_CONVERSION = pd.DataFrame(_ordered)
 
 
 @pytest.fixture(scope="function", autouse=True)
-def mock_query_aoi_database():
-    """Mock query_aoi_database to return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL."""
-
-    async def _return_mock_df(_place_name, result_limit=10):
-        return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL.copy()
-
-    with patch(
-        "src.agent.tools.pick_aoi.query_aoi_database",
-        new_callable=AsyncMock,
-        side_effect=_return_mock_df,
-    ):
-        yield
-
-
-@pytest.fixture(scope="function", autouse=True)
 def mock_rag_candidate_datasets():
     """Mock rag_candidate_datasets to return MOCK_CANDIDATE_DATASETS_ECOSYSTEM_CONVERSION."""
 
@@ -96,6 +134,16 @@ def mock_rag_candidate_datasets():
         side_effect=_return_mock_df,
     ):
         yield
+
+
+@pytest.fixture(scope="module", autouse=True)
+def reset_google_clients():
+    """Reset cached Google clients at module start to use the correct event loop."""
+    pd_module = sys.modules["src.agent.tools.pick_dataset"]
+    llms_module = sys.modules["src.agent.llms"]
+
+    pd_module.retriever_cache = None
+    llms_module.SMALL_MODEL = llms_module.get_small_model()
 
 
 def has_insights(tool_steps: list[dict]) -> bool:

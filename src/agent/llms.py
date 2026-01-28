@@ -37,7 +37,15 @@ GEMINI_FLASH = ChatGoogleGenerativeAI(
     thinking_budget=0,
     timeout=300,
 )
-
+GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash-lite",
+    temperature=0.3,
+    max_tokens=None,  # max_tokens=None means no limit
+    include_thoughts=False,
+    max_retries=2,
+    thinking_budget=0,
+    timeout=300,
+)
 # OpenAI
 GPT = ChatOpenAI(
     model="gpt-4o",
@@ -51,6 +59,7 @@ MODEL_REGISTRY = {
     "haiku": HAIKU,
     "gemini": GEMINI,
     "gemini-flash": GEMINI_FLASH,
+    "gemini-flash-lite": GEMINI_FLASH_LITE,
     "gpt": GPT,
 }
 
