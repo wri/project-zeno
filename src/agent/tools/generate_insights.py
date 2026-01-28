@@ -42,6 +42,8 @@ def prepare_dataframes(raw_data: Dict) -> List[tuple[pd.DataFrame, str]]:
     source_urls = []
 
     for data_by_aoi in raw_data.values():
+        if not data_by_aoi:
+            continue
         for data in data_by_aoi.values():
             if not data:
                 continue
@@ -291,7 +293,6 @@ async def generate_insights(
                     ToolMessage(
                         content=error_msg,
                         tool_call_id=tool_call_id,
-                        status="error",
                     )
                 ]
             }
@@ -302,6 +303,17 @@ async def generate_insights(
     # 1. PREPARE DATAFRAMES: Convert raw_data to DataFrames
     dataframes, source_urls = prepare_dataframes(raw_data)
     logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
+    if not dataframes:
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        content="No data found to analyze.",
+                        tool_call_id=tool_call_id,
+                    )
+                ]
+            }
+        )
 
     # 2. INITIALIZE EXECUTOR: Create Gemini code executor
     executor = GeminiCodeExecutor()
