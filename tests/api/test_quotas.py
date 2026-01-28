@@ -486,8 +486,10 @@ class TestQuotaFunctionality:
     @pytest.mark.asyncio
     async def test_pro_user_has_custom_quota(self, client):
         """Test that pro users get their own specific quota limits."""
+        from sqlalchemy import select
+
         from src.api.data_models import UserOrm, UserType
-        from src.shared.database import get_session_from_pool_dependency
+        from tests.conftest import async_session_maker
 
         with patch("httpx.AsyncClient") as mock_client_class:
             # WRI API returns regular user data (no userType field needed)
@@ -515,8 +517,17 @@ class TestQuotaFunctionality:
             mock_client.get.return_value = MockResponse()
 
             # Pre-create the user in database with PRO type
-            async def setup_pro_user():
-                async for session in get_session_from_pool_dependency():
+            async with async_session_maker() as session:
+                # Check if user already exists
+                stmt = select(UserOrm).filter_by(id="test-pro-1")
+                result = await session.execute(stmt)
+                existing_user = result.scalars().first()
+
+                if existing_user:
+                    # Update existing user to PRO type
+                    existing_user.user_type = UserType.PRO.value
+                else:
+                    # Create new user with PRO type
                     pro_user = UserOrm(
                         id="test-pro-1",
                         name="Pro User",
@@ -524,10 +535,7 @@ class TestQuotaFunctionality:
                         user_type=UserType.PRO.value,  # PRO is set in our database
                     )
                     session.add(pro_user)
-                    await session.commit()
-                    break
-
-            await setup_pro_user()
+                await session.commit()
 
             response = await client.get(
                 "/api/auth/me", headers={"Authorization": "Bearer test-token"}
@@ -543,8 +551,10 @@ class TestQuotaFunctionality:
     @pytest.mark.asyncio
     async def test_pro_user_quota_enforcement(self, client):
         """Test that pro users quota is properly enforced."""
+        from sqlalchemy import select
+
         from src.api.data_models import UserOrm, UserType
-        from src.shared.database import get_session_from_pool_dependency
+        from tests.conftest import async_session_maker
 
         # Set pro quota for testing
         original_quota = APISettings.pro_user_daily_quota
@@ -576,8 +586,17 @@ class TestQuotaFunctionality:
                 mock_client.get.return_value = MockResponse()
 
                 # Pre-create the user in database with PRO type
-                async def setup_pro_user():
-                    async for session in get_session_from_pool_dependency():
+                async with async_session_maker() as session:
+                    # Check if user already exists
+                    stmt = select(UserOrm).filter_by(id="test-pro-2")
+                    result = await session.execute(stmt)
+                    existing_user = result.scalars().first()
+
+                    if existing_user:
+                        # Update existing user to PRO type
+                        existing_user.user_type = UserType.PRO.value
+                    else:
+                        # Create new user with PRO type
                         pro_user = UserOrm(
                             id="test-pro-2",
                             name="Pro User",
@@ -585,10 +604,7 @@ class TestQuotaFunctionality:
                             user_type=UserType.PRO.value,
                         )
                         session.add(pro_user)
-                        await session.commit()
-                        break
-
-                await setup_pro_user()
+                    await session.commit()
 
                 with patch("src.api.app.stream_chat") as mock_stream:
                     mock_stream.return_value = iter(
@@ -638,8 +654,10 @@ class TestQuotaFunctionality:
     @pytest.mark.asyncio
     async def test_pro_user_chat_headers_include_quota(self, client):
         """Test that /api/chat includes correct quota headers for pro users."""
+        from sqlalchemy import select
+
         from src.api.data_models import UserOrm, UserType
-        from src.shared.database import get_session_from_pool_dependency
+        from tests.conftest import async_session_maker
 
         with patch("httpx.AsyncClient") as mock_client_class:
             wri_user_data = {
@@ -664,8 +682,17 @@ class TestQuotaFunctionality:
             mock_client.get.return_value = MockResponse()
 
             # Setup pro user in database
-            async def setup_pro_user():
-                async for session in get_session_from_pool_dependency():
+            async with async_session_maker() as session:
+                # Check if user already exists
+                stmt = select(UserOrm).filter_by(id="test-pro-headers")
+                result = await session.execute(stmt)
+                existing_user = result.scalars().first()
+
+                if existing_user:
+                    # Update existing user to PRO type
+                    existing_user.user_type = UserType.PRO.value
+                else:
+                    # Create new user with PRO type
                     pro_user = UserOrm(
                         id="test-pro-headers",
                         name="Pro User",
@@ -673,10 +700,7 @@ class TestQuotaFunctionality:
                         user_type=UserType.PRO.value,
                     )
                     session.add(pro_user)
-                    await session.commit()
-                    break
-
-            await setup_pro_user()
+                await session.commit()
 
             with patch("src.api.app.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\n'])
@@ -700,8 +724,10 @@ class TestQuotaFunctionality:
     @pytest.mark.asyncio
     async def test_pro_user_no_admin_privileges(self, client):
         """Test that pro users don't have admin privileges (can't access all threads)."""
+        from sqlalchemy import select
+
         from src.api.data_models import UserOrm, UserType
-        from src.shared.database import get_session_from_pool_dependency
+        from tests.conftest import async_session_maker
 
         with patch("httpx.AsyncClient") as mock_client_class:
             wri_user_data = {
@@ -726,8 +752,17 @@ class TestQuotaFunctionality:
             mock_client.get.return_value = MockResponse()
 
             # Setup pro user in database
-            async def setup_pro_user():
-                async for session in get_session_from_pool_dependency():
+            async with async_session_maker() as session:
+                # Check if user already exists
+                stmt = select(UserOrm).filter_by(id="test-pro-no-admin")
+                result = await session.execute(stmt)
+                existing_user = result.scalars().first()
+
+                if existing_user:
+                    # Update existing user to PRO type
+                    existing_user.user_type = UserType.PRO.value
+                else:
+                    # Create new user with PRO type
                     pro_user = UserOrm(
                         id="test-pro-no-admin",
                         name="Pro User",
@@ -736,10 +771,7 @@ class TestQuotaFunctionality:
                         # Pro users should not have can_read_all_threads set to True
                     )
                     session.add(pro_user)
-                    await session.commit()
-                    break
-
-            await setup_pro_user()
+                await session.commit()
 
             # Call /auth/me to check user properties
             response = await client.get(
@@ -764,8 +796,10 @@ class TestQuotaFunctionality:
         2. Pre-creates user in database with user_type="admin"
         3. Calls /auth/me and expects admin quota, not regular quota
         """
+        from sqlalchemy import select
+
         from src.api.data_models import UserOrm, UserType
-        from src.shared.database import get_session_from_pool_dependency
+        from tests.conftest import async_session_maker
 
         # Mock WRI API to return regular user (not admin)
         with patch("httpx.AsyncClient") as mock_client_class:
@@ -793,8 +827,16 @@ class TestQuotaFunctionality:
             mock_client.get.return_value = MockRegularResponse()
 
             # Pre-create the user in database with admin type
-            async def setup_admin_user():
-                async for session in get_session_from_pool_dependency():
+            async with async_session_maker() as session:
+                # Check if user already exists
+                stmt = select(UserOrm).filter_by(id="test-admin-mismatch")
+                result = await session.execute(stmt)
+                existing_user = result.scalars().first()
+
+                if existing_user:
+                    # Update existing user to ADMIN type
+                    existing_user.user_type = UserType.ADMIN.value
+                else:
                     # Create new admin user in database with minimal fields
                     admin_user = UserOrm(
                         id="test-admin-mismatch",
@@ -804,10 +846,7 @@ class TestQuotaFunctionality:
                         # Don't set topics field to avoid column issues
                     )
                     session.add(admin_user)
-                    await session.commit()
-                    break
-
-            await setup_admin_user()
+                await session.commit()
 
             # Now call /auth/me - it should recognize admin quota
             response = await client.get(

@@ -7,7 +7,7 @@ from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
-from langgraph.prebuilt import InjectedState, create_react_agent
+from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -29,14 +29,6 @@ RESULT_LIMIT = 10
 
 load_dotenv()
 logger = get_logger(__name__)
-
-
-# def get_postgis_connection():
-#     """Get PostGIS database connection."""
-#     database_url = os.environ["DATABASE_URL"].replace(
-#         "postgresql+asyncpg://", "postgresql+psycopg2://"
-#     )
-#     return create_engine(database_url)
 
 
 async def query_aoi_database(
@@ -631,35 +623,3 @@ async def pick_aoi(
                 ],
             },
         )
-
-
-if __name__ == "__main__":
-    agent = create_react_agent(
-        MODEL,
-        tools=[pick_aoi],
-        prompt="""You are a Geo Agent that can ONLY HELP PICK an AOI using the `pick_aoi` tool.
-        Pick the best AOI based on the user query. You DONT need to answer the user query, just pick the best AOI.""",
-    )
-
-    user_queries = [
-        "find threats to tigers in kbas of Odisha",
-        "Show me forest data for congo not drc",
-        "What is the deforestation rate in Ontario last year?",
-        "I need urgent data on ilegal logging in Borgou!!",
-        "How much tree cover has been lost in Sumatera since 2000?",
-        "find threats to tigers in Simlipal Park",
-        "find deforestation rate in Amazon",
-        "find crocodile statistics in Satkosia Gorge",
-        "find deforestation rate in PNG",
-    ]
-
-    for query in user_queries[:1]:
-        for step in agent.stream(
-            {"messages": [{"role": "user", "content": query}]},
-            stream_mode="values",
-        ):
-            message = step["messages"][-1]
-            if isinstance(message, tuple):
-                logger.info(message)
-            else:
-                message.pretty_print()

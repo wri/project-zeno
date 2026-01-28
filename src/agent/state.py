@@ -2,8 +2,6 @@ from typing import Annotated, Sequence
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
-from langgraph.managed import IsLastStep
-from langgraph.managed.is_last_step import RemainingSteps
 from typing_extensions import TypedDict
 
 from src.agent.tools.code_executors.base import CodeActPart
@@ -43,7 +41,3 @@ class AgentState(TypedDict):
     insights: list
     charts_data: list
     codeact_parts: list[CodeActPart]
-
-    # langgraph managed
-    is_last_step: IsLastStep
-    remaining_steps: RemainingSteps
