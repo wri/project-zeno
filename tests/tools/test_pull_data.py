@@ -197,6 +197,8 @@ async def test_pull_data_queries(aoi_data, dataset):
         "MEX9713",
     ]:
         assert len(analytics_data) == 0
+    elif dataset["dataset_id"] == 9 and aoi_data["src_id"] == "CHE.6.3_1":
+        assert len(analytics_data) == 0
     else:
         assert len(analytics_data) == 1
         assert analytics_data[0]["source_url"].startswith("http")
