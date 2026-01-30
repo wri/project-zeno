@@ -28,45 +28,32 @@ def _get_available_datasets() -> str:
     return ", ".join(dataset_names)
 
 
-def prepare_dataframes(raw_data: Dict) -> List[tuple[pd.DataFrame, str]]:
+def prepare_dataframes(
+    analytics_data: list[dict],
+) -> List[tuple[pd.DataFrame, str]]:
     """
     Prepare DataFrames from raw data for code executor.
-
-    Args:
-        raw_data: Nested dict of data by AOI and dataset
-
-    Returns:
-        List of tuples (DataFrame, display_name)
     """
     dataframes = []
     source_urls = []
 
-    for data_by_aoi in raw_data.values():
-        for data in data_by_aoi.values():
-            if not data:
-                continue
-            data_copy = data.copy()
-            aoi_name = data_copy.pop("aoi_name")
-            dataset_name = data_copy.pop("dataset_name")
-            start_date = data_copy.pop("start_date")
-            end_date = data_copy.pop("end_date")
+    for data in analytics_data:
+        if not data:
+            continue
 
-            # Create DataFrame and drop constant columns
-            df = pd.DataFrame(data_copy)
-            if len(df) > 1:
-                constants = df.nunique() == 1
-                logger.debug(
-                    f"Dropping constant columns: {list(df.columns[constants])}"
-                )
-                df = df.drop(columns=df.columns[constants])
-
-            display_name = (
-                f"{aoi_name} — {dataset_name} ({start_date} to {end_date})"
+        df = pd.DataFrame(data["data"])
+        if len(df) > 1:
+            constants = df.nunique() == 1
+            logger.debug(
+                f"Dropping constant columns: {list(df.columns[constants])}"
             )
-            dataframes.append((df, display_name))
-            source_urls.append(data["source_url"])
+            df = df.drop(columns=df.columns[constants])
 
-            logger.info(f"Prepared: {display_name}")
+        display_name = f"{data['aoi_names']} — {data['dataset_name']} ({data['start_date']} to {data['end_date']})"
+        dataframes.append((df, display_name))
+        source_urls.append(data["source_url"])
+
+        logger.info(f"Prepared: {display_name}")
 
     return dataframes, source_urls
 
@@ -282,8 +269,10 @@ async def generate_insights(
     logger.info("GENERATE-INSIGHTS-TOOL")
     logger.debug(f"Generating insights for query: {query}")
 
-    if not state or "raw_data" not in state:
-        error_msg = "No raw data available in state. Please pull data first."
+    if not state or "analytics_data" not in state:
+        error_msg = (
+            "No analytics data available in state. Please pull data first."
+        )
         logger.error(error_msg)
         return Command(
             update={
@@ -297,10 +286,10 @@ async def generate_insights(
             }
         )
 
-    raw_data = state["raw_data"]
+    analytics_data = state["analytics_data"]
 
     # 1. PREPARE DATAFRAMES: Convert raw_data to DataFrames
-    dataframes, source_urls = prepare_dataframes(raw_data)
+    dataframes, source_urls = prepare_dataframes(analytics_data)
     logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
     # 2. INITIALIZE EXECUTOR: Create Gemini code executor

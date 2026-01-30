@@ -1,3 +1,4 @@
+import operator
 from typing import Annotated, Sequence
 
 from langchain_core.messages import BaseMessage
@@ -12,6 +13,15 @@ class AOISelection(TypedDict):
     aois: list[dict]
 
 
+class AnalyticsData(TypedDict):
+    dataset_name: str
+    start_date: str
+    end_date: str
+    source_url: str
+    data: dict
+    aoi_names: list[str]
+
+
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     user_persona: str
@@ -23,9 +33,7 @@ class AgentState(TypedDict):
     dataset: dict
 
     # pull-data tool
-    raw_data: dict
-    start_date: str
-    end_date: str
+    analytics_data: Annotated[list[AnalyticsData], operator.add]
 
     # generate-insights tool
     insights: list

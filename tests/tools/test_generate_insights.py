@@ -32,24 +32,29 @@ def test_db_pool():
 @pytest.fixture(scope="module", autouse=True)
 def reset_google_clients():
     """Reset cached Google clients at module start to use the correct event loop."""
-    llms_module = sys.modules["src.utils.llms"]
+    llms_module = sys.modules["src.agent.llms"]
     llms_module.SMALL_MODEL = llms_module.get_small_model()
     yield
 
 
 async def test_generate_insights_comparison():
     update = {
-        "aoi": {
-            "source": "gadm",
-            "src_id": "USA.3.11",
-            "name": "Pima, Arizona, United States",
-            "subtype": "district-county",
-            "gadm_id": "USA.3.11_1",
-        },
-        "subregion_aois": None,
-        "subregion": None,
-        "aoi_name": "Pima, Arizona, United States",
-        "subtype": "district-county",
+        "aois": [
+            {
+                "source": "gadm",
+                "src_id": "USA.3.11",
+                "name": "Pima, Arizona, United States",
+                "subtype": "district-county",
+                "gadm_id": "USA.3.11_1",
+            },
+            {
+                "source": "gadm",
+                "src_id": "CHE.2.12",
+                "name": "Bern, Switzerland",
+                "subtype": "municipality",
+                "gadm_id": "CHE.2.12_1",
+            },
+        ],
         "dataset": {
             "dataset_id": 4,
             "context_layer": None,
@@ -65,14 +70,17 @@ async def test_generate_insights_comparison():
             "function_usage_notes": "Identifies areas of gross tree cover loss\n",
             "citation": 'Hansen et al., 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change." Accessed through Global Forest Watch on [date]. www.globalforestwatch.org\n',
         },
-        "raw_data": {
-            "USA.3.11": {
-                4: {
-                    "aoi_name": "Pima, Arizona, United States",
-                    "dataset_name": "Tree cover loss",
-                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                    "start_date": "2024-07-01",
-                    "end_date": "2024-07-31",
+        "analytics_data": [
+            {
+                "dataset_name": "Tree cover loss",
+                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                "start_date": "2024-07-01",
+                "end_date": "2024-07-31",
+                "aoi_names": [
+                    "Pima, Arizona, United States",
+                    "Bern, Switzerland",
+                ],
+                "data": {
                     "country": [
                         "USA",
                         "USA",
@@ -200,15 +208,15 @@ async def test_generate_insights_comparison():
                         "admin",
                         "admin",
                     ],
-                }
+                },
             },
-            "CHE.2.12": {
-                4: {
-                    "aoi_name": "Bern, Switzerland",
-                    "dataset_name": "Tree cover loss",
-                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                    "start_date": "2024-07-01",
-                    "end_date": "2024-07-31",
+            {
+                "dataset_name": "Tree cover loss",
+                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                "start_date": "2024-07-01",
+                "end_date": "2024-07-31",
+                "aoi_names": ["Bern, Switzerland"],
+                "data": {
                     "country": [
                         "CHE",
                         "CHE",
@@ -336,19 +344,7 @@ async def test_generate_insights_comparison():
                         "admin",
                         "admin",
                     ],
-                }
-            },
-        },
-        "aoi_options": [
-            {
-                "source": "gadm",
-                "src_id": "USA.3.11",
-                "name": "Pima, Arizona, United States",
-            },
-            {
-                "source": "gadm",
-                "src_id": "CHE.2.12",
-                "name": "Bern, Switzerland",
+                },
             },
         ],
     }

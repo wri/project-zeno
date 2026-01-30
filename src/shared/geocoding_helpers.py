@@ -31,6 +31,7 @@ SUBREGION_TO_SUBTYPE_MAPPING = {
 SUBREGION_TO_AOI_TYPE_MAPPING = {
     "country": "admin",
     "state": "admin",
+    "state-province": "admin",
     "district": "admin",
     "municipality": "admin",
     "locality": "admin",

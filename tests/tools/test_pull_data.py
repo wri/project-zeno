@@ -172,11 +172,7 @@ async def test_pull_data_queries(aoi_data, dataset):
     print(f"Testing {dataset['dataset_name']} with {aoi_data['name']}")
 
     update = {
-        "aoi": aoi_data,
-        "subregion_aois": None,
-        "subregion": None,
-        "aoi_names": [aoi_data["name"]],
-        "subtype": aoi_data["subtype"],
+        "aois": [aoi_data],
         "dataset": {
             "dataset_id": dataset["dataset_id"],
             "dataset_name": dataset["dataset_name"],
@@ -184,14 +180,6 @@ async def test_pull_data_queries(aoi_data, dataset):
             "tile_url": "",
             "context_layer": dataset["context_layer"],
         },
-        "aoi_options": [
-            {
-                "aoi": aoi_data,
-                "subregion_aois": None,
-                "subregion": None,
-                "subtype": aoi_data["subtype"],
-            }
-        ],
     }
     if dataset.get("check_composition"):
         query = f"find composition of {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
@@ -209,8 +197,9 @@ async def test_pull_data_queries(aoi_data, dataset):
             "end_date": "2024-01-31"
             if dataset["dataset_id"] != 8
             else "2024-01-31",
-            "aoi_names": [update["aoi"]["name"]],
+            "aoi_names": [aoi["name"] for aoi in update["aois"]],
             "dataset_name": dataset["dataset_name"],
+            "change_over_time_query": False,
             "tool_call_id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
             "state": update,
         },
@@ -223,12 +212,8 @@ async def test_pull_data_queries(aoi_data, dataset):
     ):
         assert False
     else:
-        raw_data = command.update.get("raw_data", {})
-        assert aoi_data["src_id"] in raw_data
-        assert dataset["dataset_id"] in raw_data[aoi_data["src_id"]]
-        assert (
-            raw_data[aoi_data["src_id"]][dataset["dataset_id"]] is not None
-        ), "No raw data retrieved"
+        analytics_api_data = command.update.get("analytics_api_data", {})
+        assert aoi_data["src_id"] in analytics_api_data[0]["data"]["country"]
 
 
 async def whitelist_test_user():

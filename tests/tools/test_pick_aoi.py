@@ -123,7 +123,6 @@ async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
             "args": {
                 "question": question,
                 "places": [place],
-                "subregion": "municipality",
             },
             "id": str(uuid.uuid4()),
             "type": "tool_call",
