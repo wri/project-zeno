@@ -1,7 +1,7 @@
-name: Unit Tests
+name: Tool Tests
 
 on:
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Run tests
+      - name: Run all tests
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
           TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
@@ -62,4 +62,4 @@ jobs:
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
           NEXTJS_API_KEY: test-nextjs-api-key
         run: |
-          uv run pytest tests/api tests/cli tests/agent -v
+          uv run pytest tests/tools -v
