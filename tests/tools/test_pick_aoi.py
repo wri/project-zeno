@@ -8,10 +8,9 @@ from src.agent.tools.pick_aoi import pick_aoi
 from src.api.data_models import WhitelistedUserOrm
 from tests.conftest import async_session_maker
 
-# Use module-scoped event loop for all async tests in this module
-# This prevents the "Event loop is closed" error when Google's gRPC clients
-# cache their event loop reference across parameterized tests
-pytestmark = pytest.mark.asyncio(loop_scope="module")
+# Use session-scoped event loop to match conftest.py fixtures and avoid
+# "Event loop is closed" errors when running with other test modules
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 async def whitelist_test_user():
@@ -37,14 +36,35 @@ async def whitelist_test_user():
 async def test_query_aoi_multiple_matches(structlog_context):
     command = await pick_aoi.ainvoke(
         {
-            "question": "Measure deforestation in Puri",
-            "place": "Puri",
-            "tool_call_id": str(uuid.uuid4()),
+            "args": {
+                "question": "Measure deforestation in Puri",
+                "places": ["Puri"],
+            },
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
         }
     )
     assert str(command.update.get("messages")[0].content).startswith(
         "I found multiple locations named 'Puri"
     )
+
+
+async def test_query_aoi_multiple_sources(structlog_context):
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": "Compare states in Ecuador and Bolivia",
+                "places": ["Ecuador", "Bolivia"],
+                "subregion": "state",
+            },
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
+        }
+    )
+    aois = command.update.get("aoi_selection", {}).get("aois")
+    assert len(aois) == 33
+    assert sum("ECU" in aoi.get("src_id") for aoi in aois) == 24
+    assert sum("BOL" in aoi.get("src_id") for aoi in aois) == 9
 
 
 @pytest.mark.parametrize(
@@ -81,13 +101,19 @@ async def test_query_aoi_multiple_matches(structlog_context):
 async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
     command = await pick_aoi.ainvoke(
         {
-            "question": question,
-            "place": place,
-            "tool_call_id": str(uuid.uuid4()),
+            "args": {
+                "question": question,
+                "places": [place],
+            },
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
         }
     )
-
-    assert command.update.get("aoi", {}).get("src_id") == expected_aoi_id
+    assert len(command.update.get("aoi_selection", {}).get("aois")) == 1
+    assert (
+        command.update.get("aoi_selection", {}).get("aois")[0].get("src_id")
+        == expected_aoi_id
+    )
 
 
 async def test_custom_area_selection(auth_override, client, structlog_context):
@@ -151,10 +177,15 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
     with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
         command = await pick_aoi.ainvoke(
             {
-                "question": "Measure deforestation in My Custom Area",
-                "place": "My Custom Area",
-                "tool_call_id": str(uuid.uuid4()),
+                "args": {
+                    "question": "Measure deforestation in My Custom Area",
+                    "places": ["My Custom Area"],
+                },
+                "id": str(uuid.uuid4()),
+                "type": "tool_call",
             }
         )
 
-    assert command.update.get("aoi", {}).get("name") == "My custom area"
+    assert (
+        command.update.get("aoi_selection", {}).get("name") == "My custom area"
+    )

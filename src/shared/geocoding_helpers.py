@@ -28,19 +28,6 @@ SUBREGION_TO_SUBTYPE_MAPPING = {
     "custom": "custom-area",
 }
 
-SUBREGION_TO_AOI_TYPE_MAPPING = {
-    "country": "admin",
-    "state": "admin",
-    "district": "admin",
-    "municipality": "admin",
-    "locality": "admin",
-    "neighbourhood": "admin",
-    "kba": "key_biodiversity_area",
-    "wdpa": "protected_area",
-    "landmark": "indigenous_land",
-    "custom": "feature_collection",
-}
-
 
 SOURCE_ID_MAPPING = {
     "kba": {"table": KBA_TABLE, "id_column": "sitrecid"},
