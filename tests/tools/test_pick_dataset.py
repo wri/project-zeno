@@ -320,5 +320,10 @@ async def test_tile_url_contains_date(dataset):
     tile_url = command.update.get("dataset", {}).get("tile_url")
     if dataset not in [NATURAL_LANDS, TREE_COVER_GAIN, CARBON_FLUX]:
         assert year in tile_url
-    response = requests.get(tile_url.format(z=3, x=5, y=3))
+    tile_url_format = tile_url.format(z=3, x=5, y=3)
+    if "eoapi.globalnaturewatch.org" in tile_url_format:
+        tile_url_format = tile_url_format.replace(
+            "eoapi.globalnaturewatch.org", "eoapi-cache.globalnaturewatch.org"
+        )
+    response = requests.get(tile_url_format)
     assert response.status_code == 200
