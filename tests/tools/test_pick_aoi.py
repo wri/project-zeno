@@ -1,17 +1,35 @@
 import uuid
 
 import pytest
+import pytest_asyncio
 import structlog
 from sqlalchemy import select
 
 from src.agent.tools.pick_aoi import pick_aoi
 from src.api.data_models import WhitelistedUserOrm
-from tests.conftest import async_session_maker
+from src.shared.database import (
+    close_global_pool,
+    initialize_global_pool,
+)
+from tests.conftest import TEST_DB_URL, async_session_maker
 
 # Use module-scoped event loop for all async tests in this module
 # This prevents the "Event loop is closed" error when Google's gRPC clients
 # cache their event loop reference across parameterized tests
 pytestmark = pytest.mark.asyncio(loop_scope="module")
+
+
+@pytest_asyncio.fixture(scope="module", autouse=True)
+async def module_db_pool():
+    """Initialize global database pool for this module's tests.
+
+    This module uses loop_scope="module" which requires a module-scoped
+    fixture for the database pool (separate from the session-scoped one
+    in conftest.py).
+    """
+    await initialize_global_pool(TEST_DB_URL)
+    yield
+    await close_global_pool()
 
 
 async def whitelist_test_user():
@@ -81,9 +99,9 @@ async def test_query_aoi_multiple_matches(structlog_context):
 async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
     command = await pick_aoi.ainvoke(
         {
-            "question": question,
-            "place": place,
-            "tool_call_id": str(uuid.uuid4()),
+            "args": {"question": question, "place": place},
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
         }
     )
 
