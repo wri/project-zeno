@@ -7,14 +7,9 @@ from typing_extensions import TypedDict
 from src.agent.tools.code_executors.base import CodeActPart
 
 
-def add_aois(left, right):
-    """Merges two AOIs and returns the merged AOI."""
-    # Convert to lists if needed, but handle empty cases
-    if not isinstance(left, list):
-        left = [left]
-    if not isinstance(right, list):
-        right = [right]
-    return left + right
+class AOISelection(TypedDict):
+    name: str
+    aois: list[dict]
 
 
 class AgentState(TypedDict):
@@ -22,12 +17,7 @@ class AgentState(TypedDict):
     user_persona: str
 
     # pick-aoi tool
-    aoi: dict
-    subregion_aois: dict
-    subregion: str
-    aoi_name: str
-    subtype: str
-    aoi_options: Annotated[list[dict], add_aois]
+    aoi_selection: AOISelection
 
     # pick-dataset tool
     dataset: dict

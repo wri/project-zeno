@@ -68,6 +68,24 @@ async def test_query_aoi_multiple_matches(structlog_context):
     )
 
 
+async def test_query_aoi_multiple_sources(structlog_context):
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": "Compare states in Ecuador and Bolivia",
+                "places": ["Ecuador", "Bolivia"],
+                "subregion": "state",
+            },
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
+        }
+    )
+    aois = command.update.get("aoi_selection", {}).get("aois")
+    assert len(aois) == 33
+    assert sum("ECU" in aoi.get("src_id") for aoi in aois) == 24
+    assert sum("BOL" in aoi.get("src_id") for aoi in aois) == 9
+
+
 @pytest.mark.parametrize(
     "question,place,expected_aoi_id",
     [
@@ -102,13 +120,20 @@ async def test_query_aoi_multiple_matches(structlog_context):
 async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
     command = await pick_aoi.ainvoke(
         {
-            "args": {"question": question, "place": place},
+            "args": {
+                "question": question,
+                "places": [place],
+                "subregion": "municipality",
+            },
             "id": str(uuid.uuid4()),
             "type": "tool_call",
         }
     )
-
-    assert command.update.get("aoi", {}).get("src_id") == expected_aoi_id
+    assert len(command.update.get("aoi_selection", {}).get("aois")) == 1
+    assert (
+        command.update.get("aoi_selection", {}).get("aois")[0].get("src_id")
+        == expected_aoi_id
+    )
 
 
 async def test_custom_area_selection(auth_override, client, structlog_context):
@@ -172,9 +197,13 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
     with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
         command = await pick_aoi.ainvoke(
             {
-                "question": "Measure deforestation in My Custom Area",
-                "place": "My Custom Area",
-                "tool_call_id": str(uuid.uuid4()),
+                "args": {
+                    "question": "Measure deforestation in My Custom Area",
+                    "places": ["My Custom Area"],
+                    "subregion": "municipality",
+                },
+                "id": str(uuid.uuid4()),
+                "type": "tool_call",
             }
         )
 
