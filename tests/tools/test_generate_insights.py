@@ -39,22 +39,6 @@ def reset_google_clients():
 
 async def test_generate_insights_comparison():
     update = {
-        "aois": [
-            {
-                "source": "gadm",
-                "src_id": "USA.3.11",
-                "name": "Pima, Arizona, United States",
-                "subtype": "district-county",
-                "gadm_id": "USA.3.11_1",
-            },
-            {
-                "source": "gadm",
-                "src_id": "CHE.2.12",
-                "name": "Bern, Switzerland",
-                "subtype": "municipality",
-                "gadm_id": "CHE.2.12_1",
-            },
-        ],
         "dataset": {
             "dataset_id": 4,
             "context_layer": None,
@@ -369,33 +353,39 @@ async def test_generate_insights_comparison():
 async def test_simple_line_chart():
     """Test simple line chart generation for time series data."""
     mock_state_line = {
-        "raw_data": {
-            "BRA.15": {
-                1: {
-                    "aoi_name": "Amazon Region",
-                    "dataset_name": "Deforestation Alerts",
-                    "start_date": "2020-01-01",
-                    "end_date": "2023-12-31",
-                    "date": [
+        "dataset": {
+            "dataset_id": 1,
+            "context_layer": None,
+            "date_request_match": True,
+            "reason": "Deforestation alerts dataset matches the request for analyzing alert trends.",
+            "tile_url": "https://tiles.example.com/deforestation/latest/dynamic/{z}/{x}/{y}.png",
+            "dataset_name": "Deforestation Alerts",
+            "analytics_api_endpoint": "/v0/deforestation/alerts/analytics",
+            "description": "Deforestation alerts tracking forest loss events.",
+            "prompt_instructions": "Analyze deforestation alert trends over time",
+            "methodology": "Satellite-based detection of forest loss events.",
+            "cautions": "Alert data may have temporal lag.",
+            "function_usage_notes": "Identifies deforestation events\n",
+            "citation": "Global Forest Watch Deforestation Alerts.",
+        },
+        "analytics_data": [
+            {
+                "dataset_name": "Deforestation Alerts",
+                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                "start_date": "2020-01-01",
+                "end_date": "2023-12-31",
+                "aoi_names": ["Amazon Region"],
+                "data": {
+                    "alert_date": [
                         "2020-01-01",
                         "2021-01-01",
                         "2022-01-01",
                         "2023-01-01",
                     ],
-                    "alerts": [1200, 1450, 1100, 980],
-                    "region": ["Amazon", "Amazon", "Amazon", "Amazon"],
-                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                }
-            }
-        },
-        "dataset": {
-            "prompt_instructions": "Analyze deforestation alert trends over time"
-        },
-        "aoi_options": [
-            {
-                "source": "gadm",
-                "src_id": "Amazon Region",
-                "name": "Amazon Region",
+                    "value": [1200, 1450, 1100, 980],
+                    "aoi_id": ["BRA.15", "BRA.15", "BRA.15", "BRA.15"],
+                    "aoi_type": ["admin", "admin", "admin", "admin"],
+                },
             }
         ],
     }
@@ -425,22 +415,37 @@ async def test_simple_line_chart():
 async def test_simple_bar_chart():
     """Test simple bar chart generation for categorical comparison."""
     mock_state_bar = {
-        "raw_data": {
-            "BRA.15": {
-                1: {
-                    "aoi_name": "Odisha",
-                    "dataset_name": "Tree cover loss",
-                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                    "start_date": "2022-01-01",
-                    "end_date": "2022-12-31",
-                    "districts": [
+        "dataset": {
+            "dataset_id": 4,
+            "context_layer": None,
+            "date_request_match": True,
+            "reason": "Tree cover loss dataset matches the request for forest loss analysis.",
+            "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png",
+            "dataset_name": "Tree cover loss",
+            "analytics_api_endpoint": "/v0/land_change/tree_cover_loss/analytics",
+            "description": "Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss.",
+            "prompt_instructions": "Compare forest loss across districts",
+            "methodology": "Satellite-based detection of tree cover loss.",
+            "cautions": "Tree cover includes all vegetation greater than 5 meters.",
+            "function_usage_notes": "Identifies areas of gross tree cover loss\n",
+            "citation": "Hansen et al., 2013.",
+        },
+        "analytics_data": [
+            {
+                "dataset_name": "Tree cover loss",
+                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                "start_date": "2022-01-01",
+                "end_date": "2022-12-31",
+                "aoi_names": ["Odisha, India"],
+                "data": {
+                    "subregion": [
                         "Rayagada",
                         "Khurdha",
                         "Puri",
                         "Koraput",
                         "Ganjam",
                     ],
-                    "forest_loss_ha": [
+                    "value": [
                         11568000,
                         6020000,
                         4770000,
@@ -448,15 +453,15 @@ async def test_simple_bar_chart():
                         1240000,
                     ],
                     "year": [2022, 2022, 2022, 2022, 2022],
-                }
-            }
-        },
-        "dataset": {"prompt_instructions": "Compare forest loss"},
-        "aoi_options": [
-            {
-                "source": "gadm",
-                "src_id": "ODI",
-                "name": "Tree cover loss",
+                    "aoi_id": [
+                        "IND.26",
+                        "IND.26",
+                        "IND.26",
+                        "IND.26",
+                        "IND.26",
+                    ],
+                    "aoi_type": ["admin", "admin", "admin", "admin", "admin"],
+                },
             }
         ],
     }
@@ -486,31 +491,37 @@ async def test_simple_bar_chart():
 async def test_stacked_bar_chart():
     """Test stacked bar chart generation for composition data."""
     mock_state_stacked = {
-        "raw_data": {
-            "BRA.15": {
-                1: {
-                    "aoi_name": "Amazon Forest Loss Causes",
-                    "dataset_name": "Forest Loss Causes Over Time",
-                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                    "start_date": "2020-01-01",
-                    "end_date": "2023-12-31",
+        "dataset": {
+            "dataset_id": 5,
+            "context_layer": None,
+            "date_request_match": True,
+            "reason": "Forest loss causes dataset matches the request for composition analysis.",
+            "tile_url": "https://tiles.example.com/forest_loss_causes/latest/dynamic/{z}/{x}/{y}.png",
+            "dataset_name": "Forest Loss Causes Over Time",
+            "analytics_api_endpoint": "/v0/forest/loss_causes/analytics",
+            "description": "Breakdown of forest loss by cause over time.",
+            "prompt_instructions": "Analyze composition of forest loss causes over time",
+            "methodology": "Attribution of forest loss to different drivers.",
+            "cautions": "Cause attribution may have uncertainty.",
+            "function_usage_notes": "Identifies drivers of forest loss\n",
+            "citation": "Forest Loss Attribution Study.",
+        },
+        "analytics_data": [
+            {
+                "dataset_name": "Forest Loss Causes Over Time",
+                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                "start_date": "2020-01-01",
+                "end_date": "2023-12-31",
+                "aoi_names": ["Amazon Region, Brazil"],
+                "data": {
                     "year": ["2020", "2021", "2022", "2023"],
                     "deforestation": [1200, 1100, 950, 800],
                     "fires": [800, 900, 1200, 1100],
                     "logging": [400, 350, 300, 250],
                     "agriculture": [600, 700, 800, 750],
-                    "region": ["Amazon", "Amazon", "Amazon", "Amazon"],
-                }
-            }
-        },
-        "dataset": {
-            "prompt_instructions": "Analyze composition of forest loss causes over time"
-        },
-        "aoi_options": [
-            {
-                "source": "gadm",
-                "src_id": "Amazon Forest Loss Causes",
-                "name": "Amazon Forest Loss Causes",
+                    "aoi_id": ["BRA.15", "BRA.15", "BRA.15", "BRA.15"],
+                    "aoi_type": ["admin", "admin", "admin", "admin"],
+                },
             }
         ],
     }
@@ -540,14 +551,33 @@ async def test_stacked_bar_chart():
 async def test_grouped_bar_chart():
     """Test grouped bar chart generation for multiple metrics comparison."""
     mock_state_grouped = {
-        "raw_data": {
-            "BRA.15": {
-                1: {
-                    "aoi_name": "Global Forest Metrics",
-                    "dataset_name": "Forest Loss and Fire Incidents",
-                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                    "start_date": "2022-01-01",
-                    "end_date": "2022-12-31",
+        "dataset": {
+            "dataset_id": 6,
+            "context_layer": None,
+            "date_request_match": True,
+            "reason": "Forest metrics dataset matches the request for comparing loss and fire incidents.",
+            "tile_url": "https://tiles.example.com/forest_metrics/latest/dynamic/{z}/{x}/{y}.png",
+            "dataset_name": "Forest Loss and Fire Incidents",
+            "analytics_api_endpoint": "/v0/forest/metrics/analytics",
+            "description": "Combined forest loss and fire incident metrics.",
+            "prompt_instructions": "Compare forest loss and fire incidents across countries",
+            "methodology": "Satellite-based detection of forest loss and fire events.",
+            "cautions": "Metrics may have different temporal resolutions.",
+            "function_usage_notes": "Compares forest metrics across regions\n",
+            "citation": "Global Forest Metrics Study.",
+        },
+        "analytics_data": [
+            {
+                "dataset_name": "Forest Loss and Fire Incidents",
+                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                "start_date": "2022-01-01",
+                "end_date": "2022-12-31",
+                "aoi_names": [
+                    "Brazil",
+                    "Indonesia",
+                    "Democratic Republic of Congo",
+                ],
+                "data": {
                     "country": [
                         "Brazil",
                         "Brazil",
@@ -566,17 +596,16 @@ async def test_grouped_bar_chart():
                     ],
                     "value": [11568, 8500, 6020, 4200, 4770, 2100],
                     "year": [2022, 2022, 2022, 2022, 2022, 2022],
-                }
-            }
-        },
-        "dataset": {
-            "prompt_instructions": "Compare forest loss and fire incidents across countries"
-        },
-        "aoi_options": [
-            {
-                "source": "gadm",
-                "src_id": "Global Forest Metrics",
-                "name": "Global Forest Metrics",
+                    "aoi_id": ["BRA", "BRA", "IDN", "IDN", "COD", "COD"],
+                    "aoi_type": [
+                        "admin",
+                        "admin",
+                        "admin",
+                        "admin",
+                        "admin",
+                        "admin",
+                    ],
+                },
             }
         ],
     }
@@ -606,14 +635,29 @@ async def test_grouped_bar_chart():
 async def test_pie_chart():
     """Test pie chart generation for part-to-whole relationship."""
     mock_state_pie = {
-        "raw_data": {
-            "BRA.15": {
-                1: {
-                    "aoi_name": "Global Forest Loss Causes",
-                    "dataset_name": "Global Forest Loss Causes",
-                    "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                    "start_date": "2022-01-01",
-                    "end_date": "2022-12-31",
+        "dataset": {
+            "dataset_id": 7,
+            "context_layer": None,
+            "date_request_match": True,
+            "reason": "Forest loss causes dataset matches the request for global cause analysis.",
+            "tile_url": "https://tiles.example.com/forest_loss_causes/latest/dynamic/{z}/{x}/{y}.png",
+            "dataset_name": "Global Forest Loss Causes",
+            "analytics_api_endpoint": "/v0/forest/loss_causes/analytics",
+            "description": "Global breakdown of forest loss by cause.",
+            "prompt_instructions": "Analyze main causes of forest loss globally",
+            "methodology": "Attribution of global forest loss to different drivers.",
+            "cautions": "Cause attribution may have regional variations.",
+            "function_usage_notes": "Identifies global drivers of forest loss\n",
+            "citation": "Global Forest Loss Attribution Study.",
+        },
+        "analytics_data": [
+            {
+                "dataset_name": "Global Forest Loss Causes",
+                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                "start_date": "2022-01-01",
+                "end_date": "2022-12-31",
+                "aoi_names": ["Global"],
+                "data": {
                     "cause": [
                         "Deforestation",
                         "Fires",
@@ -621,25 +665,22 @@ async def test_pie_chart():
                         "Agriculture",
                         "Mining",
                     ],
-                    "percentage": [45, 25, 15, 10, 5],
-                    "region": [
-                        "Global",
-                        "Global",
-                        "Global",
-                        "Global",
-                        "Global",
+                    "value": [45, 25, 15, 10, 5],
+                    "aoi_id": [
+                        "GLOBAL",
+                        "GLOBAL",
+                        "GLOBAL",
+                        "GLOBAL",
+                        "GLOBAL",
                     ],
-                }
-            }
-        },
-        "dataset": {
-            "prompt_instructions": "Analyze main causes of forest loss globally"
-        },
-        "aoi_options": [
-            {
-                "source": "gadm",
-                "src_id": "Global Forest Loss Causes",
-                "name": "Global Forest Loss Causes",
+                    "aoi_type": [
+                        "global",
+                        "global",
+                        "global",
+                        "global",
+                        "global",
+                    ],
+                },
             }
         ],
     }
