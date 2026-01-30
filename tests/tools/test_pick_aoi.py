@@ -55,9 +55,12 @@ async def whitelist_test_user():
 async def test_query_aoi_multiple_matches(structlog_context):
     command = await pick_aoi.ainvoke(
         {
-            "question": "Measure deforestation in Puri",
-            "place": "Puri",
-            "tool_call_id": str(uuid.uuid4()),
+            "args": {
+                "question": "Measure deforestation in Puri",
+                "place": "Puri",
+            },
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
         }
     )
     assert str(command.update.get("messages")[0].content).startswith(

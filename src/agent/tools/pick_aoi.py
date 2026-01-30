@@ -351,6 +351,45 @@ async def select_best_aoi(question, candidate_aois):
     return selected_aoi
 
 
+def check_multiple_matches(
+    src_id: str, short_name: str, results: pd.DataFrame
+) -> Optional[str]:
+    # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
+    selected_country = src_id.split(".")[0] if "." in src_id else None
+
+    if selected_country:
+        # Filter results to only include AOIs from different countries
+        different_country_results = results[
+            (results.source == "gadm")
+            & (~results.src_id.str.startswith(selected_country + "."))
+        ]
+
+        # Find exact matches of the short name in different countries
+        exact_matches_different_countries = different_country_results[
+            different_country_results.name.str.lower().str.startswith(
+                short_name.lower()
+            )
+        ]
+
+        # If we have exact matches from different countries, ask for clarification
+        if len(exact_matches_different_countries) > 0:
+            # Include the selected AOI and the matches from other countries
+            all_matches = results[
+                (results.name.str.lower().str.startswith(short_name.lower()))
+                & (results.source == "gadm")
+            ]
+
+            candidate_names = all_matches[
+                ["name", "subtype", "src_id"]
+            ].to_dict(orient="records")
+            return "\n".join(
+                [
+                    f"{candidate['name']} - ({candidate['subtype']}) [{candidate['src_id'].split('.')[0]}]"
+                    for candidate in candidate_names
+                ]
+            )
+
+
 @tool("pick_aoi")
 async def pick_aoi(
     question: str,
@@ -392,10 +431,10 @@ async def pick_aoi(
 
     Args:
         question: User's question providing context for selecting the most relevant location
-        place: Name of the place or area to find in the spatial database, expand any abbreviations
+        place: Name of the place or area to find in the spatial database, expand any abbreviations, translate to English if necessary
         subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
-    logger.info(f"PICK-AOI-TOOL: places: '{place}', subregion: '{subregion}'")
+    logger.info(f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'")
     results = await query_aoi_database(place, RESULT_LIMIT)
 
     # Convert results to CSV
@@ -410,63 +449,22 @@ async def pick_aoi(
     name = selected_aoi.name
     subtype = selected_aoi.subtype
 
-    # Check if NAME of selected AOI is an exact match of any of the names in the results, then ask the user for clarification
-    short_name = name.split(",")[0]
-
-    # For GADM sources, check for exact name matches from different countries
     if source == "gadm":
-        # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
-        selected_country = src_id.split(".")[0] if "." in src_id else None
-
-        if selected_country:
-            # Filter results to only include AOIs from different countries
-            different_country_results = results[
-                (results.source == "gadm")
-                & (~results.src_id.str.startswith(selected_country + "."))
-            ]
-
-            # Find exact matches of the short name in different countries
-            exact_matches_different_countries = different_country_results[
-                different_country_results.name.str.lower().str.startswith(
-                    short_name.lower()
-                )
-            ]
-
-            # If we have exact matches from different countries, ask for clarification
-            if len(exact_matches_different_countries) > 0:
-                # Include the selected AOI and the matches from other countries
-                all_matches = results[
-                    (
-                        results.name.str.lower().str.startswith(
-                            short_name.lower()
+        short_name = name.split(",")[0]
+        candidate_names = check_multiple_matches(src_id, short_name, results)
+        if candidate_names:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"I found multiple locations named '{short_name}' in different countries. Please tell me which one you meant:\n\n{candidate_names}\n\nWhich location are you looking for?",
+                            tool_call_id=tool_call_id,
+                            status="success",
+                            response_metadata={"msg_type": "human_feedback"},
                         )
-                    )
-                    & (results.source == "gadm")
-                ]
-
-                candidate_names = all_matches[
-                    ["name", "subtype", "src_id"]
-                ].to_dict(orient="records")
-                candidate_names = "\n".join(
-                    [
-                        f"{candidate['name']} - ({candidate['subtype']}) [{candidate['src_id'].split('.')[0]}]"
-                        for candidate in candidate_names
-                    ]
-                )
-                return Command(
-                    update={
-                        "messages": [
-                            ToolMessage(
-                                f"I found multiple locations named '{short_name}' in different countries. Please tell me which one you meant:\n\n{candidate_names}\n\nWhich location are you looking for?",
-                                tool_call_id=tool_call_id,
-                                status="success",
-                                response_metadata={
-                                    "msg_type": "human_feedback"
-                                },
-                            )
-                        ],
-                    },
-                )
+                    ],
+                },
+            )
 
     if source not in SOURCE_ID_MAPPING:
         logger.error(f"Invalid source: {source}")
