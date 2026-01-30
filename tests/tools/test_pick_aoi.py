@@ -57,7 +57,7 @@ async def test_query_aoi_multiple_matches(structlog_context):
         {
             "args": {
                 "question": "Measure deforestation in Puri",
-                "place": "Puri",
+                "places": ["Puri"],
             },
             "id": str(uuid.uuid4()),
             "type": "tool_call",

@@ -3,6 +3,7 @@ import uuid
 
 import pytest
 
+from src.agent.state import AnalyticsData
 from src.agent.tools.generate_insights import generate_insights
 
 # Use module-scoped event loop for all async tests in this module
@@ -55,53 +56,19 @@ async def test_generate_insights_comparison():
             "citation": 'Hansen et al., 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change." Accessed through Global Forest Watch on [date]. www.globalforestwatch.org\n',
         },
         "analytics_data": [
-            {
-                "dataset_name": "Tree cover loss",
-                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                "start_date": "2024-07-01",
-                "end_date": "2024-07-31",
-                "aoi_names": [
+            AnalyticsData(
+                dataset_name="Tree cover loss",
+                source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                start_date="2024-07-01",
+                end_date="2024-07-31",
+                aoi_names=[
                     "Pima, Arizona, United States",
                     "Bern, Switzerland",
                 ],
-                "data": {
-                    "country": [
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                        "USA",
-                    ],
-                    "region": [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
-                    "subregion": [
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                    ],
+                data={
+                    "country": ["USA"] * 16,
+                    "region": [3] * 16,
+                    "subregion": [11] * 16,
                     "alert_date": [
                         "2024-07-02",
                         "2024-07-03",
@@ -120,24 +87,7 @@ async def test_generate_insights_comparison():
                         "2024-07-27",
                         "2024-07-30",
                     ],
-                    "confidence": [
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                    ],
+                    "confidence": ["high"] * 16,
                     "value": [
                         133035.84375,
                         98698.4765625,
@@ -156,88 +106,20 @@ async def test_generate_insights_comparison():
                         683501.1875,
                         142804.90625,
                     ],
-                    "aoi_id": [
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                        "USA.3.11",
-                    ],
-                    "aoi_type": [
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                    ],
+                    "aoi_id": ["USA.3.11"] * 16,
+                    "aoi_type": ["admin"] * 16,
                 },
-            },
-            {
-                "dataset_name": "Tree cover loss",
-                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                "start_date": "2024-07-01",
-                "end_date": "2024-07-31",
-                "aoi_names": ["Bern, Switzerland"],
-                "data": {
-                    "country": [
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                        "CHE",
-                    ],
-                    "region": [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
-                    "subregion": [
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                        11,
-                    ],
+            ),
+            AnalyticsData(
+                dataset_name="Tree cover loss",
+                source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                start_date="2024-07-01",
+                end_date="2024-07-31",
+                aoi_names=["Bern, Switzerland"],
+                data={
+                    "country": ["CHE"] * 16,
+                    "region": [3] * 16,
+                    "subregion": [11] * 16,
                     "alert_date": [
                         "2024-07-02",
                         "2024-07-03",
@@ -256,24 +138,7 @@ async def test_generate_insights_comparison():
                         "2024-07-27",
                         "2024-07-30",
                     ],
-                    "confidence": [
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                        "high",
-                    ],
+                    "confidence": ["high"] * 16,
                     "value": [
                         13335.84375,
                         9898.4765625,
@@ -292,44 +157,10 @@ async def test_generate_insights_comparison():
                         68501.1875,
                         14804.90625,
                     ],
-                    "aoi_id": [
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                        "CHE.2.12",
-                    ],
-                    "aoi_type": [
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                    ],
+                    "aoi_id": ["CHE.2.12"] * 16,
+                    "aoi_type": ["admin"] * 16,
                 },
-            },
+            ),
         ],
     }
     tool_call_id = str(uuid.uuid4())
@@ -369,13 +200,13 @@ async def test_simple_line_chart():
             "citation": "Global Forest Watch Deforestation Alerts.",
         },
         "analytics_data": [
-            {
-                "dataset_name": "Deforestation Alerts",
-                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                "start_date": "2020-01-01",
-                "end_date": "2023-12-31",
-                "aoi_names": ["Amazon Region"],
-                "data": {
+            AnalyticsData(
+                dataset_name="Deforestation Alerts",
+                source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                start_date="2020-01-01",
+                end_date="2023-12-31",
+                aoi_names=["Amazon Region"],
+                data={
                     "alert_date": [
                         "2020-01-01",
                         "2021-01-01",
@@ -386,7 +217,7 @@ async def test_simple_line_chart():
                     "aoi_id": ["BRA.15", "BRA.15", "BRA.15", "BRA.15"],
                     "aoi_type": ["admin", "admin", "admin", "admin"],
                 },
-            }
+            )
         ],
     }
 
@@ -431,13 +262,13 @@ async def test_simple_bar_chart():
             "citation": "Hansen et al., 2013.",
         },
         "analytics_data": [
-            {
-                "dataset_name": "Tree cover loss",
-                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                "start_date": "2022-01-01",
-                "end_date": "2022-12-31",
-                "aoi_names": ["Odisha, India"],
-                "data": {
+            AnalyticsData(
+                dataset_name="Tree cover loss",
+                source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                start_date="2022-01-01",
+                end_date="2022-12-31",
+                aoi_names=["Odisha, India"],
+                data={
                     "subregion": [
                         "Rayagada",
                         "Khurdha",
@@ -453,16 +284,10 @@ async def test_simple_bar_chart():
                         1240000,
                     ],
                     "year": [2022, 2022, 2022, 2022, 2022],
-                    "aoi_id": [
-                        "IND.26",
-                        "IND.26",
-                        "IND.26",
-                        "IND.26",
-                        "IND.26",
-                    ],
-                    "aoi_type": ["admin", "admin", "admin", "admin", "admin"],
+                    "aoi_id": ["IND.26"] * 5,
+                    "aoi_type": ["admin"] * 5,
                 },
-            }
+            )
         ],
     }
 
@@ -507,22 +332,22 @@ async def test_stacked_bar_chart():
             "citation": "Forest Loss Attribution Study.",
         },
         "analytics_data": [
-            {
-                "dataset_name": "Forest Loss Causes Over Time",
-                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                "start_date": "2020-01-01",
-                "end_date": "2023-12-31",
-                "aoi_names": ["Amazon Region, Brazil"],
-                "data": {
+            AnalyticsData(
+                dataset_name="Forest Loss Causes Over Time",
+                source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                start_date="2020-01-01",
+                end_date="2023-12-31",
+                aoi_names=["Amazon Region, Brazil"],
+                data={
                     "year": ["2020", "2021", "2022", "2023"],
                     "deforestation": [1200, 1100, 950, 800],
                     "fires": [800, 900, 1200, 1100],
                     "logging": [400, 350, 300, 250],
                     "agriculture": [600, 700, 800, 750],
-                    "aoi_id": ["BRA.15", "BRA.15", "BRA.15", "BRA.15"],
-                    "aoi_type": ["admin", "admin", "admin", "admin"],
+                    "aoi_id": ["BRA.15"] * 4,
+                    "aoi_type": ["admin"] * 4,
                 },
-            }
+            )
         ],
     }
 
@@ -567,17 +392,17 @@ async def test_grouped_bar_chart():
             "citation": "Global Forest Metrics Study.",
         },
         "analytics_data": [
-            {
-                "dataset_name": "Forest Loss and Fire Incidents",
-                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                "start_date": "2022-01-01",
-                "end_date": "2022-12-31",
-                "aoi_names": [
+            AnalyticsData(
+                dataset_name="Forest Loss and Fire Incidents",
+                source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                start_date="2022-01-01",
+                end_date="2022-12-31",
+                aoi_names=[
                     "Brazil",
                     "Indonesia",
                     "Democratic Republic of Congo",
                 ],
-                "data": {
+                data={
                     "country": [
                         "Brazil",
                         "Brazil",
@@ -595,18 +420,11 @@ async def test_grouped_bar_chart():
                         "Fire Incidents",
                     ],
                     "value": [11568, 8500, 6020, 4200, 4770, 2100],
-                    "year": [2022, 2022, 2022, 2022, 2022, 2022],
+                    "year": [2022] * 6,
                     "aoi_id": ["BRA", "BRA", "IDN", "IDN", "COD", "COD"],
-                    "aoi_type": [
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                        "admin",
-                    ],
+                    "aoi_type": ["admin"] * 6,
                 },
-            }
+            )
         ],
     }
 
@@ -651,13 +469,13 @@ async def test_pie_chart():
             "citation": "Global Forest Loss Attribution Study.",
         },
         "analytics_data": [
-            {
-                "dataset_name": "Global Forest Loss Causes",
-                "source_url": "http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                "start_date": "2022-01-01",
-                "end_date": "2022-12-31",
-                "aoi_names": ["Global"],
-                "data": {
+            AnalyticsData(
+                dataset_name="Global Forest Loss Causes",
+                source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                start_date="2022-01-01",
+                end_date="2022-12-31",
+                aoi_names=["Global"],
+                data={
                     "cause": [
                         "Deforestation",
                         "Fires",
@@ -666,22 +484,10 @@ async def test_pie_chart():
                         "Mining",
                     ],
                     "value": [45, 25, 15, 10, 5],
-                    "aoi_id": [
-                        "GLOBAL",
-                        "GLOBAL",
-                        "GLOBAL",
-                        "GLOBAL",
-                        "GLOBAL",
-                    ],
-                    "aoi_type": [
-                        "global",
-                        "global",
-                        "global",
-                        "global",
-                        "global",
-                    ],
+                    "aoi_id": ["GLOBAL"] * 5,
+                    "aoi_type": ["global"] * 5,
                 },
-            }
+            )
         ],
     }
 
