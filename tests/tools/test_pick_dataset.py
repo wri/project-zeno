@@ -6,10 +6,9 @@ import requests
 
 from src.agent.tools.pick_dataset import pick_dataset
 
-# Use session-scoped event loop for all async tests in this module
-# This prevents the "Event loop is closed" error when Google's gRPC clients
-# cache their event loop reference across parameterized tests
-pytestmark = pytest.mark.asyncio(loop_scope="module")
+# Use session-scoped event loop to match conftest.py fixtures and avoid
+# "Event loop is closed" errors when running with other test modules
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -30,9 +29,9 @@ def test_db_pool():
     pass
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="session", autouse=True)
 def reset_google_clients():
-    """Reset cached Google clients at module start to use the correct event loop."""
+    """Reset cached Google clients at session start to use the correct event loop."""
     # Access the actual modules via sys.modules to avoid the __init__.py re-exports
     pd_module = sys.modules["src.agent.tools.pick_dataset"]
     llms_module = sys.modules["src.agent.llms"]

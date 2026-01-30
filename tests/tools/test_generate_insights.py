@@ -6,10 +6,9 @@ import pytest
 from src.agent.state import AnalyticsData
 from src.agent.tools.generate_insights import generate_insights
 
-# Use module-scoped event loop for all async tests in this module
-# This prevents the "Event loop is closed" error when Google's gRPC clients
-# cache their event loop reference across parameterized tests
-pytestmark = pytest.mark.asyncio(loop_scope="module")
+# Use session-scoped event loop to match conftest.py fixtures and avoid
+# "Event loop is closed" errors when running with other test modules
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 @pytest.fixture(scope="function", autouse=True)

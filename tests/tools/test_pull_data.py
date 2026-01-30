@@ -10,10 +10,9 @@ from src.api.data_models import WhitelistedUserOrm
 from src.api.schemas import UserModel
 from tests.conftest import async_session_maker
 
-# Use module-scoped event loop for all async tests in this module
-# This prevents the "Event loop is closed" error when Google's gRPC clients
-# cache their event loop reference across parameterized tests
-pytestmark = pytest.mark.asyncio(loop_scope="module")
+# Use session-scoped event loop to match conftest.py fixtures and avoid
+# "Event loop is closed" errors when running with other test modules
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 # All dataset and intersection combinations from OpenAPI spec
 # https://analytics.globalnaturewatch.org/openapi.json
