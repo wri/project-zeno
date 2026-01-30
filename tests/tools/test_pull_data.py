@@ -191,16 +191,16 @@ async def test_pull_data_queries(aoi_data, dataset):
     }
     command = await pull_data.ainvoke(tool_call)
     analytics_data = command.update.get("analytics_data", {})
-    if dataset["dataset_id"] not in [5, 9] and aoi_data["src_id"] not in [
+    if dataset["dataset_id"] in [5, 9] and aoi_data["src_id"] in [
         "6072",
         "148322",
         "MEX9713",
     ]:
+        assert len(analytics_data) == 0
+    else:
         assert len(analytics_data) == 1
         assert analytics_data[0]["source_url"].startswith("http")
         assert analytics_data[0]["aoi_names"] == [aoi_data["name"]]
-    else:
-        assert len(analytics_data) == 0
 
 
 async def whitelist_test_user():
