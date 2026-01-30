@@ -10,7 +10,6 @@ from src.agent.tools.data_handlers.base import (
 )
 from src.agent.tools.datasets_config import DATASETS
 from src.shared.geocoding_helpers import (
-    SUBREGION_TO_AOI_TYPE_MAPPING,
     format_id,
     get_geometry_data,
 )
@@ -237,7 +236,7 @@ class AnalyticsHandler(DataSourceHandler):
             aoi_ids = [format_id(aoi["src_id"]) for aoi in aois]
             base_payload = {
                 "aoi": {
-                    "type": SUBREGION_TO_AOI_TYPE_MAPPING[aoi["subtype"]],
+                    "type": aoi_type["type"],
                     "ids": aoi_ids,
                 }
             }

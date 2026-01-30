@@ -153,7 +153,7 @@ async def pull_data(
 
     return Command(
         update={
-            "analytics_api_data": [
+            "analytics_data": [
                 {
                     "dataset_name": dataset["dataset_name"],
                     "start_date": start_date,

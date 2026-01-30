@@ -212,8 +212,9 @@ async def test_pull_data_queries(aoi_data, dataset):
     ):
         assert False
     else:
-        analytics_api_data = command.update.get("analytics_api_data", {})
-        assert aoi_data["src_id"] in analytics_api_data[0]["data"]["country"]
+        analytics_data = command.update.get("analytics_data", {})
+        assert analytics_data[0]["source_url"].startswith("http")
+        assert analytics_data[0]["aoi_names"] == [aoi_data["name"]]
 
 
 async def whitelist_test_user():
