@@ -584,7 +584,8 @@ class AnalyticsHandler(DataSourceHandler):
                     success=False,
                     data=None,
                     message=error_msg,
-                    analytics_api_url=None,
+                    analytics_api_url=result.get("data", {}).get("link", None),
+                    data_points_count=0,
                 )
 
         except Exception as e:

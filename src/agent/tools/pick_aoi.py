@@ -497,6 +497,7 @@ async def pick_aoi(
                         ],
                     },
                 )
+    match_names = [selected_aoi["name"] for selected_aoi in selected_aois]
 
     if subregion:
         final_aois = []
@@ -535,10 +536,14 @@ async def pick_aoi(
 
     logger.debug(f"Pick AOI tool message: {tool_message}")
 
+    selection_name = ", ".join(match_names)
+    if subregion:
+        selection_name = f"{subregion.capitalize()}s in {selection_name}"
+
     return Command(
         update={
             "aoi_selection": {
-                "name": tool_message,
+                "name": selection_name,
                 "aois": final_aois,
             },
             "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],

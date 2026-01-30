@@ -199,11 +199,12 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
                 "args": {
                     "question": "Measure deforestation in My Custom Area",
                     "places": ["My Custom Area"],
-                    "subregion": "municipality",
                 },
                 "id": str(uuid.uuid4()),
                 "type": "tool_call",
             }
         )
 
-    assert command.update.get("aoi", {}).get("name") == "My custom area"
+    assert (
+        command.update.get("aoi_selection", {}).get("name") == "My custom area"
+    )

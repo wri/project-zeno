@@ -95,7 +95,7 @@ async def pull_data(
         start_date=start_date,
         end_date=end_date,
         change_over_time_query=change_over_time_query,
-        aois=state["aois"],
+        aois=state["aoi_selection"]["aois"],
     )
 
     # Create tool message
@@ -160,7 +160,9 @@ async def pull_data(
                     "end_date": end_date,
                     "source_url": result.analytics_api_url,
                     "data": raw_data,
-                    "aoi_names": [aoi["name"] for aoi in state["aois"]],
+                    "aoi_names": [
+                        aoi["name"] for aoi in state["aoi_selection"]["aois"]
+                    ],
                 }
             ],
             "messages": [tool_message],

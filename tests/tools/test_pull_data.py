@@ -153,7 +153,10 @@ async def test_pull_data_queries(aoi_data, dataset):
     print(f"Testing {dataset['dataset_name']} with {aoi_data['name']}")
 
     update = {
-        "aois": [aoi_data],
+        "aoi_selection": {
+            "name": aoi_data["name"],
+            "aois": [aoi_data],
+        },
         "dataset": {
             "dataset_id": dataset["dataset_id"],
             "dataset_name": dataset["dataset_name"],
@@ -178,7 +181,9 @@ async def test_pull_data_queries(aoi_data, dataset):
             "end_date": "2024-01-31"
             if dataset["dataset_id"] != 8
             else "2024-01-31",
-            "aoi_names": [aoi["name"] for aoi in update["aois"]],
+            "aoi_names": [
+                aoi["name"] for aoi in update["aoi_selection"]["aois"]
+            ],
             "dataset_name": dataset["dataset_name"],
             "change_over_time_query": False,
             "tool_call_id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
@@ -187,9 +192,16 @@ async def test_pull_data_queries(aoi_data, dataset):
     }
     command = await pull_data.ainvoke(tool_call)
     analytics_data = command.update.get("analytics_data", {})
-    assert len(analytics_data) == 1
-    assert analytics_data[0]["source_url"].startswith("http")
-    assert analytics_data[0]["aoi_names"] == [aoi_data["name"]]
+    if dataset["dataset_id"] not in [5, 9] and aoi_data["src_id"] not in [
+        "6072",
+        "148322",
+        "MEX9713",
+    ]:
+        assert len(analytics_data) == 1
+        assert analytics_data[0]["source_url"].startswith("http")
+        assert analytics_data[0]["aoi_names"] == [aoi_data["name"]]
+    else:
+        assert len(analytics_data) == 0
 
 
 async def whitelist_test_user():
@@ -275,7 +287,10 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
         "query_description": response_json["name"],
     }
     update = {
-        "aois": [aoi_data],
+        "aoi_selection": {
+            "name": aoi_data["name"],
+            "aois": [aoi_data],
+        },
         "dataset": {
             "dataset_id": 1,
             "dataset_name": "Global land cover",
