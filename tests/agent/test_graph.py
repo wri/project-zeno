@@ -9,9 +9,6 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from src.agent.graph import fetch_zeno_anonymous
 from src.agent.tools.datasets_config import DATASETS
 
-# Use module-scoped event loop for all async tests in this module
-# This prevents the "Event loop is closed" error when Google's gRPC clients
-# cache their event loop reference across parameterized tests
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 

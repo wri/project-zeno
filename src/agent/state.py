@@ -1,3 +1,4 @@
+import operator
 from typing import Annotated, Sequence
 
 from langchain_core.messages import BaseMessage
@@ -7,14 +8,18 @@ from typing_extensions import TypedDict
 from src.agent.tools.code_executors.base import CodeActPart
 
 
-def add_aois(left, right):
-    """Merges two AOIs and returns the merged AOI."""
-    # Convert to lists if needed, but handle empty cases
-    if not isinstance(left, list):
-        left = [left]
-    if not isinstance(right, list):
-        right = [right]
-    return left + right
+class AOISelection(TypedDict):
+    name: str
+    aois: list[dict]
+
+
+class AnalyticsData(TypedDict):
+    dataset_name: str
+    start_date: str
+    end_date: str
+    source_url: str
+    data: dict
+    aoi_names: list[str]
 
 
 class AgentState(TypedDict):
@@ -22,20 +27,13 @@ class AgentState(TypedDict):
     user_persona: str
 
     # pick-aoi tool
-    aoi: dict
-    subregion_aois: dict
-    subregion: str
-    aoi_name: str
-    subtype: str
-    aoi_options: Annotated[list[dict], add_aois]
+    aoi_selection: AOISelection
 
     # pick-dataset tool
     dataset: dict
 
     # pull-data tool
-    raw_data: dict
-    start_date: str
-    end_date: str
+    analytics_data: Annotated[list[AnalyticsData], operator.add]
 
     # generate-insights tool
     insights: list
