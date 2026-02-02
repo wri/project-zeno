@@ -9,9 +9,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from src.agent.graph import fetch_zeno_anonymous
 from src.agent.tools.datasets_config import DATASETS
 
-# Use session-scoped event loop to match conftest.py fixtures and avoid
-# "Event loop is closed" errors when running with other test modules
-pytestmark = pytest.mark.asyncio(loop_scope="session")
+pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
 # Override database fixtures to avoid database connections for these unit tests
