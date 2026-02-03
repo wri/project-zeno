@@ -399,7 +399,22 @@ def check_multiple_matches(
             )
 
 
-async def check_aoi_selection(aois: list[dict]) -> str:
+async def check_aoi_selection_limits(
+    aois: list[dict],
+    subregion: Optional[
+        Literal[
+            "country",
+            "state",
+            "district",
+            "municipality",
+            "locality",
+            "neighbourhood",
+            "kba",
+            "wdpa",
+            "landmark",
+        ]
+    ],
+) -> str:
     aoi_sources = set([aoi["source"] for aoi in aois])
     if len(aoi_sources) > 1:
         return "Found multiple sources of AOIs, which is not supported. Please select only one source."
@@ -501,18 +516,22 @@ async def pick_aoi(
 
     if subregion:
         final_aois = []
-        for selected_aoi, result in zip(selected_aois, all_results):
+        for selected_aoi, result in zip(
+            selected_aois, all_results
+        ):  # TODO: makee this async
             subregion_aois = await query_subregion_database(
                 subregion, selected_aoi["source"], selected_aoi["src_id"]
             )
-            subregion_aois = subregion_aois.to_dict(orient="records")
+            subregion_aois = subregion_aois.to_dict(
+                orient="records"
+            )  # TODO: consider adding parent ID
             final_aois.extend(subregion_aois)
     else:
         final_aois = selected_aois
 
     logger.info(f"Found {len(final_aois)} AOIs in total")
 
-    check = await check_aoi_selection(final_aois)
+    check = await check_aoi_selection_limits(final_aois, subregion)
     if check:
         return Command(
             update={

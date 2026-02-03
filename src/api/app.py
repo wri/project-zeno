@@ -17,6 +17,7 @@ from fastapi import (
     FastAPI,
     Header,
     HTTPException,
+    Query,
     Request,
     Response,
     status,
@@ -44,6 +45,9 @@ from src.agent.graph import (
     get_checkpointer_pool,
 )
 from src.agent.llms import SMALL_MODEL, get_model, get_small_model
+from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.generate_insights import generate_insights
+from src.agent.tools.pull_data import pull_data
 from src.api.auth import MACHINE_USER_PREFIX, validate_machine_user_token
 from src.api.config import APISettings
 from src.api.data_models import (
@@ -56,12 +60,23 @@ from src.api.data_models import (
     WhitelistedUserOrm,
 )
 from src.api.schemas import (
+    AnalyticsDataModel,
+    AOIModel,
+    AOISelectionModel,
+    ChartDataModel,
     ChatRequest,
+    CodeActPartModel,
     CustomAreaCreate,
     CustomAreaModel,
     CustomAreaNameRequest,
     CustomAreaNameResponse,
+    DatasetModel,
+    DateRangeModel,
     GeometryResponse,
+    LabsStreamAnalyticsData,
+    LabsStreamEventType,
+    LabsStreamInsights,
+    LabsStreamMetadata,
     ProfileConfigResponse,
     QuotaModel,
     RatingCreateRequest,
@@ -2208,3 +2223,315 @@ async def get_raw_data(
             status_code=415,
             detail=f"Unsupported Media Type: {content_type}, must be one of [application/json, text/csv]",
         )
+
+
+@app.get("/api/labs/monitoring/stream")
+async def labs_monitoring_stream(
+    dataset_id: int,
+    start_date: str,
+    end_date: str,
+    area_ids: Optional[list[str]] = Query(default=None),
+    context_layer: Optional[str] = None,
+    insights_query: Optional[str] = Query(
+        default="Analyse this data",
+        description="If provided, generates insights using this query after pulling data",
+    ),
+    user: UserModel = Depends(require_auth),
+):
+    """
+    Streaming version of labs monitoring endpoint.
+
+    Returns newline-delimited JSON (NDJSON) stream with the following event types:
+    - metadata: Initial request metadata (query, date_range, aoi_selection, dataset)
+    - analytics_data: Raw data from analytics API (after pull_data completes)
+    - insights: Generated insights, charts, and follow-up suggestions (after generate_insights completes)
+    - error: Error information if something goes wrong
+    - complete: Signal that streaming is complete
+
+    Each line is a JSON object with `type` and `data` fields.
+    """
+
+    async def stream_labs_monitoring():
+        # Bind user_id to structlog context for custom area lookups
+        structlog.contextvars.bind_contextvars(user_id=user.id)
+
+        try:
+            if not area_ids:
+                yield pack(
+                    {
+                        "type": LabsStreamEventType.ERROR,
+                        "data": {
+                            "message": "At least one area_id is required. Format: 'source:src_id' "
+                            "(e.g., 'gadm:BRA', 'kba:6072', 'custom:uuid')"
+                        },
+                    }
+                )
+                return
+
+            # Find the dataset configuration
+            dataset_config = next(
+                (d for d in DATASETS if d["dataset_id"] == dataset_id), None
+            )
+            if not dataset_config:
+                yield pack(
+                    {
+                        "type": LabsStreamEventType.ERROR,
+                        "data": {
+                            "message": f"Invalid dataset_id: {dataset_id}. Must be between 0-9."
+                        },
+                    }
+                )
+                return
+
+            # Resolve area IDs to AOI data
+            aois: list[AOIModel] = []
+            for area_id in area_ids:
+                if ":" not in area_id:
+                    yield pack(
+                        {
+                            "type": LabsStreamEventType.ERROR,
+                            "data": {
+                                "message": f"Invalid area_id format: '{area_id}'. "
+                                "Expected format: 'source:src_id'"
+                            },
+                        }
+                    )
+                    return
+
+                source, src_id = area_id.split(":", 1)
+
+                try:
+                    geometry_data = await get_geometry_data(source, src_id)
+                except ValueError as e:
+                    yield pack(
+                        {
+                            "type": LabsStreamEventType.ERROR,
+                            "data": {"message": str(e)},
+                        }
+                    )
+                    return
+
+                if not geometry_data:
+                    yield pack(
+                        {
+                            "type": LabsStreamEventType.ERROR,
+                            "data": {
+                                "message": f"Area not found for source '{source}' with ID '{src_id}'"
+                            },
+                        }
+                    )
+                    return
+
+                # Map source to aoi_type
+                subtype = geometry_data.get("subtype", source)
+                aoi_type = SUBREGION_TO_SUBTYPE_MAPPING.get(subtype, subtype)
+
+                aoi_model = AOIModel(
+                    name=geometry_data["name"],
+                    subtype=subtype,
+                    src_id=src_id,
+                    gadm_id=src_id if source == "gadm" else None,
+                    aoi_type=aoi_type,
+                    query_description=geometry_data["name"],
+                )
+                aois.append(aoi_model)
+
+            # Build the dataset state with full configuration
+            dataset_model = DatasetModel(
+                dataset_id=dataset_config["dataset_id"],
+                dataset_name=dataset_config["dataset_name"],
+                reason="",
+                tile_url=dataset_config.get("tile_url", ""),
+                context_layer=context_layer,
+                prompt_instructions=dataset_config.get(
+                    "prompt_instructions", ""
+                ),
+                cautions=dataset_config.get("cautions", ""),
+                description=dataset_config.get("description", ""),
+                methodology=dataset_config.get("methodology", ""),
+                citation=dataset_config.get("citation", ""),
+            )
+
+            # Build the AOI selection model
+            aoi_selection_model = AOISelectionModel(
+                name=aois[0].name if len(aois) == 1 else "Multiple areas",
+                aois=aois,
+            )
+
+            # Build the query string
+            area_names = [aoi.name for aoi in aois]
+            query = f"find {dataset_config['dataset_name'].lower()} in {', '.join(area_names)}"
+
+            # Yield metadata immediately
+            metadata = LabsStreamMetadata(
+                query=query,
+                date_range=DateRangeModel(
+                    start_date=start_date, end_date=end_date
+                ),
+                aoi_selection=aoi_selection_model,
+                dataset=dataset_model,
+            )
+            yield pack(
+                {
+                    "type": LabsStreamEventType.METADATA,
+                    "data": metadata.model_dump(),
+                }
+            )
+
+            # Build the state update structure for pull_data
+            update = {
+                "aoi_selection": {
+                    "name": aoi_selection_model.name,
+                    "aois": [aoi.model_dump() for aoi in aois],
+                },
+                "dataset": dataset_model.model_dump(),
+            }
+
+            # Build the tool call structure for pull_data
+            pull_data_tool_call_id = f"labs-pull-data-{uuid.uuid4()}"
+            pull_data_tool_call = {
+                "type": "tool_call",
+                "name": "pull_data",
+                "id": pull_data_tool_call_id,
+                "args": {
+                    "query": query,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "aoi_names": area_names,
+                    "dataset_name": dataset_config["dataset_name"],
+                    "change_over_time_query": False,
+                    "tool_call_id": pull_data_tool_call_id,
+                    "state": update,
+                },
+            }
+
+            # Invoke the pull_data tool
+            try:
+                pull_data_command = await pull_data.ainvoke(
+                    pull_data_tool_call
+                )
+            except Exception as e:
+                logger.exception("Error invoking pull_data tool")
+                yield pack(
+                    {
+                        "type": LabsStreamEventType.ERROR,
+                        "data": {"message": f"Error pulling data: {str(e)}"},
+                    }
+                )
+                return
+
+            raw_analytics_data = pull_data_command.update.get(
+                "analytics_data", []
+            )
+
+            # Validate and yield analytics data
+            analytics_data: list[AnalyticsDataModel] = [
+                AnalyticsDataModel(**data) for data in raw_analytics_data
+            ]
+
+            analytics_stream_data = LabsStreamAnalyticsData(
+                analytics_data=analytics_data
+            )
+            yield pack(
+                {
+                    "type": LabsStreamEventType.ANALYTICS_DATA,
+                    "data": analytics_stream_data.model_dump(),
+                }
+            )
+
+            # If insights_query is provided, generate insights
+            if insights_query and analytics_data:
+                # Build the complete state object for insights tool
+                state_for_insights = {
+                    "aoi_selection": update["aoi_selection"],
+                    "dataset": dataset_model.model_dump(),
+                    "analytics_data": raw_analytics_data,
+                }
+
+                insights_tool_call_id = f"labs-insights-{uuid.uuid4()}"
+                insights_tool_call = {
+                    "type": "tool_call",
+                    "name": "generate_insights",
+                    "id": insights_tool_call_id,
+                    "args": {
+                        "query": insights_query,
+                        "state": state_for_insights,
+                    },
+                }
+
+                insights_list: list[str] = []
+                charts_data: list[ChartDataModel] = []
+                codeact_parts: list[CodeActPartModel] = []
+                follow_up_suggestions: list[str] = []
+                insights_error: Optional[str] = None
+
+                try:
+                    insights_command = await generate_insights.ainvoke(
+                        insights_tool_call
+                    )
+
+                    # Extract insights data from command update
+                    insights_update = insights_command.update
+
+                    # Convert singular 'insight' to list 'insights'
+                    insight_str = insights_update.get("insight", "")
+                    if insight_str:
+                        insights_list = [insight_str]
+
+                    # Validate charts_data
+                    raw_charts_data = insights_update.get("charts_data", [])
+                    charts_data = [
+                        ChartDataModel(**chart) for chart in raw_charts_data
+                    ]
+
+                    # Validate codeact_parts
+                    raw_codeact_parts = insights_update.get(
+                        "codeact_parts", []
+                    )
+                    codeact_parts = [
+                        CodeActPartModel(**part) for part in raw_codeact_parts
+                    ]
+
+                    follow_up_suggestions = insights_update.get(
+                        "follow_up_suggestions", []
+                    )
+                except Exception as e:
+                    logger.exception("Error invoking generate_insights tool")
+                    insights_error = str(e)
+
+                # Yield insights data
+                insights_stream_data = LabsStreamInsights(
+                    insights=insights_list,
+                    charts_data=charts_data,
+                    codeact_parts=codeact_parts,
+                    follow_up_suggestions=follow_up_suggestions,
+                    insights_error=insights_error,
+                )
+                yield pack(
+                    {
+                        "type": LabsStreamEventType.INSIGHTS,
+                        "data": insights_stream_data.model_dump(),
+                    }
+                )
+
+            # Signal completion
+            yield pack({"type": LabsStreamEventType.COMPLETE, "data": None})
+
+        except Exception as e:
+            logger.exception("Unexpected error in labs monitoring stream")
+            yield pack(
+                {
+                    "type": LabsStreamEventType.ERROR,
+                    "data": {"message": f"Unexpected error: {str(e)}"},
+                }
+            )
+
+    return StreamingResponse(
+        stream_labs_monitoring(),
+        media_type="application/x-ndjson; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+            "Connection": "keep-alive",
+        },
+    )

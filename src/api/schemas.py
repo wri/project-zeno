@@ -364,3 +364,208 @@ class ThreadStateResponse(BaseModel):
     state: str = Field(
         ..., description="JSON serialized agent state for the thread"
     )
+
+
+# Labs Monitoring Response Models - aligned with AgentState from state.py
+
+
+class AOIModel(BaseModel):
+    """Model for an individual Area of Interest."""
+
+    name: str = Field(..., description="Name of the area")
+    subtype: str = Field(
+        ..., description="Subtype of the area (e.g., 'country', 'state')"
+    )
+    src_id: str = Field(..., description="Source ID")
+    gadm_id: Optional[str] = Field(
+        None, description="GADM ID if source is GADM"
+    )
+    aoi_type: str = Field(..., description="AOI type for API queries")
+    query_description: str = Field(..., description="Description for queries")
+
+
+class AOISelectionModel(BaseModel):
+    """Model matching AOISelection TypedDict from state.py."""
+
+    name: str = Field(
+        ...,
+        description="Name of the selection (single area or 'Multiple areas')",
+    )
+    aois: List[AOIModel] = Field(..., description="List of selected AOIs")
+
+
+class AnalyticsDataModel(BaseModel):
+    """Model matching AnalyticsData TypedDict from state.py."""
+
+    dataset_name: str = Field(..., description="Name of the dataset")
+    start_date: str = Field(..., description="Start date in YYYY-MM-DD format")
+    end_date: str = Field(..., description="End date in YYYY-MM-DD format")
+    source_url: str = Field(..., description="URL to the analytics API")
+    data: dict = Field(..., description="Raw data from the API")
+    aoi_names: List[str] = Field(
+        ..., description="Names of the AOIs in this data"
+    )
+
+
+class DatasetModel(BaseModel):
+    """Model for dataset configuration."""
+
+    dataset_id: int = Field(..., description="Dataset ID")
+    dataset_name: str = Field(..., description="Dataset name")
+    reason: str = Field(default="", description="Reason for dataset selection")
+    tile_url: str = Field(default="", description="Tile URL for map display")
+    context_layer: Optional[str] = Field(
+        None, description="Context layer if applicable"
+    )
+    prompt_instructions: str = Field(
+        default="", description="Instructions for prompts"
+    )
+    cautions: str = Field(default="", description="Cautions about the data")
+    description: str = Field(default="", description="Dataset description")
+    methodology: str = Field(default="", description="Data methodology")
+    citation: str = Field(default="", description="Citation for the dataset")
+
+
+class ChartDataModel(BaseModel):
+    """Model for chart data output."""
+
+    id: str = Field(..., description="Chart identifier")
+    title: str = Field(..., description="Chart title")
+    type: str = Field(..., description="Chart type (line, bar, pie, etc.)")
+    insight: str = Field(..., description="Key insight from the chart")
+    data: List[dict] = Field(..., description="Chart data in Recharts format")
+    xAxis: str = Field(
+        default="", description="X-axis field name", alias="x_axis"
+    )
+    yAxis: str = Field(
+        default="", description="Y-axis field name", alias="y_axis"
+    )
+    colorField: str = Field(
+        default="", description="Color field name", alias="color_field"
+    )
+    stackField: str = Field(
+        default="", description="Stack field name", alias="stack_field"
+    )
+    groupField: str = Field(
+        default="", description="Group field name", alias="group_field"
+    )
+    seriesFields: List[str] = Field(
+        default=[], description="Series field names", alias="series_fields"
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class CodeActPartModel(BaseModel):
+    """Model for code execution parts."""
+
+    type: str = Field(
+        ..., description="Part type (code_block, text_output, etc.)"
+    )
+    content: str = Field(..., description="Part content")
+
+
+class DateRangeModel(BaseModel):
+    """Model for date range."""
+
+    start_date: str = Field(..., description="Start date in YYYY-MM-DD format")
+    end_date: str = Field(..., description="End date in YYYY-MM-DD format")
+
+
+class LabsMonitoringResponse(BaseModel):
+    """
+    Response model for labs monitoring endpoint.
+
+    This model validates that the response structure is compliant with
+    AgentState from state.py, ensuring consistency between the labs API
+    and the normal agent workflow state updates.
+    """
+
+    # Core AgentState fields
+    aoi_selection: AOISelectionModel = Field(
+        ...,
+        description="Selected areas of interest (matches AOISelection TypedDict)",
+    )
+    dataset: DatasetModel = Field(..., description="Dataset configuration")
+    analytics_data: List[AnalyticsDataModel] = Field(
+        ...,
+        description="Raw data from analytics API (matches list[AnalyticsData])",
+    )
+
+    # Insight generation outputs (aligned with AgentState fields)
+    insights: List[str] = Field(
+        default=[],
+        description="List of insights (matches AgentState.insights)",
+    )
+    charts_data: List[ChartDataModel] = Field(
+        default=[],
+        description="Chart data for visualization (matches AgentState.charts_data)",
+    )
+    codeact_parts: List[CodeActPartModel] = Field(
+        default=[],
+        description="Code execution parts (matches AgentState.codeact_parts)",
+    )
+
+    # Additional metadata for labs endpoint
+    query: str = Field(..., description="Generated query string")
+    date_range: DateRangeModel = Field(
+        ..., description="Date range for the query"
+    )
+    follow_up_suggestions: List[str] = Field(
+        default=[], description="Suggested follow-up queries"
+    )
+
+    # Error field for partial failures
+    insights_error: Optional[str] = Field(
+        None, description="Error message if insights generation failed"
+    )
+
+
+# Stream event models for labs monitoring streaming endpoint
+class LabsStreamEventType:
+    """Event types for labs monitoring stream."""
+
+    METADATA = "metadata"
+    ANALYTICS_DATA = "analytics_data"
+    INSIGHTS = "insights"
+    ERROR = "error"
+    COMPLETE = "complete"
+
+
+class LabsStreamMetadata(BaseModel):
+    """Initial metadata streamed at start of request."""
+
+    query: str = Field(..., description="Generated query string")
+    date_range: DateRangeModel = Field(
+        ..., description="Date range for the query"
+    )
+    aoi_selection: AOISelectionModel = Field(
+        ..., description="Selected areas of interest"
+    )
+    dataset: DatasetModel = Field(..., description="Dataset configuration")
+
+
+class LabsStreamAnalyticsData(BaseModel):
+    """Analytics data streamed after pull_data completes."""
+
+    analytics_data: List[AnalyticsDataModel] = Field(
+        ..., description="Raw data from analytics API"
+    )
+
+
+class LabsStreamInsights(BaseModel):
+    """Insights data streamed after generate_insights completes."""
+
+    insights: List[str] = Field(default=[], description="List of insights")
+    charts_data: List[ChartDataModel] = Field(
+        default=[], description="Chart data"
+    )
+    codeact_parts: List[CodeActPartModel] = Field(
+        default=[], description="Code execution parts"
+    )
+    follow_up_suggestions: List[str] = Field(
+        default=[], description="Suggested follow-up queries"
+    )
+    insights_error: Optional[str] = Field(
+        None, description="Error if insights generation failed"
+    )

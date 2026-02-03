@@ -61,7 +61,9 @@ async def pull_data(
     query: str,
     start_date: str,
     end_date: str,
-    aoi_names: List[str],
+    aoi_names: List[
+        str
+    ],  # TODO: remove this parameter and dataset name its not used
     dataset_name: str,
     change_over_time_query: bool,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,

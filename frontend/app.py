@@ -14,6 +14,9 @@ STREAMLIT_URL = os.environ.get(
     "STREAMLIT_URL", "http://localhost:8501"
 )  # URL where the Streamlit app is hosted
 
+# Machine user API key for automatic authentication (optional)
+ZENO_API_KEY = os.environ.get("ZENO_API_KEY")
+
 
 # Handle navigation based on URL path
 token = st.query_params.get("token")
@@ -21,6 +24,10 @@ token = st.query_params.get("token")
 if token:
     st.session_state["token"] = token
     st.query_params.clear()
+
+# Auto-authenticate with machine user API key if available
+if ZENO_API_KEY and not st.session_state.get("token"):
+    st.session_state["token"] = ZENO_API_KEY
 
 # Custom CSS for cards
 st.markdown(
@@ -81,15 +88,24 @@ with st.sidebar:
 
         if user_info.status_code == 200:
             st.session_state["user"] = user_info.json()
-            st.sidebar.success(
-                f"""
-                Logged in as {st.session_state["user"]["name"]}
-                """
-            )
+            user_type = st.session_state["user"].get("userType", "regular")
+            if user_type == "machine":
+                st.sidebar.success(
+                    f"""
+                    🤖 Machine user: {st.session_state["user"]["name"]}
+                    """
+                )
+            else:
+                st.sidebar.success(
+                    f"""
+                    Logged in as {st.session_state["user"]["name"]}
+                    """
+                )
 
     if st.session_state.get("user"):
         st.write("User info: ", st.session_state["user"])
-        if st.button("Logout", key="logout_button"):
+        # Only show logout for non-API key auth
+        if not ZENO_API_KEY and st.button("Logout", key="logout_button"):
             # NOTE: there is a logout endpoint in the API, but it only invalidates the browser cookies
             # and not the JWT. So in this case, we'll just clear the user info and token
             st.session_state.pop("user", None)

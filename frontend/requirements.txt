@@ -4,3 +4,4 @@ pandas==2.2.3
 python-dotenv==1.0.1
 geopandas==1.0.1
 folium-vectorgrid==0.1.3
+httpx==0.28.1
