@@ -180,10 +180,6 @@ async def test_pull_data_queries(aoi_data, dataset):
             "end_date": "2024-01-31"
             if dataset["dataset_id"] != 8
             else "2024-01-31",
-            "aoi_names": [
-                aoi["name"] for aoi in update["aoi_selection"]["aois"]
-            ],
-            "dataset_name": dataset["dataset_name"],
             "change_over_time_query": False,
             "tool_call_id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
             "state": update,
@@ -311,10 +307,8 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
                 "query": query,
                 "start_date": "2024-01-01",
                 "end_date": "2024-01-31",
-                "dataset_name": "Global land cover",
                 "change_over_time_query": False,
                 "state": update,
-                "aoi_names": [aoi_data["name"]],
             },
         }
 

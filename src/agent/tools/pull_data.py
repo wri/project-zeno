@@ -1,4 +1,4 @@
-from typing import Annotated, Dict, List
+from typing import Annotated, Dict
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
@@ -61,8 +61,6 @@ async def pull_data(
     query: str,
     start_date: str,
     end_date: str,
-    aoi_names: List[str],
-    dataset_name: str,
     change_over_time_query: bool,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
     state: Annotated[Dict, InjectedState] = None,
@@ -78,15 +76,13 @@ async def pull_data(
         query: User query providing context for the data pull
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
-        aoi_names: List of names of the area of interest
-        dataset_name: Name of the dataset to pull from
         change_over_time_query: Whether the query is about change over time. If it is about composition or current status, return False. If it is about dynamics or change, return True.
     """
-    logger.info(
-        f"PULL-DATA-TOOL: AOI: {aoi_names}, Dataset: {dataset_name}, Start Date: {start_date}, End Date: {end_date}"
-    )
-
     dataset = state["dataset"]
+    aoi_names = [a["name"] for a in state["aoi_selection"]["aois"]]
+    logger.info(
+        f"PULL-DATA-TOOL: AOI: {aoi_names}, Dataset: {dataset.get('dataset_name', '')}, Start Date: {start_date}, End Date: {end_date}"
+    )
 
     tool_messages = []
     result = await data_pull_orchestrator.pull_data(
