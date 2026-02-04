@@ -360,7 +360,7 @@ async def select_best_aoi(question, candidate_aois):
     return selected_aoi.model_dump()
 
 
-def check_multiple_matches(
+async def check_multiple_matches(
     src_id: str, short_name: str, results: pd.DataFrame
 ) -> Optional[str]:
     # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
@@ -420,6 +420,19 @@ async def check_aoi_selection(aois: list[dict]) -> str:
         )
 
 
+async def check_duplicate_aois(
+    selected_aois: list[dict], all_results: list[pd.DataFrame]
+) -> str:
+    for selected_aoi, result in zip(selected_aois, all_results):
+        if selected_aoi["source"] == "gadm":
+            short_name = selected_aoi["name"].split(",")[0]
+            candidate_names = await check_multiple_matches(
+                selected_aoi["src_id"], short_name, result
+            )
+            if candidate_names:
+                return f"I found multiple locations named '{short_name}' in different countries. Please tell me which one you meant:\n\n{candidate_names}\n\nWhich location are you looking for?"
+
+
 @tool("pick_aoi")
 async def pick_aoi(
     question: str,
@@ -476,37 +489,29 @@ async def pick_aoi(
         *[select_best_aoi(question, result_csv) for result_csv in result_csvs]
     )
 
-    for selected_aoi, result in zip(selected_aois, all_results):
-        if selected_aoi["source"] == "gadm":
-            short_name = selected_aoi["name"].split(",")[0]
-            candidate_names = check_multiple_matches(
-                selected_aoi["src_id"], short_name, result
-            )
-            if candidate_names:
-                return Command(
-                    update={
-                        "messages": [
-                            ToolMessage(
-                                f"I found multiple locations named '{short_name}' in different countries. Please tell me which one you meant:\n\n{candidate_names}\n\nWhich location are you looking for?",
-                                tool_call_id=tool_call_id,
-                                status="success",
-                                response_metadata={
-                                    "msg_type": "human_feedback"
-                                },
-                            )
-                        ],
-                    },
-                )
+    duplicate_check = await check_duplicate_aois(selected_aois, all_results)
+    if duplicate_check:
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(duplicate_check, tool_call_id=tool_call_id)
+                ],
+            },
+        )
+
     match_names = [selected_aoi["name"] for selected_aoi in selected_aois]
 
     if subregion:
-        final_aois = []
-        for selected_aoi, result in zip(selected_aois, all_results):
-            subregion_aois = await query_subregion_database(
+        subregion_tasks = [
+            query_subregion_database(
                 subregion, selected_aoi["source"], selected_aoi["src_id"]
             )
-            subregion_aois = subregion_aois.to_dict(orient="records")
-            final_aois.extend(subregion_aois)
+            for selected_aoi in selected_aois
+        ]
+        subregion_dfs = await asyncio.gather(*subregion_tasks)
+        final_aois = []
+        for df in subregion_dfs:
+            final_aois.extend(df.to_dict(orient="records"))
     else:
         final_aois = selected_aois
 
