@@ -12,23 +12,22 @@ from src.agent.tools.datasets_config import DATASETS
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
-# Override database fixtures to avoid database connections for these unit tests
-# @pytest.fixture(scope="function", autouse=True)
-# def test_db():
-#     """Override the global test_db fixture to avoid database connections."""
-#     pass
+@pytest.fixture(scope="function", autouse=True)
+def test_db():
+    """Override the global test_db fixture to avoid database connections."""
+    pass
 
 
-# @pytest.fixture(scope="function", autouse=True)
-# def test_db_session():
-#     """Override the global test_db_session fixture to avoid database connections."""
-#     pass
+@pytest.fixture(scope="function", autouse=True)
+def test_db_session():
+    """Override the global test_db_session fixture to avoid database connections."""
+    pass
 
 
-# @pytest.fixture(scope="function", autouse=True)
-# def test_db_pool():
-#     """Override the global test_db_pool fixture to avoid database pool operations."""
-#     pass
+@pytest.fixture(scope="function", autouse=True)
+def test_db_pool():
+    """Override the global test_db_pool fixture to avoid database pool operations."""
+    pass
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -64,28 +63,30 @@ def mock_query_aoi_database():
         yield
 
 
-# @pytest.fixture(scope="function", autouse=True)
-# def mock_query_subregion_database():
-#     """Mock query_subregion_database to avoid global DB pool in agent tests."""
+@pytest.fixture(scope="function", autouse=True)
+def mock_query_subregion_database():
+    """Mock query_subregion_database to avoid global DB pool in agent tests."""
 
-#     async def _return_mock_df(subregion_name, source, src_id):
-#         return pd.DataFrame(
-#             [
-#                 {
-#                     "name": f"Mock {subregion_name}",
-#                     "subtype": "site" if source in ("kba", "wdpa", "landmark") else "district-county",
-#                     "src_id": src_id,
-#                     "source": source,
-#                 }
-#             ]
-#         )
+    async def _return_mock_df(subregion_name, source, src_id):
+        return pd.DataFrame(
+            [
+                {
+                    "name": f"Mock {subregion_name}",
+                    "subtype": "site"
+                    if source in ("kba", "wdpa", "landmark")
+                    else "district-county",
+                    "src_id": src_id,
+                    "source": source,
+                }
+            ]
+        )
 
-#     with patch(
-#         "src.agent.tools.pick_aoi.query_subregion_database",
-#         new_callable=AsyncMock,
-#         side_effect=_return_mock_df,
-#     ):
-#         yield
+    with patch(
+        "src.agent.tools.pick_aoi.query_subregion_database",
+        new_callable=AsyncMock,
+        side_effect=_return_mock_df,
+    ):
+        yield
 
 
 MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL = pd.DataFrame(
