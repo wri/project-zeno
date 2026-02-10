@@ -13,7 +13,7 @@ class AOISelection(TypedDict):
     aois: list[dict]
 
 
-class AnalyticsData(TypedDict):
+class Statistics(TypedDict):
     dataset_name: str
     start_date: str
     end_date: str
@@ -27,13 +27,18 @@ class AgentState(TypedDict):
     user_persona: str
 
     # pick-aoi tool
+    aoi: dict
+    subtpye: str
     aoi_selection: AOISelection
 
     # pick-dataset tool
     dataset: dict
 
     # pull-data tool
-    analytics_data: Annotated[list[AnalyticsData], operator.add]
+    raw_data: dict
+    start_date: str
+    end_date: str
+    statistics: Annotated[list[Statistics], operator.add]
 
     # generate-insights tool
     insights: list

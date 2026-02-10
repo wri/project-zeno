@@ -186,19 +186,19 @@ async def test_pull_data_queries(aoi_data, dataset):
         },
     }
     command = await pull_data.ainvoke(tool_call)
-    analytics_data = command.update.get("analytics_data", {})
+    statistics = command.update.get("statistics", {})
     if dataset["dataset_id"] in [5, 9] and aoi_data["src_id"] in [
         "6072",
         "148322",
         "MEX9713",
     ]:
-        assert len(analytics_data) == 0
+        assert len(statistics) == 0
     elif dataset["dataset_id"] == 9 and aoi_data["src_id"] == "CHE.6.3_1":
-        assert len(analytics_data) == 0
+        assert len(statistics) == 0
     else:
-        assert len(analytics_data) == 1
-        assert analytics_data[0]["source_url"].startswith("http")
-        assert analytics_data[0]["aoi_names"] == [aoi_data["name"]]
+        assert len(statistics) == 1
+        assert statistics[0]["source_url"].startswith("http")
+        assert statistics[0]["aoi_names"] == [aoi_data["name"]]
 
 
 async def whitelist_test_user():
@@ -314,8 +314,8 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
 
         command = await pull_data.ainvoke(tool_call)
 
-    analytics_data = command.update.get("analytics_data", {})
+    statistics = command.update.get("statistics", {})
 
-    assert aoi_data["src_id"] == analytics_data[0]["data"]["aoi_id"][0]
-    assert aoi_data["name"] == analytics_data[0]["data"]["name"][0]
-    assert analytics_data[0]["data"]["land_cover_class_end"] == ["Built-up"]
+    assert aoi_data["src_id"] == statistics[0]["data"]["aoi_id"][0]
+    assert aoi_data["name"] == statistics[0]["data"]["name"][0]
+    assert statistics[0]["data"]["land_cover_class_end"] == ["Built-up"]

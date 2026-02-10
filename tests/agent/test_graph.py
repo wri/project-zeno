@@ -13,22 +13,22 @@ pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
 # Override database fixtures to avoid database connections for these unit tests
-@pytest.fixture(scope="function", autouse=True)
-def test_db():
-    """Override the global test_db fixture to avoid database connections."""
-    pass
+# @pytest.fixture(scope="function", autouse=True)
+# def test_db():
+#     """Override the global test_db fixture to avoid database connections."""
+#     pass
 
 
-@pytest.fixture(scope="function", autouse=True)
-def test_db_session():
-    """Override the global test_db_session fixture to avoid database connections."""
-    pass
+# @pytest.fixture(scope="function", autouse=True)
+# def test_db_session():
+#     """Override the global test_db_session fixture to avoid database connections."""
+#     pass
 
 
-@pytest.fixture(scope="function", autouse=True)
-def test_db_pool():
-    """Override the global test_db_pool fixture to avoid database pool operations."""
-    pass
+# @pytest.fixture(scope="function", autouse=True)
+# def test_db_pool():
+#     """Override the global test_db_pool fixture to avoid database pool operations."""
+#     pass
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -48,6 +48,12 @@ def mock_query_aoi_database():
     """Mock query_aoi_database to return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL."""
 
     async def _return_mock_df(_place_name, result_limit=10):
+        if "Parana" in _place_name or "Paraná" in _place_name:
+            print("Returning MOCK_AOI_QUERY_RESULTS_PARANA")
+            return MOCK_AOI_QUERY_RESULTS_PARANA.copy()
+        if "Para" in _place_name:
+            print("Returning MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL")
+            return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL.copy()
         return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL.copy()
 
     with patch(
@@ -58,57 +64,157 @@ def mock_query_aoi_database():
         yield
 
 
+# @pytest.fixture(scope="function", autouse=True)
+# def mock_query_subregion_database():
+#     """Mock query_subregion_database to avoid global DB pool in agent tests."""
+
+#     async def _return_mock_df(subregion_name, source, src_id):
+#         return pd.DataFrame(
+#             [
+#                 {
+#                     "name": f"Mock {subregion_name}",
+#                     "subtype": "site" if source in ("kba", "wdpa", "landmark") else "district-county",
+#                     "src_id": src_id,
+#                     "source": source,
+#                 }
+#             ]
+#         )
+
+#     with patch(
+#         "src.agent.tools.pick_aoi.query_subregion_database",
+#         new_callable=AsyncMock,
+#         side_effect=_return_mock_df,
+#     ):
+#         yield
+
+
 MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL = pd.DataFrame(
     {
-        "src_id": [
-            "BRA.16_1",
-            "BRA.14_1",
-            "BRA.15_1",
-            "BRA.15.12_2",
-            "BRA",
-            "BRA.15.133_2",
-            "BRA.16.266_2",
-            "BRA.14.144_2",
-            "BRA.16.183_2",
-            "BRA.15.84_2",
-        ],
-        "name": [
-            "Paraná, Brazil",
-            "Pará, Brazil",
-            "Paraíba, Brazil",
-            "Arara, Paraíba, Brazil",
-            "Brazil",
-            "Parari, Paraíba, Brazil",
-            "Piên, Paraná, Brazil",
-            "Xinguara, Pará, Brazil",
-            "Jussara, Paraná, Brazil",
-            "Ibiara, Paraíba, Brazil",
-        ],
-        "subtype": [
-            "state-province",
-            "state-province",
-            "state-province",
-            "district-county",
-            "country",
-            "district-county",
-            "district-county",
-            "district-county",
-            "district-county",
-            "district-county",
-        ],
-        "source": ["gadm"] * 10,
-        "similarity_score": [
-            0.733333,
-            0.714286,
-            0.687500,
-            0.631579,
-            0.583333,
-            0.578947,
-            0.578947,
-            0.571429,
-            0.571429,
-            0.571429,
-        ],
+        "src_id": {
+            0: "BRA.16_1",
+            1: "BRA.14_1",
+            2: "BRA.15_1",
+            3: "BRA.15.12_2",
+            4: "BRA",
+            5: "BRA.15.133_2",
+            6: "BRA.16.266_2",
+            7: "BRA.14.144_2",
+            8: "BRA.16.183_2",
+            9: "BRA.15.84_2",
+        },
+        "name": {
+            0: "Paraná, Brazil",
+            1: "Pará, Brazil",
+            2: "Paraíba, Brazil",
+            3: "Arara, Paraíba, Brazil",
+            4: "Brazil",
+            5: "Parari, Paraíba, Brazil",
+            6: "Piên, Paraná, Brazil",
+            7: "Xinguara, Pará, Brazil",
+            8: "Jussara, Paraná, Brazil",
+            9: "Ibiara, Paraíba, Brazil",
+        },
+        "subtype": {
+            0: "state-province",
+            1: "state-province",
+            2: "state-province",
+            3: "district-county",
+            4: "country",
+            5: "district-county",
+            6: "district-county",
+            7: "district-county",
+            8: "district-county",
+            9: "district-county",
+        },
+        "source": {
+            0: "gadm",
+            1: "gadm",
+            2: "gadm",
+            3: "gadm",
+            4: "gadm",
+            5: "gadm",
+            6: "gadm",
+            7: "gadm",
+            8: "gadm",
+            9: "gadm",
+        },
+        "similarity_score": {
+            0: 0.7333333492279053,
+            1: 0.7142857313156128,
+            2: 0.6875,
+            3: 0.6315789222717285,
+            4: 0.5833333134651184,
+            5: 0.5789473652839661,
+            6: 0.5789473652839661,
+            7: 0.5714285969734192,
+            8: 0.5714285969734192,
+            9: 0.5714285969734192,
+        },
+    }
+)
+
+MOCK_AOI_QUERY_RESULTS_PARANA = pd.DataFrame(
+    {
+        "src_id": {
+            0: "PRY",
+            1: "BRA.16.370_2",
+            2: "BRA.16.18_2",
+            3: "BRA.16_1",
+            4: "BRA.16.194_2",
+            5: "BRA.16.257_2",
+            6: "BRA.16.255_2",
+            7: "BRA.16.13_2",
+            8: "BRA.16.254_2",
+            9: "MEX15381",
+        },
+        "name": {
+            0: "Paraguay",
+            1: "Tamarana, Paraná, Brazil",
+            2: "Apucarana, Paraná, Brazil",
+            3: "Paraná, Brazil",
+            4: "Luiziana, Paraná, Brazil",
+            5: "Paranavaí, Paraná, Brazil",
+            6: "Paranaguá, Paraná, Brazil",
+            7: "Anahy, Paraná, Brazil",
+            8: "Paranacity, Paraná, Brazil",
+            9: "El Paranal, Ejido, MEX",
+        },
+        "subtype": {
+            0: "country",
+            1: "district-county",
+            2: "district-county",
+            3: "state-province",
+            4: "district-county",
+            5: "district-county",
+            6: "district-county",
+            7: "district-county",
+            8: "district-county",
+            9: "indigenous-and-community-land",
+        },
+        "source": {
+            0: "gadm",
+            1: "gadm",
+            2: "gadm",
+            3: "gadm",
+            4: "gadm",
+            5: "gadm",
+            6: "gadm",
+            7: "gadm",
+            8: "gadm",
+            9: "landmark",
+        },
+        "similarity_score": {
+            0: 0.3333333432674408,
+            1: 0.3333333432674408,
+            2: 0.3181818127632141,
+            3: 0.3125,
+            4: 0.30434781312942505,
+            5: 0.30000001192092896,
+            6: 0.30000001192092896,
+            7: 0.2857142984867096,
+            8: 0.2857142984867096,
+            9: 0.2857142984867096,
+        },
     }
 )
 
@@ -245,7 +351,7 @@ async def run_agent(query: str, thread_id: str | None = None):
 
 
 async def test_agent_for_disturbance_alerts_for_brazil(structlog_context):
-    query = "Tell me what is happening with ecosystem conversion in Para, Brazil in the last 8 months"
+    query = "Compare ecosystem conversion in Para and Parana in Brazil in the last 5 months"
     steps = await run_agent(query)
     assert len(steps) > 0
     tool_steps = [dat["tools"] for dat in steps if "tools" in dat]

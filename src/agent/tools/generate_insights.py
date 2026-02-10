@@ -29,7 +29,7 @@ def _get_available_datasets() -> str:
 
 
 def prepare_dataframes(
-    analytics_data: list[dict],
+    statistics: list[dict],
 ) -> List[tuple[pd.DataFrame, str]]:
     """
     Prepare DataFrames from raw data for code executor.
@@ -37,7 +37,7 @@ def prepare_dataframes(
     dataframes = []
     source_urls = []
 
-    for data in analytics_data:
+    for data in statistics:
         if not data:
             continue
 
@@ -269,10 +269,8 @@ async def generate_insights(
     logger.info("GENERATE-INSIGHTS-TOOL")
     logger.debug(f"Generating insights for query: {query}")
 
-    if not state or "analytics_data" not in state:
-        error_msg = (
-            "No analytics data available in state. Please pull data first."
-        )
+    if not state or "statistics" not in state:
+        error_msg = "No statistics available in state. Please pull data first."
         logger.error(error_msg)
         return Command(
             update={
@@ -286,10 +284,10 @@ async def generate_insights(
             }
         )
 
-    analytics_data = state["analytics_data"]
+    statistics = state["statistics"]
 
     # 1. PREPARE DATAFRAMES: Convert raw_data to DataFrames
-    dataframes, source_urls = prepare_dataframes(analytics_data)
+    dataframes, source_urls = prepare_dataframes(statistics)
     logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
     # 2. INITIALIZE EXECUTOR: Create Gemini code executor

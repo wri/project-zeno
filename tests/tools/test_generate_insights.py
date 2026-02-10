@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 
-from src.agent.state import AnalyticsData
+from src.agent.state import Statistics
 from src.agent.tools.generate_insights import generate_insights
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
@@ -54,8 +54,8 @@ async def test_generate_insights_comparison():
             "function_usage_notes": "Identifies areas of gross tree cover loss\n",
             "citation": 'Hansen et al., 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change." Accessed through Global Forest Watch on [date]. www.globalforestwatch.org\n',
         },
-        "analytics_data": [
-            AnalyticsData(
+        "data": [
+            Statistics(
                 dataset_name="Tree cover loss",
                 source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                 start_date="2024-07-01",
@@ -109,7 +109,7 @@ async def test_generate_insights_comparison():
                     "aoi_type": ["admin"] * 16,
                 },
             ),
-            AnalyticsData(
+            Statistics(
                 dataset_name="Tree cover loss",
                 source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                 start_date="2024-07-01",
@@ -198,8 +198,8 @@ async def test_simple_line_chart():
             "function_usage_notes": "Identifies deforestation events\n",
             "citation": "Global Forest Watch Deforestation Alerts.",
         },
-        "analytics_data": [
-            AnalyticsData(
+        "statistics": [
+            Statistics(
                 dataset_name="Deforestation Alerts",
                 source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                 start_date="2020-01-01",
@@ -260,8 +260,8 @@ async def test_simple_bar_chart():
             "function_usage_notes": "Identifies areas of gross tree cover loss\n",
             "citation": "Hansen et al., 2013.",
         },
-        "analytics_data": [
-            AnalyticsData(
+        "statistics": [
+            Statistics(
                 dataset_name="Tree cover loss",
                 source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                 start_date="2022-01-01",
@@ -330,8 +330,8 @@ async def test_stacked_bar_chart():
             "function_usage_notes": "Identifies drivers of forest loss\n",
             "citation": "Forest Loss Attribution Study.",
         },
-        "analytics_data": [
-            AnalyticsData(
+        "statistics": [
+            Statistics(
                 dataset_name="Forest Loss Causes Over Time",
                 source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                 start_date="2020-01-01",
@@ -390,8 +390,8 @@ async def test_grouped_bar_chart():
             "function_usage_notes": "Compares forest metrics across regions\n",
             "citation": "Global Forest Metrics Study.",
         },
-        "analytics_data": [
-            AnalyticsData(
+        "statistics": [
+            Statistics(
                 dataset_name="Forest Loss and Fire Incidents",
                 source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                 start_date="2022-01-01",
@@ -467,8 +467,8 @@ async def test_pie_chart():
             "function_usage_notes": "Identifies global drivers of forest loss\n",
             "citation": "Global Forest Loss Attribution Study.",
         },
-        "analytics_data": [
-            AnalyticsData(
+        "statistics": [
+            Statistics(
                 dataset_name="Global Forest Loss Causes",
                 source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
                 start_date="2022-01-01",

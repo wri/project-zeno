@@ -472,6 +472,9 @@ async def pick_aoi(
     - "Bern, Schweiz" → "Bern, Switzerland"
     - "Lisboa em Portugal" → "Lisbon, Portugal"
 
+    Keep pairs of places together in one place name if they belong to the same place deonmination.
+    For example, "Lisbon in Portugal" -> "Lisbon, Portugal", do not separate them into "Lisbon" and "Portugal".
+
     Args:
         question: User's question providing context for selecting the most relevant location
         places: Names of the places or areas to find in the spatial database, expand any abbreviations, translate to English if necessary
@@ -551,6 +554,8 @@ async def pick_aoi(
                 "name": selection_name,
                 "aois": final_aois,
             },
+            "aoi": final_aois[0],
+            "subtype": final_aois[0]["subtype"],
             "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
         },
     )
