@@ -1,4 +1,3 @@
-import io
 import json
 import os
 import uuid
@@ -9,13 +8,11 @@ from uuid import UUID
 
 import cachetools
 import httpx
-import pandas as pd
 import structlog
 from dotenv import load_dotenv
 from fastapi import (
     Depends,
     FastAPI,
-    Header,
     HTTPException,
     Request,
     Response,
@@ -332,24 +329,18 @@ async def stream_chat(
             match action_type:
                 case "aoi_selected":
                     content = f"User selected AOI in UI: {action_data['aoi_name']}\n\n"
-                    state_updates["aoi"] = action_data["aoi"]
-                    state_updates["aoi_name"] = action_data["aoi_name"]
-                    state_updates["subregion_aois"] = action_data[
-                        "subregion_aois"
-                    ]
-                    state_updates["subregion"] = action_data["subregion"]
-                    state_updates["subtype"] = action_data["subtype"]
-                    # also update aoi_options
-                    state_updates["aoi_options"] = {
-                        "aoi": action_data["aoi"],
-                        "subregion_aois": action_data["subregion_aois"],
-                        "subregion": action_data["subregion"],
-                        "subtype": action_data["subtype"],
+                    state_updates["aoi_selection"] = {
+                        "aois": [action_data["aoi"]],
+                        "name": action_data["aoi_name"],
                     }
+                    # TODO: This is deprecated, remove it in the future
+                    state_updates["aoi"] = action_data["aoi"]
+                    state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
                     content = f"User selected dataset in UI: {action_data['dataset']['dataset_name']}\n\n"
                     state_updates["dataset"] = action_data["dataset"]
                 case "daterange_selected":
+                    # TODO: This is deprecated, remove it in the future
                     content = f"User selected daterange in UI: start_date: {action_data['start_date']}, end_date: {action_data['end_date']}"
                     state_updates["start_date"] = action_data["start_date"]
                     state_updates["end_date"] = action_data["end_date"]
@@ -2114,97 +2105,3 @@ async def delete_custom_area(
     await session.delete(area)
     await session.commit()
     return {"detail": f"Area {area_id} deleted successfully"}
-
-
-@app.get("/api/threads/{thread_id}/{checkpoint_id}/raw_data")
-async def get_raw_data(
-    thread_id: str,
-    checkpoint_id: str,
-    user: UserModel = Depends(require_auth),
-    session: AsyncSession = Depends(get_session_from_pool_dependency),
-    content_type: str = Header(default="text/csv", alias="Content-Type"),
-):
-    """
-    Get insights data for a specific thread and checkpoint. The data returned
-    will reflect the state of the `raw_data` key at that point in time,
-    meaning that users can download the data for generated insights at
-    any point during a multi-turn conversation. The thread_id and
-    checkpoint_id will be included in the updates streamed from the
-    fetch thread endpoint.
-
-    Note: should we make the checkpoint_id optional? (in this case we would
-    return the latest state of the `raw_data` insights when the checkpoint_id
-    is not provided).
-
-    **Authentication**: Requires Bearer token in Authorization header.
-    **Content-Type**: Accepts an OPTIONAL Content-Type header to specify
-        whether the data should be returned as a CSV file response or a
-        JSON object.
-
-    **Path Parameters**:
-    - thread_id (str): The unique identifier of the thread for which to gather
-        insights data
-
-    **Behavior**:
-    - Returns insights data in requested format
-    - Returns empty CSV/JSON if no insights data exists for the thread
-    - The thread must exist and belong to the authenticated user
-
-    **Response**: Returns a CSV file or JSON object with insights data
-
-    **Error Responses**:
-    - 401: Missing or invalid authentication
-    - 404: Thread not found or access denied
-    """
-
-    # Fetch raw data for the specified thread
-    stmt = select(ThreadOrm).filter_by(id=thread_id, user_id=user.id)
-    result = await session.execute(stmt)
-    thread = result.scalars().first()
-
-    if not thread:
-        raise HTTPException(
-            status_code=404, detail=f"Thread id: {thread_id} not found"
-        )
-
-    zeno_async = await fetch_zeno()
-
-    config = {
-        "configurable": {
-            "thread_id": thread_id,
-            "checkpoint_id": checkpoint_id,
-        }
-    }
-
-    state = await zeno_async.aget_state(config=config)
-
-    raw_data = state.values.get("raw_data", {})
-
-    # raw data is formatted as:
-    # {col1: [year 1, year 2, ...], col2: [year 1, year 2, ...]}
-
-    df = pd.DataFrame(raw_data)
-
-    if "id" in df.columns:
-        cols = ["id"] + [c for c in df.columns if c != "id"]
-        df = df[cols]
-
-    if content_type == "application/json":
-        return df.to_dict()
-
-    if content_type == "text/csv":
-        buf = io.StringIO()
-        df.to_csv(buf, index=False)
-        csv_data = buf.getvalue()
-        filename = (
-            f"thread_{thread_id}_checkpoint_{checkpoint_id}_raw_data.csv"
-        )
-        headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
-        return Response(
-            content=csv_data, media_type="text/csv", headers=headers
-        )
-    else:
-        raise HTTPException(
-            status_code=415,
-            detail=f"Unsupported Media Type: {content_type}, must be one of [application/json, text/csv]",
-        )

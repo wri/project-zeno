@@ -554,6 +554,7 @@ async def pick_aoi(
                 "name": selection_name,
                 "aois": final_aois,
             },
+            # TODO: This is deprecated, remove it in the future
             "aoi": final_aois[0],
             "subtype": final_aois[0]["subtype"],
             "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
