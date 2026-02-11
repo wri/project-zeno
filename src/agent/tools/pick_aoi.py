@@ -535,12 +535,12 @@ async def pick_aoi(
             },
         )
 
-    tool_message = ""
+    tool_message = "Selected AOIs:"
     for selected_aoi in final_aois:
         selected_aoi[
             SOURCE_ID_MAPPING[selected_aoi["source"]]["id_column"]
         ] = selected_aoi["src_id"]
-        tool_message += f"\nSelected AOI: {selected_aoi['name']}, type: {selected_aoi['subtype']}, source: {selected_aoi['source']}, src_id: {selected_aoi['src_id']}"
+        tool_message += f"\n- {selected_aoi['name']}"
 
     logger.debug(f"Pick AOI tool message: {tool_message}")
 
