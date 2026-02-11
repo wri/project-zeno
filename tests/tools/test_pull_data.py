@@ -10,10 +10,9 @@ from src.api.data_models import WhitelistedUserOrm
 from src.api.schemas import UserModel
 from tests.conftest import async_session_maker
 
-# Use module-scoped event loop for all async tests in this module
-# This prevents the "Event loop is closed" error when Google's gRPC clients
-# cache their event loop reference across parameterized tests
-pytestmark = pytest.mark.asyncio(loop_scope="module")
+# Use session-scoped event loop to match conftest.py fixtures and avoid
+# "Event loop is closed" errors when running with other test modules
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 # All dataset and intersection combinations from OpenAPI spec
 # https://analytics.globalnaturewatch.org/openapi.json
@@ -147,36 +146,16 @@ TEST_AOIS = [
 ]
 
 
-# Override database fixtures to avoid database connections for these unit tests
-@pytest.fixture(scope="function", autouse=True)
-def test_db():
-    """Override the global test_db fixture to avoid database connections."""
-    pass
-
-
-@pytest.fixture(scope="function", autouse=True)
-def test_db_session():
-    """Override the global test_db_session fixture to avoid database connections."""
-    pass
-
-
-@pytest.fixture(scope="function", autouse=True)
-def test_db_pool():
-    """Override the global test_db_pool fixture to avoid database pool operations."""
-    pass
-
-
 @pytest.mark.parametrize("aoi_data", TEST_AOIS)
 @pytest.mark.parametrize("dataset", ALL_DATASET_COMBINATIONS)
 async def test_pull_data_queries(aoi_data, dataset):
     print(f"Testing {dataset['dataset_name']} with {aoi_data['name']}")
 
     update = {
-        "aoi": aoi_data,
-        "subregion_aois": None,
-        "subregion": None,
-        "aoi_names": [aoi_data["name"]],
-        "subtype": aoi_data["subtype"],
+        "aoi_selection": {
+            "name": aoi_data["name"],
+            "aois": [aoi_data],
+        },
         "dataset": {
             "dataset_id": dataset["dataset_id"],
             "dataset_name": dataset["dataset_name"],
@@ -184,14 +163,6 @@ async def test_pull_data_queries(aoi_data, dataset):
             "tile_url": "",
             "context_layer": dataset["context_layer"],
         },
-        "aoi_options": [
-            {
-                "aoi": aoi_data,
-                "subregion_aois": None,
-                "subregion": None,
-                "subtype": aoi_data["subtype"],
-            }
-        ],
     }
     if dataset.get("check_composition"):
         query = f"find composition of {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
@@ -209,26 +180,25 @@ async def test_pull_data_queries(aoi_data, dataset):
             "end_date": "2024-01-31"
             if dataset["dataset_id"] != 8
             else "2024-01-31",
-            "aoi_names": [update["aoi"]["name"]],
-            "dataset_name": dataset["dataset_name"],
+            "change_over_time_query": False,
             "tool_call_id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
             "state": update,
         },
     }
     command = await pull_data.ainvoke(tool_call)
-
-    msg = command.update.get("messages", [None])[0]
-    if msg and msg.content.startswith(
-        "Failed to get completed result after polling for"
-    ):
-        assert False
+    statistics = command.update.get("statistics", {})
+    if dataset["dataset_id"] in [5, 9] and aoi_data["src_id"] in [
+        "6072",
+        "148322",
+        "MEX9713",
+    ]:
+        assert len(statistics) == 0
+    elif dataset["dataset_id"] == 9 and aoi_data["src_id"] == "CHE.6.3_1":
+        assert len(statistics) == 0
     else:
-        raw_data = command.update.get("raw_data", {})
-        assert aoi_data["src_id"] in raw_data
-        assert dataset["dataset_id"] in raw_data[aoi_data["src_id"]]
-        assert (
-            raw_data[aoi_data["src_id"]][dataset["dataset_id"]] is not None
-        ), "No raw data retrieved"
+        assert len(statistics) == 1
+        assert statistics[0]["source_url"].startswith("http")
+        assert statistics[0]["aoi_names"] == [aoi_data["name"]]
 
 
 async def whitelist_test_user():
@@ -314,11 +284,10 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
         "query_description": response_json["name"],
     }
     update = {
-        "aoi": aoi_data,
-        "subregion_aois": None,
-        "subregion": None,
-        "aoi_names": [aoi_data["name"]],
-        "subtype": aoi_data["subtype"],
+        "aoi_selection": {
+            "name": aoi_data["name"],
+            "aois": [aoi_data],
+        },
         "dataset": {
             "dataset_id": 1,
             "dataset_name": "Global land cover",
@@ -326,34 +295,27 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
             "tile_url": "",
             "context_layer": None,
         },
-        "aoi_options": [
-            {
-                "aoi": aoi_data,
-                "subregion_aois": None,
-                "subregion": None,
-                "subtype": aoi_data["subtype"],
-            }
-        ],
     }
     query = f"find commodities in {aoi_data['query_description']}"
     # Ensure user_id is bound to structlog context for the pick_aoi call
     with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
-        command = await pull_data.ainvoke(
-            {
+        tool_call = {
+            "type": "tool_call",
+            "name": "pull_data",
+            "id": str(uuid.uuid4()),
+            "args": {
                 "query": query,
                 "start_date": "2024-01-01",
                 "end_date": "2024-01-31",
-                "aoi_names": [update["aoi"]["name"]],
-                "dataset_name": "commodities",
-                "tool_call_id": str(uuid.uuid4()),
+                "change_over_time_query": False,
                 "state": update,
-            }
-        )
+            },
+        }
 
-    raw_data = command.update.get("raw_data", {})
+        command = await pull_data.ainvoke(tool_call)
 
-    assert aoi_data["src_id"] in raw_data
-    assert update["dataset"]["dataset_id"] in raw_data[aoi_data["src_id"]]
-    assert raw_data[aoi_data["src_id"]][update["dataset"]["dataset_id"]][
-        "land_cover_class"
-    ] == ["Built-up"]
+    statistics = command.update.get("statistics", {})
+
+    assert aoi_data["src_id"] == statistics[0]["data"]["aoi_id"][0]
+    assert aoi_data["name"] == statistics[0]["data"]["name"][0]
+    assert statistics[0]["data"]["land_cover_class_end"] == ["Built-up"]

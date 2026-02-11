@@ -1,17 +1,15 @@
 import asyncio
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import httpx
 from pydantic import BaseModel
 
-from src.agent.llms import SMALL_MODEL
 from src.agent.tools.data_handlers.base import (
     DataPullResult,
     DataSourceHandler,
 )
 from src.agent.tools.datasets_config import DATASETS
 from src.shared.geocoding_helpers import (
-    SUBREGION_TO_AOI_TYPE_MAPPING,
     format_id,
     get_geometry_data,
 )
@@ -136,21 +134,6 @@ SLUC_EMISSION_FACTORS_ID = [
 ][0]
 
 
-async def check_for_composition(query: str) -> bool:
-    prompt = f"""
-    You decide if the user is asking for land cover status or change.
-
-    If it is about composition or current status, return True.
-    If it is about dynamics or change, return False.
-
-    Query: {query}
-    """
-    response = await SMALL_MODEL.with_structured_output(
-        BooleanResponse
-    ).ainvoke(prompt)
-    return response.result
-
-
 class AnalyticsHandler(DataSourceHandler):
     """Generalized handler for GFW Analytics API endpoints"""
 
@@ -205,29 +188,29 @@ class AnalyticsHandler(DataSourceHandler):
 
     async def _build_payload(
         self,
-        dataset: Dict,
-        aoi: Dict,
+        dataset: dict,
+        aois: list[dict],
         start_date: str,
         end_date: str,
-        subregion_aois: List[Dict],
-        subregion: str,
     ) -> Dict:
         """Build the API payload based on dataset type"""
         # Base payload structure common to all endpoints
-        aoi_type = self._get_aoi_type(aoi)
+        aoi_type = self._get_aoi_type(aois[0])
         # Fix for GADM IDs which come with a _1 suffix
-        if aoi["src_id"][-2:] in ["_1", "_2", "_3", "_4", "_5"]:
-            aoi["src_id"] = aoi["src_id"][:-2]
+        for aoi in aois:
+            if aoi["src_id"][-2:] in ["_1", "_2", "_3", "_4", "_5"]:
+                aoi["src_id"] = aoi["src_id"][:-2]
 
         # Handle custom areas differently - they need a feature collection
         if aoi_type["type"] == "feature_collection":
-            geometry_data = await get_geometry_data("custom", aoi["src_id"])
-            if not geometry_data:
-                raise ValueError(f"Custom area not found: {aoi['src_id']}")
-
-            feature_collection = {
-                "type": "FeatureCollection",
-                "features": [
+            features = []
+            for aoi in aois:
+                geometry_data = await get_geometry_data(
+                    "custom", aoi["src_id"]
+                )
+                if not geometry_data:
+                    raise ValueError(f"Custom area not found: {aoi['src_id']}")
+                features.append(
                     {
                         "type": "Feature",
                         "geometry": geometry_data["geometry"],
@@ -236,7 +219,11 @@ class AnalyticsHandler(DataSourceHandler):
                             "id": geometry_data["src_id"],
                         },
                     }
-                ],
+                )
+
+            feature_collection = {
+                "type": "FeatureCollection",
+                "features": features,
             }
 
             base_payload = {
@@ -246,26 +233,13 @@ class AnalyticsHandler(DataSourceHandler):
                 }
             }
         else:
-            # Handle subregion AOIs
-            if subregion:
-                subregion_ids = [
-                    format_id(subregion_aoi["src_id"])
-                    for subregion_aoi in subregion_aois
-                ]
-                base_payload = {
-                    "aoi": {
-                        "type": SUBREGION_TO_AOI_TYPE_MAPPING[subregion],
-                        "ids": subregion_ids,
-                    }
+            aoi_ids = [format_id(aoi["src_id"]) for aoi in aois]
+            base_payload = {
+                "aoi": {
+                    "type": aoi_type["type"],
+                    "ids": aoi_ids,
                 }
-            else:
-                # Base payload structure for standard AOI types
-                base_payload = {
-                    "aoi": {
-                        "ids": [aoi["src_id"]],
-                        **aoi_type,
-                    }
-                }
+            }
 
         logger.debug(f"dataset: {dataset}")
 
@@ -400,8 +374,7 @@ class AnalyticsHandler(DataSourceHandler):
     async def _process_response_data(
         self,
         result: Dict,
-        subregion: str,
-        subregion_aois: List[Dict],
+        aois: list[dict],
     ) -> tuple[Any, int, str]:
         """Process the response data based on dataset type."""
 
@@ -443,14 +416,11 @@ class AnalyticsHandler(DataSourceHandler):
         message_detail = f"Found {data_points_count} data points"
 
         # Enrich raw_data with names
-        if subregion:
-            subregion_aois_id_to_name = {
-                format_id(item["src_id"]): item["name"].split(",")[0]
-                for item in subregion_aois
-            }
-            raw_data["name"] = [
-                subregion_aois_id_to_name[idx] for idx in raw_data["aoi_id"]
-            ]
+        aois_id_to_name = {
+            format_id(item["src_id"]): item["name"].split(",")[0]
+            for item in aois
+        }
+        raw_data["name"] = [aois_id_to_name[idx] for idx in raw_data["aoi_id"]]
         # Get analytics url from result
         analytics_url = result["data"]["link"]
 
@@ -459,20 +429,18 @@ class AnalyticsHandler(DataSourceHandler):
     async def pull_data(
         self,
         query: str,
-        aoi: Dict,
-        subregion_aois: List[Dict],
-        subregion: str,
-        subtype: str,
-        dataset: Dict,
+        dataset: dict,
         start_date: str,
         end_date: str,
+        change_over_time_query: bool,
+        aois: list[dict],
     ) -> DataPullResult:
         # SLUC emission factors are only available for GADM levels 0, 1, and 2
         if (
             dataset.get("dataset_id") == SLUC_EMISSION_FACTORS_ID
-            and aoi["subtype"] not in SLUC_GADM_LEVELS
+            and aois[0]["subtype"] not in SLUC_GADM_LEVELS
         ):
-            msg = f"Can not pull data for aoi {aoi.get('name', '')}. Subtype {aoi['subtype']} not supported for SLUC emission factors data, it is only available for GADM admin areas."
+            msg = f"Can not pull data for aoi {aois[0].get('name', '')}. Subtype {aois[0]['subtype']} not supported for SLUC emission factors data, it is only available for GADM admin areas."
             return DataPullResult(
                 success=False,
                 data=None,
@@ -482,7 +450,6 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
         try:
-            aoi_name = aoi["name"]
             context_layer = dataset.get("context_layer")
 
             dataset = [
@@ -499,9 +466,10 @@ class AnalyticsHandler(DataSourceHandler):
                 dataset["context_layer"] = context_layer
 
             # Get the appropriate endpoint URL
-            if dataset.get(
-                "dataset_id"
-            ) == LAND_COVER_CHANGE_ID and await check_for_composition(query):
+            if (
+                dataset.get("dataset_id") == LAND_COVER_CHANGE_ID
+                and change_over_time_query
+            ):
                 endpoint_url = (
                     self.BASE_URL
                     + "/v0/land_change/land_cover_composition/analytics"
@@ -513,7 +481,7 @@ class AnalyticsHandler(DataSourceHandler):
 
             # Build the payload based on dataset type
             payload = await self._build_payload(
-                dataset, aoi, start_date, end_date, subregion_aois, subregion
+                dataset, aois, start_date, end_date
             )
 
             # Debug logging for payload
@@ -563,6 +531,7 @@ class AnalyticsHandler(DataSourceHandler):
                 )
 
             # Handle pending status with retry logic
+            aoi_names = ", ".join([aoi["name"] for aoi in aois])
             if result["status"] == "pending":
                 logger.info(
                     "Analytics request is pending, will retry with polling..."
@@ -571,7 +540,7 @@ class AnalyticsHandler(DataSourceHandler):
                     endpoint_url, payload, max_retries=10
                 )
                 if isinstance(result, str):
-                    error_msg = f"Failed to get completed result after polling for {aoi_name}. Reason: {result}"
+                    error_msg = f"Failed to get completed result after polling for {aoi_names}. Reason: {result}"
                     logger.error(error_msg)
                     return DataPullResult(
                         success=False,
@@ -586,13 +555,11 @@ class AnalyticsHandler(DataSourceHandler):
                         data_points_count,
                         message_detail,
                         analytics_url,
-                    ) = await self._process_response_data(
-                        result, subregion, subregion_aois
-                    )
+                    ) = await self._process_response_data(result, aois)
                     return DataPullResult(
                         success=True,
                         data=raw_data,
-                        message=f"Successfully pulled {dataset.get('dataset_name')} data from GFW Analytics for {aoi_name}. {message_detail}.",
+                        message=f"Successfully pulled {dataset.get('dataset_name')} data from GFW Analytics for {aoi_names}. {message_detail}.",
                         data_points_count=data_points_count,
                         analytics_api_url=analytics_url,
                     )
@@ -602,24 +569,23 @@ class AnalyticsHandler(DataSourceHandler):
                     data_points_count,
                     message_detail,
                     analytics_url,
-                ) = await self._process_response_data(
-                    result, subregion, subregion_aois
-                )
+                ) = await self._process_response_data(result, aois)
                 return DataPullResult(
                     success=True,
                     data=raw_data,
-                    message=f"Successfully pulled {dataset.get('dataset_name')} data from GFW Analytics for {aoi_name}. {message_detail}.",
+                    message=f"Successfully pulled {dataset.get('dataset_name')} data from GFW Analytics for {aoi_names}. {message_detail}.",
                     data_points_count=data_points_count,
                     analytics_api_url=analytics_url,
                 )
             else:
-                error_msg = f"Failed to pull {dataset.get('dataset_name')} data from GFW Analytics for {aoi_name} - URL: {endpoint_url}, payload: {payload}, response: {response.text}"
+                error_msg = f"Failed to pull {dataset.get('dataset_name')} data from GFW Analytics for {aoi_names} - URL: {endpoint_url}, payload: {payload}, response: {response.text}"
                 logger.error(error_msg)
                 return DataPullResult(
                     success=False,
                     data=None,
                     message=error_msg,
-                    analytics_api_url=None,
+                    analytics_api_url=result.get("data", {}).get("link", None),
+                    data_points_count=0,
                 )
 
         except Exception as e:

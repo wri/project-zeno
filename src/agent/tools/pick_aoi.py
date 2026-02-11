@@ -1,4 +1,5 @@
-from typing import Annotated, Dict, Literal, Optional
+import asyncio
+from typing import Annotated, Literal, Optional
 
 import pandas as pd
 import structlog
@@ -7,12 +8,11 @@ from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
-from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
-from src.agent.llms import MODEL, SMALL_MODEL
+from src.agent.llms import SMALL_MODEL
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
     CUSTOM_AREA_TABLE,
@@ -26,6 +26,8 @@ from src.shared.geocoding_helpers import (
 from src.shared.logging_config import get_logger
 
 RESULT_LIMIT = 10
+SUBREGION_LIMIT = 50
+SUBREGION_LIMIT_KBA = 25
 
 load_dotenv()
 logger = get_logger(__name__)
@@ -339,8 +341,8 @@ async def select_best_aoi(question, candidate_aois):
     )
 
     # Chain for selecting the best location match
-    AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | MODEL.with_structured_output(
-        AOIIndex
+    AOI_SELECTION_CHAIN = (
+        AOI_SELECTION_PROMPT | SMALL_MODEL.with_structured_output(AOIIndex)
     )
 
     selected_aoi = await AOI_SELECTION_CHAIN.ainvoke(
@@ -349,65 +351,92 @@ async def select_best_aoi(question, candidate_aois):
     logger.debug(f"Candidate locations: {candidate_aois}")
     logger.debug(f"Selected AOI: {selected_aoi}")
 
-    return selected_aoi
+    if selected_aoi.source not in SOURCE_ID_MAPPING:
+        logger.error(f"Invalid source: {selected_aoi.source}")
+        raise ValueError(
+            f"Source: {selected_aoi.source} does not match to any table in PostGIS database."
+        )
+
+    return selected_aoi.model_dump()
 
 
-async def translate_to_english(question, place_name):
-    """Translate place name to English if it's in a different language."""
+async def check_multiple_matches(
+    src_id: str, short_name: str, results: pd.DataFrame
+) -> Optional[str]:
+    # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
+    selected_country = src_id.split(".")[0] if "." in src_id else None
 
-    class Place(BaseModel):
-        name: str
+    if selected_country:
+        # Filter results to only include AOIs from different countries
+        different_country_results = results[
+            (results.source == "gadm")
+            & (~results.src_id.str.startswith(selected_country + "."))
+        ]
 
-    TRANSLATE_TO_ENGLISH_PROMPT = ChatPromptTemplate.from_messages(
-        [
-            (
-                "user",
-                """
-                Translate or correct the following place name to its standard English form.
-                This includes:
-                - Translating from other languages to English
-                - Removing or correcting accented characters (é→e, ã→a, ç→c, etc.)
-                - Standardizing to the most common English spelling
-
-                Examples:
-                - "Odémire" → "Odemira"
-                - "São Paulo" → "Sao Paulo"
-                - "México" → "Mexico"
-                - "Köln" → "Cologne"
-                - "Bern, Schweiz" → "Bern, Switzerland"
-                - "Lisboa em Portugal" → "Lisbon, Portugal"
-
-                User query:
-                {question}
-
-                Place name to translate/correct:
-                {place_name}
-
-                Return only the corrected place name, nothing else.
-                """,
+        # Find exact matches of the short name in different countries
+        exact_matches_different_countries = different_country_results[
+            different_country_results.name.str.lower().str.startswith(
+                short_name.lower()
             )
         ]
-    )
 
-    translate_to_english_chain = (
-        TRANSLATE_TO_ENGLISH_PROMPT | SMALL_MODEL.with_structured_output(Place)
-    )
+        # If we have exact matches from different countries, ask for clarification
+        if len(exact_matches_different_countries) > 0:
+            # Include the selected AOI and the matches from other countries
+            all_matches = results[
+                (results.name.str.lower().str.startswith(short_name.lower()))
+                & (results.source == "gadm")
+            ]
 
-    english_place_name = await translate_to_english_chain.ainvoke(
-        {
-            "question": question,
-            "place_name": place_name,
-        }
-    )
-    logger.info(f"English place name: {english_place_name.name}")
+            candidate_names = all_matches[
+                ["name", "subtype", "src_id"]
+            ].to_dict(orient="records")
+            return "\n".join(
+                [
+                    f"{candidate['name']} - ({candidate['subtype']}) [{candidate['src_id'].split('.')[0]}]"
+                    for candidate in candidate_names
+                ]
+            )
 
-    return english_place_name.name
+
+async def check_aoi_selection(aois: list[dict]) -> str:
+    aoi_sources = set([aoi["source"] for aoi in aois])
+    if len(aoi_sources) > 1:
+        return "Found multiple sources of AOIs, which is not supported. Please select only one source."
+
+    aoi_source = next(iter(aoi_sources))
+    if aoi_source in {"kba", "wdpa", "landmark"}:
+        subregion_limit = SUBREGION_LIMIT_KBA
+    else:
+        subregion_limit = SUBREGION_LIMIT
+
+    if len(aois) > subregion_limit:
+        return (
+            f"Found {len(aois)} subregions, which is too many to process efficiently. "
+            "Please narrow down your search by either:\n"
+            "1. Being more specific with the AOI selection (choose a smaller area)\n"
+            "2. Being more specific with the subregion query (e.g., 'kbas' instead of 'areas')\n"
+            "For optimal performance, please limit results to under 25 subregions for KBA, WDPA, and Indigenous Lands, or under 50 for other area types."
+        )
+
+
+async def check_duplicate_aois(
+    selected_aois: list[dict], all_results: list[pd.DataFrame]
+) -> str:
+    for selected_aoi, result in zip(selected_aois, all_results):
+        if selected_aoi["source"] == "gadm":
+            short_name = selected_aoi["name"].split(",")[0]
+            candidate_names = await check_multiple_matches(
+                selected_aoi["src_id"], short_name, result
+            )
+            if candidate_names:
+                return f"I found multiple locations named '{short_name}' in different countries. Please tell me which one you meant:\n\n{candidate_names}\n\nWhich location are you looking for?"
 
 
 @tool("pick_aoi")
 async def pick_aoi(
     question: str,
-    place: str,
+    places: list[str],
     subregion: Optional[
         Literal[
             "country",
@@ -422,204 +451,112 @@ async def pick_aoi(
         ]
     ] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
-    state: Annotated[Dict, InjectedState] = {},
 ) -> Command:
     """Selects the most appropriate area of interest (AOI) based on a place name and user's question. Optionally, it can also filter the results by a subregion.
 
     This tool queries a spatial database to find location matches for a given place name,
     then uses AI to select the best match based on the user's question context.
 
+    Always translate the place names to English
+
+    This includes:
+    - Translating from other languages to English
+    - Removing or correcting accented characters (é→e, ã→a, ç→c, etc.)
+    - Standardizing to the most common English spelling
+
+    Translation examples:
+    - "Odémire" → "Odemira"
+    - "São Paulo" → "Sao Paulo"
+    - "México" → "Mexico"
+    - "Köln" → "Cologne"
+    - "Bern, Schweiz" → "Bern, Switzerland"
+    - "Lisboa em Portugal" → "Lisbon, Portugal"
+
+    Keep pairs of places together in one place name if they belong to the same place deonmination.
+    For example, "Lisbon in Portugal" -> "Lisbon, Portugal", do not separate them into "Lisbon" and "Portugal".
+
     Args:
         question: User's question providing context for selecting the most relevant location
-        place: Name of the place or area to find in the spatial database, expand any abbreviations
+        places: Names of the places or areas to find in the spatial database, expand any abbreviations, translate to English if necessary
         subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
-    try:
-        logger.info(
-            f"PICK-AOI-TOOL: place: '{place}', subregion: '{subregion}'"
-        )
-        # Query the database for place & get top matches using similarity
+    logger.info(f"PICK-AOI-TOOL: places: '{places}', subregion: '{subregion}'")
 
-        # Translate place name to English if it's in a different language
-        place = await translate_to_english(question, place)
+    all_results = await asyncio.gather(
+        *[query_aoi_database(place, RESULT_LIMIT) for place in places]
+    )
 
-        # Query the database for place & get top matches using similarity
-        results = await query_aoi_database(place, RESULT_LIMIT)
+    result_csvs = [result.to_csv(index=False) for result in all_results]
 
-        # Convert results to CSV
-        candidate_aois = results.to_csv(
-            index=False
-        )  # results: id, name, subtype, source, src_id
+    selected_aois = await asyncio.gather(
+        *[select_best_aoi(question, result_csv) for result_csv in result_csvs]
+    )
 
-        # Select the best AOI based on user query
-        selected_aoi = await select_best_aoi(question, candidate_aois)
-        source = selected_aoi.source
-        src_id = selected_aoi.src_id
-        name = selected_aoi.name
-        subtype = selected_aoi.subtype
-
-        # Check if NAME of selected AOI is an exact match of any of the names in the results, then ask the user for clarification
-        short_name = name.split(",")[0]
-
-        # For GADM sources, check for exact name matches from different countries
-        if source == "gadm":
-            # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
-            selected_country = src_id.split(".")[0] if "." in src_id else None
-
-            if selected_country:
-                # Filter results to only include AOIs from different countries
-                different_country_results = results[
-                    (results.source == "gadm")
-                    & (~results.src_id.str.startswith(selected_country + "."))
-                ]
-
-                # Find exact matches of the short name in different countries
-                exact_matches_different_countries = different_country_results[
-                    different_country_results.name.str.lower().str.startswith(
-                        short_name.lower()
-                    )
-                ]
-
-                # If we have exact matches from different countries, ask for clarification
-                if len(exact_matches_different_countries) > 0:
-                    # Include the selected AOI and the matches from other countries
-                    all_matches = results[
-                        (
-                            results.name.str.lower().str.startswith(
-                                short_name.lower()
-                            )
-                        )
-                        & (results.source == "gadm")
-                    ]
-
-                    candidate_names = all_matches[
-                        ["name", "subtype", "src_id"]
-                    ].to_dict(orient="records")
-                    candidate_names = "\n".join(
-                        [
-                            f"{candidate['name']} - ({candidate['subtype']}) [{candidate['src_id'].split('.')[0]}]"
-                            for candidate in candidate_names
-                        ]
-                    )
-                    return Command(
-                        update={
-                            "messages": [
-                                ToolMessage(
-                                    f"I found multiple locations named '{short_name}' in different countries. Please tell me which one you meant:\n\n{candidate_names}\n\nWhich location are you looking for?",
-                                    tool_call_id=tool_call_id,
-                                    status="success",
-                                    response_metadata={
-                                        "msg_type": "human_feedback"
-                                    },
-                                )
-                            ],
-                        },
-                    )
-
-        # todo: this is redundant with the one in helpers.py, consider refactoring
-        source_table_map = {
-            "gadm": GADM_TABLE,
-            "kba": KBA_TABLE,
-            "landmark": LANDMARK_TABLE,
-            "wdpa": WDPA_TABLE,
-            "custom": CUSTOM_AREA_TABLE,
-        }
-
-        if source not in source_table_map:
-            logger.error(f"Invalid source: {source}")
-            raise ValueError(
-                f"Source: {source} does not match to any table in PostGIS database."
-            )
-
-        if subregion:
-            logger.info(f"Querying for subregion: '{subregion}'")
-            subregion_aois = await query_subregion_database(
-                subregion, source, src_id
-            )
-            subregion_aois = subregion_aois.to_dict(orient="records")
-            logger.info(f"Found {len(subregion_aois)} subregion AOIs")
-
-            # Limit subregions based on source
-            if subregion in {"kba", "wdpa", "landmark"}:
-                subregion_limit = 25
-            else:
-                subregion_limit = 50
-
-            # Check if too many subregions found
-            if len(subregion_aois) > subregion_limit:
-                return Command(
-                    update={
-                        "messages": [
-                            ToolMessage(
-                                f"Found {len(subregion_aois)} subregions, which is too many to process efficiently. "
-                                f"Please narrow down your search by either:\n"
-                                f"1. Being more specific with the AOI selection (choose a smaller area)\n"
-                                f"2. Being more specific with the subregion query (e.g., 'kbas' instead of 'areas')\n"
-                                f"For optimal performance, please limit results to under 25 subregions for KBA, WDPA, and Indigenous Lands, or under 50 for other area types.",
-                                tool_call_id=tool_call_id,
-                                status="success",
-                                response_metadata={
-                                    "msg_type": "human_feedback"
-                                },
-                            )
-                        ],
-                    },
-                )
-        else:
-            subregion_aois = []
-
-        tool_message = f"Selected AOI: {name}, type: {subtype}"
-        if subregion:
-            subregion_aoi_names = [
-                subregion_aoi["name"].split(",")[0]
-                for subregion_aoi in subregion_aois
-            ]
-            if len(subregion_aoi_names) > 5:
-                displayed_names = subregion_aoi_names[:5]
-                remaining = len(subregion_aoi_names) - 5
-                tool_message += f"\nSubregion AOIs: {'\n'.join(displayed_names)}\n... ({remaining} more)"
-            else:
-                tool_message += (
-                    f"\nSubregion AOIs: {'\n'.join(subregion_aoi_names)}"
-                )
-
-        logger.debug(f"Pick AOI tool message: {tool_message}")
-        selected_aoi = selected_aoi.model_dump()
-        selected_aoi[SOURCE_ID_MAPPING[source]["id_column"]] = src_id
-
-        logger.info(
-            f"Selected AOI: {name}, type: {subtype}, source: {source}, src_id: {src_id}"
-        )
-
-        aoi_options = {
-            "aoi": selected_aoi,
-            "subregion_aois": subregion_aois,
-            "subregion": subregion,
-            "subtype": subtype,
-        }
-
+    duplicate_check = await check_duplicate_aois(selected_aois, all_results)
+    if duplicate_check:
         return Command(
             update={
-                "aoi": selected_aoi,
-                "subregion_aois": subregion_aois if subregion else None,
-                "subregion": subregion,
-                "aoi_name": name,
-                "subtype": subtype,
-                "aoi_options": aoi_options,
-                # Update the message history
                 "messages": [
-                    ToolMessage(tool_message, tool_call_id=tool_call_id)
+                    ToolMessage(duplicate_check, tool_call_id=tool_call_id)
                 ],
             },
         )
-    except Exception as e:
-        logger.exception(f"Error in pick_aoi tool: {e}")
+
+    match_names = [selected_aoi["name"] for selected_aoi in selected_aois]
+
+    if subregion:
+        subregion_tasks = [
+            query_subregion_database(
+                subregion, selected_aoi["source"], selected_aoi["src_id"]
+            )
+            for selected_aoi in selected_aois
+        ]
+        subregion_dfs = await asyncio.gather(*subregion_tasks)
+        final_aois = []
+        for df in subregion_dfs:
+            final_aois.extend(df.to_dict(orient="records"))
+    else:
+        final_aois = selected_aois
+
+    logger.info(f"Found {len(final_aois)} AOIs in total")
+
+    check = await check_aoi_selection(final_aois)
+    if check:
         return Command(
             update={
                 "messages": [
                     ToolMessage(
-                        str(e), tool_call_id=tool_call_id, status="error"
+                        check,
+                        tool_call_id=tool_call_id,
+                        status="success",
+                        response_metadata={"msg_type": "human_feedback"},
                     )
                 ],
             },
         )
+
+    tool_message = "Selected AOIs:"
+    for selected_aoi in final_aois:
+        selected_aoi[
+            SOURCE_ID_MAPPING[selected_aoi["source"]]["id_column"]
+        ] = selected_aoi["src_id"]
+        tool_message += f"\n- {selected_aoi['name']}"
+
+    logger.debug(f"Pick AOI tool message: {tool_message}")
+
+    selection_name = ", ".join(match_names)
+    if subregion:
+        selection_name = f"{subregion.capitalize()}s in {selection_name}"
+
+    return Command(
+        update={
+            "aoi_selection": {
+                "name": selection_name,
+                "aois": final_aois,
+            },
+            # TODO: This is deprecated, remove it in the future
+            "aoi": final_aois[0],
+            "subtype": final_aois[0]["subtype"],
+            "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
+        },
+    )
