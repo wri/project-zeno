@@ -28,14 +28,13 @@ class AgentState(TypedDict):
 
     # pick-aoi tool
     aoi: dict
-    subtpye: str
+    subtype: str
     aoi_selection: AOISelection
 
     # pick-dataset tool
     dataset: dict
 
     # pull-data tool
-    raw_data: dict
     start_date: str
     end_date: str
     statistics: Annotated[list[Statistics], operator.add]

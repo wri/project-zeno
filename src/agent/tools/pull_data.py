@@ -161,6 +161,9 @@ async def pull_data(
                     ],
                 }
             ],
+            # TODO: This is deprecated, remove it in the future
+            "start_date": start_date,
+            "end_date": end_date,
             "messages": [tool_message],
         },
     )
