@@ -63,12 +63,12 @@ logs: ## Show Docker service logs
 api: ## Run API locally
 	@echo "🔧 Starting API locally..."
 	@echo "📄 Using .env + .env.local for configuration"
-	@uv run uvicorn src.api.app:app --reload --reload-exclude "*data*" --host 0.0.0.0 --port 8000
+	@uv run uvicorn src.api.app:app --reload --reload-dir src --host 0.0.0.0 --port 8000
 
 frontend: ## Run frontend locally
 	@echo "🎨 Starting frontend locally..."
 	@echo "📄 Using .env + .env.local for configuration"
-	@uv run streamlit run src/frontend/app.py --server.port=8501 --server.runOnSave=True
+	@uv run streamlit run frontend/app.py --server.port=8501 --server.runOnSave=True
 
 # Utilities
 test: ## Run tests

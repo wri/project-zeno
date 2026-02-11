@@ -6,7 +6,7 @@ Language Interface for Maps & WRI/LCL data APIs.
 
 The core of this project is an LLM powered agent that drives
 the conversations for Global Nature Watch. The project is fully
-open source and can be ran locally with the appropriate keys
+open source and can be run locally with the appropriate keys
 for accessing external services.
 
 ### Agent
@@ -61,7 +61,7 @@ for STAC can be found in the [gnw-stac](https://github.com/wri/gnw-stac) reposit
 ## Local Development Setup
 
 We use uv for package management and docker-compose
-for running the sytem locally.
+for running the system locally.
 
 1. **Clone and setup:**
 
@@ -77,9 +77,6 @@ for running the sytem locally.
    ```bash
    cp .env.example .env
    # Edit .env with your API keys and credentials
-
-   cp .env.local.example .env.local
-   # .env.local contains local development overrides (auto-created by make commands)
    ```
 
 3. **Build dataset RAG database:**
@@ -101,7 +98,7 @@ for running the sytem locally.
 4. **Start infrastructure services:**
 
    ```bash
-   make up       # Start Docker services (PostgreSQL + Langfuse + ClickHouse)
+   make up       # Start Docker services (PostgreSQL, test DB, migrations via docker-compose.dev.yaml)
    ```
 
 5. **Ingest data (required after starting database):**
@@ -113,10 +110,10 @@ for running the sytem locally.
    Make sure you're set up with WRI AWS credentials in your `.env` file to access the S3 bucket.
 
    ```bash
-   python src/ingest/ingest_gadm.py
-   python src/ingest/ingest_kba.py
-   python src/ingest/ingest_landmark.py
-   python src/ingest/ingest_wdpa.py
+   uv run python src/ingest/ingest_gadm.py
+   uv run python src/ingest/ingest_kba.py
+   uv run python src/ingest/ingest_landmark.py
+   uv run python src/ingest/ingest_wdpa.py
    ```
 
    See `src/ingest/` directory for details on each ingestion script.
@@ -154,11 +151,11 @@ for running the sytem locally.
    2. Create a new project
    3. Copy the API keys from your project settings
 
-   d. Return to your project directory and update your .env.local file
+   d. Return to your project directory and update your .env file
 
    ```bash
    cd ../project-zeno
-   # Update these values in your .env.local file:
+   # Update these values in your .env file:
    LANGFUSE_HOST=http://localhost:3000
    LANGFUSE_PUBLIC_KEY=your_public_key_here
    LANGFUSE_SECRET_KEY=your_secret_key_here
@@ -185,7 +182,7 @@ make dev      # Start full development environment
 
 ### API Tests
 
-Running `make up` will bring up a `zeno-db_test` database that's used by pytest. The tests look for a `TEST_DATABASE_URL` environment variable (also set in .env.local). You can also create the database manually with the following commands:
+Running `make up` brings up a `zeno-data_test` database (in docker-compose.dev.yaml) used by pytest. Set `TEST_DATABASE_URL` in `.env` (e.g. `postgresql+asyncpg://postgres:postgres@localhost:5434/zeno-data_test` for the dev test container). You can also create the test database manually:
 
 ```bash
 createuser -s postgres # if you don't have a postgres user
@@ -205,21 +202,16 @@ For user administration commands (making users admin, whitelisting emails), see 
 ## Environment Files
 
 - `.env` - Base configuration (production settings)
-- `.env.local` - Local development overrides (auto-created)
 
-The system automatically loads `.env` first, then overrides with `.env.local` for local development.
-
-```bash
-uv run streamlit run src/frontend/app.py
-```
+The system automatically loads `.env`. To run only the frontend: `make frontend` or `uv run streamlit run frontend/app.py --server.port=8501`.
 
 ## Setup Database
 
-1. Using docker:
+1. Using docker (full stack; see `docker-compose.yaml`):
 
    ```bash
    docker compose up -d
-   uv run streamlit run frontend/app.py
+   # Frontend runs in a container; for local-only frontend: make frontend
    ```
 
 2. Using postgresql:
@@ -229,7 +221,8 @@ uv run streamlit run src/frontend/app.py
    ```bash
    createuser -s postgres # if you don't have a postgres user
    createdb -U postgres zeno-data-local
-   alembic upgrade head
+   # Run migrations from the db directory (alembic reads DATABASE_URL from env; same URL as .env is fine)
+   cd db && DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-local alembic upgrade head && cd ..
 
    # Check if you have the database running
    psql zeno-data-local
@@ -252,10 +245,12 @@ uv run streamlit run src/frontend/app.py
    DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-local
    ```
 
-## Configure localhost Langfuse
+## Configure localhost Langfuse (full docker-compose)
 
-1. `docker compose up langfuse-server` (or just spin up the whole backend with `docker compose up`)
-2. Open your browser and navigate to <http://localhost:3000> to create a Langfuse account.
-3. Within the Langfuse UI, create an organization and then a project.
-4. Copy the API keys (public and secret) generated for your project.
-5. Update the `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` environment variables in your `docker-compose.yml` file with the copied keys.
+When using the full stack (`docker compose up` with `docker-compose.yaml`), Langfuse and ClickHouse are included. For local dev with `make up` only, use the separate Langfuse setup in step 7 above.
+
+1. `docker compose up -d` (or run the `langfuse-web` service)
+2. Open <http://localhost:3000> and create a Langfuse account.
+3. In the Langfuse UI, create an organization and a project.
+4. Copy the project API keys (public and secret).
+5. Set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in your `.env` (or in `docker-compose.yaml` if you rely on env there).
