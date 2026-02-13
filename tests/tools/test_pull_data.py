@@ -1,9 +1,11 @@
 import uuid
+from datetime import datetime, timedelta
 
 import pytest
 import structlog
 from sqlalchemy import select
 
+from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pull_data import pull_data, revise_date_range
 from src.api.app import app, fetch_user_from_rw_api
 from src.api.data_models import WhitelistedUserOrm
@@ -168,18 +170,25 @@ async def test_pull_data_queries(aoi_data, dataset):
         query = f"find composition of {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
     else:
         query = f"find {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
+
+    dataset_original = next(
+        (ds for ds in DATASETS if ds["dataset_id"] == dataset["dataset_id"]),
+        None,
+    )
+    start_date = dataset_original.get("start_date")
+
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_dt = start_dt + timedelta(days=31)
+    end_date = end_dt.strftime("%Y-%m-%d")
+
     tool_call = {
         "type": "tool_call",
         "name": "pull_data",
         "id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
         "args": {
             "query": query,
-            "start_date": "2024-01-01"
-            if dataset["dataset_id"] != 8
-            else "2024-01-01",
-            "end_date": "2024-01-31"
-            if dataset["dataset_id"] != 8
-            else "2024-01-31",
+            "start_date": start_date,
+            "end_date": end_date,
             "change_over_time_query": False,
             "tool_call_id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
             "state": update,
