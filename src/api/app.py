@@ -925,8 +925,8 @@ async def generate_thread_name(query: str) -> str:
         QUERY:
         {query}
 
-        CONTEXT:
-        Current date is {datetime.now().strftime("%Y-%m-%d")}. Use this for relative time queries like "past 3 months", "last week", etc.
+        RULES:
+        - Never include any dates in the name, the user might ask for a date range that is not available.
         """
         response = await SMALL_MODEL.with_structured_output(
             ThreadNameOutput
