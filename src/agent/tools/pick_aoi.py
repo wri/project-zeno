@@ -33,6 +33,15 @@ load_dotenv()
 logger = get_logger(__name__)
 
 
+class AOIIndex(BaseModel):
+    """Model for storing the best matched location."""
+
+    source: str = Field(description="`source` of the best matched location.")
+    src_id: str = Field(description="`src_id` of the best matched location.")
+    name: str = Field(description="`name` of the best matched location.")
+    subtype: str = Field(description="`subtype` of the best matched location.")
+
+
 async def query_aoi_database(
     place_name: str,
     result_limit: int = 10,
@@ -304,20 +313,6 @@ async def select_best_aoi(question, candidate_aois):
     Returns:
         Selected AOI: AOIIndex
     """
-
-    class AOIIndex(BaseModel):
-        """Model for storing the best matched location."""
-
-        source: str = Field(
-            description="`source` of the best matched location."
-        )
-        src_id: str = Field(
-            description="`src_id` of the best matched location."
-        )
-        name: str = Field(description="`name` of the best matched location.")
-        subtype: str = Field(
-            description="`subtype` of the best matched location."
-        )
 
     # Prompt template for selecting the best location match based on user query
     AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
