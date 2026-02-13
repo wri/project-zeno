@@ -161,6 +161,12 @@ for running the system locally.
    LANGFUSE_SECRET_KEY=your_secret_key_here
    ```
 
+   To disable locally, use following flag
+
+   ```bash
+   LANGFUSE_TRACING_ENABLED=true
+   ```
+
 8. **Access the application:**
 
    - Frontend: <http://localhost:8501>
