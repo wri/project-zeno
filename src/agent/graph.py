@@ -132,7 +132,7 @@ DATABASE_URL = os.environ["DATABASE_URL"].replace(
 # 2. Our global pool uses asyncpg driver (postgresql+asyncpg://) via SQLAlchemy
 # 3. These are different PostgreSQL drivers and aren't directly compatible
 # 4. Both pools connect to the same database but use different connection libraries
-_checkpointer_pool: AsyncConnectionPool = None
+_checkpointer_pool: Optional[AsyncConnectionPool] = None
 
 
 async def get_checkpointer_pool() -> AsyncConnectionPool:
