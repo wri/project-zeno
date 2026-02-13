@@ -43,7 +43,7 @@ GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
     max_retries=2,
-    thinking_budget=0,
+    thinking_budget=-1,
     timeout=300,
 )
 # OpenAI
