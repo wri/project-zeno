@@ -1,10 +1,12 @@
 import uuid
+from datetime import datetime, timedelta
 
 import pytest
 import structlog
 from sqlalchemy import select
 
-from src.agent.tools.pull_data import pull_data
+from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.pull_data import pull_data, revise_date_range
 from src.api.app import app, fetch_user_from_rw_api
 from src.api.data_models import WhitelistedUserOrm
 from src.api.schemas import UserModel
@@ -168,18 +170,25 @@ async def test_pull_data_queries(aoi_data, dataset):
         query = f"find composition of {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
     else:
         query = f"find {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
+
+    dataset_original = next(
+        (ds for ds in DATASETS if ds["dataset_id"] == dataset["dataset_id"]),
+        None,
+    )
+    start_date = dataset_original.get("start_date")
+
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_dt = start_dt + timedelta(days=31)
+    end_date = end_dt.strftime("%Y-%m-%d")
+
     tool_call = {
         "type": "tool_call",
         "name": "pull_data",
         "id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
         "args": {
             "query": query,
-            "start_date": "2024-01-01"
-            if dataset["dataset_id"] != 8
-            else "2024-01-01",
-            "end_date": "2024-01-31"
-            if dataset["dataset_id"] != 8
-            else "2024-01-31",
+            "start_date": start_date,
+            "end_date": end_date,
             "change_over_time_query": False,
             "tool_call_id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
             "state": update,
@@ -199,6 +208,44 @@ async def test_pull_data_queries(aoi_data, dataset):
         assert len(statistics) == 1
         assert statistics[0]["source_url"].startswith("http")
         assert statistics[0]["aoi_names"] == [aoi_data["name"]]
+
+
+async def test_tree_cover_loss_date_range_clamped_to_2024():
+    """Regression: Tree cover loss (2001-2024) clamps input 2020-2025 to 2020-2024."""
+    aoi_data = TEST_AOIS[0]  # Brazil
+    update = {
+        "aoi_selection": {"name": aoi_data["name"], "aois": [aoi_data]},
+        "dataset": {
+            "dataset_id": 4,
+            "dataset_name": "Tree cover loss",
+            "reason": "",
+            "tile_url": "",
+            "context_layer": None,
+        },
+    }
+    tool_call = {
+        "type": "tool_call",
+        "name": "pull_data",
+        "id": "test-date-clamp-tree-cover-loss",
+        "args": {
+            "query": "find tree cover loss in Brazil",
+            "start_date": "2020-01-01",
+            "end_date": "2025-12-31",
+            "change_over_time_query": True,
+            "tool_call_id": "test-date-clamp-tree-cover-loss",
+            "state": update,
+        },
+    }
+    command = await pull_data.ainvoke(tool_call)
+    statistics = command.update.get("statistics", [])
+    assert len(statistics) == 1
+    assert statistics[0]["start_date"] == "2020-01-01"
+    assert statistics[0]["end_date"] == "2024-12-31"
+    tool_message = command.update.get("messages", [None])[0]
+    assert tool_message is not None
+    assert "2024-12-31" in tool_message.content
+    assert "2025-12-31" in tool_message.content
+    assert "adjusted" in tool_message.content.lower()
 
 
 async def whitelist_test_user():
@@ -319,3 +366,90 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
     assert aoi_data["src_id"] == statistics[0]["data"]["aoi_id"][0]
     assert aoi_data["name"] == statistics[0]["data"]["name"][0]
     assert statistics[0]["data"]["land_cover_class_end"] == ["Built-up"]
+
+
+class TestReviseDateRange:
+    """Unit tests for revise_date_range function."""
+
+    async def test_dataset_not_found_raises(self):
+        with pytest.raises(ValueError, match="Dataset not found: 999"):
+            await revise_date_range("2024-01-01", "2024-12-31", 999)
+
+    async def test_content_date_fixed_uses_dataset_dates(self):
+        """Dataset 7 (Tree cover) has content_date_fixed=True, 2000-01-01 to 2000-12-31."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("1999-01-01", "2001-12-31", 7)
+        assert effective_start == "2000-01-01"
+        assert effective_end == "2000-12-31"
+        assert range_clamped is True
+
+    async def test_content_date_fixed_no_clamp_when_matching(self):
+        """When requested range matches fixed dataset range, range_clamped is False."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2000-01-01", "2000-12-31", 7)
+        assert effective_start == "2000-01-01"
+        assert effective_end == "2000-12-31"
+        assert range_clamped is False
+
+    async def test_content_date_fixed_false_no_clamping_within_range(self):
+        """Dataset 1 (Global land cover) 2015-2024: requested range within dataset -> no clamp."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2020-01-01", "2020-12-31", 1)
+        assert effective_start == "2020-01-01"
+        assert effective_end == "2020-12-31"
+        assert range_clamped is False
+
+    async def test_content_date_fixed_false_clamp_start(self):
+        """Requested start before dataset start -> clamp to dataset start."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2010-01-01", "2020-12-31", 1)
+        assert effective_start == "2015-01-01"
+        assert effective_end == "2020-12-31"
+        assert range_clamped is True
+
+    async def test_content_date_fixed_false_clamp_end(self):
+        """Requested end after dataset end -> clamp to dataset end."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2020-01-01", "2030-12-31", 1)
+        assert effective_start == "2020-01-01"
+        assert effective_end == "2024-12-31"
+        assert range_clamped is True
+
+    async def test_content_date_fixed_false_clamp_both(self):
+        """Requested range spans beyond dataset -> clamp both ends."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2010-01-01", "2030-12-31", 1)
+        assert effective_start == "2015-01-01"
+        assert effective_end == "2024-12-31"
+        assert range_clamped is True
+
+    async def test_dataset_without_end_date_uses_today(self):
+        """Dataset 0 (DIST-ALERT) has no end_date; uses today as effective end."""
+        from datetime import date
+
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2024-01-01", "2030-12-31", 0)
+        assert effective_start == "2024-01-01"
+        assert effective_end == str(date.today())
+        assert range_clamped is True
