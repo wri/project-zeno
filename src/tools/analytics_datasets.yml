@@ -28,12 +28,14 @@ datasets:
   analytics_api_endpoint: "/v0/land_change/dist_alerts/analytics"
   prompt_instructions: >
     Use this dataset to show recent vegetation changes across all ecosystems, measured in hectares (ha).
-    Show classified alerts (LDACS) by default, which is designed to reveal likely causes of disturbance,
+    Show classified alerts by driver (LDACS) by default, which is designed to reveal likely causes of disturbance,
     identify dominant drivers in a region, and support ecosystem or regional comparisons.
     LDACS is updated quarterly and covers the most recent 12 months, so classification data are not
     available for the last 90 days.
     Clarify whether the user cares about temporary disturbance or permanent conversion; recommend
     annual land cover or tree cover loss datasets for historical or long-term changes.
+    For questions about disturbance within natural forests, apply the natural lands context layer and select alerts
+    in classes 2,5,8,9; and for non-natural tree cover, select 14,17,18.
     For recent trends, show alert counts over time using line charts.
     Use pie charts to show the distribution of disturbed area by specific driver.
     Use pie charts to show the distribution of disturbed area by land cover class or natural land type to show which ecosystems
@@ -282,9 +284,9 @@ datasets:
   providers: >
     UMD GLAD Lab, Global Pasture Watch consortium, Land & Carbon Lab
   citation: >
-    Annual 30-m maps of Global Land Cover and Land Use 2015-2024 based on GLAD Land Cover
-    and Land Use Change (https://www.frontiersin.org/articles/10.3389/frsen.2022.856903/full)
-    and Global Pasture Watch Grassland class and extent (https://www.nature.com/articles/s41597-024-04139-6).
+    Annual 30-m maps of Global Land Cover and Land Use 2015-2024 based on [GLAD Land Cover
+    and Land Use Change](https://www.frontiersin.org/articles/10.3389/frsen.2022.856903/full)
+    and [Global Pasture Watch Grassland class and extent](https://www.nature.com/articles/s41597-024-04139-6).
     Land & Carbon Lab 2025.
 
     Sources:
@@ -297,7 +299,7 @@ datasets:
     Teles, N., Wheeler, I., Hunter, M., Ehrmann, S., Ferreira, L., Mattos, A. P., Oliveira, B.,
     Meyer, C., Şahin, M., Witjes, M., Fritz, S., Malek, Z., & Stolle, F. (2024). Annual 30-m
     maps of global grassland class and extent (2000-2022) based on spatiotemporal Machine
-    Learning. Scientific Data, 11(1), 1303. https://doi.org/10.1038/s41597-024-04139-6
+    Learning. Scientific Data, 11(1), 1303. [doi:10.1038/s41597-024-04139-6](https://doi.org/10.1038/s41597-024-04139-6)
 
 - dataset_id: 2
   dataset_name: Global natural/semi-natural grassland extent
@@ -477,7 +479,7 @@ datasets:
     Teles, N., Wheeler, I., Hunter, M., Ehrmann, S., Ferreira, L., Mattos, A. P., Oliveira, B.,
     Meyer, C., Şahin, M., Witjes, M., Fritz, S., Malek, Z., & Stolle, F. (2024). Annual 30-m
     maps of global grassland class and extent (2000-2022) based on spatiotemporal Machine
-    Learning. Scientific Data, 11(1), 1303. https://doi.org/10.1038/s41597-024-04139-6
+    Learning. Scientific Data, 11(1), 1303. [doi:10.1038/s41597-024-04139-6](https://doi.org/10.1038/s41597-024-04139-6)
 
 - dataset_id: 3
   dataset_name: SBTN Natural Lands Map
@@ -503,6 +505,8 @@ datasets:
     Natural and non-natural lands in 2020. Created to see if there were natural lands within
     users' production units in 2020, and can be used with additional monitoring data to see
     if change occurred on land that was natural.
+    For questions around natural forests, include the following classes: 2,5,8,9.
+    For non-natural tree cover, include the following classes: 14,17,18.
     Use bar or pie charts to display areas of natural and non-natural areas in proportion to
     each other. Show data on map since it is intended to be primarily spatial data.
     Natural lands resemble what would be found in the absence of major human impacts and can
@@ -570,7 +574,7 @@ datasets:
     Mazur, E., M. Sims, E. Goldman, M. Schneider, M.D. Pirri, C.R. Beatty, F. Stolle, M.
     Stevenson. 2025. "SBTN Natural Lands Map v1.1: Technical Documentation". Science Based
     Targets for Land Version 1 - Supplementary Material. Science Based Targets Network.
-    https://sciencebasedtargetsnetwork.org/wp-content/uploads/2025/02/Technical-Guidance-2025-Step3-Land-v1_1-Natural-Lands-Map.pdf
+    [SBTN Natural Lands Map Technical Documentation](https://sciencebasedtargetsnetwork.org/wp-content/uploads/2025/02/Technical-Guidance-2025-Step3-Land-v1_1-Natural-Lands-Map.pdf)
 
 - dataset_id: 4
   dataset_name: Tree cover loss
@@ -685,11 +689,11 @@ datasets:
     Hansen, M. C., P. V. Potapov, R. Moore, M. Hancher, S. A. Turubanova, A. Tyukavina, D. Thau,
     S. V. Stehman, S. J. Goetz, T. R. Loveland, A. Kommareddy, A. Egorov, L. Chini, C. O. Justice,
     and J. R. G. Townshend. 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change."
-    Science 342 (15 November): 850-53. doi: 10.1126/science.1244693. Data available from:
-    https://glad.earthengine.app/view/global-forest-change.
+    Science 342 (15 November): 850-53. [doi:10.1126/science.1244693](https://doi.org/10.1126/science.1244693). Data available from:
+    [Global Forest Change](https://glad.earthengine.app/view/global-forest-change).
   citation: >
     Hansen et al., 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change."
-    Accessed through Global Forest Watch on [date]. www.globalforestwatch.org
+    Accessed through Global Forest Watch on [date]. [www.globalforestwatch.org](https://www.globalforestwatch.org)
 
 - dataset_id: 5
   dataset_name: Tree cover gain
@@ -769,13 +773,13 @@ datasets:
     Zalles, V., Li, X., Khan, A., Stolle, F., Harris, N., Song, X-P., Baggett, A.,
     Kommareddy, I., and Kommareddy, A. 2022.
     The Global 2000-2020 Land Cover and Land Use Change Dataset Derived From the Landsat Archive: First Results.
-    Frontiers in Remote Sensing, 13, April 2022. https://doi.org/10.3389/frsen.2022.856903
+    Frontiers in Remote Sensing, 13, April 2022. [doi:10.3389/frsen.2022.856903](https://doi.org/10.3389/frsen.2022.856903)
   citation: >
-    Use the following credit when this data is displayed: Accessed through Global Forest Watch on <date>. www.globalforestwatch.org.
+    Use the following credit when this data is displayed: Accessed through Global Forest Watch on <date>. [www.globalforestwatch.org](https://www.globalforestwatch.org).
     Use the following credit when this data is cited: Potapov, P., Hansen, M.C., Pickens, A., Hernandez-Serna, A., Tyukavina, A.,
     Turubanova, S., Zalles, V., Li, X., Khan, A., Stolle, F., Harris, N., Song, X-P., Baggett, A., Kommareddy, I., and Kommareddy, A. 2022.
     The Global 2000-2020 Land Cover and Land Use Change Dataset Derived From the Landsat Archive: First Results.
-    Frontiers in Remote Sensing, 13, April 2022. https://doi.org/10.3389/frsen.2022.856903
+    Frontiers in Remote Sensing, 13, April 2022. [doi:10.3389/frsen.2022.856903](https://doi.org/10.3389/frsen.2022.856903)
 
 - dataset_id: 6
   dataset_name: Forest greenhouse gas net flux
@@ -875,10 +879,10 @@ datasets:
     Harris, N.L., D.A. Gibbs, A. Baccini, R.A. Birdsey, S. de Bruin, M. Farina, L. Fatoyinbo, M.C. Hansen,
     M. Herold, R.A. Houghton, P.V. Potapov, D. Requena Suarez, R.M. Roman-Cuesta, S.S. Saatchi, C.M. Slay,
     S.A. Turubanova, A. Tyukavina. 2021. Global maps of twenty-first century forest carbon fluxes.
-    Nature Climate Change. https://doi.org/10.1038/s41558-020-00976-6
+    Nature Climate Change. [doi:10.1038/s41558-020-00976-6](https://doi.org/10.1038/s41558-020-00976-6)
     Gibbs, D. A., Rose, M., Grassi, G., Melo, J., Rossi, S., Heinrich, V., & Harris, N. L. 2025.
     Revised and updated geospatial monitoring of 21st century forest carbon fluxes.
-    Earth System Science Data. https://doi.org/10.5194/essd-17-1217-2025"
+    Earth System Science Data. [doi:10.5194/essd-17-1217-2025](https://doi.org/10.5194/essd-17-1217-2025)
   citation: >
     Harris et al. (2021). Global maps of 21st century forest carbon fluxes.
     Accessed on <date> from Global Forest Watch.
@@ -936,15 +940,15 @@ datasets:
     Hansen, M. C., P. V. Potapov, R. Moore, M. Hancher, S. A. Turubanova, A. Tyukavina, D. Thau, S. V. Stehman,
     S. J. Goetz, T. R. Loveland, A. Kommareddy, A. Egorov, L. Chini, C. O. Justice, and J. R. G. Townshend. 2013.
     “High-Resolution Global Maps of 21st-Century Forest Cover Change.” Science 342 (15 November): 850–53.
-    doi: 10.1126/science.1244693. Data available from: https://glad.earthengine.app/view/global-forest-change.
+    [doi:10.1126/science.1244693](https://doi.org/10.1126/science.1244693). Data available from: [Global Forest Change](https://glad.earthengine.app/view/global-forest-change).
   citation: >
     Use the following credit when these data are displayed: Source: Hansen/UMD/Google/USGS/NASA, accessed through
     Global Forest Watch
     Use the following credit when these data are cited: Hansen, M. C., P. V. Potapov, R. Moore, M. Hancher,
-    S. A.Turubanova, A. Tyukavina, D. Thau, S. V. Stehman, S. J. Goetz, T. R. Loveland, A. Kommareddy, A. Egorov,
+    S. A. Turubanova, A. Tyukavina, D. Thau, S. V. Stehman, S. J. Goetz, T. R. Loveland, A. Kommareddy, A. Egorov,
     L. Chini, C. O. Justice, and J. R. G. Townshend. 2013. “High-Resolution Global Maps of 21st-Century Forest Cover Change.”
-    Science 342 (15 November): 850–53. Data available on-line from:https://glad.umd.edu/dataset/global-2010-tree-cover-30-m.
-    Accessed through Global Forest Watch on <date>. www.globalforestwatch.org
+    Science 342 (15 November): 850–53. Data available on-line from: [UMD Tree Cover Data](https://glad.umd.edu/dataset/global-2010-tree-cover-30-m).
+    Accessed through Global Forest Watch on <date>. [www.globalforestwatch.org](https://www.globalforestwatch.org)
 
 - dataset_id: 8
   dataset_name: Tree cover loss by dominant driver
@@ -1066,15 +1070,15 @@ datasets:
     Sims, M.J., R. Stanimirova, A. Raichuk, M. Neumann, J. Richter, F. Follett, J. MacCarthy,
     K. Lister, C. Randle, L. Sloat, E. Esipova, J. Jupiter, C. Stanton, D. Morris, C. M. Slay,
     D. Purves, and N. Harris. 2025. “Global Drivers of Forest Loss at 1 Km Resolution.”
-    Environmental Research Letters 20 (7): 074027. doi:10.1088/1748-9326/add606.
+    Environmental Research Letters 20 (7): 074027. [doi:10.1088/1748-9326/add606](https://doi.org/10.1088/1748-9326/add606).
   citation: >
     Use the following credit when these data are displayed: “Tree cover loss by dominant driver”.
-    WRI/Google DeepMind. Accessed from Global Forest Watch on [Date]. www.globalforestwatch.org
+    WRI/Google DeepMind. Accessed from Global Forest Watch on [Date]. [www.globalforestwatch.org](https://www.globalforestwatch.org)
     Use the following credit when these data are cited: Sims, M.J., R. Stanimirova, A. Raichuk,
     M. Neumann, J. Richter, F. Follett, J. MacCarthy, K. Lister, C. Randle, L. Sloat, E. Esipova,
     J. Jupiter, C. Stanton, D. Morris, C. M. Slay, D. Purves, and N. Harris. 2025.
     “Global Drivers of Forest Loss at 1 Km Resolution.”
-    Environmental Research Letters 20 (7): 074027.  doi:10.1088/1748-9326/add606.
+    Environmental Research Letters 20 (7): 074027. [doi:10.1088/1748-9326/add606](https://doi.org/10.1088/1748-9326/add606).
 
 - dataset_id: 9
   dataset_name: "Deforestation (sLUC) Emission Factors by Agricultural Crop"
