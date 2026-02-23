@@ -603,7 +603,9 @@ datasets:
     Show yearly loss with bar charts or cumulative loss with stacked-area charts; plot area_ha
     and drop zeros. When reporting tree cover loss, always include the GHG emissions associated
     with that loss, in MgCO2e (tonnes of CO2 equivalent). If users ask for intra-year
-    or seasonal tree cover loss OR emissions, refuse and remind that the data is annually only.
+    or seasonal tree cover loss OR emissions, refuse and remind that the data is annual only.
+    The 2011-2024 data was produced using an updated methodology so comparisons between, and
+    trends across the periods 2001-2010 and 2011-2024 should be performed with caution.
     DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover"
     includes plantations as well as natural forest meaning loss is not automatically
     deforestation or carbon loss.
@@ -994,7 +996,7 @@ datasets:
       Other natural disturbances: Tree cover loss due to other non-fire natural disturbances
       (e.g., landslides, insect outbreaks, river meandering). If loss due to natural causes is
       followed by salvage or sanitation logging, it is classified as logging.
-    Ignore the Unknown class.
+    DO NOT include the Unknown class in analysis.
     Show total area of loss (ha) or total emissions (MgCO2e) due to loss per driver class
     over the entire time period 2001-2024. DO NOT attempt a timeseries. If asked for annual
     tree cover loss OR emissions timeseries, refuse and suggest Tree cover loss analysis instead.
