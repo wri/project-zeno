@@ -5,7 +5,7 @@ from src.ingest.utils import (
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
 )
-from src.utils.geocoding_helpers import SOURCE_ID_MAPPING
+from src.shared.geocoding_helpers import SOURCE_ID_MAPPING
 
 KBA_DATA_SOURCE = "s3://ndjson-layers/KBAsGlobal_2024_September_03_POL.ndjson"
 

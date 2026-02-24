@@ -4,9 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
-from src.utils.config import APISettings
-
-from .mock import mock_rw_api_response
+from src.api.config import APISettings
+from tests.api.mock import mock_rw_api_response
 
 
 @pytest.fixture(autouse=True)
@@ -488,7 +487,7 @@ class TestQuotaFunctionality:
     async def test_pro_user_has_custom_quota(self, client):
         """Test that pro users get their own specific quota limits."""
         from src.api.data_models import UserOrm, UserType
-        from src.utils.database import get_session_from_pool_dependency
+        from src.shared.database import get_session_from_pool_dependency
 
         with patch("httpx.AsyncClient") as mock_client_class:
             # WRI API returns regular user data (no userType field needed)
@@ -545,7 +544,7 @@ class TestQuotaFunctionality:
     async def test_pro_user_quota_enforcement(self, client):
         """Test that pro users quota is properly enforced."""
         from src.api.data_models import UserOrm, UserType
-        from src.utils.database import get_session_from_pool_dependency
+        from src.shared.database import get_session_from_pool_dependency
 
         # Set pro quota for testing
         original_quota = APISettings.pro_user_daily_quota
@@ -640,7 +639,7 @@ class TestQuotaFunctionality:
     async def test_pro_user_chat_headers_include_quota(self, client):
         """Test that /api/chat includes correct quota headers for pro users."""
         from src.api.data_models import UserOrm, UserType
-        from src.utils.database import get_session_from_pool_dependency
+        from src.shared.database import get_session_from_pool_dependency
 
         with patch("httpx.AsyncClient") as mock_client_class:
             wri_user_data = {
@@ -702,7 +701,7 @@ class TestQuotaFunctionality:
     async def test_pro_user_no_admin_privileges(self, client):
         """Test that pro users don't have admin privileges (can't access all threads)."""
         from src.api.data_models import UserOrm, UserType
-        from src.utils.database import get_session_from_pool_dependency
+        from src.shared.database import get_session_from_pool_dependency
 
         with patch("httpx.AsyncClient") as mock_client_class:
             wri_user_data = {
@@ -766,7 +765,7 @@ class TestQuotaFunctionality:
         3. Calls /auth/me and expects admin quota, not regular quota
         """
         from src.api.data_models import UserOrm, UserType
-        from src.utils.database import get_session_from_pool_dependency
+        from src.shared.database import get_session_from_pool_dependency
 
         # Mock WRI API to return regular user (not admin)
         with patch("httpx.AsyncClient") as mock_client_class:

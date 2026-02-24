@@ -44,31 +44,31 @@ dev: up ## Start full development environment
 # Infrastructure Management
 up: ## Start Docker services (PostgreSQL + Langfuse)
 	@echo "🐳 Starting infrastructure services..."
-	@docker-compose -f docker-compose.dev.yaml up -d
+	@docker compose -f docker-compose.dev.yaml up -d
 	@echo "⏳ Waiting for services to be ready..."
 	@sleep 10
 	@echo "✅ Infrastructure services are running!"
 
 down: ## Stop Docker services
 	@echo "🛑 Stopping infrastructure services..."
-	@docker-compose -f docker-compose.dev.yaml down
+	@docker compose -f docker-compose.dev.yaml down
 	@echo "✅ Infrastructure services stopped!"
 
 restart: down up ## Restart Docker services
 
 logs: ## Show Docker service logs
-	@docker-compose -f docker-compose.dev.yaml logs -f
+	@docker compose -f docker-compose.dev.yaml logs -f
 
 # Local Services
 api: ## Run API locally
 	@echo "🔧 Starting API locally..."
-	@echo "📄 Using .env + .env.local for configuration"
-	@uv run uvicorn src.api.app:app --reload --reload-exclude "*data*" --host 0.0.0.0 --port 8000
+	@echo "📄 Using .env for configuration"
+	@uv run uvicorn src.api.app:app --reload --reload-dir src --host 0.0.0.0 --port 8000
 
 frontend: ## Run frontend locally
 	@echo "🎨 Starting frontend locally..."
-	@echo "📄 Using .env + .env.local for configuration"
-	@uv run streamlit run src/frontend/app.py --server.port=8501 --server.runOnSave=True
+	@echo "📄 Using .env for configuration"
+	@uv run streamlit run frontend/app.py --server.port=8501 --server.runOnSave=True
 
 # Utilities
 test: ## Run tests
@@ -77,18 +77,18 @@ test: ## Run tests
 
 clean: ## Clean up containers and volumes
 	@echo "🧹 Cleaning up Docker resources..."
-	@docker-compose -f docker-compose.dev.yaml down -v --remove-orphans
+	@docker compose -f docker-compose.dev.yaml down -v --remove-orphans
 	@docker system prune -f
 	@echo "✅ Cleanup complete!"
 
 # Production (full docker-compose)
 prod-up: ## Start full production environment
 	@echo "🚀 Starting production environment..."
-	@docker-compose up -d
+	@docker compose up -d
 
 prod-down: ## Stop production environment
 	@echo "🛑 Stopping production environment..."
-	@docker-compose down
+	@docker compose down
 
 prod-logs: ## Show production logs
-	@docker-compose logs -f
+	@docker compose logs -f

@@ -188,3 +188,9 @@ ee-zeno-service-account.json
 
 # Logs
 logs/
+
+# Ruff
+.ruff_cache/
+
+# Notebooks
+nbs/

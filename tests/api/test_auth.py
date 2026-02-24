@@ -8,8 +8,7 @@ import pytest
 
 # Import the API app directly from the src package
 from src.api import app as api
-
-from .mock import mock_rw_api_response
+from tests.api.mock import mock_rw_api_response
 
 
 @contextmanager

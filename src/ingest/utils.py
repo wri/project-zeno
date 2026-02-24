@@ -5,11 +5,10 @@ from pathlib import Path
 import geopandas as gpd
 import requests
 import s3fs
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
-from src.utils.env_loader import load_environment_variables
-
-load_environment_variables()
+load_dotenv()
 
 DB_URL = os.environ["DATABASE_URL"].replace(
     "postgresql+asyncpg://", "postgresql+psycopg2://"

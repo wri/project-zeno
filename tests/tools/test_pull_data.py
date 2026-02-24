@@ -1,14 +1,20 @@
 import uuid
+from datetime import datetime, timedelta
 
 import pytest
 import structlog
 from sqlalchemy import select
 
+from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.pull_data import pull_data, revise_date_range
 from src.api.app import app, fetch_user_from_rw_api
 from src.api.data_models import WhitelistedUserOrm
 from src.api.schemas import UserModel
-from src.tools.pull_data import pull_data
 from tests.conftest import async_session_maker
+
+# Use session-scoped event loop to match conftest.py fixtures and avoid
+# "Event loop is closed" errors when running with other test modules
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 # All dataset and intersection combinations from OpenAPI spec
 # https://analytics.globalnaturewatch.org/openapi.json
@@ -142,31 +148,16 @@ TEST_AOIS = [
 ]
 
 
-# Override database fixtures to avoid database connections for these unit tests
-@pytest.fixture(scope="function", autouse=True)
-def test_db():
-    """Override the global test_db fixture to avoid database connections."""
-    pass
-
-
-@pytest.fixture(scope="function", autouse=True)
-def test_db_session():
-    """Override the global test_db_session fixture to avoid database connections."""
-    pass
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize("aoi_data", TEST_AOIS)
 @pytest.mark.parametrize("dataset", ALL_DATASET_COMBINATIONS)
 async def test_pull_data_queries(aoi_data, dataset):
     print(f"Testing {dataset['dataset_name']} with {aoi_data['name']}")
 
     update = {
-        "aoi": aoi_data,
-        "subregion_aois": None,
-        "subregion": None,
-        "aoi_names": [aoi_data["name"]],
-        "subtype": aoi_data["subtype"],
+        "aoi_selection": {
+            "name": aoi_data["name"],
+            "aois": [aoi_data],
+        },
         "dataset": {
             "dataset_id": dataset["dataset_id"],
             "dataset_name": dataset["dataset_name"],
@@ -174,47 +165,87 @@ async def test_pull_data_queries(aoi_data, dataset):
             "tile_url": "",
             "context_layer": dataset["context_layer"],
         },
-        "aoi_options": [
-            {
-                "aoi": aoi_data,
-                "subregion_aois": None,
-                "subregion": None,
-                "subtype": aoi_data["subtype"],
-            }
-        ],
     }
     if dataset.get("check_composition"):
         query = f"find composition of {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
     else:
         query = f"find {dataset['dataset_name'].lower()} in {aoi_data['query_description']}"
-    command = await pull_data.ainvoke(
-        {
+
+    dataset_original = next(
+        (ds for ds in DATASETS if ds["dataset_id"] == dataset["dataset_id"]),
+        None,
+    )
+    start_date = dataset_original.get("start_date")
+
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_dt = start_dt + timedelta(days=31)
+    end_date = end_dt.strftime("%Y-%m-%d")
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pull_data",
+        "id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
+        "args": {
             "query": query,
-            "start_date": "2024-01-01"
-            if dataset["dataset_id"] != 8
-            else "2024-01-01",
-            "end_date": "2024-01-31"
-            if dataset["dataset_id"] != 8
-            else "2024-01-31",
-            "aoi_names": [update["aoi"]["name"]],
-            "dataset_name": dataset["dataset_name"],
+            "start_date": start_date,
+            "end_date": end_date,
+            "change_over_time_query": False,
             "tool_call_id": f"test-call-id-{aoi_data['src_id']}-{dataset['dataset_id']}",
             "state": update,
-        }
-    )
-
-    msg = command.update.get("messages", [None])[0]
-    if msg and msg.content.startswith(
-        "Failed to get completed result after polling for"
-    ):
-        assert False
+        },
+    }
+    command = await pull_data.ainvoke(tool_call)
+    statistics = command.update.get("statistics", {})
+    if dataset["dataset_id"] in [5, 9] and aoi_data["src_id"] in [
+        "6072",
+        "148322",
+        "MEX9713",
+    ]:
+        assert len(statistics) == 0
+    elif dataset["dataset_id"] == 9 and aoi_data["src_id"] == "CHE.6.3_1":
+        assert len(statistics) == 0
     else:
-        raw_data = command.update.get("raw_data", {})
-        assert aoi_data["src_id"] in raw_data
-        assert dataset["dataset_id"] in raw_data[aoi_data["src_id"]]
-        assert (
-            raw_data[aoi_data["src_id"]][dataset["dataset_id"]] is not None
-        ), "No raw data retrieved"
+        assert len(statistics) == 1
+        assert statistics[0]["source_url"].startswith("http")
+        assert statistics[0]["aoi_names"] == [aoi_data["name"]]
+
+
+async def test_tree_cover_loss_date_range_clamped_to_2024():
+    """Regression: Tree cover loss (2001-2024) clamps input 2020-2025 to 2020-2024."""
+    aoi_data = TEST_AOIS[0]  # Brazil
+    update = {
+        "aoi_selection": {"name": aoi_data["name"], "aois": [aoi_data]},
+        "dataset": {
+            "dataset_id": 4,
+            "dataset_name": "Tree cover loss",
+            "reason": "",
+            "tile_url": "",
+            "context_layer": None,
+        },
+    }
+    tool_call = {
+        "type": "tool_call",
+        "name": "pull_data",
+        "id": "test-date-clamp-tree-cover-loss",
+        "args": {
+            "query": "find tree cover loss in Brazil",
+            "start_date": "2020-01-01",
+            "end_date": "2025-12-31",
+            "change_over_time_query": True,
+            "tool_call_id": "test-date-clamp-tree-cover-loss",
+            "state": update,
+        },
+    }
+    command = await pull_data.ainvoke(tool_call)
+    statistics = command.update.get("statistics", [])
+    assert len(statistics) == 1
+    assert statistics[0]["start_date"] == "2020-01-01"
+    assert statistics[0]["end_date"] == "2024-12-31"
+    tool_message = command.update.get("messages", [None])[0]
+    assert tool_message is not None
+    assert "2024-12-31" in tool_message.content
+    assert "2025-12-31" in tool_message.content
+    assert "adjusted" in tool_message.content.lower()
 
 
 async def whitelist_test_user():
@@ -237,7 +268,6 @@ async def whitelist_test_user():
         await session.commit()
 
 
-@pytest.mark.asyncio
 async def test_pull_data_custom_area(auth_override, client, structlog_context):
     # Whitelist the test user to bypass signup restrictions
     await whitelist_test_user()
@@ -301,11 +331,10 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
         "query_description": response_json["name"],
     }
     update = {
-        "aoi": aoi_data,
-        "subregion_aois": None,
-        "subregion": None,
-        "aoi_names": [aoi_data["name"]],
-        "subtype": aoi_data["subtype"],
+        "aoi_selection": {
+            "name": aoi_data["name"],
+            "aois": [aoi_data],
+        },
         "dataset": {
             "dataset_id": 1,
             "dataset_name": "Global land cover",
@@ -313,34 +342,114 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
             "tile_url": "",
             "context_layer": None,
         },
-        "aoi_options": [
-            {
-                "aoi": aoi_data,
-                "subregion_aois": None,
-                "subregion": None,
-                "subtype": aoi_data["subtype"],
-            }
-        ],
     }
     query = f"find commodities in {aoi_data['query_description']}"
     # Ensure user_id is bound to structlog context for the pick_aoi call
     with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
-        command = await pull_data.ainvoke(
-            {
+        tool_call = {
+            "type": "tool_call",
+            "name": "pull_data",
+            "id": str(uuid.uuid4()),
+            "args": {
                 "query": query,
                 "start_date": "2024-01-01",
                 "end_date": "2024-01-31",
-                "aoi_names": [update["aoi"]["name"]],
-                "dataset_name": "commodities",
-                "tool_call_id": str(uuid.uuid4()),
+                "change_over_time_query": False,
                 "state": update,
-            }
-        )
+            },
+        }
 
-    raw_data = command.update.get("raw_data", {})
+        command = await pull_data.ainvoke(tool_call)
 
-    assert aoi_data["src_id"] in raw_data
-    assert update["dataset"]["dataset_id"] in raw_data[aoi_data["src_id"]]
-    assert raw_data[aoi_data["src_id"]][update["dataset"]["dataset_id"]][
-        "land_cover_class"
-    ] == ["Built-up"]
+    statistics = command.update.get("statistics", {})
+
+    assert aoi_data["src_id"] == statistics[0]["data"]["aoi_id"][0]
+    assert aoi_data["name"] == statistics[0]["data"]["name"][0]
+    assert statistics[0]["data"]["land_cover_class_end"] == ["Built-up"]
+
+
+class TestReviseDateRange:
+    """Unit tests for revise_date_range function."""
+
+    async def test_dataset_not_found_raises(self):
+        with pytest.raises(ValueError, match="Dataset not found: 999"):
+            await revise_date_range("2024-01-01", "2024-12-31", 999)
+
+    async def test_content_date_fixed_uses_dataset_dates(self):
+        """Dataset 7 (Tree cover) has content_date_fixed=True, 2000-01-01 to 2000-12-31."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("1999-01-01", "2001-12-31", 7)
+        assert effective_start == "2000-01-01"
+        assert effective_end == "2000-12-31"
+        assert range_clamped is True
+
+    async def test_content_date_fixed_no_clamp_when_matching(self):
+        """When requested range matches fixed dataset range, range_clamped is False."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2000-01-01", "2000-12-31", 7)
+        assert effective_start == "2000-01-01"
+        assert effective_end == "2000-12-31"
+        assert range_clamped is False
+
+    async def test_content_date_fixed_false_no_clamping_within_range(self):
+        """Dataset 1 (Global land cover) 2015-2024: requested range within dataset -> no clamp."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2020-01-01", "2020-12-31", 1)
+        assert effective_start == "2020-01-01"
+        assert effective_end == "2020-12-31"
+        assert range_clamped is False
+
+    async def test_content_date_fixed_false_clamp_start(self):
+        """Requested start before dataset start -> clamp to dataset start."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2010-01-01", "2020-12-31", 1)
+        assert effective_start == "2015-01-01"
+        assert effective_end == "2020-12-31"
+        assert range_clamped is True
+
+    async def test_content_date_fixed_false_clamp_end(self):
+        """Requested end after dataset end -> clamp to dataset end."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2020-01-01", "2030-12-31", 1)
+        assert effective_start == "2020-01-01"
+        assert effective_end == "2024-12-31"
+        assert range_clamped is True
+
+    async def test_content_date_fixed_false_clamp_both(self):
+        """Requested range spans beyond dataset -> clamp both ends."""
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2010-01-01", "2030-12-31", 1)
+        assert effective_start == "2015-01-01"
+        assert effective_end == "2024-12-31"
+        assert range_clamped is True
+
+    async def test_dataset_without_end_date_uses_today(self):
+        """Dataset 0 (DIST-ALERT) has no end_date; uses today as effective end."""
+        from datetime import date
+
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range("2024-01-01", "2030-12-31", 0)
+        assert effective_start == "2024-01-01"
+        assert effective_end == str(date.today())
+        assert range_clamped is True

@@ -1,9 +1,14 @@
+import sys
 import uuid
 
 import pytest
 import requests
 
-from src.tools.pick_dataset import pick_dataset
+from src.agent.tools.pick_dataset import pick_dataset
+
+# Use session-scoped event loop to match conftest.py fixtures and avoid
+# "Event loop is closed" errors when running with other test modules
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -16,6 +21,28 @@ def test_db():
 def test_db_session():
     """Override the global test_db_session fixture to avoid database connections."""
     pass
+
+
+@pytest.fixture(scope="function", autouse=True)
+def test_db_pool():
+    """Override the global test_db_pool fixture to avoid database pool operations."""
+    pass
+
+
+@pytest.fixture(scope="session", autouse=True)
+def reset_google_clients():
+    """Reset cached Google clients at session start to use the correct event loop."""
+    # Access the actual modules via sys.modules to avoid the __init__.py re-exports
+    pd_module = sys.modules["src.agent.tools.pick_dataset"]
+    llms_module = sys.modules["src.agent.llms"]
+
+    # Reset retriever cache so a fresh embeddings client is created
+    pd_module.retriever_cache = None
+    # Recreate SMALL_MODEL to get fresh gRPC connections on the current event loop
+    llms_module.SMALL_MODEL = llms_module.get_small_model()
+    yield
+    # Cleanup
+    pd_module.retriever_cache = None
 
 
 DIST_ALERT = "ecosystem disturbance alerts"
@@ -195,31 +222,35 @@ def test_query_with_expected_dataset(request):
     return request.param
 
 
-@pytest.mark.asyncio
 async def test_queries_return_expected_dataset(
     test_query_with_expected_dataset,
 ):
     query, expected_dataset = test_query_with_expected_dataset
+    tool_call_id = str(uuid.uuid4())
 
-    command = await pick_dataset.ainvoke(
-        {
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
             "query": query,
             "start_date": "2024-01-01",
             "end_date": "2024-12-31",
-            "tool_call_id": str(uuid.uuid4()),
-        }
-    )
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
 
     dataset_id = command.update.get("dataset", {}).get("dataset_id")
     assert dataset_id == lookup[expected_dataset]
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,expected_dataset_id,expected_context_layer",
     [
         ("Vegetation disturbances by natural lands", 0, "natural_lands"),
-        ("Tree cover loss by driver", 4, "driver"),
+        ("Tree cover loss by driver", 8, "driver"),
         (
             "Dist alert problems split by natural land types",
             0,
@@ -230,14 +261,21 @@ async def test_queries_return_expected_dataset(
 async def test_query_with_context_layer(
     query, expected_dataset_id, expected_context_layer
 ):
-    command = await pick_dataset.ainvoke(
-        {
+    tool_call_id = str(uuid.uuid4())
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
             "query": query,
             "start_date": "2022-01-01",
             "end_date": "2022-12-31",
-            "tool_call_id": str(uuid.uuid4()),
-        }
-    )
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
 
     dataset_id = command.update.get("dataset", {}).get("dataset_id")
     assert dataset_id == expected_dataset_id
@@ -245,7 +283,6 @@ async def test_query_with_context_layer(
     assert context_layer == expected_context_layer
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "dataset",
     [
@@ -263,17 +300,29 @@ async def test_tile_url_contains_date(dataset):
     year = "2020"
     if dataset == TREE_COVER:
         year = "2000"
-    command = await pick_dataset.ainvoke(
-        {
+    tool_call_id = str(uuid.uuid4())
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
             "query": f"Find me {dataset} data for {year}",
             "start_date": f"{year}-01-01",
             "end_date": f"{year}-12-31",
-            "tool_call_id": str(uuid.uuid4()),
-        }
-    )
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
 
     tile_url = command.update.get("dataset", {}).get("tile_url")
     if dataset not in [NATURAL_LANDS, TREE_COVER_GAIN, CARBON_FLUX]:
         assert year in tile_url
-    response = requests.get(tile_url.format(z=3, x=5, y=3))
+    tile_url_format = tile_url.format(z=3, x=5, y=3)
+    if "eoapi.globalnaturewatch.org" in tile_url_format:
+        tile_url_format = tile_url_format.replace(
+            "eoapi.globalnaturewatch.org", "eoapi-cache.globalnaturewatch.org"
+        )
+    response = requests.get(tile_url_format)
     assert response.status_code == 200

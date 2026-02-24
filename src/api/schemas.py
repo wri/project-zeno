@@ -12,11 +12,11 @@ from pydantic import (
 )
 
 from src.api.data_models import UserType
-from src.user_profile_configs.countries import COUNTRIES
-from src.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
-from src.user_profile_configs.languages import LANGUAGES
-from src.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
-from src.user_profile_configs.topics import TOPICS
+from src.api.user_profile_configs.countries import COUNTRIES
+from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
+from src.api.user_profile_configs.languages import LANGUAGES
+from src.api.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
+from src.api.user_profile_configs.topics import TOPICS
 
 
 class ThreadModel(BaseModel):

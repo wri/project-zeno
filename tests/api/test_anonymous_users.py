@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.utils.config import APISettings
+from src.api.config import APISettings
 
 # Remove this fixture - using the one from conftest.py
 
