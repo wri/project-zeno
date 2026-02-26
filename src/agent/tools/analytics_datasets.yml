@@ -37,10 +37,10 @@ datasets:
     For questions about disturbance within natural forests, apply the natural lands context layer and select alerts
     in classes 2,5,8,9; and for non-natural tree cover, select 14,17,18.
     For recent trends, show alert counts over time using line charts.
-    Use pie charts to show the distribution of disturbed area by specific driver.
-    Use pie charts to show the distribution of disturbed area by land cover class or natural land type to show which ecosystems
+    Use pie charts to show the distribution of disturbed area (area_ha) by specific driver.
+    Use pie charts to show the distribution of disturbed area (area_ha) by land cover class or natural land type to show which ecosystems
     are most affected.
-    Use grouped bar charts with alert date (month) on the x-axis, area in hectares on the y-axis,
+    Use grouped bar charts with alert date (month) on the x-axis, area in hectares (area_ha) on the y-axis,
     and class name to differentiate bars, highlighting seasonal patterns.
     Plot drivers separately if one dominates (makes up > 80% of alerts in any given month) and decide
     whether to include or exclude unclassified alerts based on whether the goal is to highlight only
@@ -813,7 +813,7 @@ datasets:
     not an annual values.
     Show net flux as a split bar chart, with emissions in the positive y-axis and removals
     in the negative.
-    The data is calculcated witha  30% canopy density threshold, requests for a different threshold are not yet possible.
+    The data is calculcated with a  30% canopy density threshold, requests for a different threshold are not yet possible.
     Use the term "net sink" for net-negative flux values (removals/sequestration) and "net source"
     for net-positive (emissions)
   description: >

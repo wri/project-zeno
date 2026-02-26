@@ -119,17 +119,28 @@ def replace_csv_paths_with_urls(
     return code_block
 
 
-def build_analysis_prompt(query: str, file_references: str) -> str:
+def build_analysis_prompt(
+    query: str, file_references: str, dataset_guidelines: str = ""
+) -> str:
     """
     Build the analysis prompt for the code executor.
 
     Args:
         query: User's analysis query
         file_references: Executor-specific file reference section
+        dataset_guidelines: Dataset-specific instructions for metric selection
 
     Returns:
         Formatted prompt string
     """
+    guidelines_section = ""
+    if dataset_guidelines:
+        guidelines_section = f"""
+### Dataset-Specific Guidelines (IMPORTANT - follow these for metric selection):
+{dataset_guidelines}
+---
+"""
+
     prompt = f"""### User Query:
 {query}
 
@@ -141,6 +152,7 @@ For your text output , don't use first person, but imperative or neutral languag
 
 For example: "I will begin by loading and examining" -> "Load and examine"
 ---
+{guidelines_section}
 
 ### STEP-BY-STEP WORKFLOW (follow in order):
 
@@ -290,12 +302,19 @@ async def generate_insights(
     dataframes, source_urls = prepare_dataframes(statistics)
     logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
-    # 2. INITIALIZE EXECUTOR: Create Gemini code executor
+    # 2. EXTRACT DATASET GUIDELINES: Get dataset-specific instructions early
+    dataset_guidelines = state.get("dataset", {}).get(
+        "prompt_instructions", ""
+    )
+
+    # 3. INITIALIZE EXECUTOR: Create Gemini code executor
     executor = GeminiCodeExecutor()
 
-    # 3. BUILD PROMPT: Create analysis prompt with executor-specific file references
+    # 4. BUILD PROMPT: Create analysis prompt with executor-specific file references
     file_references = executor.build_file_references(dataframes)
-    analysis_prompt = build_analysis_prompt(query, file_references)
+    analysis_prompt = build_analysis_prompt(
+        query, file_references, dataset_guidelines
+    )
     logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 
     # 4. PREPARE DATA: Convert DataFrames to inline data format
