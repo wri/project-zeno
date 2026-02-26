@@ -983,7 +983,7 @@ datasets:
     - specific time ranges (e.g. last five years)
     - single years (e.g. 2024)
     - trends over time
-    Instead, refuse and suggest Tree cover loss instead.
+    Instead, refuse and select Tree cover loss instead.
     Classes are defined as follows:
     - Permanent agriculture: Long-term, permanent tree cover loss for small- to large-scale agriculture.
     - Hard commodities: Loss due to the establishment or expansion of mining or energy infrastructure.
