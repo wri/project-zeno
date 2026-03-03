@@ -161,7 +161,9 @@ async def select_best_dataset(
         }
     )
     logger.debug(
-        f"Selected dataset ID: {selection_result.dataset_id}. Reason: {selection_result.reason}"
+        f"Selected dataset ID: {selection_result.dataset_id}. "
+        f"context_layer={selection_result.context_layer!r} (type={type(selection_result.context_layer).__name__}). "
+        f"Reason: {selection_result.reason}"
     )
 
     selected_row = candidate_datasets[
@@ -207,14 +209,37 @@ async def pick_dataset(
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await select_best_dataset(query, candidate_datasets)
 
-    if selection_result.dataset_id == TREE_COVER_LOSS_BY_DRIVER_ID:
-        selection_result.context_layer = "driver"
-
+    # Validate context_layer against the dataset's known valid layers.
+    # The LLM can hallucinate values (e.g. returning the dataset name)
+    # which causes downstream API failures.
     selected_dataset = [
         ds
         for ds in DATASETS
         if ds["dataset_id"] == selection_result.dataset_id
     ][0]
+    valid_layers = selected_dataset.get("context_layers") or []
+    if isinstance(valid_layers, list):
+        valid_layer_values = [
+            cl["value"] if isinstance(cl, dict) else cl
+            for cl in valid_layers
+        ]
+    else:
+        valid_layer_values = []
+
+    if (
+        selection_result.context_layer
+        and selection_result.context_layer not in valid_layer_values
+    ):
+        logger.warning(
+            f"LLM returned invalid context_layer '{selection_result.context_layer}' "
+            f"for dataset '{selection_result.dataset_name}' "
+            f"(valid: {valid_layer_values}). Discarding."
+        )
+        selection_result.context_layer = None
+
+    # Hardcoded override: TCL by driver always needs "driver" intersection
+    if selection_result.dataset_id == TREE_COVER_LOSS_BY_DRIVER_ID:
+        selection_result.context_layer = "driver"
 
     tool_message = f"""# About the selection
     Selected dataset name: {selection_result.dataset_name}
