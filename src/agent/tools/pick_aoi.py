@@ -162,19 +162,19 @@ async def query_aoi_database(
         if "custom" in existing_tables:
             src_id = SOURCE_ID_MAPPING["custom"]["id_column"]
             if not user_id:
-                logger.debug("Skipping custom areas search: no user_id (anonymous user)")
-            else:
-                union_parts.append(
-                    f"""
-                    SELECT CAST({src_id} as TEXT) as src_id,
-                           name,
-                           'custom-area' as subtype,
-                           'custom' as source
-                    FROM {CUSTOM_AREA_TABLE}
-                    WHERE user_id = :user_id
-                    AND name IS NOT NULL AND name % :place_name
-                """
-                )
+                raise ValueError("user_id required for custom areas")
+
+            union_parts.append(
+                f"""
+                SELECT CAST({src_id} as TEXT) as src_id,
+                        name,
+                        'custom-area' as subtype,
+                        'custom' as source
+                FROM {CUSTOM_AREA_TABLE}
+                WHERE user_id = :user_id
+                AND name IS NOT NULL AND name % :place_name
+            """
+            )
 
         if not union_parts:
             logger.error("No geometry tables exist in the database")
