@@ -161,8 +161,8 @@ lookup = {
             TREE_COVER_LOSS,  # 21
         ),
         (
-            "What regions experienced the most fire-related forest damage last year?",
-            TREE_COVER_LOSS_BY_DRIVER,  # 22
+            "Show deforestation by driver in 2019",
+            TREE_COVER_LOSS,  # 22  By driver is total, so we want this query to pick plain TCL
         ),
         # Dataset 5 queries (Tree cover gain) - cumulative forest regrowth
         (
@@ -215,6 +215,10 @@ lookup = {
         (
             "Which regions show the most significant tree cover loss by driver?",
             TREE_COVER_LOSS_BY_DRIVER,  # 34
+        ),
+        (
+            "What regions experienced the most fire-related forest damage?",
+            TREE_COVER_LOSS_BY_DRIVER,  # 35
         ),
     ]
 )
