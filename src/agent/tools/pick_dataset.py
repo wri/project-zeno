@@ -70,10 +70,13 @@ class DatasetOption(BaseModel):
     )
     context_layer: Optional[str] = Field(
         None,
-        description="Pick a single context layer from the dataset if useful.",
+        description="Pick a single context layer from the dataset if relevant.",
     )
     reason: str = Field(
         description="Short reason why the dataset is the best match."
+    )
+    language: str = Field(
+        description="Language of the user query.",
     )
 
     @field_validator("dataset_id")
@@ -151,17 +154,22 @@ async def select_best_dataset(
                 """Based on the query, return the ID of the dataset that can best answer the
                 user query and provide reason why it is the best match.
 
-    Select a single context layer from the dataset if useful. Context layers allow difrenciating
-    between different types of data within the same dataset.
+    Select a single context layer from the dataset if relevant for the user query. Context layers
+    allow difrenciating between different types of data within the same dataset. So if a user asks
+    to show something like "show me tree cover loss by driver", you should select a context layer
 
     Evaluate if the best dataset is available for the date range requested by the user,
     if not, pick the closest date range but warn the user that there
     is not an exact match with the query requested by the user in the reason field.
 
-    IMPORTANT:
-    Provide the selection reason in the same language used in the user query,
-    but keep explanations concise. Do not use datset IDs to describe the dataset.
+    Pick the most granular dataset that matches the query and requested time range if specified.
+    For instance, dont select tree cover loss by driver if the user requests a specific time range,
+    pick tree cover loss instead.
+
+    Keep explanations concise. Do not use datset IDs to describe the dataset.
     For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
+
+    Use the language of the user query to generate the reason.
 
     Candidate datasets:
 
@@ -220,6 +228,7 @@ async def select_best_dataset(
         function_usage_notes=selected_row.function_usage_notes,
         citation=selected_row.citation,
         content_date=selected_row.content_date,
+        language=selection_result.language,
     )
 
 

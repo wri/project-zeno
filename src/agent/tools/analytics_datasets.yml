@@ -978,12 +978,10 @@ datasets:
     - settlements
   analytics_api_endpoint: "/v0/land_change/tree_cover_loss/analytics"
   prompt_instructions: >
-    Shows the primary driver or cause of tree cover loss over the entire range 2001-2024.
-    DO NOT use when asked for 'forest loss', 'deforestation', 'tree cover loss' for:
-    - specific time ranges (e.g. last five years)
-    - single years (e.g. 2024)
-    - trends over time
-    Instead, refuse and select Tree cover loss instead.
+    Shows the delta of the primary driver or cause of tree cover loss over the entire range 2001-2024.
+    The data represents the change for the whole period of time, not a timeseries.
+    IMPORTANT: If a user asks for specific time ranges (e.g. last five years), single years (e.g. 2024),
+    or trends over time, do not use this dataset, select Tree cover loss instead.
     Classes are defined as follows:
     - Permanent agriculture: Long-term, permanent tree cover loss for small- to large-scale agriculture.
     - Hard commodities: Loss due to the establishment or expansion of mining or energy infrastructure.
@@ -1003,7 +1001,7 @@ datasets:
       followed by salvage or sanitation logging, it is classified as logging.
     DO NOT include the 'Unknown' class in analysis.
     Show total area of loss (ha) or total emissions (MgCO2e) due to loss per driver class
-    over the entire time period 2001-2024. 
+    over the entire time period 2001-2024.
     Data should be represented in a pie chart or table with each segment representing loss area
     or emissions due per driver class.
     DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover"

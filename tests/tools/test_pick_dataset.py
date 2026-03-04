@@ -354,6 +354,7 @@ def _make_fake_selection(
         function_usage_notes=ds.get("function_usage_notes", ""),
         citation=ds.get("citation", ""),
         content_date=ds.get("content_date", ""),
+        language="en",
     )
 
 
