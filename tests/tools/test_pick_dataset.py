@@ -1,10 +1,15 @@
 import sys
 import uuid
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import requests
 
-from src.agent.tools.pick_dataset import pick_dataset
+from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.pick_dataset import (
+    DatasetSelectionResult,
+    pick_dataset,
+)
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
@@ -254,12 +259,10 @@ async def test_queries_return_expected_dataset(
     "query,expected_dataset_id,expected_context_layer",
     [
         ("Vegetation disturbances by natural lands", 0, "natural_lands"),
+        ("Vegetation disturbances over grasslands", 0, "grasslands"),
         ("Tree cover loss by driver", 8, "driver"),
-        (
-            "Dist alert problems split by natural land types",
-            0,
-            "natural_lands",
-        ),
+        ("Tree  cover loss in the past decade", 4, None),
+        ("Most recent global land cover in storm seasons", 1, None),
     ],
 )
 async def test_query_with_context_layer(
@@ -330,3 +333,158 @@ async def test_tile_url_contains_date(dataset):
         )
     response = requests.get(tile_url_format)
     assert response.status_code == 200
+
+
+def _make_fake_selection(
+    dataset_id: int, context_layer: str | None
+) -> DatasetSelectionResult:
+    """Build a DatasetSelectionResult for the given dataset with a fake context_layer."""
+    ds = next(d for d in DATASETS if d["dataset_id"] == dataset_id)
+    return DatasetSelectionResult(
+        dataset_id=dataset_id,
+        dataset_name=ds["dataset_name"],
+        context_layer=context_layer,
+        reason="test",
+        tile_url=ds["tile_url"],
+        analytics_api_endpoint=ds.get("analytics_api_endpoint", ""),
+        description=ds["description"],
+        prompt_instructions=ds.get("prompt_instructions", ""),
+        methodology=ds.get("methodology", ""),
+        cautions=ds.get("cautions", ""),
+        function_usage_notes=ds.get("function_usage_notes", ""),
+        citation=ds.get("citation", ""),
+        content_date=ds.get("content_date", ""),
+    )
+
+
+@pytest.mark.parametrize(
+    "dataset_id,hallucinated_layer",
+    [
+        (4, "Tree cover loss"),  # The exact bug from the trace
+        (4, "primary_forest"),  # variables value, not a context_layer
+        (1, "Global land cover"),
+        (7, "tree cover"),
+    ],
+)
+async def test_hallucinated_context_layer_is_discarded(
+    dataset_id, hallucinated_layer
+):
+    """Verify that invalid context_layer values from LLM are set to None."""
+    import pandas as pd
+
+    fake_selection = _make_fake_selection(dataset_id, hallucinated_layer)
+    candidate_df = pd.DataFrame(
+        [d for d in DATASETS if d["dataset_id"] == dataset_id]
+    )
+    tool_call_id = str(uuid.uuid4())
+
+    with (
+        patch(
+            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            new_callable=AsyncMock,
+            return_value=candidate_df,
+        ),
+        patch(
+            "src.agent.tools.pick_dataset.select_best_dataset",
+            new_callable=AsyncMock,
+            return_value=fake_selection,
+        ),
+    ):
+        tool_call = {
+            "type": "tool_call",
+            "name": "pick_dataset",
+            "id": tool_call_id,
+            "args": {
+                "query": "test query",
+                "start_date": "2022-01-01",
+                "end_date": "2022-12-31",
+                "tool_call_id": tool_call_id,
+            },
+        }
+
+        command = await pick_dataset.ainvoke(tool_call)
+
+    result_layer = command.update.get("dataset", {}).get("context_layer")
+    assert result_layer is None, (
+        f"Expected hallucinated layer '{hallucinated_layer}' to be discarded, "
+        f"but got '{result_layer}'"
+    )
+
+
+async def test_valid_context_layer_is_preserved():
+    """Verify that a valid context_layer (e.g. 'driver' for DIST-ALERT) is kept."""
+    import pandas as pd
+
+    fake_selection = _make_fake_selection(0, "driver")
+    candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 0])
+    tool_call_id = str(uuid.uuid4())
+
+    with (
+        patch(
+            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            new_callable=AsyncMock,
+            return_value=candidate_df,
+        ),
+        patch(
+            "src.agent.tools.pick_dataset.select_best_dataset",
+            new_callable=AsyncMock,
+            return_value=fake_selection,
+        ),
+    ):
+        tool_call = {
+            "type": "tool_call",
+            "name": "pick_dataset",
+            "id": tool_call_id,
+            "args": {
+                "query": "disturbance alerts by driver",
+                "start_date": "2024-01-01",
+                "end_date": "2024-12-31",
+                "tool_call_id": tool_call_id,
+            },
+        }
+
+        command = await pick_dataset.ainvoke(tool_call)
+
+    result_layer = command.update.get("dataset", {}).get("context_layer")
+    assert result_layer == "driver"
+
+
+async def test_tcl_by_driver_always_gets_driver_context_layer():
+    """Dataset 8 (TCL by driver) should always have context_layer='driver',
+    even if the LLM returns None."""
+    import pandas as pd
+
+    fake_selection = _make_fake_selection(
+        8, None
+    )  # LLM returns no context_layer
+    candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 8])
+    tool_call_id = str(uuid.uuid4())
+
+    with (
+        patch(
+            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            new_callable=AsyncMock,
+            return_value=candidate_df,
+        ),
+        patch(
+            "src.agent.tools.pick_dataset.select_best_dataset",
+            new_callable=AsyncMock,
+            return_value=fake_selection,
+        ),
+    ):
+        tool_call = {
+            "type": "tool_call",
+            "name": "pick_dataset",
+            "id": tool_call_id,
+            "args": {
+                "query": "tree cover loss by driver",
+                "start_date": "2022-01-01",
+                "end_date": "2022-12-31",
+                "tool_call_id": tool_call_id,
+            },
+        }
+
+        command = await pick_dataset.ainvoke(tool_call)
+
+    result_layer = command.update.get("dataset", {}).get("context_layer")
+    assert result_layer == "driver"
