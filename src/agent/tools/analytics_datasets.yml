@@ -27,7 +27,8 @@ datasets:
     - vegetation disturbance
   analytics_api_endpoint: "/v0/land_change/dist_alerts/analytics"
   prompt_instructions: >
-    Use this dataset to show recent vegetation changes across all ecosystems, measured in hectares (ha).
+    Use this dataset to show recent vegetation changes across all ecosystems. Data is measured in hectares (ha), use
+    this as the unit of analysis in all cases.
     Show classified alerts by driver (LDACS) by default, which is designed to reveal likely causes of disturbance,
     identify dominant drivers in a region, and support ecosystem or regional comparisons.
     LDACS is updated quarterly and covers the most recent 12 months, so classification data are not
@@ -36,7 +37,7 @@ datasets:
     annual land cover or tree cover loss datasets for historical or long-term changes.
     For questions about disturbance within natural forests, apply the natural lands context layer and select alerts
     in classes 2,5,8,9; and for non-natural tree cover, select 14,17,18.
-    For recent trends, show alert counts over time using line charts.
+    For recent trends, show alert areas over time using line charts.
     Use pie charts to show the distribution of disturbed area (area_ha) by specific driver.
     Use pie charts to show the distribution of disturbed area (area_ha) by land cover class or natural land type to show which ecosystems
     are most affected.
