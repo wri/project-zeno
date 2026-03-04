@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import requests
 
+from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pick_dataset import (
     DatasetSelectionResult,
     pick_dataset,
 )
-from src.agent.tools.datasets_config import DATASETS
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
@@ -255,12 +255,10 @@ async def test_queries_return_expected_dataset(
     "query,expected_dataset_id,expected_context_layer",
     [
         ("Vegetation disturbances by natural lands", 0, "natural_lands"),
+        ("Vegetation disturbances over grasslands", 0, "grasslands"),
         ("Tree cover loss by driver", 8, "driver"),
-        (
-            "Dist alert problems split by natural land types",
-            0,
-            "natural_lands",
-        ),
+        ("Tree  cover loss in the past decade", 4, None),
+        ("Most recent global land cover in storm seasons", 1, None),
     ],
 )
 async def test_query_with_context_layer(
@@ -333,7 +331,9 @@ async def test_tile_url_contains_date(dataset):
     assert response.status_code == 200
 
 
-def _make_fake_selection(dataset_id: int, context_layer: str | None) -> DatasetSelectionResult:
+def _make_fake_selection(
+    dataset_id: int, context_layer: str | None
+) -> DatasetSelectionResult:
     """Build a DatasetSelectionResult for the given dataset with a fake context_layer."""
     ds = next(d for d in DATASETS if d["dataset_id"] == dataset_id)
     return DatasetSelectionResult(
@@ -349,6 +349,7 @@ def _make_fake_selection(dataset_id: int, context_layer: str | None) -> DatasetS
         cautions=ds.get("cautions", ""),
         function_usage_notes=ds.get("function_usage_notes", ""),
         citation=ds.get("citation", ""),
+        content_date=ds.get("content_date", ""),
     )
 
 
@@ -356,7 +357,7 @@ def _make_fake_selection(dataset_id: int, context_layer: str | None) -> DatasetS
     "dataset_id,hallucinated_layer",
     [
         (4, "Tree cover loss"),  # The exact bug from the trace
-        (4, "primary_forest"),   # variables value, not a context_layer
+        (4, "primary_forest"),  # variables value, not a context_layer
         (1, "Global land cover"),
         (7, "tree cover"),
     ],
@@ -368,17 +369,22 @@ async def test_hallucinated_context_layer_is_discarded(
     import pandas as pd
 
     fake_selection = _make_fake_selection(dataset_id, hallucinated_layer)
-    candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == dataset_id])
+    candidate_df = pd.DataFrame(
+        [d for d in DATASETS if d["dataset_id"] == dataset_id]
+    )
     tool_call_id = str(uuid.uuid4())
 
-    with patch(
-        "src.agent.tools.pick_dataset.rag_candidate_datasets",
-        new_callable=AsyncMock,
-        return_value=candidate_df,
-    ), patch(
-        "src.agent.tools.pick_dataset.select_best_dataset",
-        new_callable=AsyncMock,
-        return_value=fake_selection,
+    with (
+        patch(
+            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            new_callable=AsyncMock,
+            return_value=candidate_df,
+        ),
+        patch(
+            "src.agent.tools.pick_dataset.select_best_dataset",
+            new_callable=AsyncMock,
+            return_value=fake_selection,
+        ),
     ):
         tool_call = {
             "type": "tool_call",
@@ -409,14 +415,17 @@ async def test_valid_context_layer_is_preserved():
     candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 0])
     tool_call_id = str(uuid.uuid4())
 
-    with patch(
-        "src.agent.tools.pick_dataset.rag_candidate_datasets",
-        new_callable=AsyncMock,
-        return_value=candidate_df,
-    ), patch(
-        "src.agent.tools.pick_dataset.select_best_dataset",
-        new_callable=AsyncMock,
-        return_value=fake_selection,
+    with (
+        patch(
+            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            new_callable=AsyncMock,
+            return_value=candidate_df,
+        ),
+        patch(
+            "src.agent.tools.pick_dataset.select_best_dataset",
+            new_callable=AsyncMock,
+            return_value=fake_selection,
+        ),
     ):
         tool_call = {
             "type": "tool_call",
@@ -441,18 +450,23 @@ async def test_tcl_by_driver_always_gets_driver_context_layer():
     even if the LLM returns None."""
     import pandas as pd
 
-    fake_selection = _make_fake_selection(8, None)  # LLM returns no context_layer
+    fake_selection = _make_fake_selection(
+        8, None
+    )  # LLM returns no context_layer
     candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 8])
     tool_call_id = str(uuid.uuid4())
 
-    with patch(
-        "src.agent.tools.pick_dataset.rag_candidate_datasets",
-        new_callable=AsyncMock,
-        return_value=candidate_df,
-    ), patch(
-        "src.agent.tools.pick_dataset.select_best_dataset",
-        new_callable=AsyncMock,
-        return_value=fake_selection,
+    with (
+        patch(
+            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            new_callable=AsyncMock,
+            return_value=candidate_df,
+        ),
+        patch(
+            "src.agent.tools.pick_dataset.select_best_dataset",
+            new_callable=AsyncMock,
+            return_value=fake_selection,
+        ),
     ):
         tool_call = {
             "type": "tool_call",
