@@ -166,8 +166,8 @@ lookup = {
             TREE_COVER_LOSS,  # 21
         ),
         (
-            "What regions experienced the most fire-related forest damage last year?",
-            TREE_COVER_LOSS_BY_DRIVER,  # 22
+            "Show deforestation by driver in 2019",
+            TREE_COVER_LOSS,  # 22  By driver is total, so we want this query to pick plain TCL
         ),
         # Dataset 5 queries (Tree cover gain) - cumulative forest regrowth
         (
@@ -220,6 +220,10 @@ lookup = {
         (
             "Which regions show the most significant tree cover loss by driver?",
             TREE_COVER_LOSS_BY_DRIVER,  # 34
+        ),
+        (
+            "What regions experienced the most fire-related forest damage?",
+            TREE_COVER_LOSS_BY_DRIVER,  # 35
         ),
     ]
 )
@@ -350,6 +354,7 @@ def _make_fake_selection(
         function_usage_notes=ds.get("function_usage_notes", ""),
         citation=ds.get("citation", ""),
         content_date=ds.get("content_date", ""),
+        language="en",
     )
 
 
