@@ -282,7 +282,7 @@ async def generate_insights(
     logger.debug(f"Generating insights for query: {query}")
 
     if not state or "statistics" not in state:
-        error_msg = "No statistics available in state. Please pull data first."
+        error_msg = "No statistics available yet. Please pull data first."
         logger.error(error_msg)
         return Command(
             update={
