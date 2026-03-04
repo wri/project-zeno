@@ -163,12 +163,13 @@ async def query_aoi_database(
             src_id = SOURCE_ID_MAPPING["custom"]["id_column"]
             if not user_id:
                 raise ValueError("user_id required for custom areas")
+
             union_parts.append(
                 f"""
                 SELECT CAST({src_id} as TEXT) as src_id,
-                       name,
-                       'custom-area' as subtype,
-                       'custom' as source
+                        name,
+                        'custom-area' as subtype,
+                        'custom' as source
                 FROM {CUSTOM_AREA_TABLE}
                 WHERE user_id = :user_id
                 AND name IS NOT NULL AND name % :place_name
