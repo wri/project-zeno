@@ -517,6 +517,38 @@ datasets:
     represent conversion or natural disturbance.
     If a users asks about natural forests, combine natural forest, mangrove, natural wetland
     forest, and natural peat forest into one class.
+  selection_hints: >
+    Single-year baseline map of natural vs non-natural lands for 2020 only.
+    Intended for supply chain conversion-free commitments (SBTN Land target #1).
+    Cannot show change over time — for change, use Global Land Cover dataset.
+    Natural land classes include: natural forest (2), mangrove (5), natural peat forest (8),
+    wetland natural forest (9), natural short vegetation, natural water, bare, snow, etc.
+    Non-natural classes: crop, built, non-natural tree cover (14,17,18), etc.
+  code_instructions: >
+    CHART TYPES:
+    - Natural vs non-natural proportions → bar chart or pie chart
+    DATA RULES:
+    - Natural forests = classes 2, 5, 8, 9 (natural forest + mangrove + wetland natural
+      forest + natural peat forest) — combine into one "Natural forest" category when
+      user asks about natural forests
+    - Non-natural tree cover = classes 14, 17, 18
+    - All areas in hectares (ha)
+    DO/DON'T:
+    - This is a SINGLE YEAR (2020) snapshot — do NOT attempt timeseries or change analysis
+    - These data do NOT represent protection status or legality of land
+    TEMPORAL CONSTRAINT:
+    - If user asks about change, trends, or temporal patterns: you MUST include ALL of:
+      (a) State that this dataset cannot show change — it is a single 2020 snapshot
+      (b) Recommend the Global Land Cover dataset by name for change analysis
+      (c) This recommendation is REQUIRED, not optional
+  presentation_instructions: >
+    Clarify this is a 2020 baseline snapshot, not a timeseries.
+    "Natural" follows the AFi definition: land that substantially resembles what
+    would be found without major human impacts, including managed or degraded ecosystems.
+    Does not represent legal protection status.
+    For change analysis, suggest the Global Land Cover dataset.
+    When reporting natural forests, specify that it combines natural forest, mangrove,
+    wetland natural forest, and natural peat forest.
   description: >
     The SBTN Natural Lands Map v1.1 is a 2020 baseline map of natural and non-natural land
     covers intended for use by companies setting science-based targets for nature, specifically
