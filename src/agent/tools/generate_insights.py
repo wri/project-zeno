@@ -119,17 +119,37 @@ def replace_csv_paths_with_urls(
     return code_block
 
 
-def build_analysis_prompt(query: str, file_references: str) -> str:
+def build_analysis_prompt(
+    query: str,
+    file_references: str,
+    code_instructions: str | None = None,
+    context_layer: str | None = None,
+) -> str:
     """
     Build the analysis prompt for the code executor.
 
     Args:
         query: User's analysis query
         file_references: Executor-specific file reference section
+        code_instructions: Dataset-specific chart type and data shaping rules (tiered PoC)
+        context_layer: Active context layer name, if any (e.g. "driver")
 
     Returns:
         Formatted prompt string
     """
+    # Build dataset-specific rules section when tiered code_instructions are available
+    dataset_rules_section = ""
+    if code_instructions:
+        header = "### DATASET-SPECIFIC RULES (follow these strictly):\n"
+        if context_layer:
+            header += f"Active context layer: {context_layer}\n"
+        dataset_rules_section = f"""
+{header}
+{code_instructions}
+
+---
+"""
+
     prompt = f"""### User Query:
 {query}
 
@@ -140,7 +160,7 @@ You have access to the following datasets (read-only):
 For your text output , don't use first person, but imperative or neutral language.
 
 For example: "I will begin by loading and examining" -> "Load and examine"
----
+{dataset_rules_section}---
 
 ### STEP-BY-STEP WORKFLOW (follow in order):
 
@@ -295,7 +315,13 @@ async def generate_insights(
 
     # 3. BUILD PROMPT: Create analysis prompt with executor-specific file references
     file_references = executor.build_file_references(dataframes)
-    analysis_prompt = build_analysis_prompt(query, file_references)
+    dataset = state.get("dataset") or {}
+    analysis_prompt = build_analysis_prompt(
+        query,
+        file_references,
+        code_instructions=dataset.get("code_instructions"),
+        context_layer=dataset.get("context_layer"),
+    )
     logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 
     # 4. PREPARE DATA: Convert DataFrames to inline data format
@@ -356,8 +382,11 @@ async def generate_insights(
     # 6. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
     chart_data_df = pd.DataFrame(result.chart_data)
     available_datasets = _get_available_datasets()
-    dataset_guidelines = state.get("dataset").get(
-        "prompt_instructions", "No specific dataset guidelines provided."
+    # Prefer presentation_instructions (tiered PoC) over prompt_instructions (legacy blob)
+    dataset_guidelines = (
+        state.get("dataset").get("presentation_instructions")
+        or state.get("dataset").get("prompt_instructions")
+        or "No specific dataset guidelines provided."
     )
     dataset_cautions = state.get("dataset").get(
         "cautions", "No specific dataset cautions provided."
