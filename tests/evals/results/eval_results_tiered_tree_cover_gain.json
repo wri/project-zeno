@@ -1,0 +1,924 @@
+{
+  "branch": "tiered-dataset-instructions",
+  "timestamp": "20260306T092332Z",
+  "results": [
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[Show tree cover gain in Indonesia]",
+      "query": "Show tree cover gain in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,area_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "area_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows that longer observation windows capture higher cumulative gain, reflecting the gradual nature of vegetation reaching the 5m height threshold.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCB3aGljaCBkYXRhc2V0KHMpIGFyZSBiZWluZyB1c2VkCnByaW50KCJVc2luZyBkYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKGkiBUcmVlIGNvdmVyIGdhaW4gKDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkgZm9yIEluZG9uZXNpYSIpCgojIEV4cGxvcmUgdGhlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhZnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5EYXRhZnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcyByZWxldmFudCB0byB0aGUgdXNlciBxdWVyeQojIFRoZSBkYXRhIGlzIGFscmVhZHkgY3VtdWxhdGl2ZSBnYWluLCBzbyB3ZSBjYW4ganVzdCBkZXNjcmliZSB0aGUgJ2FyZWFfaGEnIGNvbHVtbgpwcmludCgiXG5LZXkgU3RhdGlzdGljcyBmb3IgVHJlZSBDb3ZlciBHYWluIChhcmVhX2hhKToiKQpwcmludChkZlsnYXJlYV9oYSddLmRlc2NyaWJlKCkpCgojIFByaW50IGtleSBmaW5kaW5ncwpwcmludCgiXG5LZXkgRmluZGluZ3M6IikKcHJpbnQoZiJUaGUgZGF0YXNldCBjb250YWlucyBjdW11bGF0aXZlIHRyZWUgY292ZXIgZ2FpbiBpbiBJbmRvbmVzaWEgZm9yIGZvdXIgcGVyaW9kcyBlbmRpbmcgaW4gMjAyMC4iKQpwcmludChmIlRoZSBwZXJpb2RzIGFyZTogeycsICcuam9pbihkZlsncGVyaW9kJ10udW5pcXVlKCkpfS4iKQpwcmludChmIlRoZSB0cmVlIGNvdmVyIGdhaW4gcmFuZ2VzIGZyb20ge2RmWydhcmVhX2hhJ10ubWluKCk6LC4wZn0gaGEgdG8ge2RmWydhcmVhX2hhJ10ubWF4KCk6LC4wZn0gaGEuIikK\nIyBTVEVQIDM6IEdFTkVSQVRFIENIQVJUIERBVEEKCiMgQ3JlYXRlIGNoYXJ0IGRhdGEgZm9yIGEgYmFyIGNoYXJ0CiMgVGhlIGV4aXN0aW5nIERhdGFGcmFtZSBpcyBhbHJlYWR5IGluIGEgc3VpdGFibGUgZm9ybWF0IGZvciBhIHNpbmdsZS1zZXJpZXMgYmFyIGNoYXJ0LgpjaGFydF9kZiA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ2FyZWFfaGEnfSkKCiMgRW5zdXJlICdhcmVhX2hhJyBpcyBudW1lcmljCmNoYXJ0X2RmWydhcmVhX2hhJ10gPSBwZC50b19udW1lcmljKGNoYXJ0X2RmWydhcmVhX2hhJ10pCgojIFNhdmUgdGhlIERhdGFGcmFtZSBhcyBjaGFydF9kYXRhLmNzdgpjaGFydF9kZi50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCgojIFByaW50IGNoYXJ0IHR5cGUKcHJpbnQoIlJlY29tbWVuZGVkIENoYXJ0IFR5cGU6IGJhciBjaGFydCIp",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows that longer observation windows capture higher cumulative gain, reflecting the gradual nature of vegetation reaching the 5m height threshold.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI-generated output perfectly adheres to all formatting and data requirements specified in the rubric.",
+      "duration_s": 12.33
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[How much tree cover was gained in Indonesia?]",
+      "query": "How much tree cover was gained in Indonesia?",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows that the volume of gain in more recent cumulative periods is lower, with 1,234,567 hectares gained in the 2015-2020 period.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAoSW5kb25lc2lhIOKAlCBUcmVlIGNvdmVyIGdhaW4sIDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkiKQpwcmludCgiXG5EYXRhIHN0cnVjdHVyZSBhbmQgdHlwZXM6IikKcHJpbnQoZGYuaW5mbygpKQpwcmludCgiXG5GaXJzdCA1IHJvd3Mgb2YgdGhlIGRhdGE6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuS2V5IHN0YXRpc3RpY3M6IikKcHJpbnQoZGYuZGVzY3JpYmUoKSkK\nY2hhcnRfZGF0YSA9IGRmLmNvcHkoKQpjaGFydF9kYXRhLmNvbHVtbnMgPSBbJ3BlcmlvZCcsICdnYWluX2hhJ10KCiMgRW5zdXJlIG51bWVyaWMgdmFsdWVzIGFyZSBudW1iZXJzLCBub3Qgc3RyaW5ncwpjaGFydF9kYXRhWydnYWluX2hhJ10gPSBwZC50b19udW1lcmljKGNoYXJ0X2RhdGFbJ2dhaW5faGEnXSkKCiMgTm8gc3BlY2lmaWMgZGF0ZSBvcmRlcmluZyBpcyBuZWVkZWQgYXMgJ3BlcmlvZCcgaXMgY2F0ZWdvcmljYWwgZm9yIGEgYmFyIGNoYXJ0LAojIGJ1dCBrZWVwaW5nIHRoZSBvcmlnaW5hbCBvcmRlciBhbGlnbnMgd2l0aCB0aGUgZGF0YSdzIGluaGVyZW50IGNocm9ub2xvZ2ljYWwgcHJvZ3Jlc3Npb24gb2YgY3VtdWxhdGl2ZSBwZXJpb2RzLgoKY2hhcnRfZGF0YS50b19jc3YoJ2NoYXJ0X2RhdGEuY3N2JywgaW5kZXg9RmFsc2UpCgpwcmludCgiUmVjb21tZW5kZWQgQ2hhcnQgVHlwZTogYmFyIik=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows that the volume of gain in more recent cumulative periods is lower, with 1,234,567 hectares gained in the 2015-2020 period.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly followed all instructions, including chart type, axis definitions, and data formatting.",
+      "duration_s": 9.73
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[Indonesia tree cover gain by period]",
+      "query": "Indonesia tree cover gain by period",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "Period,Tree Cover Gain (ha)\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "Period",
+          "Tree Cover Gain (ha)"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. The data shows that a larger portion of this gain occurred in the earlier years of the two-decade period, as the cumulative totals decrease when the measurement window is shortened.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChUcmVlIGNvdmVyIGdhaW46IDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkiKQoKcHJpbnQoIlxuRGF0YSBzdHJ1Y3R1cmUgYW5kIHR5cGVzOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YXNldDoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgc3RhdGlzdGljczoiKQpwcmludChkZi5kZXNjcmliZSgpKQoKdG90YWxfZ2Fpbl8yMDAwXzIwMjAgPSBkZltkZlsncGVyaW9kJ10gPT0gJzIwMDAtMjAyMCddWydhcmVhX2hhJ10uaWxvY1swXQpwcmludChmIlxuVG90YWwgdHJlZSBjb3ZlciBnYWluIGJldHdlZW4gMjAwMC0yMDIwOiB7dG90YWxfZ2Fpbl8yMDAwXzIwMjA6LH0gaGVjdGFyZXMiKQoKIyBDYWxjdWxhdGUgY2hhbmdlcyBmb3IgaW50ZXJtZWRpYXRlIHBlcmlvZHMgaWYgbmVlZGVkLCBidXQgdGhlIHJlcXVlc3QgaXMgZm9yIGN1bXVsYXRpdmUgcGVyaW9kcy4KIyBUaGUgZGF0YSBhbHJlYWR5IHByb3ZpZGVzIGN1bXVsYXRpdmUgZ2FpbiBmb3IgdGhlIHNwZWNpZmllZCBwZXJpb2RzLgojIExldCdzIHZlcmlmeSB0aGUgZGF0YSB0eXBlIG9mICdhcmVhX2hhJyBhbmQgZW5zdXJlIGl0J3MgbnVtZXJpYy4KaWYgbm90IHBkLmFwaS50eXBlcy5pc19udW1lcmljX2R0eXBlKGRmWydhcmVhX2hhJ10pOgogICAgcHJpbnQoIlxuJ2FyZWFfaGEnIGNvbHVtbiBpcyBub3QgbnVtZXJpYy4gQXR0ZW1wdGluZyBjb252ZXJzaW9uLiIpCiAgICBkZlsnYXJlYV9oYSddID0gcGQudG9fbnVtZXJpYyhkZlsnYXJlYV9oYSddLCBlcnJvcnM9J2NvZXJjZScpCiAgICBwcmludCgiQ29udmVyc2lvbiBhdHRlbXB0IGNvbXBsZXRlLiBOZXcgaW5mbzoiKQogICAgcHJpbnQoZGYuaW5mbygpKQogICAgcHJpbnQoIlxuS2V5IHN0YXRpc3RpY3MgYWZ0ZXIgY29udmVyc2lvbjoiKQogICAgcHJpbnQoZGYuZGVzY3JpYmUoKSkKZWxzZToKICAgIHByaW50KCJcbidhcmVhX2hhJyBjb2x1bW4gaXMgYWxyZWFkeSBudW1lcmljLiIpCg==\nIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eSBpbiB0aGUgY2hhcnQKY2hhcnRfZGYgPSBkZi5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdQZXJpb2QnLCAnYXJlYV9oYSc6ICdUcmVlIENvdmVyIEdhaW4gKGhhKSd9KQoKIyBFbnN1cmUgdGhlICdQZXJpb2QnIGNvbHVtbiBpcyB0cmVhdGVkIGFzIGNhdGVnb3JpY2FsIGZvciBjaGFydCBkaXNwbGF5CmNoYXJ0X2RmWydQZXJpb2QnXSA9IGNoYXJ0X2RmWydQZXJpb2QnXS5hc3R5cGUoc3RyKQoKIyBTb3J0IGJ5IHBlcmlvZCB0byBlbnN1cmUgY29uc2lzdGVudCBvcmRlciwgYWx0aG91Z2ggZm9yIGN1bXVsYXRpdmUgcGVyaW9kcywgdGhlIHByb3ZpZGV",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia by Period (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. The data shows that a larger portion of this gain occurred in the earlier years of the two-decade period, as the cumulative totals decrease when the measurement window is shortened.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province or region"
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly followed all instructions, including chart type, specific x-axis categories, and y-axis units.",
+      "duration_s": 20.62
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[Display tree cover gain for Indonesia across all periods]",
+      "query": "Display tree cover gain for Indonesia across all periods",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows positive gain across all measured intervals, though these figures represent vegetation height increases and natural regrowth rather than solely ecological restoration.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCBkYXRhc2V0IGluZm9ybWF0aW9uCnByaW50KCJEYXRhc2V0IHVzZWQ6IGlucHV0X2ZpbGVfMC5jc3YgLSBUcmVlIGNvdmVyIGdhaW4gZm9yIEluZG9uZXNpYSAoMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YWZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lCnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzIChmb3IgdGhpcyBzaW1wbGUgZGF0YXNldCwgbWFpbmx5IGRpc3BsYXlpbmcgdGhlIGRhdGEpCnByaW50KCJcblRyZWUgY292ZXIgZ2FpbiAoaGVjdGFyZXMpIGFjcm9zcyBwZXJpb2RzIGZvciBJbmRvbmVzaWE6IikKcHJpbnQoZGYp\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RhdGEgPSBkZi5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdwZXJpb2QnLCAnYXJlYV9oYSc6ICd0cmVlX2NvdmVyX2dhaW5faGEnfSkKY2hhcnRfZGF0YSA9IGNoYXJ0X2RhdGEudG9fZGljdChvcmllbnQ9J3JlY29yZHMnKQoKIyBQcmludCB0aGUgY2hhcnQgZGF0YQpwcmludCgiQ2hhcnQgRGF0YToiKQpwcmludChjaGFydF9kYXRhKQoKIyBTYXZlIHRoZSBjaGFydCBkYXRhIHRvIGEgQ1NWIGZpbGUKY2hhcnRfZGYgPSBwZC5EYXRhRnJhbWUoY2hhcnRfZGF0YSkKY2hhcnRfZGYudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQ==",
+        "refused": false,
+        "tool_message": "Title: Tree Cover Gain in Indonesia by Period (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows positive gain across all measured intervals, though these figures represent vegetation height increases and natural regrowth rather than solely ecological restoration.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Analyze tree cover gain for specific provinces in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the bar chart type and includes the specific time periods and area measurements required by the rubric.",
+      "duration_s": 11.12
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[bar chart of tree cover gain in Indonesia]",
+      "query": "bar chart of tree cover gain in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,value\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "value"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. The data suggests the rate of gain has slowed in recent years, as the cumulative total for the 2015-2020 period (1.23 million hectares) represents a smaller portion of the overall two-decade increase.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChUcmVlIGNvdmVyIGdhaW4gaW4gSW5kb25lc2lhLCAyMDAwLTAxLTAxIHRvIDIwMjAtMTItMzEpIikKCnByaW50KCJcbkRhdGEgc3RydWN0dXJlOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YXNldDoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgZmluZGluZ3M6IikKcHJpbnQoIlRoZSBkYXRhc2V0IGNvbnRhaW5zIHR3byBjb2x1bW5zOiAncGVyaW9kJyBhbmQgJ2FyZWFfaGEnLiIpCnByaW50KCJUaGUgJ3BlcmlvZCcgY29sdW1uIGluZGljYXRlcyBjdW11bGF0aXZlIHRpbWVmcmFtZXMgZm9yIHRyZWUgY292ZXIgZ2Fpbi4iKQpwcmludCgiVGhlICdhcmVhX2hhJyBjb2x1bW4gcmVwcmVzZW50cyB0aGUgdHJlZSBjb3ZlciBnYWluIGluIGhlY3RhcmVzIGZvciB0aGUgcmVzcGVjdGl2ZSBwZXJpb2QuIikKcHJpbnQoZiJUb3RhbCB0cmVlIGNvdmVyIGdhaW4gZm9yIDIwMDAtMjAyMDoge2RmW2RmWydwZXJpb2QnXSA9PSAnMjAwMC0yMDIwJ11bJ2FyZWFfaGEnXS5pbG9jWzBdOiwuMGZ9IGhlY3RhcmVzLiIpCnByaW50KGYiVG90YWwgdHJlZSBjb3ZlciBnYWluIGZvciAyMDA1LTIwMjA6IHtkZltkZlsncGVyaW9kJ10gPT0gJzIwMDUtMjAyMCddWydhcmVhX2hhJ10uaWxvY1swXTosLjBmfSBoZWN0YXJlcy4iKQpwcmludChmIlRvdGFsIHRyZWUgY292ZXIgZ2FpbiBmb3IgMjAxMC0yMDIwOiB7ZGZbZGZbJ3BlcmlvZCddID09ICcyMDEwLTIwMjAnXVsnYXJlYV9oYSddLmlsb2NbMF06LC4wZn0gaGVjdGFyZXMuIikKcHJpbnQoZiJUb3RhbCB0cmVlIGNvdmVyIGdhaW4gZm9yIDIwMTUtMjAyMDoge2RmW2RmWydwZXJpb2QnXSA9PSAnMjAxNS0yMDIwJ11bJ2FyZWFfaGEnXS5pbG9jWzBdOiwuMGZ9IGhlY3RhcmVzLiIp\nIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eSBpbiBjaGFydGluZwpjaGFydF9kZiA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ3ZhbHVlJ30pCgojIEVuc3VyZSB0aGUgJ3ZhbHVlJyBjb2x1bW4gaXMgbnVtZXJpYwpjaGFydF9kZlsndmFsdWUnXSA9IHBkLnRvX251bWVyaWMoY2hhcnRfZGZbJ3ZhbHVlJ10pCgojIFNhdmUgdGhlIGRhdGEgdG8gY2hhcnRfZGF0YS5jc3YKY2hhcnRfZGYudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQoKcHJpbnQoIlJlY29tbWVuZGVkIGNoYXJ0IHR5cGU6IGJhciIp",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. The data suggests the rate of gain has slowed in recent years, as the cumulative total for the 2015-2020 period (1.23 million hectares) represents a smaller portion of the overall two-decade increase.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly followed all instructions, including chart type, axis categories, and units.",
+      "duration_s": 10.14
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[Tree cover gain in Indonesia 2000-2020]",
+      "query": "Tree cover gain in Indonesia 2000-2020",
+      "response": {},
+      "passed": false,
+      "comment": "",
+      "duration_s": 11.36,
+      "rubric": "",
+      "requirements": [],
+      "judge_prompt": "",
+      "judge_raw_response": ""
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[How much new tree cover appeared in Indonesia?]",
+      "query": "How much new tree cover appeared in Indonesia?",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,value\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "value"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. This gain represents vegetation growing from under 5m to over 5m height and includes natural regrowth as well as plantation cycles.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCBkYXRhc2V0IGluZm9ybWF0aW9uCnByaW50KCJEYXRhc2V0IHVzZWQ6IGlucHV0X2ZpbGVfMC5jc3YgKFRyZWUgY292ZXIgZ2FpbiBpbiBJbmRvbmVzaWEsIDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhZnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgojIFByaW50IHRoZSBoZWFkIG9mIHRoZSBkYXRhZnJhbWUKcHJpbnQoIlxuRGF0YWZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MgKGUuZy4sIHRvdGFsIHRyZWUgY292ZXIgZ2FpbiBmb3IgZWFjaCBwZXJpb2QpCnByaW50KCJcbktleSBGaW5kaW5nczoiKQpwcmludCgiVHJlZSBjb3ZlciBnYWluIChpbiBoZWN0YXJlcykgZm9yIHZhcmlvdXMgY3VtdWxhdGl2ZSBwZXJpb2RzIGluIEluZG9uZXNpYToiKQpwcmludChkZikK\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgYmFyIGNoYXJ0CiMgVGhlIGRhdGFzZXQgaXMgYWxyZWFkeSBpbiB0aGUgZGVzaXJlZCBmb3JtYXQgZm9yIGEgc2luZ2xlLXNlcmllcyBiYXIgY2hhcnQuCmNoYXJ0X2RhdGEgPSBkZi5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdwZXJpb2QnLCAnYXJlYV9oYSc6ICd2YWx1ZSd9KQoKIyBTYXZlIHRoZSBEYXRhRnJhbWUgYXMgY2hhcnRfZGF0YS5jc3YKY2hhcnRfZGF0YS50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCgpwcmludCgiQ2hhcnQgVHlwZTogYmFyIikK",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. This gain represents vegetation growing from under 5m to over 5m height and includes natural regrowth as well as plantation cycles.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI followed all instructions, including the specific chart type, time periods for the x-axis, and units for the y-axis.",
+      "duration_s": 10.54
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[Indonesia forest regrowth data]",
+      "query": "Indonesia forest regrowth data",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,value\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "value"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates a consistent accumulation of tree cover over the two-decade period, though these figures include plantations and natural regrowth and should not be equated directly with ecological restoration.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChJbmRvbmVzaWEgVHJlZSBjb3ZlciBnYWluOiAyMDAwLTAxLTAxIHRvIDIwMjAtMTItMzEpIikKcHJpbnQoIlxuRGF0YSBzdHJ1Y3R1cmUgYW5kIHR5cGVzOiIpCnByaW50KGRmLmluZm8oKSkKcHJpbnQoIlxuRmlyc3QgNSByb3dzIG9mIHRoZSBkYXRhOiIpCnByaW50KGRmLmhlYWQoKSkKCnByaW50KCJcbktleSBzdGF0aXN0aWNzOiIpCnByaW50KGRmLmRlc2NyaWJlKCkpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgYmFyIGNoYXJ0CmNoYXJ0X2RhdGEgPSBkZi5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdwZXJpb2QnLCAnYXJlYV9oYSc6ICd2YWx1ZSd9KQoKIyBFbnN1cmUgdGhlICd2YWx1ZScgY29sdW1uIGlzIG51bWVyaWMKY2hhcnRfZGF0YVsndmFsdWUnXSA9IHBkLnRvX251bWVyaWMoY2hhcnRfZGF0YVsndmFsdWUnXSkKCiMgU2F2ZSB0aGUgZGF0YSB0byBjaGFydF9kYXRhLmNzdgpjaGFydF9kYXRhLnRvX2NzdigiY2hhcnRfZGF0YS5jc3YiLCBpbmRleD1GYWxzZSkKCnByaW50KCJDaGFydCBUeXBlOiBiYXIiKQo=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates a consistent accumulation of tree cover over the two-decade period, though these figures include plantations and natural regrowth and should not be equated directly with ecological restoration.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province or region"
+      },
+      "passed": true,
+      "comment": "The output successfully follows all formatting and data requirements specified in the rubric.",
+      "duration_s": 9.52
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[show gain area per period for Indonesia]",
+      "query": "show gain area per period for Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period_label,gain_area_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period_label",
+          "gain_area_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows a decrease in recorded gain area for shorter, more recent periods, with 1,234,567 hectares identified for the 2015-2020 interval.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChJbmRvbmVzaWEgLSBUcmVlIGNvdmVyIGdhaW4gMjAwMC0yMDIwKSIpCnByaW50KCJcbkRhdGEgc3RydWN0dXJlOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YXNldDoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5EZXNjcmlwdGl2ZSBzdGF0aXN0aWNzIGZvciAnYXJlYV9oYSc6IikKcHJpbnQoZGZbJ2FyZWFfaGEnXS5kZXNjcmliZSgpKQo=\nIyBFbnN1cmUgdGhlICdwZXJpb2QnIGNvbHVtbiBpcyBvcmRlcmVkIGNocm9ub2xvZ2ljYWxseQojIFRoZSBjdXJyZW50IHBlcmlvZHMgYXJlIGFscmVhZHkgaW4gYSBuYXR1cmFsIGNocm9ub2xvZ2ljYWwgb3JkZXIgZm9yIGN1bXVsYXRpdmUgcGVyaW9kcyAoZWFybGllc3Qgc3RhcnQgeWVhciBmaXJzdCkKIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eSBpbiBjaGFydGluZwpjaGFydF9kZiA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZF9sYWJlbCcsICdhcmVhX2hhJzogJ2dhaW5fYXJlYV9oYSd9KQoKIyBFbnN1cmUgZGF0YSB0eXBlcyBhcmUgY29ycmVjdCBmb3IgY2hhcnRpbmcKY2hhcnRfZGZbJ2dhaW5fYXJlYV9oYSddID0gY2hhcnRfZGZbJ2dhaW5fYXJlYV9oYSddLmFzdHlwZShpbnQpCgojIFNhdmUgdGhlIERhdGFGcmFtZSB0byBjaGFydF9kYXRhLmNzdgpjaGFydF9kZi50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCgpwcmludCgiQ2hhcnQgVHlwZTogYmFyIikK",
+        "refused": false,
+        "tool_message": "Title: Tree Cover Gain in Indonesia per Period\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows a decrease in recorded gain area for shorter, more recent periods, with 1,234,567 hectares identified for the 2015-2020 interval.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly identifies the chart type, uses the requested time periods for the x-axis, and provides the area in hectares for the y-axis.",
+      "duration_s": 10.24
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[cumulative tree cover gain in Indonesia]",
+      "query": "cumulative tree cover gain in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "cumulative_period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "cumulative_period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates that a larger portion of this gain occurred in the earlier part of the two-decade period, as the cumulative totals decrease for more recent start dates.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IOKAlCBUcmVlIGNvdmVyIGdhaW4gaW4gSW5kb25lc2lhICgyMDAwLTAxLTAxIHRvIDIwMjAtMTItMzEpIikKcHJpbnQoIlxuRGF0YSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKcHJpbnQoIlxuRGF0YSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKcHJpbnQoIlxuRGVzY3JpcHRpdmUgU3RhdGlzdGljczoiKQpwcmludChkZi5kZXNjcmliZSgpKQo=\nIyBFbnN1cmUgJ3BlcmlvZCcgaXMgYSBzdHJpbmcgZm9yIGNhdGVnb3JpY2FsIHgtYXhpcyBsYWJlbHMKY2hhcnRfZGF0YSA9IGRmW1sncGVyaW9kJywgJ2FyZWFfaGEnXV0uY29weSgpCgojIFJlbmFtZSBjb2x1bW5zIGZvciBjbGFyaXR5IGluIHRoZSBjaGFydApjaGFydF9kYXRhLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ2N1bXVsYXRpdmVfcGVyaW9kJywgJ2FyZWFfaGEnOiAndHJlZV9jb3Zlcl9nYWluX2hhJ30sIGlucGxhY2U9VHJ1ZSkKCiMgU2F2ZSB0aGUgY2hhcnQgZGF0YQpjaGFydF9kYXRhLnRvX2NzdigiY2hhcnRfZGF0YS5jc3YiLCBpbmRleD1GYWxzZSkKCnByaW50KCJSZWNvbW1lbmRlZCBDaGFydCBUeXBlOiBiYXIiKQo=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates that a larger portion of this gain occurred in the earlier part of the two-decade period, as the cumulative totals decrease for more recent start dates.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly followed all formatting and data requirements, including the specific chart type, time periods, and unit of measurement.",
+      "duration_s": 9.52
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[Indonesia: tree cover gain across time periods]",
+      "query": "Indonesia: tree cover gain across time periods",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,value\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "value"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. The data shows that 1.23 million hectares of this gain occurred in the most recent five-year period (2015-2020), representing vegetation growing from under 5m to over 5m in height.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCB3aGljaCBkYXRhc2V0IGlzIGJlaW5nIHVzZWQKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YgKEluZG9uZXNpYTogVHJlZSBjb3ZlciBnYWluIGZyb20gMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCgojIEV4cGxvcmUgdGhlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzIChkZXNjcmliZSB0aGUgJ2FyZWFfaGEnIGNvbHVtbikKcHJpbnQoIlxuS2V5IFN0YXRpc3RpY3MgZm9yIFRyZWUgQ292ZXIgR2FpbiAoaGVjdGFyZXMpOiIpCnByaW50KGRmWydhcmVhX2hhJ10uZGVzY3JpYmUoKSkK\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RmID0gZGYucmVuYW1lKGNvbHVtbnM9eydwZXJpb2QnOiAncGVyaW9kJywgJ2FyZWFfaGEnOiAndmFsdWUnfSkKCiMgU2F2ZSB0aGUgRGF0YUZyYW1lIHRvIGEgQ1NWIGZpbGUKY2hhcnRfZGYudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQoKcHJpbnQoIkNoYXJ0IFR5cGU6IGJhciIpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. The data shows that 1.23 million hectares of this gain occurred in the most recent five-year period (2015-2020), representing vegetation growing from under 5m to over 5m in height.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Analyze tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly identifies the chart type, uses the appropriate time periods for the x-axis, and provides the area in hectares for the y-axis.",
+      "duration_s": 13.72
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[chart tree cover gain for Indonesia]",
+      "query": "chart tree cover gain for Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates that the majority of this gain occurred in the earlier part of the two-decade span, as the most recent five-year period (2015-2020) accounts for approximately 1.2 million hectares.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCBkYXRhc2V0IGluZm9ybWF0aW9uCnByaW50KGYiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChUcmVlIGNvdmVyIGdhaW4gZm9yIEluZG9uZXNpYSwgMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKVxuIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIkRhdGFmcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKcHJpbnQoIlxuRGF0YWZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKcHJpbnQoIlxuS2V5IFN0YXRpc3RpY3M6IikKcHJpbnQoZGYuZGVzY3JpYmUoKSkKCiMgQ2hlY2sgZm9yIGFueSBub24tbnVtZXJpYyB2YWx1ZXMgaW4gJ2FyZWFfaGEnIGlmIGFwcGxpY2FibGUsIHRob3VnaCBkZXNjcmliZSBoZWxwcwojIEVuc3VyZSAnYXJlYV9oYScgaXMgbnVtZXJpYwpkZlsnYXJlYV9oYSddID0gcGQudG9fbnVtZXJpYyhkZlsnYXJlYV9oYSddKQoKIyBGaW5kIHRoZSBtYXhpbXVtIHRyZWUgY292ZXIgZ2FpbiBwZXJpb2QKbWF4X2dhaW5fcGVyaW9kID0gZGYubG9jW2RmWydhcmVhX2hhJ10uaWR4bWF4KCldCnByaW50KGYiXG5QZXJpb2Qgd2l0aCBoaWdoZXN0IHRyZWUgY292ZXIgZ2Fpbjoge21heF9nYWluX3BlcmlvZFsncGVyaW9kJ119IHdpdGgge21heF9nYWluX3BlcmlvZFsnYXJlYV9oYSddOix9IGhlY3RhcmVzIikKCiMgRmluZCB0aGUgbWluaW11bSB0cmVlIGNvdmVyIGdhaW4gcGVyaW9kIChleGNsdWRpbmcgdGhlIDIwMDAtMjAyMCBwZXJpb2Qgd2hpY2ggaXMgdGhlIGxvbmdlc3QpCm1pbl9nYWluX3BlcmlvZCA9IGRmLmxvY1tkZlsnYXJlYV9oYSddLmlkeG1pbigpXQpwcmludChmIlBlcmlvZCB3aXRoIGxvd2VzdCB0cmVlIGNvdmVyIGdhaW46IHttaW5fZ2Fpbl9wZXJpb2RbJ3BlcmlvZCddfSB3aXRoIHttaW5fZ2Fpbl9wZXJpb2RbJ2FyZWFfaGEnXTosfSBoZWN0YXJlcyIpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RhdGEgPSBkZltbJ3BlcmlvZCcsICdhcmVhX2hhJ11dLmNvcHkoKQpjaGFydF9kYXRhLmNvbHVtbnMgPSBbJ3BlcmlvZCcsICd0cmVlX2NvdmVyX2dhaW5faGEnXSAjIFJlbmFtaW5nIGZvciBjbGFyaXR5IGluIGNoYXJ0CgpwcmludCgiQ2hhcnQgRGF0YSBIZWFkOiIpCnByaW50KGNoYXJ0X2RhdGEuaGVhZCgpKQo=\nIyBTYXZlIHRoZSBjaGFydCBkYXRhIHRvIGEgQ1NWIGZpbGUKY2hhcnRfZGF0YS50b19jc3YoJ2NoYXJ0X2RhdGEuY3N2JywgaW5kZXg9RmFsc2UpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia by Period (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates that the majority of this gain occurred in the earlier part of the two-decade span, as the most recent five-year period (2015-2020) accounts for approximately 1.2 million hectares.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly followed all instructions, including chart type, axis definitions, and specific data intervals.",
+      "duration_s": 12.28
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[how much tree cover did Indonesia gain?]",
+      "query": "how much tree cover did Indonesia gain?",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,gain_hectares\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "gain_hectares"
+        ],
+        "insight": "Indonesia gained approximately 4.57 million hectares of tree cover between 2000 and 2020. The data shows that a larger portion of this gain occurred in the earlier part of the two-decade span, as cumulative totals decrease when the starting year of the observation period advances.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBJbmRvbmVzaWEg4oCUIFRyZWUgY292ZXIgZ2FpbiAoMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCgpwcmludCgiXG5EYXRhZnJhbWUgaW5mb3JtYXRpb246IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRmlyc3QgNSByb3dzIG9mIHRoZSBkYXRhZnJhbWU6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuS2V5IHN0YXRpc3RpY3MgZm9yIHRyZWUgY292ZXIgZ2FpbjoiKQpwcmludChkZlsnYXJlYV9oYSddLmRlc2NyaWJlKCkpCg==\nIyBDcmVhdGUgY2hhcnQgZGF0YSBpbiB0aGUgc3BlY2lmaWVkIGZvcm1hdApjaGFydF9kYXRhID0gZGYucmVuYW1lKGNvbHVtbnM9eydwZXJpb2QnOiAncGVyaW9kJywgJ2FyZWFfaGEnOiAnZ2Fpbl9oZWN0YXJlcyd9KQoKIyBTYXZlIHRoZSBEYXRhRnJhbWUgYXMgY2hhcnRfZGF0YS5jc3YKY2hhcnRfZGF0YS50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCgpwcmludCgiUmVjb21tZW5kZWQgQ2hhcnQgVHlwZTogYmFyIikK",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia by Period\nKey Finding: Indonesia gained approximately 4.57 million hectares of tree cover between 2000 and 2020. The data shows that a larger portion of this gain occurred in the earlier part of the two-decade span, as cumulative totals decrease when the starting year of the observation period advances.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Analyze tree cover loss by dominant driver in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly followed all formatting and data requirements specified in the rubric.",
+      "duration_s": 11.16
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[tree cover gain breakdown for Indonesia]",
+      "query": "tree cover gain breakdown for Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "cumulative_period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "cumulative_period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of approximately 4.57 million hectares between 2000 and 2020. This metric represents vegetation growing from under 5m to over 5m height and includes natural regrowth as well as plantation cycles.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiIpCnByaW50KCJEYXRlIFJhbmdlOiAyMDAwLTAxLTAxIHRvIDIwMjAtMTItMzEiKQoKcHJpbnQoIlxuRGF0YSBTdHJ1Y3R1cmU6IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRmlyc3QgNSByb3dzOiIpCnByaW50KGRmLmhlYWQoKSkKCnByaW50KCJcbktleSBTdGF0aXN0aWNzIGZvciAnYXJlYV9oYSc6IikKcHJpbnQoZGZbJ2FyZWFfaGEnXS5kZXNjcmliZSgpKQo=\nY2hhcnRfZGYgPSBkZi5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdjdW11bGF0aXZlX3BlcmlvZCcsICdhcmVhX2hhJzogJ3RyZWVfY292ZXJfZ2Fpbl9oYSd9KQpwcmludChjaGFydF9kZi5oZWFkKCkpCgojIFNhdmUgdGhlIERhdGFGcmFtZSB0byBhIENTViBmaWxlCmNoYXJ0X2RmLnRvX2NzdignY2hhcnRfZGF0YS5jc3YnLCBpbmRleD1GYWxzZSkK",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of approximately 4.57 million hectares between 2000 and 2020. This metric represents vegetation growing from under 5m to over 5m height and includes natural regrowth as well as plantation cycles.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly identifies the chart type, time periods, and unit of measurement specified in the rubric.",
+      "duration_s": 10.03
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_bar_chart_per_period[Indonesia tree gain area by time period]",
+      "query": "Indonesia tree gain area by time period",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,value\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "value"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows a decrease in total hectares as the measurement window shortens, with the 2015-2020 period contributing 1,234,567 hectares to the overall gain.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCB3aGljaCBkYXRhc2V0IGlzIGJlaW5nIHVzZWQKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YiKQpwcmludCgiRGVzY3JpcHRpb246IEluZG9uZXNpYSAtIFRyZWUgY292ZXIgZ2FpbiAoMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUgYW5kIHR5cGVzCnByaW50KCJcbkRhdGFmcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCiMgUHJpbnQgdGhlIGhlYWQgb2YgdGhlIGRhdGFmcmFtZSB0byBzZWUgdGhlIHN0cnVjdHVyZSBhbmQgdmFsdWVzCnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzIChtaW4sIG1heCwgbWVhbiBmb3IgYXJlYV9oYSBpZiBhcHBsaWNhYmxlLCBidXQgaGVyZSB3ZSBoYXZlIHNwZWNpZmljIHBlcmlvZHMpCnByaW50KCJcbktleSBTdGF0aXN0aWNzIGZvciAnYXJlYV9oYSc6IikKcHJpbnQoZGZbJ2FyZWFfaGEnXS5kZXNjcmliZSgpKQo=\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RhdGEgPSBkZi5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdwZXJpb2QnLCAnYXJlYV9oYSc6ICd2YWx1ZSd9KQoKIyBFbnN1cmUgdGhlIGRhdGEgaXMgaW4gdGhlIGNvcnJlY3QgZm9ybWF0IChsaXN0IG9mIGRpY3Rpb25hcmllcyBmb3IgSlNPTiBvdXRwdXQpCmNoYXJ0X2RhdGFfbGlzdCA9IGNoYXJ0X2RhdGEudG9fZGljdChvcmllbnQ9J3JlY29yZHMnKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgY2hhcnQgZGF0YQpwcmludCgiQ2hhcnQgRGF0YSBIZWFkOiIpCnByaW50KGNoYXJ0X2RhdGEuaGVhZCgpKQoKIyBTYXZlIHRoZSBEYXRhRnJhbWUgYXMgY2hhcnRfZGF0YS5jc3YKY2hhcnRfZGF0YS50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia by Period (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows a decrease in total hectares as the measurement window shortens, with the 2015-2020 period contributing 1,234,567 hectares to the overall gain.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the bar chart type, uses the specified time periods for the x-axis, and maps the hectare values to the y-axis.",
+      "duration_s": 11.35
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[How much forest was restored in Indonesia?]",
+      "query": "How much forest was restored in Indonesia?",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain includes plantation cycles and natural regrowth, and does not equate directly to ecological restoration or afforestation.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCBkYXRhc2V0IGluZm9ybWF0aW9uCnByaW50KCJVc2luZyBkYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IChUcmVlIGNvdmVyIGdhaW4gaW4gSW5kb25lc2lhLCAyMDAwLTAxLTAxIHRvIDIwMjAtMTItMzEpIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YWZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YWZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MgKHRvdGFsIHRyZWUgY292ZXIgZ2FpbiBmb3IgZWFjaCBwZXJpb2QpCnByaW50KCJcblRyZWUgY292ZXIgZ2FpbiAoaGEpIGZvciBlYWNoIGN1bXVsYXRpdmUgcGVyaW9kOiIpCnByaW50KGRmKQo=\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgYmFyIGNoYXJ0CmNoYXJ0X2RhdGEgPSBkZi5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdwZXJpb2QnLCAnYXJlYV9oYSc6ICd0cmVlX2NvdmVyX2dhaW5faGEnfSkKCiMgRW5zdXJlIG51bWVyaWMgdmFsdWVzIGFyZSBudW1iZXJzLCBub3Qgc3RyaW5ncyAoYWxyZWFkeSBoYW5kbGVkIGFzIGFyZWFfaGEgaXMgaW50NjQpCgojIFByaW50IGNoYXJ0X2RhdGEgaGVhZCB0byB2ZXJpZnkKcHJpbnQoIkNoYXJ0IERhdGEgSGVhZDoiKQpwcmludChjaGFydF9kYXRhLmhlYWQoKSkKCiMgU2F2ZSB0aGUgRGF0YUZyYW1lIGFzIGNoYXJ0X2RhdGEuY3N2CmNoYXJ0X2RhdGEudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQo=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain includes plantation cycles and natural regrowth, and does not equate directly to ecological restoration or afforestation.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province or region"
+      },
+      "passed": true,
+      "comment": "The output correctly prioritizes the term 'tree cover gain' and provides the mandatory caveat regarding the distinction between gain and ecological restoration.",
+      "duration_s": 10.78
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[Show forest restoration in Indonesia]",
+      "query": "Show forest restoration in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "cumulative_period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "cumulative_period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain includes natural regrowth, land abandonment, and plantation cycles, and does not equate directly to ecological restoration or afforestation.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IC0gVHJlZSBjb3ZlciBnYWluIGluIEluZG9uZXNpYSAoMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCnByaW50KCJcbkRhdGEgc3RydWN0dXJlIGFuZCB0eXBlczoiKQpwcmludChkZi5pbmZvKCkpCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YToiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgc3RhdGlzdGljcyBmb3IgdHJlZSBjb3ZlciBnYWluIChpbiBoZWN0YXJlcyk6IikKcHJpbnQoZGYuZGVzY3JpYmUoKSkK\nIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eSBpbiB0aGUgY2hhcnQKY2hhcnRfZGYgPSBkZi5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdjdW11bGF0aXZlX3BlcmlvZCcsICdhcmVhX2hhJzogJ3RyZWVfY292ZXJfZ2Fpbl9oYSd9KQoKIyBFbnN1cmUgdGhlIGRhdGEgaXMgaW4gdGhlIGNvcnJlY3Qgb3JkZXIgKGUuZy4sIGNocm9ub2xvZ2ljYWwgYnkgc3RhcnQgeWVhcikKIyBUaGUgcHJvdmlkZWQgZGF0YSBpcyBhbHJlYWR5IGluIHRoaXMgb3JkZXIuCgojIFNhdmUgdGhlIERhdGFGcmFtZSB0byBhIENTViBmaWxlCmNoYXJ0X2RmLnRvX2NzdignY2hhcnRfZGF0YS5jc3YnLCBpbmRleD1GYWxzZSkKCnByaW50KCJDaGFydCBUeXBlOiBiYXIiKQo=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain includes natural regrowth, land abandonment, and plantation cycles, and does not equate directly to ecological restoration or afforestation.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by primary forest vs plantations"
+      },
+      "passed": true,
+      "comment": "The output correctly prioritizes the term 'tree cover gain' and provides the mandatory caveat regarding the distinction between gain and ecological restoration.",
+      "duration_s": 11.25
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[Indonesia reforestation and restoration data]",
+      "query": "Indonesia reforestation and restoration data",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "cumulative_period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "cumulative_period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. This data represents vegetation growth from under 5m to over 5m height and includes natural regrowth as well as plantation cycles.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCB3aGljaCBkYXRhc2V0IGlzIGJlaW5nIHVzZWQKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YiKQpwcmludCgiRGF0ZSBSYW5nZTogMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxIikKcHJpbnQoIkRhdGEgcmVwcmVzZW50czogVHJlZSBjb3ZlciBnYWluIGZvciBJbmRvbmVzaWEiKQoKIyBFeHBsb3JlIHRoZSBkYXRhIHN0cnVjdHVyZQpwcmludCgiXG5EYXRhIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lIHRvIHNlZSBjb2x1bW4gbmFtZXMgYW5kIGEgc2FtcGxlIG9mIGRhdGEKcHJpbnQoIlxuRGF0YSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzIChpbiB0aGlzIGNhc2UsIHRoZSB2YWx1ZXMgYXJlIGFscmVhZHkgY3VtdWxhdGl2ZSBnYWluLCBzbyBqdXN0IHNob3dpbmcgdGhlbSBpcyBzdWZmaWNpZW50KQpwcmludCgiXG5LZXkgRmluZGluZ3M6IikKcHJpbnQoIlRoZSBkYXRhc2V0IGNvbnRhaW5zIGN1bXVsYXRpdmUgdHJlZSBjb3ZlciBnYWluIGluIGhlY3RhcmVzIGZvciBJbmRvbmVzaWEgb3ZlciBkaWZmZXJlbnQgcGVyaW9kcyBlbmRpbmcgaW4gMjAyMC4iKQpwcmludCgiVGhlIGRhdGEgaXMgYWxyZWFkeSBzdHJ1Y3R1cmVkIHRvIHNob3cgY3VtdWxhdGl2ZSBnYWluIGZvciB0aGUgcGVyaW9kczogMjAwMC0yMDIwLCAyMDA1LTIwMjAsIDIwMTAtMjAyMCwgYW5kIDIwMTUtMjAyMC4iKQpwcmludCgiXG5UcmVlIGNvdmVyIGdhaW4gKGhhKToiKQpwcmludChkZik=\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCiMgUmVuYW1lIGNvbHVtbnMgZm9yIGNsYXJpdHkgaW4gdGhlIGNoYXJ0CmNoYXJ0X2RmID0gZGYucmVuYW1lKGNvbHVtbnM9eydwZXJpb2QnOiAnY3VtdWxhdGl2ZV9wZXJpb2QnLCAnYXJlYV9oYSc6ICd0cmVlX2NvdmVyX2dhaW5faGEnfSkKCiMgRW5zdXJlIHRoZSBvcmRlciBpcyBjaHJvbm9sb2dpY2FsIGZvciBwZXJpb2RzLCB3aGljaCBpdCBhbHJlYWR5IGlzIGluIHRoZSBzb3VyY2UgZGF0YS4KIyBUaGUgcnVsZSBzdGF0ZXM6ICJYLWF4aXMgbGFiZWxzIE1VU1QgdXNlIHRoZSByYXcgY3VtdWxhdGl2ZSBwZXJpb2QgbGFiZWxzLCBOT1QgZGVjb21wb3NlZCBpbnRlcnZhbHMiCiMgU28gdGhlICdwZXJpb2QnIGNvbHVtbiBjYW4gYmUgdXNlZCBkaXJlY3RseS4KCiMgQ29udmVydCB0byBkaWN0aW9uYXJ5IGZvciBSZWNoYXJ0cy5qcyBjb21wYXRpYmlsaXR5CmNoYXJ0X2RhdGEgPSBjaGFydF9kZi50b19kaWN0KG9yaWVudD0ncmVjb3JkcycpCgojIFNhdmUgdGhlIERhdGFGcmFtZSBhcyBjaGFydF9kYXRhLmNzdgpjaGFydF9kZi50b19jc3YoImNoYXJ0X2R",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. This data represents vegetation growth from under 5m to over 5m height and includes natural regrowth as well as plantation cycles.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Analyze tree cover loss by dominant driver in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly prioritized the term 'tree cover gain' and provided the necessary context regarding what the data represents, adhering to all specific terminology rules.",
+      "duration_s": 9.8
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[How successful is forest restoration in Indonesia?]",
+      "query": "How successful is forest restoration in Indonesia?",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,area_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "area_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain includes natural regrowth and plantations, and these figures should not be used to calculate net change by subtracting them from loss data due to differing methodologies.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IC0gVHJlZSBjb3ZlciBnYWluICgyMDAwLTAxLTAxIHRvIDIwMjAtMTItMzEpIGZvciBJbmRvbmVzaWEiKQpwcmludCgiXG5EYXRhIHN0cnVjdHVyZSBhbmQgdHlwZXM6IikKcHJpbnQoZGYuaW5mbygpKQpwcmludCgiXG5GaXJzdCA1IHJvd3Mgb2YgdGhlIGRhdGE6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuS2V5IHN0YXRpc3RpY3MgZm9yIHRyZWUgY292ZXIgZ2FpbjoiKQpwcmludChkZi5kZXNjcmliZSgpKQo=\nY2hhcnRfZGF0YSA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ2FyZWFfaGEnfSkKCiMgRW5zdXJlIHRoZSBwZXJpb2QgbGFiZWxzIGFyZSBjb3JyZWN0bHkgZm9ybWF0dGVkIGZvciB0aGUgY2hhcnQKY2hhcnRfZGF0YVsncGVyaW9kJ10gPSBjaGFydF9kYXRhWydwZXJpb2QnXS5hc3R5cGUoc3RyKQoKcHJpbnQoIkNoYXJ0IERhdGEgSGVhZDoiKQpwcmludChjaGFydF9kYXRhLmhlYWQoKSkK\nY2hhcnRfZGF0YS50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain includes natural regrowth and plantations, and these figures should not be used to calculate net change by subtracting them from loss data due to differing methodologies.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Analyze tree cover loss by dominant driver in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly prioritizes the term 'tree cover gain' and provides the necessary context regarding what that metric represents (regrowth/plantations) without incorrectly labeling it as restoration.",
+      "duration_s": 11.19
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[restored forest area in Indonesia]",
+      "query": "restored forest area in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,area_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "area_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates that a larger portion of these gains occurred in the earlier part of the two-decade period, as shown by the decreasing cumulative totals for more recent start years.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChUcmVlIGNvdmVyIGdhaW4gaW4gSW5kb25lc2lhLCAyMDAwLTAxLTAxIHRvIDIwMjAtMTItMzEpIikKCnByaW50KCJcbkRhdGEgc3RydWN0dXJlIGFuZCB0eXBlczoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5GaXJzdCA1IHJvd3Mgb2YgdGhlIGRhdGE6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuS2V5IHN0YXRpc3RpY3MgZm9yIHRyZWUgY292ZXIgZ2FpbjoiKQpwcmludChkZi5kZXNjcmliZSgpKQo=\nY2hhcnRfZGF0YSA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ2FyZWFfaGEnfSkKY2hhcnRfZGF0YVsnYXJlYV9oYSddID0gY2hhcnRfZGF0YVsnYXJlYV9oYSddLmFzdHlwZShpbnQpICMgRW5zdXJlIG51bWVyaWMgdHlwZQpwcmludChjaGFydF9kYXRhLnRvX2pzb24ob3JpZW50PSdyZWNvcmRzJykpCg==\nY2hhcnRfZGF0YS50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates that a larger portion of these gains occurred in the earlier part of the two-decade period, as shown by the decreasing cumulative totals for more recent start years.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly pivoted from the user's request for 'restored forest' to the scientifically accurate term 'tree cover gain' as required by the rubric.",
+      "duration_s": 12.49
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[Show me the restoration of forests in Indonesia]",
+      "query": "Show me the restoration of forests in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows the total gain accumulated from various start years up to 2020, reflecting areas where vegetation has grown from under 5m to over 5m in height.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCBkYXRhc2V0IGluZm9ybWF0aW9uCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IC0gVHJlZSBjb3ZlciBnYWluIGluIEluZG9uZXNpYSAoMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCnRvdGFsX2dhaW5fMjAwMF8yMDIwID0gZGZbZGZbJ3BlcmlvZCddID09ICcyMDAwLTIwMjAnXVsnYXJlYV9oYSddLmlsb2NbMF0KcHJpbnQoZiJcbktleSBGaW5kaW5nczoiKQpwcmludChmIlRoZSBkYXRhc2V0IGNvbnRhaW5zIHRyZWUgY292ZXIgZ2FpbiBpbiBoZWN0YXJlcyBmb3IgSW5kb25lc2lhIGFjcm9zcyBkaWZmZXJlbnQgY3VtdWxhdGl2ZSBwZXJpb2RzLiIpCnByaW50KGYiVGhlIHBlcmlvZHMgY292ZXJlZCBhcmU6IHtkZlsncGVyaW9kJ10udW5pcXVlKCkudG9saXN0KCl9IikKcHJpbnQoZiJUaGUgdG90YWwgdHJlZSBjb3ZlciBnYWluIGluIEluZG9uZXNpYSBiZXR3ZWVuIDIwMDAgYW5kIDIwMjAgaXMge3RvdGFsX2dhaW5fMjAwMF8yMDIwOix9IGhlY3RhcmVzLiIp\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgYmFyIGNoYXJ0CiMgVGhlICdwZXJpb2QnIGNvbHVtbiB3aWxsIGJlIHRoZSB4LWF4aXMgYW5kICdhcmVhX2hhJyB3aWxsIGJlIHRoZSB5LWF4aXMuCmNoYXJ0X2RhdGEgPSBkZi5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdwZXJpb2QnLCAnYXJlYV9oYSc6ICd0cmVlX2NvdmVyX2dhaW5faGEnfSkKCiMgRW5zdXJlIHRoZSBvcmRlciBpcyBjaHJvbm9sb2dpY2FsIGZvciB0aGUgcGVyaW9kcyBpZiB0aGV5IHdlcmUgbm90IGFscmVhZHkKIyBJbiB0aGlzIGNhc2UsIHRoZSBwcm92aWRlZCBkYXRhIGlzIGFscmVhZHkgaW4gYSBsb2dpY2FsIG9yZGVyIChsb25nZXN0IHBlcmlvZCBmaXJzdCkKIyBidXQgZm9yIHZpc3VhbGl6YXRpb24sIGl0J3Mgb2Z0ZW4gY2xlYXJlciB0byBnbyBmcm9tIGVhcmxpZXN0IHN0YXJ0IHRvIGxhdGVzdCBzdGFydC4KIyBIb3dldmVyLCB0aGUgcnVsZSBleHBsaWNpdGx5IHN0YXRlcyAiWC1heGlzIGxhYmVscyBNVVNUIHVzZSB0aGUgcmF3IGN1bXVsYXRpdmUgcGVyaW9kIGxhYmVscyIuCiMgU28sIHRoZSBjdXJyZW50IG9yZGVyIGZyb20gdGhlIGRhdGFmcmFtZSBoZWFkIGlzIGFwcHJvcHJpYXRlIGZvciBkaXNwbGF5IGFzIGdpdmVuLgoKIyBTYXZlIHRoZSBjaGFydCBkYXRhCmNoYXJ0X2RhdGEudG9fY3N2KCdjaGFydF9kYXRhLmNzdic",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows the total gain accumulated from various start years up to 2020, reflecting areas where vegetation has grown from under 5m to over 5m in height.\nFollow-up suggestions:\n1. Show tree cover loss in Indonesia for the same period\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly pivoted from the user's request for 'restoration' to the technically accurate 'tree cover gain' and followed all terminology constraints.",
+      "duration_s": 10.24
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[Indonesia restoration statistics]",
+      "query": "Indonesia restoration statistics",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,treeCoverGain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "treeCoverGain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. This gain includes natural regrowth and plantations, and the data shows a decrease in cumulative totals as the observation window narrows toward 2020.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludChmIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoVHJlZSBjb3ZlciBnYWluIGZvciBJbmRvbmVzaWEsIDIwMDAtMjAyMCkiKQpwcmludCgiXG5EYXRhIHN0cnVjdHVyZToiKQpwcmludChkZi5pbmZvKCkpCnByaW50KCJcbkZpcnN0IDUgcm93czoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgZmluZGluZ3M6IikKcHJpbnQoIlRoZSBkYXRhc2V0IGNvbnRhaW5zIGN1bXVsYXRpdmUgdHJlZSBjb3ZlciBnYWluIGluIGhlY3RhcmVzIGZvciBJbmRvbmVzaWEgYWNyb3NzIGZvdXIgZGlmZmVyZW50IHBlcmlvZHMsIGFsbCBlbmRpbmcgaW4gMjAyMDoiKQpwcmludChkZikK\nY2hhcnRfZGF0YSA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ3RyZWVDb3ZlckdhaW5faGEnfSkKCnByaW50KCJDaGFydCBEYXRhIEhlYWQ6IikKcHJpbnQoY2hhcnRfZGF0YS5oZWFkKCkpCgojIFNhdmUgdGhlIERhdGFGcmFtZSBhcyBjaGFydF9kYXRhLmNzdgpjaGFydF9kYXRhLnRvX2NzdigiY2hhcnRfZGF0YS5jc3YiLCBpbmRleD1GYWxzZSkK\naW1wb3J0IGpzb24KCmNoYXJ0X3NwZWMgPSB7CiAgICAiY2hhcnRfdHlwZSI6ICJiYXIiLAogICAgInhfYXhpcyI6ICJwZXJpb2QiLAogICAgInlfYXhpcyI6ICJ0cmVlQ292ZXJHYWluX2hhIiwKICAgICJ4X2F4aXNfbGFiZWwiOiAiQ3VtdWxhdGl2ZSBQZXJpb2QiLAogICAgInlfYXhpc19sYWJlbCI6ICJUcmVlIENvdmVyIEdhaW4gKGhlY3RhcmVzKSIsCiAgICAidGl0bGUiOiAiSW5kb25lc2lhIEN1bXVsYXRpdmUgVHJlZSBDb3ZlciBHYWluICgyMDAwLTIwMjApIgp9CgpwcmludChqc29uLmR1bXBzKGNoYXJ0X3NwZWMsIGluZGVudD0yKSk=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. This gain includes natural regrowth and plantations, and the data shows a decrease in cumulative totals as the observation window narrows toward 2020.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Analyze tree cover loss by dominant driver in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly prioritized the term 'tree cover gain' and avoided conflating it with restoration, adhering to all specific terminology rules.",
+      "duration_s": 11.47
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[what area has been reforested in Indonesia?]",
+      "query": "what area has been reforested in Indonesia?",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates that a larger portion of this gain occurred in the earlier part of the two-decade period, as the cumulative totals decrease when the starting year of the observation window is moved forward.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChJbmRvbmVzaWEgLSBUcmVlIGNvdmVyIGdhaW46IDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSlcbiIpCgpwcmludCgiRGF0YSBzdHJ1Y3R1cmUgYW5kIHR5cGVzOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YXNldDoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgc3RhdGlzdGljcyBmb3IgdHJlZSBjb3ZlciBnYWluIChhcmVhX2hhKToiKQpwcmludChkZlsnYXJlYV9oYSddLmRlc2NyaWJlKCkpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgYmFyIGNoYXJ0CmNoYXJ0X2RmID0gZGYucmVuYW1lKGNvbHVtbnM9eydwZXJpb2QnOiAncGVyaW9kJywgJ2FyZWFfaGEnOiAndHJlZV9jb3Zlcl9nYWluX2hhJ30pCgojIEVuc3VyZSB0aGUgb3JkZXIgaXMgY2hyb25vbG9naWNhbCBmb3IgcGVyaW9kcywgd2hpY2ggaXQgYWxyZWFkeSBpcyBpbiB0aGUgb3JpZ2luYWwgZGF0YQpjaGFydF9kYXRhID0gY2hhcnRfZGYudG9fZGljdChvcmllbnQ9J3JlY29yZHMnKQoKcHJpbnQoIkNoYXJ0IERhdGE6IikKcHJpbnQoY2hhcnRfZGF0YSkKCiMgU2F2ZSB0aGUgY2hhcnQgZGF0YSB0byBhIENTViBmaWxlCmNoYXJ0X2RmLnRvX2NzdigiY2hhcnRfZGF0YS5jc3YiLCBpbmRleD1GYWxzZSkK",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates that a larger portion of this gain occurred in the earlier part of the two-decade period, as the cumulative totals decrease when the starting year of the observation window is moved forward.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly adhered to the terminology constraints, using 'tree cover gain' and avoiding restricted terms like 'reforestation' despite the user's phrasing.",
+      "duration_s": 10.23
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[forest recovery in Indonesia]",
+      "query": "forest recovery in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows that tree cover gain accumulates over time, with the most recent five-year period (2015-2020) contributing 1,234,567 hectares to the total.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCB3aGljaCBkYXRhc2V0IGlzIGJlaW5nIHVzZWQKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAtIEluZG9uZXNpYSBUcmVlIGNvdmVyIGdhaW4gKDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkiKQoKIyBFeHBsb3JlIHRoZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YWZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lCnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzIChtaW4sIG1heCwgbWVhbiBnYWluKQpwcmludCgiXG5LZXkgU3RhdGlzdGljcyBmb3IgVHJlZSBDb3ZlciBHYWluOiIpCnByaW50KGRmWydhcmVhX2hhJ10uZGVzY3JpYmUoKSkKCiMgVmVyaWZ5IHVuaXRzIGFuZCBkYXRhIHR5cGVzCnByaW50KGYiXG5Vbml0cyBmb3IgJ2FyZWFfaGEnOiBoZWN0YXJlcyAoaGEpIikKcHJpbnQoZiJEYXRhIHR5cGUgb2YgJ3BlcmlvZCc6IHtkZlsncGVyaW9kJ10uZHR5cGV9IikKcHJpbnQoZiJEYXRhIHR5cGUgb2YgJ2FyZWFfaGEnOiB7ZGZbJ2FyZWFfaGEnXS5kdHlwZX0iKQo=\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgc2luZ2xlLXNlcmllcyBiYXIgY2hhcnQKY2hhcnRfZGF0YSA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ3RyZWVfY292ZXJfZ2Fpbl9oYSd9KQoKIyBFbnN1cmUgdGhlIHBlcmlvZCBjb2x1bW4gaXMgb3JkZXJlZCBjaHJvbm9sb2dpY2FsbHksIHdoaWNoIGl0IGFscmVhZHkgaXMgYnkgZGVmYXVsdCBpbiB0aGlzIGRhdGFzZXQgc3RydWN0dXJlLgojIEZvciBkaXNwbGF5LCBjb252ZXJ0IHRvIGEgbGlzdCBvZiBkaWN0aW9uYXJpZXMuCmNoYXJ0X2RhdGFfbGlzdCA9IGNoYXJ0X2RhdGEudG9fZGljdChvcmllbnQ9J3JlY29yZHMnKQoKaW1wb3J0IGpzb24KcHJpbnQoanNvbi5kdW1wcyhjaGFydF9kYXRhX2xpc3QsIGluZGVudD0yKSkK\nY2hhcnRfZGF0YS50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows that tree cover gain accumulates over time, with the most recent five-year period (2015-2020) contributing 1,234,567 hectares to the total.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Analyze tree cover loss by dominant driver in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly uses the required terminology and avoids prohibited terms without necessary caveats.",
+      "duration_s": 13.93
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[how much land was reforested in Indonesia?]",
+      "query": "how much land was reforested in Indonesia?",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,reforested_area_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "reforested_area_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of approximately 4.57 million hectares between 2000 and 2020. It is important to note that tree cover gain includes natural regrowth, land abandonment, and plantation cycles, and does not equate directly to ecological restoration or afforestation.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCBkYXRhc2V0IGluZm9ybWF0aW9uCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKGkiBJbmRvbmVzaWEg4oCUIFRyZWUgY292ZXIgZ2FpbiAoMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YWZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lCnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzICh0cmVlIGNvdmVyIGdhaW4gZm9yIGVhY2ggcGVyaW9kKQpwcmludCgiXG5UcmVlIGNvdmVyIGdhaW4gKHJlZm9yZXN0YXRpb24pIGluIEluZG9uZXNpYSBieSBjdW11bGF0aXZlIHBlcmlvZDoiKQpwcmludChkZikK\nIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eSBpbiB0aGUgY2hhcnQgZGF0YQpjaGFydF9kZiA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ3JlZm9yZXN0ZWRfYXJlYV9oYSd9KQoKIyBTYXZlIHRoZSBwcmVwYXJlZCBkYXRhIHRvIGEgQ1NWIGZpbGUKY2hhcnRfZGYudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQoKcHJpbnQoY2hhcnRfZGYuaGVhZCgpKQo=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of approximately 4.57 million hectares between 2000 and 2020. It is important to note that tree cover gain includes natural regrowth, land abandonment, and plantation cycles, and does not equate directly to ecological restoration or afforestation.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output strictly adheres to the terminology requirements and includes the necessary caveats when mentioning restoration.",
+      "duration_s": 11.06
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[Indonesia: forest area restored since 2000]",
+      "query": "Indonesia: forest area restored since 2000",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "cumulative_period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "cumulative_period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. This gain represents vegetation growing from under 5m to over 5m height and includes natural regrowth as well as plantation cycles.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCB0aGUgZGF0YXNldCBiZWluZyB1c2VkCnByaW50KCJVc2luZyBkYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IC0gVHJlZSBjb3ZlciBnYWluICgyMDAwLTAxLTAxIHRvIDIwMjAtMTItMzEpIGZvciBJbmRvbmVzaWEiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhZnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5EYXRhZnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcyAodGhvdWdoIGZvciB0aGlzIHNpbXBsZSBjdW11bGF0aXZlIGRhdGEsIGl0J3MgbW9zdGx5IGRpc3BsYXlpbmcgdGhlIHZhbHVlcykKcHJpbnQoIlxuS2V5IEZpbmRpbmdzOiIpCnByaW50KCJUaGUgZGF0YXNldCBjb250YWlucyBjdW11bGF0aXZlIHRyZWUgY292ZXIgZ2FpbiBmb3IgSW5kb25lc2lhIGFjcm9zcyBkaWZmZXJlbnQgcGVyaW9kcywgZW5kaW5nIGluIDIwMjAuIEFsbCBhcmVhcyBhcmUgaW4gaGVjdGFyZXMgKGhhKS4iKQpwcmludChkZikK\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCiMgUmVuYW1lIGNvbHVtbnMgZm9yIGNsYXJpdHkgaW4gdGhlIGNoYXJ0CmNoYXJ0X2RmID0gZGYucmVuYW1lKGNvbHVtbnM9eydwZXJpb2QnOiAnY3VtdWxhdGl2ZV9wZXJpb2QnLCAnYXJlYV9oYSc6ICd0cmVlX2NvdmVyX2dhaW5faGEnfSkKCiMgRW5zdXJlIG51bWVyaWMgdmFsdWVzIGFyZSBvZiB0aGUgY29ycmVjdCB0eXBlIChhbHJlYWR5IGludDY0LCB3aGljaCBpcyBnb29kKQpjaGFydF9kZlsndHJlZV9jb3Zlcl9nYWluX2hhJ10gPSBjaGFydF9kZlsndHJlZV9jb3Zlcl9nYWluX2hhJ10uYXN0eXBlKGludCkKCiMgU2F2ZSB0aGUgRGF0YUZyYW1lIGFzIGNoYXJ0X2RhdGEuY3N2CmNoYXJ0X2RmLnRvX2NzdigiY2hhcnRfZGF0YS5jc3YiLCBpbmRleD1GYWxzZSkKCiMgUHJpbnQgdGhlIHJlY29tbWVuZGVkIGNoYXJ0IHR5cGUKcHJpbnQoIlJlY29tbWVuZGVkIGNoYXJ0IHR5cGU6IGJhciIpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. This gain represents vegetation growing from under 5m to over 5m height and includes natural regrowth as well as plantation cycles.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly pivoted from the user's request for 'restoration' to the technically accurate 'tree cover gain' and provided the necessary context regarding what that metric represents.",
+      "duration_s": 10.65
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[restoration vs deforestation in Indonesia]",
+      "query": "restoration vs deforestation in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "cumulative_period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "cumulative_period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia accumulated 4,567,890 hectares of tree cover gain between 2000 and 2020. It is important to note that tree cover gain and tree cover loss use fundamentally different methodologies and cannot be subtracted to calculate net change.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IOKGkiBUcmVlIGNvdmVyIGdhaW4gZm9yIEluZG9uZXNpYSAoMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCnByaW50KCJcbkRhdGEgc3RydWN0dXJlIGFuZCB0eXBlczoiKQpwcmludChkZi5pbmZvKCkpCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YXNldDoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgc3RhdGlzdGljczoiKQpwcmludChkZikK\nIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eSBpbiB0aGUgY2hhcnQgZGF0YQpjaGFydF9kZiA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ2N1bXVsYXRpdmVfcGVyaW9kJywgJ2FyZWFfaGEnOiAndHJlZV9jb3Zlcl9nYWluX2hhJ30pCgojIEVuc3VyZSB0aGUgb3JkZXIgaXMgY2hyb25vbG9naWNhbCBmb3IgdGhlIHN0YXJ0aW5nIHllYXIgb2YgdGhlIGN1bXVsYXRpdmUgcGVyaW9kIGZvciBiZXR0ZXIgdmlzdWFsaXphdGlvbiwKIyBhbHRob3VnaCB0aGUgeC1heGlzIGxhYmVscyB3aWxsIHVzZSB0aGUgcmF3IGN1bXVsYXRpdmUgcGVyaW9kIGxhYmVscy4KIyBUaGUgY3VycmVudCBkYXRhIGlzIGFscmVhZHkgaW4gdGhpcyBvcmRlciAoMjAwMC0yMDIwLCAyMDA1LTIwMjAsIGV0Yy4pCgojIFNhdmUgdGhlIGNoYXJ0IGRhdGEgdG8gYSBDU1YgZmlsZQpjaGFydF9kZi50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCgpwcmludCgiQ2hhcnQgVHlwZTogYmFyIikK",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia accumulated 4,567,890 hectares of tree cover gain between 2000 and 2020. It is important to note that tree cover gain and tree cover loss use fundamentally different methodologies and cannot be subtracted to calculate net change.\nFollow-up suggestions:\n1. Compare tree cover loss in Indonesia for the same periods\n2. Analyze tree cover loss by dominant driver in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly uses the required terminology and avoids prohibited terms while providing a relevant methodological caveat.",
+      "duration_s": 11.37
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[tree planting and restoration results for Indonesia]",
+      "query": "tree planting and restoration results for Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,value\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "value"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. This measurement includes natural regrowth, plantations, and land abandonment, rather than strictly ecological restoration.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoVHJlZSBjb3ZlciBnYWluIGZvciBJbmRvbmVzaWEsIDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCiMgUHJpbnQgdGhlIGhlYWQgb2YgdGhlIGRhdGFmcmFtZSB0byBzZWUgdGhlIGRhdGEKcHJpbnQoIlxuRGF0YUZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MgKGFscmVhZHkgaW4gdGhlIGRlc2lyZWQgZm9ybWF0KQpwcmludCgiXG5LZXkgRmluZGluZ3M6IikKcHJpbnQoIkN1bXVsYXRpdmUgdHJlZSBjb3ZlciBnYWluIChpbiBoZWN0YXJlcykgZm9yIEluZG9uZXNpYToiKQpwcmludChkZikK\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RhdGEgPSBkZi5jb3B5KCkKY2hhcnRfZGF0YS5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdwZXJpb2QnLCAnYXJlYV9oYSc6ICd2YWx1ZSd9LCBpbnBsYWNlPVRydWUpCgojIEVuc3VyZSBudW1lcmljIHZhbHVlcyBhcmUgbnVtYmVycwpjaGFydF9kYXRhWyd2YWx1ZSddID0gY2hhcnRfZGF0YVsndmFsdWUnXS5hc3R5cGUoaW50KQoKIyBQcmludCB0aGUgY2hhcnQgZGF0YSB0byB2ZXJpZnkKcHJpbnQoIkNoYXJ0IERhdGE6IikKcHJpbnQoY2hhcnRfZGF0YSkKCiMgU2F2ZSB0aGUgRGF0YUZyYW1lIGFzIGNoYXJ0X2RhdGEuY3N2CmNoYXJ0X2RhdGEudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQo=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. This measurement includes natural regrowth, plantations, and land abandonment, rather than strictly ecological restoration.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output perfectly adheres to the terminology requirements and provides the necessary ecological caveats regarding tree cover gain versus restoration.",
+      "duration_s": 9.93
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[Indonesia afforestation and restoration progress]",
+      "query": "Indonesia afforestation and restoration progress",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "cumulative_period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "cumulative_period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows smaller cumulative totals for more recent periods, such as 1,234,567 hectares for 2015-2020, which indicates a decrease in the rate of gain over time.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCB3aGljaCBkYXRhc2V0IGlzIGJlaW5nIHVzZWQKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoSW5kb25lc2lhIFRyZWUgY292ZXIgZ2FpbiAyMDAwLTAxLTAxIHRvIDIwMjAtMTItMzEpIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YSBJbmZvcm1hdGlvbjoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5GaXJzdCA1IHJvd3Mgb2YgdGhlIGRhdGFzZXQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MgKGluIHRoaXMgY2FzZSwgdGhlIHRvdGFsIHRyZWUgY292ZXIgZ2FpbiBmb3IgZWFjaCBjdW11bGF0aXZlIHBlcmlvZCkKcHJpbnQoIlxuS2V5IFN0YXRpc3RpY3MgKFRyZWUgY292ZXIgZ2FpbiBpbiBoZWN0YXJlcyk6IikKcHJpbnQoZGYpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIHZpc3VhbGl6YXRpb24KIyBUaGUgY2hhcnQgdHlwZSBpcyBhIGJhciBjaGFydCB3aXRoIG9uZSBiYXIgcGVyIGN1bXVsYXRpdmUgcGVyaW9kLgojIFRoZSBgcGVyaW9kYCBjb2x1bW4gd2lsbCBzZXJ2ZSBhcyB0aGUgeC1heGlzLCBhbmQgYGFyZWFfaGFgIGFzIHRoZSB5LWF4aXMuCgpjaGFydF9kYXRhID0gZGYucmVuYW1lKGNvbHVtbnM9eydwZXJpb2QnOiAnY3VtdWxhdGl2ZV9wZXJpb2QnLCAnYXJlYV9oYSc6ICd0cmVlX2NvdmVyX2dhaW5faGEnfSkKCiMgRW5zdXJlIHRoZSAnY3VtdWxhdGl2ZV9wZXJpb2QnIGNvbHVtbiBpcyBvcmRlcmVkIGNocm9ub2xvZ2ljYWxseSwgZXZlbiB0aG91Z2ggaXQncyBzdHJpbmctYmFzZWQgaGVyZSwKIyB0aGUgY3VycmVudCBkYXRhIGlzIGFscmVhZHkgaW4gdGhlIGRlc2lyZWQgb3JkZXIgKDIwMDAtMjAyMCwgMjAwNS0yMDIwLCBldGMuKS4KCiMgU2F2ZSB0aGUgRGF0YUZyYW1lIGFzIGNoYXJ0X2RhdGEuY3N2CmNoYXJ0X2RhdGEudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQoKIyBQcmludCByZWNvbW1lbmRlZCBjaGFydCB0eXBlCnByaW50KCJSZWNvbW1lbmRlZCBDaGFydCBUeXBlOiBiYXIgY2hhcnQiKQo=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data shows smaller cumulative totals for more recent periods, such as 1,234,567 hectares for 2015-2020, which indicates a decrease in the rate of gain over time.\nFollow-up suggestions:\n1. Compare tree cover gain with tree cover loss in Indonesia\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly prioritized the term 'tree cover gain' and avoided restricted terms, adhering to all specific rubric constraints.",
+      "duration_s": 10.75
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_does_not_use_restoration[show reforestation achievements in Indonesia]",
+      "query": "show reforestation achievements in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain includes natural regrowth and plantations, and these figures should not be used to calculate net change by subtracting them from tree cover loss due to different methodologies.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCB3aGljaCBkYXRhc2V0KHMpIGFyZSBiZWluZyB1c2VkCnByaW50KCJVc2luZyBkYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IC0gSW5kb25lc2lhIFRyZWUgY292ZXIgZ2FpbiAoMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCgojIEV4cGxvcmUgdGhlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhIEluZm9ybWF0aW9uOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YToiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcyByZWxldmFudCB0byB0aGUgdXNlciBxdWVyeQojIFRoZSBkYXRhIGFscmVhZHkgcHJvdmlkZXMgY3VtdWxhdGl2ZSBnYWluIGZvciBkaWZmZXJlbnQgcGVyaW9kcy4KIyBJIHdpbGwgZW5zdXJlIHRoZSAnYXJlYV9oYScgY29sdW1uIGlzIG51bWVyaWMuCmRmWydhcmVhX2hhJ10gPSBwZC50b19udW1lcmljKGRmWydhcmVhX2hhJ10pCgpwcmludCgiXG5LZXkgU3RhdGlzdGljczoiKQpwcmludChkZi5kZXNjcmliZSgpKQoKIyBQcmludCBmaW5kaW5ncwpwcmludCgiXG5GaW5kaW5nczoiKQpwcmludCgiVGhlIGRhdGFzZXQgY29udGFpbnMgdHJlZSBjb3ZlciBnYWluIGluIEluZG9uZXNpYSBmb3Igc2V2ZXJhbCBjdW11bGF0aXZlIHBlcmlvZHMgZW5kaW5nIGluIDIwMjAuIikKcHJpbnQoIlRoZSBwZXJpb2RzIGFyZSAyMDAwLTIwMjAsIDIwMDUtMjAyMCwgMjAxMC0yMDIwLCBhbmQgMjAxNS0yMDIwLCB3aXRoIGNvcnJlc3BvbmRpbmcgYXJlYSBnYWluIGluIGhlY3RhcmVzLiIpCnByaW50KCJUaGUgZGF0YSBpcyBjbGVhbiwgd2l0aCB0d28gY29sdW1uczogJ3BlcmlvZCcgKHN0cmluZykgYW5kICdhcmVhX2hhJyAoaW50ZWdlcikuIik=\nIyBTVEVQIDM6IEdFTkVSQVRFIENIQVJUIERBVEEKCiMgQ3JlYXRlIGEgRGF0YUZyYW1lIGZvciB0aGUgY2hhcnQKY2hhcnRfZGYgPSBkZltbJ3BlcmlvZCcsICdhcmVhX2hhJ11dLmNvcHkoKQpjaGFydF9kZi5jb2x1bW5zID0gWydwZXJpb2QnLCAndHJlZV9jb3Zlcl9nYWluX2hhJ10KCiMgRW5zdXJlICdwZXJpb2QnIGNvbHVtbiBpcyBvcmRlcmVkIGlmIGl0IHdlcmUgYSB0aW1lIHNlcmllcywgYnV0IGZvciBjdW11bGF0aXZlIHBlcmlvZHMsIHRoZSBjdXJyZW50IG9yZGVyIGlzIGxvZ2ljYWwuCiMgRm9yIGJhciBjaGFydHMsIHRoZSBgcGVyaW9kYCBhY3RzIGFzIHRoZSB4LWF4aXMgbGFiZWxzLgoKIyBTYXZlIHRoZSBEYXRhRnJhbWUgYXMgY2hhcnRfZGF0YS5jc3YKY2hhcnRfZGYudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQoKIyBQcml",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain includes natural regrowth and plantations, and these figures should not be used to calculate net change by subtracting them from tree cover loss due to different methodologies.\nFollow-up suggestions:\n1. Show tree cover loss for Indonesia from 2001 to 2023\n2. Compare tree cover gain with other Southeast Asian countries"
+      },
+      "passed": true,
+      "comment": "The output correctly prioritized 'tree cover gain' over 'reforestation' as requested by the rubric and included the necessary context regarding what that data represents.",
+      "duration_s": 12.39
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[What is the net forest change in Indonesia?]",
+      "query": "What is the net forest change in Indonesia?",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "cumulative_period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "cumulative_period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. It is important to note that tree cover gain and loss use different methodologies and cannot be subtracted to calculate a net change figure.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IC0gVHJlZSBjb3ZlciBnYWluIGZvciBJbmRvbmVzaWEgKDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkiKQoKcHJpbnQoIlxuRGF0YSBTdHJ1Y3R1cmU6IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRmlyc3QgNSByb3dzOiIpCnByaW50KGRmLmhlYWQoKSkKCnByaW50KCJcbktleSBTdGF0aXN0aWNzOiIpCnByaW50KGRmLmRlc2NyaWJlKCkpCg==\nY2hhcnRfZGF0YSA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ2N1bXVsYXRpdmVfcGVyaW9kJywgJ2FyZWFfaGEnOiAndHJlZV9jb3Zlcl9nYWluX2hhJ30pCnByaW50KGNoYXJ0X2RhdGEudG9fanNvbihvcmllbnQ9J3JlY29yZHMnKSkKCiMgU2F2ZSB0aGUgRGF0YUZyYW1lIGFzIGNoYXJ0X2RhdGEuY3N2CmNoYXJ0X2RhdGEudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQo=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4.57 million hectares between 2000 and 2020. It is important to note that tree cover gain and loss use different methodologies and cannot be subtracted to calculate a net change figure.\nFollow-up suggestions:\n1. Show tree cover loss for Indonesia to compare dynamics\n2. Break down tree cover gain by region within Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological limitation, provided the necessary warning, and avoided presenting an incorrect net change calculation.",
+      "duration_s": 9.27
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[Calculate net tree cover change for Indonesia]",
+      "query": "Calculate net tree cover change for Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "cumulative_period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "cumulative_period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. Note that tree cover gain and loss use different methodologies and cannot be subtracted to calculate a net change figure.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IC0gVHJlZSBjb3ZlciBnYWluIGZvciBJbmRvbmVzaWEgKDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkiKQoKcHJpbnQoIlxuRGF0YSBzdHJ1Y3R1cmUgYW5kIHR5cGVzOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YXNldDoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgc3RhdGlzdGljczoiKQpwcmludChkZi5kZXNjcmliZSgpKQo=\nY2hhcnRfZGF0YSA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ2N1bXVsYXRpdmVfcGVyaW9kJywgJ2FyZWFfaGEnOiAndHJlZV9jb3Zlcl9nYWluX2hhJ30pCmNoYXJ0X2RhdGEgPSBjaGFydF9kYXRhLnRvX2RpY3Qob3JpZW50PSdyZWNvcmRzJykKCnByaW50KGYne2NoYXJ0X2RhdGE9fScpCgojIFNhdmUgdGhlIGNoYXJ0IGRhdGEgdG8gYSBDU1YgZmlsZQpjaGFydF9kZiA9IHBkLkRhdGFGcmFtZShjaGFydF9kYXRhKQpjaGFydF9kZi50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. Note that tree cover gain and loss use different methodologies and cannot be subtracted to calculate a net change figure.\nFollow-up suggestions:\n1. Compare tree cover loss by dominant driver in Indonesia\n2. Analyze forest greenhouse gas net flux for Indonesia between 2001 and 2023"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological constraints and provided the necessary warning while avoiding the prohibited calculation.",
+      "duration_s": 11.61
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[Net gain minus loss for Indonesia forests]",
+      "query": "Net gain minus loss for Indonesia forests",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia experienced a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain and loss use different methodologies and cannot be subtracted to calculate net change.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChJbmRvbmVzaWEg4oCUIFRyZWUgY292ZXIgZ2FpbiwgMjAwMC0yMDIwKSIpCnByaW50KCJcbkRhdGEgc3RydWN0dXJlIGFuZCB0eXBlczoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5GaXJzdCA1IHJvd3Mgb2YgdGhlIGRhdGFzZXQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuS2V5IGZpbmRpbmdzOiIpCnByaW50KCJUaGUgZGF0YXNldCBjb250YWlucyBjdW11bGF0aXZlIHRyZWUgY292ZXIgZ2FpbiBpbiBoZWN0YXJlcyBmb3IgSW5kb25lc2lhIGFjcm9zcyBmb3VyIHBlcmlvZHMgZW5kaW5nIGluIDIwMjAuIikKcHJpbnQoIlRoZSBwZXJpb2RzIGFyZSAyMDAwLTIwMjAsIDIwMDUtMjAyMCwgMjAxMC0yMDIwLCBhbmQgMjAxNS0yMDIwLiIpCnByaW50KGYiVGhlIG1heGltdW0gdHJlZSBjb3ZlciBnYWluIHJlcG9ydGVkIGlzIHtkZlsnYXJlYV9oYSddLm1heCgpOix9IGhhIGZvciB0aGUgMjAwMC0yMDIwIHBlcmlvZC4iKQpwcmludChmIlRoZSBtaW5pbXVtIHRyZWUgY292ZXIgZ2FpbiByZXBvcnRlZCBpcyB7ZGZbJ2FyZWFfaGEnXS5taW4oKTosfSBoYSBmb3IgdGhlIDIwMTUtMjAyMCBwZXJpb2QuIik=\nIyBQcmVwYXJlIHRoZSBkYXRhIGZvciBjaGFydGluZwpjaGFydF9kZiA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ3RyZWVfY292ZXJfZ2Fpbl9oYSd9KQoKIyBTYXZlIHRoZSBEYXRhRnJhbWUgdG8gY2hhcnRfZGF0YS5jc3YKY2hhcnRfZGYudG9fY3N2KCdjaGFydF9kYXRhLmNzdicsIGluZGV4PUZhbHNlKQoKcHJpbnQoIkNoYXJ0IFR5cGU6IGJhciIp",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia experienced a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain and loss use different methodologies and cannot be subtracted to calculate net change.\nFollow-up suggestions:\n1. Analyze tree cover loss by dominant driver in Indonesia\n2. Show forest greenhouse gas net flux for Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological constraints, provided the necessary warning, and avoided performing the prohibited calculation.",
+      "duration_s": 11.0
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[How much forest did Indonesia gain vs lose?]",
+      "query": "How much forest did Indonesia gain vs lose?",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,gain_area_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "gain_area_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of approximately 4.57 million hectares between 2000 and 2020. Data for tree cover loss was not available in this dataset; please note that tree cover gain and loss use different methodologies and cannot be subtracted to calculate net change.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmX2dhaW4gPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgojIFByaW50IHdoaWNoIGRhdGFzZXQgaXMgYmVpbmcgdXNlZApwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IC0gVHJlZSBjb3ZlciBnYWluIGZvciBJbmRvbmVzaWEgKDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhRnJhbWUgSW5mbzoiKQpwcmludChkZl9nYWluLmluZm8oKSkKCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmX2dhaW4uaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKcHJpbnQoIlxuS2V5IFN0YXRpc3RpY3MgZm9yIFRyZWUgQ292ZXIgR2FpbiAoaGVjdGFyZXMpOiIpCnByaW50KGRmX2dhaW4uZGVzY3JpYmUoKSkKCiMgUHJpbnQgZmluZGluZ3MKcHJpbnQoZiJcblRvdGFsIGN1bXVsYXRpdmUgdHJlZSBjb3ZlciBnYWluIGZvciB0aGUgcGVyaW9kIDIwMDAtMjAyMDoge2RmX2dhaW5bZGZfZ2FpblsncGVyaW9kJ10gPT0gJzIwMDAtMjAyMCddWydhcmVhX2hhJ10uaWxvY1swXTosLjBmfSBoZWN0YXJlcy4iKQpwcmludChmIlRoZSBwZXJpb2RzIHJlcHJlc2VudCBjdW11bGF0aXZlIHRyZWUgY292ZXIgZ2FpbiBmcm9tIHRoZSBzdGFydCB5ZWFyIHVwIHRvIDIwMjAuIikKcHJpbnQoZiJUaGUgZGF0YSBzaG93cyBhIGRlY3JlYXNpbmcgdHJlbmQgaW4gY3VtdWxhdGl2ZSBnYWluIHdoZW4gc3RhcnRpbmcgZnJvbSBsYXRlciB5ZWFycywgd2hpY2ggaXMgZXhwZWN0ZWQgYXMgdGhlIHBlcmlvZCBsZW5ndGggc2hvcnRlbnMuIikK\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgYmFyIGNoYXJ0CmNoYXJ0X2RhdGEgPSBkZl9nYWluLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ2dhaW5fYXJlYV9oYSd9KQoKIyBFbnN1cmUgdGhlIHBlcmlvZCBjb2x1bW4gaXMgdHJlYXRlZCBhcyBhIGNhdGVnb3JpY2FsIHZhcmlhYmxlIGZvciBjaGFydGluZwpjaGFydF9kYXRhWydwZXJpb2QnXSA9IGNoYXJ0X2RhdGFbJ3BlcmlvZCddLmFzdHlwZShzdHIpCgpwcmludCgiXG5DaGFydCBEYXRhIEhlYWQ6IikKcHJpbnQoY2hhcnRfZGF0YS5oZWFkKCkpCgojIFNhdmUgdGhlIERhdGFGcmFtZSBhcyBjaGFydF9kYXRhLmNzdgpjaGFydF9kYXRhLnRvX2NzdigiY2hhcnRfZGF0YS5jc3YiLCBpbmRleD1GYWxzZSkK",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of approximately 4.57 million hectares between 2000 and 2020. Data for tree cover loss was not available in this dataset; please note that tree cover gain and loss use different methodologies and cannot be subtracted to calculate net change.\nFollow-up suggestions:\n1. Compare tree cover loss by dominant driver in Indonesia\n2. Analyze forest greenhouse gas net flux for Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI followed all instructions, specifically providing the required methodological warning and avoiding the incorrect calculation of net change.",
+      "duration_s": 15.32
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[net deforestation in Indonesia]",
+      "query": "net deforestation in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain and loss datasets use different methodologies and cannot be subtracted to calculate net change or net deforestation.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludChmIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoVHJlZSBjb3ZlciBnYWluIGZvciBJbmRvbmVzaWEsIDIwMDAtMjAyMCkiKQpwcmludCgiXG5EYXRhIHN0cnVjdHVyZSBhbmQgdHlwZXM6IikKcHJpbnQoZGYuaW5mbygpKQpwcmludCgiXG5GaXJzdCA1IHJvd3M6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuS2V5IGZpbmRpbmdzOiIpCnByaW50KCJUaGUgZGF0YXNldCBjb250YWlucyBjdW11bGF0aXZlIHRyZWUgY292ZXIgZ2FpbiBpbiBoZWN0YXJlcyBmb3IgSW5kb25lc2lhIGFjcm9zcyBmb3VyIGRpZmZlcmVudCBwZXJpb2RzIGVuZGluZyBpbiAyMDIwOiIpCmZvciBpbmRleCwgcm93IGluIGRmLml0ZXJyb3dzKCk6CiAgICBwcmludChmIi0gRnJvbSB7cm93WydwZXJpb2QnXX0gdGhlcmUgd2FzIGEgZ2FpbiBvZiB7cm93WydhcmVhX2hhJ106LH0gaGVjdGFyZXMuIik=\nY2hhcnRfZGF0YSA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ3RyZWVfY292ZXJfZ2Fpbl9oYSd9KQoKIyBTYXZlIHRoZSBEYXRhRnJhbWUgdG8gYSBDU1YgZmlsZQpjaGFydF9kYXRhLnRvX2NzdignY2hhcnRfZGF0YS5jc3YnLCBpbmRleD1GYWxzZSkKCnByaW50KCJSZWNvbW1lbmRlZCBjaGFydCB0eXBlOiBiYXIiKQ==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain and loss datasets use different methodologies and cannot be subtracted to calculate net change or net deforestation.\nFollow-up suggestions:\n1. Compare tree cover loss by dominant driver in Indonesia\n2. Analyze forest greenhouse gas net flux for Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological constraints regarding net deforestation and provided the necessary warnings while avoiding incorrect calculations.",
+      "duration_s": 9.83
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[subtract loss from gain for Indonesia]",
+      "query": "subtract loss from gain for Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "gain_ha"
+        ],
+        "insight": "Indonesia experienced a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. Tree cover gain and tree cover loss use fundamentally different methodologies, time periods, and definitions; they cannot be subtracted to calculate net change.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCBkYXRhc2V0IGluZm9ybWF0aW9uCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKGkiBUcmVlIGNvdmVyIGdhaW4gZm9yIEluZG9uZXNpYSAoMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YWZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lCnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCnByaW50KCJcbktleSBTdGF0aXN0aWNzOiIpCnRvdGFsX2dhaW5fMjAwMF8yMDIwID0gZGZbZGZbJ3BlcmlvZCddID09ICcyMDAwLTIwMjAnXVsnYXJlYV9oYSddLmlsb2NbMF0KcHJpbnQoZiJUb3RhbCB0cmVlIGNvdmVyIGdhaW4gZm9yIEluZG9uZXNpYSAoMjAwMC0yMDIwKToge3RvdGFsX2dhaW5fMjAwMF8yMDIwOiwuMGZ9IGhlY3RhcmVzIikKCiMgRGVzY3JpYmUgdGhlIGRhdGEKcHJpbnQoIlxuRGVzY3JpcHRpdmUgU3RhdGlzdGljczoiKQpwcmludChkZi5kZXNjcmliZSgpKQo=\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RhdGFfZGYgPSBkZi5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdwZXJpb2QnLCAnYXJlYV9oYSc6ICdnYWluX2hhJ30pCgojIEVuc3VyZSBjb3JyZWN0IGNvbHVtbiBvcmRlcgpjaGFydF9kYXRhX2RmID0gY2hhcnRfZGF0YV9kZltbJ3BlcmlvZCcsICdnYWluX2hhJ11dCgojIFByaW50IHRoZSBjaGFydCBkYXRhIGhlYWQKcHJpbnQoIlxuQ2hhcnQgRGF0YSBIZWFkOiIpCnByaW50KGNoYXJ0X2RhdGFfZGYuaGVhZCgpKQoKIyBTYXZlIHRoZSBEYXRhRnJhbWUgdG8gY2hhcnRfZGF0YS5jc3YKY2hhcnRfZGF0YV9kZi50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia by Period (2000-2020)\nKey Finding: Indonesia experienced a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. Tree cover gain and tree cover loss use fundamentally different methodologies, time periods, and definitions; they cannot be subtracted to calculate net change.\nFollow-up suggestions:\n1. Show tree cover loss for Indonesia to understand the context of forest dynamics\n2. Break down tree cover gain by different canopy density thresholds"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological restriction, provided the necessary warning, and refused to perform the invalid calculation requested by the user.",
+      "duration_s": 10.85
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[Indonesia: net change in tree cover]",
+      "query": "Indonesia: net change in tree cover",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia experienced a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. Tree cover gain and tree cover loss use fundamentally different methodologies, time periods, and definitions; they cannot be subtracted to calculate net change.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChJbmRvbmVzaWEgLSBUcmVlIGNvdmVyIGdhaW4gKDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkpIikKcHJpbnQoIlxuRGF0YSBzdHJ1Y3R1cmUgYW5kIHR5cGVzOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YToiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgZmluZGluZ3M6IikKcHJpbnQoIlRoZSBkYXRhc2V0IGNvbnRhaW5zIGN1bXVsYXRpdmUgdHJlZSBjb3ZlciBnYWluIGluIGhlY3RhcmVzIGZvciBkaWZmZXJlbnQgcGVyaW9kcyBlbmRpbmcgaW4gMjAyMC4iKQpwcmludCgiVGhlIHBlcmlvZHMgYXZhaWxhYmxlIGFyZToiKQpmb3IgaW5kZXgsIHJvdyBpbiBkZi5pdGVycm93cygpOgogICAgcHJpbnQoZiItIHtyb3dbJ3BlcmlvZCddfToge3Jvd1snYXJlYV9oYSddOix9IGhlY3RhcmVzIik=\nY2hhcnRfZGF0YSA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ3RyZWVfY292ZXJfZ2Fpbl9oYSd9KQpjaGFydF9kYXRhLnRvX2NzdignY2hhcnRfZGF0YS5jc3YnLCBpbmRleD1GYWxzZSkKCnByaW50KCJSZWNvbW1lbmRlZCBjaGFydCB0eXBlOiBiYXIiKQ==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia experienced a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. Tree cover gain and tree cover loss use fundamentally different methodologies, time periods, and definitions; they cannot be subtracted to calculate net change.\nFollow-up suggestions:\n1. Compare tree cover loss in Indonesia for the same period\n2. Break down tree cover loss by dominant driver in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological constraints regarding net change and provided the required warning while avoiding incorrect calculations.",
+      "duration_s": 10.14
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[is Indonesia gaining or losing forest overall?]",
+      "query": "is Indonesia gaining or losing forest overall?",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "cumulative_period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "cumulative_period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia experienced a cumulative tree cover gain of approximately 4.57 million hectares between 2000 and 2020. It is important to note that tree cover gain and tree cover loss use different methodologies and cannot be subtracted to calculate net change; therefore, this data alone does not determine if the country is gaining or losing forest overall.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGZfZ2FpbiA9IHBkLkRhdGFGcmFtZShwZC5yZWFkX2pzb24oImh0dHA6Ly9leGFtcGxlLmNvbS9hbmFseXRpY3MvdGNnLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCnByaW50KCJEYXRhc2V0IHVzZWQ6IGlucHV0X2ZpbGVfMC5jc3YgKEluZG9uZXNpYSAtIFRyZWUgY292ZXIgZ2FpbiwgMjAwMC0yMDIwKSIpCnByaW50KCJcbkRhdGEgc3RydWN0dXJlIGFuZCB0eXBlczoiKQpwcmludChkZl9nYWluLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YToiKQpwcmludChkZl9nYWluLmhlYWQoKSkKCnByaW50KCJcbktleSBmaW5kaW5nczoiKQojIENvbnZlcnQgYXJlYV9oYSB0byBudW1lcmljLCBoYW5kbGluZyBwb3RlbnRpYWwgZXJyb3JzIGlmIGFueSAodGhvdWdoIG5vdCBleHBlY3RlZCBmcm9tIHRoZSBzYW1wbGUpCmRmX2dhaW5bJ2FyZWFfaGEnXSA9IHBkLnRvX251bWVyaWMoZGZfZ2FpblsnYXJlYV9oYSddKQoKIyBGaW5kIHRoZSBtYXhpbXVtIHRyZWUgY292ZXIgZ2FpbiBwZXJpb2QgYXZhaWxhYmxlCnRvdGFsX2dhaW5fMjAwMF8yMDIwID0gZGZfZ2FpbltkZl9nYWluWydwZXJpb2QnXSA9PSAnMjAwMC0yMDIwJ11bJ2FyZWFfaGEnXS5pbG9jWzBdCnByaW50KGYiQ3VtdWxhdGl2ZSB0cmVlIGNvdmVyIGdhaW4gaW4gSW5kb25lc2lhIGZyb20gMjAwMCB0byAyMDIwOiB7dG90YWxfZ2Fpbl8yMDAwXzIwMjA6LC4wZn0gaGVjdGFyZXMuIikK\nIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eSBpbiBjaGFydGluZwpjaGFydF9kYXRhID0gZGZfZ2Fpbi5yZW5hbWUoY29sdW1ucz17J3BlcmlvZCc6ICdjdW11bGF0aXZlX3BlcmlvZCcsICdhcmVhX2hhJzogJ3RyZWVfY292ZXJfZ2Fpbl9oYSd9KQoKIyBFbnN1cmUgdGhlICdjdW11bGF0aXZlX3BlcmlvZCcgY29sdW1uIGlzIHN1aXRhYmxlIGZvciBkaXJlY3QgdXNlIGFzIHgtYXhpcyBsYWJlbHMKIyBUaGUgZGF0YSBpcyBhbHJlYWR5IGluIHRoZSBjb3JyZWN0IGZvcm1hdCBhbmQgb3JkZXIgZm9yIHZpc3VhbGl6YXRpb24KCmNoYXJ0X2RhdGEudG9fY3N2KCdjaGFydF9kYXRhLmNzdicsIGluZGV4PUZhbHNlKQoKcHJpbnQoIkNoYXJ0IFR5cGU6IGJhciIpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia experienced a cumulative tree cover gain of approximately 4.57 million hectares between 2000 and 2020. It is important to note that tree cover gain and tree cover loss use different methodologies and cannot be subtracted to calculate net change; therefore, this data alone does not determine if the country is gaining or losing forest overall.\nFollow-up suggestions:\n1. Compare tree cover loss in Indonesia for the same period\n2. Analyze tree cover loss by dominant driver in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological constraints and provided the necessary warnings without attempting to calculate an invalid net change value.",
+      "duration_s": 9.72
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[net forest area change in Indonesia]",
+      "query": "net forest area change in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "cumulative_period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "cumulative_period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain and tree cover loss use different methodologies and cannot be subtracted to calculate net change.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IOKAlCBUcmVlIGNvdmVyIGdhaW4gKDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkgZm9yIEluZG9uZXNpYSIpCnByaW50KCJcbkRhdGEgc3RydWN0dXJlOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93czoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgc3RhdGlzdGljczoiKQpwcmludChkZi5kZXNjcmliZSgpKQo=\nY2hhcnRfZGF0YSA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ2N1bXVsYXRpdmVfcGVyaW9kJywgJ2FyZWFfaGEnOiAndHJlZV9jb3Zlcl9nYWluX2hhJ30pCmNoYXJ0X2RhdGEudG9fY3N2KCdjaGFydF9kYXRhLmNzdicsIGluZGV4PUZhbHNlKQoKcHJpbnQoIlJlY29tbWVuZGVkIENoYXJ0IFR5cGU6IGJhciIpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain and tree cover loss use different methodologies and cannot be subtracted to calculate net change.\nFollow-up suggestions:\n1. Compare tree cover loss in Indonesia for the same period\n2. Analyze tree cover loss by dominant driver in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological constraints of the dataset, provided the necessary warning, and avoided performing the prohibited calculation.",
+      "duration_s": 10.03
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[compare gain and loss to get net change for Indonesia]",
+      "query": "compare gain and loss to get net change for Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,gain_hectares\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "gain_hectares"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. A net change calculation is not possible because tree cover gain and tree cover loss use fundamentally different methodologies, time periods, and definitions, and cannot be subtracted from one another.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmX2dhaW4gPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgojIFByaW50IGRhdGFzZXQgaW5mb3JtYXRpb24KcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3Yg4oaSIFRyZWUgY292ZXIgZ2FpbiAoMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YSBzdHJ1Y3R1cmU6IikKcHJpbnQoZGZfZ2Fpbi5pbmZvKCkpCgojIFByaW50IHRoZSBoZWFkIG9mIHRoZSBkYXRhZnJhbWUKcHJpbnQoIlxuRmlyc3QgNSByb3dzOiIpCnByaW50KGRmX2dhaW4uaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKcHJpbnQoIlxuS2V5IHN0YXRpc3RpY3MgZm9yIHRyZWUgY292ZXIgZ2FpbiAoaW4gaGVjdGFyZXMpOiIpCnByaW50KGRmX2dhaW5bJ2FyZWFfaGEnXS5kZXNjcmliZSgpKQo=\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCiMgUmVuYW1lIGNvbHVtbnMgZm9yIGNsYXJpdHkgaW4gdGhlIGNoYXJ0CmNoYXJ0X2RhdGEgPSBkZl9nYWluLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ2dhaW5faGVjdGFyZXMnfSkKCiMgU2F2ZSB0aGUgY2hhcnQgZGF0YSB0byBhIENTViBmaWxlCmNoYXJ0X2RhdGEudG9fY3N2KCdjaGFydF9kYXRhLmNzdicsIGluZGV4PUZhbHNlKQoKcHJpbnQoIkNoYXJ0IFR5cGU6IGJhciIpCg==",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia by Period\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. A net change calculation is not possible because tree cover gain and tree cover loss use fundamentally different methodologies, time periods, and definitions, and cannot be subtracted from one another.\nFollow-up suggestions:\n1. Analyze tree cover loss by dominant driver in Indonesia\n2. Show tree cover loss trends for Indonesia from 2001 to 2023"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological constraint and provided the necessary warning while refusing to generate the invalid calculation requested by the user.",
+      "duration_s": 10.13
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[Indonesia net tree cover balance]",
+      "query": "Indonesia net tree cover balance",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "Indonesia experienced a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain and tree cover loss use different methodologies and cannot be subtracted to calculate net change.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IC0gSW5kb25lc2lhIFRyZWUgY292ZXIgZ2FpbiAoMjAwMC0wMS0wMSB0byAyMDIwLTEyLTMxKSIpCgpwcmludCgiXG5EYXRhIFN0cnVjdHVyZToiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5GaXJzdCA1IHJvd3M6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuS2V5IFN0YXRpc3RpY3MgKFRyZWUgQ292ZXIgR2FpbiBpbiBoZWN0YXJlcyk6IikKcHJpbnQoZGYpCg==\nY2hhcnRfZGF0YSA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ3RyZWVfY292ZXJfZ2Fpbl9oYSd9KQoKY2hhcnRfZGF0YS50b19jc3YoJ2NoYXJ0X2RhdGEuY3N2JywgaW5kZXg9RmFsc2UpCgpwcmludChjaGFydF9kYXRhLnRvX2pzb24ob3JpZW50PSdyZWNvcmRzJywgaW5kZW50PTIpKQo=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia experienced a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain and tree cover loss use different methodologies and cannot be subtracted to calculate net change.\nFollow-up suggestions:\n1. Compare tree cover loss by dominant driver in Indonesia\n2. Analyze forest greenhouse gas net flux for Indonesia"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the methodological constraints and avoids providing a misleading net change calculation while providing the necessary warning.",
+      "duration_s": 11.48
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[total net reforestation in Indonesia]",
+      "query": "total net reforestation in Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,area_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "area_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain and loss use different methodologies and cannot be subtracted to calculate net reforestation.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IC0gVHJlZSBjb3ZlciBnYWluICgyMDAwLTAxLTAxIHRvIDIwMjAtMTItMzEpIGZvciBJbmRvbmVzaWEiKQoKcHJpbnQoIlxuRGF0YSBzdHJ1Y3R1cmUgYW5kIHR5cGVzOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YToiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgZmluZGluZ3M6IikKcHJpbnQoIlRoZSBkYXRhc2V0IGNvbnRhaW5zIGN1bXVsYXRpdmUgdHJlZSBjb3ZlciBnYWluIGluIGhlY3RhcmVzIGZvciBkaWZmZXJlbnQgcGVyaW9kcyBlbmRpbmcgaW4gMjAyMC4iKQpwcmludCgiRWFjaCByb3cgcmVwcmVzZW50cyB0aGUgdG90YWwgZ2FpbiBmcm9tIHRoZSBzdGFydCB5ZWFyIChlLmcuLCAyMDAwLCAyMDA1KSB1cCB0byAyMDIwLiIpCg==\nY2hhcnRfZGF0YSA9IGRmLmNvcHkoKQpjaGFydF9kYXRhLmNvbHVtbnMgPSBbJ3BlcmlvZCcsICdhcmVhX2hhJ10KCiMgRW5zdXJlIHBlcmlvZCBjb2x1bW4gaXMgY29ycmVjdGx5IGZvcm1hdHRlZCBpZiBuZWVkZWQsIHRob3VnaCBmb3IgbGFiZWxzIGl0J3MgZmluZSBhcyBpcy4KIyBFbnN1cmUgbnVtZXJpYyB2YWx1ZXMgYXJlIG51bWJlcnMuCmNoYXJ0X2RhdGFbJ2FyZWFfaGEnXSA9IHBkLnRvX251bWVyaWMoY2hhcnRfZGF0YVsnYXJlYV9oYSddKQoKY2hhcnRfZGF0YS50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCgpwcmludCgiUmVjb21tZW5kZWQgQ2hhcnQgVHlwZTogYmFyIikK",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. It is important to note that tree cover gain and loss use different methodologies and cannot be subtracted to calculate net reforestation.\nFollow-up suggestions:\n1. Compare tree cover loss in Indonesia for the same period\n2. Analyze tree cover loss by dominant driver in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological constraints, provided the necessary warning, and avoided the prohibited calculation.",
+      "duration_s": 10.03
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[combine gain and loss data for Indonesia]",
+      "query": "combine gain and loss data for Indonesia",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates that a larger proportion of this gain occurred in the earlier part of the two-decade period, as shown by the decreasing totals in more recent cumulative windows.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSB0cmVlIGNvdmVyIGdhaW4gZGF0YSBmb3IgSW5kb25lc2lhCmRmX2dhaW4gPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgojIFByaW50IHdoaWNoIGRhdGFzZXQgaXMgYmVpbmcgdXNlZApwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IOKGkiBUcmVlIGNvdmVyIGdhaW4gKDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkgZm9yIEluZG9uZXNpYSIpCgojIEV4cGxvcmUgdGhlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGEgc3RydWN0dXJlOiIpCnByaW50KGRmX2dhaW4uaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lIHRvIHVuZGVyc3RhbmQgaXRzIGNvbnRlbnQKcHJpbnQoIlxuRmlyc3QgNSByb3dzIG9mIHRoZSBkYXRhc2V0OiIpCnByaW50KGRmX2dhaW4uaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKcHJpbnQoIlxuS2V5IGZpbmRpbmdzOiIpCiMgRm9yIGVhY2ggcGVyaW9kLCByZXBvcnQgdGhlIHRyZWUgY292ZXIgZ2Fpbgpmb3IgaW5kZXgsIHJvdyBpbiBkZl9nYWluLml0ZXJyb3dzKCk6CiAgICBwcmludChmIlRyZWUgY292ZXIgZ2FpbiBmb3IgdGhlIHBlcmlvZCB7cm93WydwZXJpb2QnXX0gaW4gSW5kb25lc2lhOiB7cm93WydhcmVhX2hhJ106LH0gaGVjdGFyZXMiKQ==\nIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eSBpbiB0aGUgY2hhcnQKY2hhcnRfZGYgPSBkZl9nYWluLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ2dhaW5faGEnfSkKCiMgRW5zdXJlICdnYWluX2hhJyBpcyBudW1lcmljCmNoYXJ0X2RmWydnYWluX2hhJ10gPSBwZC50b19udW1lcmljKGNoYXJ0X2RmWydnYWluX2hhJ10pCgojIENyZWF0ZSBjaGFydF9kYXRhLmNzdgpjaGFydF9kZi50b19jc3YoJ2NoYXJ0X2RhdGEuY3N2JywgaW5kZXg9RmFsc2UpCgpwcmludCgiQ2hhcnQgdHlwZTogYmFyIik=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates that a larger proportion of this gain occurred in the earlier part of the two-decade period, as shown by the decreasing totals in more recent cumulative windows.\nFollow-up suggestions:\n1. Analyze tree cover loss for Indonesia to understand different forest dynamics\n2. Break down tree cover extent by canopy density for Indonesia"
+      },
+      "passed": false,
+      "comment": "The model failed to address the 'loss' data requested in the query and, more importantly, failed to provide the mandatory warning that gain and loss datasets cannot be combined to calculate net change due to methodological differences.",
+      "duration_s": 10.21,
+      "rubric": "1. The output must indicate that net change CANNOT be calculated by combining\n           gain and loss datasets because the methodologies differ.\n        2. This warning must appear in the insight text, tool message, or chart context.\n        3. The output should NOT present a net change value calculated by subtracting\n           loss from gain.",
+      "requirements": [
+        {
+          "requirement": "The output must indicate that net change CANNOT be calculated by combining gain and loss datasets because the methodologies differ.",
+          "met": false,
+          "reason": "The output completely ignores the 'loss' part of the user's query and fails to provide the mandatory warning regarding methodological differences and net change calculation."
+        },
+        {
+          "requirement": "This warning must appear in the insight text, tool message, or chart context.",
+          "met": false,
+          "reason": "No warning or mention of methodological incompatibility is present in any part of the output."
+        },
+        {
+          "requirement": "The output should NOT present a net change value calculated by subtracting loss from gain.",
+          "met": true,
+          "reason": "The output does not present a net change value, but only because it failed to address the 'loss' component of the query entirely."
+        }
+      ],
+      "judge_prompt": "You are evaluating whether an AI-generated data visualization follows specific rules.\n\n## Original User Query\ncombine gain and loss data for Indonesia\n\n## Expected Behavior (Rubric)\n\n        1. The output must indicate that net change CANNOT be calculated by combining\n           gain and loss datasets because the methodologies differ.\n        2. This warning must appear in the insight text, tool message, or chart context.\n        3. The output should NOT present a net change value calculated by subtracting\n           loss from gain.\n        \n\n## Actual Tool Output\n\n### Chart Type\nbar\n\n### Chart Data (first 10 rows)\nperiod,gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n\n\n### Insight Text\nIndonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. The data indicates that a larger proportion of this gain occurred in the earlier part of the two-decade period, as shown by the decreasing totals in more recent cumulative windows.\n\n### Generated Code (summary)\naW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSB0cmVlIGNvdmVyIGdhaW4gZGF0YSBmb3IgSW5kb25lc2lhCmRmX2dhaW4gPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgojIFByaW50IHdoaWNoIGRhdGFzZXQgaXMgYmVpbmcgdXNlZApwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IOKGkiBUcmVlIGNvdmVyIGdhaW4gKDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkgZm9yIEluZG9uZXNpYSIpCgojIEV4cGxvcmUgdGhlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGEgc3RydWN0dXJlOiIpCnByaW50KGRmX2dhaW4uaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lIHRvIHVuZGVyc3RhbmQgaXRzIGNvbnRlbnQKcHJpbnQoIlxuRmlyc3QgNSByb3dzIG9mIHRoZSBkYXRhc2V0OiIpCnByaW50KGRmX2dhaW4uaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKcHJpbnQoIlxuS2V5IGZpbmRpbmdzOiIpCiMgRm9yIGVhY2ggcGVyaW9kLCByZXBvcnQgdGhlIHRyZWUgY292ZXIgZ2Fpbgpmb3IgaW5kZXgsIHJvdyBpbiBkZl9nYWluLml0ZXJyb3dzKCk6CiAgICBwcmludChmIlRyZWUgY292ZXIgZ2FpbiBmb3IgdGhlIHBlcmlvZCB7cm93WydwZXJpb2QnXX0gaW4gSW5kb25lc2lhOiB7cm93WydhcmVhX2hhJ106LH0gaGVjdGFyZXMiKQ==\nIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eSBpbiB0aGUgY2hhcnQKY2hhcnRfZGYgPSBkZl9nYWluLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ2dhaW5faGEnfSkKCiMgRW5zdXJlICdnYWluX2hhJyBpcyBudW1lcmljCmNoYXJ0X2RmWydnYWluX2hhJ10gPSBwZC50b19udW1lcmljKGNoYXJ0X2RmWydnYWluX2hhJ10pCgojIENyZWF0ZSBjaGFydF9kYXRhLmNzdgpjaGFydF9kZi50b19jc3YoJ2NoYXJ0X2RhdGEuY3N2JywgaW5kZXg9RmFsc2UpCgpwcmludCgiQ2hhcnQgdHlwZTogYmFyIik=\n\n## Instructions\nEvaluate whether the actual output satisfies EACH requirement in the rubric.\nFor each requirement, state whether it is MET or NOT MET with a brief reason.\n\nThen give an overall verdict: PASS if ALL requirements are met, FAIL if ANY is not met.\n\nRespond ONLY with valid JSON in this exact format (no markdown fencing):\n{\"requirements\": [{\"requirement\": \"...\", \"met\": true, \"reason\": \"...\"}, ...], \"verdict\": \"PASS\", \"comment\": \"Brief overall explanation\"}",
+      "judge_raw_response": "{\n  \"requirements\": [\n    {\"requirement\": \"The output must indicate that net change CANNOT be calculated by combining gain and loss datasets because the methodologies differ.\", \"met\": false, \"reason\": \"The output completely ignores the 'loss' part of the user's query and fails to provide the mandatory warning regarding methodological differences and net change calculation.\"},\n    {\"requirement\": \"This warning must appear in the insight text, tool message, or chart context.\", \"met\": false, \"reason\": \"No warning or mention of methodological incompatibility is present in any part of the output.\"},\n    {\"requirement\": \"The output should NOT present a net change value calculated by subtracting loss from gain.\", \"met\": true, \"reason\": \"The output does not present a net change value, but only because it failed to address the 'loss' component of the query entirely.\"}\n  ],\n  \"verdict\": \"FAIL\",\n  \"comment\": \"The model failed to address the 'loss' data requested in the query and, more importantly, failed to provide the mandatory warning that gain and loss datasets cannot be combined to calculate net change due to methodological differences.\"\n}"
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[Indonesia net forest change calculation]",
+      "query": "Indonesia net forest change calculation",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,tree_cover_gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "tree_cover_gain_ha"
+        ],
+        "insight": "The data shows cumulative tree cover gain in Indonesia for different periods ending in 2020. It is important to note that tree cover gain and tree cover loss use different methodologies and cannot be subtracted to calculate net change.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL3RjZy1ldmFsIilbImRhdGEiXVsicmVzdWx0Il0pCgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IOKAlCBUcmVlIGNvdmVyIGdhaW4gKDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkiKQoKcHJpbnQoIlxuRGF0YSBzdHJ1Y3R1cmUgYW5kIHR5cGVzOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YXNldDoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgc3RhdGlzdGljcyBmb3IgdHJlZSBjb3ZlciBnYWluOiIpCnByaW50KGRmLmRlc2NyaWJlKCkpCg==\nIyBQcmVwYXJlIHRoZSBkYXRhIGZvciBjaGFydGluZwpjaGFydF9kZiA9IGRmLnJlbmFtZShjb2x1bW5zPXsncGVyaW9kJzogJ3BlcmlvZCcsICdhcmVhX2hhJzogJ3RyZWVfY292ZXJfZ2Fpbl9oYSd9KQoKIyBFbnN1cmUgdGhlIHBlcmlvZHMgYXJlIG9yZGVyZWQgY2hyb25vbG9naWNhbGx5IGZvciB2aXN1YWxpemF0aW9uLCBldmVuIHRob3VnaCB0aGV5IGFyZSBjdW11bGF0aXZlLgojIFRoZSBjdXJyZW50IGRhdGFzZXQgaXMgYWxyZWFkeSBpbiBjb3JyZWN0IG9yZGVyICgyMDAwLTIwMjAsIDIwMDUtMjAyMCwgZXRjLikKIyBObyBleHBsaWNpdCBzb3J0aW5nIG5lZWRlZCBmb3IgdGhpcyBzcGVjaWZpYyBkYXRhc2V0IGJhc2VkIG9uIGl0cyBjb250ZW50LCBidXQgZ29vZCBwcmFjdGljZS4KCnByaW50KCJDaGFydCBEYXRhIEhlYWQ6IikKcHJpbnQoY2hhcnRfZGYuaGVhZCgpKQoKIyBTYXZlIHRoZSBkYXRhIHRvIGEgQ1NWIGZpbGUKY2hhcnRfZGYudG9fY3N2KCdjaGFydF9kYXRhLmNzdicsIGluZGV4PUZhbHNlKQo=",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: The data shows cumulative tree cover gain in Indonesia for different periods ending in 2020. It is important to note that tree cover gain and tree cover loss use different methodologies and cannot be subtracted to calculate net change.\nFollow-up suggestions:\n1. Compare tree cover loss in Indonesia for the same periods\n2. Analyze tree cover loss by dominant driver in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological constraints, provided the necessary warning, and avoided performing the prohibited calculation.",
+      "duration_s": 10.37
+    },
+    {
+      "test_id": "tests/evals/test_tree_cover_gain_instructions.py::test_refuses_net_calculation[what's the balance of gain vs loss in Indonesia?]",
+      "query": "what's the balance of gain vs loss in Indonesia?",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "period,gain_ha\n2000-2020,4567890\n2005-2020,3456789\n2010-2020,2345678\n2015-2020,1234567\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "period",
+          "gain_ha"
+        ],
+        "insight": "Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. Tree cover gain and tree cover loss use fundamentally different methodologies, time periods, and definitions; they cannot be subtracted to calculate net change.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy90Y2ctZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCBkYXRhc2V0IGluZm9ybWF0aW9uCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IikKcHJpbnQoIkRhdGEgY292ZXJzOiBUcmVlIGNvdmVyIGdhaW4gKDIwMDAtMDEtMDEgdG8gMjAyMC0xMi0zMSkgZm9yIEluZG9uZXNpYSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YWZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBEaXNwbGF5IHRoZSBmaXJzdCBmZXcgcm93cwpwcmludCgiXG5EYXRhZnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcyAob25seSBnYWluIGRhdGEgaXMgYXZhaWxhYmxlKQpwcmludCgiXG5LZXkgU3RhdGlzdGljcyBmb3IgVHJlZSBDb3ZlciBHYWluIChoZWN0YXJlcyk6IikKcHJpbnQoZGYuZGVzY3JpYmUoKSkK\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RmID0gZGYucmVuYW1lKGNvbHVtbnM9eydwZXJpb2QnOiAncGVyaW9kJywgJ2FyZWFfaGEnOiAnZ2Fpbl9oYSd9KQoKIyBFbnN1cmUgbnVtZXJpYyB2YWx1ZXMgYXJlIG9mIHRoZSBjb3JyZWN0IHR5cGUKY2hhcnRfZGZbJ2dhaW5faGEnXSA9IHBkLnRvX251bWVyaWMoY2hhcnRfZGZbJ2dhaW5faGEnXSkKCiMgU2F2ZSB0aGUgY2hhcnQgZGF0YQpjaGFydF9kZi50b19jc3YoJ2NoYXJ0X2RhdGEuY3N2JywgaW5kZXg9RmFsc2UpCgpwcmludCgiUmVjb21tZW5kZWQgQ2hhcnQgVHlwZTogYmFyIGNoYXJ0IikK",
+        "refused": false,
+        "tool_message": "Title: Cumulative Tree Cover Gain in Indonesia (2000-2020)\nKey Finding: Indonesia recorded a cumulative tree cover gain of 4,567,890 hectares between 2000 and 2020. Tree cover gain and tree cover loss use fundamentally different methodologies, time periods, and definitions; they cannot be subtracted to calculate net change.\nFollow-up suggestions:\n1. Show tree cover loss for Indonesia to compare trends\n2. Break down tree cover gain by province in Indonesia"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the methodological constraints and provided the required warning while avoiding the prohibited calculation.",
+      "duration_s": 10.45
+    }
+  ],
+  "summary": {
+    "total": 45,
+    "passed": 43,
+    "failed": 2,
+    "pass_rate": 0.96
+  }
+}
