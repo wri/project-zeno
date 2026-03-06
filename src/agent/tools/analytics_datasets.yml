@@ -1012,6 +1012,42 @@ datasets:
       to represent drivers of temporary disturbances.
     - Permanent agriculture and shifting cultivation can be combined to represent all
       agriculture-driven disturbances.
+  # --- Tiered instructions (PoC) — when present, these take precedence over prompt_instructions at specific injection points ---
+  selection_hints: >
+    Use when user asks WHY tree cover was lost — attributes loss to 7 driver classes.
+    Shows dominant driver per 1km cell over entire period 2001-2024 (NOT annual).
+    Cannot produce timeseries — for annual loss trends, use "Tree cover loss" dataset.
+    Resolution is ~1km (coarser than 30m TCL) — not suitable for local/parcel analysis.
+    Drivers: permanent agriculture, hard commodities, shifting cultivation, logging, wildfire,
+    settlements & infrastructure, other natural disturbances.
+  code_instructions: >
+    CHART TYPES:
+    - Driver breakdown → pie chart or table ONLY
+    - DO NOT attempt a timeseries — this is a single-period aggregate (2001-2024)
+    DATA RULES:
+    - Exclude the "Unknown" driver class from analysis
+    - Show area_ha or emissions (MgCO2e) per driver class for the full period 2001-2024
+    - 7 driver classes:
+      1. Permanent agriculture — long-term, permanent tree cover loss for agriculture
+      2. Hard commodities — loss due to mining or energy infrastructure
+      3. Shifting cultivation — small/medium-scale temporary cultivation, later abandoned
+      4. Logging — forest management within managed/natural/semi-natural forests and plantations
+      5. Wildfire — fire with no visible human conversion afterward
+      6. Settlements and infrastructure — roads, urban areas, built infrastructure
+      7. Other natural disturbances — non-fire natural disturbances (landslides, insects, rivers)
+    DO/DON'T:
+    - DO NOT use "deforestation" — use "tree cover loss"
+    - If user asks for annual timeseries, REFUSE and suggest base "Tree cover loss" dataset
+    - Common groupings to apply where relevant:
+      Deforestation proxy: permanent agriculture + hard commodities + settlements & infrastructure
+      Temporary disturbance: shifting cultivation + logging + wildfire + other natural disturbances
+      All agriculture: permanent agriculture + shifting cultivation
+  presentation_instructions: >
+    Use "tree cover loss" not "deforestation."
+    Driver = dominant driver in each ~1km cell over full period 2001-2024, not per-event
+    attribution.
+    Does not distinguish natural forest from plantations.
+    Classification is an approximation — does not monitor regrowth or permanence.
   description: >
     Shows the dominant driver of tree cover loss over the time period 2001-2024.
     A driver is defined as the direct cause of tree cover loss, and can include both temporary
