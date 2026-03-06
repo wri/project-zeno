@@ -1,0 +1,995 @@
+{
+  "branch": "tiered-dataset-instructions",
+  "timestamp": "20260306T020547Z",
+  "results": [
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[What are the main causes of disturbance in the Democratic Republic of Congo?]",
+      "query": "What are the main causes of disturbance in the Democratic Republic of Congo?",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nWater-related,13823.0\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "'Conversion' and 'Fire-related' activities are the primary drivers of vegetation disturbance in the Democratic Republic of Congo, accounting for over 77% of classified alerts between June and November 2024. These alerts represent ecosystem disturbances detected via satellite and may include both human-caused and natural events.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBuYW1lIGFuZCBkYXRlIHJhbmdlIChkZXJpdmVkIGZyb20gdGhlIHByb2JsZW0gZGVzY3JpcHRpb24pCnByaW50KCJEYXRhc2V0IGluIHVzZTogaW5wdXRfZmlsZV8wLmNzdiIpCnByaW50KCJEYXRlIHJhbmdlOiAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzAiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlIGFuZCB0eXBlcwpwcmludCgiXG5EYXRhRnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgojIERpc3BsYXkgdGhlIGZpcnN0IGZldyByb3dzIHRvIHVuZGVyc3RhbmQgdGhlIGRhdGEKcHJpbnQoIlxuRGF0YUZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3M6IHRvdGFsIGFyZWEgZGlzdHVyYmVkIGJ5IGVhY2ggZHJpdmVyCiMgRXhjbHVkZSAnVW5jbGFzc2lmaWVkJyBhbGVydHMgdG8gZm9jdXMgb24ga25vd24gZHJpdmVycywgYXMgcGVyIGRhdGFzZXQtc3BlY2lmaWMgcnVsZXMgdG8gaGlnaGxpZ2h0IGtub3duIGRyaXZlcnMuCmNsYXNzaWZpZWRfZGYgPSBkZltkZlsnZHJpdmVyJ10gIT0gJ1VuY2xhc3NpZmllZCddCmRyaXZlcl9zdW1tYXJ5ID0gY2xhc3NpZmllZF9kZi5ncm91cGJ5KCdkcml2ZXInKVsnYXJlYV9oYSddLnN1bSgpLnNvcnRfdmFsdWVzKGFzY2VuZGluZz1GYWxzZSkKCnByaW50KCJcblRvdGFsIGFyZWEgKGhlY3RhcmVzKSBkaXN0dXJiZWQgYnkgZWFjaCBjbGFzc2lmaWVkIGRyaXZlcjoiKQpwcmludChkcml2ZXJfc3VtbWFyeSkKCiMgQ2FsY3VsYXRlIHRoZSBwZXJjZW50YWdlIGNvbnRyaWJ1dGlvbiBvZiBlYWNoIGNsYXNzaWZpZWQgZHJpdmVyCnRvdGFsX2NsYXNzaWZpZWRfYXJlYSA9IGRyaXZlcl9zdW1tYXJ5LnN1bSgpCmRyaXZlcl9wZXJjZW50YWdlID0gKGRyaXZlcl9zdW1tYXJ5IC8gdG90YWxfY2xhc3NpZmllZF9hcmVhICogMTAwKS5yb3VuZCgyKQpwcmludCgiXG5QZXJjZW50YWdlIG9mIHRvdGFsIGNsYXNzaWZpZWQgYXJlYSBkaXN0dXJiZWQgYnkgZWFjaCBkcml2ZXI6IikKcHJpbnQoZHJpdmVyX3BlcmNlbnRhZ2UpCgojIENhbGN1bGF0ZSBvdmVyYWxsIHN0YXRpc3RpY3MKdG90YWxfZGlzdHVyYmFuY2VfYXJlYSA9IGRmWydhcmVhX2hhJ10uc3VtKCkKdW5jbGFzc2lmaWVkX2FyZWEgPSBkZltkZlsnZHJpdmVyJ10gPT0gJ1VuY2xhc3NpZmllZCddWydhcmVhX2hhJ10uc3VtKCkKcGVyY2VudGFnZV91bmNsYXNzaWZpZWQgPSAodW5jbGFzc2lmaWVkX2FyZWEgLyB0b3RhbF9kaXN0dXJiYW5jZV9hcmVhICogMTAwKS5yb3VuZCgyKQoKcHJpbnQoZiJcblRvdGFsIGRpc3R1cmJhbmNlIGFyZWEgKGluY2x1ZGluZyB1bmNsYXNzaWZpZWQpOiB7dG90YWxfZGlzdHVyYmFuY2Vf",
+        "refused": false,
+        "tool_message": "Title: Main Causes of Vegetation Disturbance in DRC (June - Nov 2024)\nKey Finding: 'Conversion' and 'Fire-related' activities are the primary drivers of vegetation disturbance in the Democratic Republic of Congo, accounting for over 77% of classified alerts between June and November 2024. These alerts represent ecosystem disturbances detected via satellite and may include both human-caused and natural events.\nFollow-up suggestions:\n1. Compare these disturbance drivers with the previous six-month period\n2. Analyze tree cover loss by dominant driver for a historical perspective (2001-2023)"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the disturbance drivers in the DRC, uses a pie chart as requested, and provides the area metrics for each category.",
+      "duration_s": 17.16
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[Show the driver breakdown of ecosystem disturbance alerts in DRC]",
+      "query": "Show the driver breakdown of ecosystem disturbance alerts in DRC",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nUnclassified,20480.0\nWater-related,13823.0\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "Conversion and fire-related activities are the primary drivers of ecosystem disturbance alerts in the DRC, representing over 70% of the total disturbed area. These alerts detect vegetation cover changes but do not distinguish between human-caused conversion and temporary disturbances like harvesting.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyAoRElTVC1BTEVSVCkgZm9yIERlbW9jcmF0aWMgUmVwdWJsaWMgb2YgQ29uZ28sIDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCkiKQpwcmludCgiXG5EYXRhIHN0cnVjdHVyZSBhbmQgdHlwZXM6IikKcHJpbnQoZGYuaW5mbygpKQpwcmludCgiXG5GaXJzdCA1IHJvd3M6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUgdG90YWwgYXJlYSBkaXN0dXJiZWQKdG90YWxfYXJlYV9oYSA9IGRmWydhcmVhX2hhJ10uc3VtKCkKcHJpbnQoZiJcblRvdGFsIGFyZWEgZGlzdHVyYmVkOiB7dG90YWxfYXJlYV9oYTouMmZ9IGhlY3RhcmVzIikKCiMgQ2FsY3VsYXRlIGFyZWEgYnkgZHJpdmVyCmRyaXZlcl9icmVha2Rvd24gPSBkZi5ncm91cGJ5KCdkcml2ZXInKVsnYXJlYV9oYSddLnN1bSgpLnNvcnRfdmFsdWVzKGFzY2VuZGluZz1GYWxzZSkKcHJpbnQoIlxuQXJlYSBkaXN0dXJiZWQgYnkgZHJpdmVyOiIpCnByaW50KGRyaXZlcl9icmVha2Rvd24udG9fc3RyaW5nKCkpCgojIENhbGN1bGF0ZSBwZXJjZW50YWdlIGJ5IGRyaXZlcgpkcml2ZXJfcGVyY2VudGFnZSA9IChkcml2ZXJfYnJlYWtkb3duIC8gdG90YWxfYXJlYV9oYSkgKiAxMDAKcHJpbnQoIlxuUGVyY2VudGFnZSBvZiB0b3RhbCBhcmVhIGJ5IGRyaXZlcjoiKQpwcmludChkcml2ZXJfcGVyY2VudGFnZS50b19zdHJpbmcoKSkK\nIyBHcm91cCBieSBkcml2ZXIgYW5kIHN1bSB0aGUgYXJlYQpjaGFydF9kZiA9IGRmLmdyb3VwYnkoJ2RyaXZlcicpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQpjaGFydF9kZi5jb2x1bW5zID0gWyduYW1lJywgJ3ZhbHVlJ10KCiMgU29ydCBieSB2YWx1ZSBmb3IgYmV0dGVyIHJlYWRhYmlsaXR5IGluIHRoZSBjaGFydApjaGFydF9kZiA9IGNoYXJ0X2RmLnNvcnRfdmFsdWVzKGJ5PSd2YWx1ZScsIGFzY2VuZGluZz1GYWxzZSkKCiMgU2F2ZSB0aGUgRGF0YUZyYW1lIHRvIGEgQ1NWIGZpbGUKY2hhcnRfZGYudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQoKcHJpbnQoIkNoYXJ0IFR5cGU6IHBpZSIpCg==",
+        "refused": false,
+        "tool_message": "Title: Driver Breakdown of Ecosystem Disturbance Alerts in DRC (June - Nov 2024)\nKey Finding: Conversion and fire-related activities are the primary drivers of ecosystem disturbance alerts in the DRC, representing over 70% of the total disturbed area. These alerts detect vegetation cover changes but do not distinguish between human-caused conversion and temporary disturbances like harvesting.\nFollow-up suggestions:\n1. Show the monthly trend of ecosystem disturbance alerts in DRC for 2024\n2. Compare ecosystem disturbance drivers with annual tree cover loss data for a historical perspective"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the required chart type, grouped the data by the requested drivers, and used the area metric for the values.",
+      "duration_s": 10.44
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[Distribution of disturbance types in the Democratic Republic of Congo]",
+      "query": "Distribution of disturbance types in the Democratic Republic of Congo",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nUnclassified,20480.0\nWater-related,13823.0\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "Conversion and fire-related activities are the most frequent drivers of vegetation disturbance alerts in the Democratic Republic of Congo, representing approximately 70% of the total disturbed area detected between June and November 2024. These alerts identify vegetation cover loss but do not distinguish between human-caused and natural disturbances, such as timber harvesting in plantations or crop harvesting.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgZm9yIERlbW9jcmF0aWMgUmVwdWJsaWMgb2YgQ29uZ28sIDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCiMgUHJpbnQgdGhlIGhlYWQgb2YgdGhlIERhdGFGcmFtZQpwcmludCgiXG5EYXRhRnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwp0b3RhbF9hcmVhX2Rpc3R1cmJlZCA9IGRmWydhcmVhX2hhJ10uc3VtKCkKZGlzdHVyYmFuY2VfYnlfZHJpdmVyID0gZGYuZ3JvdXBieSgnZHJpdmVyJylbJ2FyZWFfaGEnXS5zdW0oKS5zb3J0X3ZhbHVlcyhhc2NlbmRpbmc9RmFsc2UpCnBlcmNlbnRhZ2VfYnlfZHJpdmVyID0gKGRpc3R1cmJhbmNlX2J5X2RyaXZlciAvIHRvdGFsX2FyZWFfZGlzdHVyYmVkKSAqIDEwMAoKcHJpbnQoZiJcblRvdGFsIGFyZWEgZGlzdHVyYmVkOiB7dG90YWxfYXJlYV9kaXN0dXJiZWQ6LjJmfSBoZWN0YXJlcyIpCnByaW50KCJcbkFyZWEgKGhhKSBkaXN0dXJiZWQgYnkgZWFjaCBkcml2ZXI6IikKcHJpbnQoZGlzdHVyYmFuY2VfYnlfZHJpdmVyLmFwcGx5KGxhbWJkYSB4OiBmInt4OiwuMmZ9IikpCnByaW50KCJcblBlcmNlbnRhZ2UgKCUpIG9mIHRvdGFsIGFyZWEgZGlzdHVyYmVkIGJ5IGVhY2ggZHJpdmVyOiIpCnByaW50KHBlcmNlbnRhZ2VfYnlfZHJpdmVyLmFwcGx5KGxhbWJkYSB4OiBmInt4Oi4yZn0lIikpCg==\nIyBBZ2dyZWdhdGUgZGF0YSBieSBkcml2ZXIgZm9yIHRoZSBwaWUgY2hhcnQKY2hhcnRfZGF0YV9kZiA9IGRmLmdyb3VwYnkoJ2RyaXZlcicpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQpjaGFydF9kYXRhX2RmLmNvbHVtbnMgPSBbJ25hbWUnLCAndmFsdWUnXQoKIyBTb3J0IGZvciBiZXR0ZXIgcHJlc2VudGF0aW9uIGluIHRoZSBwaWUgY2hhcnQgKGxhcmdlc3QgdG8gc21hbGxlc3QpCmNoYXJ0X2RhdGFfZGYgPSBjaGFydF9kYXRhX2RmLnNvcnRfdmFsdWVzKGJ5PSd2YWx1ZScsIGFzY2VuZGluZz1GYWxzZSkKCnByaW50KCJcbkNoYXJ0IERhdGEgSGVhZDoiKQpwcmludChjaGFydF9kYXRhX2RmLmhlYWQoKSkKCiMgQ29udmVydCB0byBkaWN0aW9uYXJ5IGZvcm1hdCBmb3IgY2hhcnRfZGF0YS5jc3YKY2hhcnRfZGF0YV9saXN0ID0gY2hhcnRfZGF0YV9kZi50b19kaWN0KG9yaWVudD0ncmVjb3JkcycpCg==\naW1wb3J0IGpzb24KCiMgU2F2ZSB0aGUgRGF0YUZyYW1lIGFzIG",
+        "refused": false,
+        "tool_message": "Title: Distribution of Disturbance Types in DRC (June - Nov 2024)\nKey Finding: Conversion and fire-related activities are the most frequent drivers of vegetation disturbance alerts in the Democratic Republic of Congo, representing approximately 70% of the total disturbed area detected between June and November 2024. These alerts identify vegetation cover loss but do not distinguish between human-caused and natural disturbances, such as timber harvesting in plantations or crop harvesting.\nFollow-up suggestions:\n1. Compare disturbance types with annual tree cover loss data for historical context\n2. Analyze disturbance alerts for a specific province within the Democratic Republic of Congo"
+      },
+      "passed": true,
+      "comment": "The output successfully meets all rubric requirements, providing a pie chart of disturbance types in the DRC using area metrics.",
+      "duration_s": 14.74
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[Provide a proportional breakdown of disturbance alert drivers for the Democratic Republic of Congo]",
+      "query": "Provide a proportional breakdown of disturbance alert drivers for the Democratic Republic of Congo",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nUnclassified,20480.0\nWater-related,13823.0\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "'Conversion' and 'Fire-related' events are the most frequent drivers of vegetation disturbance alerts in the Democratic Republic of Congo, together accounting for over 70% of the total disturbed area. These alerts represent vegetation cover loss or disturbance across all ecosystems and do not necessarily imply permanent deforestation or land-use conversion.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiVXNpbmcgZGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzLCAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZQpwcmludCgiXG4tLS0gRGF0YUZyYW1lIEluZm8gLS0tIikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuLS0tIERhdGFGcmFtZSBIZWFkIC0tLSIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ29udmVydCAnYWxlcnRfZGF0ZScgdG8gZGF0ZXRpbWUgZm9yIHByb3BlciBkYXRlIHJhbmdlIGNhbGN1bGF0aW9uCmRmWydhbGVydF9kYXRlJ10gPSBwZC50b19kYXRldGltZShkZlsnYWxlcnRfZGF0ZSddKQoKIyBDYWxjdWxhdGUgdG90YWwgYXJlYSBkaXN0dXJiZWQKdG90YWxfYXJlYV9oYSA9IGRmWydhcmVhX2hhJ10uc3VtKCkKcHJpbnQoZiJcblRvdGFsIGFyZWEgZGlzdHVyYmVkOiB7dG90YWxfYXJlYV9oYTosLjJmfSBoZWN0YXJlcyIpCgojIENhbGN1bGF0ZSBhcmVhIGJ5IGRyaXZlcgphcmVhX2J5X2RyaXZlciA9IGRmLmdyb3VwYnkoJ2RyaXZlcicpWydhcmVhX2hhJ10uc3VtKCkuc29ydF92YWx1ZXMoYXNjZW5kaW5nPUZhbHNlKQpwcmludCgiXG4tLS0gQXJlYSBieSBEcml2ZXIgKEhlY3RhcmVzKSAtLS0iKQpwcmludChhcmVhX2J5X2RyaXZlci5hcHBseShsYW1iZGEgeDogZid7eDosLjJmfScpKQoKIyBDYWxjdWxhdGUgcHJvcG9ydGlvbmFsIGJyZWFrZG93biBieSBkcml2ZXIKcHJvcG9ydGlvbmFsX2JyZWFrZG93biA9IChhcmVhX2J5X2RyaXZlciAvIHRvdGFsX2FyZWFfaGEpICogMTAwCnByaW50KCJcbi0tLSBQcm9wb3J0aW9uYWwgQnJlYWtkb3duIGJ5IERyaXZlciAoJSkgLS0tIikKcHJpbnQocHJvcG9ydGlvbmFsX2JyZWFrZG93bi5hcHBseShsYW1iZGEgeDogZid7eDouMmZ9JScpKQoKIyBDaGVjayBpZiBhbnkgZHJpdmVyIGRvbWluYXRlcyAoPjgwJSkgaW4gYW55IG1vbnRoCm1vbnRobHlfZHJpdmVyX3Byb3BvcnRpb25zID0gZGYuZ3JvdXBieShbJ2FsZXJ0X2RhdGUnLCAnZHJpdmVyJ10pWydhcmVhX2hhJ10uc3VtKCkudW5zdGFjayhmaWxsX3ZhbHVlPTApCm1vbnRobHlfZHJpdmVyX3Byb3BvcnRpb25zID0gbW9udGhseV9kcml2ZXJfcHJvcG9ydGlvbnMuYXBwbHkobGFtYmRhIHg6IHggLyB4LnN1bSgpICogMTAwLCBheGlzPTEpCgpkb21pbmF0aW5nX2RyaXZlcl9tb250aHMgPSBbXQpmb3IgaW5kZXgsIHJvdyBpbiBtb250aGx5X2RyaXZlcl9wcm9wb3J0aW9ucy5pdGVycm93cygpOgogICAgZm9yIGRyaXZlciwgcHJvcG9ydGlvbiBpbiByb3cuaXRlbXMoKToKICAgICAgICBpZiBwcm9wb3J0",
+        "refused": false,
+        "tool_message": "Title: Proportional Breakdown of Disturbance Alert Drivers in DRC (June - Nov 2024)\nKey Finding: 'Conversion' and 'Fire-related' events are the most frequent drivers of vegetation disturbance alerts in the Democratic Republic of Congo, together accounting for over 70% of the total disturbed area. These alerts represent vegetation cover loss or disturbance across all ecosystems and do not necessarily imply permanent deforestation or land-use conversion.\nFollow-up suggestions:\n1. Compare disturbance drivers with annual tree cover loss data for the same period\n2. Break down disturbance alerts by month to identify seasonal fluctuations"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the required chart type, used the appropriate categorical drivers for the segments, and calculated the proportional breakdown based on area in hectares as requested.",
+      "duration_s": 14.76
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[Categorize the DIST-ALERT data by driver classification for DRC]",
+      "query": "Categorize the DIST-ALERT data by driver classification for DRC",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nUnclassified,20480.0\nWater-related,13823.0\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "Conversion and fire-related activities represent the largest shares of vegetation disturbance alerts in the DRC, accounting for approximately 37% and 33% of the total area respectively. These alerts indicate ecosystem disturbances but do not necessarily distinguish between human-caused activities and natural events, nor do they confirm permanent land cover conversion.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgZm9yIERlbW9jcmF0aWMgUmVwdWJsaWMgb2YgQ29uZ28sIDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCkiKQpwcmludCgiXG5EYXRhRnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgojIFByaW50IHRoZSBoZWFkIG9mIHRoZSBkYXRhZnJhbWUgdG8gaW5zcGVjdCB0aGUgZGF0YQpwcmludCgiXG5EYXRhRnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljczogdG90YWwgYXJlYSBpbiBoZWN0YXJlcyBwZXIgZHJpdmVyIGNsYXNzaWZpY2F0aW9uCmRyaXZlcl9hcmVhID0gZGYuZ3JvdXBieSgnZHJpdmVyJylbJ2FyZWFfaGEnXS5zdW0oKS5zb3J0X3ZhbHVlcyhhc2NlbmRpbmc9RmFsc2UpCnRvdGFsX2FyZWEgPSBkZlsnYXJlYV9oYSddLnN1bSgpCmRyaXZlcl9wZXJjZW50YWdlID0gKGRyaXZlcl9hcmVhIC8gdG90YWxfYXJlYSAqIDEwMCkucm91bmQoMikKCnByaW50KCJcblRvdGFsIGFyZWEgKGhhKSBwZXIgZHJpdmVyIGNsYXNzaWZpY2F0aW9uOiIpCnByaW50KGRyaXZlcl9hcmVhKQoKcHJpbnQoIlxuUGVyY2VudGFnZSBvZiB0b3RhbCBhcmVhIHBlciBkcml2ZXIgY2xhc3NpZmljYXRpb246IikKcHJpbnQoZHJpdmVyX3BlcmNlbnRhZ2UpCgojIENoZWNrIGZvciB1bmNsYXNzaWZpZWQgYWxlcnRzIGFzIHBlciBydWxlcwp1bmNsYXNzaWZpZWRfYWxlcnRzID0gZGZbZGZbJ2RyaXZlciddID09ICdVbmNsYXNzaWZpZWQnXVsnYXJlYV9oYSddLnN1bSgpCnByaW50KGYiXG5Ub3RhbCAnVW5jbGFzc2lmaWVkJyBhbGVydHMgYXJlYToge3VuY2xhc3NpZmllZF9hbGVydHM6LjJmfSBoYSIpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIHRoZSBwaWUgY2hhcnQKIyBVc2luZyB0aGUgZHJpdmVyX2FyZWEgU2VyaWVzIGNhbGN1bGF0ZWQgaW4gU3RlcCAxLCB3aGljaCBhbHJlYWR5IGV4Y2x1ZGVzICdVbmNsYXNzaWZpZWQnIGlmIGRlc2lyZWQsCiMgYnV0IGZvciBjb21wbGV0ZW5lc3MgYW5kIHBlciBpbnN0cnVjdGlvbnMsIGl0IGlzIGluY2x1ZGVkLgpjaGFydF9kYXRhX2RmID0gZHJpdmVyX2FyZWEucmVzZXRfaW5kZXgoKQpjaGFydF9kYXRhX2RmLmNvbHVtbnMgPSBbJ25hbWUnLCAndmFsdWUnXQoKIyBTYXZlIHRoZSBEYXRhRnJhbWUgYXMgY2hhcnRfZGF0YS5jc3YKY2hhcnRfZGF0YV9kZi50b19jc3YoJ2NoYXJ0X2RhdGEuY3N2JywgaW5kZXg9RmFsc2UpCgpwcmludCgiXG5DaGFydCBUeXBlOiBwaWUiKQo=",
+        "refused": false,
+        "tool_message": "Title: Distribution of Vegetation Disturbance Alerts by Driver in DRC (June-Nov 2024)\nKey Finding: Conversion and fire-related activities represent the largest shares of vegetation disturbance alerts in the DRC, accounting for approximately 37% and 33% of the total area respectively. These alerts indicate ecosystem disturbances but do not necessarily distinguish between human-caused activities and natural events, nor do they confirm permanent land cover conversion.\nFollow-up suggestions:\n1. Compare these disturbance drivers with annual tree cover loss data for DRC to assess permanent conversion trends\n2. Analyze the monthly trend of fire-related alerts in DRC from June to November 2024"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the requested data for DRC, used the appropriate pie chart format, and categorized the data by driver classification as required.",
+      "duration_s": 10.64
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[What is the distribution of disturbance causes across driver classes in the DRC?]",
+      "query": "What is the distribution of disturbance causes across driver classes in the DRC?",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,37.1\nFire-related,33.38\nCropland dynamics,13.65\nUnclassified,9.48\nWater-related,6.4\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "'Conversion' and 'Fire-related' activities are the primary drivers of vegetation disturbance in the DRC, accounting for over 70% of the total disturbed area. These alerts detect changes in all vegetation types and do not necessarily indicate permanent deforestation or human-caused conversion.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoZiJEYXRhc2V0IGluIHVzZTogaW5wdXRfZmlsZV8wLmNzdiAoRGVtb2NyYXRpYyBSZXB1YmxpYyBvZiBDb25nbykg4oCUIEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyAoRElTVC1BTEVSVCkgKDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCkiKQoKcHJpbnQoIlxuRGF0YSBTdHJ1Y3R1cmU6IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRmlyc3QgNSByb3dzOiIpCnByaW50KGRmLmhlYWQoKSkKCnByaW50KCJcbktleSBTdGF0aXN0aWNzOiIpCnRvdGFsX2FyZWFfcGVyX2RyaXZlciA9IGRmLmdyb3VwYnkoJ2RyaXZlcicpWydhcmVhX2hhJ10uc3VtKCkuc29ydF92YWx1ZXMoYXNjZW5kaW5nPUZhbHNlKQp0b3RhbF9kaXN0dXJiYW5jZV9hcmVhID0gZGZbJ2FyZWFfaGEnXS5zdW0oKQpwZXJjZW50YWdlX3Blcl9kcml2ZXIgPSAodG90YWxfYXJlYV9wZXJfZHJpdmVyIC8gdG90YWxfZGlzdHVyYmFuY2VfYXJlYSkgKiAxMDAKCnByaW50KCJcblRvdGFsIGRpc3R1cmJlZCBhcmVhIChoZWN0YXJlcykgcGVyIGRyaXZlciBjbGFzczoiKQpwcmludCh0b3RhbF9hcmVhX3Blcl9kcml2ZXIpCgpwcmludChmIlxuVG90YWwgZGlzdHVyYmFuY2UgYXJlYToge3RvdGFsX2Rpc3R1cmJhbmNlX2FyZWE6LjJmfSBoZWN0YXJlcyIpCgpwcmludCgiXG5QZXJjZW50YWdlIG9mIHRvdGFsIGRpc3R1cmJhbmNlIHBlciBkcml2ZXIgY2xhc3M6IikKcHJpbnQocGVyY2VudGFnZV9wZXJfZHJpdmVyKQo=\nY2hhcnRfZGF0YV9kZiA9IHBlcmNlbnRhZ2VfcGVyX2RyaXZlci5yZXNldF9pbmRleCgpCmNoYXJ0X2RhdGFfZGYuY29sdW1ucyA9IFsnbmFtZScsICd2YWx1ZSddCmNoYXJ0X2RhdGFfZGZbJ3ZhbHVlJ10gPSBjaGFydF9kYXRhX2RmWyd2YWx1ZSddLnJvdW5kKDIpICMgUm91bmQgdG8gMiBkZWNpbWFsIHBsYWNlcyBmb3IgcHJlc2VudGF0aW9uCgpwcmludChjaGFydF9kYXRhX2RmKQo=\nY2hhcnRfZGF0YV9kZi50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCg==",
+        "refused": false,
+        "tool_message": "Title: Distribution of Disturbance Causes by Driver Class in DRC (June - Nov 2024)\nKey Finding: 'Conversion' and 'Fire-related' activities are the primary drivers of vegetation disturbance in the DRC, accounting for over 70% of the total disturbed area. These alerts detect changes in all vegetation types and do not necessarily indicate permanent deforestation or human-caused conversion.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for historical context\n2. Analyze the distribution of disturbance causes for a different time period in 2024"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the requested chart type and processes the data to show the distribution of disturbance drivers in the DRC as requested.",
+      "duration_s": 16.18
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[disturbance causes in DRC]",
+      "query": "disturbance causes in DRC",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nUnclassified,20480.0\nWater-related,13823.0\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "Conversion and fire-related incidents are the most frequent drivers identified in the disturbance alerts, representing approximately 37% and 33% of the total area respectively. These alerts monitor all vegetation types and may include temporary disturbances such as crop harvesting or timber extraction rather than permanent land cover change.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCBpbiB1c2U6IGlucHV0X2ZpbGVfMC5jc3YiKQpwcmludCgiR2VvZ3JhcGhpYyBzY29wZTogRGVtb2NyYXRpYyBSZXB1YmxpYyBvZiBDb25nbyIpCnByaW50KCJEYXRlIHJhbmdlOiAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzAiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCiMgRGlzcGxheSB0aGUgZmlyc3QgZmV3IHJvd3MKcHJpbnQoIlxuRGF0YUZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3M6IHRvdGFsIGFyZWEgZGlzdHVyYmVkIGFuZCBkaXN0cmlidXRpb24gYnkgZHJpdmVyCnRvdGFsX2Rpc3R1cmJlZF9hcmVhID0gZGZbJ2FyZWFfaGEnXS5zdW0oKQpkaXN0dXJiYW5jZV9ieV9kcml2ZXIgPSBkZi5ncm91cGJ5KCdkcml2ZXInKVsnYXJlYV9oYSddLnN1bSgpLnNvcnRfdmFsdWVzKGFzY2VuZGluZz1GYWxzZSkKcGVyY2VudGFnZV9ieV9kcml2ZXIgPSAoZGlzdHVyYmFuY2VfYnlfZHJpdmVyIC8gdG90YWxfZGlzdHVyYmVkX2FyZWEgKiAxMDApLnJvdW5kKDIpCgpwcmludChmIlxuVG90YWwgZGlzdHVyYmVkIGFyZWEgYWNyb3NzIGFsbCBkcml2ZXJzOiB7dG90YWxfZGlzdHVyYmVkX2FyZWE6LC4yZn0gaGVjdGFyZXMiKQpwcmludCgiXG5EaXN0dXJiYW5jZSBieSBEcml2ZXIgKGhlY3RhcmVzKToiKQpwcmludChkaXN0dXJiYW5jZV9ieV9kcml2ZXIpCnByaW50KCJcblBlcmNlbnRhZ2Ugb2YgVG90YWwgRGlzdHVyYmFuY2UgYnkgRHJpdmVyOiIpCnByaW50KHBlcmNlbnRhZ2VfYnlfZHJpdmVyKQo=\nIyBQcmVwYXJlIGRhdGEgZm9yIHBpZSBjaGFydApjaGFydF9kYXRhX2RmID0gZGlzdHVyYmFuY2VfYnlfZHJpdmVyLnJlc2V0X2luZGV4KCkKY2hhcnRfZGF0YV9kZi5jb2x1bW5zID0gWyduYW1lJywgJ3ZhbHVlJ10KCiMgRW5zdXJlICd2YWx1ZScgaXMgbnVtZXJpYwpjaGFydF9kYXRhX2RmWyd2YWx1ZSddID0gcGQudG9fbnVtZXJpYyhjaGFydF9kYXRhX2RmWyd2YWx1ZSddKQoKIyBTYXZlIHRoZSBkYXRhIHRvIGNoYXJ0X2RhdGEuY3N2CmNoYXJ0X2RhdGFfZGYudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQoKcHJpbnQoIlJlY29tbWVuZGVkIENoYXJ0IFR5cGU6IHBpZSIpCg==",
+        "refused": false,
+        "tool_message": "Title: Distribution of Ecosystem Disturbance Causes in DRC (June - Nov 2024)\nKey Finding: Conversion and fire-related incidents are the most frequent drivers identified in the disturbance alerts, representing approximately 37% and 33% of the total area respectively. These alerts monitor all vegetation types and may include temporary disturbances such as crop harvesting or timber extraction rather than permanent land cover change.\nFollow-up suggestions:\n1. Compare disturbance drivers with annual tree cover loss data for DRC\n2. Analyze ecosystem disturbance alerts for a different time period in 2024"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the disturbance drivers in DRC using a pie chart with area-based values as requested.",
+      "duration_s": 19.27
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[what's causing the alerts in DRC? show a breakdown]",
+      "query": "what's causing the alerts in DRC? show a breakdown",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nUnclassified,20480.0\nWater-related,13823.0\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "'Conversion' and 'Fire-related' activities are the primary drivers of vegetation disturbance in the DRC, accounting for over 70% of the 216,108 hectares alerted between June and November 2024. 'Cropland dynamics' also contributes a measurable share (13.65%), while a small portion remains unclassified.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCB3aGljaCBkYXRhc2V0KHMpIGFyZSBiZWluZyB1c2VkCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKGkiBHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpICgyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKCiMgRXhwbG9yZSB0aGUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCnRvdGFsX2FsZXJ0c19hcmVhID0gZGZbJ2FyZWFfaGEnXS5zdW0oKQpkcml2ZXJfYnJlYWtkb3duID0gZGYuZ3JvdXBieSgnZHJpdmVyJylbJ2FyZWFfaGEnXS5zdW0oKS5zb3J0X3ZhbHVlcyhhc2NlbmRpbmc9RmFsc2UpCmRyaXZlcl9icmVha2Rvd25fcGVyY2VudGFnZSA9IChkcml2ZXJfYnJlYWtkb3duIC8gdG90YWxfYWxlcnRzX2FyZWEpICogMTAwCgpwcmludChmIlxuVG90YWwgYWxlcnQgYXJlYToge3RvdGFsX2FsZXJ0c19hcmVhOi4yZn0gaGVjdGFyZXMiKQpwcmludCgiXG5CcmVha2Rvd24gb2YgYWxlcnQgYXJlYSBieSBkcml2ZXI6IikKcHJpbnQoZHJpdmVyX2JyZWFrZG93bikKcHJpbnQoIlxuUGVyY2VudGFnZSBicmVha2Rvd24gb2YgYWxlcnQgYXJlYSBieSBkcml2ZXI6IikKcHJpbnQoZHJpdmVyX2JyZWFrZG93bl9wZXJjZW50YWdlKQoKIyBDaGVjayBmb3IgdGhlIDkwLWRheSBydWxlIGZvciBMREFDUyBjbGFzc2lmaWNhdGlvbiAobm90IGRpcmVjdGx5IGFwcGxpY2FibGUgaGVyZSBhcyBkYXRhIGlzIHByZS1jbGFzc2lmaWVkKQojIFRoZSBkYXRhIHJhbmdlIGlzIDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMC4gVGhlIHF1ZXJ5IGlzIGFib3V0IHRoZSBvdmVyYWxsIGJyZWFrZG93biwgbm90IHJlY2VudCB0cmVuZHMuCiMgQXNzdW1pbmcgdGhlIHByb3ZpZGVkICdkcml2ZXInIGNvbHVtbiBhbHJlYWR5IHJlZmxlY3RzIHZhbGlkIExEQUNTIGNsYXNzaWZpY2F0aW9ucyBmb3IgdGhlIGdpdmVuIHBlcmlvZC4K\nIyBBZ2dyZWdhdGUgZGF0YSBieSBkcml2ZXIKY2hhcnRfZGF0YV9kZiA9IGRmLmdyb3VwYnkoJ2RyaXZlcicpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQoKIyBSZW5hbWUgY29sdW1ucyBmb3IgY2hhcnQKY2hhcnRfZGF0YV9kZi5jb2x1bW5zID0gWyduYW1lJywgJ3ZhbHVlJ10KCiMgU29ydCBmb3IgYmV0dGVyIHZpc3VhbGl6YXRpb24gKG9wdGlvbmFsIGJ1dCBnb29kIHByYWN0aWNlIGZvciBwaWUgY2hhcnRzKQpjaGFydF9kYXRhX2RmID0gY2hhcnRfZGF0YV9",
+        "refused": false,
+        "tool_message": "Title: Breakdown of Ecosystem Disturbance Alerts in DRC by Cause (June - Nov 2024)\nKey Finding: 'Conversion' and 'Fire-related' activities are the primary drivers of vegetation disturbance in the DRC, accounting for over 70% of the 216,108 hectares alerted between June and November 2024. 'Cropland dynamics' also contributes a measurable share (13.65%), while a small portion remains unclassified.\nFollow-up suggestions:\n1. Compare these alerts with annual tree cover loss data for historical context\n2. Break down alerts by confidence level (high vs low)"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the drivers of alerts in DRC using a pie chart with area-based values as requested.",
+      "duration_s": 10.98
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[DRC alert drivers \\u2014 pie chart]",
+      "query": "DRC alert drivers \u2014 pie chart",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nWater-related,13823.0\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "Between June and November 2024, 'Conversion' and 'Fire-related' activities were the primary drivers of vegetation disturbance alerts in the DRC, representing over 78% of the classified area. These alerts detect changes in all vegetation types and do not necessarily indicate permanent deforestation.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSAoMjAyNC0wNi0wMSB0byAyMDI0LTExLTMwKSBmb3IgRGVtb2NyYXRpYyBSZXB1YmxpYyBvZiBDb25nbykiKQpwcmludCgiXG5EYXRhIHN0cnVjdHVyZSBhbmQgdHlwZXM6IikKcHJpbnQoZGYuaW5mbygpKQpwcmludCgiXG5GaXJzdCA1IHJvd3M6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUgdG90YWwgYXJlYV9oYSBmb3IgZWFjaCBkcml2ZXIKZHJpdmVyX2Rpc3RyaWJ1dGlvbiA9IGRmLmdyb3VwYnkoJ2RyaXZlcicpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQpkcml2ZXJfZGlzdHJpYnV0aW9uID0gZHJpdmVyX2Rpc3RyaWJ1dGlvbi5zb3J0X3ZhbHVlcyhieT0nYXJlYV9oYScsIGFzY2VuZGluZz1GYWxzZSkKdG90YWxfYWxlcnRzX2FyZWEgPSBkcml2ZXJfZGlzdHJpYnV0aW9uWydhcmVhX2hhJ10uc3VtKCkKZHJpdmVyX2Rpc3RyaWJ1dGlvblsncGVyY2VudGFnZSddID0gKGRyaXZlcl9kaXN0cmlidXRpb25bJ2FyZWFfaGEnXSAvIHRvdGFsX2FsZXJ0c19hcmVhKSAqIDEwMAoKcHJpbnQoIlxuS2V5IHN0YXRpc3RpY3M6IERpc3RyaWJ1dGlvbiBvZiBhbGVydHMgYnkgZHJpdmVyICh0b3RhbCBhcmVhIGluIGhlY3RhcmVzIGFuZCBwZXJjZW50YWdlKToiKQpwcmludChkcml2ZXJfZGlzdHJpYnV0aW9uLnRvX3N0cmluZyhpbmRleD1GYWxzZSkpCgojIElkZW50aWZ5IHRoZSBkYXRlIHJhbmdlCm1pbl9kYXRlID0gZGZbJ2FsZXJ0X2RhdGUnXS5taW4oKQptYXhfZGF0ZSA9IGRmWydhbGVydF9kYXRlJ10ubWF4KCkKcHJpbnQoZiJcbkFsZXJ0IGRhdGUgcmFuZ2U6IHttaW5fZGF0ZX0gdG8ge21heF9kYXRlfSIpCg==\nIyBFeGNsdWRlICdVbmNsYXNzaWZpZWQnIGZvciB0aGUgcGllIGNoYXJ0IGZvY3VzaW5nIG9uIGRyaXZlcnMKY2xhc3NpZmllZF9kcml2ZXJzX2RmID0gZHJpdmVyX2Rpc3RyaWJ1dGlvbltkcml2ZXJfZGlzdHJpYnV0aW9uWydkcml2ZXInXSAhPSAnVW5jbGFzc2lmaWVkJ10uY29weSgpCgojIFJlY2FsY3VsYXRlIHBlcmNlbnRhZ2VzIGZvciBjbGFzc2lmaWVkIGRyaXZlcnMKdG90YWxfY2xhc3NpZmllZF9hcmVhID0gY2xhc3NpZmllZF9kcml2ZXJzX2RmWydhcmVhX2hhJ10uc3VtKCkKY2xhc3NpZmllZF9kcml2ZXJzX2RmWydwZXJjZW50YWdlJ10gPSAoY2xhc3NpZmllZF9kcml2ZXJzX2RmWydhcmVhX2hhJ10gLyB0b3RhbF9jbGFzc2lmaWVkX2FyZWEpICogMTAwCgojIFByZXBhcmUgZGF0YSBmb3IgcGllIGNoYXJ0CmNoYXJ0X2RhdGEgPSBjbGFzc2lmaWVkX2RyaXZlcnNfZGZbWydkcml2ZXInLCAnYXJlYV9oYSddXS5yZW5",
+        "refused": false,
+        "tool_message": "Title: Drivers of Vegetation Disturbance Alerts in DRC (Jun-Nov 2024)\nKey Finding: Between June and November 2024, 'Conversion' and 'Fire-related' activities were the primary drivers of vegetation disturbance alerts in the DRC, representing over 78% of the classified area. These alerts detect changes in all vegetation types and do not necessarily indicate permanent deforestation.\nFollow-up suggestions:\n1. Compare these drivers with tree cover loss data for the same period\n2. Analyze disturbance alerts for a specific province in DRC"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the requested chart type, uses the appropriate categorical drivers for the slices, and utilizes area in hectares for the values.",
+      "duration_s": 14.49
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[Show me the proportion of each disturbance type in DRC]",
+      "query": "Show me the proportion of each disturbance type in DRC",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nUnclassified,20480.0\nWater-related,13823.0\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "'Conversion' and 'Fire-related' activities are the primary drivers of vegetation disturbance in the DRC, representing over 70% of the total alerts. These alerts detect changes in all vegetation types and do not necessarily distinguish between permanent land-use change and temporary disturbances like harvesting.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSAoMjAyNC0wNi0wMSB0byAyMDI0LTExLTMwKSkiKQoKcHJpbnQoIlxuRGF0YWZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YWZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUgdG90YWwgYXJlYSBmb3IgZWFjaCBkaXN0dXJiYW5jZSB0eXBlCmRpc3R1cmJhbmNlX3R5cGVfYXJlYSA9IGRmLmdyb3VwYnkoJ2RyaXZlcicpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQpkaXN0dXJiYW5jZV90eXBlX2FyZWEucmVuYW1lKGNvbHVtbnM9eydkcml2ZXInOiAnZGlzdHVyYmFuY2VfdHlwZScsICdhcmVhX2hhJzogJ3RvdGFsX2FyZWFfaGEnfSwgaW5wbGFjZT1UcnVlKQoKIyBDYWxjdWxhdGUgdGhlIHRvdGFsIGFyZWEgYWNyb3NzIGFsbCBkaXN0dXJiYW5jZSB0eXBlcwp0b3RhbF9hcmVhX3N1bSA9IGRpc3R1cmJhbmNlX3R5cGVfYXJlYVsndG90YWxfYXJlYV9oYSddLnN1bSgpCgojIENhbGN1bGF0ZSB0aGUgcHJvcG9ydGlvbiBvZiBlYWNoIGRpc3R1cmJhbmNlIHR5cGUKZGlzdHVyYmFuY2VfdHlwZV9hcmVhWydwcm9wb3J0aW9uJ10gPSAoZGlzdHVyYmFuY2VfdHlwZV9hcmVhWyd0b3RhbF9hcmVhX2hhJ10gLyB0b3RhbF9hcmVhX3N1bSkgKiAxMDAKCnByaW50KCJcbktleSBGaW5kaW5nczoiKQpwcmludCgiVG90YWwgYXJlYSAoaGVjdGFyZXMpIGFuZCBwcm9wb3J0aW9uICglKSBmb3IgZWFjaCBkaXN0dXJiYW5jZSB0eXBlOiIpCnByaW50KGRpc3R1cmJhbmNlX3R5cGVfYXJlYS5zb3J0X3ZhbHVlcyhieT0ndG90YWxfYXJlYV9oYScsIGFzY2VuZGluZz1GYWxzZSkpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgcGllIGNoYXJ0OiBlYWNoIHNsaWNlIHJlcHJlc2VudHMgYSBkaXN0dXJiYW5jZSB0eXBlIGFuZCBpdHMgdG90YWwgYXJlYS4KY2hhcnRfZGYgPSBkaXN0dXJiYW5jZV90eXBlX2FyZWFbWydkaXN0dXJiYW5jZV90eXBlJywgJ3RvdGFsX2FyZWFfaGEnXV0uY29weSgpCmNoYXJ0X2RmLnJlbmFtZShjb2x1bW5zPXsnZGlzdHVyYmFuY2VfdHlwZSc6ICduYW1lJywgJ3RvdGFsX2FyZWFfaGEnOiAndmFsdWUnfSwgaW5wbGFjZT1UcnVlKQoKIyBTb3J0IGJ5IHZhbHVlIGluIGRlc2NlbmRpbmcgb3JkZXIgZm9yIGJldHRlciB2aXN1YWxpemF0aW9uCmNoYXJ0X2RmID0gY2hhcnRfZGYuc29ydF92YWx1ZXMoYnk9J3ZhbHVlJywgYXNjZW5kaW5nPUZhbHNlKQoKcHJpbnQoIlxuQ2hhcnQgRGF0YSBIZWFkOiIpCnByaW50KGNoYXJ0X2RmLmhlYWQoKSkKCiMgYykgU0FWRSBUSEUgREFUQQpjaGFydF9kZi50b19",
+        "refused": false,
+        "tool_message": "Title: Proportion of Disturbance Types in DRC (June - Nov 2024)\nKey Finding: 'Conversion' and 'Fire-related' activities are the primary drivers of vegetation disturbance in the DRC, representing over 70% of the total alerts. These alerts detect changes in all vegetation types and do not necessarily distinguish between permanent land-use change and temporary disturbances like harvesting.\nFollow-up suggestions:\n1. Compare disturbance types with annual tree cover loss data for DRC\n2. Show the monthly trend of disturbance alerts in DRC from June to November 2024"
+      },
+      "passed": true,
+      "comment": "The output correctly uses a pie chart to display the area of different disturbance types in the DRC as requested.",
+      "duration_s": 14.22
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[Which driver dominates disturbance in the DRC?]",
+      "query": "Which driver dominates disturbance in the DRC?",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nUnclassified,20480.0\nWater-related,13823.0\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "Between June and November 2024, 'Conversion' and 'Fire-related' activities were the primary drivers of vegetation disturbance in the DRC, together accounting for over 70% of the detected area. These alerts represent all ecosystem disturbances and do not distinguish between human-caused land-use changes and natural events.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSAoMjAyNC0wNi0wMSB0byAyMDI0LTExLTMwKSkiKQpwcmludCgiXG5EYXRhIHN0cnVjdHVyZSBhbmQgdHlwZXM6IikKcHJpbnQoZGYuaW5mbygpKQpwcmludCgiXG5GaXJzdCA1IHJvd3Mgb2YgdGhlIGRhdGE6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUgdG90YWwgZGlzdHVyYmFuY2UgYXJlYSBieSBkcml2ZXIKZHJpdmVyX3N1bW1hcnkgPSBkZi5ncm91cGJ5KCdkcml2ZXInKVsnYXJlYV9oYSddLnN1bSgpLnNvcnRfdmFsdWVzKGFzY2VuZGluZz1GYWxzZSkKdG90YWxfYXJlYSA9IGRyaXZlcl9zdW1tYXJ5LnN1bSgpCmRyaXZlcl9wZXJjZW50YWdlID0gKGRyaXZlcl9zdW1tYXJ5IC8gdG90YWxfYXJlYSkgKiAxMDAKCnByaW50KCJcbktleSBmaW5kaW5nczoiKQpwcmludCgiVG90YWwgZGlzdHVyYmFuY2UgYXJlYSBieSBkcml2ZXIgKGhlY3RhcmVzKToiKQpwcmludChkcml2ZXJfc3VtbWFyeSkKcHJpbnQoIlxuUGVyY2VudGFnZSBvZiB0b3RhbCBkaXN0dXJiYW5jZSBhcmVhIGJ5IGRyaXZlcjoiKQpwcmludChkcml2ZXJfcGVyY2VudGFnZSkK\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgcGllIGNoYXJ0CmNoYXJ0X2RhdGEgPSBkcml2ZXJfc3VtbWFyeS5yZXNldF9pbmRleCgpCmNoYXJ0X2RhdGEuY29sdW1ucyA9IFsnbmFtZScsICd2YWx1ZSddCgojIFNhdmUgdG8gQ1NWCmNoYXJ0X2RhdGEudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQoKcHJpbnQoIlJlY29tbWVuZGVkIENoYXJ0IFR5cGU6IHBpZSIpCg==",
+        "refused": false,
+        "tool_message": "Title: Vegetation Disturbance by Driver in the DRC (June - Nov 2024)\nKey Finding: Between June and November 2024, 'Conversion' and 'Fire-related' activities were the primary drivers of vegetation disturbance in the DRC, together accounting for over 70% of the detected area. These alerts represent all ecosystem disturbances and do not distinguish between human-caused land-use changes and natural events.\nFollow-up suggestions:\n1. Compare these disturbance drivers with annual tree cover loss data for a historical perspective.\n2. Analyze disturbance alerts for a specific province within the DRC to identify local drivers."
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the drivers of disturbance in the DRC, uses the requested pie chart format, and provides the appropriate area-based metrics.",
+      "duration_s": 9.12
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[Rank the alert causes by area in the Democratic Republic of Congo]",
+      "query": "Rank the alert causes by area in the Democratic Republic of Congo",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nUnclassified,20480.0\nWater-related,13823.0\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "'Conversion' and 'Fire-related' drivers are the primary causes of vegetation disturbance alerts in the Democratic Republic of Congo, together affecting over 152,000 hectares. These alerts represent detected disturbances in vegetation cover and do not necessarily equate to permanent deforestation or land-use conversion.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiDigJQgR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSAoMjAyNC0wNi0wMSB0byAyMDI0LTExLTMwKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzOiBUb3RhbCBhcmVhIGZvciBlYWNoIGFsZXJ0IGNhdXNlIChkcml2ZXIpCmFsZXJ0X2NhdXNlX3JhbmtpbmcgPSBkZi5ncm91cGJ5KCdkcml2ZXInKVsnYXJlYV9oYSddLnN1bSgpLnNvcnRfdmFsdWVzKGFzY2VuZGluZz1GYWxzZSkKCnByaW50KCJcbktleSBGaW5kaW5nczoiKQpwcmludCgiUmFua2luZyBvZiBBbGVydCBDYXVzZXMgYnkgQXJlYSAoaGEpOiIpCnByaW50KGFsZXJ0X2NhdXNlX3JhbmtpbmcpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIHRoZSBwaWUgY2hhcnQKY2hhcnRfZGF0YV9kZiA9IGFsZXJ0X2NhdXNlX3JhbmtpbmcucmVzZXRfaW5kZXgoKQpjaGFydF9kYXRhX2RmLmNvbHVtbnMgPSBbJ25hbWUnLCAndmFsdWUnXQoKIyBTYXZlIHRoZSBjaGFydCBkYXRhIHRvIGEgQ1NWIGZpbGUKY2hhcnRfZGF0YV9kZi50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCgpwcmludCgiXG5DaGFydCBUeXBlOiBwaWUiKQpwcmludCgiXG5HZW5lcmF0ZWQgY2hhcnRfZGF0YS5jc3Y6IikKcHJpbnQoY2hhcnRfZGF0YV9kZi5oZWFkKCkpCg==",
+        "refused": false,
+        "tool_message": "Title: Ecosystem Disturbance Alerts by Cause in DRC (June - Nov 2024)\nKey Finding: 'Conversion' and 'Fire-related' drivers are the primary causes of vegetation disturbance alerts in the Democratic Republic of Congo, together affecting over 152,000 hectares. These alerts represent detected disturbances in vegetation cover and do not necessarily equate to permanent deforestation or land-use conversion.\nFollow-up suggestions:\n1. Compare alert causes with annual tree cover loss data for historical context\n2. Analyze ecosystem disturbance alerts for a specific province in DRC"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the requested chart type, uses the appropriate categorical drivers for segments, and calculates the area in hectares as the metric.",
+      "duration_s": 8.9
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[What's the biggest driver of vegetation disturbance in DRC?]",
+      "query": "What's the biggest driver of vegetation disturbance in DRC?",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nWater-related,13823.0\n",
+        "chart_data_rows": 4,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "'Conversion' is the most frequent driver of vegetation disturbance alerts in the DRC from June to November 2024, affecting 80,170 hectares. This is followed by fire-related disturbances, which account for 72,131 hectares of the detected alerts.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3Yg4oCUIEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyAoRElTVC1BTEVSVCkgKDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMClcbiIpCgpwcmludCgiRGF0YWZyYW1lIEluZm9ybWF0aW9uOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIHRvdGFsIGRpc3R1cmJhbmNlIGFyZWEgYnkgZHJpdmVyLCBleGNsdWRpbmcgJ1VuY2xhc3NpZmllZCcgYXMgdGhlIHF1ZXJ5IGlzIGFib3V0ICdkcml2ZXJzJy4KZGlzdHVyYmFuY2VfYnlfZHJpdmVyID0gZGZbZGZbJ2RyaXZlciddICE9ICdVbmNsYXNzaWZpZWQnXS5ncm91cGJ5KCdkcml2ZXInKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKZGlzdHVyYmFuY2VfYnlfZHJpdmVyID0gZGlzdHVyYmFuY2VfYnlfZHJpdmVyLnNvcnRfdmFsdWVzKGJ5PSdhcmVhX2hhJywgYXNjZW5kaW5nPUZhbHNlKQoKcHJpbnQoIlxuS2V5IEZpbmRpbmdzOiIpCnByaW50KCJUb3RhbCBkaXN0dXJiYW5jZSBhcmVhIGJ5IGNsYXNzaWZpZWQgZHJpdmVyIChoZWN0YXJlcyk6IikKcHJpbnQoZGlzdHVyYmFuY2VfYnlfZHJpdmVyKQoKdG90YWxfY2xhc3NpZmllZF9kaXN0dXJiYW5jZSA9IGRpc3R1cmJhbmNlX2J5X2RyaXZlclsnYXJlYV9oYSddLnN1bSgpCnByaW50KGYiXG5Ub3RhbCBjbGFzc2lmaWVkIGRpc3R1cmJhbmNlIGFyZWE6IHt0b3RhbF9jbGFzc2lmaWVkX2Rpc3R1cmJhbmNlOi4yZn0gaGVjdGFyZXMiKQoKYmlnZ2VzdF9kcml2ZXIgPSBkaXN0dXJiYW5jZV9ieV9kcml2ZXIuaWxvY1swXQpwcmludChmIlRoZSBiaWdnZXN0IGRyaXZlciBvZiB2ZWdldGF0aW9uIGRpc3R1cmJhbmNlIGlzICd7YmlnZ2VzdF9kcml2ZXJbJ2RyaXZlciddfScgd2l0aCB7YmlnZ2VzdF9kcml2ZXJbJ2FyZWFfaGEnXTouMmZ9IGhlY3RhcmVzLiIpCg==\nIyBFeGNsdWRlICdVbmNsYXNzaWZpZWQnIGFsZXJ0cyBhcyB0aGUgZ29hbCBpcyB0byBpZGVudGlmeSBzcGVjaWZpYyBkcml2ZXJzCmNsYXNzaWZpZWRfZGYgPSBkZltkZlsnZHJpdmVyJ10gIT0gJ1VuY2xhc3NpZmllZCddCgojIEFnZ3JlZ2F0ZSB0b3RhbCBhcmVhIGJ5IGRyaXZlcgpjaGFydF9kYXRhX2RmID0gY2xhc3NpZmllZF9kZi5ncm91cGJ5KCdkcml2ZXInKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKCiMgUmVuYW1lIGNvbHVtbnMgZm9yIGNoYXJ0IGRhdGEKY2hhcnRfZGF0YV9kZi5jb2x1bW5zID0gWyduYW1lJywgJ3ZhbHVlJ10KCiMgU29ydCBieSB2YWx1ZSBmb3IgYmV0dGVyIHByZXNlbnRhdGlvbiBpbiB0aGUgcGllIGNoYXJ0CmNoYXJ0X2RhdGFfZGYgPSBjaGFydF9",
+        "refused": false,
+        "tool_message": "Title: Drivers of Vegetation Disturbance in DRC (June - Nov 2024)\nKey Finding: 'Conversion' is the most frequent driver of vegetation disturbance alerts in the DRC from June to November 2024, affecting 80,170 hectares. This is followed by fire-related disturbances, which account for 72,131 hectares of the detected alerts.\nFollow-up suggestions:\n1. Compare vegetation disturbance drivers with annual tree cover loss data for a historical perspective\n2. Analyze vegetation disturbance alerts in DRC for the previous six-month period"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the drivers of vegetation disturbance in DRC using a pie chart with area-based metrics as requested.",
+      "duration_s": 9.32
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[DRC: how much area does each disturbance type cover?]",
+      "query": "DRC: how much area does each disturbance type cover?",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nUnclassified,20480.0\nWater-related,13823.0\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "Conversion and fire-related activities represent the largest portions of vegetation disturbance alerts in the Democratic Republic of Congo, totaling over 152,000 hectares. These alerts detect changes in all vegetation types and do not necessarily indicate permanent deforestation or human-caused land use change.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAtIEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyAoRElTVC1BTEVSVCkgKDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCkiKQpwcmludCgiXG5EYXRhIFN0cnVjdHVyZSBhbmQgVHlwZXM6IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRmlyc3QgNSByb3dzIG9mIHRoZSBkYXRhc2V0OiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIHRvdGFsIGFyZWEgZm9yIGVhY2ggZGlzdHVyYmFuY2UgdHlwZQpkaXN0dXJiYW5jZV9hcmVhID0gZGYuZ3JvdXBieSgnZHJpdmVyJylbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCmRpc3R1cmJhbmNlX2FyZWEgPSBkaXN0dXJiYW5jZV9hcmVhLnNvcnRfdmFsdWVzKGJ5PSdhcmVhX2hhJywgYXNjZW5kaW5nPUZhbHNlKQoKcHJpbnQoIlxuVG90YWwgYXJlYSBjb3ZlcmVkIGJ5IGVhY2ggZGlzdHVyYmFuY2UgdHlwZToiKQpwcmludChkaXN0dXJiYW5jZV9hcmVhKQoKcHJpbnQoZiJcblRvdGFsIGRpc3R1cmJhbmNlIGFyZWEgYWNyb3NzIGFsbCB0eXBlczoge2Rpc3R1cmJhbmNlX2FyZWFbJ2FyZWFfaGEnXS5zdW0oKTouMmZ9IGhlY3RhcmVzIikK\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgcGllIGNoYXJ0CmNoYXJ0X2RhdGEgPSBkaXN0dXJiYW5jZV9hcmVhLnJlbmFtZShjb2x1bW5zPXsnZHJpdmVyJzogJ25hbWUnLCAnYXJlYV9oYSc6ICd2YWx1ZSd9KQoKIyBTYXZlIHRoZSBjaGFydCBkYXRhIHRvIGEgQ1NWIGZpbGUKY2hhcnRfZGF0YS50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCgpwcmludCgiXG5DaGFydCBkYXRhIHByZXBhcmVkOiIpCnByaW50KGNoYXJ0X2RhdGEudG9fanNvbihvcmllbnQ9J3JlY29yZHMnKSkK",
+        "refused": false,
+        "tool_message": "Title: Distribution of Disturbance Alert Area by Type in DRC (June - Nov 2024)\nKey Finding: Conversion and fire-related activities represent the largest portions of vegetation disturbance alerts in the Democratic Republic of Congo, totaling over 152,000 hectares. These alerts detect changes in all vegetation types and do not necessarily indicate permanent deforestation or human-caused land use change.\nFollow-up suggestions:\n1. Show the monthly trend of these disturbance alerts from June to November 2024\n2. Compare these disturbance alerts with annual tree cover loss data for a historical perspective"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the requested data for the DRC, uses the required pie chart format, and accurately maps disturbance types to area values.",
+      "duration_s": 8.69
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_pie_chart_for_driver_distribution[Break down the DRC alerts into categories]",
+      "query": "Break down the DRC alerts into categories",
+      "response": {
+        "chart_type": "pie",
+        "chart_data_preview": "name,value\nConversion,80170.0\nFire-related,72131.0\nCropland dynamics,29504.0\nUnclassified,20480.0\nWater-related,13823.0\n",
+        "chart_data_rows": 5,
+        "chart_data_columns": [
+          "name",
+          "value"
+        ],
+        "insight": "'Conversion' and 'Fire-related' activities are the primary drivers of vegetation disturbance in the DRC, representing over 70% of the total alert area. These alerts detect changes in vegetation cover but do not necessarily distinguish between permanent deforestation and temporary disturbances like crop harvesting.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBuYW1lIGFuZCBkYXRlIHJhbmdlCnByaW50KCJEYXRhc2V0OiBHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpIGZvciBEZW1vY3JhdGljIFJlcHVibGljIG9mIENvbmdvIikKcHJpbnQoIkRhdGUgUmFuZ2U6IDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUgYW5kIHR5cGVzCnByaW50KCJcbkRhdGEgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgojIFByaW50IHRoZSBoZWFkIG9mIHRoZSBkYXRhZnJhbWUKcHJpbnQoIlxuRGF0YSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzOiB0b3RhbCBhcmVhX2hhIHBlciBkcml2ZXIKZHJpdmVyX2JyZWFrZG93biA9IGRmLmdyb3VwYnkoJ2RyaXZlcicpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQpkcml2ZXJfYnJlYWtkb3duWydwZXJjZW50YWdlJ10gPSAoZHJpdmVyX2JyZWFrZG93blsnYXJlYV9oYSddIC8gZHJpdmVyX2JyZWFrZG93blsnYXJlYV9oYSddLnN1bSgpKSAqIDEwMApkcml2ZXJfYnJlYWtkb3duID0gZHJpdmVyX2JyZWFrZG93bi5zb3J0X3ZhbHVlcyhieT0nYXJlYV9oYScsIGFzY2VuZGluZz1GYWxzZSkKCnByaW50KCJcbktleSBGaW5kaW5nczoiKQpwcmludCgiQnJlYWtkb3duIG9mIGFsZXJ0cyBieSBkcml2ZXI6IikKcHJpbnQoZHJpdmVyX2JyZWFrZG93bikK\nIyBQcmVwYXJlIGRhdGEgZm9yIHBpZSBjaGFydApjaGFydF9kYXRhID0gZHJpdmVyX2JyZWFrZG93bltbJ2RyaXZlcicsICdhcmVhX2hhJ11dLmNvcHkoKQpjaGFydF9kYXRhLnJlbmFtZShjb2x1bW5zPXsnZHJpdmVyJzogJ25hbWUnLCAnYXJlYV9oYSc6ICd2YWx1ZSd9LCBpbnBsYWNlPVRydWUpCgojIEVuc3VyZSB2YWx1ZXMgYXJlIG51bWVyaWMKY2hhcnRfZGF0YVsndmFsdWUnXSA9IGNoYXJ0X2RhdGFbJ3ZhbHVlJ10uYXN0eXBlKGZsb2F0KQoKcHJpbnQoIlxuQ2hhcnQgRGF0YSBIZWFkOiIpCnByaW50KGNoYXJ0X2RhdGEuaGVhZCgpKQoKIyBTYXZlIHRoZSBkYXRhCmNoYXJ0X2RhdGEudG9fY3N2KCdjaGFydF9kYXRhLmNzdicsIGluZGV4PUZhbHNlKQo=",
+        "refused": false,
+        "tool_message": "Title: Distribution of Vegetation Disturbance Alerts by Driver in DRC (June - Nov 2024)\nKey Finding: 'Conversion' and 'Fire-related' activities are the primary drivers of vegetation disturbance in the DRC, representing over 70% of the total alert area. These alerts detect changes in vegetation cover but do not necessarily distinguish between permanent deforestation and temporary disturbances like crop harvesting.\nFollow-up suggestions:\n1. Compare these alerts with annual tree cover loss data for historical context\n2. Break down alerts by confidence level (high vs low)"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the requested chart type, uses the appropriate categories for the DRC alerts, and provides the area values in hectares.",
+      "duration_s": 9.54
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[Show monthly disturbance patterns by driver in DRC from June to November 2024]",
+      "query": "Show monthly disturbance patterns by driver in DRC from June to November 2024",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "month,driver,area_ha\n2024-06,Conversion,12345.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Fire-related,8901.0\n2024-06,Unclassified,3210.0\n2024-06,Water-related,2345.0\n2024-07,Conversion,14567.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Fire-related,9234.0\n2024-07,Unclassified,3456.0\n2024-07,Water-related,1987.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "month",
+          "driver",
+          "area_ha"
+        ],
+        "insight": "Disturbance alerts in DRC from June to November 2024 were primarily driven by 'Fire-related' and 'Conversion' activities. Fire-related disturbances peaked in September at 21,034 ha, while conversion activities reached their highest level in October at 15,678 ha, reflecting seasonal variations in disturbance types.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoZiJEYXRhc2V0IHVzZWQ6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyAoRElTVC1BTEVSVCkgZnJvbSAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKCnByaW50KCJcbkRhdGEgU3RydWN0dXJlIGFuZCBUeXBlczoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5GaXJzdCA1IHJvd3M6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuS2V5IFN0YXRpc3RpY3M6IikKIyBDb252ZXJ0ICdhbGVydF9kYXRlJyB0byBkYXRldGltZSBmb3IgcHJvcGVyIHNvcnRpbmcgYW5kIG1vbnRoIGV4dHJhY3Rpb24KZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCmRmWydtb250aCddID0gZGZbJ2FsZXJ0X2RhdGUnXS5kdC5zdHJmdGltZSgnJVktJW0nKQoKIyBHcm91cCBieSBtb250aCBhbmQgZHJpdmVyIHRvIHNlZSBwYXR0ZXJucwptb250aGx5X2RyaXZlcl9wYXR0ZXJucyA9IGRmLmdyb3VwYnkoWydtb250aCcsICdkcml2ZXInXSlbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCnByaW50KCJcbk1vbnRobHkgZGlzdHVyYmFuY2UgYXJlYSBieSBkcml2ZXI6IikKcHJpbnQobW9udGhseV9kcml2ZXJfcGF0dGVybnMpCgojIFRvdGFsIGRpc3R1cmJhbmNlIGJ5IGRyaXZlcgp0b3RhbF9kaXN0dXJiYW5jZV9ieV9kcml2ZXIgPSBkZi5ncm91cGJ5KCdkcml2ZXInKVsnYXJlYV9oYSddLnN1bSgpLnNvcnRfdmFsdWVzKGFzY2VuZGluZz1GYWxzZSkucmVzZXRfaW5kZXgoKQpwcmludCgiXG5Ub3RhbCBkaXN0dXJiYW5jZSBhcmVhIGJ5IGRyaXZlciAoSnVuZS1Ob3ZlbWJlciAyMDI0KToiKQpwcmludCh0b3RhbF9kaXN0dXJiYW5jZV9ieV9kcml2ZXIpCgojIFRvdGFsIGRpc3R1cmJhbmNlIGJ5IG1vbnRoCnRvdGFsX2Rpc3R1cmJhbmNlX2J5X21vbnRoID0gZGYuZ3JvdXBieSgnbW9udGgnKVsnYXJlYV9oYSddLnN1bSgpLnNvcnRfdmFsdWVzKGFzY2VuZGluZz1GYWxzZSkucmVzZXRfaW5kZXgoKQpwcmludCgiXG5Ub3RhbCBkaXN0dXJiYW5jZSBhcmVhIGJ5IG1vbnRoIChKdW5lLU5vdmVtYmVyIDIwMjQpOiIpCnByaW50KHRvdGFsX2Rpc3R1cmJhbmNlX2J5X21vbnRoKQoKIyBDaGVjayBmb3IgZG9taW5hbnQgZHJpdmVycyBwZXIgbW9udGgKbW9udGhseV90b3RhbF9hcmVhID0gZGYuZ3JvdXBieSgnbW9udGgnKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KG5hbWU9J3RvdGFsX21vbnRobHlfYXJlYScpCm1lcmdlZF9kYXRhID0gcGQubWVyZ2UobW9udGhseV9kcml2ZXJfcGF0dGVybnMsIG1vbnRobHlfdG90YWxfYXJlYSwgb249J21vbnRoJykKbWVyZ2VkX2RhdGFbJ3BlcmNlbnRhZ2UnXSA9IChtZXJnZWRfZGF0",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts by Driver in DRC (June - Nov 2024)\nKey Finding: Disturbance alerts in DRC from June to November 2024 were primarily driven by 'Fire-related' and 'Conversion' activities. Fire-related disturbances peaked in September at 21,034 ha, while conversion activities reached their highest level in October at 15,678 ha, reflecting seasonal variations in disturbance types.\nFollow-up suggestions:\n1. Compare these disturbance patterns with annual tree cover loss data for DRC\n2. Show disturbance alerts for the same period in 2023 for comparison"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the required chart type, data structure, and time-series grouping requested by the user.",
+      "duration_s": 13.0
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[Seasonal breakdown of alert types by month in the Democratic Republic of Congo]",
+      "query": "Seasonal breakdown of alert types by month in the Democratic Republic of Congo",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "month,driver,area_ha\n2024-06,Conversion,12345.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Fire-related,8901.0\n2024-06,Unclassified,3210.0\n2024-06,Water-related,2345.0\n2024-07,Conversion,14567.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Fire-related,9234.0\n2024-07,Unclassified,3456.0\n2024-07,Water-related,1987.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "month",
+          "driver",
+          "area_ha"
+        ],
+        "insight": "Vegetation disturbance alerts in the DRC show a seasonal shift between June and November 2024. Fire-related alerts peak in August and September, while conversion activities remain a consistent driver of disturbance across the entire period.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBuYW1lIGFuZCBkYXRlIHJhbmdlCnByaW50KCJVc2luZyBkYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKAlCBHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpICgyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApXG4iKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJEYXRhIHR5cGVzIGFuZCBub24tbnVsbCB2YWx1ZXM6IikKcHJpbnQoZGYuaW5mbygpKQpwcmludCgiXG5GaXJzdCA1IHJvd3Mgb2YgdGhlIGRhdGFzZXQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDb252ZXJ0ICdhbGVydF9kYXRlJyB0byBkYXRldGltZSBvYmplY3RzIGZvciBwcm9wZXIgc29ydGluZyBhbmQgbW9udGggZXh0cmFjdGlvbgpkZlsnYWxlcnRfZGF0ZSddID0gcGQudG9fZGF0ZXRpbWUoZGZbJ2FsZXJ0X2RhdGUnXSkKCiMgRXh0cmFjdCBtb250aCBmb3Igc2Vhc29uYWwgYW5hbHlzaXMKZGZbJ2FsZXJ0X21vbnRoJ10gPSBkZlsnYWxlcnRfZGF0ZSddLmR0LnN0cmZ0aW1lKCclWS0lbScpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwoKIyBUb3RhbCBhbGVydHMgKGFyZWFfaGEpIHBlciBtb250aAptb250aGx5X3RvdGFsX2FsZXJ0cyA9IGRmLmdyb3VwYnkoJ2FsZXJ0X21vbnRoJylbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCnByaW50KCJcblRvdGFsIGFsZXJ0cyAoYXJlYV9oYSkgcGVyIG1vbnRoOiIpCnByaW50KG1vbnRobHlfdG90YWxfYWxlcnRzKQoKIyBUb3RhbCBhbGVydHMgKGFyZWFfaGEpIHBlciBkcml2ZXIgdHlwZQpkcml2ZXJfdG90YWxfYWxlcnRzID0gZGYuZ3JvdXBieSgnZHJpdmVyJylbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCnByaW50KCJcblRvdGFsIGFsZXJ0cyAoYXJlYV9oYSkgcGVyIGRyaXZlciB0eXBlOiIpCnByaW50KGRyaXZlcl90b3RhbF9hbGVydHMuc29ydF92YWx1ZXMoYnk9J2FyZWFfaGEnLCBhc2NlbmRpbmc9RmFsc2UpKQoKIyBNb250aGx5IGJyZWFrZG93biBvZiBhbGVydCB0eXBlcyAoZHJpdmVycykKbW9udGhseV9kcml2ZXJfYnJlYWtkb3duID0gZGYuZ3JvdXBieShbJ2FsZXJ0X21vbnRoJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnVuc3RhY2soZmlsbF92YWx1ZT0wKQpwcmludCgiXG5Nb250aGx5IGJyZWFrZG93biBvZiBhbGVydCB0eXBlcyAoYXJlYV9oYSBieSBkcml2ZXIpOiIpCnByaW50KG1vbnRobHlfZHJpdmVyX2JyZWFrZG93bikKCiMgQ2hlY2sgZm9yIGRvbWluYW50IGRyaXZlcnMgcGVyIG1vbnRoIChmb3IgbGF0ZXIgY29uc2lkZXJhdGlvbiBpZiBvbmUgZHJpdmVyID4gODAlKQpwcmludCgiXG5Qcm9wb3J0aW9uIG9mIGVhY2ggZHJpdmVyIHR5",
+        "refused": false,
+        "tool_message": "Title: Seasonal Breakdown of Vegetation Disturbance Alert Types in DRC (June - Nov 2024)\nKey Finding: Vegetation disturbance alerts in the DRC show a seasonal shift between June and November 2024. Fire-related alerts peak in August and September, while conversion activities remain a consistent driver of disturbance across the entire period.\nFollow-up suggestions:\n1. Compare alert drivers with annual tree cover loss data for historical context\n2. Analyze alert types for a specific province in the Democratic Republic of Congo"
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly followed all structural and data requirements for the requested visualization.",
+      "duration_s": 19.15
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[Compare disturbance drivers across months in DRC, show as grouped bars]",
+      "query": "Compare disturbance drivers across months in DRC, show as grouped bars",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "month,driver,area_ha\n2024-06,Conversion,12345.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Fire-related,8901.0\n2024-06,Unclassified,3210.0\n2024-06,Water-related,2345.0\n2024-07,Conversion,14567.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Fire-related,9234.0\n2024-07,Unclassified,3456.0\n2024-07,Water-related,1987.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "month",
+          "driver",
+          "area_ha"
+        ],
+        "insight": "Vegetation disturbance alerts in DRC from June to November 2024 show that 'Conversion' and 'Fire-related' activities are the primary drivers. Fire-related disturbances peaked in August and September, while 'Water-related' drivers consistently accounted for the smallest area of disturbance.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBuYW1lIGFuZCBkYXRlIHJhbmdlCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IikKcHJpbnQoIkRhdGUgUmFuZ2U6IDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCnByaW50KCJcbktleSBTdGF0aXN0aWNzOiIpCnByaW50KGRmLmRlc2NyaWJlKGluY2x1ZGU9J2FsbCcpKQoKIyBDaGVjayB1bmlxdWUgZHJpdmVycwpwcmludCgiXG5VbmlxdWUgRHJpdmVyczoiKQpwcmludChkZlsnZHJpdmVyJ10udW5pcXVlKCkpCgojIENhbGN1bGF0ZSB0b3RhbCBhcmVhX2hhIGJ5IG1vbnRoIGFuZCBkcml2ZXIKbW9udGhseV9kcml2ZXJfc3VtbWFyeSA9IGRmLmdyb3VwYnkoWydhbGVydF9kYXRlJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKcHJpbnQoIlxuTW9udGhseSBEaXN0dXJiYW5jZSBieSBEcml2ZXIgKFRvcCA1IHJvd3MpOiIpCnByaW50KG1vbnRobHlfZHJpdmVyX3N1bW1hcnkuaGVhZCgpKQoKIyBDYWxjdWxhdGUgdG90YWwgYXJlYV9oYSBieSBtb250aAptb250aGx5X3RvdGFsX2FyZWEgPSBkZi5ncm91cGJ5KCdhbGVydF9kYXRlJylbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCnByaW50KCJcblRvdGFsIERpc3R1cmJhbmNlIGJ5IE1vbnRoOiIpCnByaW50KG1vbnRobHlfdG90YWxfYXJlYSkKCiMgQ2hlY2sgZm9yIGRvbWluYW50IGRyaXZlcnMgaW4gYW55IG1vbnRoCmZvciBtb250aCBpbiBtb250aGx5X3RvdGFsX2FyZWFbJ2FsZXJ0X2RhdGUnXToKICAgIHRvdGFsX2FyZWFfbW9udGggPSBtb250aGx5X3RvdGFsX2FyZWFbbW9udGhseV90b3RhbF9hcmVhWydhbGVydF9kYXRlJ10gPT0gbW9udGhdWydhcmVhX2hhJ10uaWxvY1swXQogICAgZHJpdmVyc19pbl9tb250aCA9IG1vbnRobHlfZHJpdmVyX3N1bW1hcnlbbW9udGhseV9kcml2ZXJfc3VtbWFyeVsnYWxlcnRfZGF0ZSddID09IG1vbnRoXQogICAgZm9yIGluZGV4LCByb3cgaW4gZHJpdmVyc19pbl9tb250aC5pdGVycm93cygpOgogICAgICAgIGRyaXZlciA9IHJvd1snZHJpdmVyJ10KICAgICAgICBhcmVhID0gcm93WydhcmVhX2hhJ10KICAgICAgICBwZXJjZW50YWdlID0gKGFyZWEgLyB0b3RhbF9hcmVhX21vbnRoKSAqIDEwMAogICAgICAgIGlmIHBlcmNlbnRhZ2UgPiA4MDoKICAgICAgICAgICAgcHJpbnQoZiJcbkFsZXJ0OiBEcml2ZXIg",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Area by Driver in DRC (June - Nov 2024)\nKey Finding: Vegetation disturbance alerts in DRC from June to November 2024 show that 'Conversion' and 'Fire-related' activities are the primary drivers. Fire-related disturbances peaked in August and September, while 'Water-related' drivers consistently accounted for the smallest area of disturbance.\nFollow-up suggestions:\n1. Compare these disturbance drivers with annual tree cover loss data for DRC to see long-term trends\n2. Analyze disturbance alerts for a specific province in DRC like \u00c9quateur or Tshopo"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the chart type, data structure, and axes requirements specified in the rubric.",
+      "duration_s": 13.1
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[Display monthly variation of disturbance alerts disaggregated by driver class for DRC, June-November 2024]",
+      "query": "Display monthly variation of disturbance alerts disaggregated by driver class for DRC, June-November 2024",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "month,driver,area_ha\n2024-06,Conversion,12345.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Fire-related,8901.0\n2024-06,Unclassified,3210.0\n2024-06,Water-related,2345.0\n2024-07,Conversion,14567.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Fire-related,9234.0\n2024-07,Unclassified,3456.0\n2024-07,Water-related,1987.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "month",
+          "driver",
+          "area_ha"
+        ],
+        "insight": "Disturbance alerts in the DRC fluctuated between June and November 2024, with a peak in total area during September. While 'Conversion' is a consistent driver, 'Fire-related' disturbances showed a distinct increase in August and September, suggesting seasonal variation in fire activity.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgd2hpY2ggZGF0YXNldCBpcyBiZWluZyB1c2VkCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKAlCBHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpICgyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93czoiKQpwcmludChkZi5oZWFkKCkpCgojIENvbnZlcnQgJ2FsZXJ0X2RhdGUnIHRvIGRhdGV0aW1lIG9iamVjdHMgZm9yIHByb3BlciBvcmRlcmluZyBhbmQgZ3JvdXBpbmcKZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCgojIEV4dHJhY3QgbW9udGggZm9yIGdyb3VwaW5nCmRmWydhbGVydF9tb250aCddID0gZGZbJ2FsZXJ0X2RhdGUnXS5kdC5zdHJmdGltZSgnJVktJW0nKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3M6IHRvdGFsIGFyZWEgYnkgbW9udGggYW5kIGJ5IGRyaXZlcgptb250aGx5X3RvdGFsID0gZGYuZ3JvdXBieSgnYWxlcnRfbW9udGgnKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKZHJpdmVyX3RvdGFsID0gZGYuZ3JvdXBieSgnZHJpdmVyJylbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCm1vbnRobHlfZHJpdmVyX3RvdGFsID0gZGYuZ3JvdXBieShbJ2FsZXJ0X21vbnRoJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnVuc3RhY2soZmlsbF92YWx1ZT0wKQoKcHJpbnQoIlxuVG90YWwgZGlzdHVyYmFuY2UgYXJlYSAoaGEpIGJ5IG1vbnRoOiIpCnByaW50KG1vbnRobHlfdG90YWwpCgpwcmludCgiXG5Ub3RhbCBkaXN0dXJiYW5jZSBhcmVhIChoYSkgYnkgZHJpdmVyIGNsYXNzOiIpCnByaW50KGRyaXZlcl90b3RhbCkKCnByaW50KCJcbk1vbnRobHkgZGlzdHVyYmFuY2UgYXJlYSAoaGEpIGJ5IGRyaXZlciBjbGFzczoiKQpwcmludChtb250aGx5X2RyaXZlcl90b3RhbCkKCiMgQ2hlY2sgZm9yIGRvbWluYW50IGRyaXZlcnMgKGlmIGFueSBkcml2ZXIgPiA4MCUgaW4gYW55IG1vbnRoKQojIENhbGN1bGF0ZSBwZXJjZW50YWdlIG9mIGVhY2ggZHJpdmVyIHBlciBtb250aAptb250aGx5X2RyaXZlcl9wZXJjZW50YWdlID0gZGYuZ3JvdXBieShbJ2FsZXJ0X21vbnRoJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLmdyb3VwYnkobGV2ZWw9MCkuYXBwbHkobGFtYmRhIHg6IDEwMCAqIHggLyB4LnN1bSgpKS51bnN0YWNrKGZpbGxfdmFsdWU9MCkKCnByaW50KCJcbk1vbnRobHkgcGVyY2VudGFnZSBvZiBkaXN0dXJiYW5jZSBhcmVh",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts by Driver Class in DRC (June-Nov 2024)\nKey Finding: Disturbance alerts in the DRC fluctuated between June and November 2024, with a peak in total area during September. While 'Conversion' is a consistent driver, 'Fire-related' disturbances showed a distinct increase in August and September, suggesting seasonal variation in fire activity.\nFollow-up suggestions:\n1. Compare disturbance alerts in DRC with neighboring Republic of the Congo for the same period\n2. Analyze annual tree cover loss in DRC to assess long-term deforestation trends"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the chart type, organizes the data by month and driver, and uses the appropriate metric for the y-axis as requested.",
+      "duration_s": 22.84
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[Provide a month-by-month comparison of each disturbance driver in the Democratic Republic of Congo]",
+      "query": "Provide a month-by-month comparison of each disturbance driver in the Democratic Republic of Congo",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "month,metric,value\n2024-06,Conversion,12345.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Fire-related,8901.0\n2024-06,Unclassified,3210.0\n2024-06,Water-related,2345.0\n2024-07,Conversion,14567.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Fire-related,9234.0\n2024-07,Unclassified,3456.0\n2024-07,Water-related,1987.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "month",
+          "metric",
+          "value"
+        ],
+        "insight": "Vegetation disturbance alerts in the DRC from June to November 2024 show that 'Conversion' and 'Fire-related' drivers consistently affect the largest areas. While fire-related disturbances peaked in September at 21,034 hectares, land conversion maintained a more stable presence across the monitored months.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpIGZyb20gMjAyNC0wNi0wMSB0byAyMDI0LTExLTMwKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCmRmLmluZm8oKQoKcHJpbnQoIlxuRGF0YUZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKIyBDb252ZXJ0ICdhbGVydF9kYXRlJyB0byBkYXRldGltZSBmb3IgZWFzaWVyIG1hbmlwdWxhdGlvbgpkZlsnYWxlcnRfZGF0ZSddID0gcGQudG9fZGF0ZXRpbWUoZGZbJ2FsZXJ0X2RhdGUnXSkKCiMgRXh0cmFjdCBtb250aCBmb3IgZ3JvdXBpbmcKZGZbJ2FsZXJ0X21vbnRoJ10gPSBkZlsnYWxlcnRfZGF0ZSddLmR0LnRvX3BlcmlvZCgnTScpCgojIENhbGN1bGF0ZSB0b3RhbCBhcmVhIHBlciBkcml2ZXIgcGVyIG1vbnRoCm1vbnRobHlfZHJpdmVyX3N1bW1hcnkgPSBkZi5ncm91cGJ5KFsnYWxlcnRfbW9udGgnLCAnZHJpdmVyJ10pWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQoKIyBGaW5kIHRoZSBvdmVyYWxsIGRhdGUgcmFuZ2UgaW4gdGhlIGRhdGEKbWluX2RhdGUgPSBkZlsnYWxlcnRfZGF0ZSddLm1pbigpLnN0cmZ0aW1lKCclWS0lbScpCm1heF9kYXRlID0gZGZbJ2FsZXJ0X2RhdGUnXS5tYXgoKS5zdHJmdGltZSgnJVktJW0nKQoKIyBGaW5kIHVuaXF1ZSBkcml2ZXJzCnVuaXF1ZV9kcml2ZXJzID0gZGZbJ2RyaXZlciddLnVuaXF1ZSgpCgpwcmludChmIlxuRGF0YSBjb3ZlcnMgdGhlIHBlcmlvZCBmcm9tIHttaW5fZGF0ZX0gdG8ge21heF9kYXRlfS4iKQpwcmludChmIlVuaXF1ZSBkaXN0dXJiYW5jZSBkcml2ZXJzIGlkZW50aWZpZWQ6IHsnLCAnLmpvaW4odW5pcXVlX2RyaXZlcnMpfSIpCgpwcmludCgiXG5Nb250aGx5IGRpc3R1cmJhbmNlIGFyZWEgYnkgZHJpdmVyIChoYSk6IikKcHJpbnQobW9udGhseV9kcml2ZXJfc3VtbWFyeSkKCiMgQ2hlY2sgZm9yIGRvbWluYW50IGRyaXZlcnMgKD44MCUgaW4gYW55IG1vbnRoKQojIENhbGN1bGF0ZSB0b3RhbCBhcmVhIHBlciBtb250aAp0b3RhbF9tb250aGx5X2FyZWEgPSBkZi5ncm91cGJ5KCdhbGVydF9tb250aCcpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQp0b3RhbF9tb250aGx5X2FyZWEucmVuYW1lKGNvbHVtbnM9eydhcmVhX2hhJzogJ3RvdGFsX21vbnRoX2FyZWEnfSwgaW5wbGFjZT1UcnVlKQoKIyBNZXJnZSB0byBjYWxjdWxhdGUgcGVyY2VudGFnZQpt",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts by Driver in DRC (June - Nov 2024)\nKey Finding: Vegetation disturbance alerts in the DRC from June to November 2024 show that 'Conversion' and 'Fire-related' drivers consistently affect the largest areas. While fire-related disturbances peaked in September at 21,034 hectares, land conversion maintained a more stable presence across the monitored months.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for historical context\n2. Analyze disturbance drivers in the Democratic Republic of Congo for the previous 6-month period"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the grouped-bar chart type and structures the data by month and disturbance driver as requested.",
+      "duration_s": 13.1
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[How do the different disturbance drivers vary month to month in DRC?]",
+      "query": "How do the different disturbance drivers vary month to month in DRC?",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "month,metric,value\n2024-06,Conversion,12345.0\n2024-06,Fire-related,8901.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Water-related,2345.0\n2024-06,Unclassified,3210.0\n2024-07,Conversion,14567.0\n2024-07,Fire-related,9234.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Water-related,1987.0\n2024-07,Unclassified,3456.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "month",
+          "metric",
+          "value"
+        ],
+        "insight": "Vegetation disturbance alerts in the DRC are primarily driven by 'Conversion' and 'Fire-related' activities. Fire-related alerts show a seasonal increase in August and September, coinciding with the dry season, while conversion-related alerts remain present across all months from June to November 2024.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCBpbiB1c2U6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyBmb3IgRGVtb2NyYXRpYyBSZXB1YmxpYyBvZiBDb25nbywgMjAyNC0wNi0wMSB0byAyMDI0LTExLTMwKVxuIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZQpwcmludCgiRGF0YSB0eXBlcyBhbmQgbm9uLW51bGwgdmFsdWVzOiIpCnByaW50KGRmLmluZm8oKSkKcHJpbnQoIlxuRmlyc3QgNSByb3dzIG9mIHRoZSBkYXRhc2V0OiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ29udmVydCAnYWxlcnRfZGF0ZScgdG8gZGF0ZXRpbWUgZm9yIHByb3BlciBzb3J0aW5nIGFuZCBtYW5pcHVsYXRpb24KZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljczogbW9udGhseSBkaXN0dXJiYW5jZSBhcmVhIGJ5IGRyaXZlcgptb250aGx5X2Rpc3R1cmJhbmNlID0gZGYuZ3JvdXBieShbJ2FsZXJ0X2RhdGUnLCAnZHJpdmVyJ10pWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQoKIyBQaXZvdCBmb3IgZWFzaWVyIHZpZXdpbmcgb2YgbW9udGhseSB2YXJpYXRpb24gcGVyIGRyaXZlcgptb250aGx5X2Rpc3R1cmJhbmNlX3Bpdm90ID0gbW9udGhseV9kaXN0dXJiYW5jZS5waXZvdChpbmRleD0nYWxlcnRfZGF0ZScsIGNvbHVtbnM9J2RyaXZlcicsIHZhbHVlcz0nYXJlYV9oYScpLmZpbGxuYSgwKQoKcHJpbnQoIlxuTW9udGhseSBkaXN0dXJiYW5jZSBhcmVhIChoZWN0YXJlcykgYnkgZHJpdmVyOiIpCnByaW50KG1vbnRobHlfZGlzdHVyYmFuY2VfcGl2b3QpCgojIENhbGN1bGF0ZSBvdmVyYWxsIHN0YXRpc3RpY3MKdG90YWxfZGlzdHVyYmFuY2VfYnlfZHJpdmVyID0gZGYuZ3JvdXBieSgnZHJpdmVyJylbJ2FyZWFfaGEnXS5zdW0oKS5zb3J0X3ZhbHVlcyhhc2NlbmRpbmc9RmFsc2UpCnRvdGFsX2Rpc3R1cmJhbmNlX292ZXJhbGwgPSBkZlsnYXJlYV9oYSddLnN1bSgpCgpwcmludChmIlxuVG90YWwgZGlzdHVyYmFuY2UgYXJlYSBieSBkcml2ZXIgKGhlY3RhcmVzKTpcbnt0b3RhbF9kaXN0dXJiYW5jZV9ieV9kcml2ZXJ9IikKcHJpbnQoZiJcbk92ZXJhbGwgdG90YWwgZGlzdHVyYmFuY2UgYXJlYSAoaGVjdGFyZXMpOiB7dG90YWxfZGlzdHVyYmFuY2Vfb3ZlcmFsbDouMmZ9IikKCiMgQ2hlY2sgZm9yIGRvbWluYW50IGRyaXZlcnMKIyBDYWxjdWxhdGUgcGVyY2VudGFnZSBvZiBlYWNoIGRyaXZlciBmb3IgZWFjaCBtb250aAptb250aGx5X3BlcmNlbnRhZ2UgPSBtb250aGx5X2Rpc3R1cmJhbmNlLmdyb3VwYnkoJ2FsZXJ0X2RhdGUn",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts by Driver in DRC (June - Nov 2024)\nKey Finding: Vegetation disturbance alerts in the DRC are primarily driven by 'Conversion' and 'Fire-related' activities. Fire-related alerts show a seasonal increase in August and September, coinciding with the dry season, while conversion-related alerts remain present across all months from June to November 2024.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for DRC to identify permanent conversion trends.\n2. Analyze disturbance drivers in neighboring Republic of the Congo for the same period."
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly identifies the chart type, structures the data for monthly grouping by driver, and uses the appropriate metric for the y-axis.",
+      "duration_s": 16.59
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[monthly drivers in DRC grouped by type]",
+      "query": "monthly drivers in DRC grouped by type",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,Conversion,Cropland dynamics,Fire-related,Water-related\n2024-06,12345.0,4567.0,8901.0,2345.0\n2024-07,14567.0,5123.0,9234.0,1987.0\n2024-08,11234.0,4890.0,18765.0,2456.0\n2024-09,13456.0,5234.0,21034.0,2123.0\n2024-10,15678.0,4678.0,7654.0,2678.0\n2024-11,12890.0,5012.0,6543.0,2234.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "Conversion",
+          "Cropland dynamics",
+          "Fire-related",
+          "Water-related"
+        ],
+        "insight": "Between June and November 2024, 'Fire-related' and 'Conversion' were the primary disturbance drivers in the DRC. Fire-related alerts showed a distinct peak in August and September, while Conversion alerts remained relatively stable throughout the six-month period.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgdGhlIGRhdGFzZXQgYmVpbmcgdXNlZApwcmludCgiRGF0YXNldDogR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSIpCnByaW50KCJEYXRlIFJhbmdlOiAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzAiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCiMgUHJpbnQgdGhlIGhlYWQgb2YgdGhlIGRhdGFmcmFtZQpwcmludCgiXG5EYXRhRnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENvbnZlcnQgJ2FsZXJ0X2RhdGUnIHRvIGRhdGV0aW1lIG9iamVjdHMgYW5kIHRoZW4gdG8gbW9udGgteWVhciBmb3JtYXQKZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCmRmWydhbGVydF9tb250aCddID0gZGZbJ2FsZXJ0X2RhdGUnXS5kdC50b19wZXJpb2QoJ00nKS5hc3R5cGUoc3RyKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3M6IG1vbnRobHkgYXJlYSBieSBkcml2ZXIKbW9udGhseV9kcml2ZXJzID0gZGYuZ3JvdXBieShbJ2FsZXJ0X21vbnRoJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKCiMgQ2FsY3VsYXRlIHRvdGFsIG1vbnRobHkgYXJlYSB0byBjaGVjayBmb3IgdW5jbGFzc2lmaWVkIGRvbWluYW5jZQp0b3RhbF9tb250aGx5X2FyZWEgPSBkZi5ncm91cGJ5KCdhbGVydF9tb250aCcpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQp0b3RhbF9tb250aGx5X2FyZWEucmVuYW1lKGNvbHVtbnM9eydhcmVhX2hhJzogJ3RvdGFsX2FyZWFfaGEnfSwgaW5wbGFjZT1UcnVlKQoKIyBNZXJnZSB0byBjYWxjdWxhdGUgcGVyY2VudGFnZQptb250aGx5X2RyaXZlcnMgPSBwZC5tZXJnZShtb250aGx5X2RyaXZlcnMsIHRvdGFsX21vbnRobHlfYXJlYSwgb249J2FsZXJ0X21vbnRoJykKbW9udGhseV9kcml2ZXJzWydwZXJjZW50YWdlJ10gPSAobW9udGhseV9kcml2ZXJzWydhcmVhX2hhJ10gLyBtb250aGx5X2RyaXZlcnNbJ3RvdGFsX2FyZWFfaGEnXSkgKiAxMDAKCnByaW50KCJcbk1vbnRobHkgRGlzdHVyYmFuY2UgQXJlYXMgYnkgRHJpdmVyOiIpCnByaW50KG1vbnRobHlfZHJpdmVycykKCiMgSWRlbnRpZnkgaWYgYW55IGRyaXZlciBkb21pbmF0ZXMgKD44MCUgb2YgYWxlcnRzIGluIGFueSBtb250aCkKZG9taW5hbnRfZHJpdmVycyA9IG1vbnRobHlfZHJpdmVyc1ttb250aGx5X2RyaXZlcnNbJ3BlcmNlbnRhZ2UnXSA+IDgwXQpwcmludCgiXG5Eb21pbmFudCBkcml2ZXJzIChpZiBhbnkgbW9udGggPiA4MCUpOiIpCnByaW50KGRvbWluYW50X2RyaXZlcnMpCgojIENoZWNr",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Drivers in DRC (June - Nov 2024)\nKey Finding: Between June and November 2024, 'Fire-related' and 'Conversion' were the primary disturbance drivers in the DRC. Fire-related alerts showed a distinct peak in August and September, while Conversion alerts remained relatively stable throughout the six-month period.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for DRC\n2. Analyze disturbance drivers for the full 2024 calendar year once available"
+      },
+      "passed": false,
+      "comment": "The output failed the primary requirement of using a 'grouped-bar' chart type, opting for a 'line' chart instead.",
+      "duration_s": 32.97,
+      "rubric": "1. The chart type must be \"grouped-bar\".\n        2. The x-axis should represent time periods (months).\n        3. The bars should be grouped by driver/disturbance type, with different\n           drivers shown side-by-side for each month.\n        4. The y-axis should represent area in hectares or a count metric.",
+      "requirements": [
+        {
+          "requirement": "The chart type must be \"grouped-bar\".",
+          "met": false,
+          "reason": "The actual output used a 'line' chart type instead of 'grouped-bar'."
+        },
+        {
+          "requirement": "The x-axis should represent time periods (months).",
+          "met": true,
+          "reason": "The data is structured by month (e.g., 2024-06, 2024-07)."
+        },
+        {
+          "requirement": "The bars should be grouped by driver/disturbance type, with different drivers shown side-by-side for each month.",
+          "met": false,
+          "reason": "Because the chart type is 'line', the drivers are represented as separate lines rather than side-by-side bars."
+        },
+        {
+          "requirement": "The y-axis should represent area in hectares or a count metric.",
+          "met": true,
+          "reason": "The data values represent area/counts for each disturbance type."
+        }
+      ],
+      "judge_prompt": "You are evaluating whether an AI-generated data visualization follows specific rules.\n\n## Original User Query\nmonthly drivers in DRC grouped by type\n\n## Expected Behavior (Rubric)\n\n        1. The chart type must be \"grouped-bar\".\n        2. The x-axis should represent time periods (months).\n        3. The bars should be grouped by driver/disturbance type, with different\n           drivers shown side-by-side for each month.\n        4. The y-axis should represent area in hectares or a count metric.\n        \n\n## Actual Tool Output\n\n### Chart Type\nline\n\n### Chart Data (first 10 rows)\ndate,Conversion,Cropland dynamics,Fire-related,Water-related\n2024-06,12345.0,4567.0,8901.0,2345.0\n2024-07,14567.0,5123.0,9234.0,1987.0\n2024-08,11234.0,4890.0,18765.0,2456.0\n2024-09,13456.0,5234.0,21034.0,2123.0\n2024-10,15678.0,4678.0,7654.0,2678.0\n2024-11,12890.0,5012.0,6543.0,2234.0\n\n\n### Insight Text\nBetween June and November 2024, 'Fire-related' and 'Conversion' were the primary disturbance drivers in the DRC. Fire-related alerts showed a distinct peak in August and September, while Conversion alerts remained relatively stable throughout the six-month period.\n\n### Generated Code (summary)\naW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgdGhlIGRhdGFzZXQgYmVpbmcgdXNlZApwcmludCgiRGF0YXNldDogR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSIpCnByaW50KCJEYXRlIFJhbmdlOiAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzAiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCiMgUHJpbnQgdGhlIGhlYWQgb2YgdGhlIGRhdGFmcmFtZQpwcmludCgiXG5EYXRhRnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENvbnZlcnQgJ2FsZXJ0X2RhdGUnIHRvIGRhdGV0aW1lIG9iamVjdHMgYW5kIHRoZW4gdG8gbW9udGgteWVhciBmb3JtYXQKZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCmRmWydhbGVydF9tb250aCddID0gZGZbJ2FsZXJ0X2RhdGUnXS5kdC50b19wZXJpb2QoJ00nKS5hc3R5cGUoc3RyKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3M6IG1vbnRobHkgYXJlYSBieSBkcml2ZXIKbW9udGhseV9kcml2ZXJzID0gZGYuZ3JvdXBieShbJ2FsZXJ0X21vbnRoJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKCiMgQ2FsY3VsYXRlIHRvdGFsIG1vbnRobHkgYXJlYSB0byBjaGVjayBmb3IgdW5jbGFzc2lmaWVkIGRvbWluYW5jZQp0b3RhbF9tb250aGx5X2FyZWEgPSBkZi5ncm91cGJ5KCdhbGVydF9tb250aCcpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQp0b3RhbF9tb250aGx5X2FyZWEucmVuYW1lKGNvbHVtbnM9eydhcmVhX2hhJzogJ3RvdGFsX2FyZWFfaGEnfSwgaW5wbGFjZT1UcnVlKQoKIyBNZXJnZSB0byBjYWxjdWxhdGUgcGVyY2VudGFnZQptb250aGx5X2RyaXZlcnMgPSBwZC5tZXJnZShtb250aGx5X2RyaXZlcnMsIHRvdGFsX21vbnRobHlfYXJlYSwgb249J2FsZXJ0X21vbnRoJykKbW9udGhseV9kcml2ZXJzWydwZXJjZW50YWdlJ10gPSAobW9udGhseV9kcml2ZXJzWydhcmVhX2hhJ10gLyBtb250aGx5X2RyaXZlcnNbJ3RvdGFsX2FyZWFfaGEnXSkgKiAxMDAKCnByaW50KCJcbk1vbnRobHkgRGlzdHVyYmFuY2UgQXJlYXMgYnkgRHJpdmVyOiIpCnByaW50KG1vbnRobHlfZHJpdmVycykKCiMgSWRlbnRpZnkgaWYgYW55IGRyaXZlciBkb21pbmF0ZXMgKD44MCUgb2YgYWxlcnRzIGluIGFueSBtb250aCkKZG9taW5hbnRfZHJpdmVycyA9IG1vbnRobHlfZHJpdmVyc1ttb250aGx5X2RyaXZlcnNbJ3BlcmNlbnRhZ2UnXSA+IDgwXQpwcmludCgiXG5Eb21pbmFudCBkcml2ZXJzIChpZiBhbnkgbW9udGggPiA4MCUpOiIpCnByaW50KGRvbWluYW50X2RyaXZlcnMpCgojIENoZWNr\n\n## Instructions\nEvaluate whether the actual output satisfies EACH requirement in the rubric.\nFor each requirement, state whether it is MET or NOT MET with a brief reason.\n\nThen give an overall verdict: PASS if ALL requirements are met, FAIL if ANY is not met.\n\nRespond ONLY with valid JSON in this exact format (no markdown fencing):\n{\"requirements\": [{\"requirement\": \"...\", \"met\": true, \"reason\": \"...\"}, ...], \"verdict\": \"PASS\", \"comment\": \"Brief overall explanation\"}",
+      "judge_raw_response": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"The chart type must be \\\"grouped-bar\\\".\",\n      \"met\": false,\n      \"reason\": \"The actual output used a 'line' chart type instead of 'grouped-bar'.\"\n    },\n    {\n      \"requirement\": \"The x-axis should represent time periods (months).\",\n      \"met\": true,\n      \"reason\": \"The data is structured by month (e.g., 2024-06, 2024-07).\"\n    },\n    {\n      \"requirement\": \"The bars should be grouped by driver/disturbance type, with different drivers shown side-by-side for each month.\",\n      \"met\": false,\n      \"reason\": \"Because the chart type is 'line', the drivers are represented as separate lines rather than side-by-side bars.\"\n    },\n    {\n      \"requirement\": \"The y-axis should represent area in hectares or a count metric.\",\n      \"met\": true,\n      \"reason\": \"The data values represent area/counts for each disturbance type.\"\n    }\n  ],\n  \"verdict\": \"FAIL\",\n  \"comment\": \"The output failed the primary requirement of using a 'grouped-bar' chart type, opting for a 'line' chart instead.\"\n}"
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[alerts by month and driver for DRC]",
+      "query": "alerts by month and driver for DRC",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "month,metric,value\n2024-06,Conversion,12345.0\n2024-06,Fire-related,8901.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Water-related,2345.0\n2024-06,Unclassified,3210.0\n2024-07,Conversion,14567.0\n2024-07,Fire-related,9234.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Water-related,1987.0\n2024-07,Unclassified,3456.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "month",
+          "metric",
+          "value"
+        ],
+        "insight": "Vegetation disturbance alerts in the DRC peaked in September 2024, with 'Conversion' and 'Fire-related' drivers representing the largest areas. While 'Conversion' remained relatively stable across the months, 'Fire-related' alerts showed more fluctuation, peaking in August and September.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyAoRElTVC1BTEVSVCkgKDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCkgLSBEZW1vY3JhdGljIFJlcHVibGljIG9mIENvbmdvKSIpCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCmRmLmluZm8oKQoKcHJpbnQoIlxuRGF0YUZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuS2V5IFN0YXRpc3RpY3M6IikKdG90YWxfYXJlYSA9IGRmWydhcmVhX2hhJ10uc3VtKCkKcHJpbnQoZiJUb3RhbCBhbGVydCBhcmVhIChoYSkgYWNyb3NzIGFsbCBtb250aHMgYW5kIGRyaXZlcnM6IHt0b3RhbF9hcmVhOi4yZn0iKQoKYWxlcnRzX2J5X21vbnRoID0gZGYuZ3JvdXBieSgnYWxlcnRfZGF0ZScpWydhcmVhX2hhJ10uc3VtKCkuc29ydF9pbmRleCgpCnByaW50KCJcbkFsZXJ0IGFyZWEgKGhhKSBieSBtb250aDoiKQpwcmludChhbGVydHNfYnlfbW9udGgpCgphbGVydHNfYnlfZHJpdmVyID0gZGYuZ3JvdXBieSgnZHJpdmVyJylbJ2FyZWFfaGEnXS5zdW0oKS5zb3J0X3ZhbHVlcyhhc2NlbmRpbmc9RmFsc2UpCnByaW50KCJcbkFsZXJ0IGFyZWEgKGhhKSBieSBkcml2ZXI6IikKcHJpbnQoYWxlcnRzX2J5X2RyaXZlcikKCiMgQ2hlY2sgZm9yIGRvbWluYW50IGRyaXZlcnMKbWF4X2RyaXZlcl9wZXJjZW50YWdlID0gKGFsZXJ0c19ieV9kcml2ZXIubWF4KCkgLyB0b3RhbF9hcmVhKSAqIDEwMApwcmludChmIlxuTWF4aW11bSBwZXJjZW50YWdlIG9mIHRvdGFsIGFyZWEgYXR0cmlidXRlZCB0byBhIHNpbmdsZSBkcml2ZXI6IHttYXhfZHJpdmVyX3BlcmNlbnRhZ2U6LjJmfSUiKQoKIyBNb250aGx5IGJyZWFrZG93biBvZiBkcml2ZXJzCm1vbnRobHlfZHJpdmVyX2JyZWFrZG93biA9IGRmLnBpdm90X3RhYmxlKGluZGV4PSdhbGVydF9kYXRlJywgY29sdW1ucz0nZHJpdmVyJywgdmFsdWVzPSdhcmVhX2hhJywgZmlsbF92YWx1ZT0wKQpwcmludCgiXG5Nb250aGx5IGJyZWFrZG93biBvZiBhbGVydCBhcmVhIChoYSkgYnkgZHJpdmVyOiIpCnByaW50KG1vbnRobHlfZHJpdmVyX2JyZWFrZG93bikKCiMgQ2hlY2sgZm9yIHVuY2xhc3NpZmllZCBhbGVydHMKdW5jbGFzc2lmaWVkX2FsZXJ0cyA9IGRmW2RmWydkcml2ZXInXSA9PSAnVW5jbGFzc2lmaWVkJ11bJ2FyZWFfaGEnXS5zdW0oKQpwcmludChmIlxuVG90YWwgJ1VuY2xhc3NpZmllZCcgYWxlcnQgYXJlYSAoaGEpOiB7dW5jbGFzc2lmaWVkX2FsZXJ0czouMmZ9IikK\naW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBUaGUgZGF0YWZyYW1lICdkZicgaXMgYWxyZWFkeSBsb2FkZWQgZnJvbSBTdGVwIDEuCgojIFByZXBhcmUgdGhlIGRhdGEgZm9yIGEgZ3JvdXB",
+        "refused": false,
+        "tool_message": "Title: Ecosystem Disturbance Alerts by Month and Driver in DRC (June - Nov 2024)\nKey Finding: Vegetation disturbance alerts in the DRC peaked in September 2024, with 'Conversion' and 'Fire-related' drivers representing the largest areas. While 'Conversion' remained relatively stable across the months, 'Fire-related' alerts showed more fluctuation, peaking in August and September.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for DRC\n2. Analyze disturbance alerts for a different time period in 2023"
+      },
+      "passed": true,
+      "comment": "The tool output correctly identifies the chart type, structures the data by month and driver as requested, and uses the appropriate metric for the y-axis.",
+      "duration_s": 11.45
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[DRC: each driver per month]",
+      "query": "DRC: each driver per month",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "date,metric,value\n2024-06,Conversion,12345.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Fire-related,8901.0\n2024-06,Unclassified,3210.0\n2024-06,Water-related,2345.0\n2024-07,Conversion,14567.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Fire-related,9234.0\n2024-07,Unclassified,3456.0\n2024-07,Water-related,1987.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "date",
+          "metric",
+          "value"
+        ],
+        "insight": "Between June and November 2024, 'Fire-related' and 'Conversion' were the primary drivers of vegetation disturbance in the DRC. 'Fire-related' disturbances reached a peak of 21,034 hectares in September, while 'Unclassified' alerts consistently averaged approximately 3,370 hectares per month.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpIGZyb20gMjAyNC0wNi0wMSB0byAyMDI0LTExLTMwKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgRGF0YUZyYW1lOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzOiB0b3RhbCBhcmVhIHBlciBkcml2ZXIgcGVyIG1vbnRoCmRmWydhbGVydF9kYXRlJ10gPSBwZC50b19kYXRldGltZShkZlsnYWxlcnRfZGF0ZSddKQpkZlsnbW9udGgnXSA9IGRmWydhbGVydF9kYXRlJ10uZHQuc3RyZnRpbWUoJyVZLSVtJykKCm1vbnRobHlfZHJpdmVyX3N1bW1hcnkgPSBkZi5ncm91cGJ5KFsnbW9udGgnLCAnZHJpdmVyJ10pWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQoKcHJpbnQoIlxuS2V5IFN0YXRpc3RpY3M6IFRvdGFsIGFyZWEgKGhlY3RhcmVzKSBwZXIgZHJpdmVyIHBlciBtb250aDoiKQpwcmludChtb250aGx5X2RyaXZlcl9zdW1tYXJ5KQoKIyBHZXQgdW5pcXVlIGRyaXZlcnMKdW5pcXVlX2RyaXZlcnMgPSBkZlsnZHJpdmVyJ10udW5pcXVlKCkKcHJpbnQoZiJcblVuaXF1ZSBkcml2ZXJzIGlkZW50aWZpZWQ6IHt1bmlxdWVfZHJpdmVycy50b2xpc3QoKX0iKQoKIyBHZXQgdGhlIGRhdGUgcmFuZ2Ugb2YgdGhlIGRhdGEKbWluX2RhdGUgPSBkZlsnYWxlcnRfZGF0ZSddLm1pbigpLnN0cmZ0aW1lKCclWS0lbScpCm1heF9kYXRlID0gZGZbJ2FsZXJ0X2RhdGUnXS5tYXgoKS5zdHJmdGltZSgnJVktJW0nKQpwcmludChmIlxuRGF0YSBjb3ZlcnMgbW9udGhzIGZyb20ge21pbl9kYXRlfSB0byB7bWF4X2RhdGV9LiIpCgojIENoZWNrIGZvciB1bmNsYXNzaWZpZWQgYWxlcnRzCnVuY2xhc3NpZmllZF9hbGVydHNfcHJlc2VudCA9ICdVbmNsYXNzaWZpZWQnIGluIHVuaXF1ZV9kcml2ZXJzCnByaW50KGYiQXJlICdVbmNsYXNzaWZpZWQnIGFsZXJ0cyBwcmVzZW50OiB7dW5jbGFzc2lmaWVkX2FsZXJ0c19wcmVzZW50fSIpCg==\nIyBGaWx0ZXIgb3V0ICdVbmNsYXNzaWZpZWQnIGlmIHRoZSBnb2FsIGlzIHRvIGhpZ2hsaWdodCBvbmx5IGtub3duIGRyaXZlcnMuCiMgRm9yIHRoaXMgcXVlcnksIGluY2x1ZGluZyAnVW5jbGFzc2lmaWVkJyBmb3IgY29tcGxldGVuZXNzIGFzIGl0J3MgYSAnZHJpdmVyJy4KY2hhcnRfZGYgPSBtb250aGx5X2RyaXZlcl9zdW1tYXJ5LmNvcHkoKQo",
+        "refused": false,
+        "tool_message": "Title: Ecosystem Disturbance Area by Driver per Month in DRC (June - Nov 2024)\nKey Finding: Between June and November 2024, 'Fire-related' and 'Conversion' were the primary drivers of vegetation disturbance in the DRC. 'Fire-related' disturbances reached a peak of 21,034 hectares in September, while 'Unclassified' alerts consistently averaged approximately 3,370 hectares per month.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for DRC\n2. Analyze disturbance drivers for the full year of 2023 to see seasonal trends"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the need for a grouped bar chart showing drivers of disturbance over time in the DRC, following all formatting and data requirements.",
+      "duration_s": 13.01
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[Which months had the most conversion vs fire in DRC?]",
+      "query": "Which months had the most conversion vs fire in DRC?",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "month,metric,value\n2024-06,Conversion,12345.0\n2024-06,Fire-related,8901.0\n2024-07,Conversion,14567.0\n2024-07,Fire-related,9234.0\n2024-08,Conversion,11234.0\n2024-08,Fire-related,18765.0\n2024-09,Conversion,13456.0\n2024-09,Fire-related,21034.0\n2024-10,Conversion,15678.0\n2024-10,Fire-related,7654.0\n",
+        "chart_data_rows": 12,
+        "chart_data_columns": [
+          "month",
+          "metric",
+          "value"
+        ],
+        "insight": "In the Democratic Republic of Congo, fire-related disturbance alerts peaked in September 2024 (21,034 ha), while conversion-related alerts reached their maximum in October 2024 (15,678 ha). Fire activity was the dominant disturbance driver in August and September, whereas conversion alerts were more prevalent in October and November.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBuYW1lIGFuZCBkYXRlIHJhbmdlCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKAlCBHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpICgyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YUZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBGaWx0ZXIgZm9yICdDb252ZXJzaW9uJyBhbmQgJ0ZpcmUtcmVsYXRlZCcgZHJpdmVycwpmaWx0ZXJlZF9kZiA9IGRmW2RmWydkcml2ZXInXS5pc2luKFsnQ29udmVyc2lvbicsICdGaXJlLXJlbGF0ZWQnXSldCgojIENvbnZlcnQgJ2FsZXJ0X2RhdGUnIHRvIGRhdGV0aW1lIGZvciBwcm9wZXIgc29ydGluZyBhbmQgbW9udGggZXh0cmFjdGlvbgpmaWx0ZXJlZF9kZlsnYWxlcnRfbW9udGgnXSA9IHBkLnRvX2RhdGV0aW1lKGZpbHRlcmVkX2RmWydhbGVydF9kYXRlJ10pCgojIEdyb3VwIGJ5IG1vbnRoIGFuZCBkcml2ZXIsIHRoZW4gc3VtICdhcmVhX2hhJwptb250aGx5X3N1bW1hcnkgPSBmaWx0ZXJlZF9kZi5ncm91cGJ5KFtmaWx0ZXJlZF9kZlsnYWxlcnRfbW9udGgnXS5kdC5zdHJmdGltZSgnJVktJW0nKSwgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnVuc3RhY2soZmlsbF92YWx1ZT0wKQoKcHJpbnQoIlxuTW9udGhseSBzdW1tYXJ5IG9mICdDb252ZXJzaW9uJyBhbmQgJ0ZpcmUtcmVsYXRlZCcgYXJlYSAoaGVjdGFyZXMpOiIpCnByaW50KG1vbnRobHlfc3VtbWFyeSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzOiBtb250aCB3aXRoIG1vc3QgY29udmVyc2lvbiBhbmQgbW9zdCBmaXJlCm1heF9jb252ZXJzaW9uX21vbnRoID0gbW9udGhseV9zdW1tYXJ5WydDb252ZXJzaW9uJ10uaWR4bWF4KCkKbWF4X2NvbnZlcnNpb25fYXJlYSA9IG1vbnRobHlfc3VtbWFyeVsnQ29udmVyc2lvbiddLm1heCgpCm1heF9maXJlX21vbnRoID0gbW9udGhseV9zdW1tYXJ5WydGaXJlLXJlbGF0ZWQnXS5pZHhtYXgoKQptYXhfZmlyZV9hcmVhID0gbW9udGhseV9zdW1tYXJ5WydGaXJlLXJlbGF0ZWQnXS5tYXgoKQoKcHJpbnQoZiJcbk1vbnRoIHdpdGggdGhlIG1vc3QgJ0NvbnZlcnNpb24nIGFsZXJ0czoge21heF9jb252ZXJzaW9uX21vbnRofSB3aXRoIHttYXhfY29udmVyc2lvbl9hcmVhOi4yZn0gaGEiKQpwcmludChmIk1vbnRoIHdpdGggdGhlIG1vc3QgJ0ZpcmUtcmVsYXRlZCcgYWxlcnRzOiB7bWF4X2ZpcmVfbW9udGh9IHdpdGgge21heF9maXJlX2FyZWE6LjJmfSBo",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts by Driver in DRC (June - Nov 2024)\nKey Finding: In the Democratic Republic of Congo, fire-related disturbance alerts peaked in September 2024 (21,034 ha), while conversion-related alerts reached their maximum in October 2024 (15,678 ha). Fire activity was the dominant disturbance driver in August and September, whereas conversion alerts were more prevalent in October and November.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for DRC\n2. Analyze vegetation disturbance alerts for the first half of 2024"
+      },
+      "passed": true,
+      "comment": "The AI-generated output correctly follows all instructions, providing a grouped-bar chart comparing conversion and fire metrics across months in the DRC.",
+      "duration_s": 11.86
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[Show how each driver type fluctuates month to month in DRC]",
+      "query": "Show how each driver type fluctuates month to month in DRC",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,Conversion,Cropland dynamics,Fire-related,Unclassified,Water-related\n2024-06,12345.0,4567.0,8901.0,3210.0,2345.0\n2024-07,14567.0,5123.0,9234.0,3456.0,1987.0\n2024-08,11234.0,4890.0,18765.0,3123.0,2456.0\n2024-09,13456.0,5234.0,21034.0,3567.0,2123.0\n2024-10,15678.0,4678.0,7654.0,3890.0,2678.0\n2024-11,12890.0,5012.0,6543.0,3234.0,2234.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "Conversion",
+          "Cropland dynamics",
+          "Fire-related",
+          "Unclassified",
+          "Water-related"
+        ],
+        "insight": "Fire-related disturbances in DRC showed the most variation, peaking at over 21,000 hectares in September 2024 before decreasing. Other drivers, including cropland dynamics and water-related alerts, remained relatively stable throughout the June to November period.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBuYW1lIGFuZCBkYXRlIHJhbmdlCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKGkiBHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpICgyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YUZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3M6IHRvdGFsIGFyZWFfaGEgcGVyIGRyaXZlciBwZXIgbW9udGgKbW9udGhseV9kcml2ZXJfc3VtbWFyeSA9IGRmLmdyb3VwYnkoWydhbGVydF9kYXRlJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnVuc3RhY2soZmlsbF92YWx1ZT0wKQoKcHJpbnQoIlxuTW9udGhseSBBcmVhIChoZWN0YXJlcykgYnkgRHJpdmVyOiIpCnByaW50KG1vbnRobHlfZHJpdmVyX3N1bW1hcnkpCgojIEdldCBvdmVyYWxsIHN0YXRpc3RpY3MgZm9yIGFyZWFfaGEKcHJpbnQoIlxuT3ZlcmFsbCBTdGF0aXN0aWNzIGZvciAnYXJlYV9oYSc6IikKcHJpbnQoZGZbJ2FyZWFfaGEnXS5kZXNjcmliZSgpKQo=\nIyBDb252ZXJ0ICdhbGVydF9kYXRlJyB0byBkYXRldGltZSBmb3IgcHJvcGVyIHNvcnRpbmcKZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCgojIFBpdm90IHRoZSB0YWJsZSB0byBnZXQgZHJpdmVycyBhcyBjb2x1bW5zIGFuZCBhbGVydF9kYXRlIGFzIGluZGV4CmNoYXJ0X2RmID0gZGYucGl2b3RfdGFibGUoaW5kZXg9J2FsZXJ0X2RhdGUnLCBjb2x1bW5zPSdkcml2ZXInLCB2YWx1ZXM9J2FyZWFfaGEnLCBmaWxsX3ZhbHVlPTApCgojIFJlc2V0IGluZGV4IHRvIG1ha2UgJ2FsZXJ0X2RhdGUnIGEgY29sdW1uCmNoYXJ0X2RmID0gY2hhcnRfZGYucmVzZXRfaW5kZXgoKQoKIyBSZW5hbWUgJ2FsZXJ0X2RhdGUnIHRvICdkYXRlJyBmb3IgY2xhcml0eSBhbmQgZm9ybWF0IGFzICdZWVlZLU1NJwpjaGFydF9kZlsnZGF0ZSddID0gY2hhcnRfZGZbJ2FsZXJ0X2RhdGUnXS5kdC5zdHJmdGltZSgnJVktJW0nKQpjaGFydF9kZiA9IGNoYXJ0X2RmLmRyb3AoY29sdW1ucz0nYWxlcnRfZGF0ZScpCgojIFJlb3JkZXIgY29sdW1ucyB0byBoYXZlICdkYXRlJyBmaXJzdApjb2xzID0gWydkYXRlJ10gKyBbY29sIGZvciBjb2wgaW4gY2hhcnRfZGYuY29sdW1ucyBpZiBjb2wgIT0gJ2RhdGUnXQpjaGFydF9kZiA9IGNoYXJ0X2RmW2NvbHNdCgojIFByaW50IHRoZSBoZWFkIG9mIHRoZSBjaGFydCBkYXRhCnByaW50KCJ",
+        "refused": false,
+        "tool_message": "Title: Monthly Ecosystem Disturbance Alerts by Driver in DRC (June - Nov 2024)\nKey Finding: Fire-related disturbances in DRC showed the most variation, peaking at over 21,000 hectares in September 2024 before decreasing. Other drivers, including cropland dynamics and water-related alerts, remained relatively stable throughout the June to November period.\nFollow-up suggestions:\n1. Compare these disturbance drivers with annual tree cover loss data for DRC\n2. Analyze fire-related disturbance alerts in DRC for the previous year period"
+      },
+      "passed": false,
+      "comment": "The AI failed to use the required 'grouped-bar' chart type, opting for a 'line' chart instead.",
+      "duration_s": 13.42,
+      "rubric": "1. The chart type must be \"grouped-bar\".\n        2. The x-axis should represent time periods (months).\n        3. The bars should be grouped by driver/disturbance type, with different\n           drivers shown side-by-side for each month.\n        4. The y-axis should represent area in hectares or a count metric.",
+      "requirements": [
+        {
+          "requirement": "The chart type must be 'grouped-bar'.",
+          "met": false,
+          "reason": "The tool output specified a 'line' chart instead of a 'grouped-bar' chart."
+        },
+        {
+          "requirement": "The x-axis should represent time periods (months).",
+          "met": true,
+          "reason": "The data is correctly aggregated by month (e.g., 2024-06, 2024-07)."
+        },
+        {
+          "requirement": "The bars should be grouped by driver/disturbance type, with different drivers shown side-by-side for each month.",
+          "met": false,
+          "reason": "Because the chart type was set to 'line', the drivers are represented as separate lines rather than grouped bars."
+        },
+        {
+          "requirement": "The y-axis should represent area in hectares or a count metric.",
+          "met": true,
+          "reason": "The data and insight text indicate the values represent area in hectares."
+        }
+      ],
+      "judge_prompt": "You are evaluating whether an AI-generated data visualization follows specific rules.\n\n## Original User Query\nShow how each driver type fluctuates month to month in DRC\n\n## Expected Behavior (Rubric)\n\n        1. The chart type must be \"grouped-bar\".\n        2. The x-axis should represent time periods (months).\n        3. The bars should be grouped by driver/disturbance type, with different\n           drivers shown side-by-side for each month.\n        4. The y-axis should represent area in hectares or a count metric.\n        \n\n## Actual Tool Output\n\n### Chart Type\nline\n\n### Chart Data (first 10 rows)\ndate,Conversion,Cropland dynamics,Fire-related,Unclassified,Water-related\n2024-06,12345.0,4567.0,8901.0,3210.0,2345.0\n2024-07,14567.0,5123.0,9234.0,3456.0,1987.0\n2024-08,11234.0,4890.0,18765.0,3123.0,2456.0\n2024-09,13456.0,5234.0,21034.0,3567.0,2123.0\n2024-10,15678.0,4678.0,7654.0,3890.0,2678.0\n2024-11,12890.0,5012.0,6543.0,3234.0,2234.0\n\n\n### Insight Text\nFire-related disturbances in DRC showed the most variation, peaking at over 21,000 hectares in September 2024 before decreasing. Other drivers, including cropland dynamics and water-related alerts, remained relatively stable throughout the June to November period.\n\n### Generated Code (summary)\naW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBuYW1lIGFuZCBkYXRlIHJhbmdlCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKGkiBHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpICgyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YUZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3M6IHRvdGFsIGFyZWFfaGEgcGVyIGRyaXZlciBwZXIgbW9udGgKbW9udGhseV9kcml2ZXJfc3VtbWFyeSA9IGRmLmdyb3VwYnkoWydhbGVydF9kYXRlJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnVuc3RhY2soZmlsbF92YWx1ZT0wKQoKcHJpbnQoIlxuTW9udGhseSBBcmVhIChoZWN0YXJlcykgYnkgRHJpdmVyOiIpCnByaW50KG1vbnRobHlfZHJpdmVyX3N1bW1hcnkpCgojIEdldCBvdmVyYWxsIHN0YXRpc3RpY3MgZm9yIGFyZWFfaGEKcHJpbnQoIlxuT3ZlcmFsbCBTdGF0aXN0aWNzIGZvciAnYXJlYV9oYSc6IikKcHJpbnQoZGZbJ2FyZWFfaGEnXS5kZXNjcmliZSgpKQo=\nIyBDb252ZXJ0ICdhbGVydF9kYXRlJyB0byBkYXRldGltZSBmb3IgcHJvcGVyIHNvcnRpbmcKZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCgojIFBpdm90IHRoZSB0YWJsZSB0byBnZXQgZHJpdmVycyBhcyBjb2x1bW5zIGFuZCBhbGVydF9kYXRlIGFzIGluZGV4CmNoYXJ0X2RmID0gZGYucGl2b3RfdGFibGUoaW5kZXg9J2FsZXJ0X2RhdGUnLCBjb2x1bW5zPSdkcml2ZXInLCB2YWx1ZXM9J2FyZWFfaGEnLCBmaWxsX3ZhbHVlPTApCgojIFJlc2V0IGluZGV4IHRvIG1ha2UgJ2FsZXJ0X2RhdGUnIGEgY29sdW1uCmNoYXJ0X2RmID0gY2hhcnRfZGYucmVzZXRfaW5kZXgoKQoKIyBSZW5hbWUgJ2FsZXJ0X2RhdGUnIHRvICdkYXRlJyBmb3IgY2xhcml0eSBhbmQgZm9ybWF0IGFzICdZWVlZLU1NJwpjaGFydF9kZlsnZGF0ZSddID0gY2hhcnRfZGZbJ2FsZXJ0X2RhdGUnXS5kdC5zdHJmdGltZSgnJVktJW0nKQpjaGFydF9kZiA9IGNoYXJ0X2RmLmRyb3AoY29sdW1ucz0nYWxlcnRfZGF0ZScpCgojIFJlb3JkZXIgY29sdW1ucyB0byBoYXZlICdkYXRlJyBmaXJzdApjb2xzID0gWydkYXRlJ10gKyBbY29sIGZvciBjb2wgaW4gY2hhcnRfZGYuY29sdW1ucyBpZiBjb2wgIT0gJ2RhdGUnXQpjaGFydF9kZiA9IGNoYXJ0X2RmW2NvbHNdCgojIFByaW50IHRoZSBoZWFkIG9mIHRoZSBjaGFydCBkYXRhCnByaW50KCJ\n\n## Instructions\nEvaluate whether the actual output satisfies EACH requirement in the rubric.\nFor each requirement, state whether it is MET or NOT MET with a brief reason.\n\nThen give an overall verdict: PASS if ALL requirements are met, FAIL if ANY is not met.\n\nRespond ONLY with valid JSON in this exact format (no markdown fencing):\n{\"requirements\": [{\"requirement\": \"...\", \"met\": true, \"reason\": \"...\"}, ...], \"verdict\": \"PASS\", \"comment\": \"Brief overall explanation\"}",
+      "judge_raw_response": "{\n  \"requirements\": [\n    {\"requirement\": \"The chart type must be 'grouped-bar'.\", \"met\": false, \"reason\": \"The tool output specified a 'line' chart instead of a 'grouped-bar' chart.\"},\n    {\"requirement\": \"The x-axis should represent time periods (months).\", \"met\": true, \"reason\": \"The data is correctly aggregated by month (e.g., 2024-06, 2024-07).\"},\n    {\"requirement\": \"The bars should be grouped by driver/disturbance type, with different drivers shown side-by-side for each month.\", \"met\": false, \"reason\": \"Because the chart type was set to 'line', the drivers are represented as separate lines rather than grouped bars.\"},\n    {\"requirement\": \"The y-axis should represent area in hectares or a count metric.\", \"met\": true, \"reason\": \"The data and insight text indicate the values represent area in hectares.\"}\n  ],\n  \"verdict\": \"FAIL\",\n  \"comment\": \"The AI failed to use the required 'grouped-bar' chart type, opting for a 'line' chart instead.\"\n}"
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[Compare all driver types side by side for each month in DRC]",
+      "query": "Compare all driver types side by side for each month in DRC",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "month,driver_type,area_in_hectares\n2024-06,Conversion,12345.0\n2024-06,Fire-related,8901.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Water-related,2345.0\n2024-06,Unclassified,3210.0\n2024-07,Conversion,14567.0\n2024-07,Fire-related,9234.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Water-related,1987.0\n2024-07,Unclassified,3456.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "month",
+          "driver_type",
+          "area_in_hectares"
+        ],
+        "insight": "Vegetation disturbance alerts in the DRC are primarily driven by 'Conversion' and 'Fire-related' activities, with fire-related alerts peaking in August and September. Other drivers such as cropland dynamics and water-related factors show lower, more stable levels of disturbance across the June to November 2024 period.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBFeHRyYWN0aW5nIGRhdGUgcmFuZ2UgZnJvbSB0aGUgZGF0YQptaW5fZGF0ZSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pLm1pbigpLnN0cmZ0aW1lKCclWS0lbS0lZCcpCm1heF9kYXRlID0gcGQudG9fZGF0ZXRpbWUoZGZbJ2FsZXJ0X2RhdGUnXSkubWF4KCkuc3RyZnRpbWUoJyVZLSVtLSVkJykKCnByaW50KGYiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSBmcm9tIHttaW5fZGF0ZX0gdG8ge21heF9kYXRlfSkiKQoKcHJpbnQoIlxuRGF0YSBTdHJ1Y3R1cmUgYW5kIFR5cGVzOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YXNldDoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgU3RhdGlzdGljcyAoVG90YWwgYXJlYV9oYSBwZXIgZHJpdmVyIGFuZCBtb250aCk6IikKbW9udGhseV9kcml2ZXJfc3VtbWFyeSA9IGRmLmdyb3VwYnkoWydhbGVydF9kYXRlJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnVuc3RhY2soZmlsbF92YWx1ZT0wKQpwcmludChtb250aGx5X2RyaXZlcl9zdW1tYXJ5KQoKcHJpbnQoIlxuVG90YWwgYXJlYV9oYSBwZXIgZHJpdmVyIGFjcm9zcyBhbGwgbW9udGhzOiIpCnRvdGFsX2FyZWFfYnlfZHJpdmVyID0gZGYuZ3JvdXBieSgnZHJpdmVyJylbJ2FyZWFfaGEnXS5zdW0oKS5zb3J0X3ZhbHVlcyhhc2NlbmRpbmc9RmFsc2UpCnByaW50KHRvdGFsX2FyZWFfYnlfZHJpdmVyKQo=\nIyBDb252ZXJ0ICdhbGVydF9kYXRlJyB0byBkYXRldGltZSBmb3IgcHJvcGVyIHNvcnRpbmcKZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCgojIFNvcnQgYnkgZGF0ZQpkZl9zb3J0ZWQgPSBkZi5zb3J0X3ZhbHVlcyhieT0nYWxlcnRfZGF0ZScpCgojIFJlbmFtZSBjb2x1bW5zIGZvciBjbGFyaXR5IGluIGNoYXJ0IGRhdGEKY2hhcnRfZGYgPSBkZl9zb3J0ZWQucmVuYW1lKGNvbHVtbnM9eydhbGVydF9kYXRlJzogJ21vbnRoJywgJ2RyaXZlcic6ICdkcml2ZXJfdHlwZScsICdhcmVhX2hhJzogJ2FyZWFfaW5faGVjdGFyZXMnfSkKCiMgRm9ybWF0IG1vbnRoIGFzICdZWVlZLU1NJyBzdHJpbmcgZm9yIGNvbnNpc3RlbnQgeC1heGlzIGxhYmVscwpjaGFydF9kZlsnbW9udGgnXSA9IGNoYXJ0X2RmWydtb250aCddLmR0LnN0cmZ0aW1lKCclWS0lbScpCgojIENvbnZlcnQgdG8gZGljdGlvbmFyeSBhcnJheSBmb3JtYXQgZm9yIGNoYXJ0X2RhdGEKY2hhcnRfZGF0YV9saXN0ID0gY2hhcnRfZGYudG9fZGljdChvcmllbnQ9J3JlY29yZHMnKQoKcHJpbnQoIkdlbmVyYXRlZCBDaGFydCBEYXRhIChmaXJzdCA",
+        "refused": false,
+        "tool_message": "Title: Vegetation Disturbance Alerts by Driver Type in DRC (June - Nov 2024)\nKey Finding: Vegetation disturbance alerts in the DRC are primarily driven by 'Conversion' and 'Fire-related' activities, with fire-related alerts peaking in August and September. Other drivers such as cropland dynamics and water-related factors show lower, more stable levels of disturbance across the June to November 2024 period.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for DRC to identify permanent conversion trends\n2. Break down vegetation disturbance alerts by confidence level for the peak months of August and September"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified the chart type, grouped the data by month and driver type, and used the correct metric for the y-axis.",
+      "duration_s": 13.41
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[Monthly breakdown of alerts by cause in DRC, June-Nov 2024]",
+      "query": "Monthly breakdown of alerts by cause in DRC, June-Nov 2024",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "alertMonth,driver,area_ha\n2024-06,Conversion,12345.0\n2024-06,Water-related,2345.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Unclassified,3210.0\n2024-06,Fire-related,8901.0\n2024-07,Conversion,14567.0\n2024-07,Water-related,1987.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Unclassified,3456.0\n2024-07,Fire-related,9234.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "alertMonth",
+          "driver",
+          "area_ha"
+        ],
+        "insight": "Vegetation disturbance alerts in DRC between June and November 2024 were primarily associated with 'Fire-related' and 'Conversion' drivers. 'Fire-related' alerts peaked in August and September, while 'Conversion' alerts remained a consistent factor, becoming the most frequent driver in October.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiVXNpbmcgZGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSBmb3IgRFJDLCAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZQpwcmludCgiXG5EYXRhRnJhbWUgSW5mbzoiKQpkZi5pbmZvKCkKCiMgUHJpbnQgdGhlIGhlYWQgb2YgdGhlIGRhdGFmcmFtZQpwcmludCgiXG5EYXRhRnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljczogTW9udGhseSBicmVha2Rvd24gb2YgYWxlcnRzIGJ5IGNhdXNlCm1vbnRobHlfYnJlYWtkb3duID0gZGYuZ3JvdXBieShbJ2FsZXJ0X2RhdGUnLCAnZHJpdmVyJ10pWydhcmVhX2hhJ10uc3VtKCkudW5zdGFjayhmaWxsX3ZhbHVlPTApCgojIENhbGN1bGF0ZSBtb250aGx5IHRvdGFscwptb250aGx5X2JyZWFrZG93blsnVG90YWwnXSA9IG1vbnRobHlfYnJlYWtkb3duLnN1bShheGlzPTEpCgojIENhbGN1bGF0ZSBwZXJjZW50YWdlIG9mIGVhY2ggZHJpdmVyIHBlciBtb250aAptb250aGx5X3BlcmNlbnRhZ2UgPSBtb250aGx5X2JyZWFrZG93bi5kaXYobW9udGhseV9icmVha2Rvd25bJ1RvdGFsJ10sIGF4aXM9MCkgKiAxMDAKCnByaW50KCJcbk1vbnRobHkgQnJlYWtkb3duIG9mIEFsZXJ0cyBieSBDYXVzZSAoQXJlYSBpbiBIZWN0YXJlcyk6IikKcHJpbnQobW9udGhseV9icmVha2Rvd24pCgpwcmludCgiXG5Nb250aGx5IFBlcmNlbnRhZ2UgQnJlYWtkb3duIG9mIEFsZXJ0cyBieSBDYXVzZToiKQpwcmludChtb250aGx5X3BlcmNlbnRhZ2UpCg==\nIyBSZXNldCBpbmRleCB0byB0dXJuICdhbGVydF9kYXRlJyBiYWNrIGludG8gYSBjb2x1bW4gYW5kIG1lbHQgdGhlIERhdGFGcmFtZSBmb3IgdGhlIGdyb3VwZWQgYmFyIGNoYXJ0IGZvcm1hdApjaGFydF9kZiA9IG1vbnRobHlfYnJlYWtkb3duLmRyb3AoY29sdW1ucz0nVG90YWwnKS5yZXNldF9pbmRleCgpCmNoYXJ0X2RmX2xvbmcgPSBjaGFydF9kZi5tZWx0KGlkX3ZhcnM9WydhbGVydF9kYXRlJ10sIHZhcl9uYW1lPSdkcml2ZXInLCB2YWx1ZV9uYW1lPSdhcmVhX2hhJykKCiMgRW5zdXJlICdhcmVhX2hhJyBpcyBudW1lcmljCmNoYXJ0X2RmX2xvbmdbJ2FyZWFfaGEnXSA9IHBkLnRvX251bWVyaWMoY2hhcnRfZGZfbG9uZ1snYXJlYV9oYSddKQoKIyBTb3J0IGJ5IGFsZXJ0X2RhdGUgY2hyb25vbG9naWNhbGx5CmNoYXJ0X2RmX2xvbmcgPSBjaGFydF9kZl9sb25nLnNvcnRfdmFsdWVzKGJ5PSdhbGVydF9kYXRlJykKCiMgUmVuYW1lIGNvbHVtbnMgZm9yIGNsYXJpdHk",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts by Cause in DRC (June-Nov 2024)\nKey Finding: Vegetation disturbance alerts in DRC between June and November 2024 were primarily associated with 'Fire-related' and 'Conversion' drivers. 'Fire-related' alerts peaked in August and September, while 'Conversion' alerts remained a consistent factor, becoming the most frequent driver in October.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for DRC to identify permanent conversion trends.\n2. Analyze the distribution of 'Fire-related' alerts across different provinces in DRC for the same period."
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the chart type, organizes the data by month and driver, and uses the appropriate metric for the y-axis as requested.",
+      "duration_s": 12.9
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[DRC alert drivers month by month \\u2014 I want to see them grouped]",
+      "query": "DRC alert drivers month by month \u2014 I want to see them grouped",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "month,metric,value\n2024-06,Conversion,12345.0\n2024-06,Fire-related,8901.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Water-related,2345.0\n2024-06,Unclassified,3210.0\n2024-07,Conversion,14567.0\n2024-07,Fire-related,9234.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Water-related,1987.0\n2024-07,Unclassified,3456.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "month",
+          "metric",
+          "value"
+        ],
+        "insight": "Ecosystem disturbance alerts in the DRC peaked in September 2024, primarily driven by 'Fire-related' activities and 'Conversion'. While fire-related alerts showed seasonal fluctuation with a sharp decline after September, 'Conversion' remained a consistent driver of vegetation disturbance throughout the six-month period.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgd2hpY2ggZGF0YXNldCBpcyBiZWluZyB1c2VkCnByaW50KCJEYXRhc2V0IGJlaW5nIHVzZWQ6IGlucHV0X2ZpbGVfMC5jc3YiKQpwcmludCgiQ29udGVudDogR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSBmb3IgRGVtb2NyYXRpYyBSZXB1YmxpYyBvZiBDb25nbyIpCnByaW50KCJEYXRlIHJhbmdlOiAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzAiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhZnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5EYXRhZnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwpwcmludCgiXG5LZXkgU3RhdGlzdGljczoiKQpwcmludChkZi5kZXNjcmliZShpbmNsdWRlPSdhbGwnKSkKCiMgQ2hlY2sgdW5pcXVlIGRyaXZlcnMKcHJpbnQoIlxuVW5pcXVlIERyaXZlcnM6IikKcHJpbnQoZGZbJ2RyaXZlciddLnVuaXF1ZSgpKQoKIyBDaGVjayB0b3RhbCBhbGVydHMgcGVyIG1vbnRoCnByaW50KCJcblRvdGFsIEFsZXJ0cyBwZXIgTW9udGggKGhlY3RhcmVzKToiKQptb250aGx5X3RvdGFsID0gZGYuZ3JvdXBieSgnYWxlcnRfZGF0ZScpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQpwcmludChtb250aGx5X3RvdGFsKQoKIyBDaGVjayB0b3RhbCBhbGVydHMgcGVyIGRyaXZlcgpwcmludCgiXG5Ub3RhbCBBbGVydHMgcGVyIERyaXZlciAoaGVjdGFyZXMpOiIpCmRyaXZlcl90b3RhbCA9IGRmLmdyb3VwYnkoJ2RyaXZlcicpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQpwcmludChkcml2ZXJfdG90YWwpCgojIENoZWNrIG1vbnRobHkgYWxlcnRzIGJ5IGRyaXZlcgpwcmludCgiXG5Nb250aGx5IEFsZXJ0cyBieSBEcml2ZXIgKGhlY3RhcmVzKToiKQptb250aGx5X2RyaXZlcl90b3RhbCA9IGRmLmdyb3VwYnkoWydhbGVydF9kYXRlJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnVuc3RhY2soZmlsbF92YWx1ZT0wKQpwcmludChtb250aGx5X2RyaXZlcl90b3RhbCk=\nIyBDb252ZXJ0ICdhbGVydF9kYXRlJyB0byBkYXRldGltZSBvYmplY3RzIGZvciBwcm9wZXIgY2hyb25vbG9naWNhbCBzb3J0aW5nLCB0aGVuIGZvcm1hdCBiYWNrIHRvIHN0cmluZyBmb3IgZGlzcGxheQpkZlsnYWxlcnRfZGF0ZSddID0gcGQudG9fZGF0ZXRpbWUoZGZbJ2FsZXJ0X2RhdGUnXSkuZHQuc3RyZnRpbWUoJyVZLSVtJykKCiMgUHJlcGFyZSB0aGUgZGF0YSBmb3IgYSBncm91cGVkIGJhciBjaGFydAojIFRoZSBjdXJyZW50IGRhdGFmcmFtZSBgZGZgIGlzIGFscmVhZHk",
+        "refused": false,
+        "tool_message": "Title: Monthly Ecosystem Disturbance Alerts in DRC by Driver (June - Nov 2024)\nKey Finding: Ecosystem disturbance alerts in the DRC peaked in September 2024, primarily driven by 'Fire-related' activities and 'Conversion'. While fire-related alerts showed seasonal fluctuation with a sharp decline after September, 'Conversion' remained a consistent driver of vegetation disturbance throughout the six-month period.\nFollow-up suggestions:\n1. Compare DRC disturbance drivers with neighboring Republic of the Congo for the same period\n2. Analyze DRC tree cover loss by dominant driver for a historical perspective (2001-2023)"
+      },
+      "passed": true,
+      "comment": "The output correctly follows all instructions, providing a grouped-bar chart showing drivers of disturbance in the DRC over time.",
+      "duration_s": 16.72
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_grouped_bar_for_seasonal_patterns[Side-by-side monthly comparison of DRC disturbance drivers]",
+      "query": "Side-by-side monthly comparison of DRC disturbance drivers",
+      "response": {
+        "chart_type": "grouped-bar",
+        "chart_data_preview": "month,driver_class,area\n2024-06,Conversion,12345.0\n2024-06,Fire-related,8901.0\n2024-06,Cropland dynamics,4567.0\n2024-06,Water-related,2345.0\n2024-06,Unclassified,3210.0\n2024-07,Conversion,14567.0\n2024-07,Fire-related,9234.0\n2024-07,Cropland dynamics,5123.0\n2024-07,Water-related,1987.0\n2024-07,Unclassified,3456.0\n",
+        "chart_data_rows": 30,
+        "chart_data_columns": [
+          "month",
+          "driver_class",
+          "area"
+        ],
+        "insight": "Disturbance alerts in the DRC from June to November 2024 show that 'Conversion' is a frequent driver, while 'Fire-related' alerts exhibit a seasonal increase during August and September. These alerts represent vegetation disturbance detected by sensors and may include both human-caused activities and natural fluctuations.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIC0gRFJDKSIpCnByaW50KCJEYXRlIFJhbmdlOiAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzAiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlIGFuZCB0eXBlcwpwcmludCgiXG5EYXRhIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBEaXNwbGF5IHRoZSBmaXJzdCBmZXcgcm93cyB0byB1bmRlcnN0YW5kIHRoZSBkYXRhCnByaW50KCJcbkRhdGEgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwpwcmludCgiXG5LZXkgU3RhdGlzdGljczoiKQpwcmludChkZi5kZXNjcmliZShpbmNsdWRlPSdhbGwnKSkKCiMgQ2FsY3VsYXRlIHRvdGFsIGFyZWEgcGVyIGRyaXZlcgp0b3RhbF9hcmVhX3Blcl9kcml2ZXIgPSBkZi5ncm91cGJ5KCdkcml2ZXInKVsnYXJlYV9oYSddLnN1bSgpLnNvcnRfdmFsdWVzKGFzY2VuZGluZz1GYWxzZSkKcHJpbnQoIlxuVG90YWwgYXJlYSAoaGEpIHBlciBkcml2ZXI6IikKcHJpbnQodG90YWxfYXJlYV9wZXJfZHJpdmVyKQoKIyBDYWxjdWxhdGUgbW9udGhseSBhcmVhIHBlciBkcml2ZXIKbW9udGhseV9hcmVhX3Blcl9kcml2ZXIgPSBkZi5ncm91cGJ5KFsnYWxlcnRfZGF0ZScsICdkcml2ZXInXSlbJ2FyZWFfaGEnXS5zdW0oKS51bnN0YWNrKGZpbGxfdmFsdWU9MCkKcHJpbnQoIlxuTW9udGhseSBhcmVhIChoYSkgcGVyIGRyaXZlcjoiKQpwcmludChtb250aGx5X2FyZWFfcGVyX2RyaXZlcikKCiMgSWRlbnRpZnkgdGhlIGRvbWluYW50IGRyaXZlciBpZiBhbnkKbWF4X2RyaXZlcl9tb250aCA9IGRmLmdyb3VwYnkoJ2FsZXJ0X2RhdGUnKVsnYXJlYV9oYSddLmlkeG1heCgpCmRvbWluYW50X2RyaXZlcnNfbW9udGhseSA9IGRmLmxvY1ttYXhfZHJpdmVyX21vbnRoXQpwcmludCgiXG5Eb21pbmFudCBkcml2ZXIgZWFjaCBtb250aDoiKQpwcmludChkb21pbmFudF9kcml2ZXJzX21vbnRobHkpCgojIENoZWNrIGZvciB1bmNsYXNzaWZpZWQgYWxlcnRzCnVuY2xhc3NpZmllZF9hbGVydHMgPSBkZltkZlsnZHJpdmVyJ10gPT0gJ1VuY2xhc3NpZmllZCddWydhcmVhX2hhJ10uc3VtKCkKdG90YWxfYWxlcnRzX2FyZWEgPSBkZlsnYXJlYV9oYSddLnN1bSgpCnBlcmNlbnRhZ2VfdW5jbGFzc2lmaWVkID0gKHVuY2xhc3NpZmllZF9hbGVydHMgLyB0b3RhbF9hbGVydHNfYXJlYSkgKiAxMDAgaWYgdG90YWxfYWxlcnRzX2FyZWEgPiAwIGVsc2UgMApwcmludChmIlxuVG90YWwgYXJlYSBmb3IgJ1VuY2xhc3NpZmllZCcgYWxlcnRzOiB7dW5jbGFzc2lmaWVkX2Fs",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Area by Driver in DRC (June - Nov 2024)\nKey Finding: Disturbance alerts in the DRC from June to November 2024 show that 'Conversion' is a frequent driver, while 'Fire-related' alerts exhibit a seasonal increase during August and September. These alerts represent vegetation disturbance detected by sensors and may include both human-caused activities and natural fluctuations.\nFollow-up suggestions:\n1. Compare these disturbance drivers with annual tree cover loss data for historical context\n2. Analyze disturbance alerts for a specific province in DRC to identify local drivers"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the chart type, organizes the data by month and driver class for a side-by-side comparison, and uses area as the metric.",
+      "duration_s": 23.53
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[Show the trend in disturbance alerts in the Democratic Republic of Congo over time]",
+      "query": "Show the trend in disturbance alerts in the Democratic Republic of Congo over time",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "alert_month,total_area_ha\n2024-06,31368.0\n2024-07,34367.0\n2024-08,40468.0\n2024-09,45414.0\n2024-10,34578.0\n2024-11,29913.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "alert_month",
+          "total_area_ha"
+        ],
+        "insight": "Vegetation disturbance alerts in the Democratic Republic of Congo fluctuated between June and November 2024, peaking at 45,414 hectares in September before declining to 29,913 hectares in November. These alerts detect changes in all vegetation types and do not distinguish between human-caused activities, such as harvesting, and natural disturbances.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBuYW1lIGFuZCBkYXRlIHJhbmdlCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKAlCBHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpICgyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZQpwcmludCgiXG5EYXRhIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCBoZWFkIG9mIHRoZSBkYXRhZnJhbWUgdG8gc2VlIGNvbHVtbnMgYW5kIGEgc2FtcGxlIG9mIGRhdGEKcHJpbnQoIlxuRGF0YSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzOiB0b3RhbCBhcmVhIGRpc3R1cmJlZCBwZXIgbW9udGgKbW9udGhseV9kaXN0dXJiYW5jZSA9IGRmLmdyb3VwYnkoJ2FsZXJ0X2RhdGUnKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKbW9udGhseV9kaXN0dXJiYW5jZS5jb2x1bW5zID0gWydhbGVydF9tb250aCcsICd0b3RhbF9hcmVhX2hhJ10KcHJpbnQoIlxuTW9udGhseSBEaXN0dXJiYW5jZSAoVG90YWwgQXJlYSBpbiBIZWN0YXJlcyk6IikKcHJpbnQobW9udGhseV9kaXN0dXJiYW5jZSkKCiMgQ2FsY3VsYXRlIG92ZXJhbGwgc3RhdGlzdGljcwp0b3RhbF9hbGVydHMgPSBkZlsnYXJlYV9oYSddLnN1bSgpCnByaW50KGYiXG5PdmVyYWxsIFRvdGFsIERpc3R1cmJlZCBBcmVhIChoYSk6IHt0b3RhbF9hbGVydHM6LjJmfSIpCg==\nIyBFbnN1cmUgdGhlICdhbGVydF9kYXRlJyBjb2x1bW4gaXMgaW4gZGF0ZXRpbWUgZm9ybWF0IGZvciBjb3JyZWN0IGNocm9ub2xvZ2ljYWwgb3JkZXJpbmcKZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCgojIEdyb3VwIGJ5IG1vbnRoIGFuZCBzdW0gdGhlIGFyZWFfaGEKY2hhcnRfZGYgPSBkZi5ncm91cGJ5KGRmWydhbGVydF9kYXRlJ10uZHQudG9fcGVyaW9kKCdNJykpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQoKIyBDb252ZXJ0ICdhbGVydF9kYXRlJyBiYWNrIHRvIHN0cmluZyBmb3IgdGhlIGNoYXJ0LCB1c2luZyBZWVlZLU1NIGZvcm1hdApjaGFydF9kZlsnYWxlcnRfbW9udGgnXSA9IGNoYXJ0X2RmWydhbGVydF9kYXRlJ10uYXN0eXBlKHN0cikKCiMgUmVuYW1lIGNvbHVtbnMgZm9yIGNsYXJpdHkgYW5kIFJlY2hhcnRzIGNvbXBhdGliaWxpdHkKY2hhcnRfZGYgPSBjaGFydF9kZltbJ2FsZXJ0X21vbnRoJywgJ2FyZWFfaGEnXV0KY2hhcnRfZGYuY29sdW1ucyA9IFsnYWxlcnRfbW9udGgnLCAndG90YWxfYXJlYV9oYSddCgpwcmludCgiQ2hhcnQgRGF0YSBIZWFkOiIpCnByaW50KGNoYXJ0X2RmLmhlYWQoKSkK\nY2",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts in DRC (June - Nov 2024)\nKey Finding: Vegetation disturbance alerts in the Democratic Republic of Congo fluctuated between June and November 2024, peaking at 45,414 hectares in September before declining to 29,913 hectares in November. These alerts detect changes in all vegetation types and do not distinguish between human-caused activities, such as harvesting, and natural disturbances.\nFollow-up suggestions:\n1. Compare disturbance alerts with tree cover loss data for a more accurate assessment of forest change over time.\n2. Break down disturbance alerts by driver to identify the primary causes of vegetation loss."
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the trend over time using a line chart with appropriate temporal and metric axes as requested.",
+      "duration_s": 12.29
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[How have ecosystem alerts changed month to month in DRC?]",
+      "query": "How have ecosystem alerts changed month to month in DRC?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "month,area_in_hectares\n2024-06,31368.0\n2024-07,34367.0\n2024-08,40468.0\n2024-09,45414.0\n2024-10,34578.0\n2024-11,29913.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "month",
+          "area_in_hectares"
+        ],
+        "insight": "Ecosystem alerts in the DRC peaked in September 2024 at 45,414 hectares before declining to a period low of 29,913 hectares in November. These alerts detect vegetation disturbance but do not distinguish between human-caused activities, such as logging or agriculture, and natural disturbances.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgdGhlIGRhdGFzZXQgbmFtZSBhbmQgZGF0ZSByYW5nZQpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiIpCnByaW50KCJEYXRhIGNvdmVyczogR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSBmb3IgRGVtb2NyYXRpYyBSZXB1YmxpYyBvZiBDb25nbyAoMjAyNC0wNi0wMSB0byAyMDI0LTExLTMwKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ29udmVydCAnYWxlcnRfZGF0ZScgdG8gZGF0ZXRpbWUgb2JqZWN0cyBmb3IgcHJvcGVyIHRpbWUgc2VyaWVzIGFuYWx5c2lzCmRmWydhbGVydF9kYXRlJ10gPSBwZC50b19kYXRldGltZShkZlsnYWxlcnRfZGF0ZSddKQoKIyBDYWxjdWxhdGUgdG90YWwgYXJlYV9oYSBwZXIgbW9udGgKbW9udGhseV9hbGVydHMgPSBkZi5ncm91cGJ5KCdhbGVydF9kYXRlJylbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCm1vbnRobHlfYWxlcnRzLnJlbmFtZShjb2x1bW5zPXsnYWxlcnRfZGF0ZSc6ICdhbGVydF9tb250aCcsICdhcmVhX2hhJzogJ3RvdGFsX2FyZWFfaGEnfSwgaW5wbGFjZT1UcnVlKQoKIyBDYWxjdWxhdGUgbW9udGgtdG8tbW9udGggcGVyY2VudGFnZSBjaGFuZ2UKbW9udGhseV9hbGVydHNbJ21vbnRoX3RvX21vbnRoX2NoYW5nZV9wY3QnXSA9IG1vbnRobHlfYWxlcnRzWyd0b3RhbF9hcmVhX2hhJ10ucGN0X2NoYW5nZSgpICogMTAwCgpwcmludCgiXG5Nb250aGx5IEVjb3N5c3RlbSBBbGVydHMgKFRvdGFsIEFyZWEgaW4gSGVjdGFyZXMpOiIpCnByaW50KG1vbnRobHlfYWxlcnRzKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MgZm9yIHRoZSBtb250aGx5IGNoYW5nZXMKdG90YWxfYWxlcnRzX292ZXJfcGVyaW9kID0gbW9udGhseV9hbGVydHNbJ3RvdGFsX2FyZWFfaGEnXS5zdW0oKQphdmVyYWdlX21vbnRobHlfYWxlcnRzID0gbW9udGhseV9hbGVydHNbJ3RvdGFsX2FyZWFfaGEnXS5tZWFuKCkKbWF4X21vbnRobHlfYWxlcnRzID0gbW9udGhseV9hbGVydHNbJ3RvdGFsX2FyZWFfaGEnXS5tYXgoKQptaW5fbW9udGhseV9hbGVydHMgPSBtb250aGx5X2FsZXJ0c1sndG90YWxfYXJlYV9oYSddLm1pbigpCgpwcmludChmIlxuS2V5IEZpbmRpbmdzOiIpCnByaW50KGYiICAtIFRvdGFsIGFsZXJ0cyAoYXJlYV9oYSkgcmVjb3JkZWQgZm9yIHRoZSBwZXJpb2Q6IHt0b3RhbF9hbGVydHNfb3Zlcl9wZXJpb2Q6LC4yZn0gaGEiKQpwcmludChmIiAgLSBBdmVyYWdl",
+        "refused": false,
+        "tool_message": "Title: Monthly Ecosystem Disturbance Alerts in DRC (June - Nov 2024)\nKey Finding: Ecosystem alerts in the DRC peaked in September 2024 at 45,414 hectares before declining to a period low of 29,913 hectares in November. These alerts detect vegetation disturbance but do not distinguish between human-caused activities, such as logging or agriculture, and natural disturbances.\nFollow-up suggestions:\n1. Compare ecosystem alerts in DRC with neighboring Republic of the Congo for the same period\n2. Analyze the dominant drivers of tree cover loss in DRC to contextualize these disturbance alerts"
+      },
+      "passed": true,
+      "comment": "The output successfully meets all criteria, providing a temporal line chart of ecosystem alert areas in the DRC.",
+      "duration_s": 13.61
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[Plot the alert trend over time for DRC, June to November 2024]",
+      "query": "Plot the alert trend over time for DRC, June to November 2024",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,Conversion,Cropland dynamics,Fire-related,Unclassified,Water-related\n2024-06,12345.0,4567.0,8901.0,3210.0,2345.0\n2024-07,14567.0,5123.0,9234.0,3456.0,1987.0\n2024-08,11234.0,4890.0,18765.0,3123.0,2456.0\n2024-09,13456.0,5234.0,21034.0,3567.0,2123.0\n2024-10,15678.0,4678.0,7654.0,3890.0,2678.0\n2024-11,12890.0,5012.0,6543.0,3234.0,2234.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "Conversion",
+          "Cropland dynamics",
+          "Fire-related",
+          "Unclassified",
+          "Water-related"
+        ],
+        "insight": "Ecosystem disturbance alerts in the DRC fluctuated between June and November 2024, reaching a peak in September. While 'Fire-related' disturbances showed a temporary increase in August and September, 'Conversion' remained a persistent driver of alerts throughout the entire period.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCBpbiB1c2U6IGlucHV0X2ZpbGVfMC5jc3Yg4oaSIEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyAoRElTVC1BTEVSVCkgKDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCmRmLmluZm8oKQoKIyBEaXNwbGF5IHRoZSBmaXJzdCBmZXcgcm93cyB0byB1bmRlcnN0YW5kIHRoZSBkYXRhCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCiMgQ29udmVydCAnYWxlcnRfZGF0ZScgdG8gZGF0ZXRpbWUgb2JqZWN0cyBmb3IgcHJvcGVyIHRpbWUtc2VyaWVzIGFuYWx5c2lzCmRmWydhbGVydF9kYXRlJ10gPSBwZC50b19kYXRldGltZShkZlsnYWxlcnRfZGF0ZSddKQoKIyBFeHRyYWN0IG1vbnRoIGZvciBlYXNpZXIgZ3JvdXBpbmcsIGlmIG5lZWRlZCwgYnV0IHRoZSBkYXRlcyBhcmUgYWxyZWFkeSBtb250aGx5LgojIEdyb3VwIGJ5IG1vbnRoIGFuZCBkcml2ZXIgdG8gZ2V0IHRoZSB0cmVuZCBmb3IgZWFjaCBkcml2ZXIKbW9udGhseV9kcml2ZXJfYWxlcnRzID0gZGYuZ3JvdXBieShbJ2FsZXJ0X2RhdGUnLCAnZHJpdmVyJ10pWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQoKIyBHcm91cCBieSBtb250aCB0byBnZXQgdG90YWwgYWxlcnRzIHBlciBtb250aAp0b3RhbF9tb250aGx5X2FsZXJ0cyA9IGRmLmdyb3VwYnkoJ2FsZXJ0X2RhdGUnKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKdG90YWxfbW9udGhseV9hbGVydHMucmVuYW1lKGNvbHVtbnM9eydhcmVhX2hhJzogJ3RvdGFsX2FyZWFfaGEnfSwgaW5wbGFjZT1UcnVlKQoKIyBHcm91cCBieSBkcml2ZXIgdG8gc2VlIG92ZXJhbGwgZGlzdHJpYnV0aW9uCnRvdGFsX2FsZXJ0c19ieV9kcml2ZXIgPSBkZi5ncm91cGJ5KCdkcml2ZXInKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKdG90YWxfYWxlcnRzX2J5X2RyaXZlci5yZW5hbWUoY29sdW1ucz17J2FyZWFfaGEnOiAndG90YWxfYXJlYV9oYSd9LCBpbnBsYWNlPVRydWUpCgpwcmludCgiXG5Ub3RhbCBhbGVydCBhcmVhIChoYSkgcGVyIG1vbnRoOiIpCnByaW50KHRvdGFsX21vbnRobHlfYWxlcnRzKQoKcHJpbnQoIlxuVG90YWwgYWxlcnQgYXJlYSAoaGEpIHBlciBkcml2ZXI6IikKcHJpbnQodG90YWxfYWxlcnRzX2J5X2RyaXZlcikK\nIyBQaXZvdCB0aGUgdGFibGUgdG8gZ2V0IGRyaXZlcnMgYXMgY29sdW1ucyBhbmQgYWxlcnRfZGF0ZSBhcyByb3dzCmNoYXJ0X2RmID0gbW9udGhseV9kcml2ZXJ",
+        "refused": false,
+        "tool_message": "Title: Monthly Ecosystem Disturbance Alerts by Driver in DRC (June - Nov 2024)\nKey Finding: Ecosystem disturbance alerts in the DRC fluctuated between June and November 2024, reaching a peak in September. While 'Fire-related' disturbances showed a temporary increase in August and September, 'Conversion' remained a persistent driver of alerts throughout the entire period.\nFollow-up suggestions:\n1. Break down alerts by confidence level for the same period\n2. Compare DRC alert trends with neighboring Republic of the Congo"
+      },
+      "passed": true,
+      "comment": "The tool output correctly identifies the chart type, uses a temporal x-axis, and provides appropriate numerical data for the requested time period and location.",
+      "duration_s": 13.52
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[Display the temporal trend of total disturbance alert area for the DRC from June to November 2024]",
+      "query": "Display the temporal trend of total disturbance alert area for the DRC from June to November 2024",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,total_area_ha\n2024-06,31368.0\n2024-07,34367.0\n2024-08,40468.0\n2024-09,45414.0\n2024-10,34578.0\n2024-11,29913.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "total_area_ha"
+        ],
+        "insight": "The total disturbance alert area in the DRC fluctuated between June and November 2024, peaking at 45,414 hectares in September. Following this peak, the area of alerts decreased through October and November, ending the period at 29,913 hectares.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgZm9yIERSQywgMjAyNC0wNi0wMSB0byAyMDI0LTExLTMwKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm86IikKZGYuaW5mbygpCgpwcmludCgiXG5EYXRhRnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljczogdG90YWwgZGlzdHVyYmFuY2UgYXJlYSBwZXIgbW9udGgKbW9udGhseV90b3RhbF9hcmVhID0gZGYuZ3JvdXBieSgnYWxlcnRfZGF0ZScpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQptb250aGx5X3RvdGFsX2FyZWEucmVuYW1lKGNvbHVtbnM9eydhbGVydF9kYXRlJzogJ21vbnRoJywgJ2FyZWFfaGEnOiAndG90YWxfZGlzdHVyYmFuY2VfYXJlYV9oYSd9LCBpbnBsYWNlPVRydWUpCgpwcmludCgiXG5Nb250aGx5IFRvdGFsIERpc3R1cmJhbmNlIEFsZXJ0IEFyZWEgKGhlY3RhcmVzKToiKQpwcmludChtb250aGx5X3RvdGFsX2FyZWEpCgojIENhbGN1bGF0ZSBvdmVyYWxsIHN0YXRpc3RpY3MKdG90YWxfYXJlYV9vdmVyYWxsID0gZGZbJ2FyZWFfaGEnXS5zdW0oKQphdmVyYWdlX21vbnRobHlfYXJlYSA9IG1vbnRobHlfdG90YWxfYXJlYVsndG90YWxfZGlzdHVyYmFuY2VfYXJlYV9oYSddLm1lYW4oKQoKcHJpbnQoZiJcbk92ZXJhbGwgdG90YWwgZGlzdHVyYmFuY2UgYWxlcnQgYXJlYSBmcm9tIEp1bmUgdG8gTm92ZW1iZXIgMjAyNDoge3RvdGFsX2FyZWFfb3ZlcmFsbDouMmZ9IGhhIikKcHJpbnQoZiJBdmVyYWdlIG1vbnRobHkgZGlzdHVyYmFuY2UgYWxlcnQgYXJlYToge2F2ZXJhZ2VfbW9udGhseV9hcmVhOi4yZn0gaGEiKQ==\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgbGluZSBjaGFydDogdG90YWwgZGlzdHVyYmFuY2UgYXJlYSBwZXIgbW9udGgKY2hhcnRfZGF0YV9kZiA9IGRmLmdyb3VwYnkoJ2FsZXJ0X2RhdGUnKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKY2hhcnRfZGF0YV9kZi5jb2x1bW5zID0gWydkYXRlJywgJ3RvdGFsX2FyZWFfaGEnXQoKIyBFbnN1cmUgY2hyb25vbG9naWNhbCBvcmRlciAoYWxyZWFkeSBzb3J0ZWQgYnkgZ3JvdXAgYnksIGJ1dCBnb29kIHByYWN0aWNlKQpjaGFydF9kYXRhX2RmWydkYXRlJ10gPSBwZC50b19kYXRldGltZShjaGFydF9kYXRhX2RmWydkYXRlJ10pCmNoYXJ0X2RhdGFfZGYgPSBjaGFydF9kYXRhX2RmLnNvcnRfdmFsdWVzKCdkYXRlJykKY2hhcnRfZGF0YV9kZlsnZGF0ZSddID0gY2hhcnRfZGF0YV9kZlsnZGF0ZSddLmR0LnN0cmZ",
+        "refused": false,
+        "tool_message": "Title: Monthly Total Disturbance Alert Area in DRC (June - November 2024)\nKey Finding: The total disturbance alert area in the DRC fluctuated between June and November 2024, peaking at 45,414 hectares in September. Following this peak, the area of alerts decreased through October and November, ending the period at 29,913 hectares.\nFollow-up suggestions:\n1. Compare disturbance alerts with tree cover loss data for 2023 to assess permanent conversion\n2. Analyze disturbance alerts for the DRC over the same period in 2023 for year-over-year comparison"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the line chart type and accurately processes the temporal data for the requested period and region.",
+      "duration_s": 11.08
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[Provide a time series of disturbance alert volumes for the Democratic Republic of Congo]",
+      "query": "Provide a time series of disturbance alert volumes for the Democratic Republic of Congo",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,value\n2024-06,31368.0\n2024-07,34367.0\n2024-08,40468.0\n2024-09,45414.0\n2024-10,34578.0\n2024-11,29913.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "value"
+        ],
+        "insight": "Disturbance alert volumes in the Democratic Republic of Congo fluctuated between June and November 2024, reaching a peak of 45,414 hectares in September before declining to 29,913 hectares in November. These alerts detect vegetation cover loss or disturbance across all ecosystems and do not distinguish between human-caused activities and natural disturbances.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKCnByaW50KCJcbkRhdGEgSW5mb3JtYXRpb246IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRmlyc3QgNSByb3dzIG9mIHRoZSBkYXRhc2V0OiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIHRvdGFsIGRpc3R1cmJhbmNlIGFsZXJ0IHZvbHVtZQp0b3RhbF9hbGVydHNfaGEgPSBkZlsnYXJlYV9oYSddLnN1bSgpCnByaW50KGYiXG5Ub3RhbCBkaXN0dXJiYW5jZSBhbGVydCB2b2x1bWUgZm9yIHRoZSBEZW1vY3JhdGljIFJlcHVibGljIG9mIENvbmdvOiB7dG90YWxfYWxlcnRzX2hhOi4yZn0gaGVjdGFyZXMiKQoKIyBHcm91cCBieSBhbGVydF9kYXRlIHRvIGdldCBtb250aGx5IHZvbHVtZXMKbW9udGhseV9hbGVydHMgPSBkZi5ncm91cGJ5KCdhbGVydF9kYXRlJylbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCm1vbnRobHlfYWxlcnRzLmNvbHVtbnMgPSBbJ2FsZXJ0X21vbnRoJywgJ3RvdGFsX2FyZWFfaGEnXQoKcHJpbnQoIlxuTW9udGhseSBkaXN0dXJiYW5jZSBhbGVydCB2b2x1bWVzOiIpCnByaW50KG1vbnRobHlfYWxlcnRzKQoKIyBGaW5kIHRoZSBtb250aCB3aXRoIHRoZSBoaWdoZXN0IGFuZCBsb3dlc3QgYWxlcnRzCm1heF9tb250aCA9IG1vbnRobHlfYWxlcnRzLmxvY1ttb250aGx5X2FsZXJ0c1sndG90YWxfYXJlYV9oYSddLmlkeG1heCgpXQptaW5fbW9udGggPSBtb250aGx5X2FsZXJ0cy5sb2NbbW9udGhseV9hbGVydHNbJ3RvdGFsX2FyZWFfaGEnXS5pZHhtaW4oKV0KCnByaW50KGYiXG5Nb250aCB3aXRoIGhpZ2hlc3QgYWxlcnQgdm9sdW1lOiB7bWF4X21vbnRoWydhbGVydF9tb250aCddfSB3aXRoIHttYXhfbW9udGhbJ3RvdGFsX2FyZWFfaGEnXTouMmZ9IGhlY3RhcmVzIikKcHJpbnQoZiJNb250aCB3aXRoIGxvd2VzdCBhbGVydCB2b2x1bWU6IHttaW5fbW9udGhbJ2FsZXJ0X21vbnRoJ119IHdpdGgge21pbl9tb250aFsndG90YWxfYXJlYV9oYSddOi4yZn0gaGVjdGFyZXMiKQ==\naW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBHcm91cCBieSBhbGVydF9kYXRlIGFuZCBzdW0gYXJlYV9oYSB0byBnZXQgbW9udGhseSB0b3RhbHMKbW9udGhseV9hbGVydHMgPSBkZi5ncm91cGJ5KCdhbGVydF9kYXRlJylbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCgojIFJlbmFtZSBjb2x1bW5zIGZvciBjaGFydCBkYXRhIGNsYXJpdHkKbW9udGhseV9hbGVydHMuY29sdW1ucyA9IFsnZGF0ZScsICd2YWx1ZSddCgojIENvbnZlcnQgJ2RhdGUnIGNvbHVtbiB0byBkYXRldGltZSBmb3I",
+        "refused": false,
+        "tool_message": "Title: Monthly Disturbance Alert Volumes in DRC (June - Nov 2024)\nKey Finding: Disturbance alert volumes in the Democratic Republic of Congo fluctuated between June and November 2024, reaching a peak of 45,414 hectares in September before declining to 29,913 hectares in November. These alerts detect vegetation cover loss or disturbance across all ecosystems and do not distinguish between human-caused activities and natural disturbances.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for a more accurate estimate of permanent conversion.\n2. Analyze disturbance alerts for a specific province within the Democratic Republic of Congo."
+      },
+      "passed": true,
+      "comment": "The output correctly provides a line chart showing a temporal progression of disturbance alert volumes in hectares for the requested region.",
+      "duration_s": 11.55
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[What is the overall trend in vegetation disturbance alerts in DRC over recent months?]",
+      "query": "What is the overall trend in vegetation disturbance alerts in DRC over recent months?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,value\n2024-06,31368.0\n2024-07,34367.0\n2024-08,40468.0\n2024-09,45414.0\n2024-10,34578.0\n2024-11,29913.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "value"
+        ],
+        "insight": "Vegetation disturbance alerts in the DRC fluctuated between June and November 2024, increasing from 31,368 hectares in June to a peak of 45,414 hectares in September, before decreasing to 29,913 hectares by November. These alerts detect various types of vegetation cover change and do not distinguish between human-caused deforestation, timber harvesting, or natural disturbances.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiIpCnByaW50KCJEYXRlIFJhbmdlOiAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzAiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGEgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgojIERpc3BsYXkgdGhlIGZpcnN0IGZldyByb3dzCnByaW50KCJcbkRhdGEgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENvbnZlcnQgJ2FsZXJ0X2RhdGUnIHRvIGRhdGV0aW1lIG9iamVjdHMKZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCgojIENhbGN1bGF0ZSBvdmVyYWxsIHN0YXRpc3RpY3MKdG90YWxfYWxlcnRzX2FyZWEgPSBkZlsnYXJlYV9oYSddLnN1bSgpCnByaW50KGYiXG5Ub3RhbCBkaXN0dXJiYW5jZSBhbGVydHMgYXJlYSAoaGEpIG92ZXIgdGhlIHBlcmlvZDoge3RvdGFsX2FsZXJ0c19hcmVhOiwuMmZ9IGhhIikKCiMgR3JvdXAgYnkgbW9udGggdG8gb2JzZXJ2ZSB0cmVuZHMKbW9udGhseV9hbGVydHMgPSBkZi5ncm91cGJ5KGRmWydhbGVydF9kYXRlJ10uZHQudG9fcGVyaW9kKCdNJykpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQptb250aGx5X2FsZXJ0c1snYWxlcnRfZGF0ZSddID0gbW9udGhseV9hbGVydHNbJ2FsZXJ0X2RhdGUnXS5hc3R5cGUoc3RyKSAjIENvbnZlcnQgUGVyaW9kIHRvIHN0cmluZyBmb3IgY29uc2lzdGVudCBvdXRwdXQKcHJpbnQoIlxuTW9udGhseSBkaXN0dXJiYW5jZSBhbGVydHMgYXJlYSAoaGEpOiIpCnByaW50KG1vbnRobHlfYWxlcnRzKQoKIyBDYWxjdWxhdGUgYXZlcmFnZSBtb250aGx5IGFsZXJ0cwphdmVyYWdlX21vbnRobHlfYWxlcnRzID0gbW9udGhseV9hbGVydHNbJ2FyZWFfaGEnXS5tZWFuKCkKcHJpbnQoZiJcbkF2ZXJhZ2UgbW9udGhseSBkaXN0dXJiYW5jZSBhbGVydHMgYXJlYSAoaGEpOiB7YXZlcmFnZV9tb250aGx5X2FsZXJ0czosLjJmfSBoYSIpCgojIERldGVybWluZSB0aGUgdHJlbmQgYnkgY29tcGFyaW5nIHRoZSBmaXJzdCBhbmQgbGFzdCBtb250aApmaXJzdF9tb250aF9hcmVhID0gbW9udGhseV9hbGVydHMuaWxvY1swXVsnYXJlYV9oYSddCmxhc3RfbW9udGhfYXJlYSA9IG1vbnRobHlfYWxlcnRzLmlsb2NbLTFdWydhcmVhX2hhJ10KdHJlbmRfZGVzY3JpcHRpb24gPSAiaW5jcmVhc2VkIiBpZiBsYXN0X21vbnRoX2FyZWEgPiBmaXJzdF9tb250aF9hcmVhIGVsc2UgImRlY3JlYXNlZCIgaWYgbGFzdF9tb250aF9hcmVhIDwgZmlyc3RfbW9udGhfYXJlYSBlbHNlICJyZW1haW5lZCBzdGFibGUiCgpwcmludChmIlxuRGlzdHVyYmFuY2UgYWxlcnRzIHt0cmVu",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts in DRC (June - Nov 2024)\nKey Finding: Vegetation disturbance alerts in the DRC fluctuated between June and November 2024, increasing from 31,368 hectares in June to a peak of 45,414 hectares in September, before decreasing to 29,913 hectares by November. These alerts detect various types of vegetation cover change and do not distinguish between human-caused deforestation, timber harvesting, or natural disturbances.\nFollow-up suggestions:\n1. Compare these alerts with annual tree cover loss data for DRC to see historical context\n2. Break down vegetation disturbance alerts by confidence level (high vs low)"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the trend over time using a line chart with temporal data on the x-axis and area metrics on the y-axis.",
+      "duration_s": 13.11
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[alert trend DRC over time]",
+      "query": "alert trend DRC over time",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "alert_month,conversion,cropland_dynamics,fire_related,unclassified,water_related\n2024-06,12345.0,4567.0,8901.0,3210.0,2345.0\n2024-07,14567.0,5123.0,9234.0,3456.0,1987.0\n2024-08,11234.0,4890.0,18765.0,3123.0,2456.0\n2024-09,13456.0,5234.0,21034.0,3567.0,2123.0\n2024-10,15678.0,4678.0,7654.0,3890.0,2678.0\n2024-11,12890.0,5012.0,6543.0,3234.0,2234.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "alert_month",
+          "conversion",
+          "cropland_dynamics",
+          "fire_related",
+          "unclassified",
+          "water_related"
+        ],
+        "insight": "Ecosystem disturbance alerts in the DRC fluctuated between June and November 2024, reaching a peak of 45,414 hectares in September. This mid-year increase was primarily associated with a rise in fire-related alerts during August and September.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBuYW1lIGFuZCBkYXRlIHJhbmdlCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKGkiBHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpICgyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIGZvciBEZW1vY3JhdGljIFJlcHVibGljIG9mIENvbmdvIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZQpwcmludCgiXG5EYXRhZnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgojIFByaW50IGhlYWQgb2YgdGhlIGRhdGFmcmFtZQpwcmludCgiXG5EYXRhZnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENvbnZlcnQgJ2FsZXJ0X2RhdGUnIHRvIGRhdGV0aW1lIGZvciBwcm9wZXIgb3JkZXJpbmcgYW5kIGdyb3VwaW5nCmRmWydhbGVydF9kYXRlJ10gPSBwZC50b19kYXRldGltZShkZlsnYWxlcnRfZGF0ZSddKQoKIyBFeHRyYWN0IG1vbnRoIGZvciBncm91cGluZwpkZlsnYWxlcnRfbW9udGgnXSA9IGRmWydhbGVydF9kYXRlJ10uZHQudG9fcGVyaW9kKCdNJykKCiMgQ2FsY3VsYXRlIHRvdGFsIGFsZXJ0cyAoYXJlYSBpbiBoZWN0YXJlcykgcGVyIG1vbnRoCm1vbnRobHlfdG90YWxfYWxlcnRzID0gZGYuZ3JvdXBieSgnYWxlcnRfbW9udGgnKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKbW9udGhseV90b3RhbF9hbGVydHNbJ2FsZXJ0X21vbnRoJ10gPSBtb250aGx5X3RvdGFsX2FsZXJ0c1snYWxlcnRfbW9udGgnXS5hc3R5cGUoc3RyKSAjIENvbnZlcnQgUGVyaW9kIHRvIHN0cmluZyBmb3IgZGlzcGxheQoKIyBDYWxjdWxhdGUgYWxlcnRzIGJ5IGRyaXZlciBwZXIgbW9udGgKbW9udGhseV9kcml2ZXJfYWxlcnRzID0gZGYuZ3JvdXBieShbJ2FsZXJ0X21vbnRoJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKbW9udGhseV9kcml2ZXJfYWxlcnRzWydhbGVydF9tb250aCddID0gbW9udGhseV9kcml2ZXJfYWxlcnRzWydhbGVydF9tb250aCddLmFzdHlwZShzdHIpICMgQ29udmVydCBQZXJpb2QgdG8gc3RyaW5nIGZvciBkaXNwbGF5CgojIEdldCB0aGUgb3ZlcmFsbCBkYXRlIHJhbmdlIG9mIHRoZSBkYXRhCm1pbl9kYXRlID0gZGZbJ2FsZXJ0X2RhdGUnXS5taW4oKS5zdHJmdGltZSgnJVktJW0nKQptYXhfZGF0ZSA9IGRmWydhbGVydF9kYXRlJ10ubWF4KCkuc3RyZnRpbWUoJyVZLSVtJykKCnByaW50KGYiXG5EYXRhIGNvdmVycyB0aGUgcGVyaW9kIGZyb20ge21pbl9kYXRlfSB0byB7bWF4X2RhdGV9LiIpCgpwcmludCgiXG5LZXkgRmluZGluZ3M6IikKcHJpbnQoIlRvdGFsIGFsZXJ0cyAoYXJlYSBpbiBoZWN0YXJlcykgcGVyIG1vbnRoOiIpCnByaW50KG1vbnRo",
+        "refused": false,
+        "tool_message": "Title: Ecosystem Disturbance Alert Trend by Driver in DRC (June - Nov 2024)\nKey Finding: Ecosystem disturbance alerts in the DRC fluctuated between June and November 2024, reaching a peak of 45,414 hectares in September. This mid-year increase was primarily associated with a rise in fire-related alerts during August and September.\nFollow-up suggestions:\n1. Compare alert drivers with annual tree cover loss data for DRC\n2. Analyze alert trends for a specific province in DRC"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the temporal nature of the request, uses a line chart, and plots the appropriate metrics over time for the DRC.",
+      "duration_s": 29.13
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[how are alerts trending in DRC?]",
+      "query": "how are alerts trending in DRC?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "month,Conversion,Cropland dynamics,Fire-related,Unclassified,Water-related\n2024-06,12345.0,4567.0,8901.0,3210.0,2345.0\n2024-07,14567.0,5123.0,9234.0,3456.0,1987.0\n2024-08,11234.0,4890.0,18765.0,3123.0,2456.0\n2024-09,13456.0,5234.0,21034.0,3567.0,2123.0\n2024-10,15678.0,4678.0,7654.0,3890.0,2678.0\n2024-11,12890.0,5012.0,6543.0,3234.0,2234.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "month",
+          "Conversion",
+          "Cropland dynamics",
+          "Fire-related",
+          "Unclassified",
+          "Water-related"
+        ],
+        "insight": "Vegetation disturbance alerts in the DRC fluctuated between June and November 2024, with a peak in total area during September. Fire-related disturbances were the primary driver of this peak, while conversion-related alerts remained relatively stable throughout the period.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyBpbiBEZW1vY3JhdGljIFJlcHVibGljIG9mIENvbmdvLCAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKcHJpbnQoIlxuRGF0YSBzdHJ1Y3R1cmU6IikKcHJpbnQoZGYuaW5mbygpKQpwcmludCgiXG5GaXJzdCA1IHJvd3M6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDb252ZXJ0ICdhbGVydF9kYXRlJyB0byBkYXRldGltZSBvYmplY3RzIGZvciBwcm9wZXIgc29ydGluZyBhbmQgdGltZS1iYXNlZCBhbmFseXNpcwpkZlsnYWxlcnRfZGF0ZSddID0gcGQudG9fZGF0ZXRpbWUoZGZbJ2FsZXJ0X2RhdGUnXSkKCiMgQ2FsY3VsYXRlIHRvdGFsIGFyZWFfaGEgcGVyIG1vbnRoCm1vbnRobHlfdG90YWxfYWxlcnRzID0gZGYuZ3JvdXBieSgnYWxlcnRfZGF0ZScpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQptb250aGx5X3RvdGFsX2FsZXJ0cy5jb2x1bW5zID0gWydtb250aCcsICd0b3RhbF9hcmVhX2hhJ10KCiMgQ2FsY3VsYXRlIHRvdGFsIGFyZWFfaGEgcGVyIGRyaXZlcgpkcml2ZXJfdG90YWxfYWxlcnRzID0gZGYuZ3JvdXBieSgnZHJpdmVyJylbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCmRyaXZlcl90b3RhbF9hbGVydHMuY29sdW1ucyA9IFsnZHJpdmVyJywgJ3RvdGFsX2FyZWFfaGEnXQoKcHJpbnQoIlxuS2V5IEZpbmRpbmdzOiIpCnByaW50KCJcblRvdGFsIGFsZXJ0IGFyZWEgKGhhKSBwZXIgbW9udGg6IikKcHJpbnQobW9udGhseV90b3RhbF9hbGVydHMpCnByaW50KCJcblRvdGFsIGFsZXJ0IGFyZWEgKGhhKSBieSBkcml2ZXI6IikKcHJpbnQoZHJpdmVyX3RvdGFsX2FsZXJ0cykKCiMgQ2hlY2sgZm9yIGRvbWluYW50IGRyaXZlcnMgcGVyIG1vbnRoCmRvbWluYW50X2RyaXZlcl9jaGVjayA9IGRmLmdyb3VwYnkoWydhbGVydF9kYXRlJywgJ2RyaXZlciddKVsnYXJlYV9oYSddLnN1bSgpLnVuc3RhY2soZmlsbF92YWx1ZT0wKQpkb21pbmFudF9kcml2ZXJfcGVyY2VudGFnZSA9IGRvbWluYW50X2RyaXZlcl9jaGVjay5hcHBseShsYW1iZGEgeDogeCAvIHguc3VtKCkgKiAxMDAsIGF4aXM9MSkKCnByaW50KCJcbkRyaXZlciBkb21pbmFuY2UgcGVyIG1vbnRoIChwZXJjZW50YWdlIG9mIHRvdGFsIGFyZWEgZm9yIHRoYXQgbW9udGgpOiIpCnByaW50KGRvbWluYW50X2RyaXZlcl9wZXJjZW50YWdlKQoKIyBJZGVudGlmeSBpZiBhbnkgZHJpdmVyIGRvbWluYXRlcyAoPjgwJSBvZiBhbGVydHMgaW4gYW55IG1vbnRoKQppc19kb21pbmFudCA9IChkb21pbmFudF9kcml2ZXJfcGVyY2VudGFnZSA+IDgwKS5hbnkoKS5hbnkoKQppZiBpc19kb21pbmFudDoKICAgIHByaW50KCJcbldh",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts by Driver in DRC (June - Nov 2024)\nKey Finding: Vegetation disturbance alerts in the DRC fluctuated between June and November 2024, with a peak in total area during September. Fire-related disturbances were the primary driver of this peak, while conversion-related alerts remained relatively stable throughout the period.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for DRC\n2. Analyze vegetation disturbance alerts for a specific province in DRC"
+      },
+      "passed": true,
+      "comment": "The output correctly uses a line chart to show the temporal trend of alerts in DRC over several months, meeting all rubric criteria.",
+      "duration_s": 11.46
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[DRC disturbance trend line]",
+      "query": "DRC disturbance trend line",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,value\n2024-06,31368.0\n2024-07,34367.0\n2024-08,40468.0\n2024-09,45414.0\n2024-10,34578.0\n2024-11,29913.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "value"
+        ],
+        "insight": "Ecosystem disturbance alerts in the DRC increased from June to September 2024, peaking at 45,414 hectares before decreasing to 29,913 hectares in November. These alerts detect vegetation cover loss but do not distinguish between human-caused activities and natural disturbances.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCBpbiB1c2U6IGlucHV0X2ZpbGVfMC5jc3YgKERlbW9jcmF0aWMgUmVwdWJsaWMgb2YgQ29uZ28gZGlzdHVyYmFuY2UgYWxlcnRzLCAyMDI0LTA2LTAxIHRvIDIwMjQtMTEtMzApIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZQpwcmludCgiXG5EYXRhRnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgojIERpc3BsYXkgdGhlIGZpcnN0IGZldyByb3dzCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ29udmVydCAnYWxlcnRfZGF0ZScgdG8gZGF0ZXRpbWUgb2JqZWN0cwpkZlsnYWxlcnRfZGF0ZSddID0gcGQudG9fZGF0ZXRpbWUoZGZbJ2FsZXJ0X2RhdGUnXSkKCiMgRXh0cmFjdCBtb250aCBmb3IgZ3JvdXBpbmcsIGlmIG5lZWRlZCBmb3IgY2F0ZWdvcmljYWwgZ3JvdXBpbmcsIGJ1dCBmb3IgbGluZSBjaGFydCwgZnVsbCBkYXRlIGlzIGJldHRlci4KIyBGb3Igc2ltcGxpY2l0eSBhbmQgYWRoZXJpbmcgdG8gImFsZXJ0IG1vbnRoIiBmb3IgeC1heGlzLCBsZXQncyBmb3JtYXQgaXQgdG8gJ1lZWVktTU0nCmRmWydhbGVydF9tb250aCddID0gZGZbJ2FsZXJ0X2RhdGUnXS5kdC50b19wZXJpb2QoJ00nKS5hc3R5cGUoc3RyKQoKIyBDYWxjdWxhdGUgdG90YWwgZGlzdHVyYmFuY2UgYXJlYSBwZXIgbW9udGgKbW9udGhseV9kaXN0dXJiYW5jZSA9IGRmLmdyb3VwYnkoJ2FsZXJ0X21vbnRoJylbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCm1vbnRobHlfZGlzdHVyYmFuY2UgPSBtb250aGx5X2Rpc3R1cmJhbmNlLnNvcnRfdmFsdWVzKCdhbGVydF9tb250aCcpICMgRW5zdXJlIGNocm9ub2xvZ2ljYWwgb3JkZXIKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCnRvdGFsX2Rpc3R1cmJhbmNlX292ZXJhbGwgPSBkZlsnYXJlYV9oYSddLnN1bSgpCmF2ZXJhZ2VfbW9udGhseV9kaXN0dXJiYW5jZSA9IG1vbnRobHlfZGlzdHVyYmFuY2VbJ2FyZWFfaGEnXS5tZWFuKCkKbWF4X21vbnRobHlfZGlzdHVyYmFuY2UgPSBtb250aGx5X2Rpc3R1cmJhbmNlWydhcmVhX2hhJ10ubWF4KCkKbWluX21vbnRobHlfZGlzdHVyYmFuY2UgPSBtb250aGx5X2Rpc3R1cmJhbmNlWydhcmVhX2hhJ10ubWluKCkKbW9udGhfd2l0aF9tYXhfZGlzdHVyYmFuY2UgPSBtb250aGx5X2Rpc3R1cmJhbmNlLmxvY1ttb250aGx5X2Rpc3R1cmJhbmNlWydhcmVhX2hhJ10uaWR4bWF4KCksICdhbGVydF9tb250aCddCm1vbnRoX3dpdGhfbWluX2Rpc3R1cmJhbmNlID0gbW9udGhseV9kaXN0dXJiYW5jZS5sb2NbbW9udGhseV9kaXN0dXJiYW5jZVsnYXJlYV9oYSddLmlkeG1pbigpLCAnYWxlcnRfbW9udGgnXQoK",
+        "refused": false,
+        "tool_message": "Title: DRC Ecosystem Disturbance Alert Trend (June - Nov 2024)\nKey Finding: Ecosystem disturbance alerts in the DRC increased from June to September 2024, peaking at 45,414 hectares before decreasing to 29,913 hectares in November. These alerts detect vegetation cover loss but do not distinguish between human-caused activities and natural disturbances.\nFollow-up suggestions:\n1. Break down disturbance alerts by driver for the same period\n2. Compare DRC disturbance alerts with neighboring Republic of the Congo"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the trend line requirement, uses a temporal x-axis with a relevant area metric on the y-axis, and maintains chronological order.",
+      "duration_s": 14.91
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[Are disturbance alerts increasing or decreasing in DRC?]",
+      "query": "Are disturbance alerts increasing or decreasing in DRC?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "month,area_ha\n2024-06,31368.0\n2024-07,34367.0\n2024-08,40468.0\n2024-09,45414.0\n2024-10,34578.0\n2024-11,29913.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "month",
+          "area_ha"
+        ],
+        "insight": "Disturbance alerts in the DRC fluctuated between June and November 2024, reaching a peak of 45,414 hectares in September before decreasing to 29,913 hectares in November. These alerts represent vegetation disturbance across all ecosystems and do not distinguish between human-caused activities and natural events.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCBpbiB1c2U6IGlucHV0X2ZpbGVfMC5jc3Yg4oCUIEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyAoRElTVC1BTEVSVCkgKDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGFmcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCiMgUHJpbnQgdGhlIGhlYWQgb2YgdGhlIGRhdGFmcmFtZQpwcmludCgiXG5EYXRhZnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENvbnZlcnQgJ2FsZXJ0X2RhdGUnIHRvIGRhdGV0aW1lIGZvciBwcm9wZXIgc29ydGluZyBhbmQgdGltZSBzZXJpZXMgYW5hbHlzaXMKZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCgojIENhbGN1bGF0ZSB0b3RhbCBkaXN0dXJiYW5jZSBhcmVhIHBlciBtb250aAptb250aGx5X2FsZXJ0cyA9IGRmLmdyb3VwYnkoZGZbJ2FsZXJ0X2RhdGUnXS5kdC50b19wZXJpb2QoJ00nKSlbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCm1vbnRobHlfYWxlcnRzWydhbGVydF9kYXRlJ10gPSBtb250aGx5X2FsZXJ0c1snYWxlcnRfZGF0ZSddLmFzdHlwZShzdHIpICMgQ29udmVydCBQZXJpb2QgdG8gc3RyaW5nIGZvciBjb25zaXN0ZW50IG91dHB1dAoKcHJpbnQoIlxuTW9udGhseSBEaXN0dXJiYW5jZSBBbGVydHMgKGFyZWFfaGEpOiIpCnByaW50KG1vbnRobHlfYWxlcnRzKQoKIyBDYWxjdWxhdGUgb3ZlcmFsbCB0cmVuZAojIFRvIGRldGVybWluZSBpZiBhbGVydHMgYXJlIGluY3JlYXNpbmcgb3IgZGVjcmVhc2luZywgbG9vayBhdCB0aGUgZmlyc3QgYW5kIGxhc3QgbW9udGgncyB0b3RhbHMuCmZpcnN0X21vbnRoX2FyZWEgPSBtb250aGx5X2FsZXJ0cy5pbG9jWzBdWydhcmVhX2hhJ10KbGFzdF9tb250aF9hcmVhID0gbW9udGhseV9hbGVydHMuaWxvY1stMV1bJ2FyZWFfaGEnXQoKcHJpbnQoZiJcbkRpc3R1cmJhbmNlIGFyZWEgaW4ge21vbnRobHlfYWxlcnRzLmlsb2NbMF1bJ2FsZXJ0X2RhdGUnXX06IHtmaXJzdF9tb250aF9hcmVhOi4yZn0gaGEiKQpwcmludChmIkRpc3R1cmJhbmNlIGFyZWEgaW4ge21vbnRobHlfYWxlcnRzLmlsb2NbLTFdWydhbGVydF9kYXRlJ119OiB7bGFzdF9tb250aF9hcmVhOi4yZn0gaGEiKQoKIyBEZXRlcm1pbmUgaWYgYWxlcnRzIGFyZSBpbmNyZWFzaW5nLCBkZWNyZWFzaW5nLCBvciByZWxhdGl2ZWx5IHN0YWJsZQppZiBsYXN0X21vbnRoX2FyZWEgPiBmaXJzdF9tb250aF9hcmVhOgogICAgdHJlbmQgPSAiaW5jcmVhc2luZyIKZWxpZiBsYXN0X21vbnRoX2FyZWEgPCBmaXJzdF9t",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts in DRC (June - Nov 2024)\nKey Finding: Disturbance alerts in the DRC fluctuated between June and November 2024, reaching a peak of 45,414 hectares in September before decreasing to 29,913 hectares in November. These alerts represent vegetation disturbance across all ecosystems and do not distinguish between human-caused activities and natural events.\nFollow-up suggestions:\n1. Compare disturbance alerts with tree cover loss by dominant driver in DRC\n2. Show disturbance alerts for a different time period in 2023"
+      },
+      "passed": true,
+      "comment": "The output correctly uses a line chart to show the temporal trend of disturbance alerts in hectares over several months.",
+      "duration_s": 10.34
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[Total disturbed area per month in DRC \\u2014 show as a trend]",
+      "query": "Total disturbed area per month in DRC \u2014 show as a trend",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,area_in_hectares\n2024-06,31368.0\n2024-07,34367.0\n2024-08,40468.0\n2024-09,45414.0\n2024-10,34578.0\n2024-11,29913.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "area_in_hectares"
+        ],
+        "insight": "Vegetation disturbance alerts in the Democratic Republic of Congo fluctuated between June and November 2024, reaching a peak of 45,414 hectares in September. These alerts detect various types of ecosystem disturbance and do not distinguish between human-caused activities and natural events.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludChmIkRhdGFzZXQgaW4gdXNlOiBpbnB1dF9maWxlXzAuY3N2IChHbG9iYWwgYWxsIGVjb3N5c3RlbSBkaXN0dXJiYW5jZSBhbGVydHMgKERJU1QtQUxFUlQpIGZyb20gMjAyNC0wNi0wMSB0byAyMDI0LTExLTMwKSIpCnByaW50KCJcbkRhdGEgc3RydWN0dXJlIGFuZCB0eXBlczoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5GaXJzdCA1IHJvd3Mgb2YgdGhlIGRhdGFzZXQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUgdG90YWwgZGlzdHVyYmVkIGFyZWEgcGVyIG1vbnRoCm1vbnRobHlfZGlzdHVyYmVkX2FyZWEgPSBkZi5ncm91cGJ5KCdhbGVydF9kYXRlJylbJ2FyZWFfaGEnXS5zdW0oKS5yZXNldF9pbmRleCgpCm1vbnRobHlfZGlzdHVyYmVkX2FyZWEucmVuYW1lKGNvbHVtbnM9eydhbGVydF9kYXRlJzogJ21vbnRoJywgJ2FyZWFfaGEnOiAndG90YWxfZGlzdHVyYmVkX2FyZWFfaGEnfSwgaW5wbGFjZT1UcnVlKQoKcHJpbnQoIlxuVG90YWwgZGlzdHVyYmVkIGFyZWEgcGVyIG1vbnRoOiIpCnByaW50KG1vbnRobHlfZGlzdHVyYmVkX2FyZWEpCgpwcmludCgiXG5LZXkgZmluZGluZ3M6IikKcHJpbnQoZiJUaGUgZGF0YSBjb3ZlcnMgZGlzdHVyYmFuY2UgYWxlcnRzIGZyb20ge2RmWydhbGVydF9kYXRlJ10ubWluKCl9IHRvIHtkZlsnYWxlcnRfZGF0ZSddLm1heCgpfS4iKQpwcmludCgiVGhlIGRhdGFzZXQgY29udGFpbnMgJ2FsZXJ0X2RhdGUnLCAnZHJpdmVyJywgYW5kICdhcmVhX2hhJyBjb2x1bW5zLiIpCnByaW50KCJUaGUgJ2FyZWFfaGEnIGNvbHVtbiByZXByZXNlbnRzIHRoZSBkaXN0dXJiZWQgYXJlYSBpbiBoZWN0YXJlcyBhbmQgaXMgb2YgZmxvYXQgdHlwZS4iKQpwcmludCgiVGhlICdhbGVydF9kYXRlJyBjb2x1bW4gaW5kaWNhdGVzIHRoZSBtb250aCBvZiB0aGUgYWxlcnQgYW5kIGlzIG9mIG9iamVjdCB0eXBlLCByZXF1aXJpbmcgY29udmVyc2lvbiBmb3IgcHJvcGVyIGNocm9ub2xvZ2ljYWwgc29ydGluZyBpZiBuZWVkZWQsIGJ1dCBmb3IgbW9udGhseSBncm91cGluZyBpdCB3b3JrcyBhcyBpcy4iKQ==\nIyBFbnN1cmUgJ21vbnRoJyBpcyBpbiBkYXRldGltZSBmb3JtYXQgZm9yIHByb3BlciBzb3J0aW5nCm1vbnRobHlfZGlzdHVyYmVkX2FyZWFbJ21vbnRoJ10gPSBwZC50b19kYXRldGltZShtb250aGx5X2Rpc3R1cmJlZF9hcmVhWydtb250aCddKQoKIyBTb3J0IGJ5IG1vbnRoIHRvIGVuc3VyZSBjaHJvbm9sb2dpY2FsIG9yZGVyCm1vbnRobHlfZGlzdHVyYmVkX2FyZWEgPSBtb250aGx5X2Rpc3R1cmJlZF9hcmVhLnNvcnRfdmFsdWVzKGJ5PSdtb250aCcpCgojIEZvcm1hdCBtb250aCBmb3IgY2h",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts in DRC (June - Nov 2024)\nKey Finding: Vegetation disturbance alerts in the Democratic Republic of Congo fluctuated between June and November 2024, reaching a peak of 45,414 hectares in September. These alerts detect various types of ecosystem disturbance and do not distinguish between human-caused activities and natural events.\nFollow-up suggestions:\n1. Compare disturbed area with tree cover loss by dominant driver in DRC\n2. Show vegetation disturbance alerts for a specific province in DRC"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the trend over time using a line chart with appropriate units and temporal progression.",
+      "duration_s": 10.04
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[Plot total alert area over time for DRC]",
+      "query": "Plot total alert area over time for DRC",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,value\n2024-06,31368.0\n2024-07,34367.0\n2024-08,40468.0\n2024-09,45414.0\n2024-10,34578.0\n2024-11,29913.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "value"
+        ],
+        "insight": "Vegetation disturbance alerts in the Democratic Republic of Congo fluctuated during the second half of 2024, increasing from June to a peak of 45,414 hectares in September before declining through November. These alerts detect all ecosystem disturbances and do not distinguish between human-caused activities, such as harvesting, and natural events.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgd2hpY2ggZGF0YXNldCBpcyBiZWluZyB1c2VkIGFuZCBpdHMgZGF0ZSByYW5nZQpwcmludChmIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiIpCnByaW50KGYiRGF0ZSByYW5nZToge2RmWydhbGVydF9kYXRlJ10ubWluKCl9IHRvIHtkZlsnYWxlcnRfZGF0ZSddLm1heCgpfSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFmcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzOiB0b3RhbCBhbGVydCBhcmVhIG92ZXIgdGltZQojIEVuc3VyZSAnYWxlcnRfZGF0ZScgaXMgdHJlYXRlZCBhcyBhIHBlcmlvZCBmb3IgY29ycmVjdCBncm91cGluZwpkZlsnYWxlcnRfbW9udGgnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCgojIEdyb3VwIGJ5IGFsZXJ0IG1vbnRoIGFuZCBzdW0gdGhlIGFyZWEKdG90YWxfYXJlYV9vdmVyX3RpbWUgPSBkZi5ncm91cGJ5KCdhbGVydF9tb250aCcpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQoKIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eQp0b3RhbF9hcmVhX292ZXJfdGltZS5jb2x1bW5zID0gWydhbGVydF9tb250aCcsICd0b3RhbF9hcmVhX2hhJ10KCiMgU29ydCBieSBtb250aAp0b3RhbF9hcmVhX292ZXJfdGltZSA9IHRvdGFsX2FyZWFfb3Zlcl90aW1lLnNvcnRfdmFsdWVzKCdhbGVydF9tb250aCcpCgpwcmludCgiXG5LZXkgRmluZGluZ3MgKFRvdGFsIEFsZXJ0IEFyZWEgcGVyIE1vbnRoKToiKQpwcmludCh0b3RhbF9hcmVhX292ZXJfdGltZSk=\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RmID0gdG90YWxfYXJlYV9vdmVyX3RpbWUuY29weSgpCmNoYXJ0X2RmWydhbGVydF9tb250aCddID0gY2hhcnRfZGZbJ2FsZXJ0X21vbnRoJ10uZHQuc3RyZnRpbWUoJyVZLSVtJykgIyBGb3JtYXQgZGF0ZSB0byAnWVlZWS1NTScKY2hhcnRfZGYucmVuYW1lKGNvbHVtbnM9eydhbGVydF9tb250aCc6ICdkYXRlJywgJ3RvdGFsX2FyZWFfaGEnOiAndmFsdWUnfSwgaW5wbGFjZT1UcnVlKQoKIyBTYXZlIHRoZSBEYXRhRnJhbWUgYXMgY2hhcnRfZGF0YS5jc3YKY2hhcnRfZGYudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQoKIyBQcmludCB0aGUgcmVjb21tZW5kZWQgY2hhcnQgdHlwZQpwcmludCgiUmVjb21tZW5kZWQgQ2hhcnQgVHlwZTogbGluZSIpCgpwcmludCgiXG5DaGFydCBEYXRhIEhlYWQ6IikKcHJpbnQoY2hhcnRfZGYuaGVhZCgpKQ==",
+        "refused": false,
+        "tool_message": "Title: Total Vegetation Disturbance Alert Area in DRC (June - Nov 2024)\nKey Finding: Vegetation disturbance alerts in the Democratic Republic of Congo fluctuated during the second half of 2024, increasing from June to a peak of 45,414 hectares in September before declining through November. These alerts detect all ecosystem disturbances and do not distinguish between human-caused activities, such as harvesting, and natural events.\nFollow-up suggestions:\n1. Compare these alerts with annual tree cover loss data for DRC to distinguish between temporary disturbance and permanent conversion.\n2. Break down vegetation disturbance alerts by confidence level (high vs. low) for the same period."
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the temporal nature of the request, uses a line chart, and appropriately aggregates the alert area over time for the DRC.",
+      "duration_s": 10.21
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[Is the disturbance situation getting worse or better in DRC?]",
+      "query": "Is the disturbance situation getting worse or better in DRC?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,value\n2024-06,31368.0\n2024-07,34367.0\n2024-08,40468.0\n2024-09,45414.0\n2024-10,34578.0\n2024-11,29913.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "value"
+        ],
+        "insight": "Vegetation disturbance alerts in the DRC fluctuated between June and November 2024, reaching a peak in September before declining. By November, the total disturbed area was lower than the initial levels recorded in June, suggesting a recent decrease in disturbance activity.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2Rpc3QtYWxlcnQtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIGFsbCBlY29zeXN0ZW0gZGlzdHVyYmFuY2UgYWxlcnRzIChESVNULUFMRVJUKSBmcm9tIDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCkiKQpwcmludCgiXG5EYXRhIHN0cnVjdHVyZToiKQpwcmludChkZi5pbmZvKCkpCnByaW50KCJcbkZpcnN0IDUgcm93czoiKQpwcmludChkZi5oZWFkKCkpCgojIENvbnZlcnQgJ2FsZXJ0X2RhdGUnIHRvIGRhdGV0aW1lIGZvciBwcm9wZXIgc29ydGluZyBhbmQgZ3JvdXBpbmcKZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCgojIEV4dHJhY3QgbW9udGgteWVhciBmb3IgZ3JvdXBpbmcKZGZbJ2FsZXJ0X21vbnRoJ10gPSBkZlsnYWxlcnRfZGF0ZSddLmR0LnRvX3BlcmlvZCgnTScpCgojIENhbGN1bGF0ZSB0b3RhbCBkaXN0dXJiYW5jZSBhcmVhIHBlciBtb250aAptb250aGx5X2Rpc3R1cmJhbmNlID0gZGYuZ3JvdXBieSgnYWxlcnRfbW9udGgnKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKbW9udGhseV9kaXN0dXJiYW5jZVsnYWxlcnRfbW9udGgnXSA9IG1vbnRobHlfZGlzdHVyYmFuY2VbJ2FsZXJ0X21vbnRoJ10uYXN0eXBlKHN0cikgIyBDb252ZXJ0IFBlcmlvZCB0byBzdHJpbmcgZm9yIGRpc3BsYXkKCiMgQ2FsY3VsYXRlIGRpc3R1cmJhbmNlIGFyZWEgYnkgZHJpdmVyIHBlciBtb250aAptb250aGx5X2RyaXZlcl9kaXN0dXJiYW5jZSA9IGRmLmdyb3VwYnkoWydhbGVydF9tb250aCcsICdkcml2ZXInXSlbJ2FyZWFfaGEnXS5zdW0oKS51bnN0YWNrKGZpbGxfdmFsdWU9MCkucmVzZXRfaW5kZXgoKQptb250aGx5X2RyaXZlcl9kaXN0dXJiYW5jZVsnYWxlcnRfbW9udGgnXSA9IG1vbnRobHlfZHJpdmVyX2Rpc3R1cmJhbmNlWydhbGVydF9tb250aCddLmFzdHlwZShzdHIpCgpwcmludCgiXG5Ub3RhbCBkaXN0dXJiYW5jZSBhcmVhIHBlciBtb250aCAoaGVjdGFyZXMpOiIpCnByaW50KG1vbnRobHlfZGlzdHVyYmFuY2UpCnByaW50KCJcbkRpc3R1cmJhbmNlIGFyZWEgYnkgZHJpdmVyIHBlciBtb250aCAoaGVjdGFyZXMpOiIpCnByaW50KG1vbnRobHlfZHJpdmVyX2Rpc3R1cmJhbmNlKQo=\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgc2luZ2xlLXNlcmllcyBsaW5lIGNoYXJ0CiMgVGhlICdtb250aGx5X2Rpc3R1cmJhbmNlJyBEYXRhRnJhbWUgYWxyZWFkeSBjb250YWlucyB0aGUgcmVxdWlyZWQgYWdncmVnYXRlZCBkYXRhLgpjaGFydF9kYXRhID0gbW9udGhseV9kaXN0dXJiYW5jZS5yZW5hbWUoY29sdW1ucz17J2FsZXJ0X21vbnRoJzogJ2RhdGUnLCAnYXJlYV9oYSc6ICd2YWx1ZSd9KQoKIyBTYXZlIHRoZSBkYXRhIHRvIGNoYXJ0X2RhdGEuY3N2CmNoYXJ",
+        "refused": false,
+        "tool_message": "Title: Monthly Vegetation Disturbance Alerts in DRC (June - November 2024)\nKey Finding: Vegetation disturbance alerts in the DRC fluctuated between June and November 2024, reaching a peak in September before declining. By November, the total disturbed area was lower than the initial levels recorded in June, suggesting a recent decrease in disturbance activity.\nFollow-up suggestions:\n1. Compare these disturbance alerts with annual tree cover loss data for historical context\n2. Break down the disturbance alerts by driver, such as fire-related vs conversion"
+      },
+      "passed": true,
+      "comment": "The output correctly uses a line chart to show the temporal progression of disturbance area in hectares over several months in the DRC.",
+      "duration_s": 17.84
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[Month-over-month change in DRC alert area]",
+      "query": "Month-over-month change in DRC alert area",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,total_area_ha,mom_change_percent\n2024-06,31368.0,\n2024-07,34367.0,9.56\n2024-08,40468.0,17.75\n2024-09,45414.0,12.22\n2024-10,34578.0,-23.86\n2024-11,29913.0,-13.49\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "total_area_ha",
+          "mom_change_percent"
+        ],
+        "insight": "Alert areas in the Democratic Republic of Congo peaked in September 2024 at 45,414 hectares before decreasing by 23.86% in October and 13.49% in November. These disturbance alerts monitor all ecosystem changes and do not distinguish between human activity, such as harvesting, and natural disturbances.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCBpbiB1c2U6IGlucHV0X2ZpbGVfMC5jc3Yg4oCUIEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyAoRElTVC1BTEVSVCkgKDIwMjQtMDYtMDEgdG8gMjAyNC0xMS0zMCkgZm9yIERlbW9jcmF0aWMgUmVwdWJsaWMgb2YgQ29uZ28iKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhRnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5EYXRhRnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENvbnZlcnQgJ2FsZXJ0X2RhdGUnIHRvIGRhdGV0aW1lIG9iamVjdHMKZGZbJ2FsZXJ0X2RhdGUnXSA9IHBkLnRvX2RhdGV0aW1lKGRmWydhbGVydF9kYXRlJ10pCgojIEV4dHJhY3QgbW9udGggZm9yIGdyb3VwaW5nLCBpZiBuZWVkZWQsIGJ1dCB0aGUgYWxlcnRfZGF0ZSBpcyBhbHJlYWR5IGluIFlZWVktTU0gZm9ybWF0CiMgRm9yIG1vbnRoLW92ZXItbW9udGggY2FsY3VsYXRpb25zLCB3ZSBuZWVkIHRvIHN1bSBhcmVhIHBlciBtb250aAptb250aGx5X2FyZWEgPSBkZi5ncm91cGJ5KGRmWydhbGVydF9kYXRlJ10uZHQudG9fcGVyaW9kKCdNJykpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQptb250aGx5X2FyZWFbJ2FsZXJ0X2RhdGUnXSA9IG1vbnRobHlfYXJlYVsnYWxlcnRfZGF0ZSddLmFzdHlwZShzdHIpICMgQ29udmVydCBQZXJpb2QgdG8gc3RyaW5nIGZvciBwbG90dGluZwoKIyBDYWxjdWxhdGUgbW9udGgtb3Zlci1tb250aCBjaGFuZ2UKbW9udGhseV9hcmVhWydNb01fY2hhbmdlX2hhJ10gPSBtb250aGx5X2FyZWFbJ2FyZWFfaGEnXS5kaWZmKCkKbW9udGhseV9hcmVhWydNb01fY2hhbmdlX3BlcmNlbnQnXSA9IG1vbnRobHlfYXJlYVsnYXJlYV9oYSddLnBjdF9jaGFuZ2UoKSAqIDEwMAoKcHJpbnQoIlxuS2V5IEZpbmRpbmdzOiIpCnByaW50KGYiVG90YWwgYWxlcnQgYXJlYSBmb3IgdGhlIHBlcmlvZDoge2RmWydhcmVhX2hhJ10uc3VtKCk6LjJmfSBoZWN0YXJlcyIpCnByaW50KCJcbk1vbnRobHkgQWxlcnQgQXJlYSBhbmQgTW9udGgtb3Zlci1Nb250aCBDaGFuZ2U6IikKcHJpbnQobW9udGhseV9hcmVhKQo=\nIyBQcmVwYXJlIGRhdGEgZm9yIHRoZSBjaGFydAojIFJlbmFtZSBjb2x1bW5zIGZvciBjbGFyaXR5IGFuZCBmcm9udGVuZCBjb21wYXRpYmlsaXR5CmNoYXJ0X2RhdGEgPSBtb250aGx5X2FyZWFbWydhbGVydF9kYXRlJywgJ2FyZWFfaGEnLCAnTW9NX2NoYW5nZV9wZXJjZW50J11dLmNvcHkoKQpjaGFydF9kYXRhLnJlbmFtZShjb2x1bW5zPXsKICAgICdhbGVydF9kYXRlJzogJ2R",
+        "refused": false,
+        "tool_message": "Title: Month-over-Month Change in DRC Alert Area (June - Nov 2024)\nKey Finding: Alert areas in the Democratic Republic of Congo peaked in September 2024 at 45,414 hectares before decreasing by 23.86% in October and 13.49% in November. These disturbance alerts monitor all ecosystem changes and do not distinguish between human activity, such as harvesting, and natural disturbances.\nFollow-up suggestions:\n1. Compare DRC alert area with neighboring countries like Republic of the Congo or Angola\n2. Analyze tree cover loss by dominant driver in DRC for a long-term perspective"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the line chart type and processes the temporal data to show month-over-month changes in alert area as requested.",
+      "duration_s": 11.88
+    },
+    {
+      "test_id": "tests/evals/test_dist_alert_instructions.py::test_line_chart_for_trends[DRC: overall alert trend from June to November 2024]",
+      "query": "DRC: overall alert trend from June to November 2024",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "date,value\n2024-06,31368.0\n2024-07,34367.0\n2024-08,40468.0\n2024-09,45414.0\n2024-10,34578.0\n2024-11,29913.0\n",
+        "chart_data_rows": 6,
+        "chart_data_columns": [
+          "date",
+          "value"
+        ],
+        "insight": "Ecosystem disturbance alerts in the DRC fluctuated between June and November 2024, reaching a peak of 45,414 hectares in September before decreasing to 29,913 hectares by November. These alerts detect vegetation cover loss or disturbance and do not distinguish between human-caused activities and natural events.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9kaXN0LWFsZXJ0LWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCBpbiB1c2U6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBhbGwgZWNvc3lzdGVtIGRpc3R1cmJhbmNlIGFsZXJ0cyBmb3IgRGVtb2NyYXRpYyBSZXB1YmxpYyBvZiBDb25nbywgMjAyNC0wNi0wMSB0byAyMDI0LTExLTMwKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzOiB0b3RhbCBhcmVhIGluIGhlY3RhcmVzIHBlciBtb250aAptb250aGx5X2FsZXJ0cyA9IGRmLmdyb3VwYnkoJ2FsZXJ0X2RhdGUnKVsnYXJlYV9oYSddLnN1bSgpLnJlc2V0X2luZGV4KCkKbW9udGhseV9hbGVydHMuY29sdW1ucyA9IFsnYWxlcnRfbW9udGgnLCAndG90YWxfYXJlYV9oYSddCgpwcmludCgiXG5Nb250aGx5IFRvdGFsIEFsZXJ0IEFyZWEgKGhlY3RhcmVzKToiKQpwcmludChtb250aGx5X2FsZXJ0cykKCiMgQ2FsY3VsYXRlIG92ZXJhbGwgc3RhdGlzdGljcwp0b3RhbF9hbGVydHNfcGVyaW9kID0gbW9udGhseV9hbGVydHNbJ3RvdGFsX2FyZWFfaGEnXS5zdW0oKQphdmVyYWdlX21vbnRobHlfYWxlcnRzID0gbW9udGhseV9hbGVydHNbJ3RvdGFsX2FyZWFfaGEnXS5tZWFuKCkKCnByaW50KGYiXG5PdmVyYWxsIFRvdGFsIEFsZXJ0IEFyZWEgKEp1bmUgLSBOb3ZlbWJlciAyMDI0KToge3RvdGFsX2FsZXJ0c19wZXJpb2Q6LC4yZn0gaGVjdGFyZXMiKQpwcmludChmIkF2ZXJhZ2UgTW9udGhseSBBbGVydCBBcmVhIChKdW5lIC0gTm92ZW1iZXIgMjAyNCk6IHthdmVyYWdlX21vbnRobHlfYWxlcnRzOiwuMmZ9IGhlY3RhcmVzIikK\nIyBFbnN1cmUgYWxlcnRfZGF0ZSBpcyBpbiBkYXRldGltZSBmb3JtYXQgZm9yIHByb3BlciBzb3J0aW5nIGlmIG5vdCBhbHJlYWR5CmRmWydhbGVydF9kYXRlJ10gPSBwZC50b19kYXRldGltZShkZlsnYWxlcnRfZGF0ZSddKQoKIyBHcm91cCBieSBtb250aCBhbmQgc3VtIHRoZSBhcmVhX2hhCmNoYXJ0X2RhdGFfZGYgPSBkZi5ncm91cGJ5KGRmWydhbGVydF9kYXRlJ10uZHQudG9fcGVyaW9kKCdNJykpWydhcmVhX2hhJ10uc3VtKCkucmVzZXRfaW5kZXgoKQoKIyBDb252ZXJ0IFBlcmlvZCB0byBzdHJpbmcgZm9yIGNoYXJ0IGxhYmVsaW5nCmNoYXJ0X2RhdGFfZGZbJ2FsZXJ0X2RhdGUnXSA9IGNoYXJ0X2RhdGFfZGZbJ2FsZXJ0X2RhdGUnXS5hc3R5cGUoc3RyKQoKIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eSBhbmQgY29tcGxpYW5jZSB3aXRoIGNoYXJ",
+        "refused": false,
+        "tool_message": "Title: DRC Ecosystem Disturbance Alert Trend (June - Nov 2024)\nKey Finding: Ecosystem disturbance alerts in the DRC fluctuated between June and November 2024, reaching a peak of 45,414 hectares in September before decreasing to 29,913 hectares by November. These alerts detect vegetation cover loss or disturbance and do not distinguish between human-caused activities and natural events.\nFollow-up suggestions:\n1. Compare ecosystem disturbance alerts with annual tree cover loss for historical context\n2. Break down disturbance alerts by dominant driver for the same period"
+      },
+      "passed": true,
+      "comment": "The AI correctly generated a line chart showing the temporal progression of ecosystem disturbance alerts in hectares for the requested period.",
+      "duration_s": 16.68
+    }
+  ],
+  "summary": {
+    "total": 45,
+    "passed": 43,
+    "failed": 2,
+    "pass_rate": 0.96
+  }
+}

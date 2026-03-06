@@ -49,6 +49,46 @@ datasets:
     conversion may also be undercounted when fire is used for clearing or when it occurs near rivers.
     Severe boreal fires may be misclassified as conversion. Always interpret alerts as indicators,
     not definitive outcomes.
+  # --- Tiered instructions (PoC) — when present, these take precedence over prompt_instructions at specific injection points ---
+  selection_hints: >
+    Best dataset for near-real-time vegetation disturbance across ALL ecosystems (not just
+    forests). Covers Dec 2023 to present at 30m resolution, measured in hectares.
+    Prefer when user asks about recent disturbance, clearing, or conversion alerts.
+    Driver context layer (LDACS) classifies alerts into likely causes — updated quarterly,
+    covers most recent 12 months, classification NOT available for last 90 days.
+    For historical or long-term tree cover change, prefer Tree Cover Loss instead.
+    For driver attribution of tree cover loss specifically, prefer Tree Cover Loss by
+    Dominant Driver.
+  code_instructions: >
+    CHART TYPES:
+    - Recent trends over time → line chart (x=alert month, y=area in hectares)
+    - Distribution by driver → pie chart (one slice per driver class)
+    - Distribution by land cover class or natural land type → pie chart
+    - Seasonal patterns by driver → grouped bar chart (x=month, y=area_ha, group=class name)
+    DATA RULES:
+    - All areas in hectares (ha)
+    - Show classified alerts by driver (LDACS) by default when driver context layer is active
+    - If one driver accounts for >80% of alerts in any month, call it out in the
+      insight text but keep it in the same chart — do NOT create a separate chart
+    - Include unclassified alerts by default for completeness
+    - Exclude unclassified alerts ONLY if user explicitly asks for "known drivers only"
+      or "classified alerts only"
+    - For natural forests with natural_lands context layer, select classes 2,5,8,9
+    - For non-natural tree cover with natural_lands context layer, select classes 14,17,18
+    DO/DON'T:
+    - LDACS classification NOT available for last 90 days — omit driver breakdown for that period
+    - Potential conversion requires ≥75 days of sustained loss — recent clearing may not appear
+    - Conversion may be undercounted when fire is used for clearing or near rivers
+    - Severe boreal fires may be misclassified as conversion
+    - Always interpret alerts as indicators, not definitive outcomes
+  presentation_instructions: >
+    Describe results as vegetation disturbance alerts, not confirmed deforestation or conversion.
+    Clarify if user cares about temporary disturbance vs permanent conversion; recommend annual
+    land cover or tree cover loss datasets for historical changes.
+    Note LDACS is updated quarterly, covers most recent 12 months, no classification for last
+    90 days.
+    This covers all vegetation, not just forest — relevant for non-conversion of natural
+    ecosystems monitoring.
   description: >
     Global All Ecosystem Disturbance Alerts (DIST-ALERT) provides near-real-time alerts
     of vegetation disturbance globally at 30-meter resolution, using harmonized
