@@ -1,0 +1,944 @@
+{
+  "branch": "tiered-dataset-instructions",
+  "timestamp": "20260306T092332Z",
+  "results": [
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[Show grassland area over time in Kenya]",
+      "query": "Show grassland area over time in Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland area decreased by approximately 11.71% between 2000 and 2022, a total loss of 3.33 million hectares. It is important to note that some cropland areas in Kenya may be misclassified as grassland in this dataset, and these figures do not reflect the functional health or degradation levels of the remaining ecosystems.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoS2VueWEg4oCUIEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50LCAyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEpIikKCnByaW50KCJcbkRhdGEgc3RydWN0dXJlIGFuZCB0eXBlczoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5GaXJzdCA1IHJvd3Mgb2YgdGhlIGRhdGE6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSA9IDAgb3IgbWlzc2luZyAoYXMgcGVyIERBVEEgUlVMRVMpCmRmX2ZpbHRlcmVkID0gZGZbZGZbJ2FyZWFfaGEnXSA+IDBdLmNvcHkoKQoKIyBFbnN1cmUgJ3llYXInIGlzIHRyZWF0ZWQgYXMgaW50ZWdlciBmb3IgYmV0dGVyIGhhbmRsaW5nCmRmX2ZpbHRlcmVkWyd5ZWFyJ10gPSBkZl9maWx0ZXJlZFsneWVhciddLmFzdHlwZShpbnQpCgpwcmludCgiXG5LZXkgc3RhdGlzdGljcyBmb3IgZ3Jhc3NsYW5kIGFyZWEgKGhhKToiKQptaW5feWVhciA9IGRmX2ZpbHRlcmVkWyd5ZWFyJ10ubWluKCkKbWF4X3llYXIgPSBkZl9maWx0ZXJlZFsneWVhciddLm1heCgpCmluaXRpYWxfYXJlYSA9IGRmX2ZpbHRlcmVkW2RmX2ZpbHRlcmVkWyd5ZWFyJ10gPT0gbWluX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQpmaW5hbF9hcmVhID0gZGZfZmlsdGVyZWRbZGZfZmlsdGVyZWRbJ3llYXInXSA9PSBtYXhfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCnRvdGFsX2NoYW5nZSA9IGZpbmFsX2FyZWEgLSBpbml0aWFsX2FyZWEKcGVyY2VudGFnZV9jaGFuZ2UgPSAodG90YWxfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAoKcHJpbnQoZiJUaW1lIHBlcmlvZDoge21pbl95ZWFyfSAtIHttYXhfeWVhcn0iKQpwcmludChmIk1pbmltdW0gZ3Jhc3NsYW5kIGFyZWE6IHtkZl9maWx0ZXJlZFsnYXJlYV9oYSddLm1pbigpOiwuMGZ9IGhhIikKcHJpbnQoZiJNYXhpbXVtIGdyYXNzbGFuZCBhcmVhOiB7ZGZfZmlsdGVyZWRbJ2FyZWFfaGEnXS5tYXgoKTosLjBmfSBoYSIpCnByaW50KGYiQXZlcmFnZSBncmFzc2xhbmQgYXJlYToge2RmX2ZpbHRlcmVkWydhcmVhX2hhJ10ubWVhbigpOiwuMGZ9IGhhIikKcHJpbnQoZiJHcmFzc2xhbmQgYXJlYSBpbiB7bWluX3llYXJ9OiB7aW5pdGlhbF9hcmVhOiwuMGZ9IGhhIikKcHJpbnQoZiJHcmFzc2xhbmQgYXJlYSBpbiB7bWF4X3llYXJ9OiB7ZmluYWxfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiVG90YWwgY2hhbmdlIGluIGdyYXNzbGFuZCBhcmVhICh7bWluX3llYXJ9LXttYXhfeWVhcn0pOiB7dG90YWxfY2hhbmdlOiwuMGZ9IGhhIikKcHJpbnQoZiJQZXJjZW50YWdlIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYSAoe21pbl95ZWFyfS17bWF4X3llYXJ9",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland area decreased by approximately 11.71% between 2000 and 2022, a total loss of 3.33 million hectares. It is important to note that some cropland areas in Kenya may be misclassified as grassland in this dataset, and these figures do not reflect the functional health or degradation levels of the remaining ecosystems.\nFollow-up suggestions:\n1. Compare grassland area trends in Kenya with neighboring Tanzania or Uganda\n2. Show tree cover loss by dominant driver in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The output successfully meets all the specified requirements for chart type, axis representation, and temporal data progression.",
+      "duration_s": 11.16
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[How has natural grassland extent changed in Kenya from 2000 to 2022?]",
+      "query": "How has natural grassland extent changed in Kenya from 2000 to 2022?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural grassland extent decreased from 28.46 million hectares in 2000 to approximately 25.12 million hectares by 2022. This represents a decline of 11.71%, occurring at an average rate of 151,455 hectares per year. Note that some cropland areas in Kenya may be misclassified as natural grassland in this dataset, and gains in extent do not necessarily indicate ecological restoration.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgdGhlIGRhdGFzZXQgYmVpbmcgdXNlZCBhbmQgaXRzIGRhdGUgcmFuZ2UKcHJpbnQoIlVzaW5nIGRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YgKEtlbnlhIOKAlCBHbG9iYWwgbmF0dXJhbC9zZW1pLW5hdHVyYWwgZ3Jhc3NsYW5kIGV4dGVudCwgMjAwMC0wMS0wMSB0byAyMDIyLTEyLTMxKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFmcmFtZSBJbmZvcm1hdGlvbjoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5GaXJzdCA1IHJvd3Mgb2YgdGhlIGRhdGFmcmFtZToiKQpwcmludChkZi5oZWFkKCkpCgojIEV4Y2x1ZGUgcm93cyB3aGVyZSBhcmVhX2hhID0gMCBvciBtaXNzaW5nCmluaXRpYWxfcm93cyA9IGxlbihkZikKZGYgPSBkZltkZlsnYXJlYV9oYSddICE9IDBdLmRyb3BuYShzdWJzZXQ9WydhcmVhX2hhJ10pCnJvd3NfYWZ0ZXJfY2xlYW5pbmcgPSBsZW4oZGYpCmlmIGluaXRpYWxfcm93cyAtIHJvd3NfYWZ0ZXJfY2xlYW5pbmcgPiAwOgogICAgcHJpbnQoZiJcblJlbW92ZWQge2luaXRpYWxfcm93cyAtIHJvd3NfYWZ0ZXJfY2xlYW5pbmd9IHJvd3Mgd2l0aCAwIG9yIG1pc3NpbmcgJ2FyZWFfaGEnLiIpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwpzdGFydF95ZWFyID0gZGZbJ3llYXInXS5taW4oKQplbmRfeWVhciA9IGRmWyd5ZWFyJ10ubWF4KCkKCmluaXRpYWxfZXh0ZW50ID0gZGZbZGZbJ3llYXInXSA9PSBzdGFydF95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KZmluYWxfZXh0ZW50ID0gZGZbZGZbJ3llYXInXSA9PSBlbmRfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCgp0b3RhbF9jaGFuZ2UgPSBmaW5hbF9leHRlbnQgLSBpbml0aWFsX2V4dGVudApwZXJjZW50YWdlX2NoYW5nZSA9ICh0b3RhbF9jaGFuZ2UgLyBpbml0aWFsX2V4dGVudCkgKiAxMDAKYW5udWFsX2F2ZXJhZ2VfY2hhbmdlID0gdG90YWxfY2hhbmdlIC8gKGVuZF95ZWFyIC0gc3RhcnRfeWVhcikKCnByaW50KCJcbktleSBGaW5kaW5nczoiKQpwcmludChmIk5hdHVyYWwgZ3Jhc3NsYW5kIGV4dGVudCBpbiBLZW55YSBpbiB7c3RhcnRfeWVhcn06IHtpbml0aWFsX2V4dGVudDosLjBmfSBoZWN0YXJlcyIpCnByaW50KGYiTmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50IGluIEtlbnlhIGluIHtlbmRfeWVhcn06IHtmaW5hbF9leHRlbnQ6LC4wZn0gaGVjdGFyZXMiKQpwcmludChmIlRvdGFsIGNoYW5nZSBmcm9tIHtzdGFydF95ZWFyfSB0byB7ZW5kX3llYXJ9OiB7dG90YWxfY2hhbmdlOiwuMGZ9IGhlY3RhcmVzIikKcHJpbnQoZiJQZXJjZW50YWdlIGNoYW5nZSBmcm9tIHtzdGFydF95ZWFyfSB0byB7ZW5kX3llYXJ9OiB7cGVy",
+        "refused": false,
+        "tool_message": "Title: Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural grassland extent decreased from 28.46 million hectares in 2000 to approximately 25.12 million hectares by 2022. This represents a decline of 11.71%, occurring at an average rate of 151,455 hectares per year. Note that some cropland areas in Kenya may be misclassified as natural grassland in this dataset, and gains in extent do not necessarily indicate ecological restoration.\nFollow-up suggestions:\n1. Compare natural grassland loss with tree cover loss in Kenya during the same period\n2. Analyze natural grassland extent changes in neighboring Tanzania for comparison"
+      },
+      "passed": true,
+      "comment": "The output successfully meets all rubric requirements, providing a line chart of grassland extent in hectares over the requested time period.",
+      "duration_s": 11.15
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[Kenya grassland area trend]",
+      "query": "Kenya grassland area trend",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland area decreased by 3,332,000 hectares (11.71%) between 2000 and 2022. This category includes grasslands, shrublands, and savannas; however, some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQsIDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhIEluZm9ybWF0aW9uOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93cyBvZiB0aGUgZGF0YToiKQpwcmludChkZi5oZWFkKCkpCgojIEV4Y2x1ZGUgcm93cyB3aGVyZSBhcmVhX2hhID0gMCBvciBtaXNzaW5nCmRmID0gZGZbZGZbJ2FyZWFfaGEnXS5ub3RuYSgpXQpkZiA9IGRmW2RmWydhcmVhX2hhJ10gIT0gMF0KCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCm1pbl95ZWFyID0gZGZbJ3llYXInXS5taW4oKQptYXhfeWVhciA9IGRmWyd5ZWFyJ10ubWF4KCkKaW5pdGlhbF9hcmVhID0gZGZbZGZbJ3llYXInXSA9PSBtaW5feWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCmZpbmFsX2FyZWEgPSBkZltkZlsneWVhciddID09IG1heF95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KYXJlYV9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCnBlcmNlbnRhZ2VfY2hhbmdlID0gKGFyZWFfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAoKcHJpbnQoZiJcbktleSBGaW5kaW5ncyBmb3IgS2VueWEgR3Jhc3NsYW5kIEFyZWEgKGhhKToiKQpwcmludChmIlRpbWUgcmFuZ2U6IHttaW5feWVhcn0gLSB7bWF4X3llYXJ9IikKcHJpbnQoZiJBcmVhIGluIHttaW5feWVhcn06IHtpbml0aWFsX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIkFyZWEgaW4ge21heF95ZWFyfToge2ZpbmFsX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIkNoYW5nZSBpbiBhcmVhIGZyb20ge21pbl95ZWFyfSB0byB7bWF4X3llYXJ9OiB7YXJlYV9jaGFuZ2U6LC4wZn0gaGEiKQpwcmludChmIlBlcmNlbnRhZ2UgY2hhbmdlOiB7cGVyY2VudGFnZV9jaGFuZ2U6LC4yZn0lIikK\nIyBQcmVwYXJlIGNoYXJ0IGRhdGEKY2hhcnRfZGYgPSBkZltbJ3llYXInLCAnYXJlYV9oYSddXS5jb3B5KCkKY2hhcnRfZGYucmVuYW1lKGNvbHVtbnM9eyd5ZWFyJzogJ3llYXInLCAnYXJlYV9oYSc6ICd2YWx1ZSd9LCBpbnBsYWNlPVRydWUpCgojIEVuc3VyZSBjaHJvbm9sb2dpY2FsIG9yZGVyCmNoYXJ0X2RmID0gY2hhcnRfZGYuc29ydF92YWx1ZXMoYnk9J3llYXInKQoKIyBDb252ZXJ0IHllYXIgdG8gc3RyaW5nIGZvciBjaGFydCBkaXNwbGF5IGlmIG5lZWRlZCwgYnV0IGZvciBSZWNoYXJ0cywgbnVtZXJpY2FsIHllYXIgaXMgZmluZSBmb3IgeC1heGlzLgojIEZvciBjb25zaXN0ZW5jeSB3aXRoIGV",
+        "refused": false,
+        "tool_message": "Title: Kenya Natural/Semi-Natural Grassland Extent (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland area decreased by 3,332,000 hectares (11.71%) between 2000 and 2022. This category includes grasslands, shrublands, and savannas; however, some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.\nFollow-up suggestions:\n1. Compare Kenya grassland trends with neighboring Uganda or Tanzania\n2. Analyze Kenya tree cover loss by dominant driver for the same period"
+      },
+      "passed": true,
+      "comment": "The output successfully meets all criteria, providing a line chart of Kenya's grassland area in hectares over a multi-year period.",
+      "duration_s": 10.85
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[Plot natural/semi-natural grassland area in Kenya by year]",
+      "query": "Plot natural/semi-natural grassland area in Kenya by year",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_hectares\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_hectares"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, an 11.71% reduction. This category includes grasslands, shrublands, and savannas; however, spectral similarities with urban mosaics or certain croplands in Kenya can lead to classification challenges.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAtIEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50ICgyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEpXG4iKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiRGF0YUZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQpwcmludCgiXG5EYXRhRnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCnByaW50KCJcbkRhdGFGcmFtZSBEZXNjcmlwdGlvbjoiKQpwcmludChkZi5kZXNjcmliZSgpKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSA9IDAgb3IgbWlzc2luZwpkZiA9IGRmW2RmWydhcmVhX2hhJ10ubm90bmEoKV0KZGYgPSBkZltkZlsnYXJlYV9oYSddICE9IDBdCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwp0b3RhbF95ZWFycyA9IGRmWyd5ZWFyJ10ubnVuaXF1ZSgpCm1pbl95ZWFyID0gZGZbJ3llYXInXS5taW4oKQptYXhfeWVhciA9IGRmWyd5ZWFyJ10ubWF4KCkKbWluX2FyZWEgPSBkZlsnYXJlYV9oYSddLm1pbigpCm1heF9hcmVhID0gZGZbJ2FyZWFfaGEnXS5tYXgoKQppbml0aWFsX2FyZWEgPSBkZltkZlsneWVhciddID09IG1pbl95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KZmluYWxfYXJlYSA9IGRmW2RmWyd5ZWFyJ10gPT0gbWF4X3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQphcmVhX2NoYW5nZSA9IGZpbmFsX2FyZWEgLSBpbml0aWFsX2FyZWEKcGVyY2VudGFnZV9jaGFuZ2UgPSAoYXJlYV9jaGFuZ2UgLyBpbml0aWFsX2FyZWEpICogMTAwCgpwcmludChmIlxuS2V5IEZpbmRpbmdzOiIpCnByaW50KGYiLSBEYXRhIGNvdmVycyB7dG90YWxfeWVhcnN9IHllYXJzIGZyb20ge21pbl95ZWFyfSB0byB7bWF4X3llYXJ9LiIpCnByaW50KGYiLSBNaW5pbXVtIGdyYXNzbGFuZCBhcmVhIHJlY29yZGVkOiB7bWluX2FyZWF9IGhhIGluIHttYXhfeWVhcn0uIikKcHJpbnQoZiItIE1heGltdW0gZ3Jhc3NsYW5kIGFyZWEgcmVjb3JkZWQ6IHttYXhfYXJlYX0gaGEgaW4ge21pbl95ZWFyfS4iKQpwcmludChmIi0gVGhlIGdyYXNzbGFuZCBhcmVhIGluIHttaW5feWVhcn0gd2FzIHtpbml0aWFsX2FyZWF9IGhhLiIpCnByaW50KGYiLSBUaGUgZ3Jhc3NsYW5kIGFyZWEgaW4ge21heF95ZWFyfSB3YXMge2ZpbmFsX2FyZWF9IGhhLiIpCnByaW50KGYiLSBPdmVyIHRoZSBwZXJpb2QsIHRoZXJlIHdhcyBhIGNoYW5nZSBvZiB7YXJlYV9jaGFuZ2U6LC4wZn0gaGEsIHJlcHJlc2VudGluZyBhIHtwZXJjZW50YWdlX2NoYW5nZTosLjJmfSUgeydkZWNyZWFzZScgaWYgYXJlYV9jaGFuZ2UgPCAwIGVs",
+        "refused": false,
+        "tool_message": "Title: Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, an 11.71% reduction. This category includes grasslands, shrublands, and savannas; however, spectral similarities with urban mosaics or certain croplands in Kenya can lead to classification challenges.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring Tanzania or Uganda\n2. Analyze Global Land Cover for Kenya to identify potential conversion to croplands"
+      },
+      "passed": true,
+      "comment": "The output successfully meets all rubric requirements, providing a line chart of grassland area in Kenya over time in hectares.",
+      "duration_s": 12.49
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[Annual grassland extent in Kenya \\u2014 chart it]",
+      "query": "Annual grassland extent in Kenya \u2014 chart it",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a total loss of approximately 3.33 million hectares over the 23-year period. Note that these figures include grasslands, shrublands, and savannas, and some areas may be misclassified due to spectral similarities with croplands or urban mosaics.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IChLZW55YSDigJQgR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkpIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZQpwcmludCgiXG5EYXRhZnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgojIFByaW50IHRoZSBoZWFkIG9mIHRoZSBkYXRhZnJhbWUgdG8gc2VlIHRoZSBjb250ZW50CnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2hlY2sgZm9yIG1pc3NpbmcgdmFsdWVzIG9yIHplcm8gdmFsdWVzIGluICdhcmVhX2hhJwpwcmludCgiXG5NaXNzaW5nIHZhbHVlcyBwZXIgY29sdW1uOiIpCnByaW50KGRmLmlzbnVsbCgpLnN1bSgpKQoKcHJpbnQoIlxuUm93cyB3aXRoIGFyZWFfaGEgPSAwOiIpCnByaW50KGRmW2RmWydhcmVhX2hhJ10gPT0gMF0uc2hhcGVbMF0pCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwptaW5feWVhciA9IGRmWyd5ZWFyJ10ubWluKCkKbWF4X3llYXIgPSBkZlsneWVhciddLm1heCgpCm1pbl9hcmVhID0gZGZbJ2FyZWFfaGEnXS5taW4oKQptYXhfYXJlYSA9IGRmWydhcmVhX2hhJ10ubWF4KCkKYXZlcmFnZV9hcmVhID0gZGZbJ2FyZWFfaGEnXS5tZWFuKCkKCnByaW50KGYiXG5LZXkgU3RhdGlzdGljcyBmb3IgR3Jhc3NsYW5kIEV4dGVudCBpbiBLZW55YSAoMjAwMC0yMDIyKToiKQpwcmludChmIiAgLSBUaW1lIFJhbmdlOiB7bWluX3llYXJ9IC0ge21heF95ZWFyfSIpCnByaW50KGYiICAtIE1pbmltdW0gQW5udWFsIEV4dGVudDoge21pbl9hcmVhOiwuMGZ9IGhhIikKcHJpbnQoZiIgIC0gTWF4aW11bSBBbm51YWwgRXh0ZW50OiB7bWF4X2FyZWE6LC4wZn0gaGEiKQpwcmludChmIiAgLSBBdmVyYWdlIEFubnVhbCBFeHRlbnQ6IHthdmVyYWdlX2FyZWE6LC4wZn0gaGEiKQo=\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCiMgUmVuYW1lIGNvbHVtbnMgZm9yIGNsYXJpdHkgaW4gdGhlIGNoYXJ0CmNoYXJ0X2RmID0gZGYucmVuYW1lKGNvbHVtbnM9eyd5ZWFyJzogJ3llYXInLCAnYXJlYV9oYSc6ICdhcmVhX2hhJ30pCgojIEVuc3VyZSBjaHJvbm9sb2dpY2FsIG9yZGVyCmNoYXJ0X2RmID0gY2hhcnRfZGYuc29ydF92YWx1ZXMoYnk9J3llYXInKQoKIyBTYXZlIHRoZSBjaGFydCBkYXRhCmNoYXJ0X2RmLnRvX2NzdignY2hhcnRfZGF0YS5jc3YnLCBpbmRleD1GYWxzZSkKCiMgUHJpbnQgY2hhcnQgdHlwZQpwcmludCgiQ2hhcnQgVHlwZTogbGluZSIpCg==",
+        "refused": false,
+        "tool_message": "Title: Annual Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a total loss of approximately 3.33 million hectares over the 23-year period. Note that these figures include grasslands, shrublands, and savannas, and some areas may be misclassified due to spectral similarities with croplands or urban mosaics.\nFollow-up suggestions:\n1. Compare grassland extent with Global Land Cover data for Kenya\n2. Analyze tree cover loss in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The output successfully meets all the criteria: it uses a line chart to show the temporal progression of grassland area in hectares over multiple years.",
+      "duration_s": 12.47
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[grassland area in Kenya over time]",
+      "query": "grassland area in Kenya over time",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.7%. This data includes grasslands, shrublands, and savannas, though spectral similarities with croplands in Kenya may affect classification accuracy.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiDihpIgR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkiKQpwcmludCgiXG5EYXRhIHN0cnVjdHVyZSBhbmQgdHlwZXM6IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRmlyc3QgNSByb3dzOiIpCnByaW50KGRmLmhlYWQoKSkKCnByaW50KCJcbkRlc2NyaXB0aXZlIHN0YXRpc3RpY3M6IikKcHJpbnQoZGYuZGVzY3JpYmUoKSkKCiMgRmlsdGVyIG91dCByb3dzIHdoZXJlIGFyZWFfaGEgaXMgMCBvciBtaXNzaW5nICh0aG91Z2ggZGVzY3JpYmUgYWxyZWFkeSBzdWdnZXN0cyBubyB6ZXJvcy9taXNzaW5nKQpkZl9maWx0ZXJlZCA9IGRmW2RmWydhcmVhX2hhJ10gPiAwXS5kcm9wbmEoc3Vic2V0PVsnYXJlYV9oYSddKQoKbWluX3llYXIgPSBkZl9maWx0ZXJlZFsneWVhciddLm1pbigpCm1heF95ZWFyID0gZGZfZmlsdGVyZWRbJ3llYXInXS5tYXgoKQppbml0aWFsX2FyZWEgPSBkZl9maWx0ZXJlZFtkZl9maWx0ZXJlZFsneWVhciddID09IG1pbl95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KZmluYWxfYXJlYSA9IGRmX2ZpbHRlcmVkW2RmX2ZpbHRlcmVkWyd5ZWFyJ10gPT0gbWF4X3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQp0b3RhbF9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCnBlcmNlbnRhZ2VfY2hhbmdlID0gKHRvdGFsX2NoYW5nZSAvIGluaXRpYWxfYXJlYSkgKiAxMDAKCnByaW50KGYiXG5LZXkgRmluZGluZ3M6IikKcHJpbnQoZiJUaGUgZGF0YSBjb3ZlcnMgdGhlIHBlcmlvZCBmcm9tIHttaW5feWVhcn0gdG8ge21heF95ZWFyfS4iKQpwcmludChmIlRoZSBncmFzc2xhbmQgYXJlYSBpbiBLZW55YSBpbiB7bWluX3llYXJ9IHdhcyB7aW5pdGlhbF9hcmVhOiwuMGZ9IGhlY3RhcmVzLiIpCnByaW50KGYiVGhlIGdyYXNzbGFuZCBhcmVhIGluIEtlbnlhIGluIHttYXhfeWVhcn0gd2FzIHtmaW5hbF9hcmVhOiwuMGZ9IGhlY3RhcmVzLiIpCnByaW50KGYiT3ZlciB0aGlzIHBlcmlvZCwgdGhlcmUgd2FzIGEgdG90YWwgY2hhbmdlIG9mIHt0b3RhbF9jaGFuZ2U6LC4wZn0gaGVjdGFyZXMsIHdoaWNoIHJlcHJlc2VudHMgYSB7cGVyY2VudGFnZV9jaGFuZ2U6LjJmfSUgeydkZWNyZWFzZScgaWYgdG90YWxfY2hhbmdlIDwgMCBlbHNlICdpbmNyZWFzZSd9LiIpCg==\nY2hhcnRfZGF0YSA9IGRmX2ZpbHRlcmVkW1sneWVhcicsICdhcmVhX2hhJ11dLmNvcHkoKQpjaGFydF9kYXRhLnJlbmFtZShjb2x1bW5zPXsneWVhcic6ICd5ZWFyJywgJ2FyZWFfaGEnOiAnYXJlYV9oYSd9LCBpbnBsYWNlPVRydWUpCgojIEVuc3VyZSBjaHJvbm9sb2dpY2FsIG9yZGVyCmNoYXJ0X2R",
+        "refused": false,
+        "tool_message": "Title: Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.7%. This data includes grasslands, shrublands, and savannas, though spectral similarities with croplands in Kenya may affect classification accuracy.\nFollow-up suggestions:\n1. Compare grassland loss with tree cover loss in Kenya\n2. Analyze natural/semi-natural grassland extent in neighboring Tanzania"
+      },
+      "passed": true,
+      "comment": "The output successfully follows all formatting and data requirements, providing a temporal line chart of grassland area in Kenya measured in hectares.",
+      "duration_s": 11.31
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[How much grassland does Kenya have each year?]",
+      "query": "How much grassland does Kenya have each year?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,grassland_area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "grassland_area_ha"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a reduction of approximately 3.33 million hectares over the 22-year period. Note that these figures include grasslands, shrublands, and savannas, and some areas may be misclassified due to spectral similarities with croplands or urban mosaics.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiDigJQgR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGEgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5EYXRhIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKcHJpbnQoIlxuS2V5IFN0YXRpc3RpY3MgZm9yIGFyZWFfaGE6IikKcHJpbnQoZGZbJ2FyZWFfaGEnXS5kZXNjcmliZSgpKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSA9IDAgb3IgbWlzc2luZwpkZiA9IGRmW2RmWydhcmVhX2hhJ10ubm90bmEoKV0KZGYgPSBkZltkZlsnYXJlYV9oYSddICE9IDBdCgpwcmludChmIlxuTWluaW11bSB5ZWFyOiB7ZGZbJ3llYXInXS5taW4oKX0iKQpwcmludChmIk1heGltdW0geWVhcjoge2RmWyd5ZWFyJ10ubWF4KCl9IikKcHJpbnQoZiJUb3RhbCBudW1iZXIgb2YgcmVjb3JkcyBhZnRlciBmaWx0ZXJpbmc6IHtsZW4oZGYpfSIpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RhdGEgPSBkZltbJ3llYXInLCAnYXJlYV9oYSddXS5jb3B5KCkKCiMgRW5zdXJlIGNocm9ub2xvZ2ljYWwgb3JkZXIKY2hhcnRfZGF0YSA9IGNoYXJ0X2RhdGEuc29ydF92YWx1ZXMoYnk9J3llYXInKQoKIyBSZW5hbWUgY29sdW1ucyBmb3IgY2xhcml0eSBpbiB0aGUgY2hhcnQgZGF0YQpjaGFydF9kYXRhLmNvbHVtbnMgPSBbJ3llYXInLCAnZ3Jhc3NsYW5kX2FyZWFfaGEnXQoKIyBDb252ZXJ0IHRvIGxpc3Qgb2YgZGljdGlvbmFyaWVzIGZvciBKU09OIG91dHB1dApjaGFydF9kYXRhX2pzb24gPSBjaGFydF9kYXRhLnRvX2RpY3Qob3JpZW50PSdyZWNvcmRzJykKCiMgU2F2ZSB0aGUgY2hhcnQgZGF0YSB0byBhIENTViBmaWxlCmNoYXJ0X2RhdGEudG9fY3N2KCdjaGFydF9kYXRhLmNzdicsIGluZGV4PUZhbHNlKQoKcHJpbnQoZiJSZWNvbW1lbmRlZCBDaGFydCBUeXBlOiBsaW5lIikKcHJpbnQoIlxuQ2hhcnQgRGF0YSBTYW1wbGU6IikKcHJpbnQoY2hhcnRfZGF0YS5oZWFkKCkp",
+        "refused": false,
+        "tool_message": "Title: Annual Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a reduction of approximately 3.33 million hectares over the 22-year period. Note that these figures include grasslands, shrublands, and savannas, and some areas may be misclassified due to spectral similarities with croplands or urban mosaics.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring Tanzania or Uganda\n2. Analyze the Global Land Cover dataset to see if grassland is being converted to cropland"
+      },
+      "passed": true,
+      "comment": "The output successfully meets all formatting and data requirements specified in the rubric.",
+      "duration_s": 12.57
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[Kenya: natural grassland trend 2000-2022]",
+      "query": "Kenya: natural grassland trend 2000-2022",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of 11.71%. This data includes grasslands, shrublands, and savannas, though some areas may be misclassified due to spectral similarities with croplands or urban mosaics.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCB3aGljaCBkYXRhc2V0KHMpIGFyZSBiZWluZyB1c2VkCnByaW50KCJEYXRhc2V0IHVzZWQ6IGlucHV0X2ZpbGVfMC5jc3Yg4oCUIEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50ICgyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEpIGZvciBLZW55YSIpCgojIEV4cGxvcmUgdGhlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhZnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5EYXRhZnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIEV4Y2x1ZGUgcm93cyB3aGVyZSBhcmVhX2hhID0gMCBvciBtaXNzaW5nCmRmID0gZGZbZGZbJ2FyZWFfaGEnXSAhPSAwXS5kcm9wbmEoc3Vic2V0PVsnYXJlYV9oYSddKQoKIyBFbnN1cmUgJ3llYXInIGlzIGludGVnZXIgYW5kICdhcmVhX2hhJyBpcyBudW1lcmljCmRmWyd5ZWFyJ10gPSBwZC50b19udW1lcmljKGRmWyd5ZWFyJ10sIGVycm9ycz0nY29lcmNlJykKZGZbJ2FyZWFfaGEnXSA9IHBkLnRvX251bWVyaWMoZGZbJ2FyZWFfaGEnXSwgZXJyb3JzPSdjb2VyY2UnKQpkZi5kcm9wbmEoc3Vic2V0PVsneWVhcicsICdhcmVhX2hhJ10sIGlucGxhY2U9VHJ1ZSkgIyBEcm9wIGFueSByb3dzIHdoZXJlIGNvbnZlcnNpb24gZmFpbGVkCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcyByZWxldmFudCB0byB0aGUgdXNlciBxdWVyeQppbml0aWFsX3llYXIgPSBkZlsneWVhciddLm1pbigpCmZpbmFsX3llYXIgPSBkZlsneWVhciddLm1heCgpCmluaXRpYWxfYXJlYSA9IGRmW2RmWyd5ZWFyJ10gPT0gaW5pdGlhbF95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KZmluYWxfYXJlYSA9IGRmW2RmWyd5ZWFyJ10gPT0gZmluYWxfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCnRvdGFsX2NoYW5nZSA9IGZpbmFsX2FyZWEgLSBpbml0aWFsX2FyZWEKcGVyY2VudGFnZV9jaGFuZ2UgPSAodG90YWxfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAoKcHJpbnQoZiJcbktleSBGaW5kaW5ncyBmb3IgS2VueWEncyBOYXR1cmFsIEdyYXNzbGFuZCBFeHRlbnQgKHtpbml0aWFsX3llYXJ9LXtmaW5hbF95ZWFyfSk6IikKcHJpbnQoZiIgIC0gSW5pdGlhbCBncmFzc2xhbmQgYXJlYSBpbiB7aW5pdGlhbF95ZWFyfToge2luaXRpYWxfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiICAtIEZpbmFsIGdyYXNzbGFuZCBhcmVhIGluIHtmaW5hbF95ZWFyfToge2ZpbmFsX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIiAgLSBUb3RhbCBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGFyZWE6IHt0b3RhbF9jaGFuZ2U6LC4wZn0gaGEiKQpwcmludChmIiAgLSBQZXJjZW50YWdlIGNo",
+        "refused": false,
+        "tool_message": "Title: Natural Grassland Extent Trend in Kenya (2000-2022)\nKey Finding: Kenya's natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of 11.71%. This data includes grasslands, shrublands, and savannas, though some areas may be misclassified due to spectral similarities with croplands or urban mosaics.\nFollow-up suggestions:\n1. Compare natural grassland loss with tree cover loss in Kenya\n2. Analyze natural grassland trends in neighboring Tanzania or Uganda"
+      },
+      "passed": true,
+      "comment": "The output successfully meets all criteria, providing a line chart of grassland area in hectares over the requested time period for Kenya.",
+      "duration_s": 12.65
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[Show me the change in grassland area in Kenya]",
+      "query": "Show me the change in grassland area in Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000.0\n2001,28234000.0\n2002,28012000.0\n2003,27890000.0\n2004,27678000.0\n2005,27456000.0\n2006,27234000.0\n2007,27012000.0\n2008,26890000.0\n2009,26678000.0\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a total reduction of 11.71%. This represents an average annual decline of approximately 151,455 hectares over the 22-year period.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCBkYXRhc2V0IG5hbWUgYW5kIGRhdGUgcmFuZ2UKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50KSIpCnByaW50KCJEYXRlIFJhbmdlOiAyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhIEluZm9ybWF0aW9uOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93czoiKQpwcmludChkZi5oZWFkKCkpCgojIEV4Y2x1ZGUgcm93cyB3aGVyZSBhcmVhX2hhID0gMCBvciBtaXNzaW5nCmRmID0gZGYuZHJvcG5hKHN1YnNldD1bJ2FyZWFfaGEnXSkKZGYgPSBkZltkZlsnYXJlYV9oYSddICE9IDBdCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwppbml0aWFsX3llYXIgPSBkZlsneWVhciddLm1pbigpCmZpbmFsX3llYXIgPSBkZlsneWVhciddLm1heCgpCmluaXRpYWxfYXJlYSA9IGRmW2RmWyd5ZWFyJ10gPT0gaW5pdGlhbF95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KZmluYWxfYXJlYSA9IGRmW2RmWyd5ZWFyJ10gPT0gZmluYWxfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCnRvdGFsX2NoYW5nZSA9IGZpbmFsX2FyZWEgLSBpbml0aWFsX2FyZWEKcGVyY2VudGFnZV9jaGFuZ2UgPSAodG90YWxfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAoKcHJpbnQoZiJcbktleSBGaW5kaW5ncyBmb3IgS2VueWEgR3Jhc3NsYW5kIEFyZWE6IikKcHJpbnQoZiIgIEluaXRpYWwgeWVhcjoge2luaXRpYWxfeWVhcn0sIEluaXRpYWwgYXJlYToge2luaXRpYWxfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiICBGaW5hbCB5ZWFyOiB7ZmluYWxfeWVhcn0sIEZpbmFsIGFyZWE6IHtmaW5hbF9hcmVhOiwuMGZ9IGhhIikKcHJpbnQoZiIgIFRvdGFsIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYSAoe2luaXRpYWxfeWVhcn0te2ZpbmFsX3llYXJ9KToge3RvdGFsX2NoYW5nZTosLjBmfSBoYSIpCnByaW50KGYiICBQZXJjZW50YWdlIGNoYW5nZToge3BlcmNlbnRhZ2VfY2hhbmdlOi4yZn0lIikKCiMgQ2FsY3VsYXRlIGF2ZXJhZ2UgYW5udWFsIGNoYW5nZQojIEZpcnN0LCBzb3J0IGJ5IHllYXIgdG8gZW5zdXJlIGNvcnJlY3Qgb3JkZXIgZm9yIGNhbGN1bGF0aW5nIGRpZmZlcmVuY2VzCmRmX3NvcnRlZCA9IGRmLnNvcnRfdmFsdWVzKGJ5PSd5ZWFyJykKZGZfc29ydGVkWydhbm51YWxfY2hhbmdlJ10gPSBkZl9zb3J0ZWRbJ2FyZWFfaGEnXS5kaWZmKCkKYXZlcmFnZV9hbm51YWxfY2hhbmdlID0gZGZfc29ydGVkWydhbm51YWxfY2hhbmdlJ10ubWVhbigpCnByaW50KGYiICBB",
+        "refused": false,
+        "tool_message": "Title: Change in Natural Grassland Area in Kenya (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a total reduction of 11.71%. This represents an average annual decline of approximately 151,455 hectares over the 22-year period.\nFollow-up suggestions:\n1. Compare grassland area change in Kenya with neighboring Tanzania\n2. Show tree cover loss in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The output successfully meets all criteria, providing a line chart of grassland area in hectares over a multi-year period for Kenya.",
+      "duration_s": 11.76
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[is Kenya losing grasslands? show the trend]",
+      "query": "is Kenya losing grasslands? show the trend",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_in_hectares\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_in_hectares"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a total loss of approximately 3.33 million hectares over the 22-year period, though it is important to note that some cropland areas in Kenya may be misclassified as grassland in this dataset.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCBpbiB1c2U6IGlucHV0X2ZpbGVfMC5jc3YgKEtlbnlhIC0gR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQpIikKcHJpbnQoIkRhdGUgcmFuZ2U6IDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFmcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgRXhjbHVkZSByb3dzIHdoZXJlIGFyZWFfaGEgPSAwIG9yIG1pc3NpbmcKZGYgPSBkZltkZlsnYXJlYV9oYSddLm5vdG5hKCldCmRmID0gZGZbZGZbJ2FyZWFfaGEnXSAhPSAwXQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKaW5pdGlhbF95ZWFyID0gZGZbJ3llYXInXS5taW4oKQpmaW5hbF95ZWFyID0gZGZbJ3llYXInXS5tYXgoKQppbml0aWFsX2FyZWEgPSBkZltkZlsneWVhciddID09IGluaXRpYWxfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCmZpbmFsX2FyZWEgPSBkZltkZlsneWVhciddID09IGZpbmFsX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQoKdG90YWxfbG9zcyA9IGluaXRpYWxfYXJlYSAtIGZpbmFsX2FyZWEKbnVtYmVyX29mX3llYXJzID0gZmluYWxfeWVhciAtIGluaXRpYWxfeWVhcgphdmVyYWdlX2FubnVhbF9sb3NzID0gdG90YWxfbG9zcyAvIG51bWJlcl9vZl95ZWFycyBpZiBudW1iZXJfb2ZfeWVhcnMgPiAwIGVsc2UgMAoKcHJpbnQoIlxuS2V5IEZpbmRpbmdzOiIpCnByaW50KGYiSW5pdGlhbCBncmFzc2xhbmQgYXJlYSBpbiB7aW5pdGlhbF95ZWFyfToge2luaXRpYWxfYXJlYTosLjBmfSBoZWN0YXJlcyIpCnByaW50KGYiRmluYWwgZ3Jhc3NsYW5kIGFyZWEgaW4ge2ZpbmFsX3llYXJ9OiB7ZmluYWxfYXJlYTosLjBmfSBoZWN0YXJlcyIpCnByaW50KGYiVG90YWwgZ3Jhc3NsYW5kIGFyZWEgbG9zdCBiZXR3ZWVuIHtpbml0aWFsX3llYXJ9IGFuZCB7ZmluYWxfeWVhcn06IHt0b3RhbF9sb3NzOiwuMGZ9IGhlY3RhcmVzIikKcHJpbnQoZiJBdmVyYWdlIGFubnVhbCBncmFzc2xhbmQgbG9zczoge2F2ZXJhZ2VfYW5udWFsX2xvc3M6LC4wZn0gaGVjdGFyZXMveWVhciIpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCiMgRW5zdXJlICd5ZWFyJyBpcyBpbiBjaHJvbm9sb2dpY2FsIG9yZGVyIGFuZCAnYXJlYV9oYScgaXMgbnVtZXJpYwpjaGFydF9kZiA9IGRmW1sneWVhcicsICdhcmVhX2hhJ11dLnNvcnRfdmFsdWVzKGJ5PSd5ZWFyJykKCiMgUmVuYW1lIGNvbHVtbnMgZm9yIGNsYXJpdHkgaW4gdGhlIGNoYXJ",
+        "refused": false,
+        "tool_message": "Title: Trend of Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a total loss of approximately 3.33 million hectares over the 22-year period, though it is important to note that some cropland areas in Kenya may be misclassified as grassland in this dataset.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring Tanzania or Uganda\n2. Show the Global Land Cover breakdown for Kenya to see what replaced the grasslands"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the trend using a line chart with the requested units and temporal axis.",
+      "duration_s": 10.81
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[Natural grassland hectares in Kenya per year]",
+      "query": "Natural grassland hectares in Kenya per year",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Natural grassland extent in Kenya decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a decline of approximately 11.7%. This data includes grasslands, shrublands, and savannas, though some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50LCAyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEpIikKCnByaW50KCJcbkRhdGEgc3RydWN0dXJlIGFuZCB0eXBlczoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5GaXJzdCA1IHJvd3Mgb2YgdGhlIGRhdGE6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSA9IDAgb3IgbWlzc2luZwpkZiA9IGRmW2RmWydhcmVhX2hhJ10ubm90bmEoKV0KZGYgPSBkZltkZlsnYXJlYV9oYSddICE9IDBdCgpwcmludCgiXG5LZXkgU3RhdGlzdGljcyBmb3IgTmF0dXJhbCBHcmFzc2xhbmQgSGVjdGFyZXMgaW4gS2VueWE6IikKcHJpbnQoZiJUaW1lIHBlcmlvZDoge2RmWyd5ZWFyJ10ubWluKCl9IC0ge2RmWyd5ZWFyJ10ubWF4KCl9IikKcHJpbnQoZiJUb3RhbCBudW1iZXIgb2YgeWVhcnMgd2l0aCBkYXRhOiB7bGVuKGRmKX0iKQpwcmludChmIk1pbmltdW0gYXJlYV9oYToge2RmWydhcmVhX2hhJ10ubWluKCk6LC4wZn0gaGEgKGluIHtkZi5sb2NbZGZbJ2FyZWFfaGEnXS5pZHhtaW4oKSwgJ3llYXInXX0pIikKcHJpbnQoZiJNYXhpbXVtIGFyZWFfaGE6IHtkZlsnYXJlYV9oYSddLm1heCgpOiwuMGZ9IGhhIChpbiB7ZGYubG9jW2RmWydhcmVhX2hhJ10uaWR4bWF4KCksICd5ZWFyJ119KSIpCgojIENhbGN1bGF0ZSB0aGUgY2hhbmdlIG92ZXIgdGhlIHBlcmlvZAppbml0aWFsX2FyZWEgPSBkZi5sb2NbZGZbJ3llYXInXS5taW4oKSA9PSBkZlsneWVhciddLCAnYXJlYV9oYSddLmlsb2NbMF0KZmluYWxfYXJlYSA9IGRmLmxvY1tkZlsneWVhciddLm1heCgpID09IGRmWyd5ZWFyJ10sICdhcmVhX2hhJ10uaWxvY1swXQp0b3RhbF9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCnBlcmNlbnRhZ2VfY2hhbmdlID0gKHRvdGFsX2NoYW5nZSAvIGluaXRpYWxfYXJlYSkgKiAxMDAKCnByaW50KGYiQXJlYSBpbiB7ZGZbJ3llYXInXS5taW4oKX06IHtpbml0aWFsX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIkFyZWEgaW4ge2RmWyd5ZWFyJ10ubWF4KCl9OiB7ZmluYWxfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiT3ZlcmFsbCBjaGFuZ2UgaW4gYXJlYSAoYWJzb2x1dGUpOiB7dG90YWxfY2hhbmdlOiwuMGZ9IGhhIikKcHJpbnQoZiJPdmVyYWxsIGNoYW5nZSBpbiBhcmVhIChwZXJjZW50YWdlKToge3BlcmNlbnRhZ2VfY2hhbmdlOi4yZn0lIikK\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgc2luZ2xlLXNlcmllcyBsaW5lIGNoYXJ0CmNoYXJ0X2RhdGEgPSBkZltbJ3llYXInLCAnYXJlYV9oYSddXS5jb3B5KCkKY2hhcnRfZGF0YS5yZW5hbWUoY29sdW1ucz17J3llYXInOiA",
+        "refused": false,
+        "tool_message": "Title: Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Natural grassland extent in Kenya decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a decline of approximately 11.7%. This data includes grasslands, shrublands, and savannas, though some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.\nFollow-up suggestions:\n1. Compare natural grassland loss with tree cover loss in Kenya\n2. Break down land cover changes using the Global Land Cover dataset for Kenya"
+      },
+      "passed": true,
+      "comment": "The output successfully follows all instructions, providing a temporal line chart of Kenyan grassland area in hectares.",
+      "duration_s": 10.99
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[chart of grassland extent in Kenya 2000 through 2022]",
+      "query": "chart of grassland extent in Kenya 2000 through 2022",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Between 2000 and 2022, Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares to 25.12 million hectares. This represents a total reduction of approximately 3.33 million hectares, though it is important to note that some cropland areas in Kenya may be misclassified as grassland in this dataset.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiDigJQgR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkiKQoKcHJpbnQoIlxuRGF0YSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCnByaW50KCJcbkRhdGEgSW5mb3JtYXRpb246IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YSBEZXNjcmlwdGlvbjoiKQpwcmludChkZi5kZXNjcmliZSgpKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSA9IDAgb3IgbWlzc2luZwpkZl9maWx0ZXJlZCA9IGRmW2RmWydhcmVhX2hhJ10gPiAwXS5jb3B5KCkKZGZfZmlsdGVyZWQuZHJvcG5hKHN1YnNldD1bJ2FyZWFfaGEnXSwgaW5wbGFjZT1UcnVlKQoKcHJpbnQoZiJcbk51bWJlciBvZiByb3dzIGFmdGVyIGZpbHRlcmluZyBmb3IgYXJlYV9oYSA+IDAgYW5kIG5vbi1taXNzaW5nOiB7bGVuKGRmX2ZpbHRlcmVkKX0iKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKbWluX3llYXIgPSBkZl9maWx0ZXJlZFsneWVhciddLm1pbigpCm1heF95ZWFyID0gZGZfZmlsdGVyZWRbJ3llYXInXS5tYXgoKQppbml0aWFsX2V4dGVudCA9IGRmX2ZpbHRlcmVkW2RmX2ZpbHRlcmVkWyd5ZWFyJ10gPT0gbWluX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQpmaW5hbF9leHRlbnQgPSBkZl9maWx0ZXJlZFtkZl9maWx0ZXJlZFsneWVhciddID09IG1heF95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KdG90YWxfY2hhbmdlID0gZmluYWxfZXh0ZW50IC0gaW5pdGlhbF9leHRlbnQKYXZlcmFnZV9hbm51YWxfY2hhbmdlID0gdG90YWxfY2hhbmdlIC8gKG1heF95ZWFyIC0gbWluX3llYXIpIGlmIChtYXhfeWVhciAtIG1pbl95ZWFyKSA+IDAgZWxzZSAwCgpwcmludChmIlxuS2V5IEZpbmRpbmdzIGZvciBLZW55YSBHcmFzc2xhbmQgRXh0ZW50ICh7bWluX3llYXJ9LXttYXhfeWVhcn0pOiIpCnByaW50KGYiLSBUaW1lIHBlcmlvZDoge21pbl95ZWFyfSB0byB7bWF4X3llYXJ9IikKcHJpbnQoZiItIEluaXRpYWwgZ3Jhc3NsYW5kIGV4dGVudCAoaGVjdGFyZXMpIGluIHttaW5feWVhcn06IHtpbml0aWFsX2V4dGVudDosLjBmfSBoYSIpCnByaW50KGYiLSBGaW5hbCBncmFzc2xhbmQgZXh0ZW50IChoZWN0YXJlcykgaW4ge21heF95ZWFyfToge2ZpbmFsX2V4dGVudDosLjBmfSBoYSIpCnByaW50KGYiLSBUb3RhbCBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGV4dGVudCAoaGVjdGFyZXMpIG92ZXIgdGhlIHBlcmlvZDoge3RvdGFsX2NoYW5nZTosLjBmfSBoYSIpCnByaW50KGYiLSBBdmVyYWdlIGFubnVhbCBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGV4dGVudCAoaGVjdGFyZXMpOiB7YXZlcmFnZV9hbm51YWxfY2hhbmdlOiwu",
+        "refused": false,
+        "tool_message": "Title: Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Between 2000 and 2022, Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares to 25.12 million hectares. This represents a total reduction of approximately 3.33 million hectares, though it is important to note that some cropland areas in Kenya may be misclassified as grassland in this dataset.\nFollow-up suggestions:\n1. Compare Kenya's grassland extent with neighboring Tanzania or Uganda\n2. Analyze tree cover loss in Kenya for the same period (2000-2022)"
+      },
+      "passed": true,
+      "comment": "The tool output correctly identified the required chart type, axes, units, and temporal range requested by the user.",
+      "duration_s": 12.87
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[Trend in natural/semi-natural grassland for Kenya]",
+      "query": "Trend in natural/semi-natural grassland for Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.71%. This data includes grasslands, shrublands, and savannas, though some areas may be misclassified due to spectral similarities with croplands or urban mosaics.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIlVzaW5nIGRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50LCAyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEpIikKCnByaW50KCJcbkRhdGFmcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCnByaW50KCJcbkRhdGFmcmFtZSBEZXNjcmlwdGlvbjoiKQpwcmludChkZi5kZXNjcmliZSgpKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSA9IDAgb3IgbWlzc2luZwpkZl9jbGVhbmVkID0gZGZbZGZbJ2FyZWFfaGEnXS5ub3RuYSgpXQpkZl9jbGVhbmVkID0gZGZfY2xlYW5lZFtkZl9jbGVhbmVkWydhcmVhX2hhJ10gIT0gMF0KCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCnN0YXJ0X3llYXIgPSBkZl9jbGVhbmVkWyd5ZWFyJ10ubWluKCkKZW5kX3llYXIgPSBkZl9jbGVhbmVkWyd5ZWFyJ10ubWF4KCkKaW5pdGlhbF9hcmVhID0gZGZfY2xlYW5lZFtkZl9jbGVhbmVkWyd5ZWFyJ10gPT0gc3RhcnRfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCmZpbmFsX2FyZWEgPSBkZl9jbGVhbmVkW2RmX2NsZWFuZWRbJ3llYXInXSA9PSBlbmRfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCnRvdGFsX2NoYW5nZSA9IGZpbmFsX2FyZWEgLSBpbml0aWFsX2FyZWEKcGVyY2VudGFnZV9jaGFuZ2UgPSAodG90YWxfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAphdmVyYWdlX2FubnVhbF9sb3NzID0gLXRvdGFsX2NoYW5nZSAvIChlbmRfeWVhciAtIHN0YXJ0X3llYXIpIGlmIChlbmRfeWVhciAtIHN0YXJ0X3llYXIpID4gMCBlbHNlIDAKCnByaW50KGYiXG5LZXkgRmluZGluZ3MgZm9yIEtlbnlhICgyMDAwLTIwMjIpOiIpCnByaW50KGYiICBTdGFydCBZZWFyOiB7c3RhcnRfeWVhcn0iKQpwcmludChmIiAgRW5kIFllYXI6IHtlbmRfeWVhcn0iKQpwcmludChmIiAgR3Jhc3NsYW5kIGFyZWEgaW4ge3N0YXJ0X3llYXJ9OiB7aW5pdGlhbF9hcmVhOiwuMGZ9IGhhIikKcHJpbnQoZiIgIEdyYXNzbGFuZCBhcmVhIGluIHtlbmRfeWVhcn06IHtmaW5hbF9hcmVhOiwuMGZ9IGhhIikKcHJpbnQoZiIgIFRvdGFsIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYToge3RvdGFsX2NoYW5nZTosLjBmfSBoYSIpCnByaW50KGYiICBQZXJjZW50YWdlIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYToge3BlcmNlbnRhZ2VfY2hhbmdlOiwuMmZ9JSIpCnByaW50KGYiICBBdmVyYWdlIGFubnVhbCBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGFyZWE6IHstYXZlcmFnZV9hbm51YWxfbG9zczosLjBmfSBoYS95ZWFyIikK\nIyBQcmVwYXJlIGRhdGEgZm9yIHRoZSBjaGFydApjaGFydF9kYXRhID0gZGZfY2xlYW5",
+        "refused": false,
+        "tool_message": "Title: Trend in Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.71%. This data includes grasslands, shrublands, and savannas, though some areas may be misclassified due to spectral similarities with croplands or urban mosaics.\nFollow-up suggestions:\n1. Compare grassland trends with Global Land Cover data for Kenya\n2. Analyze tree cover loss in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the trend using a line chart with years on the x-axis and area in hectares on the y-axis, following all rubric constraints.",
+      "duration_s": 14.64
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[How much grassland has Kenya lost since 2000?]",
+      "query": "How much grassland has Kenya lost since 2000?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,grassland_area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "grassland_area_ha"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland area decreased from 28,456,000 hectares in 2000 to 25,124,000 hectares in 2022, a total reduction of 3,332,000 hectares. This data includes grasslands, shrublands, and savannas, though classification challenges exist in distinguishing these from certain croplands or urban mosaics.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCBpbiB1c2U6IGlucHV0X2ZpbGVfMC5jc3YgLSBHbG9iYWwgbmF0dXJhbC9zZW1pLW5hdHVyYWwgZ3Jhc3NsYW5kIGV4dGVudCBmb3IgS2VueWEgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCiMgUHJpbnQgdGhlIGhlYWQgb2YgdGhlIGRhdGFmcmFtZSB0byB1bmRlcnN0YW5kIGl0cyBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YUZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSA9IDAgb3IgbWlzc2luZwpkZiA9IGRmW2RmWydhcmVhX2hhJ10gIT0gMF0uZHJvcG5hKHN1YnNldD1bJ2FyZWFfaGEnXSkKCiMgQ29udmVydCAneWVhcicgdG8gaW50ZWdlciBpZiBpdCdzIG5vdCBhbHJlYWR5CmRmWyd5ZWFyJ10gPSBkZlsneWVhciddLmFzdHlwZShpbnQpCgojIEdldCBncmFzc2xhbmQgYXJlYSBpbiAyMDAwCmFyZWFfMjAwMCA9IGRmW2RmWyd5ZWFyJ10gPT0gMjAwMF1bJ2FyZWFfaGEnXS5pbG9jWzBdCgojIEdldCBncmFzc2xhbmQgYXJlYSBpbiB0aGUgbGF0ZXN0IHllYXIgKDIwMjIpCmxhdGVzdF95ZWFyID0gZGZbJ3llYXInXS5tYXgoKQphcmVhX2xhdGVzdF95ZWFyID0gZGZbZGZbJ3llYXInXSA9PSBsYXRlc3RfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCgojIENhbGN1bGF0ZSB0aGUgbG9zcwpncmFzc2xhbmRfbG9zcyA9IGFyZWFfMjAwMCAtIGFyZWFfbGF0ZXN0X3llYXIKCnByaW50KGYiXG5LZXkgRmluZGluZ3M6IikKcHJpbnQoZiJHcmFzc2xhbmQgYXJlYSBpbiBLZW55YSBpbiAyMDAwOiB7YXJlYV8yMDAwOiwuMGZ9IGhlY3RhcmVzIikKcHJpbnQoZiJHcmFzc2xhbmQgYXJlYSBpbiBLZW55YSBpbiB7bGF0ZXN0X3llYXJ9OiB7YXJlYV9sYXRlc3RfeWVhcjosLjBmfSBoZWN0YXJlcyIpCnByaW50KGYiVG90YWwgZ3Jhc3NsYW5kIGxvc3MgaW4gS2VueWEgc2luY2UgMjAwMCB1bnRpbCB7bGF0ZXN0X3llYXJ9OiB7Z3Jhc3NsYW5kX2xvc3M6LC4wZn0gaGVjdGFyZXMiKQ==\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RmID0gZGZbWyd5ZWFyJywgJ2FyZWFfaGEnXV0uY29weSgpCgojIFJlbmFtZSBjb2x1bW5zIGZvciBjbGFyaXR5IGluIHRoZSBjaGFydApjaGFydF9kZi5yZW5hbWUoY29sdW1ucz17J3llYXInOiAneWVhcicsICdhcmVhX2hhJzogJ2dyYXNzbGFuZF9hcmVhX2hhJ30sIGlucGxhY2U9VHJ1ZSkKCiMgRW5zdXJlIGNocm9ub2xvZ2ljYWwgb3JkZXIKY2hhcnRfZGYgPSBjaGFydF9kZi5zb3J0X3ZhbHV",
+        "refused": false,
+        "tool_message": "Title: Trend of Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland area decreased from 28,456,000 hectares in 2000 to 25,124,000 hectares in 2022, a total reduction of 3,332,000 hectares. This data includes grasslands, shrublands, and savannas, though classification challenges exist in distinguishing these from certain croplands or urban mosaics.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring Tanzania or Uganda\n2. Analyze the dominant drivers of land cover change in Kenya using the Global Land Cover dataset"
+      },
+      "passed": true,
+      "comment": "The output successfully meets all criteria, providing a line chart of Kenyan grassland area in hectares over a multi-year period starting from 2000.",
+      "duration_s": 14.48
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_bar_or_line_for_trend[Kenya grassland trajectory over 22 years]",
+      "query": "Kenya grassland trajectory over 22 years",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a total reduction of approximately 3.33 million hectares. This decline averages 151,455 hectares annually, though it is important to note that some cropland areas in Kenya may be misclassified as grassland in this dataset.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiVXNpbmcgZGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgMjAwMC0wMS0wMSB0byAyMDIyLTEyLTMxIGZvciBLZW55YSkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlIGFuZCB0eXBlcwpwcmludCgiXG5EYXRhZnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgojIFByaW50IHRoZSBoZWFkIG9mIHRoZSBkYXRhZnJhbWUKcHJpbnQoIlxuRGF0YWZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSBpcyAwIG9yIG1pc3NpbmcKZGZfZmlsdGVyZWQgPSBkZltkZlsnYXJlYV9oYSddLm5vdG5hKCldCmRmX2ZpbHRlcmVkID0gZGZfZmlsdGVyZWRbZGZfZmlsdGVyZWRbJ2FyZWFfaGEnXSAhPSAwXQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKc3RhcnRfeWVhciA9IGRmX2ZpbHRlcmVkWyd5ZWFyJ10ubWluKCkKZW5kX3llYXIgPSBkZl9maWx0ZXJlZFsneWVhciddLm1heCgpCmluaXRpYWxfYXJlYSA9IGRmX2ZpbHRlcmVkW2RmX2ZpbHRlcmVkWyd5ZWFyJ10gPT0gc3RhcnRfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCmZpbmFsX2FyZWEgPSBkZl9maWx0ZXJlZFtkZl9maWx0ZXJlZFsneWVhciddID09IGVuZF95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KdG90YWxfY2hhbmdlID0gZmluYWxfYXJlYSAtIGluaXRpYWxfYXJlYQpudW1iZXJfb2ZfeWVhcnMgPSBlbmRfeWVhciAtIHN0YXJ0X3llYXIKYXZlcmFnZV9hbm51YWxfY2hhbmdlID0gdG90YWxfY2hhbmdlIC8gbnVtYmVyX29mX3llYXJzIGlmIG51bWJlcl9vZl95ZWFycyA+IDAgZWxzZSAwCgpwcmludChmIlxuS2V5IEZpbmRpbmdzIGZvciBLZW55YSBHcmFzc2xhbmQgRXh0ZW50ICgyMDAwLTIwMjIpOiIpCnByaW50KGYiICBTdGFydCBZZWFyOiB7c3RhcnRfeWVhcn0iKQpwcmludChmIiAgRW5kIFllYXI6IHtlbmRfeWVhcn0iKQpwcmludChmIiAgSW5pdGlhbCBHcmFzc2xhbmQgQXJlYSAoaGEpIGluIHtzdGFydF95ZWFyfToge2luaXRpYWxfYXJlYTosLjBmfSIpCnByaW50KGYiICBGaW5hbCBHcmFzc2xhbmQgQXJlYSAoaGEpIGluIHtlbmRfeWVhcn06IHtmaW5hbF9hcmVhOiwuMGZ9IikKcHJpbnQoZiIgIFRvdGFsIENoYW5nZSBpbiBHcmFzc2xhbmQgQXJlYSAoaGEpIG92ZXIgMjIgeWVhcnM6IHt0b3RhbF9jaGFuZ2U6LC4wZn0iKQpwcmludChmIiAgQXZlcmFnZSBBbm51YWwgQ2hhbmdlIGluIEdyYXNzbGFuZCBBcmVhIChoYSk6IHthdmVyYWdlX2FubnVhbF9jaGFuZ2U6LC4wZn0iKQo=\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0CmN",
+        "refused": false,
+        "tool_message": "Title: Kenya Natural/Semi-Natural Grassland Extent (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a total reduction of approximately 3.33 million hectares. This decline averages 151,455 hectares annually, though it is important to note that some cropland areas in Kenya may be misclassified as grassland in this dataset.\nFollow-up suggestions:\n1. Compare Kenya grassland trajectory with neighboring Tanzania or Uganda\n2. Analyze tree cover loss by dominant driver in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the temporal trend of grassland area in Kenya using a line chart with the appropriate units and time scale.",
+      "duration_s": 16.86
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[How much grassland was restored in Kenya?]",
+      "query": "How much grassland was restored in Kenya?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland extent decreased by 3,332,000 hectares between 2000 and 2022. The data shows a consistent decline with no recorded annual gains, meaning no restoration can be quantified from this dataset; note that gains, if present, do not necessarily equate to ecological restoration.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBuYW1lIGFuZCBkYXRlIHJhbmdlCnByaW50KCJEYXRhc2V0OiBpbnB1dF9maWxlXzAuY3N2IOKAlCBHbG9iYWwgbmF0dXJhbC9zZW1pLW5hdHVyYWwgZ3Jhc3NsYW5kIGV4dGVudCBmb3IgS2VueWEgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhZnJhbWUgSW5mb3JtYXRpb246IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lIHRvIGluc3BlY3QgY29udGVudApwcmludCgiXG5EYXRhZnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcyByZWxldmFudCB0byB0aGUgdXNlciBxdWVyeQojIENoZWNrIGZvciBleGNsdWRlZCByb3dzIHdoZXJlIGFyZWFfaGEgPSAwIG9yIG1pc3NpbmcKaW5pdGlhbF9yb3dzID0gbGVuKGRmKQpkZiA9IGRmW2RmWydhcmVhX2hhJ10ubm90bmEoKV0KZGYgPSBkZltkZlsnYXJlYV9oYSddICE9IDBdCnJvd3NfYWZ0ZXJfZXhjbHVzaW9uID0gbGVuKGRmKQpwcmludChmIlxuUm93cyBleGNsdWRlZCAoYXJlYV9oYSA9IDAgb3IgbWlzc2luZyk6IHtpbml0aWFsX3Jvd3MgLSByb3dzX2FmdGVyX2V4Y2x1c2lvbn0iKQoKIyBDYWxjdWxhdGUgdG90YWwgY2hhbmdlIGluIGdyYXNzbGFuZCBhcmVhCiMgRW5zdXJlICd5ZWFyJyBpcyBudW1lcmljIGFuZCAnYXJlYV9oYScgaXMgbnVtZXJpYwpkZlsneWVhciddID0gcGQudG9fbnVtZXJpYyhkZlsneWVhciddKQpkZlsnYXJlYV9oYSddID0gcGQudG9fbnVtZXJpYyhkZlsnYXJlYV9oYSddKQoKIyBTb3J0IGJ5IHllYXIgdG8gZW5zdXJlIGNvcnJlY3QgY2hyb25vbG9naWNhbCBvcmRlciBmb3IgdHJlbmQgYW5hbHlzaXMKZGYgPSBkZi5zb3J0X3ZhbHVlcyhieT0neWVhcicpCgppbml0aWFsX2FyZWEgPSBkZlsnYXJlYV9oYSddLmlsb2NbMF0KZmluYWxfYXJlYSA9IGRmWydhcmVhX2hhJ10uaWxvY1stMV0KdG90YWxfY2hhbmdlX2hhID0gZmluYWxfYXJlYSAtIGluaXRpYWxfYXJlYQoKcHJpbnQoZiJcbkluaXRpYWwgZ3Jhc3NsYW5kIGFyZWEgaW4ge2RmWyd5ZWFyJ10ubWluKCl9OiB7aW5pdGlhbF9hcmVhOiwuMGZ9IGhlY3RhcmVzIikKcHJpbnQoZiJGaW5hbCBncmFzc2xhbmQgYXJlYSBpbiB7ZGZbJ3llYXInXS5tYXgoKX06IHtmaW5hbF9hcmVhOiwuMGZ9IGhlY3RhcmVzIikKcHJpbnQoZiJUb3RhbCBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGFyZWEgZnJvbSB7ZGZbJ3llYXInXS5taW4oKX0gdG8ge2RmWyd5ZWFyJ10ubWF4KCl9OiB7dG90YWxfY2hhbmdlX2hhOiwuMGZ9IGhlY3RhcmVzIikK",
+        "refused": false,
+        "tool_message": "Title: Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland extent decreased by 3,332,000 hectares between 2000 and 2022. The data shows a consistent decline with no recorded annual gains, meaning no restoration can be quantified from this dataset; note that gains, if present, do not necessarily equate to ecological restoration.\nFollow-up suggestions:\n1. Compare grassland extent trends in Kenya with neighboring Uganda or Tanzania\n2. Analyze tree cover loss by dominant driver in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified that the data showed a decrease and properly included the mandatory caveat when discussing the concept of restoration.",
+      "duration_s": 19.14
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[Show grassland restoration in Kenya over time]",
+      "query": "Show grassland restoration in Kenya over time",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,extent_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "extent_ha"
+        ],
+        "insight": "Between 2000 and 2022, Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares to 25.12 million hectares, a reduction of approximately 11.7%. This trend indicates a loss of grassland area rather than restoration; however, it is important to note that some cropland areas in Kenya may be misclassified as grassland due to spectral similarities.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgZm9yIEtlbnlhKSIpCnByaW50KCJEYXRlIFJhbmdlOiAyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlCnByaW50KCJcbkRhdGFmcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCiMgUHJpbnQgdGhlIGhlYWQgb2YgdGhlIGRhdGFmcmFtZQpwcmludCgiXG5EYXRhZnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIEV4Y2x1ZGUgcm93cyB3aGVyZSBhcmVhX2hhID0gMCBvciBtaXNzaW5nCmluaXRpYWxfcm93cyA9IGxlbihkZikKZGYgPSBkZltkZlsnYXJlYV9oYSddLm5vdG5hKCldCmRmID0gZGZbZGZbJ2FyZWFfaGEnXSAhPSAwXQpyb3dzX2FmdGVyX2V4Y2x1c2lvbiA9IGxlbihkZikKcHJpbnQoZiJcblJvd3MgZXhjbHVkZWQgKGFyZWFfaGEgPSAwIG9yIG1pc3NpbmcpOiB7aW5pdGlhbF9yb3dzIC0gcm93c19hZnRlcl9leGNsdXNpb259IikKCiMgQ29udmVydCAneWVhcicgdG8gZGF0ZXRpbWUgZm9yIHByb3BlciB0aW1lLXNlcmllcyBhbmFseXNpcyBpZiBuZWVkZWQsIGJ1dCBmb3IgeWVhcmx5IGRhdGEsIGludCBpcyBmaW5lIGZvciBub3cKIyBFbnN1cmUgJ3llYXInIGlzIHN1aXRhYmxlIGZvciB4LWF4aXMgYW5kICdhcmVhX2hhJyBpcyBudW1lcmljCmRmWyd5ZWFyJ10gPSBwZC50b19udW1lcmljKGRmWyd5ZWFyJ10pCmRmWydhcmVhX2hhJ10gPSBwZC50b19udW1lcmljKGRmWydhcmVhX2hhJ10pCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwp0b3RhbF95ZWFycyA9IGRmWyd5ZWFyJ10ubnVuaXF1ZSgpCm1pbl95ZWFyID0gZGZbJ3llYXInXS5taW4oKQptYXhfeWVhciA9IGRmWyd5ZWFyJ10ubWF4KCkKbWluX2FyZWEgPSBkZlsnYXJlYV9oYSddLm1pbigpCm1heF9hcmVhID0gZGZbJ2FyZWFfaGEnXS5tYXgoKQphdmdfYXJlYSA9IGRmWydhcmVhX2hhJ10ubWVhbigpCgojIENhbGN1bGF0ZSB0aGUgY2hhbmdlIG92ZXIgdGltZQppbml0aWFsX2FyZWEgPSBkZltkZlsneWVhciddID09IG1pbl95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KZmluYWxfYXJlYSA9IGRmW2RmWyd5ZWFyJ10gPT0gbWF4X3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQp0b3RhbF9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCnBlcmNlbnRhZ2VfY2hhbmdlID0gKHRvdGFsX2NoYW5nZSAvIGluaXRpYWxfYXJlYSkgKiAxMDAKCnByaW50KGYiXG5LZXkgRmluZGluZ3MgZm9yIEtlbnlhIEdyYXNzbGFuZCBFeHRlbnQgKHttaW5feWVhcn0te21heF95ZWFy",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Between 2000 and 2022, Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares to 25.12 million hectares, a reduction of approximately 11.7%. This trend indicates a loss of grassland area rather than restoration; however, it is important to note that some cropland areas in Kenya may be misclassified as grassland due to spectral similarities.\nFollow-up suggestions:\n1. Compare grassland extent trends in Kenya with neighboring Uganda or Tanzania\n2. Analyze tree cover loss in Kenya over the same period to compare ecosystem shifts"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified a decreasing trend in grassland extent. It used the term 'restoration' only to clarify that the data shows the opposite (a loss), thereby avoiding the mislabeling of gains as restoration without qualification.",
+      "duration_s": 21.2
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[What area of grassland was restored in Kenya since 2000?]",
+      "query": "What area of grassland was restored in Kenya since 2000?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,grassland_extent_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "grassland_extent_ha"
+        ],
+        "insight": "The data shows a consistent decline in Kenya's natural and semi-natural grassland extent, with a net loss of 3,332,000 hectares between 2000 and 2022. No year-over-year increases were recorded, suggesting an absence of detectable grassland restoration in this specific dataset.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgdGhlIGRhdGFzZXQgYmVpbmcgdXNlZApwcmludCgiVXNpbmcgZGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiDigJQgR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkgZm9yIEtlbnlhIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2hlY2sgZm9yIHplcm8gb3IgbWlzc2luZyBhcmVhX2hhIHZhbHVlcwpwcmludCgiXG5DaGVja2luZyBmb3IgemVybyBvciBtaXNzaW5nICdhcmVhX2hhJyB2YWx1ZXM6IikKemVyb19hcmVhX2NvdW50ID0gZGZbZGZbJ2FyZWFfaGEnXSA9PSAwXS5zaGFwZVswXQptaXNzaW5nX2FyZWFfY291bnQgPSBkZlsnYXJlYV9oYSddLmlzbnVsbCgpLnN1bSgpCnByaW50KGYiUm93cyB3aXRoICdhcmVhX2hhJyBlcXVhbCB0byAwOiB7emVyb19hcmVhX2NvdW50fSIpCnByaW50KGYiUm93cyB3aXRoIG1pc3NpbmcgJ2FyZWFfaGEnOiB7bWlzc2luZ19hcmVhX2NvdW50fSIpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljczogaW5pdGlhbCBhbmQgZmluYWwgZ3Jhc3NsYW5kIGFyZWEKaW5pdGlhbF95ZWFyID0gZGZbJ3llYXInXS5taW4oKQppbml0aWFsX2FyZWEgPSBkZltkZlsneWVhciddID09IGluaXRpYWxfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCmZpbmFsX3llYXIgPSBkZlsneWVhciddLm1heCgpCmZpbmFsX2FyZWEgPSBkZltkZlsneWVhciddID09IGZpbmFsX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQp0b3RhbF9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCgpwcmludChmIlxuSW5pdGlhbCBncmFzc2xhbmQgYXJlYSBpbiB7aW5pdGlhbF95ZWFyfToge2luaXRpYWxfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiRmluYWwgZ3Jhc3NsYW5kIGFyZWEgaW4ge2ZpbmFsX3llYXJ9OiB7ZmluYWxfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiVG90YWwgY2hhbmdlIGluIGdyYXNzbGFuZCBhcmVhIGZyb20ge2luaXRpYWxfeWVhcn0gdG8ge2ZpbmFsX3llYXJ9OiB7dG90YWxfY2hhbmdlOiwuMGZ9IGhhIikKCiMgQ2hlY2sgZm9yIHJlc3RvcmF0aW9uIChpbmNyZWFzZSBpbiBhcmVhKQojIEEgcmVzdG9yYXRpb24gd291bGQgbWVhbiBhbiBpbmNyZWFzZSBpbiBhcmVhIG92ZXIgdGltZS4KIyBUaGUgZGF0YSBwcm92aWRlZCBzaG93cyBhIGNvbnRpbnVvdXMgZGVjcmVhc2UgaW4gZ3Jhc3NsYW5kIGV4dGVu",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: The data shows a consistent decline in Kenya's natural and semi-natural grassland extent, with a net loss of 3,332,000 hectares between 2000 and 2022. No year-over-year increases were recorded, suggesting an absence of detectable grassland restoration in this specific dataset.\nFollow-up suggestions:\n1. Compare grassland loss in Kenya with neighboring Tanzania or Uganda\n2. Analyze tree cover loss by dominant driver in Kenya for the same period"
+      },
+      "passed": false,
+      "comment": "The output fails because the rubric explicitly requires a caveat or warning whenever the term 'restoration' is mentioned, regardless of whether the data shows a gain or a loss. The insight text mentions 'grassland restoration' without providing the required qualifying statement.",
+      "duration_s": 15.25,
+      "rubric": "1. The insight text must NOT use the term \"restoration\" to describe grassland\n           gains WITHOUT qualifying it \u2014 gains may represent land abandonment, invasive\n           species, woody encroachment, or temporary regrowth.\n        2. If \"restoration\" is mentioned, it must include a caveat or warning that gain\n           does not necessarily equal restoration.\n        3. Terms like \"gain\", \"increase\", or \"expansion\" are acceptable without caveats.",
+      "requirements": [
+        {
+          "requirement": "The insight text must NOT use the term \"restoration\" to describe grassland gains WITHOUT qualifying it \u2014 gains may represent land abandonment, invasive species, woody encroachment, or temporary regrowth.",
+          "met": true,
+          "reason": "The insight text does not describe any grassland gains; it reports a consistent decline. Therefore, it does not use the term 'restoration' to describe gains."
+        },
+        {
+          "requirement": "If \"restoration\" is mentioned, it must include a caveat or warning that gain does not necessarily equal restoration.",
+          "met": false,
+          "reason": "The insight text mentions 'grassland restoration' (stating its absence) but fails to include the mandatory caveat that gains in grassland extent do not necessarily equate to ecological restoration."
+        },
+        {
+          "requirement": "Terms like \"gain\", \"increase\", or \"expansion\" are acceptable without caveats.",
+          "met": true,
+          "reason": "The text uses 'increases' and 'net loss' appropriately within the context of the data trends."
+        }
+      ],
+      "judge_prompt": "You are evaluating whether an AI-generated data visualization follows specific rules.\n\n## Original User Query\nWhat area of grassland was restored in Kenya since 2000?\n\n## Expected Behavior (Rubric)\n\n        1. The insight text must NOT use the term \"restoration\" to describe grassland\n           gains WITHOUT qualifying it \u2014 gains may represent land abandonment, invasive\n           species, woody encroachment, or temporary regrowth.\n        2. If \"restoration\" is mentioned, it must include a caveat or warning that gain\n           does not necessarily equal restoration.\n        3. Terms like \"gain\", \"increase\", or \"expansion\" are acceptable without caveats.\n        \n\n## Actual Tool Output\n\n### Chart Type\nline\n\n### Chart Data (first 10 rows)\nyear,grassland_extent_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n\n\n### Insight Text\nThe data shows a consistent decline in Kenya's natural and semi-natural grassland extent, with a net loss of 3,332,000 hectares between 2000 and 2022. No year-over-year increases were recorded, suggesting an absence of detectable grassland restoration in this specific dataset.\n\n### Generated Code (summary)\naW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgdGhlIGRhdGFzZXQgYmVpbmcgdXNlZApwcmludCgiVXNpbmcgZGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiDigJQgR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkgZm9yIEtlbnlhIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgQ2hlY2sgZm9yIHplcm8gb3IgbWlzc2luZyBhcmVhX2hhIHZhbHVlcwpwcmludCgiXG5DaGVja2luZyBmb3IgemVybyBvciBtaXNzaW5nICdhcmVhX2hhJyB2YWx1ZXM6IikKemVyb19hcmVhX2NvdW50ID0gZGZbZGZbJ2FyZWFfaGEnXSA9PSAwXS5zaGFwZVswXQptaXNzaW5nX2FyZWFfY291bnQgPSBkZlsnYXJlYV9oYSddLmlzbnVsbCgpLnN1bSgpCnByaW50KGYiUm93cyB3aXRoICdhcmVhX2hhJyBlcXVhbCB0byAwOiB7emVyb19hcmVhX2NvdW50fSIpCnByaW50KGYiUm93cyB3aXRoIG1pc3NpbmcgJ2FyZWFfaGEnOiB7bWlzc2luZ19hcmVhX2NvdW50fSIpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljczogaW5pdGlhbCBhbmQgZmluYWwgZ3Jhc3NsYW5kIGFyZWEKaW5pdGlhbF95ZWFyID0gZGZbJ3llYXInXS5taW4oKQppbml0aWFsX2FyZWEgPSBkZltkZlsneWVhciddID09IGluaXRpYWxfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCmZpbmFsX3llYXIgPSBkZlsneWVhciddLm1heCgpCmZpbmFsX2FyZWEgPSBkZltkZlsneWVhciddID09IGZpbmFsX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQp0b3RhbF9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCgpwcmludChmIlxuSW5pdGlhbCBncmFzc2xhbmQgYXJlYSBpbiB7aW5pdGlhbF95ZWFyfToge2luaXRpYWxfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiRmluYWwgZ3Jhc3NsYW5kIGFyZWEgaW4ge2ZpbmFsX3llYXJ9OiB7ZmluYWxfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiVG90YWwgY2hhbmdlIGluIGdyYXNzbGFuZCBhcmVhIGZyb20ge2luaXRpYWxfeWVhcn0gdG8ge2ZpbmFsX3llYXJ9OiB7dG90YWxfY2hhbmdlOiwuMGZ9IGhhIikKCiMgQ2hlY2sgZm9yIHJlc3RvcmF0aW9uIChpbmNyZWFzZSBpbiBhcmVhKQojIEEgcmVzdG9yYXRpb24gd291bGQgbWVhbiBhbiBpbmNyZWFzZSBpbiBhcmVhIG92ZXIgdGltZS4KIyBUaGUgZGF0YSBwcm92aWRlZCBzaG93cyBhIGNvbnRpbnVvdXMgZGVjcmVhc2UgaW4gZ3Jhc3NsYW5kIGV4dGVu\n\n## Instructions\nEvaluate whether the actual output satisfies EACH requirement in the rubric.\nFor each requirement, state whether it is MET or NOT MET with a brief reason.\n\nThen give an overall verdict: PASS if ALL requirements are met, FAIL if ANY is not met.\n\nRespond ONLY with valid JSON in this exact format (no markdown fencing):\n{\"requirements\": [{\"requirement\": \"...\", \"met\": true, \"reason\": \"...\"}, ...], \"verdict\": \"PASS\", \"comment\": \"Brief overall explanation\"}",
+      "judge_raw_response": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"The insight text must NOT use the term \\\"restoration\\\" to describe grassland gains WITHOUT qualifying it \u2014 gains may represent land abandonment, invasive species, woody encroachment, or temporary regrowth.\",\n      \"met\": true,\n      \"reason\": \"The insight text does not describe any grassland gains; it reports a consistent decline. Therefore, it does not use the term 'restoration' to describe gains.\"\n    },\n    {\n      \"requirement\": \"If \\\"restoration\\\" is mentioned, it must include a caveat or warning that gain does not necessarily equal restoration.\",\n      \"met\": false,\n      \"reason\": \"The insight text mentions 'grassland restoration' (stating its absence) but fails to include the mandatory caveat that gains in grassland extent do not necessarily equate to ecological restoration.\"\n    },\n    {\n      \"requirement\": \"Terms like \\\"gain\\\", \\\"increase\\\", or \\\"expansion\\\" are acceptable without caveats.\",\n      \"met\": true,\n      \"reason\": \"The text uses 'increases' and 'net loss' appropriately within the context of the data trends.\"\n    }\n  ],\n  \"verdict\": \"FAIL\",\n  \"comment\": \"The output fails because the rubric explicitly requires a caveat or warning whenever the term 'restoration' is mentioned, regardless of whether the data shows a gain or a loss. The insight text mentions 'grassland restoration' without providing the required qualifying statement.\"\n}"
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[Kenya grassland recovery and restoration]",
+      "query": "Kenya grassland recovery and restoration",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland extent decreased by 11.71% (3,332,000 hectares) between 2000 and 2022. This trend indicates a steady decline rather than recovery, though it is important to note that gains in this dataset may reflect land abandonment or invasive species rather than ecological restoration.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCBpbiB1c2U6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50KSIpCnByaW50KGYiRGF0ZSByYW5nZToge2RmWyd5ZWFyJ10ubWluKCl9LTAxLTAxIHRvIHtkZlsneWVhciddLm1heCgpfS0xMi0zMSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGEgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCnByaW50KCJcbkRhdGEgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCnByaW50KCJcbkRhdGEgRGVzY3JpcHRpb246IikKcHJpbnQoZGYuZGVzY3JpYmUoKSkKCiMgRXhjbHVkZSByb3dzIHdoZXJlIGFyZWFfaGEgPSAwIG9yIG1pc3NpbmcKZGZfZmlsdGVyZWQgPSBkZltkZlsnYXJlYV9oYSddLm5vdG5hKCldCmRmX2ZpbHRlcmVkID0gZGZfZmlsdGVyZWRbZGZfZmlsdGVyZWRbJ2FyZWFfaGEnXSAhPSAwXQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKaW5pdGlhbF9leHRlbnQgPSBkZl9maWx0ZXJlZC5sb2NbZGZfZmlsdGVyZWRbJ3llYXInXS5taW4oKSwgJ2FyZWFfaGEnXSBpZiBub3QgZGZfZmlsdGVyZWQuZW1wdHkgZWxzZSBOb25lCmZpbmFsX2V4dGVudCA9IGRmX2ZpbHRlcmVkLmxvY1tkZl9maWx0ZXJlZFsneWVhciddLm1heCgpLCAnYXJlYV9oYSddIGlmIG5vdCBkZl9maWx0ZXJlZC5lbXB0eSBlbHNlIE5vbmUKdG90YWxfY2hhbmdlID0gZmluYWxfZXh0ZW50IC0gaW5pdGlhbF9leHRlbnQgaWYgaW5pdGlhbF9leHRlbnQgaXMgbm90IE5vbmUgYW5kIGZpbmFsX2V4dGVudCBpcyBub3QgTm9uZSBlbHNlIE5vbmUKcGVyY2VudGFnZV9jaGFuZ2UgPSAodG90YWxfY2hhbmdlIC8gaW5pdGlhbF9leHRlbnQgKiAxMDApIGlmIGluaXRpYWxfZXh0ZW50IGVsc2UgTm9uZQoKIyBDYWxjdWxhdGUgYW5udWFsIGNoYW5nZQpkZl9maWx0ZXJlZFsnYW5udWFsX2NoYW5nZSddID0gZGZfZmlsdGVyZWRbJ2FyZWFfaGEnXS5kaWZmKCkKYXZlcmFnZV9hbm51YWxfY2hhbmdlID0gZGZfZmlsdGVyZWRbJ2FubnVhbF9jaGFuZ2UnXS5tZWFuKCkKCnByaW50KCJcbktleSBGaW5kaW5nczoiKQppZiBub3QgZGZfZmlsdGVyZWQuZW1wdHk6CiAgICBwcmludChmIk1pbmltdW0gZ3Jhc3NsYW5kIGV4dGVudCAoaGVjdGFyZXMpOiB7ZGZfZmlsdGVyZWRbJ2FyZWFfaGEnXS5taW4oKX0gKGluIHtkZl9maWx0ZXJlZFsneWVhciddLm1pbigpfSkiKQogICAgcHJpbnQoZiJNYXhpbXVtIGdyYXNzbGFuZCBleHRlbnQgKGhlY3RhcmVzKToge2RmX2ZpbHRlcmVkWydhcmVhX2hhJ10ubWF4KCl9IChpbiB7ZGZfZmlsdGVyZWRb",
+        "refused": false,
+        "tool_message": "Title: Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland extent decreased by 11.71% (3,332,000 hectares) between 2000 and 2022. This trend indicates a steady decline rather than recovery, though it is important to note that gains in this dataset may reflect land abandonment or invasive species rather than ecological restoration.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring East African countries like Uganda or Tanzania\n2. Analyze tree cover loss in Kenya to see if grassland is being converted to forest or other land uses"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies the declining trend and provides the mandatory ecological caveat when mentioning restoration.",
+      "duration_s": 17.37
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[grassland restoration trends in Kenya]",
+      "query": "grassland restoration trends in Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.71%. This data includes grasslands, shrublands, and savannas, but it is important to note that spectral similarities between natural grasslands and certain croplands in Kenya can lead to classification uncertainties.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IC0gR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgZm9yIEtlbnlhICgyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEpIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YWZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YWZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSA9IDAgb3IgbWlzc2luZwpkZiA9IGRmW2RmWydhcmVhX2hhJ10ubm90bmEoKV0KZGYgPSBkZltkZlsnYXJlYV9oYSddICE9IDBdCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwpzdGFydF95ZWFyID0gZGZbJ3llYXInXS5taW4oKQplbmRfeWVhciA9IGRmWyd5ZWFyJ10ubWF4KCkKaW5pdGlhbF9hcmVhID0gZGZbZGZbJ3llYXInXSA9PSBzdGFydF95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KZmluYWxfYXJlYSA9IGRmW2RmWyd5ZWFyJ10gPT0gZW5kX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQphcmVhX2NoYW5nZSA9IGZpbmFsX2FyZWEgLSBpbml0aWFsX2FyZWEKcGVyY2VudGFnZV9jaGFuZ2UgPSAoYXJlYV9jaGFuZ2UgLyBpbml0aWFsX2FyZWEpICogMTAwCgpwcmludChmIlxuS2V5IEZpbmRpbmdzIGZvciBLZW55YSdzIE5hdHVyYWwvU2VtaS1uYXR1cmFsIEdyYXNzbGFuZCBFeHRlbnQgKHtzdGFydF95ZWFyfS17ZW5kX3llYXJ9KToiKQpwcmludChmIiAgSW5pdGlhbCBncmFzc2xhbmQgYXJlYSBpbiB7c3RhcnRfeWVhcn06IHtpbml0aWFsX2FyZWE6LC4wZn0gaGVjdGFyZXMiKQpwcmludChmIiAgRmluYWwgZ3Jhc3NsYW5kIGFyZWEgaW4ge2VuZF95ZWFyfToge2ZpbmFsX2FyZWE6LC4wZn0gaGVjdGFyZXMiKQpwcmludChmIiAgQ2hhbmdlIGluIGdyYXNzbGFuZCBhcmVhOiB7YXJlYV9jaGFuZ2U6LC4wZn0gaGVjdGFyZXMiKQpwcmludChmIiAgUGVyY2VudGFnZSBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGFyZWE6IHtwZXJjZW50YWdlX2NoYW5nZTouMmZ9JSIpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RmID0gZGZbWyd5ZWFyJywgJ2FyZWFfaGEnXV0uY29weSgpCmNoYXJ0X2RmLmNvbHVtbnMgPSBbJ3llYXInLCAndmFsdWUnXSAjIFJlbmFtZSBjb2x1bW5zIGZvciBjaGFydCBkYXRhCmNoYXJ0X2RmWyd5ZWFyJ10gPSBjaGFydF9kZlsneWVhciddLmFzdHlwZShzdHIpICMgQ29udmVydCB5ZWFyIHRvIHN0cmluZyBmb3IgY2F0ZWdvcmljYWwgYXhpcyBpZiBuZWVkZWQKCiMgU2F2ZSB0aGUgY2hhcnQ",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.71%. This data includes grasslands, shrublands, and savannas, but it is important to note that spectral similarities between natural grasslands and certain croplands in Kenya can lead to classification uncertainties.\nFollow-up suggestions:\n1. Compare Kenya's grassland trends with neighboring Uganda or Tanzania\n2. Analyze tree cover loss by dominant driver in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The output correctly describes a downward trend in grassland extent and avoids using the term 'restoration' without the required caveats.",
+      "duration_s": 11.6
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[Has Kenya restored any natural grassland?]",
+      "query": "Has Kenya restored any natural grassland?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a decline of approximately 11.71%, with no periods of restoration observed in the data. Note that these estimates are based on pixel counting and may include misclassifications with croplands or urban mosaics.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiIpCnByaW50KCJEYXRlIFJhbmdlOiAyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEiKQpwcmludCgiR2VvZ3JhcGhpYyBVbml0OiBLZW55YSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGEgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5IZWFkIG9mIHRoZSBEYXRhRnJhbWU6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuVGFpbCBvZiB0aGUgRGF0YUZyYW1lOiIpCnByaW50KGRmLnRhaWwoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCmluaXRpYWxfeWVhciA9IGRmWyd5ZWFyJ10ubWluKCkKZmluYWxfeWVhciA9IGRmWyd5ZWFyJ10ubWF4KCkKaW5pdGlhbF9hcmVhID0gZGZbZGZbJ3llYXInXSA9PSBpbml0aWFsX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQpmaW5hbF9hcmVhID0gZGZbZGZbJ3llYXInXSA9PSBmaW5hbF95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KdG90YWxfY2hhbmdlID0gZmluYWxfYXJlYSAtIGluaXRpYWxfYXJlYQpwZXJjZW50YWdlX2NoYW5nZSA9ICh0b3RhbF9jaGFuZ2UgLyBpbml0aWFsX2FyZWEpICogMTAwCgpwcmludChmIlxuS2V5IEZpbmRpbmdzIGZvciBLZW55YSdzIE5hdHVyYWwvU2VtaS1uYXR1cmFsIEdyYXNzbGFuZCBFeHRlbnQgKHtpbml0aWFsX3llYXJ9LXtmaW5hbF95ZWFyfSk6IikKcHJpbnQoZiJJbml0aWFsIGdyYXNzbGFuZCBhcmVhICh7aW5pdGlhbF95ZWFyfSk6IHtpbml0aWFsX2FyZWE6LH0gaGEiKQpwcmludChmIkZpbmFsIGdyYXNzbGFuZCBhcmVhICh7ZmluYWxfeWVhcn0pOiB7ZmluYWxfYXJlYTosfSBoYSIpCnByaW50KGYiVG90YWwgY2hhbmdlIGluIGdyYXNzbGFuZCBhcmVhOiB7dG90YWxfY2hhbmdlOix9IGhhIikKcHJpbnQoZiJQZXJjZW50YWdlIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYToge3BlcmNlbnRhZ2VfY2hhbmdlOi4yZn0lIikKCiMgRGV0ZXJtaW5lIGlmIHRoZXJlIHdhcyBhbiBpbmNyZWFzZSBvciBkZWNyZWFzZQppZiB0b3RhbF9jaGFuZ2UgPiAwOgogICAgcHJpbnQoIlRoZXJlIHdhcyBhbiBvdmVyYWxsIGluY3JlYXNlIGluIGdyYXNzbGFuZCBhcmVhLiIpCmVsaWYgdG90YWxfY2hhbmdlIDwgMDoKICAgIHByaW50KCJUaGVyZSB3YXMgYW4gb3ZlcmFsbCBkZWNyZWFzZSBpbiBncmFzc2xhbmQgYXJlYS4iKQplbHNlOgogICAgcHJpbnQoIlRoZSBncmFzc2xhbmQgYXJlYSByZW1haW5lZCBjb25zdGFudC4iKQ==\nIyBQcmVwYXJlIGRhdGEgZm9yIGxpbmUgY2hhcnQKY2hhcnRfZGYgPSBkZltbJ3llYXInLCAnYXJlYV9",
+        "refused": false,
+        "tool_message": "Title: Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a decline of approximately 11.71%, with no periods of restoration observed in the data. Note that these estimates are based on pixel counting and may include misclassifications with croplands or urban mosaics.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring countries like Uganda or Tanzania\n2. Analyze the Global Land Cover dataset to see if grassland was converted to cropland"
+      },
+      "passed": false,
+      "comment": "The output mentions 'restoration' but fails to include the specific mandatory caveat/warning required by the rubric whenever that term is used.",
+      "duration_s": 11.16,
+      "rubric": "1. The insight text must NOT use the term \"restoration\" to describe grassland\n           gains WITHOUT qualifying it \u2014 gains may represent land abandonment, invasive\n           species, woody encroachment, or temporary regrowth.\n        2. If \"restoration\" is mentioned, it must include a caveat or warning that gain\n           does not necessarily equal restoration.\n        3. Terms like \"gain\", \"increase\", or \"expansion\" are acceptable without caveats.",
+      "requirements": [
+        {
+          "requirement": "The insight text must NOT use the term 'restoration' to describe grassland gains WITHOUT qualifying it.",
+          "met": true,
+          "reason": "The output reports a decline and states no restoration was observed; it does not use the term to describe a gain."
+        },
+        {
+          "requirement": "If 'restoration' is mentioned, it must include a caveat or warning that gain does not necessarily equal restoration.",
+          "met": false,
+          "reason": "The text mentions 'no periods of restoration observed' but fails to include the mandatory caveat that land gain/increase does not necessarily equal restoration, which is required whenever the term is used in this context."
+        },
+        {
+          "requirement": "Terms like 'gain', 'increase', or 'expansion' are acceptable without caveats.",
+          "met": true,
+          "reason": "The text uses 'decline' and 'estimates', which are acceptable."
+        }
+      ],
+      "judge_prompt": "You are evaluating whether an AI-generated data visualization follows specific rules.\n\n## Original User Query\nHas Kenya restored any natural grassland?\n\n## Expected Behavior (Rubric)\n\n        1. The insight text must NOT use the term \"restoration\" to describe grassland\n           gains WITHOUT qualifying it \u2014 gains may represent land abandonment, invasive\n           species, woody encroachment, or temporary regrowth.\n        2. If \"restoration\" is mentioned, it must include a caveat or warning that gain\n           does not necessarily equal restoration.\n        3. Terms like \"gain\", \"increase\", or \"expansion\" are acceptable without caveats.\n        \n\n## Actual Tool Output\n\n### Chart Type\nline\n\n### Chart Data (first 10 rows)\nyear,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n\n\n### Insight Text\nKenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a decline of approximately 11.71%, with no periods of restoration observed in the data. Note that these estimates are based on pixel counting and may include misclassifications with croplands or urban mosaics.\n\n### Generated Code (summary)\naW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiIpCnByaW50KCJEYXRlIFJhbmdlOiAyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEiKQpwcmludCgiR2VvZ3JhcGhpYyBVbml0OiBLZW55YSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGEgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5IZWFkIG9mIHRoZSBEYXRhRnJhbWU6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuVGFpbCBvZiB0aGUgRGF0YUZyYW1lOiIpCnByaW50KGRmLnRhaWwoKSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCmluaXRpYWxfeWVhciA9IGRmWyd5ZWFyJ10ubWluKCkKZmluYWxfeWVhciA9IGRmWyd5ZWFyJ10ubWF4KCkKaW5pdGlhbF9hcmVhID0gZGZbZGZbJ3llYXInXSA9PSBpbml0aWFsX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQpmaW5hbF9hcmVhID0gZGZbZGZbJ3llYXInXSA9PSBmaW5hbF95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KdG90YWxfY2hhbmdlID0gZmluYWxfYXJlYSAtIGluaXRpYWxfYXJlYQpwZXJjZW50YWdlX2NoYW5nZSA9ICh0b3RhbF9jaGFuZ2UgLyBpbml0aWFsX2FyZWEpICogMTAwCgpwcmludChmIlxuS2V5IEZpbmRpbmdzIGZvciBLZW55YSdzIE5hdHVyYWwvU2VtaS1uYXR1cmFsIEdyYXNzbGFuZCBFeHRlbnQgKHtpbml0aWFsX3llYXJ9LXtmaW5hbF95ZWFyfSk6IikKcHJpbnQoZiJJbml0aWFsIGdyYXNzbGFuZCBhcmVhICh7aW5pdGlhbF95ZWFyfSk6IHtpbml0aWFsX2FyZWE6LH0gaGEiKQpwcmludChmIkZpbmFsIGdyYXNzbGFuZCBhcmVhICh7ZmluYWxfeWVhcn0pOiB7ZmluYWxfYXJlYTosfSBoYSIpCnByaW50KGYiVG90YWwgY2hhbmdlIGluIGdyYXNzbGFuZCBhcmVhOiB7dG90YWxfY2hhbmdlOix9IGhhIikKcHJpbnQoZiJQZXJjZW50YWdlIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYToge3BlcmNlbnRhZ2VfY2hhbmdlOi4yZn0lIikKCiMgRGV0ZXJtaW5lIGlmIHRoZXJlIHdhcyBhbiBpbmNyZWFzZSBvciBkZWNyZWFzZQppZiB0b3RhbF9jaGFuZ2UgPiAwOgogICAgcHJpbnQoIlRoZXJlIHdhcyBhbiBvdmVyYWxsIGluY3JlYXNlIGluIGdyYXNzbGFuZCBhcmVhLiIpCmVsaWYgdG90YWxfY2hhbmdlIDwgMDoKICAgIHByaW50KCJUaGVyZSB3YXMgYW4gb3ZlcmFsbCBkZWNyZWFzZSBpbiBncmFzc2xhbmQgYXJlYS4iKQplbHNlOgogICAgcHJpbnQoIlRoZSBncmFzc2xhbmQgYXJlYSByZW1haW5lZCBjb25zdGFudC4iKQ==\nIyBQcmVwYXJlIGRhdGEgZm9yIGxpbmUgY2hhcnQKY2hhcnRfZGYgPSBkZltbJ3llYXInLCAnYXJlYV9\n\n## Instructions\nEvaluate whether the actual output satisfies EACH requirement in the rubric.\nFor each requirement, state whether it is MET or NOT MET with a brief reason.\n\nThen give an overall verdict: PASS if ALL requirements are met, FAIL if ANY is not met.\n\nRespond ONLY with valid JSON in this exact format (no markdown fencing):\n{\"requirements\": [{\"requirement\": \"...\", \"met\": true, \"reason\": \"...\"}, ...], \"verdict\": \"PASS\", \"comment\": \"Brief overall explanation\"}",
+      "judge_raw_response": "{\"requirements\": [{\"requirement\": \"The insight text must NOT use the term 'restoration' to describe grassland gains WITHOUT qualifying it.\", \"met\": true, \"reason\": \"The output reports a decline and states no restoration was observed; it does not use the term to describe a gain.\"}, {\"requirement\": \"If 'restoration' is mentioned, it must include a caveat or warning that gain does not necessarily equal restoration.\", \"met\": false, \"reason\": \"The text mentions 'no periods of restoration observed' but fails to include the mandatory caveat that land gain/increase does not necessarily equal restoration, which is required whenever the term is used in this context.\"}, {\"requirement\": \"Terms like 'gain', 'increase', or 'expansion' are acceptable without caveats.\", \"met\": true, \"reason\": \"The text uses 'decline' and 'estimates', which are acceptable.\"}], \"verdict\": \"FAIL\", \"comment\": \"The output mentions 'restoration' but fails to include the specific mandatory caveat/warning required by the rubric whenever that term is used.\"}"
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[show me the restoration of grasslands in Kenya]",
+      "query": "show me the restoration of grasslands in Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,grassland_extent_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "grassland_extent_ha"
+        ],
+        "insight": "The data shows a continuous decline in natural/semi-natural grassland extent in Kenya, decreasing from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a net reduction of 3.33 million hectares over the 23-year period, indicating a loss of extent rather than restoration.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgdGhlIGRhdGFzZXQgYmVpbmcgdXNlZCBhbmQgaXRzIGRhdGUgcmFuZ2UKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAtIEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50IGluIEtlbnlhICgyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEpIikKCiMgRXhwbG9yZSB0aGUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCiMgUHJpbnQgdGhlIGhlYWQgb2YgdGhlIGRhdGFmcmFtZSB0byBpbnNwZWN0IHRoZSBkYXRhCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgRXhjbHVkZSByb3dzIHdoZXJlIGFyZWFfaGEgPSAwIG9yIGlzIG1pc3NpbmcKZGZfZmlsdGVyZWQgPSBkZltkZlsnYXJlYV9oYSddLm5vdG5hKCkgJiAoZGZbJ2FyZWFfaGEnXSAhPSAwKV0uY29weSgpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwp0b3RhbF95ZWFycyA9IGRmX2ZpbHRlcmVkWyd5ZWFyJ10ubnVuaXF1ZSgpCm1pbl95ZWFyID0gZGZfZmlsdGVyZWRbJ3llYXInXS5taW4oKQptYXhfeWVhciA9IGRmX2ZpbHRlcmVkWyd5ZWFyJ10ubWF4KCkKbWluX2FyZWEgPSBkZl9maWx0ZXJlZFsnYXJlYV9oYSddLm1pbigpCm1heF9hcmVhID0gZGZfZmlsdGVyZWRbJ2FyZWFfaGEnXS5tYXgoKQphdmVyYWdlX2FyZWEgPSBkZl9maWx0ZXJlZFsnYXJlYV9oYSddLm1lYW4oKQoKIyBDYWxjdWxhdGUgdGhlIGNoYW5nZSBpbiBncmFzc2xhbmQgZXh0ZW50IG92ZXIgdGhlIHBlcmlvZAppbml0aWFsX2FyZWEgPSBkZl9maWx0ZXJlZFtkZl9maWx0ZXJlZFsneWVhciddID09IG1pbl95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KZmluYWxfYXJlYSA9IGRmX2ZpbHRlcmVkW2RmX2ZpbHRlcmVkWyd5ZWFyJ10gPT0gbWF4X3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQp0b3RhbF9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCnBlcmNlbnRhZ2VfY2hhbmdlID0gKHRvdGFsX2NoYW5nZSAvIGluaXRpYWxfYXJlYSkgKiAxMDAKCnByaW50KCJcbktleSBGaW5kaW5nczoiKQpwcmludChmIkRhdGEgY292ZXJzIHt0b3RhbF95ZWFyc30geWVhcnMsIGZyb20ge21pbl95ZWFyfSB0byB7bWF4X3llYXJ9LiIpCnByaW50KGYiTWluaW11bSBncmFzc2xhbmQgYXJlYSBvYnNlcnZlZDoge21pbl9hcmVhOiwuMGZ9IGhlY3RhcmVzLiIpCnByaW50KGYiTWF4aW11bSBncmFzc2xhbmQgYXJlYSBvYnNlcnZlZDoge21heF9hcmVhOiwuMGZ9IGhlY3RhcmVzLiIpCnByaW50KGYiQXZlcmFnZSBncmFzc2xhbmQgYXJlYSBvdmVyIHRoZSBwZXJpb2Q6IHth",
+        "refused": false,
+        "tool_message": "Title: Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: The data shows a continuous decline in natural/semi-natural grassland extent in Kenya, decreasing from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a net reduction of 3.33 million hectares over the 23-year period, indicating a loss of extent rather than restoration.\nFollow-up suggestions:\n1. Compare grassland extent trends in Kenya with neighboring Tanzania\n2. Show tree cover loss in Kenya for the same period (2000-2022)"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified a decline in grassland extent and used the term 'restoration' appropriately to indicate that the trend was negative, thus avoiding the need for caveats associated with reported gains.",
+      "duration_s": 14.52
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[How successful has grassland restoration been in Kenya?]",
+      "query": "How successful has grassland restoration been in Kenya?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a total decline of approximately 3.33 million hectares, though these figures do not necessarily indicate permanent land conversion or the specific ecological outcome of restoration projects.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiIpCnByaW50KCJEZXNjcmlwdGlvbjogR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkgZm9yIEtlbnlhIikKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRmlyc3QgNSByb3dzIG9mIHRoZSBEYXRhRnJhbWU6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSA9IDAgb3IgbWlzc2luZwpkZl9maWx0ZXJlZCA9IGRmW2RmWydhcmVhX2hhJ10gIT0gMF0uZHJvcG5hKHN1YnNldD1bJ2FyZWFfaGEnXSkuY29weSgpCgojIEVuc3VyZSAneWVhcicgaXMgaW50ZWdlciBhbmQgJ2FyZWFfaGEnIGlzIG51bWVyaWMKZGZfZmlsdGVyZWRbJ3llYXInXSA9IGRmX2ZpbHRlcmVkWyd5ZWFyJ10uYXN0eXBlKGludCkKZGZfZmlsdGVyZWRbJ2FyZWFfaGEnXSA9IHBkLnRvX251bWVyaWMoZGZfZmlsdGVyZWRbJ2FyZWFfaGEnXSkKCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCnN0YXJ0X3llYXIgPSBkZl9maWx0ZXJlZFsneWVhciddLm1pbigpCmVuZF95ZWFyID0gZGZfZmlsdGVyZWRbJ3llYXInXS5tYXgoKQppbml0aWFsX2FyZWEgPSBkZl9maWx0ZXJlZFtkZl9maWx0ZXJlZFsneWVhciddID09IHN0YXJ0X3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQpmaW5hbF9hcmVhID0gZGZfZmlsdGVyZWRbZGZfZmlsdGVyZWRbJ3llYXInXSA9PSBlbmRfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCnRvdGFsX2NoYW5nZSA9IGZpbmFsX2FyZWEgLSBpbml0aWFsX2FyZWEKYXZlcmFnZV9hbm51YWxfY2hhbmdlID0gdG90YWxfY2hhbmdlIC8gKGVuZF95ZWFyIC0gc3RhcnRfeWVhcikKCnByaW50KGYiXG5LZXkgRmluZGluZ3MgZm9yIEdyYXNzbGFuZCBFeHRlbnQgaW4gS2VueWEgKDIwMDAtMjAyMik6IikKcHJpbnQoZiJEYXRhIHBlcmlvZDoge3N0YXJ0X3llYXJ9IC0ge2VuZF95ZWFyfSIpCnByaW50KGYiSW5pdGlhbCBncmFzc2xhbmQgZXh0ZW50IChoZWN0YXJlcykgaW4ge3N0YXJ0X3llYXJ9OiB7aW5pdGlhbF9hcmVhOiwuMGZ9IGhhIikKcHJpbnQoZiJGaW5hbCBncmFzc2xhbmQgZXh0ZW50IChoZWN0YXJlcykgaW4ge2VuZF95ZWFyfToge2ZpbmFsX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIlRvdGFsIGNoYW5nZSBpbiBncmFzc2xhbmQgZXh0ZW50IG92ZXIgdGhlIHBlcmlvZDoge3RvdGFsX2NoYW5nZTosLjBmfSBoYSIpCnByaW50KGYiQXZlcmFnZSBhbm51YWwgY2hhbmdlIGluIGdyYXNzbGFuZCBleHRlbnQ6IHthdmVyYWdlX2FubnVhbF9jaGFu",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a total decline of approximately 3.33 million hectares, though these figures do not necessarily indicate permanent land conversion or the specific ecological outcome of restoration projects.\nFollow-up suggestions:\n1. Compare these trends with the Global Land Cover dataset to see if grassland loss corresponds to cropland expansion.\n2. Analyze tree cover loss in Kenya for the same period to understand broader ecosystem changes."
+      },
+      "passed": true,
+      "comment": "The output correctly identifies a decline in grassland and includes the mandatory caveat when mentioning restoration, satisfying all rubric constraints.",
+      "duration_s": 19.17
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[Kenya grassland gains \\u2014 is this restoration?]",
+      "query": "Kenya grassland gains \u2014 is this restoration?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. The data shows a consistent decline rather than gains, and it is important to note that any observed gains in this dataset do not necessarily represent ecological restoration, as they may reflect land abandonment, invasive species expansion, or woody encroachment.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAoS2VueWEgZ3Jhc3NsYW5kIGV4dGVudCkiKQpwcmludCgiRGF0ZSBSYW5nZTogMjAwMC0wMS0wMSB0byAyMDIyLTEyLTMxIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZQpwcmludCgiXG5EYXRhZnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgojIFByaW50IHRoZSBoZWFkIG9mIHRoZSBkYXRhZnJhbWUKcHJpbnQoIlxuRGF0YWZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKaW5pdGlhbF95ZWFyID0gZGZbJ3llYXInXS5taW4oKQpmaW5hbF95ZWFyID0gZGZbJ3llYXInXS5tYXgoKQppbml0aWFsX2FyZWEgPSBkZltkZlsneWVhciddID09IGluaXRpYWxfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCmZpbmFsX2FyZWEgPSBkZltkZlsneWVhciddID09IGZpbmFsX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQp0b3RhbF9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCgpwcmludChmIlxuS2V5IEZpbmRpbmdzIGZvciBLZW55YSBHcmFzc2xhbmQgRXh0ZW50ICh7aW5pdGlhbF95ZWFyfS17ZmluYWxfeWVhcn0pOiIpCnByaW50KGYiICBJbml0aWFsIGdyYXNzbGFuZCBhcmVhIChoYSkgaW4ge2luaXRpYWxfeWVhcn06IHtpbml0aWFsX2FyZWE6LC4wZn0iKQpwcmludChmIiAgRmluYWwgZ3Jhc3NsYW5kIGFyZWEgKGhhKSBpbiB7ZmluYWxfeWVhcn06IHtmaW5hbF9hcmVhOiwuMGZ9IikKcHJpbnQoZiIgIFRvdGFsIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYSAoaGEpOiB7dG90YWxfY2hhbmdlOiwuMGZ9IikK\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgbGluZSBjaGFydAojIFRoZSBkYXRhIGlzIGFscmVhZHkgaW4gdGhlIHJlcXVpcmVkIGZvcm1hdCBmb3IgYSBzaW5nbGUtc2VyaWVzIGxpbmUgY2hhcnQKY2hhcnRfZGF0YSA9IGRmW1sneWVhcicsICdhcmVhX2hhJ11dLmNvcHkoKQpjaGFydF9kYXRhLmNvbHVtbnMgPSBbJ3llYXInLCAndmFsdWUnXSAjIFJlbmFtZSBjb2x1bW5zIGZvciBjbGFyaXR5IGluIGNoYXJ0CmNoYXJ0X2RhdGEgPSBjaGFydF9kYXRhLnNvcnRfdmFsdWVzKGJ5PSd5ZWFyJykgIyBFbnN1cmUgY2hyb25vbG9naWNhbCBvcmRlcgoKIyBTYXZlIHRoZSBjaGFydCBkYXRhIHRvIGEgQ1NWIGZpbGUKY2hhcnRfZGF0YS50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCgojIFByaW50IGNoYXJ0IHR5cGUKcHJpbnQoIlJlY29tbWVuZGVkIENoYXJ0IFR5cGU6IGxpbmUiKQo=",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. The data shows a consistent decline rather than gains, and it is important to note that any observed gains in this dataset do not necessarily represent ecological restoration, as they may reflect land abandonment, invasive species expansion, or woody encroachment.\nFollow-up suggestions:\n1. Compare grassland extent with Global Land Cover data for Kenya\n2. Analyze tree cover loss by dominant driver in Kenya to identify conversion patterns"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified a decline in the data but still addressed the user's specific question about restoration by providing the required ecological caveats and qualifications.",
+      "duration_s": 11.57
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[area of grassland restored per year in Kenya]",
+      "query": "area of grassland restored per year in Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,annual_change_in_ha\n2001,-222000.0\n2002,-222000.0\n2003,-122000.0\n2004,-212000.0\n2005,-222000.0\n2006,-222000.0\n2007,-222000.0\n2008,-122000.0\n2009,-212000.0\n2010,-222000.0\n",
+        "chart_data_rows": 22,
+        "chart_data_columns": [
+          "year",
+          "annual_change_in_ha"
+        ],
+        "insight": "The data shows a consistent annual decrease in natural/semi-natural grassland extent in Kenya from 2001 to 2022, with no years recording a gain in area. Because no gains were observed, and noting that gains do not necessarily equate to ecological restoration, there is no recorded area of grassland restored per year in this dataset.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgZm9yIEtlbnlhKSIpCnByaW50KGYiRGF0ZSByYW5nZToge2RmWyd5ZWFyJ10ubWluKCl9LTAxLTAxIHRvIHtkZlsneWVhciddLm1heCgpfS0xMi0zMSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCiMgUHJpbnQgdGhlIGhlYWQgb2YgdGhlIGRhdGFmcmFtZQpwcmludCgiXG5EYXRhRnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwp0b3RhbF95ZWFycyA9IGRmWyd5ZWFyJ10ubnVuaXF1ZSgpCm1pbl9hcmVhID0gZGZbJ2FyZWFfaGEnXS5taW4oKQptYXhfYXJlYSA9IGRmWydhcmVhX2hhJ10ubWF4KCkKaW5pdGlhbF9hcmVhID0gZGYubG9jW2RmWyd5ZWFyJ10gPT0gZGZbJ3llYXInXS5taW4oKSwgJ2FyZWFfaGEnXS5pbG9jWzBdCmZpbmFsX2FyZWEgPSBkZi5sb2NbZGZbJ3llYXInXSA9PSBkZlsneWVhciddLm1heCgpLCAnYXJlYV9oYSddLmlsb2NbMF0KdG90YWxfY2hhbmdlID0gZmluYWxfYXJlYSAtIGluaXRpYWxfYXJlYQoKcHJpbnQoZiJcbktleSBTdGF0aXN0aWNzIGZvciBLZW55YSBHcmFzc2xhbmQgRXh0ZW50ICgyMDAwLTIwMjIpOiIpCnByaW50KGYiICBOdW1iZXIgb2YgeWVhcnMgY292ZXJlZDoge3RvdGFsX3llYXJzfSIpCnByaW50KGYiICBNaW5pbXVtIHJlY29yZGVkIGFyZWE6IHttaW5fYXJlYTosLjBmfSBoYSIpCnByaW50KGYiICBNYXhpbXVtIHJlY29yZGVkIGFyZWE6IHttYXhfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiICBBcmVhIGluIHtkZlsneWVhciddLm1pbigpfToge2luaXRpYWxfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiICBBcmVhIGluIHtkZlsneWVhciddLm1heCgpfToge2ZpbmFsX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIiAgVG90YWwgbmV0IGNoYW5nZSBpbiBhcmVhIG92ZXIgdGhlIHBlcmlvZDoge3RvdGFsX2NoYW5nZTosLjBmfSBoYSIpCgojIENhbGN1bGF0ZSBhbm51YWwgY2hhbmdlCmRmWydhbm51YWxfY2hhbmdlX2hhJ10gPSBkZlsnYXJlYV9oYSddLmRpZmYoKS5maWxsbmEoMCkKIyBUaGUgZmlyc3QgeWVhcidzIGNoYW5nZSBpcyBiYXNlZCBvbiB0aGUgcHJldmlvdXMgeWVhcidzIGFyZWEsIHdoaWNoIGlzIG5vdCBpbiB0aGUgZGF0YXNldC4KIyBUaGUgdXNlciBxdWVyeSBpcyBmb3IgImFyZWEgcmVzdG9yZWQgcGVyIHllYXIiLCBzbyBpdCdzIGFib3V0IHRoZSAqY2hhbmdlKiBm",
+        "refused": false,
+        "tool_message": "Title: Annual Change in Natural/Semi-Natural Grassland Extent in Kenya (2001-2022)\nKey Finding: The data shows a consistent annual decrease in natural/semi-natural grassland extent in Kenya from 2001 to 2022, with no years recording a gain in area. Because no gains were observed, and noting that gains do not necessarily equate to ecological restoration, there is no recorded area of grassland restored per year in this dataset.\nFollow-up suggestions:\n1. Compare grassland change in Kenya with neighboring Tanzania or Uganda\n2. Analyze tree cover loss by dominant driver in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The AI-generated insight followed all rubric rules, specifically providing the required caveat when mentioning restoration in the context of grassland area changes.",
+      "duration_s": 24.56
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[grassland regeneration in Kenya]",
+      "query": "grassland regeneration in Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.71%. This trend indicates a lack of net regeneration, though it is important to note that some cropland areas in Kenya may be misclassified as grassland in this dataset.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIlVzaW5nIGRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50LCAyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEgZm9yIEtlbnlhKSIpCgpwcmludCgiXG5EYXRhIHN0cnVjdHVyZToiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5GaXJzdCA1IHJvd3M6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDaGVjayBmb3IgbWlzc2luZyB2YWx1ZXMgYW5kIHplcm9zIGluICdhcmVhX2hhJwptaXNzaW5nX3ZhbHVlcyA9IGRmWydhcmVhX2hhJ10uaXNudWxsKCkuc3VtKCkKemVyb192YWx1ZXMgPSAoZGZbJ2FyZWFfaGEnXSA9PSAwKS5zdW0oKQpwcmludChmIlxuTWlzc2luZyAnYXJlYV9oYScgdmFsdWVzOiB7bWlzc2luZ192YWx1ZXN9IikKcHJpbnQoZiJaZXJvICdhcmVhX2hhJyB2YWx1ZXM6IHt6ZXJvX3ZhbHVlc30iKQoKIyBGaWx0ZXIgb3V0IHJvd3Mgd2hlcmUgYXJlYV9oYSBpcyAwIG9yIG1pc3NpbmcgYXMgcGVyIGRhdGFzZXQtc3BlY2lmaWMgcnVsZXMKZGZfZmlsdGVyZWQgPSBkZlsoZGZbJ2FyZWFfaGEnXS5ub3RudWxsKCkpICYgKGRmWydhcmVhX2hhJ10gIT0gMCldLmNvcHkoKQoKaWYgZGZfZmlsdGVyZWQuZW1wdHk6CiAgICBwcmludCgiXG5ObyB2YWxpZCBkYXRhIGZvciBhbmFseXNpcyBhZnRlciBmaWx0ZXJpbmcgb3V0IG1pc3Npbmcgb3IgemVybyAnYXJlYV9oYScgdmFsdWVzLiIpCmVsc2U6CiAgICAjIEtleSBzdGF0aXN0aWNzCiAgICBzdGFydF95ZWFyID0gZGZfZmlsdGVyZWRbJ3llYXInXS5taW4oKQogICAgZW5kX3llYXIgPSBkZl9maWx0ZXJlZFsneWVhciddLm1heCgpCiAgICBpbml0aWFsX2FyZWEgPSBkZl9maWx0ZXJlZFtkZl9maWx0ZXJlZFsneWVhciddID09IHN0YXJ0X3llYXJdWydhcmVhX2hhJ10udmFsdWVzWzBdCiAgICBmaW5hbF9hcmVhID0gZGZfZmlsdGVyZWRbZGZfZmlsdGVyZWRbJ3llYXInXSA9PSBlbmRfeWVhcl1bJ2FyZWFfaGEnXS52YWx1ZXNbMF0KCiAgICB0b3RhbF9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCiAgICBwZXJjZW50YWdlX2NoYW5nZSA9ICh0b3RhbF9jaGFuZ2UgLyBpbml0aWFsX2FyZWEpICogMTAwCgogICAgcHJpbnQoZiJcbktleSBGaW5kaW5ncyBmb3IgS2VueWEncyBOYXR1cmFsL1NlbWktbmF0dXJhbCBHcmFzc2xhbmQgRXh0ZW50IChZZWFyIHtzdGFydF95ZWFyfSB0byB7ZW5kX3llYXJ9KToiKQogICAgcHJpbnQoZiJJbml0aWFsIGdyYXNzbGFuZCBhcmVhICh7c3RhcnRfeWVhcn0pOiB7aW5pdGlhbF9hcmVhOiwuMGZ9IGhhIikKICAgIHByaW50KGYiRmluYWwgZ3Jhc3NsYW5kIGFyZWEgKHtlbmRfeWVhcn0pOiB7Zmlu",
+        "refused": false,
+        "tool_message": "Title: Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.71%. This trend indicates a lack of net regeneration, though it is important to note that some cropland areas in Kenya may be misclassified as grassland in this dataset.\nFollow-up suggestions:\n1. Compare grassland loss in Kenya with neighboring Uganda or Tanzania\n2. Analyze tree cover loss in Kenya for the same period (2000-2022)"
+      },
+      "passed": true,
+      "comment": "The output follows all rules. It avoids the restricted use of the word 'restoration' and accurately describes the data trends without making unqualified claims about land recovery.",
+      "duration_s": 36.47
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[How much natural grassland has Kenya gained back?]",
+      "query": "How much natural grassland has Kenya gained back?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland extent has shown a continuous decline from 2000 to 2022, with no recorded years of area gain. The total extent decreased from 28.46 million hectares to 25.12 million hectares over this 22-year period.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBuYW1lIGFuZCBkYXRlIHJhbmdlCnByaW50KCJEYXRhc2V0OiBHbG9iYWwgbmF0dXJhbC9zZW1pLW5hdHVyYWwgZ3Jhc3NsYW5kIGV4dGVudCAoMjAwMC0wMS0wMSB0byAyMDIyLTEyLTMxKSIpCnByaW50KCJGaWxlOiBpbnB1dF9maWxlXzAuY3N2IikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YUZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDaGVjayBmb3Igcm93cyB3aXRoIGFyZWFfaGEgPSAwIG9yIG1pc3NpbmcsIGFuZCBleGNsdWRlIHRoZW0KaW5pdGlhbF9yb3dzID0gbGVuKGRmKQpkZiA9IGRmW2RmWydhcmVhX2hhJ10gIT0gMF0uZHJvcG5hKHN1YnNldD1bJ2FyZWFfaGEnXSkKcm93c19hZnRlcl9leGNsdXNpb24gPSBsZW4oZGYpCmlmIGluaXRpYWxfcm93cyAtIHJvd3NfYWZ0ZXJfZXhjbHVzaW9uID4gMDoKICAgIHByaW50KGYiXG5FeGNsdWRlZCB7aW5pdGlhbF9yb3dzIC0gcm93c19hZnRlcl9leGNsdXNpb259IHJvd3Mgd2hlcmUgYXJlYV9oYSB3YXMgMCBvciBtaXNzaW5nLiIpCgoKIyBDYWxjdWxhdGUgeWVhci1vbi15ZWFyIGNoYW5nZSB0byBpZGVudGlmeSBnYWlucwpkZlsnY2hhbmdlX2hhJ10gPSBkZlsnYXJlYV9oYSddLmRpZmYoKQoKIyBGaWx0ZXIgZm9yIHBvc2l0aXZlIGNoYW5nZXMsIGluZGljYXRpbmcgZ2FpbgpnYWluc19kZiA9IGRmW2RmWydjaGFuZ2VfaGEnXSA+IDBdCgojIENhbGN1bGF0ZSB0b3RhbCBnYWluCnRvdGFsX2dhaW4gPSBnYWluc19kZlsnY2hhbmdlX2hhJ10uc3VtKCkKCiMgSWRlbnRpZnkgdGhlIGluaXRpYWwgYW5kIGZpbmFsIGdyYXNzbGFuZCBleHRlbnQKaW5pdGlhbF9leHRlbnQgPSBkZlsnYXJlYV9oYSddLmlsb2NbMF0KZmluYWxfZXh0ZW50ID0gZGZbJ2FyZWFfaGEnXS5pbG9jWy0xXQoKcHJpbnQoZiJcbktleSBGaW5kaW5nczoiKQpwcmludChmIkluaXRpYWwgZ3Jhc3NsYW5kIGV4dGVudCAoMjAwMCk6IHtpbml0aWFsX2V4dGVudDosLjBmfSBoYSIpCnByaW50KGYiRmluYWwgZ3Jhc3NsYW5kIGV4dGVudCAoMjAyMik6IHtmaW5hbF9leHRlbnQ6LC4wZn0gaGEiKQpwcmludChmIlRvdGFsIGNhbGN1bGF0ZWQgZ2FpbiBvdmVyIHRoZSBwZXJpb2Q6IHt0b3RhbF9nYWluOiwuMGZ9IGhhIikK\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgbGluZSBjaGFydCBzaG93aW5nIHRoZSBvdmVyYWxsIHRyZW5kCmNoYXJ0X2RhdGEgPSBkZltbJ3llYXInLCAnYXJlYV9oYSddXS5jb3B5KCkKY2hhcnRfZGF0YS5jb2x1bW5zID0gWyd5ZWFyJywgJ2FyZWFfaGEnXSAjIEVuc3V",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland extent has shown a continuous decline from 2000 to 2022, with no recorded years of area gain. The total extent decreased from 28.46 million hectares to 25.12 million hectares over this 22-year period.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring countries like Uganda or Tanzania\n2. Analyze tree cover loss in Kenya for the same period to see broader land cover trends"
+      },
+      "passed": true,
+      "comment": "The AI correctly identified a continuous decline in the data and avoided using the restricted term 'restoration' altogether, thus adhering to all safety and accuracy guidelines.",
+      "duration_s": 13.83
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[Kenya: restored grassland area]",
+      "query": "Kenya: restored grassland area",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a decline of approximately 11.71%. The data indicates a consistent loss of grassland area rather than restoration during this 22-year period.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgdGhlIGRhdGFzZXQgbmFtZSBhbmQgZGF0ZSByYW5nZQpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAtIEtlbnlhIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkiKQoKIyBFeHBsb3JlIHRoZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YUZyYW1lIEluZm9ybWF0aW9uOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkRhdGFGcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgRmlsdGVyIG91dCByb3dzIHdoZXJlIGFyZWFfaGEgaXMgMCBvciBtaXNzaW5nCmRmX2ZpbHRlcmVkID0gZGZbZGZbJ2FyZWFfaGEnXSA+IDBdLmRyb3BuYShzdWJzZXQ9WydhcmVhX2hhJ10pLmNvcHkoKQoKIyBFbnN1cmUgJ3llYXInIGlzIGludGVnZXIgYW5kICdhcmVhX2hhJyBpcyBudW1lcmljCmRmX2ZpbHRlcmVkWyd5ZWFyJ10gPSBkZl9maWx0ZXJlZFsneWVhciddLmFzdHlwZShpbnQpCmRmX2ZpbHRlcmVkWydhcmVhX2hhJ10gPSBwZC50b19udW1lcmljKGRmX2ZpbHRlcmVkWydhcmVhX2hhJ10pCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwptaW5feWVhciA9IGRmX2ZpbHRlcmVkWyd5ZWFyJ10ubWluKCkKbWF4X3llYXIgPSBkZl9maWx0ZXJlZFsneWVhciddLm1heCgpCmluaXRpYWxfYXJlYSA9IGRmX2ZpbHRlcmVkW2RmX2ZpbHRlcmVkWyd5ZWFyJ10gPT0gbWluX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQpmaW5hbF9hcmVhID0gZGZfZmlsdGVyZWRbZGZfZmlsdGVyZWRbJ3llYXInXSA9PSBtYXhfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCnRvdGFsX2NoYW5nZSA9IGZpbmFsX2FyZWEgLSBpbml0aWFsX2FyZWEKcGVyY2VudGFnZV9jaGFuZ2UgPSAodG90YWxfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAoKcHJpbnQoZiJcbktleSBGaW5kaW5ncyBmb3IgS2VueWEgR3Jhc3NsYW5kIEV4dGVudCAoe21pbl95ZWFyfS17bWF4X3llYXJ9KToiKQpwcmludChmIiAgLSBTdGFydCBZZWFyOiB7bWluX3llYXJ9LCBBcmVhOiB7aW5pdGlhbF9hcmVhOiwuMGZ9IGhhIikKcHJpbnQoZiIgIC0gRW5kIFllYXI6IHttYXhfeWVhcn0sIEFyZWE6IHtmaW5hbF9hcmVhOiwuMGZ9IGhhIikKcHJpbnQoZiIgIC0gVG90YWwgY2hhbmdlIGluIGFyZWE6IHt0b3RhbF9jaGFuZ2U6LC4wZn0gaGEiKQpwcmludChmIiAgLSBQZXJjZW50YWdlIGNoYW5nZSBpbiBhcmVhOiB7cGVyY2VudGFnZV9jaGFuZ2U6LC4yZn0lIikKcHJpbnQoIiAgLSBUaGUgZGF0YSBjb25zaXN0ZW50bHkgc2hvd3MgYSBkZWNyZWFzZSBpbiBncmFzc2xhbmQgZXh0ZW50IHllYXIgb3ZlciB5ZWFy",
+        "refused": false,
+        "tool_message": "Title: Kenya: Natural and Semi-Natural Grassland Extent (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a decline of approximately 11.71%. The data indicates a consistent loss of grassland area rather than restoration during this 22-year period.\nFollow-up suggestions:\n1. Compare Kenya's grassland extent with neighboring East African countries\n2. Analyze tree cover loss in Kenya for the same period (2000-2022)"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies a decline in grassland area and uses the term 'restoration' only to negate its occurrence, thus avoiding the need for the specific caveat required for reported gains.",
+      "duration_s": 18.41
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[What fraction of lost grassland was restored in Kenya?]",
+      "query": "What fraction of lost grassland was restored in Kenya?",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland extent decreased by 3,332,000 hectares between 2000 and 2022. The available data does not track restoration, and any observed area gains should be interpreted with caution as they may reflect land abandonment or invasive species expansion rather than ecological restoration.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoZiJEYXRhc2V0IHVzZWQ6IGlucHV0X2ZpbGVfMC5jc3Yg4oaSIEtlbnlhIOKAlCBHbG9iYWwgbmF0dXJhbC9zZW1pLW5hdHVyYWwgZ3Jhc3NsYW5kIGV4dGVudCAoMjAwMC0wMS0wMSB0byAyMDIyLTEyLTMxKSIpCgpwcmludCgiXG5EYXRhIFN0cnVjdHVyZToiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5GaXJzdCA1IHJvd3M6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuTGFzdCA1IHJvd3M6IikKcHJpbnQoZGYudGFpbCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKaW5pdGlhbF95ZWFyID0gZGZbJ3llYXInXS5taW4oKQpmaW5hbF95ZWFyID0gZGZbJ3llYXInXS5tYXgoKQppbml0aWFsX2FyZWEgPSBkZltkZlsneWVhciddID09IGluaXRpYWxfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCmZpbmFsX2FyZWEgPSBkZltkZlsneWVhciddID09IGZpbmFsX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQpuZXRfY2hhbmdlID0gZmluYWxfYXJlYSAtIGluaXRpYWxfYXJlYQp0b3RhbF9sb3NzID0gaW5pdGlhbF9hcmVhIC0gZmluYWxfYXJlYQoKcHJpbnQoZiJcbktleSBGaW5kaW5nczoiKQpwcmludChmIkluaXRpYWwgZ3Jhc3NsYW5kIGFyZWEgaW4ge2luaXRpYWxfeWVhcn06IHtpbml0aWFsX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIkZpbmFsIGdyYXNzbGFuZCBhcmVhIGluIHtmaW5hbF95ZWFyfToge2ZpbmFsX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIk5ldCBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGFyZWEgKHtpbml0aWFsX3llYXJ9LXtmaW5hbF95ZWFyfSk6IHtuZXRfY2hhbmdlOiwuMGZ9IGhhIikKcHJpbnQoZiJUb3RhbCBuZXQgZ3Jhc3NsYW5kIGxvc3Mgb3ZlciB0aGUgcGVyaW9kOiB7dG90YWxfbG9zczosLjBmfSBoYSIpCgpwcmludCgiXG5CYXNlZCBvbiB0aGUgcHJvdmlkZWQgZGF0YXNldCBhbmQgcnVsZXMsIGl0IGlzIG5vdCBwb3NzaWJsZSB0byBkZXRlcm1pbmUgdGhlIGZyYWN0aW9uIG9mIGxvc3QgZ3Jhc3NsYW5kIHRoYXQgd2FzIHJlc3RvcmVkIGluIEtlbnlhLiBUaGUgZGF0YXNldCBvbmx5IHRyYWNrcyB0aGUgbmV0IGV4dGVudCBvZiBncmFzc2xhbmQgYXJlYSBvdmVyIHRpbWUuIFRoZSBydWxlcyBleHBsaWNpdGx5IHN0YXRlIHRoYXQgJ0dhaW4gZG9lcyBOT1QgZXF1YWwgcmVzdG9yYXRpb24nLCBhbmQgdGhlcmUgaXMgbm8gc2VwYXJhdGUgaW5mb3JtYXRpb24gYXZhaWxhYmxlIG9uIHNwZWNpZmljIHJlc3RvcmF0aW9uIGFjdGl2aXRpZXMgb3IgYXJlYXMgdGhhdCB3b3VsZCBhbGxvdyBmb3IgY2FsY3VsYXRpbmcgYSAncmVzdG9yZWQgZnJhY3Rpb24nIG9mIGFueSAnbG9zdCcgYXJlYS4gVGhlIG9ic2VydmVkIGNoYW5nZXMgcmVwcmVzZW50IG5ldCBsb3NzIGluIGdyYXNzbGFu",
+        "refused": false,
+        "tool_message": "Title: Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland extent decreased by 3,332,000 hectares between 2000 and 2022. The available data does not track restoration, and any observed area gains should be interpreted with caution as they may reflect land abandonment or invasive species expansion rather than ecological restoration.\nFollow-up suggestions:\n1. Compare grassland loss in Kenya with neighboring Tanzania or Uganda\n2. Analyze tree cover loss by dominant driver in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The output correctly identifies that the data does not track restoration and provides the mandatory ecological caveats when discussing area gains.",
+      "duration_s": 16.79
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_gain_not_restoration[grassland recovery statistics for Kenya]",
+      "query": "grassland recovery statistics for Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "The natural and semi-natural grassland extent in Kenya decreased from 28,456,000 hectares in 2000 to 25,124,000 hectares in 2022. This represents a total reduction of 11.71% over the 22-year period, with no observed stages of recovery in the dataset. Note that some cropland areas in Kenya may be misclassified as grassland due to spectral similarities.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgd2hpY2ggZGF0YXNldCBpcyBiZWluZyB1c2VkCnByaW50KCJEYXRhc2V0OiBHbG9iYWwgbmF0dXJhbC9zZW1pLW5hdHVyYWwgZ3Jhc3NsYW5kIGV4dGVudCBmb3IgS2VueWEgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkiKQoKIyBFeHBsb3JlIHRoZSBkYXRhIHN0cnVjdHVyZSwgY29sdW1ucywgYW5kIGRhdGEgdHlwZXMKcHJpbnQoIlxuRGF0YSBJbmZvcm1hdGlvbjoiKQpwcmludChkZi5pbmZvKCkpCgojIFByaW50IHRoZSBoZWFkIG9mIHRoZSBkYXRhZnJhbWUgdG8gaW5zcGVjdCBjb250ZW50CnByaW50KCJcbkRhdGEgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIEV4Y2x1ZGUgcm93cyB3aGVyZSBhcmVhX2hhID0gMCBvciBtaXNzaW5nCmRmX2ZpbHRlcmVkID0gZGZbZGZbJ2FyZWFfaGEnXS5ub3RuYSgpXQpkZl9maWx0ZXJlZCA9IGRmX2ZpbHRlcmVkW2RmX2ZpbHRlcmVkWydhcmVhX2hhJ10gIT0gMF0KCiMgQ2FsY3VsYXRlIGtleSBzdGF0aXN0aWNzCmluaXRpYWxfeWVhciA9IGRmX2ZpbHRlcmVkWyd5ZWFyJ10ubWluKCkKaW5pdGlhbF9hcmVhID0gZGZfZmlsdGVyZWRbZGZfZmlsdGVyZWRbJ3llYXInXSA9PSBpbml0aWFsX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQoKZmluYWxfeWVhciA9IGRmX2ZpbHRlcmVkWyd5ZWFyJ10ubWF4KCkKZmluYWxfYXJlYSA9IGRmX2ZpbHRlcmVkW2RmX2ZpbHRlcmVkWyd5ZWFyJ10gPT0gZmluYWxfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCgp0b3RhbF9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCnBlcmNlbnRhZ2VfY2hhbmdlID0gKHRvdGFsX2NoYW5nZSAvIGluaXRpYWxfYXJlYSkgKiAxMDAKCm51bWJlcl9vZl95ZWFycyA9IGZpbmFsX3llYXIgLSBpbml0aWFsX3llYXIKYXZlcmFnZV9hbm51YWxfY2hhbmdlID0gdG90YWxfY2hhbmdlIC8gbnVtYmVyX29mX3llYXJzIGlmIG51bWJlcl9vZl95ZWFycyA+IDAgZWxzZSAwCgojIFByaW50IGtleSBmaW5kaW5ncwpwcmludCgiXG5LZXkgRmluZGluZ3M6IikKcHJpbnQoZiJJbml0aWFsIGdyYXNzbGFuZCBhcmVhIGluIHtpbml0aWFsX3llYXJ9OiB7aW5pdGlhbF9hcmVhOiwuMGZ9IGhlY3RhcmVzIikKcHJpbnQoZiJGaW5hbCBncmFzc2xhbmQgYXJlYSBpbiB7ZmluYWxfeWVhcn06IHtmaW5hbF9hcmVhOiwuMGZ9IGhlY3RhcmVzIikKcHJpbnQoZiJUb3RhbCBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGFyZWEgZnJvbSB7aW5pdGlhbF95ZWFyfSB0byB7ZmluYWxfeWVhcn06IHt0b3RhbF9jaGFuZ2U6LC4wZn0gaGVjdGFyZXMiKQpwcmludChmIlBlcmNlbnRhZ2UgY2hhbmdlIGluIGdyYXNzbGFuZCBhcmVhOiB7cGVyY2VudGFnZV9jaGFuZ2U6LjJmfSUiKQpwcmludChmIkF2",
+        "refused": false,
+        "tool_message": "Title: Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: The natural and semi-natural grassland extent in Kenya decreased from 28,456,000 hectares in 2000 to 25,124,000 hectares in 2022. This represents a total reduction of 11.71% over the 22-year period, with no observed stages of recovery in the dataset. Note that some cropland areas in Kenya may be misclassified as grassland due to spectral similarities.\nFollow-up suggestions:\n1. Compare grassland extent trends with neighboring countries like Uganda or Tanzania\n2. Analyze tree cover loss in Kenya for the same period to understand broader land cover changes"
+      },
+      "passed": true,
+      "comment": "The output followed all rules. Since the data showed a decrease rather than a gain, the specific restrictions regarding the term 'restoration' were not triggered, and the term was not used.",
+      "duration_s": 15.25
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[Show grassland area for Kenya in each year]",
+      "query": "Show grassland area for Kenya in each year",
+      "response": {},
+      "passed": false,
+      "comment": "",
+      "duration_s": 9.48,
+      "rubric": "",
+      "requirements": [],
+      "judge_prompt": "",
+      "judge_raw_response": ""
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[Natural grassland extent in Kenya 2000-2022]",
+      "query": "Natural grassland extent in Kenya 2000-2022",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural grassland extent decreased by 11.71% between 2000 and 2022, falling from 28.46 million to 25.12 million hectares. This data includes grasslands, shrublands, and savannas, though it is important to note that spectral similarities with croplands in Kenya can lead to classification challenges.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCB1c2VkOiBpbnB1dF9maWxlXzAuY3N2IOKAlCBHbG9iYWwgbmF0dXJhbC9zZW1pLW5hdHVyYWwgZ3Jhc3NsYW5kIGV4dGVudCAoMjAwMC0wMS0wMSB0byAyMDIyLTEyLTMxKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFmcmFtZSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgRXhjbHVkZSByb3dzIHdoZXJlIGFyZWFfaGEgPSAwIG9yIG1pc3NpbmcKZGYgPSBkZltkZlsnYXJlYV9oYSddLm5vdG5hKCldCmRmID0gZGZbZGZbJ2FyZWFfaGEnXSAhPSAwXQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKbWluX3llYXIgPSBkZlsneWVhciddLm1pbigpCm1heF95ZWFyID0gZGZbJ3llYXInXS5tYXgoKQppbml0aWFsX2V4dGVudCA9IGRmW2RmWyd5ZWFyJ10gPT0gbWluX3llYXJdWydhcmVhX2hhJ10udmFsdWVzWzBdCmZpbmFsX2V4dGVudCA9IGRmW2RmWyd5ZWFyJ10gPT0gbWF4X3llYXJdWydhcmVhX2hhJ10udmFsdWVzWzBdCnRvdGFsX2NoYW5nZSA9IGZpbmFsX2V4dGVudCAtIGluaXRpYWxfZXh0ZW50CnBlcmNlbnRhZ2VfY2hhbmdlID0gKHRvdGFsX2NoYW5nZSAvIGluaXRpYWxfZXh0ZW50KSAqIDEwMAoKcHJpbnQoZiJcbktleSBGaW5kaW5ncyBmb3IgTmF0dXJhbCBHcmFzc2xhbmQgRXh0ZW50IGluIEtlbnlhICh7bWluX3llYXJ9LXttYXhfeWVhcn0pOiIpCnByaW50KGYiICAtIEluaXRpYWwgZ3Jhc3NsYW5kIGV4dGVudCAoeWVhciB7bWluX3llYXJ9KToge2luaXRpYWxfZXh0ZW50OiwuMGZ9IGhlY3RhcmVzIikKcHJpbnQoZiIgIC0gRmluYWwgZ3Jhc3NsYW5kIGV4dGVudCAoeWVhciB7bWF4X3llYXJ9KToge2ZpbmFsX2V4dGVudDosLjBmfSBoZWN0YXJlcyIpCnByaW50KGYiICAtIFRvdGFsIGNoYW5nZSBpbiBleHRlbnQ6IHt0b3RhbF9jaGFuZ2U6LC4wZn0gaGVjdGFyZXMiKQpwcmludChmIiAgLSBQZXJjZW50YWdlIGNoYW5nZSBpbiBleHRlbnQ6IHtwZXJjZW50YWdlX2NoYW5nZTouMmZ9JSIpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0CiMgRW5zdXJlICd5ZWFyJyBpcyB0cmVhdGVkIGFzIGEgY2F0ZWdvcnkgZm9yIHRoZSB4LWF4aXMgYW5kICdhcmVhX2hhJyBhcyB0aGUgdmFsdWUuCmNoYXJ0X2RmID0gZGZbWyd5ZWFyJywgJ2FyZWFfaGEnXV0uY29weSgpCmNoYXJ0X2RmLnJlbmFtZShjb2x1bW5zPXsneWVhcic6ICd5ZWFyJywgJ2FyZWFfaGEnOiAnYXJlYV9oYSd9LCBpbnBsYWNlPVRydWUpCgojIFNhdmUgdGhlIERhdGFGcmFtZSBhcyBjaGF",
+        "refused": false,
+        "tool_message": "Title: Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural grassland extent decreased by 11.71% between 2000 and 2022, falling from 28.46 million to 25.12 million hectares. This data includes grasslands, shrublands, and savannas, though it is important to note that spectral similarities with croplands in Kenya can lead to classification challenges.\nFollow-up suggestions:\n1. Compare natural grassland extent with tree cover loss in Kenya for the same period\n2. Analyze natural grassland extent in neighboring Tanzania for comparison"
+      },
+      "passed": true,
+      "comment": "The AI correctly implemented the filtering logic to exclude zero/null values and provided a clear temporal dataset for the requested period.",
+      "duration_s": 11.4
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[Kenya grassland data \\u2014 all years]",
+      "query": "Kenya grassland data \u2014 all years",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,grassland_area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "grassland_area_ha"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland area decreased by 11.71% between 2000 and 2022, falling from 28.46 million to 25.12 million hectares. This data includes grasslands, shrublands, and savannas, though it is noted that some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQ6IEtlbnlhIEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50ICgyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEpIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZQpwcmludCgiXG5EYXRhRnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgojIFByaW50IGhlYWQgb2YgdGhlIGRhdGFmcmFtZQpwcmludCgiXG5EYXRhRnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENoZWNrIGZvciBtaXNzaW5nIHZhbHVlcyBvciB6ZXJvIHZhbHVlcyBpbiBhcmVhX2hhIGFuZCBleGNsdWRlIHRoZW0KZGZfZmlsdGVyZWQgPSBkZltkZlsnYXJlYV9oYSddLm5vdG5hKCldCmRmX2ZpbHRlcmVkID0gZGZfZmlsdGVyZWRbZGZfZmlsdGVyZWRbJ2FyZWFfaGEnXSAhPSAwXQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKaWYgbm90IGRmX2ZpbHRlcmVkLmVtcHR5OgogICAgbWluX3llYXIgPSBkZl9maWx0ZXJlZFsneWVhciddLm1pbigpCiAgICBtYXhfeWVhciA9IGRmX2ZpbHRlcmVkWyd5ZWFyJ10ubWF4KCkKICAgIGluaXRpYWxfYXJlYSA9IGRmX2ZpbHRlcmVkW2RmX2ZpbHRlcmVkWyd5ZWFyJ10gPT0gbWluX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQogICAgZmluYWxfYXJlYSA9IGRmX2ZpbHRlcmVkW2RmX2ZpbHRlcmVkWyd5ZWFyJ10gPT0gbWF4X3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQogICAgdG90YWxfY2hhbmdlID0gaW5pdGlhbF9hcmVhIC0gZmluYWxfYXJlYQogICAgcGVyY2VudGFnZV9jaGFuZ2UgPSAodG90YWxfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAogICAgbWVhbl9hcmVhID0gZGZfZmlsdGVyZWRbJ2FyZWFfaGEnXS5tZWFuKCkKCiAgICBwcmludChmIlxuS2V5IEZpbmRpbmdzIGZvciBLZW55YSBHcmFzc2xhbmQgRGF0YSAoe21pbl95ZWFyfS17bWF4X3llYXJ9KToiKQogICAgcHJpbnQoZiItIFRpbWUgcGVyaW9kIGNvdmVyZWQ6IHttaW5feWVhcn0gdG8ge21heF95ZWFyfSIpCiAgICBwcmludChmIi0gSW5pdGlhbCBncmFzc2xhbmQgYXJlYSAoe21pbl95ZWFyfSk6IHtpbml0aWFsX2FyZWE6LC4wZn0gaGEiKQogICAgcHJpbnQoZiItIEZpbmFsIGdyYXNzbGFuZCBhcmVhICh7bWF4X3llYXJ9KToge2ZpbmFsX2FyZWE6LC4wZn0gaGEiKQogICAgcHJpbnQoZiItIFRvdGFsIGRlY3JlYXNlIGluIGdyYXNzbGFuZCBhcmVhOiB7dG90YWxfY2hhbmdlOiwuMGZ9IGhhIikKICAgIHByaW50KGYiLSBQZXJjZW50YWdlIGRlY3JlYXNlIGluIGdyYXNzbGFuZCBhcmVhOiB7cGVyY2VudGFnZV9jaGFuZ2U6LjJmfSUiKQogICAgcHJpbnQoZiItIEF2ZXJhZ2UgYW5udWFsIGdyYXNzbGFuZCBhcmVhOiB7bWVhbl9hcmVhOiwuMGZ9IGhhIikKZWxzZToKICAgIHBy",
+        "refused": false,
+        "tool_message": "Title: Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland area decreased by 11.71% between 2000 and 2022, falling from 28.46 million to 25.12 million hectares. This data includes grasslands, shrublands, and savannas, though it is noted that some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.\nFollow-up suggestions:\n1. Compare Kenya grassland loss with neighboring Tanzania or Uganda\n2. Analyze tree cover loss in Kenya for the same period to identify land cover transitions"
+      },
+      "passed": true,
+      "comment": "The output successfully filters the data as requested and presents a clear temporal progression of Kenya's grassland area using valid, non-zero data points.",
+      "duration_s": 11.98
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[Display all grassland area values for Kenya]",
+      "query": "Display all grassland area values for Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, representing an 11.71% reduction. This data includes grasslands, shrublands, and savannas, though some cropland areas in Kenya may be misclassified as grassland due to spectral similarities.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50IGZvciBLZW55YSwgMjAwMC0wMS0wMSB0byAyMDIyLTEyLTMxKVxuIikKCnByaW50KCJEYXRhIFN0cnVjdHVyZToiKQpwcmludChkZi5pbmZvKCkpCnByaW50KCJcbkZpcnN0IDUgcm93czoiKQpwcmludChkZi5oZWFkKCkpCgojIEV4Y2x1ZGUgcm93cyB3aGVyZSBhcmVhX2hhID0gMCBvciBtaXNzaW5nCmluaXRpYWxfcm93cyA9IGxlbihkZikKZGYgPSBkZltkZlsnYXJlYV9oYSddLm5vdG5hKCldCmRmID0gZGZbZGZbJ2FyZWFfaGEnXSAhPSAwXQpyb3dzX2FmdGVyX2V4Y2x1c2lvbiA9IGxlbihkZikKaWYgaW5pdGlhbF9yb3dzIC0gcm93c19hZnRlcl9leGNsdXNpb24gPiAwOgogICAgcHJpbnQoZiJcbkV4Y2x1ZGVkIHtpbml0aWFsX3Jvd3MgLSByb3dzX2FmdGVyX2V4Y2x1c2lvbn0gcm93cyB3aXRoIG1pc3Npbmcgb3IgemVybyAnYXJlYV9oYScgdmFsdWVzLiIpCgpwcmludCgiXG5LZXkgU3RhdGlzdGljcyBmb3IgR3Jhc3NsYW5kIEFyZWEgKGhhKSBpbiBLZW55YToiKQpwcmludChkZlsnYXJlYV9oYSddLmRlc2NyaWJlKCkpCgp0b3RhbF95ZWFycyA9IGRmWyd5ZWFyJ10ubnVuaXF1ZSgpCm1pbl95ZWFyID0gZGZbJ3llYXInXS5taW4oKQptYXhfeWVhciA9IGRmWyd5ZWFyJ10ubWF4KCkKaW5pdGlhbF9hcmVhID0gZGZbZGZbJ3llYXInXSA9PSBtaW5feWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCmZpbmFsX2FyZWEgPSBkZltkZlsneWVhciddID09IG1heF95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KYXJlYV9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCnBlcmNlbnRhZ2VfY2hhbmdlID0gKGFyZWFfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAoKcHJpbnQoZiJcbk9ic2VydmF0aW9ucyBzcGFuIHt0b3RhbF95ZWFyc30geWVhcnMsIGZyb20ge21pbl95ZWFyfSB0byB7bWF4X3llYXJ9LiIpCnByaW50KGYiR3Jhc3NsYW5kIGFyZWEgaW4ge21pbl95ZWFyfToge2luaXRpYWxfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiR3Jhc3NsYW5kIGFyZWEgaW4ge21heF95ZWFyfToge2ZpbmFsX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIlRvdGFsIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYSBmcm9tIHttaW5feWVhcn0gdG8ge21heF95ZWFyfToge2FyZWFfY2hhbmdlOiwuMGZ9IGhhIikKcHJpbnQoZiJQZXJjZW50YWdlIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYSBmcm9tIHttaW5feWVhcn0gdG8ge21heF95ZWFyfToge3BlcmNlbnRhZ2VfY2hhbmdlOiwuMmZ9JSIpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIGEgbGluZSBjaGFydApjaGFydF9kYXRhID0gZGZbWyd5ZWFyJywgJ2F",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, representing an 11.71% reduction. This data includes grasslands, shrublands, and savannas, though some cropland areas in Kenya may be misclassified as grassland due to spectral similarities.\nFollow-up suggestions:\n1. Compare Kenya's grassland extent with neighboring Tanzania or Uganda\n2. Analyze tree cover loss in Kenya for the same period to understand land cover dynamics"
+      },
+      "passed": true,
+      "comment": "The AI correctly implemented the filtering logic to exclude zero/null values and provided a temporal line chart as requested.",
+      "duration_s": 16.76
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[chart grassland area in Kenya per year]",
+      "query": "chart grassland area in Kenya per year",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Between 2000 and 2022, Kenya's natural and semi-natural grassland area decreased from 28.46 million to 25.12 million hectares, an 11.71% reduction. This data includes grasslands, shrublands, and savannas, though some cropland areas in Kenya may be misclassified as grassland due to spectral similarities.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiDigJQgR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQgKDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSkiKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhZnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5EYXRhZnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwpwcmludCgiXG5LZXkgU3RhdGlzdGljcyBmb3IgR3Jhc3NsYW5kIEFyZWEgKGhhKToiKQpwcmludChkZlsnYXJlYV9oYSddLmRlc2NyaWJlKCkpCgojIEV4Y2x1ZGUgcm93cyB3aGVyZSBhcmVhX2hhID0gMCBvciBtaXNzaW5nIChhcyBwZXIgREFUQSBSVUxFUykKaW5pdGlhbF9yb3dzID0gbGVuKGRmKQpkZiA9IGRmW2RmWydhcmVhX2hhJ10gPiAwXS5kcm9wbmEoc3Vic2V0PVsnYXJlYV9oYSddKQpyb3dzX2FmdGVyX2V4Y2x1c2lvbiA9IGxlbihkZikKcHJpbnQoZiJcblJvd3MgZXhjbHVkZWQgZHVlIHRvIGFyZWFfaGEgPSAwIG9yIG1pc3Npbmc6IHtpbml0aWFsX3Jvd3MgLSByb3dzX2FmdGVyX2V4Y2x1c2lvbn0iKQoKIyBDaGVjayBmb3IgbWluL21heCB5ZWFyCm1pbl95ZWFyID0gZGZbJ3llYXInXS5taW4oKQptYXhfeWVhciA9IGRmWyd5ZWFyJ10ubWF4KCkKcHJpbnQoZiJUaW1lIHJhbmdlOiB7bWluX3llYXJ9IC0ge21heF95ZWFyfSIpCgojIENhbGN1bGF0ZSB0b3RhbCBjaGFuZ2Ugb3ZlciB0aGUgcGVyaW9kCnRvdGFsX2NoYW5nZSA9IGRmWydhcmVhX2hhJ10uaWxvY1stMV0gLSBkZlsnYXJlYV9oYSddLmlsb2NbMF0KcHJpbnQoZiJUb3RhbCBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGFyZWEgZnJvbSB7bWluX3llYXJ9IHRvIHttYXhfeWVhcn06IHt0b3RhbF9jaGFuZ2U6LC4wZn0gaGEiKQpwcmludChmIlBlcmNlbnRhZ2UgY2hhbmdlOiB7dG90YWxfY2hhbmdlIC8gZGZbJ2FyZWFfaGEnXS5pbG9jWzBdICogMTAwOi4yZn0lIik=\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCiMgUmVuYW1lIGNvbHVtbnMgdG8gJ3llYXInIGFuZCAndmFsdWUnIGZvciBjbGFyaXR5IGFuZCBSZWNoYXJ0cyBjb21wYXRpYmlsaXR5CmNoYXJ0X2RhdGFfZGYgPSBkZltbJ3llYXInLCAnYXJlYV9oYSddXS5jb3B5KCkKY2hhcnRfZGF0YV9kZi5yZW5hbWUoY29sdW1ucz17J2FyZWFfaGEnOiAndmFsdWUnfSwgaW5wbGFjZT1UcnVlKQoKIyBFbnN1cmUgY2hyb25vbG9naWNhbCBvcmRlciAoYWxyZWFkeSBzb3J0ZWQsIGJ1dCBnb29kIHByYWN0aWNlKQpjaGFydF9kYXRhX2R",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Area in Kenya (2000-2022)\nKey Finding: Between 2000 and 2022, Kenya's natural and semi-natural grassland area decreased from 28.46 million to 25.12 million hectares, an 11.71% reduction. This data includes grasslands, shrublands, and savannas, though some cropland areas in Kenya may be misclassified as grassland due to spectral similarities.\nFollow-up suggestions:\n1. Compare grassland area trends in Kenya with neighboring Tanzania or Uganda\n2. Analyze tree cover loss by dominant driver in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The AI followed all data filtering rules and correctly visualized the temporal trend of grassland area in Kenya.",
+      "duration_s": 11.12
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[Kenya natural grassland area complete dataset]",
+      "query": "Kenya natural grassland area complete dataset",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a total reduction of approximately 11.71%. This dataset includes grasslands, shrublands, and savannas, though it is important to note that some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgaW4gdXNlOiBpbnB1dF9maWxlXzAuY3N2IChLZW55YSBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50LCAyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEpIikKCiMgRXhwbG9yZSBkYXRhIHN0cnVjdHVyZQpwcmludCgiXG5EYXRhZnJhbWUgSW5mb3JtYXRpb246IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YWZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBGaWx0ZXIgb3V0IHJvd3Mgd2hlcmUgYXJlYV9oYSBpcyAwIG9yIG1pc3NpbmcgKGFzIHBlciBEQVRBIFJVTEVTKQpkZiA9IGRmW2RmWydhcmVhX2hhJ10ubm90bmEoKV0KZGYgPSBkZltkZlsnYXJlYV9oYSddICE9IDBdCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwp0b3RhbF95ZWFycyA9IGRmWyd5ZWFyJ10ubnVuaXF1ZSgpCnN0YXJ0X3llYXIgPSBkZlsneWVhciddLm1pbigpCmVuZF95ZWFyID0gZGZbJ3llYXInXS5tYXgoKQppbml0aWFsX2FyZWEgPSBkZltkZlsneWVhciddID09IHN0YXJ0X3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQpmaW5hbF9hcmVhID0gZGZbZGZbJ3llYXInXSA9PSBlbmRfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCm1pbl9hcmVhID0gZGZbJ2FyZWFfaGEnXS5taW4oKQptYXhfYXJlYSA9IGRmWydhcmVhX2hhJ10ubWF4KCkKYXJlYV9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCnBlcmNlbnRhZ2VfY2hhbmdlID0gKGFyZWFfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAoKcHJpbnQoIlxuS2V5IEZpbmRpbmdzOiIpCnByaW50KGYiVGltZSByYW5nZSBvZiBkYXRhOiB7c3RhcnRfeWVhcn0gdG8ge2VuZF95ZWFyfSIpCnByaW50KGYiTnVtYmVyIG9mIGRhdGEgcG9pbnRzICh5ZWFycyk6IHt0b3RhbF95ZWFyc30iKQpwcmludChmIkdyYXNzbGFuZCBhcmVhIGluIHtzdGFydF95ZWFyfToge2luaXRpYWxfYXJlYTosLjBmfSBoZWN0YXJlcyIpCnByaW50KGYiR3Jhc3NsYW5kIGFyZWEgaW4ge2VuZF95ZWFyfToge2ZpbmFsX2FyZWE6LC4wZn0gaGVjdGFyZXMiKQpwcmludChmIk1pbmltdW0gZ3Jhc3NsYW5kIGFyZWEgb2JzZXJ2ZWQ6IHttaW5fYXJlYTosLjBmfSBoZWN0YXJlcyIpCnByaW50KGYiTWF4aW11bSBncmFzc2xhbmQgYXJlYSBvYnNlcnZlZDoge21heF9hcmVhOiwuMGZ9IGhlY3RhcmVzIikKcHJpbnQoZiJPdmVyYWxsIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYSAoe3N0YXJ0X3llYXJ9LXtlbmRfeWVhcn0pOiB7YXJlYV9jaGFuZ2U6LC4wZn0gaGVjdGFyZXMiKQpwcmludChmIlBlcmNlbnRhZ2UgY2hhbmdlIGluIGdyYXNzbGFuZCBhcmVhICh7c3RhcnRfeWVhcn0te2VuZF95ZWFyfSk6IHtwZXJjZW50",
+        "refused": false,
+        "tool_message": "Title: Kenya Natural/Semi-Natural Grassland Extent (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a total reduction of approximately 11.71%. This dataset includes grasslands, shrublands, and savannas, though it is important to note that some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring Tanzania or Uganda\n2. Analyze Kenya's tree cover loss for the same period to understand land cover dynamics"
+      },
+      "passed": true,
+      "comment": "The output successfully follows all data filtering and visualization requirements, providing a clean temporal dataset of Kenya's grassland area.",
+      "duration_s": 13.69
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[every year of grassland data for Kenya]",
+      "query": "every year of grassland data for Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland extent decreased by 11.71% (3.33 million hectares) between 2000 and 2022. It is important to note that these figures represent pixel-based estimates and may include some misclassification with croplands or urban mosaics.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldCBpbiB1c2U6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50IGZvciBLZW55YSwgMjAwMC0wMS0wMSB0byAyMDIyLTEyLTMxKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YWZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lCnByaW50KCJcbkRhdGFmcmFtZSBIZWFkOiIpCnByaW50KGRmLmhlYWQoKSkKCiMgUHJpbnQgdGhlIHRhaWwgb2YgdGhlIGRhdGFmcmFtZQpwcmludCgiXG5EYXRhZnJhbWUgVGFpbDoiKQpwcmludChkZi50YWlsKCkpCgojIENoZWNrIGZvciBtaXNzaW5nIHZhbHVlcwpwcmludCgiXG5NaXNzaW5nIHZhbHVlcyBwZXIgY29sdW1uOiIpCnByaW50KGRmLmlzbnVsbCgpLnN1bSgpKQoKIyBDaGVjayBmb3Igcm93cyB3aGVyZSBhcmVhX2hhIGlzIDAKcHJpbnQoIlxuTnVtYmVyIG9mIHJvd3Mgd2hlcmUgYXJlYV9oYSBpcyAwOiIpCnByaW50KGRmW2RmWydhcmVhX2hhJ10gPT0gMF0uc2hhcGVbMF0pCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwpwcmludCgiXG5LZXkgc3RhdGlzdGljcyBmb3IgYXJlYV9oYToiKQpwcmludChkZlsnYXJlYV9oYSddLmRlc2NyaWJlKCkpCgojIEZpbmQgdGhlIHRvdGFsIGNoYW5nZSBvdmVyIHRoZSBwZXJpb2QKaW5pdGlhbF9hcmVhID0gZGZbJ2FyZWFfaGEnXS5pbG9jWzBdCmZpbmFsX2FyZWEgPSBkZlsnYXJlYV9oYSddLmlsb2NbLTFdCnRvdGFsX2NoYW5nZSA9IGZpbmFsX2FyZWEgLSBpbml0aWFsX2FyZWEKcGVyY2VudGFnZV9jaGFuZ2UgPSAodG90YWxfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAoKcHJpbnQoZiJcbkdyYXNzbGFuZCBhcmVhIGluIHtkZlsneWVhciddLm1pbigpfToge2luaXRpYWxfYXJlYTosfSBoYSIpCnByaW50KGYiR3Jhc3NsYW5kIGFyZWEgaW4ge2RmWyd5ZWFyJ10ubWF4KCl9OiB7ZmluYWxfYXJlYTosfSBoYSIpCnByaW50KGYiVG90YWwgY2hhbmdlIGluIGdyYXNzbGFuZCBhcmVhIGZyb20ge2RmWyd5ZWFyJ10ubWluKCl9IHRvIHtkZlsneWVhciddLm1heCgpfToge3RvdGFsX2NoYW5nZTosLjBmfSBoYSIpCnByaW50KGYiUGVyY2VudGFnZSBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGFyZWE6IHtwZXJjZW50YWdlX2NoYW5nZTouMmZ9JSIpCg==\nIyBQcmVwYXJlIGRhdGEgZm9yIGNoYXJ0aW5nCmNoYXJ0X2RhdGFfZGYgPSBkZltbJ3llYXInLCAnYXJlYV9oYSddXS5jb3B5KCkKY2hhcnRfZGF0YV9kZi5yZW5hbWUoY29sdW1ucz17J2FyZWFfaGEnOiAndmFsdWUnfSwgaW5wbGFjZT1",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland extent decreased by 11.71% (3.33 million hectares) between 2000 and 2022. It is important to note that these figures represent pixel-based estimates and may include some misclassification with croplands or urban mosaics.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring Tanzania or Uganda\n2. Analyze tree cover loss in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The tool output successfully filtered the data to show a temporal progression of positive grassland area values for Kenya without any missing or zero values.",
+      "duration_s": 13.11
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[full time series of grassland area in Kenya]",
+      "query": "full time series of grassland area in Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a reduction of approximately 11.7% over the 22-year period. Note that these estimates include grasslands, shrublands, and savannas, and may be subject to misclassification with croplands or urban mosaics in certain regions.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YgKEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50IGZvciBLZW55YSwgMjAwMC0wMS0wMSB0byAyMDIyLTEyLTMxKSIpCnByaW50KCJcbkRhdGEgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5EYXRhIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuS2V5IFN0YXRpc3RpY3MgZm9yICdhcmVhX2hhJzoiKQpwcmludChkZlsnYXJlYV9oYSddLmRlc2NyaWJlKCkpCgojIENoZWNrIGZvciBtaXNzaW5nIHZhbHVlcyBvciB6ZXJvcwppbml0aWFsX3Jvd3MgPSBkZi5zaGFwZVswXQpkZl9maWx0ZXJlZCA9IGRmWyhkZlsnYXJlYV9oYSddLm5vdG5hKCkpICYgKGRmWydhcmVhX2hhJ10gPiAwKV0KZmlsdGVyZWRfcm93cyA9IGRmX2ZpbHRlcmVkLnNoYXBlWzBdCgpwcmludChmIlxuSW5pdGlhbCBudW1iZXIgb2Ygcm93czoge2luaXRpYWxfcm93c30iKQpwcmludChmIk51bWJlciBvZiByb3dzIGFmdGVyIGV4Y2x1ZGluZyBtaXNzaW5nIG9yIHplcm8gJ2FyZWFfaGEnOiB7ZmlsdGVyZWRfcm93c30iKQoKaWYgaW5pdGlhbF9yb3dzIC0gZmlsdGVyZWRfcm93cyA+IDA6CiAgICBwcmludChmIkV4Y2x1ZGVkIHtpbml0aWFsX3Jvd3MgLSBmaWx0ZXJlZF9yb3dzfSByb3dzIGR1ZSB0byBtaXNzaW5nIG9yIHplcm8gJ2FyZWFfaGEnLiIpCgojIENhbGN1bGF0ZSBtaW4gYW5kIG1heCB5ZWFycyBhbmQgY29ycmVzcG9uZGluZyBhcmVhcwptaW5feWVhciA9IGRmX2ZpbHRlcmVkWyd5ZWFyJ10ubWluKCkKbWF4X3llYXIgPSBkZl9maWx0ZXJlZFsneWVhciddLm1heCgpCmFyZWFfbWluX3llYXIgPSBkZl9maWx0ZXJlZFtkZl9maWx0ZXJlZFsneWVhciddID09IG1pbl95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KYXJlYV9tYXhfeWVhciA9IGRmX2ZpbHRlcmVkW2RmX2ZpbHRlcmVkWyd5ZWFyJ10gPT0gbWF4X3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQoKcHJpbnQoZiJcbkdyYXNzbGFuZCBhcmVhIGluIHttaW5feWVhcn06IHthcmVhX21pbl95ZWFyOiwuMGZ9IGhhIikKcHJpbnQoZiJHcmFzc2xhbmQgYXJlYSBpbiB7bWF4X3llYXJ9OiB7YXJlYV9tYXhfeWVhcjosLjBmfSBoYSIpCgp0b3RhbF9jaGFuZ2UgPSBhcmVhX21heF95ZWFyIC0gYXJlYV9taW5feWVhcgpwZXJjZW50YWdlX2NoYW5nZSA9ICh0b3RhbF9jaGFuZ2UgLyBhcmVhX21pbl95ZWFyKSAqIDEwMApwcmludChmIlRvdGFsIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYSBmcm9tIHttaW5feWVhcn0gdG8ge21heF95ZWFyfToge3RvdGFsX2NoYW5nZTosLjBmfSBoYSAoe3BlcmNlbnRhZ2VfY2hhbmdlOi4yZn0lKSIpCgojIFN0b3JlIHRoZSBmaWx0ZXJlZCBkYXRhZnJhbWUg",
+        "refused": false,
+        "tool_message": "Title: Grassland Area Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a reduction of approximately 11.7% over the 22-year period. Note that these estimates include grasslands, shrublands, and savannas, and may be subject to misclassification with croplands or urban mosaics in certain regions.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring Tanzania or Uganda\n2. Analyze tree cover loss in Kenya for the same period"
+      },
+      "passed": true,
+      "comment": "The tool successfully filtered the data to ensure only positive, non-null values were included and correctly generated a temporal line chart as requested.",
+      "duration_s": 15.67
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[Show all years of natural grassland extent for Kenya]",
+      "query": "Show all years of natural grassland extent for Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland extent decreased from 28,456,000 hectares in 2000 to 25,124,000 hectares in 2022. This represents a reduction of approximately 3.33 million hectares over the 22-year period. Note that some areas in Kenya may have cropland misclassified as grassland, and these figures do not reflect the functional health or degradation levels of the remaining ecosystems.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQ6IEtlbnlhIOKAlCBHbG9iYWwgbmF0dXJhbC9zZW1pLW5hdHVyYWwgZ3Jhc3NsYW5kIGV4dGVudCAoMjAwMC0wMS0wMSB0byAyMDIyLTEyLTMxKSIpCgpwcmludCgiXG5EYXRhIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKcHJpbnQoIlxuRGF0YSBJbmZvOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkRhdGEgRGVzY3JpcHRpb246IikKcHJpbnQoZGYuZGVzY3JpYmUoKSkKCnByaW50KCJcblVuaXF1ZSBZZWFyczoiKQpwcmludChkZlsneWVhciddLnVuaXF1ZSgpKQoKcHJpbnQoIlxuQ2hlY2tpbmcgZm9yIG1pc3Npbmcgb3IgemVybyBhcmVhX2hhIHZhbHVlczoiKQpwcmludChmIlJvd3Mgd2l0aCBtaXNzaW5nICdhcmVhX2hhJzoge2RmWydhcmVhX2hhJ10uaXNudWxsKCkuc3VtKCl9IikKcHJpbnQoZiJSb3dzIHdpdGggJ2FyZWFfaGEnIGVxdWFsIHRvIDA6IHsoZGZbJ2FyZWFfaGEnXSA9PSAwKS5zdW0oKX0iKQo=\nY2hhcnRfZGF0YSA9IGRmW1sneWVhcicsICdhcmVhX2hhJ11dLmNvcHkoKQpjaGFydF9kYXRhLmNvbHVtbnMgPSBbJ3llYXInLCAndmFsdWUnXQoKIyBFbnN1cmUgJ3llYXInIGlzIGZvcm1hdHRlZCBhcyBhIHN0cmluZyBmb3IgY2F0ZWdvcmljYWwgeC1heGlzCmNoYXJ0X2RhdGFbJ3llYXInXSA9IGNoYXJ0X2RhdGFbJ3llYXInXS5hc3R5cGUoc3RyKQoKY2hhcnRfZGF0YS50b19jc3YoImNoYXJ0X2RhdGEuY3N2IiwgaW5kZXg9RmFsc2UpCgpwcmludCgiUmVjb21tZW5kZWQgQ2hhcnQgVHlwZTogbGluZSIpCg==",
+        "refused": false,
+        "tool_message": "Title: Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland extent decreased from 28,456,000 hectares in 2000 to 25,124,000 hectares in 2022. This represents a reduction of approximately 3.33 million hectares over the 22-year period. Note that some areas in Kenya may have cropland misclassified as grassland, and these figures do not reflect the functional health or degradation levels of the remaining ecosystems.\nFollow-up suggestions:\n1. Compare Kenya's grassland extent with neighboring Tanzania or Uganda\n2. Show tree cover loss in Kenya for the same period to identify potential land use shifts"
+      },
+      "passed": true,
+      "comment": "The output correctly filters and displays temporal data for Kenya's grassland extent without any zero or null values.",
+      "duration_s": 10.75
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[Kenya grassland hectares 2000 to 2022 \\u2014 bar chart]",
+      "query": "Kenya grassland hectares 2000 to 2022 \u2014 bar chart",
+      "response": {
+        "chart_type": "bar",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a reduction of approximately 3.33 million hectares over the 22-year period. Note that these figures include grasslands, shrublands, and savannas, and some areas may be misclassified due to spectral similarities with croplands or urban mosaics.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQgdXNlZDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQpIikKcHJpbnQoIkRhdGUgcmFuZ2U6IDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSIpCgpwcmludCgiXG5EYXRhIHN0cnVjdHVyZSBhbmQgdHlwZXM6IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRmlyc3QgNSByb3dzOiIpCnByaW50KGRmLmhlYWQoKSkKCnByaW50KCJcbktleSBzdGF0aXN0aWNzOiIpCnByaW50KGRmLmRlc2NyaWJlKCkpCgojIEV4Y2x1ZGUgcm93cyB3aGVyZSBhcmVhX2hhID0gMCBvciBtaXNzaW5nCmluaXRpYWxfcm93cyA9IGxlbihkZikKZGYgPSBkZltkZlsnYXJlYV9oYSddID4gMF0KZGYgPSBkZi5kcm9wbmEoc3Vic2V0PVsnYXJlYV9oYSddKQpyb3dzX2FmdGVyX2ZpbHRlcmluZyA9IGxlbihkZikKaWYgaW5pdGlhbF9yb3dzIC0gcm93c19hZnRlcl9maWx0ZXJpbmcgPiAwOgogICAgcHJpbnQoZiJcblJlbW92ZWQge2luaXRpYWxfcm93cyAtIHJvd3NfYWZ0ZXJfZmlsdGVyaW5nfSByb3dzIHdpdGggYXJlYV9oYSA8PSAwIG9yIG1pc3NpbmcgdmFsdWVzLiIpCgojIENhbGN1bGF0ZSB0b3RhbCBjaGFuZ2UgYW5kIGFubnVhbCBhdmVyYWdlIGNoYW5nZQptaW5feWVhciA9IGRmWyd5ZWFyJ10ubWluKCkKbWF4X3llYXIgPSBkZlsneWVhciddLm1heCgpCmFyZWFfc3RhcnQgPSBkZltkZlsneWVhciddID09IG1pbl95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KYXJlYV9lbmQgPSBkZltkZlsneWVhciddID09IG1heF95ZWFyXVsnYXJlYV9oYSddLmlsb2NbMF0KdG90YWxfY2hhbmdlID0gYXJlYV9lbmQgLSBhcmVhX3N0YXJ0CmFubnVhbF9hdmdfY2hhbmdlID0gdG90YWxfY2hhbmdlIC8gKG1heF95ZWFyIC0gbWluX3llYXIpCgpwcmludChmIlxuR3Jhc3NsYW5kIGV4dGVudCBpbiB7bWluX3llYXJ9OiB7YXJlYV9zdGFydDosLjBmfSBoZWN0YXJlcyIpCnByaW50KGYiR3Jhc3NsYW5kIGV4dGVudCBpbiB7bWF4X3llYXJ9OiB7YXJlYV9lbmQ6LC4wZn0gaGVjdGFyZXMiKQpwcmludChmIlRvdGFsIGNoYW5nZSBpbiBncmFzc2xhbmQgZXh0ZW50IGZyb20ge21pbl95ZWFyfSB0byB7bWF4X3llYXJ9OiB7dG90YWxfY2hhbmdlOiwuMGZ9IGhlY3RhcmVzIikKcHJpbnQoZiJBdmVyYWdlIGFubnVhbCBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGV4dGVudDoge2FubnVhbF9hdmdfY2hhbmdlOiwuMGZ9IGhlY3RhcmVzL3llYXIiKQo=\nIyBTVEVQIDM6IEdFTkVSQVRFIENIQVJUIERBVEEKCiMgYSkgQ0hBUlQgVFlQRSBTRUxFQ1RJT04KIyBUaGUgdXNlciByZXF1ZXN0ZWQgYSBiYXIgY2hhcnQgZm9yIGFyZWEgb3ZlciB0aW1lLCB",
+        "refused": false,
+        "tool_message": "Title: Kenya Natural/Semi-Natural Grassland Extent (2000-2022)\nKey Finding: Kenya's natural and semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022. This represents a reduction of approximately 3.33 million hectares over the 22-year period. Note that these figures include grasslands, shrublands, and savannas, and some areas may be misclassified due to spectral similarities with croplands or urban mosaics.\nFollow-up suggestions:\n1. Compare Kenya's grassland extent with neighboring Tanzania or Uganda\n2. Analyze tree cover loss in Kenya for the same period (2000-2022)"
+      },
+      "passed": true,
+      "comment": "The output successfully followed all data filtering rules and met the user's request for a temporal bar chart of Kenya's grassland area.",
+      "duration_s": 12.45
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[plot every year of grassland for Kenya]",
+      "query": "plot every year of grassland for Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.71%. This data includes grasslands, shrublands, and savannas, though some areas may be misclassified as croplands due to spectral similarities in the region.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKIyBQcmludCBkYXRhc2V0IGluZm9ybWF0aW9uCnByaW50KCJEYXRhc2V0IHVzZWQ6IGlucHV0X2ZpbGVfMC5jc3Yg4oCUIEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50ICgyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEpIGZvciBLZW55YS4iKQoKIyBFeHBsb3JlIGRhdGEgc3RydWN0dXJlLCBjb2x1bW5zLCBhbmQgZGF0YSB0eXBlcwpwcmludCgiXG5EYXRhZnJhbWUgSW5mbzoiKQpwcmludChkZi5pbmZvKCkpCgpwcmludCgiXG5EYXRhZnJhbWUgSGVhZDoiKQpwcmludChkZi5oZWFkKCkpCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwp0b3RhbF95ZWFycyA9IGRmWyd5ZWFyJ10ubnVuaXF1ZSgpCnN0YXJ0X3llYXIgPSBkZlsneWVhciddLm1pbigpCmVuZF95ZWFyID0gZGZbJ3llYXInXS5tYXgoKQppbml0aWFsX2FyZWEgPSBkZltkZlsneWVhciddID09IHN0YXJ0X3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQpmaW5hbF9hcmVhID0gZGZbZGZbJ3llYXInXSA9PSBlbmRfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCm1pbl9hcmVhID0gZGZbJ2FyZWFfaGEnXS5taW4oKQptYXhfYXJlYSA9IGRmWydhcmVhX2hhJ10ubWF4KCkKYXJlYV9jaGFuZ2UgPSBmaW5hbF9hcmVhIC0gaW5pdGlhbF9hcmVhCnBlcmNlbnRhZ2VfY2hhbmdlID0gKGFyZWFfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAoKcHJpbnQoZiJcbktleSBGaW5kaW5ncyBmb3IgS2VueWE6IikKcHJpbnQoZiIgIC0gRGF0YSBjb3ZlcnMge3RvdGFsX3llYXJzfSB5ZWFycyBmcm9tIHtzdGFydF95ZWFyfSB0byB7ZW5kX3llYXJ9LiIpCnByaW50KGYiICAtIEluaXRpYWwgZ3Jhc3NsYW5kIGFyZWEgaW4ge3N0YXJ0X3llYXJ9OiB7aW5pdGlhbF9hcmVhOiwuMGZ9IGhhIikKcHJpbnQoZiIgIC0gRmluYWwgZ3Jhc3NsYW5kIGFyZWEgaW4ge2VuZF95ZWFyfToge2ZpbmFsX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIiAgLSBNaW5pbXVtIGdyYXNzbGFuZCBhcmVhIG9ic2VydmVkOiB7bWluX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIiAgLSBNYXhpbXVtIGdyYXNzbGFuZCBhcmVhIG9ic2VydmVkOiB7bWF4X2FyZWE6LC4wZn0gaGEiKQpwcmludChmIiAgLSBUb3RhbCBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGFyZWEgZnJvbSB7c3RhcnRfeWVhcn0gdG8ge2VuZF95ZWFyfToge2FyZWFfY2hhbmdlOiwuMGZ9IGhhIikKcHJpbnQoZiIgIC0gUGVyY2VudGFnZSBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGFyZWE6IHtwZXJjZW50YWdlX2NoYW5nZTouMmZ9JSIpCgojIEV4Y2x1ZGUgcm93cyB3aGVyZSBhcmVhX2hhID0gMCBvciBtaXNzaW5nIChhcyBwZXIgREFUQSBSVUxFUykKZGZfZmlsdGVyZWQgPSBkZltkZlsn",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.71%. This data includes grasslands, shrublands, and savannas, though some areas may be misclassified as croplands due to spectral similarities in the region.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring Tanzania or Uganda\n2. Analyze tree cover loss in Kenya for the same period to see land cover dynamics"
+      },
+      "passed": true,
+      "comment": "The output correctly filters the data, uses positive values only, and presents a clear temporal trend for Kenya's grassland area.",
+      "duration_s": 12.83
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[annual natural grassland area in Kenya \\u2014 show all]",
+      "query": "annual natural grassland area in Kenya \u2014 show all",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, representing a loss of approximately 3.3 million hectares. This data includes grasslands, shrublands, and savannas, though it is important to note that spectral similarities with croplands or urban mosaics can lead to classification challenges in this region.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIkRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3YiKQpwcmludCgiRGF0ZSBSYW5nZTogMjAwMC0wMS0wMSB0byAyMDIyLTEyLTMxIikKCnByaW50KCJcbkRhdGEgU3RydWN0dXJlOiIpCnByaW50KGRmLmluZm8oKSkKCnByaW50KCJcbkZpcnN0IDUgcm93czoiKQpwcmludChkZi5oZWFkKCkpCgpwcmludCgiXG5LZXkgU3RhdGlzdGljcyBmb3IgJ2FyZWFfaGEnOiIpCnByaW50KGRmWydhcmVhX2hhJ10uZGVzY3JpYmUoKSkKCnByaW50KCJcbk1pc3NpbmcgdmFsdWVzOiIpCnByaW50KGRmLmlzbnVsbCgpLnN1bSgpKQoKcHJpbnQoIlxuUm93cyB3aXRoIGFyZWFfaGEgPSAwIG9yIG1pc3NpbmcgKHRvIGJlIGV4Y2x1ZGVkIHBlciBkYXRhIHJ1bGVzKToiKQpwcmludChkZltkZlsnYXJlYV9oYSddID09IDBdKQo=\nZGZfY2hhcnQgPSBkZi5jb3B5KCkKZGZfY2hhcnQucmVuYW1lKGNvbHVtbnM9eyd5ZWFyJzogJ3llYXInLCAnYXJlYV9oYSc6ICdhcmVhX2hhJ30sIGlucGxhY2U9VHJ1ZSkKCiMgRW5zdXJlIHllYXIgaXMgdHJlYXRlZCBhcyBhIGNhdGVnb3J5IGZvciBjaGFydGluZyBwdXJwb3NlcyBpZiBuZWNlc3NhcnksCiMgYnV0IGZvciBsaW5lIGNoYXJ0LCBpdCdzIHR5cGljYWxseSBmaW5lIGFzIGEgbnVtYmVyIG9uIHRoZSB4LWF4aXMuCiMgRm9yIFJlY2hhcnRzLCBpdCdzIG9mdGVuIGJlc3QgdG8gZW5zdXJlICd5ZWFyJyBpcyBmb3JtYXR0ZWQgY29uc2lzdGVudGx5IGlmIGl0IHdlcmUgYSBzdHJpbmcgbGlrZSAnMjAyMCcsCiMgYnV0IGFzIGEgbnVtYmVyLCBSZWNoYXJ0cyBoYW5kbGVzIGl0IHdlbGwgZm9yIGxpbmVhciBheGVzLgojIEZvciBzaW1wbGljaXR5IGFuZCBjb25zaXN0ZW5jeSB3aXRoIFJlY2hhcnRzIHJlY29tbWVuZGF0aW9ucywgZW5zdXJlIGFsbCBmaWVsZHMgYXJlIHJlYWR5LgoKIyBTYXZlIHRoZSBEYXRhRnJhbWUgYXMgY2hhcnRfZGF0YS5jc3YKZGZfY2hhcnQudG9fY3N2KCJjaGFydF9kYXRhLmNzdiIsIGluZGV4PUZhbHNlKQoKcHJpbnQoIlxuQ2hhcnQgRGF0YSBIZWFkOiIpCnByaW50KGRmX2NoYXJ0LmhlYWQoKSkK",
+        "refused": false,
+        "tool_message": "Title: Annual Natural Grassland Area in Kenya (2000-2022)\nKey Finding: Kenya's natural grassland area decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, representing a loss of approximately 3.3 million hectares. This data includes grasslands, shrublands, and savannas, though it is important to note that spectral similarities with croplands or urban mosaics can lead to classification challenges in this region.\nFollow-up suggestions:\n1. Compare natural grassland loss with tree cover loss in Kenya\n2. Show natural grassland extent for a different period or neighboring country like Uganda"
+      },
+      "passed": true,
+      "comment": "The output successfully follows all data filtering and visualization requirements, providing a clean temporal dataset of positive values for Kenya's grassland area.",
+      "duration_s": 11.16
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[complete grassland record for Kenya]",
+      "query": "complete grassland record for Kenya",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.7%. This data includes grasslands, shrublands, and savannas, though it is noted that some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiRGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiIpCnByaW50KCJEYXRlIFJhbmdlOiAyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEiKQpwcmludCgiR2VvZ3JhcGhpYyBVbml0OiBLZW55YSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUsIGNvbHVtbnMsIGFuZCBkYXRhIHR5cGVzCnByaW50KCJcbkRhdGFGcmFtZSBJbmZvOiIpCmRmLmluZm8oKQoKIyBQcmludCB0aGUgaGVhZCBvZiB0aGUgZGF0YWZyYW1lIHRvIGluc3BlY3QgdGhlIGRhdGEKcHJpbnQoIlxuRGF0YUZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSA9IDAgb3IgbWlzc2luZyAoYXMgcGVyIERBVEEgUlVMRVMpCmRmX2ZpbHRlcmVkID0gZGZbZGZbJ2FyZWFfaGEnXSA+IDBdLmRyb3BuYShzdWJzZXQ9WydhcmVhX2hhJ10pCgojIENhbGN1bGF0ZSBrZXkgc3RhdGlzdGljcwp0b3RhbF9yZWNvcmRzID0gbGVuKGRmX2ZpbHRlcmVkKQpzdGFydF95ZWFyX2FyZWEgPSBkZl9maWx0ZXJlZC5sb2NbZGZfZmlsdGVyZWRbJ3llYXInXS5pZHhtaW4oKV0KZW5kX3llYXJfYXJlYSA9IGRmX2ZpbHRlcmVkLmxvY1tkZl9maWx0ZXJlZFsneWVhciddLmlkeG1heCgpXQptaW5fYXJlYV9yZWNvcmQgPSBkZl9maWx0ZXJlZC5sb2NbZGZfZmlsdGVyZWRbJ2FyZWFfaGEnXS5pZHhtaW4oKV0KbWF4X2FyZWFfcmVjb3JkID0gZGZfZmlsdGVyZWQubG9jW2RmX2ZpbHRlcmVkWydhcmVhX2hhJ10uaWR4bWF4KCldCmFyZWFfY2hhbmdlID0gZW5kX3llYXJfYXJlYVsnYXJlYV9oYSddIC0gc3RhcnRfeWVhcl9hcmVhWydhcmVhX2hhJ10KcGVyY2VudGFnZV9jaGFuZ2UgPSAoYXJlYV9jaGFuZ2UgLyBzdGFydF95ZWFyX2FyZWFbJ2FyZWFfaGEnXSkgKiAxMDAKCnByaW50KGYiXG5LZXkgRmluZGluZ3MgZm9yIEtlbnlhJ3MgTmF0dXJhbC9TZW1pLW5hdHVyYWwgR3Jhc3NsYW5kIEV4dGVudCAoMjAwMC0yMDIyKToiKQpwcmludChmIlRvdGFsIG51bWJlciBvZiByZWNvcmRzIGFmdGVyIGZpbHRlcmluZzoge3RvdGFsX3JlY29yZHN9IikKcHJpbnQoZiJHcmFzc2xhbmQgZXh0ZW50IGluIHtzdGFydF95ZWFyX2FyZWFbJ3llYXInXX06IHtzdGFydF95ZWFyX2FyZWFbJ2FyZWFfaGEnXTosfSBoZWN0YXJlcyIpCnByaW50KGYiR3Jhc3NsYW5kIGV4dGVudCBpbiB7ZW5kX3llYXJfYXJlYVsneWVhciddfToge2VuZF95ZWFyX2FyZWFbJ2FyZWFfaGEnXTosfSBoZWN0YXJlcyIpCnByaW50KGYiTWluaW11bSBncmFzc2xhbmQgZXh0ZW50OiB7bWluX2FyZWFfcmVjb3JkWydhcmVhX2hhJ106LH0gaGVjdGFyZXMgaW4geWVhciB7bWluX2FyZWFfcmVjb3JkWyd5",
+        "refused": false,
+        "tool_message": "Title: Natural and Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.7%. This data includes grasslands, shrublands, and savannas, though it is noted that some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.\nFollow-up suggestions:\n1. Compare Kenya's grassland loss with neighboring Tanzania or Uganda\n2. Analyze tree cover loss in Kenya for the same period to identify potential land cover transitions"
+      },
+      "passed": true,
+      "comment": "The output correctly filters the data according to the area requirements and provides a temporal line chart for Kenya's grassland records.",
+      "duration_s": 12.8
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[Kenya: grassland extent each year from 2000 to 2022]",
+      "query": "Kenya: grassland extent each year from 2000 to 2022",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,value\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "value"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a decline of approximately 11.71%. This classification includes grasslands, shrublands, and savannas, though it is noted that some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKZGYgPSBwZC5EYXRhRnJhbWUocGQucmVhZF9qc29uKCJodHRwOi8vZXhhbXBsZS5jb20vYW5hbHl0aWNzL2dyYXNzbGFuZHMtZXZhbCIpWyJkYXRhIl1bInJlc3VsdCJdKQoKcHJpbnQoIlVzaW5nIGRhdGFzZXQ6IGlucHV0X2ZpbGVfMC5jc3Yg4oCUIEdsb2JhbCBuYXR1cmFsL3NlbWktbmF0dXJhbCBncmFzc2xhbmQgZXh0ZW50ICgyMDAwLTAxLTAxIHRvIDIwMjItMTItMzEpIikKCiMgRXhwbG9yZSB0aGUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YWZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YWZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKbWluX3llYXIgPSBkZlsneWVhciddLm1pbigpCm1heF95ZWFyID0gZGZbJ3llYXInXS5tYXgoKQptaW5fYXJlYSA9IGRmWydhcmVhX2hhJ10ubWluKCkKbWF4X2FyZWEgPSBkZlsnYXJlYV9oYSddLm1heCgpCmF2ZXJhZ2VfYXJlYSA9IGRmWydhcmVhX2hhJ10ubWVhbigpCmluaXRpYWxfYXJlYSA9IGRmW2RmWyd5ZWFyJ10gPT0gbWluX3llYXJdWydhcmVhX2hhJ10uaWxvY1swXQpmaW5hbF9hcmVhID0gZGZbZGZbJ3llYXInXSA9PSBtYXhfeWVhcl1bJ2FyZWFfaGEnXS5pbG9jWzBdCnRvdGFsX2NoYW5nZSA9IGZpbmFsX2FyZWEgLSBpbml0aWFsX2FyZWEKcGVyY2VudGFnZV9jaGFuZ2UgPSAodG90YWxfY2hhbmdlIC8gaW5pdGlhbF9hcmVhKSAqIDEwMAoKcHJpbnQoZiJcbktleSBGaW5kaW5ncyBmb3IgS2VueWEncyBncmFzc2xhbmQgZXh0ZW50ICh7bWluX3llYXJ9LXttYXhfeWVhcn0pOiIpCnByaW50KGYiICAtIFRpbWUgcmFuZ2U6IHttaW5feWVhcn0gdG8ge21heF95ZWFyfSIpCnByaW50KGYiICAtIE1pbmltdW0gZ3Jhc3NsYW5kIGV4dGVudDoge21pbl9hcmVhOiwuMGZ9IGhhIChpbiB7ZGYubG9jW2RmWydhcmVhX2hhJ10uaWR4bWluKCksICd5ZWFyJ119KSIpCnByaW50KGYiICAtIE1heGltdW0gZ3Jhc3NsYW5kIGV4dGVudDoge21heF9hcmVhOiwuMGZ9IGhhIChpbiB7ZGYubG9jW2RmWydhcmVhX2hhJ10uaWR4bWF4KCksICd5ZWFyJ119KSIpCnByaW50KGYiICAtIEF2ZXJhZ2UgYW5udWFsIGdyYXNzbGFuZCBleHRlbnQ6IHthdmVyYWdlX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIiAgLSBHcmFzc2xhbmQgZXh0ZW50IGluIHttaW5feWVhcn06IHtpbml0aWFsX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIiAgLSBHcmFzc2xhbmQgZXh0ZW50IGluIHttYXhfeWVhcn06IHtmaW5hbF9hcmVhOiwuMGZ9IGhhIikKcHJpbnQoZiIgIC0gVG90YWwgY2hhbmdlIGluIGdyYXNzbGFuZCBleHRlbnQgZnJvbSB7bWluX3llYXJ9IHRvIHttYXhfeWVhcn06IHt0b3RhbF9jaGFuZ2U6LC4wZn0gaGEiKQpwcmludChmIiAgLSBQZXJjZW50YWdlIGNoYW5nZSBpbiBncmFzc2xhbmQgZXh0ZW50IGZyb20ge21pbl95ZWFyfSB0byB7",
+        "refused": false,
+        "tool_message": "Title: Kenya: Natural/Semi-Natural Grassland Extent (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland extent decreased from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a decline of approximately 11.71%. This classification includes grasslands, shrublands, and savannas, though it is noted that some cropland areas in Kenya may be misclassified as natural grassland due to spectral similarities.\nFollow-up suggestions:\n1. Compare Kenya's grassland extent with neighboring Tanzania or Uganda\n2. Analyze tree cover loss in Kenya for the same period to understand land cover dynamics"
+      },
+      "passed": true,
+      "comment": "The output successfully visualizes the temporal progression of Kenya's grassland extent using valid, non-zero data points for the requested timeframe.",
+      "duration_s": 10.65
+    },
+    {
+      "test_id": "tests/evals/test_grasslands_instructions.py::test_excludes_zero_area[all the grassland data for Kenya, yearly]",
+      "query": "all the grassland data for Kenya, yearly",
+      "response": {
+        "chart_type": "line",
+        "chart_data_preview": "year,area_ha\n2000,28456000\n2001,28234000\n2002,28012000\n2003,27890000\n2004,27678000\n2005,27456000\n2006,27234000\n2007,27012000\n2008,26890000\n2009,26678000\n",
+        "chart_data_rows": 23,
+        "chart_data_columns": [
+          "year",
+          "area_ha"
+        ],
+        "insight": "Kenya's natural/semi-natural grassland area declined from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.71%. This data includes grasslands, shrublands, and savannas, though it is important to note that spectral similarities can sometimes lead to misclassification with croplands or urban mosaics.",
+        "code": "aW1wb3J0IHBhbmRhcyBhcyBwZAoKIyBTVEVQIDE6IEFOQUxZWkUgVEhFIERBVEEKIyBMb2FkIHRoZSBkYXRhc2V0CmRmID0gcGQuRGF0YUZyYW1lKHBkLnJlYWRfanNvbigiaHR0cDovL2V4YW1wbGUuY29tL2FuYWx5dGljcy9ncmFzc2xhbmRzLWV2YWwiKVsiZGF0YSJdWyJyZXN1bHQiXSkKCiMgUHJpbnQgZGF0YXNldCBpbmZvcm1hdGlvbgpwcmludCgiVXNpbmcgZGF0YXNldDogaW5wdXRfZmlsZV8wLmNzdiAoR2xvYmFsIG5hdHVyYWwvc2VtaS1uYXR1cmFsIGdyYXNzbGFuZCBleHRlbnQsIDIwMDAtMDEtMDEgdG8gMjAyMi0xMi0zMSwgZm9yIEtlbnlhKSIpCgojIEV4cGxvcmUgZGF0YSBzdHJ1Y3R1cmUKcHJpbnQoIlxuRGF0YWZyYW1lIEluZm86IikKcHJpbnQoZGYuaW5mbygpKQoKcHJpbnQoIlxuRGF0YWZyYW1lIEhlYWQ6IikKcHJpbnQoZGYuaGVhZCgpKQoKIyBDYWxjdWxhdGUga2V5IHN0YXRpc3RpY3MKbWluX2FyZWEgPSBkZlsnYXJlYV9oYSddLm1pbigpCm1heF9hcmVhID0gZGZbJ2FyZWFfaGEnXS5tYXgoKQphdmVyYWdlX2FyZWEgPSBkZlsnYXJlYV9oYSddLm1lYW4oKQpzdGFydF9hcmVhID0gZGZbZGZbJ3llYXInXSA9PSBkZlsneWVhciddLm1pbigpXVsnYXJlYV9oYSddLmlsb2NbMF0KZW5kX2FyZWEgPSBkZltkZlsneWVhciddID09IGRmWyd5ZWFyJ10ubWF4KCldWydhcmVhX2hhJ10uaWxvY1swXQp0b3RhbF9jaGFuZ2UgPSBlbmRfYXJlYSAtIHN0YXJ0X2FyZWEKcGVyY2VudGFnZV9jaGFuZ2UgPSAodG90YWxfY2hhbmdlIC8gc3RhcnRfYXJlYSkgKiAxMDAKCnByaW50KCJcbktleSBGaW5kaW5nczoiKQpwcmludChmIlRpbWUgcGVyaW9kOiB7ZGZbJ3llYXInXS5taW4oKX0gdG8ge2RmWyd5ZWFyJ10ubWF4KCl9IikKcHJpbnQoZiJNaW5pbXVtIGdyYXNzbGFuZCBhcmVhIG9ic2VydmVkOiB7bWluX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIk1heGltdW0gZ3Jhc3NsYW5kIGFyZWEgb2JzZXJ2ZWQ6IHttYXhfYXJlYTosLjBmfSBoYSIpCnByaW50KGYiQXZlcmFnZSB5ZWFybHkgZ3Jhc3NsYW5kIGFyZWE6IHthdmVyYWdlX2FyZWE6LC4wZn0gaGEiKQpwcmludChmIkdyYXNzbGFuZCBhcmVhIGluIHtkZlsneWVhciddLm1pbigpfToge3N0YXJ0X2FyZWE6LC4wZn0gaGEiKQpwcmludChmIkdyYXNzbGFuZCBhcmVhIGluIHtkZlsneWVhciddLm1heCgpfToge2VuZF9hcmVhOiwuMGZ9IGhhIikKcHJpbnQoZiJUb3RhbCBjaGFuZ2UgaW4gZ3Jhc3NsYW5kIGFyZWEgb3ZlciB0aGUgcGVyaW9kOiB7dG90YWxfY2hhbmdlOiwuMGZ9IGhhIikKcHJpbnQoZiJQZXJjZW50YWdlIGNoYW5nZSBpbiBncmFzc2xhbmQgYXJlYSBvdmVyIHRoZSBwZXJpb2Q6IHtwZXJjZW50YWdlX2NoYW5nZTosLjJmfSUiKQoKIyBFeGNsdWRlIHJvd3Mgd2hlcmUgYXJlYV9oYSA9IDAgb3IgbWlzc2luZyAoYXMgcGVyIERBVEEgUlVMRVMpCmRmID0gZGZbZGZbJ2FyZWFfaGEnXS5ub3RuYSgpXQpkZiA9IGRmW2RmWydhcmVhX2hhJ10gIT0gMF0KCiMgUmUtY2hl",
+        "refused": false,
+        "tool_message": "Title: Yearly Natural/Semi-Natural Grassland Extent in Kenya (2000-2022)\nKey Finding: Kenya's natural/semi-natural grassland area declined from 28.46 million hectares in 2000 to 25.12 million hectares in 2022, a reduction of approximately 11.71%. This data includes grasslands, shrublands, and savannas, though it is important to note that spectral similarities can sometimes lead to misclassification with croplands or urban mosaics.\nFollow-up suggestions:\n1. Compare Kenya's grassland trends with neighboring Tanzania or Uganda\n2. Analyze tree cover loss in Kenya for the same period to identify potential land use shifts"
+      },
+      "passed": true,
+      "comment": "The output correctly filters the data according to the rules, uses an appropriate temporal chart type, and provides relevant insights for Kenya's grassland area.",
+      "duration_s": 13.01
+    }
+  ],
+  "summary": {
+    "total": 45,
+    "passed": 42,
+    "failed": 3,
+    "pass_rate": 0.93
+  }
+}
