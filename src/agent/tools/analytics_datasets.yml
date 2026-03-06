@@ -920,6 +920,35 @@ datasets:
     When calculating area in bins, exclude tree cover area = 0 (and specify that the exclusion has happened).
     Use the tree cover loss and gain
     data for data on change in tree area. Cannot be used to asses pixel-level percent changes (gains and losses).
+  selection_hints: >
+    Single-year snapshot of tree cover canopy density for year 2000 only.
+    Vegetation >5m height including natural forests and plantations, at 30m resolution.
+    Cannot show change over time — use Tree Cover Loss for loss, Tree Cover Gain for gain.
+    Only use the term "forest" when combined with primary forest or IFL layers;
+    otherwise use "tree cover."
+  code_instructions: >
+    CHART TYPES:
+    - Tree cover area by canopy-density bin → bar chart or pie chart
+    - Values MUST be area in hectares (ha), NOT percentages or proportions
+    DATA RULES:
+    - Year 2000 data only — single snapshot
+    - Exclude rows where area_ha = 0 (and note that exclusion has happened)
+    - All areas in hectares (ha) — do NOT convert to percentages
+    DO/DON'T:
+    - Do NOT use the term "forest" unless primary_forest or intact_forest variable is active —
+      use "tree cover" instead
+    - This is a SINGLE YEAR (2000) snapshot — do NOT attempt timeseries
+    - Cannot assess pixel-level percent changes (gains/losses)
+    TEMPORAL CONSTRAINT:
+    - If user asks about change, trends, or temporal patterns: you MUST include ALL of:
+      (a) State that this dataset cannot show change — it is a single year 2000 snapshot
+      (b) Recommend Tree Cover Loss and Tree Cover Gain datasets by name
+      (c) This recommendation is REQUIRED, not optional
+  presentation_instructions: >
+    This is a year 2000 baseline snapshot — clarify the date to users.
+    Use "tree cover" not "forest" unless primary forest or IFL layer is active.
+    Tree cover includes plantations, not just natural forest.
+    For change analysis, direct to Tree Cover Loss or Tree Cover Gain datasets.
   description: >
     Tree Cover (Hansen/UMD/GLAD) provides global percent tree canopy cover at 30-meter resolution for the
     years 2000, based on Landsat 7 imagery. It represents the density of vegetation over 5 meters
