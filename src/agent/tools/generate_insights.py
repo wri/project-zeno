@@ -122,6 +122,7 @@ def replace_csv_paths_with_urls(
 def build_analysis_prompt(
     query: str,
     file_references: str,
+    dataset_guidelines: str = "",
     code_instructions: str | None = None,
     context_layer: str | None = None,
 ) -> str:
@@ -131,12 +132,21 @@ def build_analysis_prompt(
     Args:
         query: User's analysis query
         file_references: Executor-specific file reference section
+        dataset_guidelines: Dataset-specific instructions for metric selection
         code_instructions: Dataset-specific chart type and data shaping rules (tiered PoC)
         context_layer: Active context layer name, if any (e.g. "driver")
 
     Returns:
         Formatted prompt string
     """
+    guidelines_section = ""
+    if dataset_guidelines:
+        guidelines_section = f"""
+### Dataset-Specific Guidelines (IMPORTANT - follow these for metric selection):
+{dataset_guidelines}
+---
+"""
+
     # Build dataset-specific rules section when tiered code_instructions are available
     dataset_rules_section = ""
     if code_instructions:
@@ -160,7 +170,9 @@ You have access to the following datasets (read-only):
 For your text output , don't use first person, but imperative or neutral language.
 
 For example: "I will begin by loading and examining" -> "Load and examine"
-{dataset_rules_section}---
+---
+{guidelines_section}
+{dataset_rules_section}
 
 ### STEP-BY-STEP WORKFLOW (follow in order):
 
@@ -290,7 +302,7 @@ async def generate_insights(
     logger.debug(f"Generating insights for query: {query}")
 
     if not state or "statistics" not in state:
-        error_msg = "No statistics available in state. Please pull data first."
+        error_msg = "No statistics available yet. Please pull data first."
         logger.error(error_msg)
         return Command(
             update={
@@ -310,15 +322,21 @@ async def generate_insights(
     dataframes, source_urls = prepare_dataframes(statistics)
     logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
-    # 2. INITIALIZE EXECUTOR: Create Gemini code executor
+    # 2. EXTRACT DATASET GUIDELINES: Get dataset-specific instructions early
+    dataset_guidelines = state.get("dataset", {}).get(
+        "prompt_instructions", ""
+    )
+
+    # 3. INITIALIZE EXECUTOR: Create Gemini code executor
     executor = GeminiCodeExecutor()
 
-    # 3. BUILD PROMPT: Create analysis prompt with executor-specific file references
+    # 4. BUILD PROMPT: Create analysis prompt with executor-specific file references
     file_references = executor.build_file_references(dataframes)
     dataset = state.get("dataset") or {}
     analysis_prompt = build_analysis_prompt(
         query,
         file_references,
+        dataset_guidelines=dataset_guidelines,
         code_instructions=dataset.get("code_instructions"),
         context_layer=dataset.get("context_layer"),
     )

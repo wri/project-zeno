@@ -10,7 +10,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langgraph.types import Command
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.agent.llms import SMALL_MODEL
 from src.agent.tools.data_handlers.analytics_handler import (
@@ -70,11 +70,45 @@ class DatasetOption(BaseModel):
     )
     context_layer: Optional[str] = Field(
         None,
-        description="Pick a single context layer from the dataset if useful",
+        description="Pick a single context layer from the dataset if relevant.",
     )
     reason: str = Field(
         description="Short reason why the dataset is the best match."
     )
+    language: str = Field(
+        description="Language of the user query.",
+    )
+
+    @field_validator("dataset_id")
+    def validate_dataset_id(cls, v):
+        if v not in [ds["dataset_id"] for ds in DATASETS]:
+            raise ValueError(f"Invalid dataset ID: {v}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_context_layer_for_dataset(self) -> "DatasetOption":
+        """Ensure context_layer is valid for the chosen dataset_id (runs after all fields)."""
+        dataset_id = self.dataset_id
+        if dataset_id is None:
+            self.context_layer = None
+            return self
+        # Hardcoded override: TCL by driver always needs "driver" intersection
+        elif dataset_id == TREE_COVER_LOSS_BY_DRIVER_ID:
+            self.context_layer = "driver"
+            return self
+
+        if self.context_layer is None:
+            return self
+
+        selected_dataset = [
+            ds for ds in DATASETS if ds["dataset_id"] == dataset_id
+        ][0]
+        context_layers = selected_dataset.get("context_layers") or []
+        context_layer_values = [lyr["value"] for lyr in context_layers]
+        if self.context_layer not in context_layer_values:
+            self.context_layer = None
+
+        return self
 
 
 class DatasetSelectionResult(DatasetOption):
@@ -104,6 +138,9 @@ class DatasetSelectionResult(DatasetOption):
     )
     citation: str = Field(
         description="Citation of the dataset that best matches the user query.",
+    )
+    content_date: str = Field(
+        description="Content date of the dataset that best matches the user query.",
     )
     # Tiered instruction fields (PoC) — None for datasets that haven't been migrated
     selection_hints: Optional[str] = Field(
@@ -146,7 +183,10 @@ async def select_best_dataset(
                 "user",
                 """Based on the query, return the ID of the dataset that can best answer the
                 user query and provide reason why it is the best match.
-    Look at the dataset description and contextual layers, as well as date & variables.
+
+    Select a single context layer from the dataset if relevant for the user query. Context layers
+    allow difrenciating between different types of data within the same dataset. So if a user asks
+    to show something like "show me tree cover loss by driver", you should select a context layer
 
     Evaluate if the best dataset is available for the date range requested by the user,
     if not, pick the closest date range but warn the user that there
@@ -154,10 +194,14 @@ async def select_best_dataset(
     """
                 + selection_hints_block
                 + """
-    IMPORTANT:
-    Provide the selection reason in the same language used in the user query,
-    but keep explanations concise. Do not use datset IDs to describe the dataset.
+    Pick the most granular dataset that matches the query and requested time range if specified.
+    For instance, dont select tree cover loss by driver if the user requests a specific time range,
+    pick tree cover loss instead.
+
+    Keep explanations concise. Do not use datset IDs to describe the dataset.
     For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
+
+    Use the language of the user query to generate the reason.
 
     Candidate datasets:
 
@@ -193,7 +237,9 @@ async def select_best_dataset(
         }
     )
     logger.debug(
-        f"Selected dataset ID: {selection_result.dataset_id}. Reason: {selection_result.reason}"
+        f"Selected dataset ID: {selection_result.dataset_id}. "
+        f"context_layer={selection_result.context_layer!r} (type={type(selection_result.context_layer).__name__}). "
+        f"Reason: {selection_result.reason}"
     )
 
     selected_row = candidate_datasets[
@@ -220,6 +266,8 @@ async def select_best_dataset(
         cautions=selected_row.cautions,
         function_usage_notes=selected_row.function_usage_notes,
         citation=selected_row.citation,
+        content_date=selected_row.content_date,
+        language=selection_result.language,
         **tiered_kwargs,
     )
 
@@ -243,18 +291,8 @@ async def pick_dataset(
     logger.info("PICK-DATASET-TOOL")
     # Step 1: RAG lookup
     candidate_datasets = await rag_candidate_datasets(query, k=3)
-
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await select_best_dataset(query, candidate_datasets)
-
-    if selection_result.dataset_id == TREE_COVER_LOSS_BY_DRIVER_ID:
-        selection_result.context_layer = "driver"
-
-    selected_dataset = [
-        ds
-        for ds in DATASETS
-        if ds["dataset_id"] == selection_result.dataset_id
-    ][0]
 
     tool_message = f"""# About the selection
     Selected dataset name: {selection_result.dataset_name}
@@ -265,19 +303,19 @@ async def pick_dataset(
 
     ## Description
 
-    {selected_dataset["description"]}
+    {selection_result.description}
 
     ## Function usage notes:
 
-    {selected_dataset["function_usage_notes"]}
+    {selection_result.function_usage_notes}
 
     ## Usage cautions
 
-    {selected_dataset["cautions"]}
+    {selection_result.cautions}
 
     ## Content date
 
-    {selected_dataset["content_date"]}
+    {selection_result.content_date}
     """
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
