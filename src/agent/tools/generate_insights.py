@@ -323,21 +323,22 @@ async def generate_insights(
     logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
     # 2. EXTRACT DATASET GUIDELINES: Get dataset-specific instructions early
-    dataset_guidelines = state.get("dataset", {}).get(
-        "prompt_instructions", ""
-    )
+    dataset = state.get("dataset") or {}
+    # For tiered datasets, code_instructions replaces the code-relevant parts of
+    # prompt_instructions — skip the legacy blob to avoid redundancy.
+    code_instructions = dataset.get("code_instructions")
+    dataset_guidelines = "" if code_instructions else dataset.get("prompt_instructions", "")
 
     # 3. INITIALIZE EXECUTOR: Create Gemini code executor
     executor = GeminiCodeExecutor()
 
     # 4. BUILD PROMPT: Create analysis prompt with executor-specific file references
     file_references = executor.build_file_references(dataframes)
-    dataset = state.get("dataset") or {}
     analysis_prompt = build_analysis_prompt(
         query,
         file_references,
         dataset_guidelines=dataset_guidelines,
-        code_instructions=dataset.get("code_instructions"),
+        code_instructions=code_instructions,
         context_layer=dataset.get("context_layer"),
     )
     logger.debug(f"Analysis prompt:\n{analysis_prompt}")
