@@ -142,11 +142,41 @@ class DatasetSelectionResult(DatasetOption):
     content_date: str = Field(
         description="Content date of the dataset that best matches the user query.",
     )
+    # Tiered instruction fields (PoC) — None for datasets that haven't been migrated
+    selection_hints: Optional[str] = Field(
+        default=None,
+        description="When to prefer this dataset over alternatives.",
+    )
+    code_instructions: Optional[str] = Field(
+        default=None,
+        description="Chart type restrictions and data shaping rules for the code executor.",
+    )
+    presentation_instructions: Optional[str] = Field(
+        default=None,
+        description="Terminology, tone, and how to describe results to users.",
+    )
 
 
 async def select_best_dataset(
     query: str, candidate_datasets: pd.DataFrame
 ) -> DatasetSelectionResult:
+    # Build selection hints block from candidates that have them
+    hints_lines = []
+    if "selection_hints" in candidate_datasets.columns:
+        for _, row in candidate_datasets.iterrows():
+            hints = row.get("selection_hints")
+            if pd.notna(hints) and hints:
+                hints_lines.append(f"[{row['dataset_name']}]: {hints}")
+
+    selection_hints_block = ""
+    if hints_lines:
+        joined = "\n    ".join(hints_lines)
+        selection_hints_block = f"""
+
+    Dataset-specific selection guidance (use these to decide which dataset fits best):
+    {joined}
+    """
+
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
             (
@@ -161,7 +191,9 @@ async def select_best_dataset(
     Evaluate if the best dataset is available for the date range requested by the user,
     if not, pick the closest date range but warn the user that there
     is not an exact match with the query requested by the user in the reason field.
-
+    """
+                + selection_hints_block
+                + """
     Pick the most granular dataset that matches the query and requested time range if specified.
     For instance, dont select tree cover loss by driver if the user requests a specific time range,
     pick tree cover loss instead.
@@ -214,6 +246,13 @@ async def select_best_dataset(
         candidate_datasets.dataset_id == selection_result.dataset_id
     ].iloc[0]
 
+    # Extract tiered fields when present (PoC datasets only; NaN for others)
+    tiered_kwargs = {}
+    for field_name in ("selection_hints", "code_instructions", "presentation_instructions"):
+        value = selected_row.get(field_name)
+        if pd.notna(value) and value:
+            tiered_kwargs[field_name] = value
+
     return DatasetSelectionResult(
         dataset_id=selected_row.dataset_id,
         dataset_name=selected_row.dataset_name,
@@ -229,6 +268,7 @@ async def select_best_dataset(
         citation=selected_row.citation,
         content_date=selected_row.content_date,
         language=selection_result.language,
+        **tiered_kwargs,
     )
 
 
