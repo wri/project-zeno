@@ -10,7 +10,6 @@ verdict, comment) is captured and written to the results JSON.
 
 import json
 import logging
-import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -19,11 +18,18 @@ from pathlib import Path
 import pytest
 
 from tests.evals.fixture_data import (
-    TCL_STATE, TCL_DRIVER_STATE, DIST_ALERT_STATE,
-    LAND_COVER_STATE, GRASSLANDS_STATE, NATURAL_LANDS_STATE,
-    TREE_COVER_GAIN_STATE, GHG_FLUX_STATE, TREE_COVER_STATE, SLUC_EF_STATE,
+    DIST_ALERT_STATE,
+    GHG_FLUX_STATE,
+    GRASSLANDS_STATE,
+    LAND_COVER_STATE,
+    NATURAL_LANDS_STATE,
+    SLUC_EF_STATE,
+    TCL_DRIVER_STATE,
+    TCL_STATE,
+    TREE_COVER_GAIN_STATE,
+    TREE_COVER_STATE,
 )
-from tests.evals.judge import judge_output, run_generate_insights, Verdict
+from tests.evals.judge import Verdict, judge_output, run_generate_insights
 
 # Use session-scoped event loop for async fixtures
 pytestmark = pytest.mark.asyncio(loop_scope="session")

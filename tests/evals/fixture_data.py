@@ -8,8 +8,9 @@ The data shapes mirror real analytics API responses but are hardcoded so tests
 are deterministic on the data side — only LLM calls are live.
 """
 
-import yaml
 from pathlib import Path
+
+import yaml
 
 from src.agent.state import Statistics
 
