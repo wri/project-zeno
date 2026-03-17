@@ -997,7 +997,7 @@ datasets:
       related to human activities (accidental or deliberate).
     - Settlements and infrastructure: Tree cover loss due to expansion and intensification of roads,
       settlements, urban areas, or built infrastructure (not associated with other classes).
-      Other natural disturbances: Tree cover loss due to other non-fire natural disturbances
+    - Other natural disturbances: Tree cover loss due to other non-fire natural disturbances
       (e.g., landslides, insect outbreaks, river meandering). If loss due to natural causes is
       followed by salvage or sanitation logging, it is classified as logging.
     DO NOT include the 'Unknown' class in analysis.
@@ -1022,7 +1022,7 @@ datasets:
     a non-forest land use (e.g., deforestation).  The dominant driver is defined as the direct
     driver that caused the majority of tree cover loss within each 1 km cell over the time period.
     Classes are defined as follows:
-    - Permanent agriculture: Long-term, permanent tree cover loss for small- tolarge-scale agriculture.
+    - Permanent agriculture: Long-term, permanent tree cover loss for small- to large-scale agriculture.
     - Hard commodities: Loss due to the establishment or expansion of mining or energy infrastructure.
     - Shifting cultivation: Tree cover loss due to small- to medium-scale clearing for temporary
       cultivation that is later abandoned and followed by subsequent regrowth of secondary forest or
@@ -1035,7 +1035,7 @@ datasets:
       related to human activities (accidental or deliberate).
     - Settlements and infrastructure: Tree cover loss due to expansion and intensification of roads,
       settlements, urban areas, or built infrastructure (not associated with other classes).
-      Other natural disturbances: Tree cover loss due to other non-fire natural disturbances
+    - Other natural disturbances: Tree cover loss due to other non-fire natural disturbances
       (e.g., landslides, insect outbreaks, river meandering). If loss due to natural causes is
       followed by salvage or sanitation logging, it is classified as logging.
   methodology: >
@@ -1075,15 +1075,16 @@ datasets:
     Sims, M.J., R. Stanimirova, A. Raichuk, M. Neumann, J. Richter, F. Follett, J. MacCarthy,
     K. Lister, C. Randle, L. Sloat, E. Esipova, J. Jupiter, C. Stanton, D. Morris, C. M. Slay,
     D. Purves, and N. Harris. 2025. “Global Drivers of Forest Loss at 1 Km Resolution.”
-    Environmental Research Letters 20 (7): 074027. [doi:10.1088/1748-9326/add606](https://doi.org/10.1088/1748-9326/add606).
+    _Environmental Research Letters_ 20 (7): 074027. [doi:10.1088/1748-9326/add606](https://doi.org/10.1088/1748-9326/add606).
   citation: >
     Use the following credit when these data are displayed: “Tree cover loss by dominant driver”.
     WRI/Google DeepMind. Accessed from Global Forest Watch on [Date]. [www.globalforestwatch.org](https://www.globalforestwatch.org)
+
     Use the following credit when these data are cited: Sims, M.J., R. Stanimirova, A. Raichuk,
     M. Neumann, J. Richter, F. Follett, J. MacCarthy, K. Lister, C. Randle, L. Sloat, E. Esipova,
     J. Jupiter, C. Stanton, D. Morris, C. M. Slay, D. Purves, and N. Harris. 2025.
     “Global Drivers of Forest Loss at 1 Km Resolution.”
-    Environmental Research Letters 20 (7): 074027. [doi:10.1088/1748-9326/add606](https://doi.org/10.1088/1748-9326/add606).
+    _Environmental Research Letters_ 20 (7): 074027. [doi:10.1088/1748-9326/add606](https://doi.org/10.1088/1748-9326/add606).
 
 - dataset_id: 9
   dataset_name: "Deforestation (sLUC) Emission Factors by Agricultural Crop"
