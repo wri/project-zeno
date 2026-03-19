@@ -1420,6 +1420,42 @@ datasets:
     or for a single crop across multiple administrative units.
     Use tables to compare a single crop across multiple locations.
     Use tables summarise emissions factors, total emissions, and production volume.
+  selection_hints: >
+    Provides sLUC (statistical land use change) emission factors for 42 agricultural crops.
+    Quantifies GHG emissions (tCO2e) per tonne of crop product from deforestation-linked
+    agricultural expansion. Available at ADM0, ADM1, ADM2 levels, 2020-2024.
+    Use when user asks about crop-specific deforestation emissions or emission factors.
+    Tabular data only — no spatial/map output possible.
+    Not all crops available in all regions.
+  code_instructions: >
+    CHART TYPES:
+    - Proportional emissions by gas type (CO2, CH4, N2O) → pie chart
+      (single crop, single year, single admin unit)
+    - Changes in EF, emissions, or production over time → bar chart
+      (single crop, single admin unit)
+    - Multiple crops in one location or one crop across locations → table
+    - Summary of EF + emissions + production → table
+    DATA RULES:
+    - Default year = 2024 unless user specifies otherwise
+    - Column names: emissions_tCO2e (total emissions), emissions_factor_tCO2e_per_tonne_production
+      (emission factor), production_tonnes (production volume)
+    - MUST include units in all output: tCO2e for emissions, tonnes for production
+    DO/DON'T:
+    - DO NOT combine EF + total emissions + production volume on the same bar chart
+    - If user asks for a map or spatial visualization: REFUSE — this dataset is tabular
+      only, no spatial output is possible. Suggest Tree Cover Loss or DIST alerts for
+      spatial analysis of deforestation impacts.
+    - When showing emission factors, also show total emissions and production volume
+      used to calculate them
+    - Always clarify the reporting year (2020-2024)
+  presentation_instructions: >
+    Always include units: tCO2e for emissions, tonnes for production volume.
+    Note: tCO2e = MgCO2e (metric tonnes of CO2 equivalent).
+    Clarify the reporting year (default 2024).
+    Note that emission factors quantify emissions from deforestation linked to
+    agricultural expansion, not all land use emissions.
+    Not all crops are available for all regions.
+    This is tabular data only — no map visualization is possible.
   description: >
     The dataset developed by Fitts et al. (2025) provides globally consistent, spatially explicit
     estimates of statistical land use change (sLUC) emission factors for 42 agricultural crops
