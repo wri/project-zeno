@@ -896,6 +896,38 @@ datasets:
     precise verification of restoration activities at local scales.
     If a user asks for net gain/loss, refuse and explain that the methodologies for the two datasets differ
     and thus they cannot be combined directly to calculate net change.
+  selection_hints: >
+    Shows cumulative tree cover gain (vegetation growing above 5m height) over 4 periods:
+    2000-2020, 2005-2020, 2010-2020, 2015-2020. Resolution 30m, global coverage.
+    Gain ≠ restoration — may be plantation cycles, natural regrowth, or land abandonment.
+    Cannot calculate net change by combining with tree cover loss (different methodologies).
+    For tree cover loss questions, use Tree Cover Loss dataset instead.
+  code_instructions: >
+    CHART TYPES:
+    - Default: bar chart with one bar per CUMULATIVE period (2000-2020, 2005-2020, 2010-2020, 2015-2020)
+    - X-axis labels MUST use the raw cumulative period labels, NOT decomposed intervals
+    - Do NOT split cumulative periods into 5-year buckets unless the user explicitly asks
+    DATA RULES:
+    - Cumulative gain over 4 periods: 2000-2020, 2005-2020, 2010-2020, 2015-2020
+    - ONLY if user explicitly asks for a specific sub-period (e.g., "gain between 2005 and 2010"):
+      calculate Area[Y1 to Y2] = Area[Y1 to 2020] - Area[Y2 to 2020]
+    - All areas in hectares (ha)
+    DO/DON'T:
+    - Do NOT use the term "restoration" — use "tree cover gain"
+    - If user asks for net gain/loss or net change: EITHER refuse entirely OR show gain
+      data with a MANDATORY warning. Either way, the insight text MUST state that gain and
+      loss datasets use different methodologies and CANNOT be combined for net change.
+    - These are estimates suitable as indicators, NOT for precise verification of
+      restoration activities at local scales
+  presentation_instructions: >
+    Use "tree cover gain" not "restoration" — gain includes plantation cycles, natural
+    regrowth, and land abandonment, not just ecological restoration.
+    Tree cover gain is defined as vegetation growing from under 5m to over 5m height.
+    Cannot be subtracted from tree cover loss for net change — different methodologies.
+    ALWAYS include this warning when net change is discussed: "Tree cover gain and tree
+    cover loss use fundamentally different methodologies, time periods, and definitions.
+    They cannot be subtracted to calculate net change."
+    Note these are estimates suitable as indicators, not for local-scale verification.
   description: >
     Tree Cover Gain (Hansen/UMD/GLAD) identifies areas where new tree canopy was established
     between 2000 and 2020 at 30-meter resolution, using Landsat 7 imagery. It captures both
