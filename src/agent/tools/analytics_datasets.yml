@@ -745,6 +745,37 @@ datasets:
     If a user asks for net gain/loss, refuse and explain that the methodologies for the two datasets differ
     and thus they cannot be combined directly to calculate net change.
     DO NOT show emissions and loss in the same chart, use separate charts.
+  # --- Tiered instructions (PoC) — when present, these take precedence over prompt_instructions at specific injection points ---
+  selection_hints: >
+    Best dataset for annual tree cover loss questions (2001-2024) at 30m resolution.
+    Covers all vegetation >5m height including plantations — NOT limited to natural forest.
+    Annual resolution only; cannot answer intra-year or seasonal questions.
+    For driver attribution (WHY loss happened), use "Tree cover loss by dominant driver" instead.
+    For net change, loss and gain datasets use different methodologies and cannot be combined.
+    Includes GHG emissions (MgCO2e) associated with loss.
+    Methodology changed between 2010 and 2011; cross-period trend comparisons need caution.
+  code_instructions: >
+    CHART TYPES:
+    - Yearly loss → bar chart (x=year, y=area_ha)
+    - Cumulative loss → stacked-area chart
+    - Emissions → MUST be a SEPARATE chart from loss area (NEVER combine on same chart)
+    DATA RULES:
+    - Always include GHG emissions (MgCO2e) alongside loss area, but in a SEPARATE chart
+    - Drop rows where area_ha = 0
+    - Use 30% canopy density threshold
+    - If primary_forest or intact_forest variable is active, filter accordingly
+    DO/DON'T:
+    - DO NOT use the term "deforestation" — always use "tree cover loss"
+    - If user asks for intra-year or seasonal breakdown, REFUSE — data is annual only
+    - If user asks for net gain/loss, REFUSE — methodologies differ between loss and gain datasets
+    - Warn about 2001-2010 vs 2011-2024 methodology difference when showing trends across both periods
+  presentation_instructions: >
+    Use "tree cover loss" not "deforestation" — tree cover includes plantations, not just
+    natural forest.
+    This measures canopy loss only; it doesn't track regrowth or permanence.
+    Always state the canopy density threshold used (30%).
+    If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent).
+    If trend spans 2001-2024, note the methodology change after 2010.
   description: >
     Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2024 at
     30-meter resolution using Landsat satellite imagery. It detects stand-replacement
