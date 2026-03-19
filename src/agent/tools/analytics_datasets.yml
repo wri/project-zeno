@@ -1011,6 +1011,33 @@ datasets:
     The data is calculcated witha  30% canopy density threshold, requests for a different threshold are not yet possible.
     Use the term "net sink" for net-negative flux values (removals/sequestration) and "net source"
     for net-positive (emissions)
+  selection_hints: >
+    Shows net greenhouse gas flux from forests — balance between emissions and removals.
+    Total over model period 2001-2024, NOT annual values or timeseries.
+    Negative values = net carbon sink; positive values = net GHG source.
+    Uses 30% canopy density threshold (cannot be changed).
+    For annual tree cover loss or emissions timeseries, use Tree Cover Loss dataset.
+  code_instructions: >
+    CHART TYPES:
+    - Net flux → split/diverging bar chart (emissions positive y-axis, removals negative)
+    DATA RULES:
+    - Values are TOTALS over model period 2001-2024 — present them as totals, NOT annual values
+    - Do NOT divide by 24 in code — keep the raw period totals
+    - Do NOT pre-calculate or present annual averages
+    - 30% canopy density threshold (fixed, cannot be changed)
+    - Units: MgCO2e (tonnes of CO2 equivalent)
+    DO/DON'T:
+    - DO NOT show trends over time or annual values — this is a single-period aggregate
+    - DO NOT attempt timeseries charts
+    - Use "net sink" for net-negative flux (removals > emissions)
+    - Use "net source" for net-positive flux (emissions > removals)
+  presentation_instructions: >
+    Clarify that values represent total flux over 2001-2024, not annual figures.
+    Mention that users can divide by 24 to estimate an annual average, but
+    DO NOT perform this division — always present the raw totals as primary values.
+    Use "net sink" for negative values, "net source" for positive values.
+    Note the 30% canopy density threshold is fixed.
+    This is a modeled product with inherent uncertainty — higher in removals than emissions.
   description: >
     Maps the balance between emissions from forest disturbances and carbon removals from forest growth
     between 2001 and 2024, using a globally consistent model. Negative values indicate forest areas
