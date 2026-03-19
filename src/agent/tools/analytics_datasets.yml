@@ -228,7 +228,7 @@ datasets:
     - 30 m
   analytics_api_endpoint: "/v0/land_change/land_cover_change/analytics"
   prompt_instructions: >
-    This datset contains land-cover class snapshots in 2015 and 2024, reporting
+    This dataset contains land-cover class snapshots in 2015 and 2024, reporting
     pixel-level class changes, measured in hectares (ha).
     For change questions, use tables with land_cover_class_start,
     land_cover_class_end, and area_ha columns to show transitions. Warn users that
@@ -240,6 +240,38 @@ datasets:
     Drop zeros. Transitions to "short vegetation" or "bare" may reflect seasonality,
     not restoration/degradation. When users ask about agriculture,
     combine "cropland"+"cultivated grassland" unless they specify otherwise.
+  selection_hints: >
+    Best dataset for land cover composition or land cover CHANGE between 2015 and 2024.
+    Reports pixel-level class transitions at 30m resolution, measured in hectares.
+    Only shows start (2015) and end (2024) states — NOT an annual timeseries.
+    Does NOT capture classes that remained the same between 2015 and 2024.
+    Classes: bare ground & sparse vegetation, short vegetation, tree cover, wetlands,
+    water, snow/ice, cropland, cultivated grasslands, built-up land.
+    For tree cover loss specifically, prefer Tree Cover Loss dataset.
+    For natural/semi-natural grasslands specifically, prefer the Grasslands dataset.
+  code_instructions: >
+    CHART TYPES:
+    - Land cover change → table with columns: land_cover_class_start, land_cover_class_end, area_ha
+    - Land cover composition (snapshot) → pie chart for 2024 ONLY
+    DATA RULES:
+    - Drop rows where area_ha = 0
+    - When user asks about agriculture, farming, or agricultural land: you MUST combine
+      "cropland" AND "cultivated grassland" into a single "Agriculture" category. Do NOT
+      show them as separate classes unless the user explicitly asks to see them separately.
+    - Transitions to "short vegetation" or "bare ground" may reflect seasonality,
+      not real restoration or degradation — note this in output
+    DO/DON'T:
+    - This is NOT an annual timeseries — do NOT attempt year-by-year charts
+    - Only 2 snapshots exist: 2015 and 2024
+    - Data does NOT capture classes that stayed the same — only transitions
+    - For composition/snapshot questions, show 2024 data ONLY
+  presentation_instructions: >
+    Clarify that this dataset shows land cover change between 2015 and 2024 only,
+    not annual or intra-annual changes.
+    Warn that it does not capture classes that remained unchanged.
+    Note that transitions to "short vegetation" or "bare" may reflect seasonal
+    variation rather than actual degradation or restoration.
+    This shows land cover change, not necessarily land use change or conversion.
   description: >
     This Global Land Cover dataset is a combination of two global datasets: the GLAD Land
     Cover and Land Use Change annual data and the Global Pasture Watch Grassland Class
