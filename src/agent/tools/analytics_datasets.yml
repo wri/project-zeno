@@ -422,6 +422,34 @@ datasets:
     semi-permanent) transition to another land cover or land use, natural vegetation dynamics,
     such as regrowth following disturbance, natural seasonal or interannual variability, such as
     floodplain inundation, for example.
+  selection_hints: >
+    Best dataset for natural/semi-natural grassland extent and change (2000-2022).
+    Annual data at 30m resolution, measured in hectares.
+    Covers grasslands, shrublands, and savannas (low vegetation <3m, ≥30% cover).
+    NOT for cultivated grasslands, croplands, or open shrublands — use Global Land Cover for those.
+    Can quantify area in a single year or track gains/losses over time.
+  code_instructions: >
+    CHART TYPES:
+    - Area over time → bar chart or line chart (x=year, y=area_ha)
+    - Comparison across ≤8 geographic units → pie chart
+    - Comparison across ≥9 geographic units → table
+    DATA RULES:
+    - Exclude rows where area_ha = 0 or missing
+    - All areas in hectares (ha)
+    DO/DON'T:
+    - Gain does NOT equal restoration — may be land abandonment, invasive species,
+      woody encroachment, or temporary regrowth
+    - Loss does NOT equal permanent conversion — may be natural dynamics, seasonal
+      variability, or floodplain inundation
+    - Do NOT use this for cultivated grasslands or croplands
+  presentation_instructions: >
+    Clarify that "natural/semi-natural grassland" includes grasslands, shrublands, and
+    savannas — any low vegetation (<3m) with at least 30% cover.
+    MUST include this caveat when discussing grassland gains: "Gains do not necessarily
+    represent ecological restoration — they may reflect land abandonment, invasive species
+    expansion, woody encroachment, or temporary regrowth."
+    Losses should not be described as "permanent conversion" without qualification.
+    For cultivated grasslands or croplands, direct users to the Global Land Cover dataset.
   description: >
     Annual 30 m maps of global natural/semi-natural grassland extent from 2000 to 2022.
     This dataset defines grasslands very broadly such that they encompass grasslands, shrublands,
