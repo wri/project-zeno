@@ -20,6 +20,7 @@ logger = logging.getLogger("evals.judge")
 @dataclass
 class Verdict:
     """Result of a single eval judgment."""
+
     passed: bool
     comment: str
     requirements: list[dict] = field(default_factory=list)
@@ -96,7 +97,9 @@ async def judge_output(query: str, rubric: str, tool_output: dict) -> Verdict:
     tool_summary = {
         "chart_type": tool_output.get("chart_type"),
         "chart_data_rows": len(tool_output.get("chart_data", [])),
-        "chart_data_columns": list(tool_output["chart_data"][0].keys()) if tool_output.get("chart_data") else [],
+        "chart_data_columns": list(tool_output["chart_data"][0].keys())
+        if tool_output.get("chart_data")
+        else [],
         "insight_preview": (tool_output.get("insight") or "")[:300],
         "refused": tool_output.get("refused", False),
     }
@@ -202,7 +205,9 @@ async def run_generate_insights(query: str, state: dict) -> dict:
         msg_content = msg.content if hasattr(msg, "content") else str(msg)
         msg_status = getattr(msg, "status", None)
         result["tool_message"] = msg_content
-        if msg_status == "error" or (not update.get("charts_data") and "fail" in msg_content.lower()):
+        if msg_status == "error" or (
+            not update.get("charts_data") and "fail" in msg_content.lower()
+        ):
             result["refused"] = True
             result["insight"] = msg_content
 
