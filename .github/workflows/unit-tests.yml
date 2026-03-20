@@ -62,4 +62,4 @@ jobs:
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
           NEXTJS_API_KEY: test-nextjs-api-key
         run: |
-          uv run pytest tests/api tests/cli tests/agent -v
+          uv run pytest tests/api tests/cli tests/agent tests/tools/test_build_selection_name.py -v
