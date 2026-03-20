@@ -120,7 +120,11 @@ def replace_csv_paths_with_urls(
 
 
 def build_analysis_prompt(
-    query: str, file_references: str, dataset_guidelines: str = ""
+    query: str,
+    file_references: str,
+    dataset_guidelines: str = "",
+    code_instructions: str | None = None,
+    context_layer: str | None = None,
 ) -> str:
     """
     Build the analysis prompt for the code executor.
@@ -129,6 +133,8 @@ def build_analysis_prompt(
         query: User's analysis query
         file_references: Executor-specific file reference section
         dataset_guidelines: Dataset-specific instructions for metric selection
+        code_instructions: Dataset-specific chart type and data shaping rules (tiered PoC)
+        context_layer: Active context layer name, if any (e.g. "driver")
 
     Returns:
         Formatted prompt string
@@ -138,6 +144,19 @@ def build_analysis_prompt(
         guidelines_section = f"""
 ### Dataset-Specific Guidelines (IMPORTANT - follow these for metric selection):
 {dataset_guidelines}
+---
+"""
+
+    # Build dataset-specific rules section when tiered code_instructions are available
+    dataset_rules_section = ""
+    if code_instructions:
+        header = "### DATASET-SPECIFIC RULES (follow these strictly):\n"
+        if context_layer:
+            header += f"Active context layer: {context_layer}\n"
+        dataset_rules_section = f"""
+{header}
+{code_instructions}
+
 ---
 """
 
@@ -153,6 +172,7 @@ For your text output , don't use first person, but imperative or neutral languag
 For example: "I will begin by loading and examining" -> "Load and examine"
 ---
 {guidelines_section}
+{dataset_rules_section}
 
 ### STEP-BY-STEP WORKFLOW (follow in order):
 
@@ -209,7 +229,11 @@ Now prepare the data for visualization in Recharts.js:
          - **Pie**: [{{"name": "Category A", "value": 100}}]
            → Limited to 6-8 slices, use x_axis="name", y_axis="value"
 
-   c) **SAVE THE DATA**: Save the DataFrame as `chart_data.csv` with column names for the frontend
+   c) **SAVE THE DATA**: Save the DataFrame as `chart_data.csv` with column names for the frontend. This
+   is ABSOLUTELY CRITICAL. Always save the data to a file with the name `chart_data.csv`.
+   Do not replace chart_data.csv with a markdown table; the pipeline only reads the CSV artifact.
+   The final code execution step must call ...to_csv('chart_data.csv', index=False) with that exact path.
+   This is also true for table chart type, always store the output to a file!
 
    d) **PRINT CHART TYPE**: Clearly state your recommended chart type in the output
 
@@ -303,8 +327,12 @@ async def generate_insights(
     logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
     # 2. EXTRACT DATASET GUIDELINES: Get dataset-specific instructions early
-    dataset_guidelines = state.get("dataset", {}).get(
-        "prompt_instructions", ""
+    dataset = state.get("dataset") or {}
+    # For tiered datasets, code_instructions replaces the code-relevant parts of
+    # prompt_instructions — skip the legacy blob to avoid redundancy.
+    code_instructions = dataset.get("code_instructions")
+    dataset_guidelines = (
+        "" if code_instructions else dataset.get("prompt_instructions", "")
     )
 
     # 3. INITIALIZE EXECUTOR: Create Gemini code executor
@@ -313,7 +341,11 @@ async def generate_insights(
     # 4. BUILD PROMPT: Create analysis prompt with executor-specific file references
     file_references = executor.build_file_references(dataframes)
     analysis_prompt = build_analysis_prompt(
-        query, file_references, dataset_guidelines
+        query,
+        file_references,
+        dataset_guidelines=dataset_guidelines,
+        code_instructions=code_instructions,
+        context_layer=dataset.get("context_layer"),
     )
     logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 
@@ -375,8 +407,11 @@ async def generate_insights(
     # 6. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
     chart_data_df = pd.DataFrame(result.chart_data)
     available_datasets = _get_available_datasets()
-    dataset_guidelines = state.get("dataset").get(
-        "prompt_instructions", "No specific dataset guidelines provided."
+    # Prefer presentation_instructions (tiered PoC) over prompt_instructions (legacy blob)
+    dataset_guidelines = (
+        state.get("dataset").get("presentation_instructions")
+        or state.get("dataset").get("prompt_instructions")
+        or "No specific dataset guidelines provided."
     )
     dataset_cautions = state.get("dataset").get(
         "cautions", "No specific dataset cautions provided."

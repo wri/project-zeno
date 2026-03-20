@@ -142,6 +142,19 @@ class DatasetSelectionResult(DatasetOption):
     content_date: str = Field(
         description="Content date of the dataset that best matches the user query.",
     )
+    # Tiered instruction fields (PoC) — None for datasets that haven't been migrated
+    selection_hints: Optional[str] = Field(
+        default=None,
+        description="When to prefer this dataset over alternatives.",
+    )
+    code_instructions: Optional[str] = Field(
+        default=None,
+        description="Chart type restrictions and data shaping rules for the code executor.",
+    )
+    presentation_instructions: Optional[str] = Field(
+        default=None,
+        description="Terminology, tone, and how to describe results to users.",
+    )
 
 
 async def select_best_dataset(
@@ -152,7 +165,8 @@ async def select_best_dataset(
             (
                 "user",
                 """Based on the query, return the ID of the dataset that can best answer the
-                user query and provide reason why it is the best match.
+    user query and provide reason why it is the best match. Always return at least one dataset.
+    Use all information provided to decide which dataset is the best match, especially the selection hints.
 
     Select a single context layer from the dataset if relevant for the user query. Context layers
     allow difrenciating between different types of data within the same dataset. So if a user asks
@@ -195,9 +209,8 @@ async def select_best_dataset(
                     "dataset_id",
                     "dataset_name",
                     "description",
+                    "selection_hints",
                     "content_date",
-                    "cautions",
-                    "prompt_instructions",
                     "context_layers",
                 ]
             ].to_csv(index=False),
@@ -229,6 +242,9 @@ async def select_best_dataset(
         citation=selected_row.citation,
         content_date=selected_row.content_date,
         language=selection_result.language,
+        selection_hints=selected_row.selection_hints,
+        code_instructions=selected_row.code_instructions,
+        presentation_instructions=selected_row.presentation_instructions,
     )
 
 
