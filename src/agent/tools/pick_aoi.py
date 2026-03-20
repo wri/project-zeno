@@ -23,6 +23,7 @@ from src.shared.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     WDPA_TABLE,
 )
+from src.shared.selection_name import build_selection_name
 from src.shared.logging_config import get_logger
 
 RESULT_LIMIT = 10
@@ -540,9 +541,7 @@ async def pick_aoi(
 
     logger.debug(f"Pick AOI tool message: {tool_message}")
 
-    selection_name = ", ".join(match_names)
-    if subregion:
-        selection_name = f"{subregion.capitalize()}s in {selection_name}"
+    selection_name = build_selection_name(match_names, subregion, len(final_aois))
 
     return Command(
         update={
