@@ -50,11 +50,16 @@ datasets:
     conversion may also be undercounted when fire is used for clearing or when it occurs near rivers.
     Severe boreal fires may be misclassified as conversion. Always interpret alerts as indicators,
     not definitive outcomes.
-  # --- Tiered instructions - structured breakdown of prompt_instructions for injection at specific pipeline stages ---
+  # --- Tiered instructions (PoC) — when present, these take precedence over prompt_instructions at specific injection points ---
   selection_hints: >
-    Use this dataset to show recent vegetation changes across all ecosystems, measured in hectares (ha).
+    Best dataset for near-real-time vegetation disturbance across ALL ecosystems (not just
+    forests). Covers Dec 2023 to present at 30m resolution, measured in hectares.
+    Prefer when user asks about recent disturbance, clearing, or conversion alerts.
+    Driver context layer (LDACS) classifies alerts into likely causes — updated quarterly,
+    covers most recent 12 months, classification NOT available for last 90 days.
     For historical or long-term tree cover change, prefer Tree Cover Loss instead.
-    For driver attribution of tree cover loss specifically, prefer Tree Cover Loss by Dominant Driver.
+    For driver attribution of tree cover loss specifically, prefer Tree Cover Loss by
+    Dominant Driver.
   code_instructions: >
     CHART TYPES:
     - Recent trends over time → line chart (x=alert month, y=area in hectares)
@@ -65,15 +70,15 @@ datasets:
     - All areas in hectares (ha)
     - Show classified alerts by driver (LDACS) by default when driver context layer is active
     - If one driver accounts for >80% of alerts in any month, call it out in the
-      insight text but keep it in the same chart - do NOT create a separate chart
+      insight text but keep it in the same chart — do NOT create a separate chart
     - Include unclassified alerts by default for completeness
     - Exclude unclassified alerts ONLY if user explicitly asks for "known drivers only"
       or "classified alerts only"
     - For natural forests with natural_lands context layer, select classes 2,5,8,9
     - For non-natural tree cover with natural_lands context layer, select classes 14,17,18
     DO/DON'T:
-    - LDACS classification NOT available for last 90 days - omit driver breakdown for that period
-    - Potential conversion requires ≥75 days of sustained loss - recent clearing may not appear
+    - LDACS classification NOT available for last 90 days — omit driver breakdown for that period
+    - Potential conversion requires ≥75 days of sustained loss — recent clearing may not appear
     - Conversion may be undercounted when fire is used for clearing or near rivers
     - Severe boreal fires may be misclassified as conversion
     - Always interpret alerts as indicators, not definitive outcomes
@@ -83,6 +88,8 @@ datasets:
     land cover or tree cover loss datasets for historical changes.
     Note LDACS is updated quarterly, covers most recent 12 months, no classification for last
     90 days.
+    This covers all vegetation, not just forest — relevant for non-conversion of natural
+    ecosystems monitoring.
   description: >
     Global All Ecosystem Disturbance Alerts (DIST-ALERT) provides near-real-time alerts
     of vegetation disturbance globally at 30-meter resolution, using harmonized
@@ -237,8 +244,10 @@ datasets:
   selection_hints: >
     Best dataset for land cover composition or land cover CHANGE between 2015 and 2024.
     Reports pixel-level class transitions at 30m resolution, measured in hectares.
-    Only shows start (2015) and end (2024) states - NOT an annual timeseries.
+    Only shows start (2015) and end (2024) states — NOT an annual timeseries.
     Does NOT capture classes that remained the same between 2015 and 2024.
+    Classes: bare ground & sparse vegetation, short vegetation, tree cover, wetlands,
+    water, snow/ice, cropland, cultivated grasslands, built-up land.
     For tree cover loss specifically, prefer Tree Cover Loss dataset.
     For natural/semi-natural grasslands specifically, prefer the Grasslands dataset.
   code_instructions: >
@@ -247,15 +256,15 @@ datasets:
     - Land cover composition (snapshot) → pie chart for 2024 ONLY
     DATA RULES:
     - Drop rows where area_ha = 0
-    - When user asks about agriculture, farming, or agricultural land: combine
-      "cropland" AND "cultivated grassland" into a single "Agriculture" category
-      unless user explicitly asks to see them separately
+    - When user asks about agriculture, farming, or agricultural land: you MUST combine
+      "cropland" AND "cultivated grassland" into a single "Agriculture" category. Do NOT
+      show them as separate classes unless the user explicitly asks to see them separately.
     - Transitions to "short vegetation" or "bare ground" may reflect seasonality,
-      not real restoration or degradation - note this in output
+      not real restoration or degradation — note this in output
     DO/DON'T:
-    - This is NOT an annual timeseries - do NOT attempt year-by-year charts
+    - This is NOT an annual timeseries — do NOT attempt year-by-year charts
     - Only 2 snapshots exist: 2015 and 2024
-    - Data does NOT capture classes that stayed the same - only transitions
+    - Data does NOT capture classes that stayed the same — only transitions
     - For composition/snapshot questions, show 2024 data ONLY
   presentation_instructions: >
     Clarify that this dataset shows land cover change between 2015 and 2024 only,
@@ -263,6 +272,7 @@ datasets:
     Warn that it does not capture classes that remained unchanged.
     Note that transitions to "short vegetation" or "bare" may reflect seasonal
     variation rather than actual degradation or restoration.
+    This shows land cover change, not necessarily land use change or conversion.
   description: >
     This Global Land Cover dataset is a combination of two global datasets: the GLAD Land
     Cover and Land Use Change annual data and the Global Pasture Watch Grassland Class
@@ -416,7 +426,9 @@ datasets:
   selection_hints: >
     Best dataset for natural/semi-natural grassland extent and change (2000-2022).
     Annual data at 30m resolution, measured in hectares.
-    NOT for cultivated grasslands, croplands, or open shrublands - use Global Land Cover for those.
+    Covers grasslands, shrublands, and savannas (low vegetation <3m, ≥30% cover).
+    NOT for cultivated grasslands, croplands, or open shrublands — use Global Land Cover for those.
+    Can quantify area in a single year or track gains/losses over time.
   code_instructions: >
     CHART TYPES:
     - Area over time → bar chart or line chart (x=year, y=area_ha)
@@ -426,17 +438,19 @@ datasets:
     - Exclude rows where area_ha = 0 or missing
     - All areas in hectares (ha)
     DO/DON'T:
-    - Gain does NOT equal restoration - may be land abandonment, invasive species,
+    - Gain does NOT equal restoration — may be land abandonment, invasive species,
       woody encroachment, or temporary regrowth
-    - Loss does NOT equal permanent conversion - may be natural dynamics, seasonal
+    - Loss does NOT equal permanent conversion — may be natural dynamics, seasonal
       variability, or floodplain inundation
+    - Do NOT use this for cultivated grasslands or croplands
   presentation_instructions: >
-    Gain in natural/semi-natural grassland can mean any of the following: restoration,
-    regeneration, land abandonment, early successional stages, regrowth dominated by
-    invasive species or woody plant encroachment, temporary states rather than restored
-    ecosystems.
-    Loss can mean: permanent or semi-permanent transition to another land cover or land use,
-    natural vegetation dynamics, natural seasonal or interannual variability.
+    Clarify that "natural/semi-natural grassland" includes grasslands, shrublands, and
+    savannas — any low vegetation (<3m) with at least 30% cover.
+    MUST include this caveat when discussing grassland gains: "Gains do not necessarily
+    represent ecological restoration — they may reflect land abandonment, invasive species
+    expansion, woody encroachment, or temporary regrowth."
+    Losses should not be described as "permanent conversion" without qualification.
+    For cultivated grasslands or croplands, direct users to the Global Land Cover dataset.
   description: >
     Annual 30 m maps of global natural/semi-natural grassland extent from 2000 to 2022.
     This dataset defines grasslands very broadly such that they encompass grasslands, shrublands,
@@ -606,26 +620,36 @@ datasets:
     forest, and natural peat forest into one class.
   selection_hints: >
     Single-year baseline map of natural vs non-natural lands for 2020 only.
-    Cannot show change over time - for change, use Global Land Cover dataset.
+    Intended for supply chain conversion-free commitments (SBTN Land target #1).
+    Cannot show change over time — for change, use Global Land Cover dataset.
+    Natural land classes include: natural forest (2), mangrove (5), natural peat forest (8),
+    wetland natural forest (9), natural short vegetation, natural water, bare, snow, etc.
+    Non-natural classes: crop, built, non-natural tree cover (14,17,18), etc.
   code_instructions: >
     CHART TYPES:
     - Natural vs non-natural proportions → bar chart or pie chart
     DATA RULES:
     - Natural forests = classes 2, 5, 8, 9 (natural forest + mangrove + wetland natural
-      forest + natural peat forest) - combine into one "Natural forest" category when
+      forest + natural peat forest) — combine into one "Natural forest" category when
       user asks about natural forests
     - Non-natural tree cover = classes 14, 17, 18
     - All areas in hectares (ha)
     DO/DON'T:
-    - This is a SINGLE YEAR (2020) snapshot - do NOT attempt timeseries or change analysis
-    - If user asks about change, tell them this dataset only represents one year, but they
-      can use the Global Land Cover data to map change
+    - This is a SINGLE YEAR (2020) snapshot — do NOT attempt timeseries or change analysis
+    - These data do NOT represent protection status or legality of land
+    TEMPORAL CONSTRAINT:
+    - If user asks about change, trends, or temporal patterns: you MUST include ALL of:
+      (a) State that this dataset cannot show change — it is a single 2020 snapshot
+      (b) Recommend the Global Land Cover dataset by name for change analysis
+      (c) This recommendation is REQUIRED, not optional
   presentation_instructions: >
     Clarify this is a 2020 baseline snapshot, not a timeseries.
-    Natural lands resemble what would be found in the absence of major human impacts
-    and can include managed or degraded ecosystems.
-    These data do not represent protection or legality of land.
-    If user asks for change, suggest the Global Land Cover dataset.
+    "Natural" follows the AFi definition: land that substantially resembles what
+    would be found without major human impacts, including managed or degraded ecosystems.
+    Does not represent legal protection status.
+    For change analysis, suggest the Global Land Cover dataset.
+    When reporting natural forests, specify that it combines natural forest, mangrove,
+    wetland natural forest, and natural peat forest.
   description: >
     The SBTN Natural Lands Map v1.1 is a 2020 baseline map of natural and non-natural land
     covers intended for use by companies setting science-based targets for nature, specifically
@@ -722,11 +746,15 @@ datasets:
     If a user asks for net gain/loss, refuse and explain that the methodologies for the two datasets differ
     and thus they cannot be combined directly to calculate net change.
     DO NOT show emissions and loss in the same chart, use separate charts.
+  # --- Tiered instructions (PoC) — when present, these take precedence over prompt_instructions at specific injection points ---
   selection_hints: >
     Best dataset for annual tree cover loss questions (2001-2024) at 30m resolution.
+    Covers all vegetation >5m height including plantations — NOT limited to natural forest.
     Annual resolution only; cannot answer intra-year or seasonal questions.
     For driver attribution (WHY loss happened), use "Tree cover loss by dominant driver" instead.
+    For net change, loss and gain datasets use different methodologies and cannot be combined.
     Includes GHG emissions (MgCO2e) associated with loss.
+    Methodology changed between 2010 and 2011; cross-period trend comparisons need caution.
   code_instructions: >
     CHART TYPES:
     - Yearly loss → bar chart (x=year, y=area_ha)
@@ -736,13 +764,14 @@ datasets:
     - Always include GHG emissions (MgCO2e) alongside loss area, but in a SEPARATE chart
     - Drop rows where area_ha = 0
     - Use 30% canopy density threshold
+    - If primary_forest or intact_forest variable is active, filter accordingly
     DO/DON'T:
-    - DO NOT use the term "deforestation" - always use "tree cover loss"
-    - If user asks for intra-year or seasonal breakdown, REFUSE - data is annual only
-    - If user asks for net gain/loss, REFUSE - methodologies differ between loss and gain datasets
+    - DO NOT use the term "deforestation" — always use "tree cover loss"
+    - If user asks for intra-year or seasonal breakdown, REFUSE — data is annual only
+    - If user asks for net gain/loss, REFUSE — methodologies differ between loss and gain datasets
     - Warn about 2001-2010 vs 2011-2024 methodology difference when showing trends across both periods
   presentation_instructions: >
-    Use "tree cover loss" not "deforestation" - tree cover includes plantations, not just
+    Use "tree cover loss" not "deforestation" — tree cover includes plantations, not just
     natural forest.
     This measures canopy loss only; it doesn't track regrowth or permanence.
     Always state the canopy density threshold used (30%).
@@ -869,13 +898,16 @@ datasets:
     If a user asks for net gain/loss, refuse and explain that the methodologies for the two datasets differ
     and thus they cannot be combined directly to calculate net change.
   selection_hints: >
-    Shows cumulative tree cover gain over 4 periods: 2000-2020, 2005-2020, 2010-2020, 2015-2020.
+    Shows cumulative tree cover gain (vegetation growing above 5m height) over 4 periods:
+    2000-2020, 2005-2020, 2010-2020, 2015-2020. Resolution 30m, global coverage.
     Gain ≠ restoration — may be plantation cycles, natural regrowth, or land abandonment.
     Cannot calculate net change by combining with tree cover loss (different methodologies).
     For tree cover loss questions, use Tree Cover Loss dataset instead.
   code_instructions: >
     CHART TYPES:
-    - Default: bar chart with one bar per cumulative period (2000-2020, 2005-2020, 2010-2020, 2015-2020)
+    - Default: bar chart with one bar per CUMULATIVE period (2000-2020, 2005-2020, 2010-2020, 2015-2020)
+    - X-axis labels MUST use the raw cumulative period labels, NOT decomposed intervals
+    - Do NOT split cumulative periods into 5-year buckets unless the user explicitly asks
     DATA RULES:
     - Cumulative gain over 4 periods: 2000-2020, 2005-2020, 2010-2020, 2015-2020
     - ONLY if user explicitly asks for a specific sub-period (e.g., "gain between 2005 and 2010"):
@@ -883,8 +915,9 @@ datasets:
     - All areas in hectares (ha)
     DO/DON'T:
     - Do NOT use the term "restoration" — use "tree cover gain"
-    - If user asks for net gain/loss or net change: REFUSE — methodologies differ between
-      loss and gain datasets and they cannot be combined for net change
+    - If user asks for net gain/loss or net change: EITHER refuse entirely OR show gain
+      data with a MANDATORY warning. Either way, the insight text MUST state that gain and
+      loss datasets use different methodologies and CANNOT be combined for net change.
     - These are estimates suitable as indicators, NOT for precise verification of
       restoration activities at local scales
   presentation_instructions: >
@@ -892,6 +925,9 @@ datasets:
     regrowth, and land abandonment, not just ecological restoration.
     Tree cover gain is defined as vegetation growing from under 5m to over 5m height.
     Cannot be subtracted from tree cover loss for net change — different methodologies.
+    ALWAYS include this warning when net change is discussed: "Tree cover gain and tree
+    cover loss use fundamentally different methodologies, time periods, and definitions.
+    They cannot be subtracted to calculate net change."
     Note these are estimates suitable as indicators, not for local-scale verification.
   description: >
     Tree Cover Gain (Hansen/UMD/GLAD) identifies areas where new tree canopy was established
@@ -979,12 +1015,16 @@ datasets:
   selection_hints: >
     Shows net greenhouse gas flux from forests — balance between emissions and removals.
     Total over model period 2001-2024, NOT annual values or timeseries.
+    Negative values = net carbon sink; positive values = net GHG source.
+    Uses 30% canopy density threshold (cannot be changed).
     For annual tree cover loss or emissions timeseries, use Tree Cover Loss dataset.
   code_instructions: >
     CHART TYPES:
     - Net flux → split/diverging bar chart (emissions positive y-axis, removals negative)
     DATA RULES:
     - Values are TOTALS over model period 2001-2024 — present them as totals, NOT annual values
+    - Do NOT divide by 24 in code — keep the raw period totals
+    - Do NOT pre-calculate or present annual averages
     - 30% canopy density threshold (fixed, cannot be changed)
     - Units: MgCO2e (tonnes of CO2 equivalent)
     DO/DON'T:
@@ -994,8 +1034,11 @@ datasets:
     - Use "net source" for net-positive flux (emissions > removals)
   presentation_instructions: >
     Clarify that values represent total flux over 2001-2024, not annual figures.
+    Mention that users can divide by 24 to estimate an annual average, but
+    DO NOT perform this division — always present the raw totals as primary values.
     Use "net sink" for negative values, "net source" for positive values.
     Note the 30% canopy density threshold is fixed.
+    This is a modeled product with inherent uncertainty — higher in removals than emissions.
   description: >
     Maps the balance between emissions from forest disturbances and carbon removals from forest growth
     between 2001 and 2024, using a globally consistent model. Negative values indicate forest areas
@@ -1102,22 +1145,28 @@ datasets:
     data for data on change in tree area. Cannot be used to asses pixel-level percent changes (gains and losses).
   selection_hints: >
     Single-year snapshot of tree cover canopy density for year 2000 only.
+    Vegetation >5m height including natural forests and plantations, at 30m resolution.
     Cannot show change or comparisons between years and dates — use Tree Cover Loss for loss, Tree Cover Gain for gain.
     Only use the term "forest" when combined with primary forest or IFL layers;
     otherwise use "tree cover."
   code_instructions: >
     CHART TYPES:
     - Tree cover area by canopy-density bin → bar chart or pie chart
+    - Values MUST be area in hectares (ha), NOT percentages or proportions
     DATA RULES:
     - Year 2000 data only — single snapshot
     - Exclude rows where area_ha = 0 (and note that exclusion has happened)
-    - All areas in hectares (ha)
+    - All areas in hectares (ha) — do NOT convert to percentages
     DO/DON'T:
     - Do NOT use the term "forest" unless primary_forest or intact_forest variable is active —
       use "tree cover" instead
     - This is a SINGLE YEAR (2000) snapshot — do NOT attempt timeseries
     - Cannot assess pixel-level percent changes (gains/losses)
-    - For change analysis, use Tree Cover Loss and Tree Cover Gain datasets
+    TEMPORAL CONSTRAINT:
+    - If user asks about change, trends, or temporal patterns: you MUST include ALL of:
+      (a) State that this dataset cannot show change — it is a single year 2000 snapshot
+      (b) Recommend Tree Cover Loss and Tree Cover Gain datasets by name
+      (c) This recommendation is REQUIRED, not optional
   presentation_instructions: >
     This is a year 2000 baseline snapshot — clarify the date to users.
     Use "tree cover" not "forest" unless primary forest or IFL layer is active.
@@ -1217,11 +1266,15 @@ datasets:
       to represent drivers of temporary disturbances.
     - Permanent agriculture and shifting cultivation can be combined to represent all
       agriculture-driven disturbances.
+  # --- Tiered instructions (PoC) — when present, these take precedence over prompt_instructions at specific injection points ---
   selection_hints: >
     Use when user asks WHY tree cover was lost — attributes loss to 7 driver classes.
     Shows dominant driver per 1km cell over entire period 2001-2024 (NOT annual).
     Cannot produce timeseries or data for specific dates or years. For for annual loss
     trends, use "Tree cover loss" dataset.
+    Resolution is ~1km (coarser than 30m TCL) — not suitable for local/parcel analysis.
+    Drivers: permanent agriculture, hard commodities, shifting cultivation, logging, wildfire,
+    settlements & infrastructure, other natural disturbances.
   code_instructions: >
     CHART TYPES:
     - Driver breakdown → pie chart or table ONLY
@@ -1229,14 +1282,27 @@ datasets:
     DATA RULES:
     - Exclude the "Unknown" driver class from analysis
     - Show area_ha or emissions (MgCO2e) per driver class for the full period 2001-2024
+    - 7 driver classes:
+      1. Permanent agriculture — long-term, permanent tree cover loss for agriculture
+      2. Hard commodities — loss due to mining or energy infrastructure
+      3. Shifting cultivation — small/medium-scale temporary cultivation, later abandoned
+      4. Logging — forest management within managed/natural/semi-natural forests and plantations
+      5. Wildfire — fire with no visible human conversion afterward
+      6. Settlements and infrastructure — roads, urban areas, built infrastructure
+      7. Other natural disturbances — non-fire natural disturbances (landslides, insects, rivers)
     DO/DON'T:
     - DO NOT use "deforestation" — use "tree cover loss"
     - If user asks for annual timeseries, REFUSE and suggest base "Tree cover loss" dataset
+    - Common groupings to apply where relevant:
+      Deforestation proxy: permanent agriculture + hard commodities + settlements & infrastructure
+      Temporary disturbance: shifting cultivation + logging + wildfire + other natural disturbances
+      All agriculture: permanent agriculture + shifting cultivation
   presentation_instructions: >
     Use "tree cover loss" not "deforestation."
     Driver = dominant driver in each ~1km cell over full period 2001-2024, not per-event
     attribution.
     Does not distinguish natural forest from plantations.
+    Classification is an approximation — does not monitor regrowth or permanence.
   description: >
     Shows the dominant driver of tree cover loss over the time period 2001-2024.
     A driver is defined as the direct cause of tree cover loss, and can include both temporary
@@ -1361,7 +1427,9 @@ datasets:
   selection_hints: >
     Provides sLUC (statistical land use change) emission factors for 42 agricultural crops.
     Quantifies GHG emissions (tCO2e) per tonne of crop product from deforestation-linked
-    agricultural expansion. Tabular data only — no spatial/map output possible.
+    agricultural expansion. Available at ADM0, ADM1, ADM2 levels, 2020-2024.
+    Use when user asks about crop-specific deforestation emissions or emission factors.
+    Tabular data only — no spatial/map output possible.
     Not all crops available in all regions.
   code_instructions: >
     CHART TYPES:
@@ -1373,13 +1441,20 @@ datasets:
     - Summary of EF + emissions + production → table
     DATA RULES:
     - Default year = 2024 unless user specifies otherwise
+    - Column names: emissions_tCO2e (total emissions), emissions_factor_tCO2e_per_tonne_production
+      (emission factor), production_tonnes (production volume)
     - MUST include units in all output: tCO2e for emissions, tonnes for production
     DO/DON'T:
     - DO NOT combine EF + total emissions + production volume on the same bar chart
     - If user asks for a map or spatial visualization: REFUSE — this dataset is tabular
-      only, no spatial output is possible
+      only, no spatial output is possible. Suggest Tree Cover Loss or DIST alerts for
+      spatial analysis of deforestation impacts.
+    - When showing emission factors, also show total emissions and production volume
+      used to calculate them
+    - Always clarify the reporting year (2020-2024)
   presentation_instructions: >
     Always include units: tCO2e for emissions, tonnes for production volume.
+    Note: tCO2e = MgCO2e (metric tonnes of CO2 equivalent).
     Clarify the reporting year (default 2024).
     Note that emission factors quantify emissions from deforestation linked to
     agricultural expansion, not all land use emissions.
