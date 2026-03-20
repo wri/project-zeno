@@ -23,8 +23,8 @@ from src.shared.geocoding_helpers import (
     SUBREGION_TO_SUBTYPE_MAPPING,
     WDPA_TABLE,
 )
-from src.shared.selection_name import build_selection_name
 from src.shared.logging_config import get_logger
+from src.shared.selection_name import build_selection_name
 
 RESULT_LIMIT = 10
 SUBREGION_LIMIT = 50
