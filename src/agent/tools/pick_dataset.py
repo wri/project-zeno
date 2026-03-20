@@ -165,7 +165,8 @@ async def select_best_dataset(
             (
                 "user",
                 """Based on the query, return the ID of the dataset that can best answer the
-                user query and provide reason why it is the best match.
+    user query and provide reason why it is the best match. Always return at least one dataset.
+    Use all information provided to decide which dataset is the best match, especially the selection hints.
 
     Select a single context layer from the dataset if relevant for the user query. Context layers
     allow difrenciating between different types of data within the same dataset. So if a user asks
@@ -210,7 +211,6 @@ async def select_best_dataset(
                     "description",
                     "selection_hints",
                     "content_date",
-                    "cautions",
                     "context_layers",
                 ]
             ].to_csv(index=False),

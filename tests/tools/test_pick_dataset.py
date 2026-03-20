@@ -59,17 +59,19 @@ TREE_COVER_GAIN = "tree cover gain"
 CARBON_FLUX = "forest greenhouse gas net flux"
 TREE_COVER = "tree cover"
 TREE_COVER_LOSS_BY_DRIVER = "tree cover loss by driver"
+SLUC_EF = "deforestation (sLUC) emission factors by agricultural crop"
 
 lookup = {
-    DIST_ALERT: 0,
-    LAND_COVER_CHANGE: 1,
-    GRASSLANDS: 2,
-    NATURAL_LANDS: 3,
-    TREE_COVER_LOSS: 4,
-    TREE_COVER_GAIN: 5,
-    CARBON_FLUX: 6,
-    TREE_COVER: 7,
-    TREE_COVER_LOSS_BY_DRIVER: 8,
+    0: DIST_ALERT,
+    1: LAND_COVER_CHANGE,
+    2: GRASSLANDS,
+    3: NATURAL_LANDS,
+    4: TREE_COVER_LOSS,
+    5: TREE_COVER_GAIN,
+    6: CARBON_FLUX,
+    7: TREE_COVER,
+    8: TREE_COVER_LOSS_BY_DRIVER,
+    9: SLUC_EF,
 }
 
 
@@ -128,7 +130,7 @@ lookup = {
             GRASSLANDS,  # 12
         ),
         (
-            "I need data on pastoral landscapes and their management intensity",
+            "I need data on natural and semi-natural pastoral landscapes",
             GRASSLANDS,  # 13
         ),
         (
@@ -162,7 +164,7 @@ lookup = {
             TREE_COVER_LOSS,
         ),  # 20
         (
-            "I need to track plantation harvesting cycles in northern Europe",
+            "I need to track forest plantations harvesting cycles in northern Europe",
             TREE_COVER_LOSS,  # 21
         ),
         (
@@ -225,16 +227,154 @@ lookup = {
             "What regions experienced the most fire-related forest damage?",
             TREE_COVER_LOSS_BY_DRIVER,  # 35
         ),
+        # ------------------------------------------------------------------
+        # Tiered selection_hints (mirrors test_pick_dataset_tiered.py)
+        # Each entry is (query, expected_dataset, start_date, end_date) when
+        # dates matter for the scenario; otherwise (query, expected_dataset).
+        # ------------------------------------------------------------------
+        (
+            "What vegetation disturbances happened this month in Borneo?",
+            DIST_ALERT,
+            "2024-01-01",
+            "2024-12-31",
+        ),  # 36
+        (
+            "How much tree cover was lost in Brazil between 2010 and 2020?",
+            TREE_COVER_LOSS,
+            "2010-01-01",
+            "2020-12-31",
+        ),  # 37
+        (
+            "Why is tree cover being lost in Southeast Asia?",
+            TREE_COVER_LOSS_BY_DRIVER,
+            "2024-01-01",
+            "2024-12-31",
+        ),  # 38
+        (
+            "Show annual tree cover loss in Brazil from 2001 to 2024",
+            TREE_COVER_LOSS,
+            "2001-01-01",
+            "2024-12-31",
+        ),  # 39
+        (
+            "How much tree cover does the DRC have?",
+            TREE_COVER,
+            "2000-01-01",
+            "2000-12-31",
+        ),  # 40
+        (
+            "Where has foreLAND_COVER_CHANGEst regrowth occurred in Indonesia since 2000?",
+            TREE_COVER_GAIN,
+            "2000-01-01",
+            "2020-12-31",
+        ),  # 41
+        (
+            "What percentage of Colombia is natural land according to the 2020 SBTN baseline?",
+            NATURAL_LANDS,
+            "2020-01-01",
+            "2020-12-31",
+        ),  # 42
+        (
+            "How did land cover change in Brazil between 2015 and 2024?",
+            LAND_COVER_CHANGE,
+            "2015-01-01",
+            "2024-12-31",
+        ),  # 43
+        (
+            "How much natural grassland does Kenya have?",
+            GRASSLANDS,
+            "2000-01-01",
+            "2022-12-31",
+        ),  # 44
+        (
+            "How much cultivated grassland is there in Brazil?",
+            LAND_COVER_CHANGE,
+            "2015-01-01",
+            "2024-12-31",
+        ),  # 45
+        (
+            "Is Brazil's forest a net carbon source or sink?",
+            CARBON_FLUX,
+            "2001-01-01",
+            "2024-12-31",
+        ),  # 46
+        (
+            "How much tree cover was lost each year in Brazil and what were the emissions?",
+            TREE_COVER_LOSS,
+            "2001-01-01",
+            "2024-12-31",
+        ),  # 47
+        (
+            "What is the deforestation emission factor for soybean in Brazil?",
+            SLUC_EF,
+            "2024-01-01",
+            "2024-12-31",
+        ),  # 48
+        (
+            "Show recent vegetation disturbances across all ecosystems in Brazil",
+            DIST_ALERT,
+            "2024-01-01",
+            "2024-12-31",
+        ),  # 49
+        (
+            "What proportion of tree cover loss in Brazil is due to wildfire vs agriculture?",
+            TREE_COVER_LOSS_BY_DRIVER,
+            "2001-01-01",
+            "2024-12-31",
+        ),  # 50
+        (
+            "Show annual forest emissions for Brazil from 2001 to 2024",
+            TREE_COVER_LOSS,
+            "2001-01-01",
+            "2024-12-31",
+        ),  # 51
+        # Tiered cases that previously asserted “not dataset X”; same rows with
+        # explicit expected ID (redundant with the negative check in tiered tests).
+        (
+            "How much tree cover did the DRC lose between 2000 and 2020?",
+            TREE_COVER_LOSS,
+            "2000-01-01",
+            "2020-12-31",
+        ),  # 52
+        (
+            "Compare tree cover in 2000 vs 2020 for Brazil",
+            TREE_COVER_GAIN,
+            "2000-01-01",
+            "2020-12-31",
+        ),  # 53
+        (
+            "How has natural land in Colombia changed from 2015 to 2024?",
+            LAND_COVER_CHANGE,
+            "2015-01-01",
+            "2024-12-31",
+        ),  # 54
+        (
+            "Show the trend in natural land loss over time in Brazil",
+            TREE_COVER_LOSS,
+            "2015-01-01",
+            "2024-12-31",
+        ),  # 55 - does not use natural lands dataset because it is not for change
+        (
+            "Plot year-by-year carbon emissions from deforestation in Indonesia",
+            TREE_COVER_LOSS,
+            "2001-01-01",
+            "2024-12-31",
+        ),  # 56
     ]
 )
 def test_query_with_expected_dataset(request):
-    return request.param
+    p = request.param
+    if len(p) == 2:
+        return (p[0], p[1], "2024-01-01", "2024-12-31")
+    return p
 
 
 async def test_queries_return_expected_dataset(
     test_query_with_expected_dataset,
 ):
-    query, expected_dataset = test_query_with_expected_dataset
+    query, expected_dataset, start_date, end_date = (
+        test_query_with_expected_dataset
+    )
     tool_call_id = str(uuid.uuid4())
 
     tool_call = {
@@ -243,8 +383,8 @@ async def test_queries_return_expected_dataset(
         "id": tool_call_id,
         "args": {
             "query": query,
-            "start_date": "2024-01-01",
-            "end_date": "2024-12-31",
+            "start_date": start_date,
+            "end_date": end_date,
             "tool_call_id": tool_call_id,
         },
     }
@@ -252,7 +392,7 @@ async def test_queries_return_expected_dataset(
     command = await pick_dataset.ainvoke(tool_call)
 
     dataset_id = command.update.get("dataset", {}).get("dataset_id")
-    assert dataset_id == lookup[expected_dataset]
+    assert lookup[dataset_id] == expected_dataset
 
 
 @pytest.mark.parametrize(

@@ -28,6 +28,7 @@ for ds in DATASETS:
     content = {
         "DATA_LAYER": ds["dataset_name"],
         "DESCRIPTION": ds["description"],
+        "SELECTION_HINTS": ds["selection_hints"],
         "CONTEXTUAL_LAYERS": ds["context_layers"],
         "DATE": ds["content_date"],
         "USAGE NOTES": ds["function_usage_notes"],
@@ -49,5 +50,9 @@ for ds in DATASETS:
     )
 
 index.add_documents(documents=analytics_docs)
+
+print(
+    f"Dumping dataset embeddings to database {SharedSettings.dataset_embeddings_db}..."
+)
 
 index.dump(data_dir / SharedSettings.dataset_embeddings_db)
