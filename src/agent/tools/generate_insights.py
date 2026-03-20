@@ -229,7 +229,11 @@ Now prepare the data for visualization in Recharts.js:
          - **Pie**: [{{"name": "Category A", "value": 100}}]
            → Limited to 6-8 slices, use x_axis="name", y_axis="value"
 
-   c) **SAVE THE DATA**: Save the DataFrame as `chart_data.csv` with column names for the frontend
+   c) **SAVE THE DATA**: Save the DataFrame as `chart_data.csv` with column names for the frontend. This
+   is ABSOLUTELY CRITICAL. Always save the data to a file with the name `chart_data.csv`.
+   Do not replace chart_data.csv with a markdown table; the pipeline only reads the CSV artifact.
+   The final code execution step must call ...to_csv('chart_data.csv', index=False) with that exact path.
+   This is also true for table chart type, always store the output to a file!
 
    d) **PRINT CHART TYPE**: Clearly state your recommended chart type in the output
 
@@ -327,7 +331,9 @@ async def generate_insights(
     # For tiered datasets, code_instructions replaces the code-relevant parts of
     # prompt_instructions — skip the legacy blob to avoid redundancy.
     code_instructions = dataset.get("code_instructions")
-    dataset_guidelines = "" if code_instructions else dataset.get("prompt_instructions", "")
+    dataset_guidelines = (
+        "" if code_instructions else dataset.get("prompt_instructions", "")
+    )
 
     # 3. INITIALIZE EXECUTOR: Create Gemini code executor
     executor = GeminiCodeExecutor()

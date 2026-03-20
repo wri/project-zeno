@@ -162,6 +162,7 @@ def _format_response(tool_output: dict) -> dict:
 @pytest.fixture
 def run_insights():
     """Returns a wrapper around run_generate_insights that stores the response."""
+
     async def _run(query: str, state: dict) -> dict:
         t0 = time.perf_counter()
         result = await run_generate_insights(query, state)
@@ -178,12 +179,14 @@ def run_insights():
                 f"Tool message: {(result.get('tool_message') or result.get('insight') or '')[:300]}"
             )
         return result
+
     return _run
 
 
 @pytest.fixture
 def judge():
     """Returns a wrapper around judge_output that adds verdict to the trace."""
+
     async def _judge(query: str, rubric: str, tool_output: dict) -> Verdict:
         t0 = time.perf_counter()
         verdict = await judge_output(query, rubric, tool_output)
@@ -195,9 +198,12 @@ def judge():
         _current_test_verdict["rubric"] = rubric.strip()
         _current_test_verdict["requirements"] = verdict.requirements
         _current_test_verdict["judge_prompt"] = verdict.judge_prompt
-        _current_test_verdict["judge_raw_response"] = verdict.judge_raw_response
+        _current_test_verdict["judge_raw_response"] = (
+            verdict.judge_raw_response
+        )
         _current_test_verdict["judge_latency_ms"] = judge_latency_ms
         return verdict
+
     return _judge
 
 
@@ -217,7 +223,11 @@ def pytest_runtest_makereport(item, call):
             "test_id": item.nodeid,
             # --- the 4 fields the user asked for ---
             "query": trace.get("query")
-                     or (item.callspec.params.get("query") if hasattr(item, "callspec") else None),
+            or (
+                item.callspec.params.get("query")
+                if hasattr(item, "callspec")
+                else None
+            ),
             "response": trace.get("response", {}),
             "passed": call.excinfo is None,
             "comment": trace.get("comment", ""),
@@ -244,6 +254,7 @@ def pytest_sessionfinish(session, exitstatus):
 
     # Determine branch name
     import subprocess
+
     try:
         branch = subprocess.check_output(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],

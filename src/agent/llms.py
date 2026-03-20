@@ -21,7 +21,7 @@ HAIKU = ChatAnthropic(
 
 # Google
 GEMINI = ChatGoogleGenerativeAI(
-    model="gemini-3-pro-preview",
+    model="gemini-3.1-pro-preview",
     temperature=1.0,
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
@@ -34,7 +34,7 @@ GEMINI_FLASH = ChatGoogleGenerativeAI(
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
     max_retries=2,
-    thinking_budget=0,
+    thinking_budget=-1,
     timeout=300,
 )
 GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(

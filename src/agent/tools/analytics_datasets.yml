@@ -1146,7 +1146,7 @@ datasets:
   selection_hints: >
     Single-year snapshot of tree cover canopy density for year 2000 only.
     Vegetation >5m height including natural forests and plantations, at 30m resolution.
-    Cannot show change over time — use Tree Cover Loss for loss, Tree Cover Gain for gain.
+    Cannot show change or comparisons between years and dates — use Tree Cover Loss for loss, Tree Cover Gain for gain.
     Only use the term "forest" when combined with primary forest or IFL layers;
     otherwise use "tree cover."
   code_instructions: >
@@ -1270,7 +1270,8 @@ datasets:
   selection_hints: >
     Use when user asks WHY tree cover was lost — attributes loss to 7 driver classes.
     Shows dominant driver per 1km cell over entire period 2001-2024 (NOT annual).
-    Cannot produce timeseries — for annual loss trends, use "Tree cover loss" dataset.
+    Cannot produce timeseries or data for specific dates or years. For for annual loss
+    trends, use "Tree cover loss" dataset.
     Resolution is ~1km (coarser than 30m TCL) — not suitable for local/parcel analysis.
     Drivers: permanent agriculture, hard commodities, shifting cultivation, logging, wildfire,
     settlements & infrastructure, other natural disturbances.
