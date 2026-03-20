@@ -2,8 +2,7 @@
 
 import pytest
 
-from src.shared.selection_name import build_selection_name
-
+from src.agent.tools.selection_name_util import build_selection_name
 
 # ---------------------------------------------------------------------------
 # No subregion — direct area selections
@@ -22,7 +21,11 @@ from src.shared.selection_name import build_selection_name
         (["Congo", "Brazil", "Indonesia"], 3, "Congo & Brazil & Indonesia"),
         # Areas whose names already contain commas — no extra commas added
         (["Para, Brazil"], 1, "Para, Brazil"),
-        (["Para, Brazil", "Amazonas, Brazil"], 2, "Para, Brazil & Amazonas, Brazil"),
+        (
+            ["Para, Brazil", "Amazonas, Brazil"],
+            2,
+            "Para, Brazil & Amazonas, Brazil",
+        ),
     ],
 )
 def test_no_subregion(match_names, num_aois, expected):
@@ -42,7 +45,12 @@ def test_no_subregion(match_names, num_aois, expected):
         (["Bolivia"], "state", 9, "9 States in Bolivia"),
         (["Brazil"], "district", 5570, "5570 Districts in Brazil"),
         # Two parents (cross-country comparison)
-        (["Ecuador", "Bolivia"], "state", 33, "33 States in Ecuador & Bolivia"),
+        (
+            ["Ecuador", "Bolivia"],
+            "state",
+            33,
+            "33 States in Ecuador & Bolivia",
+        ),
         (["Brazil", "Peru"], "state", 3, "3 States in Brazil & Peru"),
         # Irregular plurals
         (["Africa"], "country", 54, "54 Countries in Africa"),
@@ -59,7 +67,12 @@ def test_no_subregion(match_names, num_aois, expected):
         (["Brazil"], "MUNICIPALITY", 100, "100 Municipalities in Brazil"),
         (["Brazil"], "COUNTRY", 1, "1 Countries in Brazil"),
         # Three parents
-        (["Brazil", "Peru", "Colombia"], "state", 60, "60 States in Brazil & Peru & Colombia"),
+        (
+            ["Brazil", "Peru", "Colombia"],
+            "state",
+            60,
+            "60 States in Brazil & Peru & Colombia",
+        ),
     ],
 )
 def test_with_subregion(match_names, subregion, num_aois, expected):

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from src.agent.llms import SMALL_MODEL
+from src.agent.tools.selection_name_util import build_selection_name
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
     CUSTOM_AREA_TABLE,
@@ -24,7 +25,6 @@ from src.shared.geocoding_helpers import (
     WDPA_TABLE,
 )
 from src.shared.logging_config import get_logger
-from src.shared.selection_name import build_selection_name
 
 RESULT_LIMIT = 10
 SUBREGION_LIMIT = 50
@@ -541,7 +541,9 @@ async def pick_aoi(
 
     logger.debug(f"Pick AOI tool message: {tool_message}")
 
-    selection_name = build_selection_name(match_names, subregion, len(final_aois))
+    selection_name = build_selection_name(
+        match_names, subregion, len(final_aois)
+    )
 
     return Command(
         update={
