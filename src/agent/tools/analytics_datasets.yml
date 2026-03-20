@@ -318,14 +318,14 @@ datasets:
     in vegetation cover and are not necessarily large changes in vegetation cover or
     degradation.
 
-    If a user asks about tree cover loss due to another land cover, zeno should answer with
+    If a user asks about tree cover loss due to another land cover type, answer with
     both an area of TCL due to a certain driver (TCL grouped by a specific driver) and
     percent of loss that was due to that driver, NOT with the land cover change areas from
     this product.
 
     Land cover transitions to vegetation are not necessarily restoration. Users should
     exercise caution if using this data at the local scale. We encourage ground-truthing
-    data if using this for decision-making. Data not suitable for within year dynamics like
+    data if using this for decision-making. Data is not suitable for within year dynamics like
     crop cycles and flood pulses.
   function_usage_notes: >
     This Global Land Cover dataset is intended to be used for monitoring land cover in
@@ -341,8 +341,8 @@ datasets:
     used to find where land cover has changed since 2020 and then overlaid with the Natural
     Lands map to identify land cover changes on land that was natural in 2020.
 
-    If a user asks for world area under agricultural use, Zeno should combine cropland +
-    cultivated grassland or it should ask user to clarify which one they are interested in
+    If a user asks for world area under agricultural use, combine cropland +
+    cultivated grassland or it should ask the user to clarify which one they are interested in
     or if they want both combined.
   providers: >
     UMD GLAD Lab, Global Pasture Watch consortium, Land & Carbon Lab
