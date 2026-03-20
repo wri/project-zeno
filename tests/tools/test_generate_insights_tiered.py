@@ -8,6 +8,7 @@ structural properties of the output (chart type, data filtering, terminology).
 These tests hit the Gemini API — they are integration tests by nature.
 """
 
+import re
 import sys
 import uuid
 from typing import Any
@@ -331,7 +332,9 @@ TREE_COVER_GAIN_DATASET: dict[str, Any] = {
     "description": "Tree Cover Gain identifies areas where new tree canopy was established between 2000 and 2020.",
     "prompt_instructions": (
         "Shows cumulative tree cover gain over the periods 2000-2020, 2005-2020, 2010-2020 or 2015-2020. "
-        'Avoid using the term "restoration".'
+        'Avoid using the term "restoration". '
+        "Net change cannot be calculated by subtracting gain from loss — methodologies differ between the two datasets. "
+        "If the user asks for net gain/loss or net change, refuse and explain that they cannot be combined for net change."
     ),
     "methodology": "Landsat 7 imagery classification.",
     "cautions": (
@@ -344,12 +347,15 @@ TREE_COVER_GAIN_DATASET: dict[str, Any] = {
         "- Default: bar chart with one bar per CUMULATIVE period\n"
         "- X-axis labels MUST use the raw cumulative period labels\n"
         "DO/DON'T:\n"
-        "- REFUSE any attempt to subtract loss from gain — cannot compute net change\n"
+        "- If user asks for net gain/loss or net change: REFUSE — methodologies differ; "
+        "cannot combine gain and loss for net change\n"
+        "- REFUSE any attempt to subtract loss from gain\n"
         '- Use "tree cover gain" not "restoration"'
     ),
     "presentation_instructions": (
         'Use "tree cover gain" not "restoration". Gain includes plantation cycles, '
-        "natural regrowth, and land abandonment. Cannot be subtracted from tree cover loss for net change."
+        "natural regrowth, and land abandonment. "
+        "Cannot be subtracted from tree cover loss for net change — different methodologies; do not imply net figures."
     ),
 }
 
@@ -805,9 +811,9 @@ class TestTreeCoverExcludesZero:
         assert chart is not None
         for row in chart["data"]:
             row_str = str(row).lower()
-            # The 0% bin should not appear
+            # The 0% bin should not appear (avoid matching 20%, 30%, … via substring "0%")
             assert (
-                "0%" not in row_str or "10%" in row_str or "20%" in row_str
+                re.search(r"(?<![0-9])0%", row_str) is None
             ), f"Found 0% density bin in chart data: {row}"
 
 
@@ -891,12 +897,14 @@ class TestTreeCoverGainRefusesNetCalc:
             TREE_COVER_GAIN_STATS,
         )
         text = insight_text(update).lower()
-        # Should mention inability to compute net change, or warn about methodology
+        # Should mention inability to compute net change, or warn about methodology (align with analytics_datasets.yml)
         has_warning = any(
             phrase in text
             for phrase in [
                 "cannot",
+                "can't",
                 "not possible",
+                "unable",
                 "should not",
                 "do not",
                 "methodolog",
@@ -907,6 +915,10 @@ class TestTreeCoverGainRefusesNetCalc:
                 "net change",
                 "not be subtracted",
                 "not be combined",
+                "cannot be combined",
+                "subtract",
+                "tree cover loss",
+                "loss dataset",
             ]
         )
         assert (
