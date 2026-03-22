@@ -9,10 +9,9 @@ from src.agent.tools.data_handlers.base import (
     DataSourceHandler,
 )
 from src.agent.tools.datasets_config import DATASETS
-from src.shared.geocoding_helpers import (
-    format_id,
-    get_geometry_data,
-)
+from src.shared.aoi.models import AOI
+from src.shared.aoi.registry import get_source
+from src.shared.geocoding_helpers import get_geometry_data
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -159,32 +158,13 @@ class AnalyticsHandler(DataSourceHandler):
             SLUC_EMISSION_FACTORS_ID,
         ]
 
-    def _get_aoi_type(self, aoi: Dict) -> str:
-        """Get the type of the AOI"""
-
-        if aoi["subtype"] in ADMIN_SUBTYPES:
-            aoi_type = "admin"
-        elif aoi["subtype"] == "key-biodiversity-area":
-            aoi_type = "key_biodiversity_area"
-        elif aoi["subtype"] == "indigenous-and-community-land":
-            aoi_type = "indigenous_land"
-        elif aoi["subtype"] == "protected-area":
-            aoi_type = "protected_area"
-        elif aoi["subtype"] == "custom-area":
-            # See DistAlertsAnalyticsIn schema
-            # in https://analytics.globalnaturewatch.org/docs
-            aoi_type = "feature_collection"
-        else:
-            raise ValueError(f"Unknown AOI subtype: {aoi['subtype']}")
-
-        if aoi_type == "admin":
-            return {
-                "type": "admin",
-                "provider": "gadm",
-                "version": "4.1",
-            }
-        else:
-            return {"type": aoi_type}
+    def _get_aoi_type(self, aoi: Dict) -> dict:
+        """Get the analytics API AOI type payload via registry."""
+        try:
+            config = get_source(aoi["source"])
+            return config.analytics_mapping.to_payload()
+        except (ValueError, KeyError):
+            raise ValueError(f"Unknown AOI source: {aoi.get('source')}")
 
     async def _build_payload(
         self,
@@ -196,10 +176,6 @@ class AnalyticsHandler(DataSourceHandler):
         """Build the API payload based on dataset type"""
         # Base payload structure common to all endpoints
         aoi_type = self._get_aoi_type(aois[0])
-        # Fix for GADM IDs which come with a _1 suffix
-        for aoi in aois:
-            if aoi["src_id"][-2:] in ["_1", "_2", "_3", "_4", "_5"]:
-                aoi["src_id"] = aoi["src_id"][:-2]
 
         # Handle custom areas differently - they need a feature collection
         if aoi_type["type"] == "feature_collection":
@@ -233,7 +209,8 @@ class AnalyticsHandler(DataSourceHandler):
                 }
             }
         else:
-            aoi_ids = [format_id(aoi["src_id"]) for aoi in aois]
+            # Use AOI model's normalized_id to strip GADM _N suffixes
+            aoi_ids = [AOI(**aoi).normalized_id for aoi in aois]
             base_payload = {
                 "aoi": {
                     "type": aoi_type["type"],
@@ -417,7 +394,7 @@ class AnalyticsHandler(DataSourceHandler):
 
         # Enrich raw_data with names
         aois_id_to_name = {
-            format_id(item["src_id"]): item["name"].split(",")[0]
+            AOI(**item).normalized_id: item["name"].split(",")[0]
             for item in aois
         }
         raw_data["name"] = [aois_id_to_name[idx] for idx in raw_data["aoi_id"]]

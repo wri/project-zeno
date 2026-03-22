@@ -6,14 +6,18 @@ import structlog
 from sqlalchemy import select, text
 
 from src.api.data_models import CustomAreaOrm
+from src.shared.aoi.registry import all_sources, get_source
 from src.shared.database import get_session_from_pool
 
-GADM_TABLE = "geometries_gadm"
-KBA_TABLE = "geometries_kba"
-LANDMARK_TABLE = "geometries_landmark"
-WDPA_TABLE = "geometries_wdpa"
-CUSTOM_AREA_TABLE = "custom_areas"
-
+# ---------------------------------------------------------------------------
+# Backward-compatible constants — derived from the registry.
+# Existing imports throughout the codebase continue to work.
+# ---------------------------------------------------------------------------
+GADM_TABLE = get_source("gadm").table
+KBA_TABLE = get_source("kba").table
+LANDMARK_TABLE = get_source("landmark").table
+WDPA_TABLE = get_source("wdpa").table
+CUSTOM_AREA_TABLE = get_source("custom").table
 
 SUBREGION_TO_SUBTYPE_MAPPING = {
     "country": "country",
@@ -28,13 +32,10 @@ SUBREGION_TO_SUBTYPE_MAPPING = {
     "custom": "custom-area",
 }
 
-
+# Derived from registry — kept for backward compat
 SOURCE_ID_MAPPING = {
-    "kba": {"table": KBA_TABLE, "id_column": "sitrecid"},
-    "landmark": {"table": LANDMARK_TABLE, "id_column": "landmark_id"},
-    "wdpa": {"table": WDPA_TABLE, "id_column": "wdpa_pid"},
-    "gadm": {"table": GADM_TABLE, "id_column": "gadm_id"},
-    "custom": {"table": CUSTOM_AREA_TABLE, "id_column": "id"},
+    cfg.source_type.value: {"table": cfg.table, "id_column": cfg.id_column}
+    for cfg in all_sources()
 }
 
 
@@ -132,30 +133,24 @@ async def get_geometry_data(
                 "geometry": geometry,
             }
 
-        # Handle standard geometry sources
-        if source not in SOURCE_ID_MAPPING:
-            valid_sources = list(SOURCE_ID_MAPPING.keys())
+        # Handle standard geometry sources via registry
+        try:
+            config = get_source(source)
+        except (ValueError, KeyError):
+            valid_sources = [c.source_type.value for c in all_sources()]
             raise ValueError(
                 f"Invalid source: {source}. Must be one of: {', '.join(valid_sources)}"
             )
 
-        table_name = SOURCE_ID_MAPPING[source]["table"]
-        id_column = SOURCE_ID_MAPPING[source]["id_column"]
-
         sql_query = f"""
             SELECT name, subtype, ST_AsGeoJSON(geometry) as geometry_json
-            FROM {table_name}
-            WHERE "{id_column}" = :src_id
+            FROM {config.table}
+            WHERE "{config.id_column}" = :src_id
         """
 
-        if source == "kba":
-            # these sources IDs stored as numeric values
-            try:
-                src_id = int(src_id)
-            except ValueError:
-                pass
+        coerced_id = config.coerce_id(src_id)
 
-        q = await session.execute(text(sql_query), {"src_id": src_id})
+        q = await session.execute(text(sql_query), {"src_id": coerced_id})
         result = q.first()
 
         if not result:
