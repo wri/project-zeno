@@ -670,6 +670,402 @@ async def test_output_tool_message_lists_names(structlog_context):
 
 
 # ===================================================================
+# INTEGRATION TESTS: Observed failure modes from production
+# These test real user queries that failed in production.
+# Each test documents the failure mode, the user prompt, and the
+# expected correct behavior.
+# ===================================================================
+
+
+# --- no_aoi_resolved: DB has the place but search fails ---
+
+
+async def test_failure_tanzania_country_resolves(structlog_context):
+    """'Tanzania' should resolve as a country.
+    Failure mode: no_aoi_resolved — empty result for a simple country name.
+    Prod: 'Please show me the Protected Areas for Tanzania'
+    """
+    command = await pick_aoi.ainvoke(
+        _invoke("Please show me the Protected Areas for Tanzania", ["Tanzania"])
+    )
+    aois = _aois(command)
+    assert aois is not None, "Should not return None for Tanzania"
+    assert len(aois) >= 1
+    assert aois[0]["src_id"] == "TZA"
+
+
+async def test_failure_angeles_national_forest_resolves(structlog_context):
+    """'Angeles National Forest' should resolve from WDPA.
+    Failure mode: no_aoi_resolved — WDPA protected area not found.
+    Prod: 'What is the Land Cover in Angeles National Forest?'
+    """
+    command = await pick_aoi.ainvoke(
+        _invoke(
+            "What is the Land Cover in Angeles National Forest?",
+            ["Angeles National Forest"],
+        )
+    )
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) == 1
+    assert aois[0]["source"] == "wdpa"
+    assert "Angeles" in aois[0]["name"]
+
+
+async def test_failure_bexar_county_resolves(structlog_context):
+    """'Bexar County Texas' should resolve as a district.
+    Failure mode: no_aoi_resolved — county-level search fails.
+    Prod: 'Land use statistics for Bexar County Texas in 2020'
+    """
+    command = await pick_aoi.ainvoke(
+        _invoke(
+            "Land use statistics for Bexar County Texas in 2020",
+            ["Bexar County, Texas"],
+        )
+    )
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) >= 1
+    assert "Bexar" in aois[0]["name"]
+    assert aois[0]["subtype"] == "district-county"
+
+
+# --- wrong_place: normalizer should fix name mismatches ---
+
+
+async def test_failure_north_kalimantan_normalizer_fixes(structlog_context):
+    """'North Kalimantan' should resolve to 'Kalimantan Utara' via normalizer.
+    Failure mode: wrong_place — English directional name doesn't match Indonesian.
+    Prod: 'deforestation in North Kalimantan'
+    The normalizer should translate 'North Kalimantan' → 'Kalimantan Utara'.
+    """
+    # Mock normalizer to return the Indonesian name as it would in prod
+    async def _normalize_kalimantan(raw_place):
+        if "North Kalimantan" in raw_place:
+            return NormalizedPlaceName(
+                primary="Kalimantan Utara, Indonesia",
+                alternatives=["North Kalimantan, Indonesia"],
+                iso_country_code="IDN",
+            )
+        return NormalizedPlaceName(primary=raw_place)
+
+    with patch(
+        "src.agent.tools.pick_aoi.normalize_place_name",
+        new_callable=AsyncMock,
+        side_effect=_normalize_kalimantan,
+    ):
+        command = await pick_aoi.ainvoke(
+            _invoke("deforestation in North Kalimantan", ["North Kalimantan"])
+        )
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) == 1
+    assert aois[0]["src_id"] == "IDN.20_1"
+    assert "Kalimantan Utara" in aois[0]["name"]
+
+
+async def test_failure_hungarian_adjective_normalizer_fixes(structlog_context):
+    """'Hungarian forest' should resolve to 'Hungary' via normalizer.
+    Failure mode: wrong_place — adjective form not in DB.
+    Prod: 'carbon sink in Hungarian forest'
+    The normalizer should convert 'Hungarian' → 'Hungary'.
+    """
+    async def _normalize_hungarian(raw_place):
+        if "Hungarian" in raw_place:
+            return NormalizedPlaceName(
+                primary="Hungary",
+                alternatives=["Hungarian"],
+            )
+        return NormalizedPlaceName(primary=raw_place)
+
+    with patch(
+        "src.agent.tools.pick_aoi.normalize_place_name",
+        new_callable=AsyncMock,
+        side_effect=_normalize_hungarian,
+    ):
+        command = await pick_aoi.ainvoke(
+            _invoke("carbon sink in Hungarian forest", ["Hungarian"])
+        )
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) == 1
+    assert aois[0]["src_id"] == "HUN"
+
+
+# --- biome_resolved_to_admin: concept expansion maps biomes to admin units ---
+
+
+async def test_failure_amazonas_state_direct_match(structlog_context):
+    """'Amazonas State, Brazil' should match directly — not trigger concept expansion.
+    Failure mode: biome_resolved_to_admin — user wanted a specific state but got
+    the biome expanded. When user says 'Amazonas State' it's a named GADM unit.
+    Prod: 'Could you map agroforestry land use in the Amazonas State Brazil?'
+    """
+    command = await pick_aoi.ainvoke(
+        _invoke(
+            "Could you map agroforestry land use in the Amazonas State Brazil?",
+            ["Amazonas, Brazil"],
+        )
+    )
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) == 1
+    assert aois[0]["src_id"] == "BRA.4_1"
+    assert "Amazonas" in aois[0]["name"]
+
+
+async def test_failure_miombo_woodland_concept_expansion(structlog_context):
+    """'miombo woodland' should trigger concept expansion into African countries.
+    Failure mode: biome_resolved_to_admin — but in this case the concept expansion
+    IS the correct behavior. Miombo doesn't exist in GADM.
+    Prod: 'how has the miombo woodland forest changed in the past 3 years?'
+    """
+    concept_result = ConceptExpansion(
+        is_concept=True,
+        places=["Angola", "Tanzania", "Malawi", "Mozambique", "Zambia", "Zimbabwe"],
+        admin_level="country",
+        coverage_note="approximate - miombo woodlands span south-central Africa",
+    )
+
+    with patch(
+        "src.agent.tools.pick_aoi.expand_geographic_concept",
+        new_callable=AsyncMock,
+        return_value=concept_result,
+    ):
+        command = await pick_aoi.ainvoke(
+            _invoke(
+                "how has the miombo woodland forest changed in the past 3 years?",
+                ["miombo woodland"],
+            )
+        )
+
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) >= 4  # at least several miombo countries
+    src_ids = {aoi["src_id"] for aoi in aois}
+    assert "TZA" in src_ids
+    assert "ZMB" in src_ids
+    assert "miombo" in _msg(command).lower() or "approximate" in _msg(command).lower()
+
+
+# --- multi_area_resolved_to_single: concept expansion for coastal/regional queries ---
+
+
+async def test_failure_brazil_coastline_outer_agent_extracts_country(structlog_context):
+    """When user says 'coastline of Brazil', the outer agent should extract
+    'Brazil' as the place and the tool resolves it.
+    Failure mode: multi_area_resolved_to_single — the real fix is the outer
+    agent should extract 'Brazil' + subregion='state', not pass the whole phrase.
+    Prod: 'show me change in mangrove extent along the coastline of brazil'
+    Note: concept expansion for sub-national regions requires the outer agent
+    to pass 'Brazil' with subregion='state', which is the correct approach.
+    """
+    command = await pick_aoi.ainvoke(
+        _invoke(
+            "show me change in mangrove extent along the coastline of brazil",
+            ["Brazil"],
+            subregion="state",
+        )
+    )
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) >= 5  # Brazilian states within the country polygon
+    assert all(aoi["source"] == "gadm" for aoi in aois)
+    # Most results should be Brazilian states (some neighboring states may
+    # overlap the bounding box in test data)
+    bra_count = sum("BRA." in aoi["src_id"] for aoi in aois)
+    assert bra_count >= 5
+
+
+async def test_failure_brazil_coastline_concept_expansion(structlog_context):
+    """'Brazilian coastline' (no match in DB) should trigger concept expansion.
+    This tests the concept expansion path specifically.
+    """
+    concept_result = ConceptExpansion(
+        is_concept=True,
+        places=["Bahia, Brazil", "Maranhão, Brazil", "Rio de Janeiro, Brazil",
+                "Pernambuco, Brazil", "Ceará, Brazil"],
+        admin_level="state",
+        coverage_note="approximate - major coastal states of Brazil",
+    )
+
+    with patch(
+        "src.agent.tools.pick_aoi.expand_geographic_concept",
+        new_callable=AsyncMock,
+        return_value=concept_result,
+    ):
+        # Use a term that won't match anything in the DB
+        command = await pick_aoi.ainvoke(
+            _invoke(
+                "show me mangrove extent along the Brazilian coastline",
+                ["Brazilian coastline"],
+            )
+        )
+
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) >= 3
+    src_ids = {aoi["src_id"] for aoi in aois}
+    assert all("BRA." in sid for sid in src_ids)
+
+
+# --- wrong_resolution_level: scorer should prefer specific match ---
+
+
+async def test_failure_lahti_city_resolves_municipality(structlog_context):
+    """'Lahti' should resolve to the municipality, not Finland country.
+    Failure mode: wrong_resolution_level — country-level match chosen over
+    the more specific municipality that the user actually wanted.
+    Prod: 'find road network in Lahti city Finland'
+    """
+    command = await pick_aoi.ainvoke(
+        _invoke("find road network in Lahti city Finland", ["Lahti, Finland"])
+    )
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) == 1
+    assert aois[0]["src_id"] == "FIN.7.4_1"
+    assert "Lahti" in aois[0]["name"]
+    assert aois[0]["subtype"] == "municipality"
+
+
+# --- watershed_resolved_to_admin: concept expansion for river basins ---
+
+
+async def test_failure_jubba_river_concept_expansion(structlog_context):
+    """'Jubba River watershed' should expand to Somali states along the Jubba.
+    Failure mode: watershed_resolved_to_admin — river/watershed not in DB.
+    Prod: 'what is the forest coverage along the Jubba River in southern Somalia?'
+    """
+    concept_result = ConceptExpansion(
+        is_concept=True,
+        places=["Somalia"],
+        admin_level="country",
+        coverage_note="approximate - Jubba River flows through southern Somalia",
+        source_hint=None,
+    )
+
+    with patch(
+        "src.agent.tools.pick_aoi.expand_geographic_concept",
+        new_callable=AsyncMock,
+        return_value=concept_result,
+    ):
+        command = await pick_aoi.ainvoke(
+            _invoke(
+                "what is the forest coverage along the Jubba River?",
+                ["Jubba River, Somalia"],
+            )
+        )
+
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) >= 1
+    # Should resolve Somalia at minimum
+    assert any("SOM" in aoi["src_id"] for aoi in aois)
+
+
+async def test_failure_congo_basin_concept_expansion(structlog_context):
+    """'Congo Basin' should expand to DRC + neighboring countries.
+    Failure mode: watershed_resolved_to_admin — basin concept not in DB.
+    Prod: 'Show deforestation in the Congo Basin over the last decade'
+    """
+    concept_result = ConceptExpansion(
+        is_concept=True,
+        places=["Democratic Republic of the Congo", "Colombia"],
+        admin_level="country",
+        coverage_note="approximate - major Congo Basin countries",
+    )
+
+    with patch(
+        "src.agent.tools.pick_aoi.expand_geographic_concept",
+        new_callable=AsyncMock,
+        return_value=concept_result,
+    ):
+        command = await pick_aoi.ainvoke(
+            _invoke(
+                "Show deforestation in the Congo Basin over the last decade",
+                ["Congo Basin"],
+            )
+        )
+
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) >= 1
+    src_ids = {aoi["src_id"] for aoi in aois}
+    assert "COD" in src_ids  # DRC
+
+
+async def test_failure_magdalena_department_direct_match(structlog_context):
+    """'Magdalena, Colombia' should resolve to the Magdalena department directly.
+    When DB has a direct match for 'Magdalena', concept expansion is skipped.
+    The outer agent should pass 'Magdalena, Colombia' for the department.
+    """
+    command = await pick_aoi.ainvoke(
+        _invoke(
+            "analyze land cover in Magdalena, Colombia",
+            ["Magdalena, Colombia"],
+        )
+    )
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) == 1
+    assert aois[0]["src_id"] == "COL.17_1"
+    assert "Magdalena" in aois[0]["name"]
+
+
+async def test_failure_magdalena_river_concept_expansion(structlog_context):
+    """'Magdalena River watershed' (no DB match) triggers concept expansion.
+    Failure mode: watershed_resolved_to_admin — river catchment not in DB.
+    """
+    concept_result = ConceptExpansion(
+        is_concept=True,
+        places=["Magdalena, Colombia", "Antioquia, Colombia", "Cundinamarca, Colombia"],
+        admin_level="state",
+        coverage_note="approximate - departments along the Magdalena River",
+    )
+
+    with patch(
+        "src.agent.tools.pick_aoi.expand_geographic_concept",
+        new_callable=AsyncMock,
+        return_value=concept_result,
+    ):
+        # Use a term that won't trigram-match anything in the DB
+        command = await pick_aoi.ainvoke(
+            _invoke(
+                "analyze land cover change in a major Colombian watershed",
+                ["Upper Cauca Valley watershed"],
+            )
+        )
+
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) >= 2
+    src_ids = {aoi["src_id"] for aoi in aois}
+    assert any("COL" in sid for sid in src_ids)
+
+
+# --- US-specific: phrasing that implies subregion without naming one ---
+
+
+async def test_failure_us_reforestation_resolves_country(structlog_context):
+    """'the US' should resolve as a country even with complex phrasing.
+    Failure mode: wrong_place — the phrasing 'What area of the US showed...'
+    confuses the tool. The outer agent should pass places=['United States'].
+    Prod: 'What area of the US showed the most reforestation over the past 25 years?'
+    """
+    command = await pick_aoi.ainvoke(
+        _invoke(
+            "What area of the US showed the most reforestation?",
+            ["United States"],
+        )
+    )
+    aois = _aois(command)
+    assert aois is not None
+    assert len(aois) == 1
+    assert aois[0]["src_id"] == "USA"
+
+
+# ===================================================================
 # INTEGRATION TESTS: Custom area (requires API client)
 # ===================================================================
 
