@@ -37,6 +37,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _invoke(question, places, subregion=None):
     """Build a tool_call dict for pick_aoi.ainvoke."""
     args = {"question": question, "places": places}
@@ -59,6 +60,7 @@ def _msg(command):
 # Mock Flash Lite — passthrough normalizer, no-op concept expansion
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def mock_flash_calls():
     """Mock normalize_place_name and expand_geographic_concept for all tests."""
@@ -66,14 +68,17 @@ def mock_flash_calls():
     async def _passthrough(raw_place):
         return NormalizedPlaceName(primary=raw_place)
 
-    with patch(
-        "src.agent.tools.pick_aoi.normalize_place_name",
-        new_callable=AsyncMock,
-        side_effect=_passthrough,
-    ), patch(
-        "src.agent.tools.pick_aoi.expand_geographic_concept",
-        new_callable=AsyncMock,
-        return_value=ConceptExpansion(is_concept=False),
+    with (
+        patch(
+            "src.agent.tools.pick_aoi.normalize_place_name",
+            new_callable=AsyncMock,
+            side_effect=_passthrough,
+        ),
+        patch(
+            "src.agent.tools.pick_aoi.expand_geographic_concept",
+            new_callable=AsyncMock,
+            return_value=ConceptExpansion(is_concept=False),
+        ),
     ):
         yield
 
@@ -84,7 +89,9 @@ def mock_flash_calls():
 
 
 def test_aoi_normalized_id_strips_suffix():
-    aoi = AOI(source="gadm", src_id="BRA.14_1", name="Para", subtype="state-province")
+    aoi = AOI(
+        source="gadm", src_id="BRA.14_1", name="Para", subtype="state-province"
+    )
     assert aoi.normalized_id == "BRA.14"
 
 
@@ -95,12 +102,19 @@ def test_aoi_normalized_id_preserves_no_suffix():
 
 def test_aoi_normalized_id_strips_all_levels():
     for suffix in ("_1", "_2", "_3", "_4", "_5"):
-        aoi = AOI(source="gadm", src_id=f"BRA.14{suffix}", name="t", subtype="country")
+        aoi = AOI(
+            source="gadm",
+            src_id=f"BRA.14{suffix}",
+            name="t",
+            subtype="country",
+        )
         assert aoi.normalized_id == "BRA.14"
 
 
 def test_aoi_normalized_id_ignores_non_gadm_patterns():
-    aoi = AOI(source="kba", src_id="BRA79", name="t", subtype="key-biodiversity-area")
+    aoi = AOI(
+        source="kba", src_id="BRA79", name="t", subtype="key-biodiversity-area"
+    )
     assert aoi.normalized_id == "BRA79"
 
 
@@ -112,7 +126,12 @@ def test_aoi_source_type_property():
 def test_aoi_to_dict():
     aoi = AOI(source="gadm", src_id="IDN", name="Indonesia", subtype="country")
     d = aoi.to_dict()
-    assert d == {"source": "gadm", "src_id": "IDN", "name": "Indonesia", "subtype": "country"}
+    assert d == {
+        "source": "gadm",
+        "src_id": "IDN",
+        "name": "Indonesia",
+        "subtype": "country",
+    }
 
 
 # ===================================================================
@@ -122,7 +141,13 @@ def test_aoi_to_dict():
 
 def test_registry_has_all_five_sources():
     assert len(all_sources()) == 5
-    assert {s.source_type.value for s in all_sources()} == {"gadm", "kba", "wdpa", "landmark", "custom"}
+    assert {s.source_type.value for s in all_sources()} == {
+        "gadm",
+        "kba",
+        "wdpa",
+        "landmark",
+        "custom",
+    }
 
 
 def test_registry_gadm_config():
@@ -130,7 +155,11 @@ def test_registry_gadm_config():
     assert cfg.table == "geometries_gadm"
     assert cfg.id_column == "gadm_id"
     assert cfg.subregion_limit == 50
-    assert cfg.analytics_mapping.to_payload() == {"type": "admin", "provider": "gadm", "version": "4.1"}
+    assert cfg.analytics_mapping.to_payload() == {
+        "type": "admin",
+        "provider": "gadm",
+        "version": "4.1",
+    }
     assert cfg.geometry_is_postgis is True
 
 
@@ -163,25 +192,59 @@ def test_registry_all_analytics_mappings():
 
 
 def test_scorer_country_beats_district_at_same_similarity():
-    country = {"name": "Indonesia", "subtype": "country", "similarity_score": 0.8}
-    district = {"name": "Indonesia, West Java", "subtype": "district-county", "similarity_score": 0.8}
-    assert _score_candidate(country, "Indonesia") > _score_candidate(district, "Indonesia")
+    country = {
+        "name": "Indonesia",
+        "subtype": "country",
+        "similarity_score": 0.8,
+    }
+    district = {
+        "name": "Indonesia, West Java",
+        "subtype": "district-county",
+        "similarity_score": 0.8,
+    }
+    assert _score_candidate(country, "Indonesia") > _score_candidate(
+        district, "Indonesia"
+    )
 
 
 def test_scorer_high_similarity_beats_hierarchy():
-    state = {"name": "Castelo Branco, Portugal", "subtype": "state-province", "similarity_score": 0.9}
-    country = {"name": "Portugal", "subtype": "country", "similarity_score": 0.3}
-    assert _score_candidate(state, "Castelo Branco, Portugal") > _score_candidate(country, "Castelo Branco, Portugal")
+    state = {
+        "name": "Castelo Branco, Portugal",
+        "subtype": "state-province",
+        "similarity_score": 0.9,
+    }
+    country = {
+        "name": "Portugal",
+        "subtype": "country",
+        "similarity_score": 0.3,
+    }
+    assert _score_candidate(
+        state, "Castelo Branco, Portugal"
+    ) > _score_candidate(country, "Castelo Branco, Portugal")
 
 
 def test_scorer_exact_prefix_match_bonus():
-    exact = {"name": "Para, Brazil", "subtype": "state-province", "similarity_score": 0.7}
-    no_match = {"name": "Parana, Brazil", "subtype": "state-province", "similarity_score": 0.7}
-    assert _score_candidate(exact, "Para, Brazil") > _score_candidate(no_match, "Para, Brazil")
+    exact = {
+        "name": "Para, Brazil",
+        "subtype": "state-province",
+        "similarity_score": 0.7,
+    }
+    no_match = {
+        "name": "Parana, Brazil",
+        "subtype": "state-province",
+        "similarity_score": 0.7,
+    }
+    assert _score_candidate(exact, "Para, Brazil") > _score_candidate(
+        no_match, "Para, Brazil"
+    )
 
 
 def test_scorer_protected_area_gets_reasonable_score():
-    pa = {"name": "Yellowstone", "subtype": "protected-area", "similarity_score": 0.9}
+    pa = {
+        "name": "Yellowstone",
+        "subtype": "protected-area",
+        "similarity_score": 0.9,
+    }
     assert _score_candidate(pa, "Yellowstone") > 0.5
 
 
@@ -219,31 +282,69 @@ def test_first_segment():
 
 def test_scorer_para_beats_parana():
     """Pará should score higher than Paraná when searching for 'Para, Brazil'."""
-    para = {"name": "Pará, Brazil", "subtype": "state-province", "similarity_score": 0.7}
-    parana = {"name": "Paraná, Brazil", "subtype": "state-province", "similarity_score": 0.7}
-    assert _score_candidate(para, "Para, Brazil") > _score_candidate(parana, "Para, Brazil")
+    para = {
+        "name": "Pará, Brazil",
+        "subtype": "state-province",
+        "similarity_score": 0.7,
+    }
+    parana = {
+        "name": "Paraná, Brazil",
+        "subtype": "state-province",
+        "similarity_score": 0.7,
+    }
+    assert _score_candidate(para, "Para, Brazil") > _score_candidate(
+        parana, "Para, Brazil"
+    )
 
 
 def test_scorer_para_beats_parana_even_with_higher_trigram():
     """Pará should win even if Paraná has a slightly higher trigram score."""
-    para = {"name": "Pará, Brazil", "subtype": "state-province", "similarity_score": 0.71}
-    parana = {"name": "Paraná, Brazil", "subtype": "state-province", "similarity_score": 0.74}
-    assert _score_candidate(para, "Para, Brazil") > _score_candidate(parana, "Para, Brazil")
+    para = {
+        "name": "Pará, Brazil",
+        "subtype": "state-province",
+        "similarity_score": 0.71,
+    }
+    parana = {
+        "name": "Paraná, Brazil",
+        "subtype": "state-province",
+        "similarity_score": 0.74,
+    }
+    assert _score_candidate(para, "Para, Brazil") > _score_candidate(
+        parana, "Para, Brazil"
+    )
 
 
 def test_scorer_sao_paulo_accent_match():
     """São Paulo matches 'Sao Paulo' via accent stripping."""
-    sao = {"name": "São Paulo, Brazil", "subtype": "state-province", "similarity_score": 0.8}
+    sao = {
+        "name": "São Paulo, Brazil",
+        "subtype": "state-province",
+        "similarity_score": 0.8,
+    }
     score = _score_candidate(sao, "Sao Paulo, Brazil")
     # Should get the exact segment bonus (0.2)
     assert score > 0.8
 
 
 def test_select_best_aoi_picks_highest_composite():
-    df = pd.DataFrame([
-        {"src_id": "IDN", "name": "Indonesia", "subtype": "country", "source": "gadm", "similarity_score": 0.95},
-        {"src_id": "IDN.1_1", "name": "Indonesia, Aceh", "subtype": "state-province", "source": "gadm", "similarity_score": 0.5},
-    ])
+    df = pd.DataFrame(
+        [
+            {
+                "src_id": "IDN",
+                "name": "Indonesia",
+                "subtype": "country",
+                "source": "gadm",
+                "similarity_score": 0.95,
+            },
+            {
+                "src_id": "IDN.1_1",
+                "name": "Indonesia, Aceh",
+                "subtype": "state-province",
+                "source": "gadm",
+                "similarity_score": 0.5,
+            },
+        ]
+    )
     result = select_best_aoi("land use in Indonesia", df, "Indonesia")
     assert result["src_id"] == "IDN"
 
@@ -254,33 +355,79 @@ def test_select_best_aoi_empty_df_raises():
 
 
 def test_select_best_aoi_single_row():
-    df = pd.DataFrame([
-        {"src_id": "BRA.14_1", "name": "Para, Brazil", "subtype": "state-province", "source": "gadm", "similarity_score": 0.8},
-    ])
-    assert select_best_aoi("deforestation in Para", df, "Para")["src_id"] == "BRA.14_1"
+    df = pd.DataFrame(
+        [
+            {
+                "src_id": "BRA.14_1",
+                "name": "Para, Brazil",
+                "subtype": "state-province",
+                "source": "gadm",
+                "similarity_score": 0.8,
+            },
+        ]
+    )
+    assert (
+        select_best_aoi("deforestation in Para", df, "Para")["src_id"]
+        == "BRA.14_1"
+    )
 
 
 def test_select_best_aoi_invalid_source_raises():
-    df = pd.DataFrame([
-        {"src_id": "X1", "name": "Test", "subtype": "country", "source": "invalid_source", "similarity_score": 0.9},
-    ])
+    df = pd.DataFrame(
+        [
+            {
+                "src_id": "X1",
+                "name": "Test",
+                "subtype": "country",
+                "source": "invalid_source",
+                "similarity_score": 0.9,
+            },
+        ]
+    )
     with pytest.raises(ValueError, match="does not match"):
         select_best_aoi("test", df, "Test")
 
 
 def test_select_best_aoi_landmark_vs_gadm():
     """Landmark with high similarity wins over low-similarity GADM district."""
-    df = pd.DataFrame([
-        {"src_id": "BRA79", "name": "Resex Catua-Ipixuna", "subtype": "indigenous-and-community-land", "source": "landmark", "similarity_score": 0.9},
-        {"src_id": "BRA.14.5_1", "name": "Ipixuna, Brazil", "subtype": "district-county", "source": "gadm", "similarity_score": 0.4},
-    ])
-    assert select_best_aoi("natural lands in Resex Catua-Ipixuna", df, "Resex Catua-Ipixuna")["src_id"] == "BRA79"
+    df = pd.DataFrame(
+        [
+            {
+                "src_id": "BRA79",
+                "name": "Resex Catua-Ipixuna",
+                "subtype": "indigenous-and-community-land",
+                "source": "landmark",
+                "similarity_score": 0.9,
+            },
+            {
+                "src_id": "BRA.14.5_1",
+                "name": "Ipixuna, Brazil",
+                "subtype": "district-county",
+                "source": "gadm",
+                "similarity_score": 0.4,
+            },
+        ]
+    )
+    assert (
+        select_best_aoi(
+            "natural lands in Resex Catua-Ipixuna", df, "Resex Catua-Ipixuna"
+        )["src_id"]
+        == "BRA79"
+    )
 
 
 def test_select_best_aoi_returns_all_fields():
-    df = pd.DataFrame([
-        {"src_id": "IDN", "name": "Indonesia", "subtype": "country", "source": "gadm", "similarity_score": 0.95},
-    ])
+    df = pd.DataFrame(
+        [
+            {
+                "src_id": "IDN",
+                "name": "Indonesia",
+                "subtype": "country",
+                "source": "gadm",
+                "similarity_score": 0.95,
+            },
+        ]
+    )
     result = select_best_aoi("test", df, "Indonesia")
     assert set(result.keys()) == {"source", "src_id", "name", "subtype"}
 
@@ -326,7 +473,9 @@ async def test_search_empty_terms_returns_empty(structlog_context):
 
 async def test_pick_country_by_name(structlog_context):
     """Simple country lookup — Indonesia."""
-    command = await pick_aoi.ainvoke(_invoke("land use in Indonesia", ["Indonesia"]))
+    command = await pick_aoi.ainvoke(
+        _invoke("land use in Indonesia", ["Indonesia"])
+    )
     aois = _aois(command)
     assert len(aois) == 1
     assert aois[0]["src_id"] == "IDN"
@@ -348,7 +497,9 @@ async def test_pick_state_by_qualified_name(structlog_context):
 async def test_pick_state_by_unaccented_name(structlog_context):
     """State lookup with UNaccented name — 'Para, Brazil' should still find Pará."""
     command = await pick_aoi.ainvoke(
-        _invoke("Analyze deforestation rates in the Para, Brazil", ["Para, Brazil"])
+        _invoke(
+            "Analyze deforestation rates in the Para, Brazil", ["Para, Brazil"]
+        )
     )
     aois = _aois(command)
     assert len(aois) == 1
@@ -358,7 +509,10 @@ async def test_pick_state_by_unaccented_name(structlog_context):
 async def test_pick_castelo_branco(structlog_context):
     """Qualified state name with no ambiguity."""
     command = await pick_aoi.ainvoke(
-        _invoke("Track forest in Castelo Branco, Portugal", ["Castelo Branco, Portugal"])
+        _invoke(
+            "Track forest in Castelo Branco, Portugal",
+            ["Castelo Branco, Portugal"],
+        )
     )
     assert _aois(command)[0]["src_id"] == "PRT.6_1"
 
@@ -366,7 +520,10 @@ async def test_pick_castelo_branco(structlog_context):
 async def test_pick_landmark_by_name(structlog_context):
     """Landmark (indigenous land) selection."""
     command = await pick_aoi.ainvoke(
-        _invoke("Assess natural lands in Resex Catua-Ipixuna", ["Resex Catua-Ipixuna"])
+        _invoke(
+            "Assess natural lands in Resex Catua-Ipixuna",
+            ["Resex Catua-Ipixuna"],
+        )
     )
     aois = _aois(command)
     assert len(aois) == 1
@@ -377,7 +534,10 @@ async def test_pick_landmark_by_name(structlog_context):
 async def test_pick_wdpa_by_name(structlog_context):
     """WDPA protected area selection."""
     command = await pick_aoi.ainvoke(
-        _invoke("Protected area Osceola RNA", ["Osceola, Research Natural Area, USA"])
+        _invoke(
+            "Protected area Osceola RNA",
+            ["Osceola, Research Natural Area, USA"],
+        )
     )
     aois = _aois(command)
     assert len(aois) == 1
@@ -446,7 +606,11 @@ async def test_lisbon_prefers_state_over_locality(structlog_context):
 async def test_subregion_states_in_ecuador_and_bolivia(structlog_context):
     """24 Ecuador states + 9 Bolivia states = 33 total."""
     command = await pick_aoi.ainvoke(
-        _invoke("Compare states in Ecuador and Bolivia", ["Ecuador", "Bolivia"], subregion="state")
+        _invoke(
+            "Compare states in Ecuador and Bolivia",
+            ["Ecuador", "Bolivia"],
+            subregion="state",
+        )
     )
     aois = _aois(command)
     assert len(aois) == 33
@@ -483,13 +647,17 @@ async def test_normalizer_is_concept_flag_defaults_false(structlog_context):
     named = NormalizedPlaceName(primary="Colombia")
     assert named.is_concept is False
 
-    named_with_alt = NormalizedPlaceName(primary="Para, Brazil", alternatives=["Pará, Brazil"])
+    named_with_alt = NormalizedPlaceName(
+        primary="Para, Brazil", alternatives=["Pará, Brazil"]
+    )
     assert named_with_alt.is_concept is False
 
 
 async def test_normalizer_is_concept_flag_set_true(structlog_context):
     """NormalizedPlaceName.is_concept can be set True for concepts."""
-    concept = NormalizedPlaceName(primary="the colombian coastline", is_concept=True)
+    concept = NormalizedPlaceName(
+        primary="the colombian coastline", is_concept=True
+    )
     assert concept.is_concept is True
     # Concept terms typically have no useful alternatives
     assert concept.alternatives == []
@@ -505,7 +673,11 @@ async def test_is_concept_flag_bypasses_db_search(structlog_context):
     """
     concept_result = ConceptExpansion(
         is_concept=True,
-        places=["Atlántico, Colombia", "Magdalena, Colombia", "Chocó, Colombia"],
+        places=[
+            "Atlántico, Colombia",
+            "Magdalena, Colombia",
+            "Chocó, Colombia",
+        ],
         admin_level="state",
         coverage_note="approximate - Colombian coastal departments",
     )
@@ -516,17 +688,21 @@ async def test_is_concept_flag_bypasses_db_search(structlog_context):
 
     db_mock = AsyncMock()
 
-    with patch(
-        "src.agent.tools.pick_aoi.normalize_place_name",
-        new_callable=AsyncMock,
-        side_effect=_concept_normalizer,
-    ), patch(
-        "src.agent.tools.pick_aoi.query_aoi_database",
-        db_mock,
-    ), patch(
-        "src.agent.tools.pick_aoi.expand_geographic_concept",
-        new_callable=AsyncMock,
-        return_value=concept_result,
+    with (
+        patch(
+            "src.agent.tools.pick_aoi.normalize_place_name",
+            new_callable=AsyncMock,
+            side_effect=_concept_normalizer,
+        ),
+        patch(
+            "src.agent.tools.pick_aoi.query_aoi_database",
+            db_mock,
+        ),
+        patch(
+            "src.agent.tools.pick_aoi.expand_geographic_concept",
+            new_callable=AsyncMock,
+            return_value=concept_result,
+        ),
     ):
         # "the colombian coastline" would score >0.3 against "Colombia" via trigram,
         # but is_concept=True means query_aoi_database is never called for it.
@@ -543,13 +719,14 @@ async def test_is_concept_flag_bypasses_db_search(structlog_context):
         f"DB should be called 3 times (one per expanded place), got {db_mock.call_count}"
     )
     called_terms = [call.args[0] for call in db_mock.call_args_list]
-    assert not any("colombian coastline" in t[0].lower() for t in called_terms), (
-        "DB should not be called with the original concept term"
-    )
+    assert not any(
+        "colombian coastline" in t[0].lower() for t in called_terms
+    ), "DB should not be called with the original concept term"
 
 
 async def test_normalizer_with_alternatives_finds_match(structlog_context):
     """When normalizer returns alternatives, they're searched in parallel."""
+
     # Override the passthrough mock for this test — return accented alternative
     async def _normalize_with_alt(raw_place):
         if "Sao Paulo" in raw_place:
@@ -574,6 +751,7 @@ async def test_normalizer_with_alternatives_finds_match(structlog_context):
 
 async def test_normalizer_fallback_on_failure(structlog_context):
     """If normalizer throws, should fall back to raw place name."""
+
     async def _failing_normalizer(raw_place):
         raise RuntimeError("Flash down")
 
@@ -638,7 +816,9 @@ async def test_concept_expansion_with_source_hint(structlog_context):
         # But subregion expansion for wdpa requires actual WDPA data within Ecuador
         # so this tests that source_hint is applied
         command = await pick_aoi.ainvoke(
-            _invoke("Protected areas in Ecuador", ["Protected areas in Ecuador"])
+            _invoke(
+                "Protected areas in Ecuador", ["Protected areas in Ecuador"]
+            )
         )
     # The tool should have attempted to query with subregion="wdpa"
     # Since no WDPA areas are within Ecuador's bbox in our test data,
@@ -649,7 +829,9 @@ async def test_concept_expansion_with_source_hint(structlog_context):
     assert command is not None
 
 
-async def test_concept_expansion_not_triggered_for_good_matches(structlog_context):
+async def test_concept_expansion_not_triggered_for_good_matches(
+    structlog_context,
+):
     """Concept expansion should NOT fire when DB has a good match."""
     expand_mock = AsyncMock(return_value=ConceptExpansion(is_concept=False))
 
@@ -699,9 +881,7 @@ async def test_multiple_places_one_unknown(structlog_context):
 
 async def test_output_has_deprecated_fields(structlog_context):
     """pick_aoi still sets deprecated aoi/subtype fields for backward compat."""
-    command = await pick_aoi.ainvoke(
-        _invoke("Indonesia", ["Indonesia"])
-    )
+    command = await pick_aoi.ainvoke(_invoke("Indonesia", ["Indonesia"]))
     assert command.update.get("aoi") is not None
     assert command.update.get("subtype") == "country"
 
@@ -759,7 +939,9 @@ async def test_failure_tanzania_country_resolves(structlog_context):
     Prod: 'Please show me the Protected Areas for Tanzania'
     """
     command = await pick_aoi.ainvoke(
-        _invoke("Please show me the Protected Areas for Tanzania", ["Tanzania"])
+        _invoke(
+            "Please show me the Protected Areas for Tanzania", ["Tanzania"]
+        )
     )
     aois = _aois(command)
     assert aois is not None, "Should not return None for Tanzania"
@@ -812,6 +994,7 @@ async def test_failure_north_kalimantan_normalizer_fixes(structlog_context):
     Prod: 'deforestation in North Kalimantan'
     The normalizer should translate 'North Kalimantan' → 'Kalimantan Utara'.
     """
+
     # Mock normalizer to return the Indonesian name as it would in prod
     async def _normalize_kalimantan(raw_place):
         if "North Kalimantan" in raw_place:
@@ -843,6 +1026,7 @@ async def test_failure_hungarian_adjective_normalizer_fixes(structlog_context):
     Prod: 'carbon sink in Hungarian forest'
     The normalizer should convert 'Hungarian' → 'Hungary'.
     """
+
     async def _normalize_hungarian(raw_place):
         if "Hungarian" in raw_place:
             return NormalizedPlaceName(
@@ -895,7 +1079,14 @@ async def test_failure_miombo_woodland_concept_expansion(structlog_context):
     """
     concept_result = ConceptExpansion(
         is_concept=True,
-        places=["Angola", "Tanzania", "Malawi", "Mozambique", "Zambia", "Zimbabwe"],
+        places=[
+            "Angola",
+            "Tanzania",
+            "Malawi",
+            "Mozambique",
+            "Zambia",
+            "Zimbabwe",
+        ],
         admin_level="country",
         coverage_note="approximate - miombo woodlands span south-central Africa",
     )
@@ -918,13 +1109,18 @@ async def test_failure_miombo_woodland_concept_expansion(structlog_context):
     src_ids = {aoi["src_id"] for aoi in aois}
     assert "TZA" in src_ids
     assert "ZMB" in src_ids
-    assert "miombo" in _msg(command).lower() or "approximate" in _msg(command).lower()
+    assert (
+        "miombo" in _msg(command).lower()
+        or "approximate" in _msg(command).lower()
+    )
 
 
 # --- multi_area_resolved_to_single: concept expansion for coastal/regional queries ---
 
 
-async def test_failure_brazil_coastline_outer_agent_extracts_country(structlog_context):
+async def test_failure_brazil_coastline_outer_agent_extracts_country(
+    structlog_context,
+):
     """When user says 'coastline of Brazil', the outer agent should extract
     'Brazil' as the place and the tool resolves it.
     Failure mode: multi_area_resolved_to_single — the real fix is the outer
@@ -956,8 +1152,13 @@ async def test_failure_brazil_coastline_concept_expansion(structlog_context):
     """
     concept_result = ConceptExpansion(
         is_concept=True,
-        places=["Bahia, Brazil", "Maranhão, Brazil", "Rio de Janeiro, Brazil",
-                "Pernambuco, Brazil", "Ceará, Brazil"],
+        places=[
+            "Bahia, Brazil",
+            "Maranhão, Brazil",
+            "Rio de Janeiro, Brazil",
+            "Pernambuco, Brazil",
+            "Ceará, Brazil",
+        ],
         admin_level="state",
         coverage_note="approximate - major coastal states of Brazil",
     )
@@ -1092,7 +1293,11 @@ async def test_failure_magdalena_river_concept_expansion(structlog_context):
     """
     concept_result = ConceptExpansion(
         is_concept=True,
-        places=["Magdalena, Colombia", "Antioquia, Colombia", "Cundinamarca, Colombia"],
+        places=[
+            "Magdalena, Colombia",
+            "Antioquia, Colombia",
+            "Cundinamarca, Colombia",
+        ],
         admin_level="state",
         coverage_note="approximate - departments along the Magdalena River",
     )
@@ -1145,7 +1350,9 @@ async def test_failure_us_reforestation_resolves_country(structlog_context):
 # ===================================================================
 
 
-async def test_concept_the_amazon_resolves_to_amazon_countries(structlog_context):
+async def test_concept_the_amazon_resolves_to_amazon_countries(
+    structlog_context,
+):
     """'The amazon' should expand to the Amazon rainforest countries.
 
     The Amazon spans 8+ South American countries. Flash should return country-level
@@ -1153,7 +1360,14 @@ async def test_concept_the_amazon_resolves_to_amazon_countries(structlog_context
     """
     concept_result = ConceptExpansion(
         is_concept=True,
-        places=["Brazil", "Peru", "Colombia", "Ecuador", "Bolivia", "Suriname"],
+        places=[
+            "Brazil",
+            "Peru",
+            "Colombia",
+            "Ecuador",
+            "Bolivia",
+            "Suriname",
+        ],
         admin_level="country",
         coverage_note="approximate - countries containing significant Amazon rainforest coverage",
     )
@@ -1181,10 +1395,15 @@ async def test_concept_the_amazon_resolves_to_amazon_countries(structlog_context
     # All AOIs must be countries (concept expansion said admin_level="country")
     assert all(aoi["subtype"] == "country" for aoi in aois)
     # Coverage note should flow into the tool message
-    assert "approximate" in _msg(command).lower() or "amazon" in _msg(command).lower()
+    assert (
+        "approximate" in _msg(command).lower()
+        or "amazon" in _msg(command).lower()
+    )
 
 
-async def test_concept_the_rockies_resolves_to_mountain_states(structlog_context):
+async def test_concept_the_rockies_resolves_to_mountain_states(
+    structlog_context,
+):
     """'The rockies' should expand to US and Canadian Rocky Mountain regions.
 
     The Rocky Mountains span the western US and Canadian provinces. Flash should
@@ -1215,17 +1434,25 @@ async def test_concept_the_rockies_resolves_to_mountain_states(structlog_context
 
     aois = _aois(command)
     assert aois is not None, "Expected AOIs for The rockies"
-    assert len(aois) >= 4, f"Expected ≥4 Rocky Mountain regions, got {len(aois)}"
+    assert len(aois) >= 4, (
+        f"Expected ≥4 Rocky Mountain regions, got {len(aois)}"
+    )
     src_ids = {aoi["src_id"] for aoi in aois}
     # Must include both US states and Canadian provinces
     us_states = {sid for sid in src_ids if sid.startswith("USA.")}
     can_provinces = {sid for sid in src_ids if sid.startswith("CAN.")}
     assert len(us_states) >= 3, f"Expected ≥3 US Rocky states, got {us_states}"
-    assert len(can_provinces) >= 1, f"Expected ≥1 Canadian province, got {can_provinces}"
+    assert len(can_provinces) >= 1, (
+        f"Expected ≥1 Canadian province, got {can_provinces}"
+    )
     assert "USA.26_1" in src_ids, "Montana must be in Rockies result"
     assert "USA.6_1" in src_ids, "Colorado must be in Rockies result"
     assert "CAN.1_1" in src_ids, "Alberta must be in Rockies result"
-    assert "approximate" in _msg(command).lower() or "rockies" in _msg(command).lower() or "rocky" in _msg(command).lower()
+    assert (
+        "approximate" in _msg(command).lower()
+        or "rockies" in _msg(command).lower()
+        or "rocky" in _msg(command).lower()
+    )
 
 
 async def test_concept_colombian_coastline_via_subregion_expansion(
@@ -1249,7 +1476,9 @@ async def test_concept_colombian_coastline_via_subregion_expansion(
 
     aois = _aois(command)
     assert aois is not None, "Expected AOIs for Colombian coastline"
-    assert len(aois) >= 3, f"Expected ≥3 Colombian departments, got {len(aois)}"
+    assert len(aois) >= 3, (
+        f"Expected ≥3 Colombian departments, got {len(aois)}"
+    )
     src_ids = {aoi["src_id"] for aoi in aois}
     # All four seeded Colombian departments must be returned (they're all within Colombia's bbox)
     assert "COL.2_1" in src_ids, "Atlántico (Caribbean coast) must be present"
@@ -1266,7 +1495,9 @@ async def test_concept_colombian_coastline_via_subregion_expansion(
     assert "COL.4_1" in src_ids, "Bolívar (Caribbean coast) must be present"
 
 
-async def test_concept_colombian_coastline_concept_expansion(structlog_context):
+async def test_concept_colombian_coastline_concept_expansion(
+    structlog_context,
+):
     """'the colombian coastline' triggers concept expansion via is_concept=True from normalizer.
 
     Previously required the workaround term 'Pacific and Caribbean seaboard' because
@@ -1293,14 +1524,17 @@ async def test_concept_colombian_coastline_concept_expansion(structlog_context):
             return NormalizedPlaceName(primary=raw_place, is_concept=True)
         return NormalizedPlaceName(primary=raw_place)
 
-    with patch(
-        "src.agent.tools.pick_aoi.normalize_place_name",
-        new_callable=AsyncMock,
-        side_effect=_concept_normalizer,
-    ), patch(
-        "src.agent.tools.pick_aoi.expand_geographic_concept",
-        new_callable=AsyncMock,
-        return_value=concept_result,
+    with (
+        patch(
+            "src.agent.tools.pick_aoi.normalize_place_name",
+            new_callable=AsyncMock,
+            side_effect=_concept_normalizer,
+        ),
+        patch(
+            "src.agent.tools.pick_aoi.expand_geographic_concept",
+            new_callable=AsyncMock,
+            return_value=concept_result,
+        ),
     ):
         # Now uses the real user-facing term — no trigram workaround needed
         command = await pick_aoi.ainvoke(
@@ -1318,10 +1552,14 @@ async def test_concept_colombian_coastline_concept_expansion(structlog_context):
     assert "COL.17_1" in src_ids, "Magdalena (Caribbean coast) must be present"
     assert "COL.13_1" in src_ids, "Chocó (Pacific coast) must be present"
     assert all(aoi["subtype"] == "state-province" for aoi in aois)
-    assert all("COL" in aoi["src_id"] for aoi in aois), "All results must be Colombian"
+    assert all("COL" in aoi["src_id"] for aoi in aois), (
+        "All results must be Colombian"
+    )
 
 
-async def test_concept_the_levant_resolves_to_levant_countries(structlog_context):
+async def test_concept_the_levant_resolves_to_levant_countries(
+    structlog_context,
+):
     """'The levant' should expand to the eastern Mediterranean countries.
 
     The Levant is a historical region covering the eastern Mediterranean — Jordan,
@@ -1340,12 +1578,17 @@ async def test_concept_the_levant_resolves_to_levant_countries(structlog_context
         return_value=concept_result,
     ):
         command = await pick_aoi.ainvoke(
-            _invoke("land use change in the Levant over the past decade", ["The levant"])
+            _invoke(
+                "land use change in the Levant over the past decade",
+                ["The levant"],
+            )
         )
 
     aois = _aois(command)
     assert aois is not None, "Expected AOIs for The levant"
-    assert len(aois) == 4, f"Expected exactly 4 Levant countries, got {len(aois)}"
+    assert len(aois) == 4, (
+        f"Expected exactly 4 Levant countries, got {len(aois)}"
+    )
     src_ids = {aoi["src_id"] for aoi in aois}
     assert "JOR" in src_ids, "Jordan must be in Levant result"
     assert "LBN" in src_ids, "Lebanon must be in Levant result"
@@ -1387,8 +1630,13 @@ async def test_concept_sundarbans_resolves_to_delta_regions(structlog_context):
     assert len(aois) == 2, f"Expected 2 Sundarbans regions, got {len(aois)}"
     src_ids = {aoi["src_id"] for aoi in aois}
     assert "BGD" in src_ids, "Bangladesh must be in Sundarbans result"
-    assert "IND.35_1" in src_ids, "West Bengal (India) must be in Sundarbans result"
-    assert "approximate" in _msg(command).lower() or "sundarbans" in _msg(command).lower()
+    assert "IND.35_1" in src_ids, (
+        "West Bengal (India) must be in Sundarbans result"
+    )
+    assert (
+        "approximate" in _msg(command).lower()
+        or "sundarbans" in _msg(command).lower()
+    )
 
 
 # ===================================================================
@@ -1417,28 +1665,43 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
     from src.api.schemas import UserModel
 
     def mock_auth():
-        return UserModel.model_validate({
-            "id": "test-user-123",
-            "name": "test-user-123",
-            "email": "test-custom-area@wri.org",
-            "createdAt": "2024-01-01T00:00:00Z",
-            "updatedAt": "2024-01-01T00:00:00Z",
-        })
+        return UserModel.model_validate(
+            {
+                "id": "test-user-123",
+                "name": "test-user-123",
+                "email": "test-custom-area@wri.org",
+                "createdAt": "2024-01-01T00:00:00Z",
+                "updatedAt": "2024-01-01T00:00:00Z",
+            }
+        )
 
     from src.api.app import app
+
     app.dependency_overrides[fetch_user_from_rw_api] = mock_auth
 
-    res = await client.get("/api/custom_areas", headers={"Authorization": "Bearer abc123"})
+    res = await client.get(
+        "/api/custom_areas", headers={"Authorization": "Bearer abc123"}
+    )
     assert res.status_code == 200
 
     create_response = await client.post(
         "/api/custom_areas",
         json={
             "name": "My custom area",
-            "geometries": [{
-                "coordinates": [[[29.22, -1.64], [29.22, -1.66], [29.23, -1.66], [29.23, -1.64], [29.22, -1.64]]],
-                "type": "Polygon",
-            }],
+            "geometries": [
+                {
+                    "coordinates": [
+                        [
+                            [29.22, -1.64],
+                            [29.22, -1.66],
+                            [29.23, -1.66],
+                            [29.23, -1.64],
+                            [29.22, -1.64],
+                        ]
+                    ],
+                    "type": "Polygon",
+                }
+            ],
         },
         headers={"Authorization": "Bearer abc123"},
     )
@@ -1446,6 +1709,10 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
 
     with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
         command = await pick_aoi.ainvoke(
-            _invoke("Measure deforestation in My Custom Area", ["My Custom Area"])
+            _invoke(
+                "Measure deforestation in My Custom Area", ["My Custom Area"]
+            )
         )
-    assert command.update.get("aoi_selection", {}).get("name") == "My custom area"
+    assert (
+        command.update.get("aoi_selection", {}).get("name") == "My custom area"
+    )

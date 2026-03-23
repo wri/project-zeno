@@ -53,14 +53,17 @@ def mock_normalize_place_name():
     async def _passthrough(raw_place):
         return NormalizedPlaceName(primary=raw_place)
 
-    with patch(
-        "src.agent.tools.pick_aoi.normalize_place_name",
-        new_callable=AsyncMock,
-        side_effect=_passthrough,
-    ), patch(
-        "src.agent.tools.pick_aoi.expand_geographic_concept",
-        new_callable=AsyncMock,
-        return_value=ConceptExpansion(is_concept=False),
+    with (
+        patch(
+            "src.agent.tools.pick_aoi.normalize_place_name",
+            new_callable=AsyncMock,
+            side_effect=_passthrough,
+        ),
+        patch(
+            "src.agent.tools.pick_aoi.expand_geographic_concept",
+            new_callable=AsyncMock,
+            return_value=ConceptExpansion(is_concept=False),
+        ),
     ):
         yield
 
@@ -71,7 +74,11 @@ def mock_query_aoi_database():
 
     async def _return_mock_df(search_terms, result_limit=10):
         # search_terms is now a list of strings (primary + alternatives)
-        terms_str = " ".join(search_terms) if isinstance(search_terms, list) else search_terms
+        terms_str = (
+            " ".join(search_terms)
+            if isinstance(search_terms, list)
+            else search_terms
+        )
         if "Parana" in terms_str or "Paraná" in terms_str:
             print("Returning MOCK_AOI_QUERY_RESULTS_PARANA")
             return MOCK_AOI_QUERY_RESULTS_PARANA.copy()

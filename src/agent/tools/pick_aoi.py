@@ -148,7 +148,9 @@ async def query_aoi_database(
             LIMIT :limit_val
         """
 
-        logger.debug(f"Executing multi-term AOI query with {len(search_terms)} terms")
+        logger.debug(
+            f"Executing multi-term AOI query with {len(search_terms)} terms"
+        )
 
         def _read(sync_conn):
             return pd.read_sql(
@@ -184,7 +186,14 @@ async def query_subregion_database(
         )
 
     # Determine which source the subregion belongs to
-    ADMIN_SUBREGIONS = {"country", "state", "district", "municipality", "locality", "neighbourhood"}
+    ADMIN_SUBREGIONS = {
+        "country",
+        "state",
+        "district",
+        "municipality",
+        "locality",
+        "neighbourhood",
+    }
     if subregion_name in ADMIN_SUBREGIONS:
         subregion_source = "gadm"
     else:
@@ -275,14 +284,18 @@ def _score_candidate(row: dict, place_name: str) -> float:
     if cand_seg == query_seg:
         # Exact match after accent stripping → strong bonus
         score += 0.2
-    elif _strip_accents(name.lower()).startswith(_strip_accents(place_name.lower())):
+    elif _strip_accents(name.lower()).startswith(
+        _strip_accents(place_name.lower())
+    ):
         # Weaker prefix match (accent-insensitive)
         score += 0.1
 
     return score
 
 
-def select_best_aoi(question: str, results_df: pd.DataFrame, place_name: str) -> dict:
+def select_best_aoi(
+    question: str, results_df: pd.DataFrame, place_name: str
+) -> dict:
     """Select the best AOI using deterministic scoring.
 
     Args:
@@ -443,7 +456,9 @@ async def pick_aoi(
     async def _db_or_empty(norm):
         if norm.is_concept:
             return pd.DataFrame()
-        return await query_aoi_database([norm.primary] + norm.alternatives, RESULT_LIMIT)
+        return await query_aoi_database(
+            [norm.primary] + norm.alternatives, RESULT_LIMIT
+        )
 
     all_results = await asyncio.gather(*[_db_or_empty(n) for n in normalized])
 
@@ -487,7 +502,9 @@ async def pick_aoi(
                         for n in expanded_norms
                     ]
                 )
-                for exp_place, exp_result in zip(expansion.places, expanded_results):
+                for exp_place, exp_result in zip(
+                    expansion.places, expanded_results
+                ):
                     final_places.append(exp_place)
                     final_results.append(exp_result)
             else:

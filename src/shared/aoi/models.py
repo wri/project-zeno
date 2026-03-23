@@ -41,15 +41,15 @@ class AOISubtype(str, Enum):
         }
 
 
-ADMIN_SUBTYPES_SET = frozenset(
-    s for s in AOISubtype if s.is_admin
-)
+ADMIN_SUBTYPES_SET = frozenset(s for s in AOISubtype if s.is_admin)
 
 
 class AOI(BaseModel):
     """A single area of interest."""
 
-    source: str = Field(description="Source table: gadm, kba, wdpa, landmark, custom")
+    source: str = Field(
+        description="Source table: gadm, kba, wdpa, landmark, custom"
+    )
     src_id: str = Field(description="Source-specific ID")
     name: str = Field(description="Display name")
     subtype: str = Field(description="Area subtype")

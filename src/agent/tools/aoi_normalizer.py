@@ -227,7 +227,5 @@ async def expand_geographic_concept(
             _concept_cache[cache_key] = result
         return result
     except Exception:
-        logger.warning(
-            f"Concept expansion failed for '{term}'", exc_info=True
-        )
+        logger.warning(f"Concept expansion failed for '{term}'", exc_info=True)
         return ConceptExpansion(is_concept=False)
