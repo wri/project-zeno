@@ -45,7 +45,10 @@ def user_ds():
 @pytest.fixture(scope="function", autouse=True)
 def mock_normalize_place_name():
     """Mock normalize_place_name and expand_geographic_concept to avoid Flash Lite calls."""
-    from src.agent.tools.aoi_normalizer import ConceptExpansion, NormalizedPlaceName
+    from src.agent.tools.aoi_normalizer import (
+        ConceptExpansion,
+        NormalizedPlaceName,
+    )
 
     async def _passthrough(raw_place):
         return NormalizedPlaceName(primary=raw_place)

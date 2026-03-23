@@ -2,8 +2,8 @@
 
 from src.shared.aoi.models import AOI, AOISelection, AOISourceType, AOISubtype
 from src.shared.aoi.registry import (
-    AOISourceConfig,
     AnalyticsAPIMapping,
+    AOISourceConfig,
     all_sources,
     get_source,
     register_source,

@@ -13,7 +13,10 @@ import pytest
 import structlog
 from sqlalchemy import select
 
-from src.agent.tools.aoi_normalizer import ConceptExpansion, NormalizedPlaceName
+from src.agent.tools.aoi_normalizer import (
+    ConceptExpansion,
+    NormalizedPlaceName,
+)
 from src.agent.tools.pick_aoi import (
     _first_segment,
     _score_candidate,
@@ -23,7 +26,7 @@ from src.agent.tools.pick_aoi import (
     select_best_aoi,
 )
 from src.api.data_models import WhitelistedUserOrm
-from src.shared.aoi.models import AOI, AOISourceType, AOISubtype
+from src.shared.aoi.models import AOI, AOISourceType
 from src.shared.aoi.registry import all_sources, get_source
 from tests.conftest import async_session_maker
 
@@ -527,7 +530,7 @@ async def test_is_concept_flag_bypasses_db_search(structlog_context):
     ):
         # "the colombian coastline" would score >0.3 against "Colombia" via trigram,
         # but is_concept=True means query_aoi_database is never called for it.
-        command = await pick_aoi.ainvoke(
+        await pick_aoi.ainvoke(
             _invoke(
                 "mangrove extent along the Colombian coastline",
                 ["the colombian coastline"],
