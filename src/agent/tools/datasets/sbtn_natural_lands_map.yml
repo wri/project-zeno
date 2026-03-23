@@ -1,0 +1,103 @@
+dataset_id: 3
+dataset_name: SBTN Natural Lands Map
+context_layers: null
+variables: binary, classification
+tile_url: /raster/collections/natural-lands-v-1-1/tiles/WebMercatorQuad/{z}/{x}/{y}.png?colormap=%7B%222%22%3A%20%5B36%2C%20110%2C%2036%2C%20255%5D%2C%20%223%22%3A%20%5B185%2C%20185%2C%2030%2C%20255%5D%2C%20%224%22%3A%20%5B107%2C%20174%2C%20214%2C%20255%5D%2C%20%225%22%3A%20%5B6%2C%20162%2C%20133%2C%20255%5D%2C%20%226%22%3A%20%5B254%2C%20254%2C%20204%2C%20255%5D%2C%20%227%22%3A%20%5B172%2C%20209%2C%20232%2C%20255%5D%2C%20%228%22%3A%20%5B88%2C%20149%2C%2088%2C%20255%5D%2C%20%229%22%3A%20%5B9%2C%2061%2C%209%2C%20255%5D%2C%20%2210%22%3A%20%5B219%2C%20219%2C%20123%2C%20255%5D%2C%20%2211%22%3A%20%5B153%2C%20153%2C%2026%2C%20255%5D%2C%20%2212%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2213%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2214%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2215%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2216%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2217%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2218%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2219%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2220%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%2C%20%2221%22%3A%20%5B211%2C%20211%2C%20211%2C%20255%5D%7D&assets=asset&expression=asset%2A%28asset%3C22%29%2A%28asset%3E1%29&asset_as_band=True
+license: CC by 4.0 SA
+geographic_coverage: Global
+resolution: 30 x 30 meters
+update_frequency: Irregular
+content_date: '2020'
+start_date: '2020-01-01'
+end_date: '2020-12-31'
+content_date_fixed: true
+keywords:
+- land cover
+- deforestation
+- conversion
+- supply chains
+- natural lands
+analytics_api_endpoint: /v0/land_change/natural_lands/analytics
+prompt_instructions: 'Natural and non-natural lands in 2020. Created to see if there were natural lands within users'' production
+  units in 2020, and can be used with additional monitoring data to see if change occurred on land that was natural. For questions
+  around natural forests, include the following classes: 2,5,8,9. For non-natural tree cover, include the following classes:
+  14,17,18. Use bar or pie charts to display areas of natural and non-natural areas in proportion to each other. Show data
+  on map since it is intended to be primarily spatial data. Natural lands resemble what would be found in the absence of major
+  human impacts and can include managed or degraded ecosystems. These data do not represent protection or legality of land.
+  If user asks for change, tell them that this dataset only represents one year, but they can use the land cover data to map
+  change. Land cover change on natural lands could represent conversion or natural disturbance. If a users asks about natural
+  forests, combine natural forest, mangrove, natural wetland forest, and natural peat forest into one class.
+
+  '
+selection_hints: 'Single-year baseline map of natural vs non-natural lands for 2020 only. Intended for supply chain conversion-free
+  commitments (SBTN Land target #1). Cannot show change over time — for change, use Global Land Cover dataset. Natural land
+  classes include: natural forest (2), mangrove (5), natural peat forest (8), wetland natural forest (9), natural short vegetation,
+  natural water, bare, snow, etc. Non-natural classes: crop, built, non-natural tree cover (14,17,18), etc.
+
+  '
+code_instructions: "CHART TYPES: - Natural vs non-natural proportions → bar chart or pie chart DATA RULES: - Natural forests\
+  \ = classes 2, 5, 8, 9 (natural forest + mangrove + wetland natural\n  forest + natural peat forest) — combine into one\
+  \ \"Natural forest\" category when\n  user asks about natural forests\n- Non-natural tree cover = classes 14, 17, 18 - All\
+  \ areas in hectares (ha) DO/DON'T: - This is a SINGLE YEAR (2020) snapshot — do NOT attempt timeseries or change analysis\
+  \ - These data do NOT represent protection status or legality of land TEMPORAL CONSTRAINT: - If user asks about change,\
+  \ trends, or temporal patterns: you MUST include ALL of:\n  (a) State that this dataset cannot show change — it is a single\
+  \ 2020 snapshot\n  (b) Recommend the Global Land Cover dataset by name for change analysis\n  (c) This recommendation is\
+  \ REQUIRED, not optional\n"
+presentation_instructions: 'Clarify this is a 2020 baseline snapshot, not a timeseries. "Natural" follows the AFi definition:
+  land that substantially resembles what would be found without major human impacts, including managed or degraded ecosystems.
+  Does not represent legal protection status. For change analysis, suggest the Global Land Cover dataset. When reporting natural
+  forests, specify that it combines natural forest, mangrove, wetland natural forest, and natural peat forest.
+
+  '
+description: 'The SBTN Natural Lands Map v1.1 is a 2020 baseline map of natural and non-natural land covers intended for use
+  by companies setting science-based targets for nature, specifically the SBTN Land target #1: no conversion of natural ecosystems.
+  This map is global with 30m resolution and was made by compiling existing global and regional data including the GLAD Global
+  Land Cover and Change data, ESA WorldCover, and many other land cover and use datasets.
+
+  "Natural" and "non-natural" definitions were adapted from the Accountability Framework initiative''s definition of a natural
+  ecosystem as "one that substantially resembles - in terms of species composition, structure, and ecological function - what
+  would be found in a given area in the absence of major human impacts" and can include managed ecosystems as well as degraded
+  ecosystems that are expected to regenerate either naturally or through management (AFi 2024). The SBTN Natural Lands Map
+  operationalizes this definition by using proxies based on available data that align with AFi guidance to the extent possible.
+
+  Classes includes natural: natural forests, natural short vegetation, natural water, mangroves, bare, snow, wet natural forests,
+  natural peat forests, wet natural short vegetation, natural peat short vegetation; and Non-natural: crop, built, non-natural
+  tree cover, non-natural short vegetation, non-natural water, wet non-natural tree cover, non-natural peat tree cover, wet
+  non-natural short vegetation, non-natural peat short vegetation, non-natural bare.
+
+  '
+methodology: 'The SBTN Natural Lands Map is a compilation of many global and regional land cover and land use datasets through
+  a decision tree to disaggregate natural land from non-natural lands, according to definition of natural by the Accountability
+  Framework. Global land cover and use datasets were overlaid with a hierarchy by land cover class, and then regional data
+  replaced the global data, where available. The binary natural/non-natural classes were validated independently by IIASA.
+
+  '
+cautions: '"Natural" and "non-natural" definitions were adapted from the Accountability Framework initiative''s definition
+  of a natural ecosystem as "one that substantially resembles - in terms of species composition, structure, and ecological
+  function - what would be found in a given area in the absence of major human impacts" and can include managed ecosystems
+  as well as degraded ecosystems that are expected to regenerate either naturally or through management (AFi 2024). The SBTN
+  Natural Lands Map operationalizes this definition by using proxies based on available data that align with AFi guidance
+  to the extent possible. These definitions may not match all uses of the term "natural" so users should exercise caution
+  when using this map out of the conversion-free supply chains context.
+
+  This map overestimates the extent of natural lands, and while remote sensing data, on which the map is based, can provide
+  powerful insights, additional field work should be used for validation and to understand local dynamics. Caution should
+  be used if calculating areas with the SBTN Natural Lands Map.
+
+  Natural forests include the following classes: natural forest, natural peat forests, wetland natural forests, and mangroves
+  (2,5,8,9).
+
+  '
+function_usage_notes: 'The Natural Lands Map was created for companies to use as a baseline when identifying if there has
+  been conversion of natural ecosystems in their supply chains since 2020. Users should identify change with land cover change
+  data and then refer to the Natural Lands Map to see if the change occurred on land that was natural in 2020.
+
+  '
+providers: 'Land & Carbon Lab, WWF, Systemiq, SBTN
+
+  '
+citation: 'Mazur, E., M. Sims, E. Goldman, M. Schneider, M.D. Pirri, C.R. Beatty, F. Stolle, M. Stevenson. 2025. "SBTN Natural
+  Lands Map v1.1: Technical Documentation". Science Based Targets for Land Version 1 - Supplementary Material. Science Based
+  Targets Network. [SBTN Natural Lands Map Technical Documentation](https://sciencebasedtargetsnetwork.org/wp-content/uploads/2025/02/Technical-Guidance-2025-Step3-Land-v1_1-Natural-Lands-Map.pdf)
+
+  '

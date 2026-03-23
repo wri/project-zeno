@@ -1,0 +1,147 @@
+dataset_id: 0
+dataset_name: Global all ecosystem disturbance alerts (DIST-ALERT)
+context_layers:
+- value: driver
+  description: 'Shows the primary driver or likely causes of disturbance to natural land due to: conversion, cropland dynamics,
+    fire-related, water-related, or unclassified.'
+- value: natural_lands
+  description: 'Shows intersection with natural lands classes (2020): '
+- value: grasslands
+  description: Shows disturbances to natural grasslands, shrublands, and savannas
+- value: land_cover
+  description: 'Shows disturbance within different land cover/land use classes: bare ground and sparse, vegetation, short
+    vegetation, tree cover, wetlands, water, snow/ice, cropland, cultivated grasslands, and built-up land.'
+variables: null
+tile_url: https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color
+license: CC by 4.0
+geographic_coverage: Global
+resolution: 30 x 30 meters
+update_frequency: Underlying product updated daily, with image revisit time every 2-4 days. Product on GFW updated weekly.
+content_date: 1 December 2023 - present
+start_date: '2023-12-01'
+content_date_fixed: false
+keywords:
+- land cover
+- alerts
+- deforestation
+- conversion
+- vegetation disturbance
+analytics_api_endpoint: /v0/land_change/dist_alerts/analytics
+prompt_instructions: 'Use this dataset to show recent vegetation changes across all ecosystems. Data is measured in hectares
+  (ha), use this as the unit of analysis in all cases. Show classified alerts by driver (LDACS) by default, which is designed
+  to reveal likely causes of disturbance, identify dominant drivers in a region, and support ecosystem or regional comparisons.
+  LDACS is updated quarterly and covers the most recent 12 months, so classification data are not available for the last 90
+  days. Clarify whether the user cares about temporary disturbance or permanent conversion; recommend annual land cover or
+  tree cover loss datasets for historical or long-term changes. For questions about disturbance within natural forests, apply
+  the natural lands context layer and select alerts in classes 2,5,8,9; and for non-natural tree cover, select 14,17,18. For
+  recent trends, show alert areas over time using line charts. Use pie charts to show the distribution of disturbed area (area_ha)
+  by specific driver. Use pie charts to show the distribution of disturbed area (area_ha) by land cover class or natural land
+  type to show which ecosystems are most affected. Use grouped bar charts with alert date (month) on the x-axis, area in hectares
+  (area_ha) on the y-axis, and class name to differentiate bars, highlighting seasonal patterns. Plot drivers separately if
+  one dominates (makes up > 80% of alerts in any given month) and decide whether to include or exclude unclassified alerts
+  based on whether the goal is to highlight only known drivers or completeness. Potential conversion requires ≥75 days of
+  sustained loss, so recent clearing may not appear; conversion may also be undercounted when fire is used for clearing or
+  when it occurs near rivers. Severe boreal fires may be misclassified as conversion. Always interpret alerts as indicators,
+  not definitive outcomes.
+
+  '
+selection_hints: 'Best dataset for near-real-time vegetation disturbance across ALL ecosystems (not just forests). Covers
+  Dec 2023 to present at 30m resolution, measured in hectares. Prefer when user asks about recent disturbance, clearing, or
+  conversion alerts. Driver context layer (LDACS) classifies alerts into likely causes — updated quarterly, covers most recent
+  12 months, classification NOT available for last 90 days. For historical or long-term tree cover change, prefer Tree Cover
+  Loss instead. For driver attribution of tree cover loss specifically, prefer Tree Cover Loss by Dominant Driver.
+
+  '
+code_instructions: "CHART TYPES: - Recent trends over time → line chart (x=alert month, y=area in hectares) - Distribution\
+  \ by driver → pie chart (one slice per driver class) - Distribution by land cover class or natural land type → pie chart\
+  \ - Seasonal patterns by driver → grouped bar chart (x=month, y=area_ha, group=class name) DATA RULES: - All areas in hectares\
+  \ (ha) - Show classified alerts by driver (LDACS) by default when driver context layer is active - If one driver accounts\
+  \ for >80% of alerts in any month, call it out in the\n  insight text but keep it in the same chart — do NOT create a separate\
+  \ chart\n- Include unclassified alerts by default for completeness - Exclude unclassified alerts ONLY if user explicitly\
+  \ asks for \"known drivers only\"\n  or \"classified alerts only\"\n- For natural forests with natural_lands context layer,\
+  \ select classes 2,5,8,9 - For non-natural tree cover with natural_lands context layer, select classes 14,17,18 DO/DON'T:\
+  \ - LDACS classification NOT available for last 90 days — omit driver breakdown for that period - Potential conversion requires\
+  \ ≥75 days of sustained loss — recent clearing may not appear - Conversion may be undercounted when fire is used for clearing\
+  \ or near rivers - Severe boreal fires may be misclassified as conversion - Always interpret alerts as indicators, not definitive\
+  \ outcomes\n"
+presentation_instructions: 'Describe results as vegetation disturbance alerts, not confirmed deforestation or conversion.
+  Clarify if user cares about temporary disturbance vs permanent conversion; recommend annual land cover or tree cover loss
+  datasets for historical changes. Note LDACS is updated quarterly, covers most recent 12 months, no classification for last
+  90 days. This covers all vegetation, not just forest — relevant for non-conversion of natural ecosystems monitoring.
+
+  '
+description: 'Global All Ecosystem Disturbance Alerts (DIST-ALERT) provides near-real-time alerts of vegetation disturbance
+  globally at 30-meter resolution, using harmonized Landsat-Sentinel-2 imagery. A filtered subset of these daily alerts (Land
+  Disturbance Alert Classification System or LDACS) can also be classified into potential drivers: conversion, cropland dynamics,
+  fire-related, water-related, or unclassified. Users are informed about significant changes to the vegetation, which can
+  indicate human induced changes such as deforestation, as well as drought and other events where actions by land managers
+  may be required. Crucially, this dataset covers all vegetation, not just forest, so that new non-conversion of natural ecosystems
+  commitments can be monitored.
+
+  '
+methodology: 'This dataset is a derivative of the OPERA''s DIST-ALERT product (OPERA Land Surface Disturbance Alert from Harmonized
+  Landsat Sentinel-2 product), which is derived through a time-series analysis of harmonized data from the NASA/USGS Landsat
+  and ESA Sentinel-2 satellites (known as the HLS dataset). The product identifies and continuously monitors vegetation cover
+  change in 30-m pixels across the globe. It can be accessed through the LPDAAC website here: [Earthdata Search](https://search.earthdata.nasa.gov/search?q=C2746980408-LPCLOUD),
+  and on Google Earth Engine (GEE) as an Image Collection with asset ID: projects/glad/HLSDIST/current/[Insert Layer Name].
+
+  The DIST-ALERT on GFW is a derivative of this, and additional data layers not used in the GFW product are available through
+  the LPDAAC and GEE such as initial vegetation fraction, and disturbance duration. While the version on the LPDAAC is updated
+  every 2-4 days, the data is updated weekly on GFW. The product detects notable reductions in vegetation cover (measured
+  as "vegetation fraction" or the percent of the ground that is covered by vegetation) for every pixel every time the new
+  satellite data is acquired and the ground is not obscured by clouds or snow.
+
+  The current vegetation fraction estimate is compared to the minimum fraction for the same time period (within 15 days before
+  and after) in the previous 3 years, and if there is a reduction, then the system identifies an alert in that pixel. Anomalies
+  of at least a 10% reduction from the minimum become alerts in the original product, and on GFW, a higher threshold of 30%
+  is used, to reduce noise, and false alerts in the dataset. Because the product compares each pixel to the minimum for the
+  same time period in previous years, it takes into account regular seasonal variation in vegetation cover. As the product
+  is global and detects vegetation anomalies, much of the data may not be applicable to GFW users monitoring forests. Therefore,
+  we also offer the option to mask the alerts with UMD''s tree cover map, allowing users to view only alerts within 30% canopy
+  cover.
+
+  '
+cautions: 'These alerts detect vegetation cover loss or disturbance. This product does not distinguish between human-caused
+  and other disturbance types. For example, where alerts are detected within plantation forests, alerts may indicate timber
+  harvesting operations, without a conversion to a non-forest land use, and when alerts are detected within crop land, alerts
+  may represent crop harvesting.
+
+  We do not recommend using the alerts for global or regional trend assessment, nor for area estimates. Rather, we recommend
+  using the annual tree cover loss data for a more accurate comparison of the trends in forest change over time, and for area
+  estimates. For global land cover changes, [20 year data](https://glad.umd.edu/dataset/GLCLUC2020) may be more useful for
+  certain purposes and should be explored. Additionally, updates to the methodologies and variation in cloud cover between
+  months and years pose additional risks to using alerts for inter/intra-annual comparison.
+
+  The alerts can be ''curated'' to identify those alerts of interest to a user, such as those alerts which are likely to be
+  deforestation and might be prioritized for action. A user can do this by overlaying other contextual datasets, such as protected
+  areas, or planted trees. The non-curated data are provided here in order that users can define their own prioritization
+  approaches. Curated alert locations within tree cover are provided in the Places to Watch data layer.
+
+  We provide a masked version of the product within "tree cover" which is defined as all vegetation greater than 5 meters
+  in height (2020) with greater than 30% canopy cover (2010), and may take the form of natural forests or plantations. Annual
+  tree cover loss from 2021 is masked out.
+
+  In contrast to other alert systems available on GFW, DIST-ALERT continues to monitor pixels where it has identified an alert
+  in the past. The DIST-ALERT retains the date of the most recent detection of disturbance, keeping users informed of the
+  most up-to-date changes within tree cover.
+
+  Two confidence levels are provided. The approach determines confidence level by the number of anomalous observations, with
+  more observations meaning a higher confidence level. That is, two to three anomalies detected result in a low confidence
+  alert, whereas four or more mean a high confidence alert. UMD''s Google Earth Engine app [DIST-ALERT](https://glad.earthengine.app/view/dist-alert)
+  displays alerts, with a different approach used to define confidence, and a different threshold for the vegetation reduction
+  which triggers alerts.
+
+  '
+function_usage_notes: 'Users are informed about significant changes to the vegetation, which can indicate human induced changes
+  such as deforestation, as well as drought and other events where actions by land managers may be required. Crucially, this
+  dataset covers all vegetation, not just forest, so that new non-conversion of natural ecosystems commitments can be monitored.
+
+  '
+providers: 'This land surface disturbance monitoring system known as [OPERA Land Surface Disturbance Alert](https://lpdaac.usgs.gov/products/opera_l3_dist-alert-hls_v1v001/),
+  or DIST-ALERT, was developed by the University of Maryland (UMD) and NASA''s [OPERA project](https://www.jpl.nasa.gov/go/opera).
+
+  '
+citation: 'Hansen, M.. OPERA Land Surface Disturbance Alert from Harmonized Landsat Sentinel-2 product (Version 1). 2024,
+  distributed by NASA EOSDIS Land Processes Distributed Active Archive Center, LP DAAC - OPERA_L3_DIST-ALERT-HLS_V1
+
+  '
