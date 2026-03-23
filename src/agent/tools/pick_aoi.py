@@ -428,23 +428,26 @@ async def pick_aoi(
     """
     logger.info(f"PICK-AOI-TOOL: places: '{places}', subregion: '{subregion}'")
 
-    # Phase 1: Normalize all place names via Flash Lite (parallel)
+    # Phase 1: Normalize all place names via Flash Lite (parallel).
+    # The normalizer also sets is_concept=True for geographic concepts (biomes,
+    # coastlines, river basins, informal regions) that would not exist as named
+    # rows in GADM/WDPA/KBA/Landmark — allowing us to skip the DB search and go
+    # straight to concept expansion for those terms.
     normalized = await asyncio.gather(
         *[normalize_place_name(place) for place in places]
     )
 
-    # Phase 2: Query DB with primary + alternatives for each place
-    all_results = await asyncio.gather(
-        *[
-            query_aoi_database(
-                [n.primary] + n.alternatives,
-                RESULT_LIMIT,
-            )
-            for n in normalized
-        ]
-    )
+    # Phase 2: Query DB with primary + alternatives for each place.
+    # Skip DB search when the normalizer flagged the term as a geographic concept —
+    # the concept expansion in Phase 3 will handle it.
+    async def _db_or_empty(norm):
+        if norm.is_concept:
+            return pd.DataFrame()
+        return await query_aoi_database([norm.primary] + norm.alternatives, RESULT_LIMIT)
 
-    # Phase 3: For places with no DB results, try concept expansion
+    all_results = await asyncio.gather(*[_db_or_empty(n) for n in normalized])
+
+    # Phase 3: For places with no DB results (or flagged as concepts), try concept expansion
     final_places = []
     final_results = []
     concept_coverage_notes = []
@@ -453,8 +456,12 @@ async def pick_aoi(
         best_score = (
             result_df.iloc[0]["similarity_score"] if not result_df.empty else 0
         )
-        if result_df.empty or best_score < 0.3:
-            # No good match — try geographic concept expansion
+        if norm.is_concept or result_df.empty or best_score < 0.3:
+            if norm.is_concept:
+                logger.info(
+                    f"Normalizer flagged '{place}' as geographic concept — skipping DB search"
+                )
+            # No good match or semantic concept — try geographic concept expansion
             expansion = await expand_geographic_concept(place, question)
             if expansion.is_concept and expansion.places:
                 logger.info(

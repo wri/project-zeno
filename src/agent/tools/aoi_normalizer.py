@@ -43,6 +43,21 @@ class NormalizedPlaceName(BaseModel):
         default=None,
         description="ISO 3166-1 alpha-3 country code if confidently identified.",
     )
+    is_concept: bool = Field(
+        default=False,
+        description=(
+            "True if the input refers to a geographic CONCEPT rather than a named place "
+            "that would appear as a row in a geographic database (GADM, WDPA, KBA, Landmark). "
+            "Concepts include: biomes (Amazon rainforest, Cerrado, Sahel, miombo woodland), "
+            "river basins/watersheds (Congo Basin, Jubba River watershed), "
+            "coastlines/littorals (Colombian coastline, coastline of Brazil), "
+            "informal regions (the Levant, Southeast Asia, BRICS nations, Scandinavia), "
+            "natural features that span multiple admin units (the Rockies, Patagonia, Borneo), "
+            "and ecosystem zones (tropical rainforest belt, boreal zone). "
+            "Named cities, countries, states, provinces, protected areas, and indigenous "
+            "territories are NOT concepts — set is_concept=False for those."
+        ),
+    )
 
 
 _NORMALIZE_PROMPT = ChatPromptTemplate.from_messages(
@@ -65,6 +80,12 @@ Rules:
 6. Map historical names: "Burma" → "Myanmar", "Rhodesia" → "Zimbabwe".
 7. Transliterate non-Latin scripts: "Москва" → "Moscow" (primary), "Moskva" (alternative).
 8. If the input is already clean English with no accent issues, return it as-is with empty alternatives.
+9. IS_CONCEPT: Set to true if the input is a geographic concept (biome, watershed, coastline,
+   informal region, natural feature spanning multiple admin units) rather than a specific named
+   place that exists as a row in a geographic database. Examples:
+   - is_concept=True: "the Amazon rainforest", "Colombian coastline", "the Rockies",
+     "the Levant", "Congo Basin", "miombo woodland", "Southeast Asia"
+   - is_concept=False: "Colombia", "Pará, Brazil", "Yellowstone", "the DRC", "Kalimantan Utara"
 
 Place name: {place_name}""",
         )

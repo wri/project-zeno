@@ -475,6 +475,76 @@ async def test_selection_name_format(structlog_context):
 # ===================================================================
 
 
+async def test_normalizer_is_concept_flag_defaults_false(structlog_context):
+    """NormalizedPlaceName.is_concept defaults to False for named places."""
+    named = NormalizedPlaceName(primary="Colombia")
+    assert named.is_concept is False
+
+    named_with_alt = NormalizedPlaceName(primary="Para, Brazil", alternatives=["Pará, Brazil"])
+    assert named_with_alt.is_concept is False
+
+
+async def test_normalizer_is_concept_flag_set_true(structlog_context):
+    """NormalizedPlaceName.is_concept can be set True for concepts."""
+    concept = NormalizedPlaceName(primary="the colombian coastline", is_concept=True)
+    assert concept.is_concept is True
+    # Concept terms typically have no useful alternatives
+    assert concept.alternatives == []
+
+
+async def test_is_concept_flag_bypasses_db_search(structlog_context):
+    """When normalizer returns is_concept=True, DB search is skipped entirely.
+
+    This is the key improvement over the trigram-threshold approach: terms like
+    'the Colombian coastline' would previously trigram-match 'Colombia' (score > 0.3),
+    suppressing concept expansion. Now the normalizer's semantic judgment takes
+    precedence and the DB lookup is skipped unconditionally.
+    """
+    concept_result = ConceptExpansion(
+        is_concept=True,
+        places=["Atlántico, Colombia", "Magdalena, Colombia", "Chocó, Colombia"],
+        admin_level="state",
+        coverage_note="approximate - Colombian coastal departments",
+    )
+
+    async def _concept_normalizer(raw_place):
+        # Simulate Flash Lite correctly identifying a coastline as a concept
+        return NormalizedPlaceName(primary=raw_place, is_concept=True)
+
+    db_mock = AsyncMock()
+
+    with patch(
+        "src.agent.tools.pick_aoi.normalize_place_name",
+        new_callable=AsyncMock,
+        side_effect=_concept_normalizer,
+    ), patch(
+        "src.agent.tools.pick_aoi.query_aoi_database",
+        db_mock,
+    ), patch(
+        "src.agent.tools.pick_aoi.expand_geographic_concept",
+        new_callable=AsyncMock,
+        return_value=concept_result,
+    ):
+        # "the colombian coastline" would score >0.3 against "Colombia" via trigram,
+        # but is_concept=True means query_aoi_database is never called for it.
+        command = await pick_aoi.ainvoke(
+            _invoke(
+                "mangrove extent along the Colombian coastline",
+                ["the colombian coastline"],
+            )
+        )
+
+    # DB was called only for the expanded places (Atlántico, Magdalena, Chocó),
+    # NOT for "the colombian coastline" itself
+    assert db_mock.call_count == 3, (
+        f"DB should be called 3 times (one per expanded place), got {db_mock.call_count}"
+    )
+    called_terms = [call.args[0] for call in db_mock.call_args_list]
+    assert not any("colombian coastline" in t[0].lower() for t in called_terms), (
+        "DB should not be called with the original concept term"
+    )
+
+
 async def test_normalizer_with_alternatives_finds_match(structlog_context):
     """When normalizer returns alternatives, they're searched in parallel."""
     # Override the passthrough mock for this test — return accented alternative
@@ -1063,6 +1133,259 @@ async def test_failure_us_reforestation_resolves_country(structlog_context):
     assert aois is not None
     assert len(aois) == 1
     assert aois[0]["src_id"] == "USA"
+
+
+# ===================================================================
+# INTEGRATION TESTS: Named geographic concepts
+# Each test mocks Flash concept expansion with realistic places that
+# are seeded in the test DB, verifying end-to-end resolution.
+# ===================================================================
+
+
+async def test_concept_the_amazon_resolves_to_amazon_countries(structlog_context):
+    """'The amazon' should expand to the Amazon rainforest countries.
+
+    The Amazon spans 8+ South American countries. Flash should return country-level
+    admin units — all of which exist in the test DB.
+    """
+    concept_result = ConceptExpansion(
+        is_concept=True,
+        places=["Brazil", "Peru", "Colombia", "Ecuador", "Bolivia", "Suriname"],
+        admin_level="country",
+        coverage_note="approximate - countries containing significant Amazon rainforest coverage",
+    )
+
+    with patch(
+        "src.agent.tools.pick_aoi.expand_geographic_concept",
+        new_callable=AsyncMock,
+        return_value=concept_result,
+    ):
+        command = await pick_aoi.ainvoke(
+            _invoke("deforestation rates in the Amazon", ["The amazon"])
+        )
+
+    aois = _aois(command)
+    assert aois is not None, "Expected AOIs for The amazon"
+    assert len(aois) >= 4, f"Expected ≥4 Amazon countries, got {len(aois)}"
+    src_ids = {aoi["src_id"] for aoi in aois}
+    # Core Amazon countries must all be present
+    assert "BRA" in src_ids, "Brazil must be in Amazon result"
+    assert "PER" in src_ids, "Peru must be in Amazon result"
+    assert "COL" in src_ids, "Colombia must be in Amazon result"
+    assert "ECU" in src_ids, "Ecuador must be in Amazon result"
+    assert "BOL" in src_ids, "Bolivia must be in Amazon result"
+    assert "SUR" in src_ids, "Suriname must be in Amazon result"
+    # All AOIs must be countries (concept expansion said admin_level="country")
+    assert all(aoi["subtype"] == "country" for aoi in aois)
+    # Coverage note should flow into the tool message
+    assert "approximate" in _msg(command).lower() or "amazon" in _msg(command).lower()
+
+
+async def test_concept_the_rockies_resolves_to_mountain_states(structlog_context):
+    """'The rockies' should expand to US and Canadian Rocky Mountain regions.
+
+    The Rocky Mountains span the western US and Canadian provinces. Flash should
+    return state-level admin units from both countries.
+    """
+    concept_result = ConceptExpansion(
+        is_concept=True,
+        places=[
+            "Montana, United States",
+            "Wyoming, United States",
+            "Colorado, United States",
+            "Idaho, United States",
+            "Alberta, Canada",
+            "British Columbia, Canada",
+        ],
+        admin_level="state",
+        coverage_note="approximate - states and provinces bisected by the Rocky Mountain range",
+    )
+
+    with patch(
+        "src.agent.tools.pick_aoi.expand_geographic_concept",
+        new_callable=AsyncMock,
+        return_value=concept_result,
+    ):
+        command = await pick_aoi.ainvoke(
+            _invoke("forest cover change in the Rockies", ["The rockies"])
+        )
+
+    aois = _aois(command)
+    assert aois is not None, "Expected AOIs for The rockies"
+    assert len(aois) >= 4, f"Expected ≥4 Rocky Mountain regions, got {len(aois)}"
+    src_ids = {aoi["src_id"] for aoi in aois}
+    # Must include both US states and Canadian provinces
+    us_states = {sid for sid in src_ids if sid.startswith("USA.")}
+    can_provinces = {sid for sid in src_ids if sid.startswith("CAN.")}
+    assert len(us_states) >= 3, f"Expected ≥3 US Rocky states, got {us_states}"
+    assert len(can_provinces) >= 1, f"Expected ≥1 Canadian province, got {can_provinces}"
+    assert "USA.26_1" in src_ids, "Montana must be in Rockies result"
+    assert "USA.6_1" in src_ids, "Colorado must be in Rockies result"
+    assert "CAN.1_1" in src_ids, "Alberta must be in Rockies result"
+    assert "approximate" in _msg(command).lower() or "rockies" in _msg(command).lower() or "rocky" in _msg(command).lower()
+
+
+async def test_concept_colombian_coastline_via_subregion_expansion(
+    structlog_context,
+):
+    """'Colombia' + subregion='state' resolves to Colombian departments including coastal ones.
+
+    The outer agent extracts 'Colombia' as the country and passes subregion='state'
+    to retrieve state-level breakdown. This is the correct handling of 'the Colombian
+    coastline' — the tool resolves Colombia's departments, and the downstream analysis
+    filters to coastal ones. Tests that newly seeded departments (Atlántico, Chocó,
+    Bolívar, Magdalena) are all found via ST_Within.
+    """
+    command = await pick_aoi.ainvoke(
+        _invoke(
+            "mangrove extent along the Colombian coastline",
+            ["Colombia"],
+            subregion="state",
+        )
+    )
+
+    aois = _aois(command)
+    assert aois is not None, "Expected AOIs for Colombian coastline"
+    assert len(aois) >= 3, f"Expected ≥3 Colombian departments, got {len(aois)}"
+    src_ids = {aoi["src_id"] for aoi in aois}
+    # All four seeded Colombian departments must be returned (they're all within Colombia's bbox)
+    assert "COL.2_1" in src_ids, "Atlántico (Caribbean coast) must be present"
+    assert "COL.17_1" in src_ids, "Magdalena (Caribbean coast) must be present"
+    assert "COL.13_1" in src_ids, "Chocó (Pacific coast) must be present"
+    assert "COL.4_1" in src_ids, "Bolívar (Caribbean coast) must be present"
+    assert all(aoi["subtype"] == "state-province" for aoi in aois)
+    # Bbox overlap in test data means a few non-Colombian depts with small bboxes
+    # inside Colombia's envelope may appear — just verify the coastal ones are present
+    src_ids = {aoi["src_id"] for aoi in aois}
+    assert "COL.2_1" in src_ids, "Atlántico (Caribbean coast) must be present"
+    assert "COL.17_1" in src_ids, "Magdalena (Caribbean coast) must be present"
+    assert "COL.13_1" in src_ids, "Chocó (Pacific coast) must be present"
+    assert "COL.4_1" in src_ids, "Bolívar (Caribbean coast) must be present"
+
+
+async def test_concept_colombian_coastline_concept_expansion(structlog_context):
+    """'the colombian coastline' triggers concept expansion via is_concept=True from normalizer.
+
+    Previously required the workaround term 'Pacific and Caribbean seaboard' because
+    'the colombian coastline' trigram-matches 'Colombia' (>0.3 score), suppressing expansion.
+    With is_concept=True from the normalizer, the DB search is bypassed and the real
+    user-facing term can be used directly.
+    Note: Bolívar excluded from concept places — Ecuador also has 'Bolívar, Ecuador'
+    in the test DB, which would trigger the cross-country disambiguation prompt.
+    """
+    concept_result = ConceptExpansion(
+        is_concept=True,
+        places=[
+            "Atlántico, Colombia",
+            "Magdalena, Colombia",
+            "Chocó, Colombia",
+        ],
+        admin_level="state",
+        coverage_note="approximate - Caribbean coast (Atlántico, Magdalena) and Pacific coast (Chocó) departments",
+    )
+
+    async def _concept_normalizer(raw_place):
+        # Flash correctly identifies "the colombian coastline" as a geographic concept
+        if "coastline" in raw_place.lower():
+            return NormalizedPlaceName(primary=raw_place, is_concept=True)
+        return NormalizedPlaceName(primary=raw_place)
+
+    with patch(
+        "src.agent.tools.pick_aoi.normalize_place_name",
+        new_callable=AsyncMock,
+        side_effect=_concept_normalizer,
+    ), patch(
+        "src.agent.tools.pick_aoi.expand_geographic_concept",
+        new_callable=AsyncMock,
+        return_value=concept_result,
+    ):
+        # Now uses the real user-facing term — no trigram workaround needed
+        command = await pick_aoi.ainvoke(
+            _invoke(
+                "mangrove extent along the Colombian coastline",
+                ["the colombian coastline"],
+            )
+        )
+
+    aois = _aois(command)
+    assert aois is not None, "Expected AOIs for Colombian coastline concept"
+    assert len(aois) == 3, f"Expected 3 coastal departments, got {len(aois)}"
+    src_ids = {aoi["src_id"] for aoi in aois}
+    assert "COL.2_1" in src_ids, "Atlántico (Caribbean coast) must be present"
+    assert "COL.17_1" in src_ids, "Magdalena (Caribbean coast) must be present"
+    assert "COL.13_1" in src_ids, "Chocó (Pacific coast) must be present"
+    assert all(aoi["subtype"] == "state-province" for aoi in aois)
+    assert all("COL" in aoi["src_id"] for aoi in aois), "All results must be Colombian"
+
+
+async def test_concept_the_levant_resolves_to_levant_countries(structlog_context):
+    """'The levant' should expand to the eastern Mediterranean countries.
+
+    The Levant is a historical region covering the eastern Mediterranean — Jordan,
+    Lebanon, Syria, and Palestine. Flash should return these as country-level AOIs.
+    """
+    concept_result = ConceptExpansion(
+        is_concept=True,
+        places=["Jordan", "Lebanon", "Syria", "Palestine"],
+        admin_level="country",
+        coverage_note="exact - the four core Levant states (Jordan, Lebanon, Syria, Palestine)",
+    )
+
+    with patch(
+        "src.agent.tools.pick_aoi.expand_geographic_concept",
+        new_callable=AsyncMock,
+        return_value=concept_result,
+    ):
+        command = await pick_aoi.ainvoke(
+            _invoke("land use change in the Levant over the past decade", ["The levant"])
+        )
+
+    aois = _aois(command)
+    assert aois is not None, "Expected AOIs for The levant"
+    assert len(aois) == 4, f"Expected exactly 4 Levant countries, got {len(aois)}"
+    src_ids = {aoi["src_id"] for aoi in aois}
+    assert "JOR" in src_ids, "Jordan must be in Levant result"
+    assert "LBN" in src_ids, "Lebanon must be in Levant result"
+    assert "SYR" in src_ids, "Syria must be in Levant result"
+    assert "PSE" in src_ids, "Palestine must be in Levant result"
+    assert all(aoi["subtype"] == "country" for aoi in aois)
+
+
+async def test_concept_sundarbans_resolves_to_delta_regions(structlog_context):
+    """'The Sundarbans' should expand to the mangrove delta regions of Bangladesh and India.
+
+    The Sundarbans mangrove forest straddles the Bangladesh-India border across
+    the Ganges-Brahmaputra delta. Flash should return Bangladesh (country) and
+    West Bengal (Indian state) as the two spatial units.
+    Note: source_hint is omitted so the tool returns admin units directly rather
+    than attempting WDPA subregion expansion (which requires WDPA data in the test DB).
+    """
+    concept_result = ConceptExpansion(
+        is_concept=True,
+        places=["Bangladesh", "West Bengal, India"],
+        admin_level="state",
+        coverage_note="approximate - the Sundarbans delta spans Bangladesh and the Indian state of West Bengal",
+    )
+
+    with patch(
+        "src.agent.tools.pick_aoi.expand_geographic_concept",
+        new_callable=AsyncMock,
+        return_value=concept_result,
+    ):
+        command = await pick_aoi.ainvoke(
+            _invoke(
+                "What is the mangrove cover change in the Sundarbans?",
+                ["the Sundarbans"],
+            )
+        )
+
+    aois = _aois(command)
+    assert aois is not None, "Expected AOIs for The Sundarbans"
+    assert len(aois) == 2, f"Expected 2 Sundarbans regions, got {len(aois)}"
+    src_ids = {aoi["src_id"] for aoi in aois}
+    assert "BGD" in src_ids, "Bangladesh must be in Sundarbans result"
+    assert "IND.35_1" in src_ids, "West Bengal (India) must be in Sundarbans result"
+    assert "approximate" in _msg(command).lower() or "sundarbans" in _msg(command).lower()
 
 
 # ===================================================================
