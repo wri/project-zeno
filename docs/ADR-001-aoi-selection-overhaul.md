@@ -1,7 +1,7 @@
 # ADR-001: AOI Selection Pipeline Overhaul
 
 **Status:** Accepted
-**Date:** 2026-03-22
+**Date:** 2026-03-23
 **Authors:** Adam Pain, Claude
 
 ## Context
@@ -35,6 +35,8 @@ Adding a new AOI source (e.g., a watershed table) required coordinated changes i
 **4. Missing capability: geographic concepts**
 
 Users frequently queried natural features, biomes, and regions ("the Cerrado", "the Congo Basin", "BRICS nations") that don't exist as rows in any geometry table. These queries returned empty results or resolved to an unrelated partial match.
+
+A secondary failure mode existed within this problem: terms like "the Colombian coastline" had enough lexical overlap with "Colombia" (shared trigrams: `col`, `olo`, `lom`, `omb`, `mbi`, `bia`) to score above the 0.3 concept-expansion threshold, so the concept path was silently suppressed and the country was returned instead of the coastal departments. This is a **false positive DB match** — the string matches a row but the semantic intent doesn't.
 
 **5. Accent confusion in scoring**
 
@@ -100,26 +102,42 @@ The accent-aware segment matching uses `unicodedata.normalize("NFKD")` to strip 
 
 **Trade-off:** The LLM had world knowledge for contextual disambiguation (e.g., "deforestation in Para" → the LLM knew Para, Brazil is the deforestation hotspot, not Para, Suriname). The scorer handles this via the existing `check_multiple_matches` flow which asks the user when same-named places exist across countries. This is arguably better UX than the LLM silently guessing.
 
-### 3. Flash Name Normalizer (pre-search)
+### 3. Flash Name Normalizer (pre-search) with concept detection
 
-Add a Gemini Flash Lite call **before** the database query to normalize raw place names:
+Add a Gemini Flash Lite call **before** the database query to normalize raw place names and classify geographic concepts in a single call:
 
 ```python
 class NormalizedPlaceName(BaseModel):
-    primary: str          # "Côte d'Ivoire"
+    primary: str             # "Côte d'Ivoire"
     alternatives: list[str]  # ["Ivory Coast"]
     iso_country_code: str | None  # "CIV"
+    is_concept: bool         # True for biomes, coastlines, basins, informal regions
 ```
 
 All terms (primary + alternatives) are searched in parallel via a single UNION query with `DISTINCT ON (source, src_id)` deduplication.
 
-**Rationale:** Flash Lite adds ~150ms but fixes an entire class of recall failures (name equivalences, transliterations, abbreviations). The net latency is lower than before because the old LLM disambiguation call (500ms–2s) is eliminated. Timeout (2s) with passthrough fallback ensures graceful degradation if Flash is down.
+The `is_concept` field solves the false-positive DB match problem: when the normalizer returns `True`, Phase 2 (DB search) is **skipped entirely** and concept expansion fires unconditionally — regardless of trigram similarity scores. This is a semantic judgment, not a syntactic threshold.
 
-**Trade-off:** Adds a runtime dependency on Gemini Flash Lite. If the API is unavailable, the normalizer falls back to the raw input — identical to the old behavior.
+```
+"the Colombian coastline"
+  → normalizer: is_concept=True          ← Flash knows coastlines aren't GADM rows
+  → DB search skipped
+  → concept expansion: Atlántico, Magdalena, Chocó departments
+  → correct result
+
+Previously (trigram-only trigger):
+  → DB search: "Colombia" scores 0.35 > 0.3 threshold
+  → concept expansion suppressed
+  → wrong result: Colombia country
+```
+
+**Rationale:** Flash Lite adds ~150ms but fixes two classes of recall failures simultaneously: name equivalences/transliterations (via `primary`/`alternatives`) and false-positive DB matches for concepts (via `is_concept`). No extra LLM call — the concept classification is part of the same structured output. Timeout (2s) with passthrough fallback (`is_concept=False`) ensures graceful degradation.
+
+**Trade-off:** Adds a runtime dependency on Gemini Flash Lite. If the API is unavailable, the normalizer falls back to raw input with `is_concept=False` — identical to old behavior (concept expansion still fires via the trigram fallback for terms with no DB match at all).
 
 ### 4. Geographic Concept Expansion (fallback)
 
-When the database returns 0 results (or best similarity < 0.3), trigger a Flash Lite call to check if the query is a geographic concept:
+When `norm.is_concept=True` **or** the database returns 0 results (or best similarity < 0.3), trigger a Flash Lite call to expand the concept into concrete admin units:
 
 ```python
 class ConceptExpansion(BaseModel):
@@ -132,9 +150,9 @@ class ConceptExpansion(BaseModel):
 
 Results are cached 24h via `cachetools.TTLCache(maxsize=256)`.
 
-**Rationale:** Enables an entirely new class of queries (biomes, basins, regions, geopolitical groupings) with zero added cost for normal named-place queries (fallback-only). The coverage note flows to the user so they know the approximation quality.
+**Rationale:** Enables an entirely new class of queries (biomes, basins, regions, geopolitical groupings). The `is_concept` flag from the normalizer means truly concept-like terms (coastlines, river basins, informal regions) trigger expansion even when they partially match real DB entries. The coverage note flows to the user so they know the approximation quality.
 
-**Trade-off:** The spatial approximation is imperfect — "the Cerrado" mapped to Brazilian states includes non-Cerrado portions of some states. This is explicitly communicated via the coverage note. No worse than having the user manually pick states.
+**Trade-off:** The spatial approximation is imperfect — "the Cerrado" mapped to Brazilian states includes non-Cerrado portions of some states. Explicitly communicated via the coverage note. The `is_concept` normalizer flag may occasionally misclassify edge cases (e.g., a real place name that sounds like a concept). Mitigated by the trigram fallback — if Flash incorrectly sets `is_concept=True` for a real named place, concept expansion will re-query the DB and may still find it.
 
 ## Consequences
 
@@ -144,20 +162,21 @@ Results are cached 24h via `cachetools.TTLCache(maxsize=256)`.
 - **Recall improvement:** "Ivory Coast", "DRC", "Burma", "São Paulo" all now findable via multi-term search
 - **New capability:** Geographic concepts, biomes, watersheds, and geopolitical groupings are now handled
 - **Extensibility:** Adding a new geometry source is a single `register_source()` call
-- **Test coverage:** 4 → 74 tests, including 16 from observed production failures
+- **Test coverage:** 4 → 83 tests, including 16 from observed production failures and 7 named geographic concept tests (The Amazon, The Rockies, The Levant, Colombian coastline, The Sundarbans, and others)
 - **Determinism:** Same input always produces same output (no LLM randomness in scoring)
 
 ### Negative
 
 - **Flash Lite dependency:** Normalization adds a runtime dependency on Google AI. Mitigated by timeout + passthrough fallback.
 - **Concept expansion quality:** Depends on Flash Lite's geographic knowledge, which may be incorrect for obscure regions. Mitigated by the 24h cache (wrong answers are at least consistent) and the coverage note (user is informed).
+- **is_concept misclassification:** Flash Lite may occasionally set `is_concept=True` for a real named place (e.g., "Borneo" is both a named island and a geographic concept). Mitigated by the concept expansion re-querying the DB — real named places will still be found as expanded results.
 - **Scorer lacks contextual reasoning:** The old LLM could use the question context ("deforestation" → prefer tropical regions). The scorer uses only string matching and hierarchy. Mitigated by `check_multiple_matches` asking the user for ambiguous cases.
 - **Multi-term UNION query size:** With 3-4 search terms × 5 source tables, the UNION query has 15-20 subqueries. PostGIS handles this well but it's more complex SQL. Mitigated by `DISTINCT ON` deduplication keeping the result set small.
 
 ### Neutral
 
 - **Backward compatibility:** `SOURCE_ID_MAPPING`, `SUBREGION_TO_SUBTYPE_MAPPING`, and `format_id()` are preserved as computed exports. Deprecated `aoi`/`subtype` state fields are still set alongside `aoi_selection`. Removal planned for a follow-up PR.
-- **Test DB seeding:** Integration tests now require a PostGIS database seeded with ~100 geometry rows (countries, states, districts, protected areas, landmarks). A SQL seed script is used; the full ingestion pipeline is not required for tests.
+- **Test DB seeding:** Integration tests now require a PostGIS database seeded with ~114 geometry rows (countries, states, districts, protected areas, landmarks) including newly added Levant countries, Rocky Mountain states, Bangladesh, West Bengal, and Colombian coastal departments. A SQL seed script is used; the full ingestion pipeline is not required for tests.
 
 ## Files changed
 
@@ -166,9 +185,9 @@ Results are cached 24h via `cachetools.TTLCache(maxsize=256)`.
 | `src/shared/aoi/__init__.py` | New — public API |
 | `src/shared/aoi/models.py` | New — AOI, AOISelection, enums |
 | `src/shared/aoi/registry.py` | New — AOISourceConfig, 5 registrations |
-| `src/agent/tools/aoi_normalizer.py` | New — normalizer + concept expansion |
+| `src/agent/tools/aoi_normalizer.py` | New — normalizer + concept expansion; `is_concept` field added |
 | `src/shared/geocoding_helpers.py` | Modified — constants from registry |
 | `src/agent/tools/data_handlers/analytics_handler.py` | Modified — registry lookup |
 | `src/agent/tools/pick_aoi.py` | Modified — scorer, multi-term search, 4-phase flow |
-| `tests/tools/test_pick_aoi.py` | Rewritten — 74 tests |
+| `tests/tools/test_pick_aoi.py` | Rewritten — 83 tests across 10 categories |
 | `tests/agent/test_graph.py` | Modified — mock updates |
