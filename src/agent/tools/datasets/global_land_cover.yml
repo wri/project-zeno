@@ -1,0 +1,158 @@
+dataset_id: 1
+dataset_name: Global land cover
+context_layers: null
+variables: null
+tile_url: /raster/collections/global-land-cover-v-2/items/global-land-cover-{year}/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png?colormap=%7B%221%22%3A%20%5B254%2C%20254%2C%20204%2C%20255%5D%2C%20%222%22%3A%20%5B185%2C%20185%2C%2030%5D%2C%20%223%22%3A%20%5B36%2C%20110%2C%2036%5D%2C%20%224%22%3A%20%5B116%2C%20214%2C%20180%5D%2C%20%225%22%3A%20%5B107%2C%20174%2C%20214%5D%2C%20%226%22%3A%20%5B172%2C%20209%2C%20232%5D%2C%20%227%22%3A%20%5B255%2C%20241%2C%20131%5D%2C%20%228%22%3A%20%5B232%2C%20118%2C%2093%5D%2C%20%229%22%3A%20%5B255%2C%20205%2C%20115%5D%7D&assets=asset&expression=asset%2A%28asset%3C10%29%2A%28asset%3E0%29&asset_as_band=True
+license: CC by 4.0
+geographic_coverage: Global
+resolution: 30 x 30 meters
+update_frequency: Annual
+content_date: 2015-2024
+start_date: '2015-01-01'
+end_date: '2024-12-31'
+content_date_fixed: false
+keywords:
+- global
+- land cover
+- land cover change
+- cultivated grasslands
+- tree cover gain
+- cropland expansion
+- agricultural expansion
+- urbanization
+- urban expansion
+- bare ground
+- sparse vegetation
+- short vegetation
+- grassland
+- shrubland
+- cultivated
+- cropland
+- built-up
+- urban
+- forest
+- tree cover
+- water
+- wetland
+- machine learning
+- annual
+- Landsat
+- time series
+- remote sensing
+- 30 m
+analytics_api_endpoint: /v0/land_change/land_cover_change/analytics
+prompt_instructions: 'This dataset contains land-cover class snapshots in 2015 and 2024, reporting pixel-level class changes,
+  measured in hectares (ha). For change questions, use tables with land_cover_class_start, land_cover_class_end, and area_ha
+  columns to show transitions. Warn users that the data only shows start- and end-states, not intra-annual changes. Clarify
+  that this is not an annual time series or intra-annual product. Warn users that this data does not capture classes that
+  remained the same between 2015 and 2024. For composition questions, use pie-charts to show the area of each land cover class
+  in 2024, and for ONLY 2024. Drop zeros. Transitions to "short vegetation" or "bare" may reflect seasonality, not restoration/degradation.
+  When users ask about agriculture, combine "cropland"+"cultivated grassland" unless they specify otherwise.
+
+  '
+selection_hints: 'Best dataset for land cover composition or land cover CHANGE between 2015 and 2024. Reports pixel-level
+  class transitions at 30m resolution, measured in hectares. Only shows start (2015) and end (2024) states — NOT an annual
+  timeseries. Does NOT capture classes that remained the same between 2015 and 2024. Classes: bare ground & sparse vegetation,
+  short vegetation, tree cover, wetlands, water, snow/ice, cropland, cultivated grasslands, built-up land. For tree cover
+  loss specifically, prefer Tree Cover Loss dataset. For natural/semi-natural grasslands specifically, prefer the Grasslands
+  dataset.
+
+  '
+code_instructions: "CHART TYPES: - Land cover change → table with columns: land_cover_class_start, land_cover_class_end, area_ha\
+  \ - Land cover composition (snapshot) → pie chart for 2024 ONLY DATA RULES: - Drop rows where area_ha = 0 - When user asks\
+  \ about agriculture, farming, or agricultural land: you MUST combine\n  \"cropland\" AND \"cultivated grassland\" into a\
+  \ single \"Agriculture\" category. Do NOT\n  show them as separate classes unless the user explicitly asks to see them separately.\n\
+  - Transitions to \"short vegetation\" or \"bare ground\" may reflect seasonality,\n  not real restoration or degradation\
+  \ — note this in output\nDO/DON'T: - This is NOT an annual timeseries — do NOT attempt year-by-year charts - Only 2 snapshots\
+  \ exist: 2015 and 2024 - Data does NOT capture classes that stayed the same — only transitions - For composition/snapshot\
+  \ questions, show 2024 data ONLY\n"
+presentation_instructions: 'Clarify that this dataset shows land cover change between 2015 and 2024 only, not annual or intra-annual
+  changes. Warn that it does not capture classes that remained unchanged. Note that transitions to "short vegetation" or "bare"
+  may reflect seasonal variation rather than actual degradation or restoration. This shows land cover change, not necessarily
+  land use change or conversion.
+
+  '
+description: 'This Global Land Cover dataset is a combination of two global datasets: the GLAD Land Cover and Land Use Change
+  annual data and the Global Pasture Watch Grassland Class Collection 2 Cultivated Grasslands annual data. This combination
+  is annual from 2015 through 2024. This dataset shows land covers and uses including: bare ground and sparse vegetation,
+  short vegetation, tree cover, wetlands, water, snow/ice, cropland, cultivated grasslands, and built-up land.
+
+  '
+methodology: 'This Global Land Cover time series was created by combining annual GLAD Land Cover and Land Use Change data
+  from the UMD GLAD lab with annual Cultivated Grassland data from the Global Pasture Watch consortium.
+
+  The GLAD Land Cover and Land Use Change data is a combination of separate supervised classification models for each of the
+  major thematic classes. The models were run on Landsat Analysis Ready Data (ARD) and were calibrated locally or regionally.
+  Each class was validated with a statistical sample analysis. The forest height, cropland, snow/ice, built-up, and water
+  were combined with a vegetation fraction layer with a specific hierarchy in order to create the combined land cover map
+  for each year. A wetland layer was overlaid onto the data in forest and short vegetation areas. Because of the continuous
+  nature of the vegetation fraction, forest height, and water classes, we re-classified the values into eight classes: bare
+  ground & sparse vegetation (<20% vegetation fraction), short vegetation (>=20% vegetation fraction <5m in height), tree
+  cover (>=5m in height), wetland short vegetation, water (20-100% of the year), snow & ice, cropland, and built-up. Each
+  land cover was validated separately with overall accuracies as follows: Forest extent in 2020: 97.2% (0.7 s.e.), Cropland
+  extent in 2016-2019: 97.2%(0.3 s.e.), Snow/Ice extent in 2020: 99.8% (0.04 s.e.). There was also validation done for the
+  changes over time for each class, available in the full paper.
+
+  The Cultivated Grasslands layer from Global Pasture Watch, which shows the spatiotemporal distribution of cultivated and
+  natural/semi-natural grassland classes, was produced by using GLAD Landsat ARD-2 image archive, accompanied by climatic,
+  landform and proximity covariates, spatiotemporal machine learning (per-class Random Forest) and over 2.3 M reference samples
+  (visually interpreted in Very High Resolution imagery). Custom probability thresholds (based on five-fold spatial cross-validation)
+  were used to derive dominant class maps with balanced user''s and producer''s accuracy, resulting in f1 score of 0.64 and
+  0.75 for cultivated and natural/semi-natural grassland, respectively.
+
+  The areas with a probability over 42% for natural/semi-natural grasslands and 38% for cultivated grasslands were combined
+  into a dominant map where the natural/semi-natural class has priority. Cultivated Grassland pixels from the dominant class
+  map were isolated and inserted into the short vegetation and wetland classes in the GLAD data as an eighth class.
+
+  '
+cautions: 'This dataset represents land covers and some land uses, but when calculating areas of change, it should be noted
+  that it shows land cover change, not necessarily land use change. It also does not represent conversion, a concept defined
+  by the Accountability Framework initiative. Caution should be used if using this land cover change data over the full time
+  period since it does not capture all the changes in the time series, only what the pixels were in 2015 and 2024.
+
+  Transitions between the ''bare ground & sparse vegetation'' and ''short vegetation'' or ''wetland short vegetation'' classes
+  can be due to precipitation patterns or minor changes in vegetation cover and are not necessarily large changes in vegetation
+  cover or degradation.
+
+  If a user asks about tree cover loss due to another land cover type, answer with both an area of TCL due to a certain driver
+  (TCL grouped by a specific driver) and percent of loss that was due to that driver, NOT with the land cover change areas
+  from this product.
+
+  Land cover transitions to vegetation are not necessarily restoration. Users should exercise caution if using this data at
+  the local scale. We encourage ground-truthing data if using this for decision-making. Data is not suitable for within year
+  dynamics like crop cycles and flood pulses.
+
+  '
+function_usage_notes: 'This Global Land Cover dataset is intended to be used for monitoring land cover in individual years
+  as well as change over time. Note that changes over time indicate land cover changes and may or may not capture land use
+  changes.
+
+  This dataset should be used when a user asks about area in a specific year or gain or loss of area between years for bare
+  ground and sparse vegetation, short vegetation, wetlands, water, snow/ice, cropland, cultivated grasslands, and built-up
+  land. Gain of tree cover can be derived from this dataset. Never use this dataset for tree cover loss, instead refer to
+  the Tree Cover Loss (Hansen/UMD/GLAD) data. This dataset may be overlaid with DIST alert data to find alerts in specific
+  land covers. It can also be used to find where land cover has changed since 2020 and then overlaid with the Natural Lands
+  map to identify land cover changes on land that was natural in 2020.
+
+  If a user asks for world area under agricultural use, combine cropland + cultivated grassland or it should ask the user
+  to clarify which one they are interested in or if they want both combined.
+
+  '
+providers: 'UMD GLAD Lab, Global Pasture Watch consortium, Land & Carbon Lab
+
+  '
+citation: 'Annual 30-m maps of Global Land Cover and Land Use 2015-2024 based on [GLAD Land Cover and Land Use Change](https://www.frontiersin.org/articles/10.3389/frsen.2022.856903/full)
+  and [Global Pasture Watch Grassland class and extent](https://www.nature.com/articles/s41597-024-04139-6). Land & Carbon
+  Lab 2025.
+
+  Sources: Potapov, P., Hansen, M. C., Pickens, A., Hernandez-Serna, A., Tyukavina, A., Turubanova, S., Zalles, V., Li, X.,
+  Khan, A., Stolle, F., Harris, N., Song, X.-P., Baggett, A., Kommareddy, I. and Kommareddy, A. 2022. The global 2000-2020
+  land cover and land use change dataset derived from the Landsat archive: first results. - Frontiers in Remote Sensing. 3:
+  856903.
+
+  Parente, L., Sloat, L., Mesquita, V., Consoli, D., Stanimirova, R., Hengl, T., Bonannella, C., Teles, N., Wheeler, I., Hunter,
+  M., Ehrmann, S., Ferreira, L., Mattos, A. P., Oliveira, B., Meyer, C., Şahin, M., Witjes, M., Fritz, S., Malek, Z., & Stolle,
+  F. (2024). Annual 30-m maps of global grassland class and extent (2000-2022) based on spatiotemporal Machine Learning. Scientific
+  Data, 11(1), 1303. [doi:10.1038/s41597-024-04139-6](https://doi.org/10.1038/s41597-024-04139-6)
+
+  '

@@ -8,22 +8,8 @@ The data shapes mirror real analytics API responses but are hardcoded so tests
 are deterministic on the data side — only LLM calls are live.
 """
 
-from pathlib import Path
-
-import yaml
-
 from src.agent.state import Statistics
-
-# Load the actual YAML to pull real instruction text
-_YAML_PATH = (
-    Path(__file__).parent.parent.parent
-    / "src"
-    / "agent"
-    / "tools"
-    / "analytics_datasets.yml"
-)
-with open(_YAML_PATH) as f:
-    _ALL_DATASETS = yaml.safe_load(f)["datasets"]
+from src.agent.tools.datasets_config import DATASETS as _ALL_DATASETS
 
 _DS_BY_ID = {ds["dataset_id"]: ds for ds in _ALL_DATASETS}
 

@@ -1,0 +1,105 @@
+dataset_id: 5
+dataset_name: Tree cover gain
+context_layers: null
+variables:
+- value: primary_forest
+  description: Shows loss within humid tropical primary forest in global pan-tropical regions
+- value: intact_forest
+  description: Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human
+    disturbance as of 2000.
+tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_gain_from_height/latest/default/{z}/{x}/{y}.png
+license: CC by 4.0
+geographic_coverage: Global land area (excluding Antarctica and other Arctic islands)
+resolution: 30 x 30 meters
+update_frequency: ''
+content_date: 2000-2020 five year intervals
+start_date: '2000-01-01'
+end_date: '2020-12-31'
+content_date_fixed: false
+keywords:
+- gain
+- forest regrowth
+analytics_api_endpoint: /v0/land_change/tree_cover_gain/analytics
+prompt_instructions: 'Shows cumulative tree cover gain over the periods  2000-2020, 2005-2020, 2010-2020 or 2015-2020. Tree
+  cover gain is defined as a change in tree height from under 5m to over 5m and is not necessarily the same as forest restoration.
+  Avoid using the term "restoration" (other than to Use it to warn users about the differences between tree cover gain and
+  restoration). Note that "net" loss cannot be calculated by subtracting gain from loss, as the methodologies for the two
+  datasets differ. The data can be displayed as a bar chart showing the gain area per period. If asked for gain area through
+  time, it should be be shown using bar charts with one bar per time period. Gain area for a given time period can be calculated
+  by using the following: Area [Year1 to Year2] = Area [Year1 to 2020] - Area [Year2 to 2020]. Warn that these are estimates
+  that can be used as indicators of tree gain but are not suitable for precise verification of restoration activities at local
+  scales. If a user asks for net gain/loss, refuse and explain that the methodologies for the two datasets differ and thus
+  they cannot be combined directly to calculate net change.
+
+  '
+selection_hints: 'Shows cumulative tree cover gain (vegetation growing above 5m height) over 4 periods: 2000-2020, 2005-2020,
+  2010-2020, 2015-2020. Resolution 30m, global coverage. Gain ≠ restoration — may be plantation cycles, natural regrowth,
+  or land abandonment. Cannot calculate net change by combining with tree cover loss (different methodologies). For tree cover
+  loss questions, use Tree Cover Loss dataset instead.
+
+  '
+code_instructions: "CHART TYPES: - Default: bar chart with one bar per CUMULATIVE period (2000-2020, 2005-2020, 2010-2020,\
+  \ 2015-2020) - X-axis labels MUST use the raw cumulative period labels, NOT decomposed intervals - Do NOT split cumulative\
+  \ periods into 5-year buckets unless the user explicitly asks DATA RULES: - Cumulative gain over 4 periods: 2000-2020, 2005-2020,\
+  \ 2010-2020, 2015-2020 - ONLY if user explicitly asks for a specific sub-period (e.g., \"gain between 2005 and 2010\"):\n\
+  \  calculate Area[Y1 to Y2] = Area[Y1 to 2020] - Area[Y2 to 2020]\n- All areas in hectares (ha) DO/DON'T: - Do NOT use the\
+  \ term \"restoration\" — use \"tree cover gain\" - If user asks for net gain/loss or net change: EITHER refuse entirely\
+  \ OR show gain\n  data with a MANDATORY warning. Either way, the insight text MUST state that gain and\n  loss datasets\
+  \ use different methodologies and CANNOT be combined for net change.\n- These are estimates suitable as indicators, NOT\
+  \ for precise verification of\n  restoration activities at local scales\n"
+presentation_instructions: 'Use "tree cover gain" not "restoration" — gain includes plantation cycles, natural regrowth, and
+  land abandonment, not just ecological restoration. Tree cover gain is defined as vegetation growing from under 5m to over
+  5m height. Cannot be subtracted from tree cover loss for net change — different methodologies. ALWAYS include this warning
+  when net change is discussed: "Tree cover gain and tree cover loss use fundamentally different methodologies, time periods,
+  and definitions. They cannot be subtracted to calculate net change." Note these are estimates suitable as indicators, not
+  for local-scale verification.
+
+  '
+description: 'Tree Cover Gain (Hansen/UMD/GLAD) identifies areas where new tree canopy was established between 2000 and 2020
+  at 30-meter resolution, using Landsat 7 imagery. It captures both natural forest regrowth and tree plantation cycles, and
+  is useful for tracking large-scale forest recovery trends. Users should note that it is a cumulative layer and should not
+  be combined directly with loss or tree cover data to calculate net change. This data set from the GLAD (Global Land Analysis
+  & Discovery) lab at the University of Maryland measures areas of tree cover gain from the year 2000 to 2020 across the globe
+  at 30 x 30 meter resolution, displayed as a 20-year cumulative layer. Tree cover gain was determined using tree height information
+  from the years 2000 and 2020.
+
+  '
+methodology: 'Tree height was modeled by the integration of the Global Ecosystem Dynamics Investigation (GEDI) lidar forest
+  structure measurements and Landsat analysis-ready data time-series. The NASA GEDI is a spaceborne lidar instrument operating
+  onboard the International Space Station since April 2019. It provides point-based measurements of vegetation structure,
+  including forest canopy height at latitudes between 52°N and 52°S globally. Gain was identified where pixels had tree height
+  ≥5 m in 2020 and tree height <5 m in 2000. Tree cover gain may indicate a number of potential activities, including natural
+  forest growth, the tree crop rotation cycle, or tree plantation management. When zoomed out (< zoom level 12), pixels of
+  gain are shaded according to the density of gain at the 30 x 30 meter scale. Pixels with darker shading represent areas
+  with a higher concentration of tree cover gain, whereas pixels with lighter shading indicate a lower concentration of tree
+  cover gain. There is no variation in pixel shading when the data is at full resolution (≥ zoom level 12).
+
+  '
+cautions: 'In this data set, "tree cover" is defined as woody vegetation with the height of 5 m and taller, and may take the
+  form of natural woodlands, forests, or tree plantations across a range of canopy densities. Tree cover gain does not equate
+  directly to restoration, afforestation or reforestation. Integrated use of other products such as canopy cover density data
+  also available on GFW should be performed with caution. The authors evaluated the accuracy of the product, and the overall
+  accuracy was found to be 99.3%, commission error (false positives) of 28.6%, and omission error (false negatives) of 42.2%.
+  The accuracy does vary by biome and thus may be higher or lower in any particular location. As the omission error is higher
+  than the commission error, this indicates that the product provides conservative estimates of forest dynamics. There was
+  confusion between forest enhancement (existing forest height increase) and forest gain (establishment of forests within
+  the year 2000 non-forest land), and this was more prominent in boreal forest areas where forest height in the year 2000
+  was difficult to determine.
+
+  '
+function_usage_notes: 'Identifies areas of tree cover gain.
+
+  '
+providers: 'Potapov, P., Hansen, M.C., Pickens, A., Hernandez-Serna, A., Tyukavina, A., Turubanova, S., Zalles, V., Li, X.,
+  Khan, A., Stolle, F., Harris, N., Song, X-P., Baggett, A., Kommareddy, I., and Kommareddy, A. 2022. The Global 2000-2020
+  Land Cover and Land Use Change Dataset Derived From the Landsat Archive: First Results. Frontiers in Remote Sensing, 13,
+  April 2022. [doi:10.3389/frsen.2022.856903](https://doi.org/10.3389/frsen.2022.856903)
+
+  '
+citation: 'Use the following credit when this data is displayed: Accessed through Global Forest Watch on <date>. [www.globalforestwatch.org](https://www.globalforestwatch.org).
+  Use the following credit when this data is cited: Potapov, P., Hansen, M.C., Pickens, A., Hernandez-Serna, A., Tyukavina,
+  A., Turubanova, S., Zalles, V., Li, X., Khan, A., Stolle, F., Harris, N., Song, X-P., Baggett, A., Kommareddy, I., and Kommareddy,
+  A. 2022. The Global 2000-2020 Land Cover and Land Use Change Dataset Derived From the Landsat Archive: First Results. Frontiers
+  in Remote Sensing, 13, April 2022. [doi:10.3389/frsen.2022.856903](https://doi.org/10.3389/frsen.2022.856903)
+
+  '
