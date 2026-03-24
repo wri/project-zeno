@@ -1,0 +1,124 @@
+dataset_id: 10
+dataset_name: FAO Global Forest Resources Assessment (FRA) 2025
+# Excluded from pick_dataset RAG index: FRA has no tile_url or analytics_api_endpoint.
+# Access via query_fra_data tool directly, not through the pick_dataset → pull_data pipeline.
+pick_dataset_excluded: true
+context_layers: null
+variables: []
+tile_url: null
+license: CC BY-NC-SA 3.0 IGO
+geographic_coverage: 236 countries and territories (global)
+resolution: National level (country-reported statistics)
+update_frequency: Every 5 years
+content_date: 1990–2025 (reporting years 1990, 2000, 2010, 2015, 2020, 2025)
+start_date: '1990-01-01'
+end_date: '2025-12-31'
+content_date_fixed: true
+keywords:
+- forest area
+- deforestation
+- carbon stock
+- biomass
+- growing stock
+- forest ownership
+- FAO
+- FRA
+- national statistics
+- country-reported
+
+selection_hints: 'Use for nationally-reported, country-level forest statistics including
+  total forest area, carbon stocks, biomass, growing stock, ownership, designated
+  management, and disturbances. This is FAO-standardised country inventory data, NOT
+  remote-sensing pixel data. It does NOT support sub-national analysis or custom date
+  ranges. Use pull_data / GFW datasets for sub-national or time-series analysis. FRA
+  data is the authoritative source for officially-reported national forest figures,
+  FAO statistics, government inventories, and SDG 15 indicators.'
+
+prompt_instructions: 'FRA 2025 is country-reported national inventory data covering
+  236 countries. Reporting years are 1990, 2000, 2010, 2015, 2020, and 2025 only —
+  no intra-period data exists. Area values are in 1000 ha; biomass/carbon in megatonnes;
+  growing stock in million m³. Always clarify that figures are nationally reported
+  (not satellite-derived). Net forest area change is NOT the same as deforestation —
+  net change = deforestation minus forest expansion. Do not use the term "deforestation"
+  unless the user specifically asks about it; prefer "forest area change" or "net forest
+  loss". Do not compare FRA data with GFW/Hansen tree cover datasets — they use different
+  definitions of "forest". For multi-country comparisons use grouped-bar charts; for
+  trends over time use line charts. For composition breakdowns (ownership, biomass pools,
+  management categories) use stacked-bar or pie charts. Never interpolate between
+  reporting years.'
+
+code_instructions: 'DATA RULES:
+  - Reporting years are 1990, 2000, 2010, 2015, 2020, 2025 — always treat year as
+    a categorical axis (not continuous) unless making a trend line
+  - Area values are in 1000 ha — label axes accordingly
+  - Biomass and carbon are in megatonnes — label axes accordingly
+  - Growing stock is in million m³ — label axes accordingly
+  - Drop rows where value is null/NaN
+  - The "variable" column contains the sub-category name (e.g. forestArea,
+    naturallyRegeneratingForest, plantedForest, publicOwnership, privateOwnership)
+  - The "country" column contains the ISO3 code; "aoi_name" contains the readable name
+
+  CHART TYPES BY VARIABLE:
+  - forest_area / forest_area_change → line chart (x=year, y=value, series by variable);
+    use wide format with series_fields for multiple sub-categories
+  - carbon_stock / biomass / growing_stock → stacked-bar (x=year, y=value by pool/component)
+    or line for trend of total
+  - ownership / designated_management / management_objectives → stacked-bar or pie
+    (x=variable/category, y=value for most recent year); if showing trend use line
+  - disturbances / fire → bar chart (x=year, y=value by disturbance type)
+  - forest_area_protected → line chart showing protected area share over time
+  - Multi-country comparisons → grouped-bar (group_field=aoi_name or country)
+
+  DO/DON''T:
+  - DO always order year axis chronologically (1990, 2000, 2010, 2015, 2020, 2025)
+  - DO label units on all axes
+  - DO NOT interpolate between reporting years
+  - DO NOT combine FRA data with GFW/remote-sensing data in the same chart
+  - DO NOT describe net forest area change as "deforestation"'
+
+presentation_instructions: 'FRA 2025 data is country-reported national inventory data,
+  not satellite-derived. Always note this distinction when presenting results. Reporting
+  years are fixed (1990, 2000, 2010, 2015, 2020, 2025) — do not imply continuous data.
+  Net forest area change ≠ deforestation: net change combines deforestation and forest
+  expansion. Use "forest area change" or "net forest loss/gain" not "deforestation".
+  FAO''s definition of "forest" differs from GFW/Hansen "tree cover" — do not compare
+  figures across datasets. Data quality varies by country; some nations have high-quality
+  national inventories while others use modelled estimates. When showing composition data
+  (ownership, biomass pools, management), clarify that categories may not sum to 100%
+  due to rounding or missing sub-categories.'
+
+description: 'The FAO Global Forest Resources Assessment (FRA) 2025 is the most comprehensive
+  source of nationally reported forest statistics, covering 236 countries and territories.
+  Countries report on 22 standardised tables covering forest extent, characteristics,
+  growing stock, biomass and carbon, designated management, ownership, disturbances,
+  and policies. Data reflects official national inventories and government-reported figures
+  as of 2024, compiled by FAO every five years. FRA 2025 covers reporting years 1990,
+  2000, 2010, 2015, 2020, and 2025.'
+
+methodology: 'FRA 2025 data is collected through officially nominated national correspondents
+  who compile standardised country reports. 42 desk studies were prepared for countries
+  that did not submit reports (representing 1.6% of total forest area). Countries used
+  FAO-standardised definitions; detailed terms and definitions are in FAO Working Papers
+  193 and 194. FRA 2025 introduced data tiers to document reliability of forest area
+  estimates. Biomass and carbon conversions use country-specific or default biomass
+  conversion and expansion factors (BCEF). Each FRA cycle is independent — countries
+  may revise previously reported data, so figures should not be compared directly across
+  FRA editions.'
+
+cautions: 'Data is self-reported by national correspondents; quality and methodology
+  varies by country. Do not compare FRA editions directly — each FRA is independent
+  and historical data may be revised. FRA "forest" definition differs from GFW/Hansen
+  "tree cover": do not compare or combine with remote-sensing datasets. Reporting years
+  are fixed snapshots (1990, 2000, 2010, 2015, 2020, 2025); no intra-period data is
+  available. Net forest area change ≠ deforestation — net change reflects deforestation
+  minus forest expansion. Subregional aggregates may not reproduce exactly from country-level
+  data due to gap-filling for missing time series. Biomass and carbon estimates depend
+  on country-specific or default conversion factors, introducing uncertainty. Disturbance
+  data (insects, disease) covers 2002–2020; fire data covers 2007–2019. Non-wood forest
+  product data is incomplete and representativeness varies by region.'
+
+providers: 'Food and Agriculture Organization of the United Nations (FAO). 2025. Global
+  Forest Resources Assessment 2025. Rome. https://www.fao.org/forest-resources-assessment'
+
+citation: 'FAO. 2025. Global Forest Resources Assessment 2025. Rome. FAO.
+  https://doi.org/10.4060/cd3148en'
