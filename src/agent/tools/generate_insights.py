@@ -409,11 +409,11 @@ async def generate_insights(
     available_datasets = _get_available_datasets()
     # Prefer presentation_instructions (tiered PoC) over prompt_instructions (legacy blob)
     dataset_guidelines = (
-        state.get("dataset").get("presentation_instructions")
-        or state.get("dataset").get("prompt_instructions")
+        (state.get("dataset") or {}).get("presentation_instructions")
+        or (state.get("dataset") or {}).get("prompt_instructions")
         or "No specific dataset guidelines provided."
     )
-    dataset_cautions = state.get("dataset").get(
+    dataset_cautions = (state.get("dataset") or {}).get(
         "cautions", "No specific dataset cautions provided."
     )
 
@@ -479,6 +479,7 @@ Cautions: {dataset_cautions}
 
 4. **Follow-ups**: Base suggestions on available capabilities - analyze any area, pull data from {available_datasets}, create charts for different time periods
 5. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
+6. **FAO FRA cross-referencing**: If the data is from a GFW remote-sensing dataset (tree cover loss, disturbance alerts, carbon flux, etc.) and the analysis is at national or country level, include a follow-up suggestion to compare with FAO FRA 2025 country-reported statistics (e.g. "Compare with officially reported national forest figures from FAO FRA 2025"). Conversely, if the data is from FAO FRA 2025, suggest comparing with GFW satellite-derived data for the same country (e.g. "Compare with satellite-derived tree cover loss data from Global Forest Watch").
 
 {WORDING_INSTRUCTIONS}
 """
@@ -495,6 +496,13 @@ Cautions: {dataset_cautions}
         chart_insight_response.follow_up_suggestions, 1
     ):
         tool_message += f"\n{i}. {suggestion}"
+
+    # Append citation for FAO FRA data so the agent surfaces it in its response.
+    active_dataset = state.get("dataset") or {}
+    if active_dataset.get("citation"):
+        tool_message += f"\n\nData citation: {active_dataset['citation']}"
+    if active_dataset.get("providers"):
+        tool_message += f"\nSource: {active_dataset['providers']}"
 
     # Store chart data for frontend
     charts_data = [

@@ -270,6 +270,21 @@ async def pick_dataset(
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await select_best_dataset(query, candidate_datasets)
 
+    _FRA_RELEVANT_KEYWORDS = {
+        "forest", "tree", "carbon", "biomass", "deforest", "land cover",
+        "canopy", "vegetation", "wood", "timber", "disturbance",
+    }
+    _is_forest_query = any(
+        kw in query.lower() for kw in _FRA_RELEVANT_KEYWORDS
+    )
+    _fra_note = (
+        "\n\n💡 **FAO FRA 2025 also available:** For officially reported "
+        "national forest statistics (total forest area, carbon stocks, "
+        "biomass, ownership, disturbances), FAO FRA 2025 provides "
+        "country-reported figures as a complement to this satellite data. "
+        "Ask me to query FAO FRA data if you'd like to compare."
+    ) if _is_forest_query else ""
+
     tool_message = f"""# About the selection
     Selected dataset name: {selection_result.dataset_name}
     Selected context layer: {selection_result.context_layer}
@@ -291,7 +306,7 @@ async def pick_dataset(
 
     ## Content date
 
-    {selection_result.content_date}
+    {selection_result.content_date}{_fra_note}
     """
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
