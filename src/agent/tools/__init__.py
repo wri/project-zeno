@@ -3,6 +3,7 @@ from .get_capabilities import get_capabilities
 from .pick_aoi import pick_aoi
 from .pick_dataset import pick_dataset
 from .pull_data import pull_data
+from .query_fra_data import query_fra_data
 
 __all__ = [
     "pick_aoi",
@@ -10,4 +11,5 @@ __all__ = [
     "pull_data",
     "generate_insights",
     "get_capabilities",
+    "query_fra_data",
 ]
