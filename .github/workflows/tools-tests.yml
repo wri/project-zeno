@@ -2,9 +2,18 @@ name: Tools Tests
 
 on:
   workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: tools-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-tools-tests'))
     runs-on: ubuntu-latest
 
     services:
