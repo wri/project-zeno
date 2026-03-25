@@ -48,8 +48,8 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          MODEL: gemini-flash
-          SMALL_MODEL: gemini-flash
+          MODEL: gemini-flash-lite
+          SMALL_MODEL: gemini-flash-lite
           CODING_MODEL: gemini-3-flash-preview
           MAPBOX_API_TOKEN: ${{ secrets.MAPBOX_API_TOKEN }}
           WRI_API_KEY: ${{ secrets.WRI_API_KEY }}
