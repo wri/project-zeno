@@ -38,7 +38,7 @@ GEMINI_FLASH = ChatGoogleGenerativeAI(
     timeout=300,
 )
 GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash-lite",
+    model="gemini-3.1-flash-lite-preview",
     temperature=0.3,
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
