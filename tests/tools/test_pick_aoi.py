@@ -4,7 +4,11 @@ import pytest
 import structlog
 from sqlalchemy import select
 
-from src.agent.tools.pick_aoi import pick_aoi
+from src.agent.tools.pick_aoi import (
+    SUBREGION_LIMIT_KBA,
+    check_aoi_selection,
+    pick_aoi,
+)
 from src.api.data_models import WhitelistedUserOrm
 from tests.conftest import async_session_maker
 
@@ -189,3 +193,38 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
     assert (
         command.update.get("aoi_selection", {}).get("name") == "My custom area"
     )
+
+
+async def test_check_aoi_selection_has_no_limit_for_admin_subregions():
+    aois = [
+        {
+            "name": f"State {i}",
+            "source": "gadm",
+            "src_id": f"CTY.{i}_1",
+            "subtype": "state-province",
+        }
+        for i in range(1, 201)
+    ]
+
+    result = await check_aoi_selection(aois)
+
+    assert result is None
+
+
+@pytest.mark.parametrize("source", ["kba", "wdpa", "landmark"])
+async def test_check_aoi_selection_limits_kba_wdpa_landmark(source):
+    aois = [
+        {
+            "name": f"{source.upper()} {i}",
+            "source": source,
+            "src_id": str(i),
+            "subtype": source,
+        }
+        for i in range(1, SUBREGION_LIMIT_KBA + 2)
+    ]
+
+    result = await check_aoi_selection(aois)
+
+    assert result is not None
+    assert "too many to process efficiently" in result
+    assert str(SUBREGION_LIMIT_KBA) in result

@@ -8,6 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from src.agent.graph import fetch_zeno_anonymous
 from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.pick_dataset import DatasetSelectionResult
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
@@ -219,6 +220,53 @@ MOCK_AOI_QUERY_RESULTS_PARANA = pd.DataFrame(
     }
 )
 
+MOCK_AOI_QUERY_RESULTS_UNITED_STATES = pd.DataFrame(
+    {
+        "src_id": {
+            0: "USA",
+            1: "USA.5_1",
+            2: "USA.9_1",
+            3: "USA.44_1",
+        },
+        "name": {
+            0: "United States",
+            1: "California, United States",
+            2: "Florida, United States",
+            3: "Texas, United States",
+        },
+        "subtype": {
+            0: "country",
+            1: "state-province",
+            2: "state-province",
+            3: "state-province",
+        },
+        "source": {
+            0: "gadm",
+            1: "gadm",
+            2: "gadm",
+            3: "gadm",
+        },
+        "similarity_score": {
+            0: 0.99,
+            1: 0.72,
+            2: 0.71,
+            3: 0.7,
+        },
+    }
+)
+
+MOCK_US_STATES = pd.DataFrame(
+    [
+        {
+            "name": f"State {i}, United States",
+            "subtype": "state-province",
+            "src_id": f"USA.{i}_1",
+            "source": "gadm",
+        }
+        for i in range(1, 51)
+    ]
+)
+
 
 _ordered = [
     next(d for d in DATASETS if d["dataset_id"] == i) for i in (8, 4, 0)
@@ -352,8 +400,80 @@ async def run_agent(query: str, thread_id: str | None = None):
 
 
 async def test_agent_for_disturbance_alerts_for_brazil(structlog_context):
-    query = "Compare ecosystem conversion in Para and Parana in Brazil in the last 5 months"
+    query = "Tell me the county with the highest tree cover loss in the United States"
     steps = await run_agent(query)
     assert len(steps) > 0
     tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
     assert has_insights(tool_steps), "No insights found"
+
+
+async def test_agent_tree_cover_loss_across_all_us_states_under_15_steps(
+    structlog_context,
+):
+    query = "Show me tree cover loss across all states in the United States"
+    tree_cover_loss = next(d for d in DATASETS if d["dataset_id"] == 4)
+    selection_result = DatasetSelectionResult(
+        dataset_id=tree_cover_loss["dataset_id"],
+        dataset_name=tree_cover_loss["dataset_name"],
+        context_layer=None,
+        reason="Tree cover loss is the best dataset for comparing loss across U.S. states.",
+        tile_url=tree_cover_loss["tile_url"],
+        analytics_api_endpoint=tree_cover_loss["analytics_api_endpoint"],
+        description=tree_cover_loss["description"],
+        prompt_instructions=tree_cover_loss["prompt_instructions"],
+        methodology=tree_cover_loss["methodology"],
+        cautions=tree_cover_loss["cautions"],
+        function_usage_notes=tree_cover_loss["function_usage_notes"],
+        citation=tree_cover_loss["citation"],
+        content_date=tree_cover_loss["content_date"],
+        language="en",
+        selection_hints=tree_cover_loss.get("selection_hints"),
+        code_instructions=tree_cover_loss.get("code_instructions"),
+        presentation_instructions=tree_cover_loss.get(
+            "presentation_instructions"
+        ),
+    )
+
+    async def _return_mock_us_aoi(_place_name, result_limit=10):
+        if "United States" in _place_name or "USA" in _place_name:
+            return MOCK_AOI_QUERY_RESULTS_UNITED_STATES.copy()
+        return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL.copy()
+
+    async def _return_mock_us_states(subregion_name, source, src_id):
+        if (
+            subregion_name == "state"
+            and source == "gadm"
+            and src_id == "USA"
+        ):
+            return MOCK_US_STATES.copy()
+        return pd.DataFrame(
+            [
+                {
+                    "name": f"Mock {subregion_name}",
+                    "subtype": "district-county",
+                    "src_id": src_id,
+                    "source": source,
+                }
+            ]
+        )
+
+    with (
+        patch(
+            "src.agent.tools.pick_aoi.query_aoi_database",
+            new_callable=AsyncMock,
+            side_effect=_return_mock_us_aoi,
+        ),
+        patch(
+            "src.agent.tools.pick_aoi.query_subregion_database",
+            new_callable=AsyncMock,
+            side_effect=_return_mock_us_states,
+        ),
+        patch(
+            "src.agent.tools.pick_dataset.select_best_dataset",
+            new_callable=AsyncMock,
+            return_value=selection_result,
+        ),
+    ):
+        steps = await run_agent(query)
+
+    assert len(steps) < 15

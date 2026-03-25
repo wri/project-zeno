@@ -449,6 +449,91 @@ async def test_grouped_bar_chart():
     assert chart_data["type"] == "grouped-bar"
 
 
+async def test_grouped_bar_chart_with_200_countries():
+    """Test grouped bar chart generation with a very large number of countries."""
+    countries = [f"Country {i}" for i in range(1, 201)]
+    rows = []
+    aoi_ids = []
+    for i, country in enumerate(countries, start=1):
+        rows.append(
+            {
+                "country": country,
+                "metric": "Forest Loss",
+                "value": 10000 - i * 17,
+                "year": 2022,
+                "aoi_id": f"CTY{i:03d}",
+                "aoi_type": "admin",
+            }
+        )
+        rows.append(
+            {
+                "country": country,
+                "metric": "Fire Incidents",
+                "value": 7000 - i * 11,
+                "year": 2022,
+                "aoi_id": f"CTY{i:03d}",
+                "aoi_type": "admin",
+            }
+        )
+        aoi_ids.append(f"CTY{i:03d}")
+
+    mock_state_grouped = {
+        "dataset": {
+            "dataset_id": 6,
+            "context_layer": None,
+            "date_request_match": True,
+            "reason": "Forest metrics dataset matches the request for comparing loss and fire incidents.",
+            "tile_url": "https://tiles.example.com/forest_metrics/latest/dynamic/{z}/{x}/{y}.png",
+            "dataset_name": "Forest Loss and Fire Incidents",
+            "analytics_api_endpoint": "/v0/forest/metrics/analytics",
+            "description": "Combined forest loss and fire incident metrics.",
+            "prompt_instructions": "Compare forest loss and fire incidents across countries",
+            "methodology": "Satellite-based detection of forest loss and fire events.",
+            "cautions": "Metrics may have different temporal resolutions.",
+            "function_usage_notes": "Compares forest metrics across regions\n",
+            "citation": "Global Forest Metrics Study.",
+        },
+        "statistics": [
+            Statistics(
+                dataset_name="Forest Loss and Fire Incidents",
+                source_url="http://example.com/analytics/large-grouped-bar",
+                start_date="2022-01-01",
+                end_date="2022-12-31",
+                aoi_names=countries,
+                data={
+                    "country": [row["country"] for row in rows],
+                    "metric": [row["metric"] for row in rows],
+                    "value": [row["value"] for row in rows],
+                    "year": [row["year"] for row in rows],
+                    "aoi_id": [row["aoi_id"] for row in rows],
+                    "aoi_type": [row["aoi_type"] for row in rows],
+                },
+            )
+        ],
+    }
+
+    tool_call_id = str(uuid.uuid4())
+    result = await generate_insights.ainvoke(
+        {
+            "type": "tool_call",
+            "name": "generate_insights",
+            "id": tool_call_id,
+            "args": {
+                "query": "Compare forest loss and fire incidents across 200 countries using grouped bars",
+                "state": mock_state_grouped,
+            },
+        }
+    )
+
+    assert "charts_data" in result.update
+    assert len(result.update["charts_data"]) > 0
+
+    chart_data = result.update["charts_data"][0]
+    assert "data" in chart_data
+    assert "id" in chart_data
+    assert chart_data["type"] == "grouped-bar"
+
+
 async def test_pie_chart():
     """Test pie chart generation for part-to-whole relationship."""
     mock_state_pie = {
