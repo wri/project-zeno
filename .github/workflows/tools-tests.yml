@@ -46,15 +46,6 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Generate dataset embeddings
-        env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          mkdir -p data
-          uv run python src/ingest/embed_datasets.py
-
       - name: Run tools tests
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
@@ -82,4 +73,6 @@ jobs:
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
           NEXTJS_API_KEY: test-nextjs-api-key
         run: |
+          mkdir -p data
+          uv run python src/ingest/embed_datasets.py
           uv run pytest tests/tools -v
