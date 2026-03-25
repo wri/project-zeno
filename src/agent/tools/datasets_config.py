@@ -21,7 +21,7 @@ def _load_datasets() -> list[dict]:
             )
         datasets.append(record)
     datasets.sort(key=lambda d: d["dataset_id"])
-    if not len(datasets) == len(set(d["dataset_id"] for d in datasets)):
+    if len(datasets) != len(set(d["dataset_id"] for d in datasets)):
         raise ValueError(
             f"duplicate dataset_id in {DATASETS_DIR}. Each dataset must have a unique dataset_id."
         )

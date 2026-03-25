@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 
 import pandas as pd
 from langchain_core.messages import ToolMessage
@@ -13,13 +13,6 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.agent.llms import SMALL_MODEL
-from src.agent.tools.data_handlers.analytics_handler import (
-    DIST_ALERT_ID,
-    GRASSLANDS_ID,
-    LAND_COVER_CHANGE_ID,
-    TREE_COVER_LOSS_BY_DRIVER_ID,
-    TREE_COVER_LOSS_ID,
-)
 from src.agent.tools.datasets_config import DATASETS
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
@@ -64,13 +57,60 @@ async def rag_candidate_datasets(query: str, k=3):
     return pd.DataFrame(candidate_datasets)
 
 
+def _resolve_params(
+    selected: dict[str, Any], param_defs: dict
+) -> dict[str, Any]:
+    """Validate LLM-selected params against the dataset's param definitions.
+
+    For each defined param:
+    - If the LLM provided a value, validate it against allowed values.
+    - If not provided (or invalid), use the default from the definition.
+    - For list-type params, wrap scalars and filter invalid items.
+    - Unknown params (not in definitions) are silently dropped.
+    """
+    validated: dict[str, Any] = {}
+    for param_name, param_def in param_defs.items():
+        allowed = param_def.get("values", [])
+        default = param_def.get("default")
+        is_list = param_def.get("type") == "list"
+
+        if default == "all" and is_list:
+            default = list(allowed)
+
+        if param_name in selected:
+            value = selected[param_name]
+            if is_list:
+                if not isinstance(value, list):
+                    value = [value] if value else []
+                valid_items = [v for v in value if v in allowed]
+                validated[param_name] = (
+                    valid_items
+                    if valid_items
+                    else (default if default is not None else [])
+                )
+            else:
+                if value in allowed or value is None:
+                    validated[param_name] = value
+                else:
+                    validated[param_name] = default
+        else:
+            if default is not None:
+                validated[param_name] = default
+
+    return validated
+
+
 class DatasetOption(BaseModel):
     dataset_id: int = Field(
         description="ID of the dataset that best matches the user query."
     )
-    context_layer: Optional[str] = Field(
-        None,
-        description="Pick a single context layer from the dataset if relevant.",
+    params: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Selected parameter values for the dataset query. "
+            "Keys are parameter names, values are the selected values. "
+            "Only include params you want to override from their defaults."
+        ),
     )
     reason: str = Field(
         description="Short reason why the dataset is the best match."
@@ -86,28 +126,24 @@ class DatasetOption(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_context_layer_for_dataset(self) -> "DatasetOption":
-        """Ensure context_layer is valid for the chosen dataset_id (runs after all fields)."""
+    def validate_params_for_dataset(self) -> "DatasetOption":
+        """Validate and normalize params against the dataset's config."""
         dataset_id = self.dataset_id
         if dataset_id is None:
-            self.context_layer = None
-            return self
-        # Hardcoded override: TCL by driver always needs "driver" intersection
-        elif dataset_id == TREE_COVER_LOSS_BY_DRIVER_ID:
-            self.context_layer = "driver"
+            self.params = {}
             return self
 
-        if self.context_layer is None:
+        selected_dataset = next(
+            (ds for ds in DATASETS if ds["dataset_id"] == dataset_id),
+            None,
+        )
+        if not selected_dataset:
+            self.params = {}
             return self
 
-        selected_dataset = [
-            ds for ds in DATASETS if ds["dataset_id"] == dataset_id
-        ][0]
-        context_layers = selected_dataset.get("context_layers") or []
-        context_layer_values = [lyr["value"] for lyr in context_layers]
-        if self.context_layer not in context_layer_values:
-            self.context_layer = None
-
+        config = selected_dataset.get("analytics_config") or {}
+        param_defs = config.get("params") or {}
+        self.params = _resolve_params(self.params, param_defs)
         return self
 
 
@@ -157,6 +193,24 @@ class DatasetSelectionResult(DatasetOption):
     )
 
 
+def _format_params_for_prompt(cfg: dict | None) -> str | None:
+    """Format params for the LLM selection prompt."""
+    if not cfg or not isinstance(cfg, dict):
+        return None
+    param_defs = cfg.get("params")
+    if not param_defs:
+        return None
+    parts = []
+    for name, defn in param_defs.items():
+        vals = defn.get("values", [])
+        default = defn.get("default")
+        desc = defn.get("description", "")
+        parts.append(
+            f"{name}: values={vals}, default={default}, description={desc}"
+        )
+    return "; ".join(parts)
+
+
 async def select_best_dataset(
     query: str, candidate_datasets: pd.DataFrame
 ) -> DatasetSelectionResult:
@@ -168,9 +222,13 @@ async def select_best_dataset(
     user query and provide reason why it is the best match. Always return at least one dataset.
     Use all information provided to decide which dataset is the best match, especially the selection hints.
 
-    Select a single context layer from the dataset if relevant for the user query. Context layers
-    allow difrenciating between different types of data within the same dataset. So if a user asks
-    to show something like "show me tree cover loss by driver", you should select a context layer
+    Select parameter values from the dataset's available_params if relevant for the user query.
+    Parameters allow filtering and configuring the dataset query. For example:
+    - If a user asks "show me primary forest loss", set forest_filter to "primary_forest".
+    - If a user asks "show me disturbance alerts by driver", set intersections to "driver".
+    - If a user asks about a specific crop emission factor, set crop_types to that crop.
+    Only include params you want to change from their defaults. The values you select MUST
+    appear in the allowed values list — do not invent values.
 
     Evaluate if the best dataset is available for the date range requested by the user,
     if not, pick the closest date range but warn the user that there
@@ -180,7 +238,7 @@ async def select_best_dataset(
     For instance, dont select tree cover loss by driver if the user requests a specific time range,
     pick tree cover loss instead.
 
-    Keep explanations concise. Do not use datset IDs to describe the dataset.
+    Keep explanations concise. Do not use dataset IDs to describe the dataset.
     For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
 
     Use the language of the user query to generate the reason.
@@ -202,24 +260,28 @@ async def select_best_dataset(
         DATASET_SELECTION_PROMPT
         | SMALL_MODEL.with_structured_output(DatasetOption)
     )
+    prompt_df = candidate_datasets[
+        [
+            "dataset_id",
+            "dataset_name",
+            "description",
+            "selection_hints",
+            "content_date",
+        ]
+    ].copy()
+    prompt_df["available_params"] = candidate_datasets[
+        "analytics_config"
+    ].apply(_format_params_for_prompt)
+
     selection_result = await dataset_selection_chain.ainvoke(
         {
-            "candidate_datasets": candidate_datasets[
-                [
-                    "dataset_id",
-                    "dataset_name",
-                    "description",
-                    "selection_hints",
-                    "content_date",
-                    "context_layers",
-                ]
-            ].to_csv(index=False),
+            "candidate_datasets": prompt_df.to_csv(index=False),
             "user_query": query,
         }
     )
     logger.debug(
         f"Selected dataset ID: {selection_result.dataset_id}. "
-        f"context_layer={selection_result.context_layer!r} (type={type(selection_result.context_layer).__name__}). "
+        f"params={selection_result.params}. "
         f"Reason: {selection_result.reason}"
     )
 
@@ -230,7 +292,7 @@ async def select_best_dataset(
     return DatasetSelectionResult(
         dataset_id=selected_row.dataset_id,
         dataset_name=selected_row.dataset_name,
-        context_layer=selection_result.context_layer,
+        params=selection_result.params,
         reason=selection_result.reason,
         tile_url=selected_row.tile_url,
         analytics_api_endpoint=selected_row.analytics_api_endpoint,
@@ -272,7 +334,7 @@ async def pick_dataset(
 
     tool_message = f"""# About the selection
     Selected dataset name: {selection_result.dataset_name}
-    Selected context layer: {selection_result.context_layer}
+    Selected params: {selection_result.params}
     Reasoning for selection: {selection_result.reason}
 
     # Additional dataset information
@@ -304,26 +366,40 @@ async def pick_dataset(
             SharedSettings.eoapi_base_url + selection_result.tile_url
         )
 
-    if selection_result.dataset_id == DIST_ALERT_ID:
+    selected_dataset = [
+        ds
+        for ds in DATASETS
+        if ds["dataset_id"] == selection_result.dataset_id
+    ][0]
+    tile_cfg = selected_dataset.get("tile_url_config", {})
+    url_type = tile_cfg.get("type", "none")
+
+    if url_type == "append_date_range":
         selection_result.tile_url += (
             f"&start_date={start_date}&end_date={end_date}"
         )
-    elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
-        if end_date.year in range(2000, 2023):
+    elif url_type == "format_year":
+        yr_range = tile_cfg.get("valid_year_range", [])
+        fallback = tile_cfg.get("fallback_year")
+        if yr_range and end_date.year in range(yr_range[0], yr_range[1] + 1):
             selection_result.tile_url = selection_result.tile_url.format(
                 year=end_date.year
             )
         else:
             selection_result.tile_url = selection_result.tile_url.format(
-                year="2022"
+                year=fallback
             )
-    elif selection_result.dataset_id == TREE_COVER_LOSS_ID:
-        if end_date.year in range(2001, 2025):
+    elif url_type == "append_year_range":
+        yr_range = tile_cfg.get("valid_year_range", [])
+        fb = tile_cfg.get("fallback", {})
+        if yr_range and end_date.year in range(yr_range[0], yr_range[1] + 1):
             selection_result.tile_url += (
                 f"&start_year={start_date.year}&end_year={end_date.year}"
             )
         else:
-            selection_result.tile_url += "&start_year=2001&end_year=2024"
+            selection_result.tile_url += (
+                f"&start_year={fb['start_year']}&end_year={fb['end_year']}"
+            )
 
     return Command(
         update={

@@ -1,6 +1,5 @@
 dataset_id: 9
 dataset_name: Deforestation (sLUC) Emission Factors by Agricultural Crop
-context_layers: null
 variables: null
 tile_url: ''
 license: CC by 4.0
@@ -23,6 +22,69 @@ keywords:
 - supply chains
 - agriculture
 analytics_api_endpoint: /v0/land_change/deforestation_luc_emissions_factor/analytics
+analytics_config:
+  date_params:
+    type: year
+    start_key: start_year
+    end_key: end_year
+  params:
+    gas_types:
+      type: list
+      values: [CO2e, CO2, CH4, N2O]
+      default: [CO2e]
+      description: "Gas types to include. CO2e is equivalent to the sum of all other gases."
+    crop_types:
+      type: list
+      values:
+      - Banana
+      - Barley
+      - Bean
+      - Cassava
+      - Chickpea
+      - Coconut
+      - Cocoa
+      - Arabica Coffee
+      - Robusta Coffee
+      - Cotton
+      - Cowpea
+      - Groundnut
+      - Lentil
+      - Maize
+      - Pearl Millet
+      - Small Millet
+      - Oil Palm
+      - Pigeon Pea
+      - Plantain
+      - Potato
+      - Rapeseed
+      - Rice
+      - Sesame Seed
+      - Sorghum
+      - Soybean
+      - Sugarbeet
+      - Sugarcane
+      - Sunflower
+      - Sweet Potato
+      - Tea
+      - Tobacco
+      - Wheat
+      - Yams
+      - Other Cereals
+      - Other Fibre Crops
+      - Other Oil Crops
+      - Other Pulses
+      - Other Roots
+      - Rest of Crops
+      - Temperate Fruit
+      - Tropical Fruit
+      - Vegetables
+      default: all
+      description: "Crop types to include. Defaults to all available crops."
+  aoi_restrictions:
+    allowed_subtypes: [country, state-province, district-county]
+    error_message: "Only available for GADM admin areas"
+tile_url_config:
+  type: none
 prompt_instructions: 'This dataset provides statistical land use change (sLUC) emission factors, total emissions, and production
   volume for 42 agricultural crops across multiple spatial scales: national (ADM0), subnational (ADM1),and local administrative
   units (ADM2). Emission factors quantify total greenhouse gas emissions in tCO2e per tonne of product from deforestation

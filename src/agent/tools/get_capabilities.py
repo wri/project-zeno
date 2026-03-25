@@ -25,14 +25,14 @@ def _load_datasets_info() -> str:
         if description != "Unknown":
             description_parts.append(f"{description}")
 
-        # Add context layers info if available
-        context_layers = dataset.get("context_layers")
-        if context_layers:
-            context_desc = ", ".join(
-                [layer.get("description", "") for layer in context_layers]
-            )
-            if context_desc:
-                description_parts.append(f"with {context_desc.lower()}")
+        config = dataset.get("analytics_config") or {}
+        param_defs = config.get("params") or {}
+        if param_defs:
+            param_names = list(param_defs.keys())
+            if param_names:
+                description_parts.append(
+                    f"configurable params: {', '.join(param_names)}"
+                )
 
         description = (
             ", ".join(description_parts)

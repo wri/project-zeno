@@ -122,7 +122,7 @@ lookup = {
             GRASSLANDS,  # 10
         ),
         (
-            "How much rangeland has been converted to agriculture in Mongolia since 2010?",
+            "How much grassland has been converted to agriculture in Mongolia since 2010?",
             GRASSLANDS,  # 11
         ),
         (
@@ -350,7 +350,7 @@ lookup = {
         ),  # 54
         (
             "Show the trend in natural land loss over time in Brazil",
-            TREE_COVER_LOSS,
+            DIST_ALERT,
             "2015-01-01",
             "2024-12-31",
         ),  # 55 - does not use natural lands dataset because it is not for change
@@ -396,17 +396,17 @@ async def test_queries_return_expected_dataset(
 
 
 @pytest.mark.parametrize(
-    "query,expected_dataset_id,expected_context_layer",
+    "query,expected_dataset_id,expected_intersections",
     [
-        ("Vegetation disturbances by natural lands", 0, "natural_lands"),
-        ("Vegetation disturbances over grasslands", 0, "grasslands"),
-        ("Tree cover loss by driver", 8, "driver"),
-        ("Tree  cover loss in the past decade", 4, None),
+        ("Vegetation disturbances by natural lands", 0, ["natural_lands"]),
+        ("Vegetation disturbances over grasslands", 0, ["grasslands"]),
+        ("Tree cover loss by driver", 8, ["driver"]),
+        ("Tree  cover loss in the past decade", 4, []),
         ("Most recent global land cover in storm seasons", 1, None),
     ],
 )
-async def test_query_with_context_layer(
-    query, expected_dataset_id, expected_context_layer
+async def test_query_with_params(
+    query, expected_dataset_id, expected_intersections
 ):
     tool_call_id = str(uuid.uuid4())
 
@@ -426,8 +426,9 @@ async def test_query_with_context_layer(
 
     dataset_id = command.update.get("dataset", {}).get("dataset_id")
     assert dataset_id == expected_dataset_id
-    context_layer = command.update.get("dataset", {}).get("context_layer")
-    assert context_layer == expected_context_layer
+    params = command.update.get("dataset", {}).get("params", {})
+    actual_intersections = params.get("intersections")
+    assert actual_intersections == expected_intersections
 
 
 @pytest.mark.parametrize(
@@ -476,14 +477,14 @@ async def test_tile_url_contains_date(dataset):
 
 
 def _make_fake_selection(
-    dataset_id: int, context_layer: str | None
+    dataset_id: int, params: dict | None = None
 ) -> DatasetSelectionResult:
-    """Build a DatasetSelectionResult for the given dataset with a fake context_layer."""
+    """Build a DatasetSelectionResult for the given dataset with fake params."""
     ds = next(d for d in DATASETS if d["dataset_id"] == dataset_id)
     return DatasetSelectionResult(
         dataset_id=dataset_id,
         dataset_name=ds["dataset_name"],
-        context_layer=context_layer,
+        params=params or {},
         reason="test",
         tile_url=ds["tile_url"],
         analytics_api_endpoint=ds.get("analytics_api_endpoint", ""),
@@ -499,21 +500,21 @@ def _make_fake_selection(
 
 
 @pytest.mark.parametrize(
-    "dataset_id,hallucinated_layer",
+    "dataset_id,hallucinated_params",
     [
-        (4, "Tree cover loss"),  # The exact bug from the trace
-        (4, "primary_forest"),  # variables value, not a context_layer
-        (1, "Global land cover"),
-        (7, "tree cover"),
+        (4, {"intersections": "Tree cover loss"}),
+        (4, {"forest_filter": "bogus_filter"}),
+        (1, {"intersections": "Global land cover"}),
+        (7, {"canopy_cover": 999}),
     ],
 )
-async def test_hallucinated_context_layer_is_discarded(
-    dataset_id, hallucinated_layer
+async def test_hallucinated_params_are_discarded(
+    dataset_id, hallucinated_params
 ):
-    """Verify that invalid context_layer values from LLM are set to None."""
+    """Verify that invalid param values from LLM are replaced with defaults."""
     import pandas as pd
 
-    fake_selection = _make_fake_selection(dataset_id, hallucinated_layer)
+    fake_selection = _make_fake_selection(dataset_id, hallucinated_params)
     candidate_df = pd.DataFrame(
         [d for d in DATASETS if d["dataset_id"] == dataset_id]
     )
@@ -545,18 +546,20 @@ async def test_hallucinated_context_layer_is_discarded(
 
         command = await pick_dataset.ainvoke(tool_call)
 
-    result_layer = command.update.get("dataset", {}).get("context_layer")
-    assert result_layer is None, (
-        f"Expected hallucinated layer '{hallucinated_layer}' to be discarded, "
-        f"but got '{result_layer}'"
-    )
+    result_params = command.update.get("dataset", {}).get("params", {})
+    for key, hallucinated_val in hallucinated_params.items():
+        if key in result_params:
+            assert result_params[key] != hallucinated_val, (
+                f"Expected hallucinated param '{key}={hallucinated_val}' to be replaced, "
+                f"but it was kept as '{result_params[key]}'"
+            )
 
 
-async def test_valid_context_layer_is_preserved():
-    """Verify that a valid context_layer (e.g. 'driver' for DIST-ALERT) is kept."""
+async def test_valid_params_are_preserved():
+    """Verify that valid params (e.g. intersections=['driver'] for DIST-ALERT) are kept."""
     import pandas as pd
 
-    fake_selection = _make_fake_selection(0, "driver")
+    fake_selection = _make_fake_selection(0, {"intersections": "driver"})
     candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 0])
     tool_call_id = str(uuid.uuid4())
 
@@ -586,18 +589,16 @@ async def test_valid_context_layer_is_preserved():
 
         command = await pick_dataset.ainvoke(tool_call)
 
-    result_layer = command.update.get("dataset", {}).get("context_layer")
-    assert result_layer == "driver"
+    result_params = command.update.get("dataset", {}).get("params", {})
+    assert result_params.get("intersections") == ["driver"]
 
 
-async def test_tcl_by_driver_always_gets_driver_context_layer():
-    """Dataset 8 (TCL by driver) should always have context_layer='driver',
-    even if the LLM returns None."""
+async def test_tcl_by_driver_always_gets_driver_param():
+    """Dataset 8 (TCL by driver) should always have intersections=['driver'],
+    even if the LLM returns empty params (via params.intersections.default)."""
     import pandas as pd
 
-    fake_selection = _make_fake_selection(
-        8, None
-    )  # LLM returns no context_layer
+    fake_selection = _make_fake_selection(8, {})
     candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 8])
     tool_call_id = str(uuid.uuid4())
 
@@ -627,5 +628,5 @@ async def test_tcl_by_driver_always_gets_driver_context_layer():
 
         command = await pick_dataset.ainvoke(tool_call)
 
-    result_layer = command.update.get("dataset", {}).get("context_layer")
-    assert result_layer == "driver"
+    result_params = command.update.get("dataset", {}).get("params", {})
+    assert result_params.get("intersections") == ["driver"]

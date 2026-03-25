@@ -1,12 +1,6 @@
 dataset_id: 7
 dataset_name: Tree cover
-context_layers: null
-variables:
-- value: primary_forest
-  description: Shows loss within humid tropical primary forest in global pan-tropical regions
-- value: intact_forest
-  description: Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human
-    disturbance as of 2000.
+variables: null
 tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/v1.8/tcd_30/{z}/{x}/{y}.png
 license: CC by 4.0
 geographic_coverage: Global land (excluding Antarctica and Arctic islands)
@@ -21,6 +15,20 @@ keywords:
 - forest
 - canopy
 analytics_api_endpoint: /v0/land_change/tree_cover/analytics
+analytics_config:
+  date_params:
+    type: none
+  params:
+    canopy_cover:
+      values: [10, 15, 20, 25, 30, 50, 75]
+      default: 30
+      description: Minimum percent canopy cover to consider tree cover
+    forest_filter:
+      values: [primary_forest, natural_forest]
+      default: null
+      description: Filter to primary forest (humid tropical) or natural forest (intact forest landscapes)
+tile_url_config:
+  type: none
 prompt_instructions: 'Shows tree cover area (area_ha) per pixel for year 2000 with a given tree cover threshold, for woody
   vegetation greater than 5 meters in height. If combined with primary forest or IFL layers, we can use the term ''forest''
   to describe results. Otherwise, only use the term ''tree cover''. Binned % tree cover extent can be reported in bar chart

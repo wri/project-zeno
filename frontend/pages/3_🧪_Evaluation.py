@@ -78,8 +78,8 @@ def get_column_presets():
             "dataset_score",
             "expected_dataset_name",
             "actual_dataset_name",
-            "expected_context_layer",
-            "actual_context_layer",
+            "expected_params",
+            "actual_params",
         ],
         "Data Pull Evaluation": [
             "query",

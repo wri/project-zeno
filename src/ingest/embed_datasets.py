@@ -9,7 +9,7 @@ from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-from src.agent.tools.data_handlers.analytics_handler import DATASETS
+from src.agent.tools.datasets_config import DATASETS
 from src.shared.config import SharedSettings
 
 load_dotenv()
@@ -25,11 +25,12 @@ data_dir = Path("data").absolute()
 analytics_docs = []
 
 for ds in DATASETS:
+    config = ds.get("analytics_config") or {}
     content = {
         "DATA_LAYER": ds["dataset_name"],
         "DESCRIPTION": ds["description"],
         "SELECTION_HINTS": ds["selection_hints"],
-        "CONTEXTUAL_LAYERS": ds["context_layers"],
+        "PARAMS": config.get("params"),
         "DATE": ds["content_date"],
         "USAGE NOTES": ds["function_usage_notes"],
     }

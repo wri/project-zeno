@@ -32,106 +32,6 @@ ADMIN_SUBTYPES = (
     "locality",
     "neighbourhood",
 )
-SLUC_GADM_LEVELS = ["country", "state-province", "district-county"]
-
-SLUC_CROPS = [
-    "Banana",
-    "Barley",
-    "Bean",
-    "Cassava",
-    "Chickpea",
-    "Coconut",
-    "Cocoa",
-    "Arabica Coffee",
-    "Robusta Coffee",
-    "Cotton",
-    "Cowpea",
-    "Groundnut",
-    "Lentil",
-    "Maize",
-    "Pearl Millet",
-    "Small Millet",
-    "Oil Palm",
-    "Pigeon Pea",
-    "Plantain",
-    "Potato",
-    "Rapeseed",
-    "Rice",
-    "Sesame Seed",
-    "Sorghum",
-    "Soybean",
-    "Sugarbeet",
-    "Sugarcane",
-    "Sunflower",
-    "Sweet Potato",
-    "Tea",
-    "Tobacco",
-    "Wheat",
-    "Yams",
-    "Other Cereals",
-    "Other Fibre Crops",
-    "Other Oil Crops",
-    "Other Pulses",
-    "Other Roots",
-    "Rest of Crops",
-    "Temperate Fruit",
-    "Tropical Fruit",
-    "Vegetables",
-]
-
-SLUC_GAS_TYPES = ["CO2e", "CO2", "CH4", "N20"]
-
-# Add dataset-specific parameters
-DIST_ALERT_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"]
-    == "Global all ecosystem disturbance alerts (DIST-ALERT)"
-][0]
-NATURAL_LANDS_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"] == "SBTN Natural Lands Map"
-][0]
-LAND_COVER_CHANGE_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"] == "Global land cover"
-][0]
-GRASSLANDS_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"] == "Global natural/semi-natural grassland extent"
-][0]
-TREE_COVER_LOSS_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"] == "Tree cover loss"
-][0]
-TREE_COVER_GAIN_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"] == "Tree cover gain"
-][0]
-FOREST_CARBON_FLUX_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"] == "Forest greenhouse gas net flux"
-][0]
-TREE_COVER_ID = [
-    ds["dataset_id"] for ds in DATASETS if ds["dataset_name"] == "Tree cover"
-][0]
-TREE_COVER_LOSS_BY_DRIVER_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"] == "Tree cover loss by dominant driver"
-][0]
-SLUC_EMISSION_FACTORS_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"]
-    == "Deforestation (sLUC) Emission Factors by Agricultural Crop"
-][0]
 
 
 class AnalyticsHandler(DataSourceHandler):
@@ -146,18 +46,13 @@ class AnalyticsHandler(DataSourceHandler):
 
     def can_handle(self, dataset: Any) -> bool:
         """Check if this handler can process the given dataset"""
-        return dataset.get("dataset_id") in [
-            DIST_ALERT_ID,
-            NATURAL_LANDS_ID,
-            LAND_COVER_CHANGE_ID,
-            GRASSLANDS_ID,
-            TREE_COVER_LOSS_ID,
-            TREE_COVER_GAIN_ID,
-            FOREST_CARBON_FLUX_ID,
-            TREE_COVER_ID,
-            TREE_COVER_LOSS_BY_DRIVER_ID,
-            SLUC_EMISSION_FACTORS_ID,
-        ]
+        dataset_id = dataset.get("dataset_id")
+        full_ds = next(
+            (ds for ds in DATASETS if ds["dataset_id"] == dataset_id), None
+        )
+        return full_ds is not None and bool(
+            full_ds.get("analytics_api_endpoint")
+        )
 
     def _get_aoi_type(self, aoi: Dict) -> str:
         """Get the type of the AOI"""
@@ -243,82 +138,38 @@ class AnalyticsHandler(DataSourceHandler):
 
         logger.debug(f"dataset: {dataset}")
 
-        if dataset.get("dataset_id") == DIST_ALERT_ID:
-            payload = {
-                **base_payload,
-                "start_date": start_date,
-                "end_date": end_date,
-                "intersections": (
-                    [dataset["context_layer"]]
-                    if dataset.get("context_layer")
-                    else []
-                ),
-            }
+        config = dataset.get("analytics_config", {})
+        payload = dict(base_payload)
 
-        elif dataset.get("dataset_id") in [
-            NATURAL_LANDS_ID,
-            LAND_COVER_CHANGE_ID,
-        ]:
-            # Natural lands and grasslands don't require date ranges
-            payload = base_payload
+        date_cfg = config.get("date_params", {})
+        date_type = date_cfg.get("type", "none")
 
-        elif dataset.get("dataset_id") == GRASSLANDS_ID:
-            payload = {
-                **base_payload,
-                "start_year": start_date[:4],  # Extract year from YYYY-MM-DD
-                "end_year": end_date[:4],
-            }
-        elif dataset.get("dataset_id") in [
-            TREE_COVER_LOSS_ID,
-            TREE_COVER_LOSS_BY_DRIVER_ID,
-        ]:
-            payload = {
-                **base_payload,
-                "start_year": start_date[:4],
-                "end_year": end_date[:4],
-                "canopy_cover": 30,
-                "forest_filter": None,
-                "intersections": (
-                    [dataset["context_layer"]]
-                    if dataset.get("context_layer")
-                    else []
-                ),
-            }
-        elif dataset.get("dataset_id") == TREE_COVER_GAIN_ID:
-            # Tree cover gain is only available in 5-year intervals
+        if date_type == "date":
+            payload[date_cfg["start_key"]] = start_date
+            payload[date_cfg["end_key"]] = end_date
+        elif date_type == "year":
+            payload[date_cfg["start_key"]] = start_date[:4]
+            payload[date_cfg["end_key"]] = end_date[:4]
+        elif date_type == "year_5yr_interval":
             start_year = int(start_date[:4]) - int(start_date[:4]) % 5
             end_year = int(end_date[:4]) - int(end_date[:4]) % 5
             if start_year == end_year:
                 end_year += 5
-            payload = {
-                **base_payload,
-                "start_year": str(max(2000, start_year)),
-                "end_year": str(max(2005, end_year)),
-                "forest_filter": None,
-            }
-        elif dataset.get("dataset_id") == FOREST_CARBON_FLUX_ID:
-            payload = {
-                **base_payload,
-                "canopy_cover": 30,
-            }
-        elif dataset.get("dataset_id") == TREE_COVER_ID:
-            payload = {
-                **base_payload,
-                "canopy_cover": 30,
-                "forest_filter": None,
-            }
-        elif dataset.get("dataset_id") == SLUC_EMISSION_FACTORS_ID:
-            payload = {
-                **base_payload,
-                "gas_types": SLUC_GAS_TYPES,
-                "crop_types": SLUC_CROPS,
-                "start_year": start_date[:4],
-                "end_year": end_date[:4],
-            }
-        else:
-            raise ValueError(
-                f"Unknown dataset ID: {dataset.get('dataset_id')}"
-            )
+            min_start = date_cfg.get("min_start", 0)
+            min_end = date_cfg.get("min_end", 0)
+            payload[date_cfg["start_key"]] = str(max(min_start, start_year))
+            payload[date_cfg["end_key"]] = str(max(min_end, end_year))
+
+        param_defs = config.get("params", {})
+        selected_params = dataset.get("params", {})
+        for param_name, param_def in param_defs.items():
+            default = param_def.get("default")
+            is_list = param_def.get("type") == "list"
+            if default == "all" and is_list:
+                default = list(param_def.get("values", []))
+            value = selected_params.get(param_name, default)
+            if value is not None:
+                payload[param_name] = value
 
         return payload
 
@@ -435,22 +286,8 @@ class AnalyticsHandler(DataSourceHandler):
         change_over_time_query: bool,
         aois: list[dict],
     ) -> DataPullResult:
-        # SLUC emission factors are only available for GADM levels 0, 1, and 2
-        if (
-            dataset.get("dataset_id") == SLUC_EMISSION_FACTORS_ID
-            and aois[0]["subtype"] not in SLUC_GADM_LEVELS
-        ):
-            msg = f"Can not pull data for aoi {aois[0].get('name', '')}. Subtype {aois[0]['subtype']} not supported for SLUC emission factors data, it is only available for GADM admin areas."
-            return DataPullResult(
-                success=False,
-                data=None,
-                message=msg,
-                data_points_count=0,
-                analytics_api_url=None,
-            )
-
         try:
-            context_layer = dataset.get("context_layer")
+            selected_params = dataset.get("params", {})
 
             dataset = [
                 ds
@@ -462,17 +299,36 @@ class AnalyticsHandler(DataSourceHandler):
                     f"Dataset not found: {dataset.get('dataset_id')}"
                 )
             dataset = dataset[0]
-            if context_layer:
-                dataset["context_layer"] = context_layer
+            if selected_params:
+                dataset["params"] = selected_params
+
+            aoi_restrictions = dataset.get("analytics_config", {}).get(
+                "aoi_restrictions"
+            )
+            if aoi_restrictions:
+                allowed = aoi_restrictions["allowed_subtypes"]
+                if aois[0]["subtype"] not in allowed:
+                    msg = (
+                        f"Can not pull data for aoi {aois[0].get('name', '')}. "
+                        f"Subtype {aois[0]['subtype']} not supported for "
+                        f"{dataset.get('dataset_name', 'this dataset')} data: "
+                        f"{aoi_restrictions['error_message']}"
+                    )
+                    return DataPullResult(
+                        success=False,
+                        data=None,
+                        message=msg,
+                        data_points_count=0,
+                        analytics_api_url=None,
+                    )
 
             # Get the appropriate endpoint URL
-            if (
-                dataset.get("dataset_id") == LAND_COVER_CHANGE_ID
-                and change_over_time_query
-            ):
+            alt_endpoints = dataset.get("analytics_config", {}).get(
+                "alternate_endpoints", {}
+            )
+            if change_over_time_query and "change_over_time" in alt_endpoints:
                 endpoint_url = (
-                    self.BASE_URL
-                    + "/v0/land_change/land_cover_composition/analytics"
+                    self.BASE_URL + alt_endpoints["change_over_time"]
                 )
             else:
                 endpoint_url = self.BASE_URL + dataset.get(

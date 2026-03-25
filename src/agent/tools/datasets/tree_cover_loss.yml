@@ -1,12 +1,6 @@
 dataset_id: 4
 dataset_name: Tree cover loss
-context_layers: null
-variables:
-- value: primary_forest
-  description: Shows loss within humid tropical primary forest in global pan-tropical regions
-- value: intact_forest
-  description: Intact forest landscapes (IFL) show loss within large, unfragmented areas of natural forest ecosystems that
-    were free from significant human disturbance as of 2000.
+variables: null
 tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30&render_type=true_color
 license: CC by 4.0
 geographic_coverage: Global land area (excluding Antarctica and other Arctic islands)
@@ -21,6 +15,26 @@ keywords:
 - forest loss
 - disturbance
 analytics_api_endpoint: /v0/land_change/tree_cover_loss/analytics
+analytics_config:
+  date_params:
+    type: year
+    start_key: start_year
+    end_key: end_year
+  params:
+    canopy_cover:
+      values: [10, 15, 20, 25, 30, 50, 75]
+      default: 30
+      description: Minimum percent canopy cover. Carbon model only valid for 30% or greater.
+    forest_filter:
+      values: [primary_forest, natural_forest]
+      default: null
+      description: Filter to primary forest (humid tropical) or natural forest (intact forest landscapes)
+tile_url_config:
+  type: append_year_range
+  valid_year_range: [2001, 2024]
+  fallback:
+    start_year: 2001
+    end_year: 2024
 prompt_instructions: 'Reports gross annual loss of tree cover ≥ 5 m height (2001-2024). Show yearly loss with bar charts or
   cumulative loss with stacked-area charts; plot area_ha and drop zeros. When reporting tree cover loss, always include the
   GHG emissions associated with that loss, in MgCO2e (tonnes of CO2 equivalent). If users ask for intra-year or seasonal tree

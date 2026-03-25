@@ -14,13 +14,13 @@ from src.agent.tools.datasets_config import DATASETS as _ALL_DATASETS
 _DS_BY_ID = {ds["dataset_id"]: ds for ds in _ALL_DATASETS}
 
 
-def _dataset_fields(dataset_id: int, context_layer=None) -> dict:
+def _dataset_fields(dataset_id: int, params=None) -> dict:
     """Extract the fields generate_insights reads from state['dataset']."""
     ds = _DS_BY_ID[dataset_id]
     result = {
         "dataset_id": ds["dataset_id"],
         "dataset_name": ds["dataset_name"],
-        "context_layer": context_layer,
+        "params": params or {},
         "tile_url": ds.get("tile_url", ""),
         "analytics_api_endpoint": ds.get("analytics_api_endpoint", ""),
         "description": ds.get("description", ""),
@@ -88,7 +88,7 @@ TCL_STATE = {
 # Dataset 8: Tree Cover Loss by Driver — driver breakdown for Indonesia
 # ---------------------------------------------------------------------------
 TCL_DRIVER_STATE = {
-    "dataset": _dataset_fields(8, context_layer="driver"),
+    "dataset": _dataset_fields(8, params={"intersections": ["driver"]}),
     "statistics": [
         Statistics(
             dataset_name="Tree cover loss by dominant driver",
@@ -136,7 +136,7 @@ TCL_DRIVER_STATE = {
 
 
 # ---------------------------------------------------------------------------
-# Dataset 0: DIST-ALERT with driver context layer — monthly alerts by driver for DRC
+# Dataset 0: DIST-ALERT with driver params — monthly alerts by driver for DRC
 # ---------------------------------------------------------------------------
 _dist_months = [
     "2024-06",
@@ -519,7 +519,7 @@ SLUC_EF_STATE = {
 
 
 DIST_ALERT_STATE = {
-    "dataset": _dataset_fields(0, context_layer="driver"),
+    "dataset": _dataset_fields(0, params={"intersections": ["driver"]}),
     "statistics": [
         Statistics(
             dataset_name="Global all ecosystem disturbance alerts (DIST-ALERT)",

@@ -237,7 +237,7 @@ def render_dataset_map(dataset_data, aoi_data=None):
                 "Dataset Name": dataset_data.get("dataset_name", "N/A"),
                 "Data Layer": dataset_data.get("data_layer", "N/A"),
                 "Source": dataset_data.get("source", "N/A"),
-                "Context Layer": dataset_data.get("context_layer", "N/A"),
+                "Params": dataset_data.get("params", {}),
                 "Date Range": dataset_data.get("daterange", "N/A"),
                 "Threshold": dataset_data.get("threshold", "N/A"),
                 "Reason": dataset_data.get("reason", "N/A"),
@@ -784,8 +784,10 @@ def display_sidebar_selections():
                 "source": "GFW",
                 "dataset_name": "Tree cover loss",
                 "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=2001&end_year=2024&tree_cover_density_threshold=25&render_type=true_color",
-                "context_layer": "Primary forest",
-                "threshold": "30",
+                "params": {
+                    "forest_filter": "primary_forest",
+                    "canopy_cover": 30,
+                },
             }
         },
         "DIST_ALERT": {
@@ -794,8 +796,7 @@ def display_sidebar_selections():
                 "source": "GFW",
                 "dataset_name": "DIST-ALERT",
                 "tile_url": "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color",
-                "context_layer": "driver",
-                "threshold": None,
+                "params": {"intersections": ["driver"]},
             }
         },
     }

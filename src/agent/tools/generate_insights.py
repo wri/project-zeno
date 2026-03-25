@@ -124,7 +124,7 @@ def build_analysis_prompt(
     file_references: str,
     dataset_guidelines: str = "",
     code_instructions: str | None = None,
-    context_layer: str | None = None,
+    active_params: dict | None = None,
 ) -> str:
     """
     Build the analysis prompt for the code executor.
@@ -134,7 +134,7 @@ def build_analysis_prompt(
         file_references: Executor-specific file reference section
         dataset_guidelines: Dataset-specific instructions for metric selection
         code_instructions: Dataset-specific chart type and data shaping rules (tiered PoC)
-        context_layer: Active context layer name, if any (e.g. "driver")
+        active_params: Active query parameters, if any (e.g. {"intersections": ["driver"]})
 
     Returns:
         Formatted prompt string
@@ -151,8 +151,10 @@ def build_analysis_prompt(
     dataset_rules_section = ""
     if code_instructions:
         header = "### DATASET-SPECIFIC RULES (follow these strictly):\n"
-        if context_layer:
-            header += f"Active context layer: {context_layer}\n"
+        if active_params:
+            non_default = {k: v for k, v in active_params.items() if v}
+            if non_default:
+                header += f"Active params: {non_default}\n"
         dataset_rules_section = f"""
 {header}
 {code_instructions}
@@ -345,7 +347,7 @@ async def generate_insights(
         file_references,
         dataset_guidelines=dataset_guidelines,
         code_instructions=code_instructions,
-        context_layer=dataset.get("context_layer"),
+        active_params=dataset.get("params"),
     )
     logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 

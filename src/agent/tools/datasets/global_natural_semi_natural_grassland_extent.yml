@@ -1,6 +1,5 @@
 dataset_id: 2
 dataset_name: Global natural/semi-natural grassland extent
-context_layers: null
 variables: Natural/Semi-Natural Grassland
 tile_url: /raster/collections/grasslands-v-1/items/grasslands-{year}/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png?colormap=%7B%220%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%2C%20%221%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%2C%20%222%22%3A%20%5B255%2C%20153%2C%2022%2C%20255%5D%2C%20%223%22%3A%20%5B0%2C%200%2C%200%2C%200%5D%7D&assets=asset&expression=asset%2A%28asset%3C4%29%2A%28asset%3E%3D0%29&asset_as_band=True
 license: CC by 4.0
@@ -29,6 +28,15 @@ keywords:
 - machine learning
 - Landsat
 analytics_api_endpoint: /v0/land_change/grasslands/analytics
+analytics_config:
+  date_params:
+    type: year
+    start_key: start_year
+    end_key: end_year
+tile_url_config:
+  type: format_year
+  valid_year_range: [2000, 2022]
+  fallback_year: 2022
 prompt_instructions: 'Natural/semi-natural grassland extent and change for each year from 2000 to 2022. Quantify area of natural/semi-natural
   grasslands in a given year. Quantify gains and losses in area of natural/semi-natural grasslands through time. Use bar or
   line charts to show total area of natural/semi-natural grasslands over time where the x axis is years and the y axis is

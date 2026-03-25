@@ -60,7 +60,7 @@ ui_context = {
             "source": "GFW",
             "data_layer": "DIST-ALERT",
             "tile_url": "https://tiles.globalforestwatch.org/...",
-            "context_layer": "driver",
+            "intersection": "driver",
             "daterange": {
                 "start_date": "2024-01-01",
                 "end_date": "2024-12-31",
@@ -374,15 +374,15 @@ class AgentState(TypedDict):
     "dataset": {
         "dataset_id": 0,
         "dataset_name": "Ecosystem disturbance alerts",
-        "context_layer": null,
+        "intersection": null,
         "reason": "This dataset directly matches the query as it provides \"Global All Ecosystem Disturbance Alerts (DIST-ALERT)\" with near-real-time alerts of vegetation disturbance globally, which is exactly what the user is asking about regarding ecosystem disturbance alerts distribution.",
         "tile_url": "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color"
     },
     "message": {
         "selected_dataset": "DIST-ALERT",
-        "context_layer": "driver",
+        "intersection": "driver",
         "threshold": null,
-        "reasoning": "The DIST-ALERT dataset is the best match as it specifically provides near-real-time alerts of vegetation disturbance at high resolution (30m), covers the 2024 timeframe (2023-2025), and includes a \"driver\" contextual layer which would help identify the main drivers of disturbances in Koraput for Q1 2024. This dataset covers all vegetation types and is designed for monitoring ecosystem changes in near-real-time."
+        "reasoning": "The DIST-ALERT dataset is the best match as it specifically provides near-real-time alerts of vegetation disturbance at high resolution (30m), covers the 2024 timeframe (2023-2025), and includes a \"driver\" intersection which would help identify the main drivers of disturbances in Koraput for Q1 2024. This dataset covers all vegetation types and is designed for monitoring ecosystem changes in near-real-time."
     }
 }
 ```

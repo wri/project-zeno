@@ -127,7 +127,10 @@ class GeminiCodeExecutor:
                             content=part.executable_code.code,
                         )
                     )
-                if part.code_execution_result:
+                if (
+                    part.code_execution_result
+                    and part.code_execution_result.output
+                ):
                     parts.append(
                         CodeActPart(
                             type=PartType.EXECUTION_OUTPUT,

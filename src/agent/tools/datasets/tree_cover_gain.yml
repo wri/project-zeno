@@ -1,12 +1,6 @@
 dataset_id: 5
 dataset_name: Tree cover gain
-context_layers: null
-variables:
-- value: primary_forest
-  description: Shows loss within humid tropical primary forest in global pan-tropical regions
-- value: intact_forest
-  description: Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human
-    disturbance as of 2000.
+variables: null
 tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_gain_from_height/latest/default/{z}/{x}/{y}.png
 license: CC by 4.0
 geographic_coverage: Global land area (excluding Antarctica and other Arctic islands)
@@ -20,6 +14,20 @@ keywords:
 - gain
 - forest regrowth
 analytics_api_endpoint: /v0/land_change/tree_cover_gain/analytics
+analytics_config:
+  date_params:
+    type: year_5yr_interval
+    start_key: start_year
+    end_key: end_year
+    min_start: 2000
+    min_end: 2005
+  params:
+    forest_filter:
+      values: [primary_forest, natural_forest]
+      default: null
+      description: Filter to primary forest (humid tropical) or natural forest (intact forest landscapes)
+tile_url_config:
+  type: none
 prompt_instructions: 'Shows cumulative tree cover gain over the periods  2000-2020, 2005-2020, 2010-2020 or 2015-2020. Tree
   cover gain is defined as a change in tree height from under 5m to over 5m and is not necessarily the same as forest restoration.
   Avoid using the term "restoration" (other than to Use it to warn users about the differences between tree cover gain and

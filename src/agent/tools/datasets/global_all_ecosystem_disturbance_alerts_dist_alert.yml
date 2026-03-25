@@ -1,16 +1,5 @@
 dataset_id: 0
 dataset_name: Global all ecosystem disturbance alerts (DIST-ALERT)
-context_layers:
-- value: driver
-  description: 'Shows the primary driver or likely causes of disturbance to natural land due to: conversion, cropland dynamics,
-    fire-related, water-related, or unclassified.'
-- value: natural_lands
-  description: 'Shows intersection with natural lands classes (2020): '
-- value: grasslands
-  description: Shows disturbances to natural grasslands, shrublands, and savannas
-- value: land_cover
-  description: 'Shows disturbance within different land cover/land use classes: bare ground and sparse, vegetation, short
-    vegetation, tree cover, wetlands, water, snow/ice, cropland, cultivated grasslands, and built-up land.'
 variables: null
 tile_url: https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color
 license: CC by 4.0
@@ -27,6 +16,20 @@ keywords:
 - conversion
 - vegetation disturbance
 analytics_api_endpoint: /v0/land_change/dist_alerts/analytics
+analytics_config:
+  date_params:
+    type: date
+    start_key: start_date
+    end_key: end_date
+  params:
+    intersections:
+      type: list
+      values: [driver, natural_lands, grasslands, land_cover]
+      default: []
+      description: "Context layer: driver (LDACS driver classification), natural_lands (SBTN 2020 natural land classes), grasslands
+        (natural/semi-natural grassland extent), or land_cover (land cover/land use classes)"
+tile_url_config:
+  type: append_date_range
 prompt_instructions: 'Use this dataset to show recent vegetation changes across all ecosystems. Data is measured in hectares
   (ha), use this as the unit of analysis in all cases. Show classified alerts by driver (LDACS) by default, which is designed
   to reveal likely causes of disturbance, identify dominant drivers in a region, and support ecosystem or regional comparisons.

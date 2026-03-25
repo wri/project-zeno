@@ -1,6 +1,5 @@
 dataset_id: 8
 dataset_name: Tree cover loss by dominant driver
-context_layers: null
 variables: null
 tile_url: https://tiles.globalforestwatch.org/wri_google_tree_cover_loss_drivers/v1.12/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30&render_type=true_color
 license: CC by 4.0
@@ -23,6 +22,27 @@ keywords:
 - infrastructure
 - settlements
 analytics_api_endpoint: /v0/land_change/tree_cover_loss/analytics
+analytics_config:
+  date_params:
+    type: year
+    start_key: start_year
+    end_key: end_year
+  params:
+    canopy_cover:
+      values: [10, 15, 20, 25, 30, 50, 75]
+      default: 30
+      description: Minimum percent canopy cover. Carbon model only valid for 30% or greater.
+    forest_filter:
+      values: [primary_forest, natural_forest]
+      default: null
+      description: Filter to primary forest or natural forest
+    intersections:
+      type: list
+      values: [driver]
+      default: [driver]
+      description: Driver context layer (always active for this dataset)
+tile_url_config:
+  type: none
 prompt_instructions: "Shows the delta of the primary driver or cause of tree cover loss over the entire range 2001-2024. The\
   \ data represents the change for the whole period of time, not a timeseries. IMPORTANT: If a user asks for specific time\
   \ ranges (e.g. last five years), single years (e.g. 2024), or trends over time, do not use this dataset, select Tree cover\

@@ -23,83 +23,83 @@ ALL_DATASET_COMBINATIONS = [
     {
         "dataset_id": 0,
         "dataset_name": "Ecosystem disturbance alerts",
-        "context_layer": None,
+        "intersection": None,
     },
     {
         "dataset_id": 0,
         "dataset_name": "Ecosystem disturbance alerts",
-        "context_layer": "driver",
+        "intersection": "driver",
     },
     {
         "dataset_id": 0,
         "dataset_name": "Ecosystem disturbance alerts",
-        "context_layer": "natural_lands",
+        "intersection": "natural_lands",
     },
     {
         "dataset_id": 0,
         "dataset_name": "Ecosystem disturbance alerts",
-        "context_layer": "grasslands",
+        "intersection": "grasslands",
     },
     {
         "dataset_id": 0,
         "dataset_name": "Ecosystem disturbance alerts",
-        "context_layer": "land_cover",
+        "intersection": "land_cover",
     },
     {
         "dataset_id": 1,
         "dataset_name": "Global land cover",
-        "context_layer": None,
+        "intersection": None,
     },
     {
         "dataset_id": 1,
         "dataset_name": "Global land cover",
-        "context_layer": None,
+        "intersection": None,
         "check_composition": True,
     },
     {
         "dataset_id": 2,
         "dataset_name": "Grassland",
-        "context_layer": None,
+        "intersection": None,
     },
     {
         "dataset_id": 3,
         "dataset_name": "Natural lands",
-        "context_layer": None,
+        "intersection": None,
     },
     {
         "dataset_id": 4,
         "dataset_name": "Tree cover loss",
-        "context_layer": None,
+        "intersection": None,
     },
     {
         "dataset_id": 4,
         "dataset_name": "Tree cover loss",
-        "context_layer": "driver",
+        "intersection": "driver",
     },
     {
         "dataset_id": 5,
         "dataset_name": "Tree cover gain",
-        "context_layer": None,
+        "intersection": None,
     },
     {
         "dataset_id": 6,
         "dataset_name": "Forest greenhouse gas net flux",
-        "context_layer": None,
+        "intersection": None,
     },
     {
         "dataset_id": 7,
         "dataset_name": "Tree cover",
-        "context_layer": None,
+        "intersection": None,
     },
     {
         "dataset_id": 8,
         "dataset_name": "Tree cover loss by driver",
-        "context_layer": "driver",
+        "intersection": "driver",
     },
     {
         "dataset_id": 9,
         "dataset_name": "Deforestation (sLUC) Emission Factors by Agricultural Crop",
-        "context_layer": None,
+        "intersection": None,
     },
 ]
 
@@ -153,6 +153,10 @@ TEST_AOIS = [
 async def test_pull_data_queries(aoi_data, dataset):
     print(f"Testing {dataset['dataset_name']} with {aoi_data['name']}")
 
+    intersection = dataset.get("intersection")
+    params = {}
+    if intersection:
+        params["intersections"] = [intersection]
     update = {
         "aoi_selection": {
             "name": aoi_data["name"],
@@ -163,7 +167,7 @@ async def test_pull_data_queries(aoi_data, dataset):
             "dataset_name": dataset["dataset_name"],
             "reason": "",
             "tile_url": "",
-            "context_layer": dataset["context_layer"],
+            "params": params,
         },
     }
     if dataset.get("check_composition"):
@@ -196,13 +200,12 @@ async def test_pull_data_queries(aoi_data, dataset):
     }
     command = await pull_data.ainvoke(tool_call)
     statistics = command.update.get("statistics", {})
-    if dataset["dataset_id"] in [5, 9] and aoi_data["src_id"] in [
+    if dataset["dataset_id"] == 9 and aoi_data["src_id"] in [
         "6072",
         "148322",
         "MEX9713",
+        "CHE.6.3_1",
     ]:
-        assert len(statistics) == 0
-    elif dataset["dataset_id"] == 9 and aoi_data["src_id"] == "CHE.6.3_1":
         assert len(statistics) == 0
     else:
         assert len(statistics) == 1
@@ -220,7 +223,7 @@ async def test_tree_cover_loss_date_range_clamped_to_2024():
             "dataset_name": "Tree cover loss",
             "reason": "",
             "tile_url": "",
-            "context_layer": None,
+            "params": {},
         },
     }
     tool_call = {
@@ -340,7 +343,7 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
             "dataset_name": "Global land cover",
             "reason": "",
             "tile_url": "",
-            "context_layer": None,
+            "params": {},
         },
     }
     query = f"find commodities in {aoi_data['query_description']}"

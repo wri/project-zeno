@@ -41,7 +41,7 @@ async def test_generate_insights_comparison():
     update = {
         "dataset": {
             "dataset_id": 4,
-            "context_layer": None,
+            "params": {},
             "date_request_match": True,
             "reason": "The Tree cover loss dataset is specifically designed to map annual global forest loss and monitor deforestation trends from 2001 to 2024, making it the perfect match for analyzing tree cover loss trends over time.",
             "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=2001&end_year=2024&tree_cover_density_threshold=25&render_type=true_color",
@@ -185,7 +185,7 @@ async def test_simple_line_chart():
     mock_state_line = {
         "dataset": {
             "dataset_id": 1,
-            "context_layer": None,
+            "params": {},
             "date_request_match": True,
             "reason": "Deforestation alerts dataset matches the request for analyzing alert trends.",
             "tile_url": "https://tiles.example.com/deforestation/latest/dynamic/{z}/{x}/{y}.png",
@@ -247,7 +247,7 @@ async def test_simple_bar_chart():
     mock_state_bar = {
         "dataset": {
             "dataset_id": 4,
-            "context_layer": None,
+            "params": {},
             "date_request_match": True,
             "reason": "Tree cover loss dataset matches the request for forest loss analysis.",
             "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png",
@@ -255,6 +255,7 @@ async def test_simple_bar_chart():
             "analytics_api_endpoint": "/v0/land_change/tree_cover_loss/analytics",
             "description": "Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss.",
             "prompt_instructions": "Compare forest loss across districts",
+            "selection_hints": "Use this dataset to compare forest loss across districts.",
             "methodology": "Satellite-based detection of tree cover loss.",
             "cautions": "Tree cover includes all vegetation greater than 5 meters.",
             "function_usage_notes": "Identifies areas of gross tree cover loss\n",
@@ -317,7 +318,7 @@ async def test_stacked_bar_chart():
     mock_state_stacked = {
         "dataset": {
             "dataset_id": 5,
-            "context_layer": None,
+            "params": {},
             "date_request_match": True,
             "reason": "Forest loss causes dataset matches the request for composition analysis.",
             "tile_url": "https://tiles.example.com/forest_loss_causes/latest/dynamic/{z}/{x}/{y}.png",
@@ -325,6 +326,7 @@ async def test_stacked_bar_chart():
             "analytics_api_endpoint": "/v0/forest/loss_causes/analytics",
             "description": "Breakdown of forest loss by cause over time.",
             "prompt_instructions": "Analyze composition of forest loss causes over time",
+            "selection_hints": "Use this dataset to analyze the composition of forest loss causes over time.",
             "methodology": "Attribution of forest loss to different drivers.",
             "cautions": "Cause attribution may have uncertainty.",
             "function_usage_notes": "Identifies drivers of forest loss\n",
@@ -377,7 +379,7 @@ async def test_grouped_bar_chart():
     mock_state_grouped = {
         "dataset": {
             "dataset_id": 6,
-            "context_layer": None,
+            "params": {},
             "date_request_match": True,
             "reason": "Forest metrics dataset matches the request for comparing loss and fire incidents.",
             "tile_url": "https://tiles.example.com/forest_metrics/latest/dynamic/{z}/{x}/{y}.png",
@@ -385,6 +387,7 @@ async def test_grouped_bar_chart():
             "analytics_api_endpoint": "/v0/forest/metrics/analytics",
             "description": "Combined forest loss and fire incident metrics.",
             "prompt_instructions": "Compare forest loss and fire incidents across countries",
+            "selection_hints": "Use this dataset to compare forest loss and fire incidents across countries.",
             "methodology": "Satellite-based detection of forest loss and fire events.",
             "cautions": "Metrics may have different temporal resolutions.",
             "function_usage_notes": "Compares forest metrics across regions\n",
@@ -454,7 +457,7 @@ async def test_pie_chart():
     mock_state_pie = {
         "dataset": {
             "dataset_id": 7,
-            "context_layer": None,
+            "params": {},
             "date_request_match": True,
             "reason": "Forest loss causes dataset matches the request for global cause analysis.",
             "tile_url": "https://tiles.example.com/forest_loss_causes/latest/dynamic/{z}/{x}/{y}.png",
@@ -462,6 +465,7 @@ async def test_pie_chart():
             "analytics_api_endpoint": "/v0/forest/loss_causes/analytics",
             "description": "Global breakdown of forest loss by cause.",
             "prompt_instructions": "Analyze main causes of forest loss globally",
+            "selection_hints": "Use this dataset to analyze the main causes of forest loss globally.",
             "methodology": "Attribution of global forest loss to different drivers.",
             "cautions": "Cause attribution may have regional variations.",
             "function_usage_notes": "Identifies global drivers of forest loss\n",
