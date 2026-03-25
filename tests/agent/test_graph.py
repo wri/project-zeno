@@ -262,16 +262,31 @@ def reset_google_clients():
         thinking_budget=0,
         timeout=300,
     )
+    new_gemini_flash_lite = ChatGoogleGenerativeAI(
+        model="gemini-3.1-flash-lite-preview",
+        temperature=0.3,
+        max_tokens=None,
+        include_thoughts=False,
+        max_retries=2,
+        thinking_budget=-1,
+        timeout=300,
+    )
 
     # Update module-level references
     llms_module = sys.modules["src.agent.llms"]
-    llms_module.SMALL_MODEL = new_gemini_flash
     llms_module.GEMINI_FLASH = new_gemini_flash
+    llms_module.GEMINI_FLASH_LITE = new_gemini_flash_lite
+    llms_module.MODEL_REGISTRY["gemini-flash"] = new_gemini_flash
+    llms_module.MODEL_REGISTRY["gemini-flash-lite"] = new_gemini_flash_lite
+    llms_module.SMALL_MODEL = llms_module.get_small_model()
+    llms_module.MODEL = llms_module.get_model()
+
+    new_small_model = llms_module.SMALL_MODEL
 
     pd_module = sys.modules.get("src.agent.tools.pick_dataset")
     if pd_module is not None:
         pd_module.retriever_cache = None
-        pd_module.SMALL_MODEL = new_gemini_flash
+        pd_module.SMALL_MODEL = new_small_model
 
     for module_name in (
         "src.agent.tools.pick_aoi",
@@ -279,7 +294,7 @@ def reset_google_clients():
     ):
         mod = sys.modules.get(module_name)
         if mod is not None and hasattr(mod, "SMALL_MODEL"):
-            mod.SMALL_MODEL = new_gemini_flash
+            mod.SMALL_MODEL = new_small_model
 
     # Reset GEMINI_FLASH in generate_insights module
     gi_module = sys.modules.get("src.agent.tools.generate_insights")
