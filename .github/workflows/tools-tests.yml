@@ -46,6 +46,13 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      - name: Generate dataset embeddings
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          mkdir -p data
+          uv run python src/ingest/embed_datasets.py
+
       - name: Run tools tests
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
