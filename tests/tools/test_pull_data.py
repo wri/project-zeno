@@ -196,13 +196,7 @@ async def test_pull_data_queries(aoi_data, dataset):
     }
     command = await pull_data.ainvoke(tool_call)
     statistics = command.update.get("statistics", {})
-    if dataset["dataset_id"] in [5, 9] and aoi_data["src_id"] in [
-        "6072",
-        "148322",
-        "MEX9713",
-    ]:
-        assert len(statistics) == 0
-    elif dataset["dataset_id"] == 9 and aoi_data["src_id"] == "CHE.6.3_1":
+    if dataset["dataset_id"] == 9 and aoi_data["src_id"] == "CHE.6.3_1":
         assert len(statistics) == 0
     else:
         assert len(statistics) == 1
