@@ -296,6 +296,10 @@ def reset_google_clients():
         if mod is not None and hasattr(mod, "SMALL_MODEL"):
             mod.SMALL_MODEL = new_small_model
 
+    graph_module = sys.modules.get("src.agent.graph")
+    if graph_module is not None:
+        graph_module.MODEL = llms_module.MODEL
+
     # Reset GEMINI_FLASH in generate_insights module
     gi_module = sys.modules.get("src.agent.tools.generate_insights")
     if gi_module is not None:
