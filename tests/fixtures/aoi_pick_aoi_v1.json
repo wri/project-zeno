@@ -1,0 +1,2455 @@
+{
+  "version": 1,
+  "query_aoi_database": {
+    "Puri": {
+      "columns": [
+        "src_id",
+        "name",
+        "subtype",
+        "source",
+        "similarity_score"
+      ],
+      "records": [
+        {
+          "src_id": "AGO.17.11.1_1",
+          "name": "Puri, Puri, Uíge, Angola",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.29411765933036804
+        },
+        {
+          "src_id": "AGO.17.11_1",
+          "name": "Puri, Uíge, Angola",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.29411765933036804
+        },
+        {
+          "src_id": "IND.26.26.2_1",
+          "name": "Puri, Puri, Odisha, India",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.2777777910232544
+        },
+        {
+          "src_id": "IND.26.26_1",
+          "name": "Puri, Odisha, India",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.2777777910232544
+        },
+        {
+          "src_id": "EST.10.9.19_1",
+          "name": "Puuri, Põlva, Põlva, Estonia",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.20000000298023224
+        },
+        {
+          "src_id": "45579",
+          "name": "Purcari - Etulia, Purcari - Etulia, MDA",
+          "subtype": "key-biodiversity-area",
+          "source": "kba",
+          "similarity_score": 0.20000000298023224
+        },
+        {
+          "src_id": "MEX4778",
+          "name": "Purisima, Ejido, MEX",
+          "subtype": "indigenous-and-community-land",
+          "source": "landmark",
+          "similarity_score": 0.20000000298023224
+        }
+      ]
+    },
+    "Ecuador": {
+      "columns": [
+        "src_id",
+        "name",
+        "subtype",
+        "source",
+        "similarity_score"
+      ],
+      "records": [
+        {
+          "src_id": "ECU",
+          "name": "Ecuador",
+          "subtype": "country",
+          "source": "gadm",
+          "similarity_score": 1.0
+        },
+        {
+          "src_id": "ECU.16_1",
+          "name": "Napo, Ecuador",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.6153846383094788
+        },
+        {
+          "src_id": "ECU.12.7_1",
+          "name": "Loja, Loja, Ecuador",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.6153846383094788
+        },
+        {
+          "src_id": "ECU.12_1",
+          "name": "Loja, Ecuador",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.6153846383094788
+        },
+        {
+          "src_id": "ECU.12.7.6_1",
+          "name": "Loja, Loja, Loja, Ecuador",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.6153846383094788
+        },
+        {
+          "src_id": "ECU.1_1",
+          "name": "Azuay, Ecuador",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "ECU.3.3_1",
+          "name": "Cañar, Cañar, Ecuador",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "ECU.7_1",
+          "name": "El Oro, Ecuador",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "ECU.3_1",
+          "name": "Cañar, Ecuador",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "ECU.3.3.1_1",
+          "name": "Cañar, Cañar, Cañar, Ecuador",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.5714285969734192
+        }
+      ]
+    },
+    "Bolivia": {
+      "columns": [
+        "src_id",
+        "name",
+        "subtype",
+        "source",
+        "similarity_score"
+      ],
+      "records": [
+        {
+          "src_id": "BOL",
+          "name": "Bolivia",
+          "subtype": "country",
+          "source": "gadm",
+          "similarity_score": 1.0
+        },
+        {
+          "src_id": "BOL.3_1",
+          "name": "Beni, Bolivia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.6666666865348816
+        },
+        {
+          "src_id": "BOL.6_1",
+          "name": "Pando, Bolivia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "BOL.5_1",
+          "name": "Oruro, Bolivia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "BOL.4_1",
+          "name": "La Paz, Bolivia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.5333333611488342
+        },
+        {
+          "src_id": "BOL.9_1",
+          "name": "Tarija, Bolivia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.5333333611488342
+        },
+        {
+          "src_id": "BOL.7_1",
+          "name": "Potosí, Bolivia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.5333333611488342
+        },
+        {
+          "src_id": "BOL.3.6_2",
+          "name": "Moxos, Beni, Bolivia",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.4444444477558136
+        },
+        {
+          "src_id": "BOL.8_1",
+          "name": "Santa Cruz, Bolivia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.42105263471603394
+        },
+        {
+          "src_id": "BOL.2_1",
+          "name": "Cochabamba, Bolivia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.42105263471603394
+        }
+      ]
+    },
+    "Para, Brazil": {
+      "columns": [
+        "src_id",
+        "name",
+        "subtype",
+        "source",
+        "similarity_score"
+      ],
+      "records": [
+        {
+          "src_id": "BRA.16_1",
+          "name": "Paraná, Brazil",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.7333333492279053
+        },
+        {
+          "src_id": "BRA.14_1",
+          "name": "Pará, Brazil",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.7142857313156128
+        },
+        {
+          "src_id": "BRA.15_1",
+          "name": "Paraíba, Brazil",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.6875
+        },
+        {
+          "src_id": "BRA.15.12_2",
+          "name": "Arara, Paraíba, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.6315789222717285
+        },
+        {
+          "src_id": "BRA",
+          "name": "Brazil",
+          "subtype": "country",
+          "source": "gadm",
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "BRA.15.133_2",
+          "name": "Parari, Paraíba, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.5789473652839661
+        },
+        {
+          "src_id": "BRA.16.266_2",
+          "name": "Piên, Paraná, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.5789473652839661
+        },
+        {
+          "src_id": "BRA.14.144_2",
+          "name": "Xinguara, Pará, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "BRA.16.183_2",
+          "name": "Jussara, Paraná, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "BRA.15.84_2",
+          "name": "Ibiara, Paraíba, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.5714285969734192
+        }
+      ]
+    },
+    "Indonesia": {
+      "columns": [
+        "src_id",
+        "name",
+        "subtype",
+        "source",
+        "similarity_score"
+      ],
+      "records": [
+        {
+          "src_id": "IDN",
+          "name": "Indonesia",
+          "subtype": "country",
+          "source": "gadm",
+          "similarity_score": 1.0
+        },
+        {
+          "src_id": "IDN.2_1",
+          "name": "Bali, Indonesia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.6666666865348816
+        },
+        {
+          "src_id": "IDN.24_1",
+          "name": "Riau, Indonesia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.6666666865348816
+        },
+        {
+          "src_id": "IDN.1_1",
+          "name": "Aceh, Indonesia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.6666666865348816
+        },
+        {
+          "src_id": "IDN.23_1",
+          "name": "Papua, Indonesia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.625
+        },
+        {
+          "src_id": "IDN.8_1",
+          "name": "Jambi, Indonesia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.625
+        },
+        {
+          "src_id": "IDN.8.3_1",
+          "name": "Jambi, Jambi, Indonesia",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.625
+        },
+        {
+          "src_id": "IDN.19_1",
+          "name": "Maluku, Indonesia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.5882353186607361
+        },
+        {
+          "src_id": "IDN.4_1",
+          "name": "Banten, Indonesia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.5882353186607361
+        },
+        {
+          "src_id": "IDN.17_1",
+          "name": "Lampung, Indonesia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.5555555820465088
+        }
+      ]
+    },
+    "Castelo Branco, Portugal": {
+      "columns": [
+        "src_id",
+        "name",
+        "subtype",
+        "source",
+        "similarity_score"
+      ],
+      "records": [
+        {
+          "src_id": "PRT.6.2.5_1",
+          "name": "Castelo Branco, Castelo Branco, Castelo Branco, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 1.0
+        },
+        {
+          "src_id": "PRT.6.2_1",
+          "name": "Castelo Branco, Castelo Branco, Portugal",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 1.0
+        },
+        {
+          "src_id": "PRT.6_1",
+          "name": "Castelo Branco, Portugal",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 1.0
+        },
+        {
+          "src_id": "PRT.6.2.15_1",
+          "name": "Mata, Castelo Branco, Castelo Branco, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.8275862336158752
+        },
+        {
+          "src_id": "PRT.6.2.4_1",
+          "name": "Cafede, Castelo Branco, Castelo Branco, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.8275862336158752
+        },
+        {
+          "src_id": "PRT.6.2.13_1",
+          "name": "Lousa, Castelo Branco, Castelo Branco, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.800000011920929
+        },
+        {
+          "src_id": "PRT.6.9.3_1",
+          "name": "Castelo, Sertã, Castelo Branco, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.800000011920929
+        },
+        {
+          "src_id": "PRT.6.9.12_1",
+          "name": "Sertã, Sertã, Castelo Branco, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.800000011920929
+        },
+        {
+          "src_id": "PRT.6.9_1",
+          "name": "Sertã, Castelo Branco, Portugal",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.800000011920929
+        },
+        {
+          "src_id": "PRT.6.4_1",
+          "name": "Fundão, Castelo Branco, Portugal",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.774193525314331
+        }
+      ]
+    },
+    "Lisbon": {
+      "columns": [
+        "src_id",
+        "name",
+        "subtype",
+        "source",
+        "similarity_score"
+      ],
+      "records": [
+        {
+          "src_id": "PRT.12.7_1",
+          "name": "Lisboa, Lisboa, Portugal",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.2777777910232544
+        },
+        {
+          "src_id": "PRT.12_1",
+          "name": "Lisboa, Portugal",
+          "subtype": "state-province",
+          "source": "gadm",
+          "similarity_score": 0.2777777910232544
+        },
+        {
+          "src_id": "555654757",
+          "name": "Lisbon, Forest Preserve, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.26923078298568726
+        },
+        {
+          "src_id": "PRT.12.7.52_1",
+          "name": "Sé, Lisboa, Lisboa, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.2380952388048172
+        },
+        {
+          "src_id": "PRT.12.7.17_1",
+          "name": "Lapa, Lisboa, Lisboa, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.22727273404598236
+        },
+        {
+          "src_id": "PRT.12.7.24_1",
+          "name": "Pena, Lisboa, Lisboa, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.22727273404598236
+        },
+        {
+          "src_id": "PRT.12.7.1_1",
+          "name": "Ajuda, Lisboa, Lisboa, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.2083333283662796
+        },
+        {
+          "src_id": "PRT.12.7.6_1",
+          "name": "Anjos, Lisboa, Lisboa, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.2083333283662796
+        },
+        {
+          "src_id": "PRT.12.7.7_1",
+          "name": "Beato, Lisboa, Lisboa, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.2083333283662796
+        },
+        {
+          "src_id": "PRT.12.7.16_1",
+          "name": "Graça, Lisboa, Lisboa, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "similarity_score": 0.2083333283662796
+        }
+      ]
+    },
+    "Resex Catua-Ipixuna": {
+      "columns": [
+        "src_id",
+        "name",
+        "subtype",
+        "source",
+        "similarity_score"
+      ],
+      "records": [
+        {
+          "src_id": "BRA79",
+          "name": "Resex Catuá-Ipixuna, Reserva Extrativista, BRA",
+          "subtype": "indigenous-and-community-land",
+          "source": "landmark",
+          "similarity_score": 0.41860464215278625
+        },
+        {
+          "src_id": "352135",
+          "name": "Reserva Extrativista Catuá-Ipixuna, Reserva Extrativista, BRA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.3720930218696594
+        },
+        {
+          "src_id": "BRA.14.56_2",
+          "name": "Ipixuna do Pará, Pará, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.22857142984867096
+        },
+        {
+          "src_id": "BRA.4.27_2",
+          "name": "Ipixuna, Amazonas, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.2222222238779068
+        },
+        {
+          "src_id": "33865",
+          "name": "Ipixuna, Terra Indígena, BRA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.2222222238779068
+        },
+        {
+          "src_id": "CAN1095",
+          "name": "Cacouna Indian Reserve No. 22, Indian Reserve, CAN",
+          "subtype": "indigenous-and-community-land",
+          "source": "landmark",
+          "similarity_score": 0.2195121943950653
+        },
+        {
+          "src_id": "BRA.14.78_2",
+          "name": "Nova Ipixuna, Pará, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "similarity_score": 0.21621622145175934
+        },
+        {
+          "src_id": "BRA1495",
+          "name": "Ipixuna, Tierra Indígena, BRA",
+          "subtype": "indigenous-and-community-land",
+          "source": "landmark",
+          "similarity_score": 0.21621622145175934
+        },
+        {
+          "src_id": "CAN2260",
+          "name": "Canoona 2, Indian Reserve, CAN",
+          "subtype": "indigenous-and-community-land",
+          "source": "landmark",
+          "similarity_score": 0.21621622145175934
+        },
+        {
+          "src_id": "126121",
+          "name": "Canna, Nature Reserve, AUS",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.21621622145175934
+        }
+      ]
+    },
+    "Osceola, Research Natural Area, USA": {
+      "columns": [
+        "src_id",
+        "name",
+        "subtype",
+        "source",
+        "similarity_score"
+      ],
+      "records": [
+        {
+          "src_id": "555608530",
+          "name": "Osceola, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 1.0
+        },
+        {
+          "src_id": "555672701",
+          "name": "Research, Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.7647058963775635
+        },
+        {
+          "src_id": "11115245",
+          "name": "Ruth, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.6842105388641357
+        },
+        {
+          "src_id": "555671421",
+          "name": "No Name, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.6666666865348816
+        },
+        {
+          "src_id": "555610722",
+          "name": "Tiak, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.6666666865348816
+        },
+        {
+          "src_id": "11111360",
+          "name": "Bagby, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.6499999761581421
+        },
+        {
+          "src_id": "368228",
+          "name": "Elgin Research Natural Area, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.6499999761581421
+        },
+        {
+          "src_id": "11115258",
+          "name": "Yurok, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.6499999761581421
+        },
+        {
+          "src_id": "369380",
+          "name": "Hagan, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.6499999761581421
+        },
+        {
+          "src_id": "11111384",
+          "name": "Lochsa, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "similarity_score": 0.6499999761581421
+        }
+      ]
+    }
+  },
+  "query_subregion_database": {
+    "state|gadm|AGO.17.11.1_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|AGO.17.11_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|IND.26.26.2_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|IND.26.26_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|EST.10.9.19_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|kba|45579": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|landmark|MEX4778": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|ECU": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Azuay, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.1_1",
+          "source": "gadm",
+          "src_id": "ECU.1_1"
+        },
+        {
+          "name": "Bolivar, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.2_1",
+          "source": "gadm",
+          "src_id": "ECU.2_1"
+        },
+        {
+          "name": "Cañar, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.3_1",
+          "source": "gadm",
+          "src_id": "ECU.3_1"
+        },
+        {
+          "name": "Cotopaxi, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.6_1",
+          "source": "gadm",
+          "src_id": "ECU.6_1"
+        },
+        {
+          "name": "El Oro, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.7_1",
+          "source": "gadm",
+          "src_id": "ECU.7_1"
+        },
+        {
+          "name": "Imbabura, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.11_1",
+          "source": "gadm",
+          "src_id": "ECU.11_1"
+        },
+        {
+          "name": "Los Rios, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.13_1",
+          "source": "gadm",
+          "src_id": "ECU.13_1"
+        },
+        {
+          "name": "Manabi, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.14_1",
+          "source": "gadm",
+          "src_id": "ECU.14_1"
+        },
+        {
+          "name": "Morona Santiago, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.15_1",
+          "source": "gadm",
+          "src_id": "ECU.15_1"
+        },
+        {
+          "name": "Orellana, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.17_1",
+          "source": "gadm",
+          "src_id": "ECU.17_1"
+        },
+        {
+          "name": "Pastaza, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.18_1",
+          "source": "gadm",
+          "src_id": "ECU.18_1"
+        },
+        {
+          "name": "Santo Domingo de los Tsachilas, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.21_1",
+          "source": "gadm",
+          "src_id": "ECU.21_1"
+        },
+        {
+          "name": "Sucumbios, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.22_1",
+          "source": "gadm",
+          "src_id": "ECU.22_1"
+        },
+        {
+          "name": "Tungurahua, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.23_1",
+          "source": "gadm",
+          "src_id": "ECU.23_1"
+        },
+        {
+          "name": "Carchi, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.4_1",
+          "source": "gadm",
+          "src_id": "ECU.4_1"
+        },
+        {
+          "name": "Napo, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.16_1",
+          "source": "gadm",
+          "src_id": "ECU.16_1"
+        },
+        {
+          "name": "Chimborazo, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.5_1",
+          "source": "gadm",
+          "src_id": "ECU.5_1"
+        },
+        {
+          "name": "Esmeraldas, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.8_1",
+          "source": "gadm",
+          "src_id": "ECU.8_1"
+        },
+        {
+          "name": "Galápagos, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.9_1",
+          "source": "gadm",
+          "src_id": "ECU.9_1"
+        },
+        {
+          "name": "Guayas, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.10_1",
+          "source": "gadm",
+          "src_id": "ECU.10_1"
+        },
+        {
+          "name": "Loja, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.12_1",
+          "source": "gadm",
+          "src_id": "ECU.12_1"
+        },
+        {
+          "name": "Pichincha, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.19_1",
+          "source": "gadm",
+          "src_id": "ECU.19_1"
+        },
+        {
+          "name": "Santa Elena, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.20_1",
+          "source": "gadm",
+          "src_id": "ECU.20_1"
+        },
+        {
+          "name": "Zamora Chinchipe, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.24_1",
+          "source": "gadm",
+          "src_id": "ECU.24_1"
+        }
+      ]
+    },
+    "state|gadm|ECU.16_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Napo, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.16_1",
+          "source": "gadm",
+          "src_id": "ECU.16_1"
+        }
+      ]
+    },
+    "state|gadm|ECU.12.7_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|ECU.12_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Loja, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.12_1",
+          "source": "gadm",
+          "src_id": "ECU.12_1"
+        }
+      ]
+    },
+    "state|gadm|ECU.12.7.6_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|ECU.1_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Azuay, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.1_1",
+          "source": "gadm",
+          "src_id": "ECU.1_1"
+        }
+      ]
+    },
+    "state|gadm|ECU.3.3_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|ECU.7_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "El Oro, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.7_1",
+          "source": "gadm",
+          "src_id": "ECU.7_1"
+        }
+      ]
+    },
+    "state|gadm|ECU.3_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Cañar, Ecuador",
+          "subtype": "state-province",
+          "gadm_id": "ECU.3_1",
+          "source": "gadm",
+          "src_id": "ECU.3_1"
+        }
+      ]
+    },
+    "state|gadm|ECU.3.3.1_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|BOL": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Cochabamba, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.2_1",
+          "source": "gadm",
+          "src_id": "BOL.2_1"
+        },
+        {
+          "name": "Santa Cruz, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.8_1",
+          "source": "gadm",
+          "src_id": "BOL.8_1"
+        },
+        {
+          "name": "Beni, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.3_1",
+          "source": "gadm",
+          "src_id": "BOL.3_1"
+        },
+        {
+          "name": "La Paz, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.4_1",
+          "source": "gadm",
+          "src_id": "BOL.4_1"
+        },
+        {
+          "name": "Pando, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.6_1",
+          "source": "gadm",
+          "src_id": "BOL.6_1"
+        },
+        {
+          "name": "Chuquisaca, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.1_1",
+          "source": "gadm",
+          "src_id": "BOL.1_1"
+        },
+        {
+          "name": "Tarija, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.9_1",
+          "source": "gadm",
+          "src_id": "BOL.9_1"
+        },
+        {
+          "name": "Oruro, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.5_1",
+          "source": "gadm",
+          "src_id": "BOL.5_1"
+        },
+        {
+          "name": "Potosí, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.7_1",
+          "source": "gadm",
+          "src_id": "BOL.7_1"
+        }
+      ]
+    },
+    "state|gadm|BOL.3_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Beni, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.3_1",
+          "source": "gadm",
+          "src_id": "BOL.3_1"
+        }
+      ]
+    },
+    "state|gadm|BOL.6_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Pando, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.6_1",
+          "source": "gadm",
+          "src_id": "BOL.6_1"
+        }
+      ]
+    },
+    "state|gadm|BOL.5_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Oruro, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.5_1",
+          "source": "gadm",
+          "src_id": "BOL.5_1"
+        }
+      ]
+    },
+    "state|gadm|BOL.4_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "La Paz, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.4_1",
+          "source": "gadm",
+          "src_id": "BOL.4_1"
+        }
+      ]
+    },
+    "state|gadm|BOL.9_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Tarija, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.9_1",
+          "source": "gadm",
+          "src_id": "BOL.9_1"
+        }
+      ]
+    },
+    "state|gadm|BOL.7_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Potosí, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.7_1",
+          "source": "gadm",
+          "src_id": "BOL.7_1"
+        }
+      ]
+    },
+    "state|gadm|BOL.3.6_2": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|BOL.8_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Santa Cruz, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.8_1",
+          "source": "gadm",
+          "src_id": "BOL.8_1"
+        }
+      ]
+    },
+    "state|gadm|BOL.2_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Cochabamba, Bolivia",
+          "subtype": "state-province",
+          "gadm_id": "BOL.2_1",
+          "source": "gadm",
+          "src_id": "BOL.2_1"
+        }
+      ]
+    },
+    "state|gadm|BRA.16_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Paraná, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.16_1",
+          "source": "gadm",
+          "src_id": "BRA.16_1"
+        }
+      ]
+    },
+    "state|gadm|BRA.14_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Pará, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.14_1",
+          "source": "gadm",
+          "src_id": "BRA.14_1"
+        }
+      ]
+    },
+    "state|gadm|BRA.15_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Paraíba, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.15_1",
+          "source": "gadm",
+          "src_id": "BRA.15_1"
+        }
+      ]
+    },
+    "state|gadm|BRA.15.12_2": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|BRA": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Mato Grosso do Sul, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.11_1",
+          "source": "gadm",
+          "src_id": "BRA.11_1"
+        },
+        {
+          "name": "Rio de Janeiro, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.19_1",
+          "source": "gadm",
+          "src_id": "BRA.19_1"
+        },
+        {
+          "name": "Espírito Santo, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.8_1",
+          "source": "gadm",
+          "src_id": "BRA.8_1"
+        },
+        {
+          "name": "Goiás, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.9_1",
+          "source": "gadm",
+          "src_id": "BRA.9_1"
+        },
+        {
+          "name": "Minas Gerais, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.13_1",
+          "source": "gadm",
+          "src_id": "BRA.13_1"
+        },
+        {
+          "name": "Distrito Federal, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.7_1",
+          "source": "gadm",
+          "src_id": "BRA.7_1"
+        },
+        {
+          "name": "Bahia, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.5_1",
+          "source": "gadm",
+          "src_id": "BRA.5_1"
+        },
+        {
+          "name": "Sergipe, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.26_1",
+          "source": "gadm",
+          "src_id": "BRA.26_1"
+        },
+        {
+          "name": "Paraíba, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.15_1",
+          "source": "gadm",
+          "src_id": "BRA.15_1"
+        },
+        {
+          "name": "Alagoas, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.2_1",
+          "source": "gadm",
+          "src_id": "BRA.2_1"
+        },
+        {
+          "name": "Amapá, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.3_1",
+          "source": "gadm",
+          "src_id": "BRA.3_1"
+        },
+        {
+          "name": "Roraima, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.23_1",
+          "source": "gadm",
+          "src_id": "BRA.23_1"
+        },
+        {
+          "name": "Rio Grande do Sul, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.21_1",
+          "source": "gadm",
+          "src_id": "BRA.21_1"
+        },
+        {
+          "name": "Santa Catarina, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.24_1",
+          "source": "gadm",
+          "src_id": "BRA.24_1"
+        },
+        {
+          "name": "Paraná, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.16_1",
+          "source": "gadm",
+          "src_id": "BRA.16_1"
+        },
+        {
+          "name": "São Paulo, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.25_1",
+          "source": "gadm",
+          "src_id": "BRA.25_1"
+        },
+        {
+          "name": "Acre, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.1_1",
+          "source": "gadm",
+          "src_id": "BRA.1_1"
+        },
+        {
+          "name": "Mato Grosso, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.12_1",
+          "source": "gadm",
+          "src_id": "BRA.12_1"
+        },
+        {
+          "name": "Rondônia, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.22_1",
+          "source": "gadm",
+          "src_id": "BRA.22_1"
+        },
+        {
+          "name": "Tocantins, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.27_1",
+          "source": "gadm",
+          "src_id": "BRA.27_1"
+        },
+        {
+          "name": "Maranhão, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.10_1",
+          "source": "gadm",
+          "src_id": "BRA.10_1"
+        },
+        {
+          "name": "Pará, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.14_1",
+          "source": "gadm",
+          "src_id": "BRA.14_1"
+        },
+        {
+          "name": "Piauí, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.18_1",
+          "source": "gadm",
+          "src_id": "BRA.18_1"
+        },
+        {
+          "name": "Amazonas, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.4_1",
+          "source": "gadm",
+          "src_id": "BRA.4_1"
+        },
+        {
+          "name": "Ceará, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.6_1",
+          "source": "gadm",
+          "src_id": "BRA.6_1"
+        },
+        {
+          "name": "Pernambuco, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.17_1",
+          "source": "gadm",
+          "src_id": "BRA.17_1"
+        },
+        {
+          "name": "Rio Grande do Norte, Brazil",
+          "subtype": "state-province",
+          "gadm_id": "BRA.20_1",
+          "source": "gadm",
+          "src_id": "BRA.20_1"
+        }
+      ]
+    },
+    "state|gadm|BRA.15.133_2": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|BRA.16.266_2": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|BRA.14.144_2": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|BRA.16.183_2": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|BRA.15.84_2": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|IDN": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Bangka Belitung, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.3_1",
+          "source": "gadm",
+          "src_id": "IDN.3_1"
+        },
+        {
+          "name": "Kalimantan Utara, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.35_1",
+          "source": "gadm",
+          "src_id": "IDN.35_1"
+        },
+        {
+          "name": "Nusa Tenggara Timur, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.21_1",
+          "source": "gadm",
+          "src_id": "IDN.21_1"
+        },
+        {
+          "name": "Sulawesi Tenggara, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.28_1",
+          "source": "gadm",
+          "src_id": "IDN.28_1"
+        },
+        {
+          "name": "Gorontalo, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.6_1",
+          "source": "gadm",
+          "src_id": "IDN.6_1"
+        },
+        {
+          "name": "Sulawesi Utara, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.29_1",
+          "source": "gadm",
+          "src_id": "IDN.29_1"
+        },
+        {
+          "name": "Papua Barat, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.22_1",
+          "source": "gadm",
+          "src_id": "IDN.22_1"
+        },
+        {
+          "name": "Jawa Timur, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.11_1",
+          "source": "gadm",
+          "src_id": "IDN.11_1"
+        },
+        {
+          "name": "Sulawesi Selatan, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.26_1",
+          "source": "gadm",
+          "src_id": "IDN.26_1"
+        },
+        {
+          "name": "Maluku Utara, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.18_1",
+          "source": "gadm",
+          "src_id": "IDN.18_1"
+        },
+        {
+          "name": "Sulawesi Barat, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.25_1",
+          "source": "gadm",
+          "src_id": "IDN.25_1"
+        },
+        {
+          "name": "Bengkulu, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.5_1",
+          "source": "gadm",
+          "src_id": "IDN.5_1"
+        },
+        {
+          "name": "Lampung, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.17_1",
+          "source": "gadm",
+          "src_id": "IDN.17_1"
+        },
+        {
+          "name": "Sumatera Selatan, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.31_1",
+          "source": "gadm",
+          "src_id": "IDN.31_1"
+        },
+        {
+          "name": "Sumatera Barat, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.30_1",
+          "source": "gadm",
+          "src_id": "IDN.30_1"
+        },
+        {
+          "name": "Sumatera Utara, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.32_1",
+          "source": "gadm",
+          "src_id": "IDN.32_1"
+        },
+        {
+          "name": "Yogyakarta, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.33_1",
+          "source": "gadm",
+          "src_id": "IDN.33_1"
+        },
+        {
+          "name": "Jawa Tengah, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.10_1",
+          "source": "gadm",
+          "src_id": "IDN.10_1"
+        },
+        {
+          "name": "Maluku, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.19_1",
+          "source": "gadm",
+          "src_id": "IDN.19_1"
+        },
+        {
+          "name": "Bali, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.2_1",
+          "source": "gadm",
+          "src_id": "IDN.2_1"
+        },
+        {
+          "name": "Nusa Tenggara Barat, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.20_1",
+          "source": "gadm",
+          "src_id": "IDN.20_1"
+        },
+        {
+          "name": "Kalimantan Barat, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.12_1",
+          "source": "gadm",
+          "src_id": "IDN.12_1"
+        },
+        {
+          "name": "Kalimantan Tengah, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.14_1",
+          "source": "gadm",
+          "src_id": "IDN.14_1"
+        },
+        {
+          "name": "Kalimantan Timur, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.34_1",
+          "source": "gadm",
+          "src_id": "IDN.34_1"
+        },
+        {
+          "name": "Kalimantan Selatan, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.13_1",
+          "source": "gadm",
+          "src_id": "IDN.13_1"
+        },
+        {
+          "name": "Aceh, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.1_1",
+          "source": "gadm",
+          "src_id": "IDN.1_1"
+        },
+        {
+          "name": "Banten, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.4_1",
+          "source": "gadm",
+          "src_id": "IDN.4_1"
+        },
+        {
+          "name": "Jakarta Raya, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.7_1",
+          "source": "gadm",
+          "src_id": "IDN.7_1"
+        },
+        {
+          "name": "Jawa Barat, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.9_1",
+          "source": "gadm",
+          "src_id": "IDN.9_1"
+        },
+        {
+          "name": "Kepulauan Riau, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.16_1",
+          "source": "gadm",
+          "src_id": "IDN.16_1"
+        },
+        {
+          "name": "Riau, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.24_1",
+          "source": "gadm",
+          "src_id": "IDN.24_1"
+        },
+        {
+          "name": "Jambi, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.8_1",
+          "source": "gadm",
+          "src_id": "IDN.8_1"
+        },
+        {
+          "name": "Sulawesi Tengah, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.27_1",
+          "source": "gadm",
+          "src_id": "IDN.27_1"
+        },
+        {
+          "name": "Papua, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.23_1",
+          "source": "gadm",
+          "src_id": "IDN.23_1"
+        }
+      ]
+    },
+    "state|gadm|IDN.2_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Bali, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.2_1",
+          "source": "gadm",
+          "src_id": "IDN.2_1"
+        }
+      ]
+    },
+    "state|gadm|IDN.24_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Riau, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.24_1",
+          "source": "gadm",
+          "src_id": "IDN.24_1"
+        }
+      ]
+    },
+    "state|gadm|IDN.1_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Aceh, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.1_1",
+          "source": "gadm",
+          "src_id": "IDN.1_1"
+        }
+      ]
+    },
+    "state|gadm|IDN.23_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Papua, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.23_1",
+          "source": "gadm",
+          "src_id": "IDN.23_1"
+        }
+      ]
+    },
+    "state|gadm|IDN.8_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Jambi, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.8_1",
+          "source": "gadm",
+          "src_id": "IDN.8_1"
+        }
+      ]
+    },
+    "state|gadm|IDN.8.3_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|IDN.19_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Maluku, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.19_1",
+          "source": "gadm",
+          "src_id": "IDN.19_1"
+        }
+      ]
+    },
+    "state|gadm|IDN.4_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Banten, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.4_1",
+          "source": "gadm",
+          "src_id": "IDN.4_1"
+        }
+      ]
+    },
+    "state|gadm|IDN.17_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Lampung, Indonesia",
+          "subtype": "state-province",
+          "gadm_id": "IDN.17_1",
+          "source": "gadm",
+          "src_id": "IDN.17_1"
+        }
+      ]
+    },
+    "state|gadm|PRT.6.2.5_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.6.2_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.6_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Castelo Branco, Portugal",
+          "subtype": "state-province",
+          "gadm_id": "PRT.6_1",
+          "source": "gadm",
+          "src_id": "PRT.6_1"
+        }
+      ]
+    },
+    "state|gadm|PRT.6.2.15_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.6.2.4_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.6.2.13_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.6.9.3_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.6.9.12_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.6.9_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.6.4_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.12.7_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.12_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Lisboa, Portugal",
+          "subtype": "state-province",
+          "gadm_id": "PRT.12_1",
+          "source": "gadm",
+          "src_id": "PRT.12_1"
+        }
+      ]
+    },
+    "state|wdpa|555654757": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.12.7.52_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.12.7.17_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.12.7.24_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.12.7.1_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.12.7.6_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.12.7.7_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|PRT.12.7.16_1": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|landmark|BRA79": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|352135": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|BRA.14.56_2": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|BRA.4.27_2": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|33865": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|landmark|CAN1095": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|gadm|BRA.14.78_2": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|landmark|BRA1495": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|landmark|CAN2260": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|126121": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|555608530": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|555672701": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|11115245": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|555671421": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|555610722": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|11111360": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|368228": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|11115258": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|369380": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    },
+    "state|wdpa|11111384": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": []
+    }
+  }
+}

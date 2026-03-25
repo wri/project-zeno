@@ -1,7 +1,7 @@
-name: Unit Tests
+name: Tools Tests
 
 on:
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -9,16 +9,15 @@ jobs:
 
     services:
       postgres:
-        image: postgis/postgis:17-3.5
+        image: postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: zeno-data
-          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d zeno-data"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -30,7 +29,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12.8'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -38,23 +37,26 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Run tests
+      - name: Run tools tests
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
           TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
+          # Replay AOI SQL results from fixtures (no geometries_gadm / PostGIS load in CI).
+          AOI_PICK_AOI_FIXTURES_MODE: replay
+          AOI_PICK_AOI_FIXTURES_PATH: tests/fixtures/aoi_pick_aoi_v1.json
           DOMAINS_ALLOWLIST: developmentseed.org,wri.org
-          OPENAI_API_KEY: fake-key-for-testing
-          ANTHROPIC_API_KEY: fake-key-for-testing
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           MODEL: gemini-flash-lite
           SMALL_MODEL: gemini-flash-lite
           CODING_MODEL: gemini-3-flash-preview
-          MAPBOX_API_TOKEN: fake-mapbox-token
-          WRI_API_KEY: fake-wri-api-key
-          WRI_BEARER_TOKEN: fake-wri-bearer-token
-          GFW_DATA_API_KEY: fake-gfw-api-key
-          AWS_ACCESS_KEY_ID: fake-aws-access-key
-          AWS_SECRET_ACCESS_KEY: fake-aws-secret-key
+          MAPBOX_API_TOKEN: ${{ secrets.MAPBOX_API_TOKEN }}
+          WRI_API_KEY: ${{ secrets.WRI_API_KEY }}
+          WRI_BEARER_TOKEN: ${{ secrets.WRI_BEARER_TOKEN }}
+          GFW_DATA_API_KEY: ${{ secrets.GFW_DATA_API_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
           API_BASE_URL: http://localhost:8000
           LOCAL_API_BASE_URL: http://localhost:8000
@@ -62,4 +64,4 @@ jobs:
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
           NEXTJS_API_KEY: test-nextjs-api-key
         run: |
-          uv run pytest tests/api tests/cli tests/agent tests/tools/test_build_selection_name.py -v
+          uv run pytest tests/tools -v
