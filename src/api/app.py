@@ -348,8 +348,9 @@ async def stream_chat(
                     content = f"User performed action in UI: {action_type}\n\n"
             ui_action_message.append(content)
 
-    ui_message = HumanMessage(content="\n".join(ui_action_message))
-    messages.append(ui_message)
+    ui_action_content = "\n".join(ui_action_message).strip()
+    if ui_action_content:
+        messages.append(HumanMessage(content=ui_action_content))
 
     if not ui_action_only and query:
         messages.append(HumanMessage(content=query))
