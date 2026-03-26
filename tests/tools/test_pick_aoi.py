@@ -1,5 +1,7 @@
 import uuid
+from importlib import import_module
 
+import pandas as pd
 import pytest
 import structlog
 from sqlalchemy import select
@@ -188,4 +190,64 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
 
     assert (
         command.update.get("aoi_selection", {}).get("name") == "My custom area"
+    )
+
+
+async def test_pick_aoi_handles_empty_subregion_results(
+    monkeypatch, structlog_context
+):
+    pick_aoi_module = import_module("src.agent.tools.pick_aoi")
+
+    async def fake_query_aoi_database(place_name: str, result_limit: int = 10):
+        return pd.DataFrame(
+            [
+                {
+                    "src_id": "USA.6_1",
+                    "name": "Colorado, United States",
+                    "subtype": "state-province",
+                    "source": "gadm",
+                }
+            ]
+        )
+
+    async def fake_select_best_aoi(question, candidate_aois):
+        return {
+            "src_id": "USA.6_1",
+            "name": "Colorado, United States",
+            "subtype": "state-province",
+            "source": "gadm",
+        }
+
+    async def fake_query_subregion_database(
+        subregion_name: str, source: str, src_id: int
+    ):
+        return pd.DataFrame(columns=["name", "subtype", "src_id", "source"])
+
+    monkeypatch.setattr(
+        pick_aoi_module, "query_aoi_database", fake_query_aoi_database
+    )
+    monkeypatch.setattr(
+        pick_aoi_module, "select_best_aoi", fake_select_best_aoi
+    )
+    monkeypatch.setattr(
+        pick_aoi_module,
+        "query_subregion_database",
+        fake_query_subregion_database,
+    )
+
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": "How much land changed to short vegetation in protected areas in Colorado in the past decade?",
+                "places": ["Colorado"],
+                "subregion": "wdpa",
+            },
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
+        }
+    )
+
+    assert "aoi_selection" not in command.update
+    assert str(command.update["messages"][0].content).startswith(
+        "No matching AOIs were found for your request."
     )

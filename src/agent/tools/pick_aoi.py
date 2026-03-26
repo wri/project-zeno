@@ -397,6 +397,12 @@ async def check_multiple_matches(
 
 
 async def check_aoi_selection(aois: list[dict]) -> str:
+    if not aois:
+        return (
+            "No matching AOIs were found for your request. "
+            "Try a broader place name or choose a different subregion type."
+        )
+
     aoi_sources = set([aoi["source"] for aoi in aois])
     if len(aoi_sources) > 1:
         return "Found multiple sources of AOIs, which is not supported. Please select only one source."
