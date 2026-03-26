@@ -24,7 +24,7 @@ class _SharedSettings(BaseSettings):
 
     # Dataset embeddings database
     dataset_embeddings_db: str = Field(
-        default="gnw-dataset-index-gemini-v2",
+        default="gnw-dataset-index-gemini-v3",
         alias="DATASET_EMBEDDINGS_DB",
     )
     dataset_embeddings_model: str = Field(

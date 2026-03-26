@@ -25,6 +25,7 @@ GEMINI = ChatGoogleGenerativeAI(
     temperature=1.0,
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
+    thinking_level="low",
     max_retries=2,
     timeout=300,
 )
@@ -34,7 +35,7 @@ GEMINI_FLASH = ChatGoogleGenerativeAI(
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
     max_retries=2,
-    thinking_budget=0,
+    thinking_level="low",
     timeout=300,
 )
 GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
@@ -43,7 +44,7 @@ GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
     max_retries=2,
-    thinking_budget=0,
+    thinking_level="low",
     timeout=300,
 )
 # OpenAI
