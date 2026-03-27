@@ -125,6 +125,7 @@ def build_analysis_prompt(
     dataset_guidelines: str = "",
     code_instructions: str | None = None,
     context_layer: str | None = None,
+    language_instructions: str = "",
 ) -> str:
     """
     Build the analysis prompt for the code executor.
@@ -241,6 +242,8 @@ Now prepare the data for visualization in Recharts.js:
 - Provide a concise, data-driven insight (2-3 sentences)
 - Focus on what the data reveals and why it matters
 - Base this on the actual numbers and patterns you found
+
+{language_instructions}
 """
 
     return prompt
@@ -346,6 +349,7 @@ async def generate_insights(
         dataset_guidelines=dataset_guidelines,
         code_instructions=code_instructions,
         context_layer=dataset.get("context_layer"),
+        language_instructions=LANGUAGE_INSTRUCTIONS,
     )
     logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 

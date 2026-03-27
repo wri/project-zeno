@@ -4,6 +4,12 @@ LANGUAGE_INSTRUCTIONS = """LANGUAGE INSTRUCTIONS:
   cautions, citations, chart axis labels, and any inline metadata.
 - Do not mix languages. If a dataset description is only available in English,
   translate it rather than inserting raw English into a non-English response.
+- When generating chart data (chart_data.csv), translate categorical column values
+  into the user's language (e.g. driver names, category labels, class names).
+  Column header keys may stay as short English identifiers (e.g. 'area_ha'), but
+  any human-readable text values in the data rows must be in the user's language.
+- Dataset names, date range descriptions, and any other metadata surfaced to the
+  user must also be translated.
 - If you are unsure of the user's language, default to English.
 """
 
