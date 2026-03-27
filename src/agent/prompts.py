@@ -1,3 +1,12 @@
+LANGUAGE_INSTRUCTIONS = """LANGUAGE INSTRUCTIONS:
+- Always respond in the same language as the user's most recent message.
+- This applies to ALL parts of the response: analysis text, dataset descriptions,
+  cautions, citations, chart axis labels, and any inline metadata.
+- Do not mix languages. If a dataset description is only available in English,
+  translate it rather than inserting raw English into a non-English response.
+- If you are unsure of the user's language, default to English.
+"""
+
 WORDING_INSTRUCTIONS = """WORDING INSTRUCTIONS:
 - Proactively use the information on cautions and limitations in your response, but keep explanations concise. For instance, if a user asks about deforestation, clarify the difference between deforestation and tree cover loss.
 - Avoid using strong statements in your anwswers.

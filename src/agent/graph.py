@@ -12,7 +12,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from src.agent.llms import MODEL
-from src.agent.prompts import WORDING_INSTRUCTIONS
+from src.agent.prompts import LANGUAGE_INSTRUCTIONS, WORDING_INSTRUCTIONS
 from src.agent.state import AgentState
 from src.agent.tools import (
     generate_insights,
@@ -107,6 +107,8 @@ GENERAL NOTES:
 - Never include json data or code blocks in your response. The data is rendered from the state updates directly, separately from your own response.
 
 {WORDING_INSTRUCTIONS}
+
+{LANGUAGE_INSTRUCTIONS}
 """
 
 

@@ -10,7 +10,7 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from src.agent.llms import GEMINI_FLASH
-from src.agent.prompts import WORDING_INSTRUCTIONS
+from src.agent.prompts import LANGUAGE_INSTRUCTIONS, WORDING_INSTRUCTIONS
 from src.agent.tools.code_executors import GeminiCodeExecutor
 from src.agent.tools.code_executors.base import PartType
 from src.agent.tools.datasets_config import DATASETS
@@ -481,6 +481,8 @@ Cautions: {dataset_cautions}
 5. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
 
 {WORDING_INSTRUCTIONS}
+
+{LANGUAGE_INSTRUCTIONS}
 """
 
     chart_insight_response = await GEMINI_FLASH.with_structured_output(
