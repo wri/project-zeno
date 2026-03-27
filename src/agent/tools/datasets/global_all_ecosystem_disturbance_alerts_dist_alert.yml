@@ -51,6 +51,10 @@ selection_hints: 'Best dataset for near-real-time vegetation disturbance across 
   12 months, classification NOT available for last 90 days. For historical or long-term tree cover change, prefer Tree Cover
   Loss instead. For driver attribution of tree cover loss specifically, prefer Tree Cover Loss by Dominant Driver.
 
+  Avoid selecting this dataset as the primary source when a user asks specifically about forest loss or deforestation — prefer
+  Tree Cover Loss. Only use DIST-ALERT for forest queries when the user explicitly requests near-real-time data and understands
+  this limitation.
+
   '
 code_instructions: "CHART TYPES: - Recent trends over time → line chart (x=alert month, y=area in hectares) - Distribution\
   \ by driver → pie chart (one slice per driver class) - Distribution by land cover class or natural land type → pie chart\
@@ -63,11 +67,21 @@ code_instructions: "CHART TYPES: - Recent trends over time → line chart (x=ale
   \ - LDACS classification NOT available for last 90 days — omit driver breakdown for that period - Potential conversion requires\
   \ ≥75 days of sustained loss — recent clearing may not appear - Conversion may be undercounted when fire is used for clearing\
   \ or near rivers - Severe boreal fires may be misclassified as conversion - Always interpret alerts as indicators, not definitive\
-  \ outcomes\n"
+  \ outcomes\n- NEVER label DIST-ALERT data as \"deforestation\" or \"forest loss\" in code output, print statements, chart\
+  \ titles, or axis labels — always use \"vegetation disturbance alerts\" or \"disturbance alerts\" instead\n"
 presentation_instructions: 'Describe results as vegetation disturbance alerts, not confirmed deforestation or conversion.
   Clarify if user cares about temporary disturbance vs permanent conversion; recommend annual land cover or tree cover loss
   datasets for historical changes. Note LDACS is updated quarterly, covers most recent 12 months, no classification for last
   90 days. This covers all vegetation, not just forest — relevant for non-conversion of natural ecosystems monitoring.
+
+  When DIST-ALERT is used in response to a query that explicitly mentions forest loss, deforestation, or tree cover, always
+  include the following caveat in the response:
+
+  "DIST-ALERT monitors disturbances across ALL vegetation types (forests, grasslands, croplands, etc.) and does not apply a
+  forest mask. Results therefore include disturbances to non-forest vegetation such as crop harvesting or grassland disturbance.
+  For confirmed forest-specific loss, use the Tree Cover Loss dataset."
+
+  Do not omit this caveat even if other datasets were also used in the same response.
 
   '
 description: 'Global All Ecosystem Disturbance Alerts (DIST-ALERT) provides near-real-time alerts of vegetation disturbance
