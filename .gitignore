@@ -194,3 +194,8 @@ logs/
 
 # Notebooks
 nbs/
+PRD.md
+
+# Planning files
+planning*.md
+PLANNING*.md

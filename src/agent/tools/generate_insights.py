@@ -10,7 +10,7 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from src.agent.llms import GEMINI_FLASH
-from src.agent.prompts import WORDING_INSTRUCTIONS
+from src.agent.prompts import CITATION_INSTRUCTIONS, WORDING_INSTRUCTIONS
 from src.agent.tools.code_executors import GeminiCodeExecutor
 from src.agent.tools.code_executors.base import PartType
 from src.agent.tools.datasets_config import DATASETS
@@ -125,6 +125,7 @@ def build_analysis_prompt(
     dataset_guidelines: str = "",
     code_instructions: str | None = None,
     context_layer: str | None = None,
+    citation: str = "",
 ) -> str:
     """
     Build the analysis prompt for the code executor.
@@ -135,6 +136,7 @@ def build_analysis_prompt(
         dataset_guidelines: Dataset-specific instructions for metric selection
         code_instructions: Dataset-specific chart type and data shaping rules (tiered PoC)
         context_layer: Active context layer name, if any (e.g. "driver")
+        citation: Exact citation text from dataset configuration
 
     Returns:
         Formatted prompt string
@@ -160,13 +162,21 @@ def build_analysis_prompt(
 ---
 """
 
+    citation_section = ""
+    if citation:
+        citation_section = f"""
+### Dataset Citation (use ONLY this text when the user asks for a citation):
+{citation}
+---
+"""
+
     prompt = f"""### User Query:
 {query}
 
 
 You have access to the following datasets (read-only):
 {file_references}
-
+{citation_section}
 For your text output , don't use first person, but imperative or neutral language.
 
 For example: "I will begin by loading and examining" -> "Load and examine"
@@ -256,7 +266,8 @@ class ChartInsight(BaseModel):
         description="Chart type: 'line', 'bar', 'stacked-bar', 'grouped-bar', 'pie', 'area', 'scatter', or 'table'"
     )
     insight: str = Field(
-        description="Key insight or finding that this chart reveals (2-3 sentences)"
+        description="Key insight or finding that this chart reveals (2-3 sentences). "
+        "If the user asked for a citation, include the exact citation from the Dataset Context."
     )
     x_axis: str = Field(
         description="Name of the field to use for X-axis (for applicable chart types)"
@@ -346,6 +357,7 @@ async def generate_insights(
         dataset_guidelines=dataset_guidelines,
         code_instructions=code_instructions,
         context_layer=dataset.get("context_layer"),
+        citation=dataset.get("citation", ""),
     )
     logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 
@@ -416,6 +428,7 @@ async def generate_insights(
     dataset_cautions = state.get("dataset").get(
         "cautions", "No specific dataset cautions provided."
     )
+    dataset_citation = state.get("dataset").get("citation", "").strip()
 
     # Build dataset list
     dataset_list = "\n".join(
@@ -440,9 +453,11 @@ Total rows: {len(chart_data_df)}
 ### Dataset Context
 Guidelines: {dataset_guidelines}
 Cautions: {dataset_cautions}
+Citation: {dataset_citation if dataset_citation else "No citation available in dataset configuration."}
 
 ### Requirements
 1. **Language**: Generate ALL content in the SAME LANGUAGE as the user query
+1b. **Citations**: If the user query asks for a citation or reference, you MUST include the exact citation text from the Dataset Context above in the insight field. Do not omit, paraphrase, or reconstruct it.
 2. **Data Format**: Generate structure in Recharts.js data format - specify field names that map to the chart data columns
 
 3. **Field Mapping Rules by Chart Type**:
@@ -481,6 +496,8 @@ Cautions: {dataset_cautions}
 5. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
 
 {WORDING_INSTRUCTIONS}
+
+{CITATION_INSTRUCTIONS}
 """
 
     chart_insight_response = await GEMINI_FLASH.with_structured_output(
