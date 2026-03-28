@@ -6,6 +6,7 @@ Every judgment logs: query, rubric, tool_output summary, judge prompt,
 judge raw response, verdict, and comment.
 """
 
+import base64
 import json
 import logging
 import uuid
@@ -49,12 +50,13 @@ JUDGE_PROMPT = """You are evaluating whether an AI-generated data visualization 
 ### Insight Text
 {insight_text}
 
-### Generated Code (summary)
-{generated_code}
+### Analysis Text Output (printed during code execution)
+{text_output}
 
 ## Instructions
 Evaluate whether the actual output satisfies EACH requirement in the rubric.
 For each requirement, state whether it is MET or NOT MET with a brief reason.
+Note: "printed output" in the rubric refers to the Analysis Text Output section above.
 
 Then give an overall verdict: PASS if ALL requirements are met, FAIL if ANY is not met.
 
@@ -90,7 +92,7 @@ async def judge_output(query: str, rubric: str, tool_output: dict) -> Verdict:
         chart_type=tool_output.get("chart_type", "(unknown)"),
         chart_data_preview=chart_data_preview,
         insight_text=tool_output.get("insight", "(no insight)"),
-        generated_code=tool_output.get("code", "(no code)")[:2000],
+        text_output=tool_output.get("text_output", "(no text output)")[:3000],
     )
 
     # Build a summary of what the tool produced (for logging, not sent to judge)
@@ -218,14 +220,28 @@ async def run_generate_insights(query: str, state: dict) -> dict:
         result["chart_data"] = chart.get("data", [])
         result["insight"] = chart.get("insight", "")
 
-    # Extract code from codeact_parts
+    # Extract code and text_output from codeact_parts (content is base64-encoded)
     codeact_parts = update.get("codeact_parts", [])
     code_parts = []
+    text_output_parts = []
     for part in codeact_parts:
-        if isinstance(part, dict) and part.get("type") == "code_block":
-            code_parts.append(part.get("content", ""))
-        elif hasattr(part, "type") and str(part.type) == "code_block":
-            code_parts.append(getattr(part, "content", ""))
+        if isinstance(part, dict):
+            part_type = part.get("type", "")
+            raw_content = part.get("content", "")
+        elif hasattr(part, "type"):
+            part_type = str(part.type)
+            raw_content = getattr(part, "content", "")
+        else:
+            continue
+        try:
+            content = base64.b64decode(raw_content).decode("utf-8")
+        except Exception:
+            content = raw_content
+        if part_type == "code_block":
+            code_parts.append(content)
+        elif part_type == "text_output":
+            text_output_parts.append(content)
     result["code"] = "\n".join(code_parts)
+    result["text_output"] = "\n".join(text_output_parts)
 
     return result
