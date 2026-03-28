@@ -200,3 +200,5 @@ tests/evals/results/
 # Planning files
 planning*.md
 PLANNING*.md
+PLAN*.md
+TODO*.md

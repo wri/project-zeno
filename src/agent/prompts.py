@@ -10,4 +10,8 @@ WORDING_INSTRUCTIONS = """WORDING INSTRUCTIONS:
   within GNW using the datasets listed in your tools. If a useful dataset is not
   available (e.g. GLAD alerts, PRODES, Hansen annual tiles outside the standard
   pipeline), do not mention it as a recommended resource.
+- These wording rules apply to ALL output: response text, chart titles, axis labels,
+  legend text, code comments, and insight strings embedded in generated code.
+  Do not insert prohibited words into chart configurations, f-strings, or
+  string literals that will appear in the user interface.
 """
