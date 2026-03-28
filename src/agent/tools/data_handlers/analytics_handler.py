@@ -192,6 +192,7 @@ class AnalyticsHandler(DataSourceHandler):
         aois: list[dict],
         start_date: str,
         end_date: str,
+        canopy_cover: int = 30,
     ) -> Dict:
         """Build the API payload based on dataset type"""
         # Base payload structure common to all endpoints
@@ -276,7 +277,7 @@ class AnalyticsHandler(DataSourceHandler):
                 **base_payload,
                 "start_year": start_date[:4],
                 "end_year": end_date[:4],
-                "canopy_cover": 30,
+                "canopy_cover": canopy_cover,
                 "forest_filter": None,
                 "intersections": (
                     [dataset["context_layer"]]
@@ -297,6 +298,7 @@ class AnalyticsHandler(DataSourceHandler):
                 "forest_filter": None,
             }
         elif dataset.get("dataset_id") == FOREST_CARBON_FLUX_ID:
+            # Forest Carbon Flux threshold is fixed at 30% and cannot be changed
             payload = {
                 **base_payload,
                 "canopy_cover": 30,
@@ -304,7 +306,7 @@ class AnalyticsHandler(DataSourceHandler):
         elif dataset.get("dataset_id") == TREE_COVER_ID:
             payload = {
                 **base_payload,
-                "canopy_cover": 30,
+                "canopy_cover": canopy_cover,
                 "forest_filter": None,
             }
         elif dataset.get("dataset_id") == SLUC_EMISSION_FACTORS_ID:
@@ -434,6 +436,7 @@ class AnalyticsHandler(DataSourceHandler):
         end_date: str,
         change_over_time_query: bool,
         aois: list[dict],
+        canopy_cover: int = 30,
     ) -> DataPullResult:
         # SLUC emission factors are only available for GADM levels 0, 1, and 2
         if (
@@ -481,7 +484,7 @@ class AnalyticsHandler(DataSourceHandler):
 
             # Build the payload based on dataset type
             payload = await self._build_payload(
-                dataset, aois, start_date, end_date
+                dataset, aois, start_date, end_date, canopy_cover
             )
 
             # Debug logging for payload

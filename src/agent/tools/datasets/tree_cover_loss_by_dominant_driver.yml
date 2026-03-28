@@ -52,7 +52,10 @@ selection_hints: 'Use when user asks WHY tree cover was lost — attributes loss
   other natural disturbances.
 
   '
-code_instructions: "CHART TYPES: - Driver breakdown → pie chart or table ONLY - DO NOT attempt a timeseries — this is a single-period\
+code_instructions: "THRESHOLD (MANDATORY FIRST STEP): Extract the canopy cover threshold from the query (e.g. 10%, 30%);\
+  \ if not specified, use 30%. You MUST print 'Canopy cover threshold: X% (source)' as the FIRST LINE of the analysis output\
+  \ AND include it in the chart title or caption. If no source was specified, write 30% (GFW default). This step is required\
+  \ — do not skip it.\nCHART TYPES: - Driver breakdown → pie chart or table ONLY - DO NOT attempt a timeseries — this is a single-period\
   \ aggregate (2001-2024) DATA RULES: - Exclude the \"Unknown\" driver class from analysis - Show area_ha or emissions (MgCO2e)\
   \ per driver class for the full period 2001-2024 - 7 driver classes:\n  1. Permanent agriculture — long-term, permanent\
   \ tree cover loss for agriculture\n  2. Hard commodities — loss due to mining or energy infrastructure\n  3. Shifting cultivation\

@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Annotated, Dict
+from typing import Annotated, Dict, Optional
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
@@ -31,6 +31,7 @@ class DataPullOrchestrator:
         end_date: str,
         change_over_time_query: bool,
         aois: list[dict],
+        canopy_cover: int = 30,
     ) -> DataPullResult:
         """Pull data using the appropriate handler"""
 
@@ -44,6 +45,7 @@ class DataPullOrchestrator:
                     dataset=dataset,
                     start_date=start_date,
                     end_date=end_date,
+                    canopy_cover=canopy_cover,
                 )
 
         return DataPullResult(
@@ -95,6 +97,7 @@ async def pull_data(
     start_date: str,
     end_date: str,
     change_over_time_query: bool,
+    canopy_cover: Optional[int] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
     state: Annotated[Dict, InjectedState] = None,
 ) -> Command:
@@ -110,6 +113,9 @@ async def pull_data(
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
         change_over_time_query: Whether the query is about change over time. If it is about composition or current status, return False. If it is about dynamics or change, return True.
+        canopy_cover: Tree cover canopy density threshold as a percentage (e.g. 10, 15, 20, 25, 30, 50, 75).
+            Infer from user context or country forest definitions. Defaults to 30 when not specified.
+            Note: Forest greenhouse gas net flux dataset ignores this and always uses 30%.
     """
     dataset = state["dataset"]
     aoi_names = [a["name"] for a in state["aoi_selection"]["aois"]]
@@ -143,6 +149,7 @@ async def pull_data(
         end_date=effective_end,
         change_over_time_query=change_over_time_query,
         aois=state["aoi_selection"]["aois"],
+        canopy_cover=canopy_cover if canopy_cover is not None else 30,
     )
 
     # Create tool message

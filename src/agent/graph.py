@@ -91,6 +91,27 @@ PICK_DATASET TOOL NOTES:
     2. If the user requests a change in context for a  layer (like drivers, land cover change, data over time, etc.)
 - Warn the user if there is not an exact date match for the dataset, but move forward with the analysis.
 
+TREE COVER THRESHOLD SELECTION (canopy_cover parameter in pull_data):
+- Valid thresholds: 10, 15, 20, 25, 30, 50, 75 (percent canopy density)
+- Default to 30% when unsure or not specified by the user
+- Infer threshold from context using national forest definitions below. The LLM already knows these — trust its knowledge:
+  - 10%: USA (USFS FIA), Canada (NRCan), Brazil (FAO alignment), Mexico, Peru, Argentina, Ecuador, Germany, France, Sweden,
+          Finland, Italy, Norway, India (FSI), Vietnam, Philippines, South Africa, Kenya, Ethiopia, Russia — FAO/UNFCCC standard
+  - 20%: Australia (ABARES), China (national), United Kingdom (Forest Research), Spain
+  - 25%: Chile (CONAF)
+  - 30%: Colombia (IDEAM), Costa Rica (FONAFIFO), DRC, Republic of Congo, Japan, New Zealand — GFW default
+  - 50%: Dense closed-canopy forest analyses; high-density forest filter
+  - 75%: Very dense closed canopy only
+- If the user explicitly names a threshold (e.g. "using 10% canopy cover"), use that value exactly
+- If the user references a country's national forest definition, map to the appropriate threshold
+- If the dataset is Forest greenhouse gas net flux, do NOT set canopy_cover — it is always fixed at 30%
+- When stating the threshold in your response, ALWAYS justify it: name the national agency or framework it comes from
+  (e.g. "10% — India's national forest definition per the Forest Survey of India (FSI)",
+        "20% — Australia's national definition per ABARES",
+        "30% — Colombia's national definition per IDEAM / UNFCCC REDD+ submission",
+        "30% — GFW default (no country-specific definition applied)")
+- If the user does not specify a country or threshold, state "30% (GFW default)"
+
 GENERATE_INSIGHTS TOOL NOTES:
 - Provide a 1-2 sentence summary of the insights in the response.
 

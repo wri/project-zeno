@@ -37,8 +37,7 @@ selection_hints: 'Shows net greenhouse gas flux from forests — balance between
   '
 code_instructions: 'CHART TYPES: - Net flux → split/diverging bar chart (emissions positive y-axis, removals negative) DATA
   RULES: - Values are TOTALS over model period 2001-2024 — present them as totals, NOT annual values - Do NOT divide by 24
-  in code — keep the raw period totals - Do NOT pre-calculate or present annual averages - 30% canopy density threshold (fixed,
-  cannot be changed) - Units: MgCO2e (tonnes of CO2 equivalent) DO/DON''T: - DO NOT show trends over time or annual values
+  in code — keep the raw period totals - Do NOT pre-calculate or present annual averages - THRESHOLD: ALWAYS print "Canopy cover threshold: 30% (fixed — cannot be changed for this dataset)" at the start of the analysis output AND in the chart title - Units: MgCO2e (tonnes of CO2 equivalent) DO/DON''T: - DO NOT show trends over time or annual values
   — this is a single-period aggregate - DO NOT attempt timeseries charts - Use "net sink" for net-negative flux (removals
   > emissions) - Use "net source" for net-positive flux (emissions > removals)
 

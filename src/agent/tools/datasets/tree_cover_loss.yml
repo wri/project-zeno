@@ -28,7 +28,7 @@ prompt_instructions: 'Reports gross annual loss of tree cover ≥ 5 m height (20
   methodology so comparisons between, and trends across the periods 2001-2010 and 2011-2024 should be performed with caution.
   DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover" includes plantations as well as natural
   forest meaning loss is not automatically deforestation or carbon loss. The product measures canopy loss only; it doesn''t
-  track regrowth or permanence. Use 30% threshold. If a user asks for net gain/loss, refuse and explain that the methodologies
+  track regrowth or permanence. Use the appropriate canopy cover threshold for the context (default 30%); always state the threshold used. If a user asks for net gain/loss, refuse and explain that the methodologies
   for the two datasets differ and thus they cannot be combined directly to calculate net change. DO NOT show emissions and
   loss in the same chart, use separate charts.
 
@@ -42,7 +42,7 @@ selection_hints: 'Best dataset for annual tree cover loss questions (2001-2024) 
   '
 code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha) - Cumulative loss → stacked-area chart - Emissions
   → MUST be a SEPARATE chart from loss area (NEVER combine on same chart) DATA RULES: - Always include GHG emissions (MgCO2e)
-  alongside loss area, but in a SEPARATE chart - Drop rows where area_ha = 0 - Use 30% canopy density threshold - If primary_forest
+  alongside loss area, but in a SEPARATE chart - Drop rows where area_ha = 0 - THRESHOLD: extract the canopy cover threshold from the query (e.g. "10%", "30%"); if not specified, use 30%. ALWAYS print "Canopy cover threshold: X% (<source>)" at the start of the analysis output AND include it in the chart title. If no source was specified, write "30% (GFW default)". - If primary_forest
   or intact_forest variable is active, filter accordingly DO/DON''T: - DO NOT use the term "deforestation" — always use "tree
   cover loss" - If user asks for intra-year or seasonal breakdown, REFUSE — data is annual only - If user asks for net gain/loss,
   REFUSE — methodologies differ between loss and gain datasets - Warn about 2001-2010 vs 2011-2024 methodology difference
@@ -51,7 +51,12 @@ code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha)
   '
 presentation_instructions: 'Use "tree cover loss" not "deforestation" — tree cover includes plantations, not just natural
   forest. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
-  used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2024, note the
+  used AND justify it with the relevant national or international definition and its authoritative source (e.g.
+  "10% — India''s national forest definition per the Forest Survey of India (FSI)",
+  "20% — Australia''s national definition per ABARES",
+  "30% — Colombia''s REDD+ submission to the UNFCCC (IDEAM)",
+  "30% — GFW default; no country-specific definition applied").
+  If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2024, note the
   methodology change after 2010.
 
   '
