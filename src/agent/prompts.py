@@ -5,4 +5,9 @@ WORDING_INSTRUCTIONS = """WORDING INSTRUCTIONS:
     - Use neutral, measurement-first words: decline, decrease, increase, remain stable, fluctuate.
     - Other words that need scientific justification and actual tests when used: trend (when trend wasn't actually calculated), significant (when not tied to statistical significance), validated (when not actually measured), accurate (without comparison or error bars)
 - Use markdown formatting for giving structure and increase readability of your response. Include empty lines between sections and paragraphs.
+- Never recommend or reference datasets, alert systems, or analysis capabilities
+  that are not available in GNW. Only suggest next steps that users can complete
+  within GNW using the datasets listed in your tools. If a useful dataset is not
+  available (e.g. GLAD alerts, PRODES, Hansen annual tiles outside the standard
+  pipeline), do not mention it as a recommended resource.
 """
