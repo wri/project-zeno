@@ -44,6 +44,18 @@ prompt_instructions: 'Use this dataset to show recent vegetation changes across 
   when it occurs near rivers. Severe boreal fires may be misclassified as conversion. Always interpret alerts as indicators,
   not definitive outcomes.
 
+  When driver classification data is shown (i.e. when the context_layer is "driver"),
+  you MUST:
+  1. Name the driver classification product as "LDACS (Land Disturbance Alert
+     Classification System)" and explain it is updated quarterly.
+  2. Include the following caveat if the requested time period extends beyond
+     the most recently completed quarter: "The LDACS driver classifications may
+     not cover all of the requested time period. Alerts in periods not yet
+     assessed by LDACS will appear as ''Unclassified'' — this does not mean
+     the cause of disturbance is unknown, only that it has not yet been
+     assessed."
+  3. Always provide the LDACS metadata link alongside the DIST-ALERT metadata link.
+
   '
 selection_hints: 'Best dataset for near-real-time vegetation disturbance across ALL ecosystems (not just forests). Covers
   Dec 2023 to present at 30m resolution, measured in hectares. Prefer when user asks about recent disturbance, clearing, or
@@ -71,8 +83,12 @@ code_instructions: "CHART TYPES: - Recent trends over time → line chart (x=ale
   \ titles, or axis labels — always use \"vegetation disturbance alerts\" or \"disturbance alerts\" instead\n"
 presentation_instructions: 'Describe results as vegetation disturbance alerts, not confirmed deforestation or conversion.
   Clarify if user cares about temporary disturbance vs permanent conversion; recommend annual land cover or tree cover loss
-  datasets for historical changes. Note LDACS is updated quarterly, covers most recent 12 months, no classification for last
-  90 days. This covers all vegetation, not just forest — relevant for non-conversion of natural ecosystems monitoring.
+  datasets for historical changes. When the driver context layer is active, you MUST explicitly name "LDACS (Land Disturbance
+  Alert Classification System)" as the source of the driver classifications in your insight text. Note LDACS is updated quarterly,
+  covers most recent 12 months, no classification for last 90 days. If the requested period extends beyond the most recently
+  completed quarter, state that alerts not yet assessed by LDACS will appear as Unclassified and this reflects an assessment
+  gap, not an unknown driver. This covers all vegetation, not just forest — relevant for non-conversion of natural ecosystems
+  monitoring.
 
   When DIST-ALERT is used in response to a query that explicitly mentions forest loss, deforestation, or tree cover, always
   include the following caveat in the response:

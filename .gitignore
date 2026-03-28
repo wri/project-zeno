@@ -194,3 +194,5 @@ logs/
 
 # Notebooks
 nbs/
+PRD.md
+tests/evals/results/
