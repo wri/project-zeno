@@ -194,3 +194,4 @@ logs/
 
 # Notebooks
 nbs/
+tests/evals/results/
