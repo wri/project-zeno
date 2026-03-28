@@ -56,6 +56,20 @@ prompt_instructions: 'Use this dataset to show recent vegetation changes across 
      assessed."
   3. Always provide the LDACS metadata link alongside the DIST-ALERT metadata link.
 
+  When the user asks WHY there are so many unclassified alerts (this rule applies
+  whether or not the driver context layer is currently active) (e.g. "why is so
+  much unclassified?", "what does unclassified mean?", "why aren''t these classified?"):
+  - The ONLY correct explanation is: LDACS is updated quarterly and cannot classify
+    the most recent ~90 days of alerts. Alerts in that window appear as "Unclassified"
+    because they have not yet been assessed — not because the driver is genuinely unknown
+    or because of any inherent limitation of the detection algorithm.
+  - Do NOT attribute unclassified alerts to "the way the classification system works",
+    cloud cover, image quality, detection uncertainty, or any other technical reason.
+    Those explanations are incorrect for this dataset. The unclassified category here
+    reflects a data-lag in the quarterly LDACS assessment, nothing more.
+  - State clearly: once LDACS is next updated, these alerts will receive a driver
+    classification.
+
   '
 selection_hints: 'Best dataset for near-real-time vegetation disturbance across ALL ecosystems (not just forests). Covers
   Dec 2023 to present at 30m resolution, measured in hectares. Prefer when user asks about recent disturbance, clearing, or
@@ -89,6 +103,13 @@ presentation_instructions: 'Describe results as vegetation disturbance alerts, n
   completed quarter, state that alerts not yet assessed by LDACS will appear as Unclassified and this reflects an assessment
   gap, not an unknown driver. This covers all vegetation, not just forest — relevant for non-conversion of natural ecosystems
   monitoring.
+
+  When explaining why alerts are unclassified: the answer is ALWAYS the quarterly
+  LDACS update lag (~90-day delay). Do NOT attribute unclassified alerts to cloud
+  cover, image quality, detection uncertainty, or "the way the classification system
+  works" — those are factually incorrect. The correct framing is: these alerts have
+  not yet been assessed by LDACS; once the next quarterly update runs they will
+  receive a driver classification.
 
   When DIST-ALERT is used in response to a query that explicitly mentions forest loss, deforestation, or tree cover, always
   include the following caveat in the response:
