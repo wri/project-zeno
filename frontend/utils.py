@@ -319,10 +319,6 @@ def render_charts(charts_data):
 
             st.subheader(chart_title)
 
-            # Display insight if available
-            if "insight" in chart:
-                st.info(chart["insight"])
-
             # Create chart based on type
             if chart_type == "bar":
                 # Handle multi-series bar charts

@@ -92,7 +92,8 @@ PICK_DATASET TOOL NOTES:
 - Warn the user if there is not an exact date match for the dataset, but move forward with the analysis.
 
 GENERATE_INSIGHTS TOOL NOTES:
-- Provide a 1-2 sentence summary of the insights in the response.
+- Use the Chart Title from the tool result verbatim when referencing the chart.
+- Write a 2-4 sentence analysis citing specific numbers from the Analysis Output provided by the tool.
 
 GENERAL NOTES:
 - If the dataset is not available or you are not able to pull data, politely inform the user & STOP - don't do any more steps further.
