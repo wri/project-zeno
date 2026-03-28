@@ -25,8 +25,8 @@ keywords:
 analytics_api_endpoint: /v0/land_change/tree_cover_loss/analytics
 prompt_instructions: "Shows the delta of the primary driver or cause of tree cover loss over the entire range 2001-2024. The\
   \ data represents the change for the whole period of time, not a timeseries. IMPORTANT: If a user asks for specific time\
-  \ ranges (e.g. last five years), single years (e.g. 2024), or trends over time, do not use this dataset, select Tree cover\
-  \ loss instead. Classes are defined as follows: - Permanent agriculture: Long-term, permanent tree cover loss for small-\
+  \ ranges (e.g. last five years), single years (e.g. 2024), or trends over time, do not use this dataset — explicitly tell\
+  \ the user to use the \"Tree cover loss\" dataset for annual breakdowns instead. Classes are defined as follows: - Permanent agriculture: Long-term, permanent tree cover loss for small-\
   \ to large-scale agriculture. - Hard commodities: Loss due to the establishment or expansion of mining or energy infrastructure.\
   \ - Shifting cultivation: Tree cover loss due to small- to medium-scale clearing for temporary\n  cultivation that is later\
   \ abandoned and followed by subsequent regrowth of secondary forest or\n  vegetation.\n- Logging: Forest management and\
@@ -51,10 +51,21 @@ selection_hints: 'Use when user asks WHY tree cover was lost — attributes loss
   analysis. Drivers: permanent agriculture, hard commodities, shifting cultivation, logging, wildfire, settlements & infrastructure,
   other natural disturbances.
 
+  NEVER select this dataset when the user asks about a specific year, a date range
+  shorter than the full 2001-2024 period, or asks for a trend or timeseries.
+  These queries require the base "Tree cover loss" dataset. Examples of queries
+  that must NOT use this dataset:
+  - "deforestation over the past 5 years"
+  - "forest loss in 2023"
+  - "how has deforestation changed over time"
+  If you have already retrieved driver data, do not suggest timeseries follow-up
+  analysis — it is not possible with this dataset.
+
   '
 code_instructions: "CHART TYPES: - Driver breakdown → pie chart or table ONLY - DO NOT attempt a timeseries — this is a single-period\
   \ aggregate (2001-2024) DATA RULES: - Exclude the \"Unknown\" driver class from analysis - Show area_ha or emissions (MgCO2e)\
-  \ per driver class for the full period 2001-2024 - 7 driver classes:\n  1. Permanent agriculture — long-term, permanent\
+  \ per driver class for the full period 2001-2024 - If user asks for annual trends or specific years, REFUSE and in your\
+  \ feedback explicitly recommend the \"Tree cover loss\" dataset for annual breakdowns - 7 driver classes:\n  1. Permanent agriculture — long-term, permanent\
   \ tree cover loss for agriculture\n  2. Hard commodities — loss due to mining or energy infrastructure\n  3. Shifting cultivation\
   \ — small/medium-scale temporary cultivation, later abandoned\n  4. Logging — forest management within managed/natural/semi-natural\
   \ forests and plantations\n  5. Wildfire — fire with no visible human conversion afterward\n  6. Settlements and infrastructure\
@@ -66,6 +77,10 @@ code_instructions: "CHART TYPES: - Driver breakdown → pie chart or table ONLY 
 presentation_instructions: 'Use "tree cover loss" not "deforestation." Driver = dominant driver in each ~1km cell over full
   period 2001-2024, not per-event attribution. Does not distinguish natural forest from plantations. Classification is an
   approximation — does not monitor regrowth or permanence.
+
+  Do not suggest next steps that imply a timeseries analysis using this dataset.
+  If you recommend further analysis, direct the user to the Tree Cover Loss dataset
+  for annual breakdowns.
 
   '
 description: "Shows the dominant driver of tree cover loss over the time period 2001-2024. A driver is defined as the direct\

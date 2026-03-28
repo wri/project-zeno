@@ -196,3 +196,7 @@ logs/
 nbs/
 PRD.md
 tests/evals/results/
+
+# Planning files
+planning*.md
+PLANNING*.md
