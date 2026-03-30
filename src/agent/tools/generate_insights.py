@@ -125,6 +125,7 @@ def build_analysis_prompt(
     dataset_guidelines: str = "",
     code_instructions: str | None = None,
     context_layer: str | None = None,
+    canopy_cover: int = 30,
 ) -> str:
     """
     Build the analysis prompt for the code executor.
@@ -153,9 +154,13 @@ def build_analysis_prompt(
         header = "### DATASET-SPECIFIC RULES (follow these strictly):\n"
         if context_layer:
             header += f"Active context layer: {context_layer}\n"
+        threshold_override = (
+            f"THRESHOLD USED FOR DATA FETCH: {canopy_cover}% — "
+            f"use this exact value in your output. Do not infer from the query.\n"
+        )
         dataset_rules_section = f"""
 {header}
-{code_instructions}
+{threshold_override}{code_instructions}
 
 ---
 """
@@ -346,6 +351,7 @@ async def generate_insights(
         dataset_guidelines=dataset_guidelines,
         code_instructions=code_instructions,
         context_layer=dataset.get("context_layer"),
+        canopy_cover=state.get("canopy_cover", 30),
     )
     logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 

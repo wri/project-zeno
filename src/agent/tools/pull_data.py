@@ -193,6 +193,8 @@ async def pull_data(
         tool_call_id=tool_call_id,
     )
 
+    resolved_canopy_cover = canopy_cover if canopy_cover is not None else 30
+
     return Command(
         update={
             "statistics": [
@@ -210,6 +212,7 @@ async def pull_data(
             # TODO: This is deprecated, remove it in the future
             "start_date": effective_start,
             "end_date": effective_end,
+            "canopy_cover": resolved_canopy_cover,
             "messages": [tool_message],
         },
     )

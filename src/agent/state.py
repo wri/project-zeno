@@ -37,6 +37,7 @@ class AgentState(TypedDict):
     # pull-data tool
     start_date: str
     end_date: str
+    canopy_cover: int
     statistics: Annotated[list[Statistics], operator.add]
 
     # generate-insights tool
