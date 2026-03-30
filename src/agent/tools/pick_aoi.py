@@ -27,7 +27,7 @@ from src.shared.geocoding_helpers import (
 from src.shared.logging_config import get_logger
 
 RESULT_LIMIT = 10
-SUBREGION_LIMIT = 500
+SUBREGION_LIMIT = 1000
 SUBREGION_LIMIT_KBA = 25
 
 load_dotenv()
