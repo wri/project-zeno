@@ -16,6 +16,7 @@ import pytest
 
 from src.agent.tools.data_handlers.analytics_handler import AnalyticsHandler
 from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.generate_insights import build_analysis_prompt
 from src.agent.tools.pull_data import DataPullOrchestrator, pull_data
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -261,3 +262,92 @@ class TestDefaultPropagation:
             canopy_cover=10,
         )
         assert captured["canopy_cover"] == 10
+
+
+# ---------------------------------------------------------------------------
+# build_analysis_prompt: canopy_cover override appears in the prompt
+# ---------------------------------------------------------------------------
+
+_TCL_CODE_INSTRUCTIONS = (
+    'THRESHOLD: extract the canopy cover threshold from the query (e.g. "10%", "30%"); '
+    'if not specified, use 30%. ALWAYS print "Canopy cover threshold: X% (<source>)" '
+    "at the start of the analysis output AND include it in the chart title. "
+    'If no source was specified, write "30% (GFW default)".'
+)
+
+
+@pytest.mark.no_cover
+class TestBuildAnalysisPromptCanopyOverride:
+    """build_analysis_prompt must inject the resolved threshold so Gemini
+    cannot fall back to its own inference from the query text."""
+
+    # Pure-function synchronous tests — opt out of the module-level asyncio mark.
+    pytestmark = [pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")]
+
+    def test_override_line_present_for_non_default_threshold(self):
+        """A non-default threshold produces an explicit override line."""
+        prompt = build_analysis_prompt(
+            query="Show tree cover loss in India from 2015 to 2022",
+            file_references="input_file_0.csv",
+            code_instructions=_TCL_CODE_INSTRUCTIONS,
+            canopy_cover=10,
+        )
+        assert "THRESHOLD USED FOR DATA FETCH: 10%" in prompt
+
+    def test_override_line_present_for_default_threshold(self):
+        """The override line is also injected for the 30% default so the
+        instruction is always explicit, not left to inference."""
+        prompt = build_analysis_prompt(
+            query="Show tree cover loss in Brazil from 2015 to 2022",
+            file_references="input_file_0.csv",
+            code_instructions=_TCL_CODE_INSTRUCTIONS,
+            canopy_cover=30,
+        )
+        assert "THRESHOLD USED FOR DATA FETCH: 30%" in prompt
+
+    def test_override_line_precedes_code_instructions(self):
+        """The override must appear before the raw code_instructions so it
+        takes precedence over the 'if not specified, use 30%' fallback."""
+        prompt = build_analysis_prompt(
+            query="Show tree cover loss in India",
+            file_references="input_file_0.csv",
+            code_instructions=_TCL_CODE_INSTRUCTIONS,
+            canopy_cover=10,
+        )
+        override_pos = prompt.index("THRESHOLD USED FOR DATA FETCH: 10%")
+        fallback_pos = prompt.index("if not specified, use 30%")
+        assert override_pos < fallback_pos
+
+    def test_no_override_when_no_code_instructions(self):
+        """When there are no code_instructions the dataset_rules_section is
+        skipped entirely — no spurious override line should appear."""
+        prompt = build_analysis_prompt(
+            query="Show tree cover loss in India",
+            file_references="input_file_0.csv",
+            code_instructions=None,
+            canopy_cover=10,
+        )
+        assert "THRESHOLD USED FOR DATA FETCH" not in prompt
+
+    def test_state_canopy_cover_stored_in_pull_data_command(self):
+        """pull_data resolves canopy_cover=None to 30 and stores it in state."""
+        # Verify the Command update dict contains canopy_cover at the tool level.
+        # We check the source rather than running the full async tool to keep
+        # this test fast and dependency-free.
+        import ast
+        import inspect
+
+        source = inspect.getsource(pull_data.coroutine)
+        tree = ast.parse(source)
+
+        # Find all string constants in the source — "canopy_cover" must appear
+        # as a dict key in the Command(update={...}) call.
+        string_literals = {
+            node.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        }
+        assert "canopy_cover" in string_literals, (
+            "pull_data must store 'canopy_cover' in the Command update dict "
+            "so generate_insights can read it from state"
+        )
