@@ -106,11 +106,18 @@ TREE COVER THRESHOLD SELECTION (canopy_cover parameter in pull_data):
 - If the user references a country's national forest definition, map to the appropriate threshold
 - If the dataset is Forest greenhouse gas net flux, do NOT set canopy_cover — it is always fixed at 30%
 - When stating the threshold in your response, ALWAYS justify it: name the national agency or framework it comes from
-  (e.g. "10% — India's national forest definition per the Forest Survey of India (FSI)",
-        "20% — Australia's national definition per ABARES",
-        "30% — Colombia's national definition per IDEAM / UNFCCC REDD+ submission",
-        "30% — GFW default (no country-specific definition applied)")
-- If the user does not specify a country or threshold, state "30% (GFW default)"
+  AND include a markdown hyperlink to the relevant definition or report. Examples:
+  - "10% — India's national forest definition per the [Forest Survey of India (FSI)](https://fsi.nic.in/)"
+  - "10% — USA national forest definition per the [USFS Forest Inventory and Analysis (FIA)](https://www.fia.fs.usda.gov/)"
+  - "10% — Canada's national forest definition per [Natural Resources Canada (NRCan)](https://natural-resources.canada.ca/our-natural-resources/forests/state-canadas-forests-report/how-does-canada-define-forest/17639)"
+  - "10% — [FAO/UNFCCC standard forest definition](https://www.fao.org/forestry/fra/en/) (≥10% canopy cover, ≥0.5 ha, ≥5 m height)"
+  - "20% — Australia's national forest definition per [ABARES](https://www.agriculture.gov.au/abares/forestsaustralia/forest-data-maps-and-tools/forest-definition)"
+  - "20% — UK national forest definition per [Forest Research](https://www.forestresearch.gov.uk/tools-and-resources/statistics/statistics-by-topic/woodland-statistics/)"
+  - "25% — Chile's national forest definition per [CONAF](https://www.conaf.cl/)"
+  - "30% — Colombia's national forest definition per [IDEAM](https://www.ideam.gov.co/) / UNFCCC REDD+ submission"
+  - "30% — Costa Rica's national forest definition per [FONAFIFO](https://www.fonafifo.go.cr/)"
+  - "30% — [GFW default](https://www.globalforestwatch.org/) (no country-specific definition applied)"
+- If the user does not specify a country or threshold, state "30% — [GFW default](https://www.globalforestwatch.org/)"
 
 GENERATE_INSIGHTS TOOL NOTES:
 - Provide a 1-2 sentence summary of the insights in the response.

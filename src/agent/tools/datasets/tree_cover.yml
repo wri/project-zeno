@@ -46,10 +46,13 @@ code_instructions: "CHART TYPES: - Tree cover area by canopy-density bin → bar
   \  (c) This recommendation is REQUIRED, not optional\n"
 presentation_instructions: 'This is a year 2000 baseline snapshot — clarify the date to users. Use "tree cover" not "forest"
   unless primary forest or IFL layer is active. Tree cover includes plantations, not just natural forest. Always state the
-  canopy density threshold used AND justify it with the relevant national or international definition and its authoritative
-  source (e.g. "10% — India''s national forest definition per the Forest Survey of India (FSI)",
-  "20% — Australia''s national definition per ABARES",
-  "30% — GFW default; no country-specific definition applied").
+  canopy density threshold used AND justify it with the relevant national or international definition, its authoritative
+  source, AND a markdown hyperlink to the official definition or report (e.g.
+  "10% — India''s national forest definition per the [Forest Survey of India (FSI)](https://fsi.nic.in/)",
+  "10% — [FAO/UNFCCC standard definition](https://www.fao.org/forestry/fra/en/)",
+  "20% — Australia''s national definition per [ABARES](https://www.agriculture.gov.au/abares/forestsaustralia/forest-data-maps-and-tools/forest-definition)",
+  "25% — Chile''s national definition per [CONAF](https://www.conaf.cl/)",
+  "30% — [GFW default](https://www.globalforestwatch.org/); no country-specific definition applied").
   For change analysis, direct to Tree Cover Loss or Tree Cover Gain datasets.
 
   '

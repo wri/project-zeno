@@ -51,11 +51,14 @@ code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha)
   '
 presentation_instructions: 'Use "tree cover loss" not "deforestation" — tree cover includes plantations, not just natural
   forest. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
-  used AND justify it with the relevant national or international definition and its authoritative source (e.g.
-  "10% — India''s national forest definition per the Forest Survey of India (FSI)",
-  "20% — Australia''s national definition per ABARES",
-  "30% — Colombia''s REDD+ submission to the UNFCCC (IDEAM)",
-  "30% — GFW default; no country-specific definition applied").
+  used AND justify it with the relevant national or international definition, its authoritative source, AND a markdown
+  hyperlink to the official definition or report (e.g.
+  "10% — India''s national forest definition per the [Forest Survey of India (FSI)](https://fsi.nic.in/)",
+  "10% — [FAO/UNFCCC standard definition](https://www.fao.org/forestry/fra/en/)",
+  "20% — Australia''s national definition per [ABARES](https://www.agriculture.gov.au/abares/forestsaustralia/forest-data-maps-and-tools/forest-definition)",
+  "25% — Chile''s national definition per [CONAF](https://www.conaf.cl/)",
+  "30% — Colombia''s national definition per [IDEAM](https://www.ideam.gov.co/) / UNFCCC REDD+ submission",
+  "30% — [GFW default](https://www.globalforestwatch.org/); no country-specific definition applied").
   If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2024, note the
   methodology change after 2010.
 
