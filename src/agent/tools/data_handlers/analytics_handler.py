@@ -186,15 +186,11 @@ class AnalyticsHandler(DataSourceHandler):
         else:
             return {"type": aoi_type}
 
-    async def _build_payload(
-        self,
-        dataset: dict,
-        aois: list[dict],
-        start_date: str,
-        end_date: str,
-    ) -> Dict:
-        """Build the API payload based on dataset type"""
-        # Base payload structure common to all endpoints
+    async def _build_aois(self, aois: list[str]):
+        """
+        Build AOI payload
+        """
+
         aoi_type = self._get_aoi_type(aois[0])
         # Fix for GADM IDs which come with a _1 suffix
         for aoi in aois:
@@ -226,20 +222,28 @@ class AnalyticsHandler(DataSourceHandler):
                 "features": features,
             }
 
-            base_payload = {
-                "aoi": {
-                    "type": aoi_type["type"],
-                    "feature_collection": feature_collection,
-                }
+            aoi = {
+                "type": aoi_type["type"],
+                "feature_collection": feature_collection,
             }
         else:
             aoi_ids = [format_id(aoi["src_id"]) for aoi in aois]
-            base_payload = {
-                "aoi": {
-                    "type": aoi_type["type"],
-                    "ids": aoi_ids,
-                }
+            aoi = {
+                "type": aoi_type["type"],
+                "ids": aoi_ids,
             }
+
+        return aoi
+
+    def _build_payload(
+        self,
+        dataset: dict,
+        aois: dict[str, Any],
+        start_date: str,
+        end_date: str,
+    ) -> Dict:
+        """Build the API payload based on dataset type"""
+        base_payload = {"aoi": aois}
 
         logger.debug(f"dataset: {dataset}")
 
@@ -272,17 +276,21 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_LOSS_ID,
             TREE_COVER_LOSS_BY_DRIVER_ID,
         ]:
+            forest_filter = None
+            if dataset["context_layer"] == "primary_forest":
+                forest_filter = "primary_forest"
+
+            intersections = []
+            if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
+                intersections = ["drivers"]
+
             payload = {
                 **base_payload,
                 "start_year": start_date[:4],
                 "end_year": end_date[:4],
                 "canopy_cover": 30,
-                "forest_filter": None,
-                "intersections": (
-                    [dataset["context_layer"]]
-                    if dataset.get("context_layer")
-                    else []
-                ),
+                "forest_filter": forest_filter,
+                "intersections": intersections,
             }
         elif dataset.get("dataset_id") == TREE_COVER_GAIN_ID:
             # Tree cover gain is only available in 5-year intervals
@@ -480,8 +488,9 @@ class AnalyticsHandler(DataSourceHandler):
                 )
 
             # Build the payload based on dataset type
-            payload = await self._build_payload(
-                dataset, aois, start_date, end_date
+            aoi_payload = await self._build_aois(aois)
+            payload = self._build_payload(
+                dataset, aoi_payload, start_date, end_date
             )
 
             # Debug logging for payload
