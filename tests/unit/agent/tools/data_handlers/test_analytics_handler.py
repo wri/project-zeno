@@ -1,9 +1,7 @@
-import pytest
-
 from src.agent.tools.data_handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_DRIVER_ID,
-    AnalyticsHandler,
     TREE_COVER_LOSS_ID,
+    AnalyticsHandler,
 )
 
 
@@ -14,8 +12,8 @@ def test_build_payload_tree_cover_loss_primary_forest_admin_aoi():
         "context_layer": "primary_forest",
     }
     aoi = {
-            "type": "admin",
-            "ids": ["BRA.14"],
+        "type": "admin",
+        "ids": ["BRA.14"],
     }
 
     payload = handler._build_payload(
