@@ -4,9 +4,7 @@ import pytest
 import structlog
 from sqlalchemy import select
 
-from src.agent.tools.pick_aoi import (
-    pick_aoi,
-)
+from src.agent.tools.pick_aoi import pick_aoi
 from src.api.data_models import WhitelistedUserOrm
 from tests.conftest import async_session_maker
 
