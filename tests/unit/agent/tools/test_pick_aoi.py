@@ -29,7 +29,7 @@ async def test_check_aoi_selection_returns_none_when_gadm_within_limit():
     assert result is None
 
 
-async def test_check_aoi_selection_gadm_exceeds_limit():
+async def test_check_aoi_selection_returns_error_message_when_gadm_exceeds_limit():
     aois = _make_aois("gadm", SUBREGION_LIMIT_ADMIN + 1)
     result = await check_aoi_selection(aois)
     assert result is not None
