@@ -12,6 +12,9 @@ class _AgentSettings(BaseSettings):
     model: str = Field(default="gemini", alias="MODEL")
     small_model: str = Field(default="gemini-flash", alias="SMALL_MODEL")
     coding_model: str = Field(default="gemini-2.5-pro", alias="CODING_MODEL")
+    fallback_models: str = Field(
+        default="gemini-flash,gemini-flash-lite", alias="FALLBACK_MODELS"
+    )
 
     model_config = {
         "env_file": ".env",

@@ -88,8 +88,31 @@ def get_small_model():
     return MODEL_REGISTRY[model_name]
 
 
+def get_fallback_models():
+    """Get the configured fallback models from environment.
+
+    Returns a list of BaseChatModel instances, filtering out the primary model.
+    Returns empty list if FALLBACK_MODELS is empty or all entries are invalid.
+    """
+    raw = AgentSettings.fallback_models.strip()
+    if not raw:
+        return []
+    primary = AgentSettings.model.lower()
+    models = []
+    for name in raw.split(","):
+        name = name.strip().lower()
+        if not name or name == primary:
+            continue
+        if name in MODEL_REGISTRY:
+            models.append(MODEL_REGISTRY[name])
+    return models
+
+
 # Base Model - dynamically selected from environment
 MODEL = get_model()
 
 # Small Model - dynamically selected from environment
 SMALL_MODEL = get_small_model()
+
+# Fallback models for resilience
+FALLBACK_MODELS = get_fallback_models()

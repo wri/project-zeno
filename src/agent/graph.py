@@ -4,14 +4,18 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent
-from langchain.agents.middleware import wrap_tool_call
+from langchain.agents.middleware import (
+    ModelFallbackMiddleware,
+    ModelRetryMiddleware,
+    wrap_tool_call,
+)
 from langchain.messages import ToolMessage
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
-from src.agent.llms import MODEL
+from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.prompts import WORDING_INSTRUCTIONS
 from src.agent.state import AgentState
 from src.agent.tools import (
@@ -182,6 +186,22 @@ async def handle_tool_errors(request, handler):
         )
 
 
+def _build_middleware():
+    """Build the middleware stack: retry -> fallback -> tool error handling."""
+    middleware = [
+        ModelRetryMiddleware(
+            max_retries=3,
+            backoff_factor=2.0,
+            initial_delay=1.0,
+            on_failure="continue",
+        ),
+    ]
+    if FALLBACK_MODELS:
+        middleware.append(ModelFallbackMiddleware(*FALLBACK_MODELS))
+    middleware.append(handle_tool_errors)
+    return middleware
+
+
 async def fetch_zeno_anonymous(
     user: Optional[dict] = None,
 ) -> CompiledStateGraph:
@@ -194,7 +214,7 @@ async def fetch_zeno_anonymous(
         tools=tools,
         state_schema=AgentState,
         system_prompt=get_prompt(user),
-        middleware=[handle_tool_errors],
+        middleware=_build_middleware(),
     )
     return zeno_agent
 
@@ -208,7 +228,7 @@ async def fetch_zeno(user: Optional[dict] = None) -> CompiledStateGraph:
         tools=tools,
         state_schema=AgentState,
         system_prompt=get_prompt(user),
-        middleware=[handle_tool_errors],
+        middleware=_build_middleware(),
         checkpointer=checkpointer,
     )
     return zeno_agent
