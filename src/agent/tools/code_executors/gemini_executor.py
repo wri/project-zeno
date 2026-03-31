@@ -1,5 +1,6 @@
 """Gemini code executor using inline data and native code execution."""
 
+import asyncio
 import io
 from typing import Dict, List
 
@@ -21,6 +22,10 @@ logger = get_logger(__name__)
 class GeminiCodeExecutor:
     """Simple Gemini code executor with inline data support."""
 
+    MAX_RETRIES = 2
+    INITIAL_DELAY = 1.0
+    BACKOFF_FACTOR = 2.0
+
     def __init__(self):
         """
         Initialize Gemini code executor.
@@ -29,6 +34,10 @@ class GeminiCodeExecutor:
             model: Gemini model to use (must support code execution)
         """
         self.model = AgentSettings.coding_model
+        raw = AgentSettings.coding_fallback_models.strip()
+        self.fallback_models = (
+            [m.strip() for m in raw.split(",") if m.strip()] if raw else []
+        )
         self.client = genai.Client()
 
     def build_file_references(
@@ -79,11 +88,77 @@ class GeminiCodeExecutor:
 
         return inline_data_parts
 
+    async def _call_model(self, model: str, content_parts: List[Dict]):
+        """Call a model with retry logic. Returns the raw response."""
+        last_error = None
+        for attempt in range(self.MAX_RETRIES + 1):
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=[{"role": "user", "parts": content_parts}],
+                    config=types.GenerateContentConfig(
+                        tools=[
+                            types.Tool(
+                                code_execution=types.ToolCodeExecution()
+                            )
+                        ],
+                    ),
+                )
+                return response
+            except Exception as e:
+                last_error = e
+                if attempt < self.MAX_RETRIES:
+                    delay = self.INITIAL_DELAY * (self.BACKOFF_FACTOR**attempt)
+                    logger.warning(
+                        f"Model {model} attempt {attempt + 1} failed: {e}, "
+                        f"retrying in {delay:.1f}s"
+                    )
+                    await asyncio.sleep(delay)
+        raise last_error
+
+    def _parse_response(self, response) -> ExecutionResult:
+        """Parse a generate_content response into ExecutionResult."""
+        parts = []
+        chart_data = None
+
+        for part in response.candidates[0].content.parts:
+            if part.text:
+                parts.append(
+                    CodeActPart(type=PartType.TEXT_OUTPUT, content=part.text)
+                )
+            if part.executable_code:
+                parts.append(
+                    CodeActPart(
+                        type=PartType.CODE_BLOCK,
+                        content=part.executable_code.code,
+                    )
+                )
+            if part.code_execution_result:
+                parts.append(
+                    CodeActPart(
+                        type=PartType.EXECUTION_OUTPUT,
+                        content=part.code_execution_result.output,
+                    )
+                )
+            if part.inline_data and part.inline_data.mime_type == "text/csv":
+                try:
+                    df = pd.read_csv(io.BytesIO(part.inline_data.data))
+                    chart_data = df.to_dict("records")
+                    logger.info(f"Parsed chart_data: {len(chart_data)} rows")
+                except Exception as e:
+                    logger.error(f"Failed to parse chart_data: {e}")
+
+        return ExecutionResult(
+            parts=parts,
+            chart_data=chart_data,
+            error=None,
+        )
+
     async def execute(
         self, prompt: str, inline_data_parts: List[Dict]
     ) -> ExecutionResult:
         """
-        Execute code with Gemini.
+        Execute code with Gemini, with retry and fallback.
 
         Args:
             prompt: Analysis prompt
@@ -92,72 +167,21 @@ class GeminiCodeExecutor:
         Returns:
             ExecutionResult with outputs and chart data
         """
-        try:
-            logger.info("Executing code with Gemini")
+        content_parts = [{"text": prompt}] + inline_data_parts
+        models = [self.model] + self.fallback_models
 
-            # Build content: [{"text": prompt}, {"inline_data": ...}, ...]
-            content_parts = [{"text": prompt}] + inline_data_parts
+        last_error = None
+        for model in models:
+            try:
+                logger.info(f"Executing code with model: {model}")
+                response = await self._call_model(model, content_parts)
+                return self._parse_response(response)
+            except Exception as e:
+                last_error = e
+                logger.error(f"Model {model} failed after retries: {e}")
 
-            # Call Gemini with code execution
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=[{"role": "user", "parts": content_parts}],
-                config=types.GenerateContentConfig(
-                    tools=[
-                        types.Tool(code_execution=types.ToolCodeExecution())
-                    ],
-                ),
-            )
-
-            # Parse response
-            parts = []
-            chart_data = None
-
-            for part in response.candidates[0].content.parts:
-                if part.text:
-                    parts.append(
-                        CodeActPart(
-                            type=PartType.TEXT_OUTPUT, content=part.text
-                        )
-                    )
-                if part.executable_code:
-                    parts.append(
-                        CodeActPart(
-                            type=PartType.CODE_BLOCK,
-                            content=part.executable_code.code,
-                        )
-                    )
-                if part.code_execution_result:
-                    parts.append(
-                        CodeActPart(
-                            type=PartType.EXECUTION_OUTPUT,
-                            content=part.code_execution_result.output,
-                        )
-                    )
-                if (
-                    part.inline_data
-                    and part.inline_data.mime_type == "text/csv"
-                ):
-                    # Parse chart_data.csv from response
-                    try:
-                        df = pd.read_csv(io.BytesIO(part.inline_data.data))
-                        chart_data = df.to_dict("records")
-                        logger.info(
-                            f"Parsed chart_data: {len(chart_data)} rows"
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to parse chart_data: {e}")
-
-            return ExecutionResult(
-                parts=parts,
-                chart_data=chart_data,
-                error=None,
-            )
-
-        except Exception as e:
-            logger.error(f"Execution failed: {e}")
-            return ExecutionResult(
-                parts=[],
-                chart_data=None,
-                error=str(e),
-            )
+        return ExecutionResult(
+            parts=[],
+            chart_data=None,
+            error=str(last_error),
+        )

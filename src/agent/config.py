@@ -11,7 +11,13 @@ class _AgentSettings(BaseSettings):
     # Model configuration
     model: str = Field(default="gemini", alias="MODEL")
     small_model: str = Field(default="gemini-flash", alias="SMALL_MODEL")
-    coding_model: str = Field(default="gemini-2.5-pro", alias="CODING_MODEL")
+    coding_model: str = Field(
+        default="gemini-3.1-pro-preview", alias="CODING_MODEL"
+    )
+    coding_fallback_models: str = Field(
+        default="gemini-2.5-pro,gemini-3-flash-preview",
+        alias="CODING_FALLBACK_MODELS",
+    )
     fallback_models: str = Field(
         default="gemini-flash,gemini-flash-lite", alias="FALLBACK_MODELS"
     )
