@@ -22,7 +22,7 @@ def _make_aois(source: str, n: int) -> list[dict]:
     ]
 
 
-async def test_check_aoi_selection_gadm_within_limit():
+async def test_check_aoi_selection_returns_none_when_gadm_within_limit():
     result = await check_aoi_selection(
         _make_aois("gadm", SUBREGION_LIMIT_ADMIN)
     )
