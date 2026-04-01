@@ -187,13 +187,25 @@ async def handle_tool_errors(request, handler):
 
 
 def _build_middleware():
-    """Build the middleware stack: retry -> fallback -> tool error handling."""
+    """Build the middleware stack: retry -> fallback -> tool error handling.
+
+    Middleware execution order and interaction:
+    1. ModelRetryMiddleware: Retries transient failures (rate limits, timeouts)
+       - on_failure="error": Re-raises exception after exhausting retries
+       - This allows the exception to propagate to ModelFallbackMiddleware
+
+    2. ModelFallbackMiddleware: Tries alternative models on exceptions
+       - Only triggers if an exception is raised (not on error messages)
+
+    3. handle_tool_errors: Catches tool execution errors and returns ToolMessage
+       - Final safety net for tool-specific failures
+    """
     middleware = [
         ModelRetryMiddleware(
             max_retries=3,
             backoff_factor=2.0,
             initial_delay=1.0,
-            on_failure="continue",
+            on_failure="error",  # Must be "error" to trigger fallback middleware
         ),
     ]
     if FALLBACK_MODELS:

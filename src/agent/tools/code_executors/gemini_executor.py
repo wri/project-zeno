@@ -2,6 +2,7 @@
 
 import asyncio
 import io
+from functools import partial
 from typing import Dict, List
 
 import pandas as pd
@@ -91,17 +92,22 @@ class GeminiCodeExecutor:
     async def _call_model(self, model: str, content_parts: List[Dict]):
         """Call a model with retry logic. Returns the raw response."""
         last_error = None
+        loop = asyncio.get_running_loop()
         for attempt in range(self.MAX_RETRIES + 1):
             try:
-                response = self.client.models.generate_content(
-                    model=model,
-                    contents=[{"role": "user", "parts": content_parts}],
-                    config=types.GenerateContentConfig(
-                        tools=[
-                            types.Tool(
-                                code_execution=types.ToolCodeExecution()
-                            )
-                        ],
+                response = await loop.run_in_executor(
+                    None,
+                    partial(
+                        self.client.models.generate_content,
+                        model=model,
+                        contents=[{"role": "user", "parts": content_parts}],
+                        config=types.GenerateContentConfig(
+                            tools=[
+                                types.Tool(
+                                    code_execution=types.ToolCodeExecution()
+                                )
+                            ],
+                        ),
                     ),
                 )
                 return response
@@ -178,7 +184,7 @@ class GeminiCodeExecutor:
                 return self._parse_response(response)
             except Exception as e:
                 last_error = e
-                logger.error(f"Model {model} failed after retries: {e}")
+                logger.exception(f"Model {model} failed after retries: {e}")
 
         return ExecutionResult(
             parts=[],
