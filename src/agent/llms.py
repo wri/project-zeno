@@ -26,7 +26,7 @@ GEMINI = ChatGoogleGenerativeAI(
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
     thinking_level="low",
-    max_retries=2,
+    max_retries=0,  # Retries handled by ModelRetryMiddleware
     timeout=300,
 )
 GEMINI_FLASH = ChatGoogleGenerativeAI(
@@ -34,7 +34,7 @@ GEMINI_FLASH = ChatGoogleGenerativeAI(
     temperature=0.3,
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
-    max_retries=2,
+    max_retries=0,  # Retries handled by ModelRetryMiddleware
     thinking_level="low",
     timeout=300,
 )
@@ -43,7 +43,7 @@ GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
     temperature=0.3,
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
-    max_retries=2,
+    max_retries=0,  # Retries handled by ModelRetryMiddleware
     thinking_level="low",
     timeout=300,
 )
@@ -88,8 +88,35 @@ def get_small_model():
     return MODEL_REGISTRY[model_name]
 
 
+def get_fallback_models():
+    """Get the configured fallback models from environment.
+
+    Returns a list of BaseChatModel instances, filtering out the primary model.
+    Returns empty list if FALLBACK_MODELS is empty.
+    Raises ValueError if any model name is unknown.
+    """
+    raw = AgentSettings.fallback_models.strip()
+    if not raw:
+        return []
+    primary = AgentSettings.model.lower()
+    models = []
+    for name in raw.split(","):
+        name = name.strip().lower()
+        if not name or name == primary:
+            continue
+        if name not in MODEL_REGISTRY:
+            raise ValueError(
+                f"Unknown fallback model: {name}. Available models: {AVAILABLE_MODELS}"
+            )
+        models.append(MODEL_REGISTRY[name])
+    return models
+
+
 # Base Model - dynamically selected from environment
 MODEL = get_model()
 
 # Small Model - dynamically selected from environment
 SMALL_MODEL = get_small_model()
+
+# Fallback models for resilience
+FALLBACK_MODELS = get_fallback_models()
