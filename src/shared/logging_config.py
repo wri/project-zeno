@@ -1,22 +1,25 @@
 import logging
 import os
-import re
 import sys
 from logging.handlers import RotatingFileHandler
 
 import structlog
 from structlog.types import Processor
 
+# Keys to strip from console output in compact mode
+_VERBOSE_KEYS = ("query", "request_id", "session_id", "thread_id", "user_id")
 
-class ColorlessFormatter(logging.Formatter):
-    """Custom formatter that strips ANSI color codes from log messages."""
 
-    # ANSI escape sequence pattern
-    ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
-
-    def format(self, record: logging.LogRecord) -> str:
-        formatted = super().format(record)
-        return self.ANSI_ESCAPE.sub("", formatted)
+def _drop_verbose_keys(
+    logger: logging.Logger, method_name: str, event_dict: dict
+) -> dict:
+    """Strip repetitive context vars for compact console output."""
+    for key in _VERBOSE_KEYS:
+        event_dict.pop(key, None)
+    # Shorten logger name: src.agent.tools.generate_insights → generate_insights
+    if "logger" in event_dict:
+        event_dict["logger"] = event_dict["logger"].rsplit(".", 1)[-1]
+    return event_dict
 
 
 def get_log_level() -> int:
@@ -30,6 +33,11 @@ def get_log_format() -> str:
     return os.getenv("LOG_FORMAT", "text").lower()
 
 
+def is_verbose() -> bool:
+    """Check if verbose console logging is enabled."""
+    return os.getenv("LOG_VERBOSE", "true").lower() == "true"
+
+
 def should_log_to_file() -> bool:
     """Check if logging to file is enabled."""
     return os.getenv("LOG_TO_FILE", "true").lower() == "true"
@@ -41,9 +49,8 @@ def get_log_file_path() -> str:
 
 
 def configure_structlog() -> None:
-    """Configure structlog with appropriate processors and output format."""
+    """Configure structlog to pass event dicts to stdlib ProcessorFormatter."""
 
-    # Common processors for all configurations
     shared_processors: list[Processor] = [
         structlog.stdlib.filter_by_level,
         structlog.contextvars.merge_contextvars,
@@ -53,24 +60,11 @@ def configure_structlog() -> None:
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
+        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
     ]
 
-    log_format = get_log_format()
-
-    if log_format == "json":
-        # JSON output configuration
-        processors = shared_processors + [structlog.processors.JSONRenderer()]
-    else:
-        # Text output configuration (default) - colors enabled for console
-        processors = shared_processors + [
-            structlog.dev.ConsoleRenderer(
-                colors=True,
-                pad_event=28,
-            )
-        ]
-
     structlog.configure(
-        processors=processors,
+        processors=shared_processors,
         wrapper_class=structlog.stdlib.BoundLogger,
         logger_factory=structlog.stdlib.LoggerFactory(),
         context_class=dict,
@@ -79,7 +73,7 @@ def configure_structlog() -> None:
 
 
 def setup_standard_logging() -> None:
-    """Set up standard library logging handlers."""
+    """Set up standard library logging handlers with per-handler formatting."""
     root_logger = logging.getLogger()
 
     # Clear existing handlers
@@ -89,25 +83,44 @@ def setup_standard_logging() -> None:
     log_level = get_log_level()
     log_format = get_log_format()
 
-    # Configure formatters based on output format
-    if log_format == "json":
-        # For JSON, we rely on structlog's JSONRenderer
-        console_formatter = logging.Formatter("%(message)s")
-        file_formatter = logging.Formatter("%(message)s")
-    else:
-        # For text, console gets colors, file gets colorless
-        console_formatter = logging.Formatter("%(message)s")
-        file_formatter = ColorlessFormatter("%(message)s")
+    # Console handler: compact by default, verbose with LOG_VERBOSE=true
+    console_processors: list[Processor] = [
+        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+    ]
+    if not is_verbose():
+        console_processors.append(_drop_verbose_keys)
 
-    # Console handler
+    if log_format == "json":
+        console_processors.append(structlog.processors.JSONRenderer())
+    else:
+        console_processors.append(
+            structlog.dev.ConsoleRenderer(colors=True, pad_event=28)
+        )
+
+    console_formatter = structlog.stdlib.ProcessorFormatter(
+        processors=console_processors,
+    )
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setFormatter(console_formatter)
     stream_handler.setLevel(log_level)
     root_logger.addHandler(stream_handler)
 
-    # File handler (if enabled)
+    # File handler: always full detail, no colors
     if should_log_to_file():
-        # This is meant to be used only for development locally
+        file_processors: list[Processor] = [
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+        ]
+        if log_format == "json":
+            file_processors.append(structlog.processors.JSONRenderer())
+        else:
+            file_processors.append(
+                structlog.dev.ConsoleRenderer(colors=False, pad_event=28)
+            )
+
+        file_formatter = structlog.stdlib.ProcessorFormatter(
+            processors=file_processors,
+        )
+
         log_file_path = get_log_file_path()
         os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
 

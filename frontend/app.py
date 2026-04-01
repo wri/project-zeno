@@ -7,8 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 st.set_page_config(page_title="Zeno", page_icon="🦣")
 
-# API_BASE_URL = os.environ["API_BASE_URL"]
-API_BASE_URL = os.environ["LOCAL_API_BASE_URL"]
+API_BASE_URL = os.environ["API_BASE_URL"]
 
 STREAMLIT_URL = os.environ.get(
     "STREAMLIT_URL", "http://localhost:8501"
