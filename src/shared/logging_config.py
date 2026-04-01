@@ -52,8 +52,8 @@ def configure_structlog() -> None:
     """Configure structlog to pass event dicts to stdlib ProcessorFormatter."""
 
     shared_processors: list[Processor] = [
-        structlog.contextvars.merge_contextvars,
         structlog.stdlib.filter_by_level,
+        structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
         structlog.stdlib.PositionalArgumentsFormatter(),
