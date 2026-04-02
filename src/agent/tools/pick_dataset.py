@@ -1,26 +1,21 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import pandas as pd
 from langchain_core.messages import ToolMessage
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
-from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langgraph.types import Command
-from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.agent.llms import SMALL_MODEL
+from src.agent.tools.sub_llm_handlers.dataset_candidate_picker import DatasetCandidatePicker
+from src.gent.tools.sub_llm_handlers.dataset_selector import DatasetSelector
 from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
     GRASSLANDS_ID,
     LAND_COVER_CHANGE_ID,
-    TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
-from src.agent.tools.datasets_config import DATASETS
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -29,223 +24,6 @@ logger = get_logger(__name__)
 data_dir = Path("data")
 
 retriever_cache = None
-
-
-async def _get_retriever():
-    global retriever_cache
-    if retriever_cache is None:
-        logger.debug("Loading retriever for the first time...")
-        embeddings = GoogleGenerativeAIEmbeddings(
-            model=SharedSettings.dataset_embeddings_model,
-            task_type=SharedSettings.dataset_embeddings_task_type,
-        )
-        index = InMemoryVectorStore.load(
-            data_dir / SharedSettings.dataset_embeddings_db,
-            embedding=embeddings,
-        )
-        retriever_cache = index.as_retriever(
-            search_type="similarity", search_kwargs={"k": 3}
-        )
-    return retriever_cache
-
-
-async def rag_candidate_datasets(query: str, k=3):
-    logger.debug(f"Retrieving candidate datasets for query: '{query}'")
-    candidate_datasets = []
-    retriever = await _get_retriever()
-    match_documents = await retriever.ainvoke(query)
-    for doc in match_documents:
-        data = [ds for ds in DATASETS if ds["dataset_id"] == int(doc.id)]
-        if not data:
-            raise ValueError(f"No data found for dataset ID: {doc.id}")
-        candidate_datasets.append(data[0])
-
-    logger.debug(f"Found {len(candidate_datasets)} candidate datasets.")
-    return pd.DataFrame(candidate_datasets)
-
-
-class DatasetOption(BaseModel):
-    dataset_id: int = Field(
-        description="ID of the dataset that best matches the user query."
-    )
-    context_layer: Optional[str] = Field(
-        None,
-        description="Pick a single context layer from the dataset if relevant.",
-    )
-    reason: str = Field(
-        description="Short reason why the dataset is the best match."
-    )
-    language: str = Field(
-        description="Language of the user query.",
-    )
-
-    @field_validator("dataset_id")
-    def validate_dataset_id(cls, v):
-        if v not in [ds["dataset_id"] for ds in DATASETS]:
-            raise ValueError(f"Invalid dataset ID: {v}")
-        return v
-
-    @model_validator(mode="after")
-    def validate_context_layer_for_dataset(self) -> "DatasetOption":
-        """Ensure context_layer is valid for the chosen dataset_id (runs after all fields)."""
-        dataset_id = self.dataset_id
-        if dataset_id is None:
-            self.context_layer = None
-            return self
-        # Hardcoded override: TCL by driver always needs "driver" intersection
-        elif dataset_id == TREE_COVER_LOSS_BY_DRIVER_ID:
-            self.context_layer = "driver"
-            return self
-
-        if self.context_layer is None:
-            return self
-
-        selected_dataset = [
-            ds for ds in DATASETS if ds["dataset_id"] == dataset_id
-        ][0]
-        context_layers = selected_dataset.get("context_layers") or []
-        context_layer_values = [lyr["value"] for lyr in context_layers]
-        if self.context_layer not in context_layer_values:
-            self.context_layer = None
-
-        return self
-
-
-class DatasetSelectionResult(DatasetOption):
-    tile_url: str = Field(
-        description="Tile URL of the dataset that best matches the user query.",
-    )
-    dataset_name: str = Field(
-        description="Name of the dataset that best matches the user query."
-    )
-    analytics_api_endpoint: str = Field(
-        description="Analytics API endpoint of the dataset that best matches the user query.",
-    )
-    description: str = Field(
-        description="Description of the dataset that best matches the user query.",
-    )
-    prompt_instructions: str = Field(
-        description="Prompt instructions of the dataset that best matches the user query.",
-    )
-    methodology: str = Field(
-        description="Methodology of the dataset that best matches the user query.",
-    )
-    cautions: str = Field(
-        description="Cautions of the dataset that best matches the user query.",
-    )
-    function_usage_notes: str = Field(
-        description="Function usage notes of the dataset that best matches the user query.",
-    )
-    citation: str = Field(
-        description="Citation of the dataset that best matches the user query.",
-    )
-    content_date: str = Field(
-        description="Content date of the dataset that best matches the user query.",
-    )
-    # Tiered instruction fields (PoC) — None for datasets that haven't been migrated
-    selection_hints: Optional[str] = Field(
-        default=None,
-        description="When to prefer this dataset over alternatives.",
-    )
-    code_instructions: Optional[str] = Field(
-        default=None,
-        description="Chart type restrictions and data shaping rules for the code executor.",
-    )
-    presentation_instructions: Optional[str] = Field(
-        default=None,
-        description="Terminology, tone, and how to describe results to users.",
-    )
-
-
-async def select_best_dataset(
-    query: str, candidate_datasets: pd.DataFrame
-) -> DatasetSelectionResult:
-    DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
-        [
-            (
-                "user",
-                """Based on the query, return the ID of the dataset that can best answer the
-    user query and provide reason why it is the best match. Always return at least one dataset.
-    Use all information provided to decide which dataset is the best match, especially the selection hints.
-
-    Select a single context layer from the dataset if relevant for the user query. Context layers
-    allow difrenciating between different types of data within the same dataset. So if a user asks
-    to show something like "show me tree cover loss by driver", you should select a context layer
-
-    Evaluate if the best dataset is available for the date range requested by the user,
-    if not, pick the closest date range but warn the user that there
-    is not an exact match with the query requested by the user in the reason field.
-
-    Pick the most granular dataset that matches the query and requested time range if specified.
-    For instance, dont select tree cover loss by driver if the user requests a specific time range,
-    pick tree cover loss instead.
-
-    Keep explanations concise. Do not use datset IDs to describe the dataset.
-    For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
-
-    Use the language of the user query to generate the reason.
-
-    Candidate datasets:
-
-    {candidate_datasets}
-
-    User query:
-
-    {user_query}
-    """,
-            )
-        ]
-    )
-
-    logger.debug("Invoking dataset selection chain...")
-    dataset_selection_chain = (
-        DATASET_SELECTION_PROMPT
-        | SMALL_MODEL.with_structured_output(DatasetOption)
-    )
-    selection_result = await dataset_selection_chain.ainvoke(
-        {
-            "candidate_datasets": candidate_datasets[
-                [
-                    "dataset_id",
-                    "dataset_name",
-                    "description",
-                    "selection_hints",
-                    "content_date",
-                    "context_layers",
-                ]
-            ].to_csv(index=False),
-            "user_query": query,
-        }
-    )
-    logger.debug(
-        f"Selected dataset ID: {selection_result.dataset_id}. "
-        f"context_layer={selection_result.context_layer!r} (type={type(selection_result.context_layer).__name__}). "
-        f"Reason: {selection_result.reason}"
-    )
-
-    selected_row = candidate_datasets[
-        candidate_datasets.dataset_id == selection_result.dataset_id
-    ].iloc[0]
-
-    return DatasetSelectionResult(
-        dataset_id=selected_row.dataset_id,
-        dataset_name=selected_row.dataset_name,
-        context_layer=selection_result.context_layer,
-        reason=selection_result.reason,
-        tile_url=selected_row.tile_url,
-        analytics_api_endpoint=selected_row.analytics_api_endpoint,
-        description=selected_row.description,
-        prompt_instructions=selected_row.prompt_instructions,
-        methodology=selected_row.methodology,
-        cautions=selected_row.cautions,
-        function_usage_notes=selected_row.function_usage_notes,
-        citation=selected_row.citation,
-        content_date=selected_row.content_date,
-        language=selection_result.language,
-        selection_hints=selected_row.selection_hints,
-        code_instructions=selected_row.code_instructions,
-        presentation_instructions=selected_row.presentation_instructions,
-    )
 
 
 @tool("pick_dataset")
@@ -264,11 +42,22 @@ async def pick_dataset(
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
     """
+    return await pick_dataset_func(query, start_date, end_date, tool_call_id)
+
+
+async def pick_dataset_func(
+    query: str,
+    start_date: str,
+    end_date: str,
+    tool_call_id: Annotated[str, InjectedToolCallId] = None,
+    candidate_picker: DatasetCandidatePicker = DatasetCandidatePicker(),
+    dataset_selector: DatasetSelector = DatasetSelector(),
+) -> Command:
     logger.info("PICK-DATASET-TOOL")
     # Step 1: RAG lookup
-    candidate_datasets = await rag_candidate_datasets(query, k=3)
+    candidate_datasets = await candidate_picker.rag_candidate_datasets(query, k=3)
     # Step 2: LLM to select best dataset and potential context layer
-    selection_result = await select_best_dataset(query, candidate_datasets)
+    selection_result = await dataset_selector.select_best_dataset(query, candidate_datasets)
 
     tool_message = f"""# About the selection
     Selected dataset name: {selection_result.dataset_name}
