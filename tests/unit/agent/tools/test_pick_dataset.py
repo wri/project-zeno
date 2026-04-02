@@ -89,10 +89,15 @@ class FakeDatasetCandidatePicker:
 class FakeDatasetSelector:
     def __init__(self, selection_result: DatasetSelectionResult):
         self.selection_result = selection_result
+        self.aoi_bbox_context = None
 
     async def select_best_dataset(
-        self, query: str, candidate_datasets: pd.DataFrame
+        self,
+        query: str,
+        candidate_datasets: pd.DataFrame,
+        aoi_bbox_context=None,
     ):
+        self.aoi_bbox_context = aoi_bbox_context
         return self.selection_result
 
 
@@ -134,6 +139,43 @@ async def test_pick_dataset_func_adds_selected_dataset_to_command_update(
         **dataset_selection_result.model_dump(),
         "tile_url": "https://tiles.globalforestwatch.org/example/{z}/{x}/{y}.png&start_year=2020&end_year=2024",
     }
+
+
+async def test_pick_dataset_func_passes_aoi_bbox_context_to_dataset_selector(
+    fake_candidate_picker: FakeDatasetCandidatePicker,
+    fake_dataset_selector: FakeDatasetSelector,
+):
+    state = {
+        "aoi_selection": {
+            "aois": [
+                {
+                    "name": "Brazil",
+                    "source": "gadm",
+                    "src_id": "BRA",
+                    "bbox": [-73.99, -33.75, -28.84, 5.27],
+                }
+            ]
+        }
+    }
+
+    await pick_dataset_func(
+        query="Show tree cover loss in Brazil",
+        start_date="2020-01-01",
+        end_date="2024-12-31",
+        tool_call_id="tool-call-1",
+        state=state,
+        candidate_picker=fake_candidate_picker,
+        dataset_selector=fake_dataset_selector,
+    )
+
+    assert fake_dataset_selector.aoi_bbox_context == [
+        {
+            "name": "Brazil",
+            "source": "gadm",
+            "src_id": "BRA",
+            "bbox": [-73.99, -33.75, -28.84, 5.27],
+        }
+    ]
 
 
 async def test_pick_dataset_func_adds_tool_message_to_command_update(

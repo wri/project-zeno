@@ -33,13 +33,27 @@ def candidate_datasets() -> pd.DataFrame:
     )
 
 
+@pytest.fixture(scope="session")
+def aoi_bbox_context() -> list[dict]:
+    return [
+        {
+            "name": "Kalimantan Barat, Indonesia",
+            "source": "gadm",
+            "src_id": "IDN.35_1",
+            "bbox": [108.0, -3.5, 114.5, 1.5],
+        }
+    ]
+
+
 async def test_dataset_selector_returns_one_best_dataset_result(
     selector: DatasetSelector,
     candidate_datasets: pd.DataFrame,
+    aoi_bbox_context: list[dict],
 ):
     result = await selector.select_best_dataset(
         "What percent of 2000 forest did Kalimantan Barat lose from 2001 through 2024?",
         candidate_datasets,
+        aoi_bbox_context=aoi_bbox_context,
     )
 
     assert isinstance(result, DatasetSelectionResult)
@@ -51,10 +65,12 @@ async def test_dataset_selector_returns_one_best_dataset_result(
 async def test_dataset_selector_returns_option_other_than_first(
     selector: DatasetSelector,
     candidate_datasets: pd.DataFrame,
+    aoi_bbox_context: list[dict],
 ):
     result = await selector.select_best_dataset(
         "What percent of 2000 forest did Kalimantan Barat regrow from 2001 through 2024?",
         candidate_datasets,
+        aoi_bbox_context=aoi_bbox_context,
     )
 
     assert isinstance(result, DatasetSelectionResult)
@@ -66,10 +82,12 @@ async def test_dataset_selector_returns_option_other_than_first(
 async def test_dataset_selector_returns_contextual_layer(
     selector: DatasetSelector,
     candidate_datasets: pd.DataFrame,
+    aoi_bbox_context: list[dict],
 ):
     result = await selector.select_best_dataset(
         "What percent of 2000 natural forest did Kalimantan Barat lose from 2001 through 2024?",
         candidate_datasets,
+        aoi_bbox_context=aoi_bbox_context,
     )
 
     assert isinstance(result, DatasetSelectionResult)
@@ -82,9 +100,19 @@ async def test_dataset_selector_aoi_outside_contextual_layer_extent(
     selector: DatasetSelector,
     candidate_datasets: pd.DataFrame,
 ):
+    british_columbia_bbox_context = [
+        {
+            "name": "British Columbia, Canada",
+            "source": "gadm",
+            "src_id": "CAN.2_1",
+            "bbox": [-139.06, 48.25, -114.03, 60.01],
+        }
+    ]
+
     result = await selector.select_best_dataset(
         "What percent of 2000 natural forest did British Columbia, Canada lose from 2001 through 2024?",
         candidate_datasets,
+        aoi_bbox_context=british_columbia_bbox_context,
     )
 
     assert isinstance(result, DatasetSelectionResult)

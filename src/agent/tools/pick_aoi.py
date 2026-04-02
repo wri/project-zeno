@@ -41,6 +41,9 @@ class AOIIndex(BaseModel):
     src_id: str = Field(description="`src_id` of the best matched location.")
     name: str = Field(description="`name` of the best matched location.")
     subtype: str = Field(description="`subtype` of the best matched location.")
+    bbox: list[float] = Field(
+        description="Bounding box of the best matched location as [minx, miny, maxx, maxy]."
+    )
 
 
 async def query_aoi_database(
@@ -116,7 +119,15 @@ async def query_aoi_database(
             union_parts.append(
                 f"""
                 SELECT gadm_id AS src_id,
-                    name, subtype, 'gadm' as source
+                    name,
+                    subtype,
+                    'gadm' as source,
+                    json_build_array(
+                        ST_XMin(geometry),
+                        ST_YMin(geometry),
+                        ST_XMax(geometry),
+                        ST_YMax(geometry)
+                    ) AS bbox
                 FROM {GADM_TABLE}
                 WHERE name IS NOT NULL AND name % :place_name
             """
@@ -129,7 +140,13 @@ async def query_aoi_database(
                 SELECT CAST({src_id} as TEXT) as src_id,
                        name,
                        subtype,
-                       'kba' as source
+                       'kba' as source,
+                       json_build_array(
+                           ST_XMin(geometry),
+                           ST_YMin(geometry),
+                           ST_XMax(geometry),
+                           ST_YMax(geometry)
+                       ) AS bbox
                 FROM {KBA_TABLE}
                 WHERE name IS NOT NULL AND name % :place_name
             """
@@ -142,7 +159,13 @@ async def query_aoi_database(
                 SELECT CAST({src_id} as TEXT) as src_id,
                        name,
                        subtype,
-                       'landmark' as source
+                       'landmark' as source,
+                       json_build_array(
+                           ST_XMin(geometry),
+                           ST_YMin(geometry),
+                           ST_XMax(geometry),
+                           ST_YMax(geometry)
+                       ) AS bbox
                 FROM {LANDMARK_TABLE}
                 WHERE name IS NOT NULL AND name % :place_name
             """
@@ -155,7 +178,13 @@ async def query_aoi_database(
                 SELECT CAST({src_id} as TEXT) as src_id,
                        name,
                        subtype,
-                       'wdpa' as source
+                       'wdpa' as source,
+                       json_build_array(
+                           ST_XMin(geometry),
+                           ST_YMin(geometry),
+                           ST_XMax(geometry),
+                           ST_YMax(geometry)
+                       ) AS bbox
                 FROM {WDPA_TABLE}
                 WHERE name IS NOT NULL AND name % :place_name
             """
@@ -170,7 +199,13 @@ async def query_aoi_database(
                 SELECT CAST({src_id} as TEXT) as src_id,
                         name,
                         'custom-area' as subtype,
-                        'custom' as source
+                        'custom' as source,
+                        json_build_array(
+                            ST_XMin(geometry),
+                            ST_YMin(geometry),
+                            ST_XMax(geometry),
+                            ST_YMax(geometry)
+                        ) AS bbox
                 FROM {CUSTOM_AREA_TABLE}
                 WHERE user_id = :user_id
                 AND name IS NOT NULL AND name % :place_name
@@ -277,7 +312,17 @@ async def query_subregion_database(
         WHERE "{id_column}" = :src_id
         LIMIT 1
     )
-    SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id
+    SELECT t.name,
+           t.subtype,
+           t.{src_id_field},
+           '{subregion_source}' as source,
+           t.{src_id_field} as src_id,
+           json_build_array(
+               ST_XMin(t.geometry),
+               ST_YMin(t.geometry),
+               ST_XMax(t.geometry),
+               ST_YMax(t.geometry)
+           ) AS bbox
     FROM {table_name} AS t, aoi
     WHERE t.subtype = :subtype
     AND ST_Within(t.geometry, aoi.geom)

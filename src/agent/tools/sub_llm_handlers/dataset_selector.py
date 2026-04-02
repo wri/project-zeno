@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -17,7 +18,10 @@ retriever_cache = None
 
 class DatasetSelector():
     async def select_best_dataset(
-        self, query: str, candidate_datasets: pd.DataFrame
+        self,
+        query: str,
+        candidate_datasets: pd.DataFrame,
+        aoi_bbox_context: list[dict] | None = None,
     ) -> DatasetSelectionResult:
         DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
             [
@@ -29,13 +33,13 @@ class DatasetSelector():
 
         Select a single context layer from the dataset if relevant for the user query. Context layers
         allow differentiating between different types of data within the same dataset. So if a user asks
-        to show something like "show me tree cover loss by driver", you should select a context layer
+        to show something like "show me tree cover loss by driver", you should select a context layer. 
 
         Evaluate if the best dataset is available for the date range requested by the user,
         if not, pick the closest date range but warn the user that there
         is not an exact match with the query requested by the user in the reason field.
 
-        Pick the most granular dataset that matches the query and requested time range if specified.
+        Pick the most granular dataset and context layer that matches the query, requested time range and extent if specified.
         For instance, dont select tree cover loss by driver if the user requests a specific time range,
         pick tree cover loss instead.
 
@@ -43,6 +47,10 @@ class DatasetSelector():
         For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
 
         Use the language of the user query to generate the reason.
+
+        AOI bounding box context (if available):
+
+        {aoi_bbox_context}
 
         Candidate datasets:
 
@@ -63,6 +71,11 @@ class DatasetSelector():
         )
         selection_result = await dataset_selection_chain.ainvoke(
             {
+                "aoi_bbox_context": (
+                    json.dumps(aoi_bbox_context, ensure_ascii=True)
+                    if aoi_bbox_context
+                    else "None"
+                ),
                 "candidate_datasets": candidate_datasets[
                     [
                         "dataset_id",

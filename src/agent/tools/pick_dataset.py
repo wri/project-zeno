@@ -27,6 +27,28 @@ data_dir = Path("data")
 retriever_cache = None
 
 
+def _extract_aoi_bbox_context(state: Dict | None) -> list[dict] | None:
+    if not state:
+        return None
+
+    aois = state.get("aoi_selection", {}).get("aois", [])
+    bbox_context = []
+    for aoi in aois:
+        bbox = aoi.get("bbox")
+        if bbox is None:
+            continue
+        bbox_context.append(
+            {
+                "name": aoi.get("name"),
+                "source": aoi.get("source"),
+                "src_id": aoi.get("src_id"),
+                "bbox": bbox,
+            }
+        )
+
+    return bbox_context or None
+
+
 @tool("pick_dataset")
 async def pick_dataset(
     query: str,
@@ -44,7 +66,13 @@ async def pick_dataset(
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
     """
-    return await pick_dataset_func(query, start_date, end_date, tool_call_id)
+    return await pick_dataset_func(
+        query,
+        start_date,
+        end_date,
+        tool_call_id,
+        state=state,
+    )
 
 
 async def pick_dataset_func(
@@ -52,14 +80,18 @@ async def pick_dataset_func(
     start_date: str,
     end_date: str,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
+    state: Dict | None = None,
     candidate_picker: DatasetCandidatePicker = DatasetCandidatePicker(),
     dataset_selector: DatasetSelector = DatasetSelector(),
 ) -> Command:
     logger.info("PICK-DATASET-TOOL")
+    aoi_bbox_context = _extract_aoi_bbox_context(state)
     # Step 1: RAG lookup
     candidate_datasets = await candidate_picker.rag_candidate_datasets(query, k=3)
     # Step 2: LLM to select best dataset and potential context layer
-    selection_result = await dataset_selector.select_best_dataset(query, candidate_datasets)
+    selection_result = await dataset_selector.select_best_dataset(
+        query, candidate_datasets, aoi_bbox_context=aoi_bbox_context
+    )
 
     tool_message = f"""# About the selection
     Selected dataset name: {selection_result.dataset_name}
