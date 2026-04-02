@@ -77,3 +77,17 @@ async def test_dataset_selector_returns_contextual_layer(
     assert result.dataset_name == "Tree cover loss"
     assert result.context_layer == "primary_forest"
 
+
+async def test_dataset_selector_aoi_outside_contextual_layer_extent(
+    selector: DatasetSelector,
+    candidate_datasets: pd.DataFrame,
+):
+    result = await selector.select_best_dataset(
+        "What percent of 2000 natural forest did British Columbia, Canada lose from 2001 through 2024?",
+        candidate_datasets,
+    )
+
+    assert isinstance(result, DatasetSelectionResult)
+    assert result.dataset_id == 4
+    assert result.dataset_name == "Tree cover loss"
+    assert result.context_layer is None

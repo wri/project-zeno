@@ -28,7 +28,7 @@ class DatasetSelector():
         Use all information provided to decide which dataset is the best match, especially the selection hints.
 
         Select a single context layer from the dataset if relevant for the user query. Context layers
-        allow difrenciating between different types of data within the same dataset. So if a user asks
+        allow differentiating between different types of data within the same dataset. So if a user asks
         to show something like "show me tree cover loss by driver", you should select a context layer
 
         Evaluate if the best dataset is available for the date range requested by the user,

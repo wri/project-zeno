@@ -1,7 +1,8 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Dict
 
+from langgraph.prebuilt import InjectedState
 import pandas as pd
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
@@ -31,6 +32,7 @@ async def pick_dataset(
     query: str,
     start_date: str,
     end_date: str,
+    state: Annotated[Dict, InjectedState] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
     """
