@@ -56,4 +56,3 @@ class DatasetOption(BaseModel):
             self.context_layer = None
 
         return self
-    

@@ -1,17 +1,55 @@
-from unittest.mock import AsyncMock, patch
-
 import pandas as pd
 import pytest
 from langchain_core.messages import ToolMessage
 
-from src.agent.tools.pick_dataset import DatasetSelectionResult, pick_dataset
+from src.agent.tools.models.dataset_option import DatasetOption
+from src.agent.tools.models.dataset_selection_result import (
+    DatasetSelectionResult,
+)
+from src.agent.tools.pick_dataset import pick_dataset_func
 
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_pick_dataset_returns_command_with_selected_dataset():
-    candidate_datasets = pd.DataFrame(
+@pytest.fixture
+def dataset_option() -> DatasetOption:
+    return DatasetOption(
+        dataset_id=4,
+        context_layer="primary_forest",
+        reason="Best match for annual tree cover loss analysis.",
+        language="en",
+    )
+
+
+@pytest.fixture
+def dataset_selection_result(
+    dataset_option: DatasetOption,
+) -> DatasetSelectionResult:
+    return DatasetSelectionResult(
+        dataset_id=dataset_option.dataset_id,
+        dataset_name="Tree cover loss",
+        context_layer=dataset_option.context_layer,
+        reason=dataset_option.reason,
+        tile_url="https://tiles.globalforestwatch.org/example/{z}/{x}/{y}.png",
+        analytics_api_endpoint="/v0/land_change/tree_cover_loss/analytics",
+        description="Tree cover loss description",
+        prompt_instructions="Use tree cover loss terminology.",
+        methodology="Dataset methodology",
+        cautions="Dataset cautions",
+        function_usage_notes="Dataset usage notes",
+        citation="Dataset citation",
+        content_date="2001-2024 annual",
+        language=dataset_option.language,
+        selection_hints="Best for annual tree cover loss questions.",
+        code_instructions="Use bar charts for yearly loss.",
+        presentation_instructions="Say tree cover loss, not deforestation.",
+    )
+
+
+@pytest.fixture
+def candidate_datasets() -> pd.DataFrame:
+    return pd.DataFrame(
         [
             {
                 "dataset_id": 4,
@@ -31,61 +69,79 @@ async def test_pick_dataset_returns_command_with_selected_dataset():
             }
         ]
     )
-    selection_result = DatasetSelectionResult(
-        dataset_id=4,
-        dataset_name="Tree cover loss",
-        context_layer="primary_forest",
-        reason="Best match for annual tree cover loss analysis.",
-        tile_url="https://tiles.globalforestwatch.org/example/{z}/{x}/{y}.png",
-        analytics_api_endpoint="/v0/land_change/tree_cover_loss/analytics",
-        description="Tree cover loss description",
-        prompt_instructions="Use tree cover loss terminology.",
-        methodology="Dataset methodology",
-        cautions="Dataset cautions",
-        function_usage_notes="Dataset usage notes",
-        citation="Dataset citation",
-        content_date="2001-2024 annual",
-        language="en",
-        selection_hints="Best for annual tree cover loss questions.",
-        code_instructions="Use bar charts for yearly loss.",
-        presentation_instructions="Say tree cover loss, not deforestation.",
-    )
 
-    with (
-        patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
-            AsyncMock(return_value=candidate_datasets),
-        ) as mock_rag,
-        patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
-            AsyncMock(return_value=selection_result),
-        ) as mock_select,
+
+class FakeDatasetCandidatePicker:
+    def __init__(self, candidate_datasets: pd.DataFrame):
+        self.candidate_datasets = candidate_datasets
+
+    async def rag_candidate_datasets(self, query: str, k=3):
+        return self.candidate_datasets
+
+
+class FakeDatasetSelector:
+    def __init__(self, selection_result: DatasetSelectionResult):
+        self.selection_result = selection_result
+
+    async def select_best_dataset(
+        self, query: str, candidate_datasets: pd.DataFrame
     ):
-        result = await pick_dataset.coroutine(
-            query="Show tree cover loss in Brazil",
-            start_date="2020-01-01",
-            end_date="2024-12-31",
-            tool_call_id="tool-call-1",
-        )
+        return self.selection_result
 
-    mock_rag.assert_awaited_once_with(
-        "Show tree cover loss in Brazil", k=3
-    )
-    mock_select.assert_awaited_once_with(
-        "Show tree cover loss in Brazil", candidate_datasets
+
+@pytest.fixture
+def fake_candidate_picker(
+    candidate_datasets: pd.DataFrame,
+) -> FakeDatasetCandidatePicker:
+    return FakeDatasetCandidatePicker(candidate_datasets)
+
+
+@pytest.fixture
+def fake_dataset_selector(
+    dataset_selection_result: DatasetSelectionResult,
+) -> FakeDatasetSelector:
+    return FakeDatasetSelector(dataset_selection_result)
+
+
+async def test_pick_dataset_func_adds_selected_dataset_to_command_update(
+    dataset_selection_result: DatasetSelectionResult,
+    fake_candidate_picker: FakeDatasetCandidatePicker,
+    fake_dataset_selector: FakeDatasetSelector,
+):
+    result = await pick_dataset_func(
+        query="Show tree cover loss in Brazil",
+        start_date="2020-01-01",
+        end_date="2024-12-31",
+        tool_call_id="tool-call-1",
+        candidate_picker=fake_candidate_picker,
+        dataset_selector=fake_dataset_selector,
     )
 
-    dataset = result.update["dataset"]
-    assert dataset["dataset_id"] == 4
-    assert dataset["dataset_name"] == "Tree cover loss"
-    assert dataset["context_layer"] == "primary_forest"
-    assert (
-        dataset["tile_url"]
-        == "https://tiles.globalforestwatch.org/example/{z}/{x}/{y}.png&start_year=2020&end_year=2024"
+    assert result.update["dataset"] == {
+        **dataset_selection_result.model_dump(),
+        "tile_url": "https://tiles.globalforestwatch.org/example/{z}/{x}/{y}.png&start_year=2020&end_year=2024",
+    }
+
+
+async def test_pick_dataset_func_adds_tool_message_to_command_update(
+    fake_candidate_picker: FakeDatasetCandidatePicker,
+    fake_dataset_selector: FakeDatasetSelector,
+):
+    result = await pick_dataset_func(
+        query="Show tree cover loss in Brazil",
+        start_date="2020-01-01",
+        end_date="2024-12-31",
+        tool_call_id="tool-call-1",
+        candidate_picker=fake_candidate_picker,
+        dataset_selector=fake_dataset_selector,
     )
+
+    assert "messages" in result.update
+    assert len(result.update["messages"]) == 1
 
     message = result.update["messages"][0]
     assert isinstance(message, ToolMessage)
     assert message.tool_call_id == "tool-call-1"
     assert "Selected dataset name: Tree cover loss" in message.content
     assert "Selected context layer: primary_forest" in message.content
+    assert "Reasoning for selection: Best match for annual tree cover loss analysis." in message.content

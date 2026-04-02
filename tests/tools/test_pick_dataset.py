@@ -6,10 +6,9 @@ import pytest
 import requests
 
 from src.agent.tools.datasets_config import DATASETS
-from src.agent.tools.pick_dataset import (
-    DatasetSelectionResult,
-    pick_dataset,
-)
+from src.agent.tools.pick_dataset import pick_dataset
+
+from src.agent.tools.models.dataset_selection_result import DatasetSelectionResult
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules

@@ -9,7 +9,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.types import Command
 
 from src.agent.tools.sub_llm_handlers.dataset_candidate_picker import DatasetCandidatePicker
-from src.gent.tools.sub_llm_handlers.dataset_selector import DatasetSelector
+from src.agent.tools.sub_llm_handlers.dataset_selector import DatasetSelector
 from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
     GRASSLANDS_ID,
