@@ -45,6 +45,7 @@ async def test_dataset_selector_returns_one_best_dataset_result(
     assert isinstance(result, DatasetSelectionResult)
     assert result.dataset_id == 4
     assert result.dataset_name == "Tree cover loss"
+    assert result.context_layer is None
 
 
 async def test_dataset_selector_returns_option_other_than_first(
@@ -59,3 +60,20 @@ async def test_dataset_selector_returns_option_other_than_first(
     assert isinstance(result, DatasetSelectionResult)
     assert result.dataset_id == 5
     assert result.dataset_name == "Tree cover gain"
+    assert result.context_layer is None
+
+
+async def test_dataset_selector_returns_contextual_layer(
+    selector: DatasetSelector,
+    candidate_datasets: pd.DataFrame,
+):
+    result = await selector.select_best_dataset(
+        "What percent of 2000 natural forest did Kalimantan Barat lose from 2001 through 2024?",
+        candidate_datasets,
+    )
+
+    assert isinstance(result, DatasetSelectionResult)
+    assert result.dataset_id == 4
+    assert result.dataset_name == "Tree cover loss"
+    assert result.context_layer == "primary_forest"
+
