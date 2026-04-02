@@ -27,8 +27,8 @@ from src.shared.geocoding_helpers import (
 from src.shared.logging_config import get_logger
 
 RESULT_LIMIT = 10
+SUBREGION_LIMIT_ADMIN = 1000
 SUBREGION_LIMIT = 50
-SUBREGION_LIMIT_KBA = 25
 
 load_dotenv()
 logger = get_logger(__name__)
@@ -409,9 +409,9 @@ async def check_aoi_selection(aois: list[dict]) -> str:
 
     aoi_source = next(iter(aoi_sources))
     if aoi_source in {"kba", "wdpa", "landmark"}:
-        subregion_limit = SUBREGION_LIMIT_KBA
-    else:
         subregion_limit = SUBREGION_LIMIT
+    else:
+        subregion_limit = SUBREGION_LIMIT_ADMIN
 
     if len(aois) > subregion_limit:
         return (
@@ -419,7 +419,7 @@ async def check_aoi_selection(aois: list[dict]) -> str:
             "Please narrow down your search by either:\n"
             "1. Being more specific with the AOI selection (choose a smaller area)\n"
             "2. Being more specific with the subregion query (e.g., 'kbas' instead of 'areas')\n"
-            "For optimal performance, please limit results to under 25 subregions for KBA, WDPA, and Indigenous Lands, or under 50 for other area types."
+            f"For optimal performance, please limit results to under {SUBREGION_LIMIT} subregions for KBA, WDPA, and Indigenous Lands, or under {SUBREGION_LIMIT_ADMIN} for other area types."
         )
 
 
