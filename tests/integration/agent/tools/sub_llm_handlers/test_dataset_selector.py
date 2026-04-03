@@ -27,7 +27,7 @@ def selector() -> DatasetSelector:
 
 @pytest.fixture(scope="session")
 def candidate_datasets() -> pd.DataFrame:
-    dataset_ids = {4, 5, 8}
+    dataset_ids = {4, 5, 0}
     return pd.DataFrame(
         [dataset for dataset in DATASETS if dataset["dataset_id"] in dataset_ids]
     )
@@ -68,12 +68,12 @@ async def test_dataset_selector_returns_contextual_layer(
     candidate_datasets: pd.DataFrame,
 ):
     result = await selector.select_best_dataset(
-        "What percent of 2000 natural forest did Kalimantan Barat lose from 2001 through 2024?",
+        "What are the drivers of disturbance in Kalimantan Barat last year?",
         candidate_datasets,
     )
 
     assert isinstance(result, DatasetSelectionResult)
-    assert result.dataset_id == 4
-    assert result.dataset_name == "Tree cover loss"
-    assert result.context_layer == "primary_forest"
+    assert result.dataset_id == 0
+    assert result.dataset_name == "Global all ecosystem disturbance alerts (DIST-ALERT)"
+    assert result.context_layer == "driver"
 

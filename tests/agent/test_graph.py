@@ -228,13 +228,13 @@ MOCK_CANDIDATE_DATASETS_ECOSYSTEM_CONVERSION = pd.DataFrame(_ordered)
 
 @pytest.fixture(scope="function", autouse=True)
 def mock_rag_candidate_datasets():
-    """Mock rag_candidate_datasets to return MOCK_CANDIDATE_DATASETS_ECOSYSTEM_CONVERSION."""
+    """Mock DatasetCandidatePicker.rag_candidate_datasets to return fixed candidates."""
 
     async def _return_mock_df(_query, k=3):
         return MOCK_CANDIDATE_DATASETS_ECOSYSTEM_CONVERSION.copy()
 
     with patch(
-        "src.agent.tools.pick_dataset.rag_candidate_datasets",
+        "src.agent.tools.sub_llm_handlers.dataset_candidate_picker.DatasetCandidatePicker.rag_candidate_datasets",
         new_callable=AsyncMock,
         side_effect=_return_mock_df,
     ):
