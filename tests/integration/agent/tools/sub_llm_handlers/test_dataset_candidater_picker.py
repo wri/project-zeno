@@ -8,7 +8,6 @@ from src.agent.tools.sub_llm_handlers.dataset_candidate_picker import (
 )
 from src.shared.config import SharedSettings
 
-
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
@@ -26,9 +25,7 @@ def reset_retriever_cache():
 def picker() -> DatasetCandidatePicker:
     embeddings_db_path = Path("data") / SharedSettings.dataset_embeddings_db
     if not embeddings_db_path.exists():
-        pytest.skip(
-            f"Local embeddings DB not found at {embeddings_db_path}"
-        )
+        pytest.skip(f"Local embeddings DB not found at {embeddings_db_path}")
     return DatasetCandidatePicker()
 
 

@@ -8,7 +8,6 @@ from src.agent.tools.datasets_config import DATASETS
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
-
 logger = get_logger(__name__)
 
 data_dir = Path("data")
@@ -16,7 +15,7 @@ data_dir = Path("data")
 retriever_cache = None
 
 
-class DatasetCandidatePicker():
+class DatasetCandidatePicker:
     async def rag_candidate_datasets(self, query: str, k=3):
         logger.debug(f"Retrieving candidate datasets for query: '{query}'")
         candidate_datasets = []
@@ -30,7 +29,7 @@ class DatasetCandidatePicker():
 
         logger.debug(f"Found {len(candidate_datasets)} candidate datasets.")
         return pd.DataFrame(candidate_datasets)
-    
+
     @staticmethod
     async def _get_retriever():
         global retriever_cache

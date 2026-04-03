@@ -2,7 +2,6 @@ from pathlib import Path
 
 import yaml
 
-
 DATASETS_DIR = Path("src/agent/tools/datasets")
 
 
@@ -25,9 +24,21 @@ def test_tree_cover_loss_dataset_schema_includes_expected_context_layers_and_pro
     prompt_instructions = dataset["prompt_instructions"]
 
     assert "Reports gross annual loss of tree cover" in prompt_instructions
-    assert "always include the GHG emissions associated with that loss" in prompt_instructions
-    assert "If users ask for intra-year or seasonal tree cover loss OR emissions, refuse" in prompt_instructions
-    assert 'DO NOT use the term "deforestation", use "tree cover loss" instead' in prompt_instructions
+    assert (
+        "always include the GHG emissions associated with that loss"
+        in prompt_instructions
+    )
+    assert (
+        "If users ask for intra-year or seasonal tree cover loss OR emissions, refuse"
+        in prompt_instructions
+    )
+    assert (
+        'DO NOT use the term "deforestation", use "tree cover loss" instead'
+        in prompt_instructions
+    )
     assert "Use 30% threshold." in prompt_instructions
     assert "If a user asks for net gain/loss, refuse" in prompt_instructions
-    assert "DO NOT show emissions and loss in the same chart, use separate charts." in prompt_instructions
+    assert (
+        "DO NOT show emissions and loss in the same chart, use separate charts."
+        in prompt_instructions
+    )

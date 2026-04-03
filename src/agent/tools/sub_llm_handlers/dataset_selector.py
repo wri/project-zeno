@@ -3,9 +3,11 @@ from pathlib import Path
 import pandas as pd
 from langchain_core.prompts import ChatPromptTemplate
 
-from src.agent.tools.models.dataset_option import DatasetOption
-from src.agent.tools.models.dataset_selection_result import DatasetSelectionResult
 from src.agent.llms import SMALL_MODEL
+from src.agent.tools.models.dataset_option import DatasetOption
+from src.agent.tools.models.dataset_selection_result import (
+    DatasetSelectionResult,
+)
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -15,7 +17,7 @@ data_dir = Path("data")
 retriever_cache = None
 
 
-class DatasetSelector():
+class DatasetSelector:
     async def select_best_dataset(
         self, query: str, candidate_datasets: pd.DataFrame
     ) -> DatasetSelectionResult:

@@ -9,7 +9,6 @@ from src.agent.tools.models.dataset_selection_result import (
 )
 from src.agent.tools.sub_llm_handlers.dataset_selector import DatasetSelector
 
-
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
@@ -29,7 +28,11 @@ def selector() -> DatasetSelector:
 def candidate_datasets() -> pd.DataFrame:
     dataset_ids = {4, 5, 0}
     return pd.DataFrame(
-        [dataset for dataset in DATASETS if dataset["dataset_id"] in dataset_ids]
+        [
+            dataset
+            for dataset in DATASETS
+            if dataset["dataset_id"] in dataset_ids
+        ]
     )
 
 
@@ -74,6 +77,8 @@ async def test_dataset_selector_returns_contextual_layer(
 
     assert isinstance(result, DatasetSelectionResult)
     assert result.dataset_id == 0
-    assert result.dataset_name == "Global all ecosystem disturbance alerts (DIST-ALERT)"
+    assert (
+        result.dataset_name
+        == "Global all ecosystem disturbance alerts (DIST-ALERT)"
+    )
     assert result.context_layer == "driver"
-
