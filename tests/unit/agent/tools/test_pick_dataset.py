@@ -12,7 +12,7 @@ from src.agent.tools.models.dataset_option import DatasetOption
 from src.agent.tools.models.dataset_selection_result import (
     DatasetSelectionResult,
 )
-from src.agent.tools.pick_dataset import pick_dataset_func
+from src.agent.tools.pick_dataset.pick_dataset import pick_dataset_func
 from src.shared.config import SharedSettings
 
 pytestmark = pytest.mark.asyncio

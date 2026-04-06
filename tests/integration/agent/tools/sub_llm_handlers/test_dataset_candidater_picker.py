@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from src.agent.tools.sub_llm_handlers.dataset_candidate_picker import (
+from src.agent.tools.pick_dataset.dataset_candidate_picker import (
     DatasetCandidatePicker,
 )
 from src.shared.config import SharedSettings

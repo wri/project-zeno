@@ -7,7 +7,7 @@ from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.models.dataset_selection_result import (
     DatasetSelectionResult,
 )
-from src.agent.tools.sub_llm_handlers.dataset_selector import DatasetSelector
+from src.agent.tools.pick_dataset.dataset_selector import DatasetSelector
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
