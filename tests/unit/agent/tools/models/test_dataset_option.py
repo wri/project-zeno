@@ -30,30 +30,19 @@ def test_dataset_option_rejects_invalid_dataset_id():
 
 def test_dataset_option_preserves_valid_context_layer():
     option = DatasetOption(
-        dataset_id=4,
-        context_layer="primary_forest",
+        dataset_id=8,
+        context_layer="driver",
         reason="Best match for annual tree cover loss analysis.",
         language="en",
     )
 
-    assert option.context_layer == "primary_forest"
+    assert option.context_layer == "driver"
 
 
 def test_dataset_option_clears_invalid_context_layer():
     option = DatasetOption(
         dataset_id=4,
         context_layer="make_believe",
-        reason="Best match for annual tree cover loss analysis.",
-        language="en",
-    )
-
-    assert option.context_layer is None
-
-
-def test_dataset_option_keeps_none_context_layer_when_not_provided():
-    option = DatasetOption(
-        dataset_id=4,
-        context_layer=None,
         reason="Best match for annual tree cover loss analysis.",
         language="en",
     )

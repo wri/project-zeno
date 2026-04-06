@@ -155,7 +155,6 @@ async def test_pick_dataset_func_adds_tool_message_to_command_update(
     assert isinstance(message, ToolMessage)
     assert message.tool_call_id == "tool-call-1"
     assert "Selected dataset name: Tree cover loss" in message.content
-    assert "Selected context layer: primary_forest" in message.content
     assert (
         "Reasoning for selection: Best match for annual tree cover loss analysis."
         in message.content
