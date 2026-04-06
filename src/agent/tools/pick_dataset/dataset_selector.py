@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pandas as pd
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -12,20 +10,11 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-data_dir = Path("data")
-
-retriever_cache = None
-
-
-class DatasetSelector:
-    async def select_best_dataset(
-        self, query: str, candidate_datasets: pd.DataFrame
-    ) -> DatasetSelectionResult:
-        DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "user",
-                    """Based on the query, return the ID of the dataset that can best answer the
+DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "user",
+            """Based on the query, return the ID of the dataset that can best answer the
         user query and provide reason why it is the best match. Always return at least one dataset.
         Use all information provided to decide which dataset is the best match, especially the selection hints.
 
@@ -54,10 +43,15 @@ class DatasetSelector:
 
         {user_query}
         """,
-                )
-            ]
         )
+    ]
+)
 
+
+class DatasetSelector:
+    async def select_best_dataset(
+        self, query: str, candidate_datasets: pd.DataFrame
+    ) -> DatasetSelectionResult:
         logger.debug("Invoking dataset selection chain...")
         dataset_selection_chain = (
             DATASET_SELECTION_PROMPT
