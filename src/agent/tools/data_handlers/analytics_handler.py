@@ -485,7 +485,7 @@ class AnalyticsHandler(DataSourceHandler):
 
             # Build the payload based on dataset type
             aoi_payload = await self._build_aois(aois)
-            payload = self._build_payload(
+            payload = await self._build_payload(
                 dataset, aoi_payload, start_date, end_date
             )
 

@@ -39,17 +39,17 @@ def reset_google_clients():
     """Reset cached Google clients at session start to use the correct event loop."""
     # Access the actual modules via sys.modules to avoid the __init__.py re-exports
     picker_module = sys.modules[
-        "src.agent.tools.sub_llm_handlers.dataset_candidate_picker"
+        "src.agent.tools.pick_dataset.dataset_retriever"
     ]
     llms_module = sys.modules["src.agent.llms"]
 
     # Reset retriever cache so a fresh embeddings client is created
-    picker_module.retriever_cache = None
+    picker_module.dataset_retriever.retriever = None
     # Recreate SMALL_MODEL to get fresh gRPC connections on the current event loop
     llms_module.SMALL_MODEL = llms_module.get_small_model()
     yield
     # Cleanup
-    picker_module.retriever_cache = None
+    picker_module.dataset_retriever.retriever = None
 
 
 DIST_ALERT = "ecosystem disturbance alerts"
@@ -524,12 +524,12 @@ async def test_hallucinated_context_layer_is_discarded(
 
     with (
         patch(
-            "src.agent.tools.sub_llm_handlers.dataset_candidate_picker.DatasetCandidatePicker.rag_candidate_datasets",
+            "src.agent.tools.pick_dataset.pick_dataset.get_candidate_datasets",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
         patch(
-            "src.agent.tools.sub_llm_handlers.dataset_selector.DatasetSelector.select_best_dataset",
+            "src.agent.tools.pick_dataset.dataset_selector.DatasetSelector.select_best_dataset",
             new_callable=AsyncMock,
             return_value=fake_selection,
         ),
@@ -565,12 +565,12 @@ async def test_valid_context_layer_is_preserved():
 
     with (
         patch(
-            "src.agent.tools.sub_llm_handlers.dataset_candidate_picker.DatasetCandidatePicker.rag_candidate_datasets",
+            "src.agent.tools.pick_dataset.pick_dataset.get_candidate_datasets",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
         patch(
-            "src.agent.tools.sub_llm_handlers.dataset_selector.DatasetSelector.select_best_dataset",
+            "src.agent.tools.pick_dataset.dataset_selector.DatasetSelector.select_best_dataset",
             new_callable=AsyncMock,
             return_value=fake_selection,
         ),
@@ -606,12 +606,12 @@ async def test_tcl_by_driver_always_gets_driver_context_layer():
 
     with (
         patch(
-            "src.agent.tools.sub_llm_handlers.dataset_candidate_picker.DatasetCandidatePicker.rag_candidate_datasets",
+            "src.agent.tools.pick_dataset.pick_dataset.get_candidate_datasetss",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
         patch(
-            "src.agent.tools.sub_llm_handlers.dataset_selector.DatasetSelector.select_best_dataset",
+            "src.agent.tools.pick_dataset.dataset_selector.DatasetSelector.select_best_dataset",
             new_callable=AsyncMock,
             return_value=fake_selection,
         ),

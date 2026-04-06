@@ -130,7 +130,7 @@ async def pick_dataset_func(
 async def get_candidate_datasets(query: str, retriever):
     logger.debug(f"Retrieving candidate datasets for query: '{query}'")
     candidate_datasets = []
-    match_dataset_ids = retriever.retrieve(query)
+    match_dataset_ids = await retriever.retrieve(query)
     for dataset_id in match_dataset_ids:
         data = [ds for ds in DATASETS if ds["dataset_id"] == dataset_id]
         if not data:

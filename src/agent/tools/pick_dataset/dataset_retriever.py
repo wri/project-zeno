@@ -26,10 +26,10 @@ class DatasetRetriever:
 
     async def retrieve(self, query) -> list[int]:
         if self.retriever is None:
-            self.retriever = self._get_retriever()
+            self.retriever = await self._get_retriever()
 
         match_docs = await self.retriever.ainvoke(query)
-        match_dataset_ids = [doc.id for doc in match_docs]
+        match_dataset_ids = [int(doc.id) for doc in match_docs]
         return match_dataset_ids
 
     async def _get_retriever(self):
