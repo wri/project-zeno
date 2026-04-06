@@ -3,8 +3,8 @@ from pathlib import Path
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-from src.shared.logging_config import get_logger
 from src.shared.config import SharedSettings
+from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -12,7 +12,13 @@ data_dir = Path("data")
 
 
 class DatasetRetriever:
-    def __init__(self, embeddings_db, embeddings_model, embeddings_task_type, num_results):
+    def __init__(
+        self,
+        embeddings_db,
+        embeddings_model,
+        embeddings_task_type,
+        num_results,
+    ):
         self.embeddings_db = embeddings_db
         self.embeddings_model = embeddings_model
         self.embeddings_task_type = embeddings_task_type
@@ -48,5 +54,5 @@ dataset_retriever = DatasetRetriever(
     SharedSettings.dataset_embeddings_db,
     SharedSettings.dataset_embeddings_model,
     SharedSettings.dataset_embeddings_task_type,
-    3
+    3,
 )

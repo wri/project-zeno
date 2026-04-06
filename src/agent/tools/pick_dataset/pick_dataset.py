@@ -1,21 +1,24 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
-import pandas as pd
 
+import pandas as pd
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.types import Command
 
-from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
     GRASSLANDS_ID,
     LAND_COVER_CHANGE_ID,
     TREE_COVER_LOSS_ID,
 )
-from src.agent.tools.pick_dataset.dataset_retriever import dataset_retriever, DatasetRetriever
+from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.pick_dataset.dataset_retriever import (
+    DatasetRetriever,
+    dataset_retriever,
+)
 from src.agent.tools.pick_dataset.dataset_selector import DatasetSelector
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
@@ -55,7 +58,7 @@ async def pick_dataset_func(
     logger.info("PICK-DATASET-TOOL")
     # Step 1: RAG lookup
     candidate_datasets = await get_candidate_datasets(query, dataset_retriever)
-    
+
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await dataset_selector.select_best_dataset(
         query, candidate_datasets

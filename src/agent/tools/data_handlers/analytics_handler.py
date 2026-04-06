@@ -285,7 +285,7 @@ class AnalyticsHandler(DataSourceHandler):
                 "start_year": start_date[:4],
                 "end_year": end_date[:4],
                 "canopy_cover": 30,
-                "forest_filter": forest_filter,
+                "forest_filter": None,
                 "intersections": intersections,
             }
         elif dataset.get("dataset_id") == TREE_COVER_GAIN_ID:

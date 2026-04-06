@@ -2,7 +2,6 @@ import pandas as pd
 import pytest
 from langchain_core.messages import ToolMessage
 
-from src.agent.tools.pick_dataset.dataset_retriever import DatasetRetriever
 from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
     GRASSLANDS_ID,
