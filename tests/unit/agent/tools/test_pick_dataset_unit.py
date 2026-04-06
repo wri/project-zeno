@@ -62,7 +62,7 @@ class FakeDatasetRetriever:
     def __init__(self, candidate_datasets):
         self.candidate_datasets = candidate_datasets
 
-    def retrieve(self, query):
+    async def retrieve(self, query):
         return self.candidate_datasets
 
 
