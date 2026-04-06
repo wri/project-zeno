@@ -235,7 +235,7 @@ class AnalyticsHandler(DataSourceHandler):
 
         return aoi
 
-    def _build_payload(
+    async def _build_payload(
         self,
         dataset: dict,
         aois: dict[str, Any],
@@ -276,10 +276,6 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_LOSS_ID,
             TREE_COVER_LOSS_BY_DRIVER_ID,
         ]:
-            forest_filter = None
-            if dataset["context_layer"] == "primary_forest":
-                forest_filter = "primary_forest"
-
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
                 intersections = ["drivers"]

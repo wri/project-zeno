@@ -1,21 +1,21 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
+import pandas as pd
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.types import Command
 
+from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
     GRASSLANDS_ID,
     LAND_COVER_CHANGE_ID,
     TREE_COVER_LOSS_ID,
 )
-from src.agent.tools.pick_dataset.dataset_candidate_picker import (
-    DatasetCandidatePicker,
-)
+from src.agent.tools.pick_dataset.dataset_retriever import dataset_retriever, DatasetRetriever
 from src.agent.tools.pick_dataset.dataset_selector import DatasetSelector
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
@@ -23,8 +23,6 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 data_dir = Path("data")
-
-retriever_cache = None
 
 
 @tool("pick_dataset")
@@ -51,14 +49,13 @@ async def pick_dataset_func(
     start_date: str,
     end_date: str,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
-    candidate_picker: DatasetCandidatePicker = DatasetCandidatePicker(),
+    dataset_retriever: DatasetRetriever = dataset_retriever,
     dataset_selector: DatasetSelector = DatasetSelector(),
 ) -> Command:
     logger.info("PICK-DATASET-TOOL")
     # Step 1: RAG lookup
-    candidate_datasets = await candidate_picker.get_candidate_datasets(
-        query, k=3
-    )
+    candidate_datasets = await get_candidate_datasets(query, dataset_retriever)
+    
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await dataset_selector.select_best_dataset(
         query, candidate_datasets
@@ -125,3 +122,17 @@ async def pick_dataset_func(
             "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
         },
     )
+
+
+async def get_candidate_datasets(query: str, retriever):
+    logger.debug(f"Retrieving candidate datasets for query: '{query}'")
+    candidate_datasets = []
+    match_dataset_ids = retriever.retrieve(query)
+    for dataset_id in match_dataset_ids:
+        data = [ds for ds in DATASETS if ds["dataset_id"] == dataset_id]
+        if not data:
+            raise ValueError(f"No data found for dataset ID: {dataset_id}")
+        candidate_datasets.append(data[0])
+
+    logger.debug(f"Found {len(candidate_datasets)} candidate datasets.")
+    return pd.DataFrame(candidate_datasets)

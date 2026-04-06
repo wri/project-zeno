@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 from langchain_core.messages import ToolMessage
 
+from src.agent.tools.pick_dataset.dataset_retriever import DatasetRetriever
 from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
     GRASSLANDS_ID,
@@ -55,33 +56,14 @@ def dataset_selection_result(
 
 @pytest.fixture
 def candidate_datasets() -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {
-                "dataset_id": 4,
-                "dataset_name": "Tree cover loss",
-                "tile_url": "https://tiles.globalforestwatch.org/example/{z}/{x}/{y}.png",
-                "analytics_api_endpoint": "/v0/land_change/tree_cover_loss/analytics",
-                "description": "Tree cover loss description",
-                "prompt_instructions": "Use tree cover loss terminology.",
-                "methodology": "Dataset methodology",
-                "cautions": "Dataset cautions",
-                "function_usage_notes": "Dataset usage notes",
-                "citation": "Dataset citation",
-                "content_date": "2001-2024 annual",
-                "selection_hints": "Best for annual tree cover loss questions.",
-                "code_instructions": "Use bar charts for yearly loss.",
-                "presentation_instructions": "Say tree cover loss, not deforestation.",
-            }
-        ]
-    )
+    return [4]
 
 
-class FakeDatasetCandidatePicker:
-    def __init__(self, candidate_datasets: pd.DataFrame):
+class FakeDatasetRetriever:
+    def __init__(self, candidate_datasets):
         self.candidate_datasets = candidate_datasets
 
-    async def rag_candidate_datasets(self, query: str, k=3):
+    def retrieve(self, query):
         return self.candidate_datasets
 
 
@@ -96,10 +78,10 @@ class FakeDatasetSelector:
 
 
 @pytest.fixture
-def fake_candidate_picker(
+def fake_dataset_retriever(
     candidate_datasets: pd.DataFrame,
-) -> FakeDatasetCandidatePicker:
-    return FakeDatasetCandidatePicker(candidate_datasets)
+) -> FakeDatasetRetriever:
+    return FakeDatasetRetriever(candidate_datasets)
 
 
 @pytest.fixture
@@ -117,7 +99,7 @@ def _make_dataset_selection_result(
 
 async def test_pick_dataset_func_adds_selected_dataset_to_command_update(
     dataset_selection_result: DatasetSelectionResult,
-    fake_candidate_picker: FakeDatasetCandidatePicker,
+    fake_dataset_retriever: FakeDatasetRetriever,
     fake_dataset_selector: FakeDatasetSelector,
 ):
     result = await pick_dataset_func(
@@ -125,7 +107,7 @@ async def test_pick_dataset_func_adds_selected_dataset_to_command_update(
         start_date="2020-01-01",
         end_date="2024-12-31",
         tool_call_id="tool-call-1",
-        candidate_picker=fake_candidate_picker,
+        dataset_retriever=fake_dataset_retriever,
         dataset_selector=fake_dataset_selector,
     )
 
@@ -136,7 +118,7 @@ async def test_pick_dataset_func_adds_selected_dataset_to_command_update(
 
 
 async def test_pick_dataset_func_adds_tool_message_to_command_update(
-    fake_candidate_picker: FakeDatasetCandidatePicker,
+    fake_dataset_retriever: FakeDatasetRetriever,
     fake_dataset_selector: FakeDatasetSelector,
 ):
     result = await pick_dataset_func(
@@ -144,7 +126,7 @@ async def test_pick_dataset_func_adds_tool_message_to_command_update(
         start_date="2020-01-01",
         end_date="2024-12-31",
         tool_call_id="tool-call-1",
-        candidate_picker=fake_candidate_picker,
+        dataset_retriever=fake_dataset_retriever,
         dataset_selector=fake_dataset_selector,
     )
 
@@ -165,7 +147,7 @@ async def test_pick_dataset_func_prefixes_relative_tile_url(
     candidate_datasets: pd.DataFrame,
     dataset_selection_result: DatasetSelectionResult,
 ):
-    fake_candidate_picker = FakeDatasetCandidatePicker(candidate_datasets)
+    fake_dataset_retriever = FakeDatasetRetriever(candidate_datasets)
     fake_dataset_selector = FakeDatasetSelector(
         _make_dataset_selection_result(
             dataset_selection_result,
@@ -178,7 +160,7 @@ async def test_pick_dataset_func_prefixes_relative_tile_url(
         start_date="2020-01-01",
         end_date="2024-12-31",
         tool_call_id="tool-call-1",
-        candidate_picker=fake_candidate_picker,
+        dataset_retriever=fake_dataset_retriever,
         dataset_selector=fake_dataset_selector,
     )
 
@@ -191,7 +173,7 @@ async def test_pick_dataset_func_appends_date_range_for_dist_alert(
     candidate_datasets: pd.DataFrame,
     dataset_selection_result: DatasetSelectionResult,
 ):
-    fake_candidate_picker = FakeDatasetCandidatePicker(candidate_datasets)
+    fake_dataset_retriever = FakeDatasetRetriever(candidate_datasets)
     fake_dataset_selector = FakeDatasetSelector(
         _make_dataset_selection_result(
             dataset_selection_result,
@@ -207,7 +189,7 @@ async def test_pick_dataset_func_appends_date_range_for_dist_alert(
         start_date="2024-01-02",
         end_date="2024-03-04",
         tool_call_id="tool-call-1",
-        candidate_picker=fake_candidate_picker,
+        dataset_retriever=fake_dataset_retriever,
         dataset_selector=fake_dataset_selector,
     )
 
@@ -221,7 +203,7 @@ async def test_pick_dataset_func_formats_land_cover_year_with_end_date_year(
     candidate_datasets: pd.DataFrame,
     dataset_selection_result: DatasetSelectionResult,
 ):
-    fake_candidate_picker = FakeDatasetCandidatePicker(candidate_datasets)
+    fake_dataset_retriever = FakeDatasetRetriever(candidate_datasets)
     fake_dataset_selector = FakeDatasetSelector(
         _make_dataset_selection_result(
             dataset_selection_result,
@@ -237,7 +219,7 @@ async def test_pick_dataset_func_formats_land_cover_year_with_end_date_year(
         start_date="2018-01-01",
         end_date="2020-12-31",
         tool_call_id="tool-call-1",
-        candidate_picker=fake_candidate_picker,
+        dataset_retriever=fake_dataset_retriever,
         dataset_selector=fake_dataset_selector,
     )
 
@@ -251,7 +233,7 @@ async def test_pick_dataset_func_falls_back_to_2022_for_out_of_range_grasslands_
     candidate_datasets: pd.DataFrame,
     dataset_selection_result: DatasetSelectionResult,
 ):
-    fake_candidate_picker = FakeDatasetCandidatePicker(candidate_datasets)
+    fake_dataset_retriever = FakeDatasetRetriever(candidate_datasets)
     fake_dataset_selector = FakeDatasetSelector(
         _make_dataset_selection_result(
             dataset_selection_result,
@@ -267,7 +249,7 @@ async def test_pick_dataset_func_falls_back_to_2022_for_out_of_range_grasslands_
         start_date="2024-01-01",
         end_date="2025-12-31",
         tool_call_id="tool-call-1",
-        candidate_picker=fake_candidate_picker,
+        dataset_retriever=fake_dataset_retriever,
         dataset_selector=fake_dataset_selector,
     )
 
@@ -281,7 +263,7 @@ async def test_pick_dataset_func_falls_back_to_full_range_for_out_of_range_tree_
     candidate_datasets: pd.DataFrame,
     dataset_selection_result: DatasetSelectionResult,
 ):
-    fake_candidate_picker = FakeDatasetCandidatePicker(candidate_datasets)
+    fake_dataset_retriever = FakeDatasetRetriever(candidate_datasets)
     fake_dataset_selector = FakeDatasetSelector(
         _make_dataset_selection_result(
             dataset_selection_result,
@@ -294,7 +276,7 @@ async def test_pick_dataset_func_falls_back_to_full_range_for_out_of_range_tree_
         start_date="1999-01-01",
         end_date="2025-12-31",
         tool_call_id="tool-call-1",
-        candidate_picker=fake_candidate_picker,
+        dataset_retriever=fake_dataset_retriever,
         dataset_selector=fake_dataset_selector,
     )
 
@@ -305,7 +287,7 @@ async def test_pick_dataset_func_falls_back_to_full_range_for_out_of_range_tree_
 
 
 async def test_pick_dataset_func_raises_value_error_for_invalid_start_date(
-    fake_candidate_picker: FakeDatasetCandidatePicker,
+    fake_dataset_retriever: FakeDatasetRetriever,
     fake_dataset_selector: FakeDatasetSelector,
 ):
     with pytest.raises(ValueError):
@@ -314,6 +296,6 @@ async def test_pick_dataset_func_raises_value_error_for_invalid_start_date(
             start_date="2020/01/01",
             end_date="2024-12-31",
             tool_call_id="tool-call-1",
-            candidate_picker=fake_candidate_picker,
+            dataset_retriever=fake_dataset_retriever,
             dataset_selector=fake_dataset_selector,
         )
