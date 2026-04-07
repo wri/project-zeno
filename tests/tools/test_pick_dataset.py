@@ -410,8 +410,9 @@ async def test_queries_return_expected_dataset(
 )
 async def test_query_with_context_layer(
     query, expected_dataset_id, expected_context_layer
-):
+):  
     tool_call_id = str(uuid.uuid4())
+    state = AgentState(aoi_selection=AOISelection(name="Indonesia", aois=[{"source": "gadm", "src_id": "IDN", "subtype": "", "name": "Indonesia", "bbox": [94.97, -11.01, 141.02, 6.08]}]))
 
     tool_call = {
         "type": "tool_call",
@@ -421,6 +422,7 @@ async def test_query_with_context_layer(
             "query": query,
             "start_date": "2022-01-01",
             "end_date": "2022-12-31",
+            "state": state,
             "tool_call_id": tool_call_id,
         },
     }

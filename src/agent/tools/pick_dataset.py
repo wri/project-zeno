@@ -169,7 +169,7 @@ async def select_best_dataset(
     user query and provide reason why it is the best match. Always return at least one dataset.
     Use all information provided to decide which dataset is the best match, especially the selection hints.
 
-    Select a single context layer from the dataset if relevant for the user query, only if it doesn't conflict with the time range and AOI extent. Context layers
+    Select a single context layer from the dataset if relevant for the user query. Context layers
     allow difrenciating between different types of data within the same dataset. So if a user asks
     to show something like "show me tree cover loss by driver", you should select a context layer. 
     
