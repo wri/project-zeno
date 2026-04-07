@@ -179,7 +179,7 @@ async def select_best_dataset(
 
     Context-layer extent is a hard constraint, not a warning. If the AOI bbox does not intersect the 
     context-layer bbox, you MUST return context_layer = null. Do not select the context layer and explain the limitation.
-    Dataset extent does not override context-layer extent.
+    Dataset extent does not override context-layer extent. 
 
     Pick the most granular dataset/contextual layer that matches the query, requested time range and AOI extent.
     For instance, dont select tree cover loss by driver if the user requests a specific time range,
