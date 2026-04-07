@@ -91,34 +91,6 @@ PICK_DATASET TOOL NOTES:
     2. If the user requests a change in context for a  layer (like drivers, land cover change, data over time, etc.)
 - Warn the user if there is not an exact date match for the dataset, but move forward with the analysis.
 
-TREE COVER THRESHOLD SELECTION (canopy_cover parameter in pull_data):
-- Valid thresholds: 10, 15, 20, 25, 30, 50, 75 (percent canopy density)
-- Default to 30% when unsure or not specified by the user
-- Infer threshold from context using national forest definitions below. The LLM already knows these — trust its knowledge:
-  - 10%: USA (USFS FIA), Canada (NRCan), Brazil (FAO alignment), Mexico, Peru, Argentina, Ecuador, Germany, France, Sweden,
-          Finland, Italy, Norway, India (FSI), Vietnam, Philippines, South Africa, Kenya, Ethiopia, Russia — FAO/UNFCCC standard
-  - 20%: Australia (ABARES), China (national), United Kingdom (Forest Research), Spain
-  - 25%: Chile (CONAF)
-  - 30%: Colombia (IDEAM), Costa Rica (FONAFIFO), DRC, Republic of Congo, Japan, New Zealand — GFW default
-  - 50%: Dense closed-canopy forest analyses; high-density forest filter
-  - 75%: Very dense closed canopy only
-- If the user explicitly names a threshold (e.g. "using 10% canopy cover"), use that value exactly
-- If the user references a country's national forest definition, map to the appropriate threshold
-- If the dataset is Forest greenhouse gas net flux, do NOT set canopy_cover — it is always fixed at 30%
-- When stating the threshold in your response, ALWAYS justify it: name the national agency or framework it comes from
-  AND include a markdown hyperlink to the relevant definition or report. Examples:
-  - "10% — India's national forest definition per the [Forest Survey of India (FSI)](https://fsi.nic.in/)"
-  - "10% — USA national forest definition per the [USFS Forest Inventory and Analysis (FIA)](https://www.fia.fs.usda.gov/)"
-  - "10% — Canada's national forest definition per [Natural Resources Canada (NRCan)](https://natural-resources.canada.ca/our-natural-resources/forests/state-canadas-forests-report/how-does-canada-define-forest/17639)"
-  - "10% — [FAO/UNFCCC standard forest definition](https://www.fao.org/forestry/fra/en/) (≥10% canopy cover, ≥0.5 ha, ≥5 m height)"
-  - "20% — Australia's national forest definition per [ABARES](https://www.agriculture.gov.au/abares/forestsaustralia/forest-data-maps-and-tools/forest-definition)"
-  - "20% — UK national forest definition per [Forest Research](https://www.forestresearch.gov.uk/tools-and-resources/statistics/statistics-by-topic/woodland-statistics/)"
-  - "25% — Chile's national forest definition per [CONAF](https://www.conaf.cl/)"
-  - "30% — Colombia's national forest definition per [IDEAM](https://www.ideam.gov.co/) / UNFCCC REDD+ submission"
-  - "30% — Costa Rica's national forest definition per [FONAFIFO](https://www.fonafifo.go.cr/)"
-  - "30% — [GFW default](https://www.globalforestwatch.org/) (no country-specific definition applied)"
-- If the user does not specify a country or threshold, state "30% — [GFW default](https://www.globalforestwatch.org/)"
-
 GENERATE_INSIGHTS TOOL NOTES:
 - Provide a 1-2 sentence summary of the insights in the response.
 

@@ -7,6 +7,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.tools.canopy_cover import resolve_canopy_cover
 from src.agent.tools.data_handlers.analytics_handler import AnalyticsHandler
 from src.agent.tools.data_handlers.base import DataPullResult
 from src.agent.tools.datasets_config import DATASETS
@@ -114,13 +115,17 @@ async def pull_data(
         end_date: End date in YYYY-MM-DD format
         change_over_time_query: Whether the query is about change over time. If it is about composition or current status, return False. If it is about dynamics or change, return True.
         canopy_cover: Tree cover canopy density threshold as a percentage (e.g. 10, 15, 20, 25, 30, 50, 75).
-            Infer from user context or country forest definitions. Defaults to 30 when not specified.
-            Note: Forest greenhouse gas net flux dataset ignores this and always uses 30%.
+            Only set this if the user explicitly requests a specific threshold (e.g. "use 20% canopy cover").
+            When omitted, the threshold is resolved automatically from the country's national forest
+            definition. Note: Forest greenhouse gas net flux always uses 30% regardless of this value.
     """
     dataset = state["dataset"]
-    aoi_names = [a["name"] for a in state["aoi_selection"]["aois"]]
+    aois = state["aoi_selection"]["aois"]
+    aoi_names = [a["name"] for a in aois]
+    resolved_canopy_cover, _ = resolve_canopy_cover(aois, explicit=canopy_cover)
     logger.info(
-        f"PULL-DATA-TOOL: AOI: {aoi_names}, Dataset: {dataset.get('dataset_name', '')}, Start Date: {start_date}, End Date: {end_date}"
+        f"PULL-DATA-TOOL: AOI: {aoi_names}, Dataset: {dataset.get('dataset_name', '')}, "
+        f"Start Date: {start_date}, End Date: {end_date}, canopy_cover: {resolved_canopy_cover}%"
     )
 
     effective_start, effective_end, range_clamped = await revise_date_range(
@@ -148,8 +153,8 @@ async def pull_data(
         start_date=effective_start,
         end_date=effective_end,
         change_over_time_query=change_over_time_query,
-        aois=state["aoi_selection"]["aois"],
-        canopy_cover=canopy_cover if canopy_cover is not None else 30,
+        aois=aois,
+        canopy_cover=resolved_canopy_cover,
     )
 
     # Create tool message
@@ -192,8 +197,6 @@ async def pull_data(
         content="|".join(tool_messages) if tool_messages else "No data pulled",
         tool_call_id=tool_call_id,
     )
-
-    resolved_canopy_cover = canopy_cover if canopy_cover is not None else 30
 
     return Command(
         update={
