@@ -122,7 +122,7 @@ async def pull_data(
     dataset = state["dataset"]
     aois = state["aoi_selection"]["aois"]
     aoi_names = [a["name"] for a in aois]
-    resolved_canopy_cover, _ = resolve_canopy_cover(aois, explicit=canopy_cover)
+    resolved_canopy_cover, canopy_cover_citation = resolve_canopy_cover(aois, explicit=canopy_cover)
     logger.info(
         f"PULL-DATA-TOOL: AOI: {aoi_names}, Dataset: {dataset.get('dataset_name', '')}, "
         f"Start Date: {start_date}, End Date: {end_date}, canopy_cover: {resolved_canopy_cover}%"
@@ -191,6 +191,16 @@ async def pull_data(
         tool_messages.append(
             f"Date range was adjusted to the dataset's available range: {effective_start} to {effective_end} "
             f"(requested: {start_date} to {end_date})."
+        )
+
+    _canopy_cover_datasets = {
+        "Tree cover loss",
+        "Tree cover loss by dominant driver",
+        "Tree cover",
+    }
+    if dataset.get("dataset_name") in _canopy_cover_datasets:
+        tool_messages.append(
+            f"Canopy cover threshold: {resolved_canopy_cover}% — {canopy_cover_citation}"
         )
 
     tool_message = ToolMessage(

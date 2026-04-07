@@ -66,20 +66,32 @@ The base system prompt is unchanged — the `pull_data` tool docstring is suffic
 to instruct the LLM to only pass `canopy_cover` when the user explicitly names a
 threshold.
 
-### Citation and justification in responses
+### Surfacing the citation in the agent response
 
-The citation language ("10% — India's national forest definition per the
-[Forest Survey of India (FSI)](https://fsi.nic.in/)") lives in
-`presentation_instructions` inside `tree_cover_loss.yml`. This is injected by
-`generate_insights` only when the Tree Cover Loss dataset is active — never in the
-base system prompt. This is unchanged.
+`resolve_canopy_cover()` returns both the threshold int and the full citation
+markdown string. For tree cover datasets (Tree cover loss, Tree cover loss by
+dominant driver, Tree cover), `pull_data` appends the citation to its tool
+message:
+
+```
+Canopy cover threshold: 10% — India's national forest definition per the [Forest Survey of India (FSI)](https://fsi.nic.in/)
+```
+
+The main agent LLM sees this in its context between tool calls and includes it in
+its conversational response. Forest greenhouse gas net flux is excluded — it
+always uses a fixed 30% and the threshold is not user-configurable.
+
+The citation text in `presentation_instructions` inside `tree_cover_loss.yml`
+provides additional guidance to the insight-generation step (injected by
+`generate_insights` only when Tree Cover Loss is active — never in the base system
+prompt). This is unchanged.
 
 ### Files changed
 
 | File | Change |
 |------|--------|
 | `src/agent/tools/canopy_cover.py` | **New.** Typed lookup table + `resolve_canopy_cover()` |
-| `src/agent/tools/pull_data.py` | Calls `resolve_canopy_cover()` instead of `canopy_cover or 30` |
+| `src/agent/tools/pull_data.py` | Calls `resolve_canopy_cover()`, appends threshold + citation to tool message for tree cover datasets |
 | `src/agent/graph.py` | Removed 27-line `TREE COVER THRESHOLD SELECTION` block |
 | `tests/tools/test_canopy_cover_lookup.py` | **New.** Unit tests for lookup table and resolver |
 
