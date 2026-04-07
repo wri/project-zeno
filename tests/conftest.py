@@ -13,7 +13,8 @@ from sqlalchemy import NullPool, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.api.app import app, fetch_user_from_rw_api
+from src.api.app import app
+from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.data_models import Base, ThreadOrm, UserOrm, UserType
 from src.api.schemas import UserModel
 from src.shared.database import (
@@ -70,7 +71,7 @@ async def mock_replay_chat(thread_id):
 
 
 # Apply the mock globally for all tests
-patcher = patch("src.api.app.replay_chat", mock_replay_chat)
+patcher = patch("src.api.routers.threads.replay_chat", mock_replay_chat)
 patcher.start()
 
 

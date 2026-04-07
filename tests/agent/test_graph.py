@@ -371,7 +371,8 @@ async def run_agent(query: str, thread_id: str | None = None):
 
 
 async def test_agent_for_disturbance_alerts_for_brazil(structlog_context):
-    query = "Compare ecosystem conversion in Para and Parana in Brazil in the last 5 months"
+    # query = "Compare ecosystem conversion in Para and Parana in Brazil in the last 5 months"
+    query = "True or False: Logging causes more more tree cover loss than Wildfire in Aveiro, Portugal?  Use the latest available data"
     steps = await run_agent(query)
     assert len(steps) > 0
     tool_steps = [dat["tools"] for dat in steps if "tools" in dat]

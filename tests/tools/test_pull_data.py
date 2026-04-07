@@ -7,7 +7,8 @@ from sqlalchemy import select
 
 from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pull_data import pull_data, revise_date_range
-from src.api.app import app, fetch_user_from_rw_api
+from src.api.app import app
+from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.data_models import WhitelistedUserOrm
 from src.api.schemas import UserModel
 from tests.conftest import async_session_maker

@@ -124,7 +124,7 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
     await whitelist_test_user()
 
     # Override auth to use the whitelisted email
-    from src.api.app import fetch_user_from_rw_api
+    from src.api.auth.dependencies import fetch_user_from_rw_api
     from src.api.schemas import UserModel
 
     def mock_auth():
