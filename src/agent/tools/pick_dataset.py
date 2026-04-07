@@ -169,15 +169,18 @@ async def select_best_dataset(
     user query and provide reason why it is the best match. Always return at least one dataset.
     Use all information provided to decide which dataset is the best match, especially the selection hints.
 
-    Select a single context layer from the dataset if relevant for the user query. Context layers
+    Select a single context layer from the dataset if relevant for the user query, only if it doesn't conflict with the time range and AOI extent. Context layers
     allow difrenciating between different types of data within the same dataset. So if a user asks
-    to show something like "show me tree cover loss by driver", you should select a context layer
-
+    to show something like "show me tree cover loss by driver", you should select a context layer. 
+    
     Evaluate if the best dataset is available for the date range requested by the user,
     if not, pick the closest date range but warn the user that there
     is not an exact match with the query requested by the user in the reason field.
 
-    Pick the most granular dataset that matches the query, requested time range and extent if specified.
+    Evaluate if the contextual layer is available for the AOIs given their bounding boxes
+    and the contextual layer extent. Don't select a contextual layer if the AOIs are outside the layer extent. 
+
+    Pick the most granular dataset/contextual layer that matches the query, requested time range and AOI extent.
     For instance, dont select tree cover loss by driver if the user requests a specific time range,
     pick tree cover loss instead.
 
@@ -186,13 +189,14 @@ async def select_best_dataset(
 
     Use the language of the user query to generate the reason.
 
+    AOI context:
+    
+    is_tropical,bounding_box
+    false,[-139.06, 48.25, -114.03, 60.01]
+
     Candidate datasets:
 
     {candidate_datasets}
-
-    Areas of interest bounding box:
-    
-    {aois}
 
     User query:
 

@@ -639,6 +639,7 @@ async def test_queries_context_layer_outside_extent(
     """
     Test a tropics only-contextual layer isn't selected
     """
+    
     query = "Tree cover loss in primary forest"
     expected_dataset_id = 4
     expected_context_layer = None
