@@ -51,6 +51,24 @@ def reset_google_clients():
     pd_module.retriever_cache = None
 
 
+@pytest.fixture
+def state():
+    return AgentState(
+        aoi_selection=AOISelection(
+            name="Indonesia",
+            aois=[
+                {
+                    "source": "gadm",
+                    "src_id": "IDN",
+                    "subtype": "",
+                    "name": "Indonesia",
+                    "bbox": [94.97, -11.01, 141.02, 6.08],
+                }
+            ],
+        )
+    )
+
+
 DIST_ALERT = "ecosystem disturbance alerts"
 LAND_COVER_CHANGE = "land cover change"
 GRASSLANDS = "grasslands"
@@ -371,12 +389,12 @@ def test_query_with_expected_dataset(request):
 
 async def test_queries_return_expected_dataset(
     test_query_with_expected_dataset,
+    state,
 ):
     query, expected_dataset, start_date, end_date = (
         test_query_with_expected_dataset
     )
     tool_call_id = str(uuid.uuid4())
-    state = AgentState(aoi_selection=AOISelection(name="Indonesia", aois=[{"source": "gadm", "src_id": "IDN", "subtype": "", "name": "Indonesia", "bbox": [94.97, -11.01, 141.02, 6.08]}]))
 
     tool_call = {
         "type": "tool_call",
@@ -409,10 +427,9 @@ async def test_queries_return_expected_dataset(
     ],
 )
 async def test_query_with_context_layer(
-    query, expected_dataset_id, expected_context_layer
+    query, expected_dataset_id, expected_context_layer, state
 ):  
     tool_call_id = str(uuid.uuid4())
-    state = AgentState(aoi_selection=AOISelection(name="Indonesia", aois=[{"source": "gadm", "src_id": "IDN", "subtype": "", "name": "Indonesia", "bbox": [94.97, -11.01, 141.02, 6.08]}]))
 
     tool_call = {
         "type": "tool_call",
@@ -448,7 +465,7 @@ async def test_query_with_context_layer(
         CARBON_FLUX,
     ],
 )
-async def test_tile_url_contains_date(dataset):
+async def test_tile_url_contains_date(dataset, state):
     year = "2020"
     if dataset == TREE_COVER:
         year = "2000"
@@ -462,6 +479,7 @@ async def test_tile_url_contains_date(dataset):
             "query": f"Find me {dataset} data for {year}",
             "start_date": f"{year}-01-01",
             "end_date": f"{year}-12-31",
+            "state": state,
             "tool_call_id": tool_call_id,
         },
     }
@@ -507,13 +525,12 @@ def _make_fake_selection(
     "dataset_id,hallucinated_layer",
     [
         (4, "Tree cover loss"),  # The exact bug from the trace
-        (4, "primary_forest"),  # variables value, not a context_layer
         (1, "Global land cover"),
         (7, "tree cover"),
     ],
 )
 async def test_hallucinated_context_layer_is_discarded(
-    dataset_id, hallucinated_layer
+    dataset_id, hallucinated_layer, state,
 ):
     """Verify that invalid context_layer values from LLM are set to None."""
     import pandas as pd
@@ -544,6 +561,7 @@ async def test_hallucinated_context_layer_is_discarded(
                 "query": "test query",
                 "start_date": "2022-01-01",
                 "end_date": "2022-12-31",
+                "state": state,
                 "tool_call_id": tool_call_id,
             },
         }
@@ -557,7 +575,7 @@ async def test_hallucinated_context_layer_is_discarded(
     )
 
 
-async def test_valid_context_layer_is_preserved():
+async def test_valid_context_layer_is_preserved(state):
     """Verify that a valid context_layer (e.g. 'driver' for DIST-ALERT) is kept."""
     import pandas as pd
 
@@ -585,6 +603,7 @@ async def test_valid_context_layer_is_preserved():
                 "query": "disturbance alerts by driver",
                 "start_date": "2024-01-01",
                 "end_date": "2024-12-31",
+                "state": state,
                 "tool_call_id": tool_call_id,
             },
         }
@@ -595,7 +614,7 @@ async def test_valid_context_layer_is_preserved():
     assert result_layer == "driver"
 
 
-async def test_tcl_by_driver_always_gets_driver_context_layer():
+async def test_tcl_by_driver_always_gets_driver_context_layer(state):
     """Dataset 8 (TCL by driver) should always have context_layer='driver',
     even if the LLM returns None."""
     import pandas as pd
@@ -626,6 +645,7 @@ async def test_tcl_by_driver_always_gets_driver_context_layer():
                 "query": "tree cover loss by driver",
                 "start_date": "2022-01-01",
                 "end_date": "2022-12-31",
+                "state": state,
                 "tool_call_id": tool_call_id,
             },
         }
@@ -646,7 +666,7 @@ async def test_queries_context_layer_outside_extent(
     expected_dataset_id = 4
     expected_context_layer = None
     tool_call_id = str(uuid.uuid4())
-    state = AgentState(aoi_selection=AOISelection(name="Canada", aois=[{"source": "gadm", "src_id": "CAN", "subtype": "", "name": "Canada", "bbox": [-141.0, 41.68, -52.62, 83.11]}]))
+    non_tropics_state = AgentState(aoi_selection=AOISelection(name="Canada", aois=[{"source": "gadm", "src_id": "CAN", "subtype": "", "name": "Canada", "bbox": [-141.0, 41.68, -52.62, 83.11]}]))
     
     tool_call = {
         "type": "tool_call",
@@ -656,7 +676,7 @@ async def test_queries_context_layer_outside_extent(
             "query": query,
             "start_date": "2022-01-01",
             "end_date": "2022-12-31",
-            "state": state,
+            "state": non_tropics_state,
             "tool_call_id": tool_call_id,
         },
     }

@@ -211,6 +211,8 @@ async def select_best_dataset(
         DATASET_SELECTION_PROMPT
         | SMALL_MODEL.with_structured_output(DatasetOption)
     )
+
+    aois = pd.DataFrame(aoi_selection["aois"]).to_csv(index=False)
     selection_result = await dataset_selection_chain.ainvoke(
         {
             "candidate_datasets": candidate_datasets[
@@ -224,7 +226,7 @@ async def select_best_dataset(
                 ]
             ].to_csv(index=False),
             "user_query": query,
-            "aois": aoi_selection["aois"][0]["bbox"],
+            "aois": aois,
         }
     )
     logger.debug(
