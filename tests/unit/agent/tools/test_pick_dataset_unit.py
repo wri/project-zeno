@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
 from langchain_core.messages import ToolMessage
@@ -12,7 +14,7 @@ from src.agent.tools.models.dataset_option import DatasetOption
 from src.agent.tools.models.dataset_selection_result import (
     DatasetSelectionResult,
 )
-from src.agent.tools.pick_dataset.pick_dataset import pick_dataset_func
+from src.agent.tools.pick_dataset.pick_dataset import pick_dataset
 from src.shared.config import SharedSettings
 
 pytestmark = pytest.mark.asyncio
@@ -54,16 +56,16 @@ def dataset_selection_result(
 
 
 @pytest.fixture
-def candidate_datasets() -> pd.DataFrame:
+def candidate_dataset_ids() -> list[int]:
     return [4]
 
 
 class FakeDatasetRetriever:
-    def __init__(self, candidate_datasets):
-        self.candidate_datasets = candidate_datasets
+    def __init__(self, candidate_dataset_ids):
+        self.candidate_dataset_ids = candidate_dataset_ids
 
     async def retrieve(self, query):
-        return self.candidate_datasets
+        return self.candidate_dataset_ids
 
 
 class FakeDatasetSelector:
@@ -78,9 +80,9 @@ class FakeDatasetSelector:
 
 @pytest.fixture
 def fake_dataset_retriever(
-    candidate_datasets: pd.DataFrame,
+    candidate_dataset_ids: list[int],
 ) -> FakeDatasetRetriever:
-    return FakeDatasetRetriever(candidate_datasets)
+    return FakeDatasetRetriever(candidate_dataset_ids)
 
 
 @pytest.fixture
@@ -96,18 +98,67 @@ def _make_dataset_selection_result(
     return dataset_selection_result.model_copy(update=updates)
 
 
-async def test_pick_dataset_func_adds_selected_dataset_to_command_update(
+def _pick_dataset_tool_call(
+    *,
+    query: str,
+    start_date: str,
+    end_date: str,
+    tool_call_id: str = "tool-call-1",
+) -> dict:
+    return {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": start_date,
+            "end_date": end_date,
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+
+async def _invoke_pick_dataset_with_fakes(
+    *,
+    query: str,
+    start_date: str,
+    end_date: str,
+    tool_call_id: str,
+    fake_dataset_retriever: FakeDatasetRetriever,
+    fake_dataset_selector: FakeDatasetSelector,
+):
+    with (
+        patch(
+            "src.agent.tools.pick_dataset.pick_dataset.DatasetRetriever",
+            return_value=fake_dataset_retriever,
+        ),
+        patch(
+            "src.agent.tools.pick_dataset.pick_dataset.DatasetSelector",
+            return_value=fake_dataset_selector,
+        ),
+    ):
+        return await pick_dataset.ainvoke(
+            _pick_dataset_tool_call(
+                query=query,
+                start_date=start_date,
+                end_date=end_date,
+                tool_call_id=tool_call_id,
+            )
+        )
+
+
+async def test_pick_dataset_adds_selected_dataset_to_command_update(
     dataset_selection_result: DatasetSelectionResult,
     fake_dataset_retriever: FakeDatasetRetriever,
     fake_dataset_selector: FakeDatasetSelector,
 ):
-    result = await pick_dataset_func(
+    result = await _invoke_pick_dataset_with_fakes(
         query="Show tree cover loss in Brazil",
         start_date="2020-01-01",
         end_date="2024-12-31",
         tool_call_id="tool-call-1",
-        dataset_retriever=fake_dataset_retriever,
-        dataset_selector=fake_dataset_selector,
+        fake_dataset_retriever=fake_dataset_retriever,
+        fake_dataset_selector=fake_dataset_selector,
     )
 
     assert result.update["dataset"] == {
@@ -116,17 +167,17 @@ async def test_pick_dataset_func_adds_selected_dataset_to_command_update(
     }
 
 
-async def test_pick_dataset_func_adds_tool_message_to_command_update(
+async def test_pick_dataset_adds_tool_message_to_command_update(
     fake_dataset_retriever: FakeDatasetRetriever,
     fake_dataset_selector: FakeDatasetSelector,
 ):
-    result = await pick_dataset_func(
+    result = await _invoke_pick_dataset_with_fakes(
         query="Show tree cover loss in Brazil",
         start_date="2020-01-01",
         end_date="2024-12-31",
         tool_call_id="tool-call-1",
-        dataset_retriever=fake_dataset_retriever,
-        dataset_selector=fake_dataset_selector,
+        fake_dataset_retriever=fake_dataset_retriever,
+        fake_dataset_selector=fake_dataset_selector,
     )
 
     assert "messages" in result.update
@@ -142,11 +193,11 @@ async def test_pick_dataset_func_adds_tool_message_to_command_update(
     )
 
 
-async def test_pick_dataset_func_prefixes_relative_tile_url(
-    candidate_datasets: pd.DataFrame,
+async def test_pick_dataset_prefixes_relative_tile_url(
+    candidate_dataset_ids: list[int],
     dataset_selection_result: DatasetSelectionResult,
 ):
-    fake_dataset_retriever = FakeDatasetRetriever(candidate_datasets)
+    fake_dataset_retriever = FakeDatasetRetriever(candidate_dataset_ids)
     fake_dataset_selector = FakeDatasetSelector(
         _make_dataset_selection_result(
             dataset_selection_result,
@@ -154,13 +205,13 @@ async def test_pick_dataset_func_prefixes_relative_tile_url(
         )
     )
 
-    result = await pick_dataset_func(
+    result = await _invoke_pick_dataset_with_fakes(
         query="Show tree cover loss in Brazil",
         start_date="2020-01-01",
         end_date="2024-12-31",
         tool_call_id="tool-call-1",
-        dataset_retriever=fake_dataset_retriever,
-        dataset_selector=fake_dataset_selector,
+        fake_dataset_retriever=fake_dataset_retriever,
+        fake_dataset_selector=fake_dataset_selector,
     )
 
     assert result.update["dataset"]["tile_url"].startswith(
@@ -168,11 +219,11 @@ async def test_pick_dataset_func_prefixes_relative_tile_url(
     )
 
 
-async def test_pick_dataset_func_appends_date_range_for_dist_alert(
-    candidate_datasets: pd.DataFrame,
+async def test_pick_dataset_appends_date_range_for_dist_alert(
+    candidate_dataset_ids: list[int],
     dataset_selection_result: DatasetSelectionResult,
 ):
-    fake_dataset_retriever = FakeDatasetRetriever(candidate_datasets)
+    fake_dataset_retriever = FakeDatasetRetriever(candidate_dataset_ids)
     fake_dataset_selector = FakeDatasetSelector(
         _make_dataset_selection_result(
             dataset_selection_result,
@@ -183,13 +234,13 @@ async def test_pick_dataset_func_appends_date_range_for_dist_alert(
         )
     )
 
-    result = await pick_dataset_func(
+    result = await _invoke_pick_dataset_with_fakes(
         query="Show recent disturbance alerts",
         start_date="2024-01-02",
         end_date="2024-03-04",
         tool_call_id="tool-call-1",
-        dataset_retriever=fake_dataset_retriever,
-        dataset_selector=fake_dataset_selector,
+        fake_dataset_retriever=fake_dataset_retriever,
+        fake_dataset_selector=fake_dataset_selector,
     )
 
     assert (
@@ -198,11 +249,11 @@ async def test_pick_dataset_func_appends_date_range_for_dist_alert(
     )
 
 
-async def test_pick_dataset_func_formats_land_cover_year_with_end_date_year(
-    candidate_datasets: pd.DataFrame,
+async def test_pick_dataset_formats_land_cover_year_with_end_date_year(
+    candidate_dataset_ids: list[int],
     dataset_selection_result: DatasetSelectionResult,
 ):
-    fake_dataset_retriever = FakeDatasetRetriever(candidate_datasets)
+    fake_dataset_retriever = FakeDatasetRetriever(candidate_dataset_ids)
     fake_dataset_selector = FakeDatasetSelector(
         _make_dataset_selection_result(
             dataset_selection_result,
@@ -213,13 +264,13 @@ async def test_pick_dataset_func_formats_land_cover_year_with_end_date_year(
         )
     )
 
-    result = await pick_dataset_func(
+    result = await _invoke_pick_dataset_with_fakes(
         query="Show land cover",
         start_date="2018-01-01",
         end_date="2020-12-31",
         tool_call_id="tool-call-1",
-        dataset_retriever=fake_dataset_retriever,
-        dataset_selector=fake_dataset_selector,
+        fake_dataset_retriever=fake_dataset_retriever,
+        fake_dataset_selector=fake_dataset_selector,
     )
 
     assert (
@@ -228,11 +279,11 @@ async def test_pick_dataset_func_formats_land_cover_year_with_end_date_year(
     )
 
 
-async def test_pick_dataset_func_falls_back_to_2022_for_out_of_range_grasslands_year(
-    candidate_datasets: pd.DataFrame,
+async def test_pick_dataset_falls_back_to_2022_for_out_of_range_grasslands_year(
+    candidate_dataset_ids: list[int],
     dataset_selection_result: DatasetSelectionResult,
 ):
-    fake_dataset_retriever = FakeDatasetRetriever(candidate_datasets)
+    fake_dataset_retriever = FakeDatasetRetriever(candidate_dataset_ids)
     fake_dataset_selector = FakeDatasetSelector(
         _make_dataset_selection_result(
             dataset_selection_result,
@@ -243,13 +294,13 @@ async def test_pick_dataset_func_falls_back_to_2022_for_out_of_range_grasslands_
         )
     )
 
-    result = await pick_dataset_func(
+    result = await _invoke_pick_dataset_with_fakes(
         query="Show grasslands",
         start_date="2024-01-01",
         end_date="2025-12-31",
         tool_call_id="tool-call-1",
-        dataset_retriever=fake_dataset_retriever,
-        dataset_selector=fake_dataset_selector,
+        fake_dataset_retriever=fake_dataset_retriever,
+        fake_dataset_selector=fake_dataset_selector,
     )
 
     assert (
@@ -258,11 +309,11 @@ async def test_pick_dataset_func_falls_back_to_2022_for_out_of_range_grasslands_
     )
 
 
-async def test_pick_dataset_func_falls_back_to_full_range_for_out_of_range_tree_cover_loss_year(
-    candidate_datasets: pd.DataFrame,
+async def test_pick_dataset_falls_back_to_full_range_for_out_of_range_tree_cover_loss_year(
+    candidate_dataset_ids: list[int],
     dataset_selection_result: DatasetSelectionResult,
 ):
-    fake_dataset_retriever = FakeDatasetRetriever(candidate_datasets)
+    fake_dataset_retriever = FakeDatasetRetriever(candidate_dataset_ids)
     fake_dataset_selector = FakeDatasetSelector(
         _make_dataset_selection_result(
             dataset_selection_result,
@@ -270,13 +321,13 @@ async def test_pick_dataset_func_falls_back_to_full_range_for_out_of_range_tree_
         )
     )
 
-    result = await pick_dataset_func(
+    result = await _invoke_pick_dataset_with_fakes(
         query="Show tree cover loss in Brazil",
         start_date="1999-01-01",
         end_date="2025-12-31",
         tool_call_id="tool-call-1",
-        dataset_retriever=fake_dataset_retriever,
-        dataset_selector=fake_dataset_selector,
+        fake_dataset_retriever=fake_dataset_retriever,
+        fake_dataset_selector=fake_dataset_selector,
     )
 
     assert (
@@ -285,16 +336,16 @@ async def test_pick_dataset_func_falls_back_to_full_range_for_out_of_range_tree_
     )
 
 
-async def test_pick_dataset_func_raises_value_error_for_invalid_start_date(
+async def test_pick_dataset_raises_value_error_for_invalid_start_date(
     fake_dataset_retriever: FakeDatasetRetriever,
     fake_dataset_selector: FakeDatasetSelector,
 ):
     with pytest.raises(ValueError):
-        await pick_dataset_func(
+        await _invoke_pick_dataset_with_fakes(
             query="Show tree cover loss in Brazil",
             start_date="2020/01/01",
             end_date="2024-12-31",
             tool_call_id="tool-call-1",
-            dataset_retriever=fake_dataset_retriever,
-            dataset_selector=fake_dataset_selector,
+            fake_dataset_retriever=fake_dataset_retriever,
+            fake_dataset_selector=fake_dataset_selector,
         )

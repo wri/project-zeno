@@ -101,3 +101,6 @@ class DatasetSelector:
             code_instructions=selected_row.code_instructions,
             presentation_instructions=selected_row.presentation_instructions,
         )
+
+
+dataset_selector = DatasetSelector()

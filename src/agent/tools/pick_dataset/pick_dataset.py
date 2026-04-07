@@ -15,11 +15,8 @@ from src.agent.tools.data_handlers.analytics_handler import (
     TREE_COVER_LOSS_ID,
 )
 from src.agent.tools.datasets_config import DATASETS
-from src.agent.tools.pick_dataset.dataset_retriever import (
-    DatasetRetriever,
-    dataset_retriever,
-)
-from src.agent.tools.pick_dataset.dataset_selector import DatasetSelector
+from src.agent.tools.pick_dataset.dataset_retriever import dataset_retriever
+from src.agent.tools.pick_dataset.dataset_selector import dataset_selector
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -44,18 +41,8 @@ async def pick_dataset(
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
     """
-    return await pick_dataset_func(query, start_date, end_date, tool_call_id)
-
-
-async def pick_dataset_func(
-    query: str,
-    start_date: str,
-    end_date: str,
-    tool_call_id: Annotated[str, InjectedToolCallId] = None,
-    dataset_retriever: DatasetRetriever = dataset_retriever,
-    dataset_selector: DatasetSelector = DatasetSelector(),
-) -> Command:
     logger.info("PICK-DATASET-TOOL")
+
     # Step 1: RAG lookup
     candidate_datasets = await get_candidate_datasets(query, dataset_retriever)
 
