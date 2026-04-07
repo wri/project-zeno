@@ -285,7 +285,6 @@ class AnalyticsHandler(DataSourceHandler):
                 "start_year": start_date[:4],
                 "end_year": end_date[:4],
                 "canopy_cover": 30,
-                "forest_filter": None,
                 "forest_filter": forest_filter,
                 "intersections": intersections,
             }
@@ -295,11 +294,16 @@ class AnalyticsHandler(DataSourceHandler):
             end_year = int(end_date[:4]) - int(end_date[:4]) % 5
             if start_year == end_year:
                 end_year += 5
+
+            forest_filter = None
+            if dataset.get("context_layer") == "primary_forest":
+                forest_filter = "primary_forest"
+
             payload = {
                 **base_payload,
                 "start_year": str(max(2000, start_year)),
                 "end_year": str(max(2005, end_year)),
-                "forest_filter": None,
+                "forest_filter": forest_filter,
             }
         elif dataset.get("dataset_id") == FOREST_CARBON_FLUX_ID:
             payload = {
@@ -307,10 +311,14 @@ class AnalyticsHandler(DataSourceHandler):
                 "canopy_cover": 30,
             }
         elif dataset.get("dataset_id") == TREE_COVER_ID:
+            forest_filter = None
+            if dataset.get("context_layer") == "primary_forest":
+                forest_filter = "primary_forest"
+
             payload = {
                 **base_payload,
                 "canopy_cover": 30,
-                "forest_filter": None,
+                "forest_filter": forest_filter,
             }
         elif dataset.get("dataset_id") == SLUC_EMISSION_FACTORS_ID:
             payload = {
