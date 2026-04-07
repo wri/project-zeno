@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import requests
 
+from src.agent.state import AOISelection, AgentState
 from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pick_dataset import (
     DatasetSelectionResult,
@@ -73,7 +74,6 @@ lookup = {
     8: TREE_COVER_LOSS_BY_DRIVER,
     9: SLUC_EF,
 }
-
 
 @pytest.fixture(
     params=[
@@ -376,6 +376,7 @@ async def test_queries_return_expected_dataset(
         test_query_with_expected_dataset
     )
     tool_call_id = str(uuid.uuid4())
+    state = AgentState(aoi_selection=AOISelection(name="Indonesia", aois=[{"source": "gadm", "src_id": "IDN", "subtype": "", "name": "Indonesia", "bbox": [94.97, -11.01, 141.02, 6.08]}]))
 
     tool_call = {
         "type": "tool_call",
@@ -385,6 +386,7 @@ async def test_queries_return_expected_dataset(
             "query": query,
             "start_date": start_date,
             "end_date": end_date,
+            "state": state,
             "tool_call_id": tool_call_id,
         },
     }
@@ -630,3 +632,35 @@ async def test_tcl_by_driver_always_gets_driver_context_layer():
 
     result_layer = command.update.get("dataset", {}).get("context_layer")
     assert result_layer == "driver"
+
+
+async def test_queries_context_layer_outside_extent(
+):
+    """
+    Test a tropics only-contextual layer isn't selected
+    """
+    query = "Tree cover loss in primary forest"
+    expected_dataset_id = 4
+    expected_context_layer = None
+    tool_call_id = str(uuid.uuid4())
+    state = AgentState(aoi_selection=AOISelection(name="Canada", aois=[{"source": "gadm", "src_id": "CAN", "subtype": "", "name": "Canada", "bbox": [-141.0, 41.68, -52.62, 83.11]}]))
+    
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": "2022-01-01",
+            "end_date": "2022-12-31",
+            "state": state,
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    assert dataset_id == expected_dataset_id
+    context_layer = command.update.get("dataset", {}).get("context_layer")
+    assert context_layer == expected_context_layer

@@ -1,7 +1,8 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Dict, Optional
 
+from langchain.tools import InjectedState
 import pandas as pd
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -158,7 +159,7 @@ class DatasetSelectionResult(DatasetOption):
 
 
 async def select_best_dataset(
-    query: str, candidate_datasets: pd.DataFrame
+    query: str, candidate_datasets: pd.DataFrame, aoi_selection
 ) -> DatasetSelectionResult:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
@@ -176,7 +177,7 @@ async def select_best_dataset(
     if not, pick the closest date range but warn the user that there
     is not an exact match with the query requested by the user in the reason field.
 
-    Pick the most granular dataset that matches the query and requested time range if specified.
+    Pick the most granular dataset that matches the query, requested time range and extent if specified.
     For instance, dont select tree cover loss by driver if the user requests a specific time range,
     pick tree cover loss instead.
 
@@ -188,6 +189,10 @@ async def select_best_dataset(
     Candidate datasets:
 
     {candidate_datasets}
+
+    Areas of interest bounding box:
+    
+    {aois}
 
     User query:
 
@@ -215,6 +220,7 @@ async def select_best_dataset(
                 ]
             ].to_csv(index=False),
             "user_query": query,
+            "aois": aoi_selection["aois"][0]["bbox"],
         }
     )
     logger.debug(
@@ -253,6 +259,7 @@ async def pick_dataset(
     query: str,
     start_date: str,
     end_date: str,
+    state: Annotated[Dict, InjectedState] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
     """
@@ -265,10 +272,13 @@ async def pick_dataset(
         end_date: End date in YYYY-MM-DD format
     """
     logger.info("PICK-DATASET-TOOL")
+
+    aoi_selection = state["aoi_selection"]
+
     # Step 1: RAG lookup
     candidate_datasets = await rag_candidate_datasets(query, k=3)
     # Step 2: LLM to select best dataset and potential context layer
-    selection_result = await select_best_dataset(query, candidate_datasets)
+    selection_result = await select_best_dataset(query, candidate_datasets, aoi_selection)
 
     tool_message = f"""# About the selection
     Selected dataset name: {selection_result.dataset_name}
