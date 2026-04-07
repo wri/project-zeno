@@ -129,12 +129,12 @@ async def _invoke_pick_dataset_with_fakes(
 ):
     with (
         patch(
-            "src.agent.tools.pick_dataset.pick_dataset.DatasetRetriever",
-            return_value=fake_dataset_retriever,
+            "src.agent.tools.pick_dataset.pick_dataset.dataset_retriever",
+            fake_dataset_retriever,
         ),
         patch(
-            "src.agent.tools.pick_dataset.pick_dataset.DatasetSelector",
-            return_value=fake_dataset_selector,
+            "src.agent.tools.pick_dataset.pick_dataset.dataset_selector",
+            fake_dataset_selector,
         ),
     ):
         return await pick_dataset.ainvoke(
