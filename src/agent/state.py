@@ -1,9 +1,9 @@
 import operator
-from typing import Annotated, Sequence
+from typing import Annotated, Any, Sequence
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 from src.agent.tools.code_executors.base import CodeActPart
 
@@ -30,6 +30,8 @@ class AgentState(TypedDict):
     aoi: dict
     subtype: str
     aoi_selection: AOISelection
+    # bbox_wgs84 + optional GFW static MVT filter for Mapbox/GL JS (see aoi_vector_highlight)
+    vector_layer_highlight: NotRequired[dict[str, Any]]
 
     # pick-dataset tool
     dataset: dict

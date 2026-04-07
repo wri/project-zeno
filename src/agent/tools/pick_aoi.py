@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from src.agent.llms import SMALL_MODEL
+from src.agent.tools.aoi_vector_highlight import build_vector_layer_highlight
 from src.agent.tools.selection_name_util import build_selection_name
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
@@ -551,12 +552,15 @@ async def pick_aoi(
         match_names, subregion, len(final_aois)
     )
 
+    vector_layer_highlight = await build_vector_layer_highlight(final_aois)
+
     return Command(
         update={
             "aoi_selection": {
                 "name": selection_name,
                 "aois": final_aois,
             },
+            "vector_layer_highlight": vector_layer_highlight,
             # TODO: This is deprecated, remove it in the future
             "aoi": final_aois[0],
             "subtype": final_aois[0]["subtype"],
