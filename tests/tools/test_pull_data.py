@@ -77,6 +77,11 @@ ALL_DATASET_COMBINATIONS = [
         "context_layer": "driver",
     },
     {
+        "dataset_id": 4,
+        "dataset_name": "Tree cover loss",
+        "context_layer": "primary_forest",
+    },
+    {
         "dataset_id": 5,
         "dataset_name": "Tree cover gain",
         "context_layer": None,
