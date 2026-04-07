@@ -272,17 +272,22 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_LOSS_ID,
             TREE_COVER_LOSS_BY_DRIVER_ID,
         ]:
+            forest_filter = None
+            if dataset.get("context_layer") == "primary_forest":
+                forest_filter = "primary_forest"
+
+            intersections = []
+            if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
+                intersections = ["driver"]
+
             payload = {
                 **base_payload,
                 "start_year": start_date[:4],
                 "end_year": end_date[:4],
                 "canopy_cover": 30,
                 "forest_filter": None,
-                "intersections": (
-                    [dataset["context_layer"]]
-                    if dataset.get("context_layer")
-                    else []
-                ),
+                "forest_filter": forest_filter,
+                "intersections": intersections,
             }
         elif dataset.get("dataset_id") == TREE_COVER_GAIN_ID:
             # Tree cover gain is only available in 5-year intervals
