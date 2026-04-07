@@ -36,7 +36,7 @@ logger = get_logger(__name__)
 
 BBOX_SQL = "json_build_array(ST_XMin(geometry), ST_YMin(geometry), ST_XMax(geometry), ST_YMax(geometry)) AS bbox"
 
-# The custom geometries table stores geometries as an list of geojsons, 
+# The custom geometries table stores geometries as an list of geojsons,
 # requiring a funky SQL to pull out the overall bounds
 CUSTOM_BBOX_SQL = """
 (
