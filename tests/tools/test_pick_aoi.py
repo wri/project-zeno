@@ -196,7 +196,7 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
 async def test_pick_aoi_handles_empty_subregion_results(
     monkeypatch, structlog_context
 ):
-    pick_aoi_module = import_module("src.agent.tools.pick_aoi")
+    pick_aoi_module = import_module("src.agent.tools.pick_aoi.tool")
 
     async def fake_query_aoi_database(place_name: str, result_limit: int = 10):
         return pd.DataFrame(
@@ -289,7 +289,7 @@ async def test_global_query_with_country_subregion(
     monkeypatch, structlog_context
 ):
     """Global World + subregion='country' should return all countries within the global bbox."""
-    pick_aoi_module = import_module("src.agent.tools.pick_aoi")
+    pick_aoi_module = import_module("src.agent.tools.pick_aoi.tool")
 
     async def fake_query_aoi_database(place_name: str, result_limit: int = 10):
         return pd.DataFrame([GLOBAL_AOI])
@@ -336,7 +336,7 @@ async def test_global_query_without_subregion_is_rejected(
     monkeypatch, structlog_context
 ):
     """Selecting the global geometry directly without a subregion must be blocked."""
-    pick_aoi_module = import_module("src.agent.tools.pick_aoi")
+    pick_aoi_module = import_module("src.agent.tools.pick_aoi.tool")
 
     async def fake_query_aoi_database(place_name: str, result_limit: int = 10):
         return pd.DataFrame([GLOBAL_AOI])

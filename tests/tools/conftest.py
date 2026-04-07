@@ -5,8 +5,8 @@ For CI, we want to avoid building/loading the heavy AOI geometry DB, while
 still using "real" query outputs.
 
 When `AOI_PICK_AOI_FIXTURES_MODE=replay`, this module patches:
-- `src.agent.tools.pick_aoi.query_aoi_database`
-- `src.agent.tools.pick_aoi.query_subregion_database`
+- `src.agent.tools.pick_aoi.tool.query_aoi_database`
+- `src.agent.tools.pick_aoi.tool.query_subregion_database`
 
 to return DataFrames reconstructed from JSON fixtures recorded once from the
 real database.
@@ -93,7 +93,7 @@ def replay_aoi_queries_for_tools_tests() -> Any:
 
     # `import src.agent.tools.pick_aoi as m` can bind `m` to the StructuredTool
     # re-exported on `src.agent.tools` (same final name), not the submodule.
-    pick_aoi_py = import_module("src.agent.tools.pick_aoi")
+    pick_aoi_py = import_module("src.agent.tools.pick_aoi.tool")
     live_query_aoi_database = pick_aoi_py.query_aoi_database
 
     async def query_aoi_database_replay(
@@ -131,11 +131,11 @@ def replay_aoi_queries_for_tools_tests() -> Any:
 
     with (
         patch(
-            "src.agent.tools.pick_aoi.query_aoi_database",
+            "src.agent.tools.pick_aoi.tool.query_aoi_database",
             new=query_aoi_database_replay,
         ),
         patch(
-            "src.agent.tools.pick_aoi.query_subregion_database",
+            "src.agent.tools.pick_aoi.tool.query_subregion_database",
             new=query_subregion_database_replay,
         ),
     ):
