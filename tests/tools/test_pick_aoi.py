@@ -251,3 +251,116 @@ async def test_pick_aoi_handles_empty_subregion_results(
     assert str(command.update["messages"][0].content).startswith(
         "No matching AOIs were found for your request."
     )
+
+
+GLOBAL_AOI = {
+    "src_id": "GLB",
+    "name": "Global World",
+    "subtype": "global",
+    "source": "gadm",
+}
+
+MOCK_COUNTRIES = [
+    {
+        "name": "Brazil",
+        "subtype": "country",
+        "src_id": "BRA",
+        "source": "gadm",
+        "gadm_id": "BRA",
+    },
+    {
+        "name": "Indonesia",
+        "subtype": "country",
+        "src_id": "IDN",
+        "source": "gadm",
+        "gadm_id": "IDN",
+    },
+    {
+        "name": "Canada",
+        "subtype": "country",
+        "src_id": "CAN",
+        "source": "gadm",
+        "gadm_id": "CAN",
+    },
+]
+
+
+async def test_global_query_with_country_subregion(
+    monkeypatch, structlog_context
+):
+    """Global World + subregion='country' should return all countries within the global bbox."""
+    pick_aoi_module = import_module("src.agent.tools.pick_aoi")
+
+    async def fake_query_aoi_database(place_name: str, result_limit: int = 10):
+        return pd.DataFrame([GLOBAL_AOI])
+
+    async def fake_select_best_aoi(question, candidate_aois):
+        return GLOBAL_AOI.copy()
+
+    async def fake_query_subregion_database(
+        subregion_name: str, source: str, src_id: int
+    ):
+        return pd.DataFrame(MOCK_COUNTRIES)
+
+    monkeypatch.setattr(
+        pick_aoi_module, "query_aoi_database", fake_query_aoi_database
+    )
+    monkeypatch.setattr(
+        pick_aoi_module, "select_best_aoi", fake_select_best_aoi
+    )
+    monkeypatch.setattr(
+        pick_aoi_module,
+        "query_subregion_database",
+        fake_query_subregion_database,
+    )
+
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": "Which countries have the most deforestation globally?",
+                "places": ["Global World"],
+                "subregion": "country",
+            },
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
+        }
+    )
+
+    aois = command.update.get("aoi_selection", {}).get("aois")
+    assert aois is not None
+    assert len(aois) == 3
+    assert all(aoi["subtype"] == "country" for aoi in aois)
+
+
+async def test_global_query_without_subregion_is_rejected(
+    monkeypatch, structlog_context
+):
+    """Selecting the global geometry directly without a subregion must be blocked."""
+    pick_aoi_module = import_module("src.agent.tools.pick_aoi")
+
+    async def fake_query_aoi_database(place_name: str, result_limit: int = 10):
+        return pd.DataFrame([GLOBAL_AOI])
+
+    async def fake_select_best_aoi(question, candidate_aois):
+        return GLOBAL_AOI.copy()
+
+    monkeypatch.setattr(
+        pick_aoi_module, "query_aoi_database", fake_query_aoi_database
+    )
+    monkeypatch.setattr(
+        pick_aoi_module, "select_best_aoi", fake_select_best_aoi
+    )
+
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": "What is the deforestation rate in the world?",
+                "places": ["Global World"],
+            },
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
+        }
+    )
+
+    assert "aoi_selection" not in command.update
+    assert "subregion" in str(command.update["messages"][0].content).lower()

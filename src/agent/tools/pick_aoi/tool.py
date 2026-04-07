@@ -13,7 +13,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from src.agent.llms import SMALL_MODEL
-from src.agent.tools.selection_name_util import build_selection_name
+from src.agent.tools.pick_aoi.global_queries import (
+    handle_global_request,
+    is_global_request,
+)
+from src.agent.tools.pick_aoi.selection_name_util import build_selection_name
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
     CUSTOM_AREA_TABLE,
@@ -280,7 +284,7 @@ async def query_subregion_database(
     SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id
     FROM {table_name} AS t, aoi
     WHERE t.subtype = :subtype
-    AND ST_Within(t.geometry, aoi.geom)
+    AND ST_CoveredBy(t.geometry, aoi.geom)
     """
     logger.debug(f"Executing subregion query: {sql_query}")
 
@@ -478,12 +482,21 @@ async def pick_aoi(
     Keep pairs of places together in one place name if they belong to the same place deonmination.
     For example, "Lisbon in Portugal" -> "Lisbon, Portugal", do not separate them into "Lisbon" and "Portugal".
 
+    Global queries:
+    When the user asks about the whole world (e.g. "globally", "worldwide", "all countries"),
+    pass a global synonym as the place (e.g. "global") and set subregion="country".
+    Global queries only support subregion="country" — all countries in the database are returned
+    without any spatial filtering.
+
     Args:
         question: User's question providing context for selecting the most relevant location
         places: Names of the places or areas to find in the spatial database, expand any abbreviations, translate to English if necessary
         subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
     """
     logger.info(f"PICK-AOI-TOOL: places: '{places}', subregion: '{subregion}'")
+
+    if is_global_request(places):
+        return await handle_global_request(subregion, tool_call_id)
 
     all_results = await asyncio.gather(
         *[query_aoi_database(place, RESULT_LIMIT) for place in places]
