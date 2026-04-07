@@ -36,6 +36,25 @@ logger = get_logger(__name__)
 
 BBOX_SQL = "json_build_array(ST_XMin(geometry), ST_YMin(geometry), ST_XMax(geometry), ST_YMax(geometry)) AS bbox"
 
+# The custom geometries table stores geometries as an list of geojsons, 
+# requiring a funky SQL to pull out the overall bounds
+CUSTOM_BBOX_SQL = """
+(
+    SELECT json_build_array(
+        ST_XMin(bounds.geometry),
+        ST_YMin(bounds.geometry),
+        ST_XMax(bounds.geometry),
+        ST_YMax(bounds.geometry)
+    )
+    FROM (
+        SELECT ST_Envelope(
+            ST_Collect(ST_SetSRID(ST_GeomFromGeoJSON(geom_json), 4326))
+        ) AS geometry
+        FROM jsonb_array_elements_text(geometries) AS geom(geom_json)
+    ) AS bounds
+) AS bbox
+"""
+
 
 class AOIIndex(BaseModel):
     """Model for storing the best matched location."""
@@ -180,7 +199,7 @@ async def query_aoi_database(
                         name,
                         'custom-area' as subtype,
                         'custom' as source,
-                        {BBOX_SQL}
+                        {CUSTOM_BBOX_SQL}
                 FROM {CUSTOM_AREA_TABLE}
                 WHERE user_id = :user_id
                 AND name IS NOT NULL AND name % :place_name
