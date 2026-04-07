@@ -177,8 +177,9 @@ async def select_best_dataset(
     if not, pick the closest date range but warn the user that there
     is not an exact match with the query requested by the user in the reason field.
 
-    Evaluate if the contextual layer is available for the AOIs given their bounding boxes
-    and the contextual layer extent. Don't select a contextual layer if the AOIs are outside the layer extent. 
+    Context-layer extent is a hard constraint, not a warning. If the AOI bbox does not intersect the 
+    context-layer bbox, you MUST return context_layer = null. Do not select the context layer and explain the limitation.
+    Dataset extent does not override context-layer extent.
 
     Pick the most granular dataset/contextual layer that matches the query, requested time range and AOI extent.
     For instance, dont select tree cover loss by driver if the user requests a specific time range,
@@ -189,10 +190,9 @@ async def select_best_dataset(
 
     Use the language of the user query to generate the reason.
 
-    AOI context:
+    AOI bounding box:
     
-    is_tropical,bounding_box
-    false,[-139.06, 48.25, -114.03, 60.01]
+    {aois}
 
     Candidate datasets:
 
