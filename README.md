@@ -201,6 +201,10 @@ Then run the API tests using pytest:
 uv run pytest tests/api/
 ```
 
+### CI (GitHub Actions)
+
+**Lint** (`pre-commit`/`uv`) runs on every push. **Pytest** runs on every pull request with a Postgres service. **`tests/tools`** runs only when the PR has the `run-tools-tests` label or you start the “Tools Tests” workflow manually (it embeds datasets first).
+
 ## CLI User Management
 
 For user administration commands (making users admin, whitelisting emails), see [CLI Documentation](docs/CLI.md).
