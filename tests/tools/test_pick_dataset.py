@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import requests
 
-from src.agent.state import AOISelection, AgentState
+from src.agent.state import AgentState, AOISelection
 from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pick_dataset import (
     DatasetSelectionResult,
@@ -92,6 +92,7 @@ lookup = {
     8: TREE_COVER_LOSS_BY_DRIVER,
     9: SLUC_EF,
 }
+
 
 @pytest.fixture(
     params=[
@@ -428,7 +429,7 @@ async def test_queries_return_expected_dataset(
 )
 async def test_query_with_context_layer(
     query, expected_dataset_id, expected_context_layer, state
-):  
+):
     tool_call_id = str(uuid.uuid4())
 
     tool_call = {
@@ -530,7 +531,9 @@ def _make_fake_selection(
     ],
 )
 async def test_hallucinated_context_layer_is_discarded(
-    dataset_id, hallucinated_layer, state,
+    dataset_id,
+    hallucinated_layer,
+    state,
 ):
     """Verify that invalid context_layer values from LLM are set to None."""
     import pandas as pd
@@ -656,18 +659,30 @@ async def test_tcl_by_driver_always_gets_driver_context_layer(state):
     assert result_layer == "driver"
 
 
-async def test_queries_context_layer_outside_extent(
-):
+async def test_queries_context_layer_outside_extent():
     """
     Test a tropics only-contextual layer isn't selected
     """
-    
+
     query = "Tree cover loss in primary forest"
     expected_dataset_id = 4
     expected_context_layer = None
     tool_call_id = str(uuid.uuid4())
-    non_tropics_state = AgentState(aoi_selection=AOISelection(name="Canada", aois=[{"source": "gadm", "src_id": "CAN", "subtype": "", "name": "Canada", "bbox": [-141.0, 41.68, -52.62, 83.11]}]))
-    
+    non_tropics_state = AgentState(
+        aoi_selection=AOISelection(
+            name="Canada",
+            aois=[
+                {
+                    "source": "gadm",
+                    "src_id": "CAN",
+                    "subtype": "",
+                    "name": "Canada",
+                    "bbox": [-141.0, 41.68, -52.62, 83.11],
+                }
+            ],
+        )
+    )
+
     tool_call = {
         "type": "tool_call",
         "name": "pick_dataset",
