@@ -159,7 +159,7 @@ class DatasetSelectionResult(DatasetOption):
 
 
 async def select_best_dataset(
-    query: str, candidate_datasets: pd.DataFrame, aoi_selection
+    query: str, candidate_datasets: pd.DataFrame, aoi_selection=None
 ) -> DatasetSelectionResult:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
@@ -177,7 +177,7 @@ async def select_best_dataset(
     if not, pick the closest date range but warn the user that there
     is not an exact match with the query requested by the user in the reason field.
 
-    Context-layer extent is a hard constraint, not a warning. If the AOI bbox does not intersect the
+    Context-layer extent is a hard constraint, if provided, not a warning. If the AOI bbox does not intersect the
     context-layer bbox, you MUST return context_layer = null. Do not select the context layer and explain the limitation.
     Dataset extent does not override context-layer extent.
 
@@ -212,7 +212,11 @@ async def select_best_dataset(
         | SMALL_MODEL.with_structured_output(DatasetOption)
     )
 
-    aois = pd.DataFrame(aoi_selection["aois"]).to_csv(index=False)
+    if aoi_selection is not None:
+        aois = pd.DataFrame(aoi_selection["aois"]).to_csv(index=False)
+    else:
+        aois = ""
+
     selection_result = await dataset_selection_chain.ainvoke(
         {
             "candidate_datasets": candidate_datasets[
@@ -279,7 +283,7 @@ async def pick_dataset(
     """
     logger.info("PICK-DATASET-TOOL")
 
-    aoi_selection = state["aoi_selection"]
+    aoi_selection = state.get("aoi_selection")
 
     # Step 1: RAG lookup
     candidate_datasets = await rag_candidate_datasets(query, k=3)
