@@ -50,6 +50,10 @@ GADM_LEVELS = {
 
 GADM_SUBTYPE_MAP = {val["col_name"]: key for key, val in GADM_LEVELS.items()}
 
+# Matches standard GADM IDs (3-letter ISO prefix): "USA", "BRA.16_1", "IND.12.26_1", etc.
+# Excludes disputed-territory codes like "Z01", "Z02" which downstream APIs reject.
+GADM_STANDARD_ID_RE = r"^[A-Z]{3}"
+
 
 def format_id(idx):
     """

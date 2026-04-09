@@ -1,5 +1,6 @@
 """Unit tests for global_queries — no DB, no LLM."""
 
+import re
 from unittest.mock import AsyncMock, patch
 
 import pandas as pd
@@ -10,6 +11,7 @@ from src.agent.tools.pick_aoi.global_queries import (
     handle_global_request,
     is_global_request,
 )
+from src.shared.geocoding_helpers import GADM_STANDARD_ID_RE
 
 # ---------------------------------------------------------------------------
 # is_global_request
@@ -60,13 +62,27 @@ async def test_handle_global_request_rejects_non_country_subregion(subregion):
 # ---------------------------------------------------------------------------
 
 
+_SAMPLE_ISOS = [
+    "USA",
+    "BRA",
+    "IND",
+    "DEU",
+    "FRA",
+    "GBR",
+    "JPN",
+    "CHN",
+    "AUS",
+    "CAN",
+]
+
+
 def _make_country_df(n: int = 3) -> pd.DataFrame:
     return pd.DataFrame(
         [
             {
                 "name": f"Country {i}",
                 "subtype": "country",
-                "src_id": f"C{i:02d}",
+                "src_id": _SAMPLE_ISOS[i % len(_SAMPLE_ISOS)],
                 "source": "gadm",
             }
             for i in range(n)
@@ -112,3 +128,24 @@ async def test_handle_global_request_tool_message_text():
 
     msg = cmd.update["messages"][0]
     assert "countries" in msg.content.lower()
+
+
+# ---------------------------------------------------------------------------
+# GADM_STANDARD_ID_RE — disputed-territory filtering
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "gadm_id",
+    ["USA", "BRA", "IND", "BRA.16_1", "IND.12.26_1", "USA.1.2.3_2"],
+)
+def test_gadm_standard_id_re_accepts_valid_ids(gadm_id):
+    assert re.search(GADM_STANDARD_ID_RE, gadm_id)
+
+
+@pytest.mark.parametrize(
+    "gadm_id",
+    ["Z01", "Z02", "Z09", "Z01.1_1", "Z09.3.2_1"],
+)
+def test_gadm_standard_id_re_rejects_disputed_territory_ids(gadm_id):
+    assert not re.search(GADM_STANDARD_ID_RE, gadm_id)

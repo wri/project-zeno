@@ -289,29 +289,15 @@ async def test_global_query_with_country_subregion(
     monkeypatch, structlog_context
 ):
     """Global World + subregion='country' should return all countries within the global bbox."""
-    pick_aoi_module = import_module("src.agent.tools.pick_aoi.tool")
+    global_queries_module = import_module(
+        "src.agent.tools.pick_aoi.global_queries"
+    )
 
-    async def fake_query_aoi_database(place_name: str, result_limit: int = 10):
-        return pd.DataFrame([GLOBAL_AOI])
-
-    async def fake_select_best_aoi(question, candidate_aois):
-        return GLOBAL_AOI.copy()
-
-    async def fake_query_subregion_database(
-        subregion_name: str, source: str, src_id: int
-    ):
+    async def fake_query_all_countries():
         return pd.DataFrame(MOCK_COUNTRIES)
 
     monkeypatch.setattr(
-        pick_aoi_module, "query_aoi_database", fake_query_aoi_database
-    )
-    monkeypatch.setattr(
-        pick_aoi_module, "select_best_aoi", fake_select_best_aoi
-    )
-    monkeypatch.setattr(
-        pick_aoi_module,
-        "query_subregion_database",
-        fake_query_subregion_database,
+        global_queries_module, "_query_all_countries", fake_query_all_countries
     )
 
     command = await pick_aoi.ainvoke(

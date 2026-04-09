@@ -13,6 +13,7 @@ from sqlalchemy import text
 
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
+    GADM_STANDARD_ID_RE,
     GADM_TABLE,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
@@ -26,7 +27,11 @@ GLOBAL_TRIGGER_WORDS: frozenset[str] = frozenset(
 
 def is_global_request(places: list[str]) -> bool:
     """Return True if any place in *places* is a global synonym."""
-    return any(p.lower().strip() in GLOBAL_TRIGGER_WORDS for p in places)
+    return any(
+        word in p.lower().strip()
+        for word in GLOBAL_TRIGGER_WORDS
+        for p in places
+    )
 
 
 async def handle_global_request(
@@ -86,6 +91,7 @@ async def _query_all_countries() -> pd.DataFrame:
                'gadm'                        AS source
         FROM {GADM_TABLE}
         WHERE subtype = :subtype
+        AND {src_id_field} ~ '{GADM_STANDARD_ID_RE}'
     """
     async with get_connection_from_pool() as conn:
 

@@ -21,6 +21,7 @@ from src.agent.tools.pick_aoi.selection_name_util import build_selection_name
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
     CUSTOM_AREA_TABLE,
+    GADM_STANDARD_ID_RE,
     GADM_TABLE,
     KBA_TABLE,
     LANDMARK_TABLE,
@@ -123,6 +124,7 @@ async def query_aoi_database(
                     name, subtype, 'gadm' as source
                 FROM {GADM_TABLE}
                 WHERE name IS NOT NULL AND name % :place_name
+                AND gadm_id ~ '{GADM_STANDARD_ID_RE}'
             """
             )
 
@@ -274,6 +276,11 @@ async def query_subregion_database(
         f"Querying subregion: {subregion_name} in table: {table_name} for source: {source}, src_id: {src_id}"
     )
 
+    gadm_filter = (
+        f"\n    AND t.gadm_id ~ '{GADM_STANDARD_ID_RE}'"
+        if table_name == GADM_TABLE
+        else ""
+    )
     sql_query = f"""
     WITH aoi AS (
         SELECT geometry AS geom
@@ -285,6 +292,7 @@ async def query_subregion_database(
     FROM {table_name} AS t, aoi
     WHERE t.subtype = :subtype
     AND ST_CoveredBy(t.geometry, aoi.geom)
+    {gadm_filter}
     """
     logger.debug(f"Executing subregion query: {sql_query}")
 
@@ -496,6 +504,7 @@ async def pick_aoi(
     logger.info(f"PICK-AOI-TOOL: places: '{places}', subregion: '{subregion}'")
 
     if is_global_request(places):
+        logger.info("PICK-AOI-TOOL: Global request detected")
         return await handle_global_request(subregion, tool_call_id)
 
     all_results = await asyncio.gather(
@@ -563,6 +572,8 @@ async def pick_aoi(
     selection_name = build_selection_name(
         match_names, subregion, len(final_aois)
     )
+
+    logger.info(f"AOI selection name: {selection_name}")
 
     return Command(
         update={
