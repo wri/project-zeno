@@ -390,7 +390,6 @@ def test_query_with_expected_dataset(request):
 
 async def test_queries_return_expected_dataset(
     test_query_with_expected_dataset,
-    state,
 ):
     query, expected_dataset, start_date, end_date = (
         test_query_with_expected_dataset
@@ -405,7 +404,7 @@ async def test_queries_return_expected_dataset(
             "query": query,
             "start_date": start_date,
             "end_date": end_date,
-            "state": state,
+            "state": dict(),
             "tool_call_id": tool_call_id,
         },
     }
@@ -533,7 +532,6 @@ def _make_fake_selection(
 async def test_hallucinated_context_layer_is_discarded(
     dataset_id,
     hallucinated_layer,
-    state,
 ):
     """Verify that invalid context_layer values from LLM are set to None."""
     import pandas as pd
@@ -564,7 +562,7 @@ async def test_hallucinated_context_layer_is_discarded(
                 "query": "test query",
                 "start_date": "2022-01-01",
                 "end_date": "2022-12-31",
-                "state": state,
+                "state": dict(),
                 "tool_call_id": tool_call_id,
             },
         }
@@ -578,7 +576,7 @@ async def test_hallucinated_context_layer_is_discarded(
     )
 
 
-async def test_valid_context_layer_is_preserved(state):
+async def test_valid_context_layer_is_preserved():
     """Verify that a valid context_layer (e.g. 'driver' for DIST-ALERT) is kept."""
     import pandas as pd
 
@@ -606,7 +604,7 @@ async def test_valid_context_layer_is_preserved(state):
                 "query": "disturbance alerts by driver",
                 "start_date": "2024-01-01",
                 "end_date": "2024-12-31",
-                "state": state,
+                "state": dict(),
                 "tool_call_id": tool_call_id,
             },
         }
