@@ -133,17 +133,29 @@ class GeminiCodeExecutor:
                     CodeActPart(type=PartType.TEXT_OUTPUT, content=part.text)
                 )
             if part.executable_code:
+                code = part.executable_code.code
+                if code is None:
+                    logger.warning(
+                        "Model returned executable_code with None code, defaulting to empty string"
+                    )
+                    code = ""
                 parts.append(
                     CodeActPart(
                         type=PartType.CODE_BLOCK,
-                        content=part.executable_code.code,
+                        content=code,
                     )
                 )
             if part.code_execution_result:
+                output = part.code_execution_result.output
+                if output is None:
+                    logger.warning(
+                        "Model returned code_execution_result with None output, defaulting to empty string"
+                    )
+                    output = ""
                 parts.append(
                     CodeActPart(
                         type=PartType.EXECUTION_OUTPUT,
-                        content=part.code_execution_result.output,
+                        content=output,
                     )
                 )
             if part.inline_data and part.inline_data.mime_type == "text/csv":
