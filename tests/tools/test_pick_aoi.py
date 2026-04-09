@@ -1,5 +1,6 @@
 import uuid
 from importlib import import_module
+from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
@@ -253,13 +254,6 @@ async def test_pick_aoi_handles_empty_subregion_results(
     )
 
 
-GLOBAL_AOI = {
-    "src_id": "GLB",
-    "name": "Global World",
-    "subtype": "global",
-    "source": "gadm",
-}
-
 MOCK_COUNTRIES = [
     {
         "name": "Brazil",
@@ -318,35 +312,26 @@ async def test_global_query_with_country_subregion(
     assert all(aoi["subtype"] == "country" for aoi in aois)
 
 
-async def test_global_query_without_subregion_is_rejected(
-    monkeypatch, structlog_context
-):
-    """Selecting the global geometry directly without a subregion must be blocked."""
-    pick_aoi_module = import_module("src.agent.tools.pick_aoi.tool")
-
-    async def fake_query_aoi_database(place_name: str, result_limit: int = 10):
-        return pd.DataFrame([GLOBAL_AOI])
-
-    async def fake_select_best_aoi(question, candidate_aois):
-        return GLOBAL_AOI.copy()
-
-    monkeypatch.setattr(
-        pick_aoi_module, "query_aoi_database", fake_query_aoi_database
-    )
-    monkeypatch.setattr(
-        pick_aoi_module, "select_best_aoi", fake_select_best_aoi
-    )
-
-    command = await pick_aoi.ainvoke(
-        {
-            "args": {
-                "question": "What is the deforestation rate in the world?",
-                "places": ["Global World"],
-            },
-            "id": str(uuid.uuid4()),
-            "type": "tool_call",
-        }
-    )
+async def test_global_query_without_subregion_is_rejected(structlog_context):
+    """Global places short-circuit before DB lookup; missing subregion must not call _query_all_countries."""
+    with patch(
+        "src.agent.tools.pick_aoi.global_queries._query_all_countries",
+        new=AsyncMock(
+            side_effect=AssertionError(
+                "_query_all_countries must not run without subregion='country'"
+            )
+        ),
+    ):
+        command = await pick_aoi.ainvoke(
+            {
+                "args": {
+                    "question": "What is the deforestation rate in the world?",
+                    "places": ["Global World"],
+                },
+                "id": str(uuid.uuid4()),
+                "type": "tool_call",
+            }
+        )
 
     assert "aoi_selection" not in command.update
     assert "subregion" in str(command.update["messages"][0].content).lower()
