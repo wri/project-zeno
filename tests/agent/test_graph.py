@@ -56,7 +56,7 @@ def mock_query_aoi_database():
         return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL.copy()
 
     with patch(
-        "src.agent.tools.pick_aoi.query_aoi_database",
+        "src.agent.tools.pick_aoi.tool.query_aoi_database",
         new_callable=AsyncMock,
         side_effect=_return_mock_df,
     ):
@@ -82,7 +82,7 @@ def mock_query_subregion_database():
         )
 
     with patch(
-        "src.agent.tools.pick_aoi.query_subregion_database",
+        "src.agent.tools.pick_aoi.tool.query_subregion_database",
         new_callable=AsyncMock,
         side_effect=_return_mock_df,
     ):

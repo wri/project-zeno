@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 
 
-from src.agent.tools.pick_aoi import (
+from src.agent.tools.pick_aoi.tool import (
     SUBREGION_LIMIT,
     SUBREGION_LIMIT_ADMIN,
     check_aoi_selection,
