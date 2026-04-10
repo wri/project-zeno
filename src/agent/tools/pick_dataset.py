@@ -212,10 +212,10 @@ async def select_best_dataset(
         | SMALL_MODEL.with_structured_output(DatasetOption)
     )
 
-    if aoi_selection is not None:
-        aois = pd.DataFrame(aoi_selection["aois"]).to_csv(index=False)
-    else:
+    if aoi_selection is None:
         aois = ""
+    else:
+        aois = pd.DataFrame(aoi_selection["aois"]).to_csv(index=False)
 
     selection_result = await dataset_selection_chain.ainvoke(
         {
