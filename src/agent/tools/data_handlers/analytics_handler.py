@@ -468,7 +468,7 @@ class AnalyticsHandler(DataSourceHandler):
             # Get the appropriate endpoint URL
             if (
                 dataset.get("dataset_id") == LAND_COVER_CHANGE_ID
-                and change_over_time_query
+                and not change_over_time_query
             ):
                 endpoint_url = (
                     self.BASE_URL
