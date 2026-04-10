@@ -1,5 +1,6 @@
 import uuid
 from importlib import import_module
+from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
@@ -196,7 +197,7 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
 async def test_pick_aoi_handles_empty_subregion_results(
     monkeypatch, structlog_context
 ):
-    pick_aoi_module = import_module("src.agent.tools.pick_aoi")
+    pick_aoi_module = import_module("src.agent.tools.pick_aoi.tool")
 
     async def fake_query_aoi_database(place_name: str, result_limit: int = 10):
         return pd.DataFrame(
@@ -251,3 +252,86 @@ async def test_pick_aoi_handles_empty_subregion_results(
     assert str(command.update["messages"][0].content).startswith(
         "No matching AOIs were found for your request."
     )
+
+
+MOCK_COUNTRIES = [
+    {
+        "name": "Brazil",
+        "subtype": "country",
+        "src_id": "BRA",
+        "source": "gadm",
+        "gadm_id": "BRA",
+    },
+    {
+        "name": "Indonesia",
+        "subtype": "country",
+        "src_id": "IDN",
+        "source": "gadm",
+        "gadm_id": "IDN",
+    },
+    {
+        "name": "Canada",
+        "subtype": "country",
+        "src_id": "CAN",
+        "source": "gadm",
+        "gadm_id": "CAN",
+    },
+]
+
+
+async def test_global_query_with_country_subregion(
+    monkeypatch, structlog_context
+):
+    """Global World + subregion='country' should return all countries within the global bbox."""
+    global_queries_module = import_module(
+        "src.agent.tools.pick_aoi.global_queries"
+    )
+
+    async def fake_query_all_countries():
+        return pd.DataFrame(MOCK_COUNTRIES)
+
+    monkeypatch.setattr(
+        global_queries_module, "_query_all_countries", fake_query_all_countries
+    )
+
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": "Which countries have the most deforestation globally?",
+                "places": ["Global World"],
+                "subregion": "country",
+            },
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
+        }
+    )
+
+    aois = command.update.get("aoi_selection", {}).get("aois")
+    assert aois is not None
+    assert len(aois) == 3
+    assert all(aoi["subtype"] == "country" for aoi in aois)
+
+
+async def test_global_query_without_subregion_is_rejected(structlog_context):
+    """Global places short-circuit before DB lookup; missing subregion must not call _query_all_countries."""
+    with patch(
+        "src.agent.tools.pick_aoi.global_queries._query_all_countries",
+        new=AsyncMock(
+            side_effect=AssertionError(
+                "_query_all_countries must not run without subregion='country'"
+            )
+        ),
+    ):
+        command = await pick_aoi.ainvoke(
+            {
+                "args": {
+                    "question": "What is the deforestation rate in the world?",
+                    "places": ["Global World"],
+                },
+                "id": str(uuid.uuid4()),
+                "type": "tool_call",
+            }
+        )
+
+    assert "aoi_selection" not in command.update
+    assert "subregion" in str(command.update["messages"][0].content).lower()
