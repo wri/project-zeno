@@ -1,8 +1,9 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Dict, Optional
 
 import pandas as pd
+from langchain.tools import InjectedState
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
@@ -158,7 +159,7 @@ class DatasetSelectionResult(DatasetOption):
 
 
 async def select_best_dataset(
-    query: str, candidate_datasets: pd.DataFrame
+    query: str, candidate_datasets: pd.DataFrame, aoi_selection=None
 ) -> DatasetSelectionResult:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
@@ -170,13 +171,17 @@ async def select_best_dataset(
 
     Select a single context layer from the dataset if relevant for the user query. Context layers
     allow difrenciating between different types of data within the same dataset. So if a user asks
-    to show something like "show me tree cover loss by driver", you should select a context layer
+    to show something like "show me tree cover loss by driver", you should select a context layer.
 
     Evaluate if the best dataset is available for the date range requested by the user,
     if not, pick the closest date range but warn the user that there
     is not an exact match with the query requested by the user in the reason field.
 
-    Pick the most granular dataset that matches the query and requested time range if specified.
+    Context-layer extent is a hard constraint, if provided, not a warning. If the AOI bbox does not intersect the
+    context-layer bbox, you MUST return context_layer = null. Do not select the context layer and explain the limitation.
+    Dataset extent does not override context-layer extent.
+
+    Pick the most granular dataset/contextual layer that matches the query, requested time range and AOI extent.
     For instance, dont select tree cover loss by driver if the user requests a specific time range,
     pick tree cover loss instead.
 
@@ -184,6 +189,10 @@ async def select_best_dataset(
     For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
 
     Use the language of the user query to generate the reason.
+
+    AOI bounding box:
+
+    {aois}
 
     Candidate datasets:
 
@@ -202,6 +211,12 @@ async def select_best_dataset(
         DATASET_SELECTION_PROMPT
         | SMALL_MODEL.with_structured_output(DatasetOption)
     )
+
+    if aoi_selection is None:
+        aois = ""
+    else:
+        aois = pd.DataFrame(aoi_selection["aois"]).to_csv(index=False)
+
     selection_result = await dataset_selection_chain.ainvoke(
         {
             "candidate_datasets": candidate_datasets[
@@ -215,6 +230,7 @@ async def select_best_dataset(
                 ]
             ].to_csv(index=False),
             "user_query": query,
+            "aois": aois,
         }
     )
     logger.debug(
@@ -253,6 +269,7 @@ async def pick_dataset(
     query: str,
     start_date: str,
     end_date: str,
+    state: Annotated[Dict, InjectedState] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
     """
@@ -265,10 +282,15 @@ async def pick_dataset(
         end_date: End date in YYYY-MM-DD format
     """
     logger.info("PICK-DATASET-TOOL")
+
+    aoi_selection = state.get("aoi_selection")
+
     # Step 1: RAG lookup
     candidate_datasets = await rag_candidate_datasets(query, k=3)
     # Step 2: LLM to select best dataset and potential context layer
-    selection_result = await select_best_dataset(query, candidate_datasets)
+    selection_result = await select_best_dataset(
+        query, candidate_datasets, aoi_selection
+    )
 
     tool_message = f"""# About the selection
     Selected dataset name: {selection_result.dataset_name}
