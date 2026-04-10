@@ -24,6 +24,9 @@ GLOBAL_TRIGGER_WORDS: frozenset[str] = frozenset(
     {"global", "world", "worldwide", "earth", "globe"}
 )
 
+# Display name for the AOI bundle when comparing all countries globally.
+GLOBAL_AOI_SELECTION_NAME = "All countries in the world"
+
 
 def is_global_request(places: list[str]) -> bool:
     """Return True if any place in *places* is a global synonym."""
@@ -65,7 +68,7 @@ async def handle_global_request(
     return Command(
         update={
             "aoi_selection": {
-                "name": "All countries in the world",
+                "name": GLOBAL_AOI_SELECTION_NAME,
                 "aois": final_aois,
             },
             "aoi": final_aois[0],

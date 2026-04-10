@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from src.agent.tools.pick_aoi.global_queries import (
+    GLOBAL_AOI_SELECTION_NAME,
     GLOBAL_TRIGGER_WORDS,
     handle_global_request,
     is_global_request,
@@ -100,7 +101,7 @@ async def test_handle_global_request_returns_all_countries():
         cmd = await handle_global_request("country", tool_call_id="tc-2")
 
     aoi_selection = cmd.update["aoi_selection"]
-    assert aoi_selection["name"] == "All countries in the world"
+    assert aoi_selection["name"] == GLOBAL_AOI_SELECTION_NAME
     assert len(aoi_selection["aois"]) == 5
 
 
