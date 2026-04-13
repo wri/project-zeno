@@ -12,6 +12,7 @@ from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langgraph.types import Command
 from pydantic import BaseModel, Field, field_validator, model_validator
+from shapely import box
 
 from src.agent.llms import SMALL_MODEL
 from src.agent.tools.data_handlers.analytics_handler import (
@@ -170,18 +171,14 @@ async def select_best_dataset(
     Use all information provided to decide which dataset is the best match, especially the selection hints.
 
     Select a single context layer from the dataset if relevant for the user query. Context layers
-    allow difrenciating between different types of data within the same dataset. So if a user asks
+    allow differentiating between different types of data within the same dataset. So if a user asks
     to show something like "show me tree cover loss by driver", you should select a context layer.
 
     Evaluate if the best dataset is available for the date range requested by the user,
     if not, pick the closest date range but warn the user that there
     is not an exact match with the query requested by the user in the reason field.
 
-    Context-layer extent is a hard constraint, if provided, not a warning. If the AOI bbox does not intersect the
-    context-layer bbox, you MUST return context_layer = null. Do not select the context layer and explain the limitation.
-    Dataset extent does not override context-layer extent.
-
-    Pick the most granular dataset/contextual layer that matches the query, requested time range and AOI extent.
+    Pick the most granular dataset/contextual layer that matches the query, requested time range.
     For instance, dont select tree cover loss by driver if the user requests a specific time range,
     pick tree cover loss instead.
 
@@ -189,10 +186,6 @@ async def select_best_dataset(
     For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
 
     Use the language of the user query to generate the reason.
-
-    AOI bounding box:
-
-    {aois}
 
     Candidate datasets:
 
@@ -213,9 +206,12 @@ async def select_best_dataset(
     )
 
     if aoi_selection is None:
-        aois = ""
+        candidate_datasets["filtered_context_layers"] = candidate_datasets["context_layers"]
     else:
-        aois = pd.DataFrame(aoi_selection["aois"]).to_csv(index=False)
+        candidate_datasets["filtered_context_layers"] = get_filtered_contextual_layers(
+            candidate_datasets["context_layers"],
+            aoi_selection
+        )
 
     selection_result = await dataset_selection_chain.ainvoke(
         {
@@ -226,11 +222,10 @@ async def select_best_dataset(
                     "description",
                     "selection_hints",
                     "content_date",
-                    "context_layers",
+                    "filtered_context_layers",
                 ]
             ].to_csv(index=False),
-            "user_query": query,
-            "aois": aois,
+            "user_query": query
         }
     )
     logger.debug(
@@ -352,4 +347,31 @@ async def pick_dataset(
             "dataset": selection_result.model_dump(),
             "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
         },
+    )
+
+
+def get_filtered_contextual_layers(contextual_layers: pd.Series, aoi_selection) -> pd.Series:
+    """
+    Filter contextual layer by spatial extent. All AOIs in selection intersect the layer
+    for valid comparison.
+    """
+    
+    aoi_bboxes = [box(*aoi["bbox"]) for aoi in aoi_selection["aois"]]
+
+    def _filter_context_layers(context_layers: pd.Series) -> list[dict]:
+        filtered_layers = []
+        for layer in context_layers:
+            extent = layer.get("extent")
+
+            # no extent defined, assume global
+            if not extent:
+                filtered_layers.append(layer)
+            else:
+                extent_geom = box(*extent)
+                if all([aoi_bbox.intersects(extent_geom) for aoi_bbox in aoi_bboxes]):
+                    filtered_layers.append(layer)
+        return filtered_layers
+
+    return contextual_layers.apply(
+        _filter_context_layers, axis=1
     )

@@ -700,3 +700,51 @@ async def test_queries_context_layer_outside_extent():
     assert dataset_id == expected_dataset_id
     context_layer = command.update.get("dataset", {}).get("context_layer")
     assert context_layer == expected_context_layer
+
+
+async def test_queries_context_layer_extent_definition():
+    """
+    Test a a tropics-only layer is chosen inside the extent using our extent definition,
+    not the LLM's inherent knowledge. Using Chad with primary forest as an example:
+    there is primary forest extent in the very south of Chad, but LLM sometimes
+    uses world knowledge about ecology or its own extents to contradit ours.
+    """
+
+    query = "Tree cover loss in primary forest"
+    expected_dataset_id = 4
+    expected_context_layer = "primary_forest"
+    tool_call_id = str(uuid.uuid4())
+    non_tropics_state = AgentState(
+        aoi_selection=AOISelection(
+            name="Chad",
+            aois=[
+                {
+                    "source": "gadm",
+                    "src_id": "TCD",
+                    "subtype": "",
+                    "name": "Chad",
+                    "bbox": [-141.0, 41.68, -52.62, 83.11],
+                }
+            ],
+        )
+    )
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": "2022-01-01",
+            "end_date": "2022-12-31",
+            "state": non_tropics_state,
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    assert dataset_id == expected_dataset_id
+    context_layer = command.update.get("dataset", {}).get("context_layer")
+    assert context_layer == expected_context_layer
