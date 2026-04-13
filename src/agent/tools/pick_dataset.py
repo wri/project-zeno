@@ -170,9 +170,10 @@ async def select_best_dataset(
     user query and provide reason why it is the best match. Always return at least one dataset.
     Use all information provided to decide which dataset is the best match, especially the selection hints.
 
-    Select a single context layer from the dataset if relevant for the user query. Context layers
-    allow differentiating between different types of data within the same dataset. So if a user asks
-    to show something like "show me tree cover loss by driver", you should select a context layer.
+    Select a single context layer from the filtered_context_layers for the dataset if relevant for the user query. 
+    Context layers allow differentiating between different types of data within the same dataset. So if a user asks
+    to show something like "show me tree cover loss by driver", you should select a context layer. These are pre-filtered
+    to match the spatiotemporal query constraints.
 
     Evaluate if the best dataset is available for the date range requested by the user,
     if not, pick the closest date range but warn the user that there
@@ -350,7 +351,7 @@ async def pick_dataset(
     )
 
 
-def get_filtered_contextual_layers(contextual_layers: pd.Series, aoi_selection) -> pd.Series:
+def get_filtered_contextual_layers(context_layers: pd.Series, aoi_selection) -> pd.Series:
     """
     Filter contextual layer by spatial extent. All AOIs in selection intersect the layer
     for valid comparison.
@@ -358,7 +359,10 @@ def get_filtered_contextual_layers(contextual_layers: pd.Series, aoi_selection) 
     
     aoi_bboxes = [box(*aoi["bbox"]) for aoi in aoi_selection["aois"]]
 
-    def _filter_context_layers(context_layers: pd.Series) -> list[dict]:
+    def _filter_context_layers(context_layers: list[dict]) -> list[dict]:
+        if context_layers is None:
+            return None
+        
         filtered_layers = []
         for layer in context_layers:
             extent = layer.get("extent")
@@ -372,6 +376,6 @@ def get_filtered_contextual_layers(contextual_layers: pd.Series, aoi_selection) 
                     filtered_layers.append(layer)
         return filtered_layers
 
-    return contextual_layers.apply(
-        _filter_context_layers, axis=1
+    return context_layers.apply(
+        _filter_context_layers
     )

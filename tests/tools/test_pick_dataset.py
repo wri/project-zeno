@@ -723,7 +723,7 @@ async def test_queries_context_layer_extent_definition():
                     "src_id": "TCD",
                     "subtype": "",
                     "name": "Chad",
-                    "bbox": [-141.0, 41.68, -52.62, 83.11],
+                    "bbox": [13.47, 7.44, 24.00, 23.45],
                 }
             ],
         )
