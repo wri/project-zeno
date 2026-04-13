@@ -215,12 +215,14 @@ async def select_best_dataset(
         candidate_datasets["filtered_context_layers"] = candidate_datasets[
             "context_layers"
         ]
+        removed_df = None
     else:
         filtered_layers, removed_layers = get_filtered_contextual_layers(
             candidate_datasets["context_layers"], aoi_selection
         )
 
         candidate_datasets["filtered_context_layers"] = filtered_layers
+        removed_df = removed_layers.to_csv(index=False)
 
     selection_result = await dataset_selection_chain.ainvoke(
         {
@@ -235,7 +237,7 @@ async def select_best_dataset(
                 ]
             ].to_csv(index=False),
             "user_query": query,
-            "removed_layers": removed_layers.to_csv(index=False),
+            "removed_layers": removed_df,
         }
     )
     logger.debug(
