@@ -170,7 +170,7 @@ async def select_best_dataset(
     user query and provide reason why it is the best match. Always return at least one dataset.
     Use all information provided to decide which dataset is the best match, especially the selection hints.
 
-    Select a single context layer from the filtered_context_layers in candidate datasets for the dataset if relevant for the user query. 
+    Select a single context layer from the filtered_context_layers in candidate datasets for the dataset if relevant for the user query.
     Context layers allow differentiating between different types of data within the same dataset. So if a user asks
     to show something like "show me tree cover loss by driver", you should select a context layer. These are pre-filtered
     to match the spatiotemporal query constraints.
@@ -212,11 +212,12 @@ async def select_best_dataset(
     )
 
     if aoi_selection is None:
-        candidate_datasets["filtered_context_layers"] = candidate_datasets["context_layers"]
+        candidate_datasets["filtered_context_layers"] = candidate_datasets[
+            "context_layers"
+        ]
     else:
         filtered_layers, removed_layers = get_filtered_contextual_layers(
-            candidate_datasets["context_layers"],
-            aoi_selection
+            candidate_datasets["context_layers"], aoi_selection
         )
 
         candidate_datasets["filtered_context_layers"] = filtered_layers
@@ -234,7 +235,7 @@ async def select_best_dataset(
                 ]
             ].to_csv(index=False),
             "user_query": query,
-            "removed_layers": removed_layers.to_csv(index=False)
+            "removed_layers": removed_layers.to_csv(index=False),
         }
     )
     logger.debug(
@@ -359,7 +360,9 @@ async def pick_dataset(
     )
 
 
-def get_filtered_contextual_layers(context_layers: pd.Series, aoi_selection) -> pd.Series:
+def get_filtered_contextual_layers(
+    context_layers: pd.Series, aoi_selection
+) -> pd.Series:
     """
     Filter contextual layer by spatial extent. All AOIs in selection intersect the layer
     for valid comparison.
@@ -367,15 +370,17 @@ def get_filtered_contextual_layers(context_layers: pd.Series, aoi_selection) -> 
     Returns both filtered down layers per dataset, and a set of all removed layers
     to inform the agent.
     """
-    
+
     aoi_bboxes = [box(*aoi["bbox"]) for aoi in aoi_selection["aois"]]
     removed_layers = []
     extent_filter_reason = "Outside the extent of the AOI"
 
-    def _filter_context_layers(context_layers: list[dict]) -> Union[pd.Series, pd.DataFrame]:
+    def _filter_context_layers(
+        context_layers: list[dict],
+    ) -> Union[pd.Series, pd.DataFrame]:
         if context_layers is None:
             return None
-        
+
         filtered_layers = []
         for layer in context_layers:
             extent = layer.get("extent")
@@ -385,17 +390,24 @@ def get_filtered_contextual_layers(context_layers: pd.Series, aoi_selection) -> 
                 filtered_layers.append(layer)
             else:
                 extent_geom = box(*extent)
-                if all([aoi_bbox.intersects(extent_geom) for aoi_bbox in aoi_bboxes]):
+                if all(
+                    [
+                        aoi_bbox.intersects(extent_geom)
+                        for aoi_bbox in aoi_bboxes
+                    ]
+                ):
                     filtered_layers.append(layer)
                 else:
-                    removed_layers.append({"layer_name": layer, "reason": extent_filter_reason})
+                    removed_layers.append(
+                        {"layer_name": layer, "reason": extent_filter_reason}
+                    )
         return filtered_layers
 
-    filtered_layers = context_layers.apply(
-        _filter_context_layers
-    )
+    filtered_layers = context_layers.apply(_filter_context_layers)
 
     # get df of unique contextual layers
-    removed_df = pd.DataFrame(removed_layers).drop_duplicates(subset="layer_name")
-    
+    removed_df = pd.DataFrame(removed_layers).drop_duplicates(
+        subset="layer_name"
+    )
+
     return filtered_layers, removed_df
