@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Dict, Optional
+from typing import Annotated, Dict, Optional, Union
 
 import pandas as pd
 from langchain.tools import InjectedState
@@ -170,7 +170,7 @@ async def select_best_dataset(
     user query and provide reason why it is the best match. Always return at least one dataset.
     Use all information provided to decide which dataset is the best match, especially the selection hints.
 
-    Select a single context layer from the filtered_context_layers for the dataset if relevant for the user query. 
+    Select a single context layer from the filtered_context_layers in candidate datasets for the dataset if relevant for the user query. 
     Context layers allow differentiating between different types of data within the same dataset. So if a user asks
     to show something like "show me tree cover loss by driver", you should select a context layer. These are pre-filtered
     to match the spatiotemporal query constraints.
@@ -195,6 +195,11 @@ async def select_best_dataset(
     User query:
 
     {user_query}
+
+    The following contextual layers can not be picked right now for the listed reasons:
+
+    {removed_layers}
+
     """,
             )
         ]
@@ -209,10 +214,12 @@ async def select_best_dataset(
     if aoi_selection is None:
         candidate_datasets["filtered_context_layers"] = candidate_datasets["context_layers"]
     else:
-        candidate_datasets["filtered_context_layers"] = get_filtered_contextual_layers(
+        filtered_layers, removed_layers = get_filtered_contextual_layers(
             candidate_datasets["context_layers"],
             aoi_selection
         )
+
+        candidate_datasets["filtered_context_layers"] = filtered_layers
 
     selection_result = await dataset_selection_chain.ainvoke(
         {
@@ -226,7 +233,8 @@ async def select_best_dataset(
                     "filtered_context_layers",
                 ]
             ].to_csv(index=False),
-            "user_query": query
+            "user_query": query,
+            "removed_layers": removed_layers.to_csv(index=False)
         }
     )
     logger.debug(
@@ -355,11 +363,16 @@ def get_filtered_contextual_layers(context_layers: pd.Series, aoi_selection) -> 
     """
     Filter contextual layer by spatial extent. All AOIs in selection intersect the layer
     for valid comparison.
+
+    Returns both filtered down layers per dataset, and a set of all removed layers
+    to inform the agent.
     """
     
     aoi_bboxes = [box(*aoi["bbox"]) for aoi in aoi_selection["aois"]]
+    removed_layers = []
+    extent_filter_reason = "Outside the extent of the AOI"
 
-    def _filter_context_layers(context_layers: list[dict]) -> list[dict]:
+    def _filter_context_layers(context_layers: list[dict]) -> Union[pd.Series, pd.DataFrame]:
         if context_layers is None:
             return None
         
@@ -374,8 +387,15 @@ def get_filtered_contextual_layers(context_layers: pd.Series, aoi_selection) -> 
                 extent_geom = box(*extent)
                 if all([aoi_bbox.intersects(extent_geom) for aoi_bbox in aoi_bboxes]):
                     filtered_layers.append(layer)
+                else:
+                    removed_layers.append({"layer_name": layer, "reason": extent_filter_reason})
         return filtered_layers
 
-    return context_layers.apply(
+    filtered_layers = context_layers.apply(
         _filter_context_layers
     )
+
+    # get df of unique contextual layers
+    removed_df = pd.DataFrame(removed_layers).drop_duplicates(subset="layer_name")
+    
+    return filtered_layers, removed_df
