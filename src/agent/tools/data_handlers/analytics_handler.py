@@ -85,8 +85,7 @@ SLUC_GAS_TYPES = ["CO2e", "CO2", "CH4", "N20"]
 DIST_ALERT_ID = [
     ds["dataset_id"]
     for ds in DATASETS
-    if ds["dataset_name"]
-    == "Global all ecosystem disturbance alerts (DIST-ALERT)"
+    if ds["dataset_name"] == "Global all ecosystem disturbance alerts (DIST-ALERT)"
 ][0]
 NATURAL_LANDS_ID = [
     ds["dataset_id"]
@@ -94,9 +93,7 @@ NATURAL_LANDS_ID = [
     if ds["dataset_name"] == "SBTN Natural Lands Map"
 ][0]
 LAND_COVER_CHANGE_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"] == "Global land cover"
+    ds["dataset_id"] for ds in DATASETS if ds["dataset_name"] == "Global land cover"
 ][0]
 GRASSLANDS_ID = [
     ds["dataset_id"]
@@ -104,14 +101,10 @@ GRASSLANDS_ID = [
     if ds["dataset_name"] == "Global natural/semi-natural grassland extent"
 ][0]
 TREE_COVER_LOSS_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"] == "Tree cover loss"
+    ds["dataset_id"] for ds in DATASETS if ds["dataset_name"] == "Tree cover loss"
 ][0]
 TREE_COVER_GAIN_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"] == "Tree cover gain"
+    ds["dataset_id"] for ds in DATASETS if ds["dataset_name"] == "Tree cover gain"
 ][0]
 FOREST_CARBON_FLUX_ID = [
     ds["dataset_id"]
@@ -142,6 +135,7 @@ class AnalyticsHandler(DataSourceHandler):
     HEADERS = {
         "Accept": "application/json",
         "Content-Type": "application/json",
+        "X-environment": "staging",
     }
 
     def can_handle(self, dataset: Any) -> bool:
@@ -205,9 +199,7 @@ class AnalyticsHandler(DataSourceHandler):
         if aoi_type["type"] == "feature_collection":
             features = []
             for aoi in aois:
-                geometry_data = await get_geometry_data(
-                    "custom", aoi["src_id"]
-                )
+                geometry_data = await get_geometry_data("custom", aoi["src_id"])
                 if not geometry_data:
                     raise ValueError(f"Custom area not found: {aoi['src_id']}")
                 features.append(
@@ -249,9 +241,7 @@ class AnalyticsHandler(DataSourceHandler):
                 "start_date": start_date,
                 "end_date": end_date,
                 "intersections": (
-                    [dataset["context_layer"]]
-                    if dataset.get("context_layer")
-                    else []
+                    [dataset["context_layer"]] if dataset.get("context_layer") else []
                 ),
             }
 
@@ -329,9 +319,7 @@ class AnalyticsHandler(DataSourceHandler):
                 "end_year": end_date[:4],
             }
         else:
-            raise ValueError(
-                f"Unknown dataset ID: {dataset.get('dataset_id')}"
-            )
+            raise ValueError(f"Unknown dataset ID: {dataset.get('dataset_id')}")
 
         return payload
 
@@ -375,9 +363,7 @@ class AnalyticsHandler(DataSourceHandler):
                     return msg
 
             except Exception as e:
-                logger.warning(
-                    f"Poll attempt {attempt + 1} failed with error: {e}"
-                )
+                logger.warning(f"Poll attempt {attempt + 1} failed with error: {e}")
                 continue
 
         msg = f"Max polling attempts ({max_retries}) exceeded for {result.get('data', {}).get('link', 'unknown url')}"
@@ -397,9 +383,7 @@ class AnalyticsHandler(DataSourceHandler):
         data_section = result["data"]
 
         if "link" not in data_section:
-            raise ValueError(
-                f"Data response missing 'link' key: {data_section}"
-            )
+            raise ValueError(f"Data response missing 'link' key: {data_section}")
 
         download_link = data_section["link"]
         async with httpx.AsyncClient() as client:
@@ -407,9 +391,7 @@ class AnalyticsHandler(DataSourceHandler):
             data = response.json()
 
         if "data" not in data:
-            raise ValueError(
-                f"Response missing 'result' key in response: {data}"
-            )
+            raise ValueError(f"Response missing 'result' key in response: {data}")
         if "result" not in data["data"]:
             raise ValueError(
                 f"Response missing 'result' key in data section: {data['data']}"
@@ -430,8 +412,7 @@ class AnalyticsHandler(DataSourceHandler):
 
         # Enrich raw_data with names
         aois_id_to_name = {
-            format_id(item["src_id"]): item["name"].split(",")[0]
-            for item in aois
+            format_id(item["src_id"]): item["name"].split(",")[0] for item in aois
         }
         raw_data["name"] = [aois_id_to_name[idx] for idx in raw_data["aoi_id"]]
         # Get analytics url from result
@@ -466,14 +447,10 @@ class AnalyticsHandler(DataSourceHandler):
             context_layer = dataset.get("context_layer")
 
             dataset = [
-                ds
-                for ds in DATASETS
-                if ds["dataset_id"] == dataset.get("dataset_id")
+                ds for ds in DATASETS if ds["dataset_id"] == dataset.get("dataset_id")
             ]
             if not dataset:
-                raise ValueError(
-                    f"Dataset not found: {dataset.get('dataset_id')}"
-                )
+                raise ValueError(f"Dataset not found: {dataset.get('dataset_id')}")
             dataset = dataset[0]
             if context_layer:
                 dataset["context_layer"] = context_layer
@@ -484,18 +461,13 @@ class AnalyticsHandler(DataSourceHandler):
                 and not change_over_time_query
             ):
                 endpoint_url = (
-                    self.BASE_URL
-                    + "/v0/land_change/land_cover_composition/analytics"
+                    self.BASE_URL + "/v0/land_change/land_cover_composition/analytics"
                 )
             else:
-                endpoint_url = self.BASE_URL + dataset.get(
-                    "analytics_api_endpoint"
-                )
+                endpoint_url = self.BASE_URL + dataset.get("analytics_api_endpoint")
 
             # Build the payload based on dataset type
-            payload = await self._build_payload(
-                dataset, aois, start_date, end_date
-            )
+            payload = await self._build_payload(dataset, aois, start_date, end_date)
 
             # Debug logging for payload
             logger.info(
@@ -511,12 +483,8 @@ class AnalyticsHandler(DataSourceHandler):
                 )
 
             # Debug logging for response
-            logger.info(
-                f"Analytics API Response - Status Code: {response.status_code}"
-            )
-            logger.info(
-                f"Analytics API Response - Headers: {dict(response.headers)}"
-            )
+            logger.info(f"Analytics API Response - Status Code: {response.status_code}")
+            logger.info(f"Analytics API Response - Headers: {dict(response.headers)}")
             logger.info(f"Analytics API Response - Raw Text: {response.text}")
 
             try:
@@ -546,9 +514,7 @@ class AnalyticsHandler(DataSourceHandler):
             # Handle pending status with retry logic
             aoi_names = ", ".join([aoi["name"] for aoi in aois])
             if result["status"] == "pending":
-                logger.info(
-                    "Analytics request is pending, will retry with polling..."
-                )
+                logger.info("Analytics request is pending, will retry with polling...")
                 result = await self._poll_for_completion(
                     endpoint_url, payload, max_retries=10
                 )
