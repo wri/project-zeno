@@ -451,6 +451,10 @@ async def test_query_with_context_layer(
     context_layer = command.update.get("dataset", {}).get("context_layer")
     assert context_layer == expected_context_layer
 
+    context_layers = command.update.get("dataset", {}).get("context_layers")
+    assert len(context_layers) == 1
+    assert context_layers[0]["name"] == expected_context_layer
+
 
 @pytest.mark.parametrize(
     "dataset",
