@@ -254,10 +254,17 @@ async def select_best_dataset(
 
     context_layers = []
     if selection_result.context_layer:
-        selected_context_layer = next((x for x in selected_row.context_layers if x["value"] == selection_result.context_layer), None)
+        selected_context_layer = next(
+            (
+                x
+                for x in selected_row.context_layers
+                if x["value"] == selection_result.context_layer
+            ),
+            None,
+        )
         context_layer = ContextLayer(
-            name=selected_context_layer.get("value"), 
-            tile_url=selected_context_layer.get("tile_url")
+            name=selected_context_layer.get("value"),
+            tile_url=selected_context_layer.get("tile_url"),
         )
         context_layers.append(context_layer)
 
@@ -279,7 +286,7 @@ async def select_best_dataset(
         selection_hints=selected_row.selection_hints,
         code_instructions=selected_row.code_instructions,
         presentation_instructions=selected_row.presentation_instructions,
-        context_layers=[context_layer]
+        context_layers=[context_layer],
     )
 
 
