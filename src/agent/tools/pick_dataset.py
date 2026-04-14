@@ -73,7 +73,9 @@ class DatasetOption(BaseModel):
         None,
         description="Pick a single context layer from the dataset if relevant.",
     )
-    reason: str = Field(description="Short reason why the dataset is the best match.")
+    reason: str = Field(
+        description="Short reason why the dataset is the best match."
+    )
     language: str = Field(
         description="Language of the user query.",
     )
@@ -99,7 +101,9 @@ class DatasetOption(BaseModel):
         if self.context_layer is None:
             return self
 
-        selected_dataset = [ds for ds in DATASETS if ds["dataset_id"] == dataset_id][0]
+        selected_dataset = [
+            ds for ds in DATASETS if ds["dataset_id"] == dataset_id
+        ][0]
         context_layers = selected_dataset.get("context_layers") or []
         context_layer_values = [lyr["value"] for lyr in context_layers]
         if self.context_layer not in context_layer_values:
@@ -204,7 +208,8 @@ async def select_best_dataset(
 
     logger.debug("Invoking dataset selection chain...")
     dataset_selection_chain = (
-        DATASET_SELECTION_PROMPT | SMALL_MODEL.with_structured_output(DatasetOption)
+        DATASET_SELECTION_PROMPT
+        | SMALL_MODEL.with_structured_output(DatasetOption)
     )
 
     if aoi_selection is None:
@@ -322,14 +327,18 @@ async def pick_dataset(
         )
 
     if selection_result.dataset_id == DIST_ALERT_ID:
-        selection_result.tile_url += f"&start_date={start_date}&end_date={end_date}"
+        selection_result.tile_url += (
+            f"&start_date={start_date}&end_date={end_date}"
+        )
     elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
         if end_date.year in range(2000, 2023):
             selection_result.tile_url = selection_result.tile_url.format(
                 year=end_date.year
             )
         else:
-            selection_result.tile_url = selection_result.tile_url.format(year="2022")
+            selection_result.tile_url = selection_result.tile_url.format(
+                year="2022"
+            )
     elif selection_result.dataset_id == TREE_COVER_LOSS_ID:
         if end_date.year in range(2001, 2026):
             selection_result.tile_url += (
