@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Any, Dict
 
 import httpx
@@ -142,6 +143,11 @@ class AnalyticsHandler(DataSourceHandler):
     HEADERS = {
         "Accept": "application/json",
         "Content-Type": "application/json",
+        "X-environment": (
+            "production"
+            if os.getenv("STAGE", "production").strip().lower() == "production"
+            else "staging"
+        ),
     }
 
     def can_handle(self, dataset: Any) -> bool:
