@@ -248,15 +248,12 @@ Now prepare the data for visualization in Recharts.js:
 
 class ChartInsight(BaseModel):
     """
-    Represents a chart-based insight with Recharts-compatible data.
+    Represents chart metadata with Recharts-compatible field mappings.
     """
 
     title: str = Field(description="Clear, descriptive title for the chart")
     chart_type: str = Field(
         description="Chart type: 'line', 'bar', 'stacked-bar', 'grouped-bar', 'pie', 'area', 'scatter', or 'table'"
-    )
-    insight: str = Field(
-        description="Key insight or finding that this chart reveals (2-3 sentences)"
     )
     x_axis: str = Field(
         description="Name of the field to use for X-axis (for applicable chart types)"
@@ -280,8 +277,22 @@ class ChartInsight(BaseModel):
         default=[],
         description="List of field names for multiple data series (for multi-bar charts)",
     )
+
+
+class MultiChartInsight(BaseModel):
+    """
+    Represents multiple chart-based insights from a single analysis.
+    Used when the data supports multiple visualizations (e.g., tree cover loss AND emissions).
+    """
+
+    charts: List[ChartInsight] = Field(
+        description="List of charts to display, each with title, type, and field mappings"
+    )
+    primary_insight: str = Field(
+        description="Overall insight that ties all charts together (2-3 sentences)"
+    )
     follow_up_suggestions: List[str] = Field(
-        description="List of 1-2 follow-up suggestions based on available data & capability"
+        description="List of 1-2 follow-up suggestions based on available data and capability"
     )
 
 
@@ -443,9 +454,11 @@ Cautions: {dataset_cautions}
 
 ### Requirements
 1. **Language**: Generate ALL content in the SAME LANGUAGE as the user query
-2. **Data Format**: Generate structure in Recharts.js data format - specify field names that map to the chart data columns
+2. **Multiple Charts**: Generate 1-2 complementary charts if the data supports it (e.g., if tree cover loss AND emissions are both present, create separate charts for each)
+3. **Data Format**: Generate structure in Recharts.js data format - specify field names that map to the chart data columns
+4. **Narrative Placement**: Put narrative text ONLY at top-level: `primary_insight` and `follow_up_suggestions`. Do NOT include narrative fields inside chart objects.
 
-3. **Field Mapping Rules by Chart Type**:
+5. **Field Mapping Rules by Chart Type**:
 
    **Single-series (line/bar/area/scatter):**
    - x_axis: Column name for X-axis (e.g., 'year', 'date', 'category')
@@ -477,48 +490,54 @@ Cautions: {dataset_cautions}
    - series_fields: [] (empty)
    - group_field: "" (empty)
 
-4. **Follow-ups**: Base suggestions on available capabilities - analyze any area, pull data from {available_datasets}, create charts for different time periods
-5. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
+6. **Follow-ups**: Base suggestions on available capabilities - analyze any area, pull data from {available_datasets}, create charts for different time periods
+7. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
 
 {WORDING_INSTRUCTIONS}
 """
 
     chart_insight_response = await GEMINI_FLASH.with_structured_output(
-        ChartInsight
+        MultiChartInsight
     ).ainvoke(chart_insight_prompt)
 
-    # 7. BUILD RESPONSE
-    tool_message = f"Title: {chart_insight_response.title}"
-    tool_message += f"\nKey Finding: {chart_insight_response.insight}"
+    # 7. BUILD RESPONSE - Support multiple charts
+    tool_message = f"Generated {len(chart_insight_response.charts)} chart(s)\n"
+    tool_message += (
+        f"Key Finding: {chart_insight_response.primary_insight}\n\n"
+    )
+
+    for idx, chart in enumerate(chart_insight_response.charts, 1):
+        tool_message += f"Chart {idx}: {chart.title}\n"
+
     tool_message += "\nFollow-up suggestions:"
     for i, suggestion in enumerate(
         chart_insight_response.follow_up_suggestions, 1
     ):
         tool_message += f"\n{i}. {suggestion}"
 
-    # Store chart data for frontend
-    charts_data = [
-        {
-            "id": "main_chart",
-            "title": chart_insight_response.title,
-            "type": chart_insight_response.chart_type,
-            "insight": chart_insight_response.insight,
-            "data": result.chart_data,
-            "xAxis": chart_insight_response.x_axis,
-            "yAxis": chart_insight_response.y_axis,
-            "colorField": chart_insight_response.color_field,
-            "stackField": chart_insight_response.stack_field,
-            "groupField": chart_insight_response.group_field,
-            "seriesFields": chart_insight_response.series_fields,
-        }
-    ]
+    # Store chart data for frontend - one entry per chart
+    charts_data = []
+    for idx, chart in enumerate(chart_insight_response.charts):
+        charts_data.append(
+            {
+                "id": f"chart_{idx}",
+                "title": chart.title,
+                "type": chart.chart_type,
+                "insight": chart_insight_response.primary_insight,
+                "data": result.chart_data,
+                "xAxis": chart.x_axis,
+                "yAxis": chart.y_axis,
+                "colorField": chart.color_field,
+                "stackField": chart.stack_field,
+                "groupField": chart.group_field,
+                "seriesFields": chart.series_fields,
+            }
+        )
 
-    # Update state with generated insight and follow-ups
+    # Update state with generated insights and follow-ups
     updated_state = {
-        "insight": chart_insight_response.model_dump()["insight"],
-        "follow_up_suggestions": chart_insight_response.model_dump()[
-            "follow_up_suggestions"
-        ],
+        "insight": chart_insight_response.primary_insight,
+        "follow_up_suggestions": chart_insight_response.follow_up_suggestions,
         "codeact_parts": result.get_encoded_parts(),
         "charts_data": charts_data,
         "messages": [
