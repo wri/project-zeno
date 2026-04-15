@@ -81,8 +81,7 @@ class DatasetOption(BaseModel):
         description="Pick a single context layer from the dataset if relevant.",
     )
     parameters: Optional[list[DatasetParameter]] = Field(
-        None,
-        description="Dataset specific parameters."
+        None, description="Dataset specific parameters."
     )
     reason: str = Field(
         description="Short reason why the dataset is the best match."
@@ -186,9 +185,9 @@ async def select_best_dataset(
     to match the spatiotemporal query constraints.
 
     Select parameters and values if they are relevant or specified in the user query. Parameters allow further filtering
-    the analysis to better answer the query. Select only values listed in the value field for a parameter. For example, 
+    the analysis to better answer the query. Select only values listed in the value field for a parameter. For example,
     if a user says "show me tree cover loss in forests where canopy cover is greater than 50%", you may select the parameter canopy cover
-    and value 50. 
+    and value 50.
 
     Evaluate if the best dataset is available for the date range requested by the user,
     if not, pick the closest date range but warn the user that there

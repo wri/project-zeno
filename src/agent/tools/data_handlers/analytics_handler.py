@@ -273,15 +273,15 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_LOSS_BY_DRIVER_ID,
         ]:
             forest_filter = None
+            canopy_cover = 30
+
             if dataset.get("context_layer") == "primary_forest":
                 forest_filter = "primary_forest"
 
             if dataset.get("parameters") is not None:
-                canopy_cover = 
-                if "canopy_cover" in dataset.get("parameters"):
-                    canopy_cover = dataset("parameters")["canopy_cover"]
-                else:
-                    canopy_cover = 30
+                for param in dataset.get("parameters"):
+                    if param["name"] == "canopy_cover":
+                        canopy_cover = param["value"]
 
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
