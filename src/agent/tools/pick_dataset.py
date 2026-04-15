@@ -270,6 +270,7 @@ async def select_best_dataset(
         dataset_id=selected_row.dataset_id,
         dataset_name=selected_row.dataset_name,
         context_layer=selection_result.context_layer,
+        parameters=selection_result.parameters,
         reason=selection_result.reason,
         tile_url=selected_row.tile_url,
         analytics_api_endpoint=selected_row.analytics_api_endpoint,
