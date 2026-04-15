@@ -25,6 +25,8 @@ data_dir = Path("data").absolute()
 analytics_docs = []
 
 for ds in DATASETS:
+    print(ds)
+
     content = {
         "DATA_LAYER": ds["dataset_name"],
         "DESCRIPTION": ds["description"],
@@ -32,6 +34,7 @@ for ds in DATASETS:
         "CONTEXTUAL_LAYERS": ds["context_layers"],
         "DATE": ds["content_date"],
         "USAGE NOTES": ds["function_usage_notes"],
+        "PARAMETERS": ds.get("parameters"),
     }
 
     formatted_content = "\n\n".join(

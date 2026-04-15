@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Dict, Optional, Union
+from typing import Annotated, Any, Dict, List, Optional, Union
 
 import pandas as pd
 from langchain.tools import InjectedState
@@ -66,6 +66,12 @@ async def rag_candidate_datasets(query: str, k=3):
     return pd.DataFrame(candidate_datasets)
 
 
+class DatasetParameter(BaseModel):
+    name: str
+    description: str
+    values: List[Any]
+
+
 class DatasetOption(BaseModel):
     dataset_id: int = Field(
         description="ID of the dataset that best matches the user query."
@@ -73,6 +79,10 @@ class DatasetOption(BaseModel):
     context_layer: Optional[str] = Field(
         None,
         description="Pick a single context layer from the dataset if relevant.",
+    )
+    parameters: Optional[list[DatasetParameter]] = Field(
+        None,
+        description="Dataset specific parameters."
     )
     reason: str = Field(
         description="Short reason why the dataset is the best match."
@@ -175,11 +185,16 @@ async def select_best_dataset(
     to show something like "show me tree cover loss by driver", you should select a context layer. These are pre-filtered
     to match the spatiotemporal query constraints.
 
+    Select parameters and values if they are relevant or specified in the user query. Parameters allow further filtering
+    the analysis to better answer the query. Select only values listed in the value field for a parameter. For example, 
+    if a user says "show me tree cover loss in forests where canopy cover is greater than 50%", you may select the parameter canopy cover
+    and value 50. 
+
     Evaluate if the best dataset is available for the date range requested by the user,
     if not, pick the closest date range but warn the user that there
     is not an exact match with the query requested by the user in the reason field.
 
-    Pick the most granular dataset/contextual layer that matches the query, requested time range.
+    Pick the most granular dataset/contextual layer/parameters that matches the query, requested time range.
     For instance, dont select tree cover loss by driver if the user requests a specific time range,
     pick tree cover loss instead.
 
@@ -234,6 +249,7 @@ async def select_best_dataset(
                     "selection_hints",
                     "content_date",
                     "filtered_context_layers",
+                    "parameters",
                 ]
             ].to_csv(index=False),
             "user_query": query,

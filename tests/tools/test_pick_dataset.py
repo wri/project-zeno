@@ -422,7 +422,7 @@ async def test_queries_return_expected_dataset(
         ("Vegetation disturbances over grasslands", 0, "grasslands"),
         ("Tree cover loss by driver", 8, "driver"),
         ("Tree cover loss in primary forest", 4, "primary_forest"),
-        ("Tree  cover loss in the past decade", 4, None),
+        ("Tree  cover loss in the past decade in sparse forests", 4, None),
         ("Deforestation in the past decade", 4, "primary_forest"),
         ("Most recent global land cover in storm seasons", 1, None),
     ],
