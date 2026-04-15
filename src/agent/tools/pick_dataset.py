@@ -76,14 +76,6 @@ class DatasetOption(BaseModel):
     reason: str = Field(
         description="Short reason why the dataset is the best match."
     )
-    date_range_warning: Optional[str] = Field(
-        None,
-        description=(
-            "If the dataset does not cover the requested date range exactly, "
-            "provide a brief warning in English explaining the mismatch and what "
-            "date range will be used instead. Null if the date range is covered."
-        ),
-    )
 
     @field_validator("dataset_id")
     def validate_dataset_id(cls, v):
@@ -179,9 +171,7 @@ async def select_best_dataset(
     to show something like "show me tree cover loss by driver", you should select a context layer.
 
     Evaluate if the best dataset is available for the date range requested by the user.
-    If not, pick the closest available date range and populate date_range_warning in English
-    with a brief explanation of the mismatch and what date range will be used instead.
-    Leave date_range_warning null if the requested date range is fully covered.
+    If not, pick the closest available date range and include a warning in the dataset pick reason.
 
     Context-layer extent is a hard constraint, if provided, not a warning. If the AOI bbox does not intersect the
     context-layer bbox, you MUST return context_layer = null. Do not select the context layer and explain the limitation.
@@ -193,6 +183,8 @@ async def select_best_dataset(
 
     Keep explanations concise. Do not use datset IDs to describe the dataset.
     For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
+
+    Use the language of the user query to generate the reason, not the language of any place mentioned in the query.
 
     AOI bounding box:
 
@@ -240,8 +232,7 @@ async def select_best_dataset(
     logger.debug(
         f"Selected dataset ID: {selection_result.dataset_id}. "
         f"context_layer={selection_result.context_layer!r} (type={type(selection_result.context_layer).__name__}). "
-        f"Reason: {selection_result.reason}. "
-        f"Date range warning: {selection_result.date_range_warning!r}"
+        f"Reason: {selection_result.reason}"
     )
 
     selected_row = candidate_datasets[
@@ -253,7 +244,6 @@ async def select_best_dataset(
         dataset_name=selected_row.dataset_name,
         context_layer=selection_result.context_layer,
         reason=selection_result.reason,
-        date_range_warning=selection_result.date_range_warning,
         tile_url=selected_row.tile_url,
         analytics_api_endpoint=selected_row.analytics_api_endpoint,
         description=selected_row.description,
@@ -300,12 +290,8 @@ async def pick_dataset(
     tool_message = f"""# About the selection
     Selected dataset name: {selection_result.dataset_name}
     Selected context layer: {selection_result.context_layer}
-    """
+    Reasoning for selection: {selection_result.reason}
 
-    if selection_result.date_range_warning:
-        tool_message += f"\n    ## Date range warning\n\n    {selection_result.date_range_warning}\n"
-
-    tool_message += f"""
     # Additional dataset information
 
     ## Description

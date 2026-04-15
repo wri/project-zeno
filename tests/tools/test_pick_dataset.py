@@ -501,7 +501,6 @@ async def test_tile_url_contains_date(dataset, state):
 def _make_fake_selection(
     dataset_id: int,
     context_layer: str | None,
-    date_range_warning: str | None = None,
 ) -> DatasetSelectionResult:
     """Build a DatasetSelectionResult for the given dataset with a fake context_layer."""
     ds = next(d for d in DATASETS if d["dataset_id"] == dataset_id)
@@ -510,7 +509,6 @@ def _make_fake_selection(
         dataset_name=ds["dataset_name"],
         context_layer=context_layer,
         reason="test",
-        date_range_warning=date_range_warning,
         tile_url=ds["tile_url"],
         analytics_api_endpoint=ds.get("analytics_api_endpoint", ""),
         description=ds["description"],
@@ -657,153 +655,6 @@ async def test_tcl_by_driver_always_gets_driver_context_layer(state):
 
     result_layer = command.update.get("dataset", {}).get("context_layer")
     assert result_layer == "driver"
-
-
-@pytest.mark.parametrize(
-    "reason,aoi_name",
-    [
-        # Reason in Portuguese — Brazil AOI (the original bug)
-        (
-            "Este conjunto de dados fornece a perda anual de cobertura arbórea no Brasil",
-            "Brazil",
-        ),
-        # Reason in Spanish — Spain AOI
-        (
-            "Este conjunto de datos es el mejor para analizar tendencias en pastizales naturales",
-            "Spain",
-        ),
-        # Reason in English — should also not appear in tool message
-        (
-            "This dataset provides annual tree cover loss data at 30m resolution",
-            "Indonesia",
-        ),
-    ],
-)
-async def test_tool_message_does_not_contain_reason(reason, aoi_name):
-    """The reason field must not appear in the ToolMessage content.
-
-    Reason is generated in the AOI's local language (e.g. Portuguese for Brazil,
-    Spanish for Spain) and would contaminate the model's language context if included.
-    It should only appear in debug logs, not in the message history.
-    """
-    import pandas as pd
-
-    fake_selection = _make_fake_selection(4, None)
-    fake_selection = DatasetSelectionResult(
-        **{**fake_selection.model_dump(), "reason": reason}
-    )
-    candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 4])
-    tool_call_id = str(uuid.uuid4())
-
-    with (
-        patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
-            new_callable=AsyncMock,
-            return_value=candidate_df,
-        ),
-        patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
-            new_callable=AsyncMock,
-            return_value=fake_selection,
-        ),
-    ):
-        tool_call = {
-            "type": "tool_call",
-            "name": "pick_dataset",
-            "id": tool_call_id,
-            "args": {
-                "query": "tree cover loss",
-                "start_date": "2019-01-01",
-                "end_date": "2021-12-31",
-                "state": dict(),
-                "tool_call_id": tool_call_id,
-            },
-        }
-        command = await pick_dataset.ainvoke(tool_call)
-
-    tool_message_content = command.update.get("messages", [{}])[0].content
-    assert reason not in tool_message_content, (
-        f"Reason text leaked into ToolMessage content for AOI '{aoi_name}'. "
-        "This would contaminate the model's language context."
-    )
-    assert "Reasoning for selection" not in tool_message_content
-
-
-async def test_date_range_warning_appears_in_tool_message():
-    """date_range_warning must appear in the ToolMessage so the agent can relay it to the user."""
-    import pandas as pd
-
-    warning = "Data only available from 2001 to 2023. Using 2023 as the end year."
-    fake_selection = _make_fake_selection(4, None, date_range_warning=warning)
-    candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 4])
-    tool_call_id = str(uuid.uuid4())
-
-    with (
-        patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
-            new_callable=AsyncMock,
-            return_value=candidate_df,
-        ),
-        patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
-            new_callable=AsyncMock,
-            return_value=fake_selection,
-        ),
-    ):
-        tool_call = {
-            "type": "tool_call",
-            "name": "pick_dataset",
-            "id": tool_call_id,
-            "args": {
-                "query": "tree cover loss",
-                "start_date": "2001-01-01",
-                "end_date": "2030-12-31",
-                "state": dict(),
-                "tool_call_id": tool_call_id,
-            },
-        }
-        command = await pick_dataset.ainvoke(tool_call)
-
-    tool_message_content = command.update.get("messages", [{}])[0].content
-    assert warning in tool_message_content
-
-
-async def test_no_date_range_warning_when_absent():
-    """When date_range_warning is None the section must not appear in the ToolMessage."""
-    import pandas as pd
-
-    fake_selection = _make_fake_selection(4, None, date_range_warning=None)
-    candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 4])
-    tool_call_id = str(uuid.uuid4())
-
-    with (
-        patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
-            new_callable=AsyncMock,
-            return_value=candidate_df,
-        ),
-        patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
-            new_callable=AsyncMock,
-            return_value=fake_selection,
-        ),
-    ):
-        tool_call = {
-            "type": "tool_call",
-            "name": "pick_dataset",
-            "id": tool_call_id,
-            "args": {
-                "query": "tree cover loss",
-                "start_date": "2022-01-01",
-                "end_date": "2022-12-31",
-                "state": dict(),
-                "tool_call_id": tool_call_id,
-            },
-        }
-        command = await pick_dataset.ainvoke(tool_call)
-
-    tool_message_content = command.update.get("messages", [{}])[0].content
-    assert "Date range warning" not in tool_message_content
 
 
 async def test_queries_context_layer_outside_extent():
