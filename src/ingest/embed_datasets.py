@@ -25,8 +25,6 @@ data_dir = Path("data").absolute()
 analytics_docs = []
 
 for ds in DATASETS:
-    print(ds)
-
     content = {
         "DATA_LAYER": ds["dataset_name"],
         "DESCRIPTION": ds["description"],
