@@ -366,6 +366,7 @@ def get_filtered_contextual_layers(
     """
 
     aoi_bboxes = [box(*aoi["bbox"]) for aoi in aoi_selection["aois"]]
+    extent_filter_reason = "Outside the extent of the AOI"
 
     def _filter_context_layers(
         context_layers: list[dict],
