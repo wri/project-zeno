@@ -50,5 +50,6 @@ class AgentState(TypedDict):
     # generate-insights tool
     insight: str
     follow_up_suggestions: list[str]
+    insight_id: str
     charts_data: list
     codeact_parts: list[EncodedCodeActPart]

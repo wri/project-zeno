@@ -1,5 +1,6 @@
 import sys
 import uuid
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, patch
 
 import pandas as pd
@@ -39,6 +40,34 @@ def user():
 def user_ds():
     """Override the global user_ds fixture to avoid database connections."""
     pass
+
+
+def _mock_session_factory():
+    """Create a mock async session that captures InsightOrm rows."""
+    session = AsyncMock()
+
+    async def fake_refresh(row):
+        if not row.id:
+            row.id = uuid.uuid4()
+
+    session.refresh = fake_refresh
+    return session
+
+
+@pytest.fixture(autouse=True)
+def mock_insight_db():
+    """Mock insight DB writes to avoid requiring a real global pool."""
+    mock_session = _mock_session_factory()
+
+    @asynccontextmanager
+    async def fake_pool():
+        yield mock_session
+
+    with patch(
+        "src.agent.tools.generate_insights.get_session_from_pool",
+        fake_pool,
+    ):
+        yield mock_session
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -257,7 +286,7 @@ def reset_google_clients():
 
 def has_insights(tool_steps: list[dict]) -> bool:
     for tool_step in tool_steps:
-        if len(tool_step.get("charts_data", [])) > 0:
+        if tool_step.get("insight_id"):
             return True
     return False
 
@@ -304,6 +333,8 @@ async def run_agent(query: str, thread_id: str | None = None):
             for state_key in [
                 "aoi_selection",
                 "dataset",
+                "raw_data",
+                "insight_id",
                 "insights",
                 "charts_data",
             ]:

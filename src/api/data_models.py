@@ -5,6 +5,7 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import (
+    ARRAY,
     Boolean,
     Column,
     Date,
@@ -177,6 +178,39 @@ class MachineUserKeyOrm(Base):
     is_active = Column(Boolean, default=True)
 
     user = relationship("UserOrm", back_populates="machine_user_keys")
+
+
+class InsightOrm(Base):
+    __tablename__ = "insights"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    thread_id = Column(String, nullable=False)
+
+    title = Column(String, nullable=False)
+    chart_type = Column(String, nullable=False)
+    insight_text = Column(String, nullable=False)
+    x_axis = Column(String, nullable=False, server_default="")
+    y_axis = Column(String, nullable=False, server_default="")
+    color_field = Column(String, nullable=False, server_default="")
+    stack_field = Column(String, nullable=False, server_default="")
+    group_field = Column(String, nullable=False, server_default="")
+    series_fields = Column(JSONB, nullable=False, server_default="[]")
+    follow_up_suggestions = Column(JSONB, nullable=False, server_default="[]")
+
+    chart_data = Column(JSONB, nullable=False)
+
+    codeact_types = Column(ARRAY(String), nullable=False, server_default="{}")
+    codeact_contents = Column(
+        ARRAY(String), nullable=False, server_default="{}"
+    )
+
+    is_public = Column(Boolean, nullable=False, server_default="false")
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
 
 
 class WhitelistedUserOrm(Base):

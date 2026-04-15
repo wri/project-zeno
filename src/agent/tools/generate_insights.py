@@ -2,6 +2,7 @@ import re
 from typing import Annotated, Dict, List
 
 import pandas as pd
+import structlog
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
@@ -14,6 +15,8 @@ from src.agent.prompts import WORDING_INSTRUCTIONS
 from src.agent.tools.code_executors import GeminiCodeExecutor
 from src.agent.tools.code_executors.base import PartType
 from src.agent.tools.datasets_config import DATASETS
+from src.api.data_models import InsightOrm
+from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -532,7 +535,8 @@ Cautions: {dataset_cautions}
     ):
         tool_message += f"\n{i}. {suggestion}"
 
-    # Store chart data for frontend - one entry per chart
+    # 8. BUILD INLINE STATE (kept for backwards compatibility during migration)
+    encoded_parts = result.get_encoded_parts()
     charts_data = []
     for idx, chart in enumerate(chart_insight_response.charts):
         charts_data.append(
@@ -551,11 +555,44 @@ Cautions: {dataset_cautions}
             }
         )
 
-    # Update state with generated insights and follow-ups
+    # 9. PERSIST INSIGHT(S) TO DB
+    ctx = structlog.contextvars.get_contextvars()
+    insight_ids: list[str] = []
+    async with get_session_from_pool() as session:
+        insight_rows: list[InsightOrm] = []
+        for chart in chart_insight_response.charts:
+            insight_row = InsightOrm(
+                user_id=ctx.get("user_id"),
+                thread_id=ctx.get("thread_id", ""),
+                title=chart.title,
+                chart_type=chart.chart_type,
+                insight_text=chart_insight_response.primary_insight,
+                x_axis=chart.x_axis,
+                y_axis=chart.y_axis,
+                color_field=chart.color_field,
+                stack_field=chart.stack_field,
+                group_field=chart.group_field,
+                series_fields=chart.series_fields,
+                follow_up_suggestions=chart_insight_response.follow_up_suggestions,
+                chart_data=result.chart_data,
+                codeact_types=[p["type"] for p in encoded_parts],
+                codeact_contents=[p["content"] for p in encoded_parts],
+            )
+            session.add(insight_row)
+            insight_rows.append(insight_row)
+        await session.commit()
+        for row in insight_rows:
+            await session.refresh(row)
+            insight_ids.append(str(row.id))
+
+    insight_id = insight_ids[0] if insight_ids else ""
+    logger.info(f"Persisted insight to DB: {insight_id}")
+
     updated_state = {
+        "insight_id": insight_id,
         "insight": chart_insight_response.primary_insight,
         "follow_up_suggestions": chart_insight_response.follow_up_suggestions,
-        "codeact_parts": result.get_encoded_parts(),
+        "codeact_parts": encoded_parts,
         "charts_data": charts_data,
         "messages": [
             ToolMessage(

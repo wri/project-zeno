@@ -10,6 +10,7 @@ from src.api.routers import (
     chat,
     custom_areas,
     geometry,
+    insights,
     metadata,
     threads,
     users,
@@ -96,4 +97,5 @@ app.include_router(threads.router)
 app.include_router(users.router)
 app.include_router(custom_areas.router)
 app.include_router(geometry.router)
+app.include_router(insights.router)
 app.include_router(metadata.router)
