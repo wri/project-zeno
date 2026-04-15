@@ -295,7 +295,6 @@ async def pick_dataset(
     tool_message = f"""# About the selection
     Selected dataset name: {selection_result.dataset_name}
     Selected context layer: {selection_result.context_layer}
-    Reasoning for selection: {selection_result.reason}
 
     # Additional dataset information
 
