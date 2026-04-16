@@ -76,9 +76,6 @@ class DatasetOption(BaseModel):
     reason: str = Field(
         description="Short reason why the dataset is the best match."
     )
-    language: str = Field(
-        description="Language of the user query.",
-    )
 
     @field_validator("dataset_id")
     def validate_dataset_id(cls, v):
@@ -173,9 +170,8 @@ async def select_best_dataset(
     allow difrenciating between different types of data within the same dataset. So if a user asks
     to show something like "show me tree cover loss by driver", you should select a context layer.
 
-    Evaluate if the best dataset is available for the date range requested by the user,
-    if not, pick the closest date range but warn the user that there
-    is not an exact match with the query requested by the user in the reason field.
+    Evaluate if the best dataset is available for the date range requested by the user.
+    If not, pick the closest available date range and include a warning in the dataset pick reason.
 
     Context-layer extent is a hard constraint, if provided, not a warning. If the AOI bbox does not intersect the
     context-layer bbox, you MUST return context_layer = null. Do not select the context layer and explain the limitation.
@@ -188,7 +184,7 @@ async def select_best_dataset(
     Keep explanations concise. Do not use datset IDs to describe the dataset.
     For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
 
-    Use the language of the user query to generate the reason.
+    Use the language of the user query to generate the reason, not the language of any place mentioned in the query.
 
     AOI bounding box:
 
@@ -257,7 +253,6 @@ async def select_best_dataset(
         function_usage_notes=selected_row.function_usage_notes,
         citation=selected_row.citation,
         content_date=selected_row.content_date,
-        language=selection_result.language,
         selection_hints=selected_row.selection_hints,
         code_instructions=selected_row.code_instructions,
         presentation_instructions=selected_row.presentation_instructions,
