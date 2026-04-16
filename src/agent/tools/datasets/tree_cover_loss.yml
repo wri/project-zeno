@@ -4,6 +4,7 @@ context_layers:
 - value: primary_forest
   description: Shows tree cover loss within humid tropical primary forests across pan-tropical regions. Default to this layer for general forest loss or deforestation requests when the AOI is within its extent, unless the user explicitly asks for all tree cover, non-primary/secondary forest, plantations, or otherwise indicates they want forest types beyond primary forest.
   extent:  [-180.0, -30, 180.0, 30]
+  tile_url: https://tiles.globalforestwatch.org/umd_regional_primary_forest_2001/v201901/uint16/{z}/{x}/{y}.png
 parameters:
 - name: canopy_cover
   description: Minimum percent each 30m pixel is covered by forest canopy in year 2000 to count as a forest.

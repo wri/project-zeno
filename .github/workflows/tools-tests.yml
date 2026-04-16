@@ -74,4 +74,4 @@ jobs:
         run: |
           mkdir -p data
           uv run python src/ingest/embed_datasets.py
-          uv run pytest tests/tools -v
+          uv run pytest tests/tools tests/agent -v
