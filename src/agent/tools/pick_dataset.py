@@ -256,7 +256,10 @@ async def select_best_dataset(
     ].iloc[0]
 
     context_layers = []
-    if selection_result.context_layer and selected_row.context_layers is not None:
+    if (
+        selection_result.context_layer
+        and selected_row.context_layers is not None
+    ):
         selected_context_layer = next(
             (
                 x
