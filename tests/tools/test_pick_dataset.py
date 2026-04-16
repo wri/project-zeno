@@ -246,7 +246,7 @@ lookup = {
             TREE_COVER_LOSS_BY_DRIVER,  # 34
         ),
         (
-            "What regions experienced the most fire-related forest damage?",
+            "What regions experienced the most fire-related tree cover loss?",
             TREE_COVER_LOSS_BY_DRIVER,  # 35
         ),
         # ------------------------------------------------------------------

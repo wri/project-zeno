@@ -202,7 +202,7 @@ async def test_pull_data_queries(aoi_data, dataset):
     }
     command = await pull_data.ainvoke(tool_call)
     statistics = command.update.get("statistics", {})
-    if dataset["dataset_id"] == 9 and aoi_data["src_id"] == "CHE.6.3_1":
+    if dataset["dataset_id"] == 9 and aoi_data["src_id"] != "BRA":
         assert len(statistics) == 0
     else:
         assert len(statistics) == 1
@@ -365,7 +365,7 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
 
     assert aoi_data["src_id"] == statistics[0]["data"]["aoi_id"][0]
     assert aoi_data["name"] == statistics[0]["data"]["name"][0]
-    assert statistics[0]["data"]["land_cover_class_end"] == ["Built-up"]
+    assert statistics[0]["data"]["land_cover_class"] == ["Built-up"]
 
 
 class TestReviseDateRange:
