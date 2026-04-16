@@ -459,12 +459,20 @@ async def test_query_with_context_layer(
 @pytest.mark.parametrize(
     "query,expected_dataset_id,expected_parameter_name,expected_parameter_value",
     [
-        ("Tree cover loss in the past decade where canopy over is greater than 50%", 4, "canopy_cover", 50),
+        (
+            "Tree cover loss in the past decade where canopy over is greater than 50%",
+            4,
+            "canopy_cover",
+            50,
+        ),
         ("Tree cover loss in the past decade", 4, None, None),
     ],
 )
 async def test_query_with_parameter(
-    query, expected_dataset_id, expected_parameter_name, expected_parameter_value
+    query,
+    expected_dataset_id,
+    expected_parameter_name,
+    expected_parameter_value,
 ):
     tool_call_id = str(uuid.uuid4())
 

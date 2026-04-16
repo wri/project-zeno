@@ -194,7 +194,7 @@ async def select_best_dataset(
     the analysis to better answer the query. Select only values listed in the value field for a parameter. For example,
     if a user says "show me tree cover loss in forests where canopy cover is greater than 50%", you may select the parameter canopy cover
     and value 50.
-    
+
     Evaluate if the best dataset is available for the date range requested by the user.
     If not, pick the closest available date range and include a warning in the dataset pick reason.
 

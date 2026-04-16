@@ -281,7 +281,7 @@ class AnalyticsHandler(DataSourceHandler):
             if dataset.get("parameters") is not None:
                 for param in dataset.get("parameters"):
                     if param["name"] == "canopy_cover":
-                        canopy_cover = param["value"]
+                        canopy_cover = max(param["values"])
 
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
@@ -470,20 +470,18 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
         try:
-            context_layer = dataset.get("context_layer")
-
-            dataset = [
+            # enrich dataset in state with full metadata
+            dataset_full = [
                 ds
                 for ds in DATASETS
                 if ds["dataset_id"] == dataset.get("dataset_id")
             ]
-            if not dataset:
+            if not dataset_full:
                 raise ValueError(
                     f"Dataset not found: {dataset.get('dataset_id')}"
                 )
-            dataset = dataset[0]
-            if context_layer:
-                dataset["context_layer"] = context_layer
+
+            dataset = dataset_full[0] | dataset
 
             # Get the appropriate endpoint URL
             if (
