@@ -288,7 +288,7 @@ async def select_best_dataset(
         selection_hints=selected_row.selection_hints,
         code_instructions=selected_row.code_instructions,
         presentation_instructions=selected_row.presentation_instructions,
-        context_layers=[context_layer],
+        context_layers=context_layers,
     )
 
 
