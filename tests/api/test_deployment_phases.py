@@ -42,7 +42,7 @@ class TestDeploymentPhases:
 
             # Authenticated users should work
             auth_override("test-user-wri")
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
                 response = await client.post("/api/chat", json=chat_request)
                 assert response.status_code == 200
@@ -84,7 +84,7 @@ class TestDeploymentPhases:
 
             # Authenticated users should work
             auth_override("test-user-wri")
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
                 response = await client.post("/api/chat", json=chat_request)
                 assert response.status_code == 200
@@ -126,7 +126,7 @@ class TestDeploymentPhases:
 
             # Authenticated users should work
             auth_override("test-user-wri")
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
                 response = await client.post("/api/chat", json=chat_request)
                 assert response.status_code == 200
@@ -156,7 +156,7 @@ class TestDeploymentPhases:
                 "thread_id": "test-thread-123",
             }
 
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
 
                 # Anonymous users should now work

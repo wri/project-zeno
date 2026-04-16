@@ -468,8 +468,8 @@ class TestMachineUserQuota:
         """Test that machine users get higher quota than regular users."""
         from unittest.mock import AsyncMock
 
-        from src.api.app import get_user_identity_and_daily_quota
         from src.api.schemas import UserModel
+        from src.api.services.quota import get_user_identity_and_daily_quota
 
         # Create mock request
         mock_request = AsyncMock()

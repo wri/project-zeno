@@ -1,10 +1,13 @@
 import sys
 import uuid
+from typing import Literal
 from unittest.mock import AsyncMock, patch
 
 import pytest
 import requests
+from pydantic import BaseModel, Field
 
+from src.agent.llms import SMALL_MODEL
 from src.agent.state import AgentState, AOISelection
 from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pick_dataset import (
@@ -243,7 +246,7 @@ lookup = {
             TREE_COVER_LOSS_BY_DRIVER,  # 34
         ),
         (
-            "What regions experienced the most fire-related forest damage?",
+            "What regions experienced the most fire-related tree cover loss?",
             TREE_COVER_LOSS_BY_DRIVER,  # 35
         ),
         # ------------------------------------------------------------------
@@ -423,6 +426,7 @@ async def test_queries_return_expected_dataset(
         ("Tree cover loss by driver", 8, "driver"),
         ("Tree cover loss in primary forest", 4, "primary_forest"),
         ("Tree  cover loss in the past decade", 4, None),
+        ("Deforestation in the past decade", 4, "primary_forest"),
         ("Most recent global land cover in storm seasons", 1, None),
     ],
 )
@@ -503,7 +507,8 @@ async def test_tile_url_contains_date(dataset, state):
 
 
 def _make_fake_selection(
-    dataset_id: int, context_layer: str | None
+    dataset_id: int,
+    context_layer: str | None,
 ) -> DatasetSelectionResult:
     """Build a DatasetSelectionResult for the given dataset with a fake context_layer."""
     ds = next(d for d in DATASETS if d["dataset_id"] == dataset_id)
@@ -521,7 +526,6 @@ def _make_fake_selection(
         function_usage_notes=ds.get("function_usage_notes", ""),
         citation=ds.get("citation", ""),
         content_date=ds.get("content_date", ""),
-        language="en",
     )
 
 
@@ -704,3 +708,115 @@ async def test_queries_context_layer_outside_extent():
     assert dataset_id == expected_dataset_id
     context_layer = command.update.get("dataset", {}).get("context_layer")
     assert context_layer == expected_context_layer
+
+
+async def test_queries_context_layer_extent_definition():
+    """
+    Test a a tropics-only layer is chosen inside the extent using our extent definition,
+    not the LLM's inherent knowledge. Using Chad with primary forest as an example:
+    there is primary forest extent in the very south of Chad, but LLM sometimes
+    uses world knowledge about ecology or its own extents to contradit ours.
+    """
+
+    query = "Tree cover loss in primary forest"
+    expected_dataset_id = 4
+    expected_context_layer = "primary_forest"
+    tool_call_id = str(uuid.uuid4())
+    non_tropics_state = AgentState(
+        aoi_selection=AOISelection(
+            name="Chad",
+            aois=[
+                {
+                    "source": "gadm",
+                    "src_id": "TCD",
+                    "subtype": "",
+                    "name": "Chad",
+                    "bbox": [13.47, 7.44, 24.00, 23.45],
+                }
+            ],
+        )
+    )
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": "2022-01-01",
+            "end_date": "2022-12-31",
+            "state": non_tropics_state,
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    assert dataset_id == expected_dataset_id
+    context_layer = command.update.get("dataset", {}).get("context_layer")
+    assert context_layer == expected_context_layer
+
+
+class LanguageJudgeResult(BaseModel):
+    language: Literal["spanish", "portuguese", "english"] = Field(
+        description="Detected language for the provided text."
+    )
+
+
+async def _judge_language_with_llm(text: str) -> str:
+    """Use the project small model as an LLM judge for language detection."""
+    prompt = (
+        "Classify the language of the following text as exactly one of: "
+        "spanish, portuguese, english.\n"
+        f"Text: {text}"
+    )
+    chain = SMALL_MODEL.with_structured_output(LanguageJudgeResult)
+    result = await chain.ainvoke(prompt)
+    return result.language
+
+
+@pytest.mark.parametrize(
+    "query,expected_language",
+    [
+        (
+            "Que tamaño de area fue desforestada en los Estados Unidos entre 2015 y 2020?",
+            "spanish",
+        ),
+        (
+            "Qual a extensão de terras cultiváveis ​​na República da Irlanda?",
+            "portuguese",
+        ),
+        (
+            "What are the trends in grassland area in Spain",
+            "english",
+        ),
+    ],
+)
+async def test_pick_dataset_reason_matches_query_language_with_llm_judge(
+    query,
+    expected_language,
+    state,
+):
+    tool_call_id = str(uuid.uuid4())
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": "2015-01-01",
+            "end_date": "2020-12-31",
+            "state": state,
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+    reason = command.update.get("dataset", {}).get("reason", "")
+    judged_language = await _judge_language_with_llm(reason)
+
+    assert judged_language == expected_language, (
+        f"Expected reason language '{expected_language}', "
+        f"but judge returned '{judged_language}'. Reason: {reason}"
+    )

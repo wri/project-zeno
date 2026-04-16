@@ -9,7 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.types import Command
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
 from src.agent.llms import SMALL_MODEL
@@ -61,15 +61,22 @@ CUSTOM_BBOX_SQL = """
 """
 
 
+class AOIId(BaseModel):
+    src_id: str = Field(description="`src_id` of the best matched location.")
+
+
 class AOIIndex(BaseModel):
     """Model for storing the best matched location."""
+
+    model_config = ConfigDict(extra="allow")
 
     source: str = Field(description="`source` of the best matched location.")
     src_id: str = Field(description="`src_id` of the best matched location.")
     name: str = Field(description="`name` of the best matched location.")
     subtype: str = Field(description="`subtype` of the best matched location.")
-    bbox: Optional[list[float]] = Field(
-        description="Bounding box of the best matched location as [minx, miny, maxx, maxy]."
+    bbox: list[float] = Field(
+        description="Bounding box of the best matched location as [minx, miny, maxx, maxy].",
+        default=[-180.0, -90.0, 180.0, 90.0],
     )
 
 
@@ -346,7 +353,9 @@ async def query_subregion_database(
     return results
 
 
-async def select_best_aoi(question, candidate_aois):
+async def select_best_aoi(
+    question: str, candidate_aois: pd.DataFrame
+) -> AOIIndex:
     """Select the best AOI based on the user query.
 
     Args:
@@ -356,7 +365,6 @@ async def select_best_aoi(question, candidate_aois):
     Returns:
         Selected AOI: AOIIndex
     """
-
     # Prompt template for selecting the best location match based on user query
     AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
@@ -369,7 +377,7 @@ async def select_best_aoi(question, candidate_aois):
                 When there is a tie, give preference to country > state > district > municipality > locality.
 
                 Candidate locations:
-                {candidate_locations}
+                {candidate_aois_csv}
 
                 User query:
                 {user_query}
@@ -378,24 +386,27 @@ async def select_best_aoi(question, candidate_aois):
         ]
     )
 
-    # Chain for selecting the best location match
+    # Chain for selecting the best location match and returning the src_id
     AOI_SELECTION_CHAIN = (
-        AOI_SELECTION_PROMPT | SMALL_MODEL.with_structured_output(AOIIndex)
+        AOI_SELECTION_PROMPT | SMALL_MODEL.with_structured_output(AOIId)
     )
 
-    selected_aoi = await AOI_SELECTION_CHAIN.ainvoke(
-        {"candidate_locations": candidate_aois, "user_query": question}
+    selected_aoi_index = await AOI_SELECTION_CHAIN.ainvoke(
+        {
+            "candidate_aois_csv": candidate_aois.to_csv(index=False),
+            "user_query": question,
+        }
     )
-    logger.debug(f"Candidate locations: {candidate_aois}")
+    # Get the original data row for the selected AOI
+    selected_aoi_row = candidate_aois[
+        candidate_aois["src_id"] == selected_aoi_index.src_id
+    ].iloc[0]
+    selected_aoi = AOIIndex(**selected_aoi_row.to_dict())
+
+    logger.debug(f"Candidate AOIs: {candidate_aois}")
     logger.debug(f"Selected AOI: {selected_aoi}")
 
-    if selected_aoi.source not in SOURCE_ID_MAPPING:
-        logger.error(f"Invalid source: {selected_aoi.source}")
-        raise ValueError(
-            f"Source: {selected_aoi.source} does not match to any table in PostGIS database."
-        )
-
-    return selected_aoi.model_dump()
+    return selected_aoi
 
 
 async def check_multiple_matches(
@@ -437,14 +448,14 @@ async def check_multiple_matches(
             )
 
 
-async def check_aoi_selection(aois: list[dict]) -> str:
+async def check_aoi_selection(aois: list[AOIIndex]) -> str:
     if not aois:
         return (
             "No matching AOIs were found for your request. "
             "Try a broader place name or choose a different subregion type."
         )
 
-    aoi_sources = set([aoi["source"] for aoi in aois])
+    aoi_sources = set([aoi.source for aoi in aois])
     if len(aoi_sources) > 1:
         return "Found multiple sources of AOIs, which is not supported. Please select only one source."
 
@@ -465,13 +476,13 @@ async def check_aoi_selection(aois: list[dict]) -> str:
 
 
 async def check_duplicate_aois(
-    selected_aois: list[dict], all_results: list[pd.DataFrame]
+    selected_aois: list[AOIIndex], all_results: list[pd.DataFrame]
 ) -> str:
     for selected_aoi, result in zip(selected_aois, all_results):
-        if selected_aoi["source"] == "gadm":
-            short_name = selected_aoi["name"].split(",")[0]
+        if selected_aoi.source == "gadm":
+            short_name = selected_aoi.name.split(",")[0]
             candidate_names = await check_multiple_matches(
-                selected_aoi["src_id"], short_name, result
+                selected_aoi.src_id, short_name, result
             )
             if candidate_names:
                 return f"I found multiple locations named '{short_name}' in different countries. Please tell me which one you meant:\n\n{candidate_names}\n\nWhich location are you looking for?"
@@ -540,10 +551,8 @@ async def pick_aoi(
         *[query_aoi_database(place, RESULT_LIMIT) for place in places]
     )
 
-    result_csvs = [result.to_csv(index=False) for result in all_results]
-
     selected_aois = await asyncio.gather(
-        *[select_best_aoi(question, result_csv) for result_csv in result_csvs]
+        *[select_best_aoi(question, result) for result in all_results]
     )
 
     duplicate_check = await check_duplicate_aois(selected_aois, all_results)
@@ -556,19 +565,21 @@ async def pick_aoi(
             },
         )
 
-    match_names = [selected_aoi["name"] for selected_aoi in selected_aois]
+    match_names = [selected_aoi.name for selected_aoi in selected_aois]
 
     if subregion:
         subregion_tasks = [
             query_subregion_database(
-                subregion, selected_aoi["source"], selected_aoi["src_id"]
+                subregion, selected_aoi.source, selected_aoi.src_id
             )
             for selected_aoi in selected_aois
         ]
         subregion_dfs = await asyncio.gather(*subregion_tasks)
         final_aois = []
         for df in subregion_dfs:
-            final_aois.extend(df.to_dict(orient="records"))
+            final_aois.extend(
+                [AOIIndex(**row) for row in df.to_dict(orient="records")]
+            )
     else:
         final_aois = selected_aois
 
@@ -591,10 +602,7 @@ async def pick_aoi(
 
     tool_message = "Selected AOIs:"
     for selected_aoi in final_aois:
-        selected_aoi[
-            SOURCE_ID_MAPPING[selected_aoi["source"]]["id_column"]
-        ] = selected_aoi["src_id"]
-        tool_message += f"\n- {selected_aoi['name']}"
+        tool_message += f"\n- {selected_aoi.name}"
 
     logger.debug(f"Pick AOI tool message: {tool_message}")
 
@@ -608,11 +616,11 @@ async def pick_aoi(
         update={
             "aoi_selection": {
                 "name": selection_name,
-                "aois": final_aois,
+                "aois": [aoi.model_dump() for aoi in final_aois],
             },
             # TODO: This is deprecated, remove it in the future
-            "aoi": final_aois[0],
-            "subtype": final_aois[0]["subtype"],
+            "aoi": final_aois[0].model_dump(),
+            "subtype": final_aois[0].subtype,
             "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
         },
     )
