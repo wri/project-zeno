@@ -66,6 +66,11 @@ async def rag_candidate_datasets(query: str, k=3):
     return pd.DataFrame(candidate_datasets)
 
 
+class ContextLayer(BaseModel):
+    name: str
+    tile_url: Optional[str]
+
+
 class DatasetOption(BaseModel):
     dataset_id: int = Field(
         description="ID of the dataset that best matches the user query."
@@ -116,6 +121,10 @@ class DatasetSelectionResult(DatasetOption):
     )
     dataset_name: str = Field(
         description="Name of the dataset that best matches the user query."
+    )
+    context_layers: list[ContextLayer] = Field(
+        [],
+        description="Metadata for selected context layers.",
     )
     analytics_api_endpoint: str = Field(
         description="Analytics API endpoint of the dataset that best matches the user query.",
@@ -246,6 +255,25 @@ async def select_best_dataset(
         candidate_datasets.dataset_id == selection_result.dataset_id
     ].iloc[0]
 
+    context_layers = []
+    if (
+        selection_result.context_layer
+        and selected_row.context_layers is not None
+    ):
+        selected_context_layer = next(
+            (
+                x
+                for x in selected_row.context_layers
+                if x["value"] == selection_result.context_layer
+            ),
+            None,
+        )
+        context_layer = ContextLayer(
+            name=selected_context_layer.get("value"),
+            tile_url=selected_context_layer.get("tile_url"),
+        )
+        context_layers.append(context_layer)
+
     return DatasetSelectionResult(
         dataset_id=selected_row.dataset_id,
         dataset_name=selected_row.dataset_name,
@@ -263,6 +291,7 @@ async def select_best_dataset(
         selection_hints=selected_row.selection_hints,
         code_instructions=selected_row.code_instructions,
         presentation_instructions=selected_row.presentation_instructions,
+        context_layers=context_layers,
     )
 
 
