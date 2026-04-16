@@ -11,9 +11,9 @@ from tests.api.mock import mock_rw_api_response
 @pytest.fixture(autouse=True)
 def clear_cache():
     """Clear the user info cache before each test."""
-    from src.api import app as api
+    from src.api.auth.dependencies import _user_info_cache
 
-    api._user_info_cache.clear()
+    _user_info_cache.clear()
 
 
 # Remove this fixture - using the one from conftest.py
@@ -95,7 +95,7 @@ class TestQuotaFunctionality:
             }
 
             # Mock the stream_chat function to avoid actual LLM calls
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
 
                 _ = await client.post(
@@ -121,7 +121,7 @@ class TestQuotaFunctionality:
             )
             mock_client.get.return_value = mock_rw_api_response("Test User")
 
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
 
                 response = await client.post(
@@ -157,7 +157,7 @@ class TestQuotaFunctionality:
                     "Test User"
                 )
 
-                with patch("src.api.app.stream_chat") as mock_stream:
+                with patch("src.api.routers.chat.stream_chat") as mock_stream:
                     mock_stream.return_value = iter(
                         [b'{"response": "Hello!"}\\n']
                     )
@@ -226,7 +226,7 @@ class TestQuotaFunctionality:
             assert "promptQuota" in response.json()
             assert response.json()["promptsUsed"] == 0
 
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
 
                 response = await anonymous_client.post(
@@ -265,7 +265,7 @@ class TestQuotaFunctionality:
             auth_used = auth_response.json()["promptsUsed"]
 
             # Make chat call
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
 
                 chat_response = await client.post(
@@ -310,7 +310,7 @@ class TestQuotaFunctionality:
                     "Test User"
                 )
 
-                with patch("src.api.app.stream_chat") as mock_stream:
+                with patch("src.api.routers.chat.stream_chat") as mock_stream:
                     mock_stream.return_value = iter(
                         [b'{"response": "Hello!"}\\n']
                     )
@@ -387,7 +387,9 @@ class TestQuotaFunctionality:
                     ) as client2
                 ):
                     # Mock stream_chat to avoid actual LLM calls
-                    with patch("src.api.app.stream_chat") as mock_stream:
+                    with patch(
+                        "src.api.routers.chat.stream_chat"
+                    ) as mock_stream:
                         mock_stream.return_value = iter(
                             [b'{"response": "OK"}\\n']
                         )
@@ -455,7 +457,9 @@ class TestQuotaFunctionality:
                         "Authorization": "Bearer noauth:session-ip2",
                     },
                 ) as client2:
-                    with patch("src.api.app.stream_chat") as mock_stream:
+                    with patch(
+                        "src.api.routers.chat.stream_chat"
+                    ) as mock_stream:
                         mock_stream.return_value = iter(
                             [b'{"response": "OK"}\\n']
                         )
@@ -590,7 +594,7 @@ class TestQuotaFunctionality:
 
                 await setup_pro_user()
 
-                with patch("src.api.app.stream_chat") as mock_stream:
+                with patch("src.api.routers.chat.stream_chat") as mock_stream:
                     mock_stream.return_value = iter(
                         [b'{"response": "Hello!"}\n']
                     )
@@ -678,7 +682,7 @@ class TestQuotaFunctionality:
 
             await setup_pro_user()
 
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\n'])
 
                 response = await client.post(
@@ -933,7 +937,7 @@ class TestAPIKeyValidation:
                     "Test User"
                 )
 
-                with patch("src.api.app.stream_chat") as mock_stream:
+                with patch("src.api.routers.chat.stream_chat") as mock_stream:
                     mock_stream.return_value = iter([b'{"response": "OK"}\\n'])
 
                     response = await client.post(

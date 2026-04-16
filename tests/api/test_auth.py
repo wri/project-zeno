@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
-# Import the API app directly from the src package
-from src.api import app as api
+from src.api.auth.dependencies import _user_info_cache
+from src.api.config import APISettings
 from tests.api.mock import mock_rw_api_response
 
 
@@ -16,7 +16,7 @@ def domain_allowlist(domains: str):
     """Context manager to set and reset DOMAINS_ALLOWLIST."""
     domain_list = domains.split(",")
     try:
-        with patch.object(api.APISettings, "domains_allowlist_str", domains):
+        with patch.object(APISettings, "domains_allowlist_str", domains):
             yield domain_list
     finally:
         pass
@@ -25,7 +25,7 @@ def domain_allowlist(domains: str):
 @pytest.fixture(autouse=True)
 def clear_cache():
     """Clear the user info cache before each test."""
-    api._user_info_cache.clear()
+    _user_info_cache.clear()
 
 
 @pytest.mark.parametrize(
@@ -47,7 +47,7 @@ async def test_email_domain_authorization(
     """Test that only users with allowed email domains can access the API."""
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch.object(
-            api.APISettings, "allow_public_signups", False
+            APISettings, "allow_public_signups", False
         ):  # Disable public signups for original behavior
             with patch("httpx.AsyncClient") as mock_client_class:
                 # Mock the AsyncClient context manager and get method
@@ -77,7 +77,7 @@ async def test_missing_bearer_token(client):
     """Test that requests without a Bearer token are rejected."""
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch.object(
-            api.APISettings, "allow_public_signups", False
+            APISettings, "allow_public_signups", False
         ):  # Ensure consistent behavior
             response = await client.get(
                 "/api/auth/me",
@@ -96,7 +96,7 @@ async def test_missing_bearer_token(client):
 async def test_missing_authorization_header(client):
     """Test that requests without an Authorization header are rejected."""
     with patch.object(
-        api.APISettings, "allow_public_signups", False
+        APISettings, "allow_public_signups", False
     ):  # Ensure consistent behavior
         os.environ["DOMAINS_ALLOWLIST"] = "developmentseed.org,wri.org"
         response = await client.get("/api/auth/me")  # No Authorization header
@@ -112,7 +112,7 @@ async def test_user_cant_override_email_domain_authorization(client):
     """Test that only users cant override email domain authorization through query params."""
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch.object(
-            api.APISettings, "allow_public_signups", False
+            APISettings, "allow_public_signups", False
         ):  # Disable public signups for original behavior
             with patch("httpx.AsyncClient") as mock_client_class:
                 # Mock the AsyncClient context manager and get method
@@ -210,7 +210,7 @@ async def test_email_whitelist_case_insensitive(client):
 async def test_domain_whitelist_still_works_with_email_feature(client):
     """Test that existing domain whitelist functionality is preserved."""
     # Clear cache to ensure clean state
-    api._user_info_cache.clear()
+    _user_info_cache.clear()
 
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch("httpx.AsyncClient") as mock_client_class:
@@ -233,7 +233,7 @@ async def test_user_blocked_when_not_in_domain_or_email_whitelist(client):
     """Test that users are blocked when not in either domain or email whitelist and public signups disabled."""
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch.object(
-            api.APISettings, "allow_public_signups", False
+            APISettings, "allow_public_signups", False
         ):  # Disable public signups
             with patch("httpx.AsyncClient") as mock_client_class:
                 mock_client = (
@@ -272,9 +272,9 @@ async def test_public_signup_allowed_when_under_limit(client):
         await session.commit()
 
     with domain_allowlist(""):  # No domain whitelist
-        with patch.object(api.APISettings, "allow_public_signups", True):
+        with patch.object(APISettings, "allow_public_signups", True):
             with patch.object(
-                api.APISettings, "max_user_signups", 5
+                APISettings, "max_user_signups", 5
             ):  # Limit of 5, currently have 2
                 with patch("httpx.AsyncClient") as mock_client_class:
                     mock_client = (
@@ -319,9 +319,9 @@ async def test_signup_limit_blocks_new_user_when_at_limit(client):
         await session.commit()
 
     with domain_allowlist(""):  # No domain whitelist
-        with patch.object(api.APISettings, "allow_public_signups", True):
+        with patch.object(APISettings, "allow_public_signups", True):
             with patch.object(
-                api.APISettings, "max_user_signups", 2
+                APISettings, "max_user_signups", 2
             ):  # Limit of 2, currently have 2
                 with patch("httpx.AsyncClient") as mock_client_class:
                     mock_client = (
@@ -353,7 +353,7 @@ async def test_public_signup_blocked_when_disabled(client):
     from unittest.mock import patch
 
     with domain_allowlist(""):  # No domain whitelist
-        with patch.object(api.APISettings, "allow_public_signups", False):
+        with patch.object(APISettings, "allow_public_signups", False):
             with patch("httpx.AsyncClient") as mock_client_class:
                 mock_client = (
                     mock_client_class.return_value.__aenter__.return_value
@@ -398,9 +398,9 @@ async def test_signup_limit_unlimited_when_negative(client):
         await session.commit()
 
     with domain_allowlist(""):  # No domain whitelist
-        with patch.object(api.APISettings, "allow_public_signups", True):
+        with patch.object(APISettings, "allow_public_signups", True):
             with patch.object(
-                api.APISettings, "max_user_signups", -1
+                APISettings, "max_user_signups", -1
             ):  # Unlimited
                 with patch("httpx.AsyncClient") as mock_client_class:
                     mock_client = (
@@ -449,7 +449,7 @@ async def test_whitelisted_user_bypasses_signup_limit(client):
         "developmentseed.org"
     ):  # gmail.com not in domain list
         with patch.object(
-            api.APISettings, "max_user_signups", 2
+            APISettings, "max_user_signups", 2
         ):  # Limit of 2, currently have 2
             with patch("httpx.AsyncClient") as mock_client_class:
                 mock_client = (
@@ -495,7 +495,7 @@ async def test_domain_whitelisted_user_bypasses_signup_limit(client):
 
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch.object(
-            api.APISettings, "max_user_signups", 3
+            APISettings, "max_user_signups", 3
         ):  # Limit of 3, currently have 3
             with patch("httpx.AsyncClient") as mock_client_class:
                 mock_client = (
@@ -547,7 +547,7 @@ async def test_existing_user_can_login_when_over_limit(client):
 
     with domain_allowlist("developmentseed.org"):
         with patch.object(
-            api.APISettings, "max_user_signups", 3
+            APISettings, "max_user_signups", 3
         ):  # Limit of 3, currently have 6
             with patch("httpx.AsyncClient") as mock_client_class:
                 mock_client = (
@@ -598,10 +598,8 @@ async def test_authentication_priority_order(client):
     with domain_allowlist(
         "developmentseed.org,wri.org"
     ):  # blocked.com not in list
-        with patch.object(api.APISettings, "allow_public_signups", False):
-            with patch.object(
-                api.APISettings, "max_user_signups", 2
-            ):  # At limit
+        with patch.object(APISettings, "allow_public_signups", False):
+            with patch.object(APISettings, "max_user_signups", 2):  # At limit
                 with patch("httpx.AsyncClient") as mock_client_class:
                     mock_client = (
                         mock_client_class.return_value.__aenter__.return_value
@@ -645,9 +643,9 @@ async def test_metadata_signup_open_when_under_limit(client):
             session.add(user)
         await session.commit()
 
-    with patch.object(api.APISettings, "allow_public_signups", True):
+    with patch.object(APISettings, "allow_public_signups", True):
         with patch.object(
-            api.APISettings, "max_user_signups", 5
+            APISettings, "max_user_signups", 5
         ):  # Limit of 5, have 2
             response = await client.get("/api/metadata")
 
@@ -673,9 +671,9 @@ async def test_metadata_signup_closed_when_at_limit(client):
             session.add(user)
         await session.commit()
 
-    with patch.object(api.APISettings, "allow_public_signups", True):
+    with patch.object(APISettings, "allow_public_signups", True):
         with patch.object(
-            api.APISettings, "max_user_signups", 3
+            APISettings, "max_user_signups", 3
         ):  # Limit of 3, have 3
             response = await client.get("/api/metadata")
 
@@ -689,10 +687,8 @@ async def test_metadata_signup_closed_when_public_disabled(client):
     """Test that metadata shows is_signup_open as False when public signups disabled."""
     from unittest.mock import patch
 
-    with patch.object(api.APISettings, "allow_public_signups", False):
-        with patch.object(
-            api.APISettings, "max_user_signups", 100
-        ):  # High limit
+    with patch.object(APISettings, "allow_public_signups", False):
+        with patch.object(APISettings, "max_user_signups", 100):  # High limit
             response = await client.get("/api/metadata")
 
             assert response.status_code == 200
@@ -705,10 +701,8 @@ async def test_metadata_signup_open_unlimited_users(client):
     """Test that metadata shows is_signup_open as True when user limit is unlimited."""
     from unittest.mock import patch
 
-    with patch.object(api.APISettings, "allow_public_signups", True):
-        with patch.object(
-            api.APISettings, "max_user_signups", -1
-        ):  # Unlimited
+    with patch.object(APISettings, "allow_public_signups", True):
+        with patch.object(APISettings, "max_user_signups", -1):  # Unlimited
             response = await client.get("/api/metadata")
 
             assert response.status_code == 200
@@ -785,7 +779,7 @@ async def test_non_whitelisted_user_blocked_on_repeated_requests(client):
     """
     with domain_allowlist("developmentseed.org,wri.org"):
         with patch.object(
-            api.APISettings, "allow_public_signups", False
+            APISettings, "allow_public_signups", False
         ):  # Disable public signups
             with patch("httpx.AsyncClient") as mock_client_class:
                 mock_client = (
