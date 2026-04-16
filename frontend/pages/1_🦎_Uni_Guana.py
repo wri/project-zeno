@@ -1,4 +1,5 @@
 import json
+import os
 import uuid
 
 import requests
@@ -12,7 +13,8 @@ if "session_id" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "token" not in st.session_state:
-    st.session_state["token"] = None
+    # Use ZENO_API_KEY machine-user token for local dev if no WRI login yet
+    st.session_state["token"] = os.environ.get("ZENO_API_KEY")
 
 # Sidebar content
 with st.sidebar:

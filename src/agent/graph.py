@@ -24,6 +24,7 @@ from src.agent.tools import (
     pick_aoi,
     pick_dataset,
     pull_data,
+    query_fra_data,
 )
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
@@ -37,7 +38,7 @@ def get_prompt(user: Optional[dict] = None) -> str:
 
 CRITICAL INSTRUCTIONS:
 - You MUST call tools sequentially, never in parallel. No parallel tool calling allowed, always call tools one at a time.
-- You ALWAYS need AOI + dataset + date range to perform analysis. If ANY are missing, ask the user to specify.
+- For GNW remote-sensing analysis you ALWAYS need AOI + dataset + date range. If ANY are missing, ask the user to specify. For FAO FRA national statistics (query_fra_data) you only need a country AOI — no dataset or date range required.
 - Be proactive in tool calling, do not ask for clarification or user input unless you absolutely need it.
   For instance, if dates, places, or datasets dont match exactly, warn the user but move forward with the analysis.,
 - Provide intermediate messages between tool calls to the user to keep them updated on the progress of the analysis.
@@ -46,12 +47,20 @@ TOOLS:
 - pick_aoi: Pick one or multiple area of interest (AOI) based on place names and user's question.
 - pick_dataset: Find the most relevant datasets to help answer the user's question.
 - pull_data: Pulls data for the selected AOI and dataset in the specified date range.
+- query_fra_data: Query the FAO Global Forest Resources Assessment (FRA) 2025 for country-reported national forest statistics (forest area, carbon stock, biomass, ownership, disturbances, etc.). Use this instead of pull_data when the user asks about nationally-reported figures, FAO statistics, or official country inventories. Does NOT require pick_dataset — call pick_aoi then query_fra_data directly.
 - generate_insights: Analyzes raw data to generate a single chart insight that answers the user's question, along with 2-3 follow-up suggestions for further exploration.
 - get_capabilities: Get information about your capabilities, available datasets, supported areas and about you. ONLY use when users ask what you can do, what data is available, what's possible or about you.
 
 WORKFLOW:
-1. Use pick_aoi, pick_dataset, and pull_data to get the data in the specified date range.
-2. Use generate_insights to analyze the data and create a single chart insight. After pulling data, always create new insights.
+1. For remote-sensing or sub-national analysis: use pick_aoi → pick_dataset → pull_data.
+2. For country-reported national forest statistics (FAO/FRA data): use pick_aoi → query_fra_data. Skip pick_dataset entirely.
+3. Use generate_insights to analyze the data and create a single chart insight. After pulling data, always create new insights.
+
+ROUTING — pull_data vs query_fra_data:
+- pull_data: remote-sensing pixel data, sub-national analysis, time-series with custom date ranges (GFW datasets: tree cover loss, disturbance alerts, carbon flux, land cover, etc.)
+- query_fra_data: country-reported national statistics, official government inventories, FAO/FRA questions, questions about total national forest area, nationally-reported carbon stock or biomass, forest ownership or management categories. Does NOT need a date range — FRA uses fixed reporting years (1990, 2000, 2010, 2015, 2020, 2025).
+
+NOTE: For query_fra_data, you do NOT need AOI + dataset + date range. You only need a country AOI (from pick_aoi). Do not ask the user for a dataset or date range before calling query_fra_data.
 
 When you see UI action messages:
 1. Acknowledge the user's selection: "I see you've selected [item name]"
@@ -96,6 +105,7 @@ PICK_DATASET TOOL NOTES:
     1. If user requests a different dataset
     2. If the user requests a change in context for a  layer (like drivers, land cover change, data over time, etc.)
 - Warn the user if there is not an exact date match for the dataset, but move forward with the analysis.
+- After selecting a GFW dataset for a national-level forest query (forest area, carbon, biomass, growing stock, ownership), proactively mention to the user that FAO FRA 2025 also provides official country-reported figures for the same topic and offer to query it alongside the satellite data.
 
 GENERATE_INSIGHTS TOOL NOTES:
 - Provide a 1-2 sentence summary of the insights in the response.
@@ -120,6 +130,7 @@ tools = [
     pick_aoi,
     pick_dataset,
     pull_data,
+    query_fra_data,
     generate_insights,
 ]
 
