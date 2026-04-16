@@ -86,9 +86,6 @@ class DatasetOption(BaseModel):
     reason: str = Field(
         description="Short reason why the dataset is the best match."
     )
-    language: str = Field(
-        description="Language of the user query.",
-    )
 
     @field_validator("dataset_id")
     def validate_dataset_id(cls, v):
@@ -188,10 +185,9 @@ async def select_best_dataset(
     the analysis to better answer the query. Select only values listed in the value field for a parameter. For example,
     if a user says "show me tree cover loss in forests where canopy cover is greater than 50%", you may select the parameter canopy cover
     and value 50.
-
-    Evaluate if the best dataset is available for the date range requested by the user,
-    if not, pick the closest date range but warn the user that there
-    is not an exact match with the query requested by the user in the reason field.
+    
+    Evaluate if the best dataset is available for the date range requested by the user.
+    If not, pick the closest available date range and include a warning in the dataset pick reason.
 
     Pick the most granular dataset/contextual layer/parameters that matches the query, requested time range.
     For instance, dont select tree cover loss by driver if the user requests a specific time range,
@@ -200,7 +196,7 @@ async def select_best_dataset(
     Keep explanations concise. Do not use datset IDs to describe the dataset.
     For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
 
-    Use the language of the user query to generate the reason.
+    Use the language of the user query to generate the reason, not the language of any place mentioned in the query.
 
     Candidate datasets:
 
@@ -280,7 +276,6 @@ async def select_best_dataset(
         function_usage_notes=selected_row.function_usage_notes,
         citation=selected_row.citation,
         content_date=selected_row.content_date,
-        language=selection_result.language,
         selection_hints=selected_row.selection_hints,
         code_instructions=selected_row.code_instructions,
         presentation_instructions=selected_row.presentation_instructions,
@@ -391,7 +386,9 @@ def get_filtered_contextual_layers(
 
     aoi_bboxes = [box(*aoi["bbox"]) for aoi in aoi_selection["aois"]]
     removed_layers = []
-    extent_filter_reason = "Outside the extent of the AOI"
+    extent_filter_reason = (
+        "Selected area(s) of interest outside extent of layer."
+    )
 
     def _filter_context_layers(
         context_layers: list[dict],

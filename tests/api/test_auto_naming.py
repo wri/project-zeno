@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.api import app as api
-from src.api.app import generate_thread_name
+from src.api.config import APISettings
+from src.api.services.chat import generate_thread_name
 
 
 @contextmanager
@@ -14,7 +14,7 @@ def domain_allowlist(domains: str):
     """Context manager to set and reset DOMAINS_ALLOWLIST."""
     domain_list = domains.split(",")
     try:
-        with patch.object(api.APISettings, "domains_allowlist_str", domains):
+        with patch.object(APISettings, "domains_allowlist_str", domains):
             yield domain_list
     finally:
         pass  # Patch is automatically reverted
@@ -67,7 +67,7 @@ async def test_custom_area_name_success(client, auth_override):
     mock_response.name = "Equatorial Coast"
 
     with domain_allowlist("wri.org"):  # Allow wri.org domain
-        with patch("src.api.app.SMALL_MODEL") as mock_model:
+        with patch("src.api.routers.custom_areas.SMALL_MODEL") as mock_model:
             # Mock the chained method call: SMALL_MODEL.with_structured_output().ainvoke()
             mock_structured_output = AsyncMock()
             mock_structured_output.ainvoke = AsyncMock(
@@ -149,7 +149,7 @@ async def test_custom_area_name_with_realistic_geometry(client, auth_override):
     mock_response.name = "Equatorial Coast"
 
     with domain_allowlist("wri.org"):  # Allow wri.org domain
-        with patch("src.api.app.SMALL_MODEL") as mock_model:
+        with patch("src.api.routers.custom_areas.SMALL_MODEL") as mock_model:
             # Mock the chained method call: SMALL_MODEL.with_structured_output().ainvoke()
             mock_structured_output = AsyncMock()
             mock_structured_output.ainvoke = AsyncMock(
@@ -180,7 +180,7 @@ async def test_generate_thread_name():
     mock_response = AsyncMock()
     mock_response.name = "Brazil Deforestation Analysis"
 
-    with patch("src.api.app.SMALL_MODEL") as mock_model:
+    with patch("src.api.services.chat.SMALL_MODEL") as mock_model:
         # Mock the chained method call: SMALL_MODEL.with_structured_output().ainvoke()
         mock_structured_output = AsyncMock()
         mock_structured_output.ainvoke = AsyncMock(return_value=mock_response)

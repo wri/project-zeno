@@ -357,6 +357,14 @@ class RatingModel(BaseModel):
     updated_at: datetime
 
 
+class ThreadUpdateRequest(BaseModel):
+    name: Optional[str] = Field(None, description="The name of the thread")
+    is_public: Optional[bool] = Field(
+        None,
+        description="Whether the thread is publicly accessible. True = anyone can view without auth, False = owner only",
+    )
+
+
 class ThreadStateResponse(BaseModel):
     """Response model for thread state endpoint."""
 
