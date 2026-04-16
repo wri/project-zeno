@@ -6,18 +6,19 @@
 from src.agent.tools.pick_aoi.tool import (
     SUBREGION_LIMIT,
     SUBREGION_LIMIT_ADMIN,
+    AOIIndex,
     check_aoi_selection,
 )
 
 
-def _make_aois(source: str, n: int) -> list[dict]:
+def _make_aois(source: str, n: int) -> list[AOIIndex]:
     return [
-        {
-            "source": source,
-            "src_id": f"{source}_{i}",
-            "name": f"Area {i}",
-            "subtype": "state-province",
-        }
+        AOIIndex(
+            source=source,
+            src_id=f"{source}_{i}",
+            name=f"Area {i}",
+            subtype="state-province",
+        )
         for i in range(n)
     ]
 
