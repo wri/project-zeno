@@ -9,6 +9,7 @@ import pytest
 from src.agent.tools.pick_aoi.global_queries import (
     GLOBAL_AOI_SELECTION_NAME,
     GLOBAL_TRIGGER_WORDS,
+    _query_all_countries,
     handle_global_request,
     is_global_request,
 )
@@ -150,3 +151,45 @@ def test_gadm_standard_id_re_accepts_valid_ids(gadm_id):
 )
 def test_gadm_standard_id_re_rejects_disputed_territory_ids(gadm_id):
     assert not re.search(GADM_STANDARD_ID_RE, gadm_id)
+
+
+@pytest.mark.asyncio
+async def test_query_all_countries_uses_global_bbox_expression(monkeypatch):
+    captured = {}
+    expected_df = _make_country_df(1)
+
+    class _FakeConn:
+        async def run_sync(self, fn):
+            return fn("sync-conn")
+
+    class _FakeConnContext:
+        async def __aenter__(self):
+            return _FakeConn()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+    def fake_pool():
+        return _FakeConnContext()
+
+    def fake_read_sql(sql, sync_conn, params):
+        captured["sql"] = str(sql)
+        captured["sync_conn"] = sync_conn
+        captured["params"] = params
+        return expected_df
+
+    monkeypatch.setattr(
+        "src.agent.tools.pick_aoi.global_queries.get_connection_from_pool",
+        fake_pool,
+    )
+    monkeypatch.setattr(pd, "read_sql", fake_read_sql)
+
+    result = await _query_all_countries()
+
+    assert result.equals(expected_df)
+    assert captured["sync_conn"] == "sync-conn"
+    assert captured["params"] == {"subtype": "country"}
+    assert (
+        "json_build_array(-180.0, -90.0, 180.0, 90.0) AS bbox"
+        in captured["sql"]
+    )

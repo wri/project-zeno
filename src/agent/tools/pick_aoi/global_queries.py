@@ -91,7 +91,8 @@ async def _query_all_countries() -> pd.DataFrame:
         SELECT name,
                subtype,
                CAST({src_id_field} AS TEXT) AS src_id,
-               'gadm'                        AS source
+               'gadm'                        AS source,
+               json_build_array(-180.0, -90.0, 180.0, 90.0) AS bbox
         FROM {GADM_TABLE}
         WHERE subtype = :subtype
         AND {src_id_field} ~ '{GADM_STANDARD_ID_RE}'
