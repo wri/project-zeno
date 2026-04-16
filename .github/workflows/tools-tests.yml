@@ -16,7 +16,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        image: postgis/postgis:16-3.4
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -70,6 +70,7 @@ jobs:
           STREAMLIT_URL: http://localhost:8501
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
           NEXTJS_API_KEY: test-nextjs-api-key
+          EOAPI_BASE_URL: https://eoapi.globalnaturewatch.org
         run: |
           mkdir -p data
           uv run python src/ingest/embed_datasets.py
