@@ -150,9 +150,9 @@ def _log_verdict(query: str, rubric: str, verdict: Verdict):
     """Log the full judgment chain for debugging."""
     status = "PASS ✅" if verdict.passed else "FAIL ❌"
     logger.info(
-        f"\n{'='*70}\n"
+        f"\n{'=' * 70}\n"
         f"EVAL JUDGMENT: {status}\n"
-        f"{'='*70}\n"
+        f"{'=' * 70}\n"
         f"Query: {query}\n"
         f"Rubric: {rubric.strip()}\n"
         f"Tool output: chart_type={verdict.tool_output_summary.get('chart_type')}, "
@@ -166,7 +166,7 @@ def _log_verdict(query: str, rubric: str, verdict: Verdict):
             f"  {'✓' if r.get('met') else '✗'} {r.get('requirement', '?')}: {r.get('reason', '')}"
             for r in verdict.requirements
         )
-        + f"\n{'='*70}"
+        + f"\n{'=' * 70}"
     )
 
 
