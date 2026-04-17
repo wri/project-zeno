@@ -470,6 +470,14 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
         try:
+            # Hydrate selected dataset with full metadata
+            dataset_full = [
+                ds
+                for ds in DATASETS
+                if ds["dataset_id"] == dataset.get("dataset_id")
+            ]
+            dataset = dataset_full[0] | dataset
+
             # Get the appropriate endpoint URL
             if (
                 dataset.get("dataset_id") == LAND_COVER_CHANGE_ID
