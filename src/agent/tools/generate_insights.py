@@ -248,7 +248,7 @@ Now prepare the data for visualization in Recharts.js:
 
 class ChartInsight(BaseModel):
     """
-    Represents chart metadata with Recharts-compatible field mappings.
+    Represents a chart-based insight with Recharts-compatible data.
     """
 
     title: str = Field(description="Clear, descriptive title for the chart")
