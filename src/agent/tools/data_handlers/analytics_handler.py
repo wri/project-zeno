@@ -470,19 +470,6 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
         try:
-            # enrich dataset in state with full metadata
-            dataset_full = [
-                ds
-                for ds in DATASETS
-                if ds["dataset_id"] == dataset.get("dataset_id")
-            ]
-            if not dataset_full:
-                raise ValueError(
-                    f"Dataset not found: {dataset.get('dataset_id')}"
-                )
-
-            dataset = dataset_full[0] | dataset
-
             # Get the appropriate endpoint URL
             if (
                 dataset.get("dataset_id") == LAND_COVER_CHANGE_ID
