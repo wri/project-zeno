@@ -101,7 +101,7 @@ lookup = {
             DIST_ALERT,  # 4
         ),
         # Dataset 1 queries (Global land cover) - annual land cover classification and change
-        ("How much of the world is urban?", LAND_COVER_CHANGE),  # 5
+        ("How much of the world is urban?", NATURAL_LANDS),  # 5
         (
             "Which had more cropland in 2015, Nigeria or Ghana?",
             LAND_COVER_CHANGE,  # 6
@@ -226,7 +226,7 @@ lookup = {
             TREE_COVER_LOSS_BY_DRIVER,  # 34
         ),
         (
-            "What regions experienced the most fire-related forest damage?",
+            "What regions experienced the most fire-related forest loss?",
             TREE_COVER_LOSS_BY_DRIVER,  # 35
         ),
         # ------------------------------------------------------------------
