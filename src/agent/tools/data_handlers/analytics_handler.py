@@ -145,7 +145,7 @@ class AnalyticsHandler(DataSourceHandler):
         "Content-Type": "application/json",
         "X-environment": (
             "production"
-            if os.getenv("STAGE", "production").strip().lower() == "production"
+            if os.getenv("GNW_STAGE", "production").strip().lower() == "production"
             else "staging"
         ),
     }
