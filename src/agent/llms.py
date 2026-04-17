@@ -26,7 +26,7 @@ GEMINI = ChatGoogleGenerativeAI(
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
     thinking_level="low",
-    max_retries=AgentSettings.llm_max_retries,  # Retries handled by ModelRetryMiddleware
+    max_retries=AgentSettings.llm_max_retries,
     timeout=300,
 )
 GEMINI_FLASH = ChatGoogleGenerativeAI(
@@ -34,7 +34,7 @@ GEMINI_FLASH = ChatGoogleGenerativeAI(
     temperature=0.3,
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
-    max_retries=AgentSettings.llm_max_retries,  # Retries handled by ModelRetryMiddleware
+    max_retries=AgentSettings.llm_max_retries,
     thinking_level="low",
     timeout=300,
 )
@@ -43,7 +43,7 @@ GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
     temperature=0.3,
     max_tokens=None,  # max_tokens=None means no limit
     include_thoughts=False,
-    max_retries=AgentSettings.llm_max_retries,  # Retries handled by ModelRetryMiddleware
+    max_retries=AgentSettings.llm_max_retries,
     thinking_level="low",
     timeout=300,
 )
