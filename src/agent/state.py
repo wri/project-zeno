@@ -20,6 +20,8 @@ class Statistics(TypedDict):
     source_url: str
     data: dict
     aoi_names: list[str]
+    parameters: list[dict] | None
+    context_layer: str | None
 
 
 class AgentState(TypedDict):

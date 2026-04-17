@@ -198,6 +198,8 @@ async def pull_data(
                     "aoi_names": [
                         aoi["name"] for aoi in state["aoi_selection"]["aois"]
                     ],
+                    "parameters": dataset.get("parameters"),
+                    "context_layer": dataset.get("context_layer"),
                 }
             ],
             # TODO: This is deprecated, remove it in the future
