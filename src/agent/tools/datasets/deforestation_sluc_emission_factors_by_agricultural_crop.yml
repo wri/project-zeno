@@ -1,6 +1,7 @@
 dataset_id: 9
 dataset_name: Deforestation (sLUC) Emission Factors by Agricultural Crop
 context_layers: null
+parameters: null
 variables: null
 tile_url: ''
 license: CC by 4.0

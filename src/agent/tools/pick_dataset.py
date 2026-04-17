@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Dict, Optional, Union
+from typing import Annotated, Any, Dict, List, Optional, Union
 
 import pandas as pd
 from langchain.tools import InjectedState
@@ -22,7 +22,10 @@ from src.agent.tools.data_handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
-from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.datasets_config import (
+    CANDIDATE_DATASET_REQUIRED_COLUMNS,
+    DATASETS,
+)
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -66,6 +69,12 @@ async def rag_candidate_datasets(query: str, k=3):
     return pd.DataFrame(candidate_datasets)
 
 
+class DatasetParameter(BaseModel):
+    name: str
+    description: str
+    values: List[Any]
+
+
 class ContextLayer(BaseModel):
     name: str
     tile_url: Optional[str]
@@ -78,6 +87,9 @@ class DatasetOption(BaseModel):
     context_layer: Optional[str] = Field(
         None,
         description="Pick a single context layer from the dataset if relevant.",
+    )
+    parameters: Optional[list[DatasetParameter]] = Field(
+        None, description="Dataset specific parameters."
     )
     reason: str = Field(
         description="Short reason why the dataset is the best match."
@@ -181,10 +193,15 @@ async def select_best_dataset(
     to show something like "show me tree cover loss by driver", you should select a context layer. These are pre-filtered
     to match the spatiotemporal query constraints.
 
+    Select parameters and values if they are relevant or specified in the user query. Parameters allow further filtering
+    the analysis to better answer the query. Select only values listed in the value field for a parameter. For example,
+    if a user says "show me tree cover loss in forests where canopy cover is greater than 50%", you may select the parameter canopy cover
+    and value 50.
+
     Evaluate if the best dataset is available for the date range requested by the user.
     If not, pick the closest available date range and include a warning in the dataset pick reason.
 
-    Pick the most granular dataset/contextual layer that matches the query, requested time range.
+    Pick the most granular dataset/contextual layer/parameters that matches the query, requested time range.
     For instance, dont select tree cover loss by driver if the user requests a specific time range,
     pick tree cover loss instead.
 
@@ -217,29 +234,19 @@ async def select_best_dataset(
     )
 
     if aoi_selection is None:
-        candidate_datasets["filtered_context_layers"] = candidate_datasets[
-            "context_layers"
-        ]
         removed_df = None
     else:
         filtered_layers, removed_layers = get_filtered_contextual_layers(
             candidate_datasets["context_layers"], aoi_selection
         )
 
-        candidate_datasets["filtered_context_layers"] = filtered_layers
+        candidate_datasets["context_layers"] = filtered_layers
         removed_df = removed_layers.to_csv(index=False)
 
     selection_result = await dataset_selection_chain.ainvoke(
         {
             "candidate_datasets": candidate_datasets[
-                [
-                    "dataset_id",
-                    "dataset_name",
-                    "description",
-                    "selection_hints",
-                    "content_date",
-                    "filtered_context_layers",
-                ]
+                CANDIDATE_DATASET_REQUIRED_COLUMNS
             ].to_csv(index=False),
             "user_query": query,
             "removed_layers": removed_df,
@@ -278,6 +285,7 @@ async def select_best_dataset(
         dataset_id=selected_row.dataset_id,
         dataset_name=selected_row.dataset_name,
         context_layer=selection_result.context_layer,
+        parameters=selection_result.parameters,
         reason=selection_result.reason,
         tile_url=selected_row.tile_url,
         analytics_api_endpoint=selected_row.analytics_api_endpoint,

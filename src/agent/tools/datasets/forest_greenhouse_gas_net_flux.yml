@@ -1,6 +1,7 @@
 dataset_id: 6
 dataset_name: Forest greenhouse gas net flux
 context_layers: null
+parameters: null
 variables:
 - value: primary_forest
   description: Shows loss within humid tropical primary forest in global pan-tropical regions

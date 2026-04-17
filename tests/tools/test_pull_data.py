@@ -75,6 +75,12 @@ ALL_DATASET_COMBINATIONS = [
     {
         "dataset_id": 4,
         "dataset_name": "Tree cover loss",
+        "context_layer": None,
+        "parameters": [{"name": "canopy_cover", "values": [50]}],
+    },
+    {
+        "dataset_id": 4,
+        "dataset_name": "Tree cover loss",
         "context_layer": "driver",
     },
     {
@@ -170,6 +176,7 @@ async def test_pull_data_queries(aoi_data, dataset):
             "reason": "",
             "tile_url": "",
             "context_layer": dataset["context_layer"],
+            "parameters": dataset.get("parameters"),
         },
     }
     if dataset.get("check_composition"):

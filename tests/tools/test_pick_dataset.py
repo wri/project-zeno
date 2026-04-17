@@ -425,7 +425,7 @@ async def test_queries_return_expected_dataset(
         ("Vegetation disturbances over grasslands", 0, "grasslands"),
         ("Tree cover loss by driver", 8, "driver"),
         ("Tree cover loss in primary forest", 4, "primary_forest"),
-        ("Tree  cover loss in the past decade", 4, None),
+        ("Tree  cover loss in the past decade in sparse forests", 4, None),
         ("Deforestation in the past decade", 4, "primary_forest"),
         ("Most recent global land cover in storm seasons", 1, None),
     ],
@@ -454,6 +454,64 @@ async def test_query_with_context_layer(
     assert dataset_id == expected_dataset_id
     context_layer = command.update.get("dataset", {}).get("context_layer")
     assert context_layer == expected_context_layer
+
+
+@pytest.mark.parametrize(
+    "query,expected_dataset_id,expected_parameter_name,expected_parameter_value",
+    [
+        (
+            "Tree cover loss in the past decade where canopy over is greater than 50%",
+            4,
+            "canopy_cover",
+            50,
+        ),
+        (
+            "Tree cover loss in the past decade where canopy threshold is 23",
+            4,
+            "canopy_cover",
+            25,
+        ),
+        (
+            "Tree cover loss in the past decade where canopy threshold is 30",
+            4,
+            "canopy_cover",
+            30,
+        ),
+        ("Tree cover loss in the past decade", 4, None, None),
+    ],
+)
+async def test_query_with_parameter(
+    query,
+    expected_dataset_id,
+    expected_parameter_name,
+    expected_parameter_value,
+):
+    tool_call_id = str(uuid.uuid4())
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": "2022-01-01",
+            "end_date": "2022-12-31",
+            "state": dict(),
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    assert dataset_id == expected_dataset_id
+
+    if expected_parameter_name is None:
+        assert command.update.get("dataset", {}).get("parameters") is None
+    else:
+        param = command.update.get("dataset", {}).get("parameters")[0]
+        assert param["name"] == expected_parameter_name
+        assert expected_parameter_value in param["values"]
 
 
 @pytest.mark.parametrize(
