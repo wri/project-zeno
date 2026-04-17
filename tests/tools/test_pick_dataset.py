@@ -465,6 +465,18 @@ async def test_query_with_context_layer(
             "canopy_cover",
             50,
         ),
+        (
+            "Tree cover loss in the past decade where canopy threshold is 23",
+            4,
+            "canopy_cover",
+            25,
+        ),
+        (
+            "Tree cover loss in the past decade where canopy threshold is 30",
+            4,
+            "canopy_cover",
+            30,
+        ),
         ("Tree cover loss in the past decade", 4, None, None),
     ],
 )
