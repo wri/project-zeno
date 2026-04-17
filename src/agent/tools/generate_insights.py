@@ -286,7 +286,9 @@ class MultiChartInsight(BaseModel):
     """
 
     charts: List[ChartInsight] = Field(
-        description="List of charts to display, each with title, type, and field mappings"
+        min_length=1,
+        max_length=2,
+        description="List of 1-2 charts to display, each with title, type, and field mappings",
     )
     primary_insight: str = Field(
         description="Overall insight that ties all charts together (2-3 sentences)"
