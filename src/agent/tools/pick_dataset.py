@@ -313,7 +313,9 @@ async def pick_dataset(
 ) -> Command:
     """
     Given a user query, runs RAG to retrieve relevant datasets, selects the best matching dataset within the specified time range with reasoning,
-    and extracts relevant metadata needed for downstream querying.
+    and extracts relevant metadata needed for downstream querying such as context layers and parameters.
+
+    If the user requests data with a different context layer or parameter, pick the dataset again.
 
     Args:
         query: User query providing context for the dataset selection

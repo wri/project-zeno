@@ -49,7 +49,14 @@ def prepare_dataframes(
             )
             df = df.drop(columns=df.columns[constants])
 
-        display_name = f"{data['aoi_names']} — {data['dataset_name']} ({data['start_date']} to {data['end_date']})"
+        param_parts = []
+        if data.get("context_layer"):
+            param_parts.append(f"context_layer={data['context_layer']}")
+        for param in data.get("parameters") or []:
+            values = ", ".join(str(v) for v in param["values"])
+            param_parts.append(f"{param['name']}={values}")
+        param_suffix = f" [{', '.join(param_parts)}]" if param_parts else ""
+        display_name = f"{', '.join(data['aoi_names'])} — {data['dataset_name']} ({data['start_date']} to {data['end_date']}){param_suffix}"
         dataframes.append((df, display_name))
         source_urls.append(data["source_url"])
 
@@ -179,7 +186,8 @@ For example: "I will begin by loading and examining" -> "Load and examine"
 **STEP 1: ANALYZE THE DATA**
 - Load the relevant dataset(s) using pandas.
 - Always use the pattern `df = pd.read_csv("input_file_{{i}}.csv")` to load the data, do not assign the file name to a variable first.
-- Print which dataset(s) you are using (name and date range)
+- If multiple files represent the same dataset with different parameters (shown in brackets in the file name, e.g. `[canopy_cover=50]`), treat each as a separate series and use the parameter value as the series label.
+- Print which dataset(s) you are using (name, date range, and any filtering parameters)
 - Explore the data structure, columns, and data types
 - Calculate key statistics relevant to the user query
 - Print your key findings clearly
@@ -477,8 +485,12 @@ Cautions: {dataset_cautions}
    - series_fields: [] (empty)
    - group_field: "" (empty)
 
-4. **Follow-ups**: Base suggestions on available capabilities - analyze any area, pull data from {available_datasets}, create charts for different time periods
-5. **Examples for follow-up suggestions**: "Show trend over different period", "Compare with nearby area", "Identify top performers", "Break down by category"
+4. **Follow-ups**: Pick 1-2 suggestions from the capabilities below that are most relevant to the query:
+   - Analyze a different or nearby area
+   - Pull data from other available datasets: {available_datasets}
+   - Show trend over a different time period
+   - Compare results at a different parameter value (e.g. a different canopy cover threshold or context layer)
+   - Break down by category or identify top performers
 
 {WORDING_INSTRUCTIONS}
 """
