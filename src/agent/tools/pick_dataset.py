@@ -22,7 +22,10 @@ from src.agent.tools.data_handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
-from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.datasets_config import (
+    CANDIDATE_DATASET_REQUIRED_COLUMNS,
+    DATASETS,
+)
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -231,30 +234,19 @@ async def select_best_dataset(
     )
 
     if aoi_selection is None:
-        candidate_datasets["filtered_context_layers"] = candidate_datasets[
-            "context_layers"
-        ]
         removed_df = None
     else:
         filtered_layers, removed_layers = get_filtered_contextual_layers(
             candidate_datasets["context_layers"], aoi_selection
         )
 
-        candidate_datasets["filtered_context_layers"] = filtered_layers
+        candidate_datasets["context_layers"] = filtered_layers
         removed_df = removed_layers.to_csv(index=False)
 
     selection_result = await dataset_selection_chain.ainvoke(
         {
             "candidate_datasets": candidate_datasets[
-                [
-                    "dataset_id",
-                    "dataset_name",
-                    "description",
-                    "selection_hints",
-                    "content_date",
-                    "filtered_context_layers",
-                    "parameters",
-                ]
+                CANDIDATE_DATASET_REQUIRED_COLUMNS
             ].to_csv(index=False),
             "user_query": query,
             "removed_layers": removed_df,
