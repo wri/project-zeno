@@ -454,7 +454,10 @@ Cautions: {dataset_cautions}
 
 ### Requirements
 1. **Language**: Generate ALL content in the SAME LANGUAGE as the user query
-2. **Multiple Charts**: Generate 1-2 complementary charts if the data supports it (e.g., if tree cover loss AND emissions are both present, create separate charts for each)
+2. **Multiple Charts + Data Constraint**: Generate 1-2 complementary charts
+   only when both can be built from the SAME shared `chart_data` table
+   (same rows/grain), using exact existing column names in chart fields.
+   Otherwise, generate exactly 1 chart.
 3. **Data Format**: Generate structure in Recharts.js data format - specify field names that map to the chart data columns
 4. **Narrative Placement**: Put narrative text ONLY at top-level: `primary_insight` and `follow_up_suggestions`. Do NOT include narrative fields inside chart objects.
 
