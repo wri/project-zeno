@@ -333,7 +333,6 @@ async def run_agent(query: str, thread_id: str | None = None):
             for state_key in [
                 "aoi_selection",
                 "dataset",
-                "raw_data",
                 "insight_id",
                 "insights",
                 "charts_data",
