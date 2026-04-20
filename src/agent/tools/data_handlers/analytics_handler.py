@@ -337,7 +337,7 @@ class AnalyticsHandler(DataSourceHandler):
             raise ValueError(
                 f"Unknown dataset ID: {dataset.get('dataset_id')}"
             )
-        
+
         if dataset.get("dataset_id") in [
             TREE_COVER_LOSS_ID,
             TREE_COVER_ID,
@@ -349,7 +349,7 @@ class AnalyticsHandler(DataSourceHandler):
                 for param in dataset.get("parameters"):
                     if param["name"] == "canopy_cover":
                         canopy_cover = max(param["values"])
-            
+
             payload["canopy_cover"] = canopy_cover
 
         return payload
