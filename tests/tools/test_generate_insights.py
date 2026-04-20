@@ -585,6 +585,6 @@ async def test_generate_insights_creates_two_bar_charts_with_code_instructions()
     for idx, chart in enumerate(charts):
         assert "id" in chart, f"Chart {idx} is missing 'id': {chart}"
         assert "data" in chart, f"Chart {idx} is missing 'data': {chart}"
-        assert chart.get("type") == "bar", (
-            f"Chart {idx} type is '{chart.get('type')}', expected 'bar'. Chart: {chart}"
-        )
+        assert (
+            chart.get("type") == "bar"
+        ), f"Chart {idx} type is '{chart.get('type')}', expected 'bar'. Chart: {chart}"
