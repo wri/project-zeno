@@ -145,7 +145,8 @@ class AnalyticsHandler(DataSourceHandler):
         "Content-Type": "application/json",
         "X-environment": (
             "production"
-            if os.getenv("STAGE", "production").strip().lower() == "production"
+            if os.getenv("GNW_STAGE", "production").strip().lower()
+            == "production"
             else "staging"
         ),
     }
@@ -279,8 +280,15 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_LOSS_BY_DRIVER_ID,
         ]:
             forest_filter = None
+            canopy_cover = 30
+
             if dataset.get("context_layer") == "primary_forest":
                 forest_filter = "primary_forest"
+
+            if dataset.get("parameters") is not None:
+                for param in dataset.get("parameters"):
+                    if param["name"] == "canopy_cover":
+                        canopy_cover = max(param["values"])
 
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
@@ -290,7 +298,7 @@ class AnalyticsHandler(DataSourceHandler):
                 **base_payload,
                 "start_year": start_date[:4],
                 "end_year": end_date[:4],
-                "canopy_cover": 30,
+                "canopy_cover": canopy_cover,
                 "forest_filter": forest_filter,
                 "intersections": intersections,
             }
@@ -469,20 +477,13 @@ class AnalyticsHandler(DataSourceHandler):
             )
 
         try:
-            context_layer = dataset.get("context_layer")
-
-            dataset = [
+            # Hydrate selected dataset with full metadata
+            dataset_full = [
                 ds
                 for ds in DATASETS
                 if ds["dataset_id"] == dataset.get("dataset_id")
             ]
-            if not dataset:
-                raise ValueError(
-                    f"Dataset not found: {dataset.get('dataset_id')}"
-                )
-            dataset = dataset[0]
-            if context_layer:
-                dataset["context_layer"] = context_layer
+            dataset = dataset_full[0] | dataset
 
             # Get the appropriate endpoint URL
             if (

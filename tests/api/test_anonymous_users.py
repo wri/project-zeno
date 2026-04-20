@@ -28,7 +28,7 @@ class TestAnonymousUserAccess:
             }
 
             # Mock the stream_chat function to avoid actual LLM calls
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
 
                 response = await anonymous_client.post(
@@ -85,7 +85,7 @@ class TestAnonymousUserAccess:
                 "thread_id": "test-thread-123",
             }
 
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "OK"}\\n'])
 
                 response = await anonymous_client.post(
@@ -111,7 +111,7 @@ class TestAnonymousUserAccess:
         try:
             thread_id = "continuous-thread-456"
 
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "OK"}\\n'])
 
                 # First message
@@ -180,7 +180,7 @@ class TestAnonymousUserAccess:
             }
 
             # Mock the stream_chat function to avoid actual LLM calls
-            with patch("src.api.app.stream_chat") as mock_stream:
+            with patch("src.api.routers.chat.stream_chat") as mock_stream:
                 mock_stream.return_value = iter([b'{"response": "Hello!"}\\n'])
 
                 response = await anonymous_client.post(

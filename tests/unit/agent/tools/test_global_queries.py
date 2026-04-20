@@ -1,6 +1,7 @@
 """Unit tests for global_queries — no DB, no LLM."""
 
 import re
+from importlib import import_module
 from unittest.mock import AsyncMock, patch
 
 import pandas as pd
@@ -9,14 +10,11 @@ import pytest
 from src.agent.tools.pick_aoi.global_queries import (
     GLOBAL_AOI_SELECTION_NAME,
     GLOBAL_TRIGGER_WORDS,
+    _query_all_countries,
     handle_global_request,
     is_global_request,
 )
 from src.shared.geocoding_helpers import GADM_STANDARD_ID_RE
-
-# ---------------------------------------------------------------------------
-# is_global_request
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("word", sorted(GLOBAL_TRIGGER_WORDS))
@@ -43,11 +41,6 @@ def test_is_global_request_true_if_any_place_matches():
     assert is_global_request(["Brazil", "global"]) is True
 
 
-# ---------------------------------------------------------------------------
-# handle_global_request — wrong / missing subregion
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "subregion", [None, "state", "kba", "wdpa", "landmark"]
@@ -56,11 +49,6 @@ async def test_handle_global_request_rejects_non_country_subregion(subregion):
     cmd = await handle_global_request(subregion, tool_call_id="tc-1")
     msg = cmd.update["messages"][0]
     assert "country" in msg.content.lower()
-
-
-# ---------------------------------------------------------------------------
-# handle_global_request — happy path
-# ---------------------------------------------------------------------------
 
 
 _SAMPLE_ISOS = [
@@ -77,7 +65,7 @@ _SAMPLE_ISOS = [
 ]
 
 
-def _make_country_df(n: int = 3) -> pd.DataFrame:
+def _make_country_df(n: int = 1) -> pd.DataFrame:
     return pd.DataFrame(
         [
             {
@@ -131,11 +119,6 @@ async def test_handle_global_request_tool_message_text():
     assert "countries" in msg.content.lower()
 
 
-# ---------------------------------------------------------------------------
-# GADM_STANDARD_ID_RE — disputed-territory filtering
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "gadm_id",
     ["USA", "BRA", "IND", "BRA.16_1", "IND.12.26_1", "USA.1.2.3_2"],
@@ -150,3 +133,47 @@ def test_gadm_standard_id_re_accepts_valid_ids(gadm_id):
 )
 def test_gadm_standard_id_re_rejects_disputed_territory_ids(gadm_id):
     assert not re.search(GADM_STANDARD_ID_RE, gadm_id)
+
+
+@pytest.mark.asyncio
+async def test_query_all_countries_uses_global_bbox_expression(monkeypatch):
+    captured = {}
+    expected_df = _make_country_df()
+    global_queries_module = import_module(
+        "src.agent.tools.pick_aoi.global_queries"
+    )
+
+    class _FakeConn:
+        async def run_sync(self, fn):
+            return fn("sync-conn")
+
+    class _FakeConnContext:
+        async def __aenter__(self):
+            return _FakeConn()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+    def fake_pool():
+        return _FakeConnContext()
+
+    def fake_read_sql(sql, sync_conn, params):
+        captured["sql"] = str(sql)
+        captured["sync_conn"] = sync_conn
+        captured["params"] = params
+        return expected_df
+
+    monkeypatch.setattr(
+        global_queries_module, "get_connection_from_pool", fake_pool
+    )
+    monkeypatch.setattr(pd, "read_sql", fake_read_sql)
+
+    result = await _query_all_countries()
+
+    assert result.equals(expected_df)
+    assert captured["sync_conn"] == "sync-conn"
+    assert captured["params"] == {"subtype": "country"}
+    assert (
+        "json_build_array(-180.0, -90.0, 180.0, 90.0) AS bbox"
+        in captured["sql"]
+    )

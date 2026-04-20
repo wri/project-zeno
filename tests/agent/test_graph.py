@@ -353,14 +353,22 @@ async def run_agent(query: str, thread_id: str | None = None):
 
             # Print other relevant state changes
             for state_key in [
-                "aoi",
+                "aoi_selection",
                 "dataset",
-                "raw_data",
                 "insights",
                 "charts_data",
             ]:
                 if state_key in value and value[state_key]:
                     print(f"📈 {state_key}: {value[state_key]}")
+
+            if "statistics" in value and value["statistics"]:
+                for stat in value["statistics"]:
+                    print(f"📈 Dataset name: {stat['dataset_name']}")
+                    print(f"📈 Start date: {stat['start_date']}")
+                    print(f"📈 End date: {stat['end_date']}")
+                    print(f"📈 Source URL: {stat['source_url']}")
+                    print(f"📈 Data: {len(stat['data'])} rows")
+                    print(f"📈 AOI names: {stat['aoi_names']}")
 
         print("-" * 40)
         steps.append(step)

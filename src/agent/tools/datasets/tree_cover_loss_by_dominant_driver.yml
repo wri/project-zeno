@@ -1,6 +1,7 @@
 dataset_id: 8
 dataset_name: Tree cover loss by dominant driver
 context_layers: null
+parameters: null
 variables: null
 tile_url: https://tiles.globalforestwatch.org/wri_google_tree_cover_loss_drivers/v1.13/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30&render_type=true_color
 license: CC by 4.0

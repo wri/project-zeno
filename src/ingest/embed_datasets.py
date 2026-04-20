@@ -32,6 +32,7 @@ for ds in DATASETS:
         "CONTEXTUAL_LAYERS": ds["context_layers"],
         "DATE": ds["content_date"],
         "USAGE NOTES": ds["function_usage_notes"],
+        "PARAMETERS": ds.get("parameters"),
     }
 
     formatted_content = "\n\n".join(
