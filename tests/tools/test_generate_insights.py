@@ -510,3 +510,81 @@ async def test_pie_chart():
     assert "data" in chart_data
     assert "id" in chart_data
     assert chart_data["type"] == "pie"
+
+
+async def test_generate_insights_creates_two_bar_charts_with_code_instructions():
+    """Test multi-chart generation with generic fields and aligned code instructions."""
+    mock_state_multichart = {
+        "dataset": {
+            "dataset_id": 999,
+            "context_layer": None,
+            "date_request_match": True,
+            "reason": "The dataset contains two annual metrics and supports side-by-side trend analysis.",
+            "tile_url": "https://tiles.example.com/generic_metrics/latest/dynamic/{z}/{x}/{y}.png",
+            "dataset_name": "Generic Annual Metrics",
+            "analytics_api_endpoint": "/v0/generic/metrics/analytics",
+            "description": "Synthetic yearly metrics for multi-chart testing.",
+            "prompt_instructions": "Analyze annual trends for both metrics.",
+            "code_instructions": "Generate exactly 2 separate bar charts (year, metric_primary) and (year, metric_secondary).",
+            "presentation_instructions": "Use neutral wording and keep axis mappings tied to existing columns.",
+            "methodology": "Synthetic data for test validation.",
+            "cautions": "Values are synthetic and for test behavior only.",
+            "function_usage_notes": "Supports multi-chart behavior validation\n",
+            "citation": "Internal synthetic test dataset.",
+        },
+        "statistics": [
+            Statistics(
+                dataset_name="Generic Annual Metrics",
+                source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
+                start_date="2021-01-01",
+                end_date="2024-12-31",
+                aoi_names=["Sample Region"],
+                data={
+                    "year": [
+                        2021,
+                        2022,
+                        2023,
+                        2024,
+                    ],
+                    "metric_primary": [
+                        120,
+                        150,
+                        180,
+                        210,
+                    ],
+                    "metric_secondary": [
+                        80,
+                        95,
+                        110,
+                        130,
+                    ],
+                    "aoi_id": ["REG.1"] * 4,
+                    "aoi_type": ["admin"] * 4,
+                },
+            )
+        ],
+    }
+
+    tool_call_id = str(uuid.uuid4())
+    result = await generate_insights.ainvoke(
+        {
+            "type": "tool_call",
+            "name": "generate_insights",
+            "id": tool_call_id,
+            "args": {
+                "query": "What is the trend in this region over the last four years?",
+                "state": mock_state_multichart,
+            },
+        }
+    )
+
+    assert "charts_data" in result.update
+    charts = result.update["charts_data"]
+    assert len(charts) == 2, f"Expected exactly 2 charts, got {len(charts)}"
+
+    for idx, chart in enumerate(charts):
+        assert "id" in chart, f"Chart {idx} is missing 'id': {chart}"
+        assert "data" in chart, f"Chart {idx} is missing 'data': {chart}"
+        assert chart.get("type") == "bar", (
+            f"Chart {idx} type is '{chart.get('type')}', expected 'bar'. Chart: {chart}"
+        )
