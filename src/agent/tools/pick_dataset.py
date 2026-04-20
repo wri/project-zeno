@@ -17,6 +17,7 @@ from shapely import box
 from src.agent.llms import SMALL_MODEL
 from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
+    FOREST_CARBON_FLUX_ID,
     GRASSLANDS_ID,
     LAND_COVER_CHANGE_ID,
     TREE_COVER_ID,
@@ -282,14 +283,14 @@ async def select_best_dataset(
         )
         context_layers.append(context_layer)
 
-    if selected_row.dataset_id in [TREE_COVER_LOSS_ID, TREE_COVER_ID]:
+    if selected_row.dataset_id in [TREE_COVER_LOSS_ID, TREE_COVER_ID, TREE_COVER_LOSS_BY_DRIVER_ID, FOREST_CARBON_FLUX_ID]:
         canopy_cover = 30
         if selection_result.parameters is not None:
             for param in selection_result.parameters:
                 if param.name == "canopy_cover":
                     canopy_cover = max(param.values)
 
-        if selected_row.dataset_id in [TREE_COVER_LOSS_ID]:
+        if selected_row.dataset_id != TREE_COVER_ID:
             canopy_cover_tile_url = next(
                 (
                     param["tile_url"]
@@ -308,10 +309,10 @@ async def select_best_dataset(
                 tile_url=thresholded_tile_url,
             )
             context_layers.append(context_layer)
-        else:
-            selected_row.tile_url = selected_row.tile_url.replace(
-                "{threshold}", str(canopy_cover)
-            )
+        
+        selected_row.tile_url = selected_row.tile_url.replace(
+            "{threshold}", str(canopy_cover)
+        )
 
     return DatasetSelectionResult(
         dataset_id=selected_row.dataset_id,

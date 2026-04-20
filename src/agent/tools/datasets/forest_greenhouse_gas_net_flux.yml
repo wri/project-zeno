@@ -2,13 +2,15 @@ dataset_id: 6
 dataset_name: Forest greenhouse gas net flux
 context_layers: null
 parameters: null
-variables:
+context_layers:
 - value: primary_forest
   description: Shows loss within humid tropical primary forest in global pan-tropical regions
-- value: intact_forest_landscape
-  description: Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human
-    disturbance as of 2000.
-tile_url: https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30
+parameters:
+- name: canopy_cover
+  description: Minimum percent each 30m pixel is covered by forest canopy in year 2000 to count as a forest.
+  values: [30, 50, 75]
+  tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/v1.8/tcd_{threshold}/{z}/{x}/{y}.png
+tile_url: https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold={threshold}
 license: CC by 4.0
 geographic_coverage: Global
 resolution: 30 x 30 meters
