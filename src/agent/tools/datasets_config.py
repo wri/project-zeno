@@ -7,6 +7,15 @@ from pathlib import Path
 import yaml
 
 DATASETS_DIR = Path(__file__).parent / "datasets"
+CANDIDATE_DATASET_REQUIRED_COLUMNS = [
+    "dataset_id",
+    "dataset_name",
+    "description",
+    "selection_hints",
+    "content_date",
+    "context_layers",
+    "parameters",
+]
 
 
 def _load_datasets() -> list[dict]:
@@ -18,6 +27,15 @@ def _load_datasets() -> list[dict]:
         if not isinstance(record, dict):
             raise ValueError(
                 f"expected mapping in {path}, got {type(record).__name__}"
+            )
+        missing_columns = [
+            col
+            for col in CANDIDATE_DATASET_REQUIRED_COLUMNS
+            if col not in record
+        ]
+        if missing_columns:
+            raise ValueError(
+                f"dataset {record.get('dataset_id', path.stem)} is missing required columns: {missing_columns}"
             )
         datasets.append(record)
     datasets.sort(key=lambda d: d["dataset_id"])

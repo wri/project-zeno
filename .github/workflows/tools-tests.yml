@@ -16,7 +16,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        image: postgis/postgis:16-3.4
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -55,8 +55,9 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          MODEL: gemini-flash-lite
-          SMALL_MODEL: gemini-flash-lite
+          MODEL: gemini-flash
+          SMALL_MODEL: gemini-flash
+          LLM_MAX_RETRIES: 3
           CODING_MODEL: gemini-3-flash-preview
           MAPBOX_API_TOKEN: ${{ secrets.MAPBOX_API_TOKEN }}
           WRI_API_KEY: ${{ secrets.WRI_API_KEY }}
@@ -70,7 +71,8 @@ jobs:
           STREAMLIT_URL: http://localhost:8501
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
           NEXTJS_API_KEY: test-nextjs-api-key
+          EOAPI_BASE_URL: https://eoapi.globalnaturewatch.org
         run: |
           mkdir -p data
           uv run python src/ingest/embed_datasets.py
-          uv run pytest tests/tools -v
+          uv run pytest tests/tools tests/agent -v

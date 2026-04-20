@@ -8,6 +8,7 @@ import structlog
 from sqlalchemy import select
 
 from src.agent.tools.pick_aoi import pick_aoi
+from src.agent.tools.pick_aoi.tool import AOIIndex
 from src.api.data_models import WhitelistedUserOrm
 from tests.conftest import async_session_maker
 
@@ -124,7 +125,7 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
     await whitelist_test_user()
 
     # Override auth to use the whitelisted email
-    from src.api.app import fetch_user_from_rw_api
+    from src.api.auth.dependencies import fetch_user_from_rw_api
     from src.api.schemas import UserModel
 
     def mock_auth():
@@ -212,12 +213,12 @@ async def test_pick_aoi_handles_empty_subregion_results(
         )
 
     async def fake_select_best_aoi(question, candidate_aois):
-        return {
-            "src_id": "USA.6_1",
-            "name": "Colorado, United States",
-            "subtype": "state-province",
-            "source": "gadm",
-        }
+        return AOIIndex(
+            src_id="USA.6_1",
+            name="Colorado, United States",
+            subtype="state-province",
+            source="gadm",
+        )
 
     async def fake_query_subregion_database(
         subregion_name: str, source: str, src_id: int

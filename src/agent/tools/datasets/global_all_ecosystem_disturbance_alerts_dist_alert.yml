@@ -11,6 +11,7 @@ context_layers:
 - value: land_cover
   description: 'Shows disturbance within different land cover/land use classes: bare ground and sparse, vegetation, short
     vegetation, tree cover, wetlands, water, snow/ice, cropland, cultivated grasslands, and built-up land.'
+parameters: null
 variables: null
 tile_url: https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color
 license: CC by 4.0
