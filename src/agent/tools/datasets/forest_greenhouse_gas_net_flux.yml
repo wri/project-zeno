@@ -1,10 +1,6 @@
 dataset_id: 6
 dataset_name: Forest greenhouse gas net flux
 context_layers: null
-parameters: null
-context_layers:
-- value: primary_forest
-  description: Shows loss within humid tropical primary forest in global pan-tropical regions
 parameters:
 - name: canopy_cover
   description: Minimum percent each 30m pixel is covered by forest canopy in year 2000 to count as a forest.

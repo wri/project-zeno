@@ -180,7 +180,11 @@ class DatasetSelectionResult(DatasetOption):
 
 
 async def select_best_dataset(
-    query: str, candidate_datasets: pd.DataFrame, aoi_selection=None
+    query: str,
+    candidate_datasets: pd.DataFrame,
+    start_date: str,
+    end_date: str,
+    aoi_selection=None,
 ) -> DatasetSelectionResult:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
@@ -264,55 +268,9 @@ async def select_best_dataset(
         candidate_datasets.dataset_id == selection_result.dataset_id
     ].iloc[0]
 
-    context_layers = []
-    if (
-        selection_result.context_layer
-        and selected_row.context_layers is not None
-    ):
-        selected_context_layer = next(
-            (
-                x
-                for x in selected_row.context_layers
-                if x["value"] == selection_result.context_layer
-            ),
-            None,
-        )
-        context_layer = ContextLayer(
-            name=selected_context_layer.get("value"),
-            tile_url=selected_context_layer.get("tile_url"),
-        )
-        context_layers.append(context_layer)
-
-    if selected_row.dataset_id in [TREE_COVER_LOSS_ID, TREE_COVER_ID, TREE_COVER_LOSS_BY_DRIVER_ID, FOREST_CARBON_FLUX_ID]:
-        canopy_cover = 30
-        if selection_result.parameters is not None:
-            for param in selection_result.parameters:
-                if param.name == "canopy_cover":
-                    canopy_cover = max(param.values)
-
-        if selected_row.dataset_id != TREE_COVER_ID:
-            canopy_cover_tile_url = next(
-                (
-                    param["tile_url"]
-                    for param in selected_row.parameters
-                    if param["name"] == "canopy_cover"
-                ),
-                None,
-            )
-
-            thresholded_tile_url = canopy_cover_tile_url.replace(
-                "{threshold}", str(canopy_cover)
-            )
-
-            context_layer = ContextLayer(
-                name="canopy_cover",
-                tile_url=thresholded_tile_url,
-            )
-            context_layers.append(context_layer)
-        
-        selected_row.tile_url = selected_row.tile_url.replace(
-            "{threshold}", str(canopy_cover)
-        )
+    dataset_tile_url, context_layers = get_tile_services_for_dataset(
+        selection_result, selected_row, start_date, end_date
+    )
 
     return DatasetSelectionResult(
         dataset_id=selected_row.dataset_id,
@@ -320,7 +278,7 @@ async def select_best_dataset(
         context_layer=selection_result.context_layer,
         parameters=selection_result.parameters,
         reason=selection_result.reason,
-        tile_url=selected_row.tile_url,
+        tile_url=dataset_tile_url,
         analytics_api_endpoint=selected_row.analytics_api_endpoint,
         description=selected_row.description,
         prompt_instructions=selected_row.prompt_instructions,
@@ -363,7 +321,7 @@ async def pick_dataset(
     candidate_datasets = await rag_candidate_datasets(query, k=3)
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await select_best_dataset(
-        query, candidate_datasets, aoi_selection
+        query, candidate_datasets, start_date, end_date, aoi_selection
     )
 
     tool_message = f"""# About the selection
@@ -391,35 +349,6 @@ async def pick_dataset(
     """
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
-
-    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-    end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-
-    if not selection_result.tile_url.startswith("http"):
-        selection_result.tile_url = (
-            SharedSettings.eoapi_base_url + selection_result.tile_url
-        )
-
-    if selection_result.dataset_id == DIST_ALERT_ID:
-        selection_result.tile_url += (
-            f"&start_date={start_date}&end_date={end_date}"
-        )
-    elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
-        if end_date.year in range(2000, 2023):
-            selection_result.tile_url = selection_result.tile_url.format(
-                year=end_date.year
-            )
-        else:
-            selection_result.tile_url = selection_result.tile_url.format(
-                year="2022"
-            )
-    elif selection_result.dataset_id == TREE_COVER_LOSS_ID:
-        if end_date.year in range(2001, 2025):
-            selection_result.tile_url += (
-                f"&start_year={start_date.year}&end_year={end_date.year}"
-            )
-        else:
-            selection_result.tile_url += "&start_year=2001&end_year=2024"
 
     return Command(
         update={
@@ -482,3 +411,86 @@ def get_filtered_contextual_layers(
     )
 
     return filtered_layers, removed_df
+
+
+def get_tile_services_for_dataset(
+    selection_result, selected_row, start_date, end_date
+):
+    context_layers = []
+    tile_url = selected_row.tile_url
+    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    if not selected_row.tile_url.startswith("http"):
+        tile_url = SharedSettings.eoapi_base_url + tile_url
+
+    if (
+        selection_result.context_layer
+        and selected_row.context_layers is not None
+    ):
+        selected_context_layer = next(
+            (
+                x
+                for x in selected_row.context_layers
+                if x["value"] == selection_result.context_layer
+            ),
+            None,
+        )
+        context_layer = ContextLayer(
+            name=selected_context_layer.get("value"),
+            tile_url=selected_context_layer.get("tile_url"),
+        )
+        context_layers.append(context_layer)
+
+    if selected_row.dataset_id in [
+        TREE_COVER_LOSS_ID,
+        TREE_COVER_ID,
+        TREE_COVER_LOSS_BY_DRIVER_ID,
+        FOREST_CARBON_FLUX_ID,
+    ]:
+        canopy_cover = 30
+        if selection_result.parameters is not None:
+            for param in selection_result.parameters:
+                if param.name == "canopy_cover":
+                    canopy_cover = max(param.values)
+
+        if selected_row.dataset_id != TREE_COVER_ID:
+            canopy_cover_tile_url = next(
+                (
+                    param["tile_url"]
+                    for param in selected_row.parameters
+                    if param["name"] == "canopy_cover"
+                ),
+                None,
+            )
+
+            thresholded_tile_url = canopy_cover_tile_url.replace(
+                "{threshold}", str(canopy_cover)
+            )
+
+            context_layer = ContextLayer(
+                name="canopy_cover",
+                tile_url=thresholded_tile_url,
+            )
+            context_layers.append(context_layer)
+
+        tile_url = selected_row.tile_url.replace(
+            "{threshold}", str(canopy_cover)
+        )
+
+        if selected_row.dataset_id == TREE_COVER_LOSS_ID:
+            if end_date.year in range(2001, 2025):
+                tile_url += (
+                    f"&start_year={start_date.year}&end_year={end_date.year}"
+                )
+            else:
+                tile_url += "&start_year=2001&end_year=2024"
+    elif selection_result.dataset_id == DIST_ALERT_ID:
+        tile_url += f"&start_date={start_date}&end_date={end_date}"
+    elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
+        if end_date.year in range(2000, 2023):
+            tile_url = tile_url.format(year=end_date.year)
+        else:
+            tile_url = tile_url.format(year="2022")
+
+    return tile_url, context_layers
