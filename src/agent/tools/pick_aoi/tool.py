@@ -47,8 +47,8 @@ def _antimeridian_bbox_sql(geom_expr: str) -> str:
     no ST_Dump, no vertex iteration. Falls back to naive bbox if either
     clip returns nothing (geometry doesn't truly cross the antimeridian).
     """
-    east_half = f"ST_MakeEnvelope(0, -90, 180, 90, 4326)"
-    west_half = f"ST_MakeEnvelope(-180, -90, 0, 90, 4326)"
+    east_half = "ST_MakeEnvelope(0, -90, 180, 90, 4326)"
+    west_half = "ST_MakeEnvelope(-180, -90, 0, 90, 4326)"
     return f"""
     CASE
         WHEN ST_XMax({geom_expr}) - ST_XMin({geom_expr}) > 180
