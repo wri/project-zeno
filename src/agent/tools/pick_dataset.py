@@ -19,6 +19,7 @@ from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
     GRASSLANDS_ID,
     LAND_COVER_CHANGE_ID,
+    TREE_COVER_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
@@ -281,31 +282,36 @@ async def select_best_dataset(
         )
         context_layers.append(context_layer)
 
-    if selected_row.dataset_id in [TREE_COVER_LOSS_ID]:
+    if selected_row.dataset_id in [TREE_COVER_LOSS_ID, TREE_COVER_ID]:
         canopy_cover = 30
         if selection_result.parameters is not None:
             for param in selection_result.parameters:
                 if param.name == "canopy_cover":
                     canopy_cover = max(param.values)
 
-        canopy_cover_tile_url = next(
-            (
-                param["tile_url"]
-                for param in selected_row.parameters
-                if param["name"] == "canopy_cover"
-            ),
-            None,
-        )
+        if selected_row.dataset_id in [TREE_COVER_LOSS_ID]:
+            canopy_cover_tile_url = next(
+                (
+                    param["tile_url"]
+                    for param in selected_row.parameters
+                    if param["name"] == "canopy_cover"
+                ),
+                None,
+            )
 
-        thresholded_tile_url = canopy_cover_tile_url.replace(
-            "{threshold}", str(canopy_cover)
-        )
+            thresholded_tile_url = canopy_cover_tile_url.replace(
+                "{threshold}", str(canopy_cover)
+            )
 
-        context_layer = ContextLayer(
-            name="canopy_cover",
-            tile_url=thresholded_tile_url,
-        )
-        context_layers.append(context_layer)
+            context_layer = ContextLayer(
+                name="canopy_cover",
+                tile_url=thresholded_tile_url,
+            )
+            context_layers.append(context_layer)
+        else:
+            selected_row.tile_url = selected_row.tile_url.replace(
+                "{threshold}", str(canopy_cover)
+            )
 
     return DatasetSelectionResult(
         dataset_id=selected_row.dataset_id,

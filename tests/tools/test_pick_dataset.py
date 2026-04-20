@@ -560,6 +560,31 @@ async def test_tile_url_contains_date(dataset, state):
     assert response.status_code == 200
 
 
+async def test_tree_cover_tile_url_with_canopy_density(state):
+    tool_call_id = str(uuid.uuid4())
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": "Tree cover where where canopy density is greater than 15%",
+            "start_date": "2000-01-01",
+            "end_date": "2000-12-31",
+            "state": state,
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    tile_url = command.update.get("dataset", {}).get("tile_url")
+    assert "tcd_15" in tile_url
+    tile_url_format = tile_url.format(z=3, x=5, y=3)
+    response = requests.get(tile_url_format)
+    assert response.status_code == 200
+
+
 def _make_fake_selection(
     dataset_id: int,
     context_layer: str | None,
