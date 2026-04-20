@@ -9,6 +9,7 @@ parameters:
 - name: canopy_cover
   description: Minimum percent each 30m pixel is covered by forest canopy in year 2000 to count as a forest.
   values: [10, 15, 20, 25, 30, 35, 50, 75]
+  tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/v1.8/tcd_{threshold}/{z}/{x}/{y}.png
 tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30&render_type=true_color
 license: CC by 4.0
 geographic_coverage: Global land area (excluding Antarctica and other Arctic islands)

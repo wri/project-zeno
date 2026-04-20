@@ -281,6 +281,32 @@ async def select_best_dataset(
         )
         context_layers.append(context_layer)
 
+    if selected_row.dataset_id in [TREE_COVER_LOSS_ID]:
+        canopy_cover = 30
+        if selection_result.parameters is not None:
+            for param in selection_result.parameters:
+                if param.name == "canopy_cover":
+                    canopy_cover = max(param.values)
+
+        canopy_cover_tile_url = next(
+            (
+                param["tile_url"]
+                for param in selected_row.parameters
+                if param["name"] == "canopy_cover"
+            ),
+            None,
+        )
+
+        thresholded_tile_url = canopy_cover_tile_url.replace(
+            "{threshold}", str(canopy_cover)
+        )
+
+        context_layer = ContextLayer(
+            name="canopy_cover",
+            tile_url=thresholded_tile_url,
+        )
+        context_layers.append(context_layer)
+
     return DatasetSelectionResult(
         dataset_id=selected_row.dataset_id,
         dataset_name=selected_row.dataset_name,
