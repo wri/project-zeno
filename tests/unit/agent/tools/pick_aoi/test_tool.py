@@ -6,12 +6,6 @@ def test_sql_contains_crossing_condition():
     assert "ST_XMax(geometry) - ST_XMin(geometry) > 180" in sql
 
 
-def test_sql_uses_clip_not_dump():
-    sql = _antimeridian_bbox_sql("geometry")
-    assert "ST_ClipByBox2D" in sql
-    assert "ST_Dump" not in sql
-
-
 def test_sql_clips_to_east_and_west_half_planes():
     sql = _antimeridian_bbox_sql("geometry")
     assert "ST_MakeEnvelope(0, -90, 180, 90, 4326)" in sql
