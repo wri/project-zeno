@@ -24,9 +24,8 @@ keywords:
 analytics_api_endpoint: /v0/land_change/carbon_flux/analytics
 prompt_instructions: 'DO NOT show trends over time or annual values. Caution users that this data shows net flux, gross emissions
   and removals as total values over the model period of 2001-2024, not an annual values. Show net flux as a split bar chart,
-  with emissions in the positive y-axis and removals in the negative. The data is calculcated with a  30% canopy density threshold,
-  requests for a different threshold are not yet possible. Use the term "net sink" for net-negative flux values (removals/sequestration)
-  and "net source" for net-positive (emissions)
+  with emissions in the positive y-axis and removals in the negative. The data is valid only 30% or higher canopy cover densities.
+  Use the term "net sink" for net-negative flux values (removals/sequestration) and "net source" for net-positive (emissions)
 
   '
 selection_hints: 'Shows net greenhouse gas flux from forests — balance between emissions and removals. Total over model period
