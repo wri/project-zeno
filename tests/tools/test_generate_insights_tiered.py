@@ -50,9 +50,11 @@ def reset_google_clients():
 # Helpers
 # ---------------------------------------------------------------------------
 async def invoke_generate_insights(
-    query: str, dataset: dict, statistics: list[dict]
+    query: str,
+    dataset: dict,
+    statistics: list[dict],
 ) -> dict:
-    """Call generate_insights and return the update dict (or error message)."""
+    """Call generate_insights and retry once on transient chart-data failures."""
     tool_call_id = str(uuid.uuid4())
     command = await generate_insights.ainvoke(
         {

@@ -350,30 +350,19 @@ async def query_subregion_database(
         else ""
     )
 
-    # For GADM-to-GADM lookups use hierarchical ID prefix matching instead of
-    # ST_CoveredBy — avoids an expensive spatial join against the full country
-    # geometry (e.g. USA with Alaska/Hawaii, Russia with Chukotka).
-    if table_name == GADM_TABLE and source == "gadm":
-        sql_query = f"""
-        SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id, {BBOX_SQL}
-        FROM {table_name} AS t
-        WHERE t.subtype = :subtype
-        AND t.gadm_id LIKE :gadm_prefix
-        {gadm_filter}
-        """
-    else:
-        sql_query = f"""
-        WITH aoi AS (
-            SELECT geometry AS geom
-            FROM {source_table}
-            WHERE "{id_column}" = :src_id
-            LIMIT 1
-        )
-        SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id, {BBOX_SQL}
-        FROM {table_name} AS t, aoi
-        WHERE t.subtype = :subtype
-        AND ST_CoveredBy(t.geometry, aoi.geom)
-        """
+    sql_query = f"""
+    WITH aoi AS (
+        SELECT geometry AS geom
+        FROM {source_table}
+        WHERE "{id_column}" = :src_id
+        LIMIT 1
+    )
+    SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id, {BBOX_SQL}
+    FROM {table_name} AS t, aoi
+    WHERE t.subtype = :subtype
+    AND ST_CoveredBy(t.geometry, aoi.geom)
+    {gadm_filter}
+    """
     logger.debug(f"Executing subregion query: {sql_query}")
 
     async with get_connection_from_pool() as conn:
