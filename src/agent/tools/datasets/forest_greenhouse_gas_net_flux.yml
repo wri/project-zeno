@@ -1,14 +1,12 @@
 dataset_id: 6
 dataset_name: Forest greenhouse gas net flux
 context_layers: null
-parameters: null
-variables:
-- value: primary_forest
-  description: Shows loss within humid tropical primary forest in global pan-tropical regions
-- value: intact_forest_landscape
-  description: Shows gain within large, unfragmented areas of natural forest ecosystems that were free from significant human
-    disturbance as of 2000.
-tile_url: https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold=30
+parameters:
+- name: canopy_cover
+  description: Minimum percent each 30m pixel is covered by forest canopy in year 2000 to count as a forest.
+  values: [30, 50, 75]
+  tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/v1.8/tcd_{threshold}/{z}/{x}/{y}.png
+tile_url: https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold={threshold}
 license: CC by 4.0
 geographic_coverage: Global
 resolution: 30 x 30 meters
@@ -25,10 +23,9 @@ keywords:
 - sequestration
 analytics_api_endpoint: /v0/land_change/carbon_flux/analytics
 prompt_instructions: 'DO NOT show trends over time or annual values. Caution users that this data shows net flux, gross emissions
-  and removals as total values over the model period of 2001-2025, not an annual values. Show net flux as a split bar chart,
-  with emissions in the positive y-axis and removals in the negative. The data is calculcated with a  30% canopy density threshold,
-  requests for a different threshold are not yet possible. Use the term "net sink" for net-negative flux values (removals/sequestration)
-  and "net source" for net-positive (emissions)
+  and removals as total values over the model period of 2001-2024, not an annual values. Show net flux as a split bar chart,
+  with emissions in the positive y-axis and removals in the negative. The data is valid only 30% or higher canopy cover densities.
+  Use the term "net sink" for net-negative flux values (removals/sequestration) and "net source" for net-positive (emissions)
 
   '
 selection_hints: 'Shows net greenhouse gas flux from forests — balance between emissions and removals. Total over model period

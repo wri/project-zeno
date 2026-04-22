@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any, Dict, List, Optional, Union
+from typing import Annotated, Dict, Union
 
 import pandas as pd
 from langchain.tools import InjectedState
@@ -11,20 +11,26 @@ from langchain_core.tools.base import InjectedToolCallId
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langgraph.types import Command
-from pydantic import BaseModel, Field, field_validator, model_validator
 from shapely import box
 
 from src.agent.llms import SMALL_MODEL
 from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
+    FOREST_CARBON_FLUX_ID,
     GRASSLANDS_ID,
     LAND_COVER_CHANGE_ID,
+    TREE_COVER_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
 from src.agent.tools.datasets_config import (
     CANDIDATE_DATASET_REQUIRED_COLUMNS,
     DATASETS,
+)
+from src.agent.tools.pick_dataset.schema import (
+    ContextLayer,
+    DatasetOption,
+    DatasetSelectionResult,
 )
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
@@ -69,116 +75,12 @@ async def rag_candidate_datasets(query: str, k=3):
     return pd.DataFrame(candidate_datasets)
 
 
-class DatasetParameter(BaseModel):
-    name: str
-    description: str
-    values: List[Any]
-
-
-class ContextLayer(BaseModel):
-    name: str
-    tile_url: Optional[str]
-
-
-class DatasetOption(BaseModel):
-    dataset_id: int = Field(
-        description="ID of the dataset that best matches the user query."
-    )
-    context_layer: Optional[str] = Field(
-        None,
-        description="Pick a single context layer from the dataset if relevant.",
-    )
-    parameters: Optional[list[DatasetParameter]] = Field(
-        None, description="Dataset specific parameters."
-    )
-    reason: str = Field(
-        description="Short reason why the dataset is the best match."
-    )
-
-    @field_validator("dataset_id")
-    def validate_dataset_id(cls, v):
-        if v not in [ds["dataset_id"] for ds in DATASETS]:
-            raise ValueError(f"Invalid dataset ID: {v}")
-        return v
-
-    @model_validator(mode="after")
-    def validate_context_layer_for_dataset(self) -> "DatasetOption":
-        """Ensure context_layer is valid for the chosen dataset_id (runs after all fields)."""
-        dataset_id = self.dataset_id
-        if dataset_id is None:
-            self.context_layer = None
-            return self
-        # Hardcoded override: TCL by driver always needs "driver" intersection
-        elif dataset_id == TREE_COVER_LOSS_BY_DRIVER_ID:
-            self.context_layer = "driver"
-            return self
-
-        if self.context_layer is None:
-            return self
-
-        selected_dataset = [
-            ds for ds in DATASETS if ds["dataset_id"] == dataset_id
-        ][0]
-        context_layers = selected_dataset.get("context_layers") or []
-        context_layer_values = [lyr["value"] for lyr in context_layers]
-        if self.context_layer not in context_layer_values:
-            self.context_layer = None
-
-        return self
-
-
-class DatasetSelectionResult(DatasetOption):
-    tile_url: str = Field(
-        description="Tile URL of the dataset that best matches the user query.",
-    )
-    dataset_name: str = Field(
-        description="Name of the dataset that best matches the user query."
-    )
-    context_layers: list[ContextLayer] = Field(
-        [],
-        description="Metadata for selected context layers.",
-    )
-    analytics_api_endpoint: str = Field(
-        description="Analytics API endpoint of the dataset that best matches the user query.",
-    )
-    description: str = Field(
-        description="Description of the dataset that best matches the user query.",
-    )
-    prompt_instructions: str = Field(
-        description="Prompt instructions of the dataset that best matches the user query.",
-    )
-    methodology: str = Field(
-        description="Methodology of the dataset that best matches the user query.",
-    )
-    cautions: str = Field(
-        description="Cautions of the dataset that best matches the user query.",
-    )
-    function_usage_notes: str = Field(
-        description="Function usage notes of the dataset that best matches the user query.",
-    )
-    citation: str = Field(
-        description="Citation of the dataset that best matches the user query.",
-    )
-    content_date: str = Field(
-        description="Content date of the dataset that best matches the user query.",
-    )
-    # Tiered instruction fields (PoC) — None for datasets that haven't been migrated
-    selection_hints: Optional[str] = Field(
-        default=None,
-        description="When to prefer this dataset over alternatives.",
-    )
-    code_instructions: Optional[str] = Field(
-        default=None,
-        description="Chart type restrictions and data shaping rules for the code executor.",
-    )
-    presentation_instructions: Optional[str] = Field(
-        default=None,
-        description="Terminology, tone, and how to describe results to users.",
-    )
-
-
 async def select_best_dataset(
-    query: str, candidate_datasets: pd.DataFrame, aoi_selection=None
+    query: str,
+    candidate_datasets: pd.DataFrame,
+    start_date: str,
+    end_date: str,
+    aoi_selection=None,
 ) -> DatasetSelectionResult:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
@@ -262,24 +164,9 @@ async def select_best_dataset(
         candidate_datasets.dataset_id == selection_result.dataset_id
     ].iloc[0]
 
-    context_layers = []
-    if (
-        selection_result.context_layer
-        and selected_row.context_layers is not None
-    ):
-        selected_context_layer = next(
-            (
-                x
-                for x in selected_row.context_layers
-                if x["value"] == selection_result.context_layer
-            ),
-            None,
-        )
-        context_layer = ContextLayer(
-            name=selected_context_layer.get("value"),
-            tile_url=selected_context_layer.get("tile_url"),
-        )
-        context_layers.append(context_layer)
+    dataset_tile_url, context_layers = get_tile_services_for_dataset(
+        selection_result, selected_row, start_date, end_date
+    )
 
     return DatasetSelectionResult(
         dataset_id=selected_row.dataset_id,
@@ -287,7 +174,7 @@ async def select_best_dataset(
         context_layer=selection_result.context_layer,
         parameters=selection_result.parameters,
         reason=selection_result.reason,
-        tile_url=selected_row.tile_url,
+        tile_url=dataset_tile_url,
         analytics_api_endpoint=selected_row.analytics_api_endpoint,
         description=selected_row.description,
         prompt_instructions=selected_row.prompt_instructions,
@@ -330,7 +217,7 @@ async def pick_dataset(
     candidate_datasets = await rag_candidate_datasets(query, k=3)
     # Step 2: LLM to select best dataset and potential context layer
     selection_result = await select_best_dataset(
-        query, candidate_datasets, aoi_selection
+        query, candidate_datasets, start_date, end_date, aoi_selection
     )
 
     tool_message = f"""# About the selection
@@ -358,35 +245,6 @@ async def pick_dataset(
     """
 
     logger.debug(f"Pick dataset tool message: {tool_message}")
-
-    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-    end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-
-    if not selection_result.tile_url.startswith("http"):
-        selection_result.tile_url = (
-            SharedSettings.eoapi_base_url + selection_result.tile_url
-        )
-
-    if selection_result.dataset_id == DIST_ALERT_ID:
-        selection_result.tile_url += (
-            f"&start_date={start_date}&end_date={end_date}"
-        )
-    elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
-        if end_date.year in range(2000, 2023):
-            selection_result.tile_url = selection_result.tile_url.format(
-                year=end_date.year
-            )
-        else:
-            selection_result.tile_url = selection_result.tile_url.format(
-                year="2022"
-            )
-    elif selection_result.dataset_id == TREE_COVER_LOSS_ID:
-        if end_date.year in range(2001, 2026):
-            selection_result.tile_url += (
-                f"&start_year={start_date.year}&end_year={end_date.year}"
-            )
-        else:
-            selection_result.tile_url += "&start_year=2001&end_year=2025"
 
     return Command(
         update={
@@ -449,3 +307,86 @@ def get_filtered_contextual_layers(
     )
 
     return filtered_layers, removed_df
+
+
+def get_tile_services_for_dataset(
+    selection_result, selected_row, start_date, end_date
+):
+    context_layers = []
+    tile_url = selected_row.tile_url
+    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    if not selected_row.tile_url.startswith("http"):
+        tile_url = SharedSettings.eoapi_base_url + tile_url
+
+    if (
+        selection_result.context_layer
+        and selected_row.context_layers is not None
+    ):
+        selected_context_layer = next(
+            (
+                x
+                for x in selected_row.context_layers
+                if x["value"] == selection_result.context_layer
+            ),
+            None,
+        )
+        context_layer = ContextLayer(
+            name=selected_context_layer.get("value"),
+            tile_url=selected_context_layer.get("tile_url"),
+        )
+        context_layers.append(context_layer)
+
+    if selected_row.dataset_id in [
+        TREE_COVER_LOSS_ID,
+        TREE_COVER_ID,
+        TREE_COVER_LOSS_BY_DRIVER_ID,
+        FOREST_CARBON_FLUX_ID,
+    ]:
+        canopy_cover = 30
+        if selection_result.parameters is not None:
+            for param in selection_result.parameters:
+                if param.name == "canopy_cover":
+                    canopy_cover = max(param.values)
+
+        if selected_row.dataset_id != TREE_COVER_ID:
+            canopy_cover_tile_url = next(
+                (
+                    param["tile_url"]
+                    for param in selected_row.parameters
+                    if param["name"] == "canopy_cover"
+                ),
+                None,
+            )
+
+            thresholded_tile_url = canopy_cover_tile_url.replace(
+                "{threshold}", str(canopy_cover)
+            )
+
+            context_layer = ContextLayer(
+                name="canopy_cover",
+                tile_url=thresholded_tile_url,
+            )
+            context_layers.append(context_layer)
+
+        tile_url = selected_row.tile_url.replace(
+            "{threshold}", str(canopy_cover)
+        )
+
+        if selected_row.dataset_id == TREE_COVER_LOSS_ID:
+            if end_date.year in range(2001, 2025):
+                tile_url += (
+                    f"&start_year={start_date.year}&end_year={end_date.year}"
+                )
+            else:
+                tile_url += "&start_year=2001&end_year=2024"
+    elif selection_result.dataset_id == DIST_ALERT_ID:
+        tile_url += f"&start_date={start_date}&end_date={end_date}"
+    elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
+        if end_date.year in range(2000, 2023):
+            tile_url = tile_url.format(year=end_date.year)
+        else:
+            tile_url = tile_url.format(year="2022")
+
+    return tile_url, context_layers

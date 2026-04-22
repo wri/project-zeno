@@ -93,11 +93,14 @@ def insight_text(update: dict) -> str:
 GHG_FLUX_DATASET: dict[str, Any] = {
     "dataset_id": 6,
     "context_layer": None,
-    "date_request_match": True,
+    "context_layers": [],
+    "parameters": None,
     "reason": "GHG flux dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/{z}/{x}/{y}.png",
     "dataset_name": "Forest greenhouse gas net flux",
     "analytics_api_endpoint": "/v0/land_change/carbon_flux/analytics",
+    "content_date": "2001-2024",
+    "selection_hints": None,
     "description": "Maps the balance between emissions from forest disturbances and carbon removals from forest growth between 2001 and 2024.",
     "prompt_instructions": (
         "DO NOT show trends over time or annual values. Show net flux as a split bar chart, "
@@ -131,6 +134,8 @@ GHG_FLUX_STATS: list[dict] = [
         start_date="2001-01-01",
         end_date="2024-12-31",
         aoi_names=["Brazil"],
+        parameters=None,
+        context_layer=None,
         data={
             "variable": [
                 "Gross emissions",
@@ -146,11 +151,14 @@ GHG_FLUX_STATS: list[dict] = [
 GRASSLAND_DATASET: dict[str, Any] = {
     "dataset_id": 2,
     "context_layer": None,
-    "date_request_match": True,
+    "context_layers": [],
+    "parameters": None,
     "reason": "Grasslands dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/gnsg/latest/dynamic/{z}/{x}/{y}.png",
     "dataset_name": "Global natural/semi-natural grassland extent",
     "analytics_api_endpoint": "/v0/land_change/grasslands/analytics",
+    "content_date": "2000-2022, annual",
+    "selection_hints": None,
     "description": "Annual 30 m maps of global natural/semi-natural grassland extent from 2000 to 2022.",
     "prompt_instructions": (
         "Natural/semi-natural grassland extent and change for each year from 2000 to 2022. "
@@ -179,6 +187,8 @@ GRASSLAND_STATS: list[dict] = [
         start_date="2000-01-01",
         end_date="2022-12-31",
         aoi_names=["Kenya"],
+        parameters=None,
+        context_layer=None,
         data={
             "year": list(range(2000, 2023)),
             "area_ha": [
@@ -218,6 +228,8 @@ GRASSLAND_STATS_WITH_ZEROS: list[dict] = [
         start_date="2000-01-01",
         end_date="2022-12-31",
         aoi_names=["Kenya"],
+        parameters=None,
+        context_layer=None,
         data={
             "year": list(range(2000, 2023)),
             "area_ha": [
@@ -252,11 +264,14 @@ GRASSLAND_STATS_WITH_ZEROS: list[dict] = [
 TREE_COVER_DATASET: dict[str, Any] = {
     "dataset_id": 7,
     "context_layer": None,
-    "date_request_match": True,
+    "context_layers": [],
+    "parameters": None,
     "reason": "Tree cover dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/latest/dynamic/{z}/{x}/{y}.png",
     "dataset_name": "Tree cover",
     "analytics_api_endpoint": "/v0/land_change/tree_cover/analytics",
+    "content_date": "2000",
+    "selection_hints": None,
     "description": "Global percent tree canopy cover at 30-meter resolution for year 2000.",
     "prompt_instructions": (
         'Only use the term "tree cover", not "forest" unless primary forest layer is active. '
@@ -290,6 +305,8 @@ TREE_COVER_STATS: list[dict] = [
         start_date="2000-01-01",
         end_date="2000-12-31",
         aoi_names=["Democratic Republic of Congo"],
+        parameters=None,
+        context_layer=None,
         data={
             "canopy_density": [
                 "0%",
@@ -324,11 +341,14 @@ TREE_COVER_STATS: list[dict] = [
 TREE_COVER_GAIN_DATASET: dict[str, Any] = {
     "dataset_id": 5,
     "context_layer": None,
-    "date_request_match": True,
+    "context_layers": [],
+    "parameters": None,
     "reason": "Tree cover gain dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_gain/latest/dynamic/{z}/{x}/{y}.png",
     "dataset_name": "Tree cover gain",
     "analytics_api_endpoint": "/v0/land_change/tree_cover_gain/analytics",
+    "content_date": "2000-2020 five year intervals",
+    "selection_hints": None,
     "description": "Tree Cover Gain identifies areas where new tree canopy was established between 2000 and 2020.",
     "prompt_instructions": (
         "Shows cumulative tree cover gain over the periods 2000-2020, 2005-2020, 2010-2020 or 2015-2020. "
@@ -366,6 +386,8 @@ TREE_COVER_GAIN_STATS: list[dict] = [
         start_date="2000-01-01",
         end_date="2020-12-31",
         aoi_names=["Indonesia"],
+        parameters=None,
+        context_layer=None,
         data={
             "period": [
                 "2000-2020",
@@ -381,11 +403,14 @@ TREE_COVER_GAIN_STATS: list[dict] = [
 LAND_COVER_DATASET: dict[str, Any] = {
     "dataset_id": 1,
     "context_layer": None,
-    "date_request_match": True,
+    "context_layers": [],
+    "parameters": None,
     "reason": "Land cover dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/wur_radd_alerts/latest/dynamic/{z}/{x}/{y}.png",
     "dataset_name": "Global land cover",
     "analytics_api_endpoint": "/v0/land_change/land_cover/analytics",
+    "content_date": "2015-2024",
+    "selection_hints": None,
     "description": "Annual global land cover classification at 30m resolution.",
     "prompt_instructions": (
         "Land cover transitions between 2015 and 2024. When user asks about agriculture, "
@@ -417,6 +442,8 @@ LAND_COVER_TRANSITION_STATS: list[dict] = [
         start_date="2015-01-01",
         end_date="2024-12-31",
         aoi_names=["Brazil"],
+        parameters=None,
+        context_layer=None,
         data={
             "start_class": [
                 "Tree cover",
@@ -456,6 +483,8 @@ LAND_COVER_COMPOSITION_STATS: list[dict] = [
         start_date="2024-01-01",
         end_date="2024-12-31",
         aoi_names=["Brazil"],
+        parameters=None,
+        context_layer=None,
         data={
             "land_cover_class": [
                 "Tree cover",
@@ -482,11 +511,14 @@ LAND_COVER_COMPOSITION_STATS: list[dict] = [
 NATURAL_LANDS_DATASET: dict[str, Any] = {
     "dataset_id": 3,
     "context_layer": None,
-    "date_request_match": True,
+    "context_layers": [],
+    "parameters": None,
     "reason": "Natural lands dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/sbtn_natural_lands/latest/dynamic/{z}/{x}/{y}.png",
     "dataset_name": "SBTN Natural Lands Map",
     "analytics_api_endpoint": "/v0/land_change/natural_lands/analytics",
+    "content_date": "2020",
+    "selection_hints": None,
     "description": "2020 baseline map of natural and non-natural land covers.",
     "prompt_instructions": (
         "Natural and non-natural lands in 2020. For natural forests, combine classes 2,5,8,9."
@@ -516,6 +548,8 @@ NATURAL_LANDS_STATS: list[dict] = [
         start_date="2020-01-01",
         end_date="2020-12-31",
         aoi_names=["Colombia"],
+        parameters=None,
+        context_layer=None,
         data={
             "land_class": [
                 "Natural forest",
@@ -561,11 +595,14 @@ NATURAL_LANDS_STATS: list[dict] = [
 SLUC_EF_DATASET: dict[str, Any] = {
     "dataset_id": 9,
     "context_layer": None,
-    "date_request_match": True,
+    "context_layers": [],
+    "parameters": None,
     "reason": "sLUC EF dataset matches.",
     "tile_url": "",
     "dataset_name": "Deforestation (sLUC) Emission Factors by Agricultural Crop",
     "analytics_api_endpoint": "/v0/land_change/deforestation_luc_emissions_factor/analytics",
+    "content_date": "2020-2024",
+    "selection_hints": None,
     "description": "sLUC emission factors for 42 agricultural crops across multiple spatial scales.",
     "prompt_instructions": (
         "Emission factors quantify total greenhouse gas emissions in tCO2e per tonne of product. "
@@ -597,6 +634,8 @@ SLUC_EF_GAS_STATS: list[dict] = [
         start_date="2024-01-01",
         end_date="2024-12-31",
         aoi_names=["Brazil"],
+        parameters=None,
+        context_layer=None,
         data={
             "crop": ["Soybean", "Soybean", "Soybean"],
             "gas_type": ["CO2", "CH4", "N2O"],
@@ -613,6 +652,8 @@ SLUC_EF_MULTI_CROP_STATS: list[dict] = [
         start_date="2024-01-01",
         end_date="2024-12-31",
         aoi_names=["Brazil"],
+        parameters=None,
+        context_layer=None,
         data={
             "crop": [
                 "Soybean",
