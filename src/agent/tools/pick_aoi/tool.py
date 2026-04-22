@@ -370,15 +370,16 @@ async def query_subregion_database(
         def _read(sync_conn):
             processed_src_id = src_id
             if source == "kba":
+                # for these sources IDs stored as numeric values
                 try:
                     processed_src_id = int(processed_src_id)
                 except ValueError:
                     pass
-            params: dict = {"src_id": processed_src_id, "subtype": subtype}
-            if table_name == GADM_TABLE and source == "gadm":
-                gid0 = str(processed_src_id).split(".")[0]
-                params["gadm_prefix"] = f"{gid0}.%"
-            return pd.read_sql(text(sql_query), sync_conn, params=params)
+            return pd.read_sql(
+                text(sql_query),
+                sync_conn,
+                params={"src_id": processed_src_id, "subtype": subtype},
+            )
 
         results = await conn.run_sync(_read)
 
