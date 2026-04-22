@@ -344,11 +344,19 @@ async def query_subregion_database(
         f"Querying subregion: {subregion_name} in table: {table_name} for source: {source}, src_id: {src_id}"
     )
 
-    gadm_filter = (
-        f"\n    AND t.gadm_id ~ '{GADM_STANDARD_ID_RE}'"
-        if table_name == GADM_TABLE
-        else ""
-    )
+    if table_name == GADM_TABLE:
+        if source == "gadm":
+            if "." in src_id:
+                subregion_filter = ".".join(src_id.split(".")[:-1])
+            else:
+                subregion_filter = src_id
+            gadm_filter = f" AND t.gadm_id LIKE '{subregion_filter}.%'"
+        else:
+            gadm_filter = f" AND t.gadm_id ~ '{GADM_STANDARD_ID_RE}'"
+        spatial_filter = ""
+    else:
+        gadm_filter = ""
+        spatial_filter = " AND ST_Intersects(t.geometry, aoi.geom) AND NOT ST_Touches(t.geometry, aoi.geom)"
 
     sql_query = f"""
     WITH aoi AS (
@@ -360,8 +368,8 @@ async def query_subregion_database(
     SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id, {BBOX_SQL}
     FROM {table_name} AS t, aoi
     WHERE t.subtype = :subtype
-    AND ST_CoveredBy(t.geometry, aoi.geom)
     {gadm_filter}
+    {spatial_filter}
     """
     logger.debug(f"Executing subregion query: {sql_query}")
 

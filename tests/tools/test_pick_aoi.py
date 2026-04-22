@@ -344,12 +344,12 @@ async def test_query_cross_antimeridian(structlog_context):
             "args": {
                 "question": "Pick russia",
                 "places": ["Russia"],
-                "subregion": None,
+                "subregion": "state",
             },
             "id": str(uuid.uuid4()),
             "type": "tool_call",
         }
     )
     aois = command.update.get("aoi_selection", {}).get("aois")
-    assert len(aois) == 1
-    assert aois[0].get("src_id") == "RUS"
+    assert len(aois) == 83
+    assert aois[0].get("src_id").startswith("RUS.")
