@@ -197,13 +197,13 @@ async def delete_thread(
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Delete thread permanently including its conversation history."""
-    await checkpointer.adelete_thread(thread_id)
     stmt = select(ThreadOrm).filter_by(user_id=user.id, id=thread_id)
     result = await session.execute(stmt)
     thread = result.scalars().first()
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
 
+    await checkpointer.adelete_thread(thread_id)
     await session.delete(thread)
     await session.commit()
     return {"detail": "Thread deleted successfully"}

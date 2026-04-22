@@ -625,3 +625,41 @@ async def test_admin_cannot_delete_other_users_threads(
             app.dependency_overrides[fetch_checkpointer] = original_dependency
         else:
             app.dependency_overrides.pop(fetch_checkpointer, None)
+
+
+@pytest.mark.asyncio
+async def test_unauthorized_delete_does_not_delete_checkpoints(
+    client, auth_override, thread_factory, admin_user_factory
+):
+    """Ensure checkpoint deletion is not called before authz check."""
+    owner_id = "owner-user"
+    auth_override(owner_id)
+    thread = await thread_factory(owner_id)
+
+    admin_user = await admin_user_factory("admin@example.com")
+
+    from src.agent.graph import fetch_checkpointer
+    from src.api.app import app
+
+    mock_checkpointer = AsyncMock()
+    mock_checkpointer.adelete_thread = AsyncMock()
+
+    async def mock_checkpointer_func():
+        return mock_checkpointer
+
+    original_dependency = app.dependency_overrides.get(fetch_checkpointer)
+    app.dependency_overrides[fetch_checkpointer] = mock_checkpointer_func
+
+    try:
+        auth_override(admin_user.id)
+        response = await client.delete(
+            f"/api/threads/{thread.id}",
+            headers={"Authorization": "Bearer test-token"},
+        )
+        assert response.status_code == 404
+        mock_checkpointer.adelete_thread.assert_not_called()
+    finally:
+        if original_dependency:
+            app.dependency_overrides[fetch_checkpointer] = original_dependency
+        else:
+            app.dependency_overrides.pop(fetch_checkpointer, None)
