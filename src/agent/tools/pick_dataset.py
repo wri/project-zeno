@@ -128,6 +128,46 @@ class DatasetOption(BaseModel):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_parameters_for_dataset(self) -> "DatasetOption":
+        """Ensure parameters and their chosen values are valid for the chosen dataset_id."""
+        dataset_id = self.dataset_id
+        if dataset_id is None or self.parameters is None:
+            self.parameters = None
+            return self
+
+        selected_dataset = [
+            ds for ds in DATASETS if ds["dataset_id"] == dataset_id
+        ][0]
+        dataset_parameters = selected_dataset.get("parameters") or []
+        allowed_parameters = {
+            param["name"]: param for param in dataset_parameters
+        }
+
+        validated_parameters = []
+        for parameter in self.parameters:
+            allowed_parameter = allowed_parameters.get(parameter.name)
+            if allowed_parameter is None:
+                continue
+
+            allowed_values = allowed_parameter.get("values") or []
+            valid_values = [
+                value for value in parameter.values if value in allowed_values
+            ]
+            if not valid_values:
+                continue
+
+            validated_parameters.append(
+                DatasetParameter(
+                    name=parameter.name,
+                    description=parameter.description,
+                    values=valid_values,
+                )
+            )
+
+        self.parameters = validated_parameters or None
+        return self
+
 
 class DatasetSelectionResult(DatasetOption):
     tile_url: str = Field(
