@@ -15,8 +15,6 @@ async def test_metadata_returns_expected_keys(client):
     assert "layer_id_mapping" in data
     assert "subregion_to_subtype_mapping" in data
     assert "gadm_subtype_mapping" in data
-    assert "is_signup_open" in data
-    assert "allow_anonymous_chat" in data
     assert "model" in data
 
 

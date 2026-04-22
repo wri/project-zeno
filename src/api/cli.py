@@ -15,7 +15,6 @@ Usage:
     python src/api/cli.py rotate-key --key-id "key_456"
     python src/api/cli.py revoke-key --key-id "key_456"
     python src/api/cli.py make-user-admin --email "admin@example.com"
-    python src/api/cli.py whitelist-email --email "user@example.com"
 """
 
 import asyncio
@@ -35,7 +34,6 @@ from src.api.data_models import (
     MachineUserKeyOrm,
     UserOrm,
     UserType,
-    WhitelistedUserOrm,
 )
 from src.shared.config import SharedSettings
 
@@ -262,32 +260,6 @@ async def make_user_pro(session: AsyncSession, email: str) -> UserOrm:
     await session.refresh(user)
 
     return user
-
-
-async def add_whitelisted_user(
-    session: AsyncSession, email: str
-) -> WhitelistedUserOrm:
-    """Add an email address to the whitelisted_users table"""
-
-    # Check if email already exists
-    result = await session.execute(
-        select(WhitelistedUserOrm).where(WhitelistedUserOrm.email == email)
-    )
-    existing_user = result.scalar_one_or_none()
-
-    if existing_user:
-        return existing_user
-
-    # Create new whitelisted user
-    whitelisted_user = WhitelistedUserOrm(
-        email=email, created_at=datetime.now()
-    )
-
-    session.add(whitelisted_user)
-    await session.commit()
-    await session.refresh(whitelisted_user)
-
-    return whitelisted_user
 
 
 # CLI Commands
@@ -593,30 +565,6 @@ def list_pro_users_command():
             await db.close()
 
     asyncio.run(_list_pro_users())
-
-
-@cli.command("whitelist-email")
-@click.option(
-    "--email", required=True, help="Email address to add to whitelist"
-)
-def whitelist_email_command(email: str):
-    """Add an email address to the whitelisted_users table"""
-
-    async def _whitelist():
-        db = DatabaseManager()
-        try:
-            async with db.async_session() as session:
-                whitelisted_user = await add_whitelisted_user(session, email)
-
-                click.echo("✅ Added email to whitelist:")
-                click.echo(f"   Email: {whitelisted_user.email}")
-                click.echo(f"   Created: {whitelisted_user.created_at}")
-        except Exception as e:
-            click.echo(f"❌ Error: {e}", err=True)
-        finally:
-            await db.close()
-
-    asyncio.run(_whitelist())
 
 
 if __name__ == "__main__":

@@ -5,36 +5,13 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 import structlog
-from sqlalchemy import select
 
 from src.agent.tools.pick_aoi import pick_aoi
 from src.agent.tools.pick_aoi.tool import AOIIndex
-from src.api.data_models import WhitelistedUserOrm
-from tests.conftest import async_session_maker
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
 pytestmark = pytest.mark.asyncio(loop_scope="session")
-
-
-async def whitelist_test_user():
-    """Add the test user email to the whitelist to bypass signup restrictions."""
-    async with async_session_maker() as session:
-        # Use a unique email for this test to avoid conflicts
-        test_email = "test-custom-area@wri.org"
-
-        # Check if user is already whitelisted
-        stmt = select(WhitelistedUserOrm).where(
-            WhitelistedUserOrm.email == test_email
-        )
-        result = await session.execute(stmt)
-        if result.scalars().first():
-            return  # Already whitelisted
-
-        # Add to whitelist
-        whitelisted_user = WhitelistedUserOrm(email=test_email)
-        session.add(whitelisted_user)
-        await session.commit()
 
 
 async def test_query_aoi_multiple_matches(structlog_context):
@@ -121,10 +98,7 @@ async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
 
 
 async def test_custom_area_selection(auth_override, client, structlog_context):
-    # Whitelist the test user to bypass signup restrictions
-    await whitelist_test_user()
-
-    # Override auth to use the whitelisted email
+    # Override auth to use a deterministic user/email
     from src.api.auth.dependencies import fetch_user_from_rw_api
     from src.api.schemas import UserModel
 
@@ -133,7 +107,7 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
             {
                 "id": "test-user-123",
                 "name": "test-user-123",
-                "email": "test-custom-area@wri.org",  # Use the whitelisted email
+                "email": "test-custom-area@wri.org",
                 "createdAt": "2024-01-01T00:00:00Z",
                 "updatedAt": "2024-01-01T00:00:00Z",
             }

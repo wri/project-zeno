@@ -1,10 +1,9 @@
 """Daily quota checking and enforcement."""
 
 from datetime import date
-from typing import Optional
 
-from fastapi import HTTPException, Request
-from sqlalchemy import func, select
+from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,47 +14,28 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-NEXTJS_IP_HEADER = "X-ZENO-FORWARDED-FOR"
-ANONYMOUS_USER_PREFIX = "noauth"
-
-
-async def extract_anonymous_session_cookie(request: Request) -> Optional[str]:
-    """
-    Extract the anonymous session cookie from the request headers.
-    """
-    auth_header = request.headers["Authorization"]
-    credentials = auth_header.strip("Bearer ")
-    [scheme, anonymous_id] = credentials.split(":", 1)
-    return f"{ANONYMOUS_USER_PREFIX}:{anonymous_id}"
-
 
 async def get_user_identity_and_daily_quota(
-    request: Request,
-    user: Optional[UserModel],
+    user: UserModel,
 ) -> dict:
     """
     Determine the user's identity string and their daily prompt quota.
     """
-    if not user:
-        daily_quota = APISettings.anonymous_user_daily_quota
-        identity = await extract_anonymous_session_cookie(request)
+    if user.user_type == UserType.ADMIN:
+        daily_quota = APISettings.admin_user_daily_quota
+    elif user.user_type == UserType.MACHINE:
+        daily_quota = APISettings.machine_user_daily_quota
+    elif user.user_type == UserType.PRO:
+        daily_quota = APISettings.pro_user_daily_quota
     else:
-        if user.user_type == UserType.ADMIN:
-            daily_quota = APISettings.admin_user_daily_quota
-        elif user.user_type == UserType.MACHINE:
-            daily_quota = APISettings.machine_user_daily_quota
-        elif user.user_type == UserType.PRO:
-            daily_quota = APISettings.pro_user_daily_quota
-        else:
-            daily_quota = APISettings.regular_user_daily_quota
-        identity = f"user:{user.id}"
+        daily_quota = APISettings.regular_user_daily_quota
+    identity = f"user:{user.id}"
 
     return {"identity": identity, "prompt_quota": daily_quota}
 
 
 async def check_quota(
-    request: Request,
-    user: Optional[UserModel],
+    user: UserModel,
     session: AsyncSession,
 ) -> dict:
     """
@@ -65,7 +45,7 @@ async def check_quota(
     if not APISettings.enable_quota_checking:
         return {}
 
-    identity_and_quota = await get_user_identity_and_daily_quota(request, user)
+    identity_and_quota = await get_user_identity_and_daily_quota(user)
 
     today = date.today()
     stmt = select(DailyUsageOrm).filter_by(
@@ -81,8 +61,7 @@ async def check_quota(
 
 
 async def enforce_quota(
-    request: Request,
-    user: Optional[UserModel],
+    user: UserModel,
     session: AsyncSession,
 ) -> dict:
     """
@@ -92,14 +71,7 @@ async def enforce_quota(
     if not APISettings.enable_quota_checking:
         return {}
 
-    identity_and_quota = await get_user_identity_and_daily_quota(request, user)
-
-    anonymous_user_ip = None
-    user_is_anonymous = (
-        identity_and_quota["identity"].split(":")[0] == ANONYMOUS_USER_PREFIX
-    )
-    if user_is_anonymous:
-        anonymous_user_ip = request.headers.get(NEXTJS_IP_HEADER)
+    identity_and_quota = await get_user_identity_and_daily_quota(user)
 
     today = date.today()
 
@@ -109,7 +81,7 @@ async def enforce_quota(
             id=identity_and_quota["identity"],
             date=today,
             usage_count=1,
-            ip_address=anonymous_user_ip,
+            ip_address=None,
         )
         .on_conflict_do_update(
             index_elements=["id", "date"],
@@ -128,18 +100,4 @@ async def enforce_quota(
         )
 
     identity_and_quota["prompts_used"] = count
-
-    if user_is_anonymous:
-        stmt = select(func.sum(DailyUsageOrm.usage_count)).filter_by(
-            date=today, ip_address=anonymous_user_ip
-        )
-        result = await session.execute(stmt)
-        ip_count = result.scalar() or 0
-
-        if ip_count > APISettings.ip_address_daily_quota:
-            raise HTTPException(
-                status_code=429,
-                detail=f"Daily free limit of {APISettings.ip_address_daily_quota} exceeded for IP address",
-            )
-
     return identity_and_quota

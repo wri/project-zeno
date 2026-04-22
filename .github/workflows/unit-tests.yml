@@ -42,7 +42,6 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
           TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data
-          DOMAINS_ALLOWLIST: developmentseed.org,wri.org
           OPENAI_API_KEY: fake-key-for-testing
           ANTHROPIC_API_KEY: fake-key-for-testing
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
@@ -60,6 +59,5 @@ jobs:
           LOCAL_API_BASE_URL: http://localhost:8000
           STREAMLIT_URL: http://localhost:8501
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
-          NEXTJS_API_KEY: test-nextjs-api-key
         run: |
           uv run pytest tests/api tests/cli tests/unit -v

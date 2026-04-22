@@ -14,18 +14,12 @@ from src.api.auth.machine_user import (
     MACHINE_USER_PREFIX,
     validate_machine_user_token,
 )
-from src.api.config import APISettings
 from src.api.data_models import UserOrm
 from src.api.schemas import UserModel
-from src.api.services.auth import check_signup_limit_allows_new_user
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import bind_request_logging_context, get_logger
 
 logger = get_logger(__name__)
-
-NEXTJS_API_KEY_HEADER = "X-API-KEY"
-NEXTJS_IP_HEADER = "X-ZENO-FORWARDED-FOR"
-ANONYMOUS_USER_PREFIX = "noauth"
 
 security = HTTPBearer(auto_error=False)
 
@@ -45,33 +39,6 @@ async def fetch_user_from_rw_api(
 
     if token and token.startswith(f"{MACHINE_USER_PREFIX}:"):
         return await validate_machine_user_token(token, session)
-
-    if token and token.startswith(f"{ANONYMOUS_USER_PREFIX}:"):
-        if request.headers.get(NEXTJS_API_KEY_HEADER) is None or (
-            request.headers[NEXTJS_API_KEY_HEADER]
-            != APISettings.nextjs_api_key
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail="Invalid API key from NextJS for anonymous user",
-            )
-
-        anonymous_user_ip = request.headers.get(NEXTJS_IP_HEADER)
-        if anonymous_user_ip is None or anonymous_user_ip.strip() == "":
-            raise HTTPException(
-                status_code=403,
-                detail=f"Missing {NEXTJS_IP_HEADER} header for anonymous user",
-            )
-
-        return None
-
-    if token and ":" in token:
-        [scheme, _] = token.split(":", 1)
-        if scheme.lower() != ANONYMOUS_USER_PREFIX:
-            raise HTTPException(
-                status_code=401,
-                detail=f"Unauthorized, anonymous users should use '{ANONYMOUS_USER_PREFIX}' scheme",
-            )
 
     if token and token in _user_info_cache:
         return _user_info_cache[token]
@@ -103,17 +70,6 @@ async def fetch_user_from_rw_api(
             email=user_info.get("email", None),
         )
         user_info["name"] = user_info["email"].split("@")[0]
-
-    user_email = user_info["email"]
-
-    if (
-        not await check_signup_limit_allows_new_user(user_email, session)
-        and not APISettings.allow_public_signups
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User not allowed to access this API",
-        )
 
     user_model = UserModel.model_validate(user_info)
     _user_info_cache[token] = user_model
@@ -156,13 +112,6 @@ async def _get_or_create_user(
     user = result.scalars().first()
 
     if not user:
-        if not await check_signup_limit_allows_new_user(
-            user_info.email, session
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User signups are currently closed",
-            )
         user = UserOrm(**user_info.model_dump())
         session.add(user)
         await session.commit()

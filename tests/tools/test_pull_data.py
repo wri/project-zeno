@@ -3,15 +3,12 @@ from datetime import datetime, timedelta
 
 import pytest
 import structlog
-from sqlalchemy import select
 
 from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pull_data import pull_data, revise_date_range
 from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
-from src.api.data_models import WhitelistedUserOrm
 from src.api.schemas import UserModel
-from tests.conftest import async_session_maker
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
@@ -250,30 +247,7 @@ async def test_tree_cover_loss_date_range_clamped_to_2024():
     assert "adjusted" in tool_message.content.lower()
 
 
-async def whitelist_test_user():
-    """Add the test user email to the whitelist to bypass signup restrictions."""
-    async with async_session_maker() as session:
-        # Use a unique email for this test to avoid conflicts
-        test_email = "test-custom-area@wri.org"
-
-        # Check if user is already whitelisted
-        stmt = select(WhitelistedUserOrm).where(
-            WhitelistedUserOrm.email == test_email
-        )
-        result = await session.execute(stmt)
-        if result.scalars().first():
-            return  # Already whitelisted
-
-        # Add to whitelist
-        whitelisted_user = WhitelistedUserOrm(email=test_email)
-        session.add(whitelisted_user)
-        await session.commit()
-
-
 async def test_pull_data_custom_area(auth_override, client, structlog_context):
-    # Whitelist the test user to bypass signup restrictions
-    await whitelist_test_user()
-
     def mock_auth():
         return UserModel.model_validate(
             {

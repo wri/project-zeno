@@ -51,7 +51,6 @@ jobs:
           # Replay AOI SQL results from fixtures (no geometries_gadm / PostGIS load in CI).
           AOI_PICK_AOI_FIXTURES_MODE: replay
           AOI_PICK_AOI_FIXTURES_PATH: tests/fixtures/aoi_pick_aoi_v1.json
-          DOMAINS_ALLOWLIST: developmentseed.org,wri.org
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
@@ -70,7 +69,6 @@ jobs:
           LOCAL_API_BASE_URL: http://localhost:8000
           STREAMLIT_URL: http://localhost:8501
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
-          NEXTJS_API_KEY: test-nextjs-api-key
           EOAPI_BASE_URL: https://eoapi.globalnaturewatch.org
         run: |
           mkdir -p data
