@@ -93,6 +93,7 @@ def insight_text(update: dict) -> str:
 GHG_FLUX_DATASET: dict[str, Any] = {
     "dataset_id": 6,
     "context_layer": None,
+    "parameters": None,
     "date_request_match": True,
     "reason": "GHG flux dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/{z}/{x}/{y}.png",
@@ -146,6 +147,7 @@ GHG_FLUX_STATS: list[dict] = [
 GRASSLAND_DATASET: dict[str, Any] = {
     "dataset_id": 2,
     "context_layer": None,
+    "parameters": None,
     "date_request_match": True,
     "reason": "Grasslands dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/gnsg/latest/dynamic/{z}/{x}/{y}.png",
@@ -252,6 +254,7 @@ GRASSLAND_STATS_WITH_ZEROS: list[dict] = [
 TREE_COVER_DATASET: dict[str, Any] = {
     "dataset_id": 7,
     "context_layer": None,
+    "parameters": None,
     "date_request_match": True,
     "reason": "Tree cover dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/latest/dynamic/{z}/{x}/{y}.png",
@@ -324,6 +327,7 @@ TREE_COVER_STATS: list[dict] = [
 TREE_COVER_GAIN_DATASET: dict[str, Any] = {
     "dataset_id": 5,
     "context_layer": None,
+    "parameters": None,
     "date_request_match": True,
     "reason": "Tree cover gain dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_gain/latest/dynamic/{z}/{x}/{y}.png",
@@ -381,6 +385,7 @@ TREE_COVER_GAIN_STATS: list[dict] = [
 LAND_COVER_DATASET: dict[str, Any] = {
     "dataset_id": 1,
     "context_layer": None,
+    "parameters": None,
     "date_request_match": True,
     "reason": "Land cover dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/wur_radd_alerts/latest/dynamic/{z}/{x}/{y}.png",
@@ -482,6 +487,7 @@ LAND_COVER_COMPOSITION_STATS: list[dict] = [
 NATURAL_LANDS_DATASET: dict[str, Any] = {
     "dataset_id": 3,
     "context_layer": None,
+    "parameters": None,
     "date_request_match": True,
     "reason": "Natural lands dataset matches.",
     "tile_url": "https://tiles.globalforestwatch.org/sbtn_natural_lands/latest/dynamic/{z}/{x}/{y}.png",
@@ -561,6 +567,7 @@ NATURAL_LANDS_STATS: list[dict] = [
 SLUC_EF_DATASET: dict[str, Any] = {
     "dataset_id": 9,
     "context_layer": None,
+    "parameters": None,
     "date_request_match": True,
     "reason": "sLUC EF dataset matches.",
     "tile_url": "",
