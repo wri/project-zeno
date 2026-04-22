@@ -71,8 +71,6 @@ async def handle_global_request(
                 "name": GLOBAL_AOI_SELECTION_NAME,
                 "aois": final_aois,
             },
-            "aoi": final_aois[0],
-            "subtype": final_aois[0]["subtype"],
             "messages": [
                 ToolMessage(
                     "Selected all countries in the world",

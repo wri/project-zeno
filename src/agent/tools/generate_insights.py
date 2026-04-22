@@ -430,11 +430,11 @@ async def generate_insights(
     available_datasets = _get_available_datasets()
     # Prefer presentation_instructions (tiered PoC) over prompt_instructions (legacy blob)
     dataset_guidelines = (
-        state.get("dataset").get("presentation_instructions")
-        or state.get("dataset").get("prompt_instructions")
+        dataset.get("presentation_instructions")
+        or dataset.get("prompt_instructions")
         or "No specific dataset guidelines provided."
     )
-    dataset_cautions = state.get("dataset").get(
+    dataset_cautions = dataset.get(
         "cautions", "No specific dataset cautions provided."
     )
 
