@@ -666,7 +666,6 @@ async def test_hallucinated_context_layer_is_discarded(
     )
 
 
-
 @pytest.mark.parametrize(
     "dataset_id,hallucinated_parameter",
     [
@@ -681,7 +680,9 @@ async def test_hallucinated_parameter_is_discarded(
     """Verify that invalid parameter values from LLM are set to None."""
     import pandas as pd
 
-    fake_selection = _make_fake_selection(dataset_id, None, parameters=hallucinated_parameter)
+    fake_selection = _make_fake_selection(
+        dataset_id, None, parameters=hallucinated_parameter
+    )
     candidate_df = pd.DataFrame(
         [d for d in DATASETS if d["dataset_id"] == dataset_id]
     )
@@ -719,7 +720,6 @@ async def test_hallucinated_parameter_is_discarded(
         f"Expected hallucinated paramter '{hallucinated_parameter}' to be discarded, "
         f"but got '{result_params}'"
     )
-
 
 
 async def test_valid_context_layer_is_preserved():
