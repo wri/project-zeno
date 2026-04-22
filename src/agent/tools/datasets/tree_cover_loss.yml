@@ -45,7 +45,7 @@ selection_hints: 'Best dataset for annual tree cover loss questions (2001-2024) 
 code_instructions: 'MANDATORY OUTPUT: Always produce EXACTLY 2 bar charts — no exceptions, regardless of query phrasing.
   Chart 1 (Tree Cover Loss Area): bar chart, x=year, y=area_ha. Chart 2 (GHG Emissions): bar chart, x=year, y=carbon_emissions_MgCO2e.
   NEVER use line, area, stacked-area, or any other chart type for these metrics. NEVER combine area_ha and carbon_emissions_MgCO2e
-  on the same chart.
+  on the same chart. Even if the query does not mention emissions, the carbon_emissions_MgCO2e column is ALWAYS required.
 
   DATA SHAPE: chart_data.csv MUST contain all three columns — year, area_ha, carbon_emissions_MgCO2e — so both charts share the same
   table (same rows/grain). Drop rows where area_ha = 0. Use 30% canopy density threshold. If primary_forest context layer
@@ -59,7 +59,8 @@ code_instructions: 'MANDATORY OUTPUT: Always produce EXACTLY 2 bar charts — no
 presentation_instructions: 'Use "tree cover loss" not "deforestation" — tree cover includes plantations, not just natural
   forest. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
   used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2024, note the
-  methodology change after 2010.
+  methodology change after 2010. ALWAYS use chart type "bar" for both the tree cover loss area chart and the GHG emissions
+  chart — never "line", even when the query uses trend or trend-over-time language.
 
   '
 description: 'Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2024 at 30-meter resolution using
