@@ -336,3 +336,20 @@ async def test_global_query_without_subregion_is_rejected(structlog_context):
 
     assert "aoi_selection" not in command.update
     assert "subregion" in str(command.update["messages"][0].content).lower()
+
+
+async def test_query_cross_antimeridian(structlog_context):
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": "Pick russia",
+                "places": ["Russia"],
+                "subregion": "state",
+            },
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
+        }
+    )
+    aois = command.update.get("aoi_selection", {}).get("aois")
+    assert len(aois) == 83
+    assert aois[0].get("src_id").startswith("RUS.")

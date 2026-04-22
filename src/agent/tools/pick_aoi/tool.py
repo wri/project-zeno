@@ -39,18 +39,50 @@ load_dotenv()
 logger = get_logger(__name__)
 
 
-BBOX_SQL = "json_build_array(ST_XMin(geometry), ST_YMin(geometry), ST_XMax(geometry), ST_YMax(geometry)) AS bbox"
+def _antimeridian_bbox_sql(geom_expr: str) -> str:
+    """
+    Returns [west, south, east, north] JSON array.
+    For antimeridian-crossing geometries (span > 180°), clips to each
+    half-plane to get the bbox of the eastern and western parts separately —
+    no ST_Dump, no vertex iteration. Falls back to naive bbox if either
+    clip returns nothing (geometry doesn't truly cross the antimeridian).
+    """
+    east_half = "ST_MakeEnvelope(0, -90, 180, 90, 4326)"
+    west_half = "ST_MakeEnvelope(-180, -90, 0, 90, 4326)"
+    return f"""
+    CASE
+        WHEN ST_XMax({geom_expr}) - ST_XMin({geom_expr}) > 180
+        THEN (
+            SELECT COALESCE(
+                CASE
+                    WHEN west IS NOT NULL AND east IS NOT NULL
+                    THEN json_build_array(west, ST_YMin({geom_expr}), east, ST_YMax({geom_expr}))
+                END,
+                json_build_array(ST_XMin({geom_expr}), ST_YMin({geom_expr}), ST_XMax({geom_expr}), ST_YMax({geom_expr}))
+            )
+            FROM (
+                SELECT
+                    ST_XMin(ST_Envelope(ST_ClipByBox2D({geom_expr}, {east_half}))) AS west,
+                    ST_XMax(ST_Envelope(ST_ClipByBox2D({geom_expr}, {west_half}))) AS east
+            ) AS parts
+        )
+        ELSE json_build_array(
+            ST_XMin({geom_expr}),
+            ST_YMin({geom_expr}),
+            ST_XMax({geom_expr}),
+            ST_YMax({geom_expr})
+        )
+    END
+    """
+
+
+BBOX_SQL = f"({_antimeridian_bbox_sql('geometry')}) AS bbox"
 
 # The custom geometries table stores geometries as an list of geojsons,
 # requiring a funky SQL to pull out the overall bounds
-CUSTOM_BBOX_SQL = """
+CUSTOM_BBOX_SQL = f"""
 (
-    SELECT json_build_array(
-        ST_XMin(bounds.geometry),
-        ST_YMin(bounds.geometry),
-        ST_XMax(bounds.geometry),
-        ST_YMax(bounds.geometry)
-    )
+    SELECT {_antimeridian_bbox_sql('bounds.geometry')}
     FROM (
         SELECT ST_Envelope(
             ST_Collect(ST_SetSRID(ST_GeomFromGeoJSON(geom_json), 4326))
@@ -312,11 +344,20 @@ async def query_subregion_database(
         f"Querying subregion: {subregion_name} in table: {table_name} for source: {source}, src_id: {src_id}"
     )
 
-    gadm_filter = (
-        f"\n    AND t.gadm_id ~ '{GADM_STANDARD_ID_RE}'"
-        if table_name == GADM_TABLE
-        else ""
-    )
+    if table_name == GADM_TABLE:
+        if source == "gadm":
+            if "." in src_id:
+                subregion_filter = ".".join(src_id.split(".")[:-1])
+            else:
+                subregion_filter = src_id
+            gadm_filter = f" AND t.gadm_id LIKE '{subregion_filter}.%'"
+        else:
+            gadm_filter = f" AND t.gadm_id ~ '{GADM_STANDARD_ID_RE}'"
+        spatial_filter = ""
+    else:
+        gadm_filter = ""
+        spatial_filter = " AND ST_Intersects(t.geometry, aoi.geom) AND NOT ST_Touches(t.geometry, aoi.geom)"
+
     sql_query = f"""
     WITH aoi AS (
         SELECT geometry AS geom
@@ -327,8 +368,8 @@ async def query_subregion_database(
     SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id, {BBOX_SQL}
     FROM {table_name} AS t, aoi
     WHERE t.subtype = :subtype
-    AND ST_CoveredBy(t.geometry, aoi.geom)
     {gadm_filter}
+    {spatial_filter}
     """
     logger.debug(f"Executing subregion query: {sql_query}")
 
