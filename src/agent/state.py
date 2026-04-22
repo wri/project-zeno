@@ -5,8 +5,6 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
 from typing_extensions import TypedDict
 
-from src.agent.tools.code_executors.base import CodeActPart
-
 
 class AOISelection(TypedDict):
     name: str
@@ -29,6 +27,11 @@ class Statistics(TypedDict):
     context_layer: str | None
 
 
+class EncodedCodeActPart(TypedDict):
+    type: str
+    content: str
+
+
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     user_persona: str
@@ -47,6 +50,7 @@ class AgentState(TypedDict):
     statistics: Annotated[list[Statistics], operator.add]
 
     # generate-insights tool
-    insights: list
+    insight: str
+    follow_up_suggestions: list[str]
     charts_data: list
-    codeact_parts: list[CodeActPart]
+    codeact_parts: list[EncodedCodeActPart]
