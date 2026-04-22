@@ -3,7 +3,7 @@ name: Build and Publish Docker Image
 on:
   push:
     branches:
-      - main
+      - '**'
 
 env:
   REGISTRY: public.ecr.aws/b7u8b0a6
