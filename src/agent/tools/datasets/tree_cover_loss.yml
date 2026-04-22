@@ -42,13 +42,18 @@ selection_hints: 'Best dataset for annual tree cover loss questions (2001-2024) 
   loss. Methodology changed between 2010 and 2011; cross-period trend comparisons need caution.
 
   '
-code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha) - Cumulative loss → stacked-area chart - Emissions
-  → MUST be a SEPARATE chart from loss area (NEVER combine on same chart) DATA RULES: - Always include GHG emissions (MgCO2e)
-  alongside loss area, but in a SEPARATE chart - Drop rows where area_ha = 0 - Use 30% canopy density threshold - If primary_forest
-  or intact_forest variable is active, filter accordingly DO/DON''T: - DO NOT use the term "deforestation" — always use "tree
-  cover loss" - If user asks for intra-year or seasonal breakdown, REFUSE — data is annual only - If user asks for net gain/loss,
-  REFUSE — methodologies differ between loss and gain datasets - Warn about 2001-2010 vs 2011-2024 methodology difference
-  when showing trends across both periods
+code_instructions: 'MANDATORY OUTPUT: Always produce EXACTLY 2 bar charts — no exceptions, regardless of query phrasing.
+  Chart 1 (Tree Cover Loss Area): bar chart, x=year, y=area_ha. Chart 2 (GHG Emissions): bar chart, x=year, y=carbon_emissions_MgCO2e.
+  NEVER use line, area, stacked-area, or any other chart type for these metrics. NEVER combine area_ha and carbon_emissions_MgCO2e
+  on the same chart.
+
+  DATA SHAPE: chart_data.csv MUST contain all three columns — year, area_ha, carbon_emissions_MgCO2e — so both charts share the same
+  table (same rows/grain). Drop rows where area_ha = 0. Use 30% canopy density threshold. If primary_forest context layer
+  is active, filter accordingly.
+
+  DO/DON''T: - DO NOT use the term "deforestation" — always use "tree cover loss" - If user asks for intra-year or seasonal
+  breakdown, REFUSE — data is annual only - If user asks for net gain/loss, REFUSE — methodologies differ between loss and
+  gain datasets - Warn about 2001-2010 vs 2011-2024 methodology difference when showing trends across both periods
 
   '
 presentation_instructions: 'Use "tree cover loss" not "deforestation" — tree cover includes plantations, not just natural
