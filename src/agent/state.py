@@ -37,8 +37,6 @@ class AgentState(TypedDict):
     user_persona: str
 
     # pick-aoi tool
-    aoi: dict
-    subtype: str
     aoi_selection: AOISelection
 
     # pick-dataset tool
