@@ -1,5 +1,5 @@
 import operator
-from typing import Annotated, Sequence
+from typing import Annotated, Any, Sequence
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
@@ -13,6 +13,11 @@ class AOISelection(TypedDict):
     aois: list[dict]
 
 
+class StatisticsParameter(TypedDict):
+    name: str
+    values: list[Any]
+
+
 class Statistics(TypedDict):
     dataset_name: str
     start_date: str
@@ -20,7 +25,7 @@ class Statistics(TypedDict):
     source_url: str
     data: dict
     aoi_names: list[str]
-    parameters: list[dict] | None
+    parameters: list[StatisticsParameter] | None
     context_layer: str | None
 
 
