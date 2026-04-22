@@ -1,6 +1,6 @@
 import sys
 import uuid
-from typing import Literal
+from typing import Literal, Optional
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -11,6 +11,7 @@ from src.agent.llms import SMALL_MODEL
 from src.agent.state import AgentState, AOISelection
 from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pick_dataset import (
+    DatasetParameter,
     DatasetSelectionResult,
     pick_dataset,
 )
@@ -560,9 +561,35 @@ async def test_tile_url_contains_date(dataset, state):
     assert response.status_code == 200
 
 
+async def test_tree_cover_tile_url_with_canopy_density(state):
+    tool_call_id = str(uuid.uuid4())
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": "Tree cover where where canopy density is greater than 15%",
+            "start_date": "2000-01-01",
+            "end_date": "2000-12-31",
+            "state": state,
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    tile_url = command.update.get("dataset", {}).get("tile_url")
+    assert "tcd_15" in tile_url
+    tile_url_format = tile_url.format(z=3, x=5, y=3)
+    response = requests.get(tile_url_format)
+    assert response.status_code == 200
+
+
 def _make_fake_selection(
     dataset_id: int,
     context_layer: str | None,
+    parameters: Optional[list[DatasetParameter]] = None,
 ) -> DatasetSelectionResult:
     """Build a DatasetSelectionResult for the given dataset with a fake context_layer."""
     ds = next(d for d in DATASETS if d["dataset_id"] == dataset_id)
@@ -580,6 +607,7 @@ def _make_fake_selection(
         function_usage_notes=ds.get("function_usage_notes", ""),
         citation=ds.get("citation", ""),
         content_date=ds.get("content_date", ""),
+        parameters=parameters,
     )
 
 
@@ -635,6 +663,62 @@ async def test_hallucinated_context_layer_is_discarded(
     assert result_layer is None, (
         f"Expected hallucinated layer '{hallucinated_layer}' to be discarded, "
         f"but got '{result_layer}'"
+    )
+
+
+@pytest.mark.parametrize(
+    "dataset_id,hallucinated_parameter",
+    [
+        (4, [{"name": "canopy_cover", "values": [-1], "description": ""}]),
+        (7, [{"name": "made_up", "values": [30], "description": ""}]),
+    ],
+)
+async def test_hallucinated_parameter_is_discarded(
+    dataset_id,
+    hallucinated_parameter,
+):
+    """Verify that invalid parameter values from LLM are set to None."""
+    import pandas as pd
+
+    fake_selection = _make_fake_selection(
+        dataset_id, None, parameters=hallucinated_parameter
+    )
+    candidate_df = pd.DataFrame(
+        [d for d in DATASETS if d["dataset_id"] == dataset_id]
+    )
+    tool_call_id = str(uuid.uuid4())
+
+    with (
+        patch(
+            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            new_callable=AsyncMock,
+            return_value=candidate_df,
+        ),
+        patch(
+            "src.agent.tools.pick_dataset.select_best_dataset",
+            new_callable=AsyncMock,
+            return_value=fake_selection,
+        ),
+    ):
+        tool_call = {
+            "type": "tool_call",
+            "name": "pick_dataset",
+            "id": tool_call_id,
+            "args": {
+                "query": "test query",
+                "start_date": "2022-01-01",
+                "end_date": "2022-12-31",
+                "state": dict(),
+                "tool_call_id": tool_call_id,
+            },
+        }
+
+        command = await pick_dataset.ainvoke(tool_call)
+
+    result_params = command.update.get("dataset", {}).get("parameters")
+    assert not result_params, (
+        f"Expected hallucinated paramter '{hallucinated_parameter}' to be discarded, "
+        f"but got '{result_params}'"
     )
 
 
