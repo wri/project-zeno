@@ -202,7 +202,6 @@ async def pull_data(
                     "context_layer": dataset.get("context_layer"),
                 }
             ],
-            # TODO: This is deprecated, remove it in the future
             "start_date": effective_start,
             "end_date": effective_end,
             "messages": [tool_message],

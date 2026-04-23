@@ -16,8 +16,6 @@ API_BASE_URL = os.environ.get(
 )
 
 
-# TODO: move rendering logic to a separate module so
-# that the threads can import
 def generate_markdown(data):
     meta = data.get("metadata", {})
     more_info = (
