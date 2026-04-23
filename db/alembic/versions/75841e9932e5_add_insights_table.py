@@ -30,35 +30,11 @@ def upgrade() -> None:
         ),
         sa.Column("user_id", sa.String(), nullable=True),
         sa.Column("thread_id", sa.String(), nullable=False),
-        sa.Column("title", sa.String(), nullable=False),
-        sa.Column("chart_type", sa.String(), nullable=False),
         sa.Column("insight_text", sa.String(), nullable=False),
-        sa.Column("x_axis", sa.String(), server_default="", nullable=False),
-        sa.Column("y_axis", sa.String(), server_default="", nullable=False),
-        sa.Column(
-            "color_field", sa.String(), server_default="", nullable=False
-        ),
-        sa.Column(
-            "stack_field", sa.String(), server_default="", nullable=False
-        ),
-        sa.Column(
-            "group_field", sa.String(), server_default="", nullable=False
-        ),
-        sa.Column(
-            "series_fields",
-            postgresql.JSONB(astext_type=sa.Text()),
-            server_default="[]",
-            nullable=False,
-        ),
         sa.Column(
             "follow_up_suggestions",
             postgresql.JSONB(astext_type=sa.Text()),
             server_default="[]",
-            nullable=False,
-        ),
-        sa.Column(
-            "chart_data",
-            postgresql.JSONB(astext_type=sa.Text()),
             nullable=False,
         ),
         sa.Column(
@@ -83,11 +59,63 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_table(
+        "insight_charts",
+        sa.Column(
+            "id",
+            sa.UUID(),
+            server_default=sa.text("gen_random_uuid()"),
+            nullable=False,
+        ),
+        sa.Column("insight_id", sa.UUID(), nullable=False),
+        sa.Column(
+            "position", sa.Integer(), server_default="0", nullable=False
+        ),
+        sa.Column("title", sa.String(), nullable=False),
+        sa.Column("chart_type", sa.String(), nullable=False),
+        sa.Column("x_axis", sa.String(), server_default="", nullable=False),
+        sa.Column("y_axis", sa.String(), server_default="", nullable=False),
+        sa.Column(
+            "color_field", sa.String(), server_default="", nullable=False
+        ),
+        sa.Column(
+            "stack_field", sa.String(), server_default="", nullable=False
+        ),
+        sa.Column(
+            "group_field", sa.String(), server_default="", nullable=False
+        ),
+        sa.Column(
+            "series_fields",
+            postgresql.JSONB(astext_type=sa.Text()),
+            server_default="[]",
+            nullable=False,
+        ),
+        sa.Column(
+            "chart_data",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(["insight_id"], ["insights.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
     op.create_index("idx_insights_thread_id", "insights", ["thread_id"])
     op.create_index("idx_insights_user_id", "insights", ["user_id"])
+    op.create_index(
+        "idx_insight_charts_insight_id",
+        "insight_charts",
+        ["insight_id"],
+    )
+    op.create_index(
+        "idx_insight_charts_insight_position",
+        "insight_charts",
+        ["insight_id", "position"],
+    )
 
 
 def downgrade() -> None:
+    op.drop_index("idx_insight_charts_insight_position")
+    op.drop_index("idx_insight_charts_insight_id")
+    op.drop_table("insight_charts")
     op.drop_index("idx_insights_user_id")
     op.drop_index("idx_insights_thread_id")
     op.drop_table("insights")

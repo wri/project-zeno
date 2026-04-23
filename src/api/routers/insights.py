@@ -6,10 +6,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.api.auth.dependencies import optional_auth, require_auth
 from src.api.data_models import InsightOrm, UserType
 from src.api.schemas import (
+    InsightChartResponse,
     InsightPublicToggleRequest,
     InsightResponse,
     UserModel,
@@ -27,17 +29,24 @@ def _row_to_response(row: InsightOrm) -> InsightResponse:
         id=row.id,
         user_id=row.user_id,
         thread_id=row.thread_id,
-        title=row.title,
-        chart_type=row.chart_type,
         insight_text=row.insight_text,
-        x_axis=row.x_axis,
-        y_axis=row.y_axis,
-        color_field=row.color_field,
-        stack_field=row.stack_field,
-        group_field=row.group_field,
-        series_fields=row.series_fields or [],
         follow_up_suggestions=row.follow_up_suggestions or [],
-        chart_data=row.chart_data or [],
+        charts=[
+            InsightChartResponse(
+                id=chart.id,
+                position=chart.position,
+                title=chart.title,
+                chart_type=chart.chart_type,
+                x_axis=chart.x_axis,
+                y_axis=chart.y_axis,
+                color_field=chart.color_field,
+                stack_field=chart.stack_field,
+                group_field=chart.group_field,
+                series_fields=chart.series_fields or [],
+                chart_data=chart.chart_data or [],
+            )
+            for chart in (row.charts or [])
+        ],
         codeact_parts=[
             {"type": t, "content": c}
             for t, c in zip(
@@ -56,7 +65,11 @@ async def list_insights(
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """List all insights belonging to the authenticated user, optionally filtered by thread."""
-    stmt = select(InsightOrm).where(InsightOrm.user_id == user.id)
+    stmt = (
+        select(InsightOrm)
+        .options(selectinload(InsightOrm.charts))
+        .where(InsightOrm.user_id == user.id)
+    )
     if thread_id:
         stmt = stmt.where(InsightOrm.thread_id == thread_id)
     stmt = stmt.order_by(InsightOrm.created_at.desc())
@@ -77,7 +90,9 @@ async def get_insight(
     Private insights require authentication and ownership.
     """
     result = await session.execute(
-        select(InsightOrm).where(InsightOrm.id == insight_id)
+        select(InsightOrm)
+        .options(selectinload(InsightOrm.charts))
+        .where(InsightOrm.id == insight_id)
     )
     row = result.scalars().first()
     if not row:
@@ -110,7 +125,9 @@ async def toggle_insight_public(
 ):
     """Set or unset the is_public flag on an insight owned by the authenticated user."""
     result = await session.execute(
-        select(InsightOrm).where(InsightOrm.id == insight_id)
+        select(InsightOrm)
+        .options(selectinload(InsightOrm.charts))
+        .where(InsightOrm.id == insight_id)
     )
     row = result.scalars().first()
     if not row:

@@ -6,7 +6,7 @@ import pytest
 
 from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
-from src.api.data_models import InsightOrm, UserOrm
+from src.api.data_models import InsightChartOrm, InsightOrm, UserOrm
 from tests.conftest import async_session_maker
 
 
@@ -36,15 +36,24 @@ async def _create_insight(
         row = InsightOrm(
             user_id=user_id,
             thread_id=thread_id,
-            title=title,
-            chart_type="bar",
             insight_text="Sample insight text",
-            chart_data=[{"x": 1, "y": 2}],
+            follow_up_suggestions=["Try a different area"],
             codeact_types=["code_block"],
             codeact_contents=["print('hi')"],
             is_public=is_public,
         )
         session.add(row)
+        await session.flush()
+        chart = InsightChartOrm(
+            insight_id=row.id,
+            position=0,
+            title=title,
+            chart_type="bar",
+            x_axis="x",
+            y_axis="y",
+            chart_data=[{"x": 1, "y": 2}],
+        )
+        session.add(chart)
         await session.commit()
         await session.refresh(row)
         return row
@@ -131,7 +140,7 @@ async def test_get_own_private_insight(client, auth_override):
     assert response.status_code == 200
     body = response.json()
     assert body["id"] == str(insight.id)
-    assert body["title"] == "Test Insight"
+    assert body["charts"][0]["title"] == "Test Insight"
     assert body["is_public"] is False
     assert body["codeact_parts"] == [
         {"type": "code_block", "content": "print('hi')"}
@@ -377,19 +386,25 @@ async def test_insight_response_shape(client, auth_override):
         "id",
         "user_id",
         "thread_id",
+        "insight_text",
+        "follow_up_suggestions",
+        "charts",
+        "codeact_parts",
+        "is_public",
+        "created_at",
+    }
+    assert set(item.keys()) == expected_keys
+    assert len(item["charts"]) == 1
+    assert set(item["charts"][0].keys()) == {
+        "id",
+        "position",
         "title",
         "chart_type",
-        "insight_text",
         "x_axis",
         "y_axis",
         "color_field",
         "stack_field",
         "group_field",
         "series_fields",
-        "follow_up_suggestions",
         "chart_data",
-        "codeact_parts",
-        "is_public",
-        "created_at",
     }
-    assert set(item.keys()) == expected_keys

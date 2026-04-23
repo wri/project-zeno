@@ -113,18 +113,11 @@ async def invoke_generate_insights(
 
 
 def chart_from(update: dict) -> dict | None:
-    """Extract chart metadata from the captured DB row."""
-    if _last_insight_row is None:
+    """Extract chart metadata from tool update payload."""
+    charts_data = update.get("charts_data") or []
+    if not charts_data:
         return None
-    return {
-        "type": _last_insight_row.chart_type,
-        "data": _last_insight_row.chart_data,
-        "title": _last_insight_row.title,
-        "xAxis": _last_insight_row.x_axis,
-        "yAxis": _last_insight_row.y_axis,
-        "seriesFields": _last_insight_row.series_fields,
-        "groupField": _last_insight_row.group_field,
-    }
+    return charts_data[0]
 
 
 def insight_text(update: dict) -> str:

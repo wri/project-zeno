@@ -379,23 +379,31 @@ class CodeActPartResponse(BaseModel):
     content: str
 
 
-class InsightResponse(BaseModel):
+class InsightChartResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    user_id: Optional[str] = None
-    thread_id: str
+    position: int
     title: str
     chart_type: str
-    insight_text: str
     x_axis: str
     y_axis: str
     color_field: str
     stack_field: str
     group_field: str
     series_fields: List[str]
-    follow_up_suggestions: List[str]
     chart_data: List[dict]
+
+
+class InsightResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    user_id: Optional[str] = None
+    thread_id: str
+    insight_text: str
+    follow_up_suggestions: List[str]
+    charts: List[InsightChartResponse]
     codeact_parts: List[CodeActPartResponse]
     is_public: bool
     created_at: datetime
