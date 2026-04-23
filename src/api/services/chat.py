@@ -147,14 +147,10 @@ async def stream_chat(
                         "aois": [action_data["aoi"]],
                         "name": action_data["aoi_name"],
                     }
-                    # TODO: This is deprecated, remove it in the future
-                    state_updates["aoi"] = action_data["aoi"]
-                    state_updates["subtype"] = action_data["subtype"]
                 case "dataset_selected":
                     content = f"User selected dataset in UI: {action_data['dataset']['dataset_name']}\n\n"
                     state_updates["dataset"] = action_data["dataset"]
                 case "daterange_selected":
-                    # TODO: This is deprecated, remove it in the future
                     content = f"User selected daterange in UI: start_date: {action_data['start_date']}, end_date: {action_data['end_date']}"
                     state_updates["start_date"] = action_data["start_date"]
                     state_updates["end_date"] = action_data["end_date"]
