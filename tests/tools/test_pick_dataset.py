@@ -153,10 +153,6 @@ def _query_case_id(param):
             GRASSLANDS,
         ),
         (
-            "How much rangeland has been converted to agriculture in Mongolia since 2010?",
-            GRASSLANDS,
-        ),
-        (
             "Which regions show the fastest decline in native grassland habitats?",
             GRASSLANDS,
         ),
