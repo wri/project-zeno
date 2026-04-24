@@ -103,9 +103,10 @@ async def select_best_dataset(
     Evaluate if the best dataset is available for the date range requested by the user.
     If not, pick the closest available date range and include a warning in the dataset pick reason.
 
-    Pick the most granular dataset/contextual layer/parameters that matches the query, requested time range.
-    For instance, dont select tree cover loss by driver if the user requests a specific time range,
-    pick tree cover loss instead.
+    Pick the most granular dataset/contextual layer/parameters that matches the query.
+
+    Give more importance to date matching than context layer matching. For instance, dont select tree cover
+    loss by driver if the user requests a specific time range, pick tree cover loss instead.
 
     Keep explanations concise. Do not use datset IDs to describe the dataset.
     For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
