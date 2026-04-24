@@ -380,7 +380,7 @@ def get_tile_services_for_dataset(
                     f"&start_year={start_date.year}&end_year={end_date.year}"
                 )
             else:
-                tile_url += "&start_year=2001&end_year=2024"
+                tile_url += "&start_year=2001&end_year=2025"
     elif selection_result.dataset_id == DIST_ALERT_ID:
         tile_url += f"&start_date={start_date}&end_date={end_date}"
     elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
