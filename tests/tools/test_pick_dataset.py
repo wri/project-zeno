@@ -98,6 +98,15 @@ lookup = {
 }
 
 
+def _query_case_id(param):
+    query = param[0].strip().replace(" ", "_")
+    expected_dataset = param[1].replace(" ", "_")
+    max_len = 70
+    if len(query) > max_len:
+        query = f"{query[:max_len]}..."
+    return f"{expected_dataset}__{query}"
+
+
 @pytest.fixture(
     params=[
         # Dataset 0 queries (Ecosystem disturbance alerts) - near-real-time vegetation changes
@@ -383,7 +392,8 @@ lookup = {
             "2001-01-01",
             "2024-12-31",
         ),  # 56
-    ]
+    ],
+    ids=_query_case_id,
 )
 def test_query_with_expected_dataset(request):
     p = request.param
