@@ -12,11 +12,15 @@ import json
 import logging
 import sys
 import time
+import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from src.api.data_models import InsightOrm
 from tests.evals.fixture_data import (
     DIST_ALERT_STATE,
     GHG_FLUX_STATE,
@@ -40,6 +44,7 @@ RESULTS_DIR.mkdir(exist_ok=True)
 
 # Collect results across the session
 _session_results = []
+_last_insight_row: InsightOrm | None = None
 
 # Per-test verdict storage — tests store their verdict here for the hook to pick up
 _current_test_verdict: dict = {}
@@ -67,6 +72,60 @@ def test_db_session():
 @pytest.fixture(scope="function", autouse=True)
 def test_db_pool():
     pass
+
+
+# ---------------------------------------------------------------------------
+# Mock DB session usage for generate_insights + judge readback flow
+# ---------------------------------------------------------------------------
+@pytest.fixture(scope="function", autouse=True)
+def mock_eval_db():
+    """Mock DB I/O so eval tests can run without initializing a real pool."""
+    global _last_insight_row
+    _last_insight_row = None
+    session = AsyncMock()
+
+    def capture_add(row):
+        global _last_insight_row
+        if isinstance(row, InsightOrm):
+            _last_insight_row = row
+
+    async def fake_refresh(row):
+        if not row.id:
+            row.id = uuid.uuid4()
+
+    class _ScalarResult:
+        def __init__(self, row):
+            self._row = row
+
+        def first(self):
+            return self._row
+
+    class _ExecResult:
+        def __init__(self, row):
+            self._row = row
+
+        def scalars(self):
+            return _ScalarResult(self._row)
+
+    async def fake_execute(*args, **kwargs):
+        return _ExecResult(_last_insight_row)
+
+    session.add = capture_add
+    session.refresh = fake_refresh
+    session.execute = AsyncMock(side_effect=fake_execute)
+
+    @asynccontextmanager
+    async def fake_pool():
+        yield session
+
+    with (
+        patch(
+            "src.agent.tools.generate_insights.get_session_from_pool",
+            fake_pool,
+        ),
+        patch("src.shared.database.get_session_from_pool", fake_pool),
+    ):
+        yield session
 
 
 # ---------------------------------------------------------------------------
@@ -265,6 +324,9 @@ def pytest_sessionfinish(session, exitstatus):
         branch = "unknown"
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    # Branch names can include "/" (e.g. feature/foo), which cannot be used
+    # directly as part of a filename path.
+    safe_branch = branch.replace("/", "_")
     total = len(_session_results)
     passed = sum(1 for r in _session_results if r.get("passed"))
 
@@ -280,7 +342,7 @@ def pytest_sessionfinish(session, exitstatus):
         },
     }
 
-    outfile = RESULTS_DIR / f"eval_results_{branch}_{timestamp}.json"
+    outfile = RESULTS_DIR / f"eval_results_{safe_branch}_{timestamp}.json"
     with open(outfile, "w") as f:
         json.dump(output, f, indent=2, default=str)
     print(f"\n📊 Eval results saved to {outfile}")

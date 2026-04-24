@@ -177,6 +177,7 @@ async def run_generate_insights(query: str, state: dict) -> dict:
     Returns dict with: chart_type, chart_data, insight, code, refused
     """
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
     from src.api.data_models import InsightOrm
     from src.shared.database import get_session_from_pool
@@ -216,13 +217,24 @@ async def run_generate_insights(query: str, state: dict) -> dict:
             result["refused"] = True
             result["insight"] = msg_content
 
+    # Prefer inline state returned by generate_insights.
+    # This is the canonical output shape used by the tool response path.
+    charts_data = update.get("charts_data") or []
+    if charts_data:
+        first_chart = charts_data[0]
+        result["chart_type"] = first_chart.get("type")
+        result["chart_data"] = first_chart.get("data") or []
+
     insight_id = update.get("insight_id")
-    if insight_id:
+    # Keep DB readback as a fallback / parity check path.
+    if insight_id and not result["chart_type"]:
         async with get_session_from_pool() as session:
             row = (
                 (
                     await session.execute(
-                        select(InsightOrm).where(InsightOrm.id == insight_id)
+                        select(InsightOrm)
+                        .options(selectinload(InsightOrm.charts))
+                        .where(InsightOrm.id == insight_id)
                     )
                 )
                 .scalars()
@@ -230,8 +242,12 @@ async def run_generate_insights(query: str, state: dict) -> dict:
             )
 
         if row:
-            result["chart_type"] = row.chart_type
-            result["chart_data"] = row.chart_data or []
+            # Insight charts now live in the related insight_charts table.
+            # Keep eval output shape stable by exposing the first chart here.
+            first_chart = (row.charts or [None])[0]
+            if first_chart:
+                result["chart_type"] = first_chart.chart_type
+                result["chart_data"] = first_chart.chart_data or []
             result["insight"] = row.insight_text
 
             code_parts = [
