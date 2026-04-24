@@ -333,3 +333,11 @@ async def test_agent_for_disturbance_alerts_for_brazil(structlog_context):
     assert len(steps) > 0
     tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
     assert has_insights(tool_steps), "No insights found"
+
+
+async def test_agent_for_deforestation_for_brazil(structlog_context):
+    query = "Show me deforestation in Para and Parana in Brazil"
+    steps = await run_agent(query)
+    assert len(steps) > 0
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
+    assert has_insights(tool_steps), "No insights found"

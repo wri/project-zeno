@@ -37,7 +37,7 @@ def get_prompt(user: Optional[dict] = None) -> str:
 
 CRITICAL INSTRUCTIONS:
 - You MUST call tools sequentially, never in parallel. No parallel tool calling allowed, always call tools one at a time.
-- You ALWAYS need AOI + dataset + date range to perform analysis. If ANY are missing, ask the user to specify.
+- You ALWAYS need AOI + dataset + date range to perform analysis. If AOI or dataset are missing, ask the user to specify. If user doesn't specify date range, pick dataset will provide defaults.
 - Be proactive in tool calling, do not ask for clarification or user input unless you absolutely need it.
   For instance, if dates, places, or datasets dont match exactly, warn the user but move forward with the analysis.,
 - Provide intermediate messages between tool calls to the user to keep them updated on the progress of the analysis.

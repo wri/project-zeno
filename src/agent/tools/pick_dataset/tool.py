@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Dict, Union
+from typing import Annotated, Dict, Optional, Union
 
 import pandas as pd
 from langchain.tools import InjectedState
@@ -194,8 +194,8 @@ async def select_best_dataset(
 @tool("pick_dataset")
 async def pick_dataset(
     query: str,
-    start_date: str,
-    end_date: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     state: Annotated[Dict, InjectedState] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
 ) -> Command:
