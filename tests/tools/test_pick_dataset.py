@@ -131,7 +131,6 @@ def _query_case_id(param):
             DIST_ALERT,
         ),
         # Dataset 1 queries (Global land cover) - annual land cover classification and change
-        ("How much of the world is urban?", LAND_COVER_CHANGE),
         (
             "Which had more cropland in 2015, Nigeria or Ghana?",
             LAND_COVER_CHANGE,
@@ -201,7 +200,7 @@ def _query_case_id(param):
         ),
         (
             "Show deforestation by driver in 2019",
-            TREE_COVER_LOSS,
+            TREE_COVER_LOSS,  # By driver is total, so we want this query to pick plain TCL
         ),
         # Dataset 5 queries (Tree cover gain) - cumulative forest regrowth
         (

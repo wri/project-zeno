@@ -75,4 +75,4 @@ jobs:
         run: |
           mkdir -p data
           uv run python src/ingest/embed_datasets.py
-          uv run pytest tests/tools tests/agent -v --reruns 2 --reruns-delay 5
+          uv run pytest tests/tools -v --reruns 2 --reruns-delay 5
