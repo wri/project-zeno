@@ -566,6 +566,28 @@ async def test_tile_url_contains_date(dataset, state):
     assert response.status_code == 200
 
 
+async def test_tile_url_contains_default_dates(state):
+    tool_call_id = str(uuid.uuid4())
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": "Find me tree cover loss data",
+            "start_date": None,
+            "end_date": None,
+            "state": state,
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    tile_url = command.update.get("dataset", {}).get("tile_url")
+    assert "start_year=2001" in tile_url
+
+
 async def test_tree_cover_tile_url_with_canopy_density(state):
     tool_call_id = str(uuid.uuid4())
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated, Dict, Optional, Union
 
@@ -13,6 +13,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langgraph.types import Command
 from shapely import box
 
+from src.agent.tools.util import revise_date_range
 from src.agent.llms import SMALL_MODEL
 from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
@@ -78,8 +79,8 @@ async def rag_candidate_datasets(query: str, k=3):
 async def select_best_dataset(
     query: str,
     candidate_datasets: pd.DataFrame,
-    start_date: str,
-    end_date: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     aoi_selection=None,
 ) -> DatasetSelectionResult:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
@@ -165,8 +166,9 @@ async def select_best_dataset(
         candidate_datasets.dataset_id == selection_result.dataset_id
     ].iloc[0]
 
+    effective_start_date, effective_end_date, _ = await revise_date_range(start_date, end_date, selected_row.dataset_id)
     dataset_tile_url, context_layers = get_tile_services_for_dataset(
-        selection_result, selected_row, start_date, end_date
+        selection_result, selected_row, effective_start_date, effective_end_date
     )
 
     return DatasetSelectionResult(
@@ -375,13 +377,13 @@ def get_tile_services_for_dataset(
             "{threshold}", str(canopy_cover)
         )
 
-        if selected_row.dataset_id == TREE_COVER_LOSS_ID:
-            if end_date.year in range(2001, 2025):
-                tile_url += (
-                    f"&start_year={start_date.year}&end_year={end_date.year}"
-                )
-            else:
-                tile_url += "&start_year=2001&end_year=2024"
+    if selected_row.dataset_id == TREE_COVER_LOSS_ID:
+        if end_date.year in range(2001, 2025):
+            tile_url += (
+                f"&start_year={start_date.year}&end_year={end_date.year}"
+            )
+        else:
+            tile_url += "&start_year=2001&end_year=2025"
     elif selection_result.dataset_id == DIST_ALERT_ID:
         tile_url += f"&start_date={start_date}&end_date={end_date}"
     elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
@@ -391,3 +393,24 @@ def get_tile_services_for_dataset(
             tile_url = tile_url.format(year="2022")
 
     return tile_url, context_layers
+
+
+def get_dates_for_dataset(
+    selection_result, selected_row, start_date, end_date
+) -> tuple[str, str]:
+    """Resolve missing dates from the selected dataset's own coverage."""
+    dataset_start_date = selected_row.get("start_date")
+    dataset_end_date = selected_row.get("end_date") or str(date.today())
+
+    resolved_start_date = start_date or dataset_start_date
+    resolved_end_date = end_date or dataset_end_date
+
+    logger.debug(
+        "Resolved dates for dataset %s (%s): start=%s end=%s",
+        selection_result.dataset_id,
+        selected_row.get("dataset_name"),
+        resolved_start_date,
+        resolved_end_date,
+    )
+
+    return resolved_start_date, resolved_end_date
