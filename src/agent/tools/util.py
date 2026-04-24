@@ -28,7 +28,7 @@ async def revise_date_range(
         start_date = ds_start_original
     if end_date is None:
         end_date = ds_end_original
-    
+
     if ds_original.get("content_date_fixed"):
         effective_start = ds_start_original
         effective_end = ds_end_original

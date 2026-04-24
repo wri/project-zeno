@@ -13,7 +13,6 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langgraph.types import Command
 from shapely import box
 
-from src.agent.tools.util import revise_date_range
 from src.agent.llms import SMALL_MODEL
 from src.agent.tools.data_handlers.analytics_handler import (
     DIST_ALERT_ID,
@@ -33,6 +32,7 @@ from src.agent.tools.pick_dataset.schema import (
     DatasetOption,
     DatasetSelectionResult,
 )
+from src.agent.tools.util import revise_date_range
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -166,9 +166,14 @@ async def select_best_dataset(
         candidate_datasets.dataset_id == selection_result.dataset_id
     ].iloc[0]
 
-    effective_start_date, effective_end_date, _ = await revise_date_range(start_date, end_date, selected_row.dataset_id)
+    effective_start_date, effective_end_date, _ = await revise_date_range(
+        start_date, end_date, selected_row.dataset_id
+    )
     dataset_tile_url, context_layers = get_tile_services_for_dataset(
-        selection_result, selected_row, effective_start_date, effective_end_date
+        selection_result,
+        selected_row,
+        effective_start_date,
+        effective_end_date,
     )
 
     return DatasetSelectionResult(

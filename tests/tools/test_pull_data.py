@@ -463,7 +463,7 @@ class TestReviseDateRange:
 
     async def test_dataset_without_dates_uses_default(self):
         """Dataset 4 (TCL) has defaults to use if not provided."""
-  
+
         (
             effective_start,
             effective_end,
