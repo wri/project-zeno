@@ -1138,7 +1138,7 @@ class TestSlucEfTableMultipleCrops:
 
     async def test_table_for_crops(self):
         update = await invoke_generate_insights(
-            "Table of crop emission factors for Brazil",
+            "Generate a table chart of crop emission factors for Brazil",
             SLUC_EF_DATASET,
             SLUC_EF_MULTI_CROP_STATS,
         )
