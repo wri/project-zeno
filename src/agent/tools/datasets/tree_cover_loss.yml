@@ -15,16 +15,16 @@ license: CC by 4.0
 geographic_coverage: Global land area (excluding Antarctica and other Arctic islands)
 resolution: 30 x 30 meters
 update_frequency: annual
-content_date: 2001-2024 annual
+content_date: 2001-2025 annual
 start_date: '2001-01-01'
-end_date: '2024-12-31'
+end_date: '2025-12-31'
 content_date_fixed: false
 keywords:
 - deforestation
 - forest loss
 - disturbance
 analytics_api_endpoint: /v0/land_change/tree_cover_loss/analytics
-prompt_instructions: 'Reports gross annual loss of tree cover ≥ 5 m height (2001-2024). Show yearly loss with bar charts or
+prompt_instructions: 'Reports gross annual loss of tree cover ≥ 5 m height (2001-2025). Show yearly loss with bar charts or
   cumulative loss with stacked-area charts; plot area_ha and drop zeros. When reporting tree cover loss, always include the
   GHG emissions associated with that loss, in MgCO2e (tonnes of CO2 equivalent). If users ask for intra-year or seasonal tree
   cover loss OR emissions, refuse and remind that the data is annual only. The 2011-2024 data was produced using an updated
