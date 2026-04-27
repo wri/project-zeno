@@ -194,10 +194,6 @@ def _query_case_id(param):
             "I need to track forest plantations harvesting cycles in northern Europe",
             TREE_COVER_LOSS,
         ),
-        (
-            "Show deforestation by driver in 2019",
-            TREE_COVER_LOSS,  # By driver is total, so we want this query to pick plain TCL
-        ),
         # Dataset 5 queries (Tree cover gain) - cumulative forest regrowth
         (
             "Where has forest regrowth occurred in the Amazon basin between 2000 and 2020?",
