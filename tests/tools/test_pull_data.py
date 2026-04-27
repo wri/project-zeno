@@ -209,8 +209,8 @@ async def test_pull_data_queries(aoi_data, dataset):
         assert statistics[0]["aoi_names"] == [aoi_data["name"]]
 
 
-async def test_tree_cover_loss_date_range_clamped_to_2024():
-    """Regression: Tree cover loss (2001-2024) clamps input 2020-2025 to 2020-2024."""
+async def test_tree_cover_loss_date_range_clamped_to_2025():
+    """Regression: Tree cover loss (2001-2025) clamps input 2020-2026 to 2020-2025."""
     aoi_data = TEST_AOIS[0]  # Brazil
     update = {
         "aoi_selection": {"name": aoi_data["name"], "aois": [aoi_data]},
@@ -229,7 +229,7 @@ async def test_tree_cover_loss_date_range_clamped_to_2024():
         "args": {
             "query": "find tree cover loss in Brazil",
             "start_date": "2020-01-01",
-            "end_date": "2025-12-31",
+            "end_date": "2026-12-31",
             "change_over_time_query": True,
             "tool_call_id": "test-date-clamp-tree-cover-loss",
             "state": update,
@@ -242,8 +242,8 @@ async def test_tree_cover_loss_date_range_clamped_to_2024():
     assert statistics[0]["end_date"] == "2025-12-31"
     tool_message = command.update.get("messages", [None])[0]
     assert tool_message is not None
-    assert "2024-12-31" in tool_message.content
     assert "2025-12-31" in tool_message.content
+    assert "2026-12-31" in tool_message.content
     assert "adjusted" in tool_message.content.lower()
 
 
