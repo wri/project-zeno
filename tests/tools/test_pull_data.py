@@ -237,7 +237,7 @@ async def test_tree_cover_loss_date_range_clamped_to_2024():
         "args": {
             "query": "find tree cover loss in Brazil",
             "start_date": "2020-01-01",
-            "end_date": "2025-12-31",
+            "end_date": "2030-12-31",
             "change_over_time_query": True,
             "tool_call_id": "test-date-clamp-tree-cover-loss",
             "state": update,
@@ -247,10 +247,9 @@ async def test_tree_cover_loss_date_range_clamped_to_2024():
     statistics = command.update.get("statistics", [])
     assert len(statistics) == 1
     assert statistics[0]["start_date"] == "2020-01-01"
-    assert statistics[0]["end_date"] == "2024-12-31"
+    assert statistics[0]["end_date"] == "2025-12-31"
     tool_message = command.update.get("messages", [None])[0]
     assert tool_message is not None
-    assert "2024-12-31" in tool_message.content
     assert "2025-12-31" in tool_message.content
     assert "adjusted" in tool_message.content.lower()
 
@@ -470,5 +469,5 @@ class TestReviseDateRange:
             range_clamped,
         ) = await revise_date_range(None, None, 4)
         assert effective_start == "2001-01-01"
-        assert effective_end == "2024-12-31"
+        assert effective_end == "2025-12-31"
         assert range_clamped is False
