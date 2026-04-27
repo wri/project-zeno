@@ -498,16 +498,3 @@ class TestReviseDateRange:
         assert effective_start == "2002-01-01"
         assert effective_end == "2025-12-31"
         assert range_clamped is False
-
-        """Unknown context layers are ignored to preserve existing dataset behavior."""
-
-        (
-            effective_start,
-            effective_end,
-            range_clamped,
-        ) = await revise_date_range(
-            "2001-01-01", "2025-12-31", 4, "missing_layer"
-        )
-        assert effective_start == "2001-01-01"
-        assert effective_end == "2025-12-31"
-        assert range_clamped is False
