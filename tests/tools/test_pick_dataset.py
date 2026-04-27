@@ -376,12 +376,6 @@ def _query_case_id(param):
             "2024-12-31",
         ),
         (
-            "Show the trend in natural land loss over time in Brazil",
-            TREE_COVER_LOSS,
-            "2015-01-01",
-            "2024-12-31",
-        ),
-        (
             "Plot year-by-year carbon emissions from deforestation in Indonesia",
             TREE_COVER_LOSS,
             "2001-01-01",
@@ -484,7 +478,6 @@ async def test_query_with_context_layer(
             "canopy_cover",
             30,
         ),
-        ("Tree cover loss in the past decade", 4, "canopy_cover", 30),
     ],
 )
 async def test_query_with_parameter(

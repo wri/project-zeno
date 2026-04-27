@@ -95,9 +95,9 @@ async def select_best_dataset(
     If not, pick the closest available date range and include a warning in the dataset pick reason.
     Pick the most granular dataset. Prioritize matching the date range when candidate datasets are similar.
 
-    After selecting the best dataset, inspect its filtered_context_layers. Choose the single context layer whose description
-    best fits the user's query, even when the user does not name the layer directly. Context layers differentiate types of
-    data within the same dataset, and their descriptions are guidance for when each layer applies.
+    After selecting the best dataset, inspect its filtered_context_layers. Choose exactly one context layer whenever its description
+    or instructions apply to the query, even if the user does not mention it by name. Return null only if no available context layer is relevant.
+    Context layers differentiate types of data within the same dataset, and their descriptions are guidance for when each layer applies.
     Pick the most granular context layer that matches the query. If no context layer fits the query, return null.
 
     After selecting the best context layer or null, select parameters and values if they are relevant or specified in the user query. Parameters allow further filtering
