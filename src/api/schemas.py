@@ -372,3 +372,42 @@ class ThreadStateResponse(BaseModel):
     state: str = Field(
         ..., description="JSON serialized agent state for the thread"
     )
+
+
+class CodeActPartResponse(BaseModel):
+    type: str
+    content: str
+
+
+class InsightChartResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    position: int
+    title: str
+    chart_type: str
+    x_axis: str
+    y_axis: str
+    color_field: str
+    stack_field: str
+    group_field: str
+    series_fields: List[str]
+    chart_data: List[dict]
+
+
+class InsightResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    user_id: Optional[str] = None
+    thread_id: str
+    insight_text: str
+    follow_up_suggestions: List[str]
+    charts: List[InsightChartResponse]
+    codeact_parts: List[CodeActPartResponse]
+    is_public: bool
+    created_at: datetime
+
+
+class InsightPublicToggleRequest(BaseModel):
+    is_public: bool

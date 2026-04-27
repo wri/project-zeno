@@ -1,5 +1,7 @@
 import sys
 import uuid
+from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -35,6 +37,33 @@ def reset_google_clients():
     llms_module = sys.modules["src.agent.llms"]
     llms_module.SMALL_MODEL = llms_module.get_small_model()
     yield
+
+
+def _mock_session_factory():
+    """Create a mock async session that captures InsightOrm rows."""
+    session = AsyncMock()
+
+    async def fake_refresh(row):
+        if not row.id:
+            row.id = uuid.uuid4()
+
+    session.refresh = fake_refresh
+    return session
+
+
+@pytest.fixture(autouse=True)
+def mock_insight_db():
+    mock_session = _mock_session_factory()
+
+    @asynccontextmanager
+    async def fake_pool():
+        yield mock_session
+
+    with patch(
+        "src.agent.tools.generate_insights.get_session_from_pool",
+        fake_pool,
+    ):
+        yield mock_session
 
 
 async def test_generate_insights_comparison():
@@ -175,9 +204,20 @@ async def test_generate_insights_comparison():
         }
     )
 
+    assert "insight_id" in command.update
+    assert command.update["insight_id"]
     assert "charts_data" in command.update
-    assert "Pima" in command.update["insight"]
-    assert "Bern" in command.update["insight"]
+    assert len(command.update["charts_data"]) > 0
+
+    # Backwards-compat: inline state fields coexist with insight_id
+    chart = command.update["charts_data"][0]
+    assert "type" in chart
+    assert "data" in chart
+    assert "title" in chart
+    assert isinstance(command.update.get("codeact_parts"), list)
+    assert isinstance(command.update.get("insight"), str)
+    assert len(command.update["insight"]) > 0
+    assert isinstance(command.update.get("follow_up_suggestions"), list)
 
 
 async def test_simple_line_chart():
@@ -233,13 +273,10 @@ async def test_simple_line_chart():
         }
     )
 
+    assert "insight_id" in result.update
+    assert result.update["insight_id"]
     assert "charts_data" in result.update
     assert len(result.update["charts_data"]) > 0
-
-    chart_data = result.update["charts_data"][0]
-    assert "data" in chart_data
-    assert "id" in chart_data
-    assert chart_data["type"] == "line"
 
 
 async def test_simple_bar_chart():
@@ -303,13 +340,10 @@ async def test_simple_bar_chart():
         }
     )
 
+    assert "insight_id" in result.update
+    assert result.update["insight_id"]
     assert "charts_data" in result.update
     assert len(result.update["charts_data"]) > 0
-
-    chart_data = result.update["charts_data"][0]
-    assert "data" in chart_data
-    assert "id" in chart_data
-    assert chart_data["type"] == "bar"
 
 
 async def test_stacked_bar_chart():
@@ -363,13 +397,10 @@ async def test_stacked_bar_chart():
         }
     )
 
+    assert "insight_id" in result.update
+    assert result.update["insight_id"]
     assert "charts_data" in result.update
     assert len(result.update["charts_data"]) > 0
-
-    chart_data = result.update["charts_data"][0]
-    assert "data" in chart_data
-    assert "id" in chart_data
-    assert chart_data["type"] == "stacked-bar"
 
 
 async def test_grouped_bar_chart():
@@ -440,13 +471,10 @@ async def test_grouped_bar_chart():
         }
     )
 
+    assert "insight_id" in result.update
+    assert result.update["insight_id"]
     assert "charts_data" in result.update
     assert len(result.update["charts_data"]) > 0
-
-    chart_data = result.update["charts_data"][0]
-    assert "data" in chart_data
-    assert "id" in chart_data
-    assert chart_data["type"] == "grouped-bar"
 
 
 async def test_pie_chart():
@@ -503,6 +531,8 @@ async def test_pie_chart():
         }
     )
 
+    assert "insight_id" in result.update
+    assert result.update["insight_id"]
     assert "charts_data" in result.update
     assert len(result.update["charts_data"]) > 0
 

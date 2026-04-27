@@ -11,14 +11,19 @@ These tests hit the Gemini API — they are integration tests by nature.
 import re
 import sys
 import uuid
+from contextlib import asynccontextmanager
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.agent.state import Statistics
 from src.agent.tools.generate_insights import generate_insights
+from src.api.data_models import InsightOrm
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+_last_insight_row: InsightOrm | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -44,6 +49,42 @@ def reset_google_clients():
     llms_module = sys.modules["src.agent.llms"]
     llms_module.SMALL_MODEL = llms_module.get_small_model()
     yield
+
+
+def _mock_session_factory():
+    global _last_insight_row
+    session = AsyncMock()
+
+    def capture_add(row):
+        global _last_insight_row
+        if isinstance(row, InsightOrm):
+            _last_insight_row = row
+
+    session.add = capture_add
+
+    async def fake_refresh(row):
+        if not row.id:
+            row.id = uuid.uuid4()
+
+    session.refresh = fake_refresh
+    return session
+
+
+@pytest.fixture(autouse=True)
+def mock_insight_db():
+    global _last_insight_row
+    _last_insight_row = None
+    mock_session = _mock_session_factory()
+
+    @asynccontextmanager
+    async def fake_pool():
+        yield mock_session
+
+    with patch(
+        "src.agent.tools.generate_insights.get_session_from_pool",
+        fake_pool,
+    ):
+        yield mock_session
 
 
 # ---------------------------------------------------------------------------
@@ -72,15 +113,17 @@ async def invoke_generate_insights(
 
 
 def chart_from(update: dict) -> dict | None:
-    """Extract the first chart from the update, or None."""
-    charts = update.get("charts_data", [])
-    return charts[0] if charts else None
+    """Extract chart metadata from tool update payload."""
+    charts_data = update.get("charts_data") or []
+    if not charts_data:
+        return None
+    return charts_data[0]
 
 
 def insight_text(update: dict) -> str:
-    """Extract the insight text, falling back to tool message content."""
-    if "insight" in update:
-        return update["insight"]
+    """Extract insight text from the captured DB row, falling back to tool message."""
+    if _last_insight_row is not None and _last_insight_row.insight_text:
+        return _last_insight_row.insight_text
     msgs = update.get("messages", [])
     if msgs:
         return msgs[0].content
