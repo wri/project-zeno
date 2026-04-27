@@ -1,16 +1,19 @@
 import operator
-from typing import Annotated, Sequence
+from typing import Annotated, Any, Sequence
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
 from typing_extensions import TypedDict
 
-from src.agent.tools.code_executors.base import CodeActPart
-
 
 class AOISelection(TypedDict):
     name: str
     aois: list[dict]
+
+
+class StatisticsParameter(TypedDict):
+    name: str
+    values: list[Any]
 
 
 class Statistics(TypedDict):
@@ -20,8 +23,13 @@ class Statistics(TypedDict):
     source_url: str
     data: dict
     aoi_names: list[str]
-    parameters: list[dict] | None
+    parameters: list[StatisticsParameter] | None
     context_layer: str | None
+
+
+class EncodedCodeActPart(TypedDict):
+    type: str
+    content: str
 
 
 class AgentState(TypedDict):
@@ -29,8 +37,6 @@ class AgentState(TypedDict):
     user_persona: str
 
     # pick-aoi tool
-    aoi: dict
-    subtype: str
     aoi_selection: AOISelection
 
     # pick-dataset tool
@@ -42,6 +48,8 @@ class AgentState(TypedDict):
     statistics: Annotated[list[Statistics], operator.add]
 
     # generate-insights tool
-    insights: list
+    insight: str
+    follow_up_suggestions: list[str]
+    insight_id: str
     charts_data: list
-    codeact_parts: list[CodeActPart]
+    codeact_parts: list[EncodedCodeActPart]

@@ -1,11 +1,11 @@
-"""Unit tests for build_selection_name — pure label generation, no DB needed."""
+"""Unit tests for build_selection_name - pure label generation, no DB needed."""
 
 import pytest
 
 from src.agent.tools.pick_aoi.selection_name_util import build_selection_name
 
 # ---------------------------------------------------------------------------
-# No subregion — direct area selections
+# No subregion - direct area selections
 # ---------------------------------------------------------------------------
 
 
@@ -15,11 +15,11 @@ from src.agent.tools.pick_aoi.selection_name_util import build_selection_name
         # Single country / state / protected area
         (["Brazil"], 1, "Brazil"),
         (["Indonesia"], 1, "Indonesia"),
-        # Two countries — joined with &, not comma
+        # Two countries - joined with &, not comma
         (["Brazil", "Peru"], 2, "Brazil & Peru"),
         # Three or more (e.g. user: "compare Congo, Brazil and Indonesia")
         (["Congo", "Brazil", "Indonesia"], 3, "Congo & Brazil & Indonesia"),
-        # Areas whose names already contain commas — no extra commas added
+        # Areas whose names already contain commas - no extra commas added
         (["Para, Brazil"], 1, "Para, Brazil"),
         (
             ["Para, Brazil", "Amazonas, Brazil"],
@@ -33,7 +33,7 @@ def test_no_subregion(match_names, num_aois, expected):
 
 
 # ---------------------------------------------------------------------------
-# With subregion — count-forward format
+# With subregion - count-forward format
 # ---------------------------------------------------------------------------
 
 
@@ -92,7 +92,7 @@ def test_single_result_subregion():
 
 
 def test_empty_subregion_string_treated_as_no_subregion():
-    """Empty string is falsy — should fall through to plain join."""
+    """Empty string is falsy - should fall through to plain join."""
     result = build_selection_name(["Brazil"], "", 1)
     assert result == "Brazil"
 
@@ -104,7 +104,7 @@ def test_area_with_ampersand_in_name():
 
 
 def test_many_parents_no_subregion():
-    """Five parents — still no count prefix, just joined."""
+    """Five parents - still no count prefix, just joined."""
     names = ["Brazil", "Peru", "Colombia", "Ecuador", "Bolivia"]
     result = build_selection_name(names, None, 5)
     assert result == "Brazil & Peru & Colombia & Ecuador & Bolivia"

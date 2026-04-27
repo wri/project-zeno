@@ -708,6 +708,24 @@
           "similarity_score": 0.6499999761581421
         }
       ]
+    },
+    "Russia": {
+      "columns": [
+        "src_id",
+        "name",
+        "subtype",
+        "source",
+        "similarity_score"
+      ],
+      "records": [
+        {
+          "src_id": "RUS",
+          "name": "Russia",
+          "subtype": "country",
+          "source": "gadm",
+          "similarity_score": 1.0
+        }
+      ]
     }
   },
   "query_subregion_database": {
@@ -2450,6 +2468,598 @@
         "src_id"
       ],
       "records": []
+    },
+    "state|gadm|RUS": {
+      "columns": [
+        "name",
+        "subtype",
+        "gadm_id",
+        "source",
+        "src_id"
+      ],
+      "records": [
+        {
+          "name": "Adygeya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.1_1",
+          "source": "gadm",
+          "src_id": "RUS.1_1"
+        },
+        {
+          "name": "Altay, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.2_1",
+          "source": "gadm",
+          "src_id": "RUS.2_1"
+        },
+        {
+          "name": "Altayskiy kray, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.3_1",
+          "source": "gadm",
+          "src_id": "RUS.3_1"
+        },
+        {
+          "name": "Amurskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.4_1",
+          "source": "gadm",
+          "src_id": "RUS.4_1"
+        },
+        {
+          "name": "Arkhangel'skaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.5_1",
+          "source": "gadm",
+          "src_id": "RUS.5_1"
+        },
+        {
+          "name": "Astrakhanskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.6_1",
+          "source": "gadm",
+          "src_id": "RUS.6_1"
+        },
+        {
+          "name": "Bashkortostan, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.7_1",
+          "source": "gadm",
+          "src_id": "RUS.7_1"
+        },
+        {
+          "name": "Belgorodskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.8_1",
+          "source": "gadm",
+          "src_id": "RUS.8_1"
+        },
+        {
+          "name": "Bryanskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.9_1",
+          "source": "gadm",
+          "src_id": "RUS.9_1"
+        },
+        {
+          "name": "Buryatiya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.10_1",
+          "source": "gadm",
+          "src_id": "RUS.10_1"
+        },
+        {
+          "name": "Chelyabinskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.11_1",
+          "source": "gadm",
+          "src_id": "RUS.11_1"
+        },
+        {
+          "name": "Chechnya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.12_1",
+          "source": "gadm",
+          "src_id": "RUS.12_1"
+        },
+        {
+          "name": "Chukotskiy avtonomnyy okrug, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.13_1",
+          "source": "gadm",
+          "src_id": "RUS.13_1"
+        },
+        {
+          "name": "Chuvashskaya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.14_1",
+          "source": "gadm",
+          "src_id": "RUS.14_1"
+        },
+        {
+          "name": "Dagestan, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.15_1",
+          "source": "gadm",
+          "src_id": "RUS.15_1"
+        },
+        {
+          "name": "Ingushetiya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.16_1",
+          "source": "gadm",
+          "src_id": "RUS.16_1"
+        },
+        {
+          "name": "Irkutskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.17_1",
+          "source": "gadm",
+          "src_id": "RUS.17_1"
+        },
+        {
+          "name": "Ivanovskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.18_1",
+          "source": "gadm",
+          "src_id": "RUS.18_1"
+        },
+        {
+          "name": "Yevreyskaya avtonomnaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.19_1",
+          "source": "gadm",
+          "src_id": "RUS.19_1"
+        },
+        {
+          "name": "Kabardino-Balkarskaya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.20_1",
+          "source": "gadm",
+          "src_id": "RUS.20_1"
+        },
+        {
+          "name": "Kaliningradskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.21_1",
+          "source": "gadm",
+          "src_id": "RUS.21_1"
+        },
+        {
+          "name": "Kalmykiya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.22_1",
+          "source": "gadm",
+          "src_id": "RUS.22_1"
+        },
+        {
+          "name": "Kaluzhskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.23_1",
+          "source": "gadm",
+          "src_id": "RUS.23_1"
+        },
+        {
+          "name": "Kamchatskiy kray, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.24_1",
+          "source": "gadm",
+          "src_id": "RUS.24_1"
+        },
+        {
+          "name": "Karachayevo-Cherkesskaya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.25_1",
+          "source": "gadm",
+          "src_id": "RUS.25_1"
+        },
+        {
+          "name": "Kareliya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.26_1",
+          "source": "gadm",
+          "src_id": "RUS.26_1"
+        },
+        {
+          "name": "Kemerovskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.27_1",
+          "source": "gadm",
+          "src_id": "RUS.27_1"
+        },
+        {
+          "name": "Khabarovskiy kray, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.28_1",
+          "source": "gadm",
+          "src_id": "RUS.28_1"
+        },
+        {
+          "name": "Khakasiya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.29_1",
+          "source": "gadm",
+          "src_id": "RUS.29_1"
+        },
+        {
+          "name": "Khanty-Mansiyskiy avtonomnyy okrug-Yugra, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.30_1",
+          "source": "gadm",
+          "src_id": "RUS.30_1"
+        },
+        {
+          "name": "Kirovskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.31_1",
+          "source": "gadm",
+          "src_id": "RUS.31_1"
+        },
+        {
+          "name": "Komi, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.32_1",
+          "source": "gadm",
+          "src_id": "RUS.32_1"
+        },
+        {
+          "name": "Kostromskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.33_1",
+          "source": "gadm",
+          "src_id": "RUS.33_1"
+        },
+        {
+          "name": "Krasnodarskiy kray, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.34_1",
+          "source": "gadm",
+          "src_id": "RUS.34_1"
+        },
+        {
+          "name": "Krasnoyarskiy kray, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.35_1",
+          "source": "gadm",
+          "src_id": "RUS.35_1"
+        },
+        {
+          "name": "Kurganskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.36_1",
+          "source": "gadm",
+          "src_id": "RUS.36_1"
+        },
+        {
+          "name": "Kurskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.37_1",
+          "source": "gadm",
+          "src_id": "RUS.37_1"
+        },
+        {
+          "name": "Leningradskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.38_1",
+          "source": "gadm",
+          "src_id": "RUS.38_1"
+        },
+        {
+          "name": "Lipetskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.39_1",
+          "source": "gadm",
+          "src_id": "RUS.39_1"
+        },
+        {
+          "name": "Magadanskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.40_1",
+          "source": "gadm",
+          "src_id": "RUS.40_1"
+        },
+        {
+          "name": "Mariy El, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.41_1",
+          "source": "gadm",
+          "src_id": "RUS.41_1"
+        },
+        {
+          "name": "Mordoviya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.42_1",
+          "source": "gadm",
+          "src_id": "RUS.42_1"
+        },
+        {
+          "name": "Moskovskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.43_1",
+          "source": "gadm",
+          "src_id": "RUS.43_1"
+        },
+        {
+          "name": "Moskva, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.44_1",
+          "source": "gadm",
+          "src_id": "RUS.44_1"
+        },
+        {
+          "name": "Murmanskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.45_1",
+          "source": "gadm",
+          "src_id": "RUS.45_1"
+        },
+        {
+          "name": "Nenetskiy avtonomnyy okrug, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.46_1",
+          "source": "gadm",
+          "src_id": "RUS.46_1"
+        },
+        {
+          "name": "Nizhegorodskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.47_1",
+          "source": "gadm",
+          "src_id": "RUS.47_1"
+        },
+        {
+          "name": "North Ossetia - Alania, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.48_1",
+          "source": "gadm",
+          "src_id": "RUS.48_1"
+        },
+        {
+          "name": "Novgorodskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.49_1",
+          "source": "gadm",
+          "src_id": "RUS.49_1"
+        },
+        {
+          "name": "Novosibirskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.50_1",
+          "source": "gadm",
+          "src_id": "RUS.50_1"
+        },
+        {
+          "name": "Omskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.51_1",
+          "source": "gadm",
+          "src_id": "RUS.51_1"
+        },
+        {
+          "name": "Orenburgskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.52_1",
+          "source": "gadm",
+          "src_id": "RUS.52_1"
+        },
+        {
+          "name": "Orlovskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.53_1",
+          "source": "gadm",
+          "src_id": "RUS.53_1"
+        },
+        {
+          "name": "Penzenskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.54_1",
+          "source": "gadm",
+          "src_id": "RUS.54_1"
+        },
+        {
+          "name": "Permskiy kray, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.55_1",
+          "source": "gadm",
+          "src_id": "RUS.55_1"
+        },
+        {
+          "name": "Primorskiy kray, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.56_1",
+          "source": "gadm",
+          "src_id": "RUS.56_1"
+        },
+        {
+          "name": "Pskovskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.57_1",
+          "source": "gadm",
+          "src_id": "RUS.57_1"
+        },
+        {
+          "name": "Rostovskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.58_1",
+          "source": "gadm",
+          "src_id": "RUS.58_1"
+        },
+        {
+          "name": "Ryazanskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.59_1",
+          "source": "gadm",
+          "src_id": "RUS.59_1"
+        },
+        {
+          "name": "Saint Petersburg, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.60_1",
+          "source": "gadm",
+          "src_id": "RUS.60_1"
+        },
+        {
+          "name": "Sakha, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.61_1",
+          "source": "gadm",
+          "src_id": "RUS.61_1"
+        },
+        {
+          "name": "Sakhalinskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.62_1",
+          "source": "gadm",
+          "src_id": "RUS.62_1"
+        },
+        {
+          "name": "Samarskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.63_1",
+          "source": "gadm",
+          "src_id": "RUS.63_1"
+        },
+        {
+          "name": "Saratovskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.64_1",
+          "source": "gadm",
+          "src_id": "RUS.64_1"
+        },
+        {
+          "name": "Smolenskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.65_1",
+          "source": "gadm",
+          "src_id": "RUS.65_1"
+        },
+        {
+          "name": "Stavropol'skiy kray, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.66_1",
+          "source": "gadm",
+          "src_id": "RUS.66_1"
+        },
+        {
+          "name": "Sverdlovskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.67_1",
+          "source": "gadm",
+          "src_id": "RUS.67_1"
+        },
+        {
+          "name": "Tambovskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.68_1",
+          "source": "gadm",
+          "src_id": "RUS.68_1"
+        },
+        {
+          "name": "Tatarstan, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.69_1",
+          "source": "gadm",
+          "src_id": "RUS.69_1"
+        },
+        {
+          "name": "Tomskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.70_1",
+          "source": "gadm",
+          "src_id": "RUS.70_1"
+        },
+        {
+          "name": "Tul'skaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.71_1",
+          "source": "gadm",
+          "src_id": "RUS.71_1"
+        },
+        {
+          "name": "Tyva, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.72_1",
+          "source": "gadm",
+          "src_id": "RUS.72_1"
+        },
+        {
+          "name": "Tverskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.73_1",
+          "source": "gadm",
+          "src_id": "RUS.73_1"
+        },
+        {
+          "name": "Tyumenskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.74_1",
+          "source": "gadm",
+          "src_id": "RUS.74_1"
+        },
+        {
+          "name": "Udmurtskaya, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.75_1",
+          "source": "gadm",
+          "src_id": "RUS.75_1"
+        },
+        {
+          "name": "Ul'yanovskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.76_1",
+          "source": "gadm",
+          "src_id": "RUS.76_1"
+        },
+        {
+          "name": "Vladimirskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.77_1",
+          "source": "gadm",
+          "src_id": "RUS.77_1"
+        },
+        {
+          "name": "Volgogradskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.78_1",
+          "source": "gadm",
+          "src_id": "RUS.78_1"
+        },
+        {
+          "name": "Vologodskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.79_1",
+          "source": "gadm",
+          "src_id": "RUS.79_1"
+        },
+        {
+          "name": "Voronezhskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.80_1",
+          "source": "gadm",
+          "src_id": "RUS.80_1"
+        },
+        {
+          "name": "Yamalo-Nenetskiy avtonomnyy okrug, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.81_1",
+          "source": "gadm",
+          "src_id": "RUS.81_1"
+        },
+        {
+          "name": "Yaroslavskaya oblast', Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.82_1",
+          "source": "gadm",
+          "src_id": "RUS.82_1"
+        },
+        {
+          "name": "Zabaykal'skiy kray, Russia",
+          "subtype": "state-province",
+          "gadm_id": "RUS.83_1",
+          "source": "gadm",
+          "src_id": "RUS.83_1"
+        }
+      ]
     }
   }
 }

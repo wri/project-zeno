@@ -1,5 +1,4 @@
-from datetime import date
-from typing import Annotated, Dict
+from typing import Annotated, Dict, Optional
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
@@ -9,7 +8,7 @@ from langgraph.types import Command
 
 from src.agent.tools.data_handlers.analytics_handler import AnalyticsHandler
 from src.agent.tools.data_handlers.base import DataPullResult
-from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.util import revise_date_range
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -57,44 +56,12 @@ class DataPullOrchestrator:
 data_pull_orchestrator = DataPullOrchestrator()
 
 
-async def revise_date_range(
-    start_date: str, end_date: str, dataset_id: int
-) -> tuple[str, str, bool]:
-    """
-    Revise the input date range to the dataset's available range
-    """
-    ds_original = next(
-        (ds for ds in DATASETS if ds["dataset_id"] == dataset_id),
-        None,
-    )
-    if not ds_original:
-        raise ValueError(f"Dataset not found: {dataset_id}")
-
-    ds_start_original = ds_original.get("start_date")
-    ds_end_original = ds_original.get("end_date")
-    if ds_end_original is None:
-        ds_end_original = str(
-            date.today()
-        )  # e.g. DIST-ALERT: ongoing, no fixed end
-
-    if ds_original.get("content_date_fixed"):
-        effective_start = ds_start_original
-        effective_end = ds_end_original
-    else:
-        effective_start = max(start_date, ds_start_original)
-        effective_end = min(end_date, ds_end_original)
-
-    range_clamped = effective_start != start_date or effective_end != end_date
-
-    return effective_start, effective_end, range_clamped
-
-
 @tool("pull_data")
 async def pull_data(
     query: str,
-    start_date: str,
-    end_date: str,
     change_over_time_query: bool,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = None,
     state: Annotated[Dict, InjectedState] = None,
 ) -> Command:
@@ -202,7 +169,6 @@ async def pull_data(
                     "context_layer": dataset.get("context_layer"),
                 }
             ],
-            # TODO: This is deprecated, remove it in the future
             "start_date": effective_start,
             "end_date": effective_end,
             "messages": [tool_message],

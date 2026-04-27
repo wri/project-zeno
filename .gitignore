@@ -194,3 +194,6 @@ logs/
 
 # Notebooks
 nbs/
+
+# Judge eval results
+tests/evals/results/

@@ -1,12 +1,15 @@
 dataset_id: 7
 dataset_name: Tree cover
-parameters: null
 context_layers:
 - value: primary_forest
   description: Shows loss within humid tropical primary forest in global pan-tropical regions
   extent:  [-180.0, -30, 180.0, 30]
   tile_url: https://tiles.globalforestwatch.org/umd_regional_primary_forest_2001/v201901/uint16/{z}/{x}/{y}.png
-tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/v1.8/tcd_30/{z}/{x}/{y}.png
+parameters:
+- name: canopy_cover
+  description: Minimum percent each 30m pixel is covered by forest canopy in year 2000 to count as a forest.
+  values: [10, 15, 20, 25, 30, 50, 75]
+tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/v1.8/tcd_{threshold}/{z}/{x}/{y}.png
 license: CC by 4.0
 geographic_coverage: Global land (excluding Antarctica and Arctic islands)
 resolution: 30 x 30 meters
