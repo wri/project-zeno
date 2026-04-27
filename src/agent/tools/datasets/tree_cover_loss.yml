@@ -27,8 +27,8 @@ analytics_api_endpoint: /v0/land_change/tree_cover_loss/analytics
 prompt_instructions: 'Reports gross annual loss of tree cover ≥ 5 m height (2001-2025). Show yearly loss with bar charts or
   cumulative loss with stacked-area charts; plot area_ha and drop zeros. When reporting tree cover loss, always include the
   GHG emissions associated with that loss, in MgCO2e (tonnes of CO2 equivalent). If users ask for intra-year or seasonal tree
-  cover loss OR emissions, refuse and remind that the data is annual only. The 2011-2024 data was produced using an updated
-  methodology so comparisons between, and trends across the periods 2001-2010 and 2011-2024 should be performed with caution.
+  cover loss OR emissions, refuse and remind that the data is annual only. The 2011-2025 data was produced using an updated
+  methodology so comparisons between, and trends across the periods 2001-2010 and 2011-2025 should be performed with caution.
   DO NOT use the term "deforestation", use "tree cover loss" instead since "Tree cover" includes plantations as well as natural
   forest meaning loss is not automatically deforestation or carbon loss. The product measures canopy loss only; it doesn''t
   track regrowth or permanence. Use 30% threshold. If a user asks for net gain/loss, refuse and explain that the methodologies
@@ -54,11 +54,11 @@ code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha)
   '
 presentation_instructions: 'Use "tree cover loss" not "deforestation" — tree cover includes plantations, not just natural
   forest. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
-  used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2024, note the
+  used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2025, note the
   methodology change after 2010.
 
   '
-description: 'Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2024 at 30-meter resolution using
+description: 'Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2025 at 30-meter resolution using
   Landsat satellite imagery. It detects stand-replacement disturbances in vegetation over 5 meters tall, including natural
   forests and plantations. The dataset supports monitoring annual tree cover loss and deforestation trends, fire impacts,
   and forestry practices, and is widely used for conservation, land-use planning, and environmental policy analysis. This
