@@ -5,6 +5,7 @@ context_layers:
   description: Shows loss within humid tropical primary forest in global pan-tropical regions
   extent:  [-180.0, -30, 180.0, 30]
   tile_url: https://tiles.globalforestwatch.org/umd_regional_primary_forest_2001/v201901/uint16/{z}/{x}/{y}.png
+  start_date: '2002-01-01'
 parameters:
 - name: canopy_cover
   description: Minimum percent each 30m pixel is covered by forest canopy in year 2000 to count as a forest.
