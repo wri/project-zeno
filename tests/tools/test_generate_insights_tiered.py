@@ -8,19 +8,29 @@ structural properties of the output (chart type, data filtering, terminology).
 These tests hit the Gemini API — they are integration tests by nature.
 """
 
+import importlib
 import re
 import sys
 import uuid
 from contextlib import asynccontextmanager
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.agent.state import Statistics
-from src.agent.tools.generate_insights import generate_insights
+from src.agent.tools.generate_insights import (
+    ChartInsight,
+    MultiChartInsight,
+    _extract_statistics_ids,
+    generate_insights,
+)
 from src.api.data_models import InsightOrm
 
+generate_insights_module = importlib.import_module(
+    "src.agent.tools.generate_insights"
+)
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 _last_insight_row: InsightOrm | None = None
@@ -128,6 +138,84 @@ def insight_text(update: dict) -> str:
     if msgs:
         return msgs[0].content
     return ""
+
+
+async def test_extract_statistics_ids_tracks_new_state_ids():
+    assert _extract_statistics_ids(
+        [
+            {"id": "stat-1", "data": {}},
+            {"id": "stat-2", "data": {}},
+        ]
+    ) == ["stat-1", "stat-2"]
+
+
+async def test_extract_statistics_ids_keeps_older_states_compatible():
+    assert _extract_statistics_ids([{"data": {}}, {}, None]) == []
+
+
+async def test_generate_insights_persists_statistics_provenance(monkeypatch):
+    class FakeExecutionResult:
+        error = None
+        chart_data = [{"name": "Brazil", "value": 1}]
+        parts = [
+            SimpleNamespace(
+                type=generate_insights_module.PartType.TEXT_OUTPUT,
+                content="Brazil has one unit.",
+            )
+        ]
+
+        def get_encoded_parts(self):
+            return [{"type": "text_output", "content": "Brazil has one unit."}]
+
+    class FakeExecutor:
+        def build_file_references(self, dataframes):
+            return "input_file_0.csv"
+
+        async def prepare_dataframes(self, dataframes):
+            return []
+
+        async def execute(self, analysis_prompt, file_refs):
+            return FakeExecutionResult()
+
+    class FakeStructuredOutput:
+        async def ainvoke(self, prompt):
+            return MultiChartInsight(
+                charts=[
+                    ChartInsight(
+                        title="Brazil Value",
+                        chart_type="bar",
+                        x_axis="name",
+                        y_axis="value",
+                    )
+                ],
+                primary_insight="Brazil has one unit.",
+                follow_up_suggestions=["Compare another area."],
+            )
+
+    class FakeGemini:
+        def with_structured_output(self, model):
+            return FakeStructuredOutput()
+
+    monkeypatch.setattr(
+        generate_insights_module, "GeminiCodeExecutor", FakeExecutor
+    )
+    monkeypatch.setattr(generate_insights_module, "GEMINI_FLASH", FakeGemini())
+
+    await invoke_generate_insights(
+        "Show Brazil value",
+        GHG_FLUX_DATASET,
+        [{**GHG_FLUX_STATS[0], "id": "stat-123"}],
+    )
+    assert _last_insight_row is not None
+    assert _last_insight_row.statistics_ids == ["stat-123"]
+
+    await invoke_generate_insights(
+        "Show Brazil value",
+        GHG_FLUX_DATASET,
+        [GHG_FLUX_STATS[0]],
+    )
+    assert _last_insight_row is not None
+    assert _last_insight_row.statistics_ids == []
 
 
 # ---------------------------------------------------------------------------

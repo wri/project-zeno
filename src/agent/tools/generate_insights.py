@@ -60,6 +60,14 @@ def prepare_dataframes(
     return dataframes, source_urls
 
 
+def _extract_statistics_ids(statistics: list[dict]) -> list[str]:
+    return [
+        stat["id"]
+        for stat in statistics
+        if isinstance(stat, dict) and stat.get("id")
+    ]
+
+
 def replace_csv_paths_with_urls(
     code_block: str, source_urls: List[str]
 ) -> str:
@@ -441,6 +449,7 @@ async def generate_insights(
 
     # 9. PERSIST INSIGHT(S) TO DB
     ctx = structlog.contextvars.get_contextvars()
+    statistics_ids = _extract_statistics_ids(statistics)
     insight_ids: list[str] = []
     async with get_session_from_pool() as session:
         insight_row = InsightOrm(
@@ -448,6 +457,7 @@ async def generate_insights(
             thread_id=ctx.get("thread_id", ""),
             insight_text=result.insight.primary_insight,
             follow_up_suggestions=result.insight.follow_up_suggestions,
+            statistics_ids=statistics_ids,
             codeact_types=[p["type"] for p in encoded_parts],
             codeact_contents=[p["content"] for p in encoded_parts],
         )
