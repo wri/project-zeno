@@ -91,8 +91,8 @@ async def select_best_dataset(
     user query and provide reason why it is the best match. Always return at least one dataset.
     Use all information provided to decide which dataset is the best match, especially the selection hints.
 
-    After selecting the best dataset, inspect its filtered_context_layers. Choose the single context layer whose description 
-    best fits the user's query, even when the user does not name the layer directly. Context layers differentiate types of 
+    After selecting the best dataset, inspect its filtered_context_layers. Choose the single context layer whose description
+    best fits the user's query, even when the user does not name the layer directly. Context layers differentiate types of
     data within the same dataset, and their descriptions are guidance for when each layer applies. If no context layer fits the query, return null.
 
     After selecting the best context layer or null, select parameters and values if they are relevant or specified in the user query. Parameters allow further filtering
