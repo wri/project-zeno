@@ -247,7 +247,7 @@ async def test_tree_cover_loss_date_range_clamped_to_2024():
     statistics = command.update.get("statistics", [])
     assert len(statistics) == 1
     assert statistics[0]["start_date"] == "2020-01-01"
-    assert statistics[0]["end_date"] == "2024-12-31"
+    assert statistics[0]["end_date"] == "2025-12-31"
     tool_message = command.update.get("messages", [None])[0]
     assert tool_message is not None
     assert "2024-12-31" in tool_message.content
@@ -470,5 +470,44 @@ class TestReviseDateRange:
             range_clamped,
         ) = await revise_date_range(None, None, 4)
         assert effective_start == "2001-01-01"
-        assert effective_end == "2024-12-31"
+        assert effective_end == "2025-12-31"
+        assert range_clamped is False
+
+    async def test_context_layer_start_date_clamps_requested_range(self):
+        """Selected context layer availability narrows the dataset availability."""
+
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range(
+            "2001-01-01", "2025-12-31", 4, "primary_forest"
+        )
+        assert effective_start == "2002-01-01"
+        assert effective_end == "2025-12-31"
+        assert range_clamped is True
+
+    async def test_context_layer_start_date_used_for_default_range(self):
+        """When no dates are requested, selected context layer bounds become the defaults."""
+
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range(None, None, 4, "primary_forest")
+        assert effective_start == "2002-01-01"
+        assert effective_end == "2025-12-31"
+        assert range_clamped is False
+
+        """Unknown context layers are ignored to preserve existing dataset behavior."""
+
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range(
+            "2001-01-01", "2025-12-31", 4, "missing_layer"
+        )
+        assert effective_start == "2001-01-01"
+        assert effective_end == "2025-12-31"
         assert range_clamped is False
