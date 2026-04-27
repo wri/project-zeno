@@ -255,6 +255,16 @@ def reset_google_clients():
     pd_module.retriever_cache = None
 
 
+def collect_tool_calls(steps):
+    calls = []
+    for step in steps:
+        for value in step.values():
+            for msg in value.get("messages", []):
+                if hasattr(msg, "tool_calls") and msg.tool_calls:
+                    calls.extend(msg.tool_calls)
+    return calls
+
+
 def has_insights(tool_steps: list[dict]) -> bool:
     for tool_step in tool_steps:
         if len(tool_step.get("charts_data", [])) > 0:
@@ -333,3 +343,25 @@ async def test_agent_for_disturbance_alerts_for_brazil(structlog_context):
     assert len(steps) > 0
     tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
     assert has_insights(tool_steps), "No insights found"
+
+
+async def test_agent_for_tcl_no_dates_for_brazil(structlog_context):
+    """
+    Test to confirm the agent will call the pick_dataset and pull_data tools with null
+    dates if not specified by the user, and instead use default ones from the config.
+    """
+    query = "Show me tree cover loss in Para and Parana in Brazil"
+    steps = await run_agent(query)
+    assert len(steps) > 0
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
+    assert has_insights(tool_steps), "No insights found"
+
+    tool_calls = collect_tool_calls(steps)
+    generate_insights_calls = [
+        c for c in tool_calls if c["name"] == "generate_insights"
+    ]
+
+    assert any(
+        "2001 to 2024" in call["args"].get("query", "")
+        for call in generate_insights_calls
+    )
