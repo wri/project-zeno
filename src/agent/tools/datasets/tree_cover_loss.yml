@@ -54,7 +54,7 @@ code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha)
   '
 presentation_instructions: 'Use "tree cover loss" not "deforestation" — tree cover includes plantations, not just natural
   forest. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
-  used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2024, note the
+  used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2025, note the
   methodology change after 2010.
 
   '
