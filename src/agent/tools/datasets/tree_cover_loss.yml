@@ -65,14 +65,14 @@ description: 'Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss f
   dataset also includes annual greenhouse gas emissions due to tree cover loss, measure in MgCO2e (tonnes of CO2 equivalent).
 
   '
-methodology: 'This data set, a collaboration between the GLAD (Global Land Analysis & Discovery) lab at the University of
-  Maryland (UMD), Google, USGS, and NASA, measures areas of tree cover loss across all global land (except Antarctica and
-  other Arctic islands) at approximately 30 x 30 meter resolution. The data were generated using multispectral satellite imagery
-  from the Landsat 5 thematic mapper (TM), the Landsat 7 thematic mapper plus (ETM+), and the Landsat 8 Operational Land Imager
-  (OLI) sensors. Over 1 million satellite images were processed and analyzed, including over 600,000 Landsat 7 images for
-  the 2000-2012 interval, and more than 400,000 Landsat 5, 7, and 8 images for updates for the 2011-2022 interval, and additional
-  images used for 2023 and 2024. The clear land surface observations in the satellite images were assembled and a supervised
-  learning algorithm was applied to identify per pixel tree cover loss.
+methodology: 'This data set, a collaboration between the Global Land Analysis & Discovery (GLAD) (https://glad.geog.umd.edu/)
+  lab at the University of Maryland (UMD), Google, USGS, and NASA, measures areas of tree cover loss across all global land
+  (except Antarctica and other Arctic islands) at approximately 30 x 30 meter resolution. The data were generated using multispectral
+  satellite imagery from the Landsat 5 thematic mapper (TM), the Landsat 7 thematic mapper plus (ETM+), and the Landsat 8
+  Operational Land Imager (OLI) sensors. Over 1 million satellite images were processed and analyzed, including over 600,000
+  Landsat 7 images for the 2000-2012 interval, and more than 400,000 Landsat 5, 7, and 8 images for updates for the 2011-2022
+  interval, and additional images used for 2023, 2024 and 2025. The clear land surface observations in the satellite images
+  were assembled and a supervised learning algorithm was applied to identify per pixel tree cover loss.
 
   In this data set, "tree cover" is defined as all vegetation greater than 5 meters in height, and may take the form of natural
   forests or plantations across a range of canopy densities. Tree cover loss is defined as "stand replacement disturbance"
@@ -82,18 +82,22 @@ methodology: 'This data set, a collaboration between the GLAD (Global Land Analy
   causes such as disease or storm damage. Fire is another widespread cause of tree cover loss, and can be either natural or
   human-induced.
 
-  This data set has been updated five times since its creation, and now includes loss up to 2024 (Version 1.12). The analysis
-  method has been modified in numerous ways, including new data for the target year, re-processed data for previous years,
-  and improved modelling and calibration. These modifications improve change detection for 2011-2024, including better detection
+  This data set has been updated five times since its creation, and now includes loss up to 2025 (Version 1.13). The analysis
+  method has been modified in numerous ways, including new data for the target year, re-processed data for previous years
+  (2011 and 2012 for the Version 1.1 update, 2012 and 2013 for the Version 1.2 update, and 2014 for the Version 1.3 update),
+  and improved modelling and calibration. These modifications improve change detection for 2011-2025, including better detection
   of boreal loss due to fire, smallholder rotation agriculture in tropical forests, selective losing, and short cycle plantations.
   Since the entire historical timeseries was not reprocessed with the updated methodology, time-series assessments should
-  be performed with caution.
+  be performed with caution. Read more about the Version 1.13 update here: https://storage.googleapis.com/earthenginepartners-hansen/GFC-2025-v1.13/download.html
+  and access on GEE here: https://developers.google.com/earth-engine/datasets/catalog/UMD_hansen_global_forest_change_2025_v1_13.
 
   When zoomed out (< zoom level 13), pixels of loss are shaded according to the density of loss at the 30 x 30 meter scale.
   Pixels with darker shading represent areas with a higher concentration of tree cover loss, whereas pixels with lighter shading
   indicate a lower concentration of tree cover loss. There is no variation in pixel shading when the data is at full resolution
-  (≥ zoom level 13). The tree cover canopy density of the displayed data varies according to the selection - use the legend
-  on the map to change the minimum tree cover canopy density threshold.
+  (≥ zoom level 13).
+
+  The tree cover canopy density of the displayed data varies according to the selection - use the legend on the map to change
+  the minimum tree cover canopy density threshold.
 
   '
 cautions: 'In this data set, "tree cover" is defined as all vegetation greater than 5 meters in height, and may take the form
@@ -106,7 +110,8 @@ cautions: 'In this data set, "tree cover" is defined as all vegetation greater t
   tree cover loss, and current (post-2000) tree cover cannot be determined by subtracting figures for annual tree cover loss
   from year 2000 tree cover.
 
-  The 2011-2024 data was produced using an updated methodology. Comparisons between the original 2001-2010 data and the 2011-2024
+  The 2011-2025 data was produced using an updated methodology: https://storage.googleapis.com/earthenginepartners-hansen/GFC-2025-v1.13/download.html.
+  Comparisons between the original 2001-2010 data and the 2011-2025
   update should be performed with caution.
 
   In the original publication, the authors evaluated the overall prevalence of false positives (commission errors) in this
@@ -115,7 +120,9 @@ cautions: 'In this data set, "tree cover" is defined as all vegetation greater t
   in lower accuracy of the data in sub-Saharan Africa, where this type of disturbance is more common. Largely because of a
   delay between an actual disturbance and the event being observed by the satellite imagery, the authors are 75% confident
   that the loss occurred within the stated year, and 97% confident that it occurred within a year before or after. Users of
-  the data can smooth out such uncertainty by examining the average over multiple years.
+  the data can smooth out such uncertainty by examining the average over multiple years. Read our blog series:
+  globalforestwatch.org/blog/data/how-accurate-is-accurate-enough-examining-the-glad-global-tree-cover-change-data-part-1.htm; 
+  on the accuracy of this data for more information.
 
   '
 function_usage_notes: 'Identifies areas of gross tree cover loss
@@ -129,5 +136,7 @@ providers: 'Hansen, M. C., P. V. Potapov, R. Moore, M. Hancher, S. A. Turubanova
   '
 citation: 'Hansen et al., 2013. "High-Resolution Global Maps of 21st-Century Forest Cover Change." Accessed through Global
   Forest Watch on [date]. [www.globalforestwatch.org](https://www.globalforestwatch.org)
+
+  Learn more: https://storage.googleapis.com/earthenginepartners-hansen/GFC-2025-v1.13/download.html
 
   '
