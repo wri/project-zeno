@@ -91,12 +91,11 @@ async def select_best_dataset(
     user query and provide reason why it is the best match. Always return at least one dataset.
     Use all information provided to decide which dataset is the best match, especially the selection hints.
 
-    Select a single context layer from the filtered_context_layers in candidate datasets for the dataset if relevant for the user query.
-    Context layers allow differentiating between different types of data within the same dataset. So if a user asks
-    to show something like "show me tree cover loss by driver", you should select a context layer. These are pre-filtered
-    to match the spatiotemporal query constraints.
+    After selecting the best dataset, always inspect that dataset's context_layers.
+    Select a context layer when the user explicitly asks for it OR when the context layer description defines it as a default for the user's kind of request.
+    If no context layer applies, return null.
 
-    Select parameters and values if they are relevant or specified in the user query. Parameters allow further filtering
+    After selecting the best context layer or null, select parameters and values if they are relevant or specified in the user query. Parameters allow further filtering
     the analysis to better answer the query. Select only values listed in the value field for a parameter. For example,
     if a user says "show me tree cover loss in forests where canopy cover is greater than 50%", you may select the parameter canopy cover
     and value 50.
@@ -105,9 +104,6 @@ async def select_best_dataset(
     If not, pick the closest available date range and include a warning in the dataset pick reason.
 
     Pick the most granular dataset/contextual layer/parameters that matches the query.
-
-    Give more importance to date matching than context layer matching. For instance, dont select tree cover
-    loss by driver if the user requests a specific time range, pick tree cover loss instead.
 
     Keep explanations concise. Do not use datset IDs to describe the dataset.
     For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".

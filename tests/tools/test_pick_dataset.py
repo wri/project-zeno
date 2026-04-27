@@ -433,7 +433,8 @@ async def test_queries_return_expected_dataset(
         ("Tree cover loss in primary forest", 4, "primary_forest"),
         ("Tree  cover loss in the past decade in sparse forests", 4, None),
         ("Deforestation in the past decade", 4, "primary_forest"),
-        ("Most recent global land cover in storm seasons", 1, None),
+        ("Deforestation in 2024", 4, "primary_forest"),
+        ("Global land cover in storm seasons", 1, None),
     ],
 )
 async def test_query_with_context_layer(
