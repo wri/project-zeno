@@ -176,6 +176,12 @@ async def run_generate_insights(query: str, state: dict) -> dict:
 
     Returns dict with: chart_type, chart_data, insight, code, refused
     """
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from src.api.data_models import InsightOrm
+    from src.shared.database import get_session_from_pool
+
     tool_call_id = str(uuid.uuid4())
     command = await generate_insights.ainvoke(
         {
@@ -198,7 +204,7 @@ async def run_generate_insights(query: str, state: dict) -> dict:
         "refused": False,
     }
 
-    # Check for refusal/error — tool returned error status with no chart data
+    # Check for refusal/error
     messages = update.get("messages", [])
     if messages:
         msg = messages[0]
@@ -206,26 +212,51 @@ async def run_generate_insights(query: str, state: dict) -> dict:
         msg_status = getattr(msg, "status", None)
         result["tool_message"] = msg_content
         if msg_status == "error" or (
-            not update.get("charts_data") and "fail" in msg_content.lower()
+            not update.get("insight_id") and "fail" in msg_content.lower()
         ):
             result["refused"] = True
             result["insight"] = msg_content
 
-    charts_data = update.get("charts_data", [])
+    # Prefer inline state returned by generate_insights.
+    # This is the canonical output shape used by the tool response path.
+    charts_data = update.get("charts_data") or []
     if charts_data:
-        chart = charts_data[0]
-        result["chart_type"] = chart.get("type")
-        result["chart_data"] = chart.get("data", [])
-        result["insight"] = chart.get("insight", "")
+        first_chart = charts_data[0]
+        result["chart_type"] = first_chart.get("type")
+        result["chart_data"] = first_chart.get("data") or []
 
-    # Extract code from codeact_parts
-    codeact_parts = update.get("codeact_parts", [])
-    code_parts = []
-    for part in codeact_parts:
-        if isinstance(part, dict) and part.get("type") == "code_block":
-            code_parts.append(part.get("content", ""))
-        elif hasattr(part, "type") and str(part.type) == "code_block":
-            code_parts.append(getattr(part, "content", ""))
-    result["code"] = "\n".join(code_parts)
+    insight_id = update.get("insight_id")
+    # Keep DB readback as a fallback / parity check path.
+    if insight_id and not result["chart_type"]:
+        async with get_session_from_pool() as session:
+            row = (
+                (
+                    await session.execute(
+                        select(InsightOrm)
+                        .options(selectinload(InsightOrm.charts))
+                        .where(InsightOrm.id == insight_id)
+                    )
+                )
+                .scalars()
+                .first()
+            )
+
+        if row:
+            # Insight charts now live in the related insight_charts table.
+            # Keep eval output shape stable by exposing the first chart here.
+            first_chart = (row.charts or [None])[0]
+            if first_chart:
+                result["chart_type"] = first_chart.chart_type
+                result["chart_data"] = first_chart.chart_data or []
+            result["insight"] = row.insight_text
+
+            code_parts = [
+                content
+                for t, content in zip(
+                    row.codeact_types or [], row.codeact_contents or []
+                )
+                if t == "code_block"
+            ]
+            result["code"] = "\n".join(code_parts)
 
     return result

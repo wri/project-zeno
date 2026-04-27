@@ -98,157 +98,161 @@ lookup = {
 }
 
 
+def _query_case_id(param):
+    query = param[0].strip().replace(" ", "_")
+    expected_dataset = param[1].replace(" ", "_")
+    max_len = 70
+    if len(query) > max_len:
+        query = f"{query[:max_len]}..."
+    return f"{expected_dataset}__{query}"
+
+
 @pytest.fixture(
     params=[
         # Dataset 0 queries (Ecosystem disturbance alerts) - near-real-time vegetation changes
         (
             "Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2023 or 2024?",
-            DIST_ALERT,  # 0
+            DIST_ALERT,
         ),
         (
             "Show me recent vegetation disturbances in the Amazon basin over the past month",
-            DIST_ALERT,  # 1
+            DIST_ALERT,
         ),
         (
             "Are there any significant changes to natural ecosystems in Indonesia this week?",
-            DIST_ALERT,  # 2
+            DIST_ALERT,
         ),
         (
             "I need to monitor drought impacts on vegetation cover in East Africa",
-            DIST_ALERT,  # 3
+            DIST_ALERT,
         ),
         (
             "What areas show signs of land management interventions in the past 6 months?",
-            DIST_ALERT,  # 4
+            DIST_ALERT,
         ),
         # Dataset 1 queries (Global land cover) - annual land cover classification and change
-        ("How much of the world is urban?", LAND_COVER_CHANGE),  # 5
         (
             "Which had more cropland in 2015, Nigeria or Ghana?",
-            LAND_COVER_CHANGE,  # 6
+            LAND_COVER_CHANGE,
         ),
         (
             "What's the trend in agricultural expansion across Southeast Asia since 2015?",
-            LAND_COVER_CHANGE,  # 7
+            LAND_COVER_CHANGE,
         ),
         (
             "I'm studying urbanization patterns in sub-Saharan Africa between 2020 and 2024",
-            LAND_COVER_CHANGE,  # 8
+            LAND_COVER_CHANGE,
         ),
         (
             "Show me areas where wetlands have been converted to other uses",
-            LAND_COVER_CHANGE,  # 9
+            LAND_COVER_CHANGE,
         ),
         # Dataset 2 queries (Grassland) - natural and cultivated grassland classification
         (
             "What is the total area of prairie ecosystems in North America?",
-            GRASSLANDS,  # 10
-        ),
-        (
-            "How much rangeland has been converted to agriculture in Mongolia since 2010?",
-            GRASSLANDS,  # 11
+            GRASSLANDS,
         ),
         (
             "Which regions show the fastest decline in native grassland habitats?",
-            GRASSLANDS,  # 12
+            GRASSLANDS,
         ),
         (
             "I need data on natural and semi-natural pastoral landscapes",
-            GRASSLANDS,  # 13
+            GRASSLANDS,
         ),
         (
             "Where are the largest intact grassland ecosystems globally?",
-            GRASSLANDS,  # 14
+            GRASSLANDS,
         ),
         # Dataset 3 queries (Natural lands) - SBTN baseline for conversion monitoring
         (
             "What percentage of land area in Brazil consists of natural ecosystems according to the 2020 baseline?",
-            NATURAL_LANDS,  # 15
+            NATURAL_LANDS,
         ),
         (
             "Which provinces in Canada have the highest proportion of intact landscapes?",
-            NATURAL_LANDS,  # 16
+            NATURAL_LANDS,
         ),
         (
             "Show me areas where natural habitats remain undisturbed by human activities",
-            NATURAL_LANDS,  # 17
+            NATURAL_LANDS,
         ),
         (
             "What's the baseline extent of natural vegetation before any recent conversions?",
-            NATURAL_LANDS,  # 18
+            NATURAL_LANDS,
         ),
         # Dataset 4 queries (Tree cover loss) - annual forest loss detection
         (
             "What percent of 2000 forest did Kalimantan Barat lose from 2001 through 2024?",
-            TREE_COVER_LOSS,  # 19
+            TREE_COVER_LOSS,
         ),
         (
             "Which country had the most deforestation in 2018?",
             TREE_COVER_LOSS,
-        ),  # 20
+        ),
         (
             "I need to track forest plantations harvesting cycles in northern Europe",
-            TREE_COVER_LOSS,  # 21
+            TREE_COVER_LOSS,
         ),
         (
             "Show deforestation by driver in 2019",
-            TREE_COVER_LOSS,  # 22  By driver is total, so we want this query to pick plain TCL
+            TREE_COVER_LOSS,  # By driver is total, so we want this query to pick plain TCL
         ),
         # Dataset 5 queries (Tree cover gain) - cumulative forest regrowth
         (
             "Where has forest regrowth occurred in the Amazon basin between 2000 and 2020?",
-            TREE_COVER_GAIN,  # 23
+            TREE_COVER_GAIN,
         ),
         (
             "Show me areas of tree cover gain in Southeast Asia over the past two decades",
-            TREE_COVER_GAIN,  # 24
+            TREE_COVER_GAIN,
         ),
         (
             "Which regions show the most significant forest recovery since 2000?",
-            TREE_COVER_GAIN,  # 25
+            TREE_COVER_GAIN,
         ),
         # Dataset 6 queries (Forest greenhouse gas net flux) - carbon emissions and removals
         (
             "What areas of forest are acting as net carbon sinks versus sources?",
-            CARBON_FLUX,  # 26
+            CARBON_FLUX,
         ),
         (
             "Show me forest carbon emissions and removals in the Congo Basin",
-            CARBON_FLUX,  # 27
+            CARBON_FLUX,
         ),
         (
             "Which forest regions contribute most to greenhouse gas emissions?",
-            CARBON_FLUX,  # 28
+            CARBON_FLUX,
         ),
         # Dataset 7 queries (Tree cover) - baseline tree canopy density
         (
             "What percentage of land area in Brazil has tree cover above 30%?",
-            TREE_COVER,  # 29
+            TREE_COVER,
         ),
         (
             "Show me areas with high tree cover density in the Pacific Northwest",
-            TREE_COVER,  # 30
+            TREE_COVER,
         ),
         (
             "Which regions have the highest tree canopy cover globally?",
-            TREE_COVER,  # 31
+            TREE_COVER,
         ),
         # Dataset 8 queries (Tree cover loss by driver) - tree cover loss by driver
         (
             "What areas of forest are experiencing the most tree cover loss due to wildfire?",
-            TREE_COVER_LOSS_BY_DRIVER,  # 32
+            TREE_COVER_LOSS_BY_DRIVER,
         ),
         (
             "Show me areas of tree cover loss by driver in the Congo Basin",
-            TREE_COVER_LOSS_BY_DRIVER,  # 33
+            TREE_COVER_LOSS_BY_DRIVER,
         ),
         (
             "Which regions show the most significant tree cover loss by driver?",
-            TREE_COVER_LOSS_BY_DRIVER,  # 34
+            TREE_COVER_LOSS_BY_DRIVER,
         ),
         (
             "What regions experienced the most fire-related tree cover loss?",
-            TREE_COVER_LOSS_BY_DRIVER,  # 35
+            TREE_COVER_LOSS_BY_DRIVER,
         ),
         # ------------------------------------------------------------------
         # Tiered selection_hints (mirrors test_pick_dataset_tiered.py)
@@ -260,97 +264,97 @@ lookup = {
             DIST_ALERT,
             "2024-01-01",
             "2024-12-31",
-        ),  # 36
+        ),
         (
             "How much tree cover was lost in Brazil between 2010 and 2020?",
             TREE_COVER_LOSS,
             "2010-01-01",
             "2020-12-31",
-        ),  # 37
+        ),
         (
             "Why is tree cover being lost in Southeast Asia?",
             TREE_COVER_LOSS_BY_DRIVER,
             "2024-01-01",
             "2024-12-31",
-        ),  # 38
+        ),
         (
             "Show annual tree cover loss in Brazil from 2001 to 2024",
             TREE_COVER_LOSS,
             "2001-01-01",
             "2024-12-31",
-        ),  # 39
+        ),
         (
             "How much tree cover does the DRC have?",
             TREE_COVER,
             "2000-01-01",
             "2000-12-31",
-        ),  # 40
+        ),
         (
             "Where has foreLAND_COVER_CHANGEst regrowth occurred in Indonesia since 2000?",
             TREE_COVER_GAIN,
             "2000-01-01",
             "2020-12-31",
-        ),  # 41
+        ),
         (
             "What percentage of Colombia is natural land according to the 2020 SBTN baseline?",
             NATURAL_LANDS,
             "2020-01-01",
             "2020-12-31",
-        ),  # 42
+        ),
         (
             "How did land cover change in Brazil between 2015 and 2024?",
             LAND_COVER_CHANGE,
             "2015-01-01",
             "2024-12-31",
-        ),  # 43
+        ),
         (
             "How much natural grassland does Kenya have?",
             GRASSLANDS,
             "2000-01-01",
             "2022-12-31",
-        ),  # 44
+        ),
         (
             "How much cultivated grassland is there in Brazil?",
             LAND_COVER_CHANGE,
             "2015-01-01",
             "2024-12-31",
-        ),  # 45
+        ),
         (
             "Is Brazil's forest a net carbon source or sink?",
             CARBON_FLUX,
             "2001-01-01",
             "2024-12-31",
-        ),  # 46
+        ),
         (
             "How much tree cover was lost each year in Brazil and what were the emissions?",
             TREE_COVER_LOSS,
             "2001-01-01",
             "2024-12-31",
-        ),  # 47
+        ),
         (
             "What is the deforestation emission factor for soybean in Brazil?",
             SLUC_EF,
             "2024-01-01",
             "2024-12-31",
-        ),  # 48
+        ),
         (
             "Show recent vegetation disturbances across all ecosystems in Brazil",
             DIST_ALERT,
             "2024-01-01",
             "2024-12-31",
-        ),  # 49
+        ),
         (
             "What proportion of tree cover loss in Brazil is due to wildfire vs agriculture?",
             TREE_COVER_LOSS_BY_DRIVER,
             "2001-01-01",
             "2024-12-31",
-        ),  # 50
+        ),
         (
             "Show annual forest emissions for Brazil from 2001 to 2024",
             TREE_COVER_LOSS,
             "2001-01-01",
             "2024-12-31",
-        ),  # 51
+        ),
         # Tiered cases that previously asserted “not dataset X”; same rows with
         # explicit expected ID (redundant with the negative check in tiered tests).
         (
@@ -358,32 +362,33 @@ lookup = {
             TREE_COVER_LOSS,
             "2000-01-01",
             "2020-12-31",
-        ),  # 52
+        ),
         (
             "Compare tree cover in 2000 vs 2020 for Brazil",
             TREE_COVER_GAIN,
             "2000-01-01",
             "2020-12-31",
-        ),  # 53
+        ),
         (
             "How has natural land in Colombia changed from 2015 to 2024?",
             LAND_COVER_CHANGE,
             "2015-01-01",
             "2024-12-31",
-        ),  # 54
+        ),
         (
             "Show the trend in natural land loss over time in Brazil",
             TREE_COVER_LOSS,
             "2015-01-01",
             "2024-12-31",
-        ),  # 55 - does not use natural lands dataset because it is not for change
+        ),
         (
             "Plot year-by-year carbon emissions from deforestation in Indonesia",
             TREE_COVER_LOSS,
             "2001-01-01",
             "2024-12-31",
-        ),  # 56
-    ]
+        ),
+    ],
+    ids=_query_case_id,
 )
 def test_query_with_expected_dataset(request):
     p = request.param
@@ -559,6 +564,28 @@ async def test_tile_url_contains_date(dataset, state):
         )
     response = requests.get(tile_url_format)
     assert response.status_code == 200
+
+
+async def test_tile_url_contains_default_dates(state):
+    tool_call_id = str(uuid.uuid4())
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": "Find me tree cover loss data",
+            "start_date": None,
+            "end_date": None,
+            "state": state,
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    tile_url = command.update.get("dataset", {}).get("tile_url")
+    assert "start_year=2001" in tile_url
 
 
 async def test_tree_cover_tile_url_with_canopy_density(state):

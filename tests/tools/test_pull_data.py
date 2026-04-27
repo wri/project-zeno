@@ -460,3 +460,15 @@ class TestReviseDateRange:
         assert effective_start == "2024-01-01"
         assert effective_end == str(date.today())
         assert range_clamped is True
+
+    async def test_dataset_without_dates_uses_default(self):
+        """Dataset 4 (TCL) has defaults to use if not provided."""
+
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range(None, None, 4)
+        assert effective_start == "2001-01-01"
+        assert effective_end == "2024-12-31"
+        assert range_clamped is False

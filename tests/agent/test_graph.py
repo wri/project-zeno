@@ -1,15 +1,15 @@
 import sys
 import uuid
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from src.agent.graph import fetch_zeno_anonymous
 from src.agent.tools.datasets_config import DATASETS
 
-pytestmark = pytest.mark.asyncio(loop_scope="module")
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -40,6 +40,34 @@ def user():
 def user_ds():
     """Override the global user_ds fixture to avoid database connections."""
     pass
+
+
+def _mock_session_factory():
+    """Create a mock async session that captures InsightOrm rows."""
+    session = AsyncMock()
+
+    async def fake_refresh(row):
+        if not row.id:
+            row.id = uuid.uuid4()
+
+    session.refresh = fake_refresh
+    return session
+
+
+@pytest.fixture(autouse=True)
+def mock_insight_db():
+    """Mock insight DB writes to avoid requiring a real global pool."""
+    mock_session = _mock_session_factory()
+
+    @asynccontextmanager
+    async def fake_pool():
+        yield mock_session
+
+    with patch(
+        "src.agent.tools.generate_insights.get_session_from_pool",
+        fake_pool,
+    ):
+        yield mock_session
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -241,74 +269,34 @@ def mock_rag_candidate_datasets():
         yield
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="session", autouse=True)
 def reset_google_clients():
-    """Reset cached Google clients at module start to use the correct event loop.
-
-    Modules that did 'from src.agent.llms import SMALL_MODEL' at import time
-    hold a reference to the old client; we must update those references too
-    so they use the new client bound to this test module's event loop.
-
-    IMPORTANT: We must create NEW model instances, not fetch from MODEL_REGISTRY,
-    because the cached models have gRPC clients bound to the old event loop.
-    """
-    # Create fresh GEMINI_FLASH instance (used as SMALL_MODEL and in generate_insights)
-    new_gemini_flash = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        temperature=0.3,
-        max_tokens=None,
-        include_thoughts=False,
-        max_retries=2,
-        thinking_budget=0,
-        timeout=300,
-    )
-    new_gemini_flash_lite = ChatGoogleGenerativeAI(
-        model="gemini-3.1-flash-lite-preview",
-        temperature=0.3,
-        max_tokens=None,
-        include_thoughts=False,
-        max_retries=2,
-        thinking_budget=-1,
-        timeout=300,
-    )
-
-    # Update module-level references
+    """Reset cached Google clients at session start to match active event loop."""
     llms_module = sys.modules["src.agent.llms"]
-    llms_module.GEMINI_FLASH = new_gemini_flash
-    llms_module.GEMINI_FLASH_LITE = new_gemini_flash_lite
-    llms_module.MODEL_REGISTRY["gemini-flash"] = new_gemini_flash
-    llms_module.MODEL_REGISTRY["gemini-flash-lite"] = new_gemini_flash_lite
+    pd_module = sys.modules["src.agent.tools.pick_dataset"]
+
+    # Reset retriever cache so a fresh embeddings client is created
+    pd_module.retriever_cache = None
+    # Recreate SMALL_MODEL to get fresh client connections on the current event loop
     llms_module.SMALL_MODEL = llms_module.get_small_model()
-    llms_module.MODEL = llms_module.get_model()
+    yield
+    # Cleanup
+    pd_module.retriever_cache = None
 
-    new_small_model = llms_module.SMALL_MODEL
 
-    pd_module = sys.modules.get("src.agent.tools.pick_dataset")
-    if pd_module is not None:
-        pd_module.retriever_cache = None
-        pd_module.SMALL_MODEL = new_small_model
-
-    for module_name in (
-        "src.agent.tools.pick_aoi",
-        "src.agent.tools.data_handlers.analytics_handler",
-    ):
-        mod = sys.modules.get(module_name)
-        if mod is not None and hasattr(mod, "SMALL_MODEL"):
-            mod.SMALL_MODEL = new_small_model
-
-    graph_module = sys.modules.get("src.agent.graph")
-    if graph_module is not None:
-        graph_module.MODEL = llms_module.MODEL
-
-    # Reset GEMINI_FLASH in generate_insights module
-    gi_module = sys.modules.get("src.agent.tools.generate_insights")
-    if gi_module is not None:
-        gi_module.GEMINI_FLASH = new_gemini_flash
+def collect_tool_calls(steps):
+    calls = []
+    for step in steps:
+        for value in step.values():
+            for msg in value.get("messages", []):
+                if hasattr(msg, "tool_calls") and msg.tool_calls:
+                    calls.extend(msg.tool_calls)
+    return calls
 
 
 def has_insights(tool_steps: list[dict]) -> bool:
     for tool_step in tool_steps:
-        if len(tool_step.get("charts_data", [])) > 0:
+        if tool_step.get("insight_id"):
             return True
     return False
 
@@ -355,6 +343,7 @@ async def run_agent(query: str, thread_id: str | None = None):
             for state_key in [
                 "aoi_selection",
                 "dataset",
+                "insight_id",
                 "insights",
                 "charts_data",
             ]:
@@ -384,3 +373,25 @@ async def test_agent_for_disturbance_alerts_for_brazil(structlog_context):
     assert len(steps) > 0
     tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
     assert has_insights(tool_steps), "No insights found"
+
+
+async def test_agent_for_tcl_no_dates_for_brazil(structlog_context):
+    """
+    Test to confirm the agent will call the pick_dataset and pull_data tools with null
+    dates if not specified by the user, and instead use default ones from the config.
+    """
+    query = "Show me tree cover loss in Para and Parana in Brazil"
+    steps = await run_agent(query)
+    assert len(steps) > 0
+    tool_steps = [dat["tools"] for dat in steps if "tools" in dat]
+    assert has_insights(tool_steps), "No insights found"
+
+    tool_calls = collect_tool_calls(steps)
+    generate_insights_calls = [
+        c for c in tool_calls if c["name"] == "generate_insights"
+    ]
+
+    assert any(
+        "2001 to 2024" in call["args"].get("query", "")
+        for call in generate_insights_calls
+    )
