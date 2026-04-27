@@ -40,12 +40,15 @@ async def revise_date_range(
             None,
         )
 
-        layer_start = (
-            selected_context_layer.get("start_date") or ds_start_original
-        )
-        layer_end = selected_context_layer.get("end_date") or ds_end_original
-        available_start = max(ds_start_original, layer_start)
-        available_end = min(ds_end_original, layer_end)
+        if selected_context_layer:
+            layer_start = (
+                selected_context_layer.get("start_date") or ds_start_original
+            )
+            layer_end = (
+                selected_context_layer.get("end_date") or ds_end_original
+            )
+            available_start = max(ds_start_original, layer_start)
+            available_end = min(ds_end_original, layer_end)
 
     if start_date is None:
         start_date = available_start
