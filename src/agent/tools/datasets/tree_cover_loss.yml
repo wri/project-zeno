@@ -24,8 +24,8 @@ keywords:
 - forest loss
 - disturbance
 analytics_api_endpoint: /v0/land_change/tree_cover_loss/analytics
-prompt_instructions: 'Reports gross annual loss of tree cover ≥ 5 m height (2001-2025). Show yearly loss with bar charts or
-  cumulative loss with stacked-area charts; plot area_ha and drop zeros. When reporting tree cover loss, always include the
+prompt_instructions: 'Reports gross annual loss of tree cover ≥ 5 m height (2001-2025). Show yearly loss with bar charts;
+  for multiple regions over time, use stacked bar charts; plot area_ha and drop zeros. When reporting tree cover loss, always include the
   GHG emissions associated with that loss, in MgCO2e (tonnes of CO2 equivalent). If users ask for intra-year or seasonal tree
   cover loss OR emissions, refuse and remind that the data is annual only. The 2011-2025 data was produced using an updated
   methodology so comparisons between, and trends across the periods 2001-2010 and 2011-2025 should be performed with caution.
@@ -43,19 +43,35 @@ selection_hints: 'Best dataset for annual tree cover loss questions (2001-2024) 
   loss. Methodology changed between 2010 and 2011; cross-period trend comparisons need caution.
 
   '
-code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha) - Cumulative loss → stacked-area chart - Emissions
-  → MUST be a SEPARATE chart from loss area (NEVER combine on same chart) DATA RULES: - Always include GHG emissions (MgCO2e)
-  alongside loss area, but in a SEPARATE chart - Drop rows where area_ha = 0 - Use 30% canopy density threshold - If primary_forest
-  or intact_forest variable is active, filter accordingly DO/DON''T: - DO NOT use the term "deforestation" — always use "tree
-  cover loss" - If user asks for intra-year or seasonal breakdown, REFUSE — data is annual only - If user asks for net gain/loss,
-  REFUSE — methodologies differ between loss and gain datasets - Warn about 2001-2010 vs 2011-2024 methodology difference
-  when showing trends across both periods
+code_instructions: 'MANDATORY OUTPUT: Always produce EXACTLY 2 charts (one for area_ha, one for carbon_emissions_MgCO2e).
+  NEVER combine area_ha and carbon_emissions_MgCO2e on the same chart. Even if the query does not mention emissions,
+  the carbon_emissions_MgCO2e column is ALWAYS required in the output data.
+
+  CHART TYPE & AXIS SELECTION (contextual based on query):
+
+  Case 1: Single AOI, time series (MOST IMPORTANT) — Bar chart, x=year, y=area_ha (separate chart for emissions with x=year).
+  NEVER use line or area charts for this case.
+
+  Case 2: Multiple AOIs, single time point (cross-sectional) — Bar chart, x=AOI/region name, y=area_ha (separate chart for emissions).
+  This applies when user asks "compare regions at [year]" or "which regions had most loss in [year]". NEVER use line or area charts.
+
+  Case 3: Multiple AOIs, time series (temporal trend across regions) — stacked-bar chart, x=year, y=area_ha grouped/stacked by AOI
+  (separate stacked-bar chart for emissions). Use this when user asks "loss trend across multiple regions" or "how did each region
+  evolve over time". NEVER use line, area, or stacked-area charts; only stacked-bar.
+
+  DATA SHAPE: chart_data.csv MUST contain year, AOI (region identifier if multi-AOI), area_ha, and carbon_emissions_MgCO2e columns.
+  Drop rows where area_ha = 0. Use 30% canopy density threshold. If primary_forest context layer is active, filter accordingly.
+
+  DO/DON''T: - DO NOT use the term "deforestation" — always use "tree cover loss" - If user asks for intra-year or seasonal
+  breakdown, REFUSE — data is annual only - If user asks for net gain/loss, REFUSE — methodologies differ between loss and
+  gain datasets - Warn about 2001-2010 vs 2011-2024 methodology difference when showing trends across both periods
 
   '
 presentation_instructions: 'Use "tree cover loss" not "deforestation" — tree cover includes plantations, not just natural
   forest. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
   used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2025, note the
-  methodology change after 2010.
+  methodology change after 2010. For single-AOI and cross-sectional comparisons, use "bar" chart type. For multi-AOI temporal trends,
+  use "stacked-bar" chart type. NEVER use "line" or "area" chart types, even when the query uses trend or trend-over-time language.
 
   '
 description: 'Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2025 at 30-meter resolution using

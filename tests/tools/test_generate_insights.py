@@ -6,7 +6,37 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.agent.state import Statistics
+from src.agent.tools.datasets_config import DATASETS as _ALL_DATASETS
 from src.agent.tools.generate_insights import generate_insights
+
+_DS_BY_ID = {ds["dataset_id"]: ds for ds in _ALL_DATASETS}
+
+
+def _dataset_fields(dataset_id: int, context_layer=None) -> dict:
+    ds = _DS_BY_ID[dataset_id]
+    result = {
+        "dataset_id": ds["dataset_id"],
+        "dataset_name": ds["dataset_name"],
+        "context_layer": context_layer,
+        "tile_url": ds.get("tile_url", ""),
+        "analytics_api_endpoint": ds.get("analytics_api_endpoint", ""),
+        "description": ds.get("description", ""),
+        "prompt_instructions": ds.get("prompt_instructions", ""),
+        "methodology": ds.get("methodology", ""),
+        "cautions": ds.get("cautions", ""),
+        "function_usage_notes": ds.get("function_usage_notes", ""),
+        "citation": ds.get("citation", ""),
+    }
+    for field in (
+        "selection_hints",
+        "code_instructions",
+        "presentation_instructions",
+    ):
+        val = ds.get(field)
+        if val:
+            result[field] = val
+    return result
+
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
@@ -542,57 +572,59 @@ async def test_pie_chart():
     assert chart_data["type"] == "pie"
 
 
-async def test_generate_insights_creates_two_bar_charts_with_code_instructions():
-    """Test multi-chart generation with generic fields and aligned code instructions."""
-    mock_state_multichart = {
-        "dataset": {
-            "dataset_id": 999,
-            "context_layer": None,
-            "date_request_match": True,
-            "reason": "The dataset contains two annual metrics and supports side-by-side trend analysis.",
-            "tile_url": "https://tiles.example.com/generic_metrics/latest/dynamic/{z}/{x}/{y}.png",
-            "dataset_name": "Generic Annual Metrics",
-            "analytics_api_endpoint": "/v0/generic/metrics/analytics",
-            "description": "Synthetic yearly metrics for multi-chart testing.",
-            "prompt_instructions": "Analyze annual trends for both metrics.",
-            "code_instructions": "Generate exactly 2 separate bar charts (year, metric_primary) and (year, metric_secondary).",
-            "presentation_instructions": "Use neutral wording and keep axis mappings tied to existing columns.",
-            "methodology": "Synthetic data for test validation.",
-            "cautions": "Values are synthetic and for test behavior only.",
-            "function_usage_notes": "Supports multi-chart behavior validation\n",
-            "citation": "Internal synthetic test dataset.",
-        },
-        "statistics": [
-            Statistics(
-                dataset_name="Generic Annual Metrics",
-                source_url="http://example.com/analytics/bafa3df8-343e-53fe-8c51-9c59c600d72f",
-                start_date="2021-01-01",
-                end_date="2024-12-31",
-                aoi_names=["Sample Region"],
-                data={
-                    "year": [
-                        2021,
-                        2022,
-                        2023,
-                        2024,
-                    ],
-                    "metric_primary": [
-                        120,
-                        150,
-                        180,
-                        210,
-                    ],
-                    "metric_secondary": [
-                        80,
-                        95,
-                        110,
-                        130,
-                    ],
-                    "aoi_id": ["REG.1"] * 4,
-                    "aoi_type": ["admin"] * 4,
-                },
-            )
+_TCL_STATISTICS = Statistics(
+    dataset_name="Tree cover loss",
+    source_url="http://example.com/analytics/tcl-test",
+    start_date="2015-01-01",
+    end_date="2022-12-31",
+    aoi_names=["Pará, Brazil"],
+    data={
+        "year": [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022],
+        "area_ha": [
+            798045,
+            688012,
+            654321,
+            723456,
+            891034,
+            812345,
+            746231,
+            701234,
         ],
+        "carbon_emissions_MgCO2e": [
+            354021,
+            302456,
+            289012,
+            318765,
+            395432,
+            360123,
+            331098,
+            310456,
+        ],
+        "aoi_id": ["BRA.14"] * 8,
+        "aoi_type": ["admin"] * 8,
+    },
+)
+
+_TCL_QUERY_VARIANTS = [
+    "What is the trend in tree cover loss in Pará, Brazil from 2015 to 2022?",
+    "How much tree cover was lost each year in Pará, Brazil?",
+    "Show annual tree cover loss and carbon emissions "
+    "for Pará, Brazil from 2015 to 2022.",
+]
+
+
+@pytest.mark.parametrize("query", _TCL_QUERY_VARIANTS)
+async def test_tcl_always_produces_two_bar_charts(query):
+    """TCL must always return exactly 2 bar charts (loss + emissions)
+    regardless of query phrasing.
+
+    These queries are parameterized to expose nondeterministic behaviour
+    in the current code_instructions: trend phrasing → line chart;
+    single-metric phrasing → missing emissions chart.
+    """
+    state = {
+        "dataset": _dataset_fields(4),
+        "statistics": [_TCL_STATISTICS],
     }
 
     tool_call_id = str(uuid.uuid4())
@@ -601,10 +633,7 @@ async def test_generate_insights_creates_two_bar_charts_with_code_instructions()
             "type": "tool_call",
             "name": "generate_insights",
             "id": tool_call_id,
-            "args": {
-                "query": "What is the trend in this region over the last four years?",
-                "state": mock_state_multichart,
-            },
+            "args": {"query": query, "state": state},
         }
     )
 
@@ -612,9 +641,93 @@ async def test_generate_insights_creates_two_bar_charts_with_code_instructions()
     charts = result.update["charts_data"]
     assert len(charts) == 2, f"Expected exactly 2 charts, got {len(charts)}"
 
+    y_axes = set()
     for idx, chart in enumerate(charts):
         assert "id" in chart, f"Chart {idx} is missing 'id': {chart}"
         assert "data" in chart, f"Chart {idx} is missing 'data': {chart}"
         assert (
             chart.get("type") == "bar"
         ), f"Chart {idx} type is '{chart.get('type')}', expected 'bar'. Chart: {chart}"
+        y_axis = chart.get("yAxis")
+        assert y_axis, f"Chart {idx} is missing 'yAxis': {chart}"
+        y_axes.add(y_axis)
+
+    expected_metrics = {"area_ha", "carbon_emissions_MgCO2e"}
+    assert (
+        y_axes == expected_metrics
+    ), f"Expected charts to map to {expected_metrics}, but got {y_axes}. Charts: {charts}"
+
+
+_TCL_STATISTICS_MULTIREGION_2024 = Statistics(
+    dataset_name="Tree cover loss",
+    source_url="http://example.com/analytics/tcl-brazil-2024",
+    start_date="2024-01-01",
+    end_date="2024-12-31",
+    aoi_names=[
+        "Pará, Brazil",
+        "Amazonas, Brazil",
+        "Mato Grosso, Brazil",
+        "Rondônia, Brazil",
+        "Acre, Brazil",
+    ],
+    data={
+        "year": [2024] * 5,
+        "name": ["Pará", "Amazonas", "Mato Grosso", "Rondônia", "Acre"],
+        "area_ha": [798045.0, 456123.0, 612890.0, 234567.0, 145678.0],
+        "carbon_emissions_MgCO2e": [
+            354021000.0,
+            202456000.0,
+            271765000.0,
+            104123000.0,
+            64598000.0,
+        ],
+        "aoi_id": ["BRA.14", "BRA.3", "BRA.28", "BRA.52", "BRA.4"],
+        "aoi_type": ["admin"] * 5,
+    },
+)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Which Brazilian states had the highest tree cover loss in 2024?",
+        "Compare tree cover loss across Pará, Amazonas, and Mato Grosso in 2024",
+        "Show 2024 tree cover loss by region in Brazil",
+    ],
+)
+async def test_tcl_case2_multiregion_single_year(query):
+    """TCL Case 2: Multiple AOIs at a single time point (cross-sectional)."""
+    state = {
+        "dataset": _dataset_fields(4),
+        "statistics": [_TCL_STATISTICS_MULTIREGION_2024],
+    }
+
+    tool_call_id = str(uuid.uuid4())
+    result = await generate_insights.ainvoke(
+        {
+            "type": "tool_call",
+            "name": "generate_insights",
+            "id": tool_call_id,
+            "args": {"query": query, "state": state},
+        }
+    )
+
+    assert "charts_data" in result.update
+    charts = result.update["charts_data"]
+    assert len(charts) == 2, f"Expected exactly 2 charts, got {len(charts)}"
+
+    y_axes = set()
+    for idx, chart in enumerate(charts):
+        assert "id" in chart, f"Chart {idx} is missing 'id': {chart}"
+        assert "data" in chart, f"Chart {idx} is missing 'data': {chart}"
+        assert (
+            chart.get("type") == "bar"
+        ), f"Chart {idx} type is '{chart.get('type')}', expected 'bar'. Chart: {chart}"
+        y_axis = chart.get("yAxis")
+        assert y_axis, f"Chart {idx} is missing 'yAxis': {chart}"
+        y_axes.add(y_axis)
+
+    expected_metrics = {"area_ha", "carbon_emissions_MgCO2e"}
+    assert (
+        y_axes == expected_metrics
+    ), f"Expected charts to map to {expected_metrics}, but got {y_axes}. Charts: {charts}"
