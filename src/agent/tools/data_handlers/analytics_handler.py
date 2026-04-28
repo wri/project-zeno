@@ -166,7 +166,7 @@ class AnalyticsHandler(DataSourceHandler):
             SLUC_EMISSION_FACTORS_ID,
         ]
 
-    def _get_aoi_type(self, aoi: Dict) -> str:
+    def _get_aoi_type(self, aoi: Dict) -> dict[str, str]:
         """Get the type of the AOI"""
 
         if aoi["subtype"] in ADMIN_SUBTYPES:
@@ -250,6 +250,7 @@ class AnalyticsHandler(DataSourceHandler):
 
         logger.debug(f"dataset: {dataset}")
 
+        payload: dict[str, Any]
         if dataset.get("dataset_id") == DIST_ALERT_ID:
             payload = {
                 **base_payload,
@@ -345,8 +346,9 @@ class AnalyticsHandler(DataSourceHandler):
             FOREST_CARBON_FLUX_ID,
         ]:
             canopy_cover = 30
-            if dataset.get("parameters") is not None:
-                for param in dataset.get("parameters"):
+            params = dataset.get("parameters")
+            if params is not None:
+                for param in params:
                     if param["name"] == "canopy_cover":
                         canopy_cover = max(param["values"])
 
@@ -407,7 +409,7 @@ class AnalyticsHandler(DataSourceHandler):
         self,
         result: Dict,
         aois: list[dict],
-    ) -> tuple[Any, int, str]:
+    ) -> tuple[Any, int, str, str]:
         """Process the response data based on dataset type."""
 
         if "data" not in result:
@@ -500,8 +502,8 @@ class AnalyticsHandler(DataSourceHandler):
                     + "/v0/land_change/land_cover_composition/analytics"
                 )
             else:
-                endpoint_url = self.BASE_URL + dataset.get(
-                    "analytics_api_endpoint"
+                endpoint_url = (
+                    self.BASE_URL + dataset["analytics_api_endpoint"]
                 )
 
             # Build the payload based on dataset type

@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import (
     ARRAY,
@@ -20,7 +21,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import declarative_base, relationship
 
-Base = declarative_base()
+# Add Any declaration so mypy knows Base is a class.
+Base: Any = declarative_base()
 
 
 class UserType(str, enum.Enum):

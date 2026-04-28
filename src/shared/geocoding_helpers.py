@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -152,14 +152,16 @@ async def get_geometry_data(
             WHERE "{id_column}" = :src_id
         """
 
+        nsrc_id: Union[int, str] = src_id
         if source == "kba":
-            # these sources IDs stored as numeric values
+            # These sources IDs stored as numeric values. Convert nsrc_id to integer
+            # if we can, else leave as string.
             try:
-                src_id = int(src_id)
+                nsrc_id = int(nsrc_id)
             except ValueError:
                 pass
 
-        q = await session.execute(text(sql_query), {"src_id": src_id})
+        q = await session.execute(text(sql_query), {"src_id": nsrc_id})
         result = q.first()
 
         if not result:
@@ -179,6 +181,6 @@ async def get_geometry_data(
             "name": result.name,
             "subtype": result.subtype,
             "source": source,
-            "src_id": src_id,
+            "src_id": nsrc_id,
             "geometry": geometry,
         }

@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import HTTPException
 from langchain_core.load import dumps
@@ -136,7 +136,7 @@ async def stream_chat(
 
     messages = []
     ui_action_message = []
-    state_updates = {}
+    state_updates: Dict[str, Any] = {}
 
     if ui_context:
         for action_type, action_data in ui_context.items():

@@ -6,7 +6,7 @@ from typing import Optional
 import cachetools
 import httpx
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,12 +30,14 @@ ANONYMOUS_USER_PREFIX = "noauth"
 security = HTTPBearer(auto_error=False)
 
 # LRU cache for user info, keyed by token
-_user_info_cache = cachetools.TTLCache(maxsize=1024, ttl=60 * 60 * 24)  # 1 day
+_user_info_cache: cachetools.TTLCache = cachetools.TTLCache(
+    maxsize=1024, ttl=60 * 60 * 24
+)  # 1 day
 
 
 async def fetch_user_from_rw_api(
     request: Request,
-    authorization: Optional[str] = Depends(security),
+    authorization: Optional[HTTPAuthorizationCredentials] = Depends(security),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> UserModel:
     if not authorization:

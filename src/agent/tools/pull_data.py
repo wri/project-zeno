@@ -60,10 +60,10 @@ data_pull_orchestrator = DataPullOrchestrator()
 async def pull_data(
     query: str,
     change_over_time_query: bool,
+    state: Annotated[Dict, InjectedState],
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    tool_call_id: Annotated[str, InjectedToolCallId] = None,
-    state: Annotated[Dict, InjectedState] = None,
+    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """
     Pull data for the previously selected AOIs and dataset in a given time range.
