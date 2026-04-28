@@ -200,6 +200,7 @@ For example: "I will begin by loading and examining" -> "Load and examine"
 - Summarize the data relevant to the user query
 - Identify the most important patterns, trends, or comparisons
 - Print a clear summary of what the data shows
+- Include contextual layers or parameters used for analysis on the datasets
 
 **STEP 3: GENERATE CHART DATA**
 Now prepare the data for visualization in Recharts.js:
