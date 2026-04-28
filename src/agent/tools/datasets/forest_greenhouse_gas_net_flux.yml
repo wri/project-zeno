@@ -67,7 +67,7 @@ methodology: 'This net flux layer is part of the forest greenhouse gas flux mode
   cannot be assigned to individual years of the model. All input layers were resampled to a common resolution of 0.00025 x
   0.00025 degrees each to match Hansen et al. (2013). We have made several updates to the model since its original release.
   For documentation through the current version, please refer to this blog. For a more detailed description of the changes
-  included through the 2023 tree cover loss launch (released spring 2025) and a comparison of the model''s fluxes with those
+  included through the 2023 tree cover loss launch (released spring 2024) and a comparison of the model''s fluxes with those
   from the Global Carbon Budget and national greenhouse gas inventories, please refer to Gibbs et al. (2025). Net flux is
   available for download in two different area units over the model duration: 1) megagrams of CO2e emissions/ha, and 2) megagrams
   of CO2e emissions/pixel. The first is appropriate for visualizing (mapping) net flux because it represents the density of
