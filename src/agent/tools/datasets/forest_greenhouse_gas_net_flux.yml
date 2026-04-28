@@ -6,14 +6,14 @@ parameters:
   description: Minimum percent each 30m pixel is covered by forest canopy in year 2000 to count as a forest.
   values: [30, 50, 75]
   tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/v1.8/tcd_{threshold}/{z}/{x}/{y}.png
-tile_url: https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold={threshold}
+tile_url: https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/v20260327/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold={threshold}
 license: CC by 4.0
 geographic_coverage: Global
 resolution: 30 x 30 meters
 update_frequency: annual
-content_date: 2001-2024
+content_date: 2001-2025
 start_date: '2001-01-01'
-end_date: '2024-12-31'
+end_date: '2025-12-31'
 content_date_fixed: false
 keywords:
 - ghg flux
@@ -23,32 +23,32 @@ keywords:
 - sequestration
 analytics_api_endpoint: /v0/land_change/carbon_flux/analytics
 prompt_instructions: 'DO NOT show trends over time or annual values. Caution users that this data shows net flux, gross emissions
-  and removals as total values over the model period of 2001-2024, not an annual values. Show net flux as a split bar chart,
+  and removals as total values over the model period of 2001-2025, not an annual values. Show net flux as a split bar chart,
   with emissions in the positive y-axis and removals in the negative. The data is valid only 30% or higher canopy cover densities.
   Use the term "net sink" for net-negative flux values (removals/sequestration) and "net source" for net-positive (emissions)
 
   '
 selection_hints: 'Shows net greenhouse gas flux from forests — balance between emissions and removals. Total over model period
-  2001-2024, NOT annual values or timeseries. Negative values = net carbon sink; positive values = net GHG source. Uses 30%
+  2001-2025, NOT annual values or timeseries. Negative values = net carbon sink; positive values = net GHG source. Uses 30%
   canopy density threshold (cannot be changed). For annual tree cover loss or emissions timeseries, use Tree Cover Loss dataset.
 
   '
 code_instructions: 'CHART TYPES: - Net flux → split/diverging bar chart (emissions positive y-axis, removals negative) DATA
-  RULES: - Values are TOTALS over model period 2001-2024 — present them as totals, NOT annual values - Do NOT divide by 24
+  RULES: - Values are TOTALS over model period 2001-2025 — present them as totals, NOT annual values - Do NOT divide by 25
   in code — keep the raw period totals - Do NOT pre-calculate or present annual averages - 30% canopy density threshold (fixed,
   cannot be changed) - Units: MgCO2e (tonnes of CO2 equivalent) DO/DON''T: - DO NOT show trends over time or annual values
   — this is a single-period aggregate - DO NOT attempt timeseries charts - Use "net sink" for net-negative flux (removals
   > emissions) - Use "net source" for net-positive flux (emissions > removals)
 
   '
-presentation_instructions: 'Clarify that values represent total flux over 2001-2024, not annual figures. Mention that users
-  can divide by 24 to estimate an annual average, but DO NOT perform this division — always present the raw totals as primary
+presentation_instructions: 'Clarify that values represent total flux over 2001-2025, not annual figures. Mention that users
+  can divide by 25 to estimate an annual average, but DO NOT perform this division — always present the raw totals as primary
   values. Use "net sink" for negative values, "net source" for positive values. Note the 30% canopy density threshold is fixed.
   This is a modeled product with inherent uncertainty — higher in removals than emissions.
 
   '
 description: 'Maps the balance between emissions from forest disturbances and carbon removals from forest growth between 2001
-  and 2024, using a globally consistent model. Negative values indicate forest areas acting as net carbon sinks, while positive
+  and 2025, using a globally consistent model. Negative values indicate forest areas acting as net carbon sinks, while positive
   values show net greenhouse gas sources. This dataset supports climate reporting, forest-based mitigation strategies, and
   greenhouse gas inventories by identifying where forests are contributing to or helping mitigate climate change. There is
   no timeseries; values are annual averages.
@@ -61,9 +61,9 @@ methodology: 'This net flux layer is part of the forest greenhouse gas flux mode
   between GHGs emitted by forests and carbon removed by (or sequestered by) forests during the model period. Net carbon flux
   is calculated by subtracting average gross removals from annual gross emissions in each forested pixel; negative values
   are where forests were net sinks of carbon and positive values are where forests were net sources of GHGs between 2001 and
-  2024. Net fluxes are calculated following IPCC Guidelines for national greenhouse gas inventories in each pixel where forests
+  2025. Net fluxes are calculated following IPCC Guidelines for national greenhouse gas inventories in each pixel where forests
   existed in 2000 or were established between 2000 and 2020 according to Potapov et al. 2022. This layer reflects the cumulative
-  net flux during the model period (2001-2024) and must be divided by 24 to obtain average annual net flux; net flux values
+  net flux during the model period (2001-2025) and must be divided by 25 to obtain average annual net flux; net flux values
   cannot be assigned to individual years of the model. All input layers were resampled to a common resolution of 0.00025 x
   0.00025 degrees each to match Hansen et al. (2013). We have made several updates to the model since its original release.
   For documentation through the current version, please refer to this blog. For a more detailed description of the changes
@@ -74,21 +74,21 @@ methodology: 'This net flux layer is part of the forest greenhouse gas flux mode
   GHG fluxes per hectare. The second is appropriate for calculating the net flux in an area of interest (AOI) because the
   values of the pixels in the AOI can be summed to obtain the total net flux for that area. The values in the latter were
   calculated by adjusting the net flux per hectare by the size of each pixel, which varies by latitude. When estimating net
-  flux occurring over a defined number of years between 2001 and 2024, divide the values by the model duration and then multiply
+  flux occurring over a defined number of years between 2001 and 2025, divide the values by the model duration and then multiply
   by the number of years n the period of interest. Both datasets only include pixels within forests, as defined in the methods
   of Harris et al. (2021) and updated with tree cover gain through 2020.
 
   '
 cautions: 'Data are the product of modeling and thus have an inherent degree of error and uncertainty. Users are strongly
   encouraged to read and fully comprehend the metadata and other availabledocumentation prior to data use. Net flux reflects
-  the total over the model period of 2001-2024, not an annual time series from which a trend can be derived. Thus, values
-  must be divided by 24 to calculate average annual net flux. Uncertainty is higher in gross removals than emissions, particularly
+  the total over the model period of 2001-2025, not an annual time series from which a trend can be derived. Thus, values
+  must be divided by 25 to calculate average annual net flux. Uncertainty is higher in gross removals than emissions, particularly
   driven by uncertainty in removal factors. These uncertainties are propagated to the uncertainty in net flux. Values are
   applicable to forest areas only (canopy cover >30 percent and >5 m height or areas with tree cover gain). See Harris et
   al. (2021) for further information on the forest definition used in the analysis. Emissions reflect stand-replacing disturbances
   as observed in Landsat satellite imagery and do not include emissions from unobserved forest degradation. Activity data
   used as the basis of the estimates contain temporal inconsistencies: Removals data contain temporal inconsistencies because
-  tree cover gain represents a cumulative total from 2000-2020, rather than annual gains as estimated through 2024. Improvements
+  tree cover gain represents a cumulative total from 2000-2020, rather than annual gains as estimated through 2025. Improvements
   in the detection of tree cover loss due to the incorporation of new satellite data and methodology changes between 2011
   and 2015 may result in higher estimates of emissions in recent years compared to earlier years. Refer here for additional
   information. Large jumps in net flux along some boundary are due to the use of ecozone-specific removal factors. The changes

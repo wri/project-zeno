@@ -11,7 +11,7 @@ parameters:
   description: Minimum percent each 30m pixel is covered by forest canopy in year 2000 to count as a forest.
   values: [10, 15, 20, 25, 30, 50, 75]
   tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/v1.8/tcd_{threshold}/{z}/{x}/{y}.png
-tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold={threshold}&render_type=true_color
+tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_loss/v1.13/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold={threshold}&render_type=true_color
 license: CC by 4.0
 geographic_coverage: Global land area (excluding Antarctica and other Arctic islands)
 resolution: 30 x 30 meters
@@ -37,7 +37,7 @@ prompt_instructions: 'Reports gross annual loss of tree cover ≥ 5 m height (20
   loss in the same chart, use separate charts.
 
   '
-selection_hints: 'Best dataset for annual tree cover loss questions (2001-2024) at 30m resolution. Covers all vegetation >5m
+selection_hints: 'Best dataset for annual tree cover loss questions (2001-2025) at 30m resolution. Covers all vegetation >5m
   height including plantations — NOT limited to natural forest. Annual resolution only; cannot answer intra-year or seasonal
   questions. For driver attribution (WHY loss happened), use "Tree cover loss by dominant driver" instead. For net change,
   loss and gain datasets use different methodologies and cannot be combined. Includes GHG emissions (MgCO2e) associated with
@@ -49,7 +49,7 @@ code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha)
   alongside loss area, but in a SEPARATE chart - Drop rows where area_ha = 0 - Use 30% canopy density threshold - If primary_forest
   or intact_forest variable is active, filter accordingly DO/DON''T: - DO NOT use the term "deforestation" — always use "tree
   cover loss" - If user asks for intra-year or seasonal breakdown, REFUSE — data is annual only - If user asks for net gain/loss,
-  REFUSE — methodologies differ between loss and gain datasets - Warn about 2001-2010 vs 2011-2024 methodology difference
+  REFUSE — methodologies differ between loss and gain datasets - Warn about 2001-2010 vs 2011-2025 methodology difference
   when showing trends across both periods
 
   '

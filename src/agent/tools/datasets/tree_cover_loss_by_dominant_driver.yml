@@ -7,14 +7,14 @@ parameters:
   values: [10, 15, 20, 25, 30, 50, 75]
   tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/v1.8/tcd_{threshold}/{z}/{x}/{y}.png
 variables: null
-tile_url: https://tiles.globalforestwatch.org/wri_google_tree_cover_loss_drivers/v1.12/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold={threshold}&render_type=true_color
+tile_url: https://tiles.globalforestwatch.org/wri_google_tree_cover_loss_drivers/v1.13/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold={threshold}&render_type=true_color
 license: CC by 4.0
 geographic_coverage: Global
 resolution: 0.01 x 0.01 degree (approximately 1 km at the equator)
 update_frequency: annual
-content_date: 2001-2024
+content_date: 2001-2025
 start_date: '2001-01-01'
-end_date: '2024-12-31'
+end_date: '2025-12-31'
 content_date_fixed: true
 keywords:
 - deforestation
@@ -28,7 +28,7 @@ keywords:
 - infrastructure
 - settlements
 analytics_api_endpoint: /v0/land_change/tree_cover_loss/analytics
-prompt_instructions: "Shows the delta of the primary driver or cause of tree cover loss over the entire range 2001-2024. The\
+prompt_instructions: "Shows the delta of the primary driver or cause of tree cover loss over the entire range 2001-2025. The\
   \ data represents the change for the whole period of time, not a timeseries. IMPORTANT: If a user asks for specific time\
   \ ranges (e.g. last five years), single years (e.g. 2024), or trends over time, do not use this dataset, select Tree cover\
   \ loss instead. Classes are defined as follows: - Permanent agriculture: Long-term, permanent tree cover loss for small-\
@@ -43,7 +43,7 @@ prompt_instructions: "Shows the delta of the primary driver or cause of tree cov
   \ Tree cover loss due to other non-fire natural disturbances\n  (e.g., landslides, insect outbreaks, river meandering).\
   \ If loss due to natural causes is\n  followed by salvage or sanitation logging, it is classified as logging.\nDO NOT include\
   \ the 'Unknown' class in analysis. Show total area of loss (ha) or total emissions (MgCO2e) due to loss per driver class\
-  \ over the entire time period 2001-2024. Data should be represented in a pie chart or table with each segment representing\
+  \ over the entire time period 2001-2025. Data should be represented in a pie chart or table with each segment representing\
   \ loss area or emissions due per driver class. DO NOT use the term \"deforestation\", use \"tree cover loss\" instead since\
   \ \"Tree cover\" includes plantations as well as natural forest meaning loss is not automatically deforestation or carbon\
   \ loss. Common groupings of classes that can be mentioned where relevant: - Permanent agriculture, hard commodities, and\
@@ -51,15 +51,15 @@ prompt_instructions: "Shows the delta of the primary driver or cause of tree cov
   \ wildfire, and other natural disturbances can be combined\n  to represent drivers of temporary disturbances.\n- Permanent\
   \ agriculture and shifting cultivation can be combined to represent all\n  agriculture-driven disturbances.\n"
 selection_hints: 'Use when user asks WHY tree cover was lost — attributes loss to 7 driver classes. Shows dominant driver
-  per 1km cell over entire period 2001-2024 (NOT annual). Cannot produce timeseries or data for specific dates or years. For
+  per 1km cell over entire period 2001-2025 (NOT annual). Cannot produce timeseries or data for specific dates or years. For
   for annual loss trends, use "Tree cover loss" dataset. Resolution is ~1km (coarser than 30m TCL) — not suitable for local/parcel
   analysis. Drivers: permanent agriculture, hard commodities, shifting cultivation, logging, wildfire, settlements & infrastructure,
   other natural disturbances.
 
   '
 code_instructions: "CHART TYPES: - Driver breakdown → pie chart or table ONLY - DO NOT attempt a timeseries — this is a single-period\
-  \ aggregate (2001-2024) DATA RULES: - Exclude the \"Unknown\" driver class from analysis - Show area_ha or emissions (MgCO2e)\
-  \ per driver class for the full period 2001-2024 - 7 driver classes:\n  1. Permanent agriculture — long-term, permanent\
+  \ aggregate (2001-2025) DATA RULES: - Exclude the \"Unknown\" driver class from analysis - Show area_ha or emissions (MgCO2e)\
+  \ per driver class for the full period 2001-2025 - 7 driver classes:\n  1. Permanent agriculture — long-term, permanent\
   \ tree cover loss for agriculture\n  2. Hard commodities — loss due to mining or energy infrastructure\n  3. Shifting cultivation\
   \ — small/medium-scale temporary cultivation, later abandoned\n  4. Logging — forest management within managed/natural/semi-natural\
   \ forests and plantations\n  5. Wildfire — fire with no visible human conversion afterward\n  6. Settlements and infrastructure\
@@ -69,11 +69,11 @@ code_instructions: "CHART TYPES: - Driver breakdown → pie chart or table ONLY 
   \ permanent agriculture + hard commodities + settlements & infrastructure\n  Temporary disturbance: shifting cultivation\
   \ + logging + wildfire + other natural disturbances\n  All agriculture: permanent agriculture + shifting cultivation\n"
 presentation_instructions: 'Use "tree cover loss" not "deforestation." Driver = dominant driver in each ~1km cell over full
-  period 2001-2024, not per-event attribution. Does not distinguish natural forest from plantations. Classification is an
+  period 2001-2025, not per-event attribution. Does not distinguish natural forest from plantations. Classification is an
   approximation — does not monitor regrowth or permanence.
 
   '
-description: "Shows the dominant driver of tree cover loss over the time period 2001-2024. A driver is defined as the direct\
+description: "Shows the dominant driver of tree cover loss over the time period 2001-2025. A driver is defined as the direct\
   \ cause of tree cover loss, and can include both temporary disturbances (natural or anthropogenic) or permanent loss of\
   \ tree cover due to a change to a non-forest land use (e.g., deforestation).  The dominant driver is defined as the direct\
   \ driver that caused the majority of tree cover loss within each 1 km cell over the time period. Classes are defined as\
@@ -95,7 +95,7 @@ methodology: 'These data were produced in a collaboration between the World Reso
   in Southeast Asia to 94.1% in Asia. Global per class producer''s and user''s accuracy are highest for the permanent agriculture,
   logging, and wildfire classes (over 90%), and generally lower for rarer classes, such as hard commodities, settlements and
   infrastructure, and other natural disturbances. A full description of the methods and accuracy statistics are available
-  in the publication. The data is also available on [Google Earth Engine](https://developers.google.com/earth-engine/datasets/catalog/projects_landandcarbon_assets_wri_gdm_drivers_forest_loss_1km_v1_2_2001_2024)
+  in the publication. The data is also available on [Google Earth Engine](https://developers.google.com/earth-engine/datasets/catalog/projects_landandcarbon_assets_wri_gdm_drivers_forest_loss_1km_v1_2_2001_2025)
 
   '
 cautions: 'The grouping of drivers into deforestation and temporary disturbances (i.e., likely followed by regrowth) is indicative
