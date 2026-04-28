@@ -11,7 +11,7 @@ To run these commands, you need access to the Kubernetes cluster where Zeno is d
 To run CLI commands, first get access to a running API pod:
 
 ```bash
-kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- uv run python src/cli.py <command>
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- uv run python src/api/cli.py <command>
 ```
 
 ## Available Commands
@@ -22,7 +22,7 @@ Makes an existing user an administrator by updating their user type to admin.
 
 **Usage:**
 ```bash
-kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- uv run python src/cli.py make-user-admin --email admin@example.com
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- uv run python src/api/cli.py make-user-admin --email admin@example.com
 ```
 
 **Parameters:**
@@ -49,7 +49,7 @@ Adds an email address to the whitelisted users table, allowing them to register 
 
 **Usage:**
 ```bash
-kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- uv run python src/cli.py whitelist-email --email user@example.com
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- uv run python src/api/cli.py whitelist-email --email user@example.com
 ```
 
 **Parameters:**
