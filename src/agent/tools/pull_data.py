@@ -85,7 +85,10 @@ async def pull_data(
     )
 
     effective_start, effective_end, range_clamped = await revise_date_range(
-        start_date, end_date, dataset["dataset_id"]
+        start_date,
+        end_date,
+        dataset["dataset_id"],
+        dataset.get("context_layer"),
     )
     if end_date < effective_start or start_date > effective_end:
         return Command(

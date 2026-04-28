@@ -167,7 +167,10 @@ async def select_best_dataset(
     ].iloc[0]
 
     effective_start_date, effective_end_date, _ = await revise_date_range(
-        start_date, end_date, selected_row.dataset_id
+        start_date,
+        end_date,
+        selected_row.dataset_id,
+        selection_result.context_layer,
     )
     dataset_tile_url, context_layers = get_tile_services_for_dataset(
         selection_result,
