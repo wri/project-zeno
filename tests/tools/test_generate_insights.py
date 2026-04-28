@@ -641,12 +641,21 @@ async def test_tcl_always_produces_two_bar_charts(query):
     charts = result.update["charts_data"]
     assert len(charts) == 2, f"Expected exactly 2 charts, got {len(charts)}"
 
+    y_axes = set()
     for idx, chart in enumerate(charts):
         assert "id" in chart, f"Chart {idx} is missing 'id': {chart}"
         assert "data" in chart, f"Chart {idx} is missing 'data': {chart}"
         assert (
             chart.get("type") == "bar"
         ), f"Chart {idx} type is '{chart.get('type')}', expected 'bar'. Chart: {chart}"
+        y_axis = chart.get("yAxis")
+        assert y_axis, f"Chart {idx} is missing 'yAxis': {chart}"
+        y_axes.add(y_axis)
+
+    expected_metrics = {"area_ha", "carbon_emissions_MgCO2e"}
+    assert (
+        y_axes == expected_metrics
+    ), f"Expected charts to map to {expected_metrics}, but got {y_axes}. Charts: {charts}"
 
 
 _TCL_STATISTICS_MULTIREGION_2024 = Statistics(
@@ -707,9 +716,18 @@ async def test_tcl_case2_multiregion_single_year(query):
     charts = result.update["charts_data"]
     assert len(charts) == 2, f"Expected exactly 2 charts, got {len(charts)}"
 
+    y_axes = set()
     for idx, chart in enumerate(charts):
         assert "id" in chart, f"Chart {idx} is missing 'id': {chart}"
         assert "data" in chart, f"Chart {idx} is missing 'data': {chart}"
         assert (
             chart.get("type") == "bar"
         ), f"Chart {idx} type is '{chart.get('type')}', expected 'bar'. Chart: {chart}"
+        y_axis = chart.get("yAxis")
+        assert y_axis, f"Chart {idx} is missing 'yAxis': {chart}"
+        y_axes.add(y_axis)
+
+    expected_metrics = {"area_ha", "carbon_emissions_MgCO2e"}
+    assert (
+        y_axes == expected_metrics
+    ), f"Expected charts to map to {expected_metrics}, but got {y_axes}. Charts: {charts}"
