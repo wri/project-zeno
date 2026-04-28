@@ -24,8 +24,8 @@ keywords:
 - forest loss
 - disturbance
 analytics_api_endpoint: /v0/land_change/tree_cover_loss/analytics
-prompt_instructions: 'Reports gross annual loss of tree cover ≥ 5 m height (2001-2025). Show yearly loss with bar charts or
-  cumulative loss with stacked-area charts; plot area_ha and drop zeros. When reporting tree cover loss, always include the
+prompt_instructions: 'Reports gross annual loss of tree cover ≥ 5 m height (2001-2025). Show yearly loss with bar charts;
+  for multiple regions over time, use stacked bar charts; plot area_ha and drop zeros. When reporting tree cover loss, always include the
   GHG emissions associated with that loss, in MgCO2e (tonnes of CO2 equivalent). If users ask for intra-year or seasonal tree
   cover loss OR emissions, refuse and remind that the data is annual only. The 2011-2025 data was produced using an updated
   methodology so comparisons between, and trends across the periods 2001-2010 and 2011-2025 should be performed with caution.
