@@ -55,9 +55,9 @@ code_instructions: 'MANDATORY OUTPUT: Always produce EXACTLY 2 charts (one for a
   Case 2: Multiple AOIs, single time point (cross-sectional) — Bar chart, x=AOI/region name, y=area_ha (separate chart for emissions).
   This applies when user asks "compare regions at [year]" or "which regions had most loss in [year]". NEVER use line or area charts.
 
-  Case 3: Multiple AOIs, time series (temporal trend across regions) — Stacked bar chart, x=year, y=area_ha grouped/stacked by AOI
-  (separate stacked bar chart for emissions). Use this when user asks "loss trend across multiple regions" or "how did each region
-  evolve over time". NEVER use line, area, or stacked-area charts; only stacked bar.
+  Case 3: Multiple AOIs, time series (temporal trend across regions) — stacked-bar chart, x=year, y=area_ha grouped/stacked by AOI
+  (separate stacked-bar chart for emissions). Use this when user asks "loss trend across multiple regions" or "how did each region
+  evolve over time". NEVER use line, area, or stacked-area charts; only stacked-bar.
 
   DATA SHAPE: chart_data.csv MUST contain year, AOI (region identifier if multi-AOI), area_ha, and carbon_emissions_MgCO2e columns.
   Drop rows where area_ha = 0. Use 30% canopy density threshold. If primary_forest context layer is active, filter accordingly.
@@ -71,7 +71,7 @@ presentation_instructions: 'Use "tree cover loss" not "deforestation" — tree c
   forest. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
   used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2025, note the
   methodology change after 2010. For single-AOI and cross-sectional comparisons, use "bar" chart type. For multi-AOI temporal trends,
-  use "stacked bar" chart type. NEVER use "line", "area", or "stacked-area" chart types, even when the query uses trend or trend-over-time language.
+  use "stacked-bar" chart type. NEVER use "line" or "area" chart types, even when the query uses trend or trend-over-time language.
 
   '
 description: 'Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2025 at 30-meter resolution using
