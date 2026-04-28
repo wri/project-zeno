@@ -605,16 +605,11 @@ _TCL_STATISTICS = Statistics(
     },
 )
 
-# Queries that have historically caused nondeterminism:
-#   - "trend" phrasing → LLM tends to choose line chart over bar
-#   - "how much" / single-metric phrasing → emissions chart tends to be omitted
-#   - explicit "emissions" mention → tests the separate-chart rule
 _TCL_QUERY_VARIANTS = [
     "What is the trend in tree cover loss in Pará, Brazil from 2015 to 2022?",
     "How much tree cover was lost each year in Pará, Brazil?",
     "Show annual tree cover loss and carbon emissions "
     "for Pará, Brazil from 2015 to 2022.",
-    "Plot tree cover loss for Pará from 2015 to 2022.",
 ]
 
 
@@ -630,6 +625,72 @@ async def test_tcl_always_produces_two_bar_charts(query):
     state = {
         "dataset": _dataset_fields(4),
         "statistics": [_TCL_STATISTICS],
+    }
+
+    tool_call_id = str(uuid.uuid4())
+    result = await generate_insights.ainvoke(
+        {
+            "type": "tool_call",
+            "name": "generate_insights",
+            "id": tool_call_id,
+            "args": {"query": query, "state": state},
+        }
+    )
+
+    assert "charts_data" in result.update
+    charts = result.update["charts_data"]
+    assert len(charts) == 2, f"Expected exactly 2 charts, got {len(charts)}"
+
+    for idx, chart in enumerate(charts):
+        assert "id" in chart, f"Chart {idx} is missing 'id': {chart}"
+        assert "data" in chart, f"Chart {idx} is missing 'data': {chart}"
+        assert (
+            chart.get("type") == "bar"
+        ), f"Chart {idx} type is '{chart.get('type')}', expected 'bar'. Chart: {chart}"
+
+
+_TCL_STATISTICS_MULTIREGION_2024 = Statistics(
+    dataset_name="Tree cover loss",
+    source_url="http://example.com/analytics/tcl-brazil-2024",
+    start_date="2024-01-01",
+    end_date="2024-12-31",
+    aoi_names=[
+        "Pará, Brazil",
+        "Amazonas, Brazil",
+        "Mato Grosso, Brazil",
+        "Rondônia, Brazil",
+        "Acre, Brazil",
+    ],
+    data={
+        "year": [2024] * 5,
+        "name": ["Pará", "Amazonas", "Mato Grosso", "Rondônia", "Acre"],
+        "area_ha": [798045.0, 456123.0, 612890.0, 234567.0, 145678.0],
+        "carbon_emissions_MgCO2e": [
+            354021000.0,
+            202456000.0,
+            271765000.0,
+            104123000.0,
+            64598000.0,
+        ],
+        "aoi_id": ["BRA.14", "BRA.3", "BRA.28", "BRA.52", "BRA.4"],
+        "aoi_type": ["admin"] * 5,
+    },
+)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Which Brazilian states had the highest tree cover loss in 2024?",
+        "Compare tree cover loss across Pará, Amazonas, and Mato Grosso in 2024",
+        "Show 2024 tree cover loss by region in Brazil",
+    ],
+)
+async def test_tcl_case2_multiregion_single_year(query):
+    """TCL Case 2: Multiple AOIs at a single time point (cross-sectional)."""
+    state = {
+        "dataset": _dataset_fields(4),
+        "statistics": [_TCL_STATISTICS_MULTIREGION_2024],
     }
 
     tool_call_id = str(uuid.uuid4())

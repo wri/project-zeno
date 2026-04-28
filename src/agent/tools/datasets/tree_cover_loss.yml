@@ -43,14 +43,24 @@ selection_hints: 'Best dataset for annual tree cover loss questions (2001-2024) 
   loss. Methodology changed between 2010 and 2011; cross-period trend comparisons need caution.
 
   '
-code_instructions: 'MANDATORY OUTPUT: Always produce EXACTLY 2 bar charts — no exceptions, regardless of query phrasing.
-  Chart 1 (Tree Cover Loss Area): bar chart, x=year, y=area_ha. Chart 2 (GHG Emissions): bar chart, x=year, y=carbon_emissions_MgCO2e.
-  NEVER use line, area, stacked-area, or any other chart type for these metrics. NEVER combine area_ha and carbon_emissions_MgCO2e
-  on the same chart. Even if the query does not mention emissions, the carbon_emissions_MgCO2e column is ALWAYS required.
+code_instructions: 'MANDATORY OUTPUT: Always produce EXACTLY 2 charts (one for area_ha, one for carbon_emissions_MgCO2e).
+  NEVER combine area_ha and carbon_emissions_MgCO2e on the same chart. Even if the query does not mention emissions,
+  the carbon_emissions_MgCO2e column is ALWAYS required in the output data.
 
-  DATA SHAPE: chart_data.csv MUST contain all three columns — year, area_ha, carbon_emissions_MgCO2e — so both charts share the same
-  table (same rows/grain). Drop rows where area_ha = 0. Use 30% canopy density threshold. If primary_forest context layer
-  is active, filter accordingly.
+  CHART TYPE & AXIS SELECTION (contextual based on query):
+
+  Case 1: Single AOI, time series (MOST IMPORTANT) — Bar chart, x=year, y=area_ha (separate chart for emissions with x=year).
+  NEVER use line or area charts for this case.
+
+  Case 2: Multiple AOIs, single time point (cross-sectional) — Bar chart, x=AOI/region name, y=area_ha (separate chart for emissions).
+  This applies when user asks "compare regions at [year]" or "which regions had most loss in [year]". NEVER use line or area charts.
+
+  Case 3: Multiple AOIs, time series (temporal trend across regions) — Stacked bar chart, x=year, y=area_ha grouped/stacked by AOI
+  (separate stacked bar chart for emissions). Use this when user asks "loss trend across multiple regions" or "how did each region
+  evolve over time". NEVER use line, area, or stacked-area charts; only stacked bar.
+
+  DATA SHAPE: chart_data.csv MUST contain year, AOI (region identifier if multi-AOI), area_ha, and carbon_emissions_MgCO2e columns.
+  Drop rows where area_ha = 0. Use 30% canopy density threshold. If primary_forest context layer is active, filter accordingly.
 
   DO/DON''T: - DO NOT use the term "deforestation" — always use "tree cover loss" - If user asks for intra-year or seasonal
   breakdown, REFUSE — data is annual only - If user asks for net gain/loss, REFUSE — methodologies differ between loss and
@@ -60,8 +70,8 @@ code_instructions: 'MANDATORY OUTPUT: Always produce EXACTLY 2 bar charts — no
 presentation_instructions: 'Use "tree cover loss" not "deforestation" — tree cover includes plantations, not just natural
   forest. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
   used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2024, note the
-  methodology change after 2010. ALWAYS use chart type "bar" for both the tree cover loss area chart and the GHG emissions
-  chart — never "line", even when the query uses trend or trend-over-time language.
+  methodology change after 2010. For single-AOI and cross-sectional comparisons, use "bar" chart type. For multi-AOI temporal trends,
+  use "stacked bar" chart type. NEVER use "line", "area", or "stacked-area" chart types, even when the query uses trend or trend-over-time language.
 
   '
 description: 'Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2024 at 30-meter resolution using
