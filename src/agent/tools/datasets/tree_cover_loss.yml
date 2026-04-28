@@ -55,7 +55,9 @@ code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha)
 presentation_instructions: 'Use "tree cover loss" not "deforestation" — tree cover includes plantations, not just natural
   forest. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
   used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2025, note the
-  methodology change after 2010.
+  methodology change after 2010. CHART TITLES: each chart title must reflect only the metric(s) actually plotted in
+  that chart — do not mention emissions in a title if the chart only shows area, and do not mention area if the chart
+  only shows emissions.
 
   '
 description: 'Tree Cover Loss (Hansen/UMD/GLAD) maps annual global forest loss from 2001 to 2025 at 30-meter resolution using
