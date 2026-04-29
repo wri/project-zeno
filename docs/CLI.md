@@ -43,33 +43,8 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 - This command changes their user type from regular user to admin
 - Admin users have higher prompt quotas
 
-### whitelist-email
-
-Adds an email address to the whitelisted users table, allowing them to register and access the system.
-
-**Usage:**
-```bash
-kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- uv run python src/api/cli.py whitelist-email --email user@example.com
-```
-
-**Parameters:**
-- `--email` (required): Email address to add to the whitelist
-
-**Output:**
-```
-✅ Added email to whitelist:
-   Email: jane.smith@company.com
-   Created: 2024-09-15 10:35:22
-```
-
-**Notes:**
-- If the email is already whitelisted, the command will return the existing record
-- Whitelisted users can register and access the system
-- This controls who has access when allow_public_signups is set to false
-
 ## Error Handling
 
-Both commands include error handling:
+The command includes error handling:
 
 - **make-user-admin**: Returns an error if the user with the specified email doesn't exist
-- **whitelist-email**: Generally succeeds but may return database-related errors if there are connectivity issues

@@ -1,23 +1,10 @@
 """Tests for automatic area naming endpoint."""
 
-from contextlib import contextmanager
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.api.config import APISettings
 from src.api.services.chat import generate_thread_name
-
-
-@contextmanager
-def domain_allowlist(domains: str):
-    """Context manager to set and reset DOMAINS_ALLOWLIST."""
-    domain_list = domains.split(",")
-    try:
-        with patch.object(APISettings, "domains_allowlist_str", domains):
-            yield domain_list
-    finally:
-        pass  # Patch is automatically reverted
 
 
 @pytest.mark.asyncio
@@ -66,22 +53,17 @@ async def test_custom_area_name_success(client, auth_override):
     mock_response = AsyncMock()
     mock_response.name = "Equatorial Coast"
 
-    with domain_allowlist("wri.org"):  # Allow wri.org domain
-        with patch("src.api.routers.custom_areas.SMALL_MODEL") as mock_model:
-            # Mock the chained method call: SMALL_MODEL.with_structured_output().ainvoke()
-            mock_structured_output = AsyncMock()
-            mock_structured_output.ainvoke = AsyncMock(
-                return_value=mock_response
-            )
-            mock_model.with_structured_output.return_value = (
-                mock_structured_output
-            )
+    with patch("src.api.routers.custom_areas.SMALL_MODEL") as mock_model:
+        # Mock the chained method call: SMALL_MODEL.with_structured_output().ainvoke()
+        mock_structured_output = AsyncMock()
+        mock_structured_output.ainvoke = AsyncMock(return_value=mock_response)
+        mock_model.with_structured_output.return_value = mock_structured_output
 
-            response = await client.post(
-                "/api/custom_area_name",
-                json=test_geojson,
-                headers={"Authorization": "Bearer test-token"},
-            )
+        response = await client.post(
+            "/api/custom_area_name",
+            json=test_geojson,
+            headers={"Authorization": "Bearer test-token"},
+        )
 
     assert response.status_code == 200
     data = response.json()
@@ -104,12 +86,11 @@ async def test_custom_area_name_invalid_geojson(client, auth_override):
         "properties": {},
     }
 
-    with domain_allowlist("wri.org"):  # Allow wri.org domain
-        response = await client.post(
-            "/api/custom_area_name",
-            json=invalid_geojson,
-            headers={"Authorization": "Bearer test-token"},
-        )
+    response = await client.post(
+        "/api/custom_area_name",
+        json=invalid_geojson,
+        headers={"Authorization": "Bearer test-token"},
+    )
 
     # The endpoint expects FeatureCollection, so this should fail validation
     assert response.status_code == 422
@@ -148,22 +129,17 @@ async def test_custom_area_name_with_realistic_geometry(client, auth_override):
     mock_response = AsyncMock()
     mock_response.name = "Equatorial Coast"
 
-    with domain_allowlist("wri.org"):  # Allow wri.org domain
-        with patch("src.api.routers.custom_areas.SMALL_MODEL") as mock_model:
-            # Mock the chained method call: SMALL_MODEL.with_structured_output().ainvoke()
-            mock_structured_output = AsyncMock()
-            mock_structured_output.ainvoke = AsyncMock(
-                return_value=mock_response
-            )
-            mock_model.with_structured_output.return_value = (
-                mock_structured_output
-            )
+    with patch("src.api.routers.custom_areas.SMALL_MODEL") as mock_model:
+        # Mock the chained method call: SMALL_MODEL.with_structured_output().ainvoke()
+        mock_structured_output = AsyncMock()
+        mock_structured_output.ainvoke = AsyncMock(return_value=mock_response)
+        mock_model.with_structured_output.return_value = mock_structured_output
 
-            response = await client.post(
-                "/api/custom_area_name",
-                json=test_geojson,
-                headers={"Authorization": "Bearer test-token"},
-            )
+        response = await client.post(
+            "/api/custom_area_name",
+            json=test_geojson,
+            headers={"Authorization": "Bearer test-token"},
+        )
 
     assert response.status_code == 200
     data = response.json()

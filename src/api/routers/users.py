@@ -2,7 +2,7 @@
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +23,6 @@ router = APIRouter()
 
 @router.get("/api/auth/me", response_model=UserWithQuotaModel)
 async def auth_me(
-    request: Request,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
@@ -40,7 +39,7 @@ async def auth_me(
             "prompt_quota": None,
         }
 
-    quota_info = await check_quota(request, user, session)
+    quota_info = await check_quota(user, session)
     return {**user.model_dump(), **quota_info}
 
 

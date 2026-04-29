@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
-from src.agent.graph import fetch_zeno, fetch_zeno_anonymous
+from src.agent.graph import fetch_zeno
 from src.agent.llms import SMALL_MODEL
 from src.api.schemas import ThreadNameOutput
 from src.shared.logging_config import get_logger
@@ -129,10 +129,7 @@ async def stream_chat(
         "metadata": langfuse_metadata,
     }
 
-    if not thread_id:
-        zeno_async = await fetch_zeno_anonymous(user)
-    else:
-        zeno_async = await fetch_zeno(user)
+    zeno_async = await fetch_zeno(user)
 
     messages = []
     ui_action_message = []

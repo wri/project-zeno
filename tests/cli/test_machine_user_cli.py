@@ -9,7 +9,6 @@ from click.testing import CliRunner
 from sqlalchemy import select
 
 from src.api.cli import (
-    add_whitelisted_user,
     cli,
     create_api_key,
     create_machine_user,
@@ -24,7 +23,6 @@ from src.api.data_models import (
     MachineUserKeyOrm,
     UserOrm,
     UserType,
-    WhitelistedUserOrm,
 )
 from tests.conftest import async_session_maker
 
@@ -466,13 +464,8 @@ class TestMachineUserQuota:
     @pytest.mark.asyncio
     async def test_machine_user_gets_higher_quota(self):
         """Test that machine users get higher quota than regular users."""
-        from unittest.mock import AsyncMock
-
         from src.api.schemas import UserModel
         from src.api.services.quota import get_user_identity_and_daily_quota
-
-        # Create mock request
-        mock_request = AsyncMock()
 
         # Create machine user
         machine_user = UserModel(
@@ -497,12 +490,8 @@ class TestMachineUserQuota:
         )
 
         # Test quota assignment
-        machine_result = await get_user_identity_and_daily_quota(
-            mock_request, machine_user
-        )
-        regular_result = await get_user_identity_and_daily_quota(
-            mock_request, regular_user
-        )
+        machine_result = await get_user_identity_and_daily_quota(machine_user)
+        regular_result = await get_user_identity_and_daily_quota(regular_user)
 
         # Machine user should have much higher quota
         assert machine_result["prompt_quota"] == 99999  # Machine user quota
@@ -656,48 +645,6 @@ class TestUserAdminFunctions:
             assert admin_user2.user_type == UserType.ADMIN.value
 
 
-class TestWhitelistFunctions:
-    """Test whitelist management functions."""
-
-    @pytest.mark.asyncio
-    async def test_add_whitelisted_user_success(self):
-        """Test successful whitelist addition."""
-        async with async_session_maker() as session:
-            whitelisted_user = await add_whitelisted_user(
-                session, "test@example.com"
-            )
-
-            assert whitelisted_user.email == "test@example.com"
-            assert whitelisted_user.created_at is not None
-
-    @pytest.mark.asyncio
-    async def test_add_whitelisted_user_duplicate(self):
-        """Test adding duplicate email returns existing record."""
-        async with async_session_maker() as session:
-            # Add first time
-            first_user = await add_whitelisted_user(
-                session, "test@example.com"
-            )
-            first_created_at = first_user.created_at
-
-            # Add second time (should return existing)
-            second_user = await add_whitelisted_user(
-                session, "test@example.com"
-            )
-
-            assert second_user.email == first_user.email
-            assert second_user.created_at == first_created_at
-
-            # Verify only one record exists
-            result = await session.execute(
-                select(WhitelistedUserOrm).where(
-                    WhitelistedUserOrm.email == "test@example.com"
-                )
-            )
-            all_records = result.scalars().all()
-            assert len(all_records) == 1
-
-
 class TestUserManagementCLICommands:
     """Test user management CLI command functionality."""
 
@@ -764,57 +711,3 @@ class TestUserManagementCLICommands:
         )  # Click doesn't change exit code for our error handling
         assert "❌ Error:" in result.output
         assert "not found" in result.output
-
-    @patch("src.api.cli.DatabaseManager")
-    @patch("src.api.cli.add_whitelisted_user")
-    def test_whitelist_email_command_success(
-        self, mock_add_whitelist, mock_db_manager
-    ):
-        """Test whitelist-email CLI command success."""
-        # Mock database operations
-        mock_session = AsyncMock()
-        mock_db_manager.return_value.async_session.return_value.__aenter__.return_value = mock_session
-        mock_db_manager.return_value.close = AsyncMock()
-
-        # Mock whitelisted user
-        mock_whitelist_user = AsyncMock()
-        mock_whitelist_user.email = "test@example.com"
-        mock_whitelist_user.created_at = datetime.now()
-        mock_add_whitelist.return_value = mock_whitelist_user
-
-        # Run command
-        result = self.runner.invoke(
-            cli,
-            ["whitelist-email", "--email", "test@example.com"],
-        )
-
-        assert result.exit_code == 0
-        assert "✅ Added email to whitelist:" in result.output
-        assert "test@example.com" in result.output
-        mock_add_whitelist.assert_called_once()
-
-    @patch("src.api.cli.DatabaseManager")
-    @patch("src.api.cli.add_whitelisted_user")
-    def test_whitelist_email_command_error(
-        self, mock_add_whitelist, mock_db_manager
-    ):
-        """Test whitelist-email CLI command with error."""
-        # Mock database operations
-        mock_session = AsyncMock()
-        mock_db_manager.return_value.async_session.return_value.__aenter__.return_value = mock_session
-        mock_db_manager.return_value.close = AsyncMock()
-
-        # Mock error
-        mock_add_whitelist.side_effect = Exception("Database error")
-
-        # Run command
-        result = self.runner.invoke(
-            cli,
-            ["whitelist-email", "--email", "test@example.com"],
-        )
-
-        assert (
-            result.exit_code == 0
-        )  # Click doesn't change exit code for our error handling
-        assert "❌ Error:" in result.output
-        assert "Database error" in result.output

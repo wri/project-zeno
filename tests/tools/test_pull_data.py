@@ -3,15 +3,12 @@ from datetime import datetime, timedelta
 
 import pytest
 import structlog
-from sqlalchemy import select
 
 from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pull_data import pull_data, revise_date_range
 from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
-from src.api.data_models import WhitelistedUserOrm
 from src.api.schemas import UserModel
-from tests.conftest import async_session_maker
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
@@ -212,8 +209,8 @@ async def test_pull_data_queries(aoi_data, dataset):
         assert statistics[0]["aoi_names"] == [aoi_data["name"]]
 
 
-async def test_tree_cover_loss_date_range_clamped_to_2024():
-    """Regression: Tree cover loss (2001-2024) clamps input 2020-2025 to 2020-2024."""
+async def test_tree_cover_loss_date_range_clamped_to_2025():
+    """Regression: Tree cover loss (2001-2025) clamps input 2020-2026 to 2020-2025."""
     aoi_data = TEST_AOIS[0]  # Brazil
     update = {
         "aoi_selection": {"name": aoi_data["name"], "aois": [aoi_data]},
@@ -232,7 +229,7 @@ async def test_tree_cover_loss_date_range_clamped_to_2024():
         "args": {
             "query": "find tree cover loss in Brazil",
             "start_date": "2020-01-01",
-            "end_date": "2025-12-31",
+            "end_date": "2026-12-31",
             "change_over_time_query": True,
             "tool_call_id": "test-date-clamp-tree-cover-loss",
             "state": update,
@@ -245,35 +242,12 @@ async def test_tree_cover_loss_date_range_clamped_to_2024():
     assert statistics[0]["end_date"] == "2025-12-31"
     tool_message = command.update.get("messages", [None])[0]
     assert tool_message is not None
-    assert "2024-12-31" in tool_message.content
     assert "2025-12-31" in tool_message.content
+    assert "2026-12-31" in tool_message.content
     assert "adjusted" in tool_message.content.lower()
 
 
-async def whitelist_test_user():
-    """Add the test user email to the whitelist to bypass signup restrictions."""
-    async with async_session_maker() as session:
-        # Use a unique email for this test to avoid conflicts
-        test_email = "test-custom-area@wri.org"
-
-        # Check if user is already whitelisted
-        stmt = select(WhitelistedUserOrm).where(
-            WhitelistedUserOrm.email == test_email
-        )
-        result = await session.execute(stmt)
-        if result.scalars().first():
-            return  # Already whitelisted
-
-        # Add to whitelist
-        whitelisted_user = WhitelistedUserOrm(email=test_email)
-        session.add(whitelisted_user)
-        await session.commit()
-
-
 async def test_pull_data_custom_area(auth_override, client, structlog_context):
-    # Whitelist the test user to bypass signup restrictions
-    await whitelist_test_user()
-
     def mock_auth():
         return UserModel.model_validate(
             {
