@@ -75,7 +75,7 @@ description: 'The dataset developed by Fitts et al. (2025) provides globally con
   carbon flux model (Harris et al. 2021; Gibbs et al. 2025) for estimating deforestation-related emissions; Global Pasture
   Watch (Parente et al. 2024) for pasture extent; and the drivers of forest loss (Sims et al. 2025) to isolate agriculture-driven
   deforestation.
-List of crops included: 
+List of crops included:
 Individual crops:
   Banana (bana)
   Barley (barl)
