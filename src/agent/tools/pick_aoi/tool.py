@@ -291,7 +291,7 @@ async def query_aoi_database(
 
 
 async def query_subregion_database(
-    subregion_name: str, source: str, src_id: int
+    subregion_name: str, source: str, src_id: str
 ):
     """Query the right table in PostGIS database for subregions based on the selected AOI.
 
@@ -488,8 +488,10 @@ async def check_multiple_matches(
                 ]
             )
 
+    return None
 
-async def check_aoi_selection(aois: list[AOIIndex]) -> str:
+
+async def check_aoi_selection(aois: list[AOIIndex]) -> Optional[str]:
     if not aois:
         return (
             "No matching AOIs were found for your request. "
@@ -515,10 +517,12 @@ async def check_aoi_selection(aois: list[AOIIndex]) -> str:
             f"For optimal performance, please limit results to under {SUBREGION_LIMIT} subregions for KBA, WDPA, and Indigenous Lands, or under {SUBREGION_LIMIT_ADMIN} for other area types."
         )
 
+    return None
+
 
 async def check_duplicate_aois(
     selected_aois: list[AOIIndex], all_results: list[pd.DataFrame]
-) -> str:
+) -> Optional[str]:
     for selected_aoi, result in zip(selected_aois, all_results):
         if selected_aoi.source == "gadm":
             short_name = selected_aoi.name.split(",")[0]
@@ -527,6 +531,8 @@ async def check_duplicate_aois(
             )
             if candidate_names:
                 return f"I found multiple locations named '{short_name}' in different countries. Please tell me which one you meant:\n\n{candidate_names}\n\nWhich location are you looking for?"
+
+    return None
 
 
 @tool("pick_aoi")
@@ -546,7 +552,7 @@ async def pick_aoi(
             "landmark",
         ]
     ] = None,
-    tool_call_id: Annotated[str, InjectedToolCallId] = None,
+    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Selects the most appropriate area of interest (AOI) based on a place name and user's question. Optionally, it can also filter the results by a subregion.
 

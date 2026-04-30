@@ -43,18 +43,18 @@ LAYER_CHUNK_SIZES = {
 
 def download(url: str, dest: str) -> str:
     """Stream-download *url* into *dest* (skips if already present)."""
-    dest = Path(dest)
-    if dest.exists():
+    destpath = Path(dest)
+    if destpath.exists():
         print(f"✓ Using cached file → {dest}")
         return dest
-    dest.parent.mkdir(parents=True, exist_ok=True)
+    destpath.parent.mkdir(parents=True, exist_ok=True)
     print(f"Downloading {url} to {dest}...")
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
         with open(dest, "wb") as f:
             for chunk in r.iter_content(1 << 20):
                 f.write(chunk)
-    print(f"✓ Downloaded {dest.stat().st_size / 1e6:.1f} MB")
+    print(f"✓ Downloaded {destpath.stat().st_size / 1e6:.1f} MB")
     return dest
 
 

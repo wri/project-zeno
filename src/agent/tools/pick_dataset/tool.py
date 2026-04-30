@@ -204,10 +204,10 @@ async def select_best_dataset(
 @tool("pick_dataset")
 async def pick_dataset(
     query: str,
+    state: Annotated[Dict, InjectedState],
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    state: Annotated[Dict, InjectedState] = None,
-    tool_call_id: Annotated[str, InjectedToolCallId] = None,
+    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """
     Given a user query, runs RAG to retrieve relevant datasets, selects the best matching dataset within the specified time range with reasoning,

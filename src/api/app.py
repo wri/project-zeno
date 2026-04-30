@@ -1,5 +1,6 @@
 import uuid
 from contextlib import asynccontextmanager
+from typing import Optional
 
 import structlog
 from fastapi import FastAPI, Request, Response, status
@@ -61,10 +62,10 @@ async def logging_middleware(request: Request, call_next) -> Response:
         request_id=req_id,
     )
     response_code = None
-    response = None
+    response: Optional[Response] = None
 
     try:
-        response: Response = await call_next(request)
+        response = await call_next(request)
         response_code = response.status_code
     except Exception as e:
         logger.exception(

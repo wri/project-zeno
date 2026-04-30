@@ -1,5 +1,5 @@
 import re
-from typing import Annotated, Dict, List
+from typing import Annotated, Dict, List, Optional
 
 import pandas as pd
 import structlog
@@ -33,7 +33,7 @@ def _get_available_datasets() -> str:
 
 def prepare_dataframes(
     statistics: list[dict],
-) -> List[tuple[pd.DataFrame, str]]:
+) -> tuple[List[tuple[pd.DataFrame, str]], List]:
     """
     Prepare DataFrames from raw data for code executor.
     """
@@ -70,7 +70,7 @@ def prepare_dataframes(
 
 def replace_csv_paths_with_urls(
     code_block: str, source_urls: List[str]
-) -> List[str]:
+) -> str:
     """
     Replace CSV file paths in code blocks with URL-based data loading.
 
@@ -314,7 +314,7 @@ class MultiChartInsight(BaseModel):
 async def generate_insights(
     query: str,
     state: Annotated[Dict, InjectedState] | None = None,
-    tool_call_id: Annotated[str, InjectedToolCallId] = None,
+    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """
     Analyzes raw data and generates a single chart insight with Recharts-compatible data.

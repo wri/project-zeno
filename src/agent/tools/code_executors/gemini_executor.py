@@ -3,7 +3,7 @@
 import asyncio
 import io
 from functools import partial
-from typing import Dict, List
+from typing import Dict, List, cast
 
 import pandas as pd
 from google import genai
@@ -120,7 +120,7 @@ class GeminiCodeExecutor:
                         f"retrying in {delay:.1f}s"
                     )
                     await asyncio.sleep(delay)
-        raise last_error
+        raise cast(Exception, last_error)
 
     def _parse_response(self, response) -> ExecutionResult:
         """Parse a generate_content response into ExecutionResult."""
