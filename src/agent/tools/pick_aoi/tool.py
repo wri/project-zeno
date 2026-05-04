@@ -93,6 +93,26 @@ CUSTOM_BBOX_SQL = f"""
 """
 
 
+async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
+    """Look up bbox for an AOI by source and src_id, using the same antimeridian-aware SQL as pick_aoi."""
+    if source not in SOURCE_ID_MAPPING:
+        return [-180.0, -90.0, 180.0, 90.0]
+
+    table = SOURCE_ID_MAPPING[source]["table"]
+    id_column = SOURCE_ID_MAPPING[source]["id_column"]
+    bbox_expr = CUSTOM_BBOX_SQL if source == "custom" else BBOX_SQL
+
+    query = text(
+        f"SELECT {bbox_expr} FROM {table} WHERE {id_column} = :src_id"
+    )
+    async with get_connection_from_pool() as conn:
+        result = await conn.execute(query, {"src_id": src_id})
+        row = result.fetchone()
+        if row and row[0]:
+            return row[0]
+    return [-180.0, -90.0, 180.0, 90.0]
+
+
 class AOIId(BaseModel):
     src_id: str = Field(description="`src_id` of the best matched location.")
 

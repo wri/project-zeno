@@ -12,6 +12,7 @@ from langfuse.langchain import CallbackHandler
 
 from src.agent.graph import fetch_zeno
 from src.agent.llms import SMALL_MODEL
+from src.agent.tools.pick_aoi.tool import fetch_aoi_bbox
 from src.api.schemas import ThreadNameOutput
 from src.shared.logging_config import get_logger
 
@@ -140,8 +141,13 @@ async def stream_chat(
             match action_type:
                 case "aoi_selected":
                     content = f"User selected AOI in UI: {action_data['aoi_name']}\n\n"
+                    aoi = action_data["aoi"]
+                    if not aoi.get("bbox"):
+                        aoi["bbox"] = await fetch_aoi_bbox(
+                            aoi["source"], aoi["src_id"]
+                        )
                     state_updates["aoi_selection"] = {
-                        "aois": [action_data["aoi"]],
+                        "aois": [aoi],
                         "name": action_data["aoi_name"],
                     }
                 case "dataset_selected":
