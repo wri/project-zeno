@@ -1,5 +1,6 @@
 from typing import Annotated, Dict, Optional
 
+import structlog
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
@@ -9,6 +10,8 @@ from langgraph.types import Command
 from src.agent.tools.data_handlers.analytics_handler import AnalyticsHandler
 from src.agent.tools.data_handlers.base import DataPullResult
 from src.agent.tools.util import revise_date_range
+from src.api.data_models import StatisticsOrm
+from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -156,22 +159,39 @@ async def pull_data(
         tool_call_id=tool_call_id,
     )
 
+    statistics = {
+        "dataset_name": dataset["dataset_name"],
+        "start_date": effective_start,
+        "end_date": effective_end,
+        "source_url": result.analytics_api_url,
+        "data": raw_data,
+        "aoi_names": [aoi["name"] for aoi in state["aoi_selection"]["aois"]],
+        "parameters": dataset.get("parameters"),
+        "context_layer": dataset.get("context_layer"),
+    }
+
+    ctx = structlog.contextvars.get_contextvars()
+    async with get_session_from_pool() as session:
+        statistics_row = StatisticsOrm(
+            user_id=ctx.get("user_id"),
+            thread_id=ctx.get("thread_id"),
+            dataset_name=statistics["dataset_name"],
+            start_date=statistics["start_date"],
+            end_date=statistics["end_date"],
+            source_url=statistics["source_url"],
+            data=statistics["data"],
+            aoi_names=statistics["aoi_names"],
+            parameters=statistics["parameters"],
+            context_layer=statistics["context_layer"],
+        )
+        session.add(statistics_row)
+        await session.flush()
+        statistics["id"] = str(statistics_row.id)
+        await session.commit()
+
     return Command(
         update={
-            "statistics": [
-                {
-                    "dataset_name": dataset["dataset_name"],
-                    "start_date": effective_start,
-                    "end_date": effective_end,
-                    "source_url": result.analytics_api_url,
-                    "data": raw_data,
-                    "aoi_names": [
-                        aoi["name"] for aoi in state["aoi_selection"]["aois"]
-                    ],
-                    "parameters": dataset.get("parameters"),
-                    "context_layer": dataset.get("context_layer"),
-                }
-            ],
+            "statistics": [statistics],
             "start_date": effective_start,
             "end_date": effective_end,
             "messages": [tool_message],

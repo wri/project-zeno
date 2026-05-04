@@ -1,18 +1,24 @@
+import importlib
 import uuid
 from datetime import datetime, timedelta
 
 import pytest
 import structlog
+from sqlalchemy import select
 
+from src.agent.tools.data_handlers.base import DataPullResult
 from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pull_data import pull_data, revise_date_range
 from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
+from src.api.data_models import StatisticsOrm
 from src.api.schemas import UserModel
+from tests.conftest import async_session_maker
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+pull_data_module = importlib.import_module("src.agent.tools.pull_data")
 
 # All dataset and intersection combinations from OpenAPI spec
 # https://analytics.globalnaturewatch.org/openapi.json
@@ -207,6 +213,86 @@ async def test_pull_data_queries(aoi_data, dataset):
         assert len(statistics) == 1
         assert statistics[0]["source_url"].startswith("http")
         assert statistics[0]["aoi_names"] == [aoi_data["name"]]
+
+
+async def test_pull_data_persists_statistics(monkeypatch):
+    class FakeDataPullOrchestrator:
+        async def pull_data(
+            self,
+            query,
+            dataset,
+            start_date,
+            end_date,
+            change_over_time_query,
+            aois,
+        ):
+            return DataPullResult(
+                success=True,
+                data={"data": {"value": [1], "aoi_id": ["BRA"]}},
+                message="Pulled data.",
+                data_points_count=1,
+                analytics_api_url="http://example.com/analytics/statistics",
+            )
+
+    async def fake_revise_date_range(start_date, end_date, dataset_id):
+        return start_date, end_date, False
+
+    monkeypatch.setattr(
+        pull_data_module, "data_pull_orchestrator", FakeDataPullOrchestrator()
+    )
+    monkeypatch.setattr(
+        pull_data_module, "revise_date_range", fake_revise_date_range
+    )
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pull_data",
+        "id": "test-persist-statistics",
+        "args": {
+            "query": "find tree cover loss in Brazil",
+            "start_date": "2020-01-01",
+            "end_date": "2020-12-31",
+            "change_over_time_query": False,
+            "tool_call_id": "test-persist-statistics",
+            "state": {
+                "aoi_selection": {
+                    "name": "Brazil",
+                    "aois": [TEST_AOIS[0]],
+                },
+                "dataset": {
+                    "dataset_id": 4,
+                    "dataset_name": "Tree cover loss",
+                    "reason": "",
+                    "tile_url": "",
+                    "context_layer": None,
+                    "parameters": [{"name": "canopy_cover", "values": [75]}],
+                },
+            },
+        },
+    }
+
+    command = await pull_data.ainvoke(tool_call)
+    statistics = command.update.get("statistics", [])
+    assert len(statistics) == 1
+    assert statistics[0]["id"]
+    assert statistics[0]["data"]["value"] == [1]
+
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(StatisticsOrm).where(
+                StatisticsOrm.id == uuid.UUID(statistics[0]["id"])
+            )
+        )
+        statistics_row = result.scalar_one()
+
+    assert statistics_row.dataset_name == "Tree cover loss"
+    assert statistics_row.start_date == "2020-01-01"
+    assert statistics_row.end_date == "2020-12-31"
+    assert statistics_row.data == statistics[0]["data"]
+    assert statistics_row.aoi_names == ["Brazil"]
+    assert statistics_row.parameters == [
+        {"name": "canopy_cover", "values": [75]}
+    ]
 
 
 async def test_tree_cover_loss_date_range_clamped_to_2025():

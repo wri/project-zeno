@@ -182,6 +182,27 @@ class MachineUserKeyOrm(Base):
     user = relationship("UserOrm", back_populates="machine_user_keys")
 
 
+class StatisticsOrm(Base):
+    __tablename__ = "statistics"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    thread_id = Column(String, nullable=True)
+    dataset_name = Column(String, nullable=False)
+    start_date = Column(String, nullable=False)
+    end_date = Column(String, nullable=False)
+    source_url = Column(String, nullable=True)
+    data = Column(JSONB, nullable=False)
+    aoi_names = Column(JSONB, nullable=False, server_default="[]")
+    parameters = Column(JSONB, nullable=True)
+    context_layer = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+
+
 class InsightOrm(Base):
     __tablename__ = "insights"
 
@@ -194,6 +215,7 @@ class InsightOrm(Base):
     thread_id = Column(String, nullable=False)
     insight_text = Column(String, nullable=False)
     follow_up_suggestions = Column(JSONB, nullable=False, server_default="[]")
+    statistics_ids = Column(JSONB, nullable=False, server_default="[]")
     codeact_types = Column(ARRAY(String), nullable=False, server_default="{}")
     codeact_contents = Column(
         ARRAY(String), nullable=False, server_default="{}"
