@@ -34,13 +34,16 @@ To enable that, the project relies on a set of services being deployed with it.
 - PostgreSQL for the API data and geographic search of AOIs
 - FastAPI deployment for the API
 
-All these services are being managed and deployed throug our deploy
+All these services are being managed and deployed through our deploy
 repository at [project-zeno-deploy](https://github.com/wri/project-zeno-deploy)
 
 ### Frontend
 
 The frontend application for this project is a nextjs project
 that can be found at [project-zeno-next](https://github.com/wri/project-zeno-next)
+
+This repo also includes a lightweight [Streamlit](https://streamlit.io/) app (`frontend/`)
+used for local development and testing of the agent.
 
 ### Evals
 
@@ -58,7 +61,14 @@ for STAC can be found in the [gnw-stac](https://github.com/wri/gnw-stac) reposit
 - [postgresql](https://www.postgresql.org/) (for using local DB instead of docker)
 - [docker](https://docs.docker.com/)
 
-## Local Development Setup
+## Development Setup
+
+There are two ways to run the project locally:
+
+- **Option 1 (Host-based):** Run infrastructure in Docker, API and frontend on the host via uv/make — best for active development with fast iteration.
+- **Option 2 (Full Docker):** Run everything in containers via `docker-compose.yaml` — closer to the production environment.
+
+### Option 1: Host-based Development
 
 We use uv for package management and docker-compose
 for running the system locally.
@@ -98,7 +108,7 @@ for running the system locally.
 4. **Start infrastructure services:**
 
    ```bash
-   make up       # Start Docker services (PostgreSQL, test DB, migrations via docker-compose.dev.yaml)
+   make up       # Start Docker services (PostgreSQL, test DB, migrations, Langfuse via docker-compose.dev.yaml)
    ```
 
 5. **Ingest data (required after starting database):**
@@ -128,42 +138,23 @@ for running the system locally.
    Or start everything at once (after data ingestion):
 
    ```bash
-   make dev      # Starts API + frontend (requires infrastructure already running)
+   make dev      # Starts API + Streamlit frontend (requires infrastructure already running)
    ```
 
 7. **Setup Local Langfuse:**
-   a. Clone the Langfuse repository outside your current project directory
+
+   Langfuse traces every agent run, tool call, and LLM interaction — useful for debugging the full agent flow. It is included in `make up` — no separate setup is required.
+
+   a. Access the Langfuse UI at <http://localhost:3001> and log in with the pre-seeded credentials:
+      - Email: `admin@example.com`
+      - Password: `Password123!`
+
+   b. Update your `.env` with the pre-configured keys:
 
    ```bash
-   cd ..
-   git clone https://github.com/langfuse/langfuse.git
-   cd langfuse
-   ```
-
-   b. Start the Langfuse server
-
-   ```bash
-   docker compose up -d
-   ```
-
-   c. Access the Langfuse UI at <http://localhost:3000>
-   1. Create an account
-   2. Create a new project
-   3. Copy the API keys from your project settings
-
-   d. Return to your project directory and update your .env file
-
-   ```bash
-   cd ../project-zeno
-   # Update these values in your .env file:
-   LANGFUSE_HOST=http://localhost:3000
-   LANGFUSE_PUBLIC_KEY=your_public_key_here
-   LANGFUSE_SECRET_KEY=your_secret_key_here
-   ```
-
-   To disable locally, use following flag
-
-   ```bash
+   LANGFUSE_HOST=http://localhost:3001
+   LANGFUSE_PUBLIC_KEY=zeno-public-key-123
+   LANGFUSE_SECRET_KEY=zeno-secret-key-123
    LANGFUSE_TRACING_ENABLED=true
    ```
 
@@ -171,7 +162,92 @@ for running the system locally.
 
    - Frontend: <http://localhost:8501>
    - API: <http://localhost:8000>
-   - Langfuse: <http://localhost:3000>
+   - Langfuse: <http://localhost:3001>
+
+#### Local PostgreSQL (optional)
+
+By default `make up` starts a PostgreSQL container. If you prefer to use a local PostgreSQL instance instead:
+
+```bash
+createuser -s postgres # if you don't have a postgres user
+createdb -U postgres zeno-data-local
+# Run migrations from the db directory (alembic reads DATABASE_URL from env; same URL as .env is fine)
+cd db && DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-local alembic upgrade head && cd ..
+
+# Check if you have the database running
+psql zeno-data-local
+
+# Check if you have the tables created
+\dt
+
+# Output
+#               List of relations
+#  Schema |      Name       | Type  |  Owner
+# --------+-----------------+-------+----------
+#  public | alembic_version | table | postgres
+#  public | threads         | table | postgres
+#  public | users           | table | postgres
+```
+
+Then add the database URL to your `.env`:
+
+```bash
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-local
+```
+
+### Option 2: Full Dockerized Development
+
+Runs all services — API, frontend, PostgreSQL, Langfuse, and ClickHouse — in containers using `docker-compose.yaml`.
+
+1. **Start all services:**
+
+   ```bash
+   docker compose up -d
+   ```
+
+   The Streamlit frontend runs inside a container. To run it locally instead:
+
+   ```bash
+   make frontend
+   ```
+
+2. **Ingest data (required after starting database):**
+
+   Exec into the API container and run the ingestion scripts:
+
+   ```bash
+   docker compose exec api bash
+   python src/ingest/ingest_gadm.py
+   python src/ingest/ingest_kba.py
+   python src/ingest/ingest_landmark.py
+   python src/ingest/ingest_wdpa.py
+   exit
+   ```
+
+   See `src/ingest/` directory for details on each ingestion script.
+
+3. **Configure Langfuse:**
+
+   Langfuse traces every agent run, tool call, and LLM interaction — useful for debugging the full agent flow. The stack is pre-seeded with credentials on first startup.
+
+   a. Access the Langfuse UI at <http://localhost:3001> and log in with the pre-seeded credentials:
+      - Email: `admin@example.com`
+      - Password: `Password123!`
+
+   b. Set the pre-configured keys in your `.env`:
+
+   ```bash
+   LANGFUSE_HOST=http://localhost:3001
+   LANGFUSE_PUBLIC_KEY=zeno-public-key-123
+   LANGFUSE_SECRET_KEY=zeno-secret-key-123
+   LANGFUSE_TRACING_ENABLED=true
+   ```
+
+4. **Access the application:**
+
+   - Frontend: <http://localhost:8501>
+   - API: <http://localhost:8000>
+   - Langfuse: <http://localhost:3001>
 
 ## Development Commands
 
@@ -215,52 +291,3 @@ For user administration commands (making users admin), see [CLI Documentation](d
 
 The system automatically loads `.env`. To run only the frontend: `make frontend` or `uv run streamlit run frontend/app.py --server.port=8501`.
 
-## Setup Database
-
-1. Using docker (full stack; see `docker-compose.yaml`):
-
-   ```bash
-   docker compose up -d
-   # Frontend runs in a container; for local-only frontend: make frontend
-   ```
-
-2. Using postgresql:
-
-   a. Create a new database
-
-   ```bash
-   createuser -s postgres # if you don't have a postgres user
-   createdb -U postgres zeno-data-local
-   # Run migrations from the db directory (alembic reads DATABASE_URL from env; same URL as .env is fine)
-   cd db && DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-local alembic upgrade head && cd ..
-
-   # Check if you have the database running
-   psql zeno-data-local
-
-   # Check if you have the tables created
-   \dt
-
-   # Output
-   #               List of relations
-   #  Schema |      Name       | Type  |  Owner
-   # --------+-----------------+-------+----------
-   #  public | alembic_version | table | postgres
-   #  public | threads         | table | postgres
-   #  public | users           | table | postgres
-   ```
-
-   b. Add the database URL to the .env file:
-
-   ```bash
-   DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-local
-   ```
-
-## Configure localhost Langfuse (full docker-compose)
-
-When using the full stack (`docker compose up` with `docker-compose.yaml`), Langfuse and ClickHouse are included. For local dev with `make up` only, use the separate Langfuse setup in step 7 above.
-
-1. `docker compose up -d` (or run the `langfuse-web` service)
-2. Open <http://localhost:3000> and create a Langfuse account.
-3. In the Langfuse UI, create an organization and a project.
-4. Copy the project API keys (public and secret).
-5. Set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in your `.env` (or in `docker-compose.yaml` if you rely on env there).
