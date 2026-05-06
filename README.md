@@ -290,4 +290,3 @@ For user administration commands (making users admin), see [CLI Documentation](d
 - `.env` - Base configuration (production settings)
 
 The system automatically loads `.env`. To run only the frontend: `make frontend` or `uv run streamlit run frontend/app.py --server.port=8501`.
-
