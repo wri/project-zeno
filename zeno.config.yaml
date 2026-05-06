@@ -1,0 +1,4 @@
+components:
+  orchestrator: sonnet
+  geo: haiku
+  analyst: sonnet
