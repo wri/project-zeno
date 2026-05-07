@@ -199,7 +199,16 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-loc
 
 Runs all services — API, frontend, PostgreSQL, Langfuse, and ClickHouse — in containers using `docker-compose.yaml`.
 
-1. **Start all services:**
+1. **Environment configuration:**
+
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys and credentials
+   ```
+
+   Langfuse is pre-seeded and tracing is enabled automatically — no `.env` changes needed.
+
+2. **Start all services:**
 
    ```bash
    docker compose up -d
@@ -211,39 +220,28 @@ Runs all services — API, frontend, PostgreSQL, Langfuse, and ClickHouse — in
    make frontend
    ```
 
-2. **Ingest data (required after starting database):**
+3. **Ingest data (required after starting database):**
 
    Exec into the API container and run the ingestion scripts:
 
    ```bash
    docker compose exec api bash
-   python src/ingest/ingest_gadm.py
-   python src/ingest/ingest_kba.py
-   python src/ingest/ingest_landmark.py
-   python src/ingest/ingest_wdpa.py
+   uv python src/ingest/ingest_gadm.py
+   uv python src/ingest/ingest_kba.py
+   uv python src/ingest/ingest_landmark.py
+   uv python src/ingest/ingest_wdpa.py
    exit
    ```
 
    See `src/ingest/` directory for details on each ingestion script.
 
-3. **Configure Langfuse:**
+4. **Verify Langfuse:**
 
-   Langfuse traces every agent run, tool call, and LLM interaction — useful for debugging the full agent flow. The stack is pre-seeded with credentials on first startup.
+   Langfuse traces every agent run, tool call, and LLM interaction — useful for debugging the full agent flow. Access the UI at <http://localhost:3001> and log in with the pre-seeded credentials:
+   - Email: `admin@example.com`
+   - Password: `Password123!`
 
-   a. Access the Langfuse UI at <http://localhost:3001> and log in with the pre-seeded credentials:
-      - Email: `admin@example.com`
-      - Password: `Password123!`
-
-   b. Set the pre-configured keys in your `.env`:
-
-   ```bash
-   LANGFUSE_HOST=http://localhost:3001
-   LANGFUSE_PUBLIC_KEY=zeno-public-key-123
-   LANGFUSE_SECRET_KEY=zeno-secret-key-123
-   LANGFUSE_TRACING_ENABLED=true
-   ```
-
-4. **Access the application:**
+5. **Access the application:**
 
    - Frontend: <http://localhost:8501>
    - API: <http://localhost:8000>
