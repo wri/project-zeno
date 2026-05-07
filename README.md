@@ -241,6 +241,8 @@ Runs all services — API, frontend, PostgreSQL, Langfuse, and ClickHouse — in
    - Email: `admin@example.com`
    - Password: `Password123!`
 
+   > **Note:** The API container communicates with Langfuse on port 3000 (internal service name `langfuse-web:3000`). Port 3001 is only for browser access to the Langfuse UI.
+
 5. **Access the application:**
 
    - Frontend: <http://localhost:8501>
