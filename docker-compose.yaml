@@ -144,7 +144,7 @@ services:
     restart: always
     depends_on: *langfuse-depends-on
     ports:
-      - 3000:3000
+      - 3001:3000
     environment:
       <<: *langfuse-worker-env
       environment:
@@ -157,8 +157,8 @@ services:
       LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-Project Zeno}
       LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-zeno-public-key-123}
       LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-zeno-secret-key-123}
-      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-leo@developmentseed.org}
-      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-leo}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-admin@example.com}
+      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-admin}
       LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-Password123!}
 
     healthcheck:
@@ -225,7 +225,7 @@ services:
       retries: 10
 
   postgres:
-    image: docker.io/postgres:${POSTGRES_VERSION:-latest}
+    image: docker.io/postgres:${POSTGRES_VERSION:-16}
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
