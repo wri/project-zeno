@@ -31,15 +31,15 @@ services:
   frontend:
     build:
       context: .
-    command: ["uv", "run", "streamlit", "run", "src/frontend/app.py", "--server.port=8501", "--server.runOnSave=True"]
+    command: ["uv", "run", "streamlit", "run", "frontend/app.py", "--server.port=8501", "--server.runOnSave=True"]
     ports:
       - 8501:8501
     volumes:
       - ./src:/app/src
-      - ./client.py:/app/src/frontend/client.py
+      - ./frontend/client.py:/app/frontend/client.py
       - ./.env:/app/.env
     environment:
-      - API_BASE_URL=https://api.zeno-staging.ds.io
+      - API_BASE_URL=http://api:8000
       - LOCAL_API_BASE_URL=http://api:8000
       - STREAMLIT_URL=${STREAMLIT_URL:-http://localhost:8501}
 
