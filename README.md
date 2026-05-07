@@ -172,7 +172,7 @@ By default `make up` starts a PostgreSQL container. If you prefer to use a local
 createuser -s postgres # if you don't have a postgres user
 createdb -U postgres zeno-data-local
 # Run migrations from the db directory (alembic reads DATABASE_URL from env; same URL as .env is fine)
-cd db && DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-local alembic upgrade head && cd ..
+cd db && DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-local uv run alembic upgrade head && cd ..
 
 # Check if you have the database running
 psql zeno-data-local
