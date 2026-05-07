@@ -1,13 +1,14 @@
+from langgraph.store.base import BaseStore
+
 from src.agent.harness.artifact import Artifact
-from src.agent.harness.backends.protocol import ZenoBackend
 
 
 class AnalystAgent:
     """Stub analyst subagent. Builds a deterministic chart Artifact from
-    cached data referenced by stat_ids."""
+    cached data referenced by stat_ids stored in LangGraph Store."""
 
-    def __init__(self, backend: ZenoBackend) -> None:
-        self.backend = backend
+    def __init__(self, store: BaseStore) -> None:
+        self.store = store
 
     async def analyze(
         self,
@@ -18,8 +19,10 @@ class AnalystAgent:
     ) -> Artifact:
         rows: list[dict] = []
         for sid in stat_ids:
-            r, _meta = await self.backend.get_data(sid)
-            rows.extend(r)
+            items = await self.store.aget(("data",), sid)
+            if items is not None:
+                stored = items.value
+                rows.extend(stored.get("rows", []))
 
         agg: dict[str, float] = {}
         for row in rows:

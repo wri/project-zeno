@@ -1,4 +1,5 @@
-from src.agent.harness.backends.memory import InMemoryBackend
-from src.agent.harness.backends.protocol import ZenoBackend
+"""Backends module - DEPRECATED.
 
-__all__ = ["InMemoryBackend", "ZenoBackend"]
+Data and artifact storage now uses LangGraph's native Store
+(InMemoryStore or PostgresStore). See factory.py for usage.
+"""

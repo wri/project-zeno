@@ -1,4 +1,4 @@
-from src.agent.harness.protocol import AoiRef
+from src.agent.harness.state import AoiRef
 
 _FIXTURES: dict[str, list[AoiRef]] = {
     "para": [

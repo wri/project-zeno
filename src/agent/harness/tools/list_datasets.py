@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import yaml
-from langchain_core.tools import tool
+from langchain.tools import tool
 
 _DATASETS_DIR = (
     Path(__file__).resolve().parents[3] / "agent" / "tools" / "datasets"

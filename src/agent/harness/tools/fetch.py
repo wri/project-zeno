@@ -1,10 +1,10 @@
 import hashlib
+import json
 from datetime import date, timedelta
 
-from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import tool
-
-from src.agent.harness.protocol import DataFetchedEvent
+from langchain.tools import ToolRuntime, tool
+from langchain_core.messages import ToolMessage
+from langgraph.types import Command
 
 _DRIVERS = ["clearing", "fire", "logging", "settlements", "roads"]
 
@@ -51,15 +51,11 @@ async def fetch(
     dataset_id: str,
     start_date: str = "2024-01-01",
     end_date: str = "2024-12-31",
-    config: RunnableConfig = None,
-) -> dict:
+    runtime: ToolRuntime = None,
+) -> Command:
     """Pull data for the given AOIs and dataset over the date range.
-    Stores rows in the data cache and returns {stat_id, row_count,
-    columns, date_range}. The agent never sees raw rows here."""
-    session = (config or {}).get("configurable", {}).get("session")
-    if session is None:
-        raise RuntimeError("fetch tool requires a session in config")
-
+    Stores rows in cache and updates state with dataset_id and data_refs.
+    The agent never sees raw rows here."""
     stat_id = _stat_id(aoi_refs, dataset_id, (start_date, end_date))
     rows = _synthetic_rows(stat_id, start_date, end_date)
     meta = {
@@ -69,6 +65,16 @@ async def fetch(
         "dataset_id": dataset_id,
         "aoi_refs": aoi_refs,
     }
-    await session.backend.cache_data(stat_id, rows, meta)
-    session.emit(DataFetchedEvent(stat_id=stat_id, meta=meta))
-    return {"stat_id": stat_id, **meta}
+    store = runtime.store
+    if store is not None:
+        await store.aput(("data",), stat_id, {"rows": rows, "meta": meta})
+
+    runtime.stream_writer({"type": "data_fetched", "stat_id": stat_id, "meta": meta})
+    return Command(update={
+        "dataset_id": dataset_id,
+        "data_refs": [stat_id],
+        "messages": [ToolMessage(
+            content=json.dumps({"stat_id": stat_id, **meta}),
+            tool_call_id=runtime.tool_call_id,
+        )],
+    })

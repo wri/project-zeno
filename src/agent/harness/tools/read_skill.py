@@ -1,4 +1,4 @@
-from langchain_core.tools import tool
+from langchain.tools import tool
 
 from src.agent.harness.skills import get_skill_body
 
