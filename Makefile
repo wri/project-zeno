@@ -33,8 +33,8 @@ help: ## Show available commands
 # Development Workflows
 dev: up ## Start full development environment
 	@echo "🚀 Starting full development environment..."
-	@echo "📊 Langfuse: http://localhost:3000"
-	@echo "🗄️  PostgreSQL: localhost:5432"
+	@echo "📊 Langfuse: http://localhost:3001"
+	@echo "🗄️  PostgreSQL: localhost:5433"
 	@echo "🔧 API: http://localhost:8000"
 	@echo "🎨 Frontend: http://localhost:8501"
 	@echo ""

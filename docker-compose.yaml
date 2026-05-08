@@ -9,6 +9,7 @@ services:
       - LANGFUSE_HOST=http://langfuse-web:3000
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-zeno-public-key-123}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-zeno-secret-key-123}
+      - LANGFUSE_TRACING_ENABLED=true
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - WATCHFILES_FORCE_POLLING=1
@@ -31,15 +32,15 @@ services:
   frontend:
     build:
       context: .
-    command: ["uv", "run", "streamlit", "run", "src/frontend/app.py", "--server.port=8501", "--server.runOnSave=True"]
+    command: ["uv", "run", "streamlit", "run", "frontend/app.py", "--server.port=8501", "--server.runOnSave=True"]
     ports:
       - 8501:8501
     volumes:
       - ./src:/app/src
-      - ./client.py:/app/src/frontend/client.py
+      - ./frontend/client.py:/app/frontend/client.py
       - ./.env:/app/.env
     environment:
-      - API_BASE_URL=https://api.zeno-staging.ds.io
+      - API_BASE_URL=http://api:8000
       - LOCAL_API_BASE_URL=http://api:8000
       - STREAMLIT_URL=${STREAMLIT_URL:-http://localhost:8501}
 
@@ -144,7 +145,7 @@ services:
     restart: always
     depends_on: *langfuse-depends-on
     ports:
-      - 3000:3000
+      - 3001:3000
     environment:
       <<: *langfuse-worker-env
       environment:
@@ -157,8 +158,8 @@ services:
       LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-Project Zeno}
       LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-zeno-public-key-123}
       LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-zeno-secret-key-123}
-      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-leo@developmentseed.org}
-      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-leo}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-admin@example.com}
+      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-admin}
       LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-Password123!}
 
     healthcheck:
@@ -225,7 +226,7 @@ services:
       retries: 10
 
   postgres:
-    image: docker.io/postgres:${POSTGRES_VERSION:-latest}
+    image: docker.io/postgres:${POSTGRES_VERSION:-16}
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
