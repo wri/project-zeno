@@ -263,7 +263,9 @@ class ChartInsight(BaseModel):
     Represents a chart-based insight with Recharts-compatible data.
     """
 
-    title: str = Field(description="Clear, descriptive title for the chart")
+    title: str = Field(
+        description="Clear, descriptive, concise title for the chart, including dataset and contextual layers."
+    )
     chart_type: str = Field(
         description="Chart type: 'line', 'bar', 'stacked-bar', 'grouped-bar', 'pie', 'area', 'scatter', or 'table'"
     )
