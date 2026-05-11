@@ -371,6 +371,8 @@ async def query_subregion_database(
                 subregion_filter = src_id.split("_")[0]
             else:
                 subregion_filter = src_id
+
+            # filter for the next admin level within this admin ID
             gadm_filter = f" AND t.gadm_id LIKE '{subregion_filter}.%'"
         else:
             gadm_filter = f" AND t.gadm_id ~ '{GADM_STANDARD_ID_RE}'"
