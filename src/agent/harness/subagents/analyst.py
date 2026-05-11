@@ -1,11 +1,19 @@
+import json
+
+from langchain.tools import ToolRuntime, tool
+from langchain_core.messages import ToolMessage
 from langgraph.store.base import BaseStore
+from langgraph.types import Command
 
 from src.agent.harness.artifact import Artifact
 
 
 class AnalystAgent:
     """Stub analyst subagent. Builds a deterministic chart Artifact from
-    cached data referenced by stat_ids stored in LangGraph Store."""
+    cached data referenced by stat_ids stored in LangGraph Store.
+
+    Will be replaced by a DSPy agent.
+    """
 
     def __init__(self, store: BaseStore) -> None:
         self.store = store
@@ -74,3 +82,41 @@ class AnalystAgent:
                 "Compare to a neighbouring region",
             ],
         )
+
+
+@tool
+async def analyst_subagent(
+    task: str,
+    stat_ids: list[str],
+    dataset_id: str = "",
+    aoi_refs: list[dict] | None = None,
+    runtime: ToolRuntime = None,
+) -> Command:
+    """Build a chart artifact answering `task` from cached data
+    referenced by stat_ids. Returns artifact summary and updates
+    state.artifact_ids."""
+    analyst = AnalystAgent(store=runtime.store)
+    artifact = await analyst.analyze(
+        task=task,
+        stat_ids=stat_ids,
+        dataset_id=dataset_id or None,
+        aoi_refs=aoi_refs,
+    )
+    await runtime.store.aput(("artifacts",), artifact.id, artifact.to_dict())
+    runtime.stream_writer({
+        "type": "artifact",
+        "artifact": artifact.to_dict(),
+    })
+    summary = {
+        "artifact_id": artifact.id,
+        "title": artifact.title,
+        "type": artifact.type,
+        "follow_ups": artifact.follow_ups,
+    }
+    return Command(update={
+        "artifact_ids": [artifact.id],
+        "messages": [ToolMessage(
+            content=json.dumps(summary),
+            tool_call_id=runtime.tool_call_id,
+        )],
+    })

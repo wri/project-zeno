@@ -9,9 +9,8 @@ from langgraph.types import Command
 
 from src.agent.harness.artifact import Artifact
 from src.agent.harness.middleware import _format_session_block
-from src.agent.harness.subagents.analyst import AnalystAgent
-from src.agent.harness.subagents.geo import GeoAgent
-from src.agent.harness.subagents.wrap import make_analyst_tool, make_geo_tool
+from src.agent.harness.subagents.analyst import analyst_subagent
+from src.agent.harness.subagents.geo import geo_subagent
 from src.agent.harness.tools.fetch import fetch
 from src.agent.harness.tools.update_artifact import update_artifact
 
@@ -36,8 +35,7 @@ async def test_full_pipeline():
     store = InMemoryStore()
     rt, _, events = _make_runtime(store=store)
 
-    geo_tool = make_geo_tool(GeoAgent())
-    geo_result = await geo_tool.ainvoke({"query": "Para", "runtime": rt})
+    geo_result = await geo_subagent.ainvoke({"query": "Para", "runtime": rt})
     assert isinstance(geo_result, Command)
     refs = geo_result.update["aoi_refs"]
     assert refs[0]["src_id"] == "BRA.14_1"
@@ -52,8 +50,7 @@ async def test_full_pipeline():
     stat_id = fetch_result.update["data_refs"][0]
     assert await store.aget(("data",), stat_id) is not None
 
-    analyst_tool = make_analyst_tool(AnalystAgent(store=store))
-    art_result = await analyst_tool.ainvoke({
+    art_result = await analyst_subagent.ainvoke({
         "task": "bar chart of drivers",
         "stat_ids": [stat_id],
         "dataset_id": "tree_cover_loss",

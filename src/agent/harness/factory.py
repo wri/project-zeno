@@ -13,12 +13,8 @@ from src.agent.harness.models import ModelRegistry
 from src.agent.harness.prompts import build_orchestrator_prompt
 from src.agent.harness.skills import all_skills
 from src.agent.harness.state import ZenoState
-from src.agent.harness.subagents.analyst import AnalystAgent
-from src.agent.harness.subagents.geo import GeoAgent
-from src.agent.harness.subagents.wrap import (
-    make_analyst_tool,
-    make_geo_tool,
-)
+from src.agent.harness.subagents.analyst import analyst_subagent
+from src.agent.harness.subagents.geo import geo_subagent
 from src.agent.harness.tools import (
     execute,
     fetch,
@@ -56,9 +52,6 @@ def create_zeno_agent(
     if checkpointer is None:
         checkpointer = MemorySaver()
 
-    geo = GeoAgent()
-    analyst = AnalystAgent(store=store)
-
     tools = [
         list_datasets,
         fetch,
@@ -67,8 +60,8 @@ def create_zeno_agent(
         update_artifact,
         zoom_map,
         read_skill,
-        make_geo_tool(geo),
-        make_analyst_tool(analyst),
+        geo_subagent,
+        analyst_subagent,
     ]
 
     return create_agent(
