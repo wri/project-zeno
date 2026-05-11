@@ -1,5 +1,6 @@
 import sys
 import uuid
+from datetime import date
 from typing import Literal, Optional
 from unittest.mock import AsyncMock, patch
 
@@ -420,8 +421,13 @@ async def test_queries_return_expected_dataset(
 
     command = await pick_dataset.ainvoke(tool_call)
 
-    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    dataset = command.update.get("dataset", {})
+    dataset_id = dataset.get("dataset_id")
     assert lookup[dataset_id] == expected_dataset
+
+    assert dataset.get("start_date") and dataset.get("end_date")
+    date.fromisoformat(dataset["start_date"])
+    date.fromisoformat(dataset["end_date"])
 
 
 @pytest.mark.parametrize(
@@ -509,13 +515,17 @@ async def test_query_with_parameter(
 
     command = await pick_dataset.ainvoke(tool_call)
 
-    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    dataset = command.update.get("dataset", {})
+    dataset_id = dataset.get("dataset_id")
     assert dataset_id == expected_dataset_id
 
+    assert dataset["start_date"] == "2022-01-01"
+    assert dataset["end_date"] == "2022-12-31"
+
     if expected_parameter_name is None:
-        assert command.update.get("dataset", {}).get("parameters") is None
+        assert dataset.get("parameters") is None
     else:
-        param = command.update.get("dataset", {}).get("parameters")[0]
+        param = dataset.get("parameters")[0]
         assert param["name"] == expected_parameter_name
         assert expected_parameter_value in param["values"]
 

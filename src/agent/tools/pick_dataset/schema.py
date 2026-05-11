@@ -30,6 +30,14 @@ class DatasetOption(BaseModel):
     parameters: Optional[list[DatasetParameter]] = Field(
         None, description="Dataset specific parameters."
     )
+    start_date: Optional[str] = Field(
+        None,
+        description="Start date of the dataset that best matches the user query.",
+    )
+    end_date: Optional[str] = Field(
+        None,
+        description="End date of the dataset that best matches the user query.",
+    )
     reason: str = Field(
         description="Short reason why the dataset is the best match."
     )
