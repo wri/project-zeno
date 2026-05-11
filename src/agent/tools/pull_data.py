@@ -145,14 +145,20 @@ async def pull_data(
     raw_data["dataset_name"] = dataset["dataset_name"]
     raw_data["source_url"] = result.analytics_api_url
 
-    if range_clamped:
-        tool_messages.append(
-            f"Date range was adjusted to the dataset's available range: {effective_start} to {effective_end} "
-            f"(requested: {start_date} to {end_date})."
-        )
+    if tool_messages:
+        content = "|".join(tool_messages)
+        if range_clamped:
+            # Ensure that the agent mentions this warning in its final output.
+            content = (
+                f"TOOL_RESULT: {content}\n\n"
+                f"IMPORTANT INSTRUCTION FOR LLM: The user's specified date range ({start_date} to {end_date}) was adjusted to the dataset's available range: {effective_start} to {effective_end}."
+                "Please include a warning in the final response to the user describing the change to the date range"
+            )
+    else:
+        content = "No data pulled"
 
     tool_message = ToolMessage(
-        content="|".join(tool_messages) if tool_messages else "No data pulled",
+        content=content,
         tool_call_id=tool_call_id,
     )
 
