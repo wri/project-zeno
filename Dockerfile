@@ -31,4 +31,3 @@ WORKDIR /app
 
 # Install only the main dependencies - no dev deps
 RUN uv sync --frozen --no-dev
-
