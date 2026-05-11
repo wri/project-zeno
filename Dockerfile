@@ -32,4 +32,3 @@ WORKDIR /app
 # Install only the main dependencies - no dev deps
 RUN uv sync --frozen --no-dev
 
-RUN chmod +x /app/db/migrate.sh
