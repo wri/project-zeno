@@ -365,7 +365,7 @@ def _query_case_id(param):
             "2020-12-31",
         ),
         # This one is flaky since the question is ambiguous with our datasets
-        # ( 
+        # (
         #     "Compare tree cover in 2000 vs 2020 for Brazil",
         #     TREE_COVER_GAIN,
         #     "2000-01-01",
