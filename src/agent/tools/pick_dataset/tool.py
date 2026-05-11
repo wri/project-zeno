@@ -184,6 +184,8 @@ async def select_best_dataset(
         dataset_name=selected_row.dataset_name,
         context_layer=selection_result.context_layer,
         parameters=selection_result.parameters,
+        start_date=effective_start_date,
+        end_date=effective_end_date,
         reason=selection_result.reason,
         tile_url=dataset_tile_url,
         analytics_api_endpoint=selected_row.analytics_api_endpoint,
@@ -386,7 +388,7 @@ def get_tile_services_for_dataset(
         )
 
     if selected_row.dataset_id == TREE_COVER_LOSS_ID:
-        if end_date.year in range(2001, 2025):
+        if end_date.year in range(2001, 2026):
             tile_url += (
                 f"&start_year={start_date.year}&end_year={end_date.year}"
             )
@@ -395,10 +397,8 @@ def get_tile_services_for_dataset(
     elif selection_result.dataset_id == DIST_ALERT_ID:
         tile_url += f"&start_date={start_date}&end_date={end_date}"
     elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
-        if end_date.year in range(2000, 2023):
-            tile_url = tile_url.format(year=end_date.year)
-        else:
-            tile_url = tile_url.format(year="2022")
+        # Annual raster item in URL; start/end are already clamped to dataset YAML
+        tile_url = tile_url.format(year=end_date.year)
 
     return tile_url, context_layers
 
