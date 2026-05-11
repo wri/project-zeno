@@ -426,8 +426,11 @@ async def test_queries_return_expected_dataset(
     assert lookup[dataset_id] == expected_dataset
 
     assert dataset.get("start_date") and dataset.get("end_date")
-    date.fromisoformat(dataset["start_date"])
-    date.fromisoformat(dataset["end_date"])
+    for key in ("start_date", "end_date"):
+        try:
+            date.fromisoformat(dataset[key])
+        except ValueError:
+            assert False, f"{key} is not valid ISO 8601: {dataset[key]!r}"
 
 
 @pytest.mark.parametrize(
