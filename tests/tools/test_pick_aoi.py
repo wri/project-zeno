@@ -97,6 +97,43 @@ async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
     )
 
 
+@pytest.mark.parametrize(
+    "question,place,subregion,expected_num_aoi_ids",
+    [
+        (
+            "Which county has the most deforestation in Alabama, USA",
+            "Alabama, USA",
+            "district",
+            67,
+        ),
+        (
+            "Which state has the most deforestation in Brazil",
+            "Brazil",
+            "state",
+            27,
+        ),
+    ],
+)
+async def test_query_aoi_subregion(
+    question, place, subregion, expected_num_aoi_ids, structlog_context
+):
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": question,
+                "places": [place],
+                "subregion": subregion,
+            },
+            "id": str(uuid.uuid4()),
+            "type": "tool_call",
+        }
+    )
+    assert (
+        len(command.update.get("aoi_selection", {}).get("aois"))
+        == expected_num_aoi_ids
+    )
+
+
 async def test_custom_area_selection(auth_override, client, structlog_context):
     # Override auth to use a deterministic user/email
     from src.api.auth.dependencies import fetch_user_from_rw_api

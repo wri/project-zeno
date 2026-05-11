@@ -366,10 +366,13 @@ async def query_subregion_database(
 
     if table_name == GADM_TABLE:
         if source == "gadm":
-            if "." in src_id:
-                subregion_filter = ".".join(src_id.split(".")[:-1])
+            # remove _1/_2 GADM suffix
+            if "_" in src_id:
+                subregion_filter = src_id.split("_")[0]
             else:
                 subregion_filter = src_id
+
+            # filter for the next admin level within this admin ID
             gadm_filter = f" AND t.gadm_id LIKE '{subregion_filter}.%'"
         else:
             gadm_filter = f" AND t.gadm_id ~ '{GADM_STANDARD_ID_RE}'"
