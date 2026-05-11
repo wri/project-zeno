@@ -114,7 +114,9 @@ async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
         ),
     ],
 )
-async def test_query_aoi_subregion(question, place, subregion, expected_num_aoi_ids, structlog_context):
+async def test_query_aoi_subregion(
+    question, place, subregion, expected_num_aoi_ids, structlog_context
+):
     command = await pick_aoi.ainvoke(
         {
             "args": {
@@ -126,7 +128,10 @@ async def test_query_aoi_subregion(question, place, subregion, expected_num_aoi_
             "type": "tool_call",
         }
     )
-    assert len(command.update.get("aoi_selection", {}).get("aois")) == expected_num_aoi_ids
+    assert (
+        len(command.update.get("aoi_selection", {}).get("aois"))
+        == expected_num_aoi_ids
+    )
 
 
 async def test_custom_area_selection(auth_override, client, structlog_context):
