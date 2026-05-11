@@ -32,11 +32,11 @@ class DatasetOption(BaseModel):
     )
     start_date: Optional[str] = Field(
         None,
-        description="Start date of the dataset that best matches the user query.",
+        description="User defined start date truncated to the dataset's available range.",
     )
     end_date: Optional[str] = Field(
         None,
-        description="End date of the dataset that best matches the user query.",
+        description="User defined end date truncated to the dataset's available range.",
     )
     reason: str = Field(
         description="Short reason why the dataset is the best match."
