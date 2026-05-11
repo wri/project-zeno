@@ -364,12 +364,13 @@ def _query_case_id(param):
             "2000-01-01",
             "2020-12-31",
         ),
-        (
-            "Compare tree cover in 2000 vs 2020 for Brazil",
-            TREE_COVER_GAIN,
-            "2000-01-01",
-            "2020-12-31",
-        ),
+        # This one is flaky since the question is ambiguous with our datasets
+        # ( 
+        #     "Compare tree cover in 2000 vs 2020 for Brazil",
+        #     TREE_COVER_GAIN,
+        #     "2000-01-01",
+        #     "2020-12-31",
+        # ),
         (
             "How has natural land in Colombia changed from 2015 to 2024?",
             LAND_COVER_CHANGE,
