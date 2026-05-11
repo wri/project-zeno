@@ -13,6 +13,7 @@ from src.agent.config import AgentSettings
 from src.agent.tools.code_executors.base import (
     CodeActPart,
     ExecutionResult,
+    MultiChartInsight,
     PartType,
 )
 from src.shared.logging_config import get_logger
@@ -126,6 +127,7 @@ class GeminiCodeExecutor:
         """Parse a generate_content response into ExecutionResult."""
         parts = []
         chart_data = None
+        multi_chart_insight = None
 
         for part in response.candidates[0].content.parts:
             if part.text:
@@ -166,9 +168,25 @@ class GeminiCodeExecutor:
                 except Exception as e:
                     logger.error(f"Failed to parse chart_data: {e}")
 
+            if (
+                part.inline_data
+                and part.inline_data.mime_type == "application/json"
+            ):
+                try:
+                    data = part.inline_data.data.decode("utf-8")
+                    multi_chart_insight = (
+                        MultiChartInsight.model_validate_json(data)
+                    )
+                    logger.debug(
+                        f"Parsed multi_chart_insight: {multi_chart_insight}"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to parse multi_chart_insight: {e}")
+
         return ExecutionResult(
             parts=parts,
             chart_data=chart_data,
+            insight=multi_chart_insight,
             error=None,
         )
 
