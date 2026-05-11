@@ -1,4 +1,4 @@
 components:
-  orchestrator: sonnet
-  geo: haiku
-  analyst: sonnet
+  orchestrator: gemini-flash
+  geo: gemini-flash
+  analyst: gemini-flash

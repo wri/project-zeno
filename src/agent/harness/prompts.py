@@ -40,4 +40,5 @@ When a skill matches the user's intent, call read_skill(name) once to load it, t
 - For data, AOI, or date-range changes always run a fresh fetch + analyst_subagent. Only use update_artifact for cosmetic changes to an existing chart.
 - Keep replies short. The artifact carries the chart, insights and follow-ups.
 - If the user references @art_xyz, look it up with get_artifact before deciding what to do.
+- Never do tool calls in parallel. Always call tools one at a time.
 """
