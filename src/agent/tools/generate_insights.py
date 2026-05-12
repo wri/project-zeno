@@ -1,3 +1,4 @@
+import asyncio
 import re
 from typing import Annotated, Dict, List, Optional
 
@@ -16,6 +17,8 @@ from src.agent.tools.code_executors.base import (
     MultiChartInsight,
     PartType,
 )
+from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
@@ -23,20 +26,35 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def prepare_dataframes(
+def _get_available_datasets() -> str:
+    """Get a concise list of available datasets from the datasets configuration."""
+    dataset_names = []
+    for dataset in DATASETS:
+        dataset_names.append(dataset["dataset_name"])
+
+    return ", ".join(dataset_names)
+
+
+async def prepare_dataframes(
     statistics: list[dict],
 ) -> tuple[List[tuple[pd.DataFrame, str]], List]:
     """
     Prepare DataFrames from raw data for code executor.
+
+    Fetches all source URLs concurrently, then builds DataFrames in order.
     """
+    raw_results = await asyncio.gather(
+        *[fetch_statistics_from_url(s["source_url"]) for s in statistics]
+    )
+
     dataframes = []
     source_urls = []
 
-    for data in statistics:
-        if not data:
+    for data, raw_data in zip(statistics, raw_results):
+        if not raw_data:
             continue
 
-        df = pd.DataFrame(data["data"])
+        df = pd.DataFrame(raw_data)
         if len(df) > 1:
             constants = df.nunique() == 1
             logger.debug(
@@ -322,8 +340,8 @@ async def generate_insights(
 
     statistics = state["statistics"]
 
-    # 1. PREPARE DATAFRAMES: Convert raw_data to DataFrames
-    dataframes, source_urls = prepare_dataframes(statistics)
+    # 1. PREPARE DATAFRAMES: Fetch data from source URLs and build DataFrames
+    dataframes, source_urls = await prepare_dataframes(statistics)
     logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
 
     # 2. EXTRACT DATASET GUIDELINES: Get dataset-specific instructions early

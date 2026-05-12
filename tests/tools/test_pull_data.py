@@ -288,7 +288,6 @@ async def test_pull_data_persists_statistics(monkeypatch):
     assert statistics_row.dataset_name == "Tree cover loss"
     assert statistics_row.start_date == "2020-01-01"
     assert statistics_row.end_date == "2020-12-31"
-    assert statistics_row.data == statistics[0]["data"]
     assert statistics_row.aoi_names == ["Brazil"]
     assert statistics_row.parameters == [
         {"name": "canopy_cover", "values": [75]}

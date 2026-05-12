@@ -196,7 +196,6 @@ class StatisticsOrm(Base):
     start_date = Column(String, nullable=False)
     end_date = Column(String, nullable=False)
     source_url = Column(String, nullable=True)
-    data = Column(JSONB, nullable=False)
     aoi_names = Column(JSONB, nullable=False, server_default="[]")
     parameters = Column(JSONB, nullable=True)
     context_layer = Column(String, nullable=True)

@@ -1,7 +1,7 @@
 """add_statistics_table
 
 Revision ID: 9f8e7d6c5b4a
-Revises: 75841e9932e5
+Revises: 73c0c72faa9e
 Create Date: 2026-04-27 10:49:00.000000
 
 """
@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "9f8e7d6c5b4a"
-down_revision: Union[str, None] = "75841e9932e5"
+down_revision: Union[str, None] = "73c0c72faa9e"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -34,11 +34,6 @@ def upgrade() -> None:
         sa.Column("start_date", sa.String(), nullable=False),
         sa.Column("end_date", sa.String(), nullable=False),
         sa.Column("source_url", sa.String(), nullable=True),
-        sa.Column(
-            "data",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=False,
-        ),
         sa.Column(
             "aoi_names",
             postgresql.JSONB(astext_type=sa.Text()),
