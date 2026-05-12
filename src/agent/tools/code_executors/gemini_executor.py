@@ -13,6 +13,7 @@ from src.agent.config import AgentSettings
 from src.agent.tools.code_executors.base import (
     CodeActPart,
     ExecutionResult,
+    MultiChartInsight,
     PartType,
 )
 from src.shared.logging_config import get_logger
@@ -122,10 +123,28 @@ class GeminiCodeExecutor:
                     await asyncio.sleep(delay)
         raise cast(Exception, last_error)
 
+    def _log_code_and_outputs(self, parts: List[CodeActPart]) -> None:
+        """Log every code block and execution stdout from Gemini at INFO."""
+        segments: List[str] = []
+        n_code = 0
+        n_out = 0
+        for part in parts:
+            if part.type == PartType.CODE_BLOCK:
+                n_code += 1
+                segments.append(f"--- code_block {n_code} ---\n{part.content}")
+            elif part.type == PartType.EXECUTION_OUTPUT:
+                n_out += 1
+                segments.append(
+                    f"--- execution_output {n_out} ---\n{part.content}"
+                )
+        if segments:
+            logger.debug("Executor code and outputs:\n" + "\n".join(segments))
+
     def _parse_response(self, response) -> ExecutionResult:
         """Parse a generate_content response into ExecutionResult."""
         parts = []
         chart_data = None
+        multi_chart_insight = None
 
         for part in response.candidates[0].content.parts:
             if part.text:
@@ -166,9 +185,27 @@ class GeminiCodeExecutor:
                 except Exception as e:
                     logger.error(f"Failed to parse chart_data: {e}")
 
+            if (
+                part.inline_data
+                and part.inline_data.mime_type == "application/json"
+            ):
+                try:
+                    data = part.inline_data.data.decode("utf-8")
+                    multi_chart_insight = (
+                        MultiChartInsight.model_validate_json(data)
+                    )
+                    logger.debug(
+                        f"Parsed multi_chart_insight: {multi_chart_insight}"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to parse multi_chart_insight: {e}")
+
+        self._log_code_and_outputs(parts)
+
         return ExecutionResult(
             parts=parts,
             chart_data=chart_data,
+            insight=multi_chart_insight,
             error=None,
         )
 
@@ -201,5 +238,6 @@ class GeminiCodeExecutor:
         return ExecutionResult(
             parts=[],
             chart_data=None,
+            insight=None,
             error=str(last_error),
         )

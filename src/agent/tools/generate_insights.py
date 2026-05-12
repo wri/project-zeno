@@ -8,27 +8,19 @@ from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
-from pydantic import BaseModel, Field
 
-from src.agent.llms import GEMINI_FLASH
 from src.agent.prompts import WORDING_INSTRUCTIONS
 from src.agent.tools.code_executors import GeminiCodeExecutor
-from src.agent.tools.code_executors.base import PartType
-from src.agent.tools.datasets_config import DATASETS
+from src.agent.tools.code_executors.base import (
+    ChartInsight,
+    MultiChartInsight,
+    PartType,
+)
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-
-def _get_available_datasets() -> str:
-    """Get a concise list of available datasets from the datasets configuration."""
-    dataset_names = []
-    for dataset in DATASETS:
-        dataset_names.append(dataset["dataset_name"])
-
-    return ", ".join(dataset_names)
 
 
 def prepare_dataframes(
@@ -133,6 +125,7 @@ def build_analysis_prompt(
     query: str,
     file_references: str,
     dataset_guidelines: str = "",
+    dataset_cautions: str = "",
     code_instructions: str | None = None,
     context_layer: str | None = None,
 ) -> str:
@@ -143,6 +136,7 @@ def build_analysis_prompt(
         query: User's analysis query
         file_references: Executor-specific file reference section
         dataset_guidelines: Dataset-specific instructions for metric selection
+        dataset_cautions: Dataset-specific cautions
         code_instructions: Dataset-specific chart type and data shaping rules (tiered PoC)
         context_layer: Active context layer name, if any (e.g. "driver")
 
@@ -154,6 +148,14 @@ def build_analysis_prompt(
         guidelines_section = f"""
 ### Dataset-Specific Guidelines (IMPORTANT - follow these for metric selection):
 {dataset_guidelines}
+---
+"""
+
+    cautions_section = ""
+    if dataset_cautions:
+        cautions_section = f"""
+### Dataset-Specific Cautions:
+{dataset_cautions}
 ---
 """
 
@@ -183,8 +185,11 @@ For example: "I will begin by loading and examining" -> "Load and examine"
 ---
 {guidelines_section}
 {dataset_rules_section}
+{cautions_section}
 
 ### STEP-BY-STEP WORKFLOW (follow in order):
+
+IMPORTANT: Write one code block for each step, so that you can use the actual data printed for the next steps.
 
 **STEP 1: ANALYZE THE DATA**
 - Load the relevant dataset(s) using pandas.
@@ -247,69 +252,29 @@ Now prepare the data for visualization in Recharts.js:
    The final code execution step must call ...to_csv('chart_data.csv', index=False) with that exact path.
    This is also true for table chart type, always store the output to a file!
 
-   d) **PRINT CHART TYPE**: Clearly state your recommended chart type in the output
+   d) **SAVE THE INSIGHT**: Save the insight as a JSON file with the name `insight.json`.
+   This is ABSOLUTELY CRITICAL. Always save the insight to a file with the name `insight.json`.
+   Do not replace insight.json with a markdown table; the pipeline only reads the JSON artifact.
+   The final code execution step must call ...to_json('insight.json', orient='records') with that exact path.
+   This is also true for table chart type, always store the output to a file!
+
+   Here is the JSON schema for the insight:
+   {MultiChartInsight.model_json_schema()}
+
+   Here is the JSON schema for the chart data:
+   {ChartInsight.model_json_schema()}
+
+   e) **PRINT CHART TYPE**: Clearly state your recommended chart type in the output
 
 **STEP 4: FINAL DATA-DRIVEN INSIGHT**
 - Provide a concise, data-driven insight (2-3 sentences)
 - Focus on what the data reveals and why it matters
 - Base this on the actual numbers and patterns you found
+
+{WORDING_INSTRUCTIONS}
 """
 
     return prompt
-
-
-class ChartInsight(BaseModel):
-    """
-    Represents a chart-based insight with Recharts-compatible data.
-    """
-
-    title: str = Field(
-        description="Clear, descriptive, concise title for the chart, including dataset and contextual layers."
-    )
-    chart_type: str = Field(
-        description="Chart type: 'line', 'bar', 'stacked-bar', 'grouped-bar', 'pie', 'area', 'scatter', or 'table'"
-    )
-    x_axis: str = Field(
-        description="Name of the field to use for X-axis (for applicable chart types)"
-    )
-    y_axis: str = Field(
-        description="Name of the field to use for Y-axis (for applicable chart types)"
-    )
-    color_field: str = Field(
-        default="",
-        description="Optional field name for color grouping/categorization",
-    )
-    stack_field: str = Field(
-        default="",
-        description="Field name for stacking data (for stacked-bar charts)",
-    )
-    group_field: str = Field(
-        default="",
-        description="Field name for grouping bars (for grouped-bar charts)",
-    )
-    series_fields: List[str] = Field(
-        default=[],
-        description="List of field names for multiple data series (for multi-bar charts)",
-    )
-
-
-class MultiChartInsight(BaseModel):
-    """
-    Represents multiple chart-based insights from a single analysis.
-    Used when the data supports multiple visualizations (e.g., tree cover loss AND emissions).
-    """
-
-    charts: List[ChartInsight] = Field(
-        min_length=1,
-        max_length=2,
-        description="List of 1-2 charts to display, each with title, type, and field mappings",
-    )
-    primary_insight: str = Field(
-        description="Overall insight that ties all charts together (2-3 sentences)"
-    )
-    follow_up_suggestions: List[str] = Field(
-        description="List of 1-2 follow-up suggestions based on available data and capability"
-    )
 
 
 @tool("generate_insights")
@@ -361,7 +326,9 @@ async def generate_insights(
     dataset_guidelines = (
         "" if code_instructions else dataset.get("prompt_instructions", "")
     )
-
+    dataset_cautions = dataset.get(
+        "cautions", "No specific dataset cautions provided."
+    )
     # 3. INITIALIZE EXECUTOR: Create Gemini code executor
     executor = GeminiCodeExecutor()
 
@@ -371,6 +338,7 @@ async def generate_insights(
         query,
         file_references,
         dataset_guidelines=dataset_guidelines,
+        dataset_cautions=dataset_cautions,
         code_instructions=code_instructions,
         context_layer=dataset.get("context_layer"),
     )
@@ -433,121 +401,34 @@ async def generate_insights(
 
     # 6. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
     chart_data_df = pd.DataFrame(result.chart_data)
-    available_datasets = _get_available_datasets()
-    # Prefer presentation_instructions (tiered PoC) over prompt_instructions (legacy blob)
-    dataset_guidelines = (
-        dataset.get("presentation_instructions")
-        or dataset.get("prompt_instructions")
-        or "No specific dataset guidelines provided."
-    )
-    dataset_cautions = dataset.get(
-        "cautions", "No specific dataset cautions provided."
-    )
-
-    # Build dataset list
-    dataset_list = "\n".join(
-        [f"- {display_name}" for _, display_name in dataframes]
-    )
-
-    chart_insight_prompt = f"""Generate structured chart metadata from the analysis output below.
-
-### User Query
-{query}
-
-### Available Datasets (only a subset of these was used in the analysis)
-{dataset_list}
-
-### Analysis Output (includes recommended chart type)
-{text_output}
-
-### Chart Data Preview (first 5 rows)
-{chart_data_df.head().to_csv(index=False)}
-Total rows: {len(chart_data_df)}
-
-### Dataset Context
-Guidelines: {dataset_guidelines}
-Cautions: {dataset_cautions}
-
-### Requirements
-1. **Language**: Generate ALL content in the SAME LANGUAGE as the user query
-2. **Multiple Charts + Data Constraint**: Generate 1-2 complementary charts
-   only when both can be built from the SAME shared `chart_data` table
-   (same rows/grain), using exact existing column names in chart fields.
-   Otherwise, generate exactly 1 chart.
-3. **Data Format**: Generate structure in Recharts.js data format - specify field names that map to the chart data columns
-4. **Narrative Placement**: Put narrative text ONLY at top-level: `primary_insight` and `follow_up_suggestions`. Do NOT include narrative fields inside chart objects.
-
-5. **Field Mapping Rules by Chart Type**:
-
-   **Single-series (line/bar/area/scatter):**
-   - x_axis: Column name for X-axis (e.g., 'year', 'date', 'category')
-   - y_axis: Column name for Y-axis (e.g., 'value', 'count')
-   - series_fields: [] (empty)
-   - group_field: "" (empty)
-
-   **Multi-series line/bar/area (WIDE format):**
-   - x_axis: Column name for X-axis (e.g., 'year')
-   - y_axis: "" (empty or descriptive label like "Tree Cover Loss (hectares)")
-   - series_fields: List of metric column names (e.g., ['jharkhand_loss', 'odisha_loss'])
-   - group_field: "" (empty)
-
-   **Stacked-bar (WIDE format):**
-   - x_axis: Column name for categories (e.g., 'region', 'year')
-   - y_axis: "" (empty or descriptive label)
-   - series_fields: List of metric column names to stack (e.g., ['forest', 'grassland', 'urban'])
-   - group_field: "" (empty)
-
-   **Grouped-bar (LONG format):**
-   - x_axis: Column name for X-axis (e.g., 'year')
-   - y_axis: Column name for values (e.g., 'value', 'hectares')
-   - series_fields: [] (empty)
-   - group_field: Column name for grouping (e.g., 'metric', 'type')
-
-   **Pie:**
-   - x_axis: Column name for categories (e.g., 'name', 'category')
-   - y_axis: Column name for values (e.g., 'value', 'count')
-   - series_fields: [] (empty)
-   - group_field: "" (empty)
-
-6. **Follow-ups**: Pick 1-2 suggestions from the capabilities below that are most relevant to the query:
-   - Analyze a different or nearby area
-   - Pull data from other available datasets: {available_datasets}
-   - Show trend over a different time period
-   - Compare results at a different parameter value (e.g. a different canopy cover threshold or context layer)
-   - Break down by category or identify top performers
-
-{WORDING_INSTRUCTIONS}
-"""
-
-    chart_insight_response = await GEMINI_FLASH.with_structured_output(
-        MultiChartInsight
-    ).ainvoke(chart_insight_prompt)
 
     # 7. BUILD RESPONSE - Support multiple charts
-    tool_message = f"Generated {len(chart_insight_response.charts)} chart(s)\n"
-    tool_message += (
-        f"Key Finding: {chart_insight_response.primary_insight}\n\n"
-    )
+    tool_message = f"Generated {len(result.insight.charts)} chart(s)\n"
+    tool_message += f"Key Finding: {result.insight.primary_insight}\n\n"
 
-    for idx, chart in enumerate(chart_insight_response.charts, 1):
+    for idx, chart in enumerate(result.insight.charts, 1):
         tool_message += f"Chart {idx}: {chart.title}\n"
 
+    MAX_CHART_DATA_ROWS_FOR_TOOL_MESSAGE = 50
+    if len(chart_data_df) < MAX_CHART_DATA_ROWS_FOR_TOOL_MESSAGE:
+        tool_message += (
+            f"\nChart data CSV:\n{chart_data_df.to_csv(index=False)}"
+        )
+
     tool_message += "\nFollow-up suggestions:"
-    for i, suggestion in enumerate(
-        chart_insight_response.follow_up_suggestions, 1
-    ):
+    for i, suggestion in enumerate(result.insight.follow_up_suggestions, 1):
         tool_message += f"\n{i}. {suggestion}"
 
     # 8. BUILD INLINE STATE (kept for backwards compatibility during migration)
     encoded_parts = result.get_encoded_parts()
     charts_data = []
-    for idx, chart in enumerate(chart_insight_response.charts):
+    for idx, chart in enumerate(result.insight.charts):
         charts_data.append(
             {
                 "id": f"chart_{idx}",
                 "title": chart.title,
                 "type": chart.chart_type,
-                "insight": chart_insight_response.primary_insight,
+                "insight": result.insight.primary_insight,
                 "data": result.chart_data,
                 "xAxis": chart.x_axis,
                 "yAxis": chart.y_axis,
@@ -565,15 +446,15 @@ Cautions: {dataset_cautions}
         insight_row = InsightOrm(
             user_id=ctx.get("user_id"),
             thread_id=ctx.get("thread_id", ""),
-            insight_text=chart_insight_response.primary_insight,
-            follow_up_suggestions=chart_insight_response.follow_up_suggestions,
+            insight_text=result.insight.primary_insight,
+            follow_up_suggestions=result.insight.follow_up_suggestions,
             codeact_types=[p["type"] for p in encoded_parts],
             codeact_contents=[p["content"] for p in encoded_parts],
         )
         session.add(insight_row)
         await session.flush()
 
-        for idx, chart in enumerate(chart_insight_response.charts):
+        for idx, chart in enumerate(result.insight.charts):
             session.add(
                 InsightChartOrm(
                     insight_id=insight_row.id,
@@ -599,8 +480,8 @@ Cautions: {dataset_cautions}
 
     updated_state = {
         "insight_id": insight_id,
-        "insight": chart_insight_response.primary_insight,
-        "follow_up_suggestions": chart_insight_response.follow_up_suggestions,
+        "insight": result.insight.primary_insight,
+        "follow_up_suggestions": result.insight.follow_up_suggestions,
         "codeact_parts": encoded_parts,
         "charts_data": charts_data,
         "messages": [
