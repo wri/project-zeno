@@ -13,12 +13,15 @@ from src.api.routers.thumbnails import (
     _FILL_OPACITY,
     _MAX_OVERLAY_CHARS,
     _STROKE_COLOR,
+    _crosses_antimeridian,
     _drop_empty_parts,
+    _drop_interior_rings,
     _encode_overlay,
     _filter_small_parts,
     _fit_overlay,
     _geojson_feature,
     _simplify,
+    _strip_antimeridian_spillover,
     _to_feature_collection,
 )
 
@@ -222,6 +225,49 @@ def test_drop_empty_parts_single_survivor_is_polygon():
 
 
 # ---------------------------------------------------------------------------
+# _drop_interior_rings
+# ---------------------------------------------------------------------------
+
+
+def test_drop_interior_rings_removes_holes_from_polygon():
+    outer = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+    hole = [(2, 2), (4, 2), (4, 4), (2, 4), (2, 2)]
+    poly = shapely.geometry.Polygon(outer, [hole])
+    assert len(list(poly.interiors)) == 1
+    result = _drop_interior_rings(poly)
+    assert result.geom_type == "Polygon"
+    assert len(list(result.interiors)) == 0
+    assert result.exterior.equals(poly.exterior)
+
+
+def test_drop_interior_rings_multipolygon():
+    outer = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+    hole = [(2, 2), (4, 2), (4, 4), (2, 4), (2, 2)]
+    p1 = shapely.geometry.Polygon(outer, [hole])
+    p2 = _square(20, 20, size=5)
+    mp = shapely.geometry.MultiPolygon([p1, p2])
+    result = _drop_interior_rings(mp)
+    assert all(len(list(p.interiors)) == 0 for p in result.geoms)
+
+
+def test_drop_interior_rings_no_holes_unchanged():
+    poly = _square(0, 0, size=5)
+    result = _drop_interior_rings(poly)
+    assert result.exterior.equals(poly.exterior)
+
+
+def test_simplify_strips_interior_rings():
+    """After simplification, interior rings must be absent from the output."""
+    outer = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+    hole = [(2, 2), (4, 2), (4, 4), (2, 4), (2, 2)]
+    poly_with_hole = shapely.geometry.Polygon(outer, [hole])
+    geom = shapely.geometry.mapping(poly_with_hole)
+    result = _simplify(geom, 0.001)
+    result_shape = shapely.geometry.shape(result)
+    assert len(list(result_shape.interiors)) == 0
+
+
+# ---------------------------------------------------------------------------
 # _simplify
 # ---------------------------------------------------------------------------
 
@@ -253,6 +299,89 @@ def test_simplify_returns_original_on_bad_geometry():
 
 
 # ---------------------------------------------------------------------------
+# _crosses_antimeridian
+# ---------------------------------------------------------------------------
+
+
+def _russia_like() -> shapely.geometry.MultiPolygon:
+    """Two patches mimicking Russia: main landmass (19°–180°) + Chukotka (−170°–−155°).
+
+    Chukotka is sized so its area fraction (~2.7%) exceeds the 0.5% filter threshold.
+    """
+    main = shapely.geometry.box(19, 41, 180, 82)
+    chukotka = shapely.geometry.box(-170, 60, -155, 72)
+    return shapely.geometry.MultiPolygon([main, chukotka])
+
+
+def test_crosses_antimeridian_true_for_russia_like():
+    assert _crosses_antimeridian(_russia_like()) is True
+
+
+def test_crosses_antimeridian_false_for_normal_geometry():
+    brazil = shapely.geometry.box(-73, -34, -28, 5)
+    assert _crosses_antimeridian(brazil) is False
+
+
+def test_crosses_antimeridian_false_for_new_zealand():
+    nz = shapely.geometry.box(166, -48, 178, -34)
+    assert _crosses_antimeridian(nz) is False
+
+
+# ---------------------------------------------------------------------------
+# _strip_antimeridian_spillover
+# ---------------------------------------------------------------------------
+
+
+def test_strip_antimeridian_spillover_removes_minority_side():
+    """Chukotka (negative lons, small area) must be removed; main Russia kept."""
+    shape = _russia_like()
+    result = _strip_antimeridian_spillover(shape)
+    coords = shapely.get_coordinates(result)
+    lons = coords[:, 0]
+    assert (
+        lons >= 0
+    ).all(), f"Expected only non-negative lons, got min={lons.min()}"
+
+
+def test_strip_antimeridian_spillover_non_crossing_unchanged():
+    shape = shapely.geometry.box(0, 0, 10, 10)
+    result = _strip_antimeridian_spillover(shape)
+    assert result is shape
+
+
+def test_strip_antimeridian_spillover_non_multipolygon_unchanged():
+    """A single Polygon crossing the antimeridian is returned as-is."""
+    # A single polygon that spans from -100 to +100 (crosses detection threshold)
+    shape = shapely.geometry.box(-100, 0, 100, 10)
+    result = _strip_antimeridian_spillover(shape)
+    assert result is shape  # non-MultiPolygon passed through
+
+
+def test_strip_antimeridian_spillover_result_does_not_cross():
+    """After stripping, the shape must no longer cross the antimeridian."""
+    shape = _russia_like()
+    result = _strip_antimeridian_spillover(shape)
+    assert not _crosses_antimeridian(result)
+
+
+def test_strip_antimeridian_spillover_usa_like():
+    """For USA-like geometry (dominant side is negative lons), keep the negative side."""
+    contiguous = shapely.geometry.box(
+        -124, 24, -66, 49
+    )  # contiguous USA (large)
+    aleutians = shapely.geometry.box(
+        172, 51, 175, 53
+    )  # Attu Island, positive lons (tiny)
+    usa = shapely.geometry.MultiPolygon([contiguous, aleutians])
+    result = _strip_antimeridian_spillover(usa)
+    coords = shapely.get_coordinates(result)
+    lons = coords[:, 0]
+    assert (
+        lons <= 0
+    ).all(), f"Expected only non-positive lons, got max={lons.max()}"
+
+
+# ---------------------------------------------------------------------------
 # _fit_overlay
 # ---------------------------------------------------------------------------
 
@@ -268,6 +397,33 @@ def test_fit_overlay_complex_geometry_within_budget():
     mp = shapely.geometry.mapping(shapely.geometry.MultiPolygon(polys))
     encoded = _fit_overlay(mp)
     assert len(encoded) <= _MAX_OVERLAY_CHARS
+
+
+def test_fit_overlay_russia_like_within_budget():
+    """Russia-like antimeridian geometry must fit after stripping."""
+    mp = shapely.geometry.mapping(_russia_like())
+    encoded = _fit_overlay(mp)
+    assert len(encoded) <= _MAX_OVERLAY_CHARS
+    # Decoded overlay must have no negative lons (Chukotka stripped)
+    decoded = json.loads(urllib.parse.unquote(encoded))
+    geom = decoded.get("geometry", decoded)
+    coords_raw = geom.get("coordinates", [])
+
+    def all_lons(obj):
+        if isinstance(obj, list):
+            if len(obj) >= 2 and isinstance(obj[0], (int, float)):
+                return [obj[0]]
+            result = []
+            for item in obj:
+                result.extend(all_lons(item))
+            return result
+        return []
+
+    lons = all_lons(coords_raw)
+    assert lons, "No coordinates found in overlay"
+    assert all(
+        lon >= 0 for lon in lons
+    ), f"Found negative lon in overlay: {min(lons)}"
 
 
 # ---------------------------------------------------------------------------
@@ -438,6 +594,67 @@ async def test_thumbnail_custom_dimensions_in_mapbox_url(
     assert response.status_code == 200
     called_url = mock_client.get.call_args[0][0]
     assert "640x480" in called_url
+
+
+@pytest.mark.asyncio
+async def test_thumbnail_uses_auto_camera_with_padding(client, auth_override):
+    """Overlay must always use 'auto' camera with padding (no explicit center+zoom)."""
+    auth_override("test-user-1")
+    mock_cls, mock_client = _mapbox_mock()
+
+    with (
+        patch("src.api.routers.thumbnails.APISettings") as mock_settings,
+        patch(
+            "src.api.routers.thumbnails.get_geometry_data",
+            new_callable=AsyncMock,
+        ) as mock_get,
+        patch("src.api.routers.thumbnails.httpx.AsyncClient", mock_cls),
+    ):
+        mock_settings.mapbox_api_token = "pk.test"
+        mock_get.return_value = _MOCK_GEOMETRY_DATA
+
+        await client.get(
+            "/api/geometry/gadm/IND.2_1/thumbnail",
+            headers={"Authorization": "Bearer test-token"},
+        )
+
+    called_url = mock_client.get.call_args[0][0]
+    assert "/auto/" in called_url
+    assert "padding=40" in called_url
+
+
+@pytest.mark.asyncio
+async def test_thumbnail_antimeridian_geometry_uses_auto_camera(
+    client, auth_override
+):
+    """Russia-like antimeridian geometry must also use auto camera after stripping."""
+    auth_override("test-user-1")
+    russia_geom = shapely.geometry.mapping(_russia_like())
+    mock_cls, mock_client = _mapbox_mock()
+
+    with (
+        patch("src.api.routers.thumbnails.APISettings") as mock_settings,
+        patch(
+            "src.api.routers.thumbnails.get_geometry_data",
+            new_callable=AsyncMock,
+        ) as mock_get,
+        patch("src.api.routers.thumbnails.httpx.AsyncClient", mock_cls),
+    ):
+        mock_settings.mapbox_api_token = "pk.test"
+        mock_get.return_value = {
+            "name": "Russia",
+            "source": "gadm",
+            "geometry": russia_geom,
+        }
+
+        await client.get(
+            "/api/geometry/gadm/RUS/thumbnail",
+            headers={"Authorization": "Bearer test-token"},
+        )
+
+    called_url = mock_client.get.call_args[0][0]
+    assert "/auto/" in called_url
+    assert "padding=40" in called_url
 
 
 @pytest.mark.asyncio

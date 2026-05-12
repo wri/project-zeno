@@ -4,6 +4,7 @@ import json
 import urllib.parse
 
 import httpx
+import shapely
 import shapely.geometry
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -79,28 +80,118 @@ def _drop_empty_parts(shape):
     return shapely.geometry.MultiPolygon(parts) if len(parts) > 1 else parts[0]
 
 
+def _drop_interior_rings(shape):
+    """Remove interior rings (holes) from polygons.
+
+    For overlay thumbnails we only care about the outer outline. Interior
+    rings from lakes/water-bodies inflate the encoded size significantly
+    (Russia's main polygon has 80 holes) without adding visual value at the
+    zoom levels used for thumbnails.
+    """
+    if shape.geom_type == "Polygon":
+        return shapely.geometry.Polygon(shape.exterior)
+    if shape.geom_type == "MultiPolygon":
+        parts = [
+            shapely.geometry.Polygon(p.exterior)
+            for p in shape.geoms
+            if not p.is_empty
+        ]
+        return (
+            shapely.geometry.MultiPolygon(parts)
+            if len(parts) > 1
+            else parts[0]
+        )
+    return shape
+
+
+def _crosses_antimeridian(shape) -> bool:
+    """True when the shape has vertices on both sides of the ±180° line."""
+    minx, _, maxx, _ = shape.bounds
+    return minx < -90 and maxx > 90
+
+
+def _strip_antimeridian_spillover(shape):
+    """For MultiPolygons that span the antimeridian, drop the sub-polygons
+    that are on the minority side (area-wise).
+
+    GADM stores antimeridian-crossing countries as two groups: a large group
+    on the dominant side (e.g. Russia 19°–180°E) and a small group on the
+    other side (e.g. Chukotka tip −180°–−169°W).  Keeping only the dominant
+    group produces a clean, non-crossing geometry that Mapbox's ``auto``
+    camera handles perfectly.
+    """
+    if not _crosses_antimeridian(shape):
+        return shape
+    if shape.geom_type != "MultiPolygon":
+        return shape
+
+    positive = [p for p in shape.geoms if p.centroid.x >= 0]
+    negative = [p for p in shape.geoms if p.centroid.x < 0]
+
+    pos_area = sum(p.area for p in positive)
+    neg_area = sum(p.area for p in negative)
+
+    keep = positive if pos_area >= neg_area else negative
+    if not keep:
+        return shape
+    return shapely.geometry.MultiPolygon(keep) if len(keep) > 1 else keep[0]
+
+
+def _round_coords(geometry: dict, decimals: int = 4) -> dict:
+    """Round all coordinate values to reduce URL-encoded size.
+
+    4 decimal places ≈ 11 m precision — invisible at thumbnail scale but cuts
+    each coordinate string from ~18 chars to ~6, allowing lower (smoother)
+    simplification tolerances to fit within the URL budget.
+    """
+
+    def walk(obj):
+        if isinstance(obj, (int, float)):
+            return round(float(obj), decimals)
+        if isinstance(obj, (list, tuple)):
+            return [walk(item) for item in obj]
+        return obj
+
+    if "coordinates" in geometry:
+        return {**geometry, "coordinates": walk(geometry["coordinates"])}
+    if "geometries" in geometry:
+        return {
+            **geometry,
+            "geometries": [
+                _round_coords(g, decimals) for g in geometry["geometries"]
+            ],
+        }
+    return geometry
+
+
 def _simplify(geometry: dict, tolerance: float) -> dict:
     try:
         shape = _filter_small_parts(shapely.geometry.shape(geometry))
+        shape = _strip_antimeridian_spillover(shape)
         simplified = _drop_empty_parts(
             shape.simplify(tolerance, preserve_topology=True)
         )
-        return shapely.geometry.mapping(simplified)
+        return _round_coords(
+            shapely.geometry.mapping(_drop_interior_rings(simplified))
+        )
     except Exception:
         return geometry
 
 
 def _fit_overlay(geometry: dict) -> str:
     """Simplify iteratively until the overlay fits within the URL budget."""
-    for tolerance in [0.001, 0.005, 0.01, 0.05, 0.1, 0.5]:
+    for tolerance in [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0]:
         encoded = _encode_overlay(_simplify(geometry, tolerance))
         if len(encoded) <= _MAX_OVERLAY_CHARS:
             return encoded
-    # Last resort: convex hull of the largest part
+    # Absolute last resort: bounding-box rectangle of the largest part
     try:
-        shape = _filter_small_parts(shapely.geometry.shape(geometry))
-        hull = shapely.geometry.mapping(shape.convex_hull)
-        return _encode_overlay(hull)
+        shape = _strip_antimeridian_spillover(
+            _filter_small_parts(shapely.geometry.shape(geometry))
+        )
+        return _encode_overlay(
+            shapely.geometry.mapping(shapely.geometry.box(*shape.bounds))
+        )
     except Exception:
         return _encode_overlay(geometry)
 
