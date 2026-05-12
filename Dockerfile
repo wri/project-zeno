@@ -25,6 +25,7 @@ ENV PATH="/root/.local/bin/:$PATH"
 ADD ./pyproject.toml ./uv.lock ./README.md /app/
 ADD ./src /app/src
 ADD ./frontend /app/frontend
+ADD ./db /app/db
 
 WORKDIR /app
 

@@ -39,16 +39,13 @@ services:
 
   migrate:
     build:
-      context: ./db
+      context: .
+    command: ["/app/db/migrate.sh"]
     depends_on:
       db:
         condition: service_healthy
-
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_HOST=db
-      - APP_DB=zeno-data
+      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/zeno-data
     volumes:
       - ./db:/app/db
 

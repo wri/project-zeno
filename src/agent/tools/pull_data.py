@@ -148,7 +148,7 @@ async def pull_data(
     if range_clamped:
         tool_messages.append(
             f"Date range was adjusted to the dataset's available range: {effective_start} to {effective_end} "
-            f"(requested: {start_date} to {end_date})."
+            f"(requested: {start_date} to {end_date}). Warn the user about this adjustment."
         )
 
     tool_message = ToolMessage(

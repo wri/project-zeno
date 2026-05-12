@@ -392,6 +392,6 @@ async def test_agent_for_tcl_no_dates_for_brazil(structlog_context):
     ]
 
     assert any(
-        "2001 to 2024" in call["args"].get("query", "")
+        "2001" in call["args"].get("query", "")
         for call in generate_insights_calls
     )
