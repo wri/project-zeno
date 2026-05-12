@@ -13,6 +13,7 @@ from src.api.routers.thumbnails import (
     _FILL_OPACITY,
     _MAX_OVERLAY_CHARS,
     _STROKE_COLOR,
+    _drop_empty_parts,
     _encode_overlay,
     _filter_small_parts,
     _fit_overlay,
@@ -173,6 +174,50 @@ def test_filter_small_parts_single_survivor_is_polygon():
     mp = shapely.geometry.MultiPolygon([big, tiny])
     result = _filter_small_parts(mp)
     # A one-element result must be unwrapped to a plain Polygon
+    assert result.geom_type == "Polygon"
+
+
+# ---------------------------------------------------------------------------
+# _drop_empty_parts
+# ---------------------------------------------------------------------------
+
+
+def test_drop_empty_parts_non_multipolygon_unchanged():
+    poly = _square(0, 0)
+    result = _drop_empty_parts(poly)
+    assert result is poly
+
+
+def test_drop_empty_parts_removes_empty_geoms():
+    """Empty sub-geometries (e.g. collapsed after simplification) are filtered out."""
+    good = _square(0, 0, size=10)
+    empty = shapely.geometry.Polygon()  # empty geometry
+    # Use a mock so we can inject an empty geometry into geoms
+    mp = MagicMock(spec=shapely.geometry.MultiPolygon)
+    mp.geom_type = "MultiPolygon"
+    mp.geoms = [good, empty]
+    result = _drop_empty_parts(mp)
+    assert result.geom_type == "Polygon"
+    assert result.area == pytest.approx(good.area)
+
+
+def test_drop_empty_parts_fallback_keeps_largest_when_all_empty():
+    """If every part is empty, the one with the largest area is kept."""
+    mp = MagicMock(spec=shapely.geometry.MultiPolygon)
+    mp.geom_type = "MultiPolygon"
+    e1, e2 = shapely.geometry.Polygon(), shapely.geometry.Polygon()
+    mp.geoms = [e1, e2]
+    result = _drop_empty_parts(mp)
+    assert result is not None
+
+
+def test_drop_empty_parts_single_survivor_is_polygon():
+    good = _square(0, 0, size=10)
+    empty = shapely.geometry.Polygon()
+    mp = MagicMock(spec=shapely.geometry.MultiPolygon)
+    mp.geom_type = "MultiPolygon"
+    mp.geoms = [good, empty]
+    result = _drop_empty_parts(mp)
     assert result.geom_type == "Polygon"
 
 

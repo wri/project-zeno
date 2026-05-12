@@ -69,10 +69,22 @@ def _filter_small_parts(shape, min_area_fraction: float = 0.005):
     return shapely.geometry.MultiPolygon(parts) if len(parts) > 1 else parts[0]
 
 
+def _drop_empty_parts(shape):
+    """Remove empty sub-geometries left behind after simplification."""
+    if shape.geom_type != "MultiPolygon":
+        return shape
+    parts = [g for g in shape.geoms if not g.is_empty]
+    if not parts:
+        parts = [max(shape.geoms, key=lambda g: g.area)]
+    return shapely.geometry.MultiPolygon(parts) if len(parts) > 1 else parts[0]
+
+
 def _simplify(geometry: dict, tolerance: float) -> dict:
     try:
         shape = _filter_small_parts(shapely.geometry.shape(geometry))
-        simplified = shape.simplify(tolerance, preserve_topology=True)
+        simplified = _drop_empty_parts(
+            shape.simplify(tolerance, preserve_topology=True)
+        )
         return shapely.geometry.mapping(simplified)
     except Exception:
         return geometry
