@@ -90,7 +90,9 @@ async def pull_data(
         dataset["dataset_id"],
         dataset.get("context_layer"),
     )
-    if end_date < effective_start or start_date > effective_end:
+    if (end_date is not None and end_date < effective_start) or (
+        start_date is not None and start_date > effective_end
+    ):
         return Command(
             update={
                 "messages": [
