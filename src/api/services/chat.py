@@ -220,10 +220,9 @@ async def stream_chat(
         if trace_id:
             try:
                 trace_url = langfuse_client.get_trace_url(trace_id=trace_id)
-            except (AttributeError, Exception) as e:
+            except (AttributeError, Exception):
                 logger.warning(
                     "Failed to get trace URL from Langfuse client",
-                    error=str(e),
                     trace_id=trace_id,
                 )
                 trace_url = None
