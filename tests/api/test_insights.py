@@ -391,6 +391,7 @@ async def test_insight_response_shape(client, auth_override):
         "charts",
         "codeact_parts",
         "is_public",
+        "statistics_ids",
         "created_at",
     }
     assert set(item.keys()) == expected_keys

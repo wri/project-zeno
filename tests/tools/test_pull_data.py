@@ -1,5 +1,6 @@
 import importlib
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
 import pytest
@@ -19,6 +20,19 @@ from tests.conftest import async_session_maker
 # "Event loop is closed" errors when running with other test modules
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 pull_data_module = importlib.import_module("src.agent.tools.pull_data")
+
+
+@pytest.fixture(autouse=True)
+def mock_pull_data_db_session(monkeypatch):
+    @asynccontextmanager
+    async def fake_pool_session():
+        async with async_session_maker() as session:
+            yield session
+
+    monkeypatch.setattr(
+        pull_data_module, "get_session_from_pool", fake_pool_session
+    )
+
 
 # All dataset and intersection combinations from OpenAPI spec
 # https://analytics.globalnaturewatch.org/openapi.json
