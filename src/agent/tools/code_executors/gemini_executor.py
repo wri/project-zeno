@@ -238,5 +238,6 @@ class GeminiCodeExecutor:
         return ExecutionResult(
             parts=[],
             chart_data=None,
+            insight=None,
             error=str(last_error),
         )
