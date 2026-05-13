@@ -449,7 +449,12 @@ async def generate_insights(
         tool_message += f"Chart {idx}: {chart.title}\n"
 
     MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE = 4000
-    csv_str = chart_data_df.to_csv(index=False, float_format="%.2f")
+    formatted_df = chart_data_df.apply(
+        lambda col: col.map(lambda x: f"{x:.4f}".rstrip("0").rstrip("."))
+        if pd.api.types.is_float_dtype(col)
+        else col
+    )
+    csv_str = formatted_df.to_csv(index=False)
     if len(csv_str) < MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE:
         tool_message += f"\nChart data CSV:\n{csv_str}"
 
