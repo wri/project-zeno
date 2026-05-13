@@ -16,6 +16,7 @@ from src.api.cli import (
     list_api_keys,
     list_machine_users,
     make_user_admin,
+    make_user_superuser,
     revoke_api_key,
     rotate_api_key,
 )
@@ -709,5 +710,141 @@ class TestUserManagementCLICommands:
         assert (
             result.exit_code == 0
         )  # Click doesn't change exit code for our error handling
+        assert "❌ Error:" in result.output
+        assert "not found" in result.output
+
+
+class TestUserSuperuserFunctions:
+    """Test user superuser management functions."""
+
+    @pytest.mark.asyncio
+    async def test_make_user_superuser_success(self):
+        """Test successful user superuser conversion."""
+        async with async_session_maker() as session:
+            user = UserOrm(
+                id="user_su_1",
+                name="Test User",
+                email="test_su@example.com",
+                user_type=UserType.REGULAR.value,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+            session.add(user)
+            await session.commit()
+
+            updated = await make_user_superuser(session, "test_su@example.com")
+
+            assert updated.id == user.id
+            assert updated.user_type == UserType.SUPERUSER.value
+            assert updated.updated_at >= user.created_at
+
+    @pytest.mark.asyncio
+    async def test_make_user_superuser_user_not_found(self):
+        """Test making non-existent user superuser fails."""
+        async with async_session_maker() as session:
+            with pytest.raises(ValueError, match="not found"):
+                await make_user_superuser(session, "nope_su@example.com")
+
+    @pytest.mark.asyncio
+    async def test_make_user_superuser_idempotent(self):
+        """Test making an already-superuser user superuser again works."""
+        async with async_session_maker() as session:
+            user = UserOrm(
+                id="user_su_2",
+                name="Already Super",
+                email="already_su@example.com",
+                user_type=UserType.SUPERUSER.value,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+            session.add(user)
+            await session.commit()
+            original_updated_at = user.updated_at
+
+            updated = await make_user_superuser(
+                session, "already_su@example.com"
+            )
+
+            assert updated.user_type == UserType.SUPERUSER.value
+            assert updated.updated_at >= original_updated_at
+
+    @pytest.mark.asyncio
+    async def test_make_user_superuser_case_insensitive(self):
+        """Email lookup is case-insensitive."""
+        async with async_session_maker() as session:
+            user = UserOrm(
+                id="user_su_3",
+                name="Mixed Case",
+                email="CaseTest_SU@Example.COM",
+                user_type=UserType.REGULAR.value,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+            session.add(user)
+            await session.commit()
+
+            updated = await make_user_superuser(
+                session, "casetest_su@example.com"
+            )
+
+            assert updated.id == user.id
+            assert updated.email == "CaseTest_SU@Example.COM"
+            assert updated.user_type == UserType.SUPERUSER.value
+
+
+class TestUserSuperuserCLI:
+    """Test the make-user-superuser CLI command."""
+
+    def setup_method(self):
+        self.runner = CliRunner()
+
+    @patch("src.api.cli.DatabaseManager")
+    @patch("src.api.cli.make_user_superuser")
+    def test_make_user_superuser_command_success(
+        self, mock_make_su, mock_db_manager
+    ):
+        """Test make-user-superuser CLI command success."""
+        mock_session = AsyncMock()
+        mock_db_manager.return_value.async_session.return_value.__aenter__.return_value = mock_session
+        mock_db_manager.return_value.close = AsyncMock()
+
+        mock_user = AsyncMock()
+        mock_user.id = "user_su_cli"
+        mock_user.name = "Test User"
+        mock_user.email = "test_su_cli@example.com"
+        mock_user.user_type = UserType.SUPERUSER.value
+        mock_user.updated_at = datetime.now()
+        mock_make_su.return_value = mock_user
+
+        result = self.runner.invoke(
+            cli,
+            ["make-user-superuser", "--email", "test_su_cli@example.com"],
+        )
+
+        assert result.exit_code == 0
+        assert "test_su_cli@example.com" in result.output
+        assert UserType.SUPERUSER.value in result.output
+        mock_make_su.assert_called_once()
+
+    @patch("src.api.cli.DatabaseManager")
+    @patch("src.api.cli.make_user_superuser")
+    def test_make_user_superuser_command_user_not_found(
+        self, mock_make_su, mock_db_manager
+    ):
+        """Test make-user-superuser CLI command with non-existent user."""
+        mock_session = AsyncMock()
+        mock_db_manager.return_value.async_session.return_value.__aenter__.return_value = mock_session
+        mock_db_manager.return_value.close = AsyncMock()
+
+        mock_make_su.side_effect = ValueError(
+            "User with email nope_su@example.com not found"
+        )
+
+        result = self.runner.invoke(
+            cli,
+            ["make-user-superuser", "--email", "nope_su@example.com"],
+        )
+
+        assert result.exit_code == 0
         assert "❌ Error:" in result.output
         assert "not found" in result.output

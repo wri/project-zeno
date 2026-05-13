@@ -30,6 +30,7 @@ class UserType(str, enum.Enum):
     REGULAR = "regular"
     MACHINE = "machine"
     PRO = "pro"
+    SUPERUSER = "superuser"
 
 
 class UserOrm(Base):

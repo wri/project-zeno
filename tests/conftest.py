@@ -252,3 +252,23 @@ async def admin_user_factory():
             return admin_user
 
     return _admin_user
+
+
+@pytest_asyncio.fixture(scope="function")
+async def superuser_factory():
+    """Create superuser fixture."""
+
+    async def _superuser(email: str):
+        async with async_session_maker() as session:
+            superuser = UserOrm(
+                id=f"superuser-{email.split('@')[0]}",
+                name=f"Superuser {email.split('@')[0]}",
+                email=email,
+                user_type=UserType.SUPERUSER.value,
+            )
+            session.add(superuser)
+            await session.commit()
+            await session.refresh(superuser)
+            return superuser
+
+    return _superuser
