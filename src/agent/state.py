@@ -3,7 +3,7 @@ from typing import Annotated, Any, Sequence
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 
 class AOISelection(TypedDict):
@@ -17,11 +17,14 @@ class StatisticsParameter(TypedDict):
 
 
 class Statistics(TypedDict):
+    id: NotRequired[str]
     dataset_name: str
     start_date: str
     end_date: str
     source_url: str
-    data: dict
+    # DEPRECATED: use fetch_statistics_from_url(source_url) instead.
+    # Kept for frontend backward compatibility.
+    data: NotRequired[dict]
     aoi_names: list[str]
     parameters: list[StatisticsParameter] | None
     context_layer: str | None

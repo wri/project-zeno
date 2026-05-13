@@ -1,5 +1,7 @@
 from typing import Annotated, Dict, Optional
 
+import httpx
+import structlog
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
@@ -9,9 +11,24 @@ from langgraph.types import Command
 from src.agent.tools.data_handlers.analytics_handler import AnalyticsHandler
 from src.agent.tools.data_handlers.base import DataPullResult
 from src.agent.tools.util import revise_date_range
+from src.api.data_models import StatisticsOrm
+from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+
+async def fetch_statistics_from_url(source_url: str) -> dict:
+    """Fetch raw result data from an analytics source URL.
+
+    The analytics API returns JSON with shape
+    ``{"data": {"result": {...}}}``.  Returns the inner ``result`` dict
+    so callers never need to deal with the response envelope.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(source_url)
+        response.raise_for_status()
+        return response.json()["data"]["result"]
 
 
 class DataPullOrchestrator:
@@ -121,16 +138,7 @@ async def pull_data(
     tool_messages.append(result.message)
     logger.debug(f"Pull data tool message: {result.message}")
 
-    # Determine raw data format for backward compatibility
-    if (
-        result.success
-        and isinstance(result.data, dict)
-        and "data" in result.data
-    ):
-        raw_data = result.data["data"]
-    elif result.success:
-        raw_data = result.data
-    else:
+    if not result.success:
         return Command(
             update={
                 "messages": [
@@ -144,8 +152,13 @@ async def pull_data(
             },
         )
 
-    raw_data["dataset_name"] = dataset["dataset_name"]
-    raw_data["source_url"] = result.analytics_api_url
+    # Reconstruct raw_data for backward compatibility with frontend consumers
+    # that still read statistics["data"].
+    # DEPRECATED: use source_url and fetch via fetch_statistics_from_url(source_url)
+    if isinstance(result.data, dict) and "data" in result.data:
+        raw_data = result.data["data"]
+    else:
+        raw_data = result.data
 
     if range_clamped:
         tool_messages.append(
@@ -158,22 +171,41 @@ async def pull_data(
         tool_call_id=tool_call_id,
     )
 
+    statistics = {
+        "dataset_name": dataset["dataset_name"],
+        "start_date": effective_start,
+        "end_date": effective_end,
+        "source_url": result.analytics_api_url,
+        # DEPRECATED: kept for frontend backward compatibility.
+        # Fetch fresh data via fetch_statistics_from_url(source_url)
+        # instead of reading from this field.
+        "data": raw_data,
+        "aoi_names": [aoi["name"] for aoi in state["aoi_selection"]["aois"]],
+        "parameters": dataset.get("parameters"),
+        "context_layer": dataset.get("context_layer"),
+    }
+
+    ctx = structlog.contextvars.get_contextvars()
+    async with get_session_from_pool() as session:
+        statistics_row = StatisticsOrm(
+            user_id=ctx.get("user_id"),
+            thread_id=ctx.get("thread_id"),
+            dataset_name=statistics["dataset_name"],
+            start_date=statistics["start_date"],
+            end_date=statistics["end_date"],
+            source_url=statistics["source_url"],
+            aoi_names=statistics["aoi_names"],
+            parameters=statistics["parameters"],
+            context_layer=statistics["context_layer"],
+        )
+        session.add(statistics_row)
+        await session.flush()
+        statistics["id"] = str(statistics_row.id)
+        await session.commit()
+
     return Command(
         update={
-            "statistics": [
-                {
-                    "dataset_name": dataset["dataset_name"],
-                    "start_date": effective_start,
-                    "end_date": effective_end,
-                    "source_url": result.analytics_api_url,
-                    "data": raw_data,
-                    "aoi_names": [
-                        aoi["name"] for aoi in state["aoi_selection"]["aois"]
-                    ],
-                    "parameters": dataset.get("parameters"),
-                    "context_layer": dataset.get("context_layer"),
-                }
-            ],
+            "statistics": [statistics],
             "start_date": effective_start,
             "end_date": effective_end,
             "messages": [tool_message],

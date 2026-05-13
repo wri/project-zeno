@@ -70,6 +70,31 @@ def mock_insight_db():
         yield mock_session
 
 
+@pytest.fixture(autouse=True)
+def mock_pull_data_db():
+    """Mock pull_data DB writes to avoid requiring a real global pool."""
+    mock_session = AsyncMock()
+
+    def capture_add(row):
+        mock_session._last_added_row = row
+
+    async def fake_flush():
+        row = getattr(mock_session, "_last_added_row", None)
+        if row is not None and not getattr(row, "id", None):
+            row.id = uuid.uuid4()
+
+    mock_session.add = capture_add
+    mock_session.flush = fake_flush
+    mock_session.commit = AsyncMock()
+
+    @asynccontextmanager
+    async def fake_pool():
+        yield mock_session
+
+    with patch("src.agent.tools.pull_data.get_session_from_pool", fake_pool):
+        yield mock_session
+
+
 @pytest.fixture(scope="function", autouse=True)
 def mock_query_aoi_database():
     """Mock query_aoi_database to return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL."""

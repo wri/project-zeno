@@ -8,19 +8,29 @@ structural properties of the output (chart type, data filtering, terminology).
 These tests hit the Gemini API — they are integration tests by nature.
 """
 
+import importlib
 import re
 import sys
 import uuid
 from contextlib import asynccontextmanager
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.agent.state import Statistics
-from src.agent.tools.generate_insights import generate_insights
+from src.agent.tools.generate_insights import (
+    ChartInsight,
+    MultiChartInsight,
+    _extract_statistics_ids,
+    generate_insights,
+)
 from src.api.data_models import InsightOrm
 
+generate_insights_module = importlib.import_module(
+    "src.agent.tools.generate_insights"
+)
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 _last_insight_row: InsightOrm | None = None
@@ -88,6 +98,268 @@ def mock_insight_db():
 
 
 # ---------------------------------------------------------------------------
+# URL → data mapping used by mock_fetch_data fixture
+# ---------------------------------------------------------------------------
+_URL_TO_DATA: dict[str, dict] = {
+    "http://example.com/analytics/ghg-flux": {
+        "variable": [
+            "Gross emissions",
+            "Gross removals",
+            "Net flux",
+        ],
+        "value": [12350000000, -8770000000, 3580000000],
+        "unit": ["MgCO2e", "MgCO2e", "MgCO2e"],
+    },
+    "http://example.com/analytics/grasslands": {
+        "year": list(range(2000, 2023)),
+        "area_ha": [
+            28456000,
+            28300000,
+            28150000,
+            28000000,
+            27850000,
+            27700000,
+            27550000,
+            27400000,
+            27250000,
+            27100000,
+            26950000,
+            26800000,
+            26650000,
+            26500000,
+            26350000,
+            26200000,
+            26050000,
+            25900000,
+            25750000,
+            25600000,
+            25450000,
+            25280000,
+            25124000,
+        ],
+    },
+    "http://example.com/analytics/grasslands-with-zeros": {
+        "year": list(range(2000, 2023)),
+        "area_ha": [
+            28456000,
+            28300000,
+            28150000,
+            28000000,
+            0,
+            27700000,
+            27550000,
+            27400000,
+            27250000,
+            27100000,
+            26950000,
+            26800000,
+            26650000,
+            26500000,
+            26350000,
+            26200000,
+            26050000,
+            25900000,
+            25750000,
+            25600000,
+            25450000,
+            25280000,
+            25124000,
+        ],
+    },
+    "http://example.com/analytics/tree-cover": {
+        "canopy_density": [
+            "0%",
+            "1-10%",
+            "11-20%",
+            "21-30%",
+            "31-40%",
+            "41-50%",
+            "51-60%",
+            "61-70%",
+            "71-80%",
+            "81-90%",
+            "91-100%",
+        ],
+        "area_ha": [
+            0,
+            12350000,
+            5670000,
+            4320000,
+            3890000,
+            4560000,
+            5230000,
+            6780000,
+            8900000,
+            10540000,
+            19982107,
+        ],
+    },
+    "http://example.com/analytics/tree-cover-gain": {
+        "period": ["2000-2020", "2005-2020", "2010-2020", "2015-2020"],
+        "area_ha": [4567890, 3456789, 2345678, 1234567],
+    },
+    "http://example.com/analytics/land-cover": {
+        "start_class": [
+            "Tree cover",
+            "Tree cover",
+            "Short vegetation",
+            "Short vegetation",
+            "Short vegetation",
+            "Cropland",
+            "Cropland",
+        ],
+        "end_class": [
+            "Cropland",
+            "Short vegetation",
+            "Cropland",
+            "Built-up",
+            "Tree cover",
+            "Built-up",
+            "Tree cover",
+        ],
+        "area_ha": [1234567, 345678, 890123, 56789, 123456, 145568, 78901],
+    },
+    "http://example.com/analytics/land-cover-composition": {
+        "land_cover_class": [
+            "Tree cover",
+            "Cropland",
+            "Short vegetation",
+            "Cultivated grassland",
+            "Built-up",
+            "Wetlands",
+            "Water",
+        ],
+        "area_ha": [
+            45000000,
+            22000000,
+            15000000,
+            8000000,
+            2000000,
+            1500000,
+            500000,
+        ],
+    },
+    "http://example.com/analytics/natural-lands": {
+        "land_class": [
+            "Natural forest",
+            "Natural grassland/shrubland",
+            "Natural wetland",
+            "Mangrove",
+            "Natural wetland forest",
+            "Natural peat forest",
+            "Cropland",
+            "Cultivated grassland",
+            "Plantation forest",
+            "Built-up",
+        ],
+        "class_id": [2, 3, 4, 5, 8, 9, 13, 14, 17, 18],
+        "area_ha": [
+            34567890,
+            5678901,
+            2345678,
+            890123,
+            456789,
+            234567,
+            8901234,
+            4567890,
+            1234567,
+            890123,
+        ],
+        "is_natural": [
+            True,
+            True,
+            True,
+            True,
+            True,
+            True,
+            False,
+            False,
+            False,
+            False,
+        ],
+    },
+    "http://example.com/analytics/sluc-ef": {
+        "crop": ["Soybean", "Soybean", "Soybean"],
+        "gas_type": ["CO2", "CH4", "N2O"],
+        "emissions_tco2e": [4567890, 123456, 45678],
+        "emission_factor_tco2e_per_tonne": [0.45, 0.012, 0.005],
+    },
+    "http://example.com/analytics/sluc-ef-multi-crop": {
+        "crop": [
+            "Soybean",
+            "Soybean",
+            "Soybean",
+            "Cattle",
+            "Cattle",
+            "Cattle",
+            "Cocoa",
+            "Cocoa",
+            "Cocoa",
+            "Oil Palm",
+            "Oil Palm",
+            "Oil Palm",
+            "Coffee",
+            "Coffee",
+            "Coffee",
+        ],
+        "gas_type": ["CO2", "CH4", "N2O"] * 5,
+        "emissions_tco2e": [
+            4567890,
+            123456,
+            45678,
+            8901234,
+            234567,
+            89012,
+            1234567,
+            56789,
+            23456,
+            567890,
+            12345,
+            4567,
+            345678,
+            9012,
+            3456,
+        ],
+        "emission_factor_tco2e_per_tonne": [
+            0.45,
+            0.012,
+            0.005,
+            1.23,
+            0.033,
+            0.012,
+            2.34,
+            0.056,
+            0.023,
+            0.67,
+            0.015,
+            0.006,
+            0.12,
+            0.003,
+            0.001,
+        ],
+    },
+}
+
+
+@pytest.fixture(autouse=True)
+def mock_fetch_data():
+    """Patch fetch_statistics_from_url to return test data by source_url."""
+
+    async def _fetch(source_url: str) -> dict:
+        if source_url not in _URL_TO_DATA:
+            raise ValueError(
+                f"No mock data registered for source_url: {source_url!r}"
+            )
+        return _URL_TO_DATA[source_url]
+
+    with patch(
+        "src.agent.tools.generate_insights.fetch_statistics_from_url",
+        side_effect=_fetch,
+    ):
+        yield
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 async def invoke_generate_insights(
@@ -128,6 +400,84 @@ def insight_text(update: dict) -> str:
     if msgs:
         return msgs[0].content
     return ""
+
+
+async def test_extract_statistics_ids_tracks_new_state_ids():
+    assert _extract_statistics_ids(
+        [
+            {"id": "stat-1"},
+            {"id": "stat-2"},
+        ]
+    ) == ["stat-1", "stat-2"]
+
+
+async def test_extract_statistics_ids_keeps_older_states_compatible():
+    assert _extract_statistics_ids([{}, {}, None]) == []
+
+
+async def test_generate_insights_persists_statistics_provenance(monkeypatch):
+    class FakeExecutionResult:
+        error = None
+        chart_data = [{"name": "Brazil", "value": 1}]
+        parts = [
+            SimpleNamespace(
+                type=generate_insights_module.PartType.TEXT_OUTPUT,
+                content="Brazil has one unit.",
+            )
+        ]
+
+        def get_encoded_parts(self):
+            return [{"type": "text_output", "content": "Brazil has one unit."}]
+
+    class FakeExecutor:
+        def build_file_references(self, dataframes):
+            return "input_file_0.csv"
+
+        async def prepare_dataframes(self, dataframes):
+            return []
+
+        async def execute(self, analysis_prompt, file_refs):
+            return FakeExecutionResult()
+
+    class FakeStructuredOutput:
+        async def ainvoke(self, prompt):
+            return MultiChartInsight(
+                charts=[
+                    ChartInsight(
+                        title="Brazil Value",
+                        chart_type="bar",
+                        x_axis="name",
+                        y_axis="value",
+                    )
+                ],
+                primary_insight="Brazil has one unit.",
+                follow_up_suggestions=["Compare another area."],
+            )
+
+    class FakeGemini:
+        def with_structured_output(self, model):
+            return FakeStructuredOutput()
+
+    monkeypatch.setattr(
+        generate_insights_module, "GeminiCodeExecutor", FakeExecutor
+    )
+    monkeypatch.setattr(generate_insights_module, "GEMINI_FLASH", FakeGemini())
+
+    await invoke_generate_insights(
+        "Show Brazil value",
+        GHG_FLUX_DATASET,
+        [{**GHG_FLUX_STATS[0], "id": "stat-123"}],
+    )
+    assert _last_insight_row is not None
+    assert _last_insight_row.statistics_ids == ["stat-123"]
+
+    await invoke_generate_insights(
+        "Show Brazil value",
+        GHG_FLUX_DATASET,
+        [GHG_FLUX_STATS[0]],
+    )
+    assert _last_insight_row is not None
+    assert _last_insight_row.statistics_ids == []
 
 
 # ---------------------------------------------------------------------------
@@ -179,15 +529,6 @@ GHG_FLUX_STATS: list[dict] = [
         aoi_names=["Brazil"],
         parameters=None,
         context_layer=None,
-        data={
-            "variable": [
-                "Gross emissions",
-                "Gross removals",
-                "Net flux",
-            ],
-            "value": [12350000000, -8770000000, 3580000000],
-            "unit": ["MgCO2e", "MgCO2e", "MgCO2e"],
-        },
     )
 ]
 
@@ -232,34 +573,6 @@ GRASSLAND_STATS: list[dict] = [
         aoi_names=["Kenya"],
         parameters=None,
         context_layer=None,
-        data={
-            "year": list(range(2000, 2023)),
-            "area_ha": [
-                28456000,
-                28300000,
-                28150000,
-                28000000,
-                27850000,
-                27700000,
-                27550000,
-                27400000,
-                27250000,
-                27100000,
-                26950000,
-                26800000,
-                26650000,
-                26500000,
-                26350000,
-                26200000,
-                26050000,
-                25900000,
-                25750000,
-                25600000,
-                25450000,
-                25280000,
-                25124000,
-            ],
-        },
     )
 ]
 
@@ -267,40 +580,12 @@ GRASSLAND_STATS: list[dict] = [
 GRASSLAND_STATS_WITH_ZEROS: list[dict] = [
     Statistics(
         dataset_name="Global natural/semi-natural grassland extent",
-        source_url="http://example.com/analytics/grasslands",
+        source_url="http://example.com/analytics/grasslands-with-zeros",
         start_date="2000-01-01",
         end_date="2022-12-31",
         aoi_names=["Kenya"],
         parameters=None,
         context_layer=None,
-        data={
-            "year": list(range(2000, 2023)),
-            "area_ha": [
-                28456000,
-                28300000,
-                28150000,
-                28000000,
-                0,  # zero row that should be excluded
-                27700000,
-                27550000,
-                27400000,
-                27250000,
-                27100000,
-                26950000,
-                26800000,
-                26650000,
-                26500000,
-                26350000,
-                26200000,
-                26050000,
-                25900000,
-                25750000,
-                25600000,
-                25450000,
-                25280000,
-                25124000,
-            ],
-        },
     )
 ]
 
@@ -350,34 +635,6 @@ TREE_COVER_STATS: list[dict] = [
         aoi_names=["Democratic Republic of Congo"],
         parameters=None,
         context_layer=None,
-        data={
-            "canopy_density": [
-                "0%",
-                "1-10%",
-                "11-20%",
-                "21-30%",
-                "31-40%",
-                "41-50%",
-                "51-60%",
-                "61-70%",
-                "71-80%",
-                "81-90%",
-                "91-100%",
-            ],
-            "area_ha": [
-                0,  # 0% bin — should be excluded
-                12350000,
-                5670000,
-                4320000,
-                3890000,
-                4560000,
-                5230000,
-                6780000,
-                8900000,
-                10540000,
-                19982107,
-            ],
-        },
     )
 ]
 
@@ -431,15 +688,6 @@ TREE_COVER_GAIN_STATS: list[dict] = [
         aoi_names=["Indonesia"],
         parameters=None,
         context_layer=None,
-        data={
-            "period": [
-                "2000-2020",
-                "2005-2020",
-                "2010-2020",
-                "2015-2020",
-            ],
-            "area_ha": [4567890, 3456789, 2345678, 1234567],
-        },
     )
 ]
 
@@ -487,67 +735,18 @@ LAND_COVER_TRANSITION_STATS: list[dict] = [
         aoi_names=["Brazil"],
         parameters=None,
         context_layer=None,
-        data={
-            "start_class": [
-                "Tree cover",
-                "Tree cover",
-                "Short vegetation",
-                "Short vegetation",
-                "Short vegetation",
-                "Cropland",
-                "Cropland",
-            ],
-            "end_class": [
-                "Cropland",
-                "Short vegetation",
-                "Cropland",
-                "Built-up",
-                "Tree cover",
-                "Built-up",
-                "Tree cover",
-            ],
-            "area_ha": [
-                1234567,
-                345678,
-                890123,
-                56789,
-                123456,
-                145568,
-                78901,
-            ],
-        },
     )
 ]
 
 LAND_COVER_COMPOSITION_STATS: list[dict] = [
     Statistics(
         dataset_name="Global land cover",
-        source_url="http://example.com/analytics/land-cover",
+        source_url="http://example.com/analytics/land-cover-composition",
         start_date="2024-01-01",
         end_date="2024-12-31",
         aoi_names=["Brazil"],
         parameters=None,
         context_layer=None,
-        data={
-            "land_cover_class": [
-                "Tree cover",
-                "Cropland",
-                "Short vegetation",
-                "Cultivated grassland",
-                "Built-up",
-                "Wetlands",
-                "Water",
-            ],
-            "area_ha": [
-                45000000,
-                22000000,
-                15000000,
-                8000000,
-                2000000,
-                1500000,
-                500000,
-            ],
-        },
     )
 ]
 
@@ -593,45 +792,6 @@ NATURAL_LANDS_STATS: list[dict] = [
         aoi_names=["Colombia"],
         parameters=None,
         context_layer=None,
-        data={
-            "land_class": [
-                "Natural forest",
-                "Natural grassland/shrubland",
-                "Natural wetland",
-                "Mangrove",
-                "Natural wetland forest",
-                "Natural peat forest",
-                "Cropland",
-                "Cultivated grassland",
-                "Plantation forest",
-                "Built-up",
-            ],
-            "class_id": [2, 3, 4, 5, 8, 9, 13, 14, 17, 18],
-            "area_ha": [
-                34567890,
-                5678901,
-                2345678,
-                890123,
-                456789,
-                234567,
-                8901234,
-                4567890,
-                1234567,
-                890123,
-            ],
-            "is_natural": [
-                True,
-                True,
-                True,
-                True,
-                True,
-                True,
-                False,
-                False,
-                False,
-                False,
-            ],
-        },
     )
 ]
 
@@ -679,78 +839,18 @@ SLUC_EF_GAS_STATS: list[dict] = [
         aoi_names=["Brazil"],
         parameters=None,
         context_layer=None,
-        data={
-            "crop": ["Soybean", "Soybean", "Soybean"],
-            "gas_type": ["CO2", "CH4", "N2O"],
-            "emissions_tco2e": [4567890, 123456, 45678],
-            "emission_factor_tco2e_per_tonne": [0.45, 0.012, 0.005],
-        },
     )
 ]
 
 SLUC_EF_MULTI_CROP_STATS: list[dict] = [
     Statistics(
         dataset_name="Deforestation (sLUC) Emission Factors by Agricultural Crop",
-        source_url="http://example.com/analytics/sluc-ef",
+        source_url="http://example.com/analytics/sluc-ef-multi-crop",
         start_date="2024-01-01",
         end_date="2024-12-31",
         aoi_names=["Brazil"],
         parameters=None,
         context_layer=None,
-        data={
-            "crop": [
-                "Soybean",
-                "Soybean",
-                "Soybean",
-                "Cattle",
-                "Cattle",
-                "Cattle",
-                "Cocoa",
-                "Cocoa",
-                "Cocoa",
-                "Oil Palm",
-                "Oil Palm",
-                "Oil Palm",
-                "Coffee",
-                "Coffee",
-                "Coffee",
-            ],
-            "gas_type": ["CO2", "CH4", "N2O"] * 5,
-            "emissions_tco2e": [
-                4567890,
-                123456,
-                45678,
-                8901234,
-                234567,
-                89012,
-                1234567,
-                56789,
-                23456,
-                567890,
-                12345,
-                4567,
-                345678,
-                9012,
-                3456,
-            ],
-            "emission_factor_tco2e_per_tonne": [
-                0.45,
-                0.012,
-                0.005,
-                1.23,
-                0.033,
-                0.012,
-                2.34,
-                0.056,
-                0.023,
-                0.67,
-                0.015,
-                0.006,
-                0.12,
-                0.003,
-                0.001,
-            ],
-        },
     )
 ]
 

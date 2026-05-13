@@ -403,6 +403,7 @@ class InsightResponse(BaseModel):
     thread_id: str
     insight_text: str
     follow_up_suggestions: List[str]
+    statistics_ids: List[str] = []
     charts: List[InsightChartResponse]
     codeact_parts: List[CodeActPartResponse]
     is_public: bool
