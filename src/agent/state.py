@@ -21,9 +21,8 @@ class Statistics(TypedDict):
     dataset_name: str
     start_date: str
     end_date: str
-    source_url: str
-    # DEPRECATED: use fetch_statistics_from_url(source_url) instead.
-    # Kept for frontend backward compatibility.
+    source_url: NotRequired[str]
+    # Empty for ID-backed statistics; use fetch_statistics_from_url(source_url).
     data: NotRequired[dict]
     aoi_names: list[str]
     parameters: list[StatisticsParameter] | None

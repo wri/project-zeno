@@ -152,14 +152,6 @@ async def pull_data(
             },
         )
 
-    # Reconstruct raw_data for backward compatibility with frontend consumers
-    # that still read statistics["data"].
-    # DEPRECATED: use source_url and fetch via fetch_statistics_from_url(source_url)
-    if isinstance(result.data, dict) and "data" in result.data:
-        raw_data = result.data["data"]
-    else:
-        raw_data = result.data
-
     if range_clamped:
         tool_messages.append(
             f"Date range was adjusted to the dataset's available range: {effective_start} to {effective_end} "
@@ -176,10 +168,8 @@ async def pull_data(
         "start_date": effective_start,
         "end_date": effective_end,
         "source_url": result.analytics_api_url,
-        # DEPRECATED: kept for frontend backward compatibility.
-        # Fetch fresh data via fetch_statistics_from_url(source_url)
-        # instead of reading from this field.
-        "data": raw_data,
+        # ID-backed statistics keep state light; fetch data from source_url when needed.
+        "data": {},
         "aoi_names": [aoi["name"] for aoi in state["aoi_selection"]["aois"]],
         "parameters": dataset.get("parameters"),
         "context_layer": dataset.get("context_layer"),

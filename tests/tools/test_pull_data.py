@@ -9,7 +9,11 @@ from sqlalchemy import select
 
 from src.agent.tools.data_handlers.base import DataPullResult
 from src.agent.tools.datasets_config import DATASETS
-from src.agent.tools.pull_data import pull_data, revise_date_range
+from src.agent.tools.pull_data import (
+    fetch_statistics_from_url,
+    pull_data,
+    revise_date_range,
+)
 from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.data_models import StatisticsOrm
@@ -248,7 +252,9 @@ async def test_pull_data_persists_statistics(monkeypatch):
                 analytics_api_url="http://example.com/analytics/statistics",
             )
 
-    async def fake_revise_date_range(start_date, end_date, dataset_id):
+    async def fake_revise_date_range(
+        start_date, end_date, dataset_id, context_layer=None
+    ):
         return start_date, end_date, False
 
     monkeypatch.setattr(
@@ -289,7 +295,11 @@ async def test_pull_data_persists_statistics(monkeypatch):
     statistics = command.update.get("statistics", [])
     assert len(statistics) == 1
     assert statistics[0]["id"]
-    assert statistics[0]["data"]["value"] == [1]
+    assert statistics[0]["data"] == {}
+    assert (
+        statistics[0]["source_url"]
+        == "http://example.com/analytics/statistics"
+    )
 
     async with async_session_maker() as session:
         result = await session.execute(
@@ -438,9 +448,13 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
 
     statistics = command.update.get("statistics", {})
 
-    assert aoi_data["src_id"] == statistics[0]["data"]["aoi_id"][0]
-    assert aoi_data["name"] == statistics[0]["data"]["name"][0]
-    assert statistics[0]["data"]["land_cover_class"] == ["Built-up"]
+    assert statistics[0]["id"]
+    assert statistics[0]["data"] == {}
+
+    raw_data = await fetch_statistics_from_url(statistics[0]["source_url"])
+    assert aoi_data["src_id"] == raw_data["aoi_id"][0]
+    assert aoi_data["name"] == raw_data["name"][0]
+    assert raw_data["land_cover_class"] == ["Built-up"]
 
 
 class TestReviseDateRange:
