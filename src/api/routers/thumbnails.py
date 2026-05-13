@@ -3,6 +3,7 @@
 import json
 import urllib.parse
 
+import antimeridian
 import httpx
 import shapely
 import shapely.geometry
@@ -22,8 +23,9 @@ _MAPBOX_STYLE = "mapbox/outdoors-v12"
 _STROKE_COLOR = "#1b3a6e"
 _FILL_COLOR = "#4a90d9"
 _FILL_OPACITY = 0.15
-# Keep URL-encoded overlay below this to stay well under HTTP URL limits
-_MAX_OVERLAY_CHARS = 5000
+# Mapbox's documented GeoJSON overlay limit is 8 192 URL-encoded chars.
+# We stay comfortably below that to leave room for the rest of the URL.
+_MAX_OVERLAY_CHARS = 7500
 
 
 def _geojson_feature(geometry: dict) -> dict:
@@ -70,16 +72,6 @@ def _filter_small_parts(shape, min_area_fraction: float = 0.005):
     return shapely.geometry.MultiPolygon(parts) if len(parts) > 1 else parts[0]
 
 
-def _drop_empty_parts(shape):
-    """Remove empty sub-geometries left behind after simplification."""
-    if shape.geom_type != "MultiPolygon":
-        return shape
-    parts = [g for g in shape.geoms if not g.is_empty]
-    if not parts:
-        parts = [max(shape.geoms, key=lambda g: g.area)]
-    return shapely.geometry.MultiPolygon(parts) if len(parts) > 1 else parts[0]
-
-
 def _drop_interior_rings(shape):
     """Remove interior rings (holes) from polygons.
 
@@ -104,45 +96,44 @@ def _drop_interior_rings(shape):
     return shape
 
 
-def _crosses_antimeridian(shape) -> bool:
-    """True when the shape has vertices on both sides of the ±180° line."""
-    minx, _, maxx, _ = shape.bounds
-    return minx < -90 and maxx > 90
+def _fix_shape(geometry: dict) -> dict:
+    """Run antimeridian.fix_shape, falling back to the original on failure.
 
-
-def _strip_antimeridian_spillover(shape):
-    """For MultiPolygons that span the antimeridian, drop the sub-polygons
-    that are on the minority side (area-wise).
-
-    GADM stores antimeridian-crossing countries as two groups: a large group
-    on the dominant side (e.g. Russia 19°–180°E) and a small group on the
-    other side (e.g. Chukotka tip −180°–−169°W).  Keeping only the dominant
-    group produces a clean, non-crossing geometry that Mapbox's ``auto``
-    camera handles perfectly.
+    Some real-world geometries (e.g. KBAs with degenerate rings that have
+    fewer than 4 coordinates) cause fix_shape to crash.  Rather than
+    propagating the error we silently skip the fix — the geometry will still
+    simplify correctly; it just may not be split at the antimeridian.
     """
-    if not _crosses_antimeridian(shape):
-        return shape
-    if shape.geom_type != "MultiPolygon":
-        return shape
+    try:
+        return antimeridian.fix_shape(geometry)
+    except Exception:
+        return geometry
 
-    positive = [p for p in shape.geoms if p.centroid.x >= 0]
-    negative = [p for p in shape.geoms if p.centroid.x < 0]
 
-    pos_area = sum(p.area for p in positive)
-    neg_area = sum(p.area for p in negative)
-
-    keep = positive if pos_area >= neg_area else negative
-    if not keep:
-        return shape
-    return shapely.geometry.MultiPolygon(keep) if len(keep) > 1 else keep[0]
+def _prepare_shape(geometry: dict):
+    """Filter, antimeridian-fix, and drop interior rings — the expensive
+    one-time work before the tolerance sweep.  Returns a shapely geometry,
+    or the original dict on failure.
+    """
+    try:
+        # Filter first: fix_shape only processes the few large parts, not
+        # thousands of tiny islands (avoids minute-long hangs on USA/RUS).
+        shape = _filter_small_parts(shapely.geometry.shape(geometry))
+        shape = shapely.geometry.shape(
+            _fix_shape(shapely.geometry.mapping(shape))
+        )
+        return _drop_interior_rings(shape)
+    except Exception:
+        return None
 
 
 def _round_coords(geometry: dict, decimals: int = 4) -> dict:
-    """Round all coordinate values to reduce URL-encoded size.
+    """Round all coordinate floats to ``decimals`` decimal places.
 
-    4 decimal places ≈ 11 m precision — invisible at thumbnail scale but cuts
-    each coordinate string from ~18 chars to ~6, allowing lower (smoother)
-    simplification tolerances to fit within the URL budget.
+    ``shapely.set_precision`` snaps to a grid but produces floats like
+    47.930000000000004 that JSON serialises to 18 chars.  Explicit rounding
+    gives 47.93 (5 chars) — a 3× reduction that lets lower (smoother)
+    simplification tolerances fit within the URL budget.
     """
 
     def walk(obj):
@@ -164,33 +155,44 @@ def _round_coords(geometry: dict, decimals: int = 4) -> dict:
     return geometry
 
 
-def _simplify(geometry: dict, tolerance: float) -> dict:
-    try:
-        shape = _filter_small_parts(shapely.geometry.shape(geometry))
-        shape = _strip_antimeridian_spillover(shape)
-        simplified = _drop_empty_parts(
-            shape.simplify(tolerance, preserve_topology=True)
-        )
-        return _round_coords(
-            shapely.geometry.mapping(_drop_interior_rings(simplified))
-        )
-    except Exception:
-        return geometry
+def _simplify_shape(shape, tolerance: float) -> dict:
+    """Simplify, drop empty parts, round coords, return a geometry dict."""
+    s = shape.simplify(tolerance, preserve_topology=True)
+    if s.geom_type == "MultiPolygon":
+        parts = [g for g in s.geoms if not g.is_empty]
+        if parts:
+            s = (
+                shapely.geometry.MultiPolygon(parts)
+                if len(parts) > 1
+                else parts[0]
+            )
+    return _round_coords(shapely.geometry.mapping(s))
 
 
 def _fit_overlay(geometry: dict) -> str:
-    """Simplify iteratively until the overlay fits within the URL budget."""
-    for tolerance in [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0]:
-        encoded = _encode_overlay(_simplify(geometry, tolerance))
-        if len(encoded) <= _MAX_OVERLAY_CHARS:
-            return encoded
-    # Absolute last resort: bounding-box rectangle of the largest part
+    """Simplify iteratively until the overlay fits within the URL budget.
+
+    The expensive preprocessing (filter, antimeridian fix, interior-ring
+    removal) runs once; only the cheap simplify + coord-round iterates.
+    """
+    shape = _prepare_shape(geometry)
+    if shape is not None:
+        for tolerance in [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0]:
+            try:
+                encoded = _encode_overlay(_simplify_shape(shape, tolerance))
+                if len(encoded) <= _MAX_OVERLAY_CHARS:
+                    return encoded
+            except Exception:
+                pass
+    # Absolute last resort: bounding-box rectangle of the prepared shape
     try:
-        shape = _strip_antimeridian_spillover(
-            _filter_small_parts(shapely.geometry.shape(geometry))
+        s = (
+            shape
+            if shape is not None
+            else _filter_small_parts(shapely.geometry.shape(geometry))
         )
         return _encode_overlay(
-            shapely.geometry.mapping(shapely.geometry.box(*shape.bounds))
+            shapely.geometry.mapping(shapely.geometry.box(*s.bounds))
         )
     except Exception:
         return _encode_overlay(geometry)

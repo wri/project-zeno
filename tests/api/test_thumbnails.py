@@ -13,15 +13,14 @@ from src.api.routers.thumbnails import (
     _FILL_OPACITY,
     _MAX_OVERLAY_CHARS,
     _STROKE_COLOR,
-    _crosses_antimeridian,
-    _drop_empty_parts,
     _drop_interior_rings,
     _encode_overlay,
     _filter_small_parts,
     _fit_overlay,
     _geojson_feature,
-    _simplify,
-    _strip_antimeridian_spillover,
+    _prepare_shape,
+    _round_coords,
+    _simplify_shape,
     _to_feature_collection,
 )
 
@@ -181,50 +180,6 @@ def test_filter_small_parts_single_survivor_is_polygon():
 
 
 # ---------------------------------------------------------------------------
-# _drop_empty_parts
-# ---------------------------------------------------------------------------
-
-
-def test_drop_empty_parts_non_multipolygon_unchanged():
-    poly = _square(0, 0)
-    result = _drop_empty_parts(poly)
-    assert result is poly
-
-
-def test_drop_empty_parts_removes_empty_geoms():
-    """Empty sub-geometries (e.g. collapsed after simplification) are filtered out."""
-    good = _square(0, 0, size=10)
-    empty = shapely.geometry.Polygon()  # empty geometry
-    # Use a mock so we can inject an empty geometry into geoms
-    mp = MagicMock(spec=shapely.geometry.MultiPolygon)
-    mp.geom_type = "MultiPolygon"
-    mp.geoms = [good, empty]
-    result = _drop_empty_parts(mp)
-    assert result.geom_type == "Polygon"
-    assert result.area == pytest.approx(good.area)
-
-
-def test_drop_empty_parts_fallback_keeps_largest_when_all_empty():
-    """If every part is empty, the one with the largest area is kept."""
-    mp = MagicMock(spec=shapely.geometry.MultiPolygon)
-    mp.geom_type = "MultiPolygon"
-    e1, e2 = shapely.geometry.Polygon(), shapely.geometry.Polygon()
-    mp.geoms = [e1, e2]
-    result = _drop_empty_parts(mp)
-    assert result is not None
-
-
-def test_drop_empty_parts_single_survivor_is_polygon():
-    good = _square(0, 0, size=10)
-    empty = shapely.geometry.Polygon()
-    mp = MagicMock(spec=shapely.geometry.MultiPolygon)
-    mp.geom_type = "MultiPolygon"
-    mp.geoms = [good, empty]
-    result = _drop_empty_parts(mp)
-    assert result.geom_type == "Polygon"
-
-
-# ---------------------------------------------------------------------------
 # _drop_interior_rings
 # ---------------------------------------------------------------------------
 
@@ -256,24 +211,27 @@ def test_drop_interior_rings_no_holes_unchanged():
     assert result.exterior.equals(poly.exterior)
 
 
-def test_simplify_strips_interior_rings():
-    """After simplification, interior rings must be absent from the output."""
+# ---------------------------------------------------------------------------
+# _prepare_shape / _simplify_shape / _round_coords
+# ---------------------------------------------------------------------------
+
+
+def test_prepare_shape_strips_interior_rings():
+    """_prepare_shape must remove holes — they inflate encoded size."""
     outer = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
     hole = [(2, 2), (4, 2), (4, 4), (2, 4), (2, 2)]
     poly_with_hole = shapely.geometry.Polygon(outer, [hole])
-    geom = shapely.geometry.mapping(poly_with_hole)
-    result = _simplify(geom, 0.001)
-    result_shape = shapely.geometry.shape(result)
-    assert len(list(result_shape.interiors)) == 0
+    shape = _prepare_shape(shapely.geometry.mapping(poly_with_hole))
+    assert shape is not None
+    assert len(list(shape.interiors)) == 0
 
 
-# ---------------------------------------------------------------------------
-# _simplify
-# ---------------------------------------------------------------------------
+def test_prepare_shape_returns_none_on_bad_geometry():
+    shape = _prepare_shape({"type": "NotAType", "coordinates": []})
+    assert shape is None
 
 
-def test_simplify_reduces_vertex_count():
-    # A polygon with many vertices
+def test_simplify_shape_reduces_vertex_count():
     import math
 
     n = 100
@@ -283,102 +241,33 @@ def test_simplify_reduces_vertex_count():
     ]
     coords.append(coords[0])
     geom = {"type": "Polygon", "coordinates": [coords]}
-
-    simplified = _simplify(geom, tolerance=0.1)
-    original_shape = shapely.geometry.shape(geom)
-    simplified_shape = shapely.geometry.shape(simplified)
-    assert len(list(simplified_shape.exterior.coords)) < len(
-        list(original_shape.exterior.coords)
+    shape = _prepare_shape(geom)
+    assert shape is not None
+    simplified = _simplify_shape(shape, tolerance=0.1)
+    original_verts = len(list(shapely.geometry.shape(geom).exterior.coords))
+    simplified_verts = len(
+        list(shapely.geometry.shape(simplified).exterior.coords)
     )
+    assert simplified_verts < original_verts
 
 
-def test_simplify_returns_original_on_bad_geometry():
-    bad = {"type": "NotAType", "coordinates": []}
-    result = _simplify(bad, tolerance=0.01)
-    assert result == bad
+def test_round_coords_compacts_floats():
+    """round_coords must produce short JSON-serialisable floats."""
+    import json
 
-
-# ---------------------------------------------------------------------------
-# _crosses_antimeridian
-# ---------------------------------------------------------------------------
-
-
-def _russia_like() -> shapely.geometry.MultiPolygon:
-    """Two patches mimicking Russia: main landmass (19°–180°) + Chukotka (−170°–−155°).
-
-    Chukotka is sized so its area fraction (~2.7%) exceeds the 0.5% filter threshold.
-    """
-    main = shapely.geometry.box(19, 41, 180, 82)
-    chukotka = shapely.geometry.box(-170, 60, -155, 72)
-    return shapely.geometry.MultiPolygon([main, chukotka])
-
-
-def test_crosses_antimeridian_true_for_russia_like():
-    assert _crosses_antimeridian(_russia_like()) is True
-
-
-def test_crosses_antimeridian_false_for_normal_geometry():
-    brazil = shapely.geometry.box(-73, -34, -28, 5)
-    assert _crosses_antimeridian(brazil) is False
-
-
-def test_crosses_antimeridian_false_for_new_zealand():
-    nz = shapely.geometry.box(166, -48, 178, -34)
-    assert _crosses_antimeridian(nz) is False
-
-
-# ---------------------------------------------------------------------------
-# _strip_antimeridian_spillover
-# ---------------------------------------------------------------------------
-
-
-def test_strip_antimeridian_spillover_removes_minority_side():
-    """Chukotka (negative lons, small area) must be removed; main Russia kept."""
-    shape = _russia_like()
-    result = _strip_antimeridian_spillover(shape)
-    coords = shapely.get_coordinates(result)
-    lons = coords[:, 0]
-    assert (
-        lons >= 0
-    ).all(), f"Expected only non-negative lons, got min={lons.min()}"
-
-
-def test_strip_antimeridian_spillover_non_crossing_unchanged():
-    shape = shapely.geometry.box(0, 0, 10, 10)
-    result = _strip_antimeridian_spillover(shape)
-    assert result is shape
-
-
-def test_strip_antimeridian_spillover_non_multipolygon_unchanged():
-    """A single Polygon crossing the antimeridian is returned as-is."""
-    # A single polygon that spans from -100 to +100 (crosses detection threshold)
-    shape = shapely.geometry.box(-100, 0, 100, 10)
-    result = _strip_antimeridian_spillover(shape)
-    assert result is shape  # non-MultiPolygon passed through
-
-
-def test_strip_antimeridian_spillover_result_does_not_cross():
-    """After stripping, the shape must no longer cross the antimeridian."""
-    shape = _russia_like()
-    result = _strip_antimeridian_spillover(shape)
-    assert not _crosses_antimeridian(result)
-
-
-def test_strip_antimeridian_spillover_usa_like():
-    """For USA-like geometry (dominant side is negative lons), keep the negative side."""
-    contiguous = shapely.geometry.box(
-        -124, 24, -66, 49
-    )  # contiguous USA (large)
-    aleutians = shapely.geometry.box(
-        172, 51, 175, 53
-    )  # Attu Island, positive lons (tiny)
-    usa = shapely.geometry.MultiPolygon([contiguous, aleutians])
-    result = _strip_antimeridian_spillover(usa)
-    coords = shapely.get_coordinates(result)
-    lons = coords[:, 0]
-    assert (
-        lons <= 0
-    ).all(), f"Expected only non-positive lons, got max={lons.max()}"
+    geom = {
+        "type": "Polygon",
+        "coordinates": [[[47.93001174926758, 41.300323486328125]]],
+    }
+    rounded = _round_coords(geom)
+    lon = rounded["coordinates"][0][0][0]
+    lat = rounded["coordinates"][0][0][1]
+    # Must be at most 4 decimal places
+    assert lon == round(47.93001174926758, 4)
+    assert lat == round(41.300323486328125, 4)
+    # JSON representation must be short (≤ 7 chars per number)
+    assert len(json.dumps(lon)) <= 7
+    assert len(json.dumps(lat)) <= 7
 
 
 # ---------------------------------------------------------------------------
@@ -399,31 +288,21 @@ def test_fit_overlay_complex_geometry_within_budget():
     assert len(encoded) <= _MAX_OVERLAY_CHARS
 
 
+def _russia_like() -> shapely.geometry.MultiPolygon:
+    """Two patches mimicking Russia: main landmass (19°–180°) + Chukotka (−170°–−155°)."""
+    main = shapely.geometry.box(19, 41, 180, 82)
+    chukotka = shapely.geometry.box(-170, 60, -155, 72)
+    return shapely.geometry.MultiPolygon([main, chukotka])
+
+
 def test_fit_overlay_russia_like_within_budget():
-    """Russia-like antimeridian geometry must fit after stripping."""
+    """Russia-like antimeridian geometry must fit within the URL budget."""
     mp = shapely.geometry.mapping(_russia_like())
     encoded = _fit_overlay(mp)
     assert len(encoded) <= _MAX_OVERLAY_CHARS
-    # Decoded overlay must have no negative lons (Chukotka stripped)
+    # Overlay must be valid URL-encoded GeoJSON
     decoded = json.loads(urllib.parse.unquote(encoded))
-    geom = decoded.get("geometry", decoded)
-    coords_raw = geom.get("coordinates", [])
-
-    def all_lons(obj):
-        if isinstance(obj, list):
-            if len(obj) >= 2 and isinstance(obj[0], (int, float)):
-                return [obj[0]]
-            result = []
-            for item in obj:
-                result.extend(all_lons(item))
-            return result
-        return []
-
-    lons = all_lons(coords_raw)
-    assert lons, "No coordinates found in overlay"
-    assert all(
-        lon >= 0 for lon in lons
-    ), f"Found negative lon in overlay: {min(lons)}"
+    assert decoded.get("type") in ("Feature", "FeatureCollection")
 
 
 # ---------------------------------------------------------------------------

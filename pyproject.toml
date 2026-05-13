@@ -49,6 +49,7 @@ dependencies = [
     "bcrypt==4.2.1",
     "click==8.1.8",
     "google-genai==1.68.0",
+    "antimeridian==0.4.7",
 ]
 
 [dependency-groups]
