@@ -32,8 +32,10 @@ prompt_instructions: 'Natural and non-natural lands in 2020. Created to see if t
   '
 selection_hints: 'Single-year baseline map of natural vs non-natural lands for 2020 only. Intended for supply chain conversion-free
   commitments (SBTN Land target #1). Cannot show change over time — for change, use Global Land Cover dataset. Natural land
-  classes include: natural forest (2), mangrove (5), natural peat forest (8), wetland natural forest (9), natural short vegetation,
-  natural water, bare, snow, etc. Non-natural classes: crop, built, non-natural tree cover (14,17,18), etc.
+  classes include: Natural forest, Mangrove, Natural peat forest, Wetland natural forest, Natural short vegetation, Natural
+  water, Bare, and Snow. Non-natural classes include: Crop, Built-up, Non-natural tree cover, and Non-natural short vegetation.
+  Use this dataset for questions about the extent, area, presence, or comparison of any of these classes, including which
+  country, state, region, or area has the most of a class.
 
   '
 code_instructions: "CHART TYPES: - Natural vs non-natural proportions → bar chart or pie chart DATA RULES: - Natural forests\
