@@ -1,6 +1,7 @@
 """Tests for the superuser-gated admin endpoints."""
 
 import pytest
+from sqlalchemy import select
 
 from src.api.data_models import UserOrm, UserType
 from tests.conftest import async_session_maker
@@ -405,3 +406,304 @@ async def test_list_users_pagination_with_email_filter(
     # All returned users should match the filter (`alice_pg`).
     for item in page1.json() + page2.json():
         assert "alice_pg" in item["email"].lower()
+
+
+# --- PATCH /api/admin/users/{user_id}/user-type ---------------------------
+
+
+@pytest.mark.asyncio
+async def test_patch_user_type_requires_auth(client):
+    """Unauthenticated PATCH must return 401."""
+    response = await client.patch(
+        "/api/admin/users/some-id/user-type",
+        json={"user_type": "admin"},
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_patch_user_type_requires_superuser_not_regular(
+    client, auth_override
+):
+    """A regular user must receive 403."""
+    regular = await _seed_user(
+        "reg-patch", "reg_patch@example.com", UserType.REGULAR
+    )
+    target = await _seed_user(
+        "target-patch-r", "target_patch_r@example.com", UserType.REGULAR
+    )
+    auth_override(regular.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "admin"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_patch_user_type_requires_superuser_not_admin(
+    client, auth_override, admin_user_factory
+):
+    """An admin (not superuser) must receive 403 — admins cannot promote."""
+    admin = await admin_user_factory("admin_patch@example.com")
+    target = await _seed_user(
+        "target-patch-a", "target_patch_a@example.com", UserType.REGULAR
+    )
+    auth_override(admin.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "pro"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_patch_user_type_requires_superuser_not_pro(
+    client, auth_override
+):
+    """A pro user must receive 403."""
+    pro = await _seed_user(
+        "pro-patch", "pro_patch@example.com", UserType.PRO
+    )
+    target = await _seed_user(
+        "target-patch-p", "target_patch_p@example.com", UserType.REGULAR
+    )
+    auth_override(pro.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "admin"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_superuser_can_promote_user_to_admin(
+    client, auth_override, superuser_factory
+):
+    """Superuser promotes a regular user to admin."""
+    su = await superuser_factory("su_promote_a@example.com")
+    target = await _seed_user(
+        "target-promote-a", "target_promote_a@example.com", UserType.REGULAR
+    )
+    auth_override(su.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "admin"},
+    )
+    assert response.status_code == 200
+    assert response.json()["userType"] == UserType.ADMIN.value
+
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(UserOrm).where(UserOrm.id == target.id)
+        )
+        db_user = result.scalar_one()
+        assert db_user.user_type == UserType.ADMIN.value
+
+
+@pytest.mark.asyncio
+async def test_superuser_can_promote_user_to_pro(
+    client, auth_override, superuser_factory
+):
+    """Superuser promotes a regular user to pro."""
+    su = await superuser_factory("su_promote_p@example.com")
+    target = await _seed_user(
+        "target-promote-p", "target_promote_p@example.com", UserType.REGULAR
+    )
+    auth_override(su.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "pro"},
+    )
+    assert response.status_code == 200
+    assert response.json()["userType"] == UserType.PRO.value
+
+
+@pytest.mark.asyncio
+async def test_superuser_can_promote_user_to_superuser(
+    client, auth_override, superuser_factory
+):
+    """Superuser promotes another user to superuser (multiple superusers allowed)."""
+    su = await superuser_factory("su_promote_su@example.com")
+    target = await _seed_user(
+        "target-promote-su", "target_promote_su@example.com", UserType.REGULAR
+    )
+    auth_override(su.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "superuser"},
+    )
+    assert response.status_code == 200
+    assert response.json()["userType"] == UserType.SUPERUSER.value
+
+
+@pytest.mark.asyncio
+async def test_superuser_can_demote_admin_to_regular(
+    client, auth_override, superuser_factory, admin_user_factory
+):
+    """Superuser demotes an admin back to regular."""
+    su = await superuser_factory("su_demote@example.com")
+    target_admin = await admin_user_factory("demote_me@example.com")
+    auth_override(su.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target_admin.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "regular"},
+    )
+    assert response.status_code == 200
+    assert response.json()["userType"] == UserType.REGULAR.value
+
+
+@pytest.mark.asyncio
+async def test_superuser_cannot_self_demote(
+    client, auth_override, superuser_factory
+):
+    """Superuser cannot demote themselves; expect 400."""
+    su = await superuser_factory("su_self_demote@example.com")
+    auth_override(su.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{su.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "regular"},
+    )
+    assert response.status_code == 400
+
+    # DB unchanged
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(UserOrm).where(UserOrm.id == su.id)
+        )
+        db_user = result.scalar_one()
+        assert db_user.user_type == UserType.SUPERUSER.value
+
+
+@pytest.mark.asyncio
+async def test_superuser_can_set_self_to_superuser(
+    client, auth_override, superuser_factory
+):
+    """A no-op self-update to superuser is allowed."""
+    su = await superuser_factory("su_self_noop@example.com")
+    auth_override(su.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{su.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "superuser"},
+    )
+    assert response.status_code == 200
+    assert response.json()["userType"] == UserType.SUPERUSER.value
+
+
+@pytest.mark.asyncio
+async def test_patch_user_type_invalid_value(
+    client, auth_override, superuser_factory
+):
+    """Unknown user_type value is rejected with 422."""
+    su = await superuser_factory("su_invalid@example.com")
+    target = await _seed_user(
+        "target-invalid", "target_invalid@example.com", UserType.REGULAR
+    )
+    auth_override(su.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "moderator"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_patch_user_type_machine_rejected(
+    client, auth_override, superuser_factory
+):
+    """`machine` is not a valid promotion target; expect 422."""
+    su = await superuser_factory("su_machine@example.com")
+    target = await _seed_user(
+        "target-machine", "target_machine@example.com", UserType.REGULAR
+    )
+    auth_override(su.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "machine"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_patch_user_type_user_not_found(
+    client, auth_override, superuser_factory
+):
+    """PATCH on unknown user_id returns 404."""
+    su = await superuser_factory("su_404@example.com")
+    auth_override(su.id)
+
+    response = await client.patch(
+        "/api/admin/users/does-not-exist/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "admin"},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_patch_user_type_response_shape(
+    client, auth_override, superuser_factory
+):
+    """Response is the updated user serialized as UserModel (camelCase)."""
+    su = await superuser_factory("su_shape_patch@example.com")
+    target = await _seed_user(
+        "target-shape-patch",
+        "target_shape_patch@example.com",
+        UserType.REGULAR,
+    )
+    auth_override(su.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/user-type",
+        headers={"Authorization": "Bearer test-token"},
+        json={"user_type": "pro"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == target.id
+    assert data["email"] == target.email
+    assert data["userType"] == UserType.PRO.value
+    assert "createdAt" in data
+    assert "updatedAt" in data
+
+
+@pytest.mark.asyncio
+async def test_superuser_can_view_other_users_private_threads(
+    client, auth_override, superuser_factory, thread_factory
+):
+    """Smoke test for superset-of-admin: superusers inherit admin privileges
+    (e.g. accessing other users' private threads)."""
+    owner_id = "thread-owner-su"
+    auth_override(owner_id)
+    thread = await thread_factory(owner_id)
+
+    su = await superuser_factory("su_view_thread@example.com")
+    auth_override(su.id)
+
+    response = await client.get(
+        f"/api/threads/{thread.id}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code == 200
