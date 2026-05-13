@@ -12,6 +12,7 @@ from fastapi.responses import Response
 
 from src.api.auth.dependencies import require_auth
 from src.api.config import APISettings
+from src.api.schemas import UserModel
 from src.shared.geocoding_helpers import get_geometry_data
 from src.shared.logging_config import get_logger
 
@@ -204,7 +205,7 @@ async def get_geometry_thumbnail(
     src_id: str,
     width: int = 300,
     height: int = 300,
-    user=Depends(require_auth),
+    user: UserModel = Depends(require_auth),
 ):
     """
     Proxy a PNG thumbnail for an AOI via the Mapbox Static Images API.
@@ -215,7 +216,7 @@ async def get_geometry_thumbnail(
             status_code=503, detail="MAPBOX_TOKEN not configured"
         )
 
-    data = await get_geometry_data(source, src_id)
+    data = await get_geometry_data(source, src_id, user_id=user.id)
     if not data or not data.get("geometry"):
         raise HTTPException(status_code=404, detail="Geometry not found")
 

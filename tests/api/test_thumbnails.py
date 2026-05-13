@@ -422,6 +422,40 @@ async def test_thumbnail_success_returns_png(client, auth_override):
 
 
 @pytest.mark.asyncio
+async def test_thumbnail_custom_area_lookup_uses_requester(
+    client, auth_override
+):
+    auth_override("test-user-1")
+    custom_area_id = "123e4567-e89b-12d3-a456-426614174000"
+    mock_cls, _ = _mapbox_mock()
+
+    with (
+        patch("src.api.routers.thumbnails.APISettings") as mock_settings,
+        patch(
+            "src.api.routers.thumbnails.get_geometry_data",
+            new_callable=AsyncMock,
+        ) as mock_get,
+        patch("src.api.routers.thumbnails.httpx.AsyncClient", mock_cls),
+    ):
+        mock_settings.mapbox_api_token = "pk.test"
+        mock_get.return_value = {
+            **_MOCK_GEOMETRY_DATA,
+            "source": "custom",
+            "src_id": custom_area_id,
+        }
+
+        response = await client.get(
+            f"/api/geometry/custom/{custom_area_id}/thumbnail",
+            headers={"Authorization": "Bearer test-token"},
+        )
+
+    assert response.status_code == 200
+    mock_get.assert_awaited_once_with(
+        "custom", custom_area_id, user_id="test-user-1"
+    )
+
+
+@pytest.mark.asyncio
 async def test_thumbnail_cache_control_header(client, auth_override):
     auth_override("test-user-1")
     mock_cls, _ = _mapbox_mock()

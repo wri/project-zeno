@@ -66,7 +66,7 @@ def format_id(idx):
 
 
 async def get_geometry_data(
-    source: str, src_id: str
+    source: str, src_id: str, user_id: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Get geometry data by source and source ID.
@@ -75,7 +75,7 @@ async def get_geometry_data(
         source: Source type (gadm, kba, landmark, wdpa, custom)
         src_id: Source-specific ID
         session: Database session
-        user_id: User ID (required for custom areas)
+        user_id: User ID (required for custom areas; falls back to request context)
 
     Returns:
         Dict with name, subtype, source, src_id, and geometry, or None if not found
@@ -86,7 +86,9 @@ async def get_geometry_data(
 
     async with get_session_from_pool() as session:
         if source == "custom":
-            user_id = structlog.contextvars.get_contextvars().get("user_id")
+            user_id = user_id or structlog.contextvars.get_contextvars().get(
+                "user_id"
+            )
             if not user_id:
                 raise ValueError("user_id required for custom areas")
 
