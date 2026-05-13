@@ -1,14 +1,15 @@
 """Superuser-only admin endpoints (manage other users)."""
 
+from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth.dependencies import _orm_to_user_model, require_superuser
-from src.api.data_models import UserOrm
-from src.api.schemas import UserModel
+from src.api.data_models import UserOrm, UserType
+from src.api.schemas import UserModel, UserTypeUpdateRequest
 from src.shared.database import get_session_from_pool_dependency
 
 router = APIRouter()
@@ -38,3 +39,38 @@ async def list_users(
     result = await session.execute(stmt)
     users = result.scalars().all()
     return [_orm_to_user_model(u) for u in users]
+
+
+@router.patch(
+    "/api/admin/users/{user_id}/user-type", response_model=UserModel
+)
+async def update_user_type(
+    user_id: str,
+    body: UserTypeUpdateRequest,
+    superuser: UserModel = Depends(require_superuser),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+):
+    """Set a user's user_type. Superuser-only."""
+    result = await session.execute(
+        select(UserOrm).where(UserOrm.id == user_id)
+    )
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if (
+        target.id == superuser.id
+        and body.user_type != UserType.SUPERUSER
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Superusers cannot demote themselves",
+        )
+
+    target.user_type = body.user_type.value
+    target.updated_at = datetime.now()
+
+    await session.commit()
+    await session.refresh(target)
+
+    return _orm_to_user_model(target)

@@ -108,7 +108,10 @@ async def get_insight(
             detail="Authentication required",
         )
 
-    if row.user_id != user.id and user.user_type != UserType.ADMIN:
+    if row.user_id != user.id and user.user_type not in (
+        UserType.ADMIN,
+        UserType.SUPERUSER,
+    ):
         raise HTTPException(status_code=404, detail="Insight not found")
 
     return _row_to_response(row)
@@ -134,7 +137,10 @@ async def toggle_insight_public(
     if not row:
         raise HTTPException(status_code=404, detail="Insight not found")
 
-    if row.user_id != user.id and user.user_type != UserType.ADMIN:
+    if row.user_id != user.id and user.user_type not in (
+        UserType.ADMIN,
+        UserType.SUPERUSER,
+    ):
         raise HTTPException(status_code=404, detail="Insight not found")
 
     row.is_public = body.is_public

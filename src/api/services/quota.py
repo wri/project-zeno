@@ -21,7 +21,7 @@ async def get_user_identity_and_daily_quota(
     """
     Determine the user's identity string and their daily prompt quota.
     """
-    if user.user_type == UserType.ADMIN:
+    if user.user_type in (UserType.ADMIN, UserType.SUPERUSER):
         daily_quota = APISettings.admin_user_daily_quota
     elif user.user_type == UserType.MACHINE:
         daily_quota = APISettings.machine_user_daily_quota

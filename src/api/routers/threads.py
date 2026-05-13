@@ -72,7 +72,10 @@ async def get_thread(
                 detail="Missing Bearer token",
             )
 
-        if thread.user_id != user.id and user.user_type != UserType.ADMIN:
+        if thread.user_id != user.id and user.user_type not in (
+            UserType.ADMIN,
+            UserType.SUPERUSER,
+        ):
             logger.warning(
                 "Unauthorized access to private thread",
                 thread_id=thread_id,
@@ -81,7 +84,7 @@ async def get_thread(
             )
             raise HTTPException(status_code=404, detail="Thread not found")
 
-        if user.user_type == UserType.ADMIN:
+        if user.user_type in (UserType.ADMIN, UserType.SUPERUSER):
             logger.debug(
                 "Admin accessing private thread",
                 thread_id=thread_id,
