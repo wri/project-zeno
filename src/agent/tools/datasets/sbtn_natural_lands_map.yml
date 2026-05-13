@@ -34,8 +34,7 @@ selection_hints: 'Single-year baseline map of natural vs non-natural lands for 2
   commitments (SBTN Land target #1). Cannot show change over time — for change, use Global Land Cover dataset. Natural land
   classes include: Natural forest, Mangrove, Natural peat forest, Wetland natural forest, Natural short vegetation, Natural
   water, Bare, and Snow. Non-natural classes include: Crop, Built-up, Non-natural tree cover, and Non-natural short vegetation.
-  Use this dataset for questions about the extent, area, presence, or comparison of any of these classes, including which
-  country, state, region, or area has the most of a class.
+  Use this dataset for questions about the area or presence of any of these classes.
 
   '
 code_instructions: "CHART TYPES: - Natural vs non-natural proportions → bar chart or pie chart DATA RULES: - Natural forests\
