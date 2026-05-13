@@ -448,11 +448,10 @@ async def generate_insights(
     for idx, chart in enumerate(result.insight.charts, 1):
         tool_message += f"Chart {idx}: {chart.title}\n"
 
-    MAX_CHART_DATA_ROWS_FOR_TOOL_MESSAGE = 50
-    if len(chart_data_df) < MAX_CHART_DATA_ROWS_FOR_TOOL_MESSAGE:
-        tool_message += (
-            f"\nChart data CSV:\n{chart_data_df.to_csv(index=False)}"
-        )
+    MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE = 4000
+    csv_str = chart_data_df.to_csv(index=False, float_format="%.2f")
+    if len(csv_str) < MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE:
+        tool_message += f"\nChart data CSV:\n{csv_str}"
 
     tool_message += "\nFollow-up suggestions:"
     for i, suggestion in enumerate(result.insight.follow_up_suggestions, 1):
