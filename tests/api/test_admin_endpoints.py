@@ -71,9 +71,7 @@ async def test_list_users_requires_superuser_not_admin(
 @pytest.mark.asyncio
 async def test_list_users_requires_superuser_not_pro(client, auth_override):
     """A pro user must receive 403."""
-    pro = await _seed_user(
-        "pro-list", "pro_list@example.com", UserType.PRO
-    )
+    pro = await _seed_user("pro-list", "pro_list@example.com", UserType.PRO)
     auth_override(pro.id)
 
     response = await client.get(
@@ -466,9 +464,7 @@ async def test_patch_user_type_requires_superuser_not_pro(
     client, auth_override
 ):
     """A pro user must receive 403."""
-    pro = await _seed_user(
-        "pro-patch", "pro_patch@example.com", UserType.PRO
-    )
+    pro = await _seed_user("pro-patch", "pro_patch@example.com", UserType.PRO)
     target = await _seed_user(
         "target-patch-p", "target_patch_p@example.com", UserType.REGULAR
     )

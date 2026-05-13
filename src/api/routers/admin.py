@@ -41,9 +41,7 @@ async def list_users(
     return [_orm_to_user_model(u) for u in users]
 
 
-@router.patch(
-    "/api/admin/users/{user_id}/user-type", response_model=UserModel
-)
+@router.patch("/api/admin/users/{user_id}/user-type", response_model=UserModel)
 async def update_user_type(
     user_id: str,
     body: UserTypeUpdateRequest,
@@ -58,10 +56,7 @@ async def update_user_type(
     if target is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if (
-        target.id == superuser.id
-        and body.user_type != UserType.SUPERUSER
-    ):
+    if target.id == superuser.id and body.user_type != UserType.SUPERUSER:
         raise HTTPException(
             status_code=400,
             detail="Superusers cannot demote themselves",
