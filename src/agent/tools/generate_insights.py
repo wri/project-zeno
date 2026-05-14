@@ -39,10 +39,14 @@ async def _load_statistics_data(data: dict) -> dict | None:
     legacy_data = await _extract_inline_statistics_data(data)
     if legacy_data:
         return legacy_data
-    # Otherwise, fetch from source URL
+    # Otherwise, fetch from source URL and re-apply the aoi_id→name mapping so
+    # chart labels stay readable (the raw API result doesn't include names).
     source_url = data.get("source_url")
     if source_url:
-        return await fetch_statistics_from_url(source_url)
+        raw = await fetch_statistics_from_url(source_url)
+        if raw and (mapping := data.get("aoi_id_to_name")):
+            raw["name"] = [mapping.get(i, i) for i in raw.get("aoi_id", [])]
+        return raw
 
     return None
 

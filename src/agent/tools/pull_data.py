@@ -163,6 +163,9 @@ async def pull_data(
         tool_call_id=tool_call_id,
     )
 
+    raw = result.data if isinstance(result.data, dict) else {}
+    aoi_id_to_name = dict(zip(raw.get("aoi_id", []), raw.get("name", [])))
+
     statistics = {
         "dataset_name": dataset["dataset_name"],
         "start_date": effective_start,
@@ -170,6 +173,7 @@ async def pull_data(
         "source_url": result.analytics_api_url,
         # ID-backed statistics keep state light; fetch data from source_url when needed.
         "data": {},
+        "aoi_id_to_name": aoi_id_to_name,
         "aoi_names": [aoi["name"] for aoi in state["aoi_selection"]["aois"]],
         "parameters": dataset.get("parameters"),
         "context_layer": dataset.get("context_layer"),

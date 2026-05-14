@@ -24,6 +24,9 @@ class Statistics(TypedDict):
     source_url: NotRequired[str]
     # Empty for ID-backed statistics; use fetch_statistics_from_url(source_url).
     data: NotRequired[dict]
+    # Mapping from aoi_id value to human-readable name, built at pull time and
+    # re-applied after URL fetch so chart labels stay readable.
+    aoi_id_to_name: NotRequired[dict]
     aoi_names: list[str]
     parameters: list[StatisticsParameter] | None
     context_layer: str | None
