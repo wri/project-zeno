@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.agent.graph import close_checkpointer_pool, get_checkpointer_pool
 from src.api.routers import (
+    admin,
     chat,
     custom_areas,
     geometry,
@@ -100,3 +101,4 @@ app.include_router(custom_areas.router)
 app.include_router(geometry.router)
 app.include_router(insights.router)
 app.include_router(metadata.router)
+app.include_router(admin.router)

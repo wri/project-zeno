@@ -159,6 +159,20 @@ class UserModel(BaseModel):
         return v
 
 
+class UserTypeUpdateRequest(BaseModel):
+    """Request schema for changing a user's user_type via the admin endpoint."""
+
+    user_type: UserType
+
+    @field_validator("user_type")
+    def reject_machine(cls, v: UserType) -> UserType:
+        if v == UserType.MACHINE:
+            raise ValueError(
+                "machine user_type cannot be assigned via this endpoint"
+            )
+        return v
+
+
 class UserProfileUpdateRequest(BaseModel):
     """Request schema for updating user profile fields."""
 

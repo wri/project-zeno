@@ -14,7 +14,7 @@ from src.api.auth.machine_user import (
     MACHINE_USER_PREFIX,
     validate_machine_user_token,
 )
-from src.api.data_models import UserOrm
+from src.api.data_models import UserOrm, UserType
 from src.api.schemas import UserModel
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import bind_request_logging_context, get_logger
@@ -148,6 +148,18 @@ async def optional_auth(
     user = await _get_or_create_user(user_info, session)
     bind_request_logging_context(user_id=user.id)
     return _orm_to_user_model(user)
+
+
+async def require_superuser(
+    user: UserModel = Depends(require_auth),
+) -> UserModel:
+    """Requires the authenticated user to be a superuser."""
+    if user.user_type != UserType.SUPERUSER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Superuser privileges required",
+        )
+    return user
 
 
 async def fetch_user(

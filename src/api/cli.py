@@ -262,6 +262,26 @@ async def make_user_pro(session: AsyncSession, email: str) -> UserOrm:
     return user
 
 
+async def make_user_superuser(session: AsyncSession, email: str) -> UserOrm:
+    """Make a user superuser by setting their user_type to superuser"""
+
+    email_lower = email.lower()
+    result = await session.execute(
+        select(UserOrm).where(func.lower(UserOrm.email) == email_lower)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise ValueError(f"User with email {email} not found")
+
+    user.user_type = UserType.SUPERUSER.value
+    user.updated_at = datetime.now()
+
+    await session.commit()
+    await session.refresh(user)
+
+    return user
+
+
 # CLI Commands
 @click.group()
 def cli():
@@ -536,6 +556,33 @@ def make_user_pro_command(email: str):
             await db.close()
 
     asyncio.run(_make_pro())
+
+
+@cli.command("make-user-superuser")
+@click.option(
+    "--email", required=True, help="Email of the user to make superuser"
+)
+def make_user_superuser_command(email: str):
+    """Make a user superuser by setting their user_type to superuser"""
+
+    async def _make_superuser():
+        db = DatabaseManager()
+        try:
+            async with db.async_session() as session:
+                user = await make_user_superuser(session, email)
+
+                click.echo("✅ Made user superuser:")
+                click.echo(f"   ID: {user.id}")
+                click.echo(f"   Name: {user.name}")
+                click.echo(f"   Email: {user.email}")
+                click.echo(f"   User Type: {user.user_type}")
+                click.echo(f"   Updated: {user.updated_at}")
+        except ValueError as e:
+            click.echo(f"❌ Error: {e}", err=True)
+        finally:
+            await db.close()
+
+    asyncio.run(_make_superuser())
 
 
 @cli.command("list-pro-users")
