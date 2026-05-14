@@ -268,7 +268,8 @@ Now prepare the data for visualization in Recharts.js:
       2. **Field names**: Use clear, lowercase names like 'date', 'value', 'category', 'year', 'count'
       3. **Numeric values**: Always numbers, never strings (e.g., 100 not "100")
       4. **Date ordering**: Chronological order for time series, not alphabetical
-      5. **Data format by chart type**:
+      5. **Grouping fields**: Group only by categorical, readable label columns such as names, dates, periods, classes, or metric labels. Do not group by numeric measure/value columns like 'value', 'count', 'area', 'sum', or continuous numeric readings unless the user explicitly asks for a distribution or histogram; aggregate those numeric columns instead.
+      6. **Data format by chart type**:
          - **Single-series line/bar**: [{{"date": "2020-01", "value": 100}}]
            → One metric column, use y_axis="value"
 
