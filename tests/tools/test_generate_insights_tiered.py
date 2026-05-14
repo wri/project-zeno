@@ -25,6 +25,7 @@ from src.agent.tools.generate_insights import (
     MultiChartInsight,
     _extract_statistics_ids,
     generate_insights,
+    prepare_dataframes,
 )
 from src.api.data_models import InsightOrm
 
@@ -413,6 +414,67 @@ async def test_extract_statistics_ids_tracks_new_state_ids():
 
 async def test_extract_statistics_ids_keeps_older_states_compatible():
     assert _extract_statistics_ids([{}, {}, None]) == []
+
+
+async def test_prepare_dataframes_uses_inline_data_for_legacy_stats(
+    monkeypatch,
+):
+    fetch_data = AsyncMock(side_effect=AssertionError("should not fetch"))
+    monkeypatch.setattr(
+        generate_insights_module, "fetch_statistics_from_url", fetch_data
+    )
+
+    dataframes, source_urls = await prepare_dataframes(
+        [
+            {
+                "dataset_name": "Tree cover loss",
+                "start_date": "2020-01-01",
+                "end_date": "2021-12-31",
+                "aoi_names": ["Brazil"],
+                "parameters": None,
+                "context_layer": None,
+                "data": {"year": [2020, 2021], "value": [1, 2]},
+            }
+        ]
+    )
+
+    assert len(dataframes) == 1
+    assert dataframes[0][0].to_dict("list") == {
+        "year": [2020, 2021],
+        "value": [1, 2],
+    }
+    assert source_urls == [""]
+    fetch_data.assert_not_awaited()
+
+
+async def test_prepare_dataframes_fetches_id_backed_stats(monkeypatch):
+    fetch_data = AsyncMock(return_value={"year": [2020], "value": [5]})
+    monkeypatch.setattr(
+        generate_insights_module, "fetch_statistics_from_url", fetch_data
+    )
+
+    dataframes, source_urls = await prepare_dataframes(
+        [
+            {
+                "id": "stat-1",
+                "dataset_name": "Tree cover loss",
+                "source_url": "http://example.com/statistics/stat-1",
+                "start_date": "2020-01-01",
+                "end_date": "2020-12-31",
+                "aoi_names": ["Brazil"],
+                "parameters": None,
+                "context_layer": None,
+                "data": {},
+            }
+        ]
+    )
+
+    assert dataframes[0][0].to_dict("list") == {
+        "year": [2020],
+        "value": [5],
+    }
+    assert source_urls == ["http://example.com/statistics/stat-1"]
+    fetch_data.assert_awaited_once_with("http://example.com/statistics/stat-1")
 
 
 async def test_generate_insights_persists_statistics_provenance(monkeypatch):

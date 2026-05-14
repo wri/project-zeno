@@ -17,7 +17,6 @@ from src.agent.tools.code_executors.base import (
     MultiChartInsight,
     PartType,
 )
-from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.shared.database import get_session_from_pool
@@ -26,13 +25,30 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def _get_available_datasets() -> str:
-    """Get a concise list of available datasets from the datasets configuration."""
-    dataset_names = []
-    for dataset in DATASETS:
-        dataset_names.append(dataset["dataset_name"])
+async def _extract_inline_statistics_data(data: dict) -> dict | None:
+    inline_data = data.get("data")
+    if not inline_data:
+        return None
+    if isinstance(inline_data, dict) and set(inline_data.keys()) == {"data"}:
+        return inline_data["data"]
+    return inline_data
 
-    return ", ".join(dataset_names)
+
+async def _load_statistics_data(data: dict) -> dict | None:
+    # If data is inline already, return it
+    legacy_data = await _extract_inline_statistics_data(data)
+    if legacy_data:
+        return legacy_data
+    # Otherwise, fetch from source URL and re-apply the aoi_id→name mapping so
+    # chart labels stay readable (the raw API result doesn't include names).
+    source_url = data.get("source_url")
+    if source_url:
+        raw = await fetch_statistics_from_url(source_url)
+        if raw and (mapping := data.get("aoi_id_to_name")):
+            raw["name"] = [mapping.get(i, i) for i in raw.get("aoi_id", [])]
+        return raw
+
+    return None
 
 
 async def prepare_dataframes(
@@ -41,10 +57,11 @@ async def prepare_dataframes(
     """
     Prepare DataFrames from raw data for code executor.
 
-    Fetches all source URLs concurrently, then builds DataFrames in order.
+    Fetches ID-backed data by source URL, while keeping older inline-data
+    thread state working.
     """
     raw_results = await asyncio.gather(
-        *[fetch_statistics_from_url(s["source_url"]) for s in statistics]
+        *[_load_statistics_data(s) for s in statistics]
     )
 
     dataframes = []
@@ -71,7 +88,7 @@ async def prepare_dataframes(
         param_suffix = f" [{', '.join(param_parts)}]" if param_parts else ""
         display_name = f"{', '.join(data['aoi_names'])} — {data['dataset_name']} ({data['start_date']} to {data['end_date']}){param_suffix}"
         dataframes.append((df, display_name))
-        source_urls.append(data["source_url"])
+        source_urls.append(data.get("source_url", ""))
 
         logger.info(f"Prepared: {display_name}")
 
@@ -113,7 +130,7 @@ def replace_csv_paths_with_urls(
 
     def replace_match(match):
         file_index = int(match.group(1))
-        if file_index < len(source_urls):
+        if file_index < len(source_urls) and source_urls[file_index]:
             url = source_urls[file_index]
             # Replace the entire pd.read_csv(...) call with URL-based loading
             return f'pd.DataFrame(pd.read_json("{url}")["data"]["result"])'
@@ -133,7 +150,7 @@ def replace_csv_paths_with_urls(
 
     def replace_standalone(match):
         file_index = int(match.group(1))
-        if file_index < len(source_urls):
+        if file_index < len(source_urls) and source_urls[file_index]:
             url = source_urls[file_index]
             # Replace with URL string
             return f'"{url}"'
@@ -251,7 +268,8 @@ Now prepare the data for visualization in Recharts.js:
       2. **Field names**: Use clear, lowercase names like 'date', 'value', 'category', 'year', 'count'
       3. **Numeric values**: Always numbers, never strings (e.g., 100 not "100")
       4. **Date ordering**: Chronological order for time series, not alphabetical
-      5. **Data format by chart type**:
+      5. **Grouping fields**: Group only by categorical, readable label columns such as names, dates, periods, classes, or metric labels. Do not group by numeric measure/value columns like 'value', 'count', 'area', 'sum', or continuous numeric readings unless the user explicitly asks for a distribution or histogram; aggregate those numeric columns instead.
+      6. **Data format by chart type**:
          - **Single-series line/bar**: [{{"date": "2020-01", "value": 100}}]
            → One metric column, use y_axis="value"
 
@@ -435,11 +453,15 @@ async def generate_insights(
     for idx, chart in enumerate(result.insight.charts, 1):
         tool_message += f"Chart {idx}: {chart.title}\n"
 
-    MAX_CHART_DATA_ROWS_FOR_TOOL_MESSAGE = 50
-    if len(chart_data_df) < MAX_CHART_DATA_ROWS_FOR_TOOL_MESSAGE:
-        tool_message += (
-            f"\nChart data CSV:\n{chart_data_df.to_csv(index=False)}"
-        )
+    MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE = 4000
+    formatted_df = chart_data_df.apply(
+        lambda col: col.map(lambda x: f"{x:.4f}".rstrip("0").rstrip("."))
+        if pd.api.types.is_float_dtype(col)
+        else col
+    )
+    csv_str = formatted_df.to_csv(index=False)
+    if len(csv_str) < MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE:
+        tool_message += f"\nChart data CSV:\n{csv_str}"
 
     tool_message += "\nFollow-up suggestions:"
     for i, suggestion in enumerate(result.insight.follow_up_suggestions, 1):
