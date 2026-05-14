@@ -225,6 +225,66 @@ async def test_generate_insights_comparison():
     assert isinstance(command.update.get("follow_up_suggestions"), list)
 
 
+async def test_generate_insights_legacy_inline_data():
+    """Backwards-compat: Statistics with inline data dict still works without URL fetch."""
+    mock_state = {
+        "dataset": {
+            "dataset_id": 1,
+            "context_layer": None,
+            "date_request_match": True,
+            "reason": "Deforestation alerts dataset.",
+            "tile_url": "https://tiles.example.com/deforestation/latest/dynamic/{z}/{x}/{y}.png",
+            "dataset_name": "Deforestation Alerts",
+            "analytics_api_endpoint": "/v0/deforestation/alerts/analytics",
+            "description": "Deforestation alerts tracking forest loss events.",
+            "prompt_instructions": "Analyze deforestation alert trends over time",
+            "methodology": "Satellite-based detection of forest loss events.",
+            "cautions": "Alert data may have temporal lag.",
+            "function_usage_notes": "Identifies deforestation events\n",
+            "citation": "Global Forest Watch Deforestation Alerts.",
+        },
+        "statistics": [
+            Statistics(
+                dataset_name="Deforestation Alerts",
+                source_url="http://example.com/analytics/should-not-be-fetched",
+                start_date="2020-01-01",
+                end_date="2023-12-31",
+                aoi_names=["Amazon Region"],
+                data={
+                    "alert_date": [
+                        "2020-01-01",
+                        "2021-01-01",
+                        "2022-01-01",
+                        "2023-01-01",
+                    ],
+                    "value": [1200, 1450, 1100, 980],
+                    "aoi_id": ["BRA.15"] * 4,
+                    "aoi_type": ["admin"] * 4,
+                },
+            )
+        ],
+    }
+
+    tool_call_id = str(uuid.uuid4())
+    # No patch on fetch_statistics_from_url — inline data must be used without a network call
+    result = await generate_insights.ainvoke(
+        {
+            "type": "tool_call",
+            "name": "generate_insights",
+            "id": tool_call_id,
+            "args": {
+                "query": "What are the trends in deforestation alerts over time?",
+                "state": mock_state,
+            },
+        }
+    )
+
+    assert "insight_id" in result.update
+    assert result.update["insight_id"]
+    assert "charts_data" in result.update
+    assert len(result.update["charts_data"]) > 0
+
+
 async def test_simple_line_chart():
     """Test simple line chart generation for time series data."""
     line_data = {
