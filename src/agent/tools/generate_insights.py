@@ -10,7 +10,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from src.agent.prompts import WORDING_INSTRUCTIONS
+from src.agent.skills import get_skill_body
 from src.agent.tools.code_executors import GeminiCodeExecutor
 from src.agent.tools.code_executors.base import (
     ChartInsight,
@@ -215,6 +215,9 @@ def build_analysis_prompt(
 ---
 """
 
+    executor_workflow = get_skill_body("generate-insights-executor") or ""
+    wording = get_skill_body("wording") or ""
+
     prompt = f"""### User Query:
 {query}
 
@@ -230,77 +233,7 @@ For example: "I will begin by loading and examining" -> "Load and examine"
 {dataset_rules_section}
 {cautions_section}
 
-### STEP-BY-STEP WORKFLOW (follow in order):
-
-IMPORTANT: Write one code block for each step, so that you can use the actual data printed for the next steps.
-
-**STEP 1: ANALYZE THE DATA**
-- Load the relevant dataset(s) using pandas.
-- Always use the pattern `df = pd.read_csv("input_file_{{i}}.csv")` to load the data, do not assign the file name to a variable first.
-- If multiple files represent the same dataset with different parameters (shown in brackets in the file name, e.g. `[canopy_cover=50]`), treat each as a separate series and use the parameter value as the series label.
-- Print which dataset(s) you are using (name, date range, and any filtering parameters)
-- Explore the data structure, columns, and data types
-- Calculate key statistics relevant to the user query
-- Print your key findings clearly
-- Do **NOT** create any plots or charts yet
-
-**STEP 2: SUMMARIZE INSIGHTS**
-- Summarize the data relevant to the user query
-- Identify the most important patterns, trends, or comparisons
-- Print a clear summary of what the data shows
-- Include contextual layers or parameters used for analysis on the datasets
-
-**STEP 3: GENERATE CHART DATA**
-Now prepare the data for visualization in Recharts.js:
-
-   a) **CHART TYPE SELECTION** - Choose the most appropriate chart type:
-      - **line**: Time series data, trends over time (supports multi-series)
-      - **bar**: Categorical comparisons, rankings (supports multi-series for grouped bars)
-      - **stacked-bar**: Show composition within categories (use wide format with multiple metric columns)
-      - **grouped-bar**: Compare multiple metrics side-by-side (use long format with group column)
-      - **pie**: Part-to-whole relationships (limit to 6-8 categories max)
-      - **area**: Cumulative trends, stacked time series (supports multi-series)
-      - **scatter**: Show correlations between two variables
-      - **table**: Detailed data when visualization isn't optimal
-
-   b) **CREATE CHART DATA** following these requirements:
-      1. **Structure**: Array of objects (rows) with simple field names as columns
-      2. **Field names**: Use clear, lowercase names like 'date', 'value', 'category', 'year', 'count'
-      3. **Numeric values**: Always numbers, never strings (e.g., 100 not "100")
-      4. **Date ordering**: Chronological order for time series, not alphabetical
-      5. **Grouping fields**: Group only by categorical, readable label columns such as names, dates, periods, classes, or metric labels. Do not group by numeric measure/value columns like 'value', 'count', 'area', 'sum', or continuous numeric readings unless the user explicitly asks for a distribution or histogram; aggregate those numeric columns instead.
-      6. **Data format by chart type**:
-         - **Single-series line/bar**: [{{"date": "2020-01", "value": 100}}]
-           → One metric column, use y_axis="value"
-
-         - **Multi-series line/bar/area**: [{{"year": "2020", "metric1": 100, "metric2": 50}}]
-           → Multiple metric columns in WIDE format
-           → Use series_fields=["metric1", "metric2"], leave y_axis empty
-
-         - **Stacked-bar**: [{{"category": "Region A", "forest": 100, "grassland": 50, "urban": 30}}]
-           → Multiple metric columns in WIDE format (same as multi-series)
-           → Use series_fields=["forest", "grassland", "urban"], leave y_axis empty
-           → Bars will stack vertically to show composition
-
-         - **Grouped-bar**: [{{"year": "2020", "metric": "forest_loss", "value": 100}}, {{"year": "2020", "metric": "forest_gain", "value": 50}}]
-           → LONG format with a grouping column
-           → Use group_field="metric", y_axis="value"
-           → Bars will appear side-by-side for comparison
-
-         - **Pie**: [{{"name": "Category A", "value": 100}}]
-           → Limited to 6-8 slices, use x_axis="name", y_axis="value"
-
-   c) **SAVE THE DATA**: Save the DataFrame as `chart_data.csv` with column names for the frontend. This
-   is ABSOLUTELY CRITICAL. Always save the data to a file with the name `chart_data.csv`.
-   Do not replace chart_data.csv with a markdown table; the pipeline only reads the CSV artifact.
-   The final code execution step must call ...to_csv('chart_data.csv', index=False) with that exact path.
-   This is also true for table chart type, always store the output to a file!
-
-   d) **SAVE THE INSIGHT**: Save the insight as a JSON file with the name `insight.json`.
-   This is ABSOLUTELY CRITICAL. Always save the insight to a file with the name `insight.json`.
-   Do not replace insight.json with a markdown table; the pipeline only reads the JSON artifact.
-   The final code execution step must call ...to_json('insight.json', orient='records') with that exact path.
-   This is also true for table chart type, always store the output to a file!
+{executor_workflow}
 
    Here is the JSON schema for the insight:
    {MultiChartInsight.model_json_schema()}
@@ -308,14 +241,7 @@ Now prepare the data for visualization in Recharts.js:
    Here is the JSON schema for the chart data:
    {ChartInsight.model_json_schema()}
 
-   e) **PRINT CHART TYPE**: Clearly state your recommended chart type in the output
-
-**STEP 4: FINAL DATA-DRIVEN INSIGHT**
-- Provide a concise, data-driven insight (2-3 sentences)
-- Focus on what the data reveals and why it matters
-- Base this on the actual numbers and patterns you found
-
-{WORDING_INSTRUCTIONS}
+{wording}
 """
 
     return prompt
@@ -327,17 +253,7 @@ async def generate_insights(
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
-    """
-    Analyzes raw data and generates a single chart insight with Recharts-compatible data.
-
-    This tool analyzes the raw data and generates the most compelling visualization that
-    answers the user's query, along with follow-up suggestions for further exploration.
-
-    Args:
-        query: Improved query from the user including relevant context that will help in
-               better insight generation. Should include specific chart type requests,
-               temporal focus, comparison aspects, and any domain-specific context.
-    """
+    """Analyze pulled data and produce one chart insight with follow-up suggestions."""
     logger.info("GENERATE-INSIGHTS-TOOL")
     logger.debug(f"Generating insights for query: {query}")
 

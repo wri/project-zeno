@@ -82,19 +82,7 @@ async def pull_data(
     end_date: Optional[str] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
-    """
-    Pull data for the previously selected AOIs and dataset in a given time range.
-
-    This tool retrieves data from the appropriate data source based on the selected area of interest
-    and dataset for the specified time period. It uses specialized handlers to process different
-    data types and sources.
-
-    Args:
-        query: User query providing context for the data pull
-        start_date: Start date in YYYY-MM-DD format
-        end_date: End date in YYYY-MM-DD format
-        change_over_time_query: Whether the query is about change over time. If it is about composition or current status, return False. If it is about dynamics or change, return True.
-    """
+    """Pull data for the selected AOIs and dataset between start_date and end_date (YYYY-MM-DD)."""
     dataset = state["dataset"]
     aoi_names = [a["name"] for a in state["aoi_selection"]["aois"]]
     logger.info(

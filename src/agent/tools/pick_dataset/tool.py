@@ -211,17 +211,7 @@ async def pick_dataset(
     end_date: Optional[str] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
-    """
-    Given a user query, runs RAG to retrieve relevant datasets, selects the best matching dataset within the specified time range with reasoning,
-    and extracts relevant metadata needed for downstream querying such as context layers and parameters.
-
-    If the user requests data with a different context layer or parameter, pick the dataset again.
-
-    Args:
-        query: User query providing context for the dataset selection
-        start_date: Start date in YYYY-MM-DD format
-        end_date: End date in YYYY-MM-DD format
-    """
+    """Select the best dataset and metadata for the query and optional start_date/end_date (YYYY-MM-DD)."""
     logger.info("PICK-DATASET-TOOL")
 
     aoi_selection = state.get("aoi_selection")

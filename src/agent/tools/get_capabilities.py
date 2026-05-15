@@ -7,7 +7,6 @@ def _load_datasets_info() -> str:
     """Load dataset information from the datasets configuration."""
     datasets_info = []
     for dataset in DATASETS:
-        print(dataset.get("dataset_name"))
         name = dataset.get("dataset_name", "Unknown")
         content_date = dataset.get("content_date", "Unknown")
         resolution = dataset.get("resolution", "Unknown")
@@ -46,10 +45,7 @@ def _load_datasets_info() -> str:
 
 @tool("get_capabilities")
 def get_capabilities() -> str:
-    """
-    Get comprehensive information about the agent's capabilities, available datasets, and supported areas of interest.
-    Use this tool when users ask about what you can do, what data is available, what's possible or about you.
-    """
+    """Return agent capabilities, available datasets, and supported area types."""
     datasets_section = _load_datasets_info()
 
     return f"""ABOUT ME:
@@ -74,12 +70,6 @@ WHAT I CAN CREATE:
 - Time series analysis showing changes over specified periods
 - Summary insights with key findings
 - Follow-up suggestions for deeper exploration
-
-TYPICAL WORKFLOW:
-1. Select area of interest based on user location request
-2. Identify most relevant dataset for the user's question
-3. Pull data for specified time period and location
-4. Generate insights with charts and analysis
 
 REQUIREMENTS TO GET STARTED:
 - Location: Specify where to analyze (country, state, city, protected area, etc.)

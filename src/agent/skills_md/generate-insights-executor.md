@@ -1,0 +1,64 @@
+---
+name: generate-insights-executor
+description: Step-by-step code-executor workflow for chart and insight JSON artifacts.
+when_to_use: Loaded programmatically by generate_insights — not via read_skill in normal chat.
+---
+
+### STEP-BY-STEP WORKFLOW (follow in order)
+
+IMPORTANT: Write one code block for each step, so that you can use the actual data printed for the next steps.
+
+**STEP 1: ANALYZE THE DATA**
+- Load the relevant dataset(s) using pandas.
+- Always use the pattern `df = pd.read_csv("input_file_{i}.csv")` to load the data, do not assign the file name to a variable first.
+- If multiple files represent the same dataset with different parameters (shown in brackets in the file name, e.g. `[canopy_cover=50]`), treat each as a separate series and use the parameter value as the series label.
+- Print which dataset(s) you are using (name, date range, and any filtering parameters)
+- Explore the data structure, columns, and data types
+- Calculate key statistics relevant to the user query
+- Print your key findings clearly
+- Do **NOT** create any plots or charts yet
+
+**STEP 2: SUMMARIZE INSIGHTS**
+- Summarize the data relevant to the user query
+- Identify the most important patterns, trends, or comparisons
+- Print a clear summary of what the data shows
+- Include contextual layers or parameters used for analysis on the datasets
+
+**STEP 3: GENERATE CHART DATA**
+Now prepare the data for visualization in Recharts.js:
+
+   a) **CHART TYPE SELECTION** - Choose the most appropriate chart type:
+      - **line**: Time series data, trends over time (supports multi-series)
+      - **bar**: Categorical comparisons, rankings (supports multi-series for grouped bars)
+      - **stacked-bar**: Show composition within categories (use wide format with multiple metric columns)
+      - **grouped-bar**: Compare multiple metrics side-by-side (use long format with group column)
+      - **pie**: Part-to-whole relationships (limit to 6-8 categories max)
+      - **area**: Cumulative trends, stacked time series (supports multi-series)
+      - **scatter**: Show correlations between two variables
+      - **table**: Detailed data when visualization isn't optimal
+
+   b) **CREATE CHART DATA** following these requirements:
+      1. **Structure**: Array of objects (rows) with simple field names as columns
+      2. **Field names**: Use clear, lowercase names like 'date', 'value', 'category', 'year', 'count'
+      3. **Numeric values**: Always numbers, never strings (e.g., 100 not "100")
+      4. **Date ordering**: Chronological order for time series, not alphabetical
+      5. **Grouping fields**: Group only by categorical, readable label columns such as names, dates, periods, classes, or metric labels. Do not group by numeric measure/value columns like 'value', 'count', 'area', 'sum', or continuous numeric readings unless the user explicitly asks for a distribution or histogram; aggregate those numeric columns instead.
+      6. **Data format by chart type**:
+         - **Single-series line/bar**: [{"date": "2020-01", "value": 100}]
+           → One metric column, use y_axis="value"
+         - **Multi-series line/bar/area**: [{"year": "2020", "metric1": 100, "metric2": 50}]
+           → Multiple metric columns in WIDE format
+           → Use series_fields=["metric1", "metric2"], leave y_axis empty
+         - **Stacked-bar**: [{"category": "Region A", "forest": 100, "grassland": 50, "urban": 30}]
+           → Use series_fields, leave y_axis empty
+         - **Grouped-bar**: long format with group_field and y_axis="value"
+         - **Pie**: [{"name": "Category A", "value": 100}], max 6–8 slices
+
+   c) **SAVE THE DATA**: Save as `chart_data.csv` — pipeline only reads this file. Final step must call `to_csv('chart_data.csv', index=False)`.
+
+   d) **SAVE THE INSIGHT**: Save as `insight.json` — pipeline only reads this file.
+
+   e) **PRINT CHART TYPE**: State the recommended chart type in the output
+
+**STEP 4: FINAL DATA-DRIVEN INSIGHT**
+- Concise 2–3 sentence insight grounded in the numbers found

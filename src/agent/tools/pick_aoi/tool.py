@@ -577,40 +577,7 @@ async def pick_aoi(
     ] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
-    """Selects the most appropriate area of interest (AOI) based on a place name and user's question. Optionally, it can also filter the results by a subregion.
-
-    This tool queries a spatial database to find location matches for a given place name,
-    then uses AI to select the best match based on the user's question context.
-
-    Always translate the place names to English
-
-    This includes:
-    - Translating from other languages to English
-    - Removing or correcting accented characters (é→e, ã→a, ç→c, etc.)
-    - Standardizing to the most common English spelling
-
-    Translation examples:
-    - "Odémire" → "Odemira"
-    - "São Paulo" → "Sao Paulo"
-    - "México" → "Mexico"
-    - "Köln" → "Cologne"
-    - "Bern, Schweiz" → "Bern, Switzerland"
-    - "Lisboa em Portugal" → "Lisbon, Portugal"
-
-    Keep pairs of places together in one place name if they belong to the same place deonmination.
-    For example, "Lisbon in Portugal" -> "Lisbon, Portugal", do not separate them into "Lisbon" and "Portugal".
-
-    Global queries:
-    When the user asks about the whole world (e.g. "globally", "worldwide", "all countries"),
-    pass a global synonym as the place (e.g. "global") and set subregion="country".
-    Global queries only support subregion="country" — all countries in the database are returned
-    without any spatial filtering.
-
-    Args:
-        question: User's question providing context for selecting the most relevant location
-        places: Names of the places or areas to find in the spatial database, expand any abbreviations, translate to English if necessary
-        subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
-    """
+    """Resolve place name(s) to AOI geometry; optional subregion for multi-unit comparison within a parent area."""
     logger.info(f"PICK-AOI-TOOL: places: '{places}', subregion: '{subregion}'")
 
     if is_global_request(places):
