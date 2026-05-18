@@ -7,6 +7,8 @@ load_dotenv()
 class _APISettings(BaseSettings):
     """API-specific settings for quotas, authentication, and access control."""
 
+    mapbox_api_token: str = ""
+
     # Quota settings
     daily_quota_warning_threshold: int = 5
     admin_user_daily_quota: int = 100
