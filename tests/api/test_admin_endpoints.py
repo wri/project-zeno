@@ -839,9 +839,9 @@ async def test_export_users_response_headers(
 
     cd = response.headers.get("content-disposition", "")
     assert "attachment" in cd
-    assert re.search(r'filename="gnw-users-\d{4}-\d{2}-\d{2}\.csv"', cd), (
-        f"Unexpected Content-Disposition: {cd!r}"
-    )
+    assert re.search(
+        r'filename="gnw-users-\d{4}-\d{2}-\d{2}\.csv"', cd
+    ), f"Unexpected Content-Disposition: {cd!r}"
 
 
 @pytest.mark.asyncio
