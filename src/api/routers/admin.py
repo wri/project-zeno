@@ -1,9 +1,11 @@
 """Superuser-only admin endpoints (manage other users)."""
 
-from datetime import datetime
-from typing import Optional
+import csv
+import io
+from datetime import datetime, timezone
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +15,40 @@ from src.api.schemas import UserModel, UserTypeUpdateRequest
 from src.shared.database import get_session_from_pool_dependency
 
 router = APIRouter()
+
+_EXPORT_COLUMNS: tuple[str, ...] = (
+    "id",
+    "name",
+    "email",
+    "created_at",
+    "updated_at",
+    "user_type",
+    "first_name",
+    "last_name",
+    "profile_description",
+    "sector_code",
+    "role_code",
+    "job_title",
+    "company_organization",
+    "country_code",
+    "preferred_language_code",
+    "gis_expertise_level",
+    "areas_of_interest",
+    "has_profile",
+    "topics",
+    "receive_news_emails",
+    "help_test_features",
+)
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
 
 
 @router.get("/api/admin/users", response_model=list[UserModel])
@@ -69,3 +105,42 @@ async def update_user_type(
     await session.refresh(target)
 
     return _orm_to_user_model(target)
+
+
+@router.get("/api/admin/users/export")
+async def export_users(
+    format: str = Query("csv"),
+    _superuser: UserModel = Depends(require_superuser),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+):
+    """Superuser-only full export of the users table.
+
+    Currently supports `format=csv` only; the `format` param exists so other
+    serializations (e.g. JSON) can be added without changing the URL.
+    """
+    if format != "csv":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unsupported format {format!r}; only 'csv' is currently "
+                "supported"
+            ),
+        )
+
+    result = await session.execute(
+        select(UserOrm).order_by(UserOrm.created_at.desc(), UserOrm.id.asc())
+    )
+    users = result.scalars().all()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(_EXPORT_COLUMNS)
+    for u in users:
+        writer.writerow([_csv_cell(getattr(u, c)) for c in _EXPORT_COLUMNS])
+
+    filename = f"gnw-users-{datetime.now(timezone.utc).date().isoformat()}.csv"
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
