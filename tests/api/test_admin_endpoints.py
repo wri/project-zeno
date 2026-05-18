@@ -1,5 +1,11 @@
 """Tests for the superuser-gated admin endpoints."""
 
+import csv
+import io
+import json
+import re
+from datetime import datetime
+
 import pytest
 from sqlalchemy import select
 
@@ -703,3 +709,306 @@ async def test_superuser_can_view_other_users_private_threads(
         headers={"Authorization": "Bearer test-token"},
     )
     assert response.status_code == 200
+
+
+# --- GET /api/admin/users/export ------------------------------------------
+
+EXPORT_COLUMNS = [
+    "id",
+    "name",
+    "email",
+    "created_at",
+    "updated_at",
+    "user_type",
+    "first_name",
+    "last_name",
+    "profile_description",
+    "sector_code",
+    "role_code",
+    "job_title",
+    "company_organization",
+    "country_code",
+    "preferred_language_code",
+    "gis_expertise_level",
+    "areas_of_interest",
+    "has_profile",
+    "topics",
+    "receive_news_emails",
+    "help_test_features",
+]
+
+
+@pytest.mark.asyncio
+async def test_export_users_requires_auth(client):
+    """Unauthenticated requests must return 401."""
+    response = await client.get("/api/admin/users/export?format=csv")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_export_users_forbidden_for_regular(client, auth_override):
+    """Regular users must receive 403."""
+    regular = await _seed_user(
+        "regular-export", "regular-export@example.test", UserType.REGULAR
+    )
+    auth_override(regular.id)
+
+    response = await client.get(
+        "/api/admin/users/export?format=csv",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_export_users_forbidden_for_admin(
+    client, auth_override, admin_user_factory
+):
+    """Admin (not superuser) must receive 403."""
+    admin = await admin_user_factory("admin-export@example.test")
+    auth_override(admin.id)
+
+    response = await client.get(
+        "/api/admin/users/export?format=csv",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_export_users_forbidden_for_pro(client, auth_override):
+    """Pro users must receive 403."""
+    pro = await _seed_user(
+        "pro-export", "pro-export@example.test", UserType.PRO
+    )
+    auth_override(pro.id)
+
+    response = await client.get(
+        "/api/admin/users/export?format=csv",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_export_users_rejects_unknown_format(
+    client, auth_override, superuser_factory
+):
+    """An unsupported format query value must return 400."""
+    su = await superuser_factory("su-export-badfmt@example.test")
+    auth_override(su.id)
+
+    response = await client.get(
+        "/api/admin/users/export?format=xml",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_export_users_defaults_to_csv(
+    client, auth_override, superuser_factory
+):
+    """Omitting the format param defaults to csv."""
+    su = await superuser_factory("su-export-default@example.test")
+    auth_override(su.id)
+
+    response = await client.get(
+        "/api/admin/users/export",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+
+
+@pytest.mark.asyncio
+async def test_export_users_response_headers(
+    client, auth_override, superuser_factory
+):
+    """Response carries text/csv content-type and attachment disposition
+    with a date-stamped filename of the form gnw-users-YYYY-MM-DD.csv."""
+    su = await superuser_factory("su-export-headers@example.test")
+    auth_override(su.id)
+
+    response = await client.get(
+        "/api/admin/users/export?format=csv",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+
+    cd = response.headers.get("content-disposition", "")
+    assert "attachment" in cd
+    assert re.search(r'filename="gnw-users-\d{4}-\d{2}-\d{2}\.csv"', cd), (
+        f"Unexpected Content-Disposition: {cd!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_export_users_header_row(
+    client, auth_override, superuser_factory
+):
+    """First CSV row is the expected 21-column header in exact order."""
+    su = await superuser_factory("su-export-header-row@example.test")
+    auth_override(su.id)
+
+    response = await client.get(
+        "/api/admin/users/export?format=csv",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code == 200
+
+    reader = csv.reader(io.StringIO(response.text))
+    rows = list(reader)
+    assert rows[0] == EXPORT_COLUMNS
+
+
+@pytest.mark.asyncio
+async def test_export_users_renders_rows_correctly(
+    client, auth_override, superuser_factory
+):
+    """Rows carry the expected formatting:
+      - booleans serialize as 'true'/'false'
+      - datetimes as ISO-8601 (round-trip via fromisoformat)
+      - topics: NULL → empty cell; '[]' → '[]'; JSON array → unchanged
+      - rows ordered by created_at DESC, id ASC
+      - quoting handles commas in values
+    """
+    su = await superuser_factory("su-export-rows@example.test")
+    auth_override(su.id)
+
+    full_created = datetime(2025, 1, 15, 10, 30, 0)
+    full_updated = datetime(2025, 6, 20, 14, 45, 30, 123456)
+    minimal_created = datetime(2024, 8, 1, 9, 0, 0)
+    comma_created = datetime(2026, 3, 10, 12, 0, 0)
+
+    async with async_session_maker() as session:
+        session.add(
+            UserOrm(
+                id="export-full",
+                name="Fictitious Fullprofile",
+                email="full-export@example.test",
+                created_at=full_created,
+                updated_at=full_updated,
+                user_type=UserType.REGULAR.value,
+                first_name="Fictitious",
+                last_name="Fullprofile",
+                profile_description="An entirely made-up profile.",
+                sector_code="sample_sector",
+                role_code="sample_role",
+                job_title="Imaginary Title",
+                company_organization="Made-Up Org",
+                country_code="ZZ",
+                preferred_language_code="xx",
+                gis_expertise_level="intermediate",
+                areas_of_interest="placeholder_interest",
+                topics='["topic_alpha", "topic_beta"]',
+                receive_news_emails=True,
+                help_test_features=True,
+                has_profile=True,
+            )
+        )
+        session.add(
+            UserOrm(
+                id="export-minimal",
+                name="Minimal Tester",
+                email="minimal-export@example.test",
+                created_at=minimal_created,
+                updated_at=minimal_created,
+                user_type=UserType.REGULAR.value,
+                topics=None,
+            )
+        )
+        session.add(
+            UserOrm(
+                id="export-comma",
+                name="Lastname, Firstname",
+                email="comma-export@example.test",
+                created_at=comma_created,
+                updated_at=comma_created,
+                user_type=UserType.REGULAR.value,
+                topics="[]",
+            )
+        )
+        await session.commit()
+
+    response = await client.get(
+        "/api/admin/users/export?format=csv",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code == 200
+
+    reader = csv.reader(io.StringIO(response.text))
+    rows = list(reader)
+    header, data_rows = rows[0], rows[1:]
+    assert header == EXPORT_COLUMNS
+
+    by_id = {row[header.index("id")]: row for row in data_rows}
+    assert "export-full" in by_id
+    assert "export-minimal" in by_id
+    assert "export-comma" in by_id
+
+    seeded_ids = [
+        "export-full",
+        "export-minimal",
+        "export-comma",
+        su.id,
+    ]
+    ordered = [
+        row[header.index("id")]
+        for row in data_rows
+        if row[header.index("id")] in seeded_ids
+    ]
+    # created_at DESC, id ASC → comma (2026), full (2025-06 via created 2025-01;
+    # superuser created at fixture time ~ now), minimal (2024). Superuser is
+    # created during this test, so its created_at is the most recent. Verify
+    # the three seeded rows are in their expected relative order.
+    seeded_order = [
+        i for i in ordered if i in {"export-full", "export-minimal", "export-comma"}
+    ]
+    assert seeded_order == ["export-comma", "export-full", "export-minimal"]
+
+    full_row = by_id["export-full"]
+
+    def cell(name):
+        return full_row[header.index(name)]
+
+    assert cell("name") == "Fictitious Fullprofile"
+    assert cell("email") == "full-export@example.test"
+    assert cell("user_type") == UserType.REGULAR.value
+    assert cell("first_name") == "Fictitious"
+    assert cell("last_name") == "Fullprofile"
+    assert cell("profile_description") == "An entirely made-up profile."
+    assert cell("sector_code") == "sample_sector"
+    assert cell("role_code") == "sample_role"
+    assert cell("job_title") == "Imaginary Title"
+    assert cell("company_organization") == "Made-Up Org"
+    assert cell("country_code") == "ZZ"
+    assert cell("preferred_language_code") == "xx"
+    assert cell("gis_expertise_level") == "intermediate"
+    assert cell("areas_of_interest") == "placeholder_interest"
+    assert cell("has_profile") == "true"
+    assert cell("receive_news_emails") == "true"
+    assert cell("help_test_features") == "true"
+
+    assert datetime.fromisoformat(cell("created_at")) == full_created
+    assert datetime.fromisoformat(cell("updated_at")) == full_updated
+    assert json.loads(cell("topics")) == ["topic_alpha", "topic_beta"]
+
+    minimal_row = by_id["export-minimal"]
+
+    def m(name):
+        return minimal_row[header.index(name)]
+
+    assert m("first_name") == ""
+    assert m("last_name") == ""
+    assert m("profile_description") == ""
+    assert m("sector_code") == ""
+    assert m("topics") == ""
+    assert m("has_profile") == "false"
+    assert m("receive_news_emails") == "false"
+    assert m("help_test_features") == "false"
+
+    comma_row = by_id["export-comma"]
+    assert comma_row[header.index("name")] == "Lastname, Firstname"
+    assert comma_row[header.index("topics")] == "[]"
