@@ -10,7 +10,6 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from src.agent.skills import get_skill_body
 from src.agent.tools.code_executors import GeminiCodeExecutor
 from src.agent.tools.code_executors.base import (
     ChartInsight,
@@ -18,6 +17,7 @@ from src.agent.tools.code_executors.base import (
     PartType,
 )
 from src.agent.tools.pull_data import fetch_statistics_from_url
+from src.agent.tools.skills.loader import get_skill_body
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger

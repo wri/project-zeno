@@ -25,4 +25,4 @@ If you called `wri_insights` in the same turn, you already **summarized WRI find
 
 # Capabilities questions
 
-For "what can you do?" / available data, call `get_capabilities` (or skill `explore`), not the full analysis pipeline.
+For "what can you do?" / available data, read skill `capabilities`, not the full analysis pipeline.

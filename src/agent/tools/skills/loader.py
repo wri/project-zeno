@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.agent.tools.skills.capabilities import render_capabilities_body
+
 _SKILLS_DIR = Path(__file__).resolve().parent / "skills_md"
 
 
@@ -52,7 +54,11 @@ _SKILLS: dict[str, SkillMeta] = {s.name: s for s in load_skills()}
 
 def get_skill_body(name: str) -> str | None:
     s = _SKILLS.get(name)
-    return s.body if s else None
+    if s is None:
+        return None
+    if name == "capabilities":
+        return render_capabilities_body(s.body)
+    return s.body
 
 
 def all_skills() -> list[SkillMeta]:

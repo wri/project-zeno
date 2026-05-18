@@ -654,11 +654,14 @@ def render_stream(stream):
 
     for msg in update["messages"]:
         msg_type = msg["kwargs"].get("type")
-        if (
-            msg_type == "tool"
-            and msg["kwargs"].get("name") == "get_capabilities"
-        ):
-            continue
+        if msg_type == "tool":
+            tool_name = msg["kwargs"].get("name")
+            content = msg["kwargs"].get("content") or ""
+            if tool_name == "read_skill" and (
+                content.startswith("## About me")
+                or content.startswith("ABOUT ME:")
+            ):
+                continue
 
         content = msg["kwargs"]["content"]
 

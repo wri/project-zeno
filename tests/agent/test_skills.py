@@ -1,4 +1,4 @@
-from src.agent.skills import all_skills, get_skill_body, load_skills
+from src.agent.tools.skills import all_skills, get_skill_body, load_skills
 
 
 def test_load_skills():
@@ -6,8 +6,18 @@ def test_load_skills():
     names = {s.name for s in skills}
     assert "analyze" in names
     assert "pick-aoi" in names
+    assert "capabilities" in names
+    assert "explore" not in names
     assert len(skills) >= 8
     assert "wri-insights" in names
+
+
+def test_capabilities_skill_includes_datasets():
+    body = get_skill_body("capabilities")
+    assert body is not None
+    assert "{{AVAILABLE_DATASETS}}" not in body
+    assert "## Available datasets" in body
+    assert body.strip().startswith("# Workflow")
 
 
 def test_get_skill_body():
@@ -48,6 +58,8 @@ def test_get_prompt_pull_only_scope():
     prompt = get_prompt()
     assert "pull-data" in prompt
     assert "Pull-only" in prompt
+    assert "Capabilities-only" in prompt
+    assert "capabilities" in prompt
     assert "Do not read `analyze`" in prompt
 
 
