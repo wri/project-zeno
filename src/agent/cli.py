@@ -69,6 +69,7 @@ _TOOL_ACTION_LABELS = {
     "generate_insights": "Generating insights",
     "get_capabilities": "Loading capabilities",
     "inspect_state": "Inspecting state",
+    "wri_insights": "Searching WRI Insights",
 }
 
 

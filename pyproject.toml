@@ -49,6 +49,8 @@ dependencies = [
     "bcrypt==4.2.1",
     "click==8.1.8",
     "google-genai==1.68.0",
+    "beautifulsoup4>=4.14.3",
+    "trafilatura>=2.0.0",
 ]
 
 [dependency-groups]

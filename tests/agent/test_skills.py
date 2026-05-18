@@ -6,13 +6,23 @@ def test_load_skills():
     names = {s.name for s in skills}
     assert "analyze" in names
     assert "pick-aoi" in names
-    assert len(skills) >= 7
+    assert len(skills) >= 8
+    assert "wri-insights" in names
 
 
 def test_get_skill_body():
     body = get_skill_body("analyze")
     assert body is not None
     assert "pick_aoi" in body
+
+
+def test_wri_insights_skill_citation_guidance():
+    body = get_skill_body("wri-insights")
+    assert body is not None
+    assert "wri_insights" in body
+    assert "intermediate" in body.lower()
+    assert "affirmative" in body.lower()
+    assert "generate_insights" in body
 
 
 def test_pick_dataset_skill_dataset_only():
