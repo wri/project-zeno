@@ -868,11 +868,11 @@ async def test_export_users_renders_rows_correctly(
     client, auth_override, superuser_factory
 ):
     """Rows carry the expected formatting:
-      - booleans serialize as 'true'/'false'
-      - datetimes as ISO-8601 (round-trip via fromisoformat)
-      - topics: NULL → empty cell; '[]' → '[]'; JSON array → unchanged
-      - rows ordered by created_at DESC, id ASC
-      - quoting handles commas in values
+    - booleans serialize as 'true'/'false'
+    - datetimes as ISO-8601 (round-trip via fromisoformat)
+    - topics: NULL → empty cell; '[]' → '[]'; JSON array → unchanged
+    - rows ordered by created_at DESC, id ASC
+    - quoting handles commas in values
     """
     su = await superuser_factory("su-export-rows@example.test")
     auth_override(su.id)
@@ -964,7 +964,9 @@ async def test_export_users_renders_rows_correctly(
     # created during this test, so its created_at is the most recent. Verify
     # the three seeded rows are in their expected relative order.
     seeded_order = [
-        i for i in ordered if i in {"export-full", "export-minimal", "export-comma"}
+        i
+        for i in ordered
+        if i in {"export-full", "export-minimal", "export-comma"}
     ]
     assert seeded_order == ["export-comma", "export-full", "export-minimal"]
 
