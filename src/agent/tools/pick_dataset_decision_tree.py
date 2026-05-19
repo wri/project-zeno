@@ -112,13 +112,15 @@ async def pick_dataset_decision_tree(
     """
     logger.info("PICK-DATASET-DECISION-TREE-TOOL")
 
-    dataset_id = choose_dataset(land_cover, event, cause, measurement, start_date, end_date, temporal_resolution)
+    result = choose_dataset(land_cover, event, cause, measurement, start_date, end_date, temporal_resolution)
 
-    if dataset_id is None:
+    if result is None:
         raise ValueError(
             "No dataset is available for the combination of parameters provided. "
             "The requested land cover, event, or measurement may not be supported together."
         )
+
+    dataset_id, context_layer = result
 
     row = next((ds for ds in DATASETS if ds["dataset_id"] == dataset_id), None)
     if row is None:
@@ -133,7 +135,7 @@ async def pick_dataset_decision_tree(
     result = DatasetSelectionResult(
         dataset_id=dataset_id,
         dataset_name=row["dataset_name"],
-        context_layer=None,
+        context_layer=context_layer,
         context_layers=[],
         parameters=None,
         start_date=start_date,
@@ -207,11 +209,16 @@ _GENERAL_LAND_COVERS = (LandCover.all, LandCover.croplands, LandCover.short_vege
 _CARBON_MEASUREMENTS = (Measurement.co2, Measurement.co2e, Measurement.net_flux)
 
 
-def choose_dataset(land_cover, event, cause, measurement, start_date, end_date, temporal_resolution):
+def choose_dataset(
+    land_cover, event, cause, measurement, start_date, end_date, temporal_resolution
+) -> tuple[int, str | None] | None:
+    """Returns (dataset_id, context_layer) or None if no dataset matches."""
     dataset_id = None
+    context_layer = None
 
     if event == Event.disturbance:
-        dataset_id = 0  # DIST-ALERT — any land cover
+        dataset_id = 0  # DIST-ALERT
+        context_layer = "driver" if cause is not None else None
 
     elif event in (Event.carbon_emission, Event.carbon_removal) or measurement in _CARBON_MEASUREMENTS:
         if land_cover is None or land_cover in _FOREST_LAND_COVERS:
@@ -233,6 +240,8 @@ def choose_dataset(land_cover, event, cause, measurement, start_date, end_date, 
                 dataset_id = 8  # Tree cover loss by dominant driver
             else:
                 dataset_id = 4  # Tree cover loss
+                if event == Event.deforestation or land_cover == LandCover.primary_forest:
+                    context_layer = "primary_forest"
         else:
             return None  # no loss data for this land cover
 
@@ -260,6 +269,8 @@ def choose_dataset(land_cover, event, cause, measurement, start_date, end_date, 
         if measurement in _CARBON_MEASUREMENTS:
             return None
         dataset_id = 7  # Tree cover (static extent)
+        if land_cover == LandCover.primary_forest:
+            context_layer = "primary_forest"
 
     if dataset_id is None:
         return None
@@ -289,4 +300,4 @@ def choose_dataset(land_cover, event, cause, measurement, start_date, end_date, 
                 f"(supported: {supported_str})."
             )
 
-    return dataset_id
+    return dataset_id, context_layer
