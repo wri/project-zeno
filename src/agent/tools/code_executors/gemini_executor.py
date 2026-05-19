@@ -61,7 +61,7 @@ class GeminiCodeExecutor:
 
     async def prepare_dataframes(
         self, dataframes: List[tuple[pd.DataFrame, str]]
-    ) -> List[CodeActPart]:
+    ) -> List[Dict]:
         """
         Convert DataFrames to inline_data format for Gemini.
 

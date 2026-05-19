@@ -213,7 +213,7 @@ async def delete_thread(
 
 
 async def _send_rating_to_langfuse(
-    trace_id: str, rating: int, comment: str, user_id: str
+    trace_id: str, rating: int, comment: Optional[str], user_id: str
 ):
     """Send user rating feedback to Langfuse as a score."""
     try:

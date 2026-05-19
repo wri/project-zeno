@@ -33,7 +33,7 @@ async def fetch_user_from_rw_api(
     request: Request,
     authorization: Optional[HTTPAuthorizationCredentials] = Depends(security),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
-) -> UserModel:
+) -> Optional[UserModel]:
     if not authorization:
         return None
 
