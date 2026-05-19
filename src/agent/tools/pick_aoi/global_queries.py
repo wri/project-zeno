@@ -38,7 +38,7 @@ def is_global_request(places: list[str]) -> bool:
 
 
 async def handle_global_request(
-    subregion: str | None, tool_call_id: str
+    subregion: str | None, tool_call_id: str | None
 ) -> Command:
     """Entry point called by pick_aoi when a global place is detected.
 

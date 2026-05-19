@@ -20,3 +20,14 @@ repos:
       # Run the formatter.
       - id: ruff-format
         types_or: [ python, pyi ]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.16.0
+    hooks:
+      - id: mypy
+        args: [--ignore-missing-imports, --explicit-package-bases]
+        pass_filenames: false
+        entry: mypy src/
+        additional_dependencies:
+          - types-PyYAML
+          - types-cachetools
+          - types-requests

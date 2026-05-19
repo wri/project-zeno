@@ -34,13 +34,11 @@ class DataSourceHandler(ABC):
     async def pull_data(
         self,
         query: str,
-        aoi: Dict,
-        subregion_aois: List[Dict],
-        subregion: str,
-        subtype: str,
         dataset: Dict,
         start_date: str,
         end_date: str,
+        change_over_time_query: bool,
+        aois: List[Dict],
     ) -> DataPullResult:
         """Pull data from the source"""
         pass

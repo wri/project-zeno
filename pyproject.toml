@@ -55,6 +55,10 @@ dependencies = [
 [dependency-groups]
 dev = [
     "jupyterlab==4.4.5",
+    "mypy==1.16.0",
+    "types-PyYAML",
+    "types-cachetools",
+    "types-requests",
     "pre-commit==4.2.0",
     "ruff==0.12.4",
     "pytest==8.4.1",
@@ -92,6 +96,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[tool.mypy]
+python_version = "3.12"
+explicit_package_bases = true
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

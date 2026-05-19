@@ -26,15 +26,16 @@ class ExampleAPIHandler(DataSourceHandler):
     async def pull_data(
         self,
         query: str,
-        aoi_name: str,
-        dataset: Any,
-        aoi: Dict,
-        subregion: str,
-        subtype: str,
+        dataset: Dict,
+        start_date: str,
+        end_date: str,
+        change_over_time_query: bool,
+        aois: list[Dict],
     ) -> DataPullResult:
         """Pull data from the example API"""
         try:
             # Example implementation
+            aoi_name = aois[0].get("name", "unknown") if aois else "unknown"
             logger.info(f"Pulling data from Example API for {aoi_name}")
 
             # Here you would implement the actual API call logic

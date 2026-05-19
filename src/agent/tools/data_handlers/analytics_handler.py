@@ -345,14 +345,14 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_LOSS_BY_DRIVER_ID,
             FOREST_CARBON_FLUX_ID,
         ]:
-            canopy_cover = 30
+            canopy_cover: int = 30
             params = dataset.get("parameters")
             if params is not None:
                 for param in params:
                     if param["name"] == "canopy_cover":
-                        canopy_cover = max(param["values"])
+                        canopy_cover = int(max(param["values"]))
 
-            payload["canopy_cover"] = canopy_cover
+            payload = {**payload, "canopy_cover": canopy_cover}
 
         return payload
 
