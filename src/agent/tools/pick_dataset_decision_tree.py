@@ -57,4 +57,10 @@ async def pick_dataset_decision_tree(
         cause: What caused the event
         measurement: The data to collect (e.g. area, carbon)
     """
+    
+    dataset_choice = choose_dataset(land_cover, land_use, event, cause, measurement)
     pass
+
+
+def choose_dataset(land_cover, land_use, event, cause, measurement):
+    return 4
