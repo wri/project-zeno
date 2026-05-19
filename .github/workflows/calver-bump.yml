@@ -24,9 +24,9 @@ jobs:
         run: |
           python3 - <<'EOF'
           import tomllib, os
-          from datetime import date, timezone
+          from datetime import datetime, timezone
 
-          today = date.today(tz=timezone.utc)
+          today = datetime.now(timezone.utc).date()
           base = f"{today.year}.{today.month}.{today.day}"
 
           with open("pyproject.toml", "rb") as f:
@@ -59,9 +59,9 @@ jobs:
         run: |
           python3 - <<'EOF'
           import tomllib, sys
-          from datetime import date, timezone
+          from datetime import datetime, timezone
 
-          today = date.today(tz=timezone.utc)
+          today = datetime.now(timezone.utc).date()
           expected = f"{today.year}.{today.month}.{today.day}"
 
           with open("pyproject.toml", "rb") as f:
