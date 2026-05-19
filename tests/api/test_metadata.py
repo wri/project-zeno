@@ -1,5 +1,7 @@
 """Tests for the /api/metadata endpoint."""
 
+import tomllib
+
 import pytest
 
 
@@ -38,6 +40,18 @@ async def test_metadata_no_auth_required(client):
     # No Authorization header
     response = await client.get("/api/metadata")
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_metadata_version_matches_pyproject(client):
+    """Version returned by the API matches the version in pyproject.toml."""
+    with open("pyproject.toml", "rb") as f:
+        expected = tomllib.load(f)["project"]["version"]
+
+    response = await client.get("/api/metadata")
+
+    assert response.status_code == 200
+    assert response.json()["version"] == expected
 
 
 @pytest.mark.asyncio
