@@ -55,7 +55,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "jupyterlab==4.4.5",
-    "mypy==1.16.0",
+    "mypy==2.1.0",
     "types-PyYAML",
     "types-cachetools",
     "types-requests",
