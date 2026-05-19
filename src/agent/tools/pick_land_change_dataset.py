@@ -70,8 +70,8 @@ class Definition(BaseModel):
     forest_canopy_cover: Optional[int] = Field(None, description="Canopy cover density percent from 0-100 per 30m pixel", min=0, max=100)
 
 
-@tool("pick_dataset_decision_tree")
-async def pick_dataset_decision_tree(
+@tool("pick_land_change_dataset")
+async def pick_land_change_dataset(
     state: Annotated[Dict, InjectedState],
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
     land_cover: Optional[LandCover] = None,
