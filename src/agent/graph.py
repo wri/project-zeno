@@ -16,17 +16,16 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from src.agent.llms import FALLBACK_MODELS, MODEL
-from src.agent.skills import all_skills
 from src.agent.state import AgentState
 from src.agent.tools import (
     generate_insights,
-    get_capabilities,
     inspect_state,
     pick_aoi,
     pick_dataset,
     pull_data,
     read_skill,
 )
+from src.agent.tools.skills import all_skills
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -54,14 +53,14 @@ Request scope:
 - AOI-only: read `pick-aoi`, call `pick_aoi`, stop unless the user asked for more.
 - Pull-only (e.g. "pull dist alerts in Bern for last 2 weeks"): read `pull-data`, run pick_aoi → pick_dataset → pull_data, then stop. Do not call `generate_insights` unless the user asked for analysis or a chart.
 - Full analysis (place + topic → chart/insight): read `analyze` and follow that pipeline (includes `generate_insights`).
+- Capabilities-only (what you can do, available data): read `capabilities`, answer in your own words. Do not run analysis tools.
 - Do not read `analyze` for dataset-only, AOI-only, or pull-only requests.
 
-Tools: pick_aoi, pick_dataset, pull_data, generate_insights, get_capabilities, inspect_state, read_skill
+Tools: pick_aoi, pick_dataset, pull_data, generate_insights, inspect_state, read_skill
 """
 
 
 tools = [
-    get_capabilities,
     pick_aoi,
     pick_dataset,
     pull_data,

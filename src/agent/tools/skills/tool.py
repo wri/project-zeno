@@ -1,6 +1,6 @@
 from langchain_core.tools import tool
 
-from src.agent.skills import get_skill_body
+from src.agent.tools.skills.loader import get_skill_body
 
 
 @tool("read_skill")

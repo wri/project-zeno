@@ -85,11 +85,14 @@ def test_format_message_content_empty():
     assert format_message_content(AIMessage(content="   ")) == ""
 
 
-def test_format_tool_outcome_get_capabilities():
-    content = "ABOUT ME:\nI am an agent.\n\nAVAILABLE DATASETS:\n- Foo"
-    assert (
-        format_tool_outcome("get_capabilities", content)
-        == "Capabilities loaded"
+def test_format_tool_outcome_read_skill_capabilities():
+    content = "## About me\n\nI am an agent.\n\n## Available datasets\n- Foo"
+    assert format_tool_outcome("read_skill", content) == "Capabilities loaded"
+
+
+def test_format_tool_action_read_skill_capabilities():
+    assert format_tool_action("read_skill", {"name": "capabilities"}) == (
+        "Loading capabilities"
     )
 
 

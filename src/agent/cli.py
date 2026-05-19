@@ -67,7 +67,6 @@ _TOOL_ACTION_LABELS = {
     "pick_dataset": "Choosing dataset",
     "pull_data": "Fetching data",
     "generate_insights": "Generating insights",
-    "get_capabilities": "Loading capabilities",
     "inspect_state": "Inspecting state",
 }
 
@@ -89,7 +88,10 @@ def format_tool_action(name: str, args: dict[str, Any]) -> str:
     """One-line description of an agent tool call for CLI output."""
     label = _TOOL_ACTION_LABELS.get(name, name.replace("_", " ").title())
     if name == "read_skill":
-        return f"{label}: {args.get('name', '?')}"
+        skill_name = args.get("name", "?")
+        if skill_name == "capabilities":
+            return "Loading capabilities"
+        return f"{label}: {skill_name}"
     if name == "pick_aoi":
         places = args.get("places")
         if places:
@@ -168,6 +170,8 @@ def format_tool_outcome(name: str, content: str) -> str:
     if name == "read_skill":
         if text.startswith("skill not found"):
             return text
+        if text.startswith("## About me") or text.startswith("ABOUT ME:"):
+            return "Capabilities loaded"
         return "Skill loaded"
 
     if name == "pick_aoi":
@@ -211,9 +215,6 @@ def format_tool_outcome(name: str, content: str) -> str:
         if finding:
             return finding
         return text.splitlines()[0][:200]
-
-    if name == "get_capabilities":
-        return "Capabilities loaded"
 
     if name == "inspect_state":
         return text[:300] + ("…" if len(text) > 300 else "")
