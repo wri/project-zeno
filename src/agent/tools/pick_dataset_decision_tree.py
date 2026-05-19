@@ -112,7 +112,13 @@ async def pick_dataset_decision_tree(
     """
     logger.info("PICK-DATASET-DECISION-TREE-TOOL")
 
-    dataset_id = choose_dataset(land_cover, event, cause, measurement)
+    dataset_id = choose_dataset(land_cover, event, cause, measurement, start_date, end_date, temporal_resolution)
+
+    if dataset_id is None:
+        raise ValueError(
+            "No dataset is available for the combination of parameters provided. "
+            "The requested land cover, event, or measurement may not be supported together."
+        )
 
     row = next((ds for ds in DATASETS if ds["dataset_id"] == dataset_id), None)
     if row is None:
@@ -179,14 +185,108 @@ async def pick_dataset_decision_tree(
     )
 
 
-def choose_dataset(land_cover, land_use, event, cause, measurement, start_date, end_date, temporal_resolution):
-    if land_cover is None:
-        if start_date > "2023-01-01":
-            return 0, None
+# Temporal resolutions supported per dataset (not in YAMLs, hardcoded from content_date)
+_DATASET_TEMPORAL_RESOLUTIONS: dict[int, set[TemporalResolution]] = {
+    0: {TemporalResolution.daily, TemporalResolution.monthly},  # DIST-ALERT
+    1: {TemporalResolution.annual},                              # Global land cover
+    2: {TemporalResolution.annual},                              # Grasslands
+    3: {TemporalResolution.aggregate},                           # SBTN (2020 snapshot)
+    4: {TemporalResolution.annual},                              # Tree cover loss
+    5: {TemporalResolution.aggregate},                           # Tree cover gain (5-yr intervals)
+    6: {TemporalResolution.annual},                              # Forest GHG net flux
+    7: {TemporalResolution.aggregate},                           # Tree cover (2000 snapshot)
+    8: {TemporalResolution.annual},                              # TCL by dominant driver
+}
+
+_FOREST_LAND_COVERS = (LandCover.forest, LandCover.primary_forest)
+_NATURAL_LAND_COVERS = (LandCover.natural_land, LandCover.natural_forest,
+                        LandCover.wetland, LandCover.peatland, LandCover.mangrove)
+_GENERAL_LAND_COVERS = (LandCover.all, LandCover.croplands, LandCover.short_vegetation,
+                        LandCover.built_up, LandCover.wetland, LandCover.peatland,
+                        LandCover.mangrove, LandCover.natural_land)
+_CARBON_MEASUREMENTS = (Measurement.co2, Measurement.co2e, Measurement.net_flux)
+
+
+def choose_dataset(land_cover, event, cause, measurement, start_date, end_date, temporal_resolution):
+    dataset_id = None
+
+    if event == Event.disturbance:
+        dataset_id = 0  # DIST-ALERT — any land cover
+
+    elif event in (Event.carbon_emission, Event.carbon_removal) or measurement in _CARBON_MEASUREMENTS:
+        if land_cover is None or land_cover in _FOREST_LAND_COVERS:
+            dataset_id = 6  # Forest GHG net flux
         else:
-            return 1, None
-    elif land_cover == LandCover.forest:
-        if event == event.loss:
-            return 1
-        elif event == event.deforestation:
-            return 1, "primary_forest"
+            return None  # no carbon data for non-forest land cover
+
+    elif event == Event.gain:
+        if land_cover is None or land_cover in _FOREST_LAND_COVERS:
+            dataset_id = 5  # Tree cover gain
+        else:
+            return None  # no gain data for this land cover
+
+    elif event in (Event.loss, Event.deforestation):
+        if measurement in _CARBON_MEASUREMENTS:
+            return None  # carbon + loss should have been caught above; no such dataset
+        if land_cover is None or land_cover in _FOREST_LAND_COVERS:
+            if cause is not None:
+                dataset_id = 8  # Tree cover loss by dominant driver
+            else:
+                dataset_id = 4  # Tree cover loss
+        else:
+            return None  # no loss data for this land cover
+
+    elif event == Event.change:
+        if measurement in _CARBON_MEASUREMENTS:
+            return None
+        dataset_id = 1  # Global land cover
+
+    elif land_cover == LandCover.grasslands:
+        if measurement in _CARBON_MEASUREMENTS:
+            return None
+        dataset_id = 2  # Natural/semi-natural grasslands
+
+    elif land_cover in _NATURAL_LAND_COVERS:
+        if measurement in _CARBON_MEASUREMENTS:
+            return None
+        dataset_id = 3  # SBTN Natural Lands Map
+
+    elif land_cover in _GENERAL_LAND_COVERS:
+        if measurement in _CARBON_MEASUREMENTS:
+            return None
+        dataset_id = 1  # Global land cover
+
+    elif land_cover in _FOREST_LAND_COVERS:
+        if measurement in _CARBON_MEASUREMENTS:
+            return None
+        dataset_id = 7  # Tree cover (static extent)
+
+    if dataset_id is None:
+        return None
+
+    row = next(ds for ds in DATASETS if ds["dataset_id"] == dataset_id)
+    dataset_name = row["dataset_name"]
+    ds_start = row.get("start_date")
+    ds_end = row.get("end_date")
+
+    if start_date and ds_start and start_date < ds_start:
+        raise ValueError(
+            f"'{dataset_name}' is not available before {ds_start} "
+            f"(requested start: {start_date})."
+        )
+    if end_date and ds_end and end_date > ds_end:
+        raise ValueError(
+            f"'{dataset_name}' is not available after {ds_end} "
+            f"(requested end: {end_date})."
+        )
+
+    if temporal_resolution is not None:
+        supported = _DATASET_TEMPORAL_RESOLUTIONS.get(dataset_id, set())
+        if temporal_resolution not in supported:
+            supported_str = ", ".join(r.value for r in supported)
+            raise ValueError(
+                f"'{dataset_name}' does not support {temporal_resolution.value} resolution "
+                f"(supported: {supported_str})."
+            )
+
+    return dataset_id
