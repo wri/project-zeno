@@ -54,3 +54,21 @@ jobs:
             git commit -m "chore: bump version to ${{ steps.calver.outputs.version }}"
             git push
           fi
+
+      - name: Verify version matches today's CalVer
+        run: |
+          python3 - <<'EOF'
+          import tomllib, sys
+          from datetime import date, timezone
+
+          today = date.today(tz=timezone.utc)
+          expected = f"{today.year}.{today.month}.{today.day}"
+
+          with open("pyproject.toml", "rb") as f:
+              current = tomllib.load(f)["project"]["version"]
+
+          if current != expected:
+              print(f"ERROR: version is '{current}', expected '{expected}'", file=sys.stderr)
+              sys.exit(1)
+          print(f"OK: {current}")
+          EOF
