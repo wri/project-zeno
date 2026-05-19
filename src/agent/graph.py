@@ -22,7 +22,7 @@ from src.agent.tools import (
     generate_insights,
     get_capabilities,
     pick_aoi,
-    pick_dataset,
+    pick_dataset_decision_tree,
     pull_data,
 )
 from src.shared.config import SharedSettings
@@ -118,7 +118,7 @@ GENERAL NOTES:
 tools = [
     get_capabilities,
     pick_aoi,
-    pick_dataset,
+    pick_dataset_decision_tree,
     pull_data,
     generate_insights,
 ]
