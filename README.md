@@ -55,6 +55,15 @@ agent on the deployed API. The framework can be found in the [gnw-evals](https:/
 We have a set of scripts to ingest STAC data into the eoAPI deployment. The ingestion code
 for STAC can be found in the [gnw-stac](https://github.com/wri/gnw-stac) repository.
 
+## Versioning
+
+This project uses [Calendar Versioning (CalVer)](https://calver.org/) with the format `YYYY.M.D`.
+If two releases land on the same day, a counter is appended: `YYYY.M.D.1`, `YYYY.M.D.2`, etc.
+
+Version bumps are **fully automatic** — the CI workflow (`calver-bump.yml`) updates
+`pyproject.toml` and commits back to `main` on every merge. No manual version changes are needed.
+The current version is always readable at the `/api/v1/version` endpoint.
+
 ## Dependencies
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
