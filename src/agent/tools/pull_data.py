@@ -55,11 +55,11 @@ class DataPullOrchestrator:
             if handler.can_handle(dataset):
                 return await handler.pull_data(
                     query=query,
-                    change_over_time_query=change_over_time_query,
-                    aois=aois,
                     dataset=dataset,
                     start_date=start_date,
                     end_date=end_date,
+                    change_over_time_query=change_over_time_query,
+                    aois=aois,
                 )
 
         return DataPullResult(
@@ -76,10 +76,10 @@ data_pull_orchestrator = DataPullOrchestrator()
 @tool("pull_data")
 async def pull_data(
     query: str,
-    change_over_time_query: bool,
     state: Annotated[Dict, InjectedState],
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    change_over_time_query: bool = False,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """
