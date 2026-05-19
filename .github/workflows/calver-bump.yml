@@ -1,9 +1,10 @@
 name: CalVer Bump
 
 on:
-  push:
+  pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened]
 
 jobs:
   bump:
@@ -12,8 +13,11 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout code
+      - name: Checkout PR branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Compute CalVer version
         id: calver
@@ -28,12 +32,7 @@ jobs:
           with open("pyproject.toml", "rb") as f:
               current = tomllib.load(f)["project"]["version"]
 
-          parts = current.split(".")
-          if parts[:3] == base.split("."):
-              counter = int(parts[3]) + 1 if len(parts) == 4 else 1
-              new = f"{base}.{counter}"
-          else:
-              new = base
+          new = base if current != base else current
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               out.write(f"version={new}\n")
