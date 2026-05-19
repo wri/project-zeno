@@ -441,6 +441,7 @@ async def test_queries_return_expected_dataset(
         ("Vegetation disturbances over grasslands", 0, "grasslands"),
         ("Tree cover loss by driver", 8, "driver"),
         ("Tree cover loss in primary forest", 4, "primary_forest"),
+        ("Tree cover loss in intact forest", 4, "intact_forest"),
         ("Tree  cover loss in the past decade in sparse forests", 4, None),
         ("Deforestation in the past decade", 4, "primary_forest"),
         ("Most recent global land cover in storm seasons", 1, None),
@@ -911,6 +912,52 @@ async def test_queries_context_layer_extent_definition():
                     "subtype": "",
                     "name": "Chad",
                     "bbox": [13.47, 7.44, 24.00, 23.45],
+                }
+            ],
+        )
+    )
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": "2022-01-01",
+            "end_date": "2022-12-31",
+            "state": non_tropics_state,
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    assert dataset_id == expected_dataset_id
+    context_layer = command.update.get("dataset", {}).get("context_layer")
+    assert context_layer == expected_context_layer
+
+
+async def test_intact_forest_selected_outside_tropics():
+    """
+    intact_forest has no extent restriction, so it should be selected even outside the tropics.
+    Unlike primary_forest (tropics-only), querying intact forest for Canada returns intact_forest.
+    """
+
+    query = "Tree cover loss in intact forest"
+    expected_dataset_id = 4
+    expected_context_layer = "intact_forest"
+    tool_call_id = str(uuid.uuid4())
+    non_tropics_state = AgentState(
+        aoi_selection=AOISelection(
+            name="Canada",
+            aois=[
+                {
+                    "source": "gadm",
+                    "src_id": "CAN",
+                    "subtype": "",
+                    "name": "Canada",
+                    "bbox": [-141.0, 41.68, -52.62, 83.11],
                 }
             ],
         )
