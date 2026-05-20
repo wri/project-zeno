@@ -7,7 +7,7 @@ context_layers:
   tile_url: https://tiles.globalforestwatch.org/umd_regional_primary_forest_2001/v201901/uint16/{z}/{x}/{y}.png
   start_date: '2002-01-01'
 - value: intact_forest
-  description: Shows tree cover loss within intact forest landscapes (IFLs) globally. IFLs are defined as unbroken expanses of natural ecosystems within the current forest extent, without signs of significant human activity, and large enough to maintain all native biodiversity. Use this layer when the user explicitly asks for intact forest loss, or as the default context layer for deforestation/forest loss requests when primary_forest is not available for the AOI.
+  description: Tree cover loss within intact forest landscapes (IFLs) — large, undisturbed natural forest expanses free of significant human activity. Use this layer when the user explicitly asks for intact forest loss, or as the default context layer for deforestation/forest loss requests when primary_forest is not available for the AOI.
   tile_url: https://tiles.globalforestwatch.org/ifl_intact_forest_landscapes/v2021/dynamic/{z}/{x}/{y}.pbf
   start_date: '2000-01-01'
 parameters:
