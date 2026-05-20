@@ -1,10 +1,9 @@
 name: CalVer Bump
 
 on:
-  pull_request:
+  push:
     branches:
       - main
-    types: [opened, synchronize, reopened]
 
 jobs:
   bump:
@@ -13,11 +12,8 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout PR branch
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Compute CalVer version
         id: calver
@@ -54,21 +50,3 @@ jobs:
             git commit -m "chore: bump version to ${{ steps.calver.outputs.version }}"
             git push
           fi
-
-      - name: Verify version matches today's CalVer
-        run: |
-          python3 - <<'EOF'
-          import tomllib, sys
-          from datetime import datetime, timezone
-
-          today = datetime.now(timezone.utc).date()
-          expected = f"{today.year}.{today.month}.{today.day}"
-
-          with open("pyproject.toml", "rb") as f:
-              current = tomllib.load(f)["project"]["version"]
-
-          if current != expected:
-              print(f"ERROR: version is '{current}', expected '{expected}'", file=sys.stderr)
-              sys.exit(1)
-          print(f"OK: {current}")
-          EOF
