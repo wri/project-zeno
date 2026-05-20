@@ -26,6 +26,7 @@ from langchain_core.messages import (
     HumanMessage,
     ToolMessage,
 )
+from langgraph.checkpoint.memory import InMemorySaver
 from sqlalchemy import select
 
 from src.agent.graph import (
@@ -35,6 +36,7 @@ from src.agent.graph import (
     get_checkpointer_pool,
     get_prompt,
 )
+from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.data_models import UserOrm
 from src.shared.database import (
     close_global_pool,
@@ -49,11 +51,13 @@ STATE_KEYS = (
     "aoi_selection",
     "dataset",
     "insight_id",
-    "insights",
     "charts_data",
     "start_date",
     "end_date",
 )
+
+# How many rows of pulled / chart data to print (head only).
+DATA_HEAD_ROWS = 5
 
 # node_name from LangGraph stream → short label (verbose mode only)
 _NODE_LABELS = {
@@ -67,7 +71,6 @@ _TOOL_ACTION_LABELS = {
     "pick_dataset": "Choosing dataset",
     "pull_data": "Fetching data",
     "generate_insights": "Generating insights",
-    "inspect_state": "Inspecting state",
 }
 
 
@@ -76,12 +79,6 @@ def _format_tool_args(args: Any, max_len: int = 200) -> str:
     if len(text) > max_len:
         return text[: max_len - 3] + "..."
     return text
-
-
-def _join_list(values: Any) -> str:
-    if isinstance(values, list):
-        return ", ".join(str(v) for v in values)
-    return str(values)
 
 
 def format_tool_action(name: str, args: dict[str, Any]) -> str:
@@ -93,9 +90,6 @@ def format_tool_action(name: str, args: dict[str, Any]) -> str:
             return "Loading capabilities"
         return f"{label}: {skill_name}"
     if name == "pick_aoi":
-        places = args.get("places")
-        if places:
-            return f"{label}: {_join_list(places)}"
         question = args.get("question")
         if question:
             return f"{label}: {question}"
@@ -115,11 +109,6 @@ def format_tool_action(name: str, args: dict[str, Any]) -> str:
         if parts:
             return f"{label}: {' – '.join(parts)}"
     if name == "generate_insights":
-        return label
-    if name == "inspect_state":
-        paths = args.get("paths")
-        if paths:
-            return f"{label}: {_join_list(paths)}"
         return label
     if args:
         return f"{label}({_format_tool_args(args, 80)})"
@@ -216,9 +205,6 @@ def format_tool_outcome(name: str, content: str) -> str:
             return finding
         return text.splitlines()[0][:200]
 
-    if name == "inspect_state":
-        return text[:300] + ("…" if len(text) > 300 else "")
-
     if len(text) <= 200:
         return text
     return text[:197] + "…"
@@ -244,8 +230,6 @@ def format_state_line(key: str, value: Any) -> Optional[str]:
         return f"Insight id: {value}"
     if key in ("start_date", "end_date"):
         return None
-    if key == "insights" and isinstance(value, str):
-        return value[:200] + ("…" if len(value) > 200 else "")
     if key == "charts_data" and isinstance(value, list):
         n = len(value)
         return f"{n} chart{'s' if n != 1 else ''} ready"
@@ -291,6 +275,9 @@ class _CliPrinter:
     def __init__(self, *, verbose: bool) -> None:
         self.verbose = verbose
         self._pending_tools: dict[str, str] = {}
+        # Last session block printed — used to skip unchanged repeats so the
+        # block shows only when the live state actually evolves.
+        self._last_session_block: Optional[str] = None
 
     def register_tool_calls(self, msg: AIMessage) -> None:
         for tool_call in msg.tool_calls or []:
@@ -386,6 +373,139 @@ class _CliPrinter:
         for line in lines:
             click.echo("      " + click.style(line, dim=True))
 
+    def print_custom_event(self, payload: Any) -> None:
+        """Render a stream_writer custom event.
+
+        `context` events come from SessionContextMiddleware; `progress`
+        events come from subagents (geocoder, dataset selector).
+        """
+        if not isinstance(payload, dict):
+            return
+        etype = payload.get("type")
+        if etype == "context":
+            self.print_session_block(
+                payload.get("session_block", ""),
+                payload.get("message_count", 0),
+            )
+        elif etype == "progress":
+            self.print_progress(payload)
+
+    def print_progress(self, payload: dict) -> None:
+        """Render a subagent progress step (LLM call, DB lookup, shortlist)."""
+        message = payload.get("message")
+        if not message:
+            return
+        if self.verbose:
+            tag = f"{payload.get('subagent', '?')}/{payload.get('stage', '?')}"
+            message = f"{message}  [{tag}]"
+        click.echo("      " + click.style(f"· {message}", fg="blue", dim=True))
+
+    def print_session_block(self, block: str, message_count: int) -> None:
+        """Print the live session-state snapshot SessionContextMiddleware
+        prepends before each model call. Skipped when unchanged so it shows
+        only as the AOI / dataset / date range / insight actually evolve.
+        """
+        block = block.strip()
+        if not block or block == self._last_session_block:
+            return
+        self._last_session_block = block
+        click.echo()
+        for i, line in enumerate(block.splitlines()):
+            if i == 0 and self.verbose:
+                line = f"{line}  ({message_count} messages)"
+            click.echo("  " + click.style(f"│ {line}", fg="magenta", dim=True))
+
+    def print_data_table(
+        self, label: str, data: Any, *, max_rows: int = DATA_HEAD_ROWS
+    ) -> None:
+        """Render the head of a data block (rows or column-oriented dict)."""
+        import pandas as pd
+
+        rows = data
+        # Some payloads wrap the rows in a single {"data": ...} envelope.
+        if isinstance(rows, dict) and set(rows.keys()) == {"data"}:
+            rows = rows["data"]
+        try:
+            df = pd.DataFrame(rows)
+        except Exception:
+            return
+        if df.empty:
+            return
+        total = len(df)
+        click.echo()
+        click.echo(
+            "      "
+            + click.style(
+                f"{label} — {total} row(s) × {len(df.columns)} col(s)",
+                dim=True,
+            )
+        )
+        with pd.option_context(
+            "display.max_colwidth", 32, "display.width", 120
+        ):
+            rendered = df.head(max_rows).to_string(index=False, max_cols=8)
+        for line in rendered.splitlines():
+            click.echo("      " + click.style(line, fg="cyan", dim=True))
+        if total > max_rows:
+            click.echo(
+                "      "
+                + click.style(f"… {total - max_rows} more row(s)", dim=True)
+            )
+
+    def print_chart_data(
+        self, charts_data: Any, *, max_rows: int = DATA_HEAD_ROWS
+    ) -> None:
+        """Render the head of each generated chart's data."""
+        if not isinstance(charts_data, list):
+            return
+        for chart in charts_data:
+            if not isinstance(chart, dict):
+                continue
+            title = chart.get("title") or chart.get("id") or "chart"
+            ctype = chart.get("type") or "?"
+            self.print_data_table(
+                f"Chart: {title} [{ctype}]",
+                chart.get("data"),
+                max_rows=max_rows,
+            )
+
+
+async def _render_pulled_data(
+    printer: _CliPrinter,
+    statistics: Any,
+    *,
+    max_rows: int = DATA_HEAD_ROWS,
+) -> None:
+    """Render the head of each pulled-data statistic.
+
+    Pulled statistics keep `data` empty in state to stay light; the rows
+    live behind `source_url`, so fetch them for display.
+    """
+    if not isinstance(statistics, list):
+        return
+    for stat in statistics:
+        if not isinstance(stat, dict):
+            continue
+        rows = stat.get("data") or None
+        url = stat.get("source_url")
+        if not rows and url:
+            try:
+                rows = await fetch_statistics_from_url(url)
+            except Exception as exc:  # noqa: BLE001
+                click.echo(
+                    "      "
+                    + click.style(
+                        f"(could not fetch pulled data: {exc})", dim=True
+                    )
+                )
+                continue
+        if rows:
+            printer.print_data_table(
+                f"Pulled: {stat.get('dataset_name', 'data')}",
+                rows,
+                max_rows=max_rows,
+            )
+
 
 def _collect_messages(node_update: dict) -> list[BaseMessage]:
     messages = node_update.get("messages", [])
@@ -400,18 +520,31 @@ async def _stream_turn(
     printer: _CliPrinter,
 ) -> list[BaseMessage]:
     new_messages: list[BaseMessage] = []
-    async for update in agent.astream(
+    # stream_mode is a list, so each item is a (mode, payload) tuple:
+    #   "updates" → {node_name: node_update}
+    #   "custom"  → dict passed to stream_writer (session-context block)
+    async for mode, payload in agent.astream(
         input_state,
         config=config,
-        stream_mode="updates",
+        stream_mode=["updates", "custom"],
         subgraphs=False,
     ):
-        for node_name, node_update in update.items():
+        if mode == "custom":
+            printer.print_custom_event(payload)
+            continue
+        for node_name, node_update in payload.items():
             printer.print_node(node_name)
             for msg in _collect_messages(node_update):
                 printer.print_message(msg)
                 new_messages.append(msg)
             printer.print_state_extras(node_update)
+            if isinstance(node_update, dict):
+                if node_update.get("statistics"):
+                    await _render_pulled_data(
+                        printer, node_update["statistics"]
+                    )
+                if node_update.get("charts_data"):
+                    printer.print_chart_data(node_update["charts_data"])
     return new_messages
 
 
@@ -420,7 +553,7 @@ async def _run_query(
     query: str,
     *,
     thread_id: str,
-    use_checkpoint: bool,
+    is_checkpointed: bool,
     message_history: list[BaseMessage],
     printer: _CliPrinter,
     show_header: bool,
@@ -428,7 +561,9 @@ async def _run_query(
     if show_header:
         printer.print_turn_header(query)
 
-    if use_checkpoint:
+    if is_checkpointed:
+        # The checkpointer restores prior messages and graph state for the
+        # thread, so only the new message is sent.
         config = {"configurable": {"thread_id": thread_id}}
         input_state = {"messages": [HumanMessage(content=query)]}
     else:
@@ -440,7 +575,7 @@ async def _run_query(
         agent, input_state, config, printer=printer
     )
 
-    if not use_checkpoint:
+    if not is_checkpointed:
         message_history.extend(new_messages)
 
 
@@ -462,17 +597,26 @@ async def _ensure_user_exists(user_id: str, email: str) -> None:
         await session.commit()
 
 
-async def _fetch_agent(system_prompt: Optional[str], use_checkpoint: bool):
-    if use_checkpoint:
+async def _fetch_agent(
+    system_prompt: Optional[str],
+    *,
+    use_postgres: bool,
+    use_memory: bool,
+):
+    if use_postgres:
         return await fetch_zeno(system_prompt=system_prompt)
-    return await fetch_zeno_anonymous(system_prompt=system_prompt)
+    checkpointer = InMemorySaver() if use_memory else None
+    return await fetch_zeno_anonymous(
+        system_prompt=system_prompt, checkpointer=checkpointer
+    )
 
 
 async def _interactive_loop(
     agent,
     *,
     thread_id: str,
-    use_checkpoint: bool,
+    is_checkpointed: bool,
+    checkpoint_kind: str,
     using_custom_prompt: bool,
     printer: _CliPrinter,
 ) -> None:
@@ -482,9 +626,9 @@ async def _interactive_loop(
     )
     if using_custom_prompt:
         click.echo(click.style("Using custom system prompt.", dim=True))
-    if use_checkpoint:
+    if is_checkpointed:
         click.echo(
-            click.style(f"Thread: {thread_id} (checkpointed)", dim=True)
+            click.style(f"Thread: {thread_id} ({checkpoint_kind})", dim=True)
         )
 
     message_history: list[BaseMessage] = []
@@ -506,7 +650,7 @@ async def _interactive_loop(
             agent,
             stripped,
             thread_id=thread_id,
-            use_checkpoint=use_checkpoint,
+            is_checkpointed=is_checkpointed,
             message_history=message_history,
             printer=printer,
             show_header=True,
@@ -528,19 +672,32 @@ async def _async_main(
 
     printer = _CliPrinter(verbose=verbose)
 
+    is_interactive = interactive or not query
+    # --checkpoint selects the durable Postgres checkpointer. Otherwise
+    # interactive mode still gets an in-memory checkpointer so AOI / dataset
+    # / pulled-data state carries across turns; a single -q run stays
+    # stateless (one turn needs no checkpoint).
+    use_postgres = use_checkpoint
+    use_memory = is_interactive and not use_checkpoint
+    is_checkpointed = use_postgres or use_memory
+    checkpoint_kind = "Postgres" if use_postgres else "in-memory"
+
     with cli_logging(quiet=not verbose):
         await initialize_global_pool()
         await _ensure_user_exists(user_id, user_email)
-        if use_checkpoint:
+        if use_postgres:
             await get_checkpointer_pool()
 
-        agent = await _fetch_agent(system_prompt, use_checkpoint)
+        agent = await _fetch_agent(
+            system_prompt, use_postgres=use_postgres, use_memory=use_memory
+        )
         try:
-            if interactive or not query:
+            if is_interactive:
                 await _interactive_loop(
                     agent,
                     thread_id=thread_id,
-                    use_checkpoint=use_checkpoint,
+                    is_checkpointed=is_checkpointed,
+                    checkpoint_kind=checkpoint_kind,
                     using_custom_prompt=system_prompt is not None,
                     printer=printer,
                 )
@@ -549,14 +706,14 @@ async def _async_main(
                     agent,
                     query,
                     thread_id=thread_id,
-                    use_checkpoint=use_checkpoint,
+                    is_checkpointed=is_checkpointed,
                     message_history=[],
                     printer=printer,
                     show_header=True,
                 )
         finally:
             await close_global_pool()
-            if use_checkpoint:
+            if use_postgres:
                 await close_checkpointer_pool()
 
 
@@ -596,7 +753,10 @@ async def _async_main(
 @click.option(
     "--checkpoint",
     is_flag=True,
-    help="Persist conversation in Postgres (requires DATABASE_URL).",
+    help=(
+        "Persist conversation durably in Postgres (requires DATABASE_URL). "
+        "Interactive mode otherwise keeps state in an in-memory checkpointer."
+    ),
 )
 @click.option(
     "--user-id",

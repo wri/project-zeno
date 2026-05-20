@@ -47,7 +47,7 @@ def test_format_tool_action_read_skill():
 
 def test_format_tool_action_pick_aoi():
     assert "Para, Brazil" in format_tool_action(
-        "pick_aoi", {"places": ["Para, Brazil"]}
+        "pick_aoi", {"question": "tree cover loss in Para, Brazil"}
     )
 
 

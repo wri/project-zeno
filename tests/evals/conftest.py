@@ -120,7 +120,7 @@ def mock_eval_db():
 
     with (
         patch(
-            "src.agent.tools.generate_insights.get_session_from_pool",
+            "src.agent.subagents.analyst.tool.get_session_from_pool",
             fake_pool,
         ),
         patch("src.shared.database.get_session_from_pool", fake_pool),
