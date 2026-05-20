@@ -1,5 +1,6 @@
 """AOI thumbnail generation via Mapbox Static Images API."""
 
+import asyncio
 import json
 import urllib.parse
 
@@ -27,6 +28,7 @@ _FILL_OPACITY = 0.15
 # Mapbox's documented GeoJSON overlay limit is 8 192 URL-encoded chars.
 # We stay comfortably below that to leave room for the rest of the URL.
 _MAX_OVERLAY_CHARS = 7500
+_TOLERANCES = (0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0)
 
 
 def _geojson_feature(geometry: dict) -> dict:
@@ -111,18 +113,34 @@ def _fix_shape(geometry: dict) -> dict:
         return geometry
 
 
+def _crosses_antimeridian(shape) -> bool:
+    """True only when the geometry's bbox reaches near ±180 longitude.
+
+    `antimeridian.fix_shape` is by far the slowest step in `_prepare_shape`
+    (~73ms on a Canada-shaped MultiPolygon that never goes near ±180).  Any
+    geometry whose longitude bounds stay inside ±170 cannot cross the
+    antimeridian, so we can skip the fix entirely.
+    """
+    try:
+        xmin, _, xmax, _ = shape.bounds
+        return xmin < -170 or xmax > 170
+    except Exception:
+        return True  # Conservative: still run the fix on weird shapes.
+
+
 def _prepare_shape(geometry: dict):
-    """Filter, antimeridian-fix, and drop interior rings — the expensive
-    one-time work before the tolerance sweep.  Returns a shapely geometry,
-    or the original dict on failure.
+    """Filter, antimeridian-fix (if needed), and drop interior rings — the
+    expensive one-time work before the tolerance sweep.  Returns a shapely
+    geometry, or None on failure.
     """
     try:
         # Filter first: fix_shape only processes the few large parts, not
         # thousands of tiny islands (avoids minute-long hangs on USA/RUS).
         shape = _filter_small_parts(shapely.geometry.shape(geometry))
-        shape = shapely.geometry.shape(
-            _fix_shape(shapely.geometry.mapping(shape))
-        )
+        if _crosses_antimeridian(shape):
+            shape = shapely.geometry.shape(
+                _fix_shape(shapely.geometry.mapping(shape))
+            )
         return _drop_interior_rings(shape)
     except Exception:
         return None
@@ -170,6 +188,36 @@ def _simplify_shape(shape, tolerance: float) -> dict:
     return _round_coords(shapely.geometry.mapping(s))
 
 
+def _approx_vertex_count(shape) -> int:
+    """Cheap exterior-ring vertex count for tolerance selection."""
+    try:
+        if shape.geom_type == "Polygon":
+            return len(shape.exterior.coords)
+        if shape.geom_type == "MultiPolygon":
+            return sum(len(p.exterior.coords) for p in shape.geoms)
+    except Exception:
+        pass
+    return 0
+
+
+def _starting_tolerance_index(n_vertices: int) -> int:
+    """Pick where in `_TOLERANCES` to start the simplify sweep.
+
+    A 1000-vertex circle and an 8000-vertex country both end up at
+    tolerance ~0.5 in practice; starting from 0.001 wastes ~25ms walking
+    tolerances that obviously won't fit.  Conservative thresholds — if the
+    starting tolerance still doesn't fit, the loop continues to coarser
+    values exactly as before.
+    """
+    if n_vertices < 200:
+        return 0  # 0.001
+    if n_vertices < 1000:
+        return 2  # 0.01
+    if n_vertices < 5000:
+        return 3  # 0.05
+    return 4  # 0.1
+
+
 def _fit_overlay(geometry: dict) -> str:
     """Simplify iteratively until the overlay fits within the URL budget.
 
@@ -178,7 +226,8 @@ def _fit_overlay(geometry: dict) -> str:
     """
     shape = _prepare_shape(geometry)
     if shape is not None:
-        for tolerance in [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0]:
+        start = _starting_tolerance_index(_approx_vertex_count(shape))
+        for tolerance in _TOLERANCES[start:]:
             try:
                 encoded = _encode_overlay(_simplify_shape(shape, tolerance))
                 if len(encoded) <= _MAX_OVERLAY_CHARS:
@@ -220,7 +269,10 @@ async def get_geometry_thumbnail(
     if not data or not data.get("geometry"):
         raise HTTPException(status_code=404, detail="Geometry not found")
 
-    overlay = _fit_overlay(data["geometry"])
+    # _fit_overlay is CPU-bound (shapely + JSON encoding) — running it
+    # inline would block the event loop for ~100ms on Canada-sized
+    # MultiPolygons, stalling every other request on this worker.
+    overlay = await asyncio.to_thread(_fit_overlay, data["geometry"])
     url = (
         f"https://api.mapbox.com/styles/v1/{_MAPBOX_STYLE}/static"
         f"/geojson({overlay})/auto/{width}x{height}@2x"
