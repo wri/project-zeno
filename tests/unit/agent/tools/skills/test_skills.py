@@ -111,12 +111,13 @@ def test_get_prompt_scope_and_policy():
     prompt = get_prompt()
     assert "pull-data" in prompt
     assert "Pull-only" in prompt
-    assert "Capabilities-only" in prompt
+    assert "Capabilities (what you can do" in prompt
+    assert "read `capabilities`" in prompt
     assert "capabilities" in prompt
     assert "get_capabilities" not in prompt
-    assert "Do not read `analyze`" in prompt
+    assert "read `analyze`" in prompt
     # always-on policy folded in
-    assert "Policy (always applies)" in prompt
+    assert "# Policy" in prompt
     assert "same language" in prompt
     assert "UI / map selections" in prompt
     # only the three recipe skills are advertised
