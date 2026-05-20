@@ -2,7 +2,9 @@
 
 import pytest
 
-from src.agent.tools.pick_aoi.selection_name_util import build_selection_name
+from src.agent.subagents.pick_aoi.selection_name_util import (
+    build_selection_name,
+)
 
 # ---------------------------------------------------------------------------
 # No subregion - direct area selections

@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.agent.state import Statistics
-from src.agent.tools.generate_insights import (
+from src.agent.subagents.analyst.tool import (
     ChartInsight,
     MultiChartInsight,
     _extract_statistics_ids,
@@ -30,7 +30,7 @@ from src.agent.tools.generate_insights import (
 from src.api.data_models import InsightOrm
 
 generate_insights_module = importlib.import_module(
-    "src.agent.tools.generate_insights"
+    "src.agent.subagents.analyst.tool"
 )
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -92,7 +92,7 @@ def mock_insight_db():
         yield mock_session
 
     with patch(
-        "src.agent.tools.generate_insights.get_session_from_pool",
+        "src.agent.subagents.analyst.tool.get_session_from_pool",
         fake_pool,
     ):
         yield mock_session
@@ -354,7 +354,7 @@ def mock_fetch_data():
         return _URL_TO_DATA[source_url]
 
     with patch(
-        "src.agent.tools.generate_insights.fetch_statistics_from_url",
+        "src.agent.subagents.analyst.tool.fetch_statistics_from_url",
         side_effect=_fetch,
     ):
         yield

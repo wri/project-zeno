@@ -1,14 +1,48 @@
-from src.agent.tools.skills import all_skills, get_skill_body, load_skills
+from src.agent.skills import (
+    all_skills,
+    get_skill_body,
+    load_skills,
+)
 
 
 def test_load_skills():
     skills = load_skills()
     names = {s.name for s in skills}
     assert "analyze" in names
-    assert "pick-aoi" in names
     assert "capabilities" in names
+    assert "pull-data" in names
+    # Tool-owned guidance was moved into tool docstrings.
+    assert "pick-aoi" not in names
+    assert "pick-dataset" not in names
+    # Always-on policy was folded into the system prompt.
+    assert "general-rules" not in names
+    assert "ui-selections" not in names
     assert "explore" not in names
-    assert len(skills) >= 7
+
+
+def test_skills_registry_is_the_three_recipes():
+    # The registry holds exactly the three orchestrator recipes. Tool-owned
+    # guidance and the analyst's executor/wording prompts live elsewhere.
+    assert {s.name for s in all_skills()} == {
+        "analyze",
+        "capabilities",
+        "pull-data",
+    }
+
+
+def test_generate_insights_is_a_thin_subagent_tool():
+    from src.agent.subagents import Analyst, generate_insights
+    from src.agent.subagents.analyst.prompts import (
+        EXECUTOR_WORKFLOW,
+        WORDING_GUIDE,
+    )
+
+    assert hasattr(Analyst, "analyze")
+    assert "chart insight" in generate_insights.description.lower()
+
+    # The executor workflow + wording guide live in the subagent's prompts.
+    assert "STEP-BY-STEP WORKFLOW" in EXECUTOR_WORKFLOW
+    assert "**Avoid:**" in WORDING_GUIDE
 
 
 def test_capabilities_skill_includes_datasets():
@@ -25,12 +59,41 @@ def test_get_skill_body():
     assert "pick_aoi" in body
 
 
-def test_pick_dataset_skill_dataset_only():
-    body = get_skill_body("pick-dataset")
-    assert body is not None
-    assert "Dataset-only" in body
-    assert "pick_dataset" in body
-    assert "Do not ask for a country" in body
+def test_pick_dataset_is_a_thin_subagent_tool():
+    from src.agent.subagents import DatasetSelector, pick_dataset
+    from src.agent.subagents.pick_dataset.prompts import (
+        DATASET_SELECTOR_PROMPT,
+    )
+
+    # Orchestrator-facing contract stays in the tool description.
+    doc = pick_dataset.description
+    assert "Dataset-only" in doc
+    assert "AOI is NOT required" in doc
+    assert "subagent" in doc
+
+    # The subagent owns the selection reasoning in its own system prompt.
+    assert hasattr(DatasetSelector, "resolve")
+    assert "dataset selector" in DATASET_SELECTOR_PROMPT.lower()
+
+
+def test_pick_aoi_is_a_thin_subagent_tool():
+    from src.agent.subagents import pick_aoi
+    from src.agent.subagents.pick_aoi.prompts import GEOCODER_PROMPT
+
+    # The tool call is trivial: just the user's request, no parsed places.
+    assert "question" in pick_aoi.args
+    assert "places" not in pick_aoi.args
+    assert "subregion" not in pick_aoi.args
+
+    # The orchestrator-facing description tells it to forward the request,
+    # not to translate or classify the place itself.
+    doc = pick_aoi.description
+    assert "verbatim" in doc
+    assert "geocoding subagent" in doc
+
+    # The extraction rules live inside the subagent's own system prompt.
+    assert "ENGLISH" in GEOCODER_PROMPT
+    assert "subregion" in GEOCODER_PROMPT.lower()
 
 
 def test_pull_data_skill_pull_only():
@@ -42,7 +105,7 @@ def test_pull_data_skill_pull_only():
     assert "analyze" in body
 
 
-def test_get_prompt_pull_only_scope():
+def test_get_prompt_scope_and_policy():
     from src.agent.graph import get_prompt
 
     prompt = get_prompt()
@@ -52,8 +115,10 @@ def test_get_prompt_pull_only_scope():
     assert "capabilities" in prompt
     assert "get_capabilities" not in prompt
     assert "Do not read `analyze`" in prompt
-
-
-def test_executor_skill_hidden_from_all_skills_list():
-    names = {s.name for s in all_skills()}
-    assert "generate-insights-executor" in names
+    # always-on policy folded in
+    assert "Policy (always applies)" in prompt
+    assert "same language" in prompt
+    assert "UI / map selections" in prompt
+    # only the three recipe skills are advertised
+    assert "pick-aoi" not in prompt
+    assert "pick-dataset" not in prompt

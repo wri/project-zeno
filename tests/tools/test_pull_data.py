@@ -7,8 +7,8 @@ import pytest
 import structlog
 from sqlalchemy import select
 
-from src.agent.tools.data_handlers.base import DataPullResult
-from src.agent.tools.datasets_config import DATASETS
+from src.agent.datasets.config import DATASETS
+from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.tools.pull_data import (
     fetch_statistics_from_url,
     pull_data,

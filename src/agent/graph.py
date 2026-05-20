@@ -16,16 +16,11 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from src.agent.llms import FALLBACK_MODELS, MODEL
+from src.agent.middleware import SessionContextMiddleware
+from src.agent.skills import all_skills, read_skill
 from src.agent.state import AgentState
-from src.agent.tools import (
-    generate_insights,
-    inspect_state,
-    pick_aoi,
-    pick_dataset,
-    pull_data,
-    read_skill,
-)
-from src.agent.tools.skills import all_skills
+from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
+from src.agent.tools import pull_data
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -33,30 +28,64 @@ logger = get_logger(__name__)
 
 
 def get_prompt(user: Optional[dict] = None) -> str:
-    """Generate the prompt with current date. (Ignore user information)"""
+    """Generate the system prompt with the current date. (Ignores user info.)"""
     skill_lines = [
-        f"- {s.name}: {s.description} (when: {s.when_to_use})"
+        f"- {s.name}: {s.description} (use when: {s.when_to_use})"
         for s in all_skills()
-        if s.name != "generate-insights-executor"
     ]
-    skills_block = "\n".join(skill_lines)
+    skills_block = "\n".join(skill_lines) if skill_lines else "(none)"
     today = datetime.now().strftime("%Y-%m-%d")
-    return f"""You are Global Nature Watch's Geospatial Agent. Call tools one at a time, never in parallel.
+    return f"""You are Global Nature Watch's Geospatial Agent. You answer user questions by calling tools and subagents - never by inventing data.
 
 Today: {today}
 
-Skills (call read_skill(name) only when its "when" clause matches — usually one skill, not the whole list):
+A [Session — date] system message is prepended to every model call with the live AOI, dataset, date range, pulled data and active insight. Trust it: if it shows the AOI or dataset is already set, do not re-resolve unless the user changes it.
+
+Call tools one at a time, never in parallel.
+
+# Tools (primitives — call when you need them)
+
+- pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.
+- read_skill(name): load a skill's full workflow — call it once, after you have committed to using that skill.
+
+# Subagents (call as tools — each does its own reasoning; just forward the user's intent)
+
+- pick_aoi(question): natural-language geocoder. Pass the place request verbatim ("tree cover loss in Pará, Brazil", "the districts of Odisha", "forest loss worldwide"); it extracts, translates and resolves the place — and any subregions — itself. Updates the AOI in state, or returns a clarifying question.
+- pick_dataset(query): dataset-selection subagent. Picks the dataset, context layer and date range that best answer the request. Call it again whenever the user changes the dataset, context layer or parameters.
+- generate_insights(query): analyst subagent. Turns pulled data into one chart insight with follow-up suggestions. Requires pull_data to have run first.
+
+# Skills (multi-step recipes)
+
+Call read_skill(name) only when a skill's "use when" clause matches the request — usually one skill, not the whole list.
+
 {skills_block}
 
-Request scope:
-- Dataset-only (e.g. "pick tcl by driver"): read `pick-dataset`, call `pick_dataset`, stop. No AOI, pull, or insights unless asked.
-- AOI-only: read `pick-aoi`, call `pick_aoi`, stop unless the user asked for more.
-- Pull-only (e.g. "pull dist alerts in Bern for last 2 weeks"): read `pull-data`, run pick_aoi → pick_dataset → pull_data, then stop. Do not call `generate_insights` unless the user asked for analysis or a chart.
-- Full analysis (place + topic → chart/insight): read `analyze` and follow that pipeline (includes `generate_insights`).
-- Capabilities-only (what you can do, available data): read `capabilities`, answer in your own words. Do not run analysis tools.
-- Do not read `analyze` for dataset-only, AOI-only, or pull-only requests.
+# Routing
 
-Tools: pick_aoi, pick_dataset, pull_data, generate_insights, inspect_state, read_skill
+Match the request to exactly one row; do not escalate a dataset / AOI / pull request into a full analysis.
+
+- Dataset-only (e.g. "pick tcl by driver"): call pick_dataset, then stop. No AOI, pull or insights unless asked.
+- AOI-only (e.g. "zoom to Pará"): call pick_aoi, then stop unless asked for more.
+- Pull-only (e.g. "pull dist alerts in Bern for last 2 weeks"): read `pull-data`, run pick_aoi → pick_dataset → pull_data, then stop. Do not call generate_insights unless the user asked for a chart or analysis.
+- Full analysis (place + topic → chart/insight): read `analyze` and follow that pipeline.
+- Capabilities (what you can do, what data exists): read `capabilities`, then answer in your own words — no analysis tools.
+
+# Policy
+
+Geography:
+- Decline continent-scale or large non-administrative regions politely; ask for a country or smaller admin area (e.g. "most built up area in Africa", "ecosystem disturbance alerts in Eastern Europe").
+
+Language and format:
+- Reply in the same language as the user's query.
+- Use markdown with blank lines between sections for readability.
+- Never include raw JSON or code blocks in replies (charts render from state).
+- If insights include follow-up suggestions, surface them in your reply.
+- After `generate_insights`, give a 1–2 sentence summary of the chart in your message.
+
+UI / map selections (when the message mentions a UI action or changed map selection):
+- Acknowledge: "I see you've selected [item name]".
+- Confirm you have AOI + dataset + date range before analysis; use tools only for missing components.
+- If the user asks to change selections, override prior UI selections.
 """
 
 
@@ -65,7 +94,6 @@ tools = [
     pick_dataset,
     pull_data,
     generate_insights,
-    inspect_state,
     read_skill,
 ]
 
@@ -146,6 +174,9 @@ def _build_middleware():
 
     3. handle_tool_errors: Catches tool execution errors and returns ToolMessage
        - Final safety net for tool-specific failures
+
+    4. SessionContextMiddleware: Prepends a live state snapshot before every
+       model call (innermost, so it runs on every retry/fallback attempt)
     """
     middleware = [
         ModelRetryMiddleware(
@@ -158,23 +189,28 @@ def _build_middleware():
     if FALLBACK_MODELS:
         middleware.append(ModelFallbackMiddleware(*FALLBACK_MODELS))
     middleware.append(handle_tool_errors)
+    middleware.append(SessionContextMiddleware())
     return middleware
 
 
 async def fetch_zeno_anonymous(
     user: Optional[dict] = None,
     system_prompt: Optional[str] = None,
+    checkpointer=None,
 ) -> CompiledStateGraph:
-    """Setup the Zeno agent for anonymous users with the provided tools and prompt."""
-    # async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
-    # Create the Zeno agent with the provided tools and prompt
+    """Setup the Zeno agent for anonymous users with the provided tools and prompt.
 
+    Pass `checkpointer` (e.g. an in-memory `InMemorySaver`) to keep graph
+    state across turns without the Postgres checkpointer; defaults to None
+    (stateless).
+    """
     zeno_agent = create_agent(
         model=MODEL,
         tools=tools,
         state_schema=AgentState,
         system_prompt=system_prompt or get_prompt(user),
         middleware=_build_middleware(),
+        checkpointer=checkpointer,
     )
     return zeno_agent
 

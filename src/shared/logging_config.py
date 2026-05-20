@@ -16,9 +16,15 @@ def _drop_verbose_keys(
     """Strip repetitive context vars for compact console output."""
     for key in _VERBOSE_KEYS:
         event_dict.pop(key, None)
-    # Shorten logger name: src.agent.tools.generate_insights → generate_insights
+    # Shorten logger name to its last component, e.g.
+    # src.agent.tools.pull_data → pull_data. Subagents live in a package as
+    # tool.py, so fall back to the package name (… .analyst.tool → analyst).
     if "logger" in event_dict:
-        event_dict["logger"] = event_dict["logger"].rsplit(".", 1)[-1]
+        parts = event_dict["logger"].rsplit(".", 2)
+        name = parts[-1]
+        if name in ("tool", "__init__") and len(parts) > 1:
+            name = parts[-2]
+        event_dict["logger"] = name
     return event_dict
 
 
