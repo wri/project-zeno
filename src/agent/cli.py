@@ -701,7 +701,7 @@ async def _async_main(
                     using_custom_prompt=system_prompt is not None,
                     printer=printer,
                 )
-            else:
+            elif query:
                 await _run_query(
                     agent,
                     query,

@@ -20,15 +20,17 @@ async def revise_date_range(
     if not ds_original:
         raise ValueError(f"Dataset not found: {dataset_id}")
 
-    ds_start_original = ds_original.get("start_date")
-    ds_end_original = ds_original.get("end_date")
+    ds_start_original: Optional[str] = ds_original.get("start_date")
+    ds_end_original: Optional[str] = ds_original.get("end_date")
     if ds_end_original is None:
         ds_end_original = str(
             date.today()
         )  # e.g. DIST-ALERT: ongoing, no fixed end
+    if ds_start_original is None:
+        raise ValueError(f"Dataset {dataset_id} has no start_date configured")
 
-    available_start = ds_start_original
-    available_end = ds_end_original
+    available_start: str = ds_start_original
+    available_end: str = ds_end_original
 
     if context_layer:
         selected_context_layer = next(
@@ -41,10 +43,10 @@ async def revise_date_range(
         )
 
         if selected_context_layer:
-            layer_start = (
+            layer_start: str = (
                 selected_context_layer.get("start_date") or ds_start_original
             )
-            layer_end = (
+            layer_end: str = (
                 selected_context_layer.get("end_date") or ds_end_original
             )
             available_start = max(ds_start_original, layer_start)

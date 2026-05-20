@@ -345,6 +345,20 @@ class Analyst:
                 }
             )
 
+        if result.insight is None:
+            logger.error("No chart insight generated")
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            content=f"Failed to generate chart insight. Feedback:{text_output}",
+                            tool_call_id=tool_call_id,
+                            status="error",
+                        )
+                    ]
+                }
+            )
+
         logger.info(f"Generated chart data with {len(result.chart_data)} rows")
 
         # 5.5. REPLACE CSV PATHS: Replace CSV file paths with URL-based loading

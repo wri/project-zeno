@@ -9,6 +9,7 @@ from src.shared.geocoding_helpers import (
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
 )
+from src.shared.version import get_version
 
 router = APIRouter()
 
@@ -27,7 +28,7 @@ async def api_metadata() -> dict:
     small_model_name = AgentSettings.small_model.lower()
 
     return {
-        "version": "0.1.0",
+        "version": get_version(),
         "layer_id_mapping": {
             key: value["id_column"] for key, value in SOURCE_ID_MAPPING.items()
         },
