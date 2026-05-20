@@ -87,6 +87,17 @@ async def test_land_cover_change_croplands_returns_global_land_cover():
     assert ds["context_layer"] is None
 
 
+async def test_grassland_change_returns_grassland_dataset_not_global_land_cover():
+    # "Did natural grasslands increase from 2017 to 2022 in Hwange national park?"
+    result = await pick_land_change_dataset.coroutine(
+        state={}, tool_call_id="test-id",
+        event=Event.change, land_cover=LandCover.grasslands,
+    )
+    ds = result.update["dataset"]
+    assert ds["dataset_id"] == 2
+    assert ds["context_layer"] is None
+
+
 async def test_natural_land_aggregate_returns_sbtn():
     # "What percentage of land in Kurtjar People territory is non-natural?"
     result = await pick_land_change_dataset.coroutine(

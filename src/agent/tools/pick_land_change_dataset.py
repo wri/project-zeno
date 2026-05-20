@@ -248,7 +248,10 @@ def choose_dataset(
     elif event == Event.change:
         if measurement in _CARBON_MEASUREMENTS:
             return None
-        dataset_id = 1  # Global land cover
+        if land_cover == LandCover.grasslands:
+            dataset_id = 2  # Natural/semi-natural grasslands
+        else:
+            dataset_id = 1  # Global land cover
 
     elif land_cover == LandCover.grasslands:
         if measurement in _CARBON_MEASUREMENTS:
