@@ -285,7 +285,7 @@ class AnalyticsHandler(DataSourceHandler):
             if dataset.get("context_layer") == "primary_forest":
                 forest_filter = "primary_forest"
 
-            if dataset.get("context_layer") == "intact_forest":
+            elif dataset.get("context_layer") == "intact_forest":
                 forest_filter = "intact_forest"
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
