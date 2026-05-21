@@ -80,7 +80,7 @@ SLUC_CROPS = [
     "Vegetables",
 ]
 
-SLUC_GAS_TYPES = ["CO2e", "CO2", "CH4", "N20"]
+SLUC_GAS_TYPES = ["CO2e", "CO2", "CH4", "N2O"]
 
 # Add dataset-specific parameters
 DIST_ALERT_ID = [

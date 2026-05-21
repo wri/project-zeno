@@ -453,7 +453,8 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
 
     raw_data = await fetch_statistics_from_url(statistics[0]["source_url"])
     assert aoi_data["src_id"] == raw_data["aoi_id"][0]
-    assert aoi_data["name"] == raw_data["name"][0]
+    aoi_id_to_name = statistics[0].get("aoi_id_to_name", {})
+    assert aoi_data["name"] == aoi_id_to_name.get(aoi_data["src_id"])
     assert raw_data["land_cover_class"] == ["Built-up"]
 
 

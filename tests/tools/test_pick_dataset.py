@@ -847,12 +847,13 @@ async def test_tcl_by_driver_always_gets_driver_context_layer(state):
 
 async def test_queries_context_layer_outside_extent():
     """
-    Test a tropics only-contextual layer isn't selected
+    Test that primary_forest (tropics-only) is not selected outside the tropics,
+    and intact_forest is used as the fallback context layer instead.
     """
 
     query = "Tree cover loss in primary forest"
     expected_dataset_id = 4
-    expected_context_layer = None
+    expected_context_layer = "intact_forest"
     tool_call_id = str(uuid.uuid4())
     non_tropics_state = AgentState(
         aoi_selection=AOISelection(

@@ -478,9 +478,23 @@ async def test_prepare_dataframes_fetches_id_backed_stats(monkeypatch):
 
 
 async def test_generate_insights_persists_statistics_provenance(monkeypatch):
+    _insight = MultiChartInsight(
+        charts=[
+            ChartInsight(
+                title="Brazil Value",
+                chart_type="bar",
+                x_axis="name",
+                y_axis="value",
+            )
+        ],
+        primary_insight="Brazil has one unit.",
+        follow_up_suggestions=["Compare another area."],
+    )
+
     class FakeExecutionResult:
         error = None
         chart_data = [{"name": "Brazil", "value": 1}]
+        insight = _insight
         parts = [
             SimpleNamespace(
                 type=generate_insights_module.PartType.TEXT_OUTPUT,
@@ -501,29 +515,9 @@ async def test_generate_insights_persists_statistics_provenance(monkeypatch):
         async def execute(self, analysis_prompt, file_refs):
             return FakeExecutionResult()
 
-    class FakeStructuredOutput:
-        async def ainvoke(self, prompt):
-            return MultiChartInsight(
-                charts=[
-                    ChartInsight(
-                        title="Brazil Value",
-                        chart_type="bar",
-                        x_axis="name",
-                        y_axis="value",
-                    )
-                ],
-                primary_insight="Brazil has one unit.",
-                follow_up_suggestions=["Compare another area."],
-            )
-
-    class FakeGemini:
-        def with_structured_output(self, model):
-            return FakeStructuredOutput()
-
     monkeypatch.setattr(
         generate_insights_module, "GeminiCodeExecutor", FakeExecutor
     )
-    monkeypatch.setattr(generate_insights_module, "GEMINI_FLASH", FakeGemini())
 
     await invoke_generate_insights(
         "Show Brazil value",
