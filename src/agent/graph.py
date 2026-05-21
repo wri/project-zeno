@@ -20,7 +20,7 @@ from src.agent.middleware import SessionContextMiddleware
 from src.agent.skills import all_skills, read_skill
 from src.agent.state import AgentState
 from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
-from src.agent.tools import pull_data
+from src.agent.tools import pull_data, wri_insights
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -47,6 +47,7 @@ Call tools one at a time, never in parallel.
 
 - pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.
 - read_skill(name): load a skill's full workflow — call it once, after you have committed to using that skill.
+- wri_insights(query): search WRI Insights blog posts for published research. Use after pull_data and before generate_insights when WRI context would strengthen the answer.
 
 # Subagents (call as tools — each does its own reasoning; just forward the user's intent)
 
@@ -95,6 +96,7 @@ tools = [
     pull_data,
     generate_insights,
     read_skill,
+    wri_insights,
 ]
 
 load_dotenv()

@@ -71,6 +71,7 @@ _TOOL_ACTION_LABELS = {
     "pick_dataset": "Choosing dataset",
     "pull_data": "Fetching data",
     "generate_insights": "Generating insights",
+    "wri_insights": "Searching WRI Insights",
 }
 
 
