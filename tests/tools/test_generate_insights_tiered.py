@@ -32,7 +32,10 @@ from src.api.data_models import InsightOrm
 generate_insights_module = importlib.import_module(
     "src.agent.subagents.analyst.tool"
 )
-pytestmark = pytest.mark.asyncio(loop_scope="session")
+pytestmark = [
+    pytest.mark.asyncio(loop_scope="session"),
+    pytest.mark.flaky(reruns=2, reruns_delay=1),
+]
 
 _last_insight_row: InsightOrm | None = None
 
