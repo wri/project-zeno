@@ -68,14 +68,59 @@ description: 'The dataset developed by Fitts et al. (2025) provides globally con
   land use change (sLUC) emission factors for 42 agricultural crops across multiple spatial scales-global, national (ADM0),
   subnational (ADM1),and local administrative units (ADM2). Emission factors quantify greenhouse gas emissions from deforestation
   linked to agricultural expansion over a 20-year assessment period (2001-2020), aligning with the first full time span of
-  Global Forest Watch''s annual tree cover loss and forest carbon flux data.  Emission factors are available for reporting
+  Global Forest Watch's annual tree cover loss and forest carbon flux data.  Emission factors are available for reporting
   years 2020 through 2024 and we expect to update the dataset annually as new tree cover loss and emissions data become available.
   The dataset integrates several harmonized, open-source geospatial inputs: the SPAM 2020 v2.0 cropland maps (10 km resolution)
-  for crop distribution and production; Global Forest Watch''s tree cover loss (Hansen et al. 2013, annual updates); the forest
+  for crop distribution and production; Global Forest Watch's tree cover loss (Hansen et al. 2013, annual updates); the forest
   carbon flux model (Harris et al. 2021; Gibbs et al. 2025) for estimating deforestation-related emissions; Global Pasture
   Watch (Parente et al. 2024) for pasture extent; and the drivers of forest loss (Sims et al. 2025) to isolate agriculture-driven
   deforestation.
+List of crops included:
+Individual crops:
+  Banana (bana)
+  Barley (barl)
+  Bean (bean)
+  Cassava	(cass)
+  Chickpea (chic)
+  Coconut	(cnut)
+  Cocoa (coco)
+  Arabica Coffee (acof)
+  Robusta Coffee	(rcof)
+  Cotton (cott)
+  Cowpea (cowp)
+  Groundnut (grou)
+  Lentil (lent)
+  Maize (maiz)
+  Pearl Millet (pmil)
+  Small Millet (smil)
+  Oil Palm (oilp)
+  Pigeon Pea (pige)
+  Plantain (plnt)
+  Potato (pota)
+  Rapeseed (rape)
+  Rice (rice)
+  Sesame Seed (sesa)
+  Sorghum (sorg)
+  Soybean (soyb)
+  Sugarbeet (sugb)
+  Sugarcane (sugc)
+  Sunflower (sunf)
+  Sweet Potato (swpo)
+  Tea (teas)
+  Tobacco	(toba)
+  Wheat (whea)
+  Yams (yams)
 
+Grouped crop categories:
+Other Cereals (ocer): Buckwheat; Canary seed; Cereals; Fonio; Mixed grain; Oats; Quinoa; Rye; Triticale
+Other Fibre Crops (ofib): Abaca (Manila hemp); Agave fibres; Coir; Flax; Jute; Kenaf and other bast fibres; Natural rubber; Other fibre crops; Ramie; Sisal; Hemp
+Other Oil Crops (ooil): Castor oil seeds; Hempseed; Jojoba; Kapok; Karite (shea nuts); Linseed; Melonseed; Olives; Other oil seeds; Poppy seed; Safflower; Tallowtree seeds; Tung nuts
+Other Pulses (opul): Bambara beans; Broad beans and horse beans; Lupins; Other pulses; Peas; Vetches
+Other Roots (orts): Starchy roots and tubers; Taro; Yautia
+Rest of Crops (rest): Almonds; Anise and spices mix; Areca nuts; Natural gums (balata, gutta-percha, etc.); Brazil nuts; Cashew nuts; Chestnuts; Chicory roots; Chillies and peppers (dry); Cinnamon; Cloves; Ginger; Hazelnuts; Hop cones; Kola nuts; Maté leaves; Mustard seed; Nutmeg and cardamom; Onions and shallots (dry); Other nuts; Other spices and aromatics; Other sugar crops; Pepper; Mint; Pistachios; Pyrethrum; Vanilla; Walnuts
+Temperate Fruit (temf): Apples; Apricots; Blueberries; Melons; Cherries; Cranberries; Grapes; Other berries; Other fruits; Pome fruits; Stone fruits; Peaches and nectarines; Pears; Persimmons; Plums; Raspberries; Sour cherries; Strawberries
+Tropical Fruit (trof): Avocados; Cashewapple; Currants; Dates; Figs; Gooseberries; Kiwi; Lemons and limes; Carobs; Mangoes and guavas; Oranges; Other citrus; Other tropical fruits; Papayas; Pineapples; Grapefruits and pomelos; Quinces; Tangerines and mandarins; Watermelons
+Vegetables (vege): Artichokes; Asparagus; Broad beans (green); Cabbages; Carrots and turnips; Cassava leaves; Cauliflower and broccoli; Chillies and peppers (green); Cucumbers; Eggplants; Green maize; Green garlic; Leeks and alliaceous vegetables; Lettuce and chicory; Mushrooms; Okra; Onions (green); Other beans (green); Other vegetables; Peas (green); Pumpkins and squash; Spinach; String beans; Tomatoes
   '
 methodology: 'Fitts et al. (2025) developed a standardized, transparent, and globally consistent approach for estimating land
   use change (LUC) emissions, focusing on statistical land use change (sLUC) emission factors. The method integrates publicly
