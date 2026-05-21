@@ -18,19 +18,22 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-class LandCover(str, Enum):
+class LandUseLandCover(str, Enum):
     all = "all"
     natural_land = "natural_land"
     forest = "forest"
     primary_forest = "primary_forest"
     grasslands = "grasslands"
-    croplands = "croplands"
+    cropland = "cropland"
     wetland = "wetland"
     peatland = "peatland"
     mangrove = "mangrove"
     natural_forest = "natural_forest"
     short_vegetation = "short_vegetation"
+    cultivated_grassland = "cultivated_grassland"
     built_up = "built_up"
+    water = "water"
+    bare_ground = "bare_ground"
 
 
 class Event(str, Enum):
@@ -50,17 +53,6 @@ class Cause(str, Enum):
     logging = "logging"
     settlements = "settlements"
     crop_management = "crop_management"
-
-
-class LandUse(str, Enum):
-    built_up = "built_up"                          # urban, development, settlements, infrastructure
-    cropland = "cropland"                          # agriculture, crops, farming
-    cultivated_grassland = "cultivated_grassland"  # cultivated pasture
-    tree_cover = "tree_cover"                      # forest, woodland
-    short_vegetation = "short_vegetation"          # shrubland, savanna, non-cultivated grassland
-    wetland = "wetland"                            # marshes, swamps
-    water = "water"                                # rivers, lakes
-    bare_ground = "bare_ground"                    # sparse vegetation, desert
 
 
 class Measurement(str, Enum):
@@ -85,8 +77,7 @@ class Definition(BaseModel):
 async def pick_land_change_dataset(
     state: Annotated[Dict, InjectedState],
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
-    land_cover: LandCover = LandCover.all,
-    land_use: Optional[LandUse] = None,
+    land_cover: LandUseLandCover = LandUseLandCover.all,
     event: Optional[Event] = None,
     cause: Optional[Cause] = None,
     measurement: Optional[Measurement] = None,
@@ -100,21 +91,17 @@ async def pick_land_change_dataset(
     Set each parameter to the best matching value, or null if not relevant.
 
     Args:
-        land_cover: The primary land cover the user is asking about.
+        land_cover: The primary land cover or land use type the user is asking about.
             Use `forest` for general forest questions, `primary_forest` for old-growth or intact forest.
-            Use `natural_land` for broad natural ecosystem questions. Use `grasslands` for grassland-specific
-            questions. Use `wetland`, `peatland`, or `mangrove` when the user names those ecosystems.
-        land_use: The type of land use or land cover class the user is asking about, especially when
-            asking about a specific land use category (e.g. built-up, cropland) or land cover/use change.
-            Set this when the question is about a specific land use type regardless of whether a transition
-            is involved. Use `built_up` for urban, development, settlements, or infrastructure questions.
-            Use `cropland` for agriculture or farming. Do NOT set this for drivers of forest loss — use
-            `cause` for that instead.
+            Use `natural_land` for broad natural ecosystem questions. Use `grasslands` for natural/semi-natural
+            grassland questions. Use `wetland`, `peatland`, or `mangrove` when the user names those ecosystems.
+            Use `built_up` for urban, development, settlements, or infrastructure questions.
+            Use `cropland` for agriculture or farming. Use `cultivated_grassland` for cultivated pasture.
         event: The type of change or phenomenon the user is asking about.
             Use `loss` for deforestation or cover loss. Use `gain` for reforestation or cover gain.
             Use `disturbance` for alerts or ecosystem disruptions. Use `change` when the user asks about
-            land cover transitions (e.g. "what changed from X to Y"). Use `net_flux` for source/sink or
-            net emissions questions.
+            land cover transitions (e.g. "what changed from X to Y"). Use `carbon_emission` or
+            `carbon_removal` for carbon flux questions.
         cause: Set only when the user specifies what drove the event (e.g. wildfire, agriculture, logging,
             settlements, crop management). Set to `any` if user is asking broadly about causes, or leave null if cause isn't mentioned.
         measurement: What the user wants to quantify. Use `area` for extent, coverage, or hectares — this
@@ -130,7 +117,7 @@ async def pick_land_change_dataset(
     """
     logger.info("PICK-DATASET-DECISION-TREE-TOOL")
 
-    result = choose_dataset(land_cover, land_use, event, cause, measurement, temporal_resolution)
+    result = choose_dataset(land_cover, event, cause, measurement, temporal_resolution)
 
     if result is None:
         raise ValueError(
@@ -218,22 +205,17 @@ _DATASET_TEMPORAL_RESOLUTIONS: dict[int, set[TemporalResolution]] = {
     8: {TemporalResolution.annual},                              # TCL by dominant driver
 }
 
-_FOREST_LAND_COVERS = (LandCover.forest, LandCover.primary_forest)
-_NATURAL_LAND_COVERS = (LandCover.natural_land, LandCover.natural_forest,
-                        LandCover.wetland, LandCover.peatland, LandCover.mangrove)
-_GENERAL_LAND_COVERS = (LandCover.all, LandCover.croplands, LandCover.short_vegetation,
-                        LandCover.built_up, LandCover.wetland, LandCover.peatland,
-                        LandCover.mangrove, LandCover.natural_land)
+_FOREST_LAND_COVERS = (LandUseLandCover.forest, LandUseLandCover.primary_forest)
+_NATURAL_LAND_COVERS = (LandUseLandCover.natural_land, LandUseLandCover.natural_forest,
+                        LandUseLandCover.wetland, LandUseLandCover.peatland, LandUseLandCover.mangrove)
 _CARBON_MEASUREMENTS = (Measurement.co2, Measurement.co2e, Measurement.net_flux)
 
-
-_FOREST_OR_ALL = _FOREST_LAND_COVERS + (LandCover.all,)
+_FOREST_OR_ALL = _FOREST_LAND_COVERS + (LandUseLandCover.all,)
 _DATASET_NAMES = {ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS}
 
 
 def choose_dataset(
-    land_cover: LandCover,
-    land_use,
+    land_cover: LandUseLandCover,
     event,
     cause,
     measurement,
@@ -250,14 +232,14 @@ def choose_dataset(
     # Level 1: land_cover → default dataset
     if land_cover in _FOREST_LAND_COVERS:
         dataset_id = 7  # tree cover (static 2000)
-        context_layer = "primary_forest" if land_cover == LandCover.primary_forest else None
-    elif land_cover == LandCover.grasslands:
+        context_layer = "primary_forest" if land_cover == LandUseLandCover.primary_forest else None
+    elif land_cover == LandUseLandCover.grasslands:
         dataset_id = 2  # natural/semi-natural grasslands
         context_layer = None
     elif land_cover in _NATURAL_LAND_COVERS:
         dataset_id = 3  # SBTN natural lands
         context_layer = None
-    else:  # all, croplands, built_up, short_vegetation
+    else:  # all, cropland, built_up, short_vegetation, cultivated_grassland, water, bare_ground
         dataset_id = 1  # global land cover
         context_layer = None
 
@@ -285,20 +267,14 @@ def choose_dataset(
                 context_layer = "driver"
             else:
                 dataset_id = 4
-                context_layer = "primary_forest" if (event == Event.deforestation or land_cover == LandCover.primary_forest) else None
-        elif land_use is not None:
-            dataset_id = 1  # land use change question
+                context_layer = "primary_forest" if (event == Event.deforestation or land_cover == LandUseLandCover.primary_forest) else None
         else:
             note = f"No {event.value} data for {land_cover.value}; showing {_DATASET_NAMES.get(dataset_id, 'closest dataset')}"
 
     elif event == Event.change:
-        if land_cover != LandCover.grasslands:
+        if land_cover != LandUseLandCover.grasslands:
             dataset_id = 1  # grasslands already at 2; everything else → land cover change
         context_layer = None
-
-    # land_use without event → land cover change question
-    elif land_use is not None:
-        dataset_id = 1
 
     # Level 4: temporal_resolution — return None so caller raises (no further fallback)
     if temporal_resolution is not None:
