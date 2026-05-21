@@ -47,14 +47,15 @@ Now prepare the data for visualization in Recharts.js:
       5. **Grouping fields**: Group only by categorical, readable label columns such as names, dates, periods, classes, or metric labels. Do not group by numeric measure/value columns like 'value', 'count', 'area', 'sum', or continuous numeric readings unless the user explicitly asks for a distribution or histogram; aggregate those numeric columns instead.
       6. **Data format by chart type**:
          - **Single-series line/bar**: [{"date": "2020-01", "value": 100}]
-           → One metric column, use y_axis="value"
+           → One metric column, use y_axis="value" (REQUIRED — must not be empty)
          - **Multi-series line/bar/area**: [{"year": "2020", "metric1": 100, "metric2": 50}]
            → Multiple metric columns in WIDE format
-           → Use series_fields=["metric1", "metric2"], leave y_axis empty
+           → Use series_fields=["metric1", "metric2"], leave y_axis="" (REQUIRED — series_fields must not be empty)
          - **Stacked-bar**: [{"category": "Region A", "forest": 100, "grassland": 50, "urban": 30}]
-           → Use series_fields, leave y_axis empty
-         - **Grouped-bar**: long format with group_field and y_axis="value"
+           → Use series_fields=["forest", "grassland", "urban"], leave y_axis="" (REQUIRED — series_fields must not be empty)
+         - **Grouped-bar**: long format with group_field and y_axis="value" (REQUIRED — both must not be empty)
          - **Pie**: [{"name": "Category A", "value": 100}], max 6–8 slices
+         - **IMPORTANT**: For every non-pie/non-table chart, either y_axis OR series_fields MUST be set. Never leave both empty.
 
    c) **SAVE THE DATA**: Save as `chart_data.csv` — pipeline only reads this file. Final step must call `to_csv('chart_data.csv', index=False)`.
 

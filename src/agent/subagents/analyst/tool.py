@@ -106,6 +106,24 @@ def _extract_statistics_ids(statistics: list[dict]) -> list[str]:
     ]
 
 
+def _filter_chart_data(
+    chart_data: list[dict], x_axis: str, y_axis: str, series_fields: list[str]
+) -> list[dict]:
+    """Return only the columns relevant to a single chart.
+
+    Each chart in a multi-chart insight shares the same underlying CSV but
+    plots different columns. Keeping unrelated columns causes formatChartData
+    (frontend) to auto-discover them as extra series, producing wrong charts.
+    """
+    keep = {x_axis}
+    if y_axis:
+        keep.add(y_axis)
+    keep.update(series_fields)
+    if len(keep) <= 1:
+        return chart_data
+    return [{k: v for k, v in row.items() if k in keep} for row in chart_data]
+
+
 def replace_csv_paths_with_urls(
     code_block: str, source_urls: List[str]
 ) -> str:
@@ -399,13 +417,19 @@ class Analyst:
         encoded_parts = result.get_encoded_parts()
         charts_data = []
         for idx, chart in enumerate(result.insight.charts):
+            filtered_data = _filter_chart_data(
+                result.chart_data,
+                chart.x_axis,
+                chart.y_axis,
+                chart.series_fields,
+            )
             charts_data.append(
                 {
                     "id": f"chart_{idx}",
                     "title": chart.title,
                     "type": chart.chart_type,
                     "insight": result.insight.primary_insight,
-                    "data": result.chart_data,
+                    "data": filtered_data,
                     "xAxis": chart.x_axis,
                     "yAxis": chart.y_axis,
                     "colorField": chart.color_field,
@@ -433,6 +457,12 @@ class Analyst:
             await session.flush()
 
             for idx, chart in enumerate(result.insight.charts):
+                filtered_data = _filter_chart_data(
+                    result.chart_data,
+                    chart.x_axis,
+                    chart.y_axis,
+                    chart.series_fields,
+                )
                 session.add(
                     InsightChartOrm(
                         insight_id=insight_row.id,
@@ -445,7 +475,7 @@ class Analyst:
                         stack_field=chart.stack_field,
                         group_field=chart.group_field,
                         series_fields=chart.series_fields,
-                        chart_data=result.chart_data,
+                        chart_data=filtered_data,
                     )
                 )
 
