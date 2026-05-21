@@ -580,3 +580,29 @@ class TestReviseDateRange:
         assert effective_start == "2002-01-01"
         assert effective_end == "2025-12-31"
         assert range_clamped is False
+
+    async def test_ifl_context_layer_does_not_clamp_requested_range(self):
+        """intact_forest start (2000) predates the dataset start (2001), so it adds no extra restriction."""
+
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range(
+            "2001-01-01", "2025-12-31", 4, "intact_forest"
+        )
+        assert effective_start == "2001-01-01"
+        assert effective_end == "2025-12-31"
+        assert range_clamped is False
+
+    async def test_ifl_context_layer_default_range_uses_dataset_start(self):
+        """When no dates are requested with intact_forest, dataset start (2001) takes precedence over context layer start (2000)."""
+
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range(None, None, 4, "intact_forest")
+        assert effective_start == "2001-01-01"
+        assert effective_end == "2025-12-31"
+        assert range_clamped is False
