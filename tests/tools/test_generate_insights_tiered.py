@@ -14,11 +14,11 @@ import sys
 import uuid
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
-from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from src.agent.datasets.config import DATASETS
 from src.agent.state import Statistics
 from src.agent.subagents.analyst.tool import (
     ChartInsight,
@@ -537,44 +537,13 @@ async def test_generate_insights_persists_statistics_provenance(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Dataset fixtures — realistic metadata matching analytics_datasets.yml
+# Dataset fixtures — loaded directly from the YAML catalog so they stay in sync
 # ---------------------------------------------------------------------------
-GHG_FLUX_DATASET: dict[str, Any] = {
-    "dataset_id": 6,
-    "context_layer": None,
-    "context_layers": [],
-    "parameters": None,
-    "reason": "GHG flux dataset matches.",
-    "tile_url": "https://tiles.globalforestwatch.org/gfw_forest_carbon_net_flux/latest/dynamic/{z}/{x}/{y}.png",
-    "dataset_name": "Forest greenhouse gas net flux",
-    "analytics_api_endpoint": "/v0/land_change/carbon_flux/analytics",
-    "content_date": "2001-2024",
-    "selection_hints": None,
-    "description": "Maps the balance between emissions from forest disturbances and carbon removals from forest growth between 2001 and 2024.",
-    "prompt_instructions": (
-        "DO NOT show trends over time or annual values. Show net flux as a split bar chart, "
-        "with emissions in the positive y-axis and removals in the negative. Use sink/source terminology."
-    ),
-    "methodology": "Globally consistent model of forest carbon flux.",
-    "cautions": (
-        "Net flux reflects the total over the model period of 2001-2024, not an annual time series."
-    ),
-    "function_usage_notes": "Shows forest carbon balance.\n",
-    "citation": "Harris et al., 2021.",
-    "code_instructions": (
-        "CHART TYPES:\n"
-        "- Net flux → split/diverging bar chart (emissions positive y-axis, removals negative)\n"
-        "DATA RULES:\n"
-        "- Values are TOTALS over model period 2001-2024\n"
-        "- Do NOT divide by 24 in code\n"
-        "DO/DON'T:\n"
-        "- REFUSE any request for annual timeseries or year-by-year breakdown"
-    ),
-    "presentation_instructions": (
-        'Use "net sink" for negative values, "net source" for positive values. '
-        "Mention that users can divide by 24 to estimate annual average."
-    ),
-}
+def _ds(dataset_id: int) -> dict:
+    return next(d for d in DATASETS if d["dataset_id"] == dataset_id)
+
+
+GHG_FLUX_DATASET = _ds(6)
 
 GHG_FLUX_STATS: list[dict] = [
     Statistics(
@@ -588,37 +557,7 @@ GHG_FLUX_STATS: list[dict] = [
     )
 ]
 
-GRASSLAND_DATASET: dict[str, Any] = {
-    "dataset_id": 2,
-    "context_layer": None,
-    "context_layers": [],
-    "parameters": None,
-    "reason": "Grasslands dataset matches.",
-    "tile_url": "https://tiles.globalforestwatch.org/gnsg/latest/dynamic/{z}/{x}/{y}.png",
-    "dataset_name": "Global natural/semi-natural grassland extent",
-    "analytics_api_endpoint": "/v0/land_change/grasslands/analytics",
-    "content_date": "2000-2022, annual",
-    "selection_hints": None,
-    "description": "Annual 30 m maps of global natural/semi-natural grassland extent from 2000 to 2022.",
-    "prompt_instructions": (
-        "Natural/semi-natural grassland extent and change for each year from 2000 to 2022. "
-        "Use bar or line charts to show total area over time."
-    ),
-    "methodology": "Random Forest classification of Landsat imagery.",
-    "cautions": "Classification errors exist especially between grasslands and croplands.",
-    "function_usage_notes": "Shows grassland extent.\n",
-    "citation": "Parente et al., 2022.",
-    "code_instructions": (
-        "CHART TYPES:\n"
-        "- Area over time → bar chart or line chart (x=year, y=area_ha)\n"
-        "DATA RULES:\n"
-        "- Exclude rows where area_ha = 0 or missing\n"
-        "- All areas in hectares (ha)"
-    ),
-    "presentation_instructions": (
-        'Clarify that "natural/semi-natural grassland" includes grasslands, shrublands, and savannas.'
-    ),
-}
+GRASSLAND_DATASET = _ds(2)
 
 GRASSLAND_STATS: list[dict] = [
     Statistics(
@@ -645,42 +584,7 @@ GRASSLAND_STATS_WITH_ZEROS: list[dict] = [
     )
 ]
 
-TREE_COVER_DATASET: dict[str, Any] = {
-    "dataset_id": 7,
-    "context_layer": None,
-    "context_layers": [],
-    "parameters": None,
-    "reason": "Tree cover dataset matches.",
-    "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/latest/dynamic/{z}/{x}/{y}.png",
-    "dataset_name": "Tree cover",
-    "analytics_api_endpoint": "/v0/land_change/tree_cover/analytics",
-    "content_date": "2000",
-    "selection_hints": None,
-    "description": "Global percent tree canopy cover at 30-meter resolution for year 2000.",
-    "prompt_instructions": (
-        'Only use the term "tree cover", not "forest" unless primary forest layer is active. '
-        "Show tree cover area by canopy density bin."
-    ),
-    "methodology": "Landsat 7 imagery classification.",
-    "cautions": (
-        '"Tree cover" is defined as all vegetation taller than 5 meters and may include plantations.'
-    ),
-    "function_usage_notes": "Shows tree cover extent.\n",
-    "citation": "Hansen et al., 2013.",
-    "code_instructions": (
-        "CHART TYPES:\n"
-        "- Tree cover area by canopy-density bin → bar chart or pie chart\n"
-        "- Values MUST be area in hectares (ha), NOT percentages\n"
-        "DATA RULES:\n"
-        "- Year 2000 data only — single snapshot\n"
-        "- Exclude the 0% canopy density bin\n"
-        "- Exclude rows where area_ha = 0"
-    ),
-    "presentation_instructions": (
-        'Use "tree cover" not "forest". Tree cover includes plantations, not just natural forest. '
-        "For change analysis, direct to Tree Cover Loss or Tree Cover Gain datasets."
-    ),
-}
+TREE_COVER_DATASET = _ds(7)
 
 TREE_COVER_STATS: list[dict] = [
     Statistics(
@@ -694,46 +598,7 @@ TREE_COVER_STATS: list[dict] = [
     )
 ]
 
-TREE_COVER_GAIN_DATASET: dict[str, Any] = {
-    "dataset_id": 5,
-    "context_layer": None,
-    "context_layers": [],
-    "parameters": None,
-    "reason": "Tree cover gain dataset matches.",
-    "tile_url": "https://tiles.globalforestwatch.org/umd_tree_cover_gain/latest/dynamic/{z}/{x}/{y}.png",
-    "dataset_name": "Tree cover gain",
-    "analytics_api_endpoint": "/v0/land_change/tree_cover_gain/analytics",
-    "content_date": "2000-2020 five year intervals",
-    "selection_hints": None,
-    "description": "Tree Cover Gain identifies areas where new tree canopy was established between 2000 and 2020.",
-    "prompt_instructions": (
-        "Shows cumulative tree cover gain over the periods 2000-2020, 2005-2020, 2010-2020 or 2015-2020. "
-        'Avoid using the term "restoration". '
-        "Net change cannot be calculated by subtracting gain from loss — methodologies differ between the two datasets. "
-        "If the user asks for net gain/loss or net change, refuse and explain that they cannot be combined for net change."
-    ),
-    "methodology": "Landsat 7 imagery classification.",
-    "cautions": (
-        "Tree cover gain does not equate directly to restoration, afforestation or reforestation."
-    ),
-    "function_usage_notes": "Shows tree cover gain.\n",
-    "citation": "Hansen et al., 2013.",
-    "code_instructions": (
-        "CHART TYPES:\n"
-        "- Default: bar chart with one bar per CUMULATIVE period\n"
-        "- X-axis labels MUST use the raw cumulative period labels\n"
-        "DO/DON'T:\n"
-        "- If user asks for net gain/loss or net change: REFUSE — methodologies differ; "
-        "cannot combine gain and loss for net change\n"
-        "- REFUSE any attempt to subtract loss from gain\n"
-        '- Use "tree cover gain" not "restoration"'
-    ),
-    "presentation_instructions": (
-        'Use "tree cover gain" not "restoration". Gain includes plantation cycles, '
-        "natural regrowth, and land abandonment. "
-        "Cannot be subtracted from tree cover loss for net change — different methodologies; do not imply net figures."
-    ),
-}
+TREE_COVER_GAIN_DATASET = _ds(5)
 
 TREE_COVER_GAIN_STATS: list[dict] = [
     Statistics(
@@ -747,40 +612,7 @@ TREE_COVER_GAIN_STATS: list[dict] = [
     )
 ]
 
-LAND_COVER_DATASET: dict[str, Any] = {
-    "dataset_id": 1,
-    "context_layer": None,
-    "context_layers": [],
-    "parameters": None,
-    "reason": "Land cover dataset matches.",
-    "tile_url": "https://tiles.globalforestwatch.org/wur_radd_alerts/latest/dynamic/{z}/{x}/{y}.png",
-    "dataset_name": "Global land cover",
-    "analytics_api_endpoint": "/v0/land_change/land_cover/analytics",
-    "content_date": "2015-2024",
-    "selection_hints": None,
-    "description": "Annual global land cover classification at 30m resolution.",
-    "prompt_instructions": (
-        "Land cover transitions between 2015 and 2024. When user asks about agriculture, "
-        "combine cropland and cultivated grassland. For transition queries, use a table."
-    ),
-    "methodology": "ESA CCI Land Cover classification.",
-    "cautions": "Only two time snapshots available (2015 and 2024). Cannot show annual timeseries.",
-    "function_usage_notes": "Shows land cover composition.\n",
-    "citation": "ESA CCI, 2024.",
-    "code_instructions": (
-        "CHART TYPES:\n"
-        "- Land cover composition → pie chart\n"
-        "- Transitions between classes → table (columns: start_class, end_class, area_ha)\n"
-        "DATA RULES:\n"
-        "- Agriculture = Cropland + Cultivated grassland (combine them)\n"
-        "- Only 2 snapshots: 2015 and 2024. REFUSE annual timeseries requests\n"
-        "DO/DON'T:\n"
-        "- REFUSE any request for annual or yearly data between 2015-2024"
-    ),
-    "presentation_instructions": (
-        "Only two snapshots exist (2015 and 2024). When asked for annual data, explain the limitation."
-    ),
-}
+LAND_COVER_DATASET = _ds(1)
 
 LAND_COVER_TRANSITION_STATS: list[dict] = [
     Statistics(
@@ -806,38 +638,7 @@ LAND_COVER_COMPOSITION_STATS: list[dict] = [
     )
 ]
 
-NATURAL_LANDS_DATASET: dict[str, Any] = {
-    "dataset_id": 3,
-    "context_layer": None,
-    "context_layers": [],
-    "parameters": None,
-    "reason": "Natural lands dataset matches.",
-    "tile_url": "https://tiles.globalforestwatch.org/sbtn_natural_lands/latest/dynamic/{z}/{x}/{y}.png",
-    "dataset_name": "SBTN Natural Lands Map",
-    "analytics_api_endpoint": "/v0/land_change/natural_lands/analytics",
-    "content_date": "2020",
-    "selection_hints": None,
-    "description": "2020 baseline map of natural and non-natural land covers.",
-    "prompt_instructions": (
-        "Natural and non-natural lands in 2020. For natural forests, combine classes 2,5,8,9."
-    ),
-    "methodology": "SBTN classification.",
-    "cautions": "Single-year snapshot (2020). Cannot show change over time.",
-    "function_usage_notes": "Shows natural lands baseline.\n",
-    "citation": "SBTN, 2024.",
-    "code_instructions": (
-        "CHART TYPES:\n"
-        "- Natural vs non-natural proportions → bar chart or pie chart\n"
-        "DATA RULES:\n"
-        "- Natural forests = classes 2, 5, 8, 9\n"
-        "- Non-natural tree cover = classes 14, 17, 18\n"
-        "DO/DON'T:\n"
-        "- REFUSE change-over-time requests — suggest Global Land Cover dataset instead"
-    ),
-    "presentation_instructions": (
-        "This is a 2020 baseline snapshot. For change analysis, suggest the Global Land Cover dataset."
-    ),
-}
+NATURAL_LANDS_DATASET = _ds(3)
 
 NATURAL_LANDS_STATS: list[dict] = [
     Statistics(
@@ -851,40 +652,7 @@ NATURAL_LANDS_STATS: list[dict] = [
     )
 ]
 
-SLUC_EF_DATASET: dict[str, Any] = {
-    "dataset_id": 9,
-    "context_layer": None,
-    "context_layers": [],
-    "parameters": None,
-    "reason": "sLUC EF dataset matches.",
-    "tile_url": "",
-    "dataset_name": "Deforestation (sLUC) Emission Factors by Agricultural Crop",
-    "analytics_api_endpoint": "/v0/land_change/deforestation_luc_emissions_factor/analytics",
-    "content_date": "2020-2024",
-    "selection_hints": None,
-    "description": "sLUC emission factors for 42 agricultural crops across multiple spatial scales.",
-    "prompt_instructions": (
-        "Emission factors quantify total greenhouse gas emissions in tCO2e per tonne of product. "
-        "Use table for multiple crops. Use pie for gas type breakdown."
-    ),
-    "methodology": "Fitts et al., 2025.",
-    "cautions": "Data resolution varies. Not all crops available for every region.",
-    "function_usage_notes": "Shows deforestation emission factors.\n",
-    "citation": "Fitts et al., 2025.",
-    "code_instructions": (
-        "CHART TYPES:\n"
-        "- Proportional emissions by gas type → pie chart (single crop)\n"
-        "- Multiple crops in one location → table\n"
-        "DATA RULES:\n"
-        "- Include units in data values: tCO2e for emissions, tonnes for production\n"
-        "DO/DON'T:\n"
-        "- REFUSE map requests — this data is tabular only, no spatial information"
-    ),
-    "presentation_instructions": (
-        "Always include units: tCO2e for emissions, tonnes for production volume. "
-        "Clarify the reporting year (default 2024). This data is tabular only — cannot be mapped."
-    ),
-}
+SLUC_EF_DATASET = _ds(9)
 
 SLUC_EF_GAS_STATS: list[dict] = [
     Statistics(
