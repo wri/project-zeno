@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 
-from src.agent.tools.datasets_config import DATASETS
+from src.agent.datasets.config import DATASETS
 
 
 async def revise_date_range(

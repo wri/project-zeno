@@ -6,24 +6,25 @@ import pandas as pd
 import pytest
 import structlog
 
-from src.agent.tools.pick_aoi import pick_aoi
-from src.agent.tools.pick_aoi.tool import AOIIndex
+from src.agent.subagents.pick_aoi import Geocoder
+from src.agent.subagents.pick_aoi.tool import AOIIndex
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
+# ---------------------------------------------------------------------------
+# Geocoder.lookup — the deterministic DB/selection pipeline. Tests pass
+# already-extracted place names so they don't depend on the extraction LLM.
+# ---------------------------------------------------------------------------
+
+
 async def test_query_aoi_multiple_matches(structlog_context):
-    command = await pick_aoi.ainvoke(
-        {
-            "args": {
-                "question": "Measure deforestation in Puri",
-                "places": ["Puri"],
-            },
-            "id": str(uuid.uuid4()),
-            "type": "tool_call",
-        }
+    command = await Geocoder().lookup(
+        question="Measure deforestation in Puri",
+        places=["Puri"],
+        tool_call_id=str(uuid.uuid4()),
     )
     assert str(command.update.get("messages")[0].content).startswith(
         "I found multiple locations named 'Puri"
@@ -31,16 +32,11 @@ async def test_query_aoi_multiple_matches(structlog_context):
 
 
 async def test_query_aoi_multiple_sources(structlog_context):
-    command = await pick_aoi.ainvoke(
-        {
-            "args": {
-                "question": "Compare states in Ecuador and Bolivia",
-                "places": ["Ecuador", "Bolivia"],
-                "subregion": "state",
-            },
-            "id": str(uuid.uuid4()),
-            "type": "tool_call",
-        }
+    command = await Geocoder().lookup(
+        question="Compare states in Ecuador and Bolivia",
+        places=["Ecuador", "Bolivia"],
+        subregion="state",
+        tool_call_id=str(uuid.uuid4()),
     )
     aois = command.update.get("aoi_selection", {}).get("aois")
     assert len(aois) == 33
@@ -80,15 +76,10 @@ async def test_query_aoi_multiple_sources(structlog_context):
     ],
 )
 async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
-    command = await pick_aoi.ainvoke(
-        {
-            "args": {
-                "question": question,
-                "places": [place],
-            },
-            "id": str(uuid.uuid4()),
-            "type": "tool_call",
-        }
+    command = await Geocoder().lookup(
+        question=question,
+        places=[place],
+        tool_call_id=str(uuid.uuid4()),
     )
     assert len(command.update.get("aoi_selection", {}).get("aois")) == 1
     assert (
@@ -117,16 +108,11 @@ async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
 async def test_query_aoi_subregion(
     question, place, subregion, expected_num_aoi_ids, structlog_context
 ):
-    command = await pick_aoi.ainvoke(
-        {
-            "args": {
-                "question": question,
-                "places": [place],
-                "subregion": subregion,
-            },
-            "id": str(uuid.uuid4()),
-            "type": "tool_call",
-        }
+    command = await Geocoder().lookup(
+        question=question,
+        places=[place],
+        subregion=subregion,
+        tool_call_id=str(uuid.uuid4()),
     )
     assert (
         len(command.update.get("aoi_selection", {}).get("aois"))
@@ -190,15 +176,10 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
 
     # Ensure user_id is bound to structlog context for the pick_aoi call
     with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
-        command = await pick_aoi.ainvoke(
-            {
-                "args": {
-                    "question": "Measure deforestation in My Custom Area",
-                    "places": ["My Custom Area"],
-                },
-                "id": str(uuid.uuid4()),
-                "type": "tool_call",
-            }
+        command = await Geocoder().lookup(
+            question="Measure deforestation in My Custom Area",
+            places=["My Custom Area"],
+            tool_call_id=str(uuid.uuid4()),
         )
 
     assert (
@@ -209,7 +190,7 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
 async def test_pick_aoi_handles_empty_subregion_results(
     monkeypatch, structlog_context
 ):
-    pick_aoi_module = import_module("src.agent.tools.pick_aoi.tool")
+    pick_aoi_module = import_module("src.agent.subagents.pick_aoi.tool")
 
     async def fake_query_aoi_database(place_name: str, result_limit: int = 10):
         return pd.DataFrame(
@@ -248,16 +229,11 @@ async def test_pick_aoi_handles_empty_subregion_results(
         fake_query_subregion_database,
     )
 
-    command = await pick_aoi.ainvoke(
-        {
-            "args": {
-                "question": "How much land changed to short vegetation in protected areas in Colorado in the past decade?",
-                "places": ["Colorado"],
-                "subregion": "wdpa",
-            },
-            "id": str(uuid.uuid4()),
-            "type": "tool_call",
-        }
+    command = await Geocoder().lookup(
+        question="How much land changed to short vegetation in protected areas in Colorado in the past decade?",
+        places=["Colorado"],
+        subregion="wdpa",
+        tool_call_id=str(uuid.uuid4()),
     )
 
     assert "aoi_selection" not in command.update
@@ -296,7 +272,7 @@ async def test_global_query_with_country_subregion(
 ):
     """Global World + subregion='country' should return all countries within the global bbox."""
     global_queries_module = import_module(
-        "src.agent.tools.pick_aoi.global_queries"
+        "src.agent.subagents.pick_aoi.global_queries"
     )
 
     async def fake_query_all_countries():
@@ -306,16 +282,11 @@ async def test_global_query_with_country_subregion(
         global_queries_module, "_query_all_countries", fake_query_all_countries
     )
 
-    command = await pick_aoi.ainvoke(
-        {
-            "args": {
-                "question": "Which countries have the most deforestation globally?",
-                "places": ["Global World"],
-                "subregion": "country",
-            },
-            "id": str(uuid.uuid4()),
-            "type": "tool_call",
-        }
+    command = await Geocoder().lookup(
+        question="Which countries have the most deforestation globally?",
+        places=["Global World"],
+        subregion="country",
+        tool_call_id=str(uuid.uuid4()),
     )
 
     aois = command.update.get("aoi_selection", {}).get("aois")
@@ -327,22 +298,17 @@ async def test_global_query_with_country_subregion(
 async def test_global_query_without_subregion_is_rejected(structlog_context):
     """Global places short-circuit before DB lookup; missing subregion must not call _query_all_countries."""
     with patch(
-        "src.agent.tools.pick_aoi.global_queries._query_all_countries",
+        "src.agent.subagents.pick_aoi.global_queries._query_all_countries",
         new=AsyncMock(
             side_effect=AssertionError(
                 "_query_all_countries must not run without subregion='country'"
             )
         ),
     ):
-        command = await pick_aoi.ainvoke(
-            {
-                "args": {
-                    "question": "What is the deforestation rate in the world?",
-                    "places": ["Global World"],
-                },
-                "id": str(uuid.uuid4()),
-                "type": "tool_call",
-            }
+        command = await Geocoder().lookup(
+            question="What is the deforestation rate in the world?",
+            places=["Global World"],
+            tool_call_id=str(uuid.uuid4()),
         )
 
     assert "aoi_selection" not in command.update
@@ -350,17 +316,48 @@ async def test_global_query_without_subregion_is_rejected(structlog_context):
 
 
 async def test_query_cross_antimeridian(structlog_context):
-    command = await pick_aoi.ainvoke(
-        {
-            "args": {
-                "question": "Pick russia",
-                "places": ["Russia"],
-                "subregion": "state",
-            },
-            "id": str(uuid.uuid4()),
-            "type": "tool_call",
-        }
+    command = await Geocoder().lookup(
+        question="Pick russia",
+        places=["Russia"],
+        subregion="state",
+        tool_call_id=str(uuid.uuid4()),
     )
     aois = command.update.get("aoi_selection", {}).get("aois")
     assert len(aois) == 83
     assert aois[0].get("src_id").startswith("RUS.")
+
+
+# ---------------------------------------------------------------------------
+# Geocoder.extract — the LLM step that turns a free-text request into
+# structured place name(s) + subregion. Hits a live model.
+# ---------------------------------------------------------------------------
+
+
+async def test_extract_single_place(structlog_context):
+    query = await Geocoder().extract(
+        "Analyze deforestation rates in Para, Brazil"
+    )
+    assert any("para" in p.lower() for p in query.places)
+    assert query.subregion is None
+
+
+async def test_extract_subregion_comparison(structlog_context):
+    query = await Geocoder().extract(
+        "Compare tree cover loss across all states in Brazil"
+    )
+    assert any("brazil" in p.lower() for p in query.places)
+    assert query.subregion == "state"
+
+
+async def test_extract_translates_place_to_english(structlog_context):
+    query = await Geocoder().extract("desmatamento em São Paulo, Brasil")
+    joined = " ".join(query.places).lower()
+    assert "sao paulo" in joined
+
+
+async def test_extract_global_query_uses_country_subregion(structlog_context):
+    query = await Geocoder().extract(
+        "Which countries have the most deforestation worldwide?"
+    )
+    assert query.subregion == "country"
+    assert query.places

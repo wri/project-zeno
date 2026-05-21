@@ -13,11 +13,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
 from src.agent.llms import SMALL_MODEL
-from src.agent.tools.pick_aoi.global_queries import (
+from src.agent.subagents.pick_aoi.global_queries import (
     handle_global_request,
     is_global_request,
 )
-from src.agent.tools.pick_aoi.selection_name_util import build_selection_name
+from src.agent.subagents.pick_aoi.prompts import GEOCODER_PROMPT
+from src.agent.subagents.pick_aoi.selection_name_util import (
+    build_selection_name,
+)
+from src.agent.subagents.progress import emit_progress
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
     CUSTOM_AREA_TABLE,
@@ -82,7 +86,7 @@ BBOX_SQL = f"({_antimeridian_bbox_sql('geometry')}) AS bbox"
 # requiring a funky SQL to pull out the overall bounds
 CUSTOM_BBOX_SQL = f"""
 (
-    SELECT {_antimeridian_bbox_sql('bounds.geometry')}
+    SELECT {_antimeridian_bbox_sql("bounds.geometry")}
     FROM (
         SELECT ST_Envelope(
             ST_Collect(ST_SetSRID(ST_GeomFromGeoJSON(geom_json), 4326))
@@ -558,136 +562,227 @@ async def check_duplicate_aois(
     return None
 
 
+SubregionType = Literal[
+    "country",
+    "state",
+    "district",
+    "municipality",
+    "locality",
+    "neighbourhood",
+    "kba",
+    "wdpa",
+    "landmark",
+]
+
+
+class PlaceQuery(BaseModel):
+    """A place request the geocoder extracts from the user's message."""
+
+    places: list[str] = Field(
+        default_factory=list,
+        description=(
+            "English place name(s), one entry per distinct location. A place "
+            "and its parent stay in one string, e.g. 'Lisbon, Portugal'."
+        ),
+    )
+    subregion: Optional[SubregionType] = Field(
+        default=None,
+        description=(
+            "Set only to compare or analyze across many administrative units "
+            "inside the place(s); otherwise leave null."
+        ),
+    )
+
+
+# Turns a free-text request into structured place(s) + subregion. The rules
+# the LLM follows live in GEOCODER_PROMPT (prompts.py).
+GEOCODER_EXTRACTION_PROMPT = ChatPromptTemplate.from_messages(
+    [("system", GEOCODER_PROMPT), ("user", "{question}")]
+)
+
+
+class Geocoder:
+    """Natural-language geocoder: resolves a place request to an AOI.
+
+    Used as a tool by the orchestrator via `pick_aoi`. The orchestrator passes
+    the user's request verbatim; this subagent does its own reasoning:
+
+      1. `extract` — an LLM step that turns the request into English place
+         name(s) and an optional subregion (GEOCODER_PROMPT holds the rules).
+      2. `lookup` — looks each place up in the spatial database, picks the
+         best candidate, expands subregions and validates the selection.
+
+    All place / country / subregion logic lives behind this boundary, so the
+    tool call itself stays trivial.
+    """
+
+    async def resolve(
+        self, question: str, tool_call_id: Optional[str] = None
+    ) -> Command:
+        """Full resolution: extract place(s) from the request, then look up."""
+        query = await self.extract(question)
+        logger.info(
+            "GEOCODER: extracted places=%r subregion=%r",
+            query.places,
+            query.subregion,
+        )
+        if not query.places:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            "I couldn't identify a place in your request. "
+                            "Which area would you like me to analyze?",
+                            tool_call_id=tool_call_id,
+                            status="success",
+                            response_metadata={"msg_type": "human_feedback"},
+                        )
+                    ],
+                },
+            )
+        return await self.lookup(
+            question, query.places, query.subregion, tool_call_id
+        )
+
+    async def extract(self, question: str) -> PlaceQuery:
+        """LLM step: turn the user's request into place(s) + subregion."""
+        chain = (
+            GEOCODER_EXTRACTION_PROMPT
+            | SMALL_MODEL.with_structured_output(PlaceQuery)
+        )
+        return await chain.ainvoke({"question": question})
+
+    async def lookup(
+        self,
+        question: str,
+        places: list[str],
+        subregion: Optional[SubregionType] = None,
+        tool_call_id: Optional[str] = None,
+    ) -> Command:
+        """DB step: resolve known place name(s) to AOI geometry."""
+        logger.info(
+            f"GEOCODER: lookup places: '{places}', subregion: '{subregion}'"
+        )
+
+        if is_global_request(places):
+            logger.info("GEOCODER: global request detected")
+            emit_progress("pick_aoi", "global", "Global (worldwide) request")
+            return await handle_global_request(subregion, tool_call_id)
+
+        all_results = await asyncio.gather(
+            *[query_aoi_database(place, RESULT_LIMIT) for place in places]
+        )
+        for place, result in zip(places, all_results):
+            names = list(result["name"]) if "name" in result.columns else []
+            emit_progress(
+                "pick_aoi",
+                "candidates",
+                f"Fuzzy search '{place}': {len(names)} candidate(s)"
+                + (f" — {', '.join(names[:8])}" if names else ""),
+            )
+
+        selected_aois = await asyncio.gather(
+            *[select_best_aoi(question, result) for result in all_results]
+        )
+
+        duplicate_check = await check_duplicate_aois(
+            selected_aois, all_results
+        )
+        if duplicate_check:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(duplicate_check, tool_call_id=tool_call_id)
+                    ],
+                },
+            )
+
+        match_names = [selected_aoi.name for selected_aoi in selected_aois]
+        emit_progress(
+            "pick_aoi", "matched", f"Picked: {', '.join(match_names)}"
+        )
+
+        if subregion:
+            subregion_tasks = [
+                query_subregion_database(
+                    subregion, selected_aoi.source, selected_aoi.src_id
+                )
+                for selected_aoi in selected_aois
+            ]
+            subregion_dfs = await asyncio.gather(*subregion_tasks)
+            final_aois = []
+            for df in subregion_dfs:
+                final_aois.extend(
+                    [AOIIndex(**row) for row in df.to_dict(orient="records")]
+                )
+            emit_progress(
+                "pick_aoi",
+                "subregion",
+                f"Comparing across {len(final_aois)} {subregion} area(s)",
+            )
+        else:
+            final_aois = selected_aois
+
+        logger.info(f"Found {len(final_aois)} AOIs in total")
+
+        check = await check_aoi_selection(final_aois)
+        if check:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            check,
+                            tool_call_id=tool_call_id,
+                            status="success",
+                            response_metadata={"msg_type": "human_feedback"},
+                        )
+                    ],
+                },
+            )
+
+        tool_message = "Selected AOIs:"
+        for selected_aoi in final_aois:
+            tool_message += f"\n- {selected_aoi.name}"
+
+        logger.debug(f"Pick AOI tool message: {tool_message}")
+
+        selection_name = build_selection_name(
+            match_names, subregion, len(final_aois)
+        )
+
+        logger.info(f"AOI selection name: {selection_name}")
+
+        return Command(
+            update={
+                "aoi_selection": {
+                    "name": selection_name,
+                    "aois": [aoi.model_dump() for aoi in final_aois],
+                },
+                "messages": [
+                    ToolMessage(tool_message, tool_call_id=tool_call_id)
+                ],
+            },
+        )
+
+
 @tool("pick_aoi")
 async def pick_aoi(
     question: str,
-    places: list[str],
-    subregion: Optional[
-        Literal[
-            "country",
-            "state",
-            "district",
-            "municipality",
-            "locality",
-            "neighbourhood",
-            "kba",
-            "wdpa",
-            "landmark",
-        ]
-    ] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
-    """Selects the most appropriate area of interest (AOI) based on a place name and user's question. Optionally, it can also filter the results by a subregion.
+    """Resolve the place(s) in the user's request to map geometry (the AOI).
 
-    This tool queries a spatial database to find location matches for a given place name,
-    then uses AI to select the best match based on the user's question context.
+    Pass the user's request describing WHERE to analyze, verbatim — e.g.
+    "tree cover loss in Para, Brazil", "compare deforestation across the
+    districts of Odisha", "protected areas in Peru", "forest loss worldwide".
 
-    Always translate the place names to English
+    This geocoding subagent does its own reasoning: it extracts place name(s),
+    translates them to English, decides whether the user wants a single area
+    or a comparison across subregions, and handles global ("worldwide")
+    queries. You do NOT need to parse, translate, or classify the place — just
+    forward what the user asked.
 
-    This includes:
-    - Translating from other languages to English
-    - Removing or correcting accented characters (é→e, ã→a, ç→c, etc.)
-    - Standardizing to the most common English spelling
-
-    Translation examples:
-    - "Odémire" → "Odemira"
-    - "São Paulo" → "Sao Paulo"
-    - "México" → "Mexico"
-    - "Köln" → "Cologne"
-    - "Bern, Schweiz" → "Bern, Switzerland"
-    - "Lisboa em Portugal" → "Lisbon, Portugal"
-
-    Keep pairs of places together in one place name if they belong to the same place deonmination.
-    For example, "Lisbon in Portugal" -> "Lisbon, Portugal", do not separate them into "Lisbon" and "Portugal".
-
-    Global queries:
-    When the user asks about the whole world (e.g. "globally", "worldwide", "all countries"),
-    pass a global synonym as the place (e.g. "global") and set subregion="country".
-    Global queries only support subregion="country" — all countries in the database are returned
-    without any spatial filtering.
-
-    Args:
-        question: User's question providing context for selecting the most relevant location
-        places: Names of the places or areas to find in the spatial database, expand any abbreviations, translate to English if necessary
-        subregion: Specific subregion type to filter results by (optional). Must be one of: "country", "state", "district", "municipality", "locality", "neighbourhood", "kba", "wdpa", or "landmark".
+    Updates the AOI selection in state. If the place is ambiguous or missing,
+    it returns a clarifying question for the user instead.
     """
-    logger.info(f"PICK-AOI-TOOL: places: '{places}', subregion: '{subregion}'")
-
-    if is_global_request(places):
-        logger.info("PICK-AOI-TOOL: Global request detected")
-        return await handle_global_request(subregion, tool_call_id)
-
-    all_results = await asyncio.gather(
-        *[query_aoi_database(place, RESULT_LIMIT) for place in places]
-    )
-
-    selected_aois = await asyncio.gather(
-        *[select_best_aoi(question, result) for result in all_results]
-    )
-
-    duplicate_check = await check_duplicate_aois(selected_aois, all_results)
-    if duplicate_check:
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(duplicate_check, tool_call_id=tool_call_id)
-                ],
-            },
-        )
-
-    match_names = [selected_aoi.name for selected_aoi in selected_aois]
-
-    if subregion:
-        subregion_tasks = [
-            query_subregion_database(
-                subregion, selected_aoi.source, selected_aoi.src_id
-            )
-            for selected_aoi in selected_aois
-        ]
-        subregion_dfs = await asyncio.gather(*subregion_tasks)
-        final_aois = []
-        for df in subregion_dfs:
-            final_aois.extend(
-                [AOIIndex(**row) for row in df.to_dict(orient="records")]
-            )
-    else:
-        final_aois = selected_aois
-
-    logger.info(f"Found {len(final_aois)} AOIs in total")
-
-    check = await check_aoi_selection(final_aois)
-    if check:
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(
-                        check,
-                        tool_call_id=tool_call_id,
-                        status="success",
-                        response_metadata={"msg_type": "human_feedback"},
-                    )
-                ],
-            },
-        )
-
-    tool_message = "Selected AOIs:"
-    for selected_aoi in final_aois:
-        tool_message += f"\n- {selected_aoi.name}"
-
-    logger.debug(f"Pick AOI tool message: {tool_message}")
-
-    selection_name = build_selection_name(
-        match_names, subregion, len(final_aois)
-    )
-
-    logger.info(f"AOI selection name: {selection_name}")
-
-    return Command(
-        update={
-            "aoi_selection": {
-                "name": selection_name,
-                "aois": [aoi.model_dump() for aoi in final_aois],
-            },
-            "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
-        },
-    )
+    return await Geocoder().resolve(question, tool_call_id)

@@ -6,13 +6,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.agent.state import Statistics
-from src.agent.tools.generate_insights import generate_insights
+from src.agent.subagents.analyst.tool import generate_insights
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-_FETCH_PATCH = "src.agent.tools.generate_insights.fetch_statistics_from_url"
+_FETCH_PATCH = "src.agent.subagents.analyst.tool.fetch_statistics_from_url"
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -62,7 +62,7 @@ def mock_insight_db():
         yield mock_session
 
     with patch(
-        "src.agent.tools.generate_insights.get_session_from_pool",
+        "src.agent.subagents.analyst.tool.get_session_from_pool",
         fake_pool,
     ):
         yield mock_session

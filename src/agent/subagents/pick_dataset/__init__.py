@@ -1,10 +1,11 @@
-from src.agent.tools.pick_dataset.schema import (
+from src.agent.subagents.pick_dataset.schema import (
     ContextLayer,
     DatasetOption,
     DatasetParameter,
     DatasetSelectionResult,
 )
-from src.agent.tools.pick_dataset.tool import (
+from src.agent.subagents.pick_dataset.tool import (
+    DatasetSelector,
     get_filtered_contextual_layers,
     get_tile_services_for_dataset,
     pick_dataset,
@@ -18,6 +19,7 @@ __all__ = [
     "DatasetOption",
     "DatasetParameter",
     "DatasetSelectionResult",
+    "DatasetSelector",
     "get_filtered_contextual_layers",
     "get_tile_services_for_dataset",
     "pick_dataset",

@@ -8,9 +8,9 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from src.agent.tools.data_handlers.analytics_handler import AnalyticsHandler
-from src.agent.tools.data_handlers.base import DataPullResult
-from src.agent.tools.util import revise_date_range
+from src.agent.datasets.dates import revise_date_range
+from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
+from src.agent.datasets.handlers.base import DataPullResult
 from src.api.data_models import StatisticsOrm
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
@@ -82,19 +82,7 @@ async def pull_data(
     change_over_time_query: bool = False,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
-    """
-    Pull data for the previously selected AOIs and dataset in a given time range.
-
-    This tool retrieves data from the appropriate data source based on the selected area of interest
-    and dataset for the specified time period. It uses specialized handlers to process different
-    data types and sources.
-
-    Args:
-        query: User query providing context for the data pull
-        start_date: Start date in YYYY-MM-DD format
-        end_date: End date in YYYY-MM-DD format
-        change_over_time_query: Whether the query is about change over time. If it is about composition or current status, return False. If it is about dynamics or change, return True.
-    """
+    """Pull data for the selected AOIs and dataset between start_date and end_date (YYYY-MM-DD)."""
     dataset = state["dataset"]
     aoi_names = [a["name"] for a in state["aoi_selection"]["aois"]]
     logger.info(

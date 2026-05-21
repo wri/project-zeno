@@ -13,8 +13,12 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langgraph.types import Command
 from shapely import box
 
-from src.agent.llms import SMALL_MODEL
-from src.agent.tools.data_handlers.analytics_handler import (
+from src.agent.datasets.config import (
+    CANDIDATE_DATASET_REQUIRED_COLUMNS,
+    DATASETS,
+)
+from src.agent.datasets.dates import revise_date_range
+from src.agent.datasets.handlers.analytics_handler import (
     DIST_ALERT_ID,
     FOREST_CARBON_FLUX_ID,
     GRASSLANDS_ID,
@@ -23,16 +27,14 @@ from src.agent.tools.data_handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_ID,
 )
-from src.agent.tools.datasets_config import (
-    CANDIDATE_DATASET_REQUIRED_COLUMNS,
-    DATASETS,
-)
-from src.agent.tools.pick_dataset.schema import (
+from src.agent.llms import SMALL_MODEL
+from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
+from src.agent.subagents.pick_dataset.schema import (
     ContextLayer,
     DatasetOption,
     DatasetSelectionResult,
 )
-from src.agent.tools.util import revise_date_range
+from src.agent.subagents.progress import emit_progress
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -73,6 +75,12 @@ async def rag_candidate_datasets(query: str, k=3):
         candidate_datasets.append(data[0])
 
     logger.debug(f"Found {len(candidate_datasets)} candidate datasets.")
+    names = [ds["dataset_name"] for ds in candidate_datasets]
+    emit_progress(
+        "pick_dataset",
+        "shortlist",
+        f"Shortlisted {len(names)} candidate(s): {', '.join(names)}",
+    )
     return pd.DataFrame(candidate_datasets)
 
 
@@ -85,6 +93,7 @@ async def select_best_dataset(
 ) -> DatasetSelectionResult:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
+            ("system", DATASET_SELECTOR_PROMPT),
             (
                 "user",
                 """Based on the query, return the ID of the dataset that can best answer the
@@ -127,7 +136,7 @@ async def select_best_dataset(
     {removed_layers}
 
     """,
-            )
+            ),
         ]
     )
 
@@ -203,37 +212,42 @@ async def select_best_dataset(
     )
 
 
-@tool("pick_dataset")
-async def pick_dataset(
-    query: str,
-    state: Annotated[Dict, InjectedState],
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
-) -> Command:
+class DatasetSelector:
+    """Dataset-selection subagent: resolves a request to the best dataset.
+
+    Used as a tool by the orchestrator via `pick_dataset`. The orchestrator
+    passes the user's request; this subagent does its own reasoning — it
+    retrieves candidate datasets, picks the best match with the selection LLM
+    (driven by DATASET_SELECTOR_PROMPT), resolves the context layer and
+    parameters, and clamps the date range to the dataset's real coverage.
     """
-    Given a user query, runs RAG to retrieve relevant datasets, selects the best matching dataset within the specified time range with reasoning,
-    and extracts relevant metadata needed for downstream querying such as context layers and parameters.
 
-    If the user requests data with a different context layer or parameter, pick the dataset again.
+    async def resolve(
+        self,
+        query: str,
+        aoi_selection=None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        tool_call_id: Optional[str] = None,
+    ) -> Command:
+        """Resolve a request to the best dataset and update state."""
+        logger.info("DATASET-SELECTOR: resolving query")
 
-    Args:
-        query: User query providing context for the dataset selection
-        start_date: Start date in YYYY-MM-DD format
-        end_date: End date in YYYY-MM-DD format
-    """
-    logger.info("PICK-DATASET-TOOL")
+        # Step 1: RAG lookup of candidate datasets
+        candidate_datasets = await rag_candidate_datasets(query, k=3)
+        # Step 2: LLM picks the best dataset and context layer
+        selection_result = await select_best_dataset(
+            query, candidate_datasets, start_date, end_date, aoi_selection
+        )
+        layer = selection_result.context_layer
+        emit_progress(
+            "pick_dataset",
+            "selected",
+            f"Selected dataset: {selection_result.dataset_name}"
+            + (f" (context layer: {layer})" if layer else ""),
+        )
 
-    aoi_selection = state.get("aoi_selection")
-
-    # Step 1: RAG lookup
-    candidate_datasets = await rag_candidate_datasets(query, k=3)
-    # Step 2: LLM to select best dataset and potential context layer
-    selection_result = await select_best_dataset(
-        query, candidate_datasets, start_date, end_date, aoi_selection
-    )
-
-    tool_message = f"""# About the selection
+        tool_message = f"""# About the selection
     Selected dataset name: {selection_result.dataset_name}
     Selected context layer: {selection_result.context_layer}
     Reasoning for selection: {selection_result.reason}
@@ -257,13 +271,49 @@ async def pick_dataset(
     {selection_result.content_date}
     """
 
-    logger.debug(f"Pick dataset tool message: {tool_message}")
+        logger.debug(f"Pick dataset tool message: {tool_message}")
 
-    return Command(
-        update={
-            "dataset": selection_result.model_dump(),
-            "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
-        },
+        return Command(
+            update={
+                "dataset": selection_result.model_dump(),
+                "messages": [
+                    ToolMessage(tool_message, tool_call_id=tool_call_id)
+                ],
+            },
+        )
+
+
+@tool("pick_dataset")
+async def pick_dataset(
+    query: str,
+    state: Annotated[Dict, InjectedState],
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
+) -> Command:
+    """Pick the dataset, context layer and date range that best answer the
+    user's request — a dataset-selection subagent.
+
+    Pass the user's request as `query`. The subagent retrieves candidate
+    datasets, picks the best match, resolves the context layer/parameters and
+    clamps the date range to what the dataset actually covers.
+
+    - Dataset-only requests (e.g. "pick tcl by driver", "use tree cover loss
+      by driver"): an AOI is NOT required — do not ask for a country/region,
+      and do not call pick_aoi / pull_data / generate_insights unless the user
+      asks for more. Briefly confirm the selection.
+    - Re-pick: call this again before pull_data whenever the user changes the
+      dataset, the context layer (drivers, land cover change, time dynamics,
+      etc.) or parameters.
+    - Optional start_date/end_date (YYYY-MM-DD) narrow the range; if they
+      don't exactly match the dataset, the closest valid range is used.
+    """
+    return await DatasetSelector().resolve(
+        query,
+        aoi_selection=state.get("aoi_selection"),
+        start_date=start_date,
+        end_date=end_date,
+        tool_call_id=tool_call_id,
     )
 
 

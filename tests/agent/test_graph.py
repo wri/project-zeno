@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 
+from src.agent.datasets.config import DATASETS
 from src.agent.graph import fetch_zeno_anonymous
-from src.agent.tools.datasets_config import DATASETS
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -64,7 +64,7 @@ def mock_insight_db():
         yield mock_session
 
     with patch(
-        "src.agent.tools.generate_insights.get_session_from_pool",
+        "src.agent.subagents.analyst.tool.get_session_from_pool",
         fake_pool,
     ):
         yield mock_session
@@ -109,7 +109,7 @@ def mock_query_aoi_database():
         return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL.copy()
 
     with patch(
-        "src.agent.tools.pick_aoi.tool.query_aoi_database",
+        "src.agent.subagents.pick_aoi.tool.query_aoi_database",
         new_callable=AsyncMock,
         side_effect=_return_mock_df,
     ):
@@ -135,7 +135,7 @@ def mock_query_subregion_database():
         )
 
     with patch(
-        "src.agent.tools.pick_aoi.tool.query_subregion_database",
+        "src.agent.subagents.pick_aoi.tool.query_subregion_database",
         new_callable=AsyncMock,
         side_effect=_return_mock_df,
     ):
@@ -287,7 +287,7 @@ def mock_rag_candidate_datasets():
         return MOCK_CANDIDATE_DATASETS_ECOSYSTEM_CONVERSION.copy()
 
     with patch(
-        "src.agent.tools.pick_dataset.rag_candidate_datasets",
+        "src.agent.subagents.pick_dataset.rag_candidate_datasets",
         new_callable=AsyncMock,
         side_effect=_return_mock_df,
     ):
@@ -298,7 +298,7 @@ def mock_rag_candidate_datasets():
 def reset_google_clients():
     """Reset cached Google clients at session start to match active event loop."""
     llms_module = sys.modules["src.agent.llms"]
-    pd_module = sys.modules["src.agent.tools.pick_dataset"]
+    pd_module = sys.modules["src.agent.subagents.pick_dataset"]
 
     # Reset retriever cache so a fresh embeddings client is created
     pd_module.retriever_cache = None
