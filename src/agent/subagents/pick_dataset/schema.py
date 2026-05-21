@@ -25,7 +25,7 @@ class DatasetOption(BaseModel):
     )
     context_layer: Optional[str] = Field(
         None,
-        description="Pick a single context layer from the dataset if relevant.",
+        description="Context layer to apply. Follow the context layer descriptions — select the layer whose description matches the query, and always select one when a description says to default to it for the query type.",
     )
     parameters: Optional[list[DatasetParameter]] = Field(
         None, description="Dataset specific parameters."
