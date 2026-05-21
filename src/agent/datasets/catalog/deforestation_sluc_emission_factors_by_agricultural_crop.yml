@@ -48,16 +48,13 @@ selection_hints: 'Provides sLUC (statistical land use change) emission factors f
   output possible. Not all crops available in all regions.
 
   '
-code_instructions: "CHART TYPES: - Proportional emissions by gas type (CO2, CH4, N2O) → pie chart\n  (single crop, single\
-  \ year, single admin unit)\n- Changes in EF, emissions, or production over time → bar chart\n  (single crop, single admin\
-  \ unit)\n- Multiple crops in one location or one crop across locations → table - Summary of EF + emissions + production\
-  \ → table DATA RULES: - Default year = 2024 unless user specifies otherwise - Column names: emissions_tCO2e (total emissions),\
-  \ emissions_factor_tCO2e_per_tonne_production\n  (emission factor), production_tonnes (production volume)\n- MUST include\
-  \ units in all output: tCO2e for emissions, tonnes for production DO/DON'T: - DO NOT combine EF + total emissions + production\
-  \ volume on the same bar chart - If user asks for a map or spatial visualization: REFUSE — this dataset is tabular\n  only,\
-  \ no spatial output is possible. Suggest Tree Cover Loss or DIST alerts for\n  spatial analysis of deforestation impacts.\n\
-  - When showing emission factors, also show total emissions and production volume\n  used to calculate them\n- Always clarify\
-  \ the reporting year (2020-2024)\n"
+code_instructions: "CHART TYPES:\n- Proportional emissions by gas type (CO2, CH4, N2O) → pie chart (single crop)\n- Multiple\
+  \ crops in one location, or one crop across locations → table\n- Summary of EF + emissions → table\nDATA RULES:\n- Actual\
+  \ column names in data: crop, gas_type, emissions_tco2e, emission_factor_tco2e_per_tonne\n- For pie chart: group by gas_type,\
+  \ sum emissions_tco2e. Use name=gas_type, value=emissions_tco2e in chart data.\n- For table (multiple crops): group by crop,\
+  \ sum emissions_tco2e and sum emission_factor_tco2e_per_tonne. Save ALL rows to chart_data.csv.\n- Always include units\
+  \ in output: tCO2e for emissions\nDO/DON'T:\n- DO NOT combine EF + total emissions on the same bar chart\n- If user asks\
+  \ for a map or spatial visualization: REFUSE — this dataset is tabular only\n- Always clarify the reporting year (2020-2024)\n"
 presentation_instructions: 'Always include units: tCO2e for emissions, tonnes for production volume. Note: tCO2e = MgCO2e
   (metric tonnes of CO2 equivalent). Clarify the reporting year (default 2024). Note that emission factors quantify emissions
   from deforestation linked to agricultural expansion, not all land use emissions. Not all crops are available for all regions.
