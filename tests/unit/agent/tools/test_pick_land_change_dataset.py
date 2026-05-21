@@ -4,6 +4,7 @@ from src.agent.tools.pick_land_change_dataset import (
     Cause,
     Event,
     LandCover,
+    LandUse,
     Measurement,
     TemporalResolution,
     pick_land_change_dataset,
@@ -127,3 +128,57 @@ async def test_gain_on_grassland_raises():
             state={}, tool_call_id="test-id",
             event=Event.gain, land_cover=LandCover.grasslands,
         )
+
+
+# ---------------------------------------------------------------------------
+# LandUse routing — dataset 1 (Global Land Cover)
+# ---------------------------------------------------------------------------
+
+async def test_land_use_buildup_no_event_returns_global_land_cover():
+    # "How much built-up land is there in Canada?"
+    result = await pick_land_change_dataset.coroutine(
+        state={}, tool_call_id="test-id",
+        land_use=LandUse.built_up,
+    )
+    ds = result.update["dataset"]
+    assert ds["dataset_id"] == 1
+
+
+async def test_land_use_cropland_no_event_returns_global_land_cover():
+    # "Show me cropland extent in India"
+    result = await pick_land_change_dataset.coroutine(
+        state={}, tool_call_id="test-id",
+        land_use=LandUse.cropland,
+    )
+    ds = result.update["dataset"]
+    assert ds["dataset_id"] == 1
+
+
+async def test_land_use_buildup_change_natural_land_returns_global_land_cover():
+    # "Is development expanding into important natural areas in Canada?"
+    result = await pick_land_change_dataset.coroutine(
+        state={}, tool_call_id="test-id",
+        event=Event.change, land_cover=LandCover.natural_land, land_use=LandUse.built_up,
+    )
+    ds = result.update["dataset"]
+    assert ds["dataset_id"] == 1
+
+
+async def test_land_use_buildup_loss_natural_land_returns_global_land_cover():
+    # "loss + natural_land would normally return None; land_use should rescue it"
+    result = await pick_land_change_dataset.coroutine(
+        state={}, tool_call_id="test-id",
+        event=Event.loss, land_cover=LandCover.natural_land, land_use=LandUse.built_up,
+    )
+    ds = result.update["dataset"]
+    assert ds["dataset_id"] == 1
+
+
+async def test_land_use_does_not_override_forest_loss():
+    # forest loss with land_use set should still go to TCL, not global land cover
+    result = await pick_land_change_dataset.coroutine(
+        state={}, tool_call_id="test-id",
+        event=Event.loss, land_cover=LandCover.forest, land_use=LandUse.built_up,
+    )
+    ds = result.update["dataset"]
+    assert ds["dataset_id"] == 4

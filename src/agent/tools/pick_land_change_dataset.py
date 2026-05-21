@@ -52,6 +52,17 @@ class Cause(str, Enum):
     crop_management = "crop_management"
 
 
+class LandUse(str, Enum):
+    built_up = "built_up"                          # urban, development, settlements, infrastructure
+    cropland = "cropland"                          # agriculture, crops, farming
+    cultivated_grassland = "cultivated_grassland"  # cultivated pasture
+    tree_cover = "tree_cover"                      # forest, woodland
+    short_vegetation = "short_vegetation"          # shrubland, savanna, non-cultivated grassland
+    wetland = "wetland"                            # marshes, swamps
+    water = "water"                                # rivers, lakes
+    bare_ground = "bare_ground"                    # sparse vegetation, desert
+
+
 class Measurement(str, Enum):
     area = "area"
     co2e = "co2e"
@@ -75,6 +86,7 @@ async def pick_land_change_dataset(
     state: Annotated[Dict, InjectedState],
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
     land_cover: Optional[LandCover] = None,
+    land_use: Optional[LandUse] = None,
     event: Optional[Event] = None,
     cause: Optional[Cause] = None,
     measurement: Optional[Measurement] = None,
@@ -92,6 +104,12 @@ async def pick_land_change_dataset(
             Use `forest` for general forest questions, `primary_forest` for old-growth or intact forest.
             Use `natural_land` for broad natural ecosystem questions. Use `grasslands` for grassland-specific
             questions. Use `wetland`, `peatland`, or `mangrove` when the user names those ecosystems.
+        land_use: The type of land use or land cover class the user is asking about, especially when
+            asking about a specific land use category (e.g. built-up, cropland) or land cover/use change.
+            Set this when the question is about a specific land use type regardless of whether a transition
+            is involved. Use `built_up` for urban, development, settlements, or infrastructure questions.
+            Use `cropland` for agriculture or farming. Do NOT set this for drivers of forest loss — use
+            `cause` for that instead.
         event: The type of change or phenomenon the user is asking about.
             Use `loss` for deforestation or cover loss. Use `gain` for reforestation or cover gain.
             Use `disturbance` for alerts or ecosystem disruptions. Use `change` when the user asks about
@@ -112,7 +130,7 @@ async def pick_land_change_dataset(
     """
     logger.info("PICK-DATASET-DECISION-TREE-TOOL")
 
-    result = choose_dataset(land_cover, event, cause, measurement, start_date, end_date, temporal_resolution)
+    result = choose_dataset(land_cover, land_use, event, cause, measurement, start_date, end_date, temporal_resolution)
 
     if result is None:
         raise ValueError(
@@ -210,7 +228,7 @@ _CARBON_MEASUREMENTS = (Measurement.co2, Measurement.co2e, Measurement.net_flux)
 
 
 def choose_dataset(
-    land_cover, event, cause, measurement, start_date, end_date, temporal_resolution
+    land_cover, land_use, event, cause, measurement, start_date, end_date, temporal_resolution
 ) -> tuple[int, str | None] | None:
     """Returns (dataset_id, context_layer) or None if no dataset matches."""
     dataset_id = None
@@ -242,6 +260,8 @@ def choose_dataset(
                 dataset_id = 4  # Tree cover loss
                 if event == Event.deforestation or land_cover == LandCover.primary_forest:
                     context_layer = "primary_forest"
+        elif land_use is not None:
+            dataset_id = 1  # land use set — treat as land cover change question
         else:
             return None  # no loss data for this land cover
 
@@ -274,6 +294,10 @@ def choose_dataset(
         dataset_id = 7  # Tree cover (static extent)
         if land_cover == LandCover.primary_forest:
             context_layer = "primary_forest"
+
+    if dataset_id is None and land_use is not None:
+        if measurement not in _CARBON_MEASUREMENTS:
+            dataset_id = 1  # land_use set with no other match → global land cover
 
     if dataset_id is None:
         return None
