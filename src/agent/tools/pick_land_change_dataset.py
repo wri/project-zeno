@@ -85,7 +85,7 @@ class Definition(BaseModel):
 async def pick_land_change_dataset(
     state: Annotated[Dict, InjectedState],
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
-    land_cover: Optional[LandCover] = None,
+    land_cover: LandCover = LandCover.all,
     land_use: Optional[LandUse] = None,
     event: Optional[Event] = None,
     cause: Optional[Cause] = None,
@@ -130,7 +130,7 @@ async def pick_land_change_dataset(
     """
     logger.info("PICK-DATASET-DECISION-TREE-TOOL")
 
-    result = choose_dataset(land_cover, land_use, event, cause, measurement, start_date, end_date, temporal_resolution)
+    result = choose_dataset(land_cover, land_use, event, cause, measurement, temporal_resolution)
 
     if result is None:
         raise ValueError(
@@ -138,7 +138,7 @@ async def pick_land_change_dataset(
             "The requested land cover, event, or measurement may not be supported together."
         )
 
-    dataset_id, context_layer = result
+    dataset_id, context_layer, fallback_note = result
 
     row = next((ds for ds in DATASETS if ds["dataset_id"] == dataset_id), None)
     if row is None:
@@ -173,7 +173,7 @@ async def pick_land_change_dataset(
         presentation_instructions=row.get("presentation_instructions"),
     )
 
-    tool_message = f"""# About the selection
+    tool_message = f"""{"# Note\n    " + fallback_note + "\n\n    " if fallback_note else ""}# About the selection
     Selected dataset name: {result.dataset_name}
     Selected context layer: {result.context_layer}
     Reasoning for selection: {result.reason}
@@ -227,104 +227,83 @@ _GENERAL_LAND_COVERS = (LandCover.all, LandCover.croplands, LandCover.short_vege
 _CARBON_MEASUREMENTS = (Measurement.co2, Measurement.co2e, Measurement.net_flux)
 
 
+_FOREST_OR_ALL = _FOREST_LAND_COVERS + (LandCover.all,)
+_DATASET_NAMES = {ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS}
+
+
 def choose_dataset(
-    land_cover, land_use, event, cause, measurement, start_date, end_date, temporal_resolution
-) -> tuple[int, str | None] | None:
-    """Returns (dataset_id, context_layer) or None if no dataset matches."""
-    dataset_id = None
-    context_layer = None
+    land_cover: LandCover,
+    land_use,
+    event,
+    cause,
+    measurement,
+    temporal_resolution,
+) -> tuple[int, str | None, str | None] | None:
+    """Returns (dataset_id, context_layer, note) or None if no dataset matches.
 
-    if event == Event.disturbance:
-        dataset_id = 0  # DIST-ALERT
+    Decision tree: land_cover → event → cause → measurement → temporal_resolution.
+    land_cover always provides a default; each subsequent level refines only when a
+    more specific dataset exists for that combination.
+    """
+    note = None
+
+    # Level 1: land_cover → default dataset
+    if land_cover in _FOREST_LAND_COVERS:
+        dataset_id = 7  # tree cover (static 2000)
+        context_layer = "primary_forest" if land_cover == LandCover.primary_forest else None
+    elif land_cover == LandCover.grasslands:
+        dataset_id = 2  # natural/semi-natural grasslands
+        context_layer = None
+    elif land_cover in _NATURAL_LAND_COVERS:
+        dataset_id = 3  # SBTN natural lands
+        context_layer = None
+    else:  # all, croplands, built_up, short_vegetation
+        dataset_id = 1  # global land cover
+        context_layer = None
+
+    # Level 2: measurement — carbon always overrides to GHG flux
+    if measurement in _CARBON_MEASUREMENTS or event in (Event.carbon_emission, Event.carbon_removal):
+        dataset_id = 6
+        context_layer = None
+        if land_cover not in _FOREST_OR_ALL:
+            note = f"No carbon data for {land_cover.value}; showing Forest GHG Net Flux"
+
+    # Level 2: event → refine if a better dataset exists for this land_cover + event
+    elif event == Event.disturbance:
+        dataset_id = 0
         context_layer = "driver" if cause is not None else None
-
-    elif event in (Event.carbon_emission, Event.carbon_removal) or measurement in _CARBON_MEASUREMENTS:
-        if land_cover is None or land_cover in _FOREST_LAND_COVERS:
-            dataset_id = 6  # Forest GHG net flux
-        else:
-            return None  # no carbon data for non-forest land cover
-
     elif event == Event.gain:
-        if land_cover is None or land_cover in _FOREST_LAND_COVERS:
-            dataset_id = 5  # Tree cover gain
+        if land_cover in _FOREST_OR_ALL:
+            dataset_id = 5
         else:
-            return None  # no gain data for this land cover
-
+            note = f"No gain data for {land_cover.value}; showing {_DATASET_NAMES.get(dataset_id, 'closest dataset')}"
     elif event in (Event.loss, Event.deforestation):
-        if measurement in _CARBON_MEASUREMENTS:
-            return None  # carbon + loss should have been caught above; no such dataset
-        if land_cover is None or land_cover in _FOREST_LAND_COVERS:
+        if land_cover in _FOREST_OR_ALL:
+            # Level 3: cause → refine
             if cause is not None:
-                dataset_id = 8  # Tree cover loss by dominant driver
+                dataset_id = 8
+                context_layer = "driver"
             else:
-                dataset_id = 4  # Tree cover loss
-                if event == Event.deforestation or land_cover == LandCover.primary_forest:
-                    context_layer = "primary_forest"
+                dataset_id = 4
+                context_layer = "primary_forest" if (event == Event.deforestation or land_cover == LandCover.primary_forest) else None
         elif land_use is not None:
-            dataset_id = 1  # land use set — treat as land cover change question
+            dataset_id = 1  # land use change question
         else:
-            return None  # no loss data for this land cover
+            note = f"No {event.value} data for {land_cover.value}; showing {_DATASET_NAMES.get(dataset_id, 'closest dataset')}"
 
     elif event == Event.change:
-        if measurement in _CARBON_MEASUREMENTS:
-            return None
-        if land_cover == LandCover.grasslands:
-            dataset_id = 2  # Natural/semi-natural grasslands
-        else:
-            dataset_id = 1  # Global land cover
+        if land_cover != LandCover.grasslands:
+            dataset_id = 1  # grasslands already at 2; everything else → land cover change
+        context_layer = None
 
-    elif land_cover == LandCover.grasslands:
-        if measurement in _CARBON_MEASUREMENTS:
-            return None
-        dataset_id = 2  # Natural/semi-natural grasslands
+    # land_use without event → land cover change question
+    elif land_use is not None:
+        dataset_id = 1
 
-    elif land_cover in _NATURAL_LAND_COVERS:
-        if measurement in _CARBON_MEASUREMENTS:
-            return None
-        dataset_id = 3  # SBTN Natural Lands Map
-
-    elif land_cover in _GENERAL_LAND_COVERS:
-        if measurement in _CARBON_MEASUREMENTS:
-            return None
-        dataset_id = 1  # Global land cover
-
-    elif land_cover in _FOREST_LAND_COVERS:
-        if measurement in _CARBON_MEASUREMENTS:
-            return None
-        dataset_id = 7  # Tree cover (static extent)
-        if land_cover == LandCover.primary_forest:
-            context_layer = "primary_forest"
-
-    if dataset_id is None and land_use is not None:
-        if measurement not in _CARBON_MEASUREMENTS:
-            dataset_id = 1  # land_use set with no other match → global land cover
-
-    if dataset_id is None:
-        return None
-
-    row = next(ds for ds in DATASETS if ds["dataset_id"] == dataset_id)
-    dataset_name = row["dataset_name"]
-    ds_start = row.get("start_date")
-    ds_end = row.get("end_date")
-
-    if start_date and ds_start and start_date < ds_start:
-        raise ValueError(
-            f"'{dataset_name}' is not available before {ds_start} "
-            f"(requested start: {start_date})."
-        )
-    if end_date and ds_end and end_date > ds_end:
-        raise ValueError(
-            f"'{dataset_name}' is not available after {ds_end} "
-            f"(requested end: {end_date})."
-        )
-
+    # Level 4: temporal_resolution — return None so caller raises (no further fallback)
     if temporal_resolution is not None:
         supported = _DATASET_TEMPORAL_RESOLUTIONS.get(dataset_id, set())
         if temporal_resolution not in supported:
-            supported_str = ", ".join(r.value for r in supported)
-            raise ValueError(
-                f"'{dataset_name}' does not support {temporal_resolution.value} resolution "
-                f"(supported: {supported_str})."
-            )
+            return None
 
-    return dataset_id, context_layer
+    return dataset_id, context_layer, note

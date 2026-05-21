@@ -1,5 +1,3 @@
-import pytest
-
 from src.agent.tools.pick_land_change_dataset import (
     Cause,
     Event,
@@ -121,13 +119,44 @@ async def test_grasslands_area_returns_grassland_dataset():
     assert ds["context_layer"] is None
 
 
-async def test_gain_on_grassland_raises():
-    # No dataset supports grassland gain
-    with pytest.raises(ValueError):
-        await pick_land_change_dataset.coroutine(
-            state={}, tool_call_id="test-id",
-            event=Event.gain, land_cover=LandCover.grasslands,
-        )
+async def test_gain_on_grassland_stays_at_grassland_dataset():
+    # No grassland gain dataset — stays at land_cover default (natural grasslands)
+    result = await pick_land_change_dataset.coroutine(
+        state={}, tool_call_id="test-id",
+        event=Event.gain, land_cover=LandCover.grasslands,
+    )
+    ds = result.update["dataset"]
+    assert ds["dataset_id"] == 2
+
+
+async def test_loss_nonforest_stays_at_land_cover_default():
+    # Loss on wetland has no dataset — stays at SBTN Natural Lands (wetland default)
+    result = await pick_land_change_dataset.coroutine(
+        state={}, tool_call_id="test-id",
+        event=Event.loss, land_cover=LandCover.wetland,
+    )
+    ds = result.update["dataset"]
+    assert ds["dataset_id"] == 3
+
+
+async def test_loss_nonforest_with_cause_stays_at_land_cover_default():
+    # Loss on wetland by agriculture — cause doesn't unlock a wetland-loss dataset
+    result = await pick_land_change_dataset.coroutine(
+        state={}, tool_call_id="test-id",
+        event=Event.loss, land_cover=LandCover.wetland, cause=Cause.agriculture,
+    )
+    ds = result.update["dataset"]
+    assert ds["dataset_id"] == 3
+
+
+async def test_carbon_nonforest_routes_to_ghg():
+    # Carbon always routes to GHG flux regardless of land_cover
+    result = await pick_land_change_dataset.coroutine(
+        state={}, tool_call_id="test-id",
+        event=Event.carbon_emission, land_cover=LandCover.wetland,
+    )
+    ds = result.update["dataset"]
+    assert ds["dataset_id"] == 6
 
 
 # ---------------------------------------------------------------------------
