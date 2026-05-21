@@ -8,10 +8,10 @@ import pytest
 import requests
 from pydantic import BaseModel, Field
 
+from src.agent.datasets.config import DATASETS
 from src.agent.llms import SMALL_MODEL
 from src.agent.state import AgentState, AOISelection
-from src.agent.tools.datasets_config import DATASETS
-from src.agent.tools.pick_dataset import (
+from src.agent.subagents.pick_dataset import (
     DatasetParameter,
     DatasetSelectionResult,
     pick_dataset,
@@ -44,7 +44,7 @@ def test_db_pool():
 def reset_google_clients():
     """Reset cached Google clients at session start to use the correct event loop."""
     # Access the actual modules via sys.modules to avoid the __init__.py re-exports
-    pd_module = sys.modules["src.agent.tools.pick_dataset"]
+    pd_module = sys.modules["src.agent.subagents.pick_dataset"]
     llms_module = sys.modules["src.agent.llms"]
 
     # Reset retriever cache so a fresh embeddings client is created
@@ -676,12 +676,12 @@ async def test_hallucinated_context_layer_is_discarded(
 
     with (
         patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            "src.agent.subagents.pick_dataset.rag_candidate_datasets",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
         patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
+            "src.agent.subagents.pick_dataset.select_best_dataset",
             new_callable=AsyncMock,
             return_value=fake_selection,
         ),
@@ -732,12 +732,12 @@ async def test_hallucinated_parameter_is_discarded(
 
     with (
         patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            "src.agent.subagents.pick_dataset.rag_candidate_datasets",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
         patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
+            "src.agent.subagents.pick_dataset.select_best_dataset",
             new_callable=AsyncMock,
             return_value=fake_selection,
         ),
@@ -774,12 +774,12 @@ async def test_valid_context_layer_is_preserved():
 
     with (
         patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            "src.agent.subagents.pick_dataset.rag_candidate_datasets",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
         patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
+            "src.agent.subagents.pick_dataset.select_best_dataset",
             new_callable=AsyncMock,
             return_value=fake_selection,
         ),
@@ -816,12 +816,12 @@ async def test_tcl_by_driver_always_gets_driver_context_layer(state):
 
     with (
         patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            "src.agent.subagents.pick_dataset.rag_candidate_datasets",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
         patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
+            "src.agent.subagents.pick_dataset.select_best_dataset",
             new_callable=AsyncMock,
             return_value=fake_selection,
         ),
@@ -847,12 +847,13 @@ async def test_tcl_by_driver_always_gets_driver_context_layer(state):
 
 async def test_queries_context_layer_outside_extent():
     """
-    Test a tropics only-contextual layer isn't selected
+    Test that primary_forest (tropics-only) is not selected outside the tropics,
+    and intact_forest is used as the fallback context layer instead.
     """
 
     query = "Tree cover loss in primary forest"
     expected_dataset_id = 4
-    expected_context_layer = None
+    expected_context_layer = "intact_forest"
     tool_call_id = str(uuid.uuid4())
     non_tropics_state = AgentState(
         aoi_selection=AOISelection(

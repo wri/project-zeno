@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 
-from src.agent.tools.pick_aoi.global_queries import (
+from src.agent.subagents.pick_aoi.global_queries import (
     GLOBAL_AOI_SELECTION_NAME,
     GLOBAL_TRIGGER_WORDS,
     _query_all_countries,
@@ -83,7 +83,7 @@ def _make_country_df(n: int = 1) -> pd.DataFrame:
 async def test_handle_global_request_returns_all_countries():
     df = _make_country_df(5)
     with patch(
-        "src.agent.tools.pick_aoi.global_queries._query_all_countries",
+        "src.agent.subagents.pick_aoi.global_queries._query_all_countries",
         new=AsyncMock(return_value=df),
     ):
         cmd = await handle_global_request("country", tool_call_id="tc-2")
@@ -97,7 +97,7 @@ async def test_handle_global_request_returns_all_countries():
 async def test_handle_global_request_sets_gadm_id_on_each_aoi():
     df = _make_country_df(2)
     with patch(
-        "src.agent.tools.pick_aoi.global_queries._query_all_countries",
+        "src.agent.subagents.pick_aoi.global_queries._query_all_countries",
         new=AsyncMock(return_value=df),
     ):
         cmd = await handle_global_request("country", tool_call_id="tc-3")
@@ -110,7 +110,7 @@ async def test_handle_global_request_sets_gadm_id_on_each_aoi():
 async def test_handle_global_request_tool_message_text():
     df = _make_country_df(2)
     with patch(
-        "src.agent.tools.pick_aoi.global_queries._query_all_countries",
+        "src.agent.subagents.pick_aoi.global_queries._query_all_countries",
         new=AsyncMock(return_value=df),
     ):
         cmd = await handle_global_request("country", tool_call_id="tc-4")
@@ -140,7 +140,7 @@ async def test_query_all_countries_uses_global_bbox_expression(monkeypatch):
     captured = {}
     expected_df = _make_country_df()
     global_queries_module = import_module(
-        "src.agent.tools.pick_aoi.global_queries"
+        "src.agent.subagents.pick_aoi.global_queries"
     )
 
     class _FakeConn:

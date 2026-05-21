@@ -34,7 +34,7 @@ To add support for a new data source:
 ### Example Handler Structure
 
 ```python
-from src.agent.tools.data_handlers.base import DataSourceHandler, DataPullResult
+from src.agent.datasets.handlers.base import DataSourceHandler, DataPullResult
 
 class MyCustomHandler(DataSourceHandler):
     def can_handle(self, dataset: Any) -> bool:

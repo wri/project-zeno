@@ -2904,7 +2904,7 @@ wheels = [
 
 [[package]]
 name = "project-zeno"
-version = "0.1.0"
+version = "2026.5.20"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },

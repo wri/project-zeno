@@ -2,10 +2,10 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.agent.tools.data_handlers.analytics_handler import (
+from src.agent.datasets.config import DATASETS
+from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_DRIVER_ID,
 )
-from src.agent.tools.datasets_config import DATASETS
 
 
 class DatasetParameter(BaseModel):

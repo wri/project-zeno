@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.agent.state import Statistics
-from src.agent.tools.generate_insights import (
+from src.agent.subagents.analyst.tool import (
     ChartInsight,
     MultiChartInsight,
     _extract_statistics_ids,
@@ -30,7 +30,7 @@ from src.agent.tools.generate_insights import (
 from src.api.data_models import InsightOrm
 
 generate_insights_module = importlib.import_module(
-    "src.agent.tools.generate_insights"
+    "src.agent.subagents.analyst.tool"
 )
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -92,7 +92,7 @@ def mock_insight_db():
         yield mock_session
 
     with patch(
-        "src.agent.tools.generate_insights.get_session_from_pool",
+        "src.agent.subagents.analyst.tool.get_session_from_pool",
         fake_pool,
     ):
         yield mock_session
@@ -354,7 +354,7 @@ def mock_fetch_data():
         return _URL_TO_DATA[source_url]
 
     with patch(
-        "src.agent.tools.generate_insights.fetch_statistics_from_url",
+        "src.agent.subagents.analyst.tool.fetch_statistics_from_url",
         side_effect=_fetch,
     ):
         yield
@@ -478,9 +478,23 @@ async def test_prepare_dataframes_fetches_id_backed_stats(monkeypatch):
 
 
 async def test_generate_insights_persists_statistics_provenance(monkeypatch):
+    _insight = MultiChartInsight(
+        charts=[
+            ChartInsight(
+                title="Brazil Value",
+                chart_type="bar",
+                x_axis="name",
+                y_axis="value",
+            )
+        ],
+        primary_insight="Brazil has one unit.",
+        follow_up_suggestions=["Compare another area."],
+    )
+
     class FakeExecutionResult:
         error = None
         chart_data = [{"name": "Brazil", "value": 1}]
+        insight = _insight
         parts = [
             SimpleNamespace(
                 type=generate_insights_module.PartType.TEXT_OUTPUT,
@@ -501,29 +515,9 @@ async def test_generate_insights_persists_statistics_provenance(monkeypatch):
         async def execute(self, analysis_prompt, file_refs):
             return FakeExecutionResult()
 
-    class FakeStructuredOutput:
-        async def ainvoke(self, prompt):
-            return MultiChartInsight(
-                charts=[
-                    ChartInsight(
-                        title="Brazil Value",
-                        chart_type="bar",
-                        x_axis="name",
-                        y_axis="value",
-                    )
-                ],
-                primary_insight="Brazil has one unit.",
-                follow_up_suggestions=["Compare another area."],
-            )
-
-    class FakeGemini:
-        def with_structured_output(self, model):
-            return FakeStructuredOutput()
-
     monkeypatch.setattr(
         generate_insights_module, "GeminiCodeExecutor", FakeExecutor
     )
-    monkeypatch.setattr(generate_insights_module, "GEMINI_FLASH", FakeGemini())
 
     await invoke_generate_insights(
         "Show Brazil value",

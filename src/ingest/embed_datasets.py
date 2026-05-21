@@ -9,7 +9,7 @@ from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-from src.agent.tools.data_handlers.analytics_handler import DATASETS
+from src.agent.datasets.handlers.analytics_handler import DATASETS
 from src.shared.config import SharedSettings
 
 load_dotenv()

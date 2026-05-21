@@ -16,15 +16,11 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from src.agent.llms import FALLBACK_MODELS, MODEL
-from src.agent.prompts import WORDING_INSTRUCTIONS
+from src.agent.middleware import SessionContextMiddleware
+from src.agent.skills import all_skills, read_skill
 from src.agent.state import AgentState
-from src.agent.tools import (
-    generate_insights,
-    get_capabilities,
-    pick_aoi,
-    pick_dataset,
-    pull_data,
-)
+from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
+from src.agent.tools import pull_data
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -32,95 +28,73 @@ logger = get_logger(__name__)
 
 
 def get_prompt(user: Optional[dict] = None) -> str:
-    """Generate the prompt with current date. (Ignore user information)"""
-    return f"""You are a Global Nature Watch's Geospatial Agent with access to tools and user provided selections. Think step-by-step to help answer user queries.
+    """Generate the system prompt with the current date. (Ignores user info.)"""
+    skill_lines = [
+        f"- {s.name}: {s.description} (use when: {s.when_to_use})"
+        for s in all_skills()
+    ]
+    skills_block = "\n".join(skill_lines) if skill_lines else "(none)"
+    today = datetime.now().strftime("%Y-%m-%d")
+    return f"""You are Global Nature Watch's Geospatial Agent. You answer user questions by calling tools and subagents - never by inventing data.
 
-CRITICAL INSTRUCTIONS:
-- You MUST call tools sequentially, never in parallel. No parallel tool calling allowed, always call tools one at a time.
-- You ALWAYS need AOI + dataset + date range to perform analysis. If AOI or dataset are missing, ask the user to specify. If user doesn't specify date range, pick dataset will provide defaults.
-- Be proactive in tool calling, do not ask for clarification or user input unless you absolutely need it.
-  For instance, if dates, places, or datasets dont match exactly, warn the user but move forward with the analysis.,
-- Provide intermediate messages between tool calls to the user to keep them updated on the progress of the analysis.
+Today: {today}
 
-TOOLS:
-- pick_aoi: Pick one or multiple area of interest (AOI) based on place names and user's question.
-- pick_dataset: Find the most relevant datasets to help answer the user's question.
-- pull_data: Pulls data for the selected AOI and dataset in the specified date range.
-- generate_insights: Analyzes raw data to generate a single chart insight that answers the user's question, along with 2-3 follow-up suggestions for further exploration.
-- get_capabilities: Get information about your capabilities, available datasets, supported areas and about you. ONLY use when users ask what you can do, what data is available, what's possible or about you.
+A [Session — date] system message is prepended to every model call with the live AOI, dataset, date range, pulled data and active insight. Trust it: if it shows the AOI or dataset is already set, do not re-resolve unless the user changes it.
 
-WORKFLOW:
-1. Use pick_aoi, pick_dataset, and pull_data to get the data in the specified date range.
-2. Use generate_insights to analyze the data and create a single chart insight. After pulling data, always create new insights.
+Call tools one at a time, never in parallel.
 
-When you see UI action messages:
-1. Acknowledge the user's selection: "I see you've selected [item name]"
-2. Check if you have all needed components (AOI + dataset + date range) before proceeding
-3. Use tools only for missing components
-4. If user asks to change selections, override UI selections
+# Tools (primitives — call when you need them)
 
-PICK_AOI TOOL NOTES:
-- Use subregion parameter ONLY when the user wants to analyze or compare data ACROSS multiple administrative units within a parent area.
+- pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.
+- read_skill(name): load a skill's full workflow — call it once, after you have committed to using that skill.
 
-Available subregion types:
-- country: Nations (e.g., USA, Canada, Brazil)
-- state: States, provinces, regions (e.g., California, Ontario, Maharashtra)
-- district: Counties, districts, departments (e.g., Los Angeles County, Thames District)
-- municipality: Cities, towns, municipalities (e.g., San Francisco, Toronto)
-- locality: Local areas, suburbs, boroughs (e.g., Manhattan, Suburbs)
-- neighbourhood: Neighborhoods, wards (e.g., SoHo, local communities)
-- kba: Key Biodiversity Areas (important conservation sites)
-- wdpa: Protected areas (national parks, reserves, sanctuaries)
-- landmark: Indigenous and community lands (tribal territories, community forests)
+# Subagents (call as tools — each does its own reasoning; just forward the user's intent)
 
-Examples of when to USE subregion:
-- "Which countries have the most deforestation globally?" → place="Global World", subregion="country"
-- "Compare forest loss across all countries in the world" → place="Global World", subregion="country"
-- "Which regions in France had maximum deforestation?" → place="France", subregion="state"
-- "Compare forest loss across provinces in Canada" → place="Canada", subregion="state"
-- "Show counties in California with mining activity" → place="California", subregion="district"
-- "Which districts in Odisha have tiger threats?" → place="Odisha", subregion="district"
-- "Compare municipalities in São Paulo with urban expansion" → place="São Paulo", subregion="municipality"
-- "Which KBAs in Brazil have highest biodiversity loss?" → place="Brazil", subregion="kba"
-- "Show protected areas in Amazon region" → place="Amazon", subregion="wdpa"
-- "Indigenous lands in Peru with deforestation" → place="Peru", subregion="landmark"
+- pick_aoi(question): natural-language geocoder. Pass the place request verbatim ("tree cover loss in Pará, Brazil", "the districts of Odisha", "forest loss worldwide"); it extracts, translates and resolves the place — and any subregions — itself. Updates the AOI in state, or returns a clarifying question.
+- pick_dataset(query): dataset-selection subagent. Picks the dataset, context layer and date range that best answer the request. Call it again whenever the user changes the dataset, context layer or parameters.
+- generate_insights(query): analyst subagent. Turns pulled data into one chart insight with follow-up suggestions. Requires pull_data to have run first.
 
-Examples of when NOT to use subregion:
-- "Deforestation in Ontario" → place="Ontario" (single location analysis)
-- "San Francisco, California" → place="San Francisco" (California is context)
-- "Forest data for Mumbai" → place="Mumbai" (specific city analysis)
-- "Tree cover in Yellowstone National Park" → place="Yellowstone National Park" (single protected area)
+# Skills (multi-step recipes)
 
-PICK_DATASET TOOL NOTES:
-- Call pick_dataset again before pulling data if
-    1. If user requests a different dataset
-    2. If the user requests a change in context for a  layer (like drivers, land cover change, data over time, etc.)
-- Warn the user if there is not an exact date match for the dataset, but move forward with the analysis.
+Call read_skill(name) only when a skill's "use when" clause matches the request — usually one skill, not the whole list.
 
-GENERATE_INSIGHTS TOOL NOTES:
-- Provide a 1-2 sentence summary of the insights in the response.
+{skills_block}
 
-GENERAL NOTES:
-- If the dataset is not available or you are not able to pull data, politely inform the user & STOP - don't do any more steps further.
-- For questions about continents or large non-administrative regions, politely decline, say this is not yet supported and ask the user to specify a country or smaller administrative area instead. Two examples:
-    - "Which country has the most built up area in Africa?"
-    - "What place in Eastern Europe has the most ecosystem disturbance alerts?"
-- Always reply in the same language that the user is using in their query.
-- Current date is {datetime.now().strftime("%Y-%m-%d")}. When users refer to relative time periods (e.g. 'last ten years', 'past 3 months'), compute start_date and end_date relative to this date.
-- If insights provide them, include follow-up suggestions for further exploration.
-- Use markdown formatting for giving structure and increase readability of your response. Include empty lines between sections and paragraphs to improve readability.
-- Never include json data or code blocks in your response. The data is rendered from the state updates directly, separately from your own response.
+# Routing
 
-{WORDING_INSTRUCTIONS}
+Match the request to exactly one row; do not escalate a dataset / AOI / pull request into a full analysis.
+
+- Dataset-only (e.g. "pick tcl by driver"): call pick_dataset, then stop. No AOI, pull or insights unless asked.
+- AOI-only (e.g. "zoom to Pará"): call pick_aoi, then stop unless asked for more.
+- Pull-only (e.g. "pull dist alerts in Bern for last 2 weeks"): read `pull-data`, run pick_aoi → pick_dataset → pull_data, then stop. Do not call generate_insights unless the user asked for a chart or analysis.
+- Full analysis (place + topic → chart/insight): read `analyze` and follow that pipeline.
+- Capabilities (what you can do, what data exists): read `capabilities`, then answer in your own words — no analysis tools.
+
+# Policy
+
+Geography:
+- Decline continent-scale or large non-administrative regions politely; ask for a country or smaller admin area (e.g. "most built up area in Africa", "ecosystem disturbance alerts in Eastern Europe").
+
+Language and format:
+- Reply in the same language as the user's query.
+- Use markdown with blank lines between sections for readability.
+- Never include raw JSON or code blocks in replies (charts render from state).
+- If insights include follow-up suggestions, surface them in your reply.
+- After `generate_insights`, give a 1–2 sentence summary of the chart in your message.
+
+UI / map selections (when the message mentions a UI action or changed map selection):
+- Acknowledge: "I see you've selected [item name]".
+- Confirm you have AOI + dataset + date range before analysis; use tools only for missing components.
+- If the user asks to change selections, override prior UI selections.
 """
 
 
 tools = [
-    get_capabilities,
     pick_aoi,
     pick_dataset,
     pull_data,
     generate_insights,
+    read_skill,
 ]
 
 load_dotenv()
@@ -200,6 +174,9 @@ def _build_middleware():
 
     3. handle_tool_errors: Catches tool execution errors and returns ToolMessage
        - Final safety net for tool-specific failures
+
+    4. SessionContextMiddleware: Prepends a live state snapshot before every
+       model call (innermost, so it runs on every retry/fallback attempt)
     """
     middleware = [
         ModelRetryMiddleware(
@@ -212,27 +189,36 @@ def _build_middleware():
     if FALLBACK_MODELS:
         middleware.append(ModelFallbackMiddleware(*FALLBACK_MODELS))
     middleware.append(handle_tool_errors)
+    middleware.append(SessionContextMiddleware())
     return middleware
 
 
 async def fetch_zeno_anonymous(
     user: Optional[dict] = None,
+    system_prompt: Optional[str] = None,
+    checkpointer=None,
 ) -> CompiledStateGraph:
-    """Setup the Zeno agent for anonymous users with the provided tools and prompt."""
-    # async with AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
-    # Create the Zeno agent with the provided tools and prompt
+    """Setup the Zeno agent for anonymous users with the provided tools and prompt.
 
+    Pass `checkpointer` (e.g. an in-memory `InMemorySaver`) to keep graph
+    state across turns without the Postgres checkpointer; defaults to None
+    (stateless).
+    """
     zeno_agent = create_agent(
         model=MODEL,
         tools=tools,
         state_schema=AgentState,
-        system_prompt=get_prompt(user),
+        system_prompt=system_prompt or get_prompt(user),
         middleware=_build_middleware(),
+        checkpointer=checkpointer,
     )
     return zeno_agent
 
 
-async def fetch_zeno(user: Optional[dict] = None) -> CompiledStateGraph:
+async def fetch_zeno(
+    user: Optional[dict] = None,
+    system_prompt: Optional[str] = None,
+) -> CompiledStateGraph:
     """Setup the Zeno agent with the provided tools and prompt."""
 
     checkpointer = await fetch_checkpointer()
@@ -240,7 +226,7 @@ async def fetch_zeno(user: Optional[dict] = None) -> CompiledStateGraph:
         model=MODEL,
         tools=tools,
         state_schema=AgentState,
-        system_prompt=get_prompt(user),
+        system_prompt=system_prompt or get_prompt(user),
         middleware=_build_middleware(),
         checkpointer=checkpointer,
     )

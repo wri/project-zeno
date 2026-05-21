@@ -5,11 +5,11 @@ from typing import Any, Dict
 import httpx
 from pydantic import BaseModel
 
-from src.agent.tools.data_handlers.base import (
+from src.agent.datasets.config import DATASETS
+from src.agent.datasets.handlers.base import (
     DataPullResult,
     DataSourceHandler,
 )
-from src.agent.tools.datasets_config import DATASETS
 from src.shared.geocoding_helpers import (
     format_id,
     get_geometry_data,
@@ -80,7 +80,7 @@ SLUC_CROPS = [
     "Vegetables",
 ]
 
-SLUC_GAS_TYPES = ["CO2e", "CO2", "CH4", "N20"]
+SLUC_GAS_TYPES = ["CO2e", "CO2", "CH4", "N2O"]
 
 # Add dataset-specific parameters
 DIST_ALERT_ID = [

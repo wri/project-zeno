@@ -12,7 +12,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from src.agent.llms import SMALL_MODEL
-from src.agent.tools.generate_insights import generate_insights
+from src.agent.subagents.analyst.tool import generate_insights
 
 logger = logging.getLogger("evals.judge")
 
@@ -224,6 +224,15 @@ async def run_generate_insights(query: str, state: dict) -> dict:
         first_chart = charts_data[0]
         result["chart_type"] = first_chart.get("type")
         result["chart_data"] = first_chart.get("data") or []
+        result["insight"] = (
+            update.get("insight") or first_chart.get("insight") or ""
+        )
+        code_parts = [
+            part.get("content", "")
+            for part in (update.get("codeact_parts") or [])
+            if part.get("type") == "code_block"
+        ]
+        result["code"] = "\n".join(code_parts)
 
     insight_id = update.get("insight_id")
     # Keep DB readback as a fallback / parity check path.

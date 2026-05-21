@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-DATASETS_DIR = Path(__file__).parent / "datasets"
+DATASETS_DIR = Path(__file__).parent / "catalog"
 CANDIDATE_DATASET_REQUIRED_COLUMNS = [
     "dataset_id",
     "dataset_name",
