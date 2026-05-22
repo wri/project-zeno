@@ -28,14 +28,14 @@ Prefer the most granular dataset / context layer / parameters that fits the
 request, and give more weight to matching the requested time range than to
 matching a context layer.
 
-No match: only choose a dataset if it can usefully answer all parts of the
-user's question. If no candidate can do that, return dataset_id: null. In the
-reason field, clearly explain what data we do have and why it falls short of
-the request. Examples of when to return null:
-- The user asks for a measurement type we don't have (e.g. carbon emissions on
-  grasslands — we only have forest carbon data).
-- The query is ambiguous and no single dataset captures it well (e.g. "natural
-  land loss" — we have natural land extent and general land cover change, but
-  not natural-land-specific loss or change).
+No match: only choose a dataset if it clearly and unambiguously answers all parts of the the
+user's question. Return dataset_id: null in any of these situations:
+- No candidate can answer the query (e.g. carbon emissions on grasslands — we
+  only have forest carbon data).
+- The query is ambiguous between multiple candidates and it is not clear which
+  one the user wants (e.g. "natural land loss" could mean natural land extent,
+  land cover change, or tree cover loss — name them and ask the user to clarify).
 - The requested time range or granularity has no coverage in any candidate.
+In the reason field, clearly explain what data we do have and why a choice
+cannot be made unambiguously.
 """
