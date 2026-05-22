@@ -1,4 +1,5 @@
 from enum import Enum
+from types import SimpleNamespace
 from typing import Annotated, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -11,8 +12,8 @@ from langgraph.types import Command
 
 from src.agent.tools.datasets_config import DATASETS
 from src.agent.tools.pick_dataset.schema import DatasetSelectionResult
+from src.agent.tools.pick_dataset.tool import get_tile_services_for_dataset
 from src.agent.tools.util import revise_date_range
-from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -20,20 +21,20 @@ logger = get_logger(__name__)
 
 class LandUseLandCover(str, Enum):
     all = "all"
-    natural_land = "natural_land"
+    natural_land = "natural land"
     forest = "forest"
-    primary_forest = "primary_forest"
+    primary_forest = "primary forest"
     grasslands = "grasslands"
     cropland = "cropland"
     wetland = "wetland"
     peatland = "peatland"
     mangrove = "mangrove"
-    natural_forest = "natural_forest"
-    short_vegetation = "short_vegetation"
-    cultivated_grassland = "cultivated_grassland"
-    built_up = "built_up"
+    natural_forest = "natural forest"
+    short_vegetation = "short vegetation"
+    cultivated_grassland = "cultivated grassland"
+    built_up = "built-up land"
     water = "water"
-    bare_ground = "bare_ground"
+    bare_ground = "bare ground"
 
 
 class Event(str, Enum):
@@ -47,12 +48,12 @@ class Event(str, Enum):
 
 
 class Cause(str, Enum):
-    all = "all"
+    all = "any cause"
     wildfire = "wildfire"
     agriculture = "agriculture"
     logging = "logging"
     settlements = "settlements"
-    crop_management = "crop_management"
+    crop_management = "crop management"
 
 
 class Measurement(str, Enum):
@@ -73,7 +74,7 @@ class Definition(BaseModel):
     forest_canopy_cover: Optional[int] = Field(None, description="Canopy cover density percent from 0-100 per 30m pixel", min=0, max=100)
 
 
-@tool("pick_land_change_dataset")
+@tool("pick_dataset")
 async def pick_land_change_dataset(
     state: Annotated[Dict, InjectedState],
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
@@ -125,27 +126,30 @@ async def pick_land_change_dataset(
             "The requested land cover, event, or measurement may not be supported together."
         )
 
-    dataset_id, context_layer, fallback_note = result
+    dataset_id, context_layer, fallback_note, reason = result
 
     row = next((ds for ds in DATASETS if ds["dataset_id"] == dataset_id), None)
     if row is None:
         raise ValueError(f"choose_dataset returned unknown dataset_id: {dataset_id}")
 
-    tile_url = row["tile_url"]
-    if tile_url and not tile_url.startswith("http"):
-        tile_url = SharedSettings.eoapi_base_url + tile_url
+    orig_start, orig_end = start_date, end_date
+    start_date, end_date, range_clamped = await revise_date_range(start_date, end_date, dataset_id, context_layer)
+    if range_clamped:
+        reason += f" The requested date range was adjusted to {start_date}–{end_date} to fit the dataset's available data (originally {orig_start}–{orig_end})."
 
-    start_date, end_date, _ = await revise_date_range(start_date, end_date, dataset_id, None)
+    ns_selection = SimpleNamespace(dataset_id=dataset_id, context_layer=context_layer, parameters=None)
+    ns_row = SimpleNamespace(**row)
+    tile_url, context_layers_list = get_tile_services_for_dataset(ns_selection, ns_row, start_date, end_date)
 
     result = DatasetSelectionResult(
         dataset_id=dataset_id,
         dataset_name=row["dataset_name"],
         context_layer=context_layer,
-        context_layers=[],
+        context_layers=context_layers_list,
         parameters=None,
         start_date=start_date,
         end_date=end_date,
-        reason="Selected by decision tree",
+        reason=reason,
         tile_url=tile_url,
         analytics_api_endpoint=row["analytics_api_endpoint"],
         description=row["description"],
@@ -213,21 +217,21 @@ _CARBON_MEASUREMENTS = (Measurement.co2, Measurement.co2e, Measurement.net_flux)
 _FOREST_OR_ALL = _FOREST_LAND_COVERS + (LandUseLandCover.all,)
 _DATASET_NAMES = {ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS}
 
-
 def choose_dataset(
     land_cover: LandUseLandCover,
     event,
     cause,
     measurement,
     temporal_resolution,
-) -> tuple[int, str | None, str | None] | None:
-    """Returns (dataset_id, context_layer, note) or None if no dataset matches.
+) -> tuple[int, str | None, str | None, str] | None:
+    """Returns (dataset_id, context_layer, note, reason) or None if no dataset matches.
 
     Decision tree: land_cover → event → cause → measurement → temporal_resolution.
     land_cover always provides a default; each subsequent level refines only when a
     more specific dataset exists for that combination.
     """
     note = None
+    lulc = land_cover.value
 
     # Level 1: land_cover → default dataset
     if land_cover in _FOREST_LAND_COVERS:
@@ -247,34 +251,77 @@ def choose_dataset(
     if measurement in _CARBON_MEASUREMENTS or event in (Event.carbon_emission, Event.carbon_removal):
         dataset_id = 6
         context_layer = None
+        carbon_type = (
+            "carbon emissions" if event == Event.carbon_emission
+            else "carbon removal" if event == Event.carbon_removal
+            else "net carbon flux" if measurement == Measurement.net_flux
+            else "carbon measurement"
+        )
         if land_cover not in _FOREST_OR_ALL:
-            note = f"No carbon data for {land_cover.value}; showing Forest GHG Net Flux"
+            note = f"No carbon data for {lulc}; showing Forest GHG Net Flux"
+            reason = f"No carbon data is available for {lulc}, so showing Forest GHG Net Flux as the closest match for your {carbon_type} question."
+        else:
+            reason = f"Showing Forest GHG Net Flux to answer your {carbon_type} question for {lulc}."
 
     # Level 2: event → refine if a better dataset exists for this land_cover + event
     elif event == Event.disturbance:
         dataset_id = 0
-        context_layer = "driver" if cause is not None else None
+        if cause is not None:
+            cause_label = cause.value
+            context_layer = "driver"
+            reason = f"Showing DIST-ALERT disturbance alerts filtered by driver because you asked about {lulc} disturbances caused by {cause_label}."
+        else:
+            context_layer = None
+            reason = f"Showing DIST-ALERT disturbance alerts because you asked about {lulc} disturbances."
+
     elif event == Event.gain:
         if land_cover in _FOREST_OR_ALL:
             dataset_id = 5
+            reason = f"Showing Tree Cover Gain because you asked about {lulc} gain."
         else:
-            note = f"No gain data for {land_cover.value}; showing {_DATASET_NAMES.get(dataset_id, 'closest dataset')}"
+            fallback_name = _DATASET_NAMES.get(dataset_id, "the closest dataset")
+            note = f"No gain data for {lulc}; showing {fallback_name}"
+            reason = f"No gain data is available for {lulc}, so showing {fallback_name} as the closest match."
+
     elif event in (Event.loss, Event.deforestation):
         if land_cover in _FOREST_OR_ALL:
             # Level 3: cause → refine
             if cause is not None:
+                cause_label = cause.value
                 dataset_id = 8
                 context_layer = "driver"
+                reason = f"Showing Tree Cover Loss by Driver because you asked about {lulc} loss caused by {cause_label}."
             else:
                 dataset_id = 4
-                context_layer = "primary_forest" if (event == Event.deforestation or land_cover == LandUseLandCover.primary_forest) else None
+                if event == Event.deforestation or land_cover == LandUseLandCover.primary_forest:
+                    context_layer = "primary_forest"
+                    reason = f"Showing Tree Cover Loss with a primary forest filter because you asked about {lulc} {event.value}."
+                else:
+                    context_layer = None
+                    reason = f"Showing Tree Cover Loss because you asked about {lulc} loss."
         else:
-            note = f"No {event.value} data for {land_cover.value}; showing {_DATASET_NAMES.get(dataset_id, 'closest dataset')}"
+            fallback_name = _DATASET_NAMES.get(dataset_id, "the closest dataset")
+            note = f"No {event.value} data for {lulc}; showing {fallback_name}"
+            reason = f"No {event.value} data is available for {lulc}, so showing {fallback_name} as the closest match."
 
     elif event == Event.change:
+        context_layer = None
         if land_cover != LandUseLandCover.grasslands:
             dataset_id = 1  # grasslands already at 2; everything else → land cover change
-        context_layer = None
+            reason = f"Showing Global Land Cover because you asked about land cover change involving {lulc}."
+        else:
+            reason = f"Showing Natural Grasslands because you asked about grassland change."
+
+    else:
+        # No event — use land_cover default with a simple explanation
+        if land_cover in _FOREST_LAND_COVERS:
+            reason = f"Showing Tree Cover extent for your {lulc} question."
+        elif land_cover == LandUseLandCover.grasslands:
+            reason = f"Showing Natural Grasslands for your grasslands question."
+        elif land_cover in _NATURAL_LAND_COVERS:
+            reason = f"Showing SBTN Natural Lands for your {lulc} question."
+        else:
+            reason = f"Showing Global Land Cover for your {lulc} question."
 
     # Level 4: temporal_resolution — return None so caller raises (no further fallback)
     if temporal_resolution is not None:
@@ -282,4 +329,4 @@ def choose_dataset(
         if temporal_resolution not in supported:
             return None
 
-    return dataset_id, context_layer, note
+    return dataset_id, context_layer, note, reason
