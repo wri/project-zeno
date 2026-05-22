@@ -246,7 +246,9 @@ class DatasetSelector:
         )
 
         if selection_result.dataset_id is None:
-            emit_progress("pick_dataset", "no_match", "No matching dataset found")
+            emit_progress(
+                "pick_dataset", "no_match", "No matching dataset found"
+            )
             return Command(
                 update={
                     "messages": [
