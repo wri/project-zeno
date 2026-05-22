@@ -96,9 +96,9 @@ async def select_best_dataset(
             ("system", DATASET_SELECTOR_PROMPT),
             (
                 "user",
-                """Based on the query, return the ID of the dataset that can best answer the
-    user query and provide a reason. Return dataset_id as null if none of the candidates is a
-    good fit — explain why and name the closest available alternatives in the reason field.
+                """Only choose a dataset if it can usefully answer all parts of the user's question.
+    If no candidate can do that, return dataset_id as null and clearly explain in the reason field
+    what data we do have and why it falls short.
     Use all information provided to decide which dataset is the best match, especially the selection hints.
 
     Select a single context layer from the filtered_context_layers in candidate datasets for the dataset if relevant for the user query.
