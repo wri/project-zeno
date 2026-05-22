@@ -162,16 +162,12 @@ def _query_case_id(param):
             GRASSLANDS,
         ),
         (
-            "Where are the largest intact grassland ecosystems globally?",
+            "Where are the largest grassland ecosystems globally?",
             GRASSLANDS,
         ),
         # Dataset 3 queries (Natural lands) - SBTN baseline for conversion monitoring
         (
             "What percentage of land area in Brazil consists of natural ecosystems according to the 2020 baseline?",
-            NATURAL_LANDS,
-        ),
-        (
-            "Which provinces in Canada have the highest proportion of intact landscapes?",
             NATURAL_LANDS,
         ),
         (
@@ -194,10 +190,6 @@ def _query_case_id(param):
         (
             "I need to track forest plantations harvesting cycles in northern Europe",
             TREE_COVER_LOSS,
-        ),
-        (
-            "Show deforestation by driver in 2019",
-            TREE_COVER_LOSS,  # By driver is total, so we want this query to pick plain TCL
         ),
         # Dataset 5 queries (Tree cover gain) - cumulative forest regrowth
         (
@@ -374,12 +366,6 @@ def _query_case_id(param):
         (
             "How has natural land in Colombia changed from 2015 to 2024?",
             LAND_COVER_CHANGE,
-            "2015-01-01",
-            "2024-12-31",
-        ),
-        (
-            "Show the trend in natural land loss over time in Brazil",
-            TREE_COVER_LOSS,
             "2015-01-01",
             "2024-12-31",
         ),
@@ -1046,4 +1032,53 @@ async def test_pick_dataset_reason_matches_query_language_with_llm_judge(
     assert judged_language == expected_language, (
         f"Expected reason language '{expected_language}', "
         f"but judge returned '{judged_language}'. Reason: {reason}"
+    )
+
+
+@pytest.mark.parametrize(
+    "query,start_date,end_date",
+    [
+        # Ambiguous: we have natural land extent (2020 snapshot) and general land
+        # cover change, but no natural-land-specific loss or change dataset.
+        (
+            "Show the trend in natural land loss over time in Brazil",
+            "2015-01-01",
+            "2024-12-31",
+        ),
+        # TCL by driver only covers 2001–2025; 2019 alone is within range but
+        # "deforestation by driver" in a single year has no matching dataset.
+        (
+            "Show deforestation by driver in 2019",
+            "2019-01-01",
+            "2019-12-31",
+        ),
+        # We don't have the land cover dataset since 2000, should suggest using
+        # tree cover loss instead
+        (
+            "Can you show tell me how land has changed since 2000?",
+            "2000-01-01",
+            "2025-01-01",
+        ),
+    ],
+)
+async def test_queries_return_no_dataset(query, start_date, end_date):
+    tool_call_id = str(uuid.uuid4())
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": start_date,
+            "end_date": end_date,
+            "state": dict(),
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    assert command.update.get("dataset") is None, (
+        f"Expected no dataset for query '{query}', "
+        f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
     )

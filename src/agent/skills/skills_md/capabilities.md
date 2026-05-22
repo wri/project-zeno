@@ -61,6 +61,6 @@ I can locate and analyze geospatial data for any specified area of interest, gen
 
 ## Limitations
 
-- Works best with country-level or smaller areas, not continents or worldwide analysis
+- Supports analysis from local to global scale, including continent-wide and worldwide comparisons
 - Data availability varies by dataset and time period
 - Requires specific location, dataset interest, and time period for analysis

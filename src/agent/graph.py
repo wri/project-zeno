@@ -73,7 +73,7 @@ Match the request to exactly one row; do not escalate a dataset / AOI / pull req
 # Policy
 
 Geography:
-- Decline continent-scale or large non-administrative regions politely; ask for a country or smaller admin area (e.g. "most built up area in Africa", "ecosystem disturbance alerts in Eastern Europe").
+- Global and continent-scale analysis is supported. Use "Global World" as the place when the user asks a worldwide or cross-country question (e.g. "which countries have the most deforestation globally").
 
 Language and format:
 - Reply in the same language as the user's query.

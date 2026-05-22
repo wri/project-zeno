@@ -47,8 +47,8 @@ prompt_instructions: 'Use this dataset to show recent vegetation changes across 
 
   '
 selection_hints: 'Best dataset for near-real-time vegetation disturbance across ALL ecosystems (not just forests). Covers
-  Dec 2023 to present at 30m resolution, measured in hectares. Prefer when user asks about recent disturbance, clearing, or
-  conversion alerts. Driver context layer (LDACS) classifies alerts into likely causes — updated quarterly, covers most recent
+  Dec 2023 to present at 30m resolution, measured in hectares, and provides both low and high confidence alerts. Prefer when user asks 
+  about recent disturbance, clearing, or conversion alerts. Driver context layer (LDACS) classifies alerts into likely causes — updated quarterly, covers most recent
   12 months, classification NOT available for last 90 days. For historical or long-term tree cover change, prefer Tree Cover
   Loss instead. For driver attribution of tree cover loss specifically, prefer Tree Cover Loss by Dominant Driver.
 
