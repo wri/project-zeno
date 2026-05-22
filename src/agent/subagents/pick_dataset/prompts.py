@@ -18,9 +18,11 @@ current match:
   cover change, time dynamics, parameters, …) or the time framing. Treat it
   as a fresh selection.
 
-Dates: if the requested date range has no exact match in the dataset's
-coverage, choose the closest valid range and note the adjustment briefly in
-your reason — never refuse over dates.
+Dates: if the user specifies a date range or time granularity (e.g. monthly,
+daily, a specific year) that no candidate dataset supports, return null and
+explain in the reason what dates and granularity are actually available. Only
+pick a dataset when its coverage genuinely matches what the user asked for. If
+the user does not specify dates, use the dataset's own available range.
 
 Prefer the most granular dataset / context layer / parameters that fits the
 request, and give more weight to matching the requested time range than to

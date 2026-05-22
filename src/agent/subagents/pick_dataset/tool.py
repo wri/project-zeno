@@ -111,8 +111,9 @@ async def select_best_dataset(
     if a user says "show me tree cover loss in forests where canopy cover is greater than 50%", you may select the parameter canopy cover
     and value 50.
 
-    Evaluate if the best dataset is available for the date range requested by the user.
-    If not, pick the closest available date range and include a warning in the dataset pick reason.
+    If the user specifies a date range or time granularity (e.g. monthly, a specific year, daily
+    alerts), only select a dataset if it genuinely supports that. If no candidate does, return null
+    and tell the user what dates and granularity are available instead.
 
     Pick the most granular dataset/contextual layer/parameters that matches the query.
 
