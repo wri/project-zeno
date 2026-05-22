@@ -8,7 +8,7 @@ context_layers:
   start_date: '2002-01-01'
 - value: intact_forest
   description: Tree cover loss within intact forest landscapes (IFLs) — large, undisturbed natural forest expanses free of significant human activity. Use this layer when the user explicitly asks for intact forest loss, or as the default context layer for deforestation/forest loss requests when primary_forest is not available for the AOI.
-  tile_url: ''
+  tile_url: https://tiles.globalforestwatch.org/ifl_intact_forest_landscapes/v2025/default/{z}/{x}/{y}.png
   start_date: '2000-01-01'
 parameters:
 - name: canopy_cover
