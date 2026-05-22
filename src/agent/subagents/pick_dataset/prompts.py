@@ -25,4 +25,15 @@ your reason — never refuse over dates.
 Prefer the most granular dataset / context layer / parameters that fits the
 request, and give more weight to matching the requested time range than to
 matching a context layer.
+
+No match: if none of the candidates can genuinely answer the query, return
+dataset_id: null. Use the reason field to explain why (e.g. the requested
+measurement, time range, or land cover type has no coverage) and name the
+closest available options by dataset name. Examples of no-match situations:
+- The user asks for a measurement type we don't have (e.g. carbon emissions on
+  grasslands — we only have forest carbon data).
+- The query is ambiguous and no single dataset captures it well (e.g. "natural
+  land loss" — we have natural land extent and general land cover change, but
+  not natural-land-specific loss).
+- The requested time range or granularity has no coverage in any candidate.
 """

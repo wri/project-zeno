@@ -97,7 +97,8 @@ async def select_best_dataset(
             (
                 "user",
                 """Based on the query, return the ID of the dataset that can best answer the
-    user query and provide reason why it is the best match. Always return at least one dataset.
+    user query and provide a reason. Return dataset_id as null if none of the candidates is a
+    good fit — explain why and name the closest available alternatives in the reason field.
     Use all information provided to decide which dataset is the best match, especially the selection hints.
 
     Select a single context layer from the filtered_context_layers in candidate datasets for the dataset if relevant for the user query.
@@ -171,6 +172,9 @@ async def select_best_dataset(
         f"Reason: {selection_result.reason}"
     )
 
+    if selection_result.dataset_id is None:
+        return selection_result
+
     selected_row = candidate_datasets[
         candidate_datasets.dataset_id == selection_result.dataset_id
     ].iloc[0]
@@ -239,6 +243,20 @@ class DatasetSelector:
         selection_result = await select_best_dataset(
             query, candidate_datasets, start_date, end_date, aoi_selection
         )
+
+        if selection_result.dataset_id is None:
+            emit_progress("pick_dataset", "no_match", "No matching dataset found")
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"No dataset selected: {selection_result.reason}",
+                            tool_call_id=tool_call_id,
+                        )
+                    ]
+                }
+            )
+
         layer = selection_result.context_layer
         emit_progress(
             "pick_dataset",
