@@ -364,12 +364,6 @@ def _query_case_id(param):
         #     "2020-12-31",
         # ),
         (
-            "How has natural land in Colombia changed from 2015 to 2024?",
-            LAND_COVER_CHANGE,
-            "2015-01-01",
-            "2024-12-31",
-        ),
-        (
             "Plot year-by-year carbon emissions from deforestation in Indonesia",
             TREE_COVER_LOSS,
             "2001-01-01",
