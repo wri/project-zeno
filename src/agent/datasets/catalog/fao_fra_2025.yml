@@ -1,17 +1,128 @@
 dataset_id: 10
 dataset_name: FAO Global Forest Resources Assessment (FRA) 2025
-# This dataset is accessed via the `query_fra_data` tool inside the `fao-fra`
-# skill, NOT through the pick_dataset → pull_data pipeline. The flag below is
-# advisory: when `src/ingest/embed_datasets.py` is next rebuilt, it should be
-# updated to honor `pick_dataset_excluded` so FAO does not appear in the
-# pick_dataset RAG candidate set.
-pick_dataset_excluded: true
-context_layers: null
+# Routed through the standard pick_dataset → pull_data pipeline. The
+# FAOFRAHandler dispatches on `dataset_id == 10`, reads the chosen
+# `context_layer` (the FAO variable name picked by pick_dataset's LLM),
+# looks up the FAO API table + variable filter from the context_layer
+# entry below, and fetches via `datasets/handlers/fao_fra_client`.
 parameters: null
-variables: []
 tile_url: null
 analytics_api_endpoint: null
 function_usage_notes: ''
+
+# The 21 FAO FRA 2025 variable families, each addressable as a context layer.
+# `value`        — the snake_case identifier the LLM picks (and the handler reads from state["dataset"]["context_layer"])
+# `fao_table`    — the FAO API tableName the handler queries
+# `fao_variables`— optional whitelist of variable names within the table (empty = all variables)
+# `start_date`/`end_date` — per-variable temporal coverage. Omitted entries inherit the dataset-level range (1990-01-01 → 2025-12-31).
+context_layers:
+  # ---- Forest extent ----
+  - value: forest_area
+    description: Total forest area by category (overall total, naturally regenerating, planted, primary forest). Use for "how much forest does country X have" questions.
+    fao_table: extentOfForest
+    fao_variables:
+      - forestArea
+      - naturallyRegeneratingForest
+      - plantedForest
+      - primaryForest
+  - value: forest_area_change
+    description: Annual net forest area change by period (deforestation minus forest expansion). Use for "how has forest area changed" questions. Net change ≠ deforestation.
+    fao_table: forestAreaChange
+    fao_variables: []
+  - value: forest_area_protected
+    description: Forest area inside nationally designated protected areas.
+    fao_table: forestAreaWithinProtectedAreas
+    fao_variables: []
+  - value: permanent_forest_estate
+    description: Area legally designated as permanent forest estate (protected from conversion to other land uses).
+    fao_table: areaOfPermanentForestEstate
+    fao_variables: []
+  # ---- Forest characteristics ----
+  - value: forest_characteristics
+    description: Forest composition breakdown — mangroves, bamboo, rubber plantations, and other specific forest categories.
+    fao_table: forestCharacteristics
+    fao_variables: []
+  # ---- Growing stock ----
+  - value: growing_stock
+    description: Total growing stock volume (standing tree volume, million m³).
+    fao_table: growingStockTotal
+    fao_variables:
+      - total
+  - value: growing_stock_per_ha
+    description: Average growing stock volume per hectare of forest.
+    fao_table: growingStockAvg
+    fao_variables: []
+  - value: growing_stock_composition
+    description: Growing stock broken down by species or genus composition. 2025 reporting cycle only.
+    fao_table: growingStockComposition2025
+    fao_variables: []
+    start_date: '2025-01-01'
+    end_date: '2025-12-31'
+  # ---- Biomass ----
+  - value: biomass
+    description: Total biomass stock — aboveground + belowground + deadwood combined (megatonnes).
+    fao_table: biomassStockTotal
+    fao_variables:
+      - total
+  - value: biomass_per_ha
+    description: Average biomass stock per hectare (tonnes/ha).
+    fao_table: biomassStockAvg
+    fao_variables: []
+  # ---- Carbon stock ----
+  - value: carbon_stock
+    description: Total carbon stock across all five forest carbon pools (aboveground biomass, belowground biomass, deadwood, litter, soil organic matter; megatonnes CO2e).
+    fao_table: carbonStockTotal
+    fao_variables:
+      - total
+  - value: carbon_stock_by_pool
+    description: Carbon stock broken down by individual pool (aboveground biomass, belowground biomass, deadwood, litter, soil organic matter).
+    fao_table: carbonStockTotal
+    fao_variables: []
+  - value: carbon_stock_soil_depth
+    description: Soil organic carbon stock by soil depth layer.
+    fao_table: carbonStockSoilDepth
+    fao_variables: []
+  # ---- Management & ownership ----
+  - value: management_objectives
+    description: Forest area by primary designated management objective (production, multiple use, conservation of biodiversity, protection of soil & water, social services).
+    fao_table: primaryDesignatedManagementObjective
+    fao_variables: []
+  - value: designated_management
+    description: Total forest area with a formally designated management objective.
+    fao_table: totalAreaWithDesignatedManagementObjective
+    fao_variables: []
+  - value: management_rights
+    description: Forest area by holder of management rights to public forests (government, private individuals, communities, indigenous peoples).
+    fao_table: holderOfManagementRights
+    fao_variables: []
+  - value: ownership
+    description: Forest area by ownership category (public, private, community/indigenous, other or unknown).
+    fao_table: forestOwnership
+    fao_variables: []
+  # ---- Disturbances ----
+  - value: disturbances
+    description: Forest area affected by insects, disease, and severe weather events. Coverage 2002–2020 only.
+    fao_table: disturbances
+    fao_variables: []
+    start_date: '2002-01-01'
+    end_date: '2020-12-31'
+  - value: fire
+    description: Forest area affected by fire. Coverage 2007–2019 only.
+    fao_table: areaAffectedByFire
+    fao_variables: []
+    start_date: '2007-01-01'
+    end_date: '2019-12-31'
+  - value: degraded_forest
+    description: Area of degraded forest (based on national definitions). 2025 reporting cycle only.
+    fao_table: degradedForest2025
+    fao_variables: []
+    start_date: '2025-01-01'
+    end_date: '2025-12-31'
+  # ---- Restoration ----
+  - value: forest_restoration
+    description: Forest area under restoration or reforestation activities.
+    fao_table: forestRestoration
+    fao_variables: []
 license: CC BY-NC-SA 3.0 IGO
 geographic_coverage: 236 countries and territories (global)
 resolution: National level (country-reported statistics)
