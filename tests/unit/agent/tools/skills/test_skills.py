@@ -20,12 +20,14 @@ def test_load_skills():
     assert "explore" not in names
 
 
-def test_skills_registry_is_the_three_recipes():
-    # The registry holds exactly the three orchestrator recipes. Tool-owned
-    # guidance and the analyst's executor/wording prompts live elsewhere.
+def test_skills_registry_is_the_expected_recipes():
+    # The registry holds the orchestrator recipes loaded from
+    # skills_md/*.md. Tool-owned guidance and the analyst's
+    # executor/wording prompts live elsewhere.
     assert {s.name for s in all_skills()} == {
         "analyze",
         "capabilities",
+        "fao-fra",
         "pull-data",
     }
 

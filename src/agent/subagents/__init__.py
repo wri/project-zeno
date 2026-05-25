@@ -8,12 +8,18 @@ orchestrator's tool calls simple and the domain logic behind a clean boundary.
 from src.agent.subagents.analyst import Analyst, generate_insights
 from src.agent.subagents.pick_aoi import Geocoder, pick_aoi
 from src.agent.subagents.pick_dataset import DatasetSelector, pick_dataset
+from src.agent.subagents.pick_fra_variable import (
+    VariableSelector,
+    pick_fra_variable,
+)
 
 __all__ = [
     "Analyst",
     "DatasetSelector",
     "Geocoder",
+    "VariableSelector",
     "generate_insights",
     "pick_aoi",
     "pick_dataset",
+    "pick_fra_variable",
 ]

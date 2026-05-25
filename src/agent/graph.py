@@ -19,8 +19,13 @@ from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
 from src.agent.skills import all_skills, read_skill
 from src.agent.state import AgentState
-from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
-from src.agent.tools import pull_data
+from src.agent.subagents import (
+    generate_insights,
+    pick_aoi,
+    pick_dataset,
+    pick_fra_variable,
+)
+from src.agent.tools import pull_data, query_fra_data
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -45,13 +50,15 @@ Call tools one at a time, never in parallel.
 
 # Tools (primitives — call when you need them)
 
-- pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.
+- pull_data(query): fetch WRI data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.
+- query_fra_data(variable): fetch FAO FRA 2025 country statistics for the variable picked by pick_fra_variable. Used inside the `fao-fra` skill; requires a country-level AOI.
 - read_skill(name): load a skill's full workflow — call it once, after you have committed to using that skill.
 
 # Subagents (call as tools — each does its own reasoning; just forward the user's intent)
 
 - pick_aoi(question): natural-language geocoder. Pass the place request verbatim ("tree cover loss in Pará, Brazil", "the districts of Odisha", "forest loss worldwide"); it extracts, translates and resolves the place — and any subregions — itself. Updates the AOI in state, or returns a clarifying question.
 - pick_dataset(query): dataset-selection subagent. Picks the dataset, context layer and date range that best answer the request. Call it again whenever the user changes the dataset, context layer or parameters.
+- pick_fra_variable(question): FAO FRA variable-selection subagent. Picks one FAO FRA 2025 variable (forest_area, carbon_stock, ownership, …) for the user's request. Used inside the `fao-fra` skill before query_fra_data.
 - generate_insights(query): analyst subagent. Turns pulled data into one chart insight with follow-up suggestions. Requires pull_data to have run first.
 
 # Skills (multi-step recipes)
@@ -68,6 +75,7 @@ Match the request to exactly one row; do not escalate a dataset / AOI / pull req
 - AOI-only (e.g. "zoom to Pará"): call pick_aoi, then stop unless asked for more.
 - Pull-only (e.g. "pull dist alerts in Bern for last 2 weeks"): read `pull-data`, run pick_aoi → pick_dataset → pull_data, then stop. Do not call generate_insights unless the user asked for a chart or analysis.
 - Full analysis (place + topic → chart/insight): read `analyze` and follow that pipeline.
+- National FAO statistics (country-reported forest area, carbon, ownership, biomass — explicit FAO / FRA mentions, "official" forest figures): read `fao-fra` and follow that pipeline. Not for sub-national or custom date ranges — those still go to `analyze`.
 - Capabilities (what you can do, what data exists): read `capabilities`, then answer in your own words — no analysis tools.
 
 # Policy
@@ -79,8 +87,14 @@ Language and format:
 - Reply in the same language as the user's query.
 - Use markdown with blank lines between sections for readability.
 - Never include raw JSON or code blocks in replies (charts render from state).
-- If insights include follow-up suggestions, surface them in your reply.
-- After `generate_insights`, give a 1–2 sentence summary of the chart in your message.
+
+After `generate_insights`, compose the reply in this exact order:
+1. One short intro sentence naming the topic and the active dataset (read the dataset name from the session block).
+2. The chart marker(s) on their own line(s), per the `Chart placement:` instruction in the analyst's ToolMessage — use the exact UUID provided; do not invent UUIDs.
+3. A short interpretation paraphrasing the Key Finding (one paragraph).
+4. Any skill-defined caveats or methodology notes (from the active skill body).
+5. Data sources: cite `state["dataset"]["citation"]` as a markdown link, plus any extra links the active skill body specifies.
+6. The follow-up suggestions, as short bullets.
 
 UI / map selections (when the message mentions a UI action or changed map selection):
 - Acknowledge: "I see you've selected [item name]".
@@ -92,7 +106,9 @@ UI / map selections (when the message mentions a UI action or changed map select
 tools = [
     pick_aoi,
     pick_dataset,
+    pick_fra_variable,
     pull_data,
+    query_fra_data,
     generate_insights,
     read_skill,
 ]
