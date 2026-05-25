@@ -43,6 +43,30 @@ def _build_source_url(iso3: str, table: str) -> str:
     )
 
 
+def _parse_year_key(key: str) -> tuple[int, Optional[str]]:
+    """Translate a FAO response time key into (year, period_label).
+
+    The FAO API uses two formats:
+
+    - **Single year** (e.g. `"1990"`, `"2025"`) — snapshot tables like
+      `extentOfForest`, `carbonStockTotal`. Returned as `(1990, None)`.
+    - **Period** (e.g. `"1990-2000"`, `"2010-2015"`) — rate-of-change
+      tables like `forestAreaChange` that report annual rates between
+      two reporting cycles. We return `(end_year, "1990-2000")`: the end
+      year is the natural x-axis position for a trend chart, and the
+      period label is preserved so the analyst can label the bar/point.
+
+    Raises ValueError on anything else so the caller can skip the row.
+    """
+    parts = key.split("-")
+    if len(parts) == 1:
+        return int(parts[0]), None
+    if len(parts) == 2:
+        start, end = int(parts[0]), int(parts[1])
+        return end, f"{start}-{end}"
+    raise ValueError(f"unrecognised FAO time key: {key!r}")
+
+
 def _parse_response(
     body: dict,
     iso3: str,
@@ -51,7 +75,9 @@ def _parse_response(
 ) -> list[dict]:
     """Flatten the nested FAO response into a list of records.
 
-    Each record: {"year", "variable", "value", "odp", "country"}.
+    Each record: {"year", "period", "variable", "value", "odp", "country"}.
+    `period` is None for snapshot-year tables and `"START-END"` for
+    rate-of-change tables (see `_parse_year_key`).
 
     Raises FAODataNotFoundError when the country or table is absent.
     """
@@ -80,9 +106,9 @@ def _parse_response(
         )
 
     records: list[dict] = []
-    for year_str, variables in table_data.items():
+    for time_key, variables in table_data.items():
         try:
-            row_year = int(year_str)
+            row_year, period = _parse_year_key(time_key)
         except ValueError:
             continue
 
@@ -100,6 +126,7 @@ def _parse_response(
             records.append(
                 {
                     "year": row_year,
+                    "period": period,
                     "variable": var_name,
                     "value": value,
                     "odp": bool(node.get("odp", False)),

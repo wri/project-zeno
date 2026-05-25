@@ -154,6 +154,64 @@ def test_parse_response_coerces_non_numeric_value_to_none():
     assert records[0]["value"] is None
 
 
+def test_parse_response_handles_period_keys_for_change_tables():
+    """forestAreaChange and similar rate-of-change tables key by period
+    (e.g. '1990-2000'), not single year. The parser should surface the
+    end year for the chart axis and preserve the period label."""
+    body = {
+        "fra": {
+            "2025": {
+                "BRA": {
+                    "forestAreaChange": {
+                        "1990-2000": {
+                            "afforestation": {"raw": "100.0", "odp": True},
+                            "deforestation": {"raw": "500.0", "odp": True},
+                            "forestAreaNetChange": {
+                                "raw": "-400.0",
+                                "odp": True,
+                            },
+                        },
+                        "2010-2015": {
+                            "afforestation": {"raw": "120.0", "odp": True},
+                            "deforestation": {"raw": "300.0", "odp": True},
+                            "forestAreaNetChange": {
+                                "raw": "-180.0",
+                                "odp": True,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    }
+    records = _parse_response(
+        body, iso3="BRA", table="forestAreaChange", year=None
+    )
+    assert len(records) == 6  # 2 periods × 3 variables
+    by_period = {
+        r["period"]: r
+        for r in records
+        if r["variable"] == "forestAreaNetChange"
+    }
+    assert set(by_period.keys()) == {"1990-2000", "2010-2015"}
+    # End-year is used for x-axis ordering
+    assert by_period["1990-2000"]["year"] == 2000
+    assert by_period["2010-2015"]["year"] == 2015
+    assert by_period["1990-2000"]["value"] == pytest.approx(-400.0)
+
+
+def test_parse_response_period_is_none_for_snapshot_years():
+    """Snapshot tables (extentOfForest etc.) use single-year keys; the
+    `period` field should be None on every record."""
+    records = _parse_response(
+        _ok_payload("BRA", "extentOfForest"),
+        iso3="BRA",
+        table="extentOfForest",
+        year=None,
+    )
+    assert all(r["period"] is None for r in records)
+
+
 def test_parse_response_skips_non_year_keys_and_non_dict_nodes():
     body = {
         "fra": {
