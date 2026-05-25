@@ -37,8 +37,10 @@ async def test_chat_quota_headers_for_authenticated_user(client):
         mock_client = mock_client_class.return_value.__aenter__.return_value
         mock_client.get.return_value = mock_rw_api_response("Test User")
 
-        with patch("src.api.routers.chat.stream_chat") as mock_stream:
-            mock_stream.return_value = iter([b'{"response": "Hello!"}\n'])
+        async def _mock_stream(*args, **kwargs):
+            yield b'{"response": "Hello!"}\n'
+
+        with patch("src.api.routers.chat.stream_chat", _mock_stream):
             response = await client.post(
                 "/api/chat",
                 json={"query": "Test message", "thread_id": "quota-thread"},
