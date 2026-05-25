@@ -16,6 +16,7 @@ Why not use the analytics-API contract:
 
 from typing import Any, Dict, List, Optional
 
+from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.base import (
     DataPullResult,
     DataSourceHandler,
@@ -52,10 +53,27 @@ def _country_aois(aois: List[Dict]) -> List[Dict]:
 def _resolve_context_layer(
     dataset: Dict, value: Optional[str]
 ) -> Optional[Dict]:
-    """Find the context_layer entry whose `value` matches the LLM-picked one."""
+    """Find the FAO context_layer entry whose `value` matches the
+    LLM-picked one.
+
+    `state["dataset"]["context_layers"]` (the value `pick_dataset` writes
+    into state) only carries the *selected* layer metadata in
+    `ContextLayer(name, tile_url)` shape — not the full catalog list with
+    `fao_table`/`fao_variables`. So we re-read the canonical catalog by
+    `dataset_id` here, the same way `AnalyticsHandler.pull_data` merges
+    from `DATASETS` when it needs fields that don't survive
+    DatasetSelectionResult's projection.
+    """
     if not value:
         return None
-    for layer in dataset.get("context_layers") or []:
+    dataset_id = dataset.get("dataset_id")
+    catalog_entry = next(
+        (ds for ds in DATASETS if ds.get("dataset_id") == dataset_id),
+        None,
+    )
+    if catalog_entry is None:
+        return None
+    for layer in catalog_entry.get("context_layers") or []:
         if layer.get("value") == value:
             return layer
     return None
