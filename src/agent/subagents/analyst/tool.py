@@ -1,4 +1,5 @@
 import asyncio
+import math
 import re
 from typing import Annotated, Dict, List, Optional
 
@@ -361,6 +362,21 @@ class Analyst:
 
         logger.info(f"Generated chart data with {len(result.chart_data)} rows")
 
+        # 5.1. SANITIZE NaN → None for JSON safety.
+        # Postgres JSONB rejects NaN ("invalid input syntax for type json"),
+        # and the same value also fails JSON.parse on the wire to the FE.
+        # Replace any NaN-like floats with None — the FE / Recharts already
+        # handle null y-values by gapping the line / hiding the bar.
+        def _json_safe(v):
+            if isinstance(v, float) and math.isnan(v):
+                return None
+            return v
+
+        result.chart_data = [
+            {k: _json_safe(v) for k, v in row.items()}
+            for row in result.chart_data
+        ]
+
         # 5.5. REPLACE CSV PATHS: Replace CSV file paths with URL-based loading
         # This makes the code blocks runnable in any environment.
         for part in result.parts:
@@ -455,6 +471,32 @@ class Analyst:
 
         insight_id = insight_ids[0] if insight_ids else ""
         logger.info(f"Persisted insight to DB: {insight_id}")
+
+        # Tell the orchestrator how to surface these charts inline.
+        # The frontend (chatStore) splits assistant text on
+        # /\[Chart\s+[a-f0-9-]+\]/gi markers and slots queued chart
+        # widgets in positionally (Nth marker → Nth widget). Without
+        # markers the chart card appears in a separate message block
+        # below the prose; with markers it renders inline.
+        n_charts = len(result.insight.charts)
+        if insight_id and n_charts:
+            marker = f"[Chart {insight_id}]"
+            if n_charts == 1:
+                placement = (
+                    f"Place {marker} in your reply at the point where "
+                    "the chart should appear inline."
+                )
+            else:
+                placement = (
+                    f"Place {marker} {n_charts} times in your reply, "
+                    "one at each point where a chart should appear "
+                    "inline. Charts are injected positionally — the "
+                    "Nth marker becomes the Nth chart."
+                )
+            tool_message += (
+                "\n\nChart placement: "
+                f"{placement} Use this exact UUID; do not invent UUIDs."
+            )
 
         updated_state = {
             "insight_id": insight_id,
