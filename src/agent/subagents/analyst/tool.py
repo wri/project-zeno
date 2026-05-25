@@ -389,12 +389,17 @@ class Analyst:
         chart_data_df = pd.DataFrame(result.chart_data)
 
         # 7. BUILD RESPONSE - Support multiple charts
-        tool_message = f"Generated {len(result.insight.charts)} chart(s)\n"
+        n_charts = len(result.insight.charts)
+        tool_message = f"Generated {n_charts} chart(s):\n"
 
         for idx, chart in enumerate(result.insight.charts, 1):
-            tool_message += f"Chart {idx}: {chart.title}\n"
-
-        tool_message += f"Key Finding: {result.insight.primary_insight}\n\n"
+            # tool_message += f"[Chart {idx}]: {chart.title}\n"
+            marker = f"[Chart {idx}]"
+            tool_message += (
+                f"Place {marker} in your reply to represent the chart. Use this exact UUID; do not invent UUIDs."
+                f"Title: '{chart.title}'.\n\n"
+                # f"Key Finding: {result.insight.primary_insight}\n\n"
+            )
 
         MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE = 4000
         formatted_df = chart_data_df.apply(
@@ -481,32 +486,6 @@ class Analyst:
 
         insight_id = insight_ids[0] if insight_ids else ""
         logger.info(f"Persisted insight to DB: {insight_id}")
-
-        # Tell the orchestrator how to surface these charts inline.
-        # The frontend (chatStore) splits assistant text on
-        # /\[Chart\s+[a-f0-9-]+\]/gi markers and slots queued chart
-        # widgets in positionally (Nth marker → Nth widget). Without
-        # markers the chart card appears in a separate message block
-        # below the prose; with markers it renders inline.
-        n_charts = len(result.insight.charts)
-        if insight_id and n_charts:
-            marker = f"[Chart {insight_id}]"
-            if n_charts == 1:
-                placement = (
-                    f"Place {marker} in your reply at the point where "
-                    "the chart should appear inline."
-                )
-            else:
-                placement = (
-                    f"Place {marker} {n_charts} times in your reply, "
-                    "one at each point where a chart should appear "
-                    "inline. Charts are injected positionally — the "
-                    "Nth marker becomes the Nth chart."
-                )
-            tool_message += (
-                "\n\nChart placement: "
-                f"{placement} Use this exact UUID; do not invent UUIDs."
-            )
 
         updated_state = {
             "insight_id": insight_id,
