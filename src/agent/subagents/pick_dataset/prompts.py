@@ -28,14 +28,16 @@ Prefer the most granular dataset / context layer / parameters that fits the
 request, and give more weight to matching the requested time range than to
 matching a context layer.
 
-No match: only choose a dataset if it clearly and unambiguously answers all parts of the the
-user's question. Return dataset_id: null in any of these situations:
-- No candidate can answer the query (e.g. carbon emissions on grasslands — we
-  only have forest carbon data).
-- The query is ambiguous between multiple candidates and it is not clear which
+Rues for three cases:
+
+A: Preferably choose a single dataset if it clearly and unambiguously answers all parts of the the
+user's question.
+B: Return a single option with dataset_id set to null if no candidate can answer the query (e.g. carbon emissions on grasslands — we
+  only have forest carbon data), or the requested time range or granularity has no coverage in any candidate.
+C: Return multiple options if the query is ambiguous between multiple candidates and it is not clear which
   one the user wants (e.g. "natural land loss" could mean natural land extent,
   land cover change, or tree cover loss — name them and ask the user to clarify).
-- The requested time range or granularity has no coverage in any candidate.
+
 In the reason field, clearly explain what data we do have and why a choice
-cannot be made unambiguously.
+could or could not be made unambiguously.
 """
