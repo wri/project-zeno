@@ -390,10 +390,11 @@ class Analyst:
 
         # 7. BUILD RESPONSE - Support multiple charts
         tool_message = f"Generated {len(result.insight.charts)} chart(s)\n"
-        tool_message += f"Key Finding: {result.insight.primary_insight}\n\n"
 
         for idx, chart in enumerate(result.insight.charts, 1):
             tool_message += f"Chart {idx}: {chart.title}\n"
+
+        tool_message += f"Key Finding: {result.insight.primary_insight}\n\n"
 
         MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE = 4000
         formatted_df = chart_data_df.apply(
@@ -405,7 +406,16 @@ class Analyst:
         if len(csv_str) < MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE:
             tool_message += f"\nChart data CSV:\n{csv_str}"
 
-        tool_message += "\nFollow-up suggestions:"
+        # Surface the dataset's cautions to the orchestrator so they
+        # can be cited in the final chat reply. The executor already
+        # consumed them when generating the chart, but its
+        # `primary_insight` rarely echoes them verbatim — the
+        # orchestrator's job is to weave the relevant ones into the
+        # user-facing narrative.
+        if dataset_cautions:
+            tool_message += f"\n\nDataset cautions:\n{dataset_cautions}"
+
+        tool_message += "\n\nFollow-up suggestions:"
         for i, suggestion in enumerate(
             result.insight.follow_up_suggestions, 1
         ):
