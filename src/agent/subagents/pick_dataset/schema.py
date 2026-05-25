@@ -115,8 +115,13 @@ class DatasetOption(BaseModel):
 
 
 class DatasetSelectionResult(DatasetOption):
-    tile_url: str = Field(
-        description="Tile URL of the dataset that best matches the user query.",
+    # `tile_url` and `analytics_api_endpoint` are None for datasets that
+    # don't render a map layer or don't go through the GFW analytics
+    # API (e.g. FAO FRA, which is country-reported statistics served by
+    # its own client via DataSourceHandler).
+    tile_url: Optional[str] = Field(
+        default=None,
+        description="Tile URL of the dataset that best matches the user query, or None for non-tile datasets.",
     )
     dataset_name: str = Field(
         description="Name of the dataset that best matches the user query."
@@ -125,8 +130,9 @@ class DatasetSelectionResult(DatasetOption):
         [],
         description="Metadata for selected context layers.",
     )
-    analytics_api_endpoint: str = Field(
-        description="Analytics API endpoint of the dataset that best matches the user query.",
+    analytics_api_endpoint: Optional[str] = Field(
+        default=None,
+        description="Analytics API endpoint of the dataset that best matches the user query, or None for datasets that bypass the analytics API.",
     )
     description: str = Field(
         description="Description of the dataset that best matches the user query.",
