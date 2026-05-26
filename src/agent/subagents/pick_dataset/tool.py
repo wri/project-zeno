@@ -258,10 +258,17 @@ class DatasetSelector:
                 return Command(
                     update={
                         "suggested_datasets": [
-                            {**o.model_dump(), "dataset_name": name_by_id[o.dataset_id]}
+                            {
+                                **o.model_dump(),
+                                "dataset_name": name_by_id[o.dataset_id],
+                            }
                             for o in selection_result.suggested_datasets
                         ],
-                        "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
+                        "messages": [
+                            ToolMessage(
+                                tool_message, tool_call_id=tool_call_id
+                            )
+                        ],
                     }
                 )
             else:

@@ -1032,7 +1032,11 @@ async def test_pick_dataset_reason_matches_query_language_with_llm_judge(
 @pytest.mark.parametrize(
     "query,start_date,end_date",
     [
- 
+        (
+            "Show me changes in precipitations and ocean currents along major cargo shipping routes in the Atlantic",
+            "2015-01-01",
+            "2024-12-31",
+        ),
     ],
 )
 async def test_queries_return_no_dataset(query, start_date, end_date):
@@ -1056,6 +1060,10 @@ async def test_queries_return_no_dataset(query, start_date, end_date):
         f"Expected no dataset for query '{query}', "
         f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
     )
+    suggested = command.update.get("suggested_datasets")
+    assert (
+        suggested is None
+    ), f"Expected no suggestions for query '{query}' but got {suggested}"
 
 
 @pytest.mark.parametrize(
@@ -1105,7 +1113,9 @@ async def test_queries_return_suggested_datasets(query, start_date, end_date):
         f"Expected no dataset for ambiguous query '{query}', "
         f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
     )
+
     suggested = command.update.get("suggested_datasets")
+
     assert suggested and len(suggested) > 1, (
         f"Expected multiple suggested_datasets for ambiguous query '{query}', "
         f"but got: {suggested}"

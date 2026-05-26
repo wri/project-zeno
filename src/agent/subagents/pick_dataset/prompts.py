@@ -38,5 +38,5 @@ C — No match: leave both `selected_dataset` and `suggested_datasets` null.
   emissions on grasslands — we only have forest carbon data).
 
 Always fill in `reason` explaining your decision. Clearly state what data we do
-have and why a clear choice could or could not be made. 
+have and why a clear choice could or could not be made.
 """
