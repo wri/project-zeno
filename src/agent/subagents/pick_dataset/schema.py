@@ -117,6 +117,10 @@ class DatasetOption(BaseModel):
         return self
 
 
+class DatasetOptions(BaseModel):
+    options: list[DatasetOption]
+
+
 class DatasetSelectionResult(DatasetOption):
     tile_url: str = Field(
         description="Tile URL of the dataset that best matches the user query.",

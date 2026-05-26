@@ -1076,3 +1076,43 @@ async def test_queries_return_no_dataset(query, start_date, end_date):
         f"Expected no dataset for query '{query}', "
         f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
     )
+
+
+@pytest.mark.parametrize(
+    "query,start_date,end_date",
+    [
+        # Ambiguous: "natural land loss" could mean SBTN natural lands extent,
+        # global land cover change, or tree cover loss — needs user clarification.
+        (  
+            "Show the trend in natural land loss over time in Brazil",
+            "2015-01-01",
+            "2024-12-31",
+        ),
+    ],
+)
+async def test_queries_return_suggested_datasets(query, start_date, end_date):
+    tool_call_id = str(uuid.uuid4())
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": start_date,
+            "end_date": end_date,
+            "state": dict(),
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    assert command.update.get("dataset") is None, (
+        f"Expected no dataset for ambiguous query '{query}', "
+        f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
+    )
+    suggested = command.update.get("suggested_datasets")
+    assert suggested and len(suggested) > 1, (
+        f"Expected multiple suggested_datasets for ambiguous query '{query}', "
+        f"but got: {suggested}"
+    )

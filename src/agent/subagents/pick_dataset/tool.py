@@ -32,6 +32,7 @@ from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
     ContextLayer,
     DatasetOption,
+    DatasetOptions,
     DatasetSelectionResult,
 )
 from src.agent.subagents.progress import emit_progress
@@ -142,7 +143,7 @@ async def select_best_dataset(
     logger.debug("Invoking dataset selection chain...")
     dataset_selection_chain = (
         DATASET_SELECTION_PROMPT
-        | SMALL_MODEL.with_structured_output(list[DatasetOption])
+        | SMALL_MODEL.with_structured_output(DatasetOptions)
     )
 
     if aoi_selection is None:
@@ -155,7 +156,7 @@ async def select_best_dataset(
         candidate_datasets["context_layers"] = filtered_layers
         removed_df = removed_layers.to_csv(index=False)
 
-    selection_result = await dataset_selection_chain.ainvoke(
+    result = await dataset_selection_chain.ainvoke(
         {
             "candidate_datasets": candidate_datasets[
                 CANDIDATE_DATASET_REQUIRED_COLUMNS
@@ -164,6 +165,7 @@ async def select_best_dataset(
             "removed_layers": removed_df,
         }
     )
+    selection_result = result.options
     if len(selection_result) != 1 or selection_result[0].dataset_id is None:
         return selection_result
 
@@ -246,7 +248,6 @@ class DatasetSelector:
                 }
             )
         elif len(selection_result) > 1:
-            msgs = "Please select one of the following datasets:"
             name_by_id = {
                 ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS
             }
@@ -256,19 +257,22 @@ class DatasetSelector:
             ):
                 raise ValueError("Invalid dataset ID in selection result")
 
-            reasons = [
-                f"Dataset: {name_by_id.get(option.dataset_id, option.dataset_id)} - {option.reason}"
+            reasons = "\n".join(
+                f"- {name_by_id[option.dataset_id]}: {option.reason}"
                 for option in selection_result
-            ]
-            msgs += "\n".join(reasons)
+            )
+            tool_message = (
+                f"Query is ambiguous — multiple datasets could apply:\n{reasons}"
+            )
             return Command(
                 update={
+                    "suggested_datasets": [
+                        {**o.model_dump(), "dataset_name": name_by_id[o.dataset_id]}
+                        for o in selection_result
+                    ],
                     "messages": [
-                        ToolMessage(
-                            f"Multiple options found: {msgs}",
-                            tool_call_id=tool_call_id,
-                        )
-                    ]
+                        ToolMessage(tool_message, tool_call_id=tool_call_id)
+                    ],
                 }
             )
 
@@ -334,6 +338,7 @@ class DatasetSelector:
         return Command(
             update={
                 "dataset": selection_result.model_dump(),
+                "suggested_datasets": [],
                 "messages": [
                     ToolMessage(tool_message, tool_call_id=tool_call_id)
                 ],
