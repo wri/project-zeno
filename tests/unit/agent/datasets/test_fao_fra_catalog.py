@@ -47,10 +47,12 @@ EXPECTED_VARIABLES = {
 
 
 def _get_fao_entry() -> dict:
-    matches = [d for d in DATASETS if d["dataset_id"] == FAO_FRA_2025_DATASET_ID]
-    assert matches, (
-        "FAO FRA 2025 (dataset_id=10) is missing from datasets/catalog/"
-    )
+    matches = [
+        d for d in DATASETS if d["dataset_id"] == FAO_FRA_2025_DATASET_ID
+    ]
+    assert (
+        matches
+    ), "FAO FRA 2025 (dataset_id=10) is missing from datasets/catalog/"
     return matches[0]
 
 
@@ -111,15 +113,13 @@ def test_every_context_layer_carries_handler_routing_fields():
     for layer in fao["context_layers"]:
         v = layer.get("value")
         assert v, f"context_layer missing `value`: {layer}"
-        assert layer.get("description"), (
-            f"{v}: missing description"
-        )
+        assert layer.get("description"), f"{v}: missing description"
         assert layer.get("fao_table"), f"{v}: missing fao_table"
         # fao_variables is required (may be empty list)
         assert "fao_variables" in layer, f"{v}: missing fao_variables"
-        assert isinstance(layer["fao_variables"], list), (
-            f"{v}: fao_variables must be a list"
-        )
+        assert isinstance(
+            layer["fao_variables"], list
+        ), f"{v}: fao_variables must be a list"
 
 
 def test_context_layer_values_are_snake_case_identifiers():
