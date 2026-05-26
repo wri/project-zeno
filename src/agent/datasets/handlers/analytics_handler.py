@@ -133,6 +133,11 @@ SLUC_EMISSION_FACTORS_ID = [
     if ds["dataset_name"]
     == "Deforestation (sLUC) Emission Factors by Agricultural Crop"
 ][0]
+TREE_COVER_LOSS_BY_FIRES_ID = [
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"] == "Tree cover loss by fires"
+][0]
 
 
 class AnalyticsHandler(DataSourceHandler):
