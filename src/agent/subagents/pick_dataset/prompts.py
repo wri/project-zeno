@@ -26,14 +26,12 @@ A — Clear match: fill in `selected_dataset` (leave `suggested_datasets` null).
   user's question, including the requested date range and granularity.
   If the user does not specify dates, use the dataset's own available range.
 
-B — Ambiguous or close but not quite: fill in `suggested_datasets` (leave
-  `selected_dataset` null). Use this when:
-  - Multiple datasets could plausibly answer the question and it's not clear
-    which one the user wants (e.g. "natural land loss" could mean natural land
-    extent, land cover change, or tree cover loss).
-  - A candidate is close but doesn't fully match (e.g. we have area data but
-    not carbon, or the user asked for monthly data and only annual is available).
-  List each candidate as a separate entry with its own reason.
+B — No single direct match but related data exists: fill in `suggested_datasets`
+  (leave `selected_dataset` null). Use this when no candidate is a perfect fit
+  but one or more are relevant — e.g. we have area data but not carbon, only
+  annual data when monthly was requested, or the query covers a concept that
+  spans multiple datasets. List each candidate as a separate entry with its own
+  reason. In the top-level `reason`, explain what we do and don't have.
 
 C — No match: leave both `selected_dataset` and `suggested_datasets` null.
   Use this when no candidate is relevant to the query at all (e.g. carbon

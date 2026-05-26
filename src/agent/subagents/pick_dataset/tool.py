@@ -239,7 +239,7 @@ class DatasetSelector:
         logger.info("DATASET-SELECTOR: resolving query")
 
         # Step 1: RAG lookup of candidate datasets
-        candidate_datasets = await rag_candidate_datasets(query, k=3)
+        candidate_datasets = await rag_candidate_datasets(query, k=5)
         # Step 2: LLM picks the best dataset and context layer
         selection_result = await select_best_dataset(
             query, candidate_datasets, start_date, end_date, aoi_selection
@@ -254,7 +254,7 @@ class DatasetSelector:
                     f"- {name_by_id.get(o.dataset_id, str(o.dataset_id))}: {o.reason}"
                     for o in selection_result.suggested_datasets
                 )
-                tool_message = f"Query is ambiguous — multiple datasets could apply:\n{reasons}"
+                tool_message = f"No single dataset directly matches the query. Here are the closest available options:\n{reasons}"
                 return Command(
                     update={
                         "suggested_datasets": [
