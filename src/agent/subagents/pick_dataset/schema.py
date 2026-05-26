@@ -117,8 +117,10 @@ class DatasetOption(BaseModel):
         return self
 
 
-class DatasetOptions(BaseModel):
-    options: list[DatasetOption]
+class DatasetSelectionResponse(BaseModel):
+    selected_dataset: Optional[DatasetOption] = None
+    suggested_datasets: Optional[list[DatasetOption]] = None
+    reason: str
 
 
 class DatasetSelectionResult(DatasetOption):

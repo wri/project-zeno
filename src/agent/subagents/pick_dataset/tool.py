@@ -31,8 +31,7 @@ from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
     ContextLayer,
-    DatasetOption,
-    DatasetOptions,
+    DatasetSelectionResponse,
     DatasetSelectionResult,
 )
 from src.agent.subagents.progress import emit_progress
@@ -91,7 +90,7 @@ async def select_best_dataset(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     aoi_selection=None,
-) -> DatasetSelectionResult | list[DatasetOption]:
+) -> DatasetSelectionResult | DatasetSelectionResponse:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
             ("system", DATASET_SELECTOR_PROMPT),
@@ -143,7 +142,7 @@ async def select_best_dataset(
     logger.debug("Invoking dataset selection chain...")
     dataset_selection_chain = (
         DATASET_SELECTION_PROMPT
-        | SMALL_MODEL.with_structured_output(DatasetOptions)
+        | SMALL_MODEL.with_structured_output(DatasetSelectionResponse)
     )
 
     if aoi_selection is None:
@@ -165,20 +164,17 @@ async def select_best_dataset(
             "removed_layers": removed_df,
         }
     )
-    selection_result = result.options
-    if len(selection_result) != 1 or selection_result[0].dataset_id is None:
-        return selection_result
 
-    selection_result = selection_result[0]
+    if result.selected_dataset is None:
+        return result
+
+    selection_result = result.selected_dataset
 
     logger.debug(
         f"Selected dataset ID: {selection_result.dataset_id}. "
         f"context_layer={selection_result.context_layer!r} (type={type(selection_result.context_layer).__name__}). "
         f"Reason: {selection_result.reason}"
     )
-
-    if selection_result.dataset_id is None:
-        return selection_result
 
     selected_row = candidate_datasets[
         candidate_datasets.dataset_id == selection_result.dataset_id
@@ -231,51 +227,6 @@ class DatasetSelector:
     parameters, and clamps the date range to the dataset's real coverage.
     """
 
-    async def _handle_multiple_options(
-        self,
-        selection_result: list[DatasetOption],
-        tool_call_id: Optional[str] = None,
-    ) -> Command:
-        if selection_result[0].dataset_id is None:
-            return Command(
-                update={
-                    "messages": [
-                        ToolMessage(
-                            f"No dataset selected: {selection_result[0].reason}",
-                            tool_call_id=tool_call_id,
-                        )
-                    ]
-                }
-            )
-        elif len(selection_result) > 1:
-            name_by_id = {
-                ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS
-            }
-            if any(
-                option.dataset_id not in name_by_id
-                for option in selection_result
-            ):
-                raise ValueError("Invalid dataset ID in selection result")
-
-            reasons = "\n".join(
-                f"- {name_by_id[option.dataset_id]}: {option.reason}"
-                for option in selection_result
-            )
-            tool_message = (
-                f"Query is ambiguous — multiple datasets could apply:\n{reasons}"
-            )
-            return Command(
-                update={
-                    "suggested_datasets": [
-                        {**o.model_dump(), "dataset_name": name_by_id[o.dataset_id]}
-                        for o in selection_result
-                    ],
-                    "messages": [
-                        ToolMessage(tool_message, tool_call_id=tool_call_id)
-                    ],
-                }
-            )
-
     async def resolve(
         self,
         query: str,
@@ -294,10 +245,36 @@ class DatasetSelector:
             query, candidate_datasets, start_date, end_date, aoi_selection
         )
 
-        if isinstance(selection_result, list):
-            return await self._handle_multiple_options(
-                selection_result, tool_call_id
-            )
+        if isinstance(selection_result, DatasetSelectionResponse):
+            if selection_result.suggested_datasets:
+                name_by_id = {
+                    ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS
+                }
+                reasons = "\n".join(
+                    f"- {name_by_id.get(o.dataset_id, str(o.dataset_id))}: {o.reason}"
+                    for o in selection_result.suggested_datasets
+                )
+                tool_message = f"Query is ambiguous — multiple datasets could apply:\n{reasons}"
+                return Command(
+                    update={
+                        "suggested_datasets": [
+                            {**o.model_dump(), "dataset_name": name_by_id[o.dataset_id]}
+                            for o in selection_result.suggested_datasets
+                        ],
+                        "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
+                    }
+                )
+            else:
+                return Command(
+                    update={
+                        "messages": [
+                            ToolMessage(
+                                f"No dataset selected: {selection_result.reason}",
+                                tool_call_id=tool_call_id,
+                            )
+                        ]
+                    }
+                )
 
         assert isinstance(selection_result, DatasetSelectionResult)
 

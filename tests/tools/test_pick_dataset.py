@@ -1032,27 +1032,7 @@ async def test_pick_dataset_reason_matches_query_language_with_llm_judge(
 @pytest.mark.parametrize(
     "query,start_date,end_date",
     [
-        # Ambiguous: we have natural land extent (2020 snapshot) and general land
-        # cover change, but no natural-land-specific loss or change dataset.
-        (
-            "Show the trend in natural land loss over time in Brazil",
-            "2015-01-01",
-            "2024-12-31",
-        ),
-        # TCL by driver only covers 2001–2025; 2019 alone is within range but
-        # "deforestation by driver" in a single year has no matching dataset.
-        (
-            "Show deforestation by driver in 2019",
-            "2019-01-01",
-            "2019-12-31",
-        ),
-        # We don't have the land cover dataset since 2000, should suggest using
-        # tree cover loss instead
-        (
-            "Can you show tell me how land has changed since 2000?",
-            "2000-01-01",
-            "2025-01-01",
-        ),
+ 
     ],
 )
 async def test_queries_return_no_dataset(query, start_date, end_date):
@@ -1081,12 +1061,26 @@ async def test_queries_return_no_dataset(query, start_date, end_date):
 @pytest.mark.parametrize(
     "query,start_date,end_date",
     [
-        # Ambiguous: "natural land loss" could mean SBTN natural lands extent,
-        # global land cover change, or tree cover loss — needs user clarification.
-        (  
+        # Ambiguous: we have natural land extent (2020 snapshot) and general land
+        # cover change, but no natural-land-specific loss or change dataset.
+        (
             "Show the trend in natural land loss over time in Brazil",
             "2015-01-01",
             "2024-12-31",
+        ),
+        # TCL by driver only covers 2001–2025; 2019 alone is within range but
+        # "deforestation by driver" in a single year has no matching dataset.
+        (
+            "Show deforestation by driver in 2019",
+            "2019-01-01",
+            "2019-12-31",
+        ),
+        # We don't have the land cover dataset since 2000, should suggest using
+        # tree cover loss instead
+        (
+            "Can you show tell me how land has changed since 2000?",
+            "2000-01-01",
+            "2025-01-01",
         ),
     ],
 )
