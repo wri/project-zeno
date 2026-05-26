@@ -17,8 +17,11 @@ async def test_chat_requires_authentication(client):
 @pytest.mark.asyncio
 async def test_chat_allows_authenticated_user(client, auth_override):
     auth_override("test-user-wri")
-    with patch("src.api.routers.chat.stream_chat") as mock_stream:
-        mock_stream.return_value = iter([b'{"response": "Hello!"}\n'])
+
+    async def _mock_stream(*args, **kwargs):
+        yield b'{"response": "Hello!"}\n'
+
+    with patch("src.api.routers.chat.stream_chat", _mock_stream):
         response = await client.post(
             "/api/chat",
             json={"query": "Hello", "thread_id": "auth-thread"},
