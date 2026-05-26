@@ -2,10 +2,15 @@
 
 import asyncio
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
+import pytest_asyncio
+from sqlalchemy import select
+
+from src.api.data_models import ThreadOrm, UserOrm
+from tests.conftest import async_session_maker
 
 
 @pytest.mark.asyncio
@@ -663,3 +668,129 @@ async def test_unauthorized_delete_does_not_delete_checkpoints(
             app.dependency_overrides[fetch_checkpointer] = original_dependency
         else:
             app.dependency_overrides.pop(fetch_checkpointer, None)
+
+
+# --- Pagination tests ---
+
+
+@pytest_asyncio.fixture
+async def paginated_threads(auth_override):
+    """Create 5 threads with known timestamps for pagination testing."""
+    user_id = "pagination-user"
+    auth_override(user_id)
+    base_time = datetime(2025, 1, 1, 12, 0, 0)
+    threads = []
+
+    async with async_session_maker() as session:
+        stmt = select(UserOrm).filter_by(id=user_id)
+        result = await session.execute(stmt)
+        if not result.scalars().first():
+            session.add(
+                UserOrm(
+                    id=user_id, name=user_id, email=f"{user_id}@example.com"
+                )
+            )
+            await session.commit()
+
+        for i in range(5):
+            t = ThreadOrm(
+                id=f"pag-thread-{i}",
+                user_id=user_id,
+                agent_id="test-agent",
+                name=f"Thread {i}",
+                created_at=base_time + timedelta(hours=i),
+                updated_at=base_time + timedelta(hours=i),
+            )
+            session.add(t)
+            threads.append(t)
+        await session.commit()
+        for t in threads:
+            await session.refresh(t)
+
+    yield threads
+
+    async with async_session_maker() as session:
+        for t in threads:
+            obj = await session.get(ThreadOrm, t.id)
+            if obj:
+                await session.delete(obj)
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_pagination_default_order(client, paginated_threads):
+    """Default request returns threads sorted newest-first."""
+    response = await client.get(
+        "/api/threads", headers={"Authorization": "Bearer test-token"}
+    )
+    assert response.status_code == 200
+    threads = response.json()
+    assert len(threads) == 5
+    created_ats = [t["created_at"] for t in threads]
+    assert created_ats == sorted(created_ats, reverse=True)
+
+
+@pytest.mark.asyncio
+async def test_pagination_limit_and_next_cursor(client, paginated_threads):
+    """Limit restricts count; X-Next-Cursor is set when more pages exist."""
+    response = await client.get(
+        "/api/threads?limit=3", headers={"Authorization": "Bearer test-token"}
+    )
+    assert response.status_code == 200
+    threads = response.json()
+    assert len(threads) == 3
+    assert "x-next-cursor" in response.headers
+
+
+@pytest.mark.asyncio
+async def test_pagination_cursor_returns_next_page(client, paginated_threads):
+    """Using the cursor returns threads older than the cursor value."""
+    first = await client.get(
+        "/api/threads?limit=2", headers={"Authorization": "Bearer test-token"}
+    )
+    assert first.status_code == 200
+    first_threads = first.json()
+    assert len(first_threads) == 2
+    cursor = first.headers["x-next-cursor"]
+
+    second = await client.get(
+        f"/api/threads?limit=2&cursor={cursor}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert second.status_code == 200
+    second_threads = second.json()
+    assert len(second_threads) == 2
+
+    first_ids = {t["id"] for t in first_threads}
+    second_ids = {t["id"] for t in second_threads}
+    assert first_ids.isdisjoint(second_ids)
+
+
+@pytest.mark.asyncio
+async def test_pagination_last_page_no_cursor(client, paginated_threads):
+    """Last page does not include X-Next-Cursor header."""
+    first = await client.get(
+        "/api/threads?limit=3", headers={"Authorization": "Bearer test-token"}
+    )
+    cursor = first.headers["x-next-cursor"]
+
+    second = await client.get(
+        f"/api/threads?limit=3&cursor={cursor}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert second.status_code == 200
+    threads = second.json()
+    assert len(threads) == 2
+    assert "x-next-cursor" not in second.headers
+
+
+@pytest.mark.asyncio
+async def test_pagination_no_threads(client, auth_override):
+    """Empty result returns [] with no X-Next-Cursor header."""
+    auth_override("no-threads-user")
+    response = await client.get(
+        "/api/threads", headers={"Authorization": "Bearer test-token"}
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+    assert "x-next-cursor" not in response.headers
