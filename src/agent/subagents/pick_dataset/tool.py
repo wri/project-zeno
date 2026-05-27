@@ -254,7 +254,7 @@ class DatasetSelector:
                     f"- {name_by_id.get(o.dataset_id, str(o.dataset_id))}: {o.reason}"
                     for o in selection_result.suggested_datasets
                 )
-                tool_message = f"No single dataset directly matches the query. Here are the closest available options:\n{reasons}"
+                tool_message = f"No single dataset directly matches the query. {selection_result.reason}\n\nHere are the closest available options:\n{reasons}"
                 return Command(
                     update={
                         "suggested_datasets": [
