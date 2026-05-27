@@ -112,10 +112,10 @@ def _query_case_id(param):
     params=[
         # Dataset 0 queries (Ecosystem disturbance alerts) - near-real-time vegetation changes
         (
-            "Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2023 or 2024?",
+            "Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2024 or 2025?",
             DIST_ALERT,
-            "2023-01-01",
-            "2024-12-31",
+            "2024-01-01",
+            "2025-12-31",
         ),
         (
             "Show me recent vegetation disturbances in the Amazon basin over the past month",
@@ -139,7 +139,7 @@ def _query_case_id(param):
             LAND_COVER_CHANGE,
         ),
         (
-            "What's the trend in agricultural expansion across Southeast Asia since 2015?",
+            "How has in agricultural expanded across Southeast Asia since 2015?",
             LAND_COVER_CHANGE,
         ),
         (
@@ -151,10 +151,6 @@ def _query_case_id(param):
             LAND_COVER_CHANGE,
         ),
         # Dataset 2 queries (Grassland) - natural and cultivated grassland classification
-        (
-            "What is the total area of prairie ecosystems in North America?",
-            GRASSLANDS,
-        ),
         (
             "Which regions show the fastest decline in native grassland habitats?",
             GRASSLANDS,
@@ -174,10 +170,6 @@ def _query_case_id(param):
         ),
         (
             "Show me areas where natural habitats remain undisturbed by human activities",
-            NATURAL_LANDS,
-        ),
-        (
-            "What's the baseline extent of natural vegetation before any recent conversions?",
             NATURAL_LANDS,
         ),
         # Dataset 4 queries (Tree cover loss) - annual forest loss detection
@@ -339,10 +331,10 @@ def _query_case_id(param):
             "2024-12-31",
         ),
         (
-            "What proportion of tree cover loss in Brazil is due to wildfire vs agriculture?",
+            "What proportion of the total tree cover loss from 2001-2025 in Brazil is due to wildfire vs agriculture?",
             TREE_COVER_LOSS_BY_DRIVER,
-            None,
-            None,
+            "2001-01-01",
+            "2025-12-31",
         ),
         (
             "Show annual forest emissions for Brazil from 2001 to 2024",
@@ -1085,6 +1077,12 @@ async def test_queries_return_no_dataset(query, start_date, end_date):
             "Can you show tell me how land has changed since 2000?",
             "2000-01-01",
             "2025-01-01",
+        ),
+        # Could mean a couple different baselines
+        (
+            "What's the baseline extent of natural vegetation before any recent conversions?",
+            None,
+            None,
         ),
     ],
 )

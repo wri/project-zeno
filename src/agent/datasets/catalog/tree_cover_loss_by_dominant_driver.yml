@@ -51,9 +51,10 @@ prompt_instructions: "Shows the delta of the primary driver or cause of tree cov
   \ wildfire, and other natural disturbances can be combined\n  to represent drivers of temporary disturbances.\n- Permanent\
   \ agriculture and shifting cultivation can be combined to represent all\n  agriculture-driven disturbances.\n"
 selection_hints: 'Use when user asks WHY tree cover was lost — attributes loss to 7 driver classes. Shows dominant driver
-  per 1km cell over entire period 2001-2025 (NOT annual). Cannot produce timeseries or data for specific dates or years. Resolution is ~1km (coarser than 30m TCL) — not suitable for local/parcel
-  analysis. Drivers: permanent agriculture, hard commodities, shifting cultivation, logging, wildfire, settlements & infrastructure,
-  other natural disturbances.
+  of loss over entire period 2001-2025 (NOT annual). Cannot produce timeseries or data for specific dates or years. 1 km
+  drivers are overlayed on 30m loss pixel data to classify each pixel, which provides a class per loss pixel but may be
+  inaccurate when examining small land parcels. Drivers: permanent agriculture, hard commodities, shifting cultivation, logging, wildfire, settlements & infrastructure,
+  other natural disturbances, and unknown (for any unclassified loss pixel). All drivers combined add to the total tree cover loss.
 
   '
 code_instructions: "CHART TYPES: - Driver breakdown → pie chart or table ONLY - DO NOT attempt a timeseries — this is a single-period\
