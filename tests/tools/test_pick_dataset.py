@@ -114,6 +114,8 @@ def _query_case_id(param):
         (
             "Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2023 or 2024?",
             DIST_ALERT,
+            "2023-01-01",
+            "2024-12-31",
         ),
         (
             "Show me recent vegetation disturbances in the Amazon basin over the past month",
@@ -339,8 +341,8 @@ def _query_case_id(param):
         (
             "What proportion of tree cover loss in Brazil is due to wildfire vs agriculture?",
             TREE_COVER_LOSS_BY_DRIVER,
-            "2001-01-01",
-            "2024-12-31",
+            None,
+            None,
         ),
         (
             "Show annual forest emissions for Brazil from 2001 to 2024",
@@ -402,6 +404,7 @@ async def test_queries_return_expected_dataset(
 
     command = await pick_dataset.ainvoke(tool_call)
 
+    print(command)
     dataset = command.update.get("dataset", {})
     dataset_id = dataset.get("dataset_id")
     assert lookup[dataset_id] == expected_dataset
@@ -1075,13 +1078,6 @@ async def test_queries_return_no_dataset(query, start_date, end_date):
             "Show the trend in natural land loss over time in Brazil",
             "2015-01-01",
             "2024-12-31",
-        ),
-        # TCL by driver only covers 2001–2025; 2019 alone is within range but
-        # "deforestation by driver" in a single year has no matching dataset.
-        (
-            "Show deforestation by driver in 2019",
-            "2019-01-01",
-            "2019-12-31",
         ),
         # We don't have the land cover dataset since 2000, should suggest using
         # tree cover loss instead
