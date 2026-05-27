@@ -80,7 +80,7 @@ Language and format:
 - Use markdown with blank lines between sections for readability.
 - Never include raw JSON or code blocks in replies (charts render from state).
 - If insights include follow-up suggestions, surface them in your reply.
-- After `generate_insights`, give a 1–2 sentence summary of the chart in your message.
+- After `generate_insights`, give a short summary of the chart, and surface the relevant dataset cautions / methodology notes from the analyst's tool message
 
 UI / map selections (when the message mentions a UI action or changed map selection):
 - Acknowledge: "I see you've selected [item name]".

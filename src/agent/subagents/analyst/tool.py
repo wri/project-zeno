@@ -389,7 +389,11 @@ class Analyst:
         if len(csv_str) < MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE:
             tool_message += f"\nChart data CSV:\n{csv_str}"
 
-        tool_message += "\nFollow-up suggestions:"
+        tool_message += "\n\nFollow-up suggestions:"
+
+        if dataset_cautions:
+            tool_message += f"\n\nDataset cautions:\n{dataset_cautions}"
+
         for i, suggestion in enumerate(
             result.insight.follow_up_suggestions, 1
         ):

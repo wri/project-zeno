@@ -271,6 +271,13 @@ class DatasetSelector:
     {selection_result.content_date}
     """
 
+        if selection_result.presentation_instructions:
+            tool_message += f"""
+    ## Presentation instructions
+
+    {selection_result.presentation_instructions}
+    """
+
         logger.debug(f"Pick dataset tool message: {tool_message}")
 
         return Command(
