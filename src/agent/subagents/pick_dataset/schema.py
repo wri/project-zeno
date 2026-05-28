@@ -119,7 +119,9 @@ class DatasetOption(BaseModel):
 
 class DatasetSelectionResponse(BaseModel):
     selected_dataset: Optional[DatasetOption] = None
-    suggested_datasets: Optional[list[DatasetOption]] = None
+    suggested_datasets: Optional[list[DatasetOption]] = Field(
+        None, max_length=3
+    )
     reason: str = Field(
         description="Explain what datasets were considered, what each covers, and specifically why no single one directly answers the query. Name the datasets evaluated and describe where each falls short."
     )
