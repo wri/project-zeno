@@ -284,6 +284,7 @@ class AnalyticsHandler(DataSourceHandler):
         elif dataset.get("dataset_id") in [
             TREE_COVER_LOSS_ID,
             TREE_COVER_LOSS_BY_DRIVER_ID,
+            TREE_COVER_LOSS_BY_FIRES_ID,
         ]:
             forest_filter = None
 
@@ -295,6 +296,8 @@ class AnalyticsHandler(DataSourceHandler):
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
                 intersections = ["driver"]
+            if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_FIRES_ID:
+                intersections = ["fire"]
 
             payload = {
                 **base_payload,
