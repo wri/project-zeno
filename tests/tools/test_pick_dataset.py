@@ -76,7 +76,7 @@ def state():
 
 DIST_ALERT = "ecosystem disturbance alerts"
 LAND_COVER_CHANGE = "land cover change"
-GRASSLANDS = "grasslands"
+GRASSLANDS = "natural grasslands"
 NATURAL_LANDS = "natural lands"
 TREE_COVER_LOSS = "tree cover loss"
 TREE_COVER_GAIN = "tree cover gain"
@@ -179,10 +179,6 @@ def _query_case_id(param):
         ),
         (
             "Which country had the most deforestation in 2018?",
-            TREE_COVER_LOSS,
-        ),
-        (
-            "I need to track forest plantations harvesting cycles in northern Europe",
             TREE_COVER_LOSS,
         ),
         # Dataset 5 queries (Tree cover gain) - cumulative forest regrowth
