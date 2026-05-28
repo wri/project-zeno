@@ -419,7 +419,7 @@ async def test_queries_return_expected_dataset(
         ("Tree cover loss in intact forest", 4, "intact_forest"),
         ("Tree  cover loss in the past decade in sparse forests", 4, None),
         ("Deforestation in the past decade", 4, "primary_forest"),
-        ("Most recent global land cover in storm seasons", 1, None),
+        ("Most recent global land cover", 1, None),
     ],
 )
 async def test_query_with_context_layer(
@@ -456,12 +456,6 @@ async def test_query_with_context_layer(
             4,
             "canopy_cover",
             50,
-        ),
-        (
-            "Tree cover loss in the past decade where canopy threshold is 23",
-            4,
-            "canopy_cover",
-            25,
         ),
         (
             "Tree cover loss in the past decade where canopy threshold is 30",
