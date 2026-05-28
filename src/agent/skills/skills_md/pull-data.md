@@ -9,7 +9,7 @@ when_to_use: User asks to pull, fetch, or get data (with place and/or topic). No
 When the user wants data retrieved but does **not** ask for analysis, a chart, or insights (e.g. "pull dist alerts in Bern for last 2 weeks", "fetch tree cover loss for Para"):
 
 1. `pick_aoi` — pass the user's request describing the place; the geocoder extracts, translates and resolves the AOI (and any subregion) on its own.
-2. `pick_dataset` — choose dataset and date range. Dataset-only/re-pick rules are in its tool description.
+2. `pick_dataset` — choose dataset and date range. Dataset-only/re-pick rules are in its tool description. If it returns no dataset, stop and relay its explanation to the user — do not proceed to `pull_data`.
 3. `pull_data` — fetch data for AOI + dataset + dates.
 4. **Stop.** Confirm what was pulled. Do **not** call `generate_insights`.
 
