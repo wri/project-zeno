@@ -505,22 +505,19 @@ async def test_query_with_parameter(
 
 
 @pytest.mark.parametrize(
-    "dataset",
+    "dataset,start_year,end_year",
     [
-        DIST_ALERT,
-        LAND_COVER_CHANGE,
-        GRASSLANDS,
-        NATURAL_LANDS,
-        TREE_COVER,
-        TREE_COVER_LOSS,
-        TREE_COVER_GAIN,
-        CARBON_FLUX,
+        (DIST_ALERT, "2024", "2024"),
+        (LAND_COVER_CHANGE, "2024", "2024"),
+        (GRASSLANDS, "2022", "2022"),
+        (NATURAL_LANDS, "2020", "2020"),
+        (TREE_COVER, "2000", "2000"),
+        (TREE_COVER_LOSS, "2024", "2024"),
+        (TREE_COVER_GAIN, "2020", "2020"),
+        (CARBON_FLUX, "2001", "2025"),
     ],
 )
-async def test_tile_url_contains_date(dataset, state):
-    year = "2020"
-    if dataset == TREE_COVER:
-        year = "2000"
+async def test_tile_url_contains_date(dataset, start_year, end_year, state):
     tool_call_id = str(uuid.uuid4())
 
     tool_call = {
@@ -528,9 +525,9 @@ async def test_tile_url_contains_date(dataset, state):
         "name": "pick_dataset",
         "id": tool_call_id,
         "args": {
-            "query": f"Find me {dataset} data for {year}",
-            "start_date": f"{year}-01-01",
-            "end_date": f"{year}-12-31",
+            "query": f"Find me {dataset} data",
+            "start_date": f"{start_year}-01-01",
+            "end_date": f"{end_year}-12-31",
             "state": state,
             "tool_call_id": tool_call_id,
         },
@@ -540,7 +537,7 @@ async def test_tile_url_contains_date(dataset, state):
 
     tile_url = command.update.get("dataset", {}).get("tile_url")
     if dataset not in [NATURAL_LANDS, TREE_COVER_GAIN, CARBON_FLUX]:
-        assert year in tile_url
+        assert end_year in tile_url
     tile_url_format = tile_url.format(z=3, x=5, y=3)
     if "eoapi.globalnaturewatch.org" in tile_url_format:
         tile_url_format = tile_url_format.replace(
