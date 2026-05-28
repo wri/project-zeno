@@ -90,7 +90,7 @@ async def select_best_dataset(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     aoi_selection=None,
-) -> DatasetSelectionResult | DatasetSelectionResponse:
+) -> DatasetSelectionResponse:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
             ("system", DATASET_SELECTOR_PROMPT),
@@ -155,7 +155,7 @@ async def select_best_dataset(
         candidate_datasets["context_layers"] = filtered_layers
         removed_df = removed_layers.to_csv(index=False)
 
-    result = await dataset_selection_chain.ainvoke(
+    return await dataset_selection_chain.ainvoke(
         {
             "candidate_datasets": candidate_datasets[
                 CANDIDATE_DATASET_REQUIRED_COLUMNS
@@ -163,57 +163,6 @@ async def select_best_dataset(
             "user_query": query,
             "removed_layers": removed_df,
         }
-    )
-
-    if result.selected_dataset is None:
-        return result
-
-    selection_result = result.selected_dataset
-
-    logger.debug(
-        f"Selected dataset ID: {selection_result.dataset_id}. "
-        f"context_layer={selection_result.context_layer!r} (type={type(selection_result.context_layer).__name__}). "
-        f"Reason: {selection_result.reason}"
-    )
-
-    selected_row = candidate_datasets[
-        candidate_datasets.dataset_id == selection_result.dataset_id
-    ].iloc[0]
-
-    effective_start_date, effective_end_date, _ = await revise_date_range(
-        start_date,
-        end_date,
-        selected_row.dataset_id,
-        selection_result.context_layer,
-    )
-    dataset_tile_url, context_layers = get_tile_services_for_dataset(
-        selection_result,
-        selected_row,
-        effective_start_date,
-        effective_end_date,
-    )
-
-    return DatasetSelectionResult(
-        dataset_id=selected_row.dataset_id,
-        dataset_name=selected_row.dataset_name,
-        context_layer=selection_result.context_layer,
-        parameters=selection_result.parameters,
-        start_date=effective_start_date,
-        end_date=effective_end_date,
-        reason=selection_result.reason,
-        tile_url=dataset_tile_url,
-        analytics_api_endpoint=selected_row.analytics_api_endpoint,
-        description=selected_row.description,
-        prompt_instructions=selected_row.prompt_instructions,
-        methodology=selected_row.methodology,
-        cautions=selected_row.cautions,
-        function_usage_notes=selected_row.function_usage_notes,
-        citation=selected_row.citation,
-        content_date=selected_row.content_date,
-        selection_hints=selected_row.selection_hints,
-        code_instructions=selected_row.code_instructions,
-        presentation_instructions=selected_row.presentation_instructions,
-        context_layers=context_layers,
     )
 
 
@@ -245,7 +194,7 @@ class DatasetSelector:
             query, candidate_datasets, start_date, end_date, aoi_selection
         )
 
-        if isinstance(selection_result, DatasetSelectionResponse):
+        if selection_result.selected_dataset is None:
             if selection_result.suggested_datasets:
                 name_by_id = {
                     ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS
@@ -283,52 +232,98 @@ class DatasetSelector:
                     }
                 )
 
-        assert isinstance(selection_result, DatasetSelectionResult)
+        option = selection_result.selected_dataset
 
-        layer = selection_result.context_layer
+        logger.debug(
+            f"Selected dataset ID: {option.dataset_id}. "
+            f"context_layer={option.context_layer!r} (type={type(option.context_layer).__name__}). "
+            f"Reason: {option.reason}"
+        )
+
+        selected_row = candidate_datasets[
+            candidate_datasets.dataset_id == option.dataset_id
+        ].iloc[0]
+
+        effective_start_date, effective_end_date, _ = await revise_date_range(
+            start_date,
+            end_date,
+            selected_row.dataset_id,
+            option.context_layer,
+        )
+        dataset_tile_url, context_layers = get_tile_services_for_dataset(
+            option,
+            selected_row,
+            effective_start_date,
+            effective_end_date,
+        )
+
+        dataset_result = DatasetSelectionResult(
+            dataset_id=selected_row.dataset_id,
+            dataset_name=selected_row.dataset_name,
+            context_layer=option.context_layer,
+            parameters=option.parameters,
+            start_date=effective_start_date,
+            end_date=effective_end_date,
+            reason=option.reason,
+            tile_url=dataset_tile_url,
+            analytics_api_endpoint=selected_row.analytics_api_endpoint,
+            description=selected_row.description,
+            prompt_instructions=selected_row.prompt_instructions,
+            methodology=selected_row.methodology,
+            cautions=selected_row.cautions,
+            function_usage_notes=selected_row.function_usage_notes,
+            citation=selected_row.citation,
+            content_date=selected_row.content_date,
+            selection_hints=selected_row.selection_hints,
+            code_instructions=selected_row.code_instructions,
+            presentation_instructions=selected_row.presentation_instructions,
+            context_layers=context_layers,
+        )
+
+        layer = dataset_result.context_layer
         emit_progress(
             "pick_dataset",
             "selected",
-            f"Selected dataset: {selection_result.dataset_name}"
+            f"Selected dataset: {dataset_result.dataset_name}"
             + (f" (context layer: {layer})" if layer else ""),
         )
 
         tool_message = f"""# About the selection
-    Selected dataset name: {selection_result.dataset_name}
-    Selected context layer: {selection_result.context_layer}
-    Reasoning for selection: {selection_result.reason}
+    Selected dataset name: {dataset_result.dataset_name}
+    Selected context layer: {dataset_result.context_layer}
+    Reasoning for selection: {dataset_result.reason}
 
     # Additional dataset information
 
     ## Description
 
-    {selection_result.description}
+    {dataset_result.description}
 
     ## Function usage notes:
 
-    {selection_result.function_usage_notes}
+    {dataset_result.function_usage_notes}
 
     ## Usage cautions
 
-    {selection_result.cautions}
+    {dataset_result.cautions}
 
     ## Content date
 
-    {selection_result.content_date}
+    {dataset_result.content_date}
     """
 
-        if selection_result.presentation_instructions:
+        if dataset_result.presentation_instructions:
             tool_message += f"""
     ## Presentation instructions
 
-    {selection_result.presentation_instructions}
+    {dataset_result.presentation_instructions}
     """
 
         logger.debug(f"Pick dataset tool message: {tool_message}")
 
         return Command(
             update={
-                "dataset": selection_result.model_dump(),
+                "dataset": dataset_result.model_dump(),
                 "suggested_datasets": [],
                 "messages": [
                     ToolMessage(tool_message, tool_call_id=tool_call_id)
