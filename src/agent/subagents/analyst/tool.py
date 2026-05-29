@@ -377,7 +377,11 @@ class Analyst:
         tool_message += f"Key Finding: {result.insight.primary_insight}\n\n"
 
         for idx, chart in enumerate(result.insight.charts, 1):
-            tool_message += f"Chart {idx}: {chart.title}\n"
+            marker = f"[Chart {idx}]"
+            tool_message += (
+                f"Place {marker} in your reply to represent the chart. Use this exact UUID; do not invent UUIDs."
+                f"Title: '{chart.title}'.\n\n"
+            )
 
         MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE = 4000
         formatted_df = chart_data_df.apply(
