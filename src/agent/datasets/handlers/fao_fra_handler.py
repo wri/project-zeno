@@ -24,8 +24,7 @@ from src.agent.datasets.handlers.base import (
 from src.agent.datasets.handlers.fao_fra_client import (
     FAOAPIError,
     FAODataNotFoundError,
-    _build_source_url,
-    fetch_fra_data,
+    FAOFRAClient,
 )
 from src.shared.logging_config import get_logger
 
@@ -81,6 +80,9 @@ def _resolve_context_layer(
 
 class FAOFRAHandler(DataSourceHandler):
     """Routes FAO FRA 2025 dataset requests to the FAO public API."""
+
+    def __init__(self, client: Optional[FAOFRAClient] = None) -> None:
+        self._client = client or FAOFRAClient()
 
     def can_handle(self, dataset: Any) -> bool:
         return dataset.get("dataset_id") == FAO_FRA_2025_DATASET_ID
@@ -141,7 +143,7 @@ class FAOFRAHandler(DataSourceHandler):
         for aoi in country_aois:
             iso3 = aoi["src_id"]
             try:
-                rows = await fetch_fra_data(
+                rows = await self._client.fetch(
                     iso3=iso3,
                     table=table,
                     variables=variables_filter,
@@ -177,9 +179,9 @@ class FAOFRAHandler(DataSourceHandler):
                 "Some AOIs had no data: " + " | ".join(errors)
             )
 
-        # Use the first AOI's URL as a reference link; analyst keeps the
-        # actual records inline since the FAO response is small.
-        source_url = _build_source_url(country_aois[0]["src_id"], table)
+        source_url = self._client.build_source_url(
+            country_aois[0]["src_id"], table
+        )
 
         return DataPullResult(
             success=True,
