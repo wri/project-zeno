@@ -46,6 +46,7 @@ class AgentState(TypedDict):
 
     # pick-dataset tool
     dataset: dict
+    suggested_datasets: list[dict]
 
     # pull-data tool
     start_date: str
