@@ -127,6 +127,41 @@ class DatasetSelectionResponse(BaseModel):
     )
 
 
+class DatasetScore(BaseModel):
+    dataset_id: int = Field(description="ID of the candidate dataset.")
+    context_layer: Optional[str] = Field(
+        None,
+        description="Best context layer for this dataset given the query, or null if none applies.",
+    )
+    parameters: Optional[list[DatasetParameter]] = Field(
+        None,
+        description="Best parameters for this dataset given the query, or null if none apply.",
+    )
+    score: int = Field(
+        description=(
+            "Score from 0-5. For each of the five questions below, award 1 if the dataset "
+            "satisfies it (or if the user did not ask for that dimension), and 0 if the user "
+            "asked for it but the dataset does not support it: "
+            "(1) relevant to the land cover / land use type? "
+            "(2) covers the time range or temporal resolution needed? "
+            "(3) has the measurement the user is asking for? "
+            "(4) represents the type of event or transition? "
+            "(5) addresses driver or cause attribution if asked?"
+        ),
+        ge=0,
+        le=5,
+    )
+    reason: str = Field(
+        description="Brief explanation of the score — which questions were satisfied and which were not."
+    )
+
+
+class ScoredSelectionResponse(BaseModel):
+    scores: list[DatasetScore] = Field(
+        description="One entry per candidate dataset, scored on the five questions."
+    )
+
+
 class DatasetSelectionResult(DatasetOption):
     tile_url: str = Field(
         description="Tile URL of the dataset that best matches the user query.",

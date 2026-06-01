@@ -13,6 +13,8 @@ CANDIDATE_DATASET_REQUIRED_COLUMNS = [
     "description",
     "selection_hints",
     "content_date",
+    "start_date",
+    "end_date",
     "context_layers",
     "parameters",
 ]

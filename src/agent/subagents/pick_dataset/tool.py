@@ -32,8 +32,9 @@ from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
     ContextLayer,
-    DatasetSelectionResponse,
+    DatasetScore,
     DatasetSelectionResult,
+    ScoredSelectionResponse,
 )
 from src.agent.subagents.progress import emit_progress
 from src.shared.config import SharedSettings
@@ -59,12 +60,12 @@ async def _get_retriever():
             embedding=embeddings,
         )
         retriever_cache = index.as_retriever(
-            search_type="similarity", search_kwargs={"k": 3}
+            search_type="similarity", search_kwargs={"k": 5}
         )
     return retriever_cache
 
 
-async def rag_candidate_datasets(query: str, k=3):
+async def rag_candidate_datasets(query: str, k=5):
     logger.debug(f"Retrieving candidate datasets for query: '{query}'")
     candidate_datasets = []
     retriever = await _get_retriever()
@@ -85,43 +86,62 @@ async def rag_candidate_datasets(query: str, k=3):
     return pd.DataFrame(candidate_datasets)
 
 
+def apply_score_thresholds(
+    scores: list[DatasetScore],
+) -> tuple[Optional[DatasetScore], list[DatasetScore]]:
+    """Deterministically apply selection thresholds to scored candidates.
+
+    Returns (selected, suggestions) where:
+      - selected: highest-scoring dataset if score >= 4, else None
+      - suggestions: up to 3 datasets with score >= 2, excluding selected, sorted descending
+    """
+    sorted_scores = sorted(scores, key=lambda s: s.score, reverse=True)
+    selected = (
+        sorted_scores[0]
+        if sorted_scores and sorted_scores[0].score >= 5
+        else None
+    )
+    suggestions = [
+        s
+        for s in sorted_scores
+        if s.score >= 3
+        and (selected is None or s.dataset_id != selected.dataset_id)
+    ][:3]
+    return selected, suggestions
+
+
 async def select_best_dataset(
     query: str,
     candidate_datasets: pd.DataFrame,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     aoi_selection=None,
-) -> DatasetSelectionResponse:
+) -> ScoredSelectionResponse:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
             ("system", DATASET_SELECTOR_PROMPT),
             (
                 "user",
-                """Only choose a dataset if it can usefully answer all parts of the user's question.
-    If no candidate can do that, return dataset_id as null and clearly explain in the reason field
-    what data we do have and why it falls short.
-    Use all information provided to decide which dataset is the best match, especially the selection hints.
+                """Score every candidate dataset for the user query.
 
-    Select a single context layer from the filtered_context_layers in candidate datasets for the dataset if relevant for the user query.
-    Context layers allow differentiating between different types of data within the same dataset. So if a user asks
-    to show something like "show me tree cover loss by driver", you should select a context layer. These are pre-filtered
-    to match the spatiotemporal query constraints.
+    For each dataset, award a score from 0-5 by answering these five questions.
+    Award 1 if the dataset satisfies the question OR if the user did not ask for that dimension.
+    Award 0 only if the user explicitly asked for it and the dataset does not support it.
 
-    Select parameters and values if they are relevant or specified in the user query. Parameters allow further filtering
-    the analysis to better answer the query. Select only values listed in the value field for a parameter. For example,
-    if a user says "show me tree cover loss in forests where canopy cover is greater than 50%", you may select the parameter canopy cover
-    and value 50.
+    1. Is it relevant to the land cover / land use type the user is asking about?
+    2. Does it cover the time range and temporal resolution the user needs? Score 0 if the user
+       specified a start date that falls before the dataset's start_date, or an end date after the
+       dataset's end_date, or a temporal resolution (e.g. annual, real-time) the dataset does not support.
+    3. Does it have the measurement the user is asking for (area, carbon, alerts, etc.)?
+    4. Does it represent the type of event or transition the user is asking about?
+    5. Does it address driver or cause attribution if the user asked for it?
 
-    If the user specifies a date range or time granularity (e.g. monthly, a specific year, daily
-    alerts), only select a dataset if it genuinely supports that. If no candidate does, return null
-    and tell the user what dates and granularity are available instead.
+    For each dataset also select the best context layer (from filtered_context_layers) and parameters
+    if relevant to the query. Context layers allow differentiating between different types of data within
+    the same dataset — select one when its description matches the query.
+    Select only parameter values listed in the dataset's value field.
 
-    Pick the most granular dataset/contextual layer/parameters that matches the query.
-
-    Keep explanations concise. Do not use datset IDs to describe the dataset.
-    For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
-
-    Use the language of the user query to generate the reason, not the language of any place mentioned in the query.
+    Keep reasons concise. Do not reference dataset IDs in reasons.
 
     Candidate datasets:
 
@@ -131,7 +151,7 @@ async def select_best_dataset(
 
     {user_query}
 
-    The following contextual layers can not be picked right now for the listed reasons:
+    The following contextual layers cannot be picked right now:
 
     {removed_layers}
 
@@ -140,11 +160,10 @@ async def select_best_dataset(
         ]
     )
 
-    logger.debug("Invoking dataset selection chain...")
-    dataset_selection_chain = (
-        DATASET_SELECTION_PROMPT
-        | SMALL_MODEL.with_structured_output(DatasetSelectionResponse)
-    )
+    logger.debug("Invoking dataset scoring chain...")
+    chain = DATASET_SELECTION_PROMPT | SMALL_MODEL.bind(
+        temperature=0
+    ).with_structured_output(ScoredSelectionResponse)
 
     if aoi_selection is None:
         removed_df = None
@@ -152,11 +171,10 @@ async def select_best_dataset(
         filtered_layers, removed_layers = get_filtered_contextual_layers(
             candidate_datasets["context_layers"], aoi_selection
         )
-
         candidate_datasets["context_layers"] = filtered_layers
         removed_df = removed_layers.to_csv(index=False)
 
-    return await dataset_selection_chain.ainvoke(
+    return await chain.ainvoke(
         {
             "candidate_datasets": candidate_datasets[
                 CANDIDATE_DATASET_REQUIRED_COLUMNS
@@ -190,29 +208,36 @@ class DatasetSelector:
 
         # Step 1: RAG lookup of candidate datasets
         candidate_datasets = await rag_candidate_datasets(query, k=5)
-        # Step 2: LLM picks the best dataset and context layer
-        selection_result = await select_best_dataset(
+        # Step 2: LLM scores each candidate on 5 questions
+        scored_response = await select_best_dataset(
             query, candidate_datasets, start_date, end_date, aoi_selection
         )
+        # Step 3: deterministically apply thresholds
+        selected_score, suggestions = apply_score_thresholds(
+            scored_response.scores
+        )
 
-        if selection_result.selected_dataset is None:
-            if selection_result.suggested_datasets:
-                name_by_id = {
-                    ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS
-                }
+        if selected_score is None:
+            name_by_id = {
+                ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS
+            }
+            if suggestions:
                 reasons = "\n".join(
-                    f"- {name_by_id.get(o.dataset_id, str(o.dataset_id))}: {o.reason}"
-                    for o in selection_result.suggested_datasets
+                    f"- {name_by_id.get(s.dataset_id, str(s.dataset_id))} (score {s.score}/5): {s.reason}"
+                    for s in suggestions
                 )
-                tool_message = f"No single dataset directly matches the query. {selection_result.reason}\n\nHere are the closest available options:\n{reasons}"
+                tool_message = f"No dataset scored high enough to be selected. Here are the closest options:\n\n{reasons}"
                 return Command(
                     update={
                         "suggested_datasets": [
                             {
-                                **o.model_dump(),
-                                "dataset_name": name_by_id[o.dataset_id],
+                                "dataset_id": s.dataset_id,
+                                "dataset_name": name_by_id.get(
+                                    s.dataset_id, ""
+                                ),
+                                "reason": s.reason,
                             }
-                            for o in selection_result.suggested_datasets
+                            for s in suggestions
                         ],
                         "messages": [
                             ToolMessage(
@@ -222,37 +247,43 @@ class DatasetSelector:
                     }
                 )
             else:
+                top = (
+                    scored_response.scores[0]
+                    if scored_response.scores
+                    else None
+                )
+                explanation = (
+                    top.reason if top else "No candidates were relevant."
+                )
                 return Command(
                     update={
                         "messages": [
                             ToolMessage(
-                                f"No dataset selected: {selection_result.reason}",
+                                f"No relevant dataset found. {explanation}",
                                 tool_call_id=tool_call_id,
                             )
                         ]
                     }
                 )
 
-        option = selection_result.selected_dataset
-
         logger.debug(
-            f"Selected dataset ID: {option.dataset_id}. "
-            f"context_layer={option.context_layer!r} (type={type(option.context_layer).__name__}). "
-            f"Reason: {option.reason}"
+            f"Selected dataset ID: {selected_score.dataset_id}. "
+            f"context_layer={selected_score.context_layer!r}. "
+            f"Score: {selected_score.score}/5. Reason: {selected_score.reason}"
         )
 
         selected_row = candidate_datasets[
-            candidate_datasets.dataset_id == option.dataset_id
+            candidate_datasets.dataset_id == selected_score.dataset_id
         ].iloc[0]
 
         effective_start_date, effective_end_date, _ = await revise_date_range(
             start_date,
             end_date,
             selected_row.dataset_id,
-            option.context_layer,
+            selected_score.context_layer,
         )
         dataset_tile_url, context_layers = get_tile_services_for_dataset(
-            option,
+            selected_score,
             selected_row,
             effective_start_date,
             effective_end_date,
@@ -261,11 +292,11 @@ class DatasetSelector:
         dataset_result = DatasetSelectionResult(
             dataset_id=selected_row.dataset_id,
             dataset_name=selected_row.dataset_name,
-            context_layer=option.context_layer,
-            parameters=option.parameters,
+            context_layer=selected_score.context_layer,
+            parameters=selected_score.parameters,
             start_date=effective_start_date,
             end_date=effective_end_date,
-            reason=option.reason,
+            reason=selected_score.reason,
             tile_url=dataset_tile_url,
             analytics_api_endpoint=selected_row.analytics_api_endpoint,
             description=selected_row.description,
