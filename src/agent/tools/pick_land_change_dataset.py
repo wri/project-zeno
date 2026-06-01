@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 from types import SimpleNamespace
 from typing import Annotated, Dict, Optional
@@ -79,6 +80,368 @@ class Definition(BaseModel):
     )
 
 
+# ---------------------------------------------------------------------------
+# Scoring system
+# ---------------------------------------------------------------------------
+
+SELECTION_THRESHOLD = 3
+
+_FOREST_ECO = frozenset({Ecosystem.forest, Ecosystem.primary_forest})
+_NATURAL_ECO = frozenset(
+    {
+        Ecosystem.natural_land,
+        Ecosystem.natural_forest,
+        Ecosystem.wetland,
+        Ecosystem.peatland,
+        Ecosystem.mangrove,
+    }
+)
+_LAND_COVER_ECO = frozenset(
+    {
+        Ecosystem.built_up,
+        Ecosystem.cropland,
+        Ecosystem.short_vegetation,
+        Ecosystem.cultivated_grassland,
+        Ecosystem.water,
+        Ecosystem.bare_ground,
+    }
+)
+_GRASSLAND_ECO = frozenset({Ecosystem.grassland})
+_FOREST_OR_ALL = _FOREST_ECO | {Ecosystem.all}
+_ALL_ECO = frozenset(Ecosystem)
+
+_DATASET_NAMES = {ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS}
+
+
+@dataclass
+class ScoredDataset:
+    dataset_id: int
+    score: int
+    context_layer: Optional[str]
+    reason: str
+
+
+def _score_ecosystem(
+    ecosystem: Ecosystem,
+    primary: frozenset,
+    compatible: frozenset = frozenset(),
+) -> int:
+    if ecosystem in primary:
+        return 3
+    if ecosystem in compatible:
+        return 1
+    if primary:  # dataset has restricted ecosystems; this one doesn't fit
+        return -3
+    return 0
+
+
+def _score_change_type(
+    change_type: Optional[ChangeType],
+    primary: frozenset = frozenset(),
+    compatible: frozenset = frozenset(),
+    incompatible: frozenset = frozenset(),
+) -> int:
+    if change_type is None:
+        return 0
+    if change_type in primary:
+        return 3
+    if change_type in compatible:
+        return 1
+    if change_type in incompatible:
+        return -2
+    return 0
+
+
+def _score_temporal(temporal: Optional[Temporal], supported: frozenset) -> int:
+    if temporal is None:
+        return 0
+    return 2 if temporal in supported else -3
+
+
+def _context_layer_for(
+    dataset_id: int, ecosystem: Ecosystem, cause: Optional[Cause]
+) -> Optional[str]:
+    if dataset_id == 0:
+        return "driver" if cause is not None else None
+    if dataset_id == 4:
+        return (
+            "primary_forest" if ecosystem == Ecosystem.primary_forest else None
+        )
+    if dataset_id == 8:
+        return "driver"
+    return None
+
+
+def score_datasets(
+    ecosystem: Ecosystem,
+    change_type: Optional[ChangeType],
+    cause: Optional[Cause],
+    measurement_type: Optional[MeasurementType],
+    temporal: Optional[Temporal],
+) -> list[ScoredDataset]:
+    """Score all datasets against the input criteria. Returns sorted by score descending."""
+    is_carbon = measurement_type in (
+        MeasurementType.carbon_emissions,
+        MeasurementType.net_carbon_flux,
+    )
+    is_net_flux = measurement_type == MeasurementType.net_carbon_flux
+    has_cause = cause is not None
+    cause_is_agri = cause in (Cause.agriculture, Cause.crop_management)
+
+    def _score(ds_id: int) -> tuple[int, str]:
+        if ds_id == 0:  # DIST-ALERT
+            s = (
+                _score_ecosystem(
+                    ecosystem, primary=frozenset(), compatible=_ALL_ECO
+                )
+                + _score_change_type(
+                    change_type,
+                    primary=frozenset({ChangeType.disturbance}),
+                    incompatible=frozenset(
+                        {ChangeType.loss, ChangeType.gain, ChangeType.change}
+                    ),
+                )
+                + (2 if has_cause else 0)
+                + (-5 if is_carbon else 0)
+                + _score_temporal(temporal, frozenset({Temporal.realtime}))
+            )
+            return (
+                s,
+                "DIST-ALERT: near-real-time disturbance alerts for any ecosystem.",
+            )
+
+        if ds_id == 1:  # Global Land Cover
+            s = (
+                _score_ecosystem(
+                    ecosystem,
+                    primary=_LAND_COVER_ECO,
+                    compatible=frozenset({Ecosystem.all}) | _NATURAL_ECO,
+                )
+                + _score_change_type(
+                    change_type,
+                    primary=frozenset({ChangeType.change}),
+                    incompatible=frozenset(
+                        {
+                            ChangeType.loss,
+                            ChangeType.gain,
+                            ChangeType.disturbance,
+                        }
+                    ),
+                )
+                + (-5 if is_carbon else 0)
+                + _score_temporal(temporal, frozenset({Temporal.snapshot}))
+            )
+            return (
+                s,
+                "Global Land Cover: land composition snapshot (2024) and transitions (2015→2024).",
+            )
+
+        if ds_id == 2:  # Grasslands
+            s = (
+                _score_ecosystem(ecosystem, primary=_GRASSLAND_ECO)
+                + _score_change_type(
+                    change_type,
+                    primary=frozenset({ChangeType.change}),
+                    compatible=frozenset({ChangeType.loss}),
+                    incompatible=frozenset(
+                        {ChangeType.gain, ChangeType.disturbance}
+                    ),
+                )
+                + (-5 if is_carbon else 0)
+                + _score_temporal(temporal, frozenset({Temporal.annual}))
+            )
+            return (
+                s,
+                "Natural/semi-natural grasslands: annual extent 2000–2022.",
+            )
+
+        if ds_id == 3:  # SBTN Natural Lands
+            s = (
+                _score_ecosystem(
+                    ecosystem,
+                    primary=_NATURAL_ECO,
+                    compatible=frozenset({Ecosystem.all}),
+                )
+                + _score_change_type(
+                    change_type,
+                    incompatible=frozenset(
+                        {
+                            ChangeType.loss,
+                            ChangeType.gain,
+                            ChangeType.disturbance,
+                            ChangeType.change,
+                        }
+                    ),
+                )
+                + (-5 if is_carbon else 0)
+                + _score_temporal(temporal, frozenset({Temporal.snapshot}))
+            )
+            return (
+                s,
+                "SBTN Natural Lands: natural vs. non-natural land map (2020 snapshot).",
+            )
+
+        if ds_id == 4:  # Tree Cover Loss
+            s = (
+                _score_ecosystem(ecosystem, primary=_FOREST_OR_ALL)
+                + _score_change_type(
+                    change_type,
+                    primary=frozenset({ChangeType.loss}),
+                    incompatible=frozenset(
+                        {
+                            ChangeType.gain,
+                            ChangeType.disturbance,
+                            ChangeType.change,
+                        }
+                    ),
+                )
+                + (
+                    -1 if has_cause else 0
+                )  # TCL by Driver is better when cause specified
+                + (-5 if is_net_flux else 0)
+                + _score_temporal(temporal, frozenset({Temporal.annual}))
+            )
+            return (
+                s,
+                "Tree Cover Loss: annual loss 2001–2025, with optional GHG emissions.",
+            )
+
+        if ds_id == 5:  # Tree Cover Gain
+            s = (
+                _score_ecosystem(ecosystem, primary=_FOREST_OR_ALL)
+                + _score_change_type(
+                    change_type,
+                    primary=frozenset({ChangeType.gain}),
+                    incompatible=frozenset(
+                        {
+                            ChangeType.loss,
+                            ChangeType.disturbance,
+                            ChangeType.change,
+                        }
+                    ),
+                )
+                + (-5 if is_carbon else 0)
+                + _score_temporal(temporal, frozenset({Temporal.aggregate}))
+            )
+            return (
+                s,
+                "Tree Cover Gain: cumulative gain 2000–2020 (and sub-periods).",
+            )
+
+        if ds_id == 6:  # Forest GHG Net Flux
+            s = (
+                _score_ecosystem(
+                    ecosystem, primary=frozenset(), compatible=_ALL_ECO
+                )
+                + _score_change_type(
+                    change_type,
+                    incompatible=frozenset(
+                        {ChangeType.disturbance, ChangeType.gain}
+                    ),
+                )
+                + (5 if is_carbon else -2)
+                + _score_temporal(temporal, frozenset({Temporal.aggregate}))
+            )
+            return (
+                s,
+                "Forest GHG Net Flux: net carbon flux and emissions 2001–2025.",
+            )
+
+        if ds_id == 7:  # Tree Cover
+            s = (
+                _score_ecosystem(
+                    ecosystem,
+                    primary=_FOREST_ECO,
+                    compatible=frozenset({Ecosystem.all}),
+                )
+                + _score_change_type(
+                    change_type,
+                    incompatible=frozenset(
+                        {
+                            ChangeType.loss,
+                            ChangeType.gain,
+                            ChangeType.disturbance,
+                            ChangeType.change,
+                        }
+                    ),
+                )
+                + (-5 if is_carbon else 0)
+                + _score_temporal(temporal, frozenset({Temporal.snapshot}))
+            )
+            return s, "Tree Cover: forest extent baseline (2000 snapshot)."
+
+        if ds_id == 8:  # TCL by Dominant Driver
+            # Cause is the defining feature: with cause, loss becomes primary
+            if has_cause and change_type == ChangeType.loss:
+                ct = 3
+            elif change_type in (
+                ChangeType.gain,
+                ChangeType.disturbance,
+                ChangeType.change,
+            ):
+                ct = -2
+            elif change_type == ChangeType.loss:
+                ct = 1  # compatible but TCL is more specific without a cause
+            else:
+                ct = 0
+            s = (
+                _score_ecosystem(ecosystem, primary=_FOREST_OR_ALL)
+                + ct
+                + (2 if has_cause else 0)
+                + (-5 if is_carbon else 0)
+                + _score_temporal(temporal, frozenset({Temporal.aggregate}))
+            )
+            return s, (
+                "Tree Cover Loss by Driver: attributes 2001–2025 loss to 7 driver classes "
+                "(permanent agriculture, logging, wildfire, etc.) — aggregate only, not annual."
+            )
+
+        if ds_id == 9:  # Deforestation sLUC EF
+            carbon_score = (3 if cause_is_agri else 1) if is_carbon else 0
+            s = (
+                _score_ecosystem(
+                    ecosystem,
+                    primary=frozenset({Ecosystem.forest, Ecosystem.cropland}),
+                )
+                + _score_change_type(
+                    change_type,
+                    compatible=frozenset({ChangeType.loss}),
+                    incompatible=frozenset(
+                        {ChangeType.gain, ChangeType.disturbance}
+                    ),
+                )
+                + carbon_score
+                + (2 if cause_is_agri else 0)
+                + (-5 if is_net_flux else 0)
+                + _score_temporal(temporal, frozenset({Temporal.annual}))
+            )
+            return s, (
+                "Deforestation Emission Factors: crop-specific sLUC emission factors "
+                "for 42 agricultural commodities (2020–2024)."
+            )
+
+        return 0, ""
+
+    results = []
+    for ds_id in range(10):
+        score, reason = _score(ds_id)
+        results.append(
+            ScoredDataset(
+                dataset_id=ds_id,
+                score=score,
+                context_layer=_context_layer_for(ds_id, ecosystem, cause),
+                reason=reason,
+            )
+        )
+
+    return sorted(results, key=lambda x: x.score, reverse=True)
+
+
+# ---------------------------------------------------------------------------
+# Tool
+# ---------------------------------------------------------------------------
+
+
 @tool("pick_dataset")
 async def pick_land_change_dataset(
     state: Annotated[Dict, InjectedState],
@@ -124,22 +487,33 @@ async def pick_land_change_dataset(
     """
     logger.info("PICK-DATASET-DECISION-TREE-TOOL")
 
-    result = choose_dataset(
+    scored = score_datasets(
         ecosystem, change_type, cause, measurement_type, temporal
     )
+    top = scored[0]
 
-    if result is None:
-        raise ValueError(
-            "No dataset is available for the combination of parameters provided. "
-            "The requested ecosystem, change type, or temporal resolution may not be supported together."
+    if top.score < SELECTION_THRESHOLD:
+        top3 = scored[:3]
+        suggestions = "\n".join(
+            f"- **{_DATASET_NAMES[d.dataset_id]}**: {d.reason}" for d in top3
+        )
+        msg = (
+            "No single dataset clearly matches your request. "
+            "Here are the closest available options:\n\n"
+            f"{suggestions}"
+        )
+        return Command(
+            update={"messages": [ToolMessage(msg, tool_call_id=tool_call_id)]}
         )
 
-    dataset_id, context_layer, fallback_note, reason = result
+    dataset_id = top.dataset_id
+    context_layer = top.context_layer
+    reason = top.reason
 
     row = next((ds for ds in DATASETS if ds["dataset_id"] == dataset_id), None)
     if row is None:
         raise ValueError(
-            f"choose_dataset returned unknown dataset_id: {dataset_id}"
+            f"score_datasets returned unknown dataset_id: {dataset_id}"
         )
 
     orig_start, orig_end = start_date, end_date
@@ -147,7 +521,10 @@ async def pick_land_change_dataset(
         start_date, end_date, dataset_id, context_layer
     )
     if range_clamped:
-        reason += f" The requested date range was adjusted to {start_date}–{end_date} to fit the dataset's available data (originally {orig_start}–{orig_end})."
+        reason += (
+            f" The requested date range was adjusted to {start_date}–{end_date} "
+            f"to fit the dataset's available data (originally {orig_start}–{orig_end})."
+        )
 
     ns_selection = SimpleNamespace(
         dataset_id=dataset_id, context_layer=context_layer, parameters=None
@@ -180,7 +557,7 @@ async def pick_land_change_dataset(
         presentation_instructions=row.get("presentation_instructions"),
     )
 
-    tool_message = f"""{"# Note\n    " + fallback_note + "\n\n    " if fallback_note else ""}# About the selection
+    tool_message = f"""# About the selection
     Selected dataset name: {result.dataset_name}
     Selected context layer: {result.context_layer}
     Reasoning for selection: {result.reason}
@@ -210,154 +587,3 @@ async def pick_land_change_dataset(
             "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
         },
     )
-
-
-# Temporal resolutions supported per dataset
-_DATASET_TEMPORAL_RESOLUTIONS: dict[int, set[Temporal]] = {
-    0: {Temporal.realtime},  # DIST-ALERT
-    1: {Temporal.snapshot},  # Global land cover (2015 & 2024 snapshots)
-    2: {Temporal.annual},  # Grasslands (annual 2000-2022)
-    3: {Temporal.snapshot},  # SBTN Natural Lands (2020 snapshot)
-    4: {Temporal.annual},  # Tree cover loss (annual 2001-2025)
-    5: {Temporal.aggregate},  # Tree cover gain (cumulative periods)
-    6: {Temporal.aggregate},  # Forest GHG net flux (total 2001-2025)
-    7: {Temporal.snapshot},  # Tree cover (2000 snapshot)
-    8: {Temporal.aggregate},  # TCL by dominant driver (aggregate 2001-2025)
-}
-
-_FOREST_ECOSYSTEMS = (Ecosystem.forest, Ecosystem.primary_forest)
-_NATURAL_ECOSYSTEMS = (
-    Ecosystem.natural_land,
-    Ecosystem.natural_forest,
-    Ecosystem.wetland,
-    Ecosystem.peatland,
-    Ecosystem.mangrove,
-)
-_FOREST_OR_ALL = _FOREST_ECOSYSTEMS + (Ecosystem.all,)
-_DATASET_NAMES = {ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS}
-
-
-def choose_dataset(
-    ecosystem: Ecosystem,
-    change_type: Optional[ChangeType],
-    cause: Optional[Cause],
-    measurement_type: Optional[MeasurementType],
-    temporal: Optional[Temporal],
-) -> tuple[int, str | None, str | None, str] | None:
-    """Returns (dataset_id, context_layer, note, reason) or None if no dataset matches.
-
-    Decision order follows the five key questions:
-      Q3 carbon → Q1/Q5 realtime/disturbance → Q2 ecosystem default
-      → Q4 change type → Q5 cause → temporal validation.
-    """
-    note = None
-    eco = ecosystem.value
-
-    # Q3: Carbon measurement always routes to Forest GHG flux
-    if measurement_type in (
-        MeasurementType.carbon_emissions,
-        MeasurementType.net_carbon_flux,
-    ):
-        dataset_id = 6
-        context_layer = None
-        carbon_type = (
-            "net carbon flux"
-            if measurement_type == MeasurementType.net_carbon_flux
-            else "carbon emissions"
-        )
-        if ecosystem not in _FOREST_OR_ALL:
-            note = f"No carbon data for {eco}; showing Forest GHG Net Flux"
-            reason = f"No carbon data is available for {eco}; showing Forest GHG Net Flux as the closest match for your {carbon_type} question."
-        else:
-            reason = f"Showing Forest GHG Net Flux for your {carbon_type} question about {eco}."
-        return dataset_id, context_layer, note, reason
-
-    # Q1/Q5: Real-time or disturbance always routes to DIST-ALERT
-    if temporal == Temporal.realtime or change_type == ChangeType.disturbance:
-        dataset_id = 0
-        if cause is not None:
-            context_layer = "driver"
-            reason = f"Showing DIST-ALERT disturbance alerts filtered by driver because you asked about {eco} disturbances caused by {cause.value}."
-        else:
-            context_layer = None
-            reason = f"Showing DIST-ALERT disturbance alerts for {eco}."
-        return dataset_id, context_layer, note, reason
-
-    # Q2: Ecosystem sets the default dataset
-    if ecosystem in _FOREST_ECOSYSTEMS:
-        dataset_id = 7  # tree cover (2000 baseline)
-        context_layer = (
-            "primary_forest" if ecosystem == Ecosystem.primary_forest else None
-        )
-    elif ecosystem == Ecosystem.grassland:
-        dataset_id = 2
-        context_layer = None
-    elif ecosystem in _NATURAL_ECOSYSTEMS:
-        dataset_id = 3  # SBTN natural lands
-        context_layer = None
-    else:  # all, cropland, built_up, short_vegetation, cultivated_grassland, water, bare_ground
-        dataset_id = 1  # global land cover
-        context_layer = None
-
-    # Q4: Change type refines the dataset
-    if change_type == ChangeType.gain:
-        if ecosystem in _FOREST_OR_ALL:
-            dataset_id = 5
-            reason = (
-                f"Showing Tree Cover Gain because you asked about {eco} gain."
-            )
-        else:
-            fallback_name = _DATASET_NAMES.get(
-                dataset_id, "the closest dataset"
-            )
-            note = f"No gain data for {eco}; showing {fallback_name}"
-            reason = f"No gain data is available for {eco}; showing {fallback_name} as the closest match."
-
-    elif change_type == ChangeType.loss:
-        if ecosystem in _FOREST_OR_ALL:
-            # Q5: Cause further refines loss
-            if cause is not None:
-                dataset_id = 8
-                context_layer = "driver"
-                reason = f"Showing Tree Cover Loss by Driver because you asked about {eco} loss caused by {cause.value}."
-            else:
-                dataset_id = 4
-                if ecosystem == Ecosystem.primary_forest:
-                    context_layer = "primary_forest"
-                    reason = f"Showing Tree Cover Loss with a primary forest filter because you asked about {eco} loss."
-                else:
-                    context_layer = None
-                    reason = f"Showing Tree Cover Loss because you asked about {eco} loss."
-        else:
-            fallback_name = _DATASET_NAMES.get(
-                dataset_id, "the closest dataset"
-            )
-            note = f"No loss data for {eco}; showing {fallback_name}"
-            reason = f"No loss data is available for {eco}; showing {fallback_name} as the closest match."
-
-    elif change_type == ChangeType.change:
-        context_layer = None
-        if ecosystem != Ecosystem.grassland:
-            dataset_id = 1
-            reason = f"Showing Global Land Cover because you asked about land cover change involving {eco}."
-        else:
-            reason = "Showing Natural Grasslands because you asked about grassland change."
-
-    else:
-        # No change type — extent/baseline question, use ecosystem default
-        if ecosystem in _FOREST_ECOSYSTEMS:
-            reason = f"Showing Tree Cover extent for your {eco} question."
-        elif ecosystem == Ecosystem.grassland:
-            reason = "Showing Natural Grasslands for your grasslands question."
-        elif ecosystem in _NATURAL_ECOSYSTEMS:
-            reason = f"Showing SBTN Natural Lands for your {eco} question."
-        else:
-            reason = f"Showing Global Land Cover for your {eco} question."
-
-    # Temporal validation: if a temporal was specified that this dataset doesn't support, return None
-    if temporal is not None:
-        supported = _DATASET_TEMPORAL_RESOLUTIONS.get(dataset_id, set())
-        if temporal not in supported:
-            return None
-
-    return dataset_id, context_layer, note, reason
