@@ -42,9 +42,6 @@ repository at [project-zeno-deploy](https://github.com/wri/project-zeno-deploy)
 The frontend application for this project is a nextjs project
 that can be found at [project-zeno-next](https://github.com/wri/project-zeno-next)
 
-This repo also includes a lightweight [Streamlit](https://streamlit.io/) app (`frontend/`)
-used for local development and testing of the agent.
-
 ### Evals
 
 We have an evaluation framework we use to do end-to-end testing of the
@@ -78,7 +75,7 @@ The current version is always readable at the `/api/v1/version` endpoint.
 
 There are two ways to run the project locally:
 
-- **Option 1 (Host-based):** Run infrastructure in Docker, API and frontend on the host via uv/make — best for active development with fast iteration.
+- **Option 1 (Host-based):** Run infrastructure in Docker, API on the host via uv/make — best for active development with fast iteration.
 - **Option 2 (Full Docker):** Run everything in containers via `docker-compose.yaml` — closer to the production environment.
 
 ### Option 1: Host-based Development
@@ -145,13 +142,12 @@ for running the system locally.
 
    ```bash
    make api      # Run API locally (port 8000)
-   make frontend # Run Streamlit frontend (port 8501)
    ```
 
    Or start everything at once (after data ingestion):
 
    ```bash
-   make dev      # Starts API + Streamlit frontend (requires infrastructure already running)
+   make dev      # Starts API (requires infrastructure already running)
    ```
 
 7. **Setup Local Langfuse:**
@@ -173,7 +169,6 @@ for running the system locally.
 
 8. **Access the application:**
 
-   - Frontend: <http://localhost:8501>
    - API: <http://localhost:8000>
    - Langfuse: <http://localhost:3001>
 
@@ -210,7 +205,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zeno-data-loc
 
 ### Option 2: Full Dockerized Development
 
-Runs all services — API, frontend, PostgreSQL, Langfuse, and ClickHouse — in containers using `docker-compose.yaml`.
+Runs all services — API, PostgreSQL, Langfuse, and ClickHouse — in containers using `docker-compose.yaml`.
 
 1. **Environment configuration:**
 
@@ -225,12 +220,6 @@ Runs all services — API, frontend, PostgreSQL, Langfuse, and ClickHouse — in
 
    ```bash
    docker compose up -d
-   ```
-
-   The Streamlit frontend runs inside a container. To run it locally instead:
-
-   ```bash
-   make frontend
    ```
 
 3. **Ingest data (required after starting database):**
@@ -258,7 +247,6 @@ Runs all services — API, frontend, PostgreSQL, Langfuse, and ClickHouse — in
 
 5. **Access the application:**
 
-   - Frontend: <http://localhost:8501>
    - API: <http://localhost:8000>
    - Langfuse: <http://localhost:3001>
 
@@ -269,7 +257,6 @@ make help     # Show all available commands
 make up       # Start Docker infrastructure
 make down     # Stop Docker infrastructure
 make api      # Run API with hot reload
-make frontend # Run frontend with hot reload
 make dev      # Start full development environment
 ```
 
@@ -302,4 +289,4 @@ For user administration commands (making users admin), see [CLI Documentation](d
 
 - `.env` - Base configuration (production settings)
 
-The system automatically loads `.env`. To run only the frontend: `make frontend` or `uv run streamlit run frontend/app.py --server.port=8501`.
+The system automatically loads `.env`.
