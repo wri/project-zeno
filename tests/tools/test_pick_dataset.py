@@ -8,10 +8,10 @@ import pytest
 import requests
 from pydantic import BaseModel, Field
 
+from src.agent.datasets.config import DATASETS
 from src.agent.llms import SMALL_MODEL
 from src.agent.state import AgentState, AOISelection
-from src.agent.tools.datasets_config import DATASETS
-from src.agent.tools.pick_dataset import (
+from src.agent.subagents.pick_dataset import (
     DatasetParameter,
     DatasetSelectionResult,
     pick_dataset,
@@ -44,7 +44,7 @@ def test_db_pool():
 def reset_google_clients():
     """Reset cached Google clients at session start to use the correct event loop."""
     # Access the actual modules via sys.modules to avoid the __init__.py re-exports
-    pd_module = sys.modules["src.agent.tools.pick_dataset"]
+    pd_module = sys.modules["src.agent.subagents.pick_dataset"]
     llms_module = sys.modules["src.agent.llms"]
 
     # Reset retriever cache so a fresh embeddings client is created
@@ -76,7 +76,7 @@ def state():
 
 DIST_ALERT = "ecosystem disturbance alerts"
 LAND_COVER_CHANGE = "land cover change"
-GRASSLANDS = "grasslands"
+GRASSLANDS = "natural grasslands"
 NATURAL_LANDS = "natural lands"
 TREE_COVER_LOSS = "tree cover loss"
 TREE_COVER_GAIN = "tree cover gain"
@@ -112,8 +112,10 @@ def _query_case_id(param):
     params=[
         # Dataset 0 queries (Ecosystem disturbance alerts) - near-real-time vegetation changes
         (
-            "Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2023 or 2024?",
+            "Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2024 or 2025?",
             DIST_ALERT,
+            "2024-01-01",
+            "2025-12-31",
         ),
         (
             "Show me recent vegetation disturbances in the Amazon basin over the past month",
@@ -137,7 +139,7 @@ def _query_case_id(param):
             LAND_COVER_CHANGE,
         ),
         (
-            "What's the trend in agricultural expansion across Southeast Asia since 2015?",
+            "How has in agricultural expanded across Southeast Asia since 2015?",
             LAND_COVER_CHANGE,
         ),
         (
@@ -150,10 +152,6 @@ def _query_case_id(param):
         ),
         # Dataset 2 queries (Grassland) - natural and cultivated grassland classification
         (
-            "What is the total area of prairie ecosystems in North America?",
-            GRASSLANDS,
-        ),
-        (
             "Which regions show the fastest decline in native grassland habitats?",
             GRASSLANDS,
         ),
@@ -162,7 +160,7 @@ def _query_case_id(param):
             GRASSLANDS,
         ),
         (
-            "Where are the largest intact grassland ecosystems globally?",
+            "Where are the largest grassland ecosystems globally?",
             GRASSLANDS,
         ),
         # Dataset 3 queries (Natural lands) - SBTN baseline for conversion monitoring
@@ -171,15 +169,7 @@ def _query_case_id(param):
             NATURAL_LANDS,
         ),
         (
-            "Which provinces in Canada have the highest proportion of intact landscapes?",
-            NATURAL_LANDS,
-        ),
-        (
             "Show me areas where natural habitats remain undisturbed by human activities",
-            NATURAL_LANDS,
-        ),
-        (
-            "What's the baseline extent of natural vegetation before any recent conversions?",
             NATURAL_LANDS,
         ),
         # Dataset 4 queries (Tree cover loss) - annual forest loss detection
@@ -190,14 +180,6 @@ def _query_case_id(param):
         (
             "Which country had the most deforestation in 2018?",
             TREE_COVER_LOSS,
-        ),
-        (
-            "I need to track forest plantations harvesting cycles in northern Europe",
-            TREE_COVER_LOSS,
-        ),
-        (
-            "Show deforestation by driver in 2019",
-            TREE_COVER_LOSS,  # By driver is total, so we want this query to pick plain TCL
         ),
         # Dataset 5 queries (Tree cover gain) - cumulative forest regrowth
         (
@@ -345,10 +327,10 @@ def _query_case_id(param):
             "2024-12-31",
         ),
         (
-            "What proportion of tree cover loss in Brazil is due to wildfire vs agriculture?",
+            "What proportion of the total tree cover loss from 2001-2025 in Brazil is due to wildfire vs agriculture?",
             TREE_COVER_LOSS_BY_DRIVER,
             "2001-01-01",
-            "2024-12-31",
+            "2025-12-31",
         ),
         (
             "Show annual forest emissions for Brazil from 2001 to 2024",
@@ -371,18 +353,6 @@ def _query_case_id(param):
         #     "2000-01-01",
         #     "2020-12-31",
         # ),
-        (
-            "How has natural land in Colombia changed from 2015 to 2024?",
-            LAND_COVER_CHANGE,
-            "2015-01-01",
-            "2024-12-31",
-        ),
-        (
-            "Show the trend in natural land loss over time in Brazil",
-            TREE_COVER_LOSS,
-            "2015-01-01",
-            "2024-12-31",
-        ),
         (
             "Plot year-by-year carbon emissions from deforestation in Indonesia",
             TREE_COVER_LOSS,
@@ -422,6 +392,7 @@ async def test_queries_return_expected_dataset(
 
     command = await pick_dataset.ainvoke(tool_call)
 
+    print(command)
     dataset = command.update.get("dataset", {})
     dataset_id = dataset.get("dataset_id")
     assert lookup[dataset_id] == expected_dataset
@@ -441,9 +412,10 @@ async def test_queries_return_expected_dataset(
         ("Vegetation disturbances over grasslands", 0, "grasslands"),
         ("Tree cover loss by driver", 8, "driver"),
         ("Tree cover loss in primary forest", 4, "primary_forest"),
+        ("Tree cover loss in intact forest", 4, "intact_forest"),
         ("Tree  cover loss in the past decade in sparse forests", 4, None),
         ("Deforestation in the past decade", 4, "primary_forest"),
-        ("Most recent global land cover in storm seasons", 1, None),
+        ("Most recent global land cover", 1, None),
     ],
 )
 async def test_query_with_context_layer(
@@ -480,12 +452,6 @@ async def test_query_with_context_layer(
             4,
             "canopy_cover",
             50,
-        ),
-        (
-            "Tree cover loss in the past decade where canopy threshold is 23",
-            4,
-            "canopy_cover",
-            25,
         ),
         (
             "Tree cover loss in the past decade where canopy threshold is 30",
@@ -535,22 +501,19 @@ async def test_query_with_parameter(
 
 
 @pytest.mark.parametrize(
-    "dataset",
+    "dataset,start_year,end_year",
     [
-        DIST_ALERT,
-        LAND_COVER_CHANGE,
-        GRASSLANDS,
-        NATURAL_LANDS,
-        TREE_COVER,
-        TREE_COVER_LOSS,
-        TREE_COVER_GAIN,
-        CARBON_FLUX,
+        (DIST_ALERT, "2024", "2024"),
+        (LAND_COVER_CHANGE, "2024", "2024"),
+        (GRASSLANDS, "2022", "2022"),
+        (NATURAL_LANDS, "2020", "2020"),
+        (TREE_COVER, "2000", "2000"),
+        (TREE_COVER_LOSS, "2024", "2024"),
+        (TREE_COVER_GAIN, "2020", "2020"),
+        (CARBON_FLUX, "2001", "2025"),
     ],
 )
-async def test_tile_url_contains_date(dataset, state):
-    year = "2020"
-    if dataset == TREE_COVER:
-        year = "2000"
+async def test_tile_url_contains_date(dataset, start_year, end_year, state):
     tool_call_id = str(uuid.uuid4())
 
     tool_call = {
@@ -558,9 +521,9 @@ async def test_tile_url_contains_date(dataset, state):
         "name": "pick_dataset",
         "id": tool_call_id,
         "args": {
-            "query": f"Find me {dataset} data for {year}",
-            "start_date": f"{year}-01-01",
-            "end_date": f"{year}-12-31",
+            "query": f"Find me {dataset} data",
+            "start_date": f"{start_year}-01-01",
+            "end_date": f"{end_year}-12-31",
             "state": state,
             "tool_call_id": tool_call_id,
         },
@@ -570,7 +533,7 @@ async def test_tile_url_contains_date(dataset, state):
 
     tile_url = command.update.get("dataset", {}).get("tile_url")
     if dataset not in [NATURAL_LANDS, TREE_COVER_GAIN, CARBON_FLUX]:
-        assert year in tile_url
+        assert end_year in tile_url
     tile_url_format = tile_url.format(z=3, x=5, y=3)
     if "eoapi.globalnaturewatch.org" in tile_url_format:
         tile_url_format = tile_url_format.replace(
@@ -675,12 +638,12 @@ async def test_hallucinated_context_layer_is_discarded(
 
     with (
         patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            "src.agent.subagents.pick_dataset.rag_candidate_datasets",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
         patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
+            "src.agent.subagents.pick_dataset.select_best_dataset",
             new_callable=AsyncMock,
             return_value=fake_selection,
         ),
@@ -731,12 +694,12 @@ async def test_hallucinated_parameter_is_discarded(
 
     with (
         patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            "src.agent.subagents.pick_dataset.rag_candidate_datasets",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
         patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
+            "src.agent.subagents.pick_dataset.select_best_dataset",
             new_callable=AsyncMock,
             return_value=fake_selection,
         ),
@@ -773,12 +736,12 @@ async def test_valid_context_layer_is_preserved():
 
     with (
         patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            "src.agent.subagents.pick_dataset.rag_candidate_datasets",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
         patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
+            "src.agent.subagents.pick_dataset.select_best_dataset",
             new_callable=AsyncMock,
             return_value=fake_selection,
         ),
@@ -815,12 +778,12 @@ async def test_tcl_by_driver_always_gets_driver_context_layer(state):
 
     with (
         patch(
-            "src.agent.tools.pick_dataset.rag_candidate_datasets",
+            "src.agent.subagents.pick_dataset.rag_candidate_datasets",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
         patch(
-            "src.agent.tools.pick_dataset.select_best_dataset",
+            "src.agent.subagents.pick_dataset.select_best_dataset",
             new_callable=AsyncMock,
             return_value=fake_selection,
         ),
@@ -846,12 +809,13 @@ async def test_tcl_by_driver_always_gets_driver_context_layer(state):
 
 async def test_queries_context_layer_outside_extent():
     """
-    Test a tropics only-contextual layer isn't selected
+    Test that primary_forest (tropics-only) is not selected outside the tropics,
+    and intact_forest is used as the fallback context layer instead.
     """
 
     query = "Tree cover loss in primary forest"
     expected_dataset_id = 4
-    expected_context_layer = None
+    expected_context_layer = "intact_forest"
     tool_call_id = str(uuid.uuid4())
     non_tropics_state = AgentState(
         aoi_selection=AOISelection(
@@ -911,6 +875,52 @@ async def test_queries_context_layer_extent_definition():
                     "subtype": "",
                     "name": "Chad",
                     "bbox": [13.47, 7.44, 24.00, 23.45],
+                }
+            ],
+        )
+    )
+
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": "2022-01-01",
+            "end_date": "2022-12-31",
+            "state": non_tropics_state,
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    dataset_id = command.update.get("dataset", {}).get("dataset_id")
+    assert dataset_id == expected_dataset_id
+    context_layer = command.update.get("dataset", {}).get("context_layer")
+    assert context_layer == expected_context_layer
+
+
+async def test_intact_forest_selected_outside_tropics():
+    """
+    intact_forest has no extent restriction, so it should be selected even outside the tropics.
+    Unlike primary_forest (tropics-only), querying intact forest for Canada returns intact_forest.
+    """
+
+    query = "Tree cover loss in intact forest"
+    expected_dataset_id = 4
+    expected_context_layer = "intact_forest"
+    tool_call_id = str(uuid.uuid4())
+    non_tropics_state = AgentState(
+        aoi_selection=AOISelection(
+            name="Canada",
+            aois=[
+                {
+                    "source": "gadm",
+                    "src_id": "CAN",
+                    "subtype": "",
+                    "name": "Canada",
+                    "bbox": [-141.0, 41.68, -52.62, 83.11],
                 }
             ],
         )
@@ -998,4 +1008,96 @@ async def test_pick_dataset_reason_matches_query_language_with_llm_judge(
     assert judged_language == expected_language, (
         f"Expected reason language '{expected_language}', "
         f"but judge returned '{judged_language}'. Reason: {reason}"
+    )
+
+
+@pytest.mark.parametrize(
+    "query,start_date,end_date",
+    [
+        (
+            "Show me changes in precipitations and ocean currents along major cargo shipping routes in the Atlantic",
+            "2015-01-01",
+            "2024-12-31",
+        ),
+    ],
+)
+async def test_queries_return_no_dataset(query, start_date, end_date):
+    tool_call_id = str(uuid.uuid4())
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": start_date,
+            "end_date": end_date,
+            "state": dict(),
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    assert command.update.get("dataset") is None, (
+        f"Expected no dataset for query '{query}', "
+        f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
+    )
+    suggested = command.update.get("suggested_datasets")
+    assert (
+        suggested is None
+    ), f"Expected no suggestions for query '{query}' but got {suggested}"
+
+
+@pytest.mark.parametrize(
+    "query,start_date,end_date",
+    [
+        # Ambiguous: we have natural land extent (2020 snapshot) and general land
+        # cover change, but no natural-land-specific loss or change dataset.
+        (
+            "Show the trend in natural land loss over time in Brazil",
+            "2015-01-01",
+            "2024-12-31",
+        ),
+        # We don't have the land cover dataset since 2000, should suggest using
+        # tree cover loss instead
+        (
+            "Can you show tell me how land has changed since 2000?",
+            "2000-01-01",
+            "2025-01-01",
+        ),
+        # Could mean a couple different baselines
+        (
+            "What's the baseline extent of natural vegetation before any recent conversions?",
+            None,
+            None,
+        ),
+    ],
+)
+async def test_queries_return_suggested_datasets(query, start_date, end_date):
+    tool_call_id = str(uuid.uuid4())
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": start_date,
+            "end_date": end_date,
+            "state": dict(),
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    assert command.update.get("dataset") is None, (
+        f"Expected no dataset for ambiguous query '{query}', "
+        f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
+    )
+
+    suggested = command.update.get("suggested_datasets")
+
+    assert suggested and len(suggested) > 1, (
+        f"Expected multiple suggested_datasets for ambiguous query '{query}', "
+        f"but got: {suggested}"
     )

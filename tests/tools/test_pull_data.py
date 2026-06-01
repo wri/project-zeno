@@ -7,8 +7,8 @@ import pytest
 import structlog
 from sqlalchemy import select
 
-from src.agent.tools.data_handlers.base import DataPullResult
-from src.agent.tools.datasets_config import DATASETS
+from src.agent.datasets.config import DATASETS
+from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.tools.pull_data import (
     fetch_statistics_from_url,
     pull_data,
@@ -453,7 +453,8 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
 
     raw_data = await fetch_statistics_from_url(statistics[0]["source_url"])
     assert aoi_data["src_id"] == raw_data["aoi_id"][0]
-    assert aoi_data["name"] == raw_data["name"][0]
+    aoi_id_to_name = statistics[0].get("aoi_id_to_name", {})
+    assert aoi_data["name"] == aoi_id_to_name.get(aoi_data["src_id"])
     assert raw_data["land_cover_class"] == ["Built-up"]
 
 
@@ -578,5 +579,31 @@ class TestReviseDateRange:
             range_clamped,
         ) = await revise_date_range(None, None, 4, "primary_forest")
         assert effective_start == "2002-01-01"
+        assert effective_end == "2025-12-31"
+        assert range_clamped is False
+
+    async def test_ifl_context_layer_does_not_clamp_requested_range(self):
+        """intact_forest start (2000) predates the dataset start (2001), so it adds no extra restriction."""
+
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range(
+            "2001-01-01", "2025-12-31", 4, "intact_forest"
+        )
+        assert effective_start == "2001-01-01"
+        assert effective_end == "2025-12-31"
+        assert range_clamped is False
+
+    async def test_ifl_context_layer_default_range_uses_dataset_start(self):
+        """When no dates are requested with intact_forest, dataset start (2001) takes precedence over context layer start (2000)."""
+
+        (
+            effective_start,
+            effective_end,
+            range_clamped,
+        ) = await revise_date_range(None, None, 4, "intact_forest")
+        assert effective_start == "2001-01-01"
         assert effective_end == "2025-12-31"
         assert range_clamped is False

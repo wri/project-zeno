@@ -1,4 +1,99 @@
 repos:
+  - repo: local
+    hooks:
+      - id: bump-calver
+        name: bump CalVer version when ahead of main
+        language: system
+        pass_filenames: false
+        always_run: true
+        entry: bash
+        args:
+          - -c
+          - |
+            python3 - <<'EOF'
+            import io
+            import re
+            import subprocess
+            import sys
+            import tomllib
+            from datetime import UTC, datetime
+            from pathlib import Path
+
+            pyproject = Path("pyproject.toml")
+            if not pyproject.exists():
+                raise SystemExit(0)
+
+            branch_result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if branch_result.returncode == 0 and branch_result.stdout.strip() == "main":
+                raise SystemExit(0)
+
+            today = datetime.now(UTC).date()
+            calver = f"{today.year}.{today.month}.{today.day}"
+
+            subprocess.run(
+                ["git", "fetch", "origin", "main", "--quiet"],
+                check=False,
+                capture_output=True,
+            )
+
+            main_version = None
+            for ref in ("origin/main", "main"):
+                result = subprocess.run(
+                    ["git", "show", f"{ref}:pyproject.toml"],
+                    check=False,
+                    capture_output=True,
+                )
+                if result.returncode == 0:
+                    main_version = tomllib.load(io.BytesIO(result.stdout))["project"]["version"]
+                    break
+
+            if main_version is None:
+                print(
+                    "Could not read version from origin/main or main; "
+                    "fetch origin/main and retry.",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1)
+
+            local_version = tomllib.load(pyproject.open("rb"))["project"]["version"]
+            if local_version != main_version:
+                raise SystemExit(0)
+
+            if main_version == calver:
+                new_version = f"{calver}.1"
+            elif main_version.startswith(f"{calver}."):
+                build = int(main_version.rsplit(".", 1)[1])
+                new_version = f"{calver}.{build + 1}"
+            else:
+                new_version = calver
+
+            if new_version == local_version:
+                raise SystemExit(0)
+
+            content = pyproject.read_text()
+            updated, count = re.subn(
+                r'^(version = ")[^"]*(")',
+                rf'\g<1>{new_version}\g<2>',
+                content,
+                count=1,
+                flags=re.MULTILINE,
+            )
+            if count == 0:
+                print('version field not found in "pyproject.toml"', file=sys.stderr)
+                raise SystemExit(1)
+
+            if updated != content:
+                pyproject.write_text(updated)
+                print(f'Bumped version to "{new_version}"', file=sys.stderr)
+                raise SystemExit(1)
+
+            raise SystemExit(0)
+            EOF
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -20,3 +115,14 @@ repos:
       # Run the formatter.
       - id: ruff-format
         types_or: [ python, pyi ]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.1.0
+    hooks:
+      - id: mypy
+        args: [--ignore-missing-imports, --explicit-package-bases]
+        pass_filenames: false
+        entry: mypy src/
+        additional_dependencies:
+          - types-PyYAML
+          - types-cachetools
+          - types-requests

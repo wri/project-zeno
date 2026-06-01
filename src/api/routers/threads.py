@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
 from langchain_core.load import dumps
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -33,14 +33,36 @@ router = APIRouter()
 
 @router.get("/api/threads", response_model=list[ThreadModel])
 async def list_threads(
+    response: Response,
+    limit: int = Query(default=100, ge=1, le=100),
+    cursor: Optional[str] = Query(default=None),
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """List all threads belonging to the authenticated user."""
-    stmt = select(ThreadOrm).filter_by(user_id=user.id)
+    """List threads belonging to the authenticated user, newest first."""
+    stmt = (
+        select(ThreadOrm)
+        .filter_by(user_id=user.id)
+        .order_by(ThreadOrm.created_at.desc(), ThreadOrm.id.desc())
+    )
+
+    if cursor:
+        cursor_dt = datetime.fromisoformat(cursor)
+        stmt = stmt.filter(ThreadOrm.created_at < cursor_dt)
+
+    stmt = stmt.limit(limit + 1)
+
     result = await session.execute(stmt)
-    threads = result.scalars().all()
-    return [ThreadModel.model_validate(thread) for thread in threads]
+    threads = list(result.scalars().all())
+
+    has_more = len(threads) > limit
+    if has_more:
+        threads = threads[:limit]
+
+    if has_more and threads:
+        response.headers["X-Next-Cursor"] = threads[-1].created_at.isoformat()
+
+    return [ThreadModel.model_validate(t) for t in threads]
 
 
 @router.get("/api/threads/{thread_id}")
@@ -213,7 +235,7 @@ async def delete_thread(
 
 
 async def _send_rating_to_langfuse(
-    trace_id: str, rating: int, comment: str, user_id: str
+    trace_id: str, rating: int, comment: Optional[str], user_id: str
 ):
     """Send user rating feedback to Langfuse as a score."""
     try:

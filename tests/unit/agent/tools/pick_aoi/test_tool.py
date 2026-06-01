@@ -1,9 +1,13 @@
 from importlib import import_module
 from unittest.mock import MagicMock
 
+import pandas as pd
 import pytest
 
-from src.agent.tools.pick_aoi.tool import (
+from src.agent.subagents.pick_aoi import Geocoder, pick_aoi
+from src.agent.subagents.pick_aoi.tool import (
+    AOIIndex,
+    PlaceQuery,
     _antimeridian_bbox_sql,
     fetch_aoi_bbox,
 )
@@ -48,7 +52,7 @@ async def test_fetch_aoi_bbox_uses_custom_bbox_sql_for_custom_source(
     monkeypatch,
 ):
     captured = {}
-    tool_module = import_module("src.agent.tools.pick_aoi.tool")
+    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
 
     class _FakeConn:
         async def execute(self, query, params=None):
@@ -77,7 +81,7 @@ async def test_fetch_aoi_bbox_uses_custom_bbox_sql_for_custom_source(
 
 @pytest.mark.asyncio
 async def test_fetch_aoi_bbox_no_row_returns_default(monkeypatch):
-    tool_module = import_module("src.agent.tools.pick_aoi.tool")
+    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
 
     class _FakeConn:
         async def execute(self, query, params=None):
@@ -100,3 +104,83 @@ async def test_fetch_aoi_bbox_no_row_returns_default(monkeypatch):
     result = await fetch_aoi_bbox("gadm", "NONEXISTENT")
 
     assert result == [-180.0, -90.0, 180.0, 90.0]
+
+
+# ---------------------------------------------------------------------------
+# pick_aoi tool / Geocoder wiring — the thin tool delegates to the geocoding
+# subagent, which extracts place(s) from the question then looks them up.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
+    """The tool takes only `question`: the subagent extracts the place,
+    then runs the DB lookup. No places/subregion args from the caller."""
+    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
+
+    async def fake_extract(self, question):
+        return PlaceQuery(places=["Para, Brazil"], subregion=None)
+
+    async def fake_query_aoi_database(place_name, result_limit=10):
+        return pd.DataFrame(
+            [
+                {
+                    "src_id": "BRA.14_1",
+                    "name": "Para, Brazil",
+                    "subtype": "state-province",
+                    "source": "gadm",
+                }
+            ]
+        )
+
+    async def fake_select_best_aoi(question, candidate_aois):
+        return AOIIndex(
+            src_id="BRA.14_1",
+            name="Para, Brazil",
+            subtype="state-province",
+            source="gadm",
+        )
+
+    monkeypatch.setattr(Geocoder, "extract", fake_extract)
+    monkeypatch.setattr(
+        tool_module, "query_aoi_database", fake_query_aoi_database
+    )
+    monkeypatch.setattr(tool_module, "select_best_aoi", fake_select_best_aoi)
+
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {"question": "tree cover loss in Para, Brazil"},
+            "id": "tc-1",
+            "type": "tool_call",
+        }
+    )
+
+    selection = command.update["aoi_selection"]
+    assert selection["name"] == "Para, Brazil"
+    assert selection["aois"][0]["src_id"] == "BRA.14_1"
+
+
+@pytest.mark.asyncio
+async def test_pick_aoi_tool_asks_for_clarification_when_no_place(
+    monkeypatch,
+):
+    """If the request names no place, the subagent returns a clarifying
+    question instead of touching the database."""
+
+    async def fake_extract(self, question):
+        return PlaceQuery(places=[], subregion=None)
+
+    monkeypatch.setattr(Geocoder, "extract", fake_extract)
+
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {"question": "show me tree cover loss"},
+            "id": "tc-2",
+            "type": "tool_call",
+        }
+    )
+
+    assert "aoi_selection" not in command.update
+    assert "couldn't identify a place" in str(
+        command.update["messages"][0].content
+    )

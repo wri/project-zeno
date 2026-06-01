@@ -1,6 +1,6 @@
 import pytest
 
-from src.agent.tools.data_handlers.analytics_handler import (
+from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_ID,
     AnalyticsHandler,
 )

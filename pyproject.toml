@@ -1,6 +1,6 @@
 [project]
 name = "project-zeno"
-version = "0.1.0"
+version = "2026.6.1.1"
 description = "Language Interface for Maps & WRI/LCL data APIs."
 readme = "README.md"
 requires-python = "==3.12.8"
@@ -12,7 +12,7 @@ dependencies = [
     "langfuse==3.10.1",
     "langchain-chroma==1.1.0",
     "langchain-google-genai==4.2.1",
-    "fastapi[standard]==0.116.1",
+    "fastapi[standard]==0.136.1",
     "watchdog==6.0.0",
     "uvicorn[standard]==0.35.0",
     "geojson-pydantic==2.0.0",
@@ -55,6 +55,10 @@ dependencies = [
 [dependency-groups]
 dev = [
     "jupyterlab==4.4.5",
+    "mypy==2.1.0",
+    "types-PyYAML",
+    "types-cachetools",
+    "types-requests",
     "pre-commit==4.2.0",
     "ruff==0.12.4",
     "pytest==8.4.1",
@@ -64,15 +68,6 @@ dev = [
     "pytest-asyncio==1.1.0",
     "pytest-rerunfailures==15.0",
     "locust==2.32.5",
-]
-frontend = [
-    "streamlit==1.47.0",
-    "streamlit_folium==0.25.0",
-    "pandas==2.2.3",
-    "plotly==6.3.0",
-    "python-dotenv==1.0.1",
-    "geopandas==1.0.1",
-    "folium-vectorgrid==0.1.3",
 ]
 
 [tool.ruff]
@@ -93,9 +88,14 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
+[tool.mypy]
+python_version = "3.12"
+explicit_package_bases = true
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 
 [tool.uv]
-default-groups = ["dev", "frontend"]
+default-groups = ["dev"]

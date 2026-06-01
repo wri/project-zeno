@@ -11,6 +11,7 @@ from src.api.data_models import ThreadOrm
 from src.api.schemas import ChatRequest, QuotaModel, UserModel
 from src.api.services.chat import generate_thread_name, stream_chat
 from src.api.services.quota import check_quota, enforce_quota
+from src.api.streaming import guarded_stream
 from src.api.user_profile_configs.sectors import SECTOR_ROLES, SECTORS
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import bind_request_logging_context, get_logger
@@ -93,14 +94,17 @@ async def chat(
                 ]
 
         return StreamingResponse(
-            stream_chat(
-                query=chat_request.query,
-                user_persona=chat_request.user_persona,
-                thread_id=thread_id,
-                ui_context=chat_request.ui_context,
-                ui_action_only=chat_request.ui_action_only,
-                langfuse_metadata=langfuse_metadata,
-                user=user_dict,
+            guarded_stream(
+                request,
+                stream_chat(
+                    query=chat_request.query,
+                    user_persona=chat_request.user_persona,
+                    thread_id=thread_id,
+                    ui_context=chat_request.ui_context,
+                    ui_action_only=chat_request.ui_action_only,
+                    langfuse_metadata=langfuse_metadata,
+                    user=user_dict,
+                ),
             ),
             media_type="application/x-ndjson",
             headers=headers if headers else None,

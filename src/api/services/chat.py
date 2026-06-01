@@ -12,7 +12,7 @@ from langfuse.langchain import CallbackHandler
 
 from src.agent.graph import fetch_zeno
 from src.agent.llms import SMALL_MODEL
-from src.agent.tools.pick_aoi.tool import fetch_aoi_bbox
+from src.agent.subagents.pick_aoi.tool import fetch_aoi_bbox
 from src.api.schemas import ThreadNameOutput
 from src.shared.logging_config import get_logger
 

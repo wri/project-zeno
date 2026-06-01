@@ -20,6 +20,7 @@ from src.api.routers import (
 )
 from src.shared.database import close_global_pool, initialize_global_pool
 from src.shared.logging_config import get_logger
+from src.shared.version import get_version
 
 logger = get_logger(__name__)
 
@@ -37,7 +38,7 @@ app = FastAPI(
     lifespan=lifespan,
     title="Zeno API",
     description="API for Zeno LangGraph-based agent workflow",
-    version="0.1.0",
+    version=get_version(),
 )
 
 app.add_middleware(
@@ -46,7 +47,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition"],
+    expose_headers=["Content-Disposition", "X-Next-Cursor"],
 )
 
 
