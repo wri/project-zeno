@@ -1,4 +1,4 @@
-from typing import Annotated, Dict, Optional
+from typing import Annotated, Dict, List, Optional
 
 import httpx
 import structlog
@@ -10,7 +10,7 @@ from langgraph.types import Command
 
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
-from src.agent.datasets.handlers.base import DataPullResult
+from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.agent.datasets.handlers.fao_fra_handler import FAOFRAHandler
 from src.api.data_models import StatisticsOrm
 from src.shared.database import get_session_from_pool
@@ -35,8 +35,10 @@ async def fetch_statistics_from_url(source_url: str) -> dict:
 class DataPullOrchestrator:
     """Orchestrates data pulling using appropriate handlers"""
 
-    def __init__(self):
-        self.handlers = [
+    def __init__(
+        self, handlers: Optional[List[DataSourceHandler]] = None
+    ) -> None:
+        self.handlers = handlers or [
             AnalyticsHandler(),
             FAOFRAHandler(),
         ]
