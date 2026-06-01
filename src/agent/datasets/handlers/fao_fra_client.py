@@ -1,12 +1,20 @@
 """HTTP client for the FAO FRA 2025 public API.
 
-Endpoint used: GET /explorer/data (open-access published data).
+Endpoint: GET /explorer/data (open-access published data).
 Swagger spec: https://fra-data.fao.org/api-docs/swagger.json
 
-This client is used directly by `src.agent.tools.query_fra_data` rather than
-through `DataPullOrchestrator` — FAO's response shape and request semantics
-(country-level only, fixed reporting years, no parameter sweeps) don't fit the
-analytics-API contract that handler exposes.
+Two layers live here:
+
+- **Parsing helpers** (`parse_year_key`, `parse_response`) — pure domain
+  logic that converts the raw FAO JSON envelope into flat record dicts.
+  No HTTP knowledge; importable and testable with plain dicts.
+
+- **`FAOFRAClient`** — owns the HTTP transport. Accepts an optional
+  `transport` argument so tests can inject `httpx.MockTransport` without
+  monkey-patching any library internals:
+
+      client = FAOFRAClient(transport=httpx.MockTransport(handler))
+      records = await client.fetch("BRA", "extentOfForest", variables=[])
 """
 
 from typing import Optional
@@ -34,16 +42,12 @@ class FAODataNotFoundError(Exception):
     """The requested country or variable has no data in FRA 2025."""
 
 
-def _build_source_url(iso3: str, table: str) -> str:
-    return (
-        f"{BASE_URL}/explorer/data"
-        f"?assessmentName={ASSESSMENT_NAME}"
-        f"&countryISOs[]={iso3}"
-        f"&tableNames[]={table}"
-    )
+# ---------------------------------------------------------------------------
+# Parsing helpers — pure domain logic, no HTTP
+# ---------------------------------------------------------------------------
 
 
-def _parse_year_key(key: str) -> tuple[int, Optional[str]]:
+def parse_year_key(key: str) -> tuple[int, Optional[str]]:
     """Translate a FAO response time key into (year, period_label).
 
     The FAO API uses two formats:
@@ -67,7 +71,7 @@ def _parse_year_key(key: str) -> tuple[int, Optional[str]]:
     raise ValueError(f"unrecognised FAO time key: {key!r}")
 
 
-def _parse_response(
+def parse_response(
     body: dict,
     iso3: str,
     table: str,
@@ -77,7 +81,7 @@ def _parse_response(
 
     Each record: {"year", "period", "variable", "value", "odp", "country"}.
     `period` is None for snapshot-year tables and `"START-END"` for
-    rate-of-change tables (see `_parse_year_key`).
+    rate-of-change tables (see `parse_year_key`).
 
     Raises FAODataNotFoundError when the country or table is absent.
     """
@@ -108,7 +112,7 @@ def _parse_response(
     records: list[dict] = []
     for time_key, variables in table_data.items():
         try:
-            row_year, period = _parse_year_key(time_key)
+            row_year, period = parse_year_key(time_key)
         except ValueError:
             continue
 
@@ -142,77 +146,113 @@ def _parse_response(
     return records
 
 
-async def fetch_fra_data(
-    iso3: str,
-    table: str,
-    variables: list[str],
-    year: Optional[int] = None,
-) -> list[dict]:
-    """Fetch FRA 2025 data for a single country and table.
+# ---------------------------------------------------------------------------
+# HTTP client
+# ---------------------------------------------------------------------------
 
-    Args:
-        iso3: Three-letter ISO country code (e.g. "BRA").
-        table: FAO FRA table name (e.g. "extentOfForest").
-        variables: Variable names to filter on; empty means all variables.
-        year: Optional reporting year (must be one of FRA_REPORTING_YEARS).
 
-    Returns:
-        List of records, one per (year, variable) pair.
+class FAOFRAClient:
+    """Async HTTP client for the FAO FRA 2025 public API.
 
-    Raises:
-        FAOAPIError: network failure, timeout, or HTTP 5xx.
-        FAODataNotFoundError: country or table absent from FRA 2025.
+    Pass a transport for testing; omit for production (real network):
+
+        client = FAOFRAClient(transport=httpx.MockTransport(my_handler))
     """
-    params: dict = {
-        "assessmentName": ASSESSMENT_NAME,
-        "countryISOs[]": iso3,
-        "tableNames[]": table,
-    }
-    if variables:
-        params["variables[]"] = variables
-    if year is not None:
-        params["columns[]"] = str(year)
 
-    logger.info(
-        f"FAO-CLIENT: GET /explorer/data iso={iso3} table={table} year={year}"
-    )
+    def __init__(
+        self,
+        transport: Optional[httpx.AsyncBaseTransport] = None,
+    ) -> None:
+        self._transport = transport
 
-    try:
-        async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
-            response = await client.get(
-                f"{BASE_URL}/explorer/data", params=params
+    def build_source_url(self, iso3: str, table: str) -> str:
+        """Canonical reference URL for a country + table combination."""
+        return (
+            f"{BASE_URL}/explorer/data"
+            f"?assessmentName={ASSESSMENT_NAME}"
+            f"&countryISOs[]={iso3}"
+            f"&tableNames[]={table}"
+        )
+
+    async def fetch(
+        self,
+        iso3: str,
+        table: str,
+        variables: list[str],
+        year: Optional[int] = None,
+    ) -> list[dict]:
+        """Fetch FRA 2025 data for a single country and table.
+
+        Args:
+            iso3: Three-letter ISO country code (e.g. "BRA").
+            table: FAO FRA table name (e.g. "extentOfForest").
+            variables: Variable names to filter on; empty means all.
+            year: Optional reporting year (one of FRA_REPORTING_YEARS).
+
+        Returns:
+            List of records, one per (year, variable) pair.
+
+        Raises:
+            FAOAPIError: network failure, timeout, or HTTP 5xx.
+            FAODataNotFoundError: country or table absent from FRA 2025.
+        """
+        params: dict = {
+            "assessmentName": ASSESSMENT_NAME,
+            "countryISOs[]": iso3,
+            "tableNames[]": table,
+        }
+        if variables:
+            params["variables[]"] = variables
+        if year is not None:
+            params["columns[]"] = str(year)
+
+        logger.info(
+            f"FAO-CLIENT: GET /explorer/data"
+            f" iso={iso3} table={table} year={year}"
+        )
+
+        client_kwargs: dict = {"timeout": TIMEOUT_SECONDS}
+        if self._transport is not None:
+            client_kwargs["transport"] = self._transport
+
+        try:
+            async with httpx.AsyncClient(**client_kwargs) as client:
+                response = await client.get(
+                    f"{BASE_URL}/explorer/data", params=params
+                )
+        except httpx.TimeoutException as exc:
+            raise FAOAPIError(
+                "The FAO FRA API did not respond in time."
+                " Please try again later."
+            ) from exc
+        except httpx.RequestError as exc:
+            raise FAOAPIError(
+                f"Could not reach the FAO FRA API: {exc}."
+                " Please try again later."
+            ) from exc
+
+        if response.status_code >= 500:
+            raise FAOAPIError(
+                f"FAO FRA API returned a server error"
+                f" ({response.status_code}). Please try again later."
             )
-    except httpx.TimeoutException as exc:
-        raise FAOAPIError(
-            "The FAO FRA API did not respond in time. Please try again later."
-        ) from exc
-    except httpx.RequestError as exc:
-        raise FAOAPIError(
-            f"Could not reach the FAO FRA API: {exc}. Please try again later."
-        ) from exc
+        if response.status_code == 401:
+            raise FAOAPIError(
+                "FAO FRA API requires authentication for this endpoint."
+                " Please contact the GNW team."
+            )
+        if response.status_code >= 400:
+            raise FAODataNotFoundError(
+                f"FAO FRA API returned {response.status_code} for"
+                f" {iso3} / {table}. The country or variable may not be"
+                " available in FRA 2025."
+            )
 
-    if response.status_code >= 500:
-        raise FAOAPIError(
-            f"FAO FRA API returned a server error "
-            f"({response.status_code}). Please try again later."
-        )
-    if response.status_code == 401:
-        raise FAOAPIError(
-            "FAO FRA API requires authentication for this endpoint. "
-            "Please contact the GNW team."
-        )
-    if response.status_code >= 400:
-        raise FAODataNotFoundError(
-            f"FAO FRA API returned {response.status_code} for "
-            f"{iso3} / {table}. The country or variable may not be "
-            "available in FRA 2025."
-        )
+        try:
+            body = response.json()
+        except Exception as exc:
+            raise FAOAPIError(
+                "FAO FRA API returned an unexpected response format."
+            ) from exc
 
-    try:
-        body = response.json()
-    except Exception as exc:
-        raise FAOAPIError(
-            "FAO FRA API returned an unexpected response format."
-        ) from exc
-
-    return _parse_response(body, iso3, table, year)
+        return parse_response(body, iso3, table, year)
