@@ -52,6 +52,7 @@ dependencies = [
     "antimeridian==0.4.7",
     "beautifulsoup4>=4.14.3",
     "trafilatura>=2.0.0",
+    "deepagents[quickjs]>=0.4.12",
 ]
 
 [dependency-groups]
