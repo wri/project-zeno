@@ -141,6 +141,38 @@ def test_score_dates_partial_overlap_gives_1():
     assert by_id[1].score == 5
 
 
+def test_score_tree_cover_gain_checkpoint_dates_give_2():
+    # 2000-2020 aligns with valid 5-year checkpoints → date_score = 2
+    results = score_datasets(
+        Ecosystem.forest,
+        ChangeType.gain,
+        None,
+        None,
+        None,
+        start_date="2000-01-01",
+        end_date="2020-12-31",
+    )
+    by_id = {r.dataset_id: r for r in results}
+    # TreeCoverGain: eco=2, gain=2, dates=2 = 6
+    assert by_id[5].score == 6
+
+
+def test_score_tree_cover_gain_non_checkpoint_dates_give_1():
+    # 2012-2018 doesn't align with any 5-year checkpoint → date_score = 1
+    results = score_datasets(
+        Ecosystem.forest,
+        ChangeType.gain,
+        None,
+        None,
+        None,
+        start_date="2012-01-01",
+        end_date="2018-12-31",
+    )
+    by_id = {r.dataset_id: r for r in results}
+    # TreeCoverGain: eco=2, gain=2, dates=1 = 5 (not max=6)
+    assert by_id[5].score == 5
+
+
 # ---------------------------------------------------------------------------
 # Integration tests — selected path (dataset chosen)
 # ---------------------------------------------------------------------------
@@ -312,11 +344,11 @@ async def test_brazil_deforestation_agricultural_commodities_since_2010():
         cause=Cause.agriculture,
         start_date="2010-01-01",
     )
-    ds = result.update["dataset"]
-    assert (
-        ds["dataset_id"] == 8
-    )  # TCL by Driver: exact on ecosystem, loss+cause, agriculture, dates
-    assert ds["context_layer"] == "driver"
+    # TCL by Driver is aggregate (2001–2025 as one total) — can't isolate "since 2010".
+    # No dataset gets a perfect score → suggestions, with TCL by Driver ranked first.
+    assert result.update.get("dataset") is None
+    msg = result.update["messages"][0].content
+    assert "driver" in msg.lower() or "dominant" in msg.lower()
 
 
 async def test_forest_loss_stays_at_tcl():

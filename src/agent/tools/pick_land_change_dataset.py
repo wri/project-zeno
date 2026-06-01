@@ -122,6 +122,39 @@ class DatasetScorer:
     ) -> int:
         raise NotImplementedError
 
+    def date_score(
+        self,
+        start_date: Optional[str],
+        end_date: Optional[str],
+        dataset_start: str,
+        dataset_end: str,
+    ) -> int:
+        """Score how well the user's requested date range fits this dataset.
+
+        Default (annual / realtime / snapshot): score 2 when the user's range
+        falls entirely within the dataset's coverage, 1 for partial overlap.
+        """
+        if start_date and end_date:
+            if start_date >= dataset_start and end_date <= dataset_end:
+                return 2
+            if start_date <= dataset_end and end_date >= dataset_start:
+                return 1
+            return 0
+        elif start_date:
+            if dataset_start <= start_date <= dataset_end:
+                return 2
+            if start_date < dataset_start:
+                return 1  # dataset starts later but still covers part of the range
+            return 0
+        else:  # only end_date provided
+            if dataset_start <= end_date <= dataset_end:
+                return 2
+            if end_date > dataset_end:
+                return (
+                    1  # dataset ends before user's end date but still overlaps
+                )
+            return 0
+
     def context_layer(
         self, ecosystem: Ecosystem, cause: Optional[Cause]
     ) -> Optional[str]:
@@ -307,6 +340,19 @@ class TreeCoverGain(DatasetScorer):
             total += 2 if temporal == Temporal.aggregate else 0
         return total
 
+    def date_score(
+        self, start_date, end_date, dataset_start, dataset_end
+    ) -> int:
+        # Aggregate dataset: covers fixed periods (2000, 2005, 2010, 2015, 2020).
+        # Score 2 only when the user's range encompasses the full dataset period.
+        user_start = start_date or "1900-01-01"
+        user_end = end_date or date.today().isoformat()
+        if user_start <= dataset_start and user_end >= dataset_end:
+            return 2
+        if user_start <= dataset_end and user_end >= dataset_start:
+            return 1  # overlap but user wants a sub-period the dataset can't isolate
+        return 0
+
 
 class ForestGHGNetFlux(DatasetScorer):
     dataset_id = 6
@@ -343,6 +389,18 @@ class ForestGHGNetFlux(DatasetScorer):
         if temporal is not None:
             total += 2 if temporal == Temporal.aggregate else 0
         return total
+
+    def date_score(
+        self, start_date, end_date, dataset_start, dataset_end
+    ) -> int:
+        # Aggregate dataset: one set of totals over the full period, not sub-queryable.
+        user_start = start_date or "1900-01-01"
+        user_end = end_date or date.today().isoformat()
+        if user_start <= dataset_start and user_end >= dataset_end:
+            return 2
+        if user_start <= dataset_end and user_end >= dataset_start:
+            return 1
+        return 0
 
 
 class TreeCover(DatasetScorer):
@@ -408,6 +466,18 @@ class TreeCoverLossByDriver(DatasetScorer):
             total += 2 if temporal == Temporal.aggregate else 0
         return total
 
+    def date_score(
+        self, start_date, end_date, dataset_start, dataset_end
+    ) -> int:
+        # Aggregate dataset: covers 2001–2025 as one total, not sub-queryable by year.
+        user_start = start_date or "1900-01-01"
+        user_end = end_date or date.today().isoformat()
+        if user_start <= dataset_start and user_end >= dataset_end:
+            return 2
+        if user_start <= dataset_end and user_end >= dataset_start:
+            return 1
+        return 0
+
     def context_layer(self, ecosystem, cause):
         return "driver"
 
@@ -462,34 +532,6 @@ SCORERS: list[DatasetScorer] = [
 SCORER_BY_ID = {scorer.dataset_id: scorer for scorer in SCORERS}
 
 
-def date_score(
-    dataset_id: int, start_date: Optional[str], end_date: Optional[str]
-) -> int:
-    """0/1/2 based on how well the user's date range overlaps the dataset's coverage."""
-    row = next(ds for ds in DATASETS if ds["dataset_id"] == dataset_id)
-    dataset_start = row.get("start_date") or "1900-01-01"
-    dataset_end = row.get("end_date") or date.today().isoformat()
-
-    if start_date and end_date:
-        if start_date >= dataset_start and end_date <= dataset_end:
-            return 2
-        if start_date <= dataset_end and end_date >= dataset_start:
-            return 1
-        return 0
-    elif start_date:
-        if dataset_start <= start_date <= dataset_end:
-            return 2
-        if start_date < dataset_start:
-            return 1  # dataset starts later but still covers part of the requested range
-        return 0
-    else:  # only end_date
-        if dataset_start <= end_date <= dataset_end:
-            return 2
-        if end_date > dataset_end:
-            return 1  # dataset ends before user's end date but still overlaps
-        return 0
-
-
 def score_datasets(
     ecosystem: Ecosystem,
     change_type: Optional[ChangeType],
@@ -511,7 +553,14 @@ def score_datasets(
             ecosystem, change_type, cause, measurement_type, temporal
         )
         if has_dates:
-            total += date_score(scorer.dataset_id, start_date, end_date)
+            row = next(
+                ds for ds in DATASETS if ds["dataset_id"] == scorer.dataset_id
+            )
+            dataset_start = row.get("start_date") or "1900-01-01"
+            dataset_end = row.get("end_date") or date.today().isoformat()
+            total += scorer.date_score(
+                start_date, end_date, dataset_start, dataset_end
+            )
         results.append(
             ScoredDataset(
                 dataset_id=scorer.dataset_id,
@@ -603,8 +652,17 @@ async def pick_land_change_dataset(
             if SCORER_BY_ID[d.dataset_id].eco_score(ecosystem) > 0
         ]
         top3 = relevant[:3] if relevant else scored[:3]
+        suggested_datasets = [
+            {
+                "dataset_id": d.dataset_id,
+                "dataset_name": DATASET_NAMES[d.dataset_id],
+                "reason": d.reason,
+            }
+            for d in top3
+        ]
         suggestions = "\n".join(
-            f"- **{DATASET_NAMES[d.dataset_id]}**: {d.reason}" for d in top3
+            f"- **{s['dataset_name']}**: {s['reason']}"
+            for s in suggested_datasets
         )
         msg = (
             "No single dataset clearly matches your request. "
@@ -612,7 +670,10 @@ async def pick_land_change_dataset(
             f"{suggestions}"
         )
         return Command(
-            update={"messages": [ToolMessage(msg, tool_call_id=tool_call_id)]}
+            update={
+                "suggested_datasets": suggested_datasets,
+                "messages": [ToolMessage(msg, tool_call_id=tool_call_id)],
+            }
         )
 
     dataset_id = top.dataset_id
@@ -686,6 +747,7 @@ async def pick_land_change_dataset(
     return Command(
         update={
             "dataset": result.model_dump(),
+            "suggested_datasets": [],
             "messages": [ToolMessage(tool_message, tool_call_id=tool_call_id)],
         },
     )
