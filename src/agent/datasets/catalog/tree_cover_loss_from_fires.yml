@@ -46,9 +46,10 @@ selection_hints: 'Best dataset for questions about annual tree cover loss split 
   answer intra-year or seasonal questions. Methodology changed between 2010 and 2011; cross-period trend comparisons need caution.
 
   '
-code_instructions: 'CHART TYPE: Always use a stacked bar chart with x=tree_cover_loss_year, and two stacked series:
-  tree_cover_loss_from_fires_area_ha and tree_cover_loss_non_fires_area_ha. These two fields sum to area_ha (total TCL)
-  — do not plot area_ha separately. Rename columns before plotting: tree_cover_loss_from_fires_area_ha → "Tree cover loss due to fires",
+code_instructions: 'CHART TYPE: If the data contains more than one year, use a stacked bar chart with x=tree_cover_loss_year
+  and two stacked series: tree_cover_loss_from_fires_area_ha and tree_cover_loss_non_fires_area_ha. If the data contains
+  only a single year or is a total across all years (one row), use a pie chart instead with the same two fields as slices.
+  Do not plot area_ha separately in either case. Rename fields before plotting: tree_cover_loss_from_fires_area_ha → "Tree cover loss due to fires",
   tree_cover_loss_non_fires_area_ha → "All other tree cover loss". NEVER show carbon_emissions_MgCO2e for this dataset.
   DATA RULES: - Drop rows where area_ha = 0 - Use 30% canopy density threshold - If primary_forest or intact_forest
   variable is active, filter accordingly DO/DON''T: - If neither primary_forest nor intact_forest is active,
