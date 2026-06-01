@@ -83,7 +83,7 @@ ui_context = {
 
 ### Frontend UI Components
 
-The Streamlit frontend now includes UI selection components that work in conjunction with the chat interface:
+The frontend includes UI selection components that work in conjunction with the chat interface:
 
 1. **AOI Dropdown**: Pre-defined areas of interest (e.g., "Koraput" district)
 2. **Dataset Dropdown**: Pre-configured datasets (e.g., "Tree Cover Loss", "DIST_ALERT")

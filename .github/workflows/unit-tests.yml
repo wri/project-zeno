@@ -57,7 +57,6 @@ jobs:
           AWS_DEFAULT_REGION: us-east-1
           API_BASE_URL: http://localhost:8000
           LOCAL_API_BASE_URL: http://localhost:8000
-          STREAMLIT_URL: http://localhost:8501
           COOKIE_SIGNER_SECRET_KEY: fake-cookie-key
         run: |
           uv run pytest tests/api tests/cli tests/unit -v
