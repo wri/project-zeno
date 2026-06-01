@@ -12,6 +12,7 @@ from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from src.agent.datasets.config import DATASETS
+from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_dataset.schema import DatasetSelectionResult
 from src.agent.subagents.pick_dataset.tool import get_tile_services_for_dataset
 from src.shared.logging_config import get_logger
@@ -532,6 +533,78 @@ SCORERS: list[DatasetScorer] = [
 SCORER_BY_ID = {scorer.dataset_id: scorer for scorer in SCORERS}
 
 
+def _criteria_summary(
+    ecosystem,
+    change_type,
+    cause,
+    measurement_type,
+    temporal,
+    start_date,
+    end_date,
+) -> str:
+    parts = [f"ecosystem: {ecosystem.value}"]
+    if change_type:
+        parts.append(f"change type: {change_type.value}")
+    if cause:
+        parts.append(f"cause: {cause.value}")
+    if measurement_type:
+        parts.append(f"measurement: {measurement_type.value}")
+    if temporal:
+        parts.append(f"temporal: {temporal.value}")
+    if start_date or end_date:
+        parts.append(f"dates: {start_date or '?'} to {end_date or '?'}")
+    return ", ".join(parts)
+
+
+class SuggestionReasonItem(BaseModel):
+    dataset_id: int = Field(description="ID of the suggested dataset")
+    reason: str = Field(
+        description="1-2 sentences: why this dataset is relevant but not a perfect match for the specific criteria"
+    )
+
+
+class SelectionReasonOutput(BaseModel):
+    reason: str = Field(
+        description=(
+            "For selection: 1-2 sentences explaining why the dataset was chosen. "
+            "For suggestions: 1-2 sentences explaining what criteria weren't met."
+        )
+    )
+    suggestion_reasons: list[SuggestionReasonItem] = Field(
+        default_factory=list,
+        description="Per-dataset reasons; empty when a dataset was selected.",
+    )
+
+
+async def generate_selection_reason(
+    criteria: str,
+    selected_dataset_name: Optional[str],
+    suggestions: list[dict],
+) -> SelectionReasonOutput:
+    if selected_dataset_name:
+        prompt = (
+            f"The user's request was interpreted as: {criteria}.\n"
+            f"The dataset '{selected_dataset_name}' was selected.\n"
+            "Fill in 'reason' explaining why this dataset was selected, "
+            "referencing the specific criteria. Leave 'suggestion_reasons' empty."
+        )
+    else:
+        suggestion_lines = "\n".join(
+            f"- ID {s['dataset_id']} ({s['dataset_name']}): {s['reason']}"
+            for s in suggestions
+        )
+        prompt = (
+            f"The user's request was interpreted as: {criteria}.\n"
+            "No single dataset matched all criteria. Top candidates:\n"
+            f"{suggestion_lines}\n"
+            "Fill in 'reason' with a 1-2 sentence overall explanation of what wasn't matched. "
+            "Fill in 'suggestion_reasons' with one entry per dataset above, "
+            "each explaining why it's relevant but not a perfect match."
+        )
+    chain = SMALL_MODEL.with_structured_output(SelectionReasonOutput)
+    return await chain.ainvoke(prompt)
+
+
 def score_datasets(
     ecosystem: Ecosystem,
     change_type: Optional[ChangeType],
@@ -622,6 +695,16 @@ async def pick_land_change_dataset(
     """
     logger.info("PICK-DATASET-DECISION-TREE-TOOL")
 
+    criteria = _criteria_summary(
+        ecosystem,
+        change_type,
+        cause,
+        measurement_type,
+        temporal,
+        start_date,
+        end_date,
+    )
+
     max_score = 2 * sum(
         [
             1,  # ecosystem always provided
@@ -660,19 +743,22 @@ async def pick_land_change_dataset(
             }
             for d in top3
         ]
-        suggestions = "\n".join(
-            f"- **{s['dataset_name']}**: {s['reason']}"
-            for s in suggested_datasets
+        llm_output = await generate_selection_reason(
+            criteria, None, suggested_datasets
         )
-        msg = (
-            "No single dataset clearly matches your request. "
-            "Here are the closest available options:\n\n"
-            f"{suggestions}"
-        )
+        reason_by_id = {
+            r.dataset_id: r.reason for r in llm_output.suggestion_reasons
+        }
+        for suggestion in suggested_datasets:
+            suggestion["reason"] = reason_by_id.get(
+                suggestion["dataset_id"], suggestion["reason"]
+            )
         return Command(
             update={
                 "suggested_datasets": suggested_datasets,
-                "messages": [ToolMessage(msg, tool_call_id=tool_call_id)],
+                "messages": [
+                    ToolMessage(llm_output.reason, tool_call_id=tool_call_id)
+                ],
             }
         )
 
@@ -720,10 +806,15 @@ async def pick_land_change_dataset(
         presentation_instructions=row.get("presentation_instructions"),
     )
 
+    llm_output = await generate_selection_reason(
+        criteria, result.dataset_name, []
+    )
+    selection_reason = llm_output.reason
+
     tool_message = f"""# About the selection
     Selected dataset name: {result.dataset_name}
     Selected context layer: {result.context_layer}
-    Reasoning for selection: {result.reason}
+    Reasoning for selection: {selection_reason}
 
     # Additional dataset information
 

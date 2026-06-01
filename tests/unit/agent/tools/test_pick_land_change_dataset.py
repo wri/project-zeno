@@ -1,12 +1,37 @@
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from src.agent.tools.pick_land_change_dataset import (
     Cause,
     ChangeType,
     Ecosystem,
     MeasurementType,
+    SelectionReasonOutput,
+    SuggestionReasonItem,
     Temporal,
     pick_land_change_dataset,
     score_datasets,
 )
+
+MOCK_REASON = "mocked reason"
+MOCK_LLM_OUTPUT = SelectionReasonOutput(
+    reason=MOCK_REASON,
+    suggestion_reasons=[
+        SuggestionReasonItem(dataset_id=i, reason=MOCK_REASON)
+        for i in range(10)
+    ],
+)
+
+
+@pytest.fixture(autouse=True)
+def mock_llm_reason():
+    with patch(
+        "src.agent.tools.pick_land_change_dataset.generate_selection_reason",
+        new=AsyncMock(return_value=MOCK_LLM_OUTPUT),
+    ):
+        yield
+
 
 # ---------------------------------------------------------------------------
 # Unit tests for score_datasets() — no I/O, fast
@@ -347,8 +372,8 @@ async def test_brazil_deforestation_agricultural_commodities_since_2010():
     # TCL by Driver is aggregate (2001–2025 as one total) — can't isolate "since 2010".
     # No dataset gets a perfect score → suggestions, with TCL by Driver ranked first.
     assert result.update.get("dataset") is None
-    msg = result.update["messages"][0].content
-    assert "driver" in msg.lower() or "dominant" in msg.lower()
+    suggested = result.update["suggested_datasets"]
+    assert suggested[0]["dataset_id"] == 8  # TreeCoverLossByDriver
 
 
 async def test_forest_loss_stays_at_tcl():
@@ -434,9 +459,8 @@ async def test_disturbance_wetland_returns_suggestions_with_dist_alert_top():
         cause=Cause.crop_management,
     )
     assert result.update.get("dataset") is None
-    msg = result.update["messages"][0].content
-    # DIST-ALERT should be the top suggestion
-    assert "DIST-ALERT" in msg
+    suggested = result.update["suggested_datasets"]
+    assert suggested[0]["dataset_id"] == 0  # DIST-ALERT
 
 
 async def test_carbon_nonforest_returns_suggestions_with_ghg_top():
@@ -448,12 +472,8 @@ async def test_carbon_nonforest_returns_suggestions_with_ghg_top():
         ecosystem=Ecosystem.wetland,
     )
     assert result.update.get("dataset") is None
-    msg = result.update["messages"][0].content
-    assert (
-        "greenhouse gas" in msg.lower()
-        or "GHG" in msg
-        or "flux" in msg.lower()
-    )
+    suggested = result.update["suggested_datasets"]
+    assert suggested[0]["dataset_id"] == 6  # ForestGHGNetFlux
 
 
 async def test_natural_land_change_returns_suggestions():
@@ -468,7 +488,8 @@ async def test_natural_land_change_returns_suggestions():
 
 
 async def test_buildup_annual_suggestions_rank_by_relevance():
-    # Urbanization + annual: topically relevant datasets should lead suggestions
+    # Urbanization + annual: topically relevant datasets should lead suggestions.
+    # GLC (eco=2 for built_up) should appear; Grasslands (eco=0) should not.
     result = await pick_land_change_dataset.coroutine(
         state={},
         tool_call_id="test-id",
@@ -476,24 +497,40 @@ async def test_buildup_annual_suggestions_rank_by_relevance():
         temporal=Temporal.annual,
     )
     assert result.update.get("dataset") is None
-    msg = result.update["messages"][0].content
-    # Global Land Cover (eco=2 for built_up) should appear
-    assert "land cover" in msg.lower()
-    # Grasslands should not appear (eco=0 for built_up)
-    assert "grassland" not in msg.lower()
+    suggested_ids = [
+        s["dataset_id"] for s in result.update["suggested_datasets"]
+    ]
+    assert 1 in suggested_ids  # GlobalLandCover
+    assert 2 not in suggested_ids  # Grasslands excluded (eco=0 for built_up)
 
 
 async def test_suggestions_contain_top_three_datasets():
-    # Suggestions message should name at least two datasets
     result = await pick_land_change_dataset.coroutine(
         state={},
         tool_call_id="test-id",
         change_type=ChangeType.loss,
         ecosystem=Ecosystem.wetland,
     )
-    msg = result.update["messages"][0].content
-    from src.agent.datasets.config import DATASETS
+    assert len(result.update["suggested_datasets"]) >= 2
 
-    names = [ds["dataset_name"] for ds in DATASETS]
-    mentioned = sum(1 for name in names if name in msg)
-    assert mentioned >= 2
+
+async def test_selection_reason_in_tool_message():
+    # The LLM-generated reason should appear in the tool message for a selection.
+    result = await pick_land_change_dataset.coroutine(
+        state={},
+        tool_call_id="test-id",
+        change_type=ChangeType.loss,
+        ecosystem=Ecosystem.forest,
+    )
+    assert MOCK_REASON in result.update["messages"][0].content
+
+
+async def test_suggestion_reason_in_tool_message():
+    # The LLM-generated reason should appear in the tool message for suggestions.
+    result = await pick_land_change_dataset.coroutine(
+        state={},
+        tool_call_id="test-id",
+        change_type=ChangeType.loss,
+        ecosystem=Ecosystem.wetland,
+    )
+    assert MOCK_REASON in result.update["messages"][0].content
