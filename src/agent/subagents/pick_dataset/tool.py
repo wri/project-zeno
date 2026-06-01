@@ -25,6 +25,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     LAND_COVER_CHANGE_ID,
     TREE_COVER_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
+    TREE_COVER_LOSS_BY_FIRES_ID,
     TREE_COVER_LOSS_ID,
 )
 from src.agent.llms import SMALL_MODEL
@@ -405,6 +406,7 @@ def get_tile_services_for_dataset(
         TREE_COVER_LOSS_ID,
         TREE_COVER_ID,
         TREE_COVER_LOSS_BY_DRIVER_ID,
+        TREE_COVER_LOSS_BY_FIRES_ID,
         FOREST_CARBON_FLUX_ID,
     ]:
         canopy_cover = 30

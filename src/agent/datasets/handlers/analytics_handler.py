@@ -169,6 +169,7 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_ID,
             TREE_COVER_LOSS_BY_DRIVER_ID,
             SLUC_EMISSION_FACTORS_ID,
+            TREE_COVER_LOSS_BY_FIRES_ID,
         ]
 
     def _get_aoi_type(self, aoi: Dict) -> dict[str, str]:
@@ -353,6 +354,7 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_LOSS_ID,
             TREE_COVER_ID,
             TREE_COVER_LOSS_BY_DRIVER_ID,
+            TREE_COVER_LOSS_BY_FIRES_ID,
             FOREST_CARBON_FLUX_ID,
         ]:
             canopy_cover: int = 30
