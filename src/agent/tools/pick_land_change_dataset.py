@@ -2,18 +2,17 @@ from enum import Enum
 from types import SimpleNamespace
 from typing import Annotated, Dict, Optional
 
-from pydantic import BaseModel, Field
-
 from langchain.tools import InjectedState
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.types import Command
+from pydantic import BaseModel, Field
 
-from src.agent.tools.datasets_config import DATASETS
-from src.agent.tools.pick_dataset.schema import DatasetSelectionResult
-from src.agent.tools.pick_dataset.tool import get_tile_services_for_dataset
-from src.agent.tools.util import revise_date_range
+from src.agent.datasets.config import DATASETS
+from src.agent.datasets.dates import revise_date_range
+from src.agent.subagents.pick_dataset.schema import DatasetSelectionResult
+from src.agent.subagents.pick_dataset.tool import get_tile_services_for_dataset
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -65,14 +64,19 @@ class MeasurementType(str, Enum):
 
 # Q1 + Q5: Trend, snapshot, or real-time?
 class Temporal(str, Enum):
-    realtime = "real-time"   # near-real-time alerts → DIST-ALERT
-    annual = "annual"        # year-by-year time series
+    realtime = "real-time"  # near-real-time alerts → DIST-ALERT
+    annual = "annual"  # year-by-year time series
     aggregate = "aggregate"  # totals over the full data period
-    snapshot = "snapshot"    # single-year baseline map (e.g. 2020, 2000)
+    snapshot = "snapshot"  # single-year baseline map (e.g. 2020, 2000)
 
 
 class Definition(BaseModel):
-    forest_canopy_cover: Optional[int] = Field(None, description="Canopy cover density percent from 0-100 per 30m pixel", min=0, max=100)
+    forest_canopy_cover: Optional[int] = Field(
+        None,
+        description="Canopy cover density percent from 0-100 per 30m pixel",
+        min=0,
+        max=100,
+    )
 
 
 @tool("pick_dataset")
@@ -120,7 +124,9 @@ async def pick_land_change_dataset(
     """
     logger.info("PICK-DATASET-DECISION-TREE-TOOL")
 
-    result = choose_dataset(ecosystem, change_type, cause, measurement_type, temporal)
+    result = choose_dataset(
+        ecosystem, change_type, cause, measurement_type, temporal
+    )
 
     if result is None:
         raise ValueError(
@@ -132,16 +138,24 @@ async def pick_land_change_dataset(
 
     row = next((ds for ds in DATASETS if ds["dataset_id"] == dataset_id), None)
     if row is None:
-        raise ValueError(f"choose_dataset returned unknown dataset_id: {dataset_id}")
+        raise ValueError(
+            f"choose_dataset returned unknown dataset_id: {dataset_id}"
+        )
 
     orig_start, orig_end = start_date, end_date
-    start_date, end_date, range_clamped = await revise_date_range(start_date, end_date, dataset_id, context_layer)
+    start_date, end_date, range_clamped = await revise_date_range(
+        start_date, end_date, dataset_id, context_layer
+    )
     if range_clamped:
         reason += f" The requested date range was adjusted to {start_date}–{end_date} to fit the dataset's available data (originally {orig_start}–{orig_end})."
 
-    ns_selection = SimpleNamespace(dataset_id=dataset_id, context_layer=context_layer, parameters=None)
+    ns_selection = SimpleNamespace(
+        dataset_id=dataset_id, context_layer=context_layer, parameters=None
+    )
     ns_row = SimpleNamespace(**row)
-    tile_url, context_layers_list = get_tile_services_for_dataset(ns_selection, ns_row, start_date, end_date)
+    tile_url, context_layers_list = get_tile_services_for_dataset(
+        ns_selection, ns_row, start_date, end_date
+    )
 
     result = DatasetSelectionResult(
         dataset_id=dataset_id,
@@ -200,21 +214,24 @@ async def pick_land_change_dataset(
 
 # Temporal resolutions supported per dataset
 _DATASET_TEMPORAL_RESOLUTIONS: dict[int, set[Temporal]] = {
-    0: {Temporal.realtime},      # DIST-ALERT
-    1: {Temporal.snapshot},      # Global land cover (2015 & 2024 snapshots)
-    2: {Temporal.annual},        # Grasslands (annual 2000-2022)
-    3: {Temporal.snapshot},      # SBTN Natural Lands (2020 snapshot)
-    4: {Temporal.annual},        # Tree cover loss (annual 2001-2025)
-    5: {Temporal.aggregate},     # Tree cover gain (cumulative periods)
-    6: {Temporal.aggregate},     # Forest GHG net flux (total 2001-2025)
-    7: {Temporal.snapshot},      # Tree cover (2000 snapshot)
-    8: {Temporal.aggregate},     # TCL by dominant driver (aggregate 2001-2025)
+    0: {Temporal.realtime},  # DIST-ALERT
+    1: {Temporal.snapshot},  # Global land cover (2015 & 2024 snapshots)
+    2: {Temporal.annual},  # Grasslands (annual 2000-2022)
+    3: {Temporal.snapshot},  # SBTN Natural Lands (2020 snapshot)
+    4: {Temporal.annual},  # Tree cover loss (annual 2001-2025)
+    5: {Temporal.aggregate},  # Tree cover gain (cumulative periods)
+    6: {Temporal.aggregate},  # Forest GHG net flux (total 2001-2025)
+    7: {Temporal.snapshot},  # Tree cover (2000 snapshot)
+    8: {Temporal.aggregate},  # TCL by dominant driver (aggregate 2001-2025)
 }
 
 _FOREST_ECOSYSTEMS = (Ecosystem.forest, Ecosystem.primary_forest)
 _NATURAL_ECOSYSTEMS = (
-    Ecosystem.natural_land, Ecosystem.natural_forest,
-    Ecosystem.wetland, Ecosystem.peatland, Ecosystem.mangrove,
+    Ecosystem.natural_land,
+    Ecosystem.natural_forest,
+    Ecosystem.wetland,
+    Ecosystem.peatland,
+    Ecosystem.mangrove,
 )
 _FOREST_OR_ALL = _FOREST_ECOSYSTEMS + (Ecosystem.all,)
 _DATASET_NAMES = {ds["dataset_id"]: ds["dataset_name"] for ds in DATASETS}
@@ -237,10 +254,17 @@ def choose_dataset(
     eco = ecosystem.value
 
     # Q3: Carbon measurement always routes to Forest GHG flux
-    if measurement_type in (MeasurementType.carbon_emissions, MeasurementType.net_carbon_flux):
+    if measurement_type in (
+        MeasurementType.carbon_emissions,
+        MeasurementType.net_carbon_flux,
+    ):
         dataset_id = 6
         context_layer = None
-        carbon_type = "net carbon flux" if measurement_type == MeasurementType.net_carbon_flux else "carbon emissions"
+        carbon_type = (
+            "net carbon flux"
+            if measurement_type == MeasurementType.net_carbon_flux
+            else "carbon emissions"
+        )
         if ecosystem not in _FOREST_OR_ALL:
             note = f"No carbon data for {eco}; showing Forest GHG Net Flux"
             reason = f"No carbon data is available for {eco}; showing Forest GHG Net Flux as the closest match for your {carbon_type} question."
@@ -262,7 +286,9 @@ def choose_dataset(
     # Q2: Ecosystem sets the default dataset
     if ecosystem in _FOREST_ECOSYSTEMS:
         dataset_id = 7  # tree cover (2000 baseline)
-        context_layer = "primary_forest" if ecosystem == Ecosystem.primary_forest else None
+        context_layer = (
+            "primary_forest" if ecosystem == Ecosystem.primary_forest else None
+        )
     elif ecosystem == Ecosystem.grassland:
         dataset_id = 2
         context_layer = None
@@ -277,9 +303,13 @@ def choose_dataset(
     if change_type == ChangeType.gain:
         if ecosystem in _FOREST_OR_ALL:
             dataset_id = 5
-            reason = f"Showing Tree Cover Gain because you asked about {eco} gain."
+            reason = (
+                f"Showing Tree Cover Gain because you asked about {eco} gain."
+            )
         else:
-            fallback_name = _DATASET_NAMES.get(dataset_id, "the closest dataset")
+            fallback_name = _DATASET_NAMES.get(
+                dataset_id, "the closest dataset"
+            )
             note = f"No gain data for {eco}; showing {fallback_name}"
             reason = f"No gain data is available for {eco}; showing {fallback_name} as the closest match."
 
@@ -299,7 +329,9 @@ def choose_dataset(
                     context_layer = None
                     reason = f"Showing Tree Cover Loss because you asked about {eco} loss."
         else:
-            fallback_name = _DATASET_NAMES.get(dataset_id, "the closest dataset")
+            fallback_name = _DATASET_NAMES.get(
+                dataset_id, "the closest dataset"
+            )
             note = f"No loss data for {eco}; showing {fallback_name}"
             reason = f"No loss data is available for {eco}; showing {fallback_name} as the closest match."
 
@@ -309,14 +341,14 @@ def choose_dataset(
             dataset_id = 1
             reason = f"Showing Global Land Cover because you asked about land cover change involving {eco}."
         else:
-            reason = f"Showing Natural Grasslands because you asked about grassland change."
+            reason = "Showing Natural Grasslands because you asked about grassland change."
 
     else:
         # No change type — extent/baseline question, use ecosystem default
         if ecosystem in _FOREST_ECOSYSTEMS:
             reason = f"Showing Tree Cover extent for your {eco} question."
         elif ecosystem == Ecosystem.grassland:
-            reason = f"Showing Natural Grasslands for your grasslands question."
+            reason = "Showing Natural Grasslands for your grasslands question."
         elif ecosystem in _NATURAL_ECOSYSTEMS:
             reason = f"Showing SBTN Natural Lands for your {eco} question."
         else:
