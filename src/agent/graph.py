@@ -19,8 +19,8 @@ from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
 from src.agent.skills import all_skills, read_skill
 from src.agent.state import AgentState
-from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
-from src.agent.tools import pull_data
+from src.agent.subagents import generate_insights, pick_aoi
+from src.agent.tools import pick_land_change_dataset, pull_data
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -91,7 +91,7 @@ UI / map selections (when the message mentions a UI action or changed map select
 
 tools = [
     pick_aoi,
-    pick_dataset,
+    pick_land_change_dataset,
     pull_data,
     generate_insights,
     read_skill,
