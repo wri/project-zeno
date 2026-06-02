@@ -8,14 +8,19 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import time
 import warnings
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
+from langchain_core.tools import tool
+
+from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, query_index
 
 DATA_DIR = Path(__file__).resolve().parents[4] / "data" / "wri_insights"
 DEFAULT_MODEL = "google_genai:gemini-3.5-flash"
@@ -33,11 +38,22 @@ You have access to a directory of markdown (.md) files.
 
 ## Your workflow
 
+Do ONE round of searching, shortlist, read only what's promising, then answer.
+Do NOT run repeated series of lookups.
+
 1. **Understand the query** — identify the key topics, entities, and intent.
-2. **Search broadly** — use `grep` to find articles mentioning key terms.
-   Try multiple search terms if the first attempt yields few results.
-3. **Narrow down** — read the top candidate articles to verify relevance.
-4. **Synthesize** — write a concise answer citing specific paragraphs.
+2. **Search (required)** — you MUST use BOTH tools (~5 results each):
+   - `sgrep` — semantic search; finds paragraphs by meaning even when exact
+     keywords don't match. Run it ONCE.
+   - `grep` — exact/regex keyword search (ripgrep); best for specific terms,
+     names, acronyms, or numbers. Run it a couple of times with different
+     query phrasings.
+   Run `sgrep` once, then `grep` with 2-3 MAX different query phrasings, be aware this 
+   is an exact search operation.
+3. **Shortlist & read** — collect the candidate slugs from the search results.
+   Use `article_meta` to read their titles/abstracts and decide which are
+   genuinely relevant, then `read_file` only those promising articles.
+4. **Answer** — synthesize a concise, well-cited answer from what you read.
 
 ## Citation format
 
@@ -72,10 +88,63 @@ def _silence_logs() -> None:
     warnings.filterwarnings("ignore")
 
 
+@lru_cache(maxsize=1)
+def _article_index() -> dict[str, dict]:
+    """Load index.json once, keyed by slug."""
+    data = json.loads((DATA_DIR / "index.json").read_text(encoding="utf-8"))
+    return {a["slug"]: a for a in data["articles"]}
+
+
+@tool
+def article_meta(slugs: list[str]) -> str:
+    """Look up metadata (title, abstract, url, lastmod) for shortlisted articles.
+
+    Use this to decide whether an article is worth reading in full, instead of
+    opening the large index.json yourself. Accepts article slugs or filenames
+    (the "<slug>.md" paths returned by sgrep/grep).
+
+    Args:
+        slugs: Article slugs or "<slug>.md" filenames to look up.
+    """
+    index = _article_index()
+    lines = []
+    for s in slugs:
+        slug = s[:-3] if s.endswith(".md") else s
+        a = index.get(slug)
+        if a is None:
+            lines.append(f"{slug}: not found")
+        else:
+            lines.append(
+                f"{slug} ({a['lastmod']})\n  {a['title']}\n  {a['abstract']}\n  {a['url']}"
+            )
+    return "\n".join(lines)
+
+
+@tool
+def sgrep(query: str, top: int = 5) -> str:
+    """Semantic search over the WRI blog articles.
+
+    Finds the most relevant paragraphs by meaning, even when exact keywords
+    don't match. Returns matches as "<file>:<line> (<score>): <text>" lines,
+    where <file> is the article path you can pass to read_file.
+
+    Args:
+        query: Natural-language search query.
+        top: Maximum number of paragraphs to return (default: 5).
+    """
+    results = query_index(DEFAULT_INDEX_DIR, query, k=top)
+    if not results:
+        return "No matching paragraphs found."
+    return "\n".join(
+        f"{r['file']}:{r['line']} ({r['score']:.2f}): {r['text']}" for r in results
+    )
+
+
 def create_search_agent(model: str = DEFAULT_MODEL) -> Any:
     """Create a deep agent backed by the local articles directory."""
     return create_deep_agent(
         model=model,
+        tools=[sgrep, article_meta],
         backend=FilesystemBackend(
             root_dir=str(DATA_DIR),
             virtual_mode=True,
