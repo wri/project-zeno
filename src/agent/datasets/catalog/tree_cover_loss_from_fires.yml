@@ -1,0 +1,95 @@
+dataset_id: 10
+dataset_name: Tree cover loss by fires
+context_layers:
+- value: primary_forest
+  description: Shows tree cover loss due to fires within humid tropical primary forests across pan-tropical regions. Default to this layer for general forest loss or deforestation requests when the AOI is within its extent, unless the user explicitly asks for all tree cover, non-primary/secondary forest, plantations, or otherwise indicates they want forest types beyond primary forest.
+  extent:  [-180.0, -30, 180.0, 30]
+  tile_url: https://tiles.globalforestwatch.org/umd_regional_primary_forest_2001/v201901/uint16/{z}/{x}/{y}.png
+  start_date: '2002-01-01'
+- value: intact_forest
+  description: Tree cover loss due to fires within intact forest landscapes (IFLs) — large, undisturbed natural forest expanses free of significant human activity. Use this layer when the user explicitly asks for intact forest loss, or as the default context layer for deforestation/forest loss requests when primary_forest is not available for the AOI.
+  tile_url: https://tiles.globalforestwatch.org/ifl_intact_forest_landscapes/v2025/default/{z}/{x}/{y}.png
+  start_date: '2000-01-01'
+parameters:
+- name: canopy_cover
+  description: Minimum percent each 30m pixel is covered by forest canopy in year 2000 to count as a forest.
+  values: [10, 15, 20, 25, 30, 50, 75]
+  tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_density_2000/v1.8/tcd_{threshold}/{z}/{x}/{y}.png
+tile_url: https://tiles.globalforestwatch.org/umd_tree_cover_loss_from_fires/v1.13/dynamic/{z}/{x}/{y}.png?tree_cover_density_threshold={threshold}&render_type=true_color
+license: CC by 4.0
+geographic_coverage: Global land area (excluding Antarctica and other Arctic islands)
+resolution: 30 x 30 meters
+update_frequency: annual
+content_date: 2001-2025 annual
+start_date: '2001-01-01'
+end_date: '2025-12-31'
+content_date_fixed: false
+keywords:
+- deforestation
+- forest loss
+- disturbance
+- fires
+analytics_api_endpoint: /v0/land_change/tree_cover_loss/analytics
+prompt_instructions: 'Reports gross annual tree cover loss split into fires vs. non-fires (2001-2025). Always show a stacked
+  bar chart of tree_cover_loss_from_fires_area_ha and tree_cover_loss_non_fires_area_ha by year — these two fields sum to
+  the total tree cover loss (area_ha). Do NOT show carbon emissions for this dataset. If users ask for intra-year or
+  seasonal breakdown, refuse and remind that the data is annual only. The 2011-2025 data was produced using an updated
+  methodology so comparisons between, and trends across the periods 2001-2010 and 2011-2025 should be performed with caution.
+  If neither primary nor intact forest is applied as a context layer, DO NOT use the term "deforestation"; use "tree cover
+  loss" instead. The product measures canopy loss only; it doesn''t track regrowth or permanence. Use 30% threshold.
+
+  '
+selection_hints: 'Best dataset for questions about annual tree cover loss split by fires vs. other causes (2001-2025) at 30m
+  resolution. Returns fires area and non-fires area that sum to total TCL — use this when the user asks specifically about
+  fire-driven loss or wants to compare fire vs. non-fire loss. Does not provide carbon emissions. Covers all vegetation >5m
+  height including plantations unless primary or intact forest is applied as a context layer. Annual resolution only; cannot
+  answer intra-year or seasonal questions. Methodology changed between 2010 and 2011; cross-period trend comparisons need caution.
+
+  '
+code_instructions: 'CHART TYPE: If the data contains more than one year, use a stacked bar chart with x=tree_cover_loss_year
+  and two stacked series: tree_cover_loss_from_fires_area_ha and tree_cover_loss_non_fires_area_ha. If the data contains
+  only a single year or is a total across all years (one row), use a pie chart instead with the same two fields as slices.
+  Do not plot area_ha separately in either case. Rename fields before plotting: tree_cover_loss_from_fires_area_ha → "Tree cover loss due to fires",
+  tree_cover_loss_non_fires_area_ha → "All other tree cover loss". NEVER show carbon_emissions_MgCO2e for this dataset.
+  DATA RULES: - Drop rows where area_ha = 0 - Use 30% canopy density threshold - If primary_forest or intact_forest
+  variable is active, filter accordingly DO/DON''T: - If neither primary_forest nor intact_forest is active,
+  DO NOT use the term "deforestation"; use "tree cover loss" - If user asks for intra-year or seasonal breakdown, REFUSE
+  — data is annual only - Warn about 2001-2010 vs 2011-2025 methodology difference when showing trends across both periods
+
+  '
+presentation_instructions: 'Use "tree cover loss" rather than "deforestation" only when neither primary nor intact forest
+  is applied as a context layer. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
+  used (30%). Do not mention or report carbon emissions for this dataset. If trend spans 2001-2025, note the methodology
+  change after 2010. If a context layer is applied, prefer referencing the data concisely like "primary forest loss" or
+  "intact forest loss". CHART TITLE: should reflect that the chart shows total tree cover loss split by fires vs. other causes.
+
+  '
+description: 'Tree Cover Loss From Fires (Hansen/UMD/GLAD) measures areas of tree cover loss due to fire compared to all other drivers across all global land (except Antarctica and other Arctic islands) at approximately 30 × 30-meter resolution.
+  '
+methodology: 'This data is produced by the [Global Land Analysis & Discovery (GLAD) lab](https://glad.geog.umd.edu/) at the University of Maryland (UMD) and measures areas of tree cover loss due to fire compared to all other drivers across all global land (except Antarctica and other Arctic islands) at approximately 30 × 30-meter resolution. The data were generated using global Landsat-based annual change detection metrics for 2001-2025 as input data to a set of regionally calibrated classification tree ensemble models. The result of the mapping process can be viewed as a set of binary maps (tree cover loss due to fire vs. tree cover loss due to all other drivers).
+
+ In this data set, “tree cover” is defined as all vegetation greater than 5 meters in height and may take the form of natural forests or plantations across a range of canopy densities. Tree cover loss is defined as “stand replacement disturbance” which is clearing of at least half of tree cover within a 30-meter pixel. The exact threshold is variable both through space and time and is biome-dependent. Tree cover loss due to fire may be caused by natural or human-induced fire activity.
+
+  The analysis method for the base tree cover loss map on GFW that is used as input for this dataset has been modified in numerous ways to improve detection of boreal loss due to fire, smallholder rotation agriculture in tropical forests, selective logging, and short cycle plantations for data covering the 2011-2025 period. Due to these changes, comparing trends across the 2000-2010 and 2011-2025 periods should be [performed with caution](https://www.globalforestwatch.org/blog/data/20-years-global-tree-cover-loss-data-trends/). You can read more about updates to the tree cover loss modeling process [here](https://storage.googleapis.com/earthenginepartners-hansen/GFC-2023-v1.11/download.html).
+
+  When zoomed out (< zoom level 13), pixels of loss are shaded according to the density of loss at the 30 x 30-meter scale. Pixels with darker shading represent areas with a higher concentration of tree cover loss, whereas pixels with lighter shading indicate a lower concentration of tree cover loss. There is no variation in pixel shading when the data is at full resolution (≥ zoom level 13).
+
+  The tree cover density of the displayed data varies according to the selection - use the legend on the map to change the minimum tree cover canopy density threshold.
+  '
+cautions: 'Tree cover is defined as all vegetation greater than 5 meters in height and may take the form of natural forests or plantations across a range of canopy densities. Tree cover loss is defined as “stand replacement disturbance” which is considered to be clearing of at least half of tree cover within a 30-meter pixel. The exact threshold is variable both through space and time and is biome-dependent. This may not necessarily equate to deforestation.
+
+  This dataset does not include low-intensity and understory forest fires that do not result in substantial tree canopy loss at the scale of a 30 m pixel. Fires within recent forest loss due to other drivers are also excluded. Therefore, this data does not include the burning of felled logs following mechanical canopy removal, which is common in slash and burn agriculture and large-scale deforestation.
+
+  Consistent with the global tree cover loss map on GFW, this data only maps the first stand replacing forest disturbance for each pixel between 2001 and 2025. Areas of tree cover loss due to fire that occurred when forest regrowth followed an initial disturbance early in the study period are not detected in this data.
+
+  Comparing trends across the 2000-2010 and 2011-2025 periods should be [performed with caution](https://www.globalforestwatch.org/blog/data/20-years-global-tree-cover-loss-data-trends/).
+  '
+function_usage_notes: 'Identifies areas of gross tree cover loss due to fires
+
+  '
+providers: 'Tyukavina, A., P. Potapov, M.C. Hansen, A.H. Pickens, S.V. Stehman, S. Turubanova, D. Parker, et al. 2022. “Global Trends of Forest Loss Due to Fire From 2001 to 2019.” Frontiers in Remote Sensing 3. [https://www.frontiersin.org/article/10.3389/frsen.2022.825190](https://www.frontiersin.org/journals/remote-sensing/articles/10.3389/frsen.2022.825190/).
+  Data available at [https://glad.umd.edu/dataset/Fire_GFL/](https://glad.umd.edu/dataset/Fire_GFL/).
+  '
+citation: 'Tyukavina, A., P. Potapov, M.C. Hansen, A.H. Pickens, S.V. Stehman, S. Turubanova, D. Parker, et al. 2022. “Global Trends of Forest Loss Due to Fire From 2001 to 2019.” Frontiers in Remote Sensing 3. [https://www.frontiersin.org/article/10.3389/frsen.2022.825190](https://www.frontiersin.org/journals/remote-sensing/articles/10.3389/frsen.2022.825190/).
+  Data available at [https://glad.umd.edu/dataset/Fire_GFL/](https://glad.umd.edu/dataset/Fire_GFL/)
+  '
