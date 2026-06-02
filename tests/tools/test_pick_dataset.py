@@ -1071,13 +1071,13 @@ async def test_queries_return_no_dataset(query, start_date, end_date):
         (
             "Can you show tell me how land has changed since 2000?",
             "2000-01-01",
-            "2025-01-01",
+            "2025-12-31",
         ),
         # Could mean a couple different baselines
         (
-            "What's the baseline extent of natural vegetation before any recent conversions?",
-            None,
-            None,
+            "Brazil deforestation linked to agricultural commodities in 2017?",
+            "2017-01-01",
+            "2017-12-31",
         ),
     ],
 )
