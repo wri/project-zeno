@@ -53,6 +53,7 @@ dependencies = [
     "beautifulsoup4>=4.14.3",
     "trafilatura>=2.0.0",
     "deepagents[quickjs]>=0.4.12",
+    "model2vec>=0.8.2",
 ]
 
 [dependency-groups]
@@ -99,6 +100,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[project.scripts]
+sgrep = "src.agent.utils.sgrep:main"
 
 [tool.mypy]
 python_version = "3.12"
