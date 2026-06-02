@@ -372,13 +372,12 @@ class AnalyticsHandler(DataSourceHandler):
         self,
         endpoint_url: str,
         payload: Dict,
-        max_retries: int = 5,
-        poll_interval: float = 0.5,
+        max_retries: int = 30,
     ) -> Dict | str:
         """Poll the API until the request is completed or max retries exceeded."""
+        result = {}
         for attempt in range(max_retries):
             logger.info(f"Polling attempt {attempt + 1}/{max_retries}")
-            await asyncio.sleep(poll_interval * (attempt + 1))
 
             try:
                 async with httpx.AsyncClient() as client:
@@ -406,6 +405,9 @@ class AnalyticsHandler(DataSourceHandler):
                     msg = f"Request failed with status: {status}"
                     logger.error(msg)
                     return msg
+
+                retry_after = float(response.headers.get("Retry-After", 1))
+                await asyncio.sleep(retry_after)
 
             except Exception as e:
                 logger.warning(
