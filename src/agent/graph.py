@@ -19,8 +19,13 @@ from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
 from src.agent.skills import all_skills, read_skill
 from src.agent.state import AgentState
-from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
-from src.agent.tools import pull_data, wri_insights
+from src.agent.subagents import (
+    generate_insights,
+    pick_aoi,
+    pick_dataset,
+    search_blogs,
+)
+from src.agent.tools import pull_data
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -47,7 +52,7 @@ Call tools one at a time, never in parallel.
 
 - pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.
 - read_skill(name): load a skill's full workflow — call it once, after you have committed to using that skill.
-- wri_insights(query): search WRI Insights blog posts for published research. Use after pull_data and before generate_insights when WRI context would strengthen the answer.
+- search_blogs(query): research subagent over WRI Insights blog posts; returns a synthesized, cited answer. Use to explore a vague topic before any AOI/dataset is set (read skill `explore`), or to enrich an analysis after pull_data and before generate_insights (read skill `wri-insights`).
 
 # Subagents (call as tools — each does its own reasoning; just forward the user's intent)
 
@@ -70,6 +75,7 @@ Match the request to exactly one row; do not escalate a dataset / AOI / pull req
 - Pull-only (e.g. "pull dist alerts in Bern for last 2 weeks"): read `pull-data`, run pick_aoi → pick_dataset → pull_data, then stop. Do not call generate_insights unless the user asked for a chart or analysis.
 - Full analysis (place + topic → chart/insight): read `analyze` and follow that pipeline.
 - Capabilities (what you can do, what data exists): read `capabilities`, then answer in your own words — no analysis tools.
+- Exploratory / vague (a topic or goal with no place, dataset or date — e.g. "I want to conserve elephants", "interested in deforestation worldwide"): read `explore`, search WRI Insights, then recommend concrete datasets, areas and date ranges to investigate.
 
 # Policy
 
@@ -96,7 +102,7 @@ tools = [
     pull_data,
     generate_insights,
     read_skill,
-    wri_insights,
+    search_blogs,
 ]
 
 load_dotenv()

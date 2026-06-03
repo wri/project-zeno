@@ -2,7 +2,7 @@
 
 Usage:
     uv run python -m src.agent.subagents.search.blog "renewable energy in Africa"
-    uv run python -m src.agent.subagents.search.blog --model anthropic:claude-haiku-4-6 "forest fires"
+    uv run python -m src.agent.subagents.search.blog --model sonnet "forest fires"
 """
 
 from __future__ import annotations
@@ -18,12 +18,14 @@ from typing import Any
 
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
+from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import tool
 
+from src.agent.llms import MODEL_REGISTRY, SMALL_MODEL
 from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, query_index
 
 DATA_DIR = Path(__file__).resolve().parents[4] / "data" / "wri_insights"
-DEFAULT_MODEL = "google_genai:gemini-3.5-flash"
+DEFAULT_MODEL = SMALL_MODEL
 BLOG_SEARCH_PROMPT = """\
 You are a WRI (World Resources Institute) research assistant.
 Your job is to search through a library of WRI Insights blog articles
@@ -48,7 +50,7 @@ Do NOT run repeated series of lookups.
    - `grep` — exact/regex keyword search (ripgrep); best for specific terms,
      names, acronyms, or numbers. Run it a couple of times with different
      query phrasings.
-   Run `sgrep` once, then `grep` with 2-3 MAX different query phrasings, be aware this 
+   Run `sgrep` once, then `grep` with 2-3 MAX different query phrasings, be aware this
    is an exact search operation.
 3. **Shortlist & read** — collect the candidate slugs from the search results.
    Use `article_meta` to read their titles/abstracts and decide which are
@@ -136,11 +138,12 @@ def sgrep(query: str, top: int = 5) -> str:
     if not results:
         return "No matching paragraphs found."
     return "\n".join(
-        f"{r['file']}:{r['line']} ({r['score']:.2f}): {r['text']}" for r in results
+        f"{r['file']}:{r['line']} ({r['score']:.2f}): {r['text']}"
+        for r in results
     )
 
 
-def create_search_agent(model: str = DEFAULT_MODEL) -> Any:
+def create_search_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
     """Create a deep agent backed by the local articles directory."""
     return create_deep_agent(
         model=model,
@@ -167,7 +170,36 @@ def _extract_text(msg) -> str:
     return ""
 
 
-def run_search(query: str, model: str = DEFAULT_MODEL) -> dict:
+@lru_cache(maxsize=1)
+def _cached_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
+    return create_search_agent(model=model)
+
+
+@tool("search_blogs")
+async def search_blogs(query: str) -> str:
+    """Search WRI Insights blog articles and return a synthesized, cited answer.
+
+    Runs a dedicated research agent that semantically and keyword-searches the
+    local WRI Insights corpus, reads the most relevant articles, and writes a
+    concise answer with markdown citations to wri.org/insights. Use to ground a
+    response in WRI's published research or to explore a topic before analysis.
+
+    Args:
+        query: The topic or question to research (a place or theme helps).
+    """
+    result = await _cached_agent().ainvoke(
+        {"messages": [{"role": "user", "content": query}]}
+    )
+    messages = result.get("messages", [])
+    for msg in reversed(messages):
+        if type(msg).__name__ == "AIMessage":
+            text = _extract_text(msg)
+            if text:
+                return text
+    return "No answer produced by the blog search."
+
+
+def run_search(query: str, model: str | BaseChatModel = DEFAULT_MODEL) -> dict:
     """Run a search with streaming step-by-step output."""
     agent = create_search_agent(model=model)
 
@@ -253,16 +285,19 @@ def main() -> None:
     parser.add_argument("query", help="Search query")
     parser.add_argument(
         "--model",
-        default=DEFAULT_MODEL,
-        help=f"Model to use (default: {DEFAULT_MODEL})",
+        default=None,
+        choices=sorted(MODEL_REGISTRY),
+        help="Model name from the registry (default: configured small model)",
     )
     args = parser.parse_args()
 
+    model = MODEL_REGISTRY[args.model] if args.model else DEFAULT_MODEL
+
     print(f"Query: {args.query}")
-    print(f"Model: {args.model}")
+    print(f"Model: {args.model or 'small (default)'}")
     print()
 
-    result = run_search(args.query, model=args.model)
+    result = run_search(args.query, model=model)
 
     print(
         f"{result['elapsed_s']}s | {result['n_messages']} messages | "

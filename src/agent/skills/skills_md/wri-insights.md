@@ -1,24 +1,22 @@
 ---
 name: wri-insights
-description: Search WRI Insights blog posts for published research to ground analysis and cite sources.
+description: Enrich an analysis with WRI Insights published research to ground findings and cite sources.
 when_to_use: Before or during full analysis when WRI's published perspective would strengthen the answer (policy context, drivers, methodology, regional background). Also when the user asks about WRI research or wants citations from wri.org/insights.
 ---
 
 # Workflow
 
-1. Call `wri_insights` with a short query (topic + place or dataset theme). Use `max_articles=2` unless the user needs broader coverage.
-2. **Immediately after** the tool returns (and before any other tool call): send a **short intermediate message** to the user summarizing what WRI published material adds — **every paragraph must include at least one markdown link** to a blog post from the tool output (title link, `[§N](url#pN)`, or the canonical URL). No other tools until this message is sent.
-3. Read returned articles for the next steps. Each article has a **URL:** line and paragraph tags like `[§1](url#p1)` — reuse these in your summary.
-4. In full analysis (`analyze` skill): call `wri_insights` **after** a successful `pull_data` and **before** `generate_insights` when WRI context would add value. In the intermediate message, connect the blog findings to the pulled data topic; then call `generate_insights`, incorporating that context in the analysis query when helpful.
-5. If the index is missing, tell the user to run `uv run python scripts/fetch_wri_insights.py --limit 50` — do not guess article content.
+1. Call `search_blogs` with a short query (topic + place or dataset theme). It runs a research subagent that searches and reads the WRI Insights corpus and returns a **synthesized answer with markdown citations** to wri.org/insights — you do not need to read articles yourself.
+2. **Immediately after** the tool returns (and before any other tool call): send a **short intermediate message** to the user that condenses the subagent's answer into 1-3 sentences. **Every paragraph must keep at least one markdown link** to a blog post from the tool output. No other tools until this message is sent.
+3. In full analysis (`analyze` skill): call `search_blogs` **after** a successful `pull_data` and **before** `generate_insights` when WRI context would add value. In the intermediate message, connect the blog findings to the pulled data topic; then call `generate_insights`, incorporating that context in the analysis query when helpful.
+4. If the search returns "index not found" or no results, tell the user to run `uv run python scripts/fetch_wri_insights.py --limit 50` (and build the sgrep index with `sgrep index`) — do not guess article content.
 
 Call tools **one at a time**, never in parallel.
 
 # Citing WRI Insights
 
-- Only cite articles returned by `wri_insights`. Do not invent URLs or titles.
-- When quoting a specific claim, use the paragraph link from the tool output, e.g. `[§3](https://www.wri.org/insights/example#p3)`.
-- For general reference to an article, link the title or a short phrase to the **URL:** from that article.
+- Only cite links returned by `search_blogs`. Do not invent URLs or titles.
+- Reuse the markdown links exactly as they appear in the tool output (e.g. `[§3](https://www.wri.org/insights/example#p3)` or a title/URL link).
 
 # Ending insights with blog links
 

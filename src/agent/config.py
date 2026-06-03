@@ -10,7 +10,7 @@ class _AgentSettings(BaseSettings):
 
     # Model configuration
     model: str = Field(default="gemini", alias="MODEL")
-    small_model: str = Field(default="gemini-flash", alias="SMALL_MODEL")
+    small_model: str = Field(default="haiku", alias="SMALL_MODEL")
     coding_model: str = Field(
         default="gemini-3.1-pro-preview", alias="CODING_MODEL"
     )

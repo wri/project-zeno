@@ -9,12 +9,12 @@ load_dotenv()
 
 # Anthropic
 SONNET = ChatAnthropic(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-4-6",
     temperature=0,
     max_tokens=64_000,  # Sonnet has a limit of max 64000 tokens
 )
 HAIKU = ChatAnthropic(
-    model="claude-3-5-haiku-latest",
+    model="claude-haiku-4-5",
     temperature=0,
     max_tokens=8_192,  # Haiku has a limit of max 8192 tokens
 )

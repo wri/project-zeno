@@ -14,6 +14,7 @@ Defaults:
 import argparse
 import json
 import sys
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -22,8 +23,13 @@ from model2vec import StaticModel
 _ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DATA_DIR = _ROOT / "data" / "wri_insights"
 DEFAULT_INDEX_DIR = _ROOT / "data" / "wri_insights_index"
+MODEL_NAME = "minishlab/potion-retrieval-32M"
 
-model = StaticModel.from_pretrained("minishlab/potion-retrieval-32M")
+
+@lru_cache(maxsize=1)
+def get_model() -> StaticModel:
+    """Load the embedding model lazily on first use."""
+    return StaticModel.from_pretrained(MODEL_NAME)
 
 
 def normalize(v):
@@ -48,33 +54,57 @@ def build_index(data_dir: Path, index_dir: Path):
     meta, texts = [], []
     for path in sorted(data_dir.rglob("*.md")):
         for line, text in paragraphs(path.read_text(encoding="utf-8")):
-            meta.append({"file": str(path.relative_to(data_dir)), "line": line, "text": text})
+            meta.append(
+                {
+                    "file": str(path.relative_to(data_dir)),
+                    "line": line,
+                    "text": text,
+                }
+            )
             texts.append(text)
 
-    emb = normalize(model.encode(texts)).astype("float32")
+    emb = normalize(get_model().encode(texts)).astype("float32")
     index_dir.mkdir(parents=True, exist_ok=True)
     np.save(index_dir / "embeddings.npy", emb)
     (index_dir / "meta.jsonl").write_text(
-        "\n".join(json.dumps(m, ensure_ascii=False) for m in meta), encoding="utf-8")
-    print(f"indexed {len(texts)} paragraphs from {len({m['file'] for m in meta})} files -> {index_dir}")
+        "\n".join(json.dumps(m, ensure_ascii=False) for m in meta),
+        encoding="utf-8",
+    )
+    print(
+        f"indexed {len(texts)} paragraphs from {len({m['file'] for m in meta})} files -> {index_dir}"
+    )
 
 
 def paint(s, code):
     return f"\033[{code}m{s}\033[0m" if sys.stdout.isatty() else str(s)
 
 
-def query_index(index_dir: Path, query: str, k: int = 10, threshold: float = 0.3) -> list[dict]:
+def query_index(
+    index_dir: Path, query: str, k: int = 10, threshold: float = 0.3
+) -> list[dict]:
     """Return the top-k matching paragraphs as a list of result dicts."""
     emb = np.load(index_dir / "embeddings.npy", mmap_mode="r")
-    meta = [json.loads(l) for l in (index_dir / "meta.jsonl").read_text(encoding="utf-8").splitlines()]
-    scores = np.asarray(emb @ normalize(model.encode([query])[0]))
+    meta = [
+        json.loads(line)
+        for line in (index_dir / "meta.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    scores = np.asarray(emb @ normalize(get_model().encode([query])[0]))
 
     results = []
     for i in np.argsort(-scores)[:k]:
         if scores[i] < threshold:
             break
         m = meta[i]
-        results.append({"file": m["file"], "line": m["line"], "score": float(scores[i]), "text": m["text"]})
+        results.append(
+            {
+                "file": m["file"],
+                "line": m["line"],
+                "score": float(scores[i]),
+                "text": m["text"],
+            }
+        )
     return results
 
 
@@ -84,7 +114,9 @@ def search(index_dir: Path, query: str, k: int = 10, threshold: float = 0.3):
         if r["file"] != last:
             print(f"\n{paint(r['file'], 35)}")
             last = r["file"]
-        print(f"{paint(r['line'], 32)}:{paint(f'{r['score']:.2f}', 33)}: {r['text'][:120]}")
+        print(
+            f"{paint(r['line'], 32)}:{paint(f'{r['score']:.2f}', 33)}: {r['text'][:120]}"
+        )
 
 
 def main():
@@ -119,11 +151,27 @@ def main():
         metavar="INDEX_DIR",
         help=f"index storage directory (default: {DEFAULT_INDEX_DIR})",
     )
-    srch.add_argument("--top", type=int, default=10, metavar="N", help="number of results (default: 10)")
-    srch.add_argument("--threshold", type=float, default=0.3, help="minimum similarity score (default: 0.3)")
+    srch.add_argument(
+        "--top",
+        type=int,
+        default=10,
+        metavar="N",
+        help="number of results (default: 10)",
+    )
+    srch.add_argument(
+        "--threshold",
+        type=float,
+        default=0.3,
+        help="minimum similarity score (default: 0.3)",
+    )
 
     # allow bare `sgrep "query"` without the search subcommand
-    if len(sys.argv) > 1 and sys.argv[1] not in ("index", "search", "-h", "--help"):
+    if len(sys.argv) > 1 and sys.argv[1] not in (
+        "index",
+        "search",
+        "-h",
+        "--help",
+    ):
         sys.argv.insert(1, "search")
 
     args = parser.parse_args()
@@ -131,7 +179,12 @@ def main():
     if args.cmd == "index":
         build_index(args.data.resolve(), args.index.resolve())
     elif args.cmd == "search":
-        search(args.index.resolve(), args.query, k=args.top, threshold=args.threshold)
+        search(
+            args.index.resolve(),
+            args.query,
+            k=args.top,
+            threshold=args.threshold,
+        )
     else:
         parser.print_help()
 
