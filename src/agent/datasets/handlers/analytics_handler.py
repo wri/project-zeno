@@ -136,7 +136,7 @@ SLUC_EMISSION_FACTORS_ID = [
 TREE_COVER_LOSS_BY_FIRES_ID = [
     ds["dataset_id"]
     for ds in DATASETS
-    if ds["dataset_name"] == "Tree cover loss by fires"
+    if ds["dataset_name"] == "Tree cover due to fires"
 ][0]
 
 
