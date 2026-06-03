@@ -1,5 +1,5 @@
 dataset_id: 10
-dataset_name: Tree cover loss by fires
+dataset_name: Tree cover loss due to fires
 context_layers:
 - value: primary_forest
   description: Shows tree cover loss due to fires within humid tropical primary forests across pan-tropical regions. Default to this layer for general forest loss or deforestation requests when the AOI is within its extent, unless the user explicitly asks for all tree cover, non-primary/secondary forest, plantations, or otherwise indicates they want forest types beyond primary forest.
