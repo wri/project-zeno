@@ -500,7 +500,10 @@ def get_tile_services_for_dataset(
             "{threshold}", str(canopy_cover)
         )
 
-    if selected_row.dataset_id == TREE_COVER_LOSS_ID:
+    if (
+        selected_row.dataset_id == TREE_COVER_LOSS_ID
+        or selected_row.dataset_id == TREE_COVER_LOSS_BY_FIRES_ID
+    ):
         if end_date.year in range(2001, 2026):
             tile_url += (
                 f"&start_year={start_date.year}&end_year={end_date.year}"
