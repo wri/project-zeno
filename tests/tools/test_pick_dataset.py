@@ -84,6 +84,7 @@ CARBON_FLUX = "forest greenhouse gas net flux"
 TREE_COVER = "tree cover"
 TREE_COVER_LOSS_BY_DRIVER = "tree cover loss by driver"
 SLUC_EF = "deforestation (sLUC) emission factors by agricultural crop"
+TREE_COVER_LOSS_FROM_FIRES = "tree cover loss by fires"
 
 lookup = {
     0: DIST_ALERT,
@@ -96,6 +97,7 @@ lookup = {
     7: TREE_COVER,
     8: TREE_COVER_LOSS_BY_DRIVER,
     9: SLUC_EF,
+    10: TREE_COVER_LOSS_FROM_FIRES,
 }
 
 
@@ -143,7 +145,7 @@ def _query_case_id(param):
             LAND_COVER_CHANGE,
         ),
         (
-            "I'm studying urbanization patterns in sub-Saharan Africa between 2020 and 2024",
+            "I'm studying urbanization patterns in sub-Saharan Africa between 2015 and 2024",
             LAND_COVER_CHANGE,
         ),
         (
@@ -198,14 +200,20 @@ def _query_case_id(param):
         (
             "What areas of forest are acting as net carbon sinks versus sources?",
             CARBON_FLUX,
+            "2000-01-01",
+            "2025-12-31",
         ),
         (
             "Show me forest carbon emissions and removals in the Congo Basin",
             CARBON_FLUX,
+            "2000-01-01",
+            "2025-12-31",
         ),
         (
             "Which forest regions contribute most to greenhouse gas emissions?",
             CARBON_FLUX,
+            "2000-01-01",
+            "2025-12-31",
         ),
         # Dataset 7 queries (Tree cover) - baseline tree canopy density
         (
@@ -223,7 +231,7 @@ def _query_case_id(param):
         # Dataset 8 queries (Tree cover loss by driver) - tree cover loss by driver
         (
             "What areas of forest are experiencing the most tree cover loss due to wildfire?",
-            TREE_COVER_LOSS_BY_DRIVER,
+            TREE_COVER_LOSS_FROM_FIRES,
         ),
         (
             "Show me areas of tree cover loss by driver in the Congo Basin",
@@ -235,7 +243,7 @@ def _query_case_id(param):
         ),
         (
             "What regions experienced the most fire-related tree cover loss?",
-            TREE_COVER_LOSS_BY_DRIVER,
+            TREE_COVER_LOSS_FROM_FIRES,
         ),
         # ------------------------------------------------------------------
         # Tiered selection_hints (mirrors test_pick_dataset_tiered.py)
@@ -1063,13 +1071,13 @@ async def test_queries_return_no_dataset(query, start_date, end_date):
         (
             "Can you show tell me how land has changed since 2000?",
             "2000-01-01",
-            "2025-01-01",
+            "2025-12-31",
         ),
         # Could mean a couple different baselines
         (
-            "What's the baseline extent of natural vegetation before any recent conversions?",
-            None,
-            None,
+            "Brazil deforestation linked to agricultural commodities in 2017?",
+            "2017-01-01",
+            "2017-12-31",
         ),
     ],
 )
