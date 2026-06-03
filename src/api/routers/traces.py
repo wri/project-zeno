@@ -8,12 +8,12 @@ fields are turn-level (per the parser); cumulative thread state lives under
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth.dependencies import require_superuser
@@ -160,6 +160,263 @@ async def list_traces(
         limit=limit,
         offset=offset,
         items=[TraceListItem(**dict(r)) for r in rows],
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Analytics + sessions (declared BEFORE /{trace_id} so literals aren't shadowed)
+# --------------------------------------------------------------------------- #
+class NamedCount(BaseModel):
+    value: Optional[str] = None
+    count: int
+
+
+class DailyCount(BaseModel):
+    day: date
+    count: int
+
+
+class TraceAnalytics(BaseModel):
+    total_traces: int
+    unique_sessions: int
+    unique_users: int
+    outcome_breakdown: list[NamedCount]
+    daily_volume: list[DailyCount]
+    aoi_type_breakdown: list[NamedCount]
+    latency: dict[str, Optional[float]]
+    cost: dict[str, Optional[float]]
+    tokens: dict[str, Optional[float]]
+    tool_usage: dict[str, Optional[float]]
+
+
+class SessionItem(BaseModel):
+    session_id: str
+    user_id: Optional[str] = None
+    environment: Optional[str] = None
+    first_prompt: Optional[str] = None
+    first_timestamp: Optional[datetime] = None
+    last_timestamp: Optional[datetime] = None
+    turn_count: int
+
+
+class SessionListResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: list[SessionItem]
+
+
+def _where_sql(
+    environment: Optional[str],
+    outcome: Optional[str],
+    user_id: Optional[str],
+    start: Optional[datetime],
+    end: Optional[datetime],
+    *,
+    require_session: bool = False,
+) -> tuple[str, dict[str, Any]]:
+    """Build a parameterised WHERE clause (bound params — no injection)."""
+    clauses: list[str] = []
+    params: dict[str, Any] = {}
+    if require_session:
+        clauses.append("session_id IS NOT NULL")
+    if environment:
+        clauses.append("environment = :environment")
+        params["environment"] = environment
+    if outcome:
+        clauses.append("outcome = :outcome")
+        params["outcome"] = outcome
+    if user_id:
+        clauses.append("user_id = :user_id")
+        params["user_id"] = user_id
+    if start:
+        clauses.append("trace_timestamp >= :start")
+        params["start"] = start
+    if end:
+        clauses.append("trace_timestamp < :end")
+        params["end"] = end
+    where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+    return where, params
+
+
+def _f(x: Any) -> Optional[float]:
+    return round(float(x), 4) if x is not None else None
+
+
+@router.get("/analytics", response_model=TraceAnalytics)
+async def trace_analytics(
+    environment: Optional[str] = Query(None),
+    outcome: Optional[str] = Query(None),
+    user_id: Optional[str] = Query(None),
+    start: Optional[datetime] = Query(None),
+    end: Optional[datetime] = Query(None),
+    _superuser: UserModel = Depends(require_superuser),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+) -> TraceAnalytics:
+    """Server-side aggregates over the filtered trace set. All metrics are
+    turn-level (one row per trace), so counts/sums are not double-counted."""
+    where, params = _where_sql(environment, outcome, user_id, start, end)
+
+    summary = (
+        (
+            await session.execute(
+                text(
+                    f"""
+                SELECT
+                  count(*) AS total,
+                  count(DISTINCT session_id) AS sessions,
+                  count(DISTINCT user_id) AS users,
+                  avg(latency_seconds) AS lat_avg,
+                  percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_seconds) AS lat_p50,
+                  percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_seconds) AS lat_p95,
+                  avg(total_cost) AS cost_avg,
+                  percentile_cont(0.95) WITHIN GROUP (ORDER BY total_cost) AS cost_p95,
+                  sum(total_cost) AS cost_total,
+                  avg(turn_tokens) AS tok_avg,
+                  sum(turn_tokens) AS tok_total,
+                  avg(turn_tool_calls) AS tool_avg,
+                  avg(CASE WHEN tool_error_count > 0 THEN 1.0 ELSE 0.0 END) AS tool_err_rate
+                FROM langfuse_traces{where}
+                """
+                ),
+                params,
+            )
+        )
+        .mappings()
+        .one()
+    )
+
+    outcomes = (
+        (
+            await session.execute(
+                text(
+                    f"SELECT outcome AS value, count(*) AS count FROM langfuse_traces"
+                    f"{where} GROUP BY outcome ORDER BY count DESC"
+                ),
+                params,
+            )
+        )
+        .mappings()
+        .all()
+    )
+
+    daily = (
+        (
+            await session.execute(
+                text(
+                    f"SELECT date_trunc('day', trace_timestamp)::date AS day, "
+                    f"count(*) AS count FROM langfuse_traces{where} "
+                    f"GROUP BY day ORDER BY day"
+                ),
+                params,
+            )
+        )
+        .mappings()
+        .all()
+    )
+
+    aoi = (
+        (
+            await session.execute(
+                text(
+                    f"SELECT aoi_type AS value, count(*) AS count FROM langfuse_traces"
+                    f"{where}{' AND' if where else ' WHERE'} aoi_type IS NOT NULL "
+                    f"GROUP BY aoi_type ORDER BY count DESC"
+                ),
+                params,
+            )
+        )
+        .mappings()
+        .all()
+    )
+
+    return TraceAnalytics(
+        total_traces=int(summary["total"] or 0),
+        unique_sessions=int(summary["sessions"] or 0),
+        unique_users=int(summary["users"] or 0),
+        outcome_breakdown=[NamedCount(**dict(r)) for r in outcomes],
+        daily_volume=[DailyCount(**dict(r)) for r in daily],
+        aoi_type_breakdown=[NamedCount(**dict(r)) for r in aoi],
+        latency={
+            "avg": _f(summary["lat_avg"]),
+            "p50": _f(summary["lat_p50"]),
+            "p95": _f(summary["lat_p95"]),
+        },
+        cost={
+            "avg": _f(summary["cost_avg"]),
+            "p95": _f(summary["cost_p95"]),
+            "total": _f(summary["cost_total"]),
+        },
+        tokens={
+            "avg_turn_tokens": _f(summary["tok_avg"]),
+            "total_turn_tokens": _f(summary["tok_total"]),
+        },
+        tool_usage={
+            "avg_tool_calls": _f(summary["tool_avg"]),
+            "tool_error_rate": _f(summary["tool_err_rate"]),
+        },
+    )
+
+
+@router.get("/sessions", response_model=SessionListResponse)
+async def list_sessions(
+    environment: Optional[str] = Query(None),
+    user_id: Optional[str] = Query(None),
+    start: Optional[datetime] = Query(None),
+    end: Optional[datetime] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    _superuser: UserModel = Depends(require_superuser),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+) -> SessionListResponse:
+    """Conversation browser: one row per session (thread), newest first, with the
+    first prompt of the thread and a turn count."""
+    where, params = _where_sql(
+        environment, None, user_id, start, end, require_session=True
+    )
+
+    total = int(
+        (
+            await session.execute(
+                text(
+                    f"SELECT count(DISTINCT session_id) FROM langfuse_traces{where}"
+                ),
+                params,
+            )
+        ).scalar()
+        or 0
+    )
+
+    rows = (
+        (
+            await session.execute(
+                text(
+                    f"""
+                SELECT session_id,
+                       max(user_id) AS user_id,
+                       max(environment) AS environment,
+                       (array_agg(prompt ORDER BY trace_timestamp ASC))[1] AS first_prompt,
+                       min(trace_timestamp) AS first_timestamp,
+                       max(trace_timestamp) AS last_timestamp,
+                       count(*) AS turn_count
+                FROM langfuse_traces{where}
+                GROUP BY session_id
+                ORDER BY max(trace_timestamp) DESC NULLS LAST
+                LIMIT :limit OFFSET :offset
+                """
+                ),
+                {**params, "limit": limit, "offset": offset},
+            )
+        )
+        .mappings()
+        .all()
+    )
+
+    return SessionListResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        items=[SessionItem(**dict(r)) for r in rows],
     )
 
 

@@ -125,3 +125,113 @@ async def test_detail_404(client, auth_override, superuser_factory):
     su = await superuser_factory("su_404@example.com")
     auth_override(su.id)
     assert (await client.get("/api/traces/nope", headers=H)).status_code == 404
+
+
+# --- analytics -------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_analytics(client, auth_override, superuser_factory):
+    su = await superuser_factory("su_an@example.com")
+    auth_override(su.id)
+    await _seed_trace(
+        "a1",
+        outcome="ANSWER",
+        aoi_type="country",
+        user_id="u1",
+        session_id="s1",
+        latency_seconds=1.0,
+        total_cost=0.01,
+        turn_tokens=100,
+        turn_tool_calls=2,
+        tool_error_count=0,
+        trace_timestamp=datetime(2026, 6, 1, tzinfo=timezone.utc),
+    )
+    await _seed_trace(
+        "a2",
+        outcome="ANSWER",
+        aoi_type="state-province",
+        user_id="u1",
+        session_id="s1",
+        latency_seconds=3.0,
+        total_cost=0.03,
+        turn_tokens=200,
+        turn_tool_calls=1,
+        tool_error_count=1,
+        trace_timestamp=datetime(2026, 6, 1, 2, tzinfo=timezone.utc),
+    )
+    await _seed_trace(
+        "a3",
+        outcome="ERROR",
+        user_id="u2",
+        session_id="s2",
+        latency_seconds=2.0,
+        total_cost=0.02,
+        turn_tokens=0,
+        turn_tool_calls=0,
+        tool_error_count=0,
+        trace_timestamp=datetime(2026, 6, 2, tzinfo=timezone.utc),
+    )
+
+    # the literal /analytics route must not be shadowed by /{trace_id}
+    resp = await client.get("/api/traces/analytics", headers=H)
+    assert resp.status_code == 200
+    b = resp.json()
+    assert b["total_traces"] == 3
+    assert b["unique_sessions"] == 2
+    assert b["unique_users"] == 2
+    assert {o["value"]: o["count"] for o in b["outcome_breakdown"]} == {
+        "ANSWER": 2,
+        "ERROR": 1,
+    }
+    assert {a["value"]: a["count"] for a in b["aoi_type_breakdown"]} == {
+        "country": 1,
+        "state-province": 1,
+    }
+    assert len(b["daily_volume"]) == 2
+    assert b["latency"]["avg"] == 2.0
+    assert b["cost"]["total"] == 0.06
+    assert b["tokens"]["total_turn_tokens"] == 300.0
+    assert round(b["tool_usage"]["tool_error_rate"], 2) == 0.33
+
+
+@pytest.mark.asyncio
+async def test_analytics_requires_superuser(client, auth_override, user):
+    auth_override(user.id)
+    assert (
+        await client.get("/api/traces/analytics", headers=H)
+    ).status_code == 403
+
+
+# --- sessions --------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_sessions(client, auth_override, superuser_factory):
+    su = await superuser_factory("su_sess@example.com")
+    auth_override(su.id)
+    await _seed_trace(
+        "sx1",
+        session_id="sx",
+        user_id="u1",
+        prompt="first question",
+        trace_timestamp=datetime(2026, 6, 1, 0, tzinfo=timezone.utc),
+    )
+    await _seed_trace(
+        "sx2",
+        session_id="sx",
+        user_id="u1",
+        prompt="second question",
+        trace_timestamp=datetime(2026, 6, 1, 1, tzinfo=timezone.utc),
+    )
+    await _seed_trace(
+        "sy1",
+        session_id="sy",
+        user_id="u2",
+        prompt="other thread",
+        trace_timestamp=datetime(2026, 6, 2, tzinfo=timezone.utc),
+    )
+
+    b = (await client.get("/api/traces/sessions", headers=H)).json()
+    assert b["total"] == 2
+    # newest session first (sy at day 2)
+    assert b["items"][0]["session_id"] == "sy"
+    sx = next(s for s in b["items"] if s["session_id"] == "sx")
+    assert sx["turn_count"] == 2
+    assert sx["first_prompt"] == "first question"  # earliest turn's prompt
