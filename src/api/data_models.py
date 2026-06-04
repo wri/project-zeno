@@ -264,16 +264,16 @@ def _utcnow() -> datetime:
 
 
 class LangfuseTraceOrm(Base):
-    """A Langfuse trace (= one agent turn) ingested into Postgres.
+    """Derived analytics for one Langfuse trace (= one agent turn).
 
-    Hybrid storage: the full raw payload lives in ``raw`` (single source of
-    truth — it already nests input/output/metadata), plus a flat set of derived
-    columns for the analytics axes. Domain fields are parsed against the agent's
-    own ``AgentState`` contract (src/agent/state.py); turn-level metrics are
-    computed from the active-turn message window (NOT the whole accumulated
-    history). ``session_id``/``user_id``/``insight_id`` are SOFT references
-    (nullable, no FK) — many traces won't match (machine users, dev envs,
-    deleted threads), so all joins are LEFT JOINs and resolve-rate is monitored.
+    Stores only the small derived/analytics columns — Langfuse remains the store
+    of record for the full raw trace, fetched on demand for the detail view.
+    Domain fields are parsed against the agent's own ``AgentState`` contract
+    (src/agent/state.py); turn-level metrics are computed from the active-turn
+    message window (NOT the whole accumulated history). ``session_id`` /
+    ``user_id`` / ``insight_id`` are SOFT references (nullable, no FK) — many
+    traces won't match (machine users, dev envs, deleted threads), so all joins
+    are LEFT JOINs and resolve-rate is monitored.
     """
 
     __tablename__ = "langfuse_traces"
@@ -290,12 +290,6 @@ class LangfuseTraceOrm(Base):
     # datetime.now convention used by older tables in this module).
     trace_timestamp = Column(DateTime(timezone=True), nullable=True)
     trace_updated_at = Column(DateTime(timezone=True), nullable=True)
-
-    # Raw payload (single source of truth) + thin metadata projection.
-    raw = Column(JSONB, nullable=False)
-    trace_metadata = Column(
-        JSONB, nullable=True
-    )  # trace.metadata (reserved name)
 
     # --- Turn-level metrics (from the active-turn window) ---
     prompt = Column(String, nullable=True)

@@ -5,9 +5,9 @@ Revises: 9f8e7d6c5b4a
 Create Date: 2026-06-03 13:22:04.018053
 
 Hand-written (alembic autogenerate is disabled: env.py sets target_metadata=None).
-Creates langfuse_traces (hybrid raw JSONB + derived columns) and
-langfuse_ingestion_runs (watermark + drift-observability). No FK constraints:
-session_id/user_id/insight_id are soft references.
+Creates langfuse_traces (derived analytics columns) and langfuse_ingestion_runs
+(watermark + drift-observability). No FK constraints: session_id/user_id/insight_id
+are soft references.
 """
 
 from typing import Sequence, Union
@@ -42,9 +42,6 @@ def upgrade() -> None:
         sa.Column(
             "trace_updated_at", sa.DateTime(timezone=True), nullable=True
         ),
-        # Raw payload + metadata projection
-        sa.Column("raw", _jsonb(), nullable=False),
-        sa.Column("trace_metadata", _jsonb(), nullable=True),
         # Turn-level metrics
         sa.Column("prompt", sa.String(), nullable=True),
         sa.Column("answer", sa.String(), nullable=True),
