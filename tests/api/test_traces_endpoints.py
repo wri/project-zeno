@@ -11,14 +11,23 @@ H = {"Authorization": "Bearer test-token"}
 
 
 async def _seed_trace(trace_id: str, **kw) -> None:
-    raw = kw.pop(
-        "raw", {"input": {"messages": []}, "output": {"messages": []}}
-    )
     async with async_session_maker() as session:
-        session.add(
-            LangfuseTraceOrm(id=trace_id, raw=raw, parser_version=1, **kw)
-        )
+        session.add(LangfuseTraceOrm(id=trace_id, parser_version=1, **kw))
         await session.commit()
+
+
+def _stub_langfuse_fetch(monkeypatch, trace):
+    """Stub the on-demand single-trace Langfuse fetch the detail endpoint uses."""
+
+    class _Stub:
+        @classmethod
+        def from_env(cls):
+            return cls()
+
+        def fetch_trace(self, trace_id):
+            return trace
+
+    monkeypatch.setattr("src.api.routers.traces.LangfuseClient", _Stub)
 
 
 # --- auth ------------------------------------------------------------------
@@ -97,27 +106,42 @@ async def test_list_pagination(client, auth_override, superuser_factory):
 
 # --- detail ----------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_detail_returns_input_output_derived(
-    client, auth_override, superuser_factory
+async def test_detail_returns_derived_from_db_and_io_from_langfuse(
+    client, auth_override, superuser_factory, monkeypatch
 ):
     su = await superuser_factory("su_detail@example.com")
     auth_override(su.id)
-    raw = {
-        "input": {"messages": [{"type": "human", "content": "hi"}]},
-        "output": {"messages": [], "aoi_selection": {"name": "Brazil"}},
-    }
     await _seed_trace(
-        "d1",
-        outcome="ANSWER",
-        answer="the answer",
-        raw=raw,
-        derived={"aoi_count": 1},
+        "d1", outcome="ANSWER", answer="the answer", derived={"aoi_count": 1}
+    )
+    # input/output come live from Langfuse, not our DB
+    _stub_langfuse_fetch(
+        monkeypatch,
+        {
+            "input": {"messages": [{"type": "human", "content": "hi"}]},
+            "output": {"messages": [], "aoi_selection": {"name": "Brazil"}},
+        },
     )
     b = (await client.get("/api/traces/d1", headers=H)).json()
-    assert b["answer"] == "the answer"
-    assert b["output"]["aoi_selection"]["name"] == "Brazil"
-    assert b["input"]["messages"][0]["content"] == "hi"
-    assert b["derived"]["aoi_count"] == 1
+    assert b["answer"] == "the answer"  # from our DB
+    assert b["derived"]["aoi_count"] == 1  # from our DB
+    assert b["raw_available"] is True
+    assert b["output"]["aoi_selection"]["name"] == "Brazil"  # from Langfuse
+    assert b["input"]["messages"][0]["content"] == "hi"  # from Langfuse
+
+
+@pytest.mark.asyncio
+async def test_detail_raw_unavailable(
+    client, auth_override, superuser_factory, monkeypatch
+):
+    su = await superuser_factory("su_unavail@example.com")
+    auth_override(su.id)
+    await _seed_trace("d2", outcome="ANSWER", answer="kept")
+    _stub_langfuse_fetch(monkeypatch, None)  # Langfuse 404 / unreachable
+    b = (await client.get("/api/traces/d2", headers=H)).json()
+    assert b["raw_available"] is False
+    assert b["input"] is None and b["output"] is None
+    assert b["answer"] == "kept"  # derived columns still served
 
 
 @pytest.mark.asyncio

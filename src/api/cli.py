@@ -655,11 +655,6 @@ def _parse_cli_dt(s: str) -> datetime:
     help="Fetch page / upsert batch size.",
 )
 @click.option(
-    "--reparse",
-    is_flag=True,
-    help="Re-derive from stored raw (no Langfuse fetch).",
-)
-@click.option(
     "--dry-run", is_flag=True, help="Fetch + parse but do not write."
 )
 def ingest_langfuse_traces_command(
@@ -670,12 +665,10 @@ def ingest_langfuse_traces_command(
     overlap_hours: int,
     chunk_hours: int,
     batch_size: int,
-    reparse: bool,
     dry_run: bool,
 ):
     """Ingest Langfuse traces into Postgres (idempotent upsert)."""
     from src.api.services.langfuse.ingest import (
-        reparse_stored,
         resolve_start_watermark,
         run_ingestion,
     )
@@ -684,13 +677,6 @@ def ingest_langfuse_traces_command(
         db = DatabaseManager()
         try:
             async with db.async_session() as session:
-                if reparse:
-                    n = await reparse_stored(session, batch_size=batch_size)
-                    click.echo(
-                        f"✅ Reparsed {n} traces to parser_version current"
-                    )
-                    return
-
                 until_dt = (
                     _parse_cli_dt(until)
                     if until

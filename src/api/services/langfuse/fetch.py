@@ -101,6 +101,42 @@ class LangfuseClient:
                     )
                     limit = new_limit
 
+    def fetch_trace(self, trace_id: str) -> Optional[dict[str, Any]]:
+        """Fetch a single trace by id (the cheap/reliable path). Returns the
+        trace dict, or None if it doesn't exist (404). Raises
+        ``LangfuseFetchError`` only on persistent transport/server failure."""
+        url = f"{self.host}{_TRACES_PATH}/{trace_id}"
+        attempt = 0
+        with httpx.Client(timeout=self.timeout) as client:
+            while True:
+                try:
+                    resp = client.get(
+                        url, auth=(self.public_key, self.secret_key)
+                    )
+                except httpx.RequestError as e:
+                    attempt += 1
+                    if attempt > self.max_retries:
+                        raise LangfuseFetchError(
+                            f"network error fetching {trace_id}: {e}"
+                        ) from e
+                    time.sleep(_backoff(attempt))
+                    continue
+
+                if resp.status_code == 404:
+                    return None
+                if resp.status_code == 429 or resp.status_code >= 500:
+                    attempt += 1
+                    if attempt > self.max_retries:
+                        raise LangfuseFetchError(
+                            f"{resp.status_code} fetching {trace_id} "
+                            f"past max_retries"
+                        )
+                    time.sleep(_retry_after(resp) or _backoff(attempt))
+                    continue
+
+                resp.raise_for_status()
+                return resp.json()
+
     # -- internals --------------------------------------------------------- #
     def _fetch_all_pages(
         self,

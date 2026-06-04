@@ -8,6 +8,7 @@ fields are turn-level (per the parser); cumulative thread state lives under
 
 from __future__ import annotations
 
+import asyncio
 from datetime import date, datetime
 from typing import Any, Optional
 
@@ -19,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.auth.dependencies import require_superuser
 from src.api.data_models import LangfuseTraceOrm
 from src.api.schemas import UserModel
+from src.api.services.langfuse.fetch import LangfuseClient
 from src.shared.database import get_session_from_pool_dependency
 
 router = APIRouter(prefix="/api/traces", tags=["traces"])
@@ -67,7 +69,9 @@ class TraceDetail(TraceListItem):
     parse_error: Optional[str] = None
     recognized_contract: Optional[bool] = None
     derived: Optional[dict[str, Any]] = None
-    metadata: Optional[dict[str, Any]] = None
+    # input/output are fetched live from Langfuse (the raw-trace store of record);
+    # raw_available is False if Langfuse 404s or is unreachable.
+    raw_available: bool = False
     input: Optional[Any] = None
     output: Optional[Any] = None
 
@@ -426,8 +430,9 @@ async def get_trace(
     _superuser: UserModel = Depends(require_superuser),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> TraceDetail:
-    """Full detail for one trace, including input/output (the AgentState
-    snapshot) and the derived bundle."""
+    """Full detail for one trace: our derived columns from Postgres, plus the
+    `input`/`output` (the AgentState snapshot) fetched live from Langfuse, which
+    is the store of record for the raw trace."""
     row = (
         await session.execute(
             select(LangfuseTraceOrm).where(LangfuseTraceOrm.id == trace_id)
@@ -436,7 +441,12 @@ async def get_trace(
     if row is None:
         raise HTTPException(status_code=404, detail="Trace not found")
 
-    raw = row.raw if isinstance(row.raw, dict) else {}
+    trace = await asyncio.to_thread(
+        LangfuseClient.from_env().fetch_trace, trace_id
+    )
+    raw_available = isinstance(trace, dict)
+    trace = trace or {}
+
     return TraceDetail(
         id=row.id,
         session_id=row.session_id,
@@ -467,7 +477,7 @@ async def get_trace(
         parse_error=row.parse_error,
         recognized_contract=row.recognized_contract,
         derived=row.derived,
-        metadata=row.trace_metadata,
-        input=raw.get("input"),
-        output=raw.get("output"),
+        raw_available=raw_available,
+        input=trace.get("input"),
+        output=trace.get("output"),
     )

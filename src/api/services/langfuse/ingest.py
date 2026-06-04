@@ -65,8 +65,9 @@ def _parse_dt(raw: Any) -> Optional[datetime]:
 # Row building
 # --------------------------------------------------------------------------- #
 def build_row(trace: dict[str, Any]) -> dict[str, Any]:
-    """Map a raw trace to a langfuse_traces row dict. Parse failures still yield
-    a row (raw + parse_error) so one bad trace never aborts the batch."""
+    """Map a trace to a langfuse_traces (derived analytics) row dict. Parse
+    failures still yield a row (identity + parse_error) so one bad trace never
+    aborts the batch."""
     row: dict[str, Any] = {
         "id": trace.get("id"),
         "session_id": trace.get("sessionId"),
@@ -74,8 +75,6 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
         "environment": trace.get("environment"),
         "trace_timestamp": _parse_dt(trace.get("timestamp")),
         "trace_updated_at": _parse_dt(trace.get("updatedAt")),
-        "raw": trace,
-        "trace_metadata": trace.get("metadata"),
         "latency_seconds": trace.get("latency"),
         "total_cost": trace.get("totalCost"),
         "parsed_at": _utcnow(),
@@ -367,37 +366,3 @@ async def run_ingestion(
     if not dry_run:
         await session.commit()
     return result
-
-
-# --------------------------------------------------------------------------- #
-# Reparse (no Langfuse re-fetch)
-# --------------------------------------------------------------------------- #
-async def reparse_stored(
-    session: AsyncSession,
-    *,
-    batch_size: int = 300,
-    limit: Optional[int] = None,
-) -> int:
-    """Re-derive columns from stored ``raw`` for rows below the current
-    PARSER_VERSION. Date-bounded/limited and chunked; never one big transaction."""
-    total = 0
-    while True:
-        stmt = (
-            select(LangfuseTraceOrm.id, LangfuseTraceOrm.raw)
-            .where(LangfuseTraceOrm.parser_version < P.PARSER_VERSION)
-            .limit(batch_size)
-        )
-        rows = (await session.execute(stmt)).all()
-        if not rows:
-            break
-        updates = []
-        for tid, raw in rows:
-            new = build_row(raw)
-            new["id"] = tid
-            updates.append(new)
-        await _upsert(session, updates)
-        await session.commit()
-        total += len(updates)
-        if limit is not None and total >= limit:
-            break
-    return total

@@ -24,12 +24,9 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-# Bump on any change to derivation logic, then run `ingest-langfuse-traces
-# --reparse`. Keep PARSER_CHANGELOG in sync so reparse can target affected work.
+# Bump on any change to derivation logic; to apply it to existing rows, re-run
+# ingestion for the affected window (`ingest-langfuse-traces --backfill --since`).
 PARSER_VERSION = 1
-PARSER_CHANGELOG = {
-    1: "Initial: AgentState-contract state parsing + active-turn-window metrics.",
-}
 
 # Top-level keys we expect on ``trace.output`` (the AgentState snapshot).
 # Used for drift detection: unknown keys => additive drift (benign, logged);
