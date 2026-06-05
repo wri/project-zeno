@@ -69,33 +69,13 @@ The commands below use tag `zeno-evals-v1` from the [gnw-evals](https://github.c
 
 ```bash
 # Filter to one test group with --test-group-filter
+# --sample-size -1 runs all matching rows (default is 5)
 uvx --from "git+https://github.com/wri/gnw-evals@zeno-evals-v1" gnw_evals \
     --test-file $(pwd)/tests/evals/datasets/evals.csv \
     --test-group-filter regression \
+    --sample-size -1 \
     --num-workers 3 \
     --num-trials 1
-```
-
-```bash
-uvx --from "git+https://github.com/wri/gnw-evals@zeno-evals-v1" gnw_evals \
-    --test-file $(pwd)/tests/evals/datasets/evals.csv \
-    --num-workers 3 \
-    --num-trials 1 \
-    --sample-size 5 \
-    --offset 0
-```
-
-## Running against staging
-
-Run from the **project-zeno root directory**.
-
-```bash
-uvx --from "git+https://github.com/wri/gnw-evals@zeno-evals-v1" gnw_evals \
-    --test-file $(pwd)/tests/evals/datasets/evals.csv \
-    --num-workers 3 \
-    --num-trials 1 \
-    --sample-size 5 \
-    --offset 0
 ```
 
 Or trigger the `Evals` workflow manually from the GitHub Actions tab.
