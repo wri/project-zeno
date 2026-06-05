@@ -440,6 +440,7 @@ class AnalyzeRequest(BaseModel):
     dataset_id: int
     start_date: str
     end_date: str
+    thread_id: Optional[str] = None
 
 
 class AnalyzeResponse(BaseModel):

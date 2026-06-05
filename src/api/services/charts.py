@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
 from src.agent.datasets.handlers.base import DataPullResult
 
 
@@ -20,8 +19,11 @@ def _column_to_rows(data: dict) -> list[dict]:
 
 
 class TCLChartGenerator(ChartGenerator):
+    def __init__(self, dataset_id: int):
+        self.dataset_id = dataset_id
+
     def can_handle(self, dataset_id: int) -> bool:
-        return dataset_id == TREE_COVER_LOSS_ID
+        return dataset_id == self.dataset_id
 
     def generate(self, result: DataPullResult) -> list[dict]:
         rows = [
