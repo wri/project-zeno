@@ -52,4 +52,17 @@ Do not use subregion:
 For whole-world questions ("globally", "worldwide", "the whole world", "all
 countries"), return a global synonym as the place (e.g. "global") with
 subregion=country. Global queries only support subregion=country.
+
+# aoi_type
+
+The four types of area of interests (AOIs) are GADM (names of administrative areas
+such as country; region or state or province; subregion or county), WDPA (protected
+areas or parks), Landmark (indigenous areas or territories), and KBAs (key
+biodiversity areas). If the user query has relevant words that would suggest one
+particular type of AOI, then set aoi_type to "gadm", "wdpa", "landmark", or "kba".
+For instance, the use of the word 'state' or 'district' would suggest only looking up
+place names in GADM. The use of "territory" might suggest looking up in Landmark, and
+the use of "park" might suggest WDPA. You do not need to include territory, nation,
+or park in the place name, if it seems be a more generic usage of the word.
+
 """
