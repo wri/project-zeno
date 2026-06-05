@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.agent.graph import close_checkpointer_pool, get_checkpointer_pool
 from src.api.routers import (
     admin,
+    analyze,
     chat,
     custom_areas,
     geometry,
@@ -97,6 +98,7 @@ async def logging_middleware(request: Request, call_next) -> Response:
     return response
 
 
+app.include_router(analyze.router)
 app.include_router(chat.router)
 app.include_router(threads.router)
 app.include_router(users.router)

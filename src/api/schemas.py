@@ -426,3 +426,24 @@ class InsightResponse(BaseModel):
 
 class InsightPublicToggleRequest(BaseModel):
     is_public: bool
+
+
+class AOIRef(BaseModel):
+    source: str
+    src_id: str
+    subtype: str
+    name: str
+
+
+class AnalyzeRequest(BaseModel):
+    aois: List[AOIRef]
+    dataset_id: int
+    start_date: str
+    end_date: str
+
+
+class AnalyzeResponse(BaseModel):
+    success: bool
+    message: str
+    data: Optional[dict] = None
+    charts: Optional[dict] = None
