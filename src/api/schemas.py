@@ -445,5 +445,6 @@ class AnalyzeRequest(BaseModel):
 class AnalyzeResponse(BaseModel):
     success: bool
     message: str
-    data: Optional[dict] = None
-    charts: Optional[dict] = None
+    charts_data: Optional[List[dict]] = None
+    source_urls: Optional[List[str]] = None
+    codeact_parts: List[dict] = []

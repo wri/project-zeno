@@ -25,6 +25,6 @@ async def analyze(
     return AnalyzeResponse(
         success=result.data.success,
         message=result.data.message,
-        data=result.data.data,
-        charts=result.charts,
+        charts_data=result.charts,
+        source_urls=result.source_urls,
     )
