@@ -59,7 +59,7 @@ async def _get_retriever():
             embedding=embeddings,
         )
         retriever_cache = index.as_retriever(
-            search_type="similarity", search_kwargs={"k": 3}
+            search_type="similarity", search_kwargs={"k": 5}
         )
     return retriever_cache
 
@@ -85,6 +85,25 @@ async def rag_candidate_datasets(query: str, k=3):
     return pd.DataFrame(candidate_datasets)
 
 
+SELECTION_RULES = """- Only choose a dataset if it can usefully answer ALL parts of the user's question.
+- If no candidate can do that, return dataset_id as null and explain in the reason field what data we do have and why it falls short.
+- Use the selection hints above — they are the primary signal for which dataset fits.
+- Select a context layer when its description matches the query (pre-filtered to the AOI).
+- Select parameters only when relevant; use only values listed in the dataset.
+- If the user specifies a date range or time granularity (e.g. monthly, a specific year, daily alerts), only select a dataset if it genuinely supports that.
+- Pick the most granular dataset/context layer/parameters that matches the query.
+- Keep explanations concise. Do not reference dataset IDs."""
+
+
+def _format_selection_hints(candidate_datasets: pd.DataFrame) -> str:
+    lines = []
+    for _, row in candidate_datasets.iterrows():
+        hints = (row.get("selection_hints") or "").strip()
+        if hints:
+            lines.append(f"{row['dataset_name']}:\n{hints}")
+    return "\n\n".join(lines) if lines else ""
+
+
 async def select_best_dataset(
     query: str,
     candidate_datasets: pd.DataFrame,
@@ -97,45 +116,34 @@ async def select_best_dataset(
             ("system", DATASET_SELECTOR_PROMPT),
             (
                 "user",
-                """Only choose a dataset if it can usefully answer all parts of the user's question.
-    If no candidate can do that, return dataset_id as null and clearly explain in the reason field
-    what data we do have and why it falls short.
-    Use all information provided to decide which dataset is the best match, especially the selection hints.
+                """## When to prefer each candidate dataset
 
-    Select a single context layer from the filtered_context_layers in candidate datasets for the dataset if relevant for the user query.
-    Context layers allow differentiating between different types of data within the same dataset. So if a user asks
-    to show something like "show me tree cover loss by driver", you should select a context layer. These are pre-filtered
-    to match the spatiotemporal query constraints.
+{selection_hints}
 
-    Select parameters and values if they are relevant or specified in the user query. Parameters allow further filtering
-    the analysis to better answer the query. Select only values listed in the value field for a parameter. For example,
-    if a user says "show me tree cover loss in forests where canopy cover is greater than 50%", you may select the parameter canopy cover
-    and value 50.
+## Rules
 
-    If the user specifies a date range or time granularity (e.g. monthly, a specific year, daily
-    alerts), only select a dataset if it genuinely supports that. If no candidate does, return null
-    and tell the user what dates and granularity are available instead.
+{rules}
 
-    Pick the most granular dataset/contextual layer/parameters that matches the query.
+## Candidate datasets
 
-    Keep explanations concise. Do not use datset IDs to describe the dataset.
-    For instance, instead of saying "Dataset ID: 123", say "Dataset: Tree Cover Loss".
+{candidate_datasets}
 
-    Use the language of the user query to generate the reason, not the language of any place mentioned in the query.
+## User query
 
-    Candidate datasets:
+{user_query}
 
-    {candidate_datasets}
+## Removed contextual layers
 
-    User query:
+{removed_layers}
 
-    {user_query}
+## Reminder: when to prefer each candidate dataset
 
-    The following contextual layers can not be picked right now for the listed reasons:
+{selection_hints}
 
-    {removed_layers}
+## Reminder: rules
 
-    """,
+{rules}
+""",
             ),
         ]
     )
@@ -156,6 +164,8 @@ async def select_best_dataset(
         candidate_datasets["context_layers"] = filtered_layers
         removed_df = removed_layers.to_csv(index=False)
 
+    selection_hints = _format_selection_hints(candidate_datasets)
+
     return await dataset_selection_chain.ainvoke(
         {
             "candidate_datasets": candidate_datasets[
@@ -163,6 +173,8 @@ async def select_best_dataset(
             ].to_csv(index=False),
             "user_query": query,
             "removed_layers": removed_df,
+            "selection_hints": selection_hints,
+            "rules": SELECTION_RULES,
         }
     )
 
@@ -488,7 +500,10 @@ def get_tile_services_for_dataset(
             "{threshold}", str(canopy_cover)
         )
 
-    if selected_row.dataset_id == TREE_COVER_LOSS_ID:
+    if (
+        selected_row.dataset_id == TREE_COVER_LOSS_ID
+        or selected_row.dataset_id == TREE_COVER_LOSS_BY_FIRES_ID
+    ):
         if end_date.year in range(2001, 2026):
             tile_url += (
                 f"&start_year={start_date.year}&end_year={end_date.year}"
