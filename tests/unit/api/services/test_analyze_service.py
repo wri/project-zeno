@@ -1,10 +1,13 @@
 import pytest
 
-from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.api.services.analyze import AnalyzeService
+from src.api.services.charts import ChartGenerator
 
-LAND_COVER_CHANGE_ID = 1  # non-TCL dataset for "not implemented" tests
+UNHANDLED_DATASET_ID = 1
+HANDLED_DATASET_ID = 99
+
+FAKE_CHARTS = [{"id": "chart_0", "title": "Fake", "type": "bar"}]
 
 
 class FakeHandler(DataSourceHandler):
@@ -35,6 +38,14 @@ class FakeHandler(DataSourceHandler):
         return self._result
 
 
+class FakeChartGenerator(ChartGenerator):
+    def can_handle(self, dataset_id: int) -> bool:
+        return dataset_id == HANDLED_DATASET_ID
+
+    def generate(self, result: DataPullResult) -> list[dict]:
+        return FAKE_CHARTS
+
+
 AOI = {
     "source": "gadm",
     "src_id": "BRA",
@@ -42,30 +53,21 @@ AOI = {
     "name": "Brazil",
 }
 SUCCESS_RESULT = DataPullResult(
-    success=True, data={"rows": []}, message="ok", data_points_count=5
+    success=True,
+    data={"rows": []},
+    message="ok",
+    data_points_count=5,
+    analytics_api_url="https://analytics.example.com/result/abc123",
 )
 FAILURE_RESULT = DataPullResult(
     success=False, data=None, message="upstream error", data_points_count=0
-)
-TCL_RESULT = DataPullResult(
-    success=True,
-    message="ok",
-    data_points_count=3,
-    analytics_api_url="https://analytics.example.com/result/abc123",
-    data={
-        "year": [2020, 2021, 2022],
-        "area_ha": [1000.0, 0.0, 3000.0],
-        "emissions_MgCO2e": [500.0, 0.0, 1500.0],
-        "aoi_id": ["BRA"] * 3,
-        "aoi_type": ["admin"] * 3,
-    },
 )
 
 
 @pytest.mark.asyncio
 async def test_analyze_passes_correct_args_to_handler():
     handler = FakeHandler(SUCCESS_RESULT)
-    service = AnalyzeService(handler)
+    service = AnalyzeService(handler, [])
 
     await service.analyze(
         aois=[AOI],
@@ -83,7 +85,7 @@ async def test_analyze_passes_correct_args_to_handler():
 @pytest.mark.asyncio
 async def test_analyze_always_passes_change_over_time_false():
     handler = FakeHandler(SUCCESS_RESULT)
-    service = AnalyzeService(handler)
+    service = AnalyzeService(handler, [])
 
     await service.analyze(
         aois=[AOI],
@@ -98,7 +100,7 @@ async def test_analyze_always_passes_change_over_time_false():
 @pytest.mark.asyncio
 async def test_analyze_returns_data_on_success():
     handler = FakeHandler(SUCCESS_RESULT)
-    service = AnalyzeService(handler)
+    service = AnalyzeService(handler, [])
 
     result = await service.analyze(
         aois=[AOI],
@@ -114,7 +116,7 @@ async def test_analyze_returns_data_on_success():
 @pytest.mark.asyncio
 async def test_analyze_propagates_failed_pull():
     handler = FakeHandler(FAILURE_RESULT)
-    service = AnalyzeService(handler)
+    service = AnalyzeService(handler, [])
 
     result = await service.analyze(
         aois=[AOI],
@@ -128,13 +130,28 @@ async def test_analyze_propagates_failed_pull():
 
 
 @pytest.mark.asyncio
-async def test_get_charts_returns_none_for_unimplemented_dataset():
+async def test_uses_matching_generator():
     handler = FakeHandler(SUCCESS_RESULT)
-    service = AnalyzeService(handler)
+    service = AnalyzeService(handler, [FakeChartGenerator()])
 
     result = await service.analyze(
         aois=[AOI],
-        dataset_id=LAND_COVER_CHANGE_ID,
+        dataset_id=HANDLED_DATASET_ID,
+        start_date="2020-01-01",
+        end_date="2020-12-31",
+    )
+
+    assert result.charts == FAKE_CHARTS
+
+
+@pytest.mark.asyncio
+async def test_returns_none_charts_when_no_generator_matches():
+    handler = FakeHandler(SUCCESS_RESULT)
+    service = AnalyzeService(handler, [FakeChartGenerator()])
+
+    result = await service.analyze(
+        aois=[AOI],
+        dataset_id=UNHANDLED_DATASET_ID,
         start_date="2020-01-01",
         end_date="2020-12-31",
     )
@@ -143,116 +160,15 @@ async def test_get_charts_returns_none_for_unimplemented_dataset():
 
 
 @pytest.mark.asyncio
-async def test_tcl_returns_two_charts():
-    handler = FakeHandler(TCL_RESULT)
-    service = AnalyzeService(handler)
+async def test_exposes_source_urls_from_result():
+    handler = FakeHandler(SUCCESS_RESULT)
+    service = AnalyzeService(handler, [])
 
     result = await service.analyze(
         aois=[AOI],
-        dataset_id=TREE_COVER_LOSS_ID,
+        dataset_id=4,
         start_date="2020-01-01",
-        end_date="2022-12-31",
+        end_date="2020-12-31",
     )
 
-    assert result.charts is not None
-    assert len(result.charts) == 2
-
-
-@pytest.mark.asyncio
-async def test_tcl_loss_chart_is_bar_with_correct_axes():
-    handler = FakeHandler(TCL_RESULT)
-    service = AnalyzeService(handler)
-
-    result = await service.analyze(
-        aois=[AOI],
-        dataset_id=TREE_COVER_LOSS_ID,
-        start_date="2020-01-01",
-        end_date="2022-12-31",
-    )
-
-    loss_chart = result.charts[0]
-    assert loss_chart["type"] == "bar"
-    assert loss_chart["xAxis"] == "year"
-    assert loss_chart["yAxis"] == "area_ha"
-
-
-@pytest.mark.asyncio
-async def test_tcl_emissions_chart_is_separate_bar_with_correct_axes():
-    handler = FakeHandler(TCL_RESULT)
-    service = AnalyzeService(handler)
-
-    result = await service.analyze(
-        aois=[AOI],
-        dataset_id=TREE_COVER_LOSS_ID,
-        start_date="2020-01-01",
-        end_date="2022-12-31",
-    )
-
-    emissions_chart = result.charts[1]
-    assert emissions_chart["type"] == "bar"
-    assert emissions_chart["xAxis"] == "year"
-    assert emissions_chart["yAxis"] == "emissions_MgCO2e"
-
-
-@pytest.mark.asyncio
-async def test_tcl_charts_have_empty_insight():
-    handler = FakeHandler(TCL_RESULT)
-    service = AnalyzeService(handler)
-
-    result = await service.analyze(
-        aois=[AOI],
-        dataset_id=TREE_COVER_LOSS_ID,
-        start_date="2020-01-01",
-        end_date="2022-12-31",
-    )
-
-    for chart in result.charts:
-        assert chart["insight"] == ""
-
-
-@pytest.mark.asyncio
-async def test_tcl_charts_have_no_generation_field():
-    handler = FakeHandler(TCL_RESULT)
-    service = AnalyzeService(handler)
-
-    result = await service.analyze(
-        aois=[AOI],
-        dataset_id=TREE_COVER_LOSS_ID,
-        start_date="2020-01-01",
-        end_date="2022-12-31",
-    )
-
-    for chart in result.charts:
-        assert "generation" not in chart
-
-
-@pytest.mark.asyncio
-async def test_analyze_result_exposes_source_urls():
-    handler = FakeHandler(TCL_RESULT)
-    service = AnalyzeService(handler)
-
-    result = await service.analyze(
-        aois=[AOI],
-        dataset_id=TREE_COVER_LOSS_ID,
-        start_date="2020-01-01",
-        end_date="2022-12-31",
-    )
-
-    assert result.source_urls == [TCL_RESULT.analytics_api_url]
-
-
-@pytest.mark.asyncio
-async def test_tcl_drops_rows_where_area_ha_is_zero():
-    handler = FakeHandler(TCL_RESULT)
-    service = AnalyzeService(handler)
-
-    result = await service.analyze(
-        aois=[AOI],
-        dataset_id=TREE_COVER_LOSS_ID,
-        start_date="2020-01-01",
-        end_date="2022-12-31",
-    )
-
-    for chart in result.charts:
-        for row in chart["data"]:
-            assert row["area_ha"] != 0
+    assert result.source_urls == [SUCCESS_RESULT.analytics_api_url]

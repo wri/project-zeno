@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
-from src.agent.datasets.handlers.analytics_handler import TREE_COVER_LOSS_ID
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
+from src.api.services.charts import ChartGenerator
 
 
 @dataclass
@@ -12,48 +12,14 @@ class AnalyzeResult:
     source_urls: Optional[list[str]] = None
 
 
-def _column_to_rows(data: dict) -> list[dict]:
-    keys = list(data.keys())
-    return [dict(zip(keys, values)) for values in zip(*data.values())]
-
-
-def _tcl_charts(data: dict) -> list[dict]:
-    rows = [r for r in _column_to_rows(data) if r.get("area_ha") != 0]
-    return [
-        {
-            "id": "chart_0",
-            "title": "Annual Tree Cover Loss",
-            "type": "bar",
-            "insight": "",
-            "data": rows,
-            "xAxis": "year",
-            "yAxis": "area_ha",
-        },
-        {
-            "id": "chart_1",
-            "title": "Annual GHG Emissions from Tree Cover Loss",
-            "type": "bar",
-            "insight": "",
-            "data": rows,
-            "xAxis": "year",
-            "yAxis": "emissions_MgCO2e",
-        },
-    ]
-
-
-def get_charts(
-    result: DataPullResult, dataset_id: int
-) -> Optional[list[dict]]:
-    if not result.success or not result.data:
-        return None
-    if dataset_id == TREE_COVER_LOSS_ID:
-        return _tcl_charts(result.data)
-    return None
-
-
 class AnalyzeService:
-    def __init__(self, handler: DataSourceHandler):
+    def __init__(
+        self,
+        handler: DataSourceHandler,
+        generators: Sequence[ChartGenerator],
+    ):
         self._handler = handler
+        self._generators = generators
 
     async def analyze(
         self,
@@ -70,11 +36,15 @@ class AnalyzeService:
             change_over_time_query=False,
             aois=aois,
         )
+        charts = None
+        if result.success and result.data:
+            for gen in self._generators:
+                if gen.can_handle(dataset_id):
+                    charts = gen.generate(result)
+                    break
         source_urls = (
             [result.analytics_api_url] if result.analytics_api_url else None
         )
         return AnalyzeResult(
-            data=result,
-            charts=get_charts(result, dataset_id),
-            source_urls=source_urls,
+            data=result, charts=charts, source_urls=source_urls
         )

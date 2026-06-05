@@ -4,10 +4,12 @@ from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.api.auth.dependencies import require_auth
 from src.api.schemas import AnalyzeRequest, AnalyzeResponse, UserModel
 from src.api.services.analyze import AnalyzeService
+from src.api.services.charts import TCLChartGenerator
 
 router = APIRouter()
 
 _handler = AnalyticsHandler()
+_generators = [TCLChartGenerator()]
 
 
 @router.post("/api/analyze", response_model=AnalyzeResponse)
@@ -15,7 +17,7 @@ async def analyze(
     request: AnalyzeRequest,
     user: UserModel = Depends(require_auth),
 ):
-    service = AnalyzeService(_handler)
+    service = AnalyzeService(_handler, _generators)
     result = await service.analyze(
         aois=[aoi.model_dump() for aoi in request.aois],
         dataset_id=request.dataset_id,
