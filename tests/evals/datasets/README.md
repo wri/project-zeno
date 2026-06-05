@@ -37,7 +37,7 @@ Run these commands from the **project-zeno root directory**.
 Set credentials before running:
 
 ```bash
-export API_TOKEN=<your-gnw-machine-user-api-token>
+export API_TOKEN=<wri-bearer-token>
 export ANTHROPIC_API_KEY=<your-anthropic-api-key>
 export API_BASE_URL=<your-api-base-url>  # e.g. http://localhost:8000 or https://api.staging.globalnaturewatch.org
 ```
@@ -65,13 +65,11 @@ Options:
   --help                  Show this message and exit.
 ```
 
-Pin to the same gnw-evals SHA the CI workflow uses (see `.github/workflows/evals.yaml`):
+The commands below use tag `zeno-evals-v1` from the [gnw-evals](https://github.com/wri/gnw-evals) repo. Update the tag in the commands if a newer version is released.
 
 ```bash
-GNW_EVALS_REF=467906518809a64c45e72b3a285c4d55f7819aef
-
 # Filter to one test group with --test-group-filter
-uvx --from "git+https://github.com/wri/gnw-evals@${GNW_EVALS_REF}" gnw_evals \
+uvx --from "git+https://github.com/wri/gnw-evals@zeno-evals-v1" gnw_evals \
     --test-file $(pwd)/tests/evals/datasets/evals.csv \
     --test-group-filter regression \
     --num-workers 3 \
@@ -79,7 +77,7 @@ uvx --from "git+https://github.com/wri/gnw-evals@${GNW_EVALS_REF}" gnw_evals \
 ```
 
 ```bash
-uvx --from "git+https://github.com/wri/gnw-evals@${GNW_EVALS_REF}" gnw_evals \
+uvx --from "git+https://github.com/wri/gnw-evals@zeno-evals-v1" gnw_evals \
     --test-file $(pwd)/tests/evals/datasets/evals.csv \
     --num-workers 3 \
     --num-trials 1 \
@@ -92,7 +90,7 @@ uvx --from "git+https://github.com/wri/gnw-evals@${GNW_EVALS_REF}" gnw_evals \
 Run from the **project-zeno root directory**.
 
 ```bash
-uvx --from "git+https://github.com/wri/gnw-evals@${GNW_EVALS_REF}" gnw_evals \
+uvx --from "git+https://github.com/wri/gnw-evals@zeno-evals-v1" gnw_evals \
     --test-file $(pwd)/tests/evals/datasets/evals.csv \
     --num-workers 3 \
     --num-trials 1 \

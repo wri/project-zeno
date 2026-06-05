@@ -78,11 +78,9 @@ jobs:
 
       - name: Run evals
         id: run
-        env:
-          GNW_EVALS_REF: 467906518809a64c45e72b3a285c4d55f7819aef
         run: |
           set -o pipefail
-          uvx --from "git+https://github.com/wri/gnw-evals@${GNW_EVALS_REF}" gnw_evals \
+          uvx --from "git+https://github.com/wri/gnw-evals@zeno-evals-v1" gnw_evals \
             --test-file $(pwd)/tests/evals/datasets/evals.csv \
             --num-workers 3 \
             --num-trials 1 \
