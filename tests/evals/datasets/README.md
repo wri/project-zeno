@@ -11,7 +11,7 @@ Required:
 
 Optional (only evaluated if present):
 - `expected_aoi_ids` — GADM ID(s). Semicolon-separated for alternates.
-- `expected_dataset_id` — dataset numeric ID. Source valid IDs from the [gnw-evals spreadsheet](https://github.com/wri/gnw-evals) — should use that as the reference for current dataset IDs. Semicolon-separated for alternates.
+- `expected_dataset_id` — dataset numeric ID. Source valid IDs from the dataset catalog YAML configs in `src/agent/datasets/catalog/`.
 - `expected_context_layer` — dataset-specific; `no_selection` to assert an empty selection.
 - `expected_start_date`, `expected_end_date` — `YYYY-MM-DD` or `YYYY`.
 - `expected_answer` — natural-language answer; graded by LLM judge.
