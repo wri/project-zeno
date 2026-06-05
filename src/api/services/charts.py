@@ -34,7 +34,7 @@ class TCLChartGenerator(ChartGenerator):
                 "type": "bar",
                 "insight": "",
                 "data": rows,
-                "xAxis": "year",
+                "xAxis": "tree_cover_loss_year",
                 "yAxis": "area_ha",
             },
             {
@@ -43,7 +43,7 @@ class TCLChartGenerator(ChartGenerator):
                 "type": "bar",
                 "insight": "",
                 "data": rows,
-                "xAxis": "year",
-                "yAxis": "emissions_MgCO2e",
+                "xAxis": "tree_cover_loss_year",
+                "yAxis": "carbon_emissions_MgCO2e",
             },
         ]

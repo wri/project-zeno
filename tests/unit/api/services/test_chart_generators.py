@@ -3,9 +3,9 @@ from src.agent.datasets.handlers.base import DataPullResult
 from src.api.services.charts import TCLChartGenerator
 
 TCL_DATA = {
-    "year": [2020, 2021, 2022],
+    "tree_cover_loss_year": [2020, 2021, 2022],
     "area_ha": [1000.0, 0.0, 3000.0],
-    "emissions_MgCO2e": [500.0, 0.0, 1500.0],
+    "carbon_emissions_MgCO2e": [500.0, 0.0, 1500.0],
     "aoi_id": ["BRA"] * 3,
     "aoi_type": ["admin"] * 3,
 }
@@ -34,15 +34,15 @@ def test_generates_two_charts():
 def test_loss_chart_is_bar_with_correct_axes():
     chart = TCLChartGenerator().generate(TCL_RESULT)[0]
     assert chart["type"] == "bar"
-    assert chart["xAxis"] == "year"
+    assert chart["xAxis"] == "tree_cover_loss_year"
     assert chart["yAxis"] == "area_ha"
 
 
 def test_emissions_chart_is_separate_bar_with_correct_axes():
     chart = TCLChartGenerator().generate(TCL_RESULT)[1]
     assert chart["type"] == "bar"
-    assert chart["xAxis"] == "year"
-    assert chart["yAxis"] == "emissions_MgCO2e"
+    assert chart["xAxis"] == "tree_cover_loss_year"
+    assert chart["yAxis"] == "carbon_emissions_MgCO2e"
 
 
 def test_drops_rows_where_area_ha_is_zero():
