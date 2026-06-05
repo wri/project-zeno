@@ -19,7 +19,7 @@ Optional (only evaluated if present):
 - `expected_clarification` — boolean. Whether the agent should ask for clarification instead of answering.
 
 Metadata:
-- `test_id` — short stable id for the case. Use `smoke-<n>` or `bug-<github-issue-number>`.
+- `test_id` — short stable id for the case. Use `smoke-<n>` or `bug-<github-issue-number>`, for example.
 - `status` — `ready` | `skip` | `rerun`. Leave empty for active cases.
 - `test_group` — subdivision tag (e.g. `aoi`, `dataset`, `dates`, `regression`). Filterable from CLI.
 - `priority` — free-text label.
@@ -42,32 +42,45 @@ export ANTHROPIC_API_KEY=<your-anthropic-api-key>
 export API_BASE_URL=<your-api-base-url>  # e.g. http://localhost:8000 or https://api.staging.globalnaturewatch.org
 ```
 
-Key arguments:
-- `--test-file` — path to the CSV file containing the eval cases
-- `--num-workers` — number of tests to run in parallel
-- `--num-trials` — number of times to run each test; use >1 to measure variance across runs
-- `--sample-size` — number of tests to run (default: 5); use `-1` to run all
-- `--offset` — starting row index into the dataset (after filters); e.g. `--sample-size 5 --offset 5` runs rows 5–9. Ignored when `--random-seed` is set.
+Full options:
+
+```
+Usage: gnw_evals [OPTIONS]
+
+Options:
+  --api-base-url TEXT     Base URL for API tests (env var: API_BASE_URL)
+  --api-token TEXT        API token for authentication (env var: API_TOKEN)
+  --sample-size INTEGER   Sample size: 1 means run single test, -1 means run all rows
+  --eval-set              Which eval set to run: gold, location_id, dataset_id,
+                          dataset_interpretation, analysis_results,
+                          analysis_interpretation, guardrail, date_selection, or all
+  --test-file TEXT        Path or URL to test dataset CSV file
+  --test-group-filter     Filter by test_group column
+  --status-filter TEXT    Filter by status column (comma-separated values)
+  --output-filename TEXT  Custom filename (timestamp will be appended)
+  --num-workers INTEGER   Number of parallel workers for test execution
+  --random-seed INTEGER   Random seed for sampling (0 means no random sampling)
+  --offset INTEGER        Offset for getting subset. Ignored if random_seed is not 0
+  --num-trials INTEGER    Number of trials per test for robustness measurement
+  --help                  Show this message and exit.
+```
 
 Pin to the same gnw-evals SHA the CI workflow uses (see `.github/workflows/evals.yaml`):
 
 ```bash
 GNW_EVALS_REF=467906518809a64c45e72b3a285c4d55f7819aef
 
+# Filter to one test group with --test-group-filter
 uvx --from "git+https://github.com/wri/gnw-evals@${GNW_EVALS_REF}" gnw_evals \
     --test-file $(pwd)/tests/evals/datasets/evals.csv \
+    --test-group-filter regression \
     --num-workers 3 \
-    --num-trials 1 \
-    --sample-size 5 \
-    --offset 0
+    --num-trials 1
 ```
-
-Filter to one test group:
 
 ```bash
 uvx --from "git+https://github.com/wri/gnw-evals@${GNW_EVALS_REF}" gnw_evals \
     --test-file $(pwd)/tests/evals/datasets/evals.csv \
-    --test-group-filter regression \
     --num-workers 3 \
     --num-trials 1 \
     --sample-size 5 \
