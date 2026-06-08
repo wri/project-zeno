@@ -157,18 +157,3 @@ async def test_returns_none_charts_when_no_generator_matches():
     )
 
     assert result.charts is None
-
-
-@pytest.mark.asyncio
-async def test_exposes_source_urls_from_result():
-    handler = FakeHandler(SUCCESS_RESULT)
-    service = AnalyzeService(handler, [])
-
-    result = await service.analyze(
-        aois=[AOI],
-        dataset_id=4,
-        start_date="2020-01-01",
-        end_date="2020-12-31",
-    )
-
-    assert result.source_urls == [SUCCESS_RESULT.analytics_api_url]

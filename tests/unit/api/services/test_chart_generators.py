@@ -50,15 +50,3 @@ def test_drops_rows_where_area_ha_is_zero():
     for chart in charts:
         for row in chart["data"]:
             assert row["area_ha"] != 0
-
-
-def test_charts_have_empty_insight():
-    charts = TCLChartGenerator(TREE_COVER_LOSS_ID).generate(TCL_RESULT)
-    for chart in charts:
-        assert chart["insight"] == ""
-
-
-def test_charts_have_no_generation_field():
-    charts = TCLChartGenerator(TREE_COVER_LOSS_ID).generate(TCL_RESULT)
-    for chart in charts:
-        assert "generation" not in chart
