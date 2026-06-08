@@ -20,7 +20,7 @@ Usage:
 import asyncio
 import secrets
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
@@ -612,6 +612,112 @@ def list_pro_users_command():
             await db.close()
 
     asyncio.run(_list_pro_users())
+
+
+def _parse_cli_dt(s: str) -> datetime:
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+@cli.command("ingest-langfuse-traces")
+@click.option(
+    "--since",
+    help="ISO start (overrides watermark). Required with --backfill.",
+)
+@click.option("--until", help="ISO end (default: now).")
+@click.option(
+    "--backfill", is_flag=True, help="Historical backfill from --since."
+)
+@click.option(
+    "--environment",
+    "environments",
+    multiple=True,
+    help="Filter to environment(s); repeatable. Default: all.",
+)
+@click.option(
+    "--overlap-hours",
+    type=int,
+    default=12,
+    help="Re-scan overlap before watermark.",
+)
+@click.option(
+    "--chunk-hours",
+    type=int,
+    default=24,
+    help="Window chunk size for backfill.",
+)
+@click.option(
+    "--batch-size",
+    type=int,
+    default=300,
+    help="Fetch page / upsert batch size.",
+)
+@click.option(
+    "--dry-run", is_flag=True, help="Fetch + parse but do not write."
+)
+def ingest_langfuse_traces_command(
+    since: Optional[str],
+    until: Optional[str],
+    backfill: bool,
+    environments: tuple,
+    overlap_hours: int,
+    chunk_hours: int,
+    batch_size: int,
+    dry_run: bool,
+):
+    """Ingest Langfuse traces into Postgres (idempotent upsert)."""
+    from src.api.services.langfuse.ingest import (
+        resolve_start_watermark,
+        run_ingestion,
+    )
+
+    async def _run():
+        db = DatabaseManager()
+        try:
+            async with db.async_session() as session:
+                until_dt = (
+                    _parse_cli_dt(until)
+                    if until
+                    else datetime.now(timezone.utc)
+                )
+                envs = list(environments) or [None]
+                for env in envs:
+                    if since:
+                        since_dt = _parse_cli_dt(since)
+                    elif backfill:
+                        raise click.UsageError("--backfill requires --since")
+                    else:
+                        wm = await resolve_start_watermark(session, env)
+                        if wm is None:
+                            since_dt = until_dt - timedelta(hours=24)
+                            click.echo(
+                                "ℹ️  No watermark; defaulting to last 24h "
+                                "(use --backfill --since for history)."
+                            )
+                        else:
+                            since_dt = wm - timedelta(hours=overlap_hours)
+
+                    result = await run_ingestion(
+                        session,
+                        since=since_dt,
+                        until=until_dt,
+                        environment=env,
+                        chunk_hours=chunk_hours,
+                        batch_size=batch_size,
+                        dry_run=dry_run,
+                    )
+                    click.echo(
+                        f"[{env or 'all'}] {since_dt.isoformat()} → {until_dt.isoformat()} | "
+                        f"fetched={result.fetched} upserted={result.upserted} "
+                        f"chunks={result.chunks_total} failed={result.chunks_failed} "
+                        f"status={result.status} watermark={result.watermark}"
+                    )
+        finally:
+            await db.close()
+
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":
