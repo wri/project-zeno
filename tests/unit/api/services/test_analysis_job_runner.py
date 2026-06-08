@@ -11,12 +11,7 @@ from src.api.services.job import JobRepository, JobStatus
 
 JOB_ID = uuid4()
 USER_ID = "user123"
-AOI = {
-    "source": "gadm",
-    "src_id": "BRA",
-    "subtype": "country",
-    "name": "Brazil",
-}
+AOI = {"source": "gadm", "src_id": "BRA", "subtype": "country"}
 
 SUCCESS_RESULT = DataPullResult(
     success=True,

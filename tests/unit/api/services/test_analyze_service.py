@@ -46,12 +46,7 @@ class FakeChartGenerator(ChartGenerator):
         return FAKE_CHARTS
 
 
-AOI = {
-    "source": "gadm",
-    "src_id": "BRA",
-    "subtype": "country",
-    "name": "Brazil",
-}
+AOI = {"source": "gadm", "src_id": "BRA", "subtype": "country"}
 SUCCESS_RESULT = DataPullResult(
     success=True,
     data={"rows": []},

@@ -444,15 +444,14 @@ class JobResponse(BaseModel):
     created_at: datetime
 
 
-class AOIRef(BaseModel):
+class AreaOfInterest(BaseModel):
     source: str
     src_id: str
     subtype: str
-    name: str
 
 
 class AnalyzeRequest(BaseModel):
-    aois: List[AOIRef]
+    aois: List[AreaOfInterest]
     dataset_id: int
     start_date: str
     end_date: str
