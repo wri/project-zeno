@@ -17,7 +17,6 @@ from src.api.services.job import (
     JobStatus,
     JobType,
     ResourceStatus,
-    ResourceType,
 )
 from src.shared.database import get_session_from_pool
 
@@ -25,8 +24,7 @@ from src.shared.database import get_session_from_pool
 @dataclass
 class JobResourceData:
     id: UUID
-    resource_type: ResourceType
-    resource_id: UUID
+    resource_url: str
     status: ResourceStatus
     created_at: datetime
 
@@ -85,28 +83,27 @@ class DBJobRepository(JobRepository):
             session.add(insight)
             await session.flush()
 
-            for idx, chart in enumerate(charts):
-                session.add(
-                    InsightChartOrm(
-                        insight_id=insight.id,
-                        position=idx,
-                        title=chart.get("title", ""),
-                        chart_type=chart.get("type", "bar"),
-                        x_axis=chart.get("xAxis", ""),
-                        y_axis=chart.get("yAxis", ""),
-                        color_field=chart.get("colorField", ""),
-                        stack_field=chart.get("stackField", ""),
-                        group_field=chart.get("groupField", ""),
-                        series_fields=chart.get("seriesFields", []),
-                        chart_data=chart.get("data", []),
-                    )
+            session.add_all(
+                InsightChartOrm(
+                    insight_id=insight.id,
+                    position=idx,
+                    title=chart.get("title", ""),
+                    chart_type=chart.get("type", "bar"),
+                    x_axis=chart.get("xAxis", ""),
+                    y_axis=chart.get("yAxis", ""),
+                    color_field=chart.get("colorField", ""),
+                    stack_field=chart.get("stackField", ""),
+                    group_field=chart.get("groupField", ""),
+                    series_fields=chart.get("seriesFields", []),
+                    chart_data=chart.get("data", []),
                 )
+                for idx, chart in enumerate(charts)
+            )
 
             session.add(
                 JobResourceOrm(
                     job_id=job_id,
-                    resource_type=ResourceType.INSIGHT.value,
-                    resource_id=insight.id,
+                    resource_url=f"/api/insights/{insight.id}",
                     status=ResourceStatus.COMPLETED.value,
                 )
             )
@@ -131,8 +128,7 @@ class DBJobRepository(JobRepository):
                 resources=[
                     JobResourceData(
                         id=r.id,
-                        resource_type=ResourceType(r.resource_type),
-                        resource_id=r.resource_id,
+                        resource_url=r.resource_url,
                         status=ResourceStatus(r.status),
                         created_at=r.created_at,
                     )

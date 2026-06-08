@@ -81,8 +81,7 @@ async def get_job(
         resources=[
             JobResourceResponse(
                 id=r.id,
-                resource_type=r.resource_type.value,
-                resource_id=r.resource_id,
+                resource_url=r.resource_url,
                 status=r.status.value,
                 created_at=r.created_at,
             )

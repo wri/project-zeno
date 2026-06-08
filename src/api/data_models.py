@@ -290,8 +290,7 @@ class JobResourceOrm(Base):
         server_default=text("gen_random_uuid()"),
     )
     job_id = Column(PostgresUUID, ForeignKey("jobs.id"), nullable=False)
-    resource_type = Column(String, nullable=False)
-    resource_id = Column(PostgresUUID, nullable=False)
+    resource_url = Column(String, nullable=False)
     status = Column(String, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
 

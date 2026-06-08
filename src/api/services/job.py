@@ -15,10 +15,6 @@ class JobType(str, Enum):
     ANALYSIS = "analysis"
 
 
-class ResourceType(str, Enum):
-    INSIGHT = "insight"
-
-
 class ResourceStatus(str, Enum):
     COMPLETED = "completed"
 

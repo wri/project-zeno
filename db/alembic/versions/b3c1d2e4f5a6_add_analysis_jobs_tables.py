@@ -59,8 +59,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("job_id", postgresql.UUID(), nullable=False),
-        sa.Column("resource_type", sa.String(), nullable=False),
-        sa.Column("resource_id", postgresql.UUID(), nullable=False),
+        sa.Column("resource_url", sa.String(), nullable=False),
         sa.Column("status", sa.String(), nullable=False),
         sa.Column(
             "created_at",

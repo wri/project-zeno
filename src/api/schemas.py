@@ -430,8 +430,7 @@ class InsightPublicToggleRequest(BaseModel):
 
 class JobResourceResponse(BaseModel):
     id: UUID
-    resource_type: str
-    resource_id: UUID
+    resource_url: str
     status: str
     created_at: datetime
 
