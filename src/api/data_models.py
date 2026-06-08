@@ -255,3 +255,44 @@ class InsightChartOrm(Base):
     chart_data = Column(JSONB, nullable=False)
 
     insight = relationship("InsightOrm", back_populates="charts")
+
+
+class JobOrm(Base):
+    __tablename__ = "jobs"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    thread_id = Column(String, nullable=True)
+    type = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="pending")
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.now, onupdate=datetime.now
+    )
+
+    resources = relationship(
+        "JobResourceOrm",
+        back_populates="job",
+        order_by="JobResourceOrm.created_at",
+    )
+
+
+class JobResourceOrm(Base):
+    __tablename__ = "job_resources"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    job_id = Column(PostgresUUID, ForeignKey("jobs.id"), nullable=False)
+    resource_type = Column(String, nullable=False)
+    resource_id = Column(PostgresUUID, nullable=False)
+    status = Column(String, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+
+    job = relationship("JobOrm", back_populates="resources")

@@ -428,6 +428,23 @@ class InsightPublicToggleRequest(BaseModel):
     is_public: bool
 
 
+class JobResourceResponse(BaseModel):
+    id: UUID
+    resource_type: str
+    resource_id: UUID
+    status: str
+    created_at: datetime
+
+
+class JobResponse(BaseModel):
+    id: UUID
+    type: str
+    status: str
+    thread_id: Optional[str] = None
+    resources: List[JobResourceResponse] = []
+    created_at: datetime
+
+
 class AOIRef(BaseModel):
     source: str
     src_id: str
