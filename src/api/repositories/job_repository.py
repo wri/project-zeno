@@ -12,7 +12,7 @@ from src.api.data_models import (
     JobOrm,
     JobResourceOrm,
 )
-from src.api.services.analysis_job import (
+from src.api.services.job import (
     JobRepository,
     JobStatus,
     JobType,

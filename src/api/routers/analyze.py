@@ -15,9 +15,10 @@ from src.api.schemas import (
     JobResponse,
     UserModel,
 )
-from src.api.services.analysis_job import AnalysisJobRunner, JobType
+from src.api.services.analysis_job import AnalysisJobRunner
 from src.api.services.analyze import AnalyzeService
 from src.api.services.charts import TCLChartGenerator
+from src.api.services.job import JobType
 
 router = APIRouter()
 

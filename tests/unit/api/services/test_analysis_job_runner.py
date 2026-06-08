@@ -4,13 +4,10 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
-from src.api.services.analysis_job import (
-    AnalysisJobRunner,
-    JobRepository,
-    JobStatus,
-)
+from src.api.services.analysis_job import AnalysisJobRunner
 from src.api.services.analyze import AnalyzeService
 from src.api.services.charts import ChartGenerator
+from src.api.services.job import JobRepository, JobStatus
 
 JOB_ID = uuid4()
 USER_ID = "user123"
