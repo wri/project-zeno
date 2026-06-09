@@ -121,7 +121,7 @@ async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
     async def fake_extract(self, question):
         return PlaceQuery(places=["Para, Brazil"], subregion=None)
 
-    async def fake_query_aoi_database(place_name, result_limit=10):
+    async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
         return pd.DataFrame(
             [
                 {

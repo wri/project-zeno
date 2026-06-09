@@ -211,10 +211,10 @@ async def query_aoi_database(
             if aoi_type in existing_tables:
                 existing_tables = [aoi_type]
             else:
-                logger.error(
-                    f"Required geometry table {aoi_type} does not exist in the database"
-                )
-                return pd.DataFrame()
+                # This cannot happen in production, unless the AOI tables are
+                # misconfigured. This is to catch the case where not all tables have
+                # been created locally.
+                raise ValueError(f"Required geometry table {aoi_type} does not exist in the database")
 
         if "gadm" in existing_tables:
             union_parts.append(

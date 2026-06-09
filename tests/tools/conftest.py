@@ -18,7 +18,7 @@ import json
 import os
 from importlib import import_module
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 from unittest.mock import patch
 
 import pandas as pd
@@ -97,7 +97,7 @@ def replay_aoi_queries_for_tools_tests() -> Any:
     live_query_aoi_database = pick_aoi_py.query_aoi_database
 
     async def query_aoi_database_replay(
-        place_name: str, result_limit: int = 10
+        place_name: str, aoi_type: Optional[str], result_limit: int = 10
     ) -> pd.DataFrame:
         if place_name in query_aoi_db_fixtures:
             entry = query_aoi_db_fixtures[place_name]
@@ -109,7 +109,7 @@ def replay_aoi_queries_for_tools_tests() -> Any:
             "live DB query.",
             place_name,
         )
-        return await live_query_aoi_database(place_name, result_limit)
+        return await live_query_aoi_database(place_name, aoi_type, result_limit)
 
     async def query_subregion_database_replay(
         subregion_name: str, source: str, src_id: Any
