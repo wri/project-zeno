@@ -12,6 +12,7 @@ from src.api.routers import (
     chat,
     custom_areas,
     geometry,
+    imager,
     insights,
     metadata,
     threads,
@@ -106,3 +107,4 @@ app.include_router(thumbnails.router)
 app.include_router(insights.router)
 app.include_router(metadata.router)
 app.include_router(admin.router)
+app.include_router(imager.router, prefix="/mosaic", tags=["Map Tiles"])
