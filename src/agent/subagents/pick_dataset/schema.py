@@ -1,4 +1,4 @@
-from typing import Any, List, Literal, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -17,7 +17,7 @@ class DatasetParameter(BaseModel):
 class ContextLayer(BaseModel):
     name: str
     tile_url: Optional[str]
-    source_layer: Literal["vector"] | None = None
+    source_layer: Optional[str]
 
 
 class DatasetOption(BaseModel):
