@@ -1,7 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Response,
+)
 
 from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_ID,
@@ -18,7 +24,7 @@ from src.api.schemas import (
 from src.api.services.analysis_job import AnalysisJobRunner
 from src.api.services.analyze import AnalyzeService
 from src.api.services.charts import TCLChartGenerator
-from src.api.services.job import JobType
+from src.api.services.job import JobStatus, JobType
 
 router = APIRouter()
 
@@ -66,12 +72,15 @@ async def create_analysis_job(
 @router.get("/api/jobs/{job_id}", response_model=JobResponse)
 async def get_job(
     job_id: UUID,
+    response: Response,
     user: UserModel = Depends(require_auth),
 ):
     repo = DBJobRepository()
     job = await repo.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    if job.status in (JobStatus.PENDING, JobStatus.RUNNING):
+        response.headers["Retry-After"] = "1"
     return JobResponse(
         id=job.id,
         type=job.type.value,

@@ -23,7 +23,11 @@ sequenceDiagram
 
     loop poll until completed
         FE->>Jobs: GET /api/jobs/{id}
-        Jobs-->>FE: {status: "running"|"completed", resources: [...]}
+        alt pending or running
+            Jobs-->>FE: 200 Retry-After: 1<br/>{status: "pending"|"running", resources: []}
+        else completed
+            Jobs-->>FE: 200<br/>{status: "completed", resources: [{resource_url, ...}]}
+        end
     end
 
     BG->>DB: update Job (status=running)
