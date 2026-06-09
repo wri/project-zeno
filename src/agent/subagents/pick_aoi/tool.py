@@ -138,12 +138,14 @@ class AOIIndex(BaseModel):
 
 async def query_aoi_database(
     place_name: str,
+    aoi_type: Optional[str],
     result_limit: int = 10,
 ):
     """Query the PostGIS database for location information.
 
     Args:
         place_name: Name of the place to search for
+        aoi_type: Specific AOI table to search, or None to search all
         result_limit: Maximum number of results to return
 
     Returns:
@@ -204,6 +206,15 @@ async def query_aoi_database(
 
         # Build the query based on existing tables
         union_parts = []
+
+        if aoi_type is not None:
+            if aoi_type in existing_tables:
+                existing_tables = [aoi_type]
+            else:
+                # This cannot happen in production, unless the AOI tables are
+                # misconfigured. This is to catch the case where not all tables have
+                # been created locally.
+                raise ValueError(f"Required geometry table {aoi_type} does not exist in the database")
 
         if "gadm" in existing_tables:
             union_parts.append(
@@ -574,6 +585,13 @@ SubregionType = Literal[
     "landmark",
 ]
 
+AOIType = Literal[
+    "gadm",
+    "wdpa",
+    "landmark",
+    "kba",
+]
+
 
 class PlaceQuery(BaseModel):
     """A place request the geocoder extracts from the user's message."""
@@ -590,6 +608,13 @@ class PlaceQuery(BaseModel):
         description=(
             "Set only to compare or analyze across many administrative units "
             "inside the place(s); otherwise leave null."
+        ),
+    )
+    aoi_type: Optional[AOIType] = Field(
+        default=None,
+        description=(
+            "Set if user's query implies that the place names are a particular type of AOI;"
+            "otherwise leave null."
         ),
     )
 
@@ -621,6 +646,7 @@ class Geocoder:
     ) -> Command:
         """Full resolution: extract place(s) from the request, then look up."""
         query = await self.extract(question)
+        print(query)
         logger.info(
             "GEOCODER: extracted places=%r subregion=%r",
             query.places,
@@ -641,7 +667,11 @@ class Geocoder:
                 },
             )
         return await self.lookup(
-            question, query.places, query.subregion, tool_call_id
+            question,
+            query.places,
+            query.subregion,
+            query.aoi_type,
+            tool_call_id,
         )
 
     async def extract(self, question: str) -> PlaceQuery:
@@ -657,6 +687,7 @@ class Geocoder:
         question: str,
         places: list[str],
         subregion: Optional[SubregionType] = None,
+        aoi_type: Optional[AOIType] = None,
         tool_call_id: Optional[str] = None,
     ) -> Command:
         """DB step: resolve known place name(s) to AOI geometry."""
@@ -670,7 +701,10 @@ class Geocoder:
             return await handle_global_request(subregion, tool_call_id)
 
         all_results = await asyncio.gather(
-            *[query_aoi_database(place, RESULT_LIMIT) for place in places]
+            *[
+                query_aoi_database(place, aoi_type, RESULT_LIMIT)
+                for place in places
+            ]
         )
         for place, result in zip(places, all_results):
             names = list(result["name"]) if "name" in result.columns else []
@@ -678,7 +712,7 @@ class Geocoder:
                 "pick_aoi",
                 "candidates",
                 f"Fuzzy search '{place}': {len(names)} candidate(s)"
-                + (f" — {', '.join(names[:8])}" if names else ""),
+                + (f" — {'; '.join(names[:8])}" if names else ""),
             )
 
         selected_aois = await asyncio.gather(

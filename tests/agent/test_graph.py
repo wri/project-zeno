@@ -99,7 +99,7 @@ def mock_pull_data_db():
 def mock_query_aoi_database():
     """Mock query_aoi_database to return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL."""
 
-    async def _return_mock_df(_place_name, result_limit=10):
+    async def _return_mock_df(_place_name, aoi_type, result_limit=10):
         if "Parana" in _place_name or "Paraná" in _place_name:
             print("Returning MOCK_AOI_QUERY_RESULTS_PARANA")
             return MOCK_AOI_QUERY_RESULTS_PARANA.copy()
