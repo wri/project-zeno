@@ -5,9 +5,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Response
 
 from src.api.auth.dependencies import require_auth
-from src.api.repositories.job_repository import DBJobRepository
+from src.api.repositories.job_repository import get_job_repository
 from src.api.schemas import JobResourceResponse, JobResponse, UserModel
-from src.api.services.job import JobStatus
+from src.api.services.job import JobRepository, JobStatus
 
 router = APIRouter()
 
@@ -35,6 +35,7 @@ async def get_job(
         description="ID of the job returned by the endpoint that created it."
     ),
     user: UserModel = Depends(require_auth),
+    repo: JobRepository = Depends(get_job_repository),
 ):
     """
     Get the current status of a job.
@@ -46,9 +47,8 @@ async def get_job(
     `GET /api/insights/{id}`). If the job `failed`, `resources` will be
     empty.
     """
-    repo = DBJobRepository()
     job = await repo.get_job(job_id)
-    if not job:
+    if not job or job.user_id != user.id:
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status in (JobStatus.PENDING, JobStatus.RUNNING):
         response.headers["Retry-After"] = "1"

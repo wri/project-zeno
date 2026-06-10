@@ -63,6 +63,9 @@ class FakeJobRepository(JobRepository):
         self.job_statuses: list[tuple[UUID, JobStatus]] = []
         self.insight_resources: list[dict] = []
 
+    async def create_job(self, user_id, thread_id, type) -> UUID:
+        return uuid4()
+
     async def update_job_status(self, job_id: UUID, status: JobStatus) -> None:
         self.job_statuses.append((job_id, status))
 
@@ -81,6 +84,9 @@ class FakeJobRepository(JobRepository):
                 "charts": charts,
             }
         )
+
+    async def get_job(self, job_id: UUID):
+        return None
 
 
 def make_service(result: DataPullResult) -> AnalyzeService:

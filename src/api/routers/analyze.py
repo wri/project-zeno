@@ -10,12 +10,12 @@ from src.agent.datasets.handlers.analytics_handler import (
     AnalyticsHandler,
 )
 from src.api.auth.dependencies import require_auth
-from src.api.repositories.job_repository import DBJobRepository
+from src.api.repositories.job_repository import get_job_repository
 from src.api.schemas import AnalyzeRequest, JobResponse, UserModel
 from src.api.services.analysis_job import AnalysisJobRunner
 from src.api.services.analyze import AnalyzeService
 from src.api.services.charts import TCLChartGenerator
-from src.api.services.job import JobType
+from src.api.services.job import JobRepository, JobType
 
 router = APIRouter()
 
@@ -23,10 +23,12 @@ handler = AnalyticsHandler()
 generators = [TCLChartGenerator(TREE_COVER_LOSS_ID)]
 
 
-def _make_runner() -> AnalysisJobRunner:
+def get_analysis_runner(
+    repo: JobRepository = Depends(get_job_repository),
+) -> AnalysisJobRunner:
     return AnalysisJobRunner(
         service=AnalyzeService(handler, generators),
-        repo=DBJobRepository(),
+        repo=repo,
     )
 
 
@@ -35,6 +37,8 @@ async def create_analysis_job(
     request: AnalyzeRequest,
     background_tasks: BackgroundTasks,
     user: UserModel = Depends(require_auth),
+    repo: JobRepository = Depends(get_job_repository),
+    runner: AnalysisJobRunner = Depends(get_analysis_runner),
 ):
     """
     Start an analysis job for one or more areas of interest.
@@ -49,7 +53,6 @@ async def create_analysis_job(
     written into the agent state for that thread, so follow-up chat messages
     can reference the data without re-fetching.
     """
-    repo = DBJobRepository()
     job_id = await repo.create_job(
         user_id=user.id,
         thread_id=request.thread_id,
@@ -61,6 +64,7 @@ async def create_analysis_job(
         job_id=job_id,
         user_id=user.id,
         request=request,
+        runner=runner,
     )
 
     return JobResponse(
@@ -73,8 +77,13 @@ async def create_analysis_job(
     )
 
 
-async def _run_job(job_id: UUID, user_id: str, request: AnalyzeRequest):
-    await _make_runner().run(
+async def _run_job(
+    job_id: UUID,
+    user_id: str,
+    request: AnalyzeRequest,
+    runner: AnalysisJobRunner,
+):
+    await runner.run(
         job_id=job_id,
         user_id=user_id,
         aois=[aoi.model_dump() for aoi in request.aois],

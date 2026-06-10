@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -13,7 +11,9 @@ from src.api.data_models import (
     JobResourceOrm,
 )
 from src.api.services.job import (
+    JobData,
     JobRepository,
+    JobResourceData,
     JobStatus,
     JobType,
     ResourceStatus,
@@ -22,24 +22,6 @@ from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class JobResourceData:
-    id: UUID
-    resource_url: str
-    status: ResourceStatus
-    created_at: datetime
-
-
-@dataclass
-class JobData:
-    id: UUID
-    type: JobType
-    status: JobStatus
-    thread_id: Optional[str]
-    resources: list[JobResourceData]
-    created_at: datetime
 
 
 class DBJobRepository(JobRepository):
@@ -130,6 +112,7 @@ class DBJobRepository(JobRepository):
                 return None
             return JobData(
                 id=row.id,
+                user_id=row.user_id,
                 type=JobType(row.type),
                 status=JobStatus(row.status),
                 thread_id=row.thread_id,
@@ -144,3 +127,7 @@ class DBJobRepository(JobRepository):
                     for r in row.resources
                 ],
             )
+
+
+def get_job_repository() -> JobRepository:
+    return DBJobRepository()
