@@ -88,7 +88,7 @@ async def _run_job(
         user_id=user_id,
         aois=[aoi.model_dump() for aoi in request.aois],
         dataset_id=request.dataset_id,
-        start_date=request.start_date,
-        end_date=request.end_date,
+        start_date=request.start_date.isoformat(),
+        end_date=request.end_date.isoformat(),
         thread_id=request.thread_id,
     )

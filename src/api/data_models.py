@@ -212,7 +212,7 @@ class InsightOrm(Base):
         server_default=text("gen_random_uuid()"),
     )
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
-    thread_id = Column(String, nullable=False)
+    thread_id = Column(String, nullable=True)
     insight_text = Column(String, nullable=False)
     follow_up_suggestions = Column(JSONB, nullable=False, server_default="[]")
     statistics_ids = Column(JSONB, nullable=False, server_default="[]")

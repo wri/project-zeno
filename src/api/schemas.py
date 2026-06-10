@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
 
@@ -481,15 +481,14 @@ class AreaOfInterest(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     aois: List[AreaOfInterest] = Field(
-        description="One or more areas of interest to analyse."
+        min_length=1,
+        description="One or more areas of interest to analyse.",
     )
     dataset_id: int = Field(description="ID of the dataset to query.")
-    start_date: str = Field(
-        description="Start of the date range in YYYY-MM-DD format."
+    start_date: date = Field(
+        description="Start of the date range (YYYY-MM-DD)."
     )
-    end_date: str = Field(
-        description="End of the date range in YYYY-MM-DD format."
-    )
+    end_date: date = Field(description="End of the date range (YYYY-MM-DD).")
     thread_id: Optional[str] = Field(
         default=None,
         description=(
@@ -498,11 +497,3 @@ class AnalyzeRequest(BaseModel):
             "reference the data without re-fetching."
         ),
     )
-
-
-class AnalyzeResponse(BaseModel):
-    success: bool
-    message: str
-    charts_data: Optional[List[dict]] = None
-    source_urls: Optional[List[str]] = None
-    codeact_parts: List[dict] = []

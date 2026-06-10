@@ -58,7 +58,7 @@ class DBJobRepository(JobRepository):
         async with get_session_from_pool() as session:
             insight = InsightOrm(
                 user_id=user_id,
-                thread_id=thread_id or "",
+                thread_id=thread_id,
                 insight_text="",
                 follow_up_suggestions=[],
                 statistics_ids=[],
