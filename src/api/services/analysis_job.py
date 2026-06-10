@@ -1,3 +1,4 @@
+import time
 from typing import Optional
 from uuid import UUID
 
@@ -33,12 +34,14 @@ class AnalysisJobRunner:
             end_date=end_date,
         )
 
+        started_at = time.perf_counter()
         result = await self._service.analyze(
             aois=aois,
             dataset_id=dataset_id,
             start_date=start_date,
             end_date=end_date,
         )
+        duration_ms = round((time.perf_counter() - started_at) * 1000)
 
         if not result.data.success:
             await self._repo.update_job_status(job_id, JobStatus.FAILED)
@@ -47,6 +50,7 @@ class AnalysisJobRunner:
                 severity="high",
                 job_id=str(job_id),
                 user_id=user_id,
+                duration_ms=duration_ms,
                 error_details=result.data.message,
             )
             return
@@ -62,4 +66,5 @@ class AnalysisJobRunner:
             "analysis_job_completed",
             job_id=str(job_id),
             user_id=user_id,
+            duration_ms=duration_ms,
         )
