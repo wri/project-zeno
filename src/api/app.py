@@ -14,6 +14,7 @@ from src.api.routers import (
     custom_areas,
     geometry,
     insights,
+    jobs,
     metadata,
     threads,
     thumbnails,
@@ -99,6 +100,7 @@ async def logging_middleware(request: Request, call_next) -> Response:
 
 
 app.include_router(analyze.router)
+app.include_router(jobs.router)
 app.include_router(chat.router)
 app.include_router(threads.router)
 app.include_router(users.router)
