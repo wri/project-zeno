@@ -19,6 +19,9 @@ from src.api.services.job import (
     ResourceStatus,
 )
 from src.shared.database import get_session_from_pool
+from src.shared.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -108,6 +111,12 @@ class DBJobRepository(JobRepository):
                 )
             )
             await session.commit()
+            logger.info(
+                "insight_resource_created",
+                job_id=str(job_id),
+                insight_id=str(insight.id),
+                charts_count=len(charts),
+            )
 
     async def get_job(self, job_id: UUID) -> Optional[JobData]:
         async with get_session_from_pool() as session:

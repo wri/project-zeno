@@ -3,6 +3,9 @@ from uuid import UUID
 
 from src.api.services.analyze import AnalyzeService
 from src.api.services.job import JobRepository, JobStatus
+from src.shared.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class AnalysisJobRunner:
@@ -21,6 +24,14 @@ class AnalysisJobRunner:
         thread_id: Optional[str] = None,
     ) -> None:
         await self._repo.update_job_status(job_id, JobStatus.RUNNING)
+        logger.info(
+            "analysis_job_started",
+            job_id=str(job_id),
+            user_id=user_id,
+            dataset_id=dataset_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         result = await self._service.analyze(
             aois=aois,
@@ -31,6 +42,13 @@ class AnalysisJobRunner:
 
         if not result.data.success:
             await self._repo.update_job_status(job_id, JobStatus.FAILED)
+            logger.error(
+                "analysis_job_failed",
+                severity="high",
+                job_id=str(job_id),
+                user_id=user_id,
+                error_details=result.data.message,
+            )
             return
 
         await self._repo.create_insight_resource(
@@ -40,3 +58,8 @@ class AnalysisJobRunner:
             charts=result.charts or [],
         )
         await self._repo.update_job_status(job_id, JobStatus.COMPLETED)
+        logger.info(
+            "analysis_job_completed",
+            job_id=str(job_id),
+            user_id=user_id,
+        )

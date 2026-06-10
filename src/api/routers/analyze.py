@@ -6,6 +6,7 @@ from fastapi import (
     BackgroundTasks,
     Depends,
     HTTPException,
+    Path,
     Response,
 )
 
@@ -45,6 +46,19 @@ async def create_analysis_job(
     background_tasks: BackgroundTasks,
     user: UserModel = Depends(require_auth),
 ):
+    """
+    Start an analysis job for one or more areas of interest.
+
+    Returns a Job resource immediately with `status: pending`. The analysis
+    runs in the background — poll `GET /api/jobs/{id}` until `status` is
+    `completed` or `failed`. When completed, each entry in `resources` contains
+    a `resource_url` pointing to the generated insight (e.g.
+    `/api/insights/{id}`).
+
+    If `thread_id` is provided the resulting charts and statistics are also
+    written into the agent state for that thread, so follow-up chat messages
+    can reference the data without re-fetching.
+    """
     repo = DBJobRepository()
     job_id = await repo.create_job(
         user_id=user.id,
@@ -69,12 +83,40 @@ async def create_analysis_job(
     )
 
 
-@router.get("/api/jobs/{job_id}", response_model=JobResponse)
+@router.get(
+    "/api/jobs/{job_id}",
+    response_model=JobResponse,
+    responses={
+        200: {
+            "headers": {
+                "Retry-After": {
+                    "description": (
+                        "Seconds to wait before polling again. "
+                        "Present only when status is `pending` or `running`."
+                    ),
+                    "schema": {"type": "integer", "example": 1},
+                }
+            }
+        }
+    },
+)
 async def get_job(
-    job_id: UUID,
     response: Response,
+    job_id: UUID = Path(
+        description="ID of the job returned by POST /api/analyze."
+    ),
     user: UserModel = Depends(require_auth),
 ):
+    """
+    Get the current status of a job.
+
+    While the job is `pending` or `running` the response includes a
+    `Retry-After: 1` header — poll again after that many seconds. Once
+    `status` is `completed`, `resources` contains one or more entries each
+    with a `resource_url` you can follow to retrieve the result (e.g.
+    `GET /api/insights/{id}`). If the job `failed`, `resources` will be
+    empty.
+    """
     repo = DBJobRepository()
     job = await repo.get_job(job_id)
     if not job:
