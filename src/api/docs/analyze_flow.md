@@ -9,34 +9,37 @@ the job completes, then follows `resource_url` to retrieve the results.
 ```mermaid
 sequenceDiagram
     participant FE as Frontend
-    participant API as POST /api/analyze
-    participant Jobs as GET /api/jobs/{id}
+    participant Analyze as routers/analyze.py<br/>POST /api/analyze
+    participant Jobs as routers/jobs.py<br/>GET /api/jobs/{id}
     participant Insights as GET /api/insights/{id}
     participant BG as AnalysisJobRunner (background)
     participant Analytics as GFW Analytics API
     participant DB as Database
 
-    FE->>API: POST /api/analyze<br/>{aois, dataset_id, start_date, end_date}
-    API->>DB: create Job (status=pending)
-    API-->>FE: {id, type, status: "pending", resources: []}
-    API--)BG: start background task
+    FE->>Analyze: POST /api/analyze<br/>{aois, dataset_id, start_date, end_date}
+    Analyze->>DB: create Job (status=pending)
+    Analyze-->>FE: {id, type, status: "pending", resources: []}
+    Analyze--)BG: start background task
 
-    loop poll until completed
-        FE->>Jobs: GET /api/jobs/{id}
-        alt pending or running
-            Jobs-->>FE: 200 Retry-After: 1<br/>{status: "pending"|"running", resources: []}
-        else completed
-            Jobs-->>FE: 200<br/>{status: "completed", resources: [{resource_url, ...}]}
+    par background task
+        BG->>DB: update Job (status=running)
+        BG->>Analytics: POST analytics endpoint<br/>(dataset, aois, date range)
+        Analytics-->>BG: raw data (area_ha, emissions, etc.)
+        BG->>BG: TCLChartGenerator → chart dicts
+        BG->>DB: create Insight + InsightCharts
+        BG->>DB: create JobResource<br/>{resource_url: "/api/insights/{id}"}
+        BG->>DB: update Job (status=completed)
+    and client polling
+        loop until status=completed
+            FE->>Jobs: GET /api/jobs/{id}
+            alt pending or running
+                Jobs-->>FE: 200 + Retry-After: 1<br/>{status: "pending"|"running", resources: []}
+                Note over FE: wait 1s then retry
+            else completed
+                Jobs-->>FE: 200<br/>{status: "completed", resources: [{resource_url}]}
+            end
         end
     end
-
-    BG->>DB: update Job (status=running)
-    BG->>Analytics: POST analytics endpoint<br/>(dataset, aois, date range)
-    Analytics-->>BG: raw data (area_ha, emissions, etc.)
-    BG->>BG: TCLChartGenerator → chart dicts
-    BG->>DB: create Insight + InsightCharts
-    BG->>DB: create JobResource<br/>{resource_url: "/api/insights/{id}", status: completed}
-    BG->>DB: update Job (status=completed)
 
     FE->>Insights: GET /api/insights/{id}
     Insights-->>FE: {charts: [{title, chart_type, x_axis, y_axis, chart_data}]}
