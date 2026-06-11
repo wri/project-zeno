@@ -32,7 +32,7 @@ logger = get_logger(__name__)
 
 # Single source of truth for "which dataset does this handler claim".
 # The handler matches on dataset_id, mirroring AnalyticsHandler.can_handle.
-FAO_FRA_2025_DATASET_ID = 10
+FAO_FRA_2025_DATASET_ID = 11
 
 
 def _country_aois(aois: List[Dict]) -> List[Dict]:
