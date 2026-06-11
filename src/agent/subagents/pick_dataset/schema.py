@@ -16,8 +16,8 @@ class DatasetParameter(BaseModel):
 
 class ContextLayer(BaseModel):
     name: str
-    tile_url: Optional[str]
-    source_layer: Optional[str]
+    tile_url: Optional[str] = None
+    source_layer: Optional[str] = None
 
 
 class DatasetOption(BaseModel):
