@@ -47,6 +47,8 @@ that can be found at [project-zeno-next](https://github.com/wri/project-zeno-nex
 We have an evaluation framework we use to do end-to-end testing of the
 agent on the deployed API. The framework can be found in the [gnw-evals](https://github.com/wri/gnw-evals) repository.
 
+For adding eval cases and running evals locally, see [tests/evals/README.md](tests/evals/README.md).
+
 ### STAC
 
 We have a set of scripts to ingest STAC data into the eoAPI deployment. The ingestion code
