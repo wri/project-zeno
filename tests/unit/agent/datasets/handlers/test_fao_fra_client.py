@@ -15,10 +15,10 @@ import pytest
 
 from src.agent.datasets.handlers import fao_fra_client
 from src.agent.datasets.handlers.fao_fra_client import (
+    FRA_REPORTING_YEARS,
     FAOAPIError,
     FAODataNotFoundError,
     FAOFRAClient,
-    FRA_REPORTING_YEARS,
     parse_response,
     parse_year_key,
 )
@@ -320,9 +320,7 @@ async def test_fetch_sends_columns_param_for_year_filter():
 
 
 async def test_fetch_raises_api_error_on_5xx():
-    client = _client_with(
-        lambda req: httpx.Response(503, text="service down")
-    )
+    client = _client_with(lambda req: httpx.Response(503, text="service down"))
     with pytest.raises(FAOAPIError):
         await client.fetch("BRA", "extentOfForest", variables=[])
 
@@ -358,8 +356,6 @@ async def test_fetch_raises_api_error_on_request_error():
 
 
 async def test_fetch_raises_api_error_on_unparseable_body():
-    client = _client_with(
-        lambda req: httpx.Response(200, content=b"not-json")
-    )
+    client = _client_with(lambda req: httpx.Response(200, content=b"not-json"))
     with pytest.raises(FAOAPIError):
         await client.fetch("BRA", "extentOfForest", variables=[])

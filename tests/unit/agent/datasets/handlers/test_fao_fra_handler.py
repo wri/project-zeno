@@ -9,8 +9,6 @@ calls and no monkey-patching of module-level names.
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.fao_fra_client import (
     FAOAPIError,
