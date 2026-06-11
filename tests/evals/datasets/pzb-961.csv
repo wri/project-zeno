@@ -1,0 +1,2 @@
+test_id,test_group,status,query,expected_aoi_ids,expected_aoi_source,expected_dataset_id,expected_dataset_name,expected_context_layer,expected_start_date,expected_end_date,expected_answer,expected_clarification,expected_text,expected_suggested_datasets
+pzb-961,regression,ready,How do fires impact nature in Spain?,ESP,gadm,,,,,,,True,Provides suggestions for datasets related to fire impact on nature,0;4;8;10
