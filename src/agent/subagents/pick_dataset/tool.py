@@ -460,6 +460,7 @@ def get_tile_services_for_dataset(
         context_layer = ContextLayer(
             name=selected_context_layer.get("value"),
             tile_url=selected_context_layer.get("tile_url"),
+            source_layer=selected_context_layer.get("source_layer", None),
         )
         context_layers.append(context_layer)
 
