@@ -23,6 +23,15 @@ repos:
             if not pyproject.exists():
                 raise SystemExit(0)
 
+            branch_result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if branch_result.returncode == 0 and branch_result.stdout.strip() == "main":
+                raise SystemExit(0)
+
             today = datetime.now(UTC).date()
             calver = f"{today.year}.{today.month}.{today.day}"
 

@@ -20,8 +20,9 @@ class ContextLayer(BaseModel):
 
 
 class DatasetOption(BaseModel):
-    dataset_id: int = Field(
-        description="ID of the dataset that best matches the user query."
+    dataset_id: Optional[int] = Field(
+        None,
+        description="ID of the dataset that best matches the user query. Set to null if no candidate is a good fit.",
     )
     context_layer: Optional[str] = Field(
         None,
@@ -44,6 +45,8 @@ class DatasetOption(BaseModel):
 
     @field_validator("dataset_id")
     def validate_dataset_id(cls, v):
+        if v is None:
+            return v
         if v not in [ds["dataset_id"] for ds in DATASETS]:
             raise ValueError(f"Invalid dataset ID: {v}")
         return v
@@ -112,6 +115,16 @@ class DatasetOption(BaseModel):
 
         self.parameters = validated_parameters or None
         return self
+
+
+class DatasetSelectionResponse(BaseModel):
+    selected_dataset: Optional[DatasetOption] = None
+    suggested_datasets: Optional[list[DatasetOption]] = Field(
+        None, max_length=3
+    )
+    reason: str = Field(
+        description="Explain what datasets were considered, what each covers, and specifically why no single one directly answers the query. Name the datasets evaluated and describe where each falls short."
+    )
 
 
 class DatasetSelectionResult(DatasetOption):

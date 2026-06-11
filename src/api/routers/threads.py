@@ -34,7 +34,7 @@ router = APIRouter()
 @router.get("/api/threads", response_model=list[ThreadModel])
 async def list_threads(
     response: Response,
-    limit: int = Query(default=30, ge=1, le=100),
+    limit: int = Query(default=100, ge=1, le=100),
     cursor: Optional[str] = Query(default=None),
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),

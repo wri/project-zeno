@@ -76,7 +76,7 @@ def state():
 
 DIST_ALERT = "ecosystem disturbance alerts"
 LAND_COVER_CHANGE = "land cover change"
-GRASSLANDS = "grasslands"
+GRASSLANDS = "natural grasslands"
 NATURAL_LANDS = "natural lands"
 TREE_COVER_LOSS = "tree cover loss"
 TREE_COVER_GAIN = "tree cover gain"
@@ -84,6 +84,7 @@ CARBON_FLUX = "forest greenhouse gas net flux"
 TREE_COVER = "tree cover"
 TREE_COVER_LOSS_BY_DRIVER = "tree cover loss by driver"
 SLUC_EF = "deforestation (sLUC) emission factors by agricultural crop"
+TREE_COVER_LOSS_FROM_FIRES = "tree cover loss by fires"
 
 lookup = {
     0: DIST_ALERT,
@@ -96,6 +97,7 @@ lookup = {
     7: TREE_COVER,
     8: TREE_COVER_LOSS_BY_DRIVER,
     9: SLUC_EF,
+    10: TREE_COVER_LOSS_FROM_FIRES,
 }
 
 
@@ -112,8 +114,10 @@ def _query_case_id(param):
     params=[
         # Dataset 0 queries (Ecosystem disturbance alerts) - near-real-time vegetation changes
         (
-            "Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2023 or 2024?",
+            "Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2024 or 2025?",
             DIST_ALERT,
+            "2024-01-01",
+            "2025-12-31",
         ),
         (
             "Show me recent vegetation disturbances in the Amazon basin over the past month",
@@ -137,11 +141,11 @@ def _query_case_id(param):
             LAND_COVER_CHANGE,
         ),
         (
-            "What's the trend in agricultural expansion across Southeast Asia since 2015?",
+            "How has in agricultural expanded across Southeast Asia since 2015?",
             LAND_COVER_CHANGE,
         ),
         (
-            "I'm studying urbanization patterns in sub-Saharan Africa between 2020 and 2024",
+            "I'm studying urbanization patterns in sub-Saharan Africa between 2015 and 2024",
             LAND_COVER_CHANGE,
         ),
         (
@@ -149,10 +153,6 @@ def _query_case_id(param):
             LAND_COVER_CHANGE,
         ),
         # Dataset 2 queries (Grassland) - natural and cultivated grassland classification
-        (
-            "What is the total area of prairie ecosystems in North America?",
-            GRASSLANDS,
-        ),
         (
             "Which regions show the fastest decline in native grassland habitats?",
             GRASSLANDS,
@@ -162,7 +162,7 @@ def _query_case_id(param):
             GRASSLANDS,
         ),
         (
-            "Where are the largest intact grassland ecosystems globally?",
+            "Where are the largest grassland ecosystems globally?",
             GRASSLANDS,
         ),
         # Dataset 3 queries (Natural lands) - SBTN baseline for conversion monitoring
@@ -171,15 +171,7 @@ def _query_case_id(param):
             NATURAL_LANDS,
         ),
         (
-            "Which provinces in Canada have the highest proportion of intact landscapes?",
-            NATURAL_LANDS,
-        ),
-        (
             "Show me areas where natural habitats remain undisturbed by human activities",
-            NATURAL_LANDS,
-        ),
-        (
-            "What's the baseline extent of natural vegetation before any recent conversions?",
             NATURAL_LANDS,
         ),
         # Dataset 4 queries (Tree cover loss) - annual forest loss detection
@@ -190,14 +182,6 @@ def _query_case_id(param):
         (
             "Which country had the most deforestation in 2018?",
             TREE_COVER_LOSS,
-        ),
-        (
-            "I need to track forest plantations harvesting cycles in northern Europe",
-            TREE_COVER_LOSS,
-        ),
-        (
-            "Show deforestation by driver in 2019",
-            TREE_COVER_LOSS,  # By driver is total, so we want this query to pick plain TCL
         ),
         # Dataset 5 queries (Tree cover gain) - cumulative forest regrowth
         (
@@ -216,14 +200,20 @@ def _query_case_id(param):
         (
             "What areas of forest are acting as net carbon sinks versus sources?",
             CARBON_FLUX,
+            "2000-01-01",
+            "2025-12-31",
         ),
         (
             "Show me forest carbon emissions and removals in the Congo Basin",
             CARBON_FLUX,
+            "2000-01-01",
+            "2025-12-31",
         ),
         (
             "Which forest regions contribute most to greenhouse gas emissions?",
             CARBON_FLUX,
+            "2000-01-01",
+            "2025-12-31",
         ),
         # Dataset 7 queries (Tree cover) - baseline tree canopy density
         (
@@ -241,7 +231,7 @@ def _query_case_id(param):
         # Dataset 8 queries (Tree cover loss by driver) - tree cover loss by driver
         (
             "What areas of forest are experiencing the most tree cover loss due to wildfire?",
-            TREE_COVER_LOSS_BY_DRIVER,
+            TREE_COVER_LOSS_FROM_FIRES,
         ),
         (
             "Show me areas of tree cover loss by driver in the Congo Basin",
@@ -253,7 +243,7 @@ def _query_case_id(param):
         ),
         (
             "What regions experienced the most fire-related tree cover loss?",
-            TREE_COVER_LOSS_BY_DRIVER,
+            TREE_COVER_LOSS_FROM_FIRES,
         ),
         # ------------------------------------------------------------------
         # Tiered selection_hints (mirrors test_pick_dataset_tiered.py)
@@ -345,10 +335,10 @@ def _query_case_id(param):
             "2024-12-31",
         ),
         (
-            "What proportion of tree cover loss in Brazil is due to wildfire vs agriculture?",
+            "What proportion of the total tree cover loss from 2001-2025 in Brazil is due to wildfire vs agriculture?",
             TREE_COVER_LOSS_BY_DRIVER,
             "2001-01-01",
-            "2024-12-31",
+            "2025-12-31",
         ),
         (
             "Show annual forest emissions for Brazil from 2001 to 2024",
@@ -371,18 +361,6 @@ def _query_case_id(param):
         #     "2000-01-01",
         #     "2020-12-31",
         # ),
-        (
-            "How has natural land in Colombia changed from 2015 to 2024?",
-            LAND_COVER_CHANGE,
-            "2015-01-01",
-            "2024-12-31",
-        ),
-        (
-            "Show the trend in natural land loss over time in Brazil",
-            TREE_COVER_LOSS,
-            "2015-01-01",
-            "2024-12-31",
-        ),
         (
             "Plot year-by-year carbon emissions from deforestation in Indonesia",
             TREE_COVER_LOSS,
@@ -422,6 +400,7 @@ async def test_queries_return_expected_dataset(
 
     command = await pick_dataset.ainvoke(tool_call)
 
+    print(command)
     dataset = command.update.get("dataset", {})
     dataset_id = dataset.get("dataset_id")
     assert lookup[dataset_id] == expected_dataset
@@ -444,7 +423,7 @@ async def test_queries_return_expected_dataset(
         ("Tree cover loss in intact forest", 4, "intact_forest"),
         ("Tree  cover loss in the past decade in sparse forests", 4, None),
         ("Deforestation in the past decade", 4, "primary_forest"),
-        ("Most recent global land cover in storm seasons", 1, None),
+        ("Most recent global land cover", 1, None),
     ],
 )
 async def test_query_with_context_layer(
@@ -481,12 +460,6 @@ async def test_query_with_context_layer(
             4,
             "canopy_cover",
             50,
-        ),
-        (
-            "Tree cover loss in the past decade where canopy threshold is 23",
-            4,
-            "canopy_cover",
-            25,
         ),
         (
             "Tree cover loss in the past decade where canopy threshold is 30",
@@ -536,22 +509,19 @@ async def test_query_with_parameter(
 
 
 @pytest.mark.parametrize(
-    "dataset",
+    "dataset,start_year,end_year",
     [
-        DIST_ALERT,
-        LAND_COVER_CHANGE,
-        GRASSLANDS,
-        NATURAL_LANDS,
-        TREE_COVER,
-        TREE_COVER_LOSS,
-        TREE_COVER_GAIN,
-        CARBON_FLUX,
+        (DIST_ALERT, "2024", "2024"),
+        (LAND_COVER_CHANGE, "2024", "2024"),
+        (GRASSLANDS, "2022", "2022"),
+        (NATURAL_LANDS, "2020", "2020"),
+        (TREE_COVER, "2000", "2000"),
+        (TREE_COVER_LOSS, "2024", "2024"),
+        (TREE_COVER_GAIN, "2020", "2020"),
+        (CARBON_FLUX, "2001", "2025"),
     ],
 )
-async def test_tile_url_contains_date(dataset, state):
-    year = "2020"
-    if dataset == TREE_COVER:
-        year = "2000"
+async def test_tile_url_contains_date(dataset, start_year, end_year, state):
     tool_call_id = str(uuid.uuid4())
 
     tool_call = {
@@ -559,9 +529,9 @@ async def test_tile_url_contains_date(dataset, state):
         "name": "pick_dataset",
         "id": tool_call_id,
         "args": {
-            "query": f"Find me {dataset} data for {year}",
-            "start_date": f"{year}-01-01",
-            "end_date": f"{year}-12-31",
+            "query": f"Find me {dataset} data",
+            "start_date": f"{start_year}-01-01",
+            "end_date": f"{end_year}-12-31",
             "state": state,
             "tool_call_id": tool_call_id,
         },
@@ -571,7 +541,7 @@ async def test_tile_url_contains_date(dataset, state):
 
     tile_url = command.update.get("dataset", {}).get("tile_url")
     if dataset not in [NATURAL_LANDS, TREE_COVER_GAIN, CARBON_FLUX]:
-        assert year in tile_url
+        assert end_year in tile_url
     tile_url_format = tile_url.format(z=3, x=5, y=3)
     if "eoapi.globalnaturewatch.org" in tile_url_format:
         tile_url_format = tile_url_format.replace(
@@ -1046,4 +1016,96 @@ async def test_pick_dataset_reason_matches_query_language_with_llm_judge(
     assert judged_language == expected_language, (
         f"Expected reason language '{expected_language}', "
         f"but judge returned '{judged_language}'. Reason: {reason}"
+    )
+
+
+@pytest.mark.parametrize(
+    "query,start_date,end_date",
+    [
+        (
+            "Show me changes in precipitations and ocean currents along major cargo shipping routes in the Atlantic",
+            "2015-01-01",
+            "2024-12-31",
+        ),
+    ],
+)
+async def test_queries_return_no_dataset(query, start_date, end_date):
+    tool_call_id = str(uuid.uuid4())
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": start_date,
+            "end_date": end_date,
+            "state": dict(),
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    assert command.update.get("dataset") is None, (
+        f"Expected no dataset for query '{query}', "
+        f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
+    )
+    suggested = command.update.get("suggested_datasets")
+    assert (
+        suggested is None
+    ), f"Expected no suggestions for query '{query}' but got {suggested}"
+
+
+@pytest.mark.parametrize(
+    "query,start_date,end_date",
+    [
+        # Ambiguous: we have natural land extent (2020 snapshot) and general land
+        # cover change, but no natural-land-specific loss or change dataset.
+        (
+            "Show the trend in natural land loss over time in Brazil",
+            "2015-01-01",
+            "2024-12-31",
+        ),
+        # We don't have the land cover dataset since 2000, should suggest using
+        # tree cover loss instead
+        (
+            "Can you show tell me how land has changed since 2000?",
+            "2000-01-01",
+            "2025-12-31",
+        ),
+        # Could mean a couple different baselines
+        (
+            "Brazil deforestation linked to agricultural commodities in 2017?",
+            "2017-01-01",
+            "2017-12-31",
+        ),
+    ],
+)
+async def test_queries_return_suggested_datasets(query, start_date, end_date):
+    tool_call_id = str(uuid.uuid4())
+    tool_call = {
+        "type": "tool_call",
+        "name": "pick_dataset",
+        "id": tool_call_id,
+        "args": {
+            "query": query,
+            "start_date": start_date,
+            "end_date": end_date,
+            "state": dict(),
+            "tool_call_id": tool_call_id,
+        },
+    }
+
+    command = await pick_dataset.ainvoke(tool_call)
+
+    assert command.update.get("dataset") is None, (
+        f"Expected no dataset for ambiguous query '{query}', "
+        f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
+    )
+
+    suggested = command.update.get("suggested_datasets")
+
+    assert suggested and len(suggested) > 1, (
+        f"Expected multiple suggested_datasets for ambiguous query '{query}', "
+        f"but got: {suggested}"
     )

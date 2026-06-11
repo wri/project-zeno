@@ -133,6 +133,11 @@ SLUC_EMISSION_FACTORS_ID = [
     if ds["dataset_name"]
     == "Deforestation (sLUC) Emission Factors by Agricultural Crop"
 ][0]
+TREE_COVER_LOSS_BY_FIRES_ID = [
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"] == "Tree cover loss due to fires"
+][0]
 
 
 class AnalyticsHandler(DataSourceHandler):
@@ -164,6 +169,7 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_ID,
             TREE_COVER_LOSS_BY_DRIVER_ID,
             SLUC_EMISSION_FACTORS_ID,
+            TREE_COVER_LOSS_BY_FIRES_ID,
         ]
 
     def _get_aoi_type(self, aoi: Dict) -> dict[str, str]:
@@ -279,6 +285,7 @@ class AnalyticsHandler(DataSourceHandler):
         elif dataset.get("dataset_id") in [
             TREE_COVER_LOSS_ID,
             TREE_COVER_LOSS_BY_DRIVER_ID,
+            TREE_COVER_LOSS_BY_FIRES_ID,
         ]:
             forest_filter = None
 
@@ -290,6 +297,8 @@ class AnalyticsHandler(DataSourceHandler):
             intersections = []
             if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_DRIVER_ID:
                 intersections = ["driver"]
+            if dataset.get("dataset_id") == TREE_COVER_LOSS_BY_FIRES_ID:
+                intersections = ["fire"]
 
             payload = {
                 **base_payload,
@@ -345,6 +354,7 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_LOSS_ID,
             TREE_COVER_ID,
             TREE_COVER_LOSS_BY_DRIVER_ID,
+            TREE_COVER_LOSS_BY_FIRES_ID,
             FOREST_CARBON_FLUX_ID,
         ]:
             canopy_cover: int = 30
@@ -362,13 +372,12 @@ class AnalyticsHandler(DataSourceHandler):
         self,
         endpoint_url: str,
         payload: Dict,
-        max_retries: int = 5,
-        poll_interval: float = 0.5,
+        max_retries: int = 30,
     ) -> Dict | str:
         """Poll the API until the request is completed or max retries exceeded."""
+        result = {}
         for attempt in range(max_retries):
             logger.info(f"Polling attempt {attempt + 1}/{max_retries}")
-            await asyncio.sleep(poll_interval * (attempt + 1))
 
             try:
                 async with httpx.AsyncClient() as client:
@@ -396,6 +405,9 @@ class AnalyticsHandler(DataSourceHandler):
                     msg = f"Request failed with status: {status}"
                     logger.error(msg)
                     return msg
+
+                retry_after = float(response.headers.get("Retry-After", 1))
+                await asyncio.sleep(retry_after)
 
             except Exception as e:
                 logger.warning(
