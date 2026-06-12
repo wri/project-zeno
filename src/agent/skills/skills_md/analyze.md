@@ -17,7 +17,6 @@ Call tools **one at a time**, never in parallel. Provide short progress messages
 
 - This workflow applies only when the user wants full analysis. For dataset-only or AOI-only requests, use the matching skill instead — do not ask for a location or run later steps.
 - AOI + dataset + date range are required before `pull_data`. If the user gave a place but AOI is missing, resolve it. If dates are omitted, `pick_dataset` supplies defaults.
-- Be proactive: warn on imperfect place/date/dataset matches but continue when reasonable.
 - If pull fails or data is unavailable, inform the user and **stop** — do not call further tools.
 - After pulling data, always create new insights (do not skip `generate_insights`).
 

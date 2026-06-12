@@ -1,0 +1,122 @@
+name: Evals
+
+on:
+  repository_dispatch:
+    types: [deploy-complete]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: API environment to target
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      ref:
+        description: project-zeno ref to check out (defaults to the workflow's branch)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  run-evals:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      API_TOKEN: ${{ secrets.WRI_BEARER_TOKEN }}
+    steps:
+      - name: Resolve trigger context
+        id: ctx
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "environment=${{ github.event.client_payload.environment }}" >> "$GITHUB_OUTPUT"
+            echo "ref=${{ github.event.client_payload.sha }}" >> "$GITHUB_OUTPUT"
+            echo "image_tag=${{ github.event.client_payload.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
+            echo "ref=${{ inputs.ref || github.ref }}" >> "$GITHUB_OUTPUT"
+            echo "image_tag=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ctx.outputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Select API base URL
+        run: |
+          if [ "${{ steps.ctx.outputs.environment }}" = "production" ]; then
+            echo "API_BASE_URL=https://api.globalnaturewatch.org" >> "$GITHUB_ENV"
+          else
+            echo "API_BASE_URL=https://api.staging.globalnaturewatch.org" >> "$GITHUB_ENV"
+          fi
+
+      - name: Validate required secrets
+        run: |
+          missing=0
+          for key in API_TOKEN ANTHROPIC_API_KEY; do
+            if [ -z "${!key}" ]; then
+              echo "Missing required secret: $key"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Run evals
+        id: run
+        run: |
+          set -o pipefail
+          uvx --from "git+https://github.com/wri/gnw-evals@zeno-evals-v1" gnw_evals \
+            --test-file $(pwd)/tests/evals/datasets/evals.csv \
+            --num-workers 3 \
+            --num-trials 1 \
+            --sample-size -1 \
+            --offset 0 \
+            | tee eval_output.log
+
+      - name: Post summary
+        if: always()
+        run: |
+          {
+            echo "## Evals — ${{ steps.ctx.outputs.environment }}"
+            echo ""
+            if [ -n "${{ steps.ctx.outputs.image_tag }}" ]; then
+              echo "Image tag: \`${{ steps.ctx.outputs.image_tag }}\`"
+            fi
+            echo "Ref: \`${{ steps.ctx.outputs.ref }}\`"
+            echo ""
+            echo '```'
+            if [ -f eval_output.log ]; then
+              awk '/^={3,}$/{flag=!flag} flag || /EVALUATION SUMMARY/' eval_output.log | tail -60
+            else
+              echo "(no eval output captured)"
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Artifact timestamp
+        if: always()
+        id: artifact_ts
+        run: echo "value=$(date -u +%Y%m%d_%H%M%S)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload CSV artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-csv-${{ steps.ctx.outputs.environment }}-${{ steps.artifact_ts.outputs.value }}-${{ github.run_id }}
+          path: outputs/*.csv
+          if-no-files-found: warn
