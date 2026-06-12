@@ -58,6 +58,15 @@ def format_session_block(state: dict) -> str:
     else:
         lines.append("Pulled data: none")
 
+    imagery = state.get("imagery") or {}
+    if imagery:
+        lines.append(
+            f"Imagery: Sentinel-2 around {imagery.get('target_date')} "
+            f"({imagery.get('item_count')} scenes)"
+        )
+    else:
+        lines.append("Imagery: none")
+
     insight_id = state.get("insight_id")
     lines.append(
         f"Active insight: {insight_id}"
