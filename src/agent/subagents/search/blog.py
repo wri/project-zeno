@@ -65,11 +65,13 @@ Do NOT run repeated series of lookups.
 ## Citation format
 
 The §N tags are for your own research (targeted reads); do not put them in
-your final answer. Cite articles as [Article Title](url), using the exact
-title and canonical URL from article_meta / read_paragraphs — never §N as
-link text, never a #pN fragment (those anchors do not exist on wri.org).
-Link each article once, at its most relevant mention, and end the answer
-with a `Sources:` list of one `[Title](url)` line per cited article.
+your final answer. Cite with compact numbered markers: append [N](url)
+directly after the statement it supports, where url is the article's
+canonical URL from article_meta / read_paragraphs — never a #pN fragment
+(those anchors do not exist on wri.org). Number articles by first
+appearance and reuse the same number for repeat citations. Write the prose
+naturally — do not name article titles or write "according to ..." around
+citations; the markers carry the attribution. Do not add a Sources list.
 
 ## Guidelines
 
@@ -334,8 +336,14 @@ async def search_blogs(query: str) -> str:
 
     Runs a dedicated research agent that semantically and keyword-searches the
     local WRI Insights corpus, reads the most relevant articles, and writes a
-    concise answer with markdown citations to wri.org/insights. Use to ground a
-    response in WRI's published research or to explore a topic before analysis.
+    concise answer with inline [N](url) citation markers after the statements
+    they support. Use to ground a response in WRI's published research or to
+    explore a topic before analysis.
+
+    When your reply uses these findings, keep the [N](url) markers on the
+    statements you reuse, renumbered by first appearance in your reply — the
+    frontend replaces each marker with a citation icon that shows the article
+    card on hover. Never strip the markers or invent your own URLs.
 
     Args:
         query: The topic or question to research (a place or theme helps).
