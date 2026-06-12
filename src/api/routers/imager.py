@@ -10,9 +10,11 @@ from cachetools import TTLCache
 from cogeo_mosaic.backends.base import BaseBackend
 from cogeo_mosaic.errors import MosaicNotFoundError
 from cogeo_mosaic.mosaic import MosaicJSON
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
+from pyproj import Geod
+from shapely.geometry import shape
 from titiler.mosaic.factory import MosaicTilerFactory
 
 from src.api.auth.dependencies import require_auth
@@ -25,6 +27,27 @@ logger = get_logger(__name__)
 _STAC_URL = "https://earth-search.aws.element84.com/v1"
 _SENTINEL2_COLLECTION = "sentinel-2-l2a"
 _VISUAL_ASSET = "visual"
+
+# Mosaics are meant for regional AOIs; mid-size countries exceed this.
+_MAX_AOI_AREA_KM2 = 50_000
+
+_geod = Geod(ellps="WGS84")
+
+
+def check_aoi_area(geometry: dict) -> float:
+    """Return the geodesic area of a GeoJSON geometry in km², or raise 422."""
+    area_km2 = abs(_geod.geometry_area_perimeter(shape(geometry))[0]) / 1e6
+    if area_km2 > _MAX_AOI_AREA_KM2:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"AOI is too large for satellite imagery mosaics "
+                f"({area_km2:,.0f} km²; limit {_MAX_AOI_AREA_KM2:,} km²). "
+                "Choose a smaller, regional area."
+            ),
+        )
+    return area_km2
+
 
 # mosaic_id → MosaicJSON. In-memory and per-process: mosaics expire after the
 # TTL and are not shared across workers/replicas — swap for Redis/DB if the
@@ -65,8 +88,8 @@ async def create_mosaic(
     src_id: str,
     date_start: Optional[date] = None,
     date_end: Optional[date] = None,
-    max_cloud_cover: int = 20,
-    max_items: int = 50,
+    max_cloud_cover: int = Query(20, ge=0, le=100),
+    max_items: int = Query(50, ge=1, le=100),
     user: UserModel = Depends(require_auth),
 ):
     """
@@ -82,6 +105,8 @@ async def create_mosaic(
     data = await get_geometry_data(source, src_id, user_id=user.id)
     if not data or not data.get("geometry"):
         raise HTTPException(status_code=404, detail="Geometry not found")
+
+    check_aoi_area(data["geometry"])
 
     def _search() -> list:
         catalog = pystac_client.Client.open(_STAC_URL)
