@@ -14,9 +14,9 @@ from src.api.routers import (
     chat,
     custom_areas,
     geometry,
-    imager,
     insights,
     metadata,
+    mosaic,
     threads,
     thumbnails,
     users,
@@ -122,7 +122,7 @@ app.include_router(thumbnails.router)
 app.include_router(insights.router)
 app.include_router(metadata.router)
 app.include_router(admin.router)
-app.include_router(imager.router, prefix="/mosaic", tags=["Map Tiles"])
+app.include_router(mosaic.router, prefix="/mosaic", tags=["Map Tiles"])
 
 # Map titiler/cogeo-mosaic errors to proper status codes (e.g. tile requests
 # outside the mosaic bounds -> 404, unknown mosaic id -> 404). The catch-all
