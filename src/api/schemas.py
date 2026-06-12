@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
 
@@ -426,3 +426,74 @@ class InsightResponse(BaseModel):
 
 class InsightPublicToggleRequest(BaseModel):
     is_public: bool
+
+
+class JobResourceResponse(BaseModel):
+    id: UUID
+    resource_url: str = Field(
+        description="URL of the created resource, e.g. `/api/insights/{id}`."
+    )
+    status: str = Field(description="Always `completed`.")
+    created_at: datetime
+
+
+class JobResponse(BaseModel):
+    id: UUID
+    type: str = Field(description="Job type, e.g. `analysis`.")
+    status: str = Field(
+        description=(
+            "Current job status: `pending`, `running`, `completed`, or "
+            "`failed`. While `pending` or `running`, poll again after the "
+            "number of seconds in the `Retry-After` response header."
+        )
+    )
+    thread_id: Optional[str] = Field(
+        default=None,
+        description="Agent thread the results were written into, if provided.",
+    )
+    resources: List[JobResourceResponse] = Field(
+        default=[],
+        description=(
+            "Resources created by the job. Empty until the job completes. "
+            "Follow each `resource_url` to retrieve the result."
+        ),
+    )
+    created_at: datetime
+
+
+class AreaOfInterest(BaseModel):
+    source: str = Field(
+        description=(
+            "Data source of the area, e.g. `gadm`, `custom`, `wdpa`, "
+            "`kba`, `landmark`."
+        )
+    )
+    src_id: str = Field(
+        description="Source-specific identifier, e.g. `BRA` or a UUID."
+    )
+    subtype: str = Field(
+        description=(
+            "Administrative level or area category, e.g. `country`, "
+            "`state-province`, `custom-area`."
+        )
+    )
+
+
+class AnalyzeRequest(BaseModel):
+    aois: List[AreaOfInterest] = Field(
+        min_length=1,
+        description="One or more areas of interest to analyse.",
+    )
+    dataset_id: int = Field(description="ID of the dataset to query.")
+    start_date: date = Field(
+        description="Start of the date range (YYYY-MM-DD)."
+    )
+    end_date: date = Field(description="End of the date range (YYYY-MM-DD).")
+    thread_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Agent thread ID. When provided, the results are written into "
+            "the agent state for that thread so follow-up chat messages can "
+            "reference the data without re-fetching."
+        ),
+    )

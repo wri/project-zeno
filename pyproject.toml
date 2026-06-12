@@ -1,6 +1,6 @@
 [project]
 name = "project-zeno"
-version = "2026.6.12"
+version = "2026.6.13"
 description = "Language Interface for Maps & WRI/LCL data APIs."
 readme = "README.md"
 requires-python = "==3.12.8"
