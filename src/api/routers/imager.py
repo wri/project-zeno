@@ -1,13 +1,14 @@
 """Sentinel-2 mosaic tile service over AOI geometries.
 
 The tile/tilejson endpoints from the titiler factory are unauthenticated so
-plain map clients can load tiles; mosaic ids are unguessable UUIDs and only
-creation requires auth.
+plain map clients can load tiles; mosaic ids are signed recipe tokens (see
+src/api/services/mosaic.py) and only creation requires auth.
 """
 
 from datetime import date
 from typing import Optional
 
+from cogeo_mosaic.errors import MosaicNotFoundError
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from titiler.mosaic.factory import MosaicTilerFactory
@@ -17,11 +18,12 @@ from src.api.schemas import UserModel
 from src.api.services.mosaic import (
     AoiTooLargeError,
     InMemoryBackend,
+    MosaicRecipe,
     NoScenesFoundError,
     StacSearchError,
     create_sentinel2_mosaic,
+    ensure_mosaic,
 )
-from src.shared.geocoding_helpers import get_geometry_data
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -29,7 +31,9 @@ logger = get_logger(__name__)
 _mosaic_tiler = MosaicTilerFactory(backend=InMemoryBackend)
 
 router = APIRouter()
-router.include_router(_mosaic_tiler.router)
+router.include_router(
+    _mosaic_tiler.router, dependencies=[Depends(ensure_mosaic)]
+)
 
 
 class MosaicCreateResponse(BaseModel):
@@ -57,18 +61,19 @@ async def create_mosaic(
       GET /mosaic/tiles/WebMercatorQuad/{z}/{x}/{y}[.{format}]?url={mosaic_id}
       GET /mosaic/WebMercatorQuad/tilejson.json?url={mosaic_id}
     """
-    data = await get_geometry_data(source, src_id, user_id=user.id)
-    if not data or not data.get("geometry"):
-        raise HTTPException(status_code=404, detail="Geometry not found")
+    recipe = MosaicRecipe(
+        aois=((source, src_id),),
+        target_date=target_date or date.today(),
+        window_days=window_days,
+        max_cloud_cover=max_cloud_cover,
+        max_items=max_items,
+        user_id=user.id if source == "custom" else None,
+    )
 
     try:
-        result = await create_sentinel2_mosaic(
-            geometry=data["geometry"],
-            target_date=target_date,
-            window_days=window_days,
-            max_cloud_cover=max_cloud_cover,
-            max_items=max_items,
-        )
+        result = await create_sentinel2_mosaic(recipe)
+    except MosaicNotFoundError:
+        raise HTTPException(status_code=404, detail="Geometry not found")
     except AoiTooLargeError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except NoScenesFoundError as e:
