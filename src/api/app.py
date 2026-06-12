@@ -58,6 +58,19 @@ app.add_middleware(
 
 
 @app.middleware("http")
+async def mosaic_cache_headers(request: Request, call_next) -> Response:
+    """Mosaic tiles are immutable per token; let browsers cache them."""
+    response = await call_next(request)
+    if (
+        request.method == "GET"
+        and request.url.path.startswith("/mosaic/")
+        and response.status_code == 200
+    ):
+        response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
+@app.middleware("http")
 async def logging_middleware(request: Request, call_next) -> Response:
     """Middleware to log requests and bind request ID to context."""
     req_id = uuid.uuid4().hex
