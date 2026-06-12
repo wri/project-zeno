@@ -93,14 +93,28 @@ def build_index(data_dir: Path, index_dir: Path):
                     "line": line,
                     "para": para,
                     "section": section,
-                    "text": text,
                 }
             )
             texts.append(text)
 
     emb = normalize(get_model().encode(texts)).astype("float32")
+    # int8-quantize with a single symmetric scale; chunk text is not stored
+    # (it is reconstructed from the source files at query time).
+    scale = float(np.abs(emb).max() / 127.0) or 1.0
+    q8 = np.round(emb / scale).clip(-127, 127).astype(np.int8)
+
     index_dir.mkdir(parents=True, exist_ok=True)
-    np.save(index_dir / "embeddings.npy", emb)
+    np.save(index_dir / "embeddings.npy", q8)
+    (index_dir / "config.json").write_text(
+        json.dumps(
+            {
+                "scale": scale,
+                "dim": int(emb.shape[1]),
+                "data_dir": str(data_dir),
+            }
+        ),
+        encoding="utf-8",
+    )
     (index_dir / "meta.jsonl").write_text(
         "\n".join(json.dumps(m, ensure_ascii=False) for m in meta),
         encoding="utf-8",
@@ -114,18 +128,42 @@ def paint(s, code):
     return f"\033[{code}m{s}\033[0m" if sys.stdout.isatty() else str(s)
 
 
+@lru_cache(maxsize=256)
+def _chunk_texts(path_str: str) -> dict:
+    """Map a source file's chunk key (para or 'L<line>') to its text."""
+    out = {}
+    for line, para, _section, text in chunks(
+        Path(path_str).read_text(encoding="utf-8")
+    ):
+        out[para if para is not None else f"L{line}"] = text
+    return out
+
+
+def _chunk_text(data_dir: Path, m: dict) -> str:
+    key = m["para"] if m.get("para") is not None else f"L{m['line']}"
+    return _chunk_texts(str(data_dir / m["file"])).get(key, "")
+
+
 def query_index(
     index_dir: Path, query: str, k: int = 10, threshold: float = 0.3
 ) -> list[dict]:
     """Return the top-k matching paragraphs as a list of result dicts."""
     emb = np.load(index_dir / "embeddings.npy", mmap_mode="r")
+    config = json.loads(
+        (index_dir / "config.json").read_text(encoding="utf-8")
+    )
+    scale = config["scale"]
+    data_dir = Path(config["data_dir"])
+    if not data_dir.exists():  # index moved with the repo
+        data_dir = DEFAULT_DATA_DIR
     meta = [
         json.loads(line)
         for line in (index_dir / "meta.jsonl")
         .read_text(encoding="utf-8")
         .splitlines()
     ]
-    scores = np.asarray(emb @ normalize(get_model().encode([query])[0]))
+    qv = normalize(get_model().encode([query])[0]).astype("float32")
+    scores = (np.asarray(emb, dtype="float32") @ qv) * scale
 
     results = []
     for i in np.argsort(-scores)[:k]:
@@ -139,7 +177,7 @@ def query_index(
                 "para": m.get("para"),
                 "section": m.get("section"),
                 "score": float(scores[i]),
-                "text": m["text"],
+                "text": _chunk_text(data_dir, m),
             }
         )
     return results
