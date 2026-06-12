@@ -1,77 +1,32 @@
-"""Sentinel-2 mosaic tile service over AOI geometries."""
+"""Sentinel-2 mosaic tile service over AOI geometries.
 
-import uuid
-from datetime import date, timedelta
+The tile/tilejson endpoints from the titiler factory are unauthenticated so
+plain map clients can load tiles; mosaic ids are unguessable UUIDs and only
+creation requires auth.
+"""
+
+from datetime import date
 from typing import Optional
 
-import attr
-import pystac_client
-from cachetools import TTLCache
-from cogeo_mosaic.backends.base import BaseBackend
-from cogeo_mosaic.errors import MosaicNotFoundError
-from cogeo_mosaic.mosaic import MosaicJSON
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
-from pyproj import Geod
-from shapely.geometry import shape
 from titiler.mosaic.factory import MosaicTilerFactory
 
 from src.api.auth.dependencies import require_auth
 from src.api.schemas import UserModel
+from src.api.services.mosaic import (
+    AoiTooLargeError,
+    InMemoryBackend,
+    NoScenesFoundError,
+    StacSearchError,
+    create_sentinel2_mosaic,
+)
 from src.shared.geocoding_helpers import get_geometry_data
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-_STAC_URL = "https://earth-search.aws.element84.com/v1"
-_SENTINEL2_COLLECTION = "sentinel-2-l2a"
-_VISUAL_ASSET = "visual"
-
-# Mosaics are meant for regional AOIs; mid-size countries exceed this.
-_MAX_AOI_AREA_KM2 = 50_000
-
-_geod = Geod(ellps="WGS84")
-
-
-def check_aoi_area(geometry: dict) -> float:
-    """Return the geodesic area of a GeoJSON geometry in km², or raise 422."""
-    area_km2 = abs(_geod.geometry_area_perimeter(shape(geometry))[0]) / 1e6
-    if area_km2 > _MAX_AOI_AREA_KM2:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"AOI is too large for satellite imagery mosaics "
-                f"({area_km2:,.0f} km²; limit {_MAX_AOI_AREA_KM2:,} km²). "
-                "Choose a smaller, regional area."
-            ),
-        )
-    return area_km2
-
-
-# mosaic_id → MosaicJSON. In-memory and per-process: mosaics expire after the
-# TTL and are not shared across workers/replicas — swap for Redis/DB if the
-# API ever runs with more than one process.
-_mosaic_store: TTLCache = TTLCache(maxsize=256, ttl=12 * 3600)
-
-
-@attr.s
-class _InMemoryBackend(BaseBackend):
-    """Resolve a mosaic by ID from the module-level _mosaic_store."""
-
-    _backend_name = "InMemory"
-
-    def _read(self) -> MosaicJSON:
-        mosaic = _mosaic_store.get(self.input)
-        if mosaic is None:
-            raise MosaicNotFoundError(f"Mosaic '{self.input}' not found")
-        return mosaic
-
-    def write(self, overwrite: bool = False) -> None:
-        pass
-
-
-_mosaic_tiler = MosaicTilerFactory(backend=_InMemoryBackend)
+_mosaic_tiler = MosaicTilerFactory(backend=InMemoryBackend)
 
 router = APIRouter()
 router.include_router(_mosaic_tiler.router)
@@ -106,65 +61,27 @@ async def create_mosaic(
     if not data or not data.get("geometry"):
         raise HTTPException(status_code=404, detail="Geometry not found")
 
-    check_aoi_area(data["geometry"])
-
-    actual_target = target_date or date.today()
-    actual_start = actual_target - timedelta(days=window_days)
-    actual_end = min(actual_target + timedelta(days=window_days), date.today())
-
-    def _search() -> list:
-        catalog = pystac_client.Client.open(_STAC_URL)
-        search = catalog.search(
-            collections=[_SENTINEL2_COLLECTION],
-            intersects=data["geometry"],
-            datetime=f"{actual_start}/{actual_end}",
-            query={"eo:cloud_cover": {"lt": max_cloud_cover}},
+    try:
+        result = await create_sentinel2_mosaic(
+            geometry=data["geometry"],
+            target_date=target_date,
+            window_days=window_days,
+            max_cloud_cover=max_cloud_cover,
             max_items=max_items,
         )
-        return list(search.items())
-
-    try:
-        # pystac_client is synchronous; keep it off the event loop.
-        items = await run_in_threadpool(_search)
-    except Exception as e:
-        logger.error("STAC search failed", error=str(e))
+    except AoiTooLargeError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except NoScenesFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except StacSearchError:
         raise HTTPException(status_code=502, detail="STAC search failed")
-
-    if not items:
-        raise HTTPException(
-            status_code=404,
-            detail="No Sentinel-2 scenes found for this AOI and date range",
-        )
-
-    # The mosaic renders the first valid scene per tile, so order items by
-    # proximity to the target date (cloud cover as tiebreak) to keep the
-    # displayed imagery as close to the requested date as possible.
-    items.sort(
-        key=lambda item: (
-            abs((item.datetime.date() - actual_target).days),
-            item.properties.get("eo:cloud_cover", 100),
-        )
-    )
-
-    try:
-        mosaic = MosaicJSON.from_features(
-            [item.to_dict() for item in items],
-            minzoom=8,
-            maxzoom=14,
-            accessor=lambda f: f["assets"][_VISUAL_ASSET]["href"],
-        )
     except Exception as e:
         logger.error("MosaicJSON creation failed", error=str(e))
         raise HTTPException(status_code=500, detail="Mosaic build failed")
 
-    mosaic_id = uuid.uuid4().hex
-    _mosaic_store[mosaic_id] = mosaic
-    logger.info("Mosaic created", mosaic_id=mosaic_id, item_count=len(items))
-
-    item_dates = [item.datetime.date() for item in items]
     return MosaicCreateResponse(
-        mosaic_id=mosaic_id,
-        item_count=len(items),
-        date_start=min(item_dates),
-        date_end=max(item_dates),
+        mosaic_id=result.mosaic_id,
+        item_count=result.item_count,
+        date_start=result.date_start,
+        date_end=result.date_end,
     )
