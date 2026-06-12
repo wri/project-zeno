@@ -1,4 +1,5 @@
 import asyncio
+import math
 import re
 from typing import Annotated, Dict, List, Optional
 
@@ -361,6 +362,21 @@ class Analyst:
 
         logger.info(f"Generated chart data with {len(result.chart_data)} rows")
 
+        # 5.1. SANITIZE NaN → None for JSON safety.
+        # Postgres JSONB rejects NaN ("invalid input syntax for type json"),
+        # and the same value also fails JSON.parse on the wire to the FE.
+        # Replace any NaN-like floats with None — the FE / Recharts already
+        # handle null y-values by gapping the line / hiding the bar.
+        def _json_safe(v):
+            if isinstance(v, float) and math.isnan(v):
+                return None
+            return v
+
+        result.chart_data = [
+            {k: _json_safe(v) for k, v in row.items()}
+            for row in result.chart_data
+        ]
+
         # 5.5. REPLACE CSV PATHS: Replace CSV file paths with URL-based loading
         # This makes the code blocks runnable in any environment.
         for part in result.parts:
@@ -373,11 +389,17 @@ class Analyst:
         chart_data_df = pd.DataFrame(result.chart_data)
 
         # 7. BUILD RESPONSE - Support multiple charts
-        tool_message = f"Generated {len(result.insight.charts)} chart(s)\n"
-        tool_message += f"Key Finding: {result.insight.primary_insight}\n\n"
+        n_charts = len(result.insight.charts)
+        tool_message = f"Generated {n_charts} chart(s):\n"
 
         for idx, chart in enumerate(result.insight.charts, 1):
-            tool_message += f"Chart {idx}: {chart.title}\n"
+            # tool_message += f"[Chart {idx}]: {chart.title}\n"
+            marker = f"[Chart {idx}]"
+            tool_message += (
+                f"Place {marker} in your reply to represent the chart. Use this exact UUID; do not invent UUIDs."
+                f"Title: '{chart.title}'.\n\n"
+                # f"Key Finding: {result.insight.primary_insight}\n\n"
+            )
 
         MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE = 4000
         formatted_df = chart_data_df.apply(
@@ -389,11 +411,16 @@ class Analyst:
         if len(csv_str) < MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE:
             tool_message += f"\nChart data CSV:\n{csv_str}"
 
-        tool_message += "\n\nFollow-up suggestions:"
-
+        # Surface the dataset's cautions to the orchestrator so they
+        # can be cited in the final chat reply. The executor already
+        # consumed them when generating the chart, but its
+        # `primary_insight` rarely echoes them verbatim — the
+        # orchestrator's job is to weave the relevant ones into the
+        # user-facing narrative.
         if dataset_cautions:
             tool_message += f"\n\nDataset cautions:\n{dataset_cautions}"
 
+        tool_message += "\n\nFollow-up suggestions:"
         for i, suggestion in enumerate(
             result.insight.follow_up_suggestions, 1
         ):
