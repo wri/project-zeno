@@ -9,10 +9,6 @@ class _APISettings(BaseSettings):
 
     mapbox_api_token: str = ""
 
-    # Signs mosaic recipe tokens (MOSAIC_TOKEN_SECRET). Changing it
-    # invalidates all previously issued mosaic URLs.
-    mosaic_token_secret: str = "dev-mosaic-secret"
-
     # Quota settings
     daily_quota_warning_threshold: int = 5
     admin_user_daily_quota: int = 100

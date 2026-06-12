@@ -66,6 +66,8 @@ async def test_show_imagery_success():
     assert imagery["mosaic_id"] == "abc123"
     assert imagery["tile_url"].endswith("?url=abc123")
     assert imagery["target_date"] == "2025-06-01"
+    assert imagery["window_days"] == 7
+    assert imagery["max_cloud_cover"] == 20
     assert imagery["aoi_names"] == ["Zurich"]
     assert "4 scenes" in _messages(command)[0].content
 

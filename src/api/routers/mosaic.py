@@ -1,8 +1,9 @@
 """Sentinel-2 mosaic tile service over AOI geometries.
 
-The tile/tilejson endpoints from the titiler factory are unauthenticated so
-plain map clients can load tiles; mosaic ids are signed recipe tokens (see
-src/api/services/mosaic.py) and only creation requires auth.
+All endpoints — including the titiler tile/tilejson routes — require the
+same bearer auth as the rest of the API; map clients must attach the
+Authorization header to tile requests. Mosaic ids are recipe tokens (see
+src/api/services/mosaic.py).
 """
 
 from datetime import date
@@ -32,7 +33,8 @@ _mosaic_tiler = MosaicTilerFactory(backend=InMemoryBackend)
 
 router = APIRouter()
 router.include_router(
-    _mosaic_tiler.router, dependencies=[Depends(ensure_mosaic)]
+    _mosaic_tiler.router,
+    dependencies=[Depends(require_auth), Depends(ensure_mosaic)],
 )
 
 
