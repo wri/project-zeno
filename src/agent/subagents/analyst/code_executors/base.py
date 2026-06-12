@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+CHART_TYPES_WITHOUT_AXIS = {"pie", "table"}
 
 
 class ChartInsight(BaseModel):
@@ -21,7 +23,8 @@ class ChartInsight(BaseModel):
         description="Name of the field to use for X-axis (for applicable chart types)"
     )
     y_axis: str = Field(
-        description="Name of the field to use for Y-axis (for applicable chart types)"
+        default="",
+        description="Name of the field to use for Y-axis. Required for single-series charts. Leave empty for multi-series charts and populate series_fields instead.",
     )
     color_field: str = Field(
         default="",
@@ -37,8 +40,19 @@ class ChartInsight(BaseModel):
     )
     series_fields: List[str] = Field(
         default=[],
-        description="List of field names for multiple data series (for multi-bar charts)",
+        description="List of field names for multiple data series (for multi-series charts). Required when y_axis is empty.",
     )
+
+    @model_validator(mode="after")
+    def validate_axis_config(self) -> "ChartInsight":
+        if self.chart_type not in CHART_TYPES_WITHOUT_AXIS:
+            if not self.y_axis and not self.series_fields:
+                raise ValueError(
+                    f"Chart '{self.title}' (type '{self.chart_type}') is missing axis "
+                    "configuration: set 'y_axis' for single-series charts or "
+                    "'series_fields' for multi-series charts"
+                )
+        return self
 
 
 class MultiChartInsight(BaseModel):

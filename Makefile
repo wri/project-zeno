@@ -1,14 +1,14 @@
 # Project Zeno Development Makefile
 # Usage: make <target>
 
-.PHONY: help dev dev-api dev-frontend up down restart logs api frontend test clean insights-data
+.PHONY: help dev dev-api up down restart logs api test clean insights-data
 
 # Default target - show help
 help: ## Show available commands
 	@echo "🚀 Project Zeno Development Commands"
 	@echo ""
 	@echo "Development Workflows:"
-	@echo "  make dev          - Start full development environment (infrastructure + API + frontend)"
+	@echo "  make dev          - Start full development environment (infrastructure + API)"
 	@echo ""
 	@echo "Infrastructure Management:"
 	@echo "  make up           - Start Docker services (PostgreSQL + Langfuse)"
@@ -18,7 +18,6 @@ help: ## Show available commands
 	@echo ""
 	@echo "Local Services:"
 	@echo "  make api          - Run API locally (requires infrastructure)"
-	@echo "  make frontend     - Run frontend locally (requires infrastructure + API)"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make insights-data - Download WRI Insights blog corpus + search index"
@@ -37,10 +36,9 @@ dev: up ## Start full development environment
 	@echo "📊 Langfuse: http://localhost:3001"
 	@echo "🗄️  PostgreSQL: localhost:5433"
 	@echo "🔧 API: http://localhost:8000"
-	@echo "🎨 Frontend: http://localhost:8501"
 	@echo ""
-	@echo "Starting API and Frontend in parallel..."
-	@$(MAKE) -j2 api frontend
+	@echo "Starting API..."
+	@$(MAKE) api
 
 # Infrastructure Management
 up: ## Start Docker services (PostgreSQL + Langfuse)
@@ -65,11 +63,6 @@ api: ## Run API locally
 	@echo "🔧 Starting API locally..."
 	@echo "📄 Using .env for configuration"
 	@uv run uvicorn src.api.app:app --reload --reload-dir src --host 0.0.0.0 --port 8000
-
-frontend: ## Run frontend locally
-	@echo "🎨 Starting frontend locally..."
-	@echo "📄 Using .env for configuration"
-	@uv run streamlit run frontend/app.py --server.port=8501 --server.runOnSave=True
 
 # Utilities
 insights-data: ## Download WRI Insights blog corpus + search index from the published snapshot
