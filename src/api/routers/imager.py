@@ -1,7 +1,7 @@
 """Sentinel-2 mosaic tile service over AOI geometries."""
 
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 
 import attr
@@ -80,33 +80,37 @@ router.include_router(_mosaic_tiler.router)
 class MosaicCreateResponse(BaseModel):
     mosaic_id: str
     item_count: int
+    date_start: date
+    date_end: date
 
 
 @router.post("/create/{source}/{src_id}", response_model=MosaicCreateResponse)
 async def create_mosaic(
     source: str,
     src_id: str,
-    date_start: Optional[date] = None,
-    date_end: Optional[date] = None,
+    target_date: Optional[date] = None,
+    window_days: int = Query(30, ge=1, le=183),
     max_cloud_cover: int = Query(20, ge=0, le=100),
     max_items: int = Query(50, ge=1, le=100),
     user: UserModel = Depends(require_auth),
 ):
     """
-    Search Sentinel-2 L2A scenes covering an AOI and cache a MosaicJSON.
+    Search Sentinel-2 L2A scenes covering an AOI around target_date
+    (within ±window_days) and cache a MosaicJSON.
 
     Returns a mosaic_id to pass as ?url= to the titiler mosaic endpoints:
       GET /mosaic/tiles/WebMercatorQuad/{z}/{x}/{y}[.{format}]?url={mosaic_id}
       GET /mosaic/WebMercatorQuad/tilejson.json?url={mosaic_id}
     """
-    actual_start = date_start or date(2024, 1, 1)
-    actual_end = date_end or date.today()
-
     data = await get_geometry_data(source, src_id, user_id=user.id)
     if not data or not data.get("geometry"):
         raise HTTPException(status_code=404, detail="Geometry not found")
 
     check_aoi_area(data["geometry"])
+
+    actual_target = target_date or date.today()
+    actual_start = actual_target - timedelta(days=window_days)
+    actual_end = min(actual_target + timedelta(days=window_days), date.today())
 
     def _search() -> list:
         catalog = pystac_client.Client.open(_STAC_URL)
@@ -132,6 +136,16 @@ async def create_mosaic(
             detail="No Sentinel-2 scenes found for this AOI and date range",
         )
 
+    # The mosaic renders the first valid scene per tile, so order items by
+    # proximity to the target date (cloud cover as tiebreak) to keep the
+    # displayed imagery as close to the requested date as possible.
+    items.sort(
+        key=lambda item: (
+            abs((item.datetime.date() - actual_target).days),
+            item.properties.get("eo:cloud_cover", 100),
+        )
+    )
+
     try:
         mosaic = MosaicJSON.from_features(
             [item.to_dict() for item in items],
@@ -147,4 +161,10 @@ async def create_mosaic(
     _mosaic_store[mosaic_id] = mosaic
     logger.info("Mosaic created", mosaic_id=mosaic_id, item_count=len(items))
 
-    return MosaicCreateResponse(mosaic_id=mosaic_id, item_count=len(items))
+    item_dates = [item.datetime.date() for item in items]
+    return MosaicCreateResponse(
+        mosaic_id=mosaic_id,
+        item_count=len(items),
+        date_start=min(item_dates),
+        date_end=max(item_dates),
+    )
