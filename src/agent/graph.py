@@ -20,7 +20,7 @@ from src.agent.middleware import SessionContextMiddleware
 from src.agent.skills import all_skills, read_skill
 from src.agent.state import AgentState
 from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
-from src.agent.tools import pull_data
+from src.agent.tools import pull_data, show_imagery
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -46,6 +46,7 @@ Call tools one at a time, never in parallel.
 # Tools (primitives — call when you need them)
 
 - pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.
+- show_imagery(target_date, window_days, max_cloud_cover): display a Sentinel-2 satellite imagery layer on the map for the AOI currently in state, using scenes closest to target_date (YYYY-MM-DD, default today). Run pick_aoi first. Works for regional areas only — it will refuse AOIs larger than ~50,000 km². If it finds no scenes, follow skill `show-imagery` to offer the user a wider window or cloudier scenes.
 - read_skill(name): load a skill's full workflow — call it once, after you have committed to using that skill.
 
 # Subagents (call as tools — each does its own reasoning; just forward the user's intent)
@@ -93,6 +94,7 @@ tools = [
     pick_aoi,
     pick_dataset,
     pull_data,
+    show_imagery,
     generate_insights,
     read_skill,
 ]

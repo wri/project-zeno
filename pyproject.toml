@@ -28,7 +28,7 @@ dependencies = [
     "sqlalchemy==2.0.41",
     "pypgstac==0.9.7",
     "psycopg==3.2.9",
-    "rio-stac==0.11.0",
+    "rio-stac==0.12.0",
     "psycopg-pool==3.2.6",
     "langgraph-checkpoint-postgres==3.0.5",
     "langchain-anthropic==1.4.0",
@@ -50,6 +50,7 @@ dependencies = [
     "click==8.1.8",
     "google-genai==1.68.0",
     "antimeridian==0.4.7",
+    "titiler-mosaic==0.25.0",
 ]
 
 [dependency-groups]
