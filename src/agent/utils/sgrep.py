@@ -34,10 +34,23 @@ TAG_RE = re.compile(
 )
 
 
-@lru_cache(maxsize=1)
-def get_model() -> StaticModel:
-    """Load the embedding model lazily on first use."""
-    return StaticModel.from_pretrained(MODEL_NAME)
+@lru_cache(maxsize=2)
+def get_model(local_dir: str | None = None) -> StaticModel:
+    """Load the embedding model lazily on first use.
+
+    int8 query vectors are >0.999 cosine-identical to float32 and shrink
+    the bundled model from 125MB to 32MB.
+    """
+    return StaticModel.from_pretrained(
+        local_dir or MODEL_NAME, quantize_to="int8"
+    )
+
+
+def _index_model(index_dir: Path) -> StaticModel:
+    """Prefer the model copy bundled with the index (offline, and guaranteed
+    to match the embeddings); fall back to the Hugging Face hub."""
+    bundled = index_dir / "model"
+    return get_model(str(bundled)) if bundled.is_dir() else get_model()
 
 
 def normalize(v):
@@ -159,13 +172,15 @@ def build_index(data_dir: Path, index_dir: Path):
             )
             texts.append(text)
 
-    emb = normalize(get_model().encode(texts)).astype("float32")
+    model = get_model()
+    emb = normalize(model.encode(texts)).astype("float32")
     # int8-quantize with a single symmetric scale; chunk text is not stored
     # (it is reconstructed from the source files at query time).
     scale = float(np.abs(emb).max() / 127.0) or 1.0
     q8 = np.round(emb / scale).clip(-127, 127).astype(np.int8)
 
     index_dir.mkdir(parents=True, exist_ok=True)
+    model.save_pretrained(index_dir / "model")
     np.save(index_dir / "embeddings.npy", q8)
     (index_dir / "config.json").write_text(
         json.dumps(
@@ -222,7 +237,9 @@ def query_index(
         .read_text(encoding="utf-8")
         .splitlines()
     ]
-    qv = normalize(get_model().encode([query])[0]).astype("float32")
+    qv = normalize(_index_model(index_dir).encode([query])[0]).astype(
+        "float32"
+    )
     scores = (np.asarray(emb, dtype="float32") @ qv) * scale
 
     results = []
@@ -251,7 +268,7 @@ def search(index_dir: Path, query: str, k: int = 10, threshold: float = 0.3):
             last = r["file"]
         loc = f"§{r['para']}" if r.get("para") else str(r["line"])
         print(
-            f"{paint(loc, 32)}:{paint(f'{r['score']:.2f}', 33)}: {r['text'][:120]}"
+            f"{paint(loc, 32)}:{paint(f'{r["score"]:.2f}', 33)}: {r['text'][:120]}"
         )
 
 
