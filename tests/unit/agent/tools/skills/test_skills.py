@@ -17,13 +17,13 @@ def test_load_skills():
     # Always-on policy was folded into the system prompt.
     assert "general-rules" not in names
     assert "ui-selections" not in names
-    assert "explore" not in names
 
 
-def test_skills_registry_is_the_four_recipes():
+def test_skills_registry_is_the_five_recipes():
     assert {s.name for s in all_skills()} == {
         "analyze",
         "capabilities",
+        "explore",
         "pull-data",
         "wri-insights",
     }

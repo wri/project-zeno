@@ -10,6 +10,7 @@ from src.agent.graph import close_checkpointer_pool, get_checkpointer_pool
 from src.agent.utils.sgrep import data_status
 from src.api.routers import (
     admin,
+    blogs,
     chat,
     custom_areas,
     geometry,
@@ -114,4 +115,5 @@ app.include_router(geometry.router)
 app.include_router(thumbnails.router)
 app.include_router(insights.router)
 app.include_router(metadata.router)
+app.include_router(blogs.router)
 app.include_router(admin.router)

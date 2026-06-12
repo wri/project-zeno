@@ -85,21 +85,19 @@ def slug_from_url(url: str) -> str:
     return url.rstrip("/").rsplit("/", 1)[-1]
 
 
-def _parse_meta(html: str) -> tuple[str, str]:
+def _parse_meta(html: str) -> dict[str, str]:
     soup = BeautifulSoup(html, "html.parser")
-    title_el = soup.find("meta", attrs={"name": "citation_title"})
-    desc_el = soup.find("meta", attrs={"name": "description"})
-    title = (
-        title_el["content"].strip()
-        if title_el and title_el.get("content")
-        else ""
-    )
-    abstract = (
-        desc_el["content"].strip()
-        if desc_el and desc_el.get("content")
-        else ""
-    )
-    return title, abstract
+
+    def content(**attrs: str) -> str:
+        el = soup.find("meta", attrs=attrs)
+        return el["content"].strip() if el and el.get("content") else ""
+
+    return {
+        "title": content(name="citation_title"),
+        "abstract": content(name="description"),
+        "image": content(property="og:image"),
+        "image_alt": content(property="og:image:alt"),
+    }
 
 
 def _cite_link(url: str, para_num: int, label: str) -> str:
@@ -158,9 +156,9 @@ def article_to_markdown(
     *, url: str, lastmod: str, html: str, title: str = "", abstract: str = ""
 ) -> str:
     if not title or not abstract:
-        meta_title, meta_abstract = _parse_meta(html)
-        title = title or meta_title
-        abstract = abstract or meta_abstract
+        meta = _parse_meta(html)
+        title = title or meta["title"]
+        abstract = abstract or meta["abstract"]
 
     body_md = trafilatura.extract(
         html, url=url, output_format="markdown", include_comments=False
@@ -194,16 +192,22 @@ def fetch_article(
     response = client.get(url)
     response.raise_for_status()
     html = response.text
-    title, abstract = _parse_meta(html)
+    meta = _parse_meta(html)
     markdown = article_to_markdown(
-        url=url, lastmod=lastmod, html=html, title=title, abstract=abstract
+        url=url,
+        lastmod=lastmod,
+        html=html,
+        title=meta["title"],
+        abstract=meta["abstract"],
     )
     entry = {
         "slug": slug,
-        "title": title,
-        "abstract": abstract,
+        "title": meta["title"],
+        "abstract": meta["abstract"],
         "url": url,
         "lastmod": lastmod,
+        "image": meta["image"],
+        "image_alt": meta["image_alt"],
     }
     return markdown, entry
 
@@ -297,11 +301,14 @@ def _pending_jobs(
         slug = slug_from_url(url)
         path = _DATA_DIR / f"{slug}.md"
         prev = existing.get(slug)
+        # A missing "image" key (as opposed to an empty value) means the
+        # entry predates og:image capture — refetch once to backfill.
         if (
             not force
             and path.exists()
             and prev
             and prev.get("lastmod") == lastmod
+            and "image" in prev
         ):
             skipped += 1
             continue

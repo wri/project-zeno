@@ -64,8 +64,12 @@ Do NOT run repeated series of lookups.
 
 ## Citation format
 
-Cite paragraphs as markdown links: [§N](url#pN), where url is the article
-URL shown by read_paragraphs and article_meta. Always use the full URL.
+The §N tags are for your own research (targeted reads); do not put them in
+your final answer. Cite articles as [Article Title](url), using the exact
+title and canonical URL from article_meta / read_paragraphs — never §N as
+link text, never a #pN fragment (those anchors do not exist on wri.org).
+Link each article once, at its most relevant mention, and end the answer
+with a `Sources:` list of one `[Title](url)` line per cited article.
 
 ## Guidelines
 

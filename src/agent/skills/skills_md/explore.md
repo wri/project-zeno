@@ -29,7 +29,9 @@ Call tools **one at a time**, never in parallel.
 - Base every recommendation on the `search_blogs` output and the `capabilities`
   reference. Do not invent datasets, regions or article content.
 - The `search_blogs` answer already contains markdown links to wri.org/insights.
-  Preserve at least one relevant link when you reference its findings.
+  Preserve at least one relevant link when you reference its findings, as
+  `[Article Title](url)` with the canonical URL — no `#fragment`. The frontend
+  renders these links as article cards.
 
 # Reply shape
 

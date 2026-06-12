@@ -15,8 +15,9 @@ Call tools **one at a time**, never in parallel.
 
 # Citing WRI Insights
 
-- Only cite links returned by `search_blogs`. Do not invent URLs or titles.
-- Reuse the markdown links exactly as they appear in the tool output (e.g. `[§3](https://www.wri.org/insights/example#p3)` or a title/URL link).
+- Only cite articles returned by `search_blogs`. Do not invent URLs or titles.
+- Cite as `[Article Title](https://www.wri.org/insights/<slug>)` — the article title as link text, the canonical URL with no `#fragment` or query string. The frontend turns these links into article cards, so the link text becomes the card title.
+- Link each article at most once per reply (no duplicate URLs), and keep the links in plain prose — not inside headings or bold.
 
 # Ending insights with blog links
 
@@ -28,6 +29,6 @@ The intermediate message (above) satisfies the "answer with links" requirement f
 
 **Example closing (adapt to the actual URLs from tool output):**
 
-> Tree cover loss in the AOI rose sharply after 2020, consistent with regional fire trends described in [WRI's analysis of Amazon fire seasons](https://www.wri.org/insights/example-article). The chart supports [WRI's finding that early-warning systems reduce response time](https://www.wri.org/insights/another-article#p4) in comparable landscapes.
+> Tree cover loss in the AOI rose sharply after 2020, consistent with regional fire trends described in [What's Driving Amazon Fire Seasons](https://www.wri.org/insights/example-article). The chart supports the finding that early-warning systems reduce response time in comparable landscapes, as shown in [Forest Monitoring Systems Explained](https://www.wri.org/insights/another-article).
 
 Place this WRI citation block **after** your 1–2 sentence chart summary, separated by a blank line.
