@@ -24,6 +24,9 @@ from langchain_core.tools import tool
 
 from src.agent.llms import MODEL_REGISTRY, SMALL_MODEL
 from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, TAG_RE, query_index
+from src.shared.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parents[4] / "data" / "wri_insights"
 DEFAULT_MODEL = SMALL_MODEL
@@ -145,6 +148,10 @@ def sgrep(query: str, top: int = 5) -> str:
         top: Maximum number of paragraphs to return (default: 5).
     """
     results = query_index(DEFAULT_INDEX_DIR, query, k=top)
+    logger.debug(
+        f"sgrep query={query!r} top={top} -> {len(results)} hits"
+        + (f" (best {results[0]['score']:.2f})" if results else "")
+    )
     if not results:
         return "No matching paragraphs found."
     lines = []
@@ -179,6 +186,7 @@ def read_paragraphs(slug: str, paras: list[int], context: int = 1) -> str:
     slug = slug[:-3] if slug.endswith(".md") else slug
     path = DATA_DIR / f"{slug}.md"
     if not path.exists():
+        logger.warning(f"read_paragraphs slug={slug!r} -> article not found")
         return f"{slug}: article not found"
 
     title = url = ""
@@ -205,8 +213,16 @@ def read_paragraphs(slug: str, paras: list[int], context: int = 1) -> str:
         }
     )
     if not wanted:
+        logger.debug(
+            f"read_paragraphs slug={slug!r} paras={paras} -> none in range "
+            f"(article has §1-§{max(by_num, default=0)})"
+        )
         return f"{slug}: no such paragraphs (article has §1-§{max(by_num, default=0)})"
 
+    logger.debug(
+        f"read_paragraphs slug={slug!r} paras={paras} context={context} "
+        f"-> {len(wanted)} paragraphs"
+    )
     out = [title, f"URL: {url}", ""]
     prev_n: int | None = None
     prev_section: str | None = None
@@ -248,6 +264,7 @@ def grep_articles(pattern: str, max_results: int = 10) -> str:
     try:
         rx = re.compile(pattern, re.IGNORECASE)
     except re.error as exc:
+        logger.warning(f"grep_articles invalid pattern={pattern!r}: {exc}")
         return f"Invalid pattern: {exc}"
 
     out: list[str] = []
@@ -266,6 +283,10 @@ def grep_articles(pattern: str, max_results: int = 10) -> str:
                 break
         if len(out) >= max_results:
             break
+    logger.debug(
+        f"grep_articles pattern={pattern!r} max={max_results} "
+        f"-> {len(out[:max_results])} matches"
+    )
     if not out:
         return "No matches found."
     return "\n".join(out[:max_results])
@@ -315,15 +336,38 @@ async def search_blogs(query: str) -> str:
     Args:
         query: The topic or question to research (a place or theme helps).
     """
-    result = await _cached_agent().ainvoke(
-        {"messages": [{"role": "user", "content": query}]}
-    )
+    logger.debug(f"search_blogs started query={query!r}")
+    t0 = time.perf_counter()
+    try:
+        result = await _cached_agent().ainvoke(
+            {"messages": [{"role": "user", "content": query}]}
+        )
+    except Exception:
+        logger.exception(f"search_blogs failed query={query!r}")
+        raise
+
     messages = result.get("messages", [])
+    tool_calls = [
+        tc["name"]
+        for msg in messages
+        if type(msg).__name__ == "AIMessage"
+        for tc in getattr(msg, "tool_calls", []) or []
+    ]
+    elapsed = time.perf_counter() - t0
     for msg in reversed(messages):
         if type(msg).__name__ == "AIMessage":
             text = _extract_text(msg)
             if text:
+                logger.debug(
+                    f"search_blogs done query={query!r} {elapsed:.2f}s "
+                    f"{len(messages)} messages, tools={tool_calls}, "
+                    f"answer={len(text)} chars"
+                )
                 return text
+    logger.warning(
+        f"search_blogs produced no answer query={query!r} "
+        f"{elapsed:.2f}s {len(messages)} messages, tools={tool_calls}"
+    )
     return "No answer produced by the blog search."
 
 
