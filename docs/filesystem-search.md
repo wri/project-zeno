@@ -87,3 +87,25 @@ the LLM only ever sees the handful of paragraphs that already matched. Same
 quality, but less tokens. So that's the pattern we are keeping for now: filesystem as
 the store, ripgrep for exact matches, sgrep for semantic matches, and the model
 only reads what survived the shortlist.
+
+## Deployment
+
+The corpus and index are gitignored, so they have to reach production some
+other way. We bake them into the app image via a published data snapshot:
+
+- The `wri-insights-data` workflow (`.github/workflows/wri-insights-data.yml`)
+  runs weekly (and on demand): it seeds `data/` from the previous snapshot,
+  fetches new/changed articles from the sitemap, rebuilds the sgrep index, and
+  pushes the result as `public.ecr.aws/b7u8b0a6/project-zeno/wri-insights-data`
+  (tags: `latest` and `YYYY.MM.DD`).
+- The app `Dockerfile` copies `/data` out of that image into `/app/data`,
+  pre-downloads the `potion-retrieval-32M` embedding model into `HF_HOME`
+  inside the image (no Hugging Face egress at runtime), and fails the build
+  if the snapshot is missing or inconsistent (`sgrep.data_status`).
+- The API logs the same `data_status` check at startup, so a pod without data
+  is visible in the logs immediately rather than on the first search query.
+
+Refreshing content in production = run the data workflow, then rebuild and
+redeploy the app image as usual (no Helm/infra changes needed). Local
+`docker build` works the same way — the data image is pulled anonymously
+from public ECR.

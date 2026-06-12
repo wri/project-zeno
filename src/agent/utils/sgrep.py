@@ -81,6 +81,68 @@ def chunks(text):
             yield line, None, None, para_text
 
 
+def _portable_path(path: Path) -> str:
+    """Render a path relative to the repo root so the index survives moves."""
+    try:
+        return str(path.relative_to(_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def _resolve_data_dir(raw: str) -> Path:
+    """Resolve a config.json data_dir written by any checkout of the repo."""
+    data_dir = Path(raw)
+    if not data_dir.is_absolute():
+        data_dir = _ROOT / data_dir
+    if not data_dir.exists():  # index moved with the repo
+        data_dir = DEFAULT_DATA_DIR
+    return data_dir
+
+
+def data_status(
+    data_dir: Path = DEFAULT_DATA_DIR,
+    index_dir: Path = DEFAULT_INDEX_DIR,
+    min_articles: int = 1,
+) -> tuple[bool, str]:
+    """Report whether the article corpus and sgrep index are usable.
+
+    Returns (ok, detail). Used by the Docker build and API startup to fail
+    loudly when an image was built without the data snapshot, instead of
+    erroring on the first search query.
+    """
+    index_json = data_dir / "index.json"
+    if not index_json.exists():
+        return False, f"missing article corpus at {data_dir}"
+    n_articles = len(
+        json.loads(index_json.read_text(encoding="utf-8")).get("articles", [])
+    )
+    if n_articles < min_articles:
+        return False, (
+            f"corpus at {data_dir} has {n_articles} articles "
+            f"(expected >= {min_articles})"
+        )
+    for name in ("embeddings.npy", "meta.jsonl", "config.json"):
+        if not (index_dir / name).exists():
+            return False, f"missing sgrep index file {index_dir / name}"
+    n_chunks = np.load(index_dir / "embeddings.npy", mmap_mode="r").shape[0]
+    n_meta = sum(
+        1
+        for line in (index_dir / "meta.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip()
+    )
+    if n_chunks != n_meta:
+        return False, (
+            f"sgrep index inconsistent: {n_chunks} embeddings "
+            f"vs {n_meta} meta entries in {index_dir}"
+        )
+    return True, (
+        f"{n_articles} articles in {data_dir}, "
+        f"{n_chunks} indexed paragraphs in {index_dir}"
+    )
+
+
 def build_index(data_dir: Path, index_dir: Path):
     meta, texts = [], []
     for path in sorted(data_dir.rglob("*.md")):
@@ -110,7 +172,7 @@ def build_index(data_dir: Path, index_dir: Path):
             {
                 "scale": scale,
                 "dim": int(emb.shape[1]),
-                "data_dir": str(data_dir),
+                "data_dir": _portable_path(data_dir),
             }
         ),
         encoding="utf-8",
@@ -153,9 +215,7 @@ def query_index(
         (index_dir / "config.json").read_text(encoding="utf-8")
     )
     scale = config["scale"]
-    data_dir = Path(config["data_dir"])
-    if not data_dir.exists():  # index moved with the repo
-        data_dir = DEFAULT_DATA_DIR
+    data_dir = _resolve_data_dir(config["data_dir"])
     meta = [
         json.loads(line)
         for line in (index_dir / "meta.jsonl")
