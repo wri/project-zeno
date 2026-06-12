@@ -13,6 +13,7 @@ Defaults:
 
 import argparse
 import json
+import re
 import sys
 from functools import lru_cache
 from pathlib import Path
@@ -24,6 +25,13 @@ _ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DATA_DIR = _ROOT / "data" / "wri_insights"
 DEFAULT_INDEX_DIR = _ROOT / "data" / "wri_insights_index"
 MODEL_NAME = "minishlab/potion-retrieval-32M"
+
+# Citation-tagged paragraph: [§N] or [§N | Section: "..."], optionally
+# linkified as [...](url#pN)
+_TAG_RE = re.compile(
+    r'^\[§(?P<para>\d+)(?:\s*\|\s*Section:\s*"(?P<section>[^"]*)")?\]'
+    r"(?:\([^)]*\))?\s*(?P<text>.*)$"
+)
 
 
 @lru_cache(maxsize=1)
@@ -50,14 +58,41 @@ def paragraphs(text):
         yield start, " ".join(para)
 
 
+def chunks(text):
+    """Yield (line, para, section, text) chunks for one document.
+
+    Documents with citation-tagged paragraphs ([§N](url#pN), one per line)
+    are chunked by tag, with the link markup stripped from the text so it
+    doesn't pollute the embeddings; untagged lines (title, URL header,
+    abstract) are skipped. Documents without tags fall back to
+    blank-line-separated paragraphs with para/section set to None.
+    """
+    tagged = []
+    for n, line in enumerate(text.split("\n"), 1):
+        m = _TAG_RE.match(line)
+        if m and m.group("text").strip():
+            tagged.append(
+                (n, int(m.group("para")), m.group("section"), m.group("text"))
+            )
+    if tagged:
+        yield from tagged
+    else:
+        for line, para_text in paragraphs(text):
+            yield line, None, None, para_text
+
+
 def build_index(data_dir: Path, index_dir: Path):
     meta, texts = [], []
     for path in sorted(data_dir.rglob("*.md")):
-        for line, text in paragraphs(path.read_text(encoding="utf-8")):
+        for line, para, section, text in chunks(
+            path.read_text(encoding="utf-8")
+        ):
             meta.append(
                 {
                     "file": str(path.relative_to(data_dir)),
                     "line": line,
+                    "para": para,
+                    "section": section,
                     "text": text,
                 }
             )
@@ -101,6 +136,8 @@ def query_index(
             {
                 "file": m["file"],
                 "line": m["line"],
+                "para": m.get("para"),
+                "section": m.get("section"),
                 "score": float(scores[i]),
                 "text": m["text"],
             }
@@ -114,8 +151,9 @@ def search(index_dir: Path, query: str, k: int = 10, threshold: float = 0.3):
         if r["file"] != last:
             print(f"\n{paint(r['file'], 35)}")
             last = r["file"]
+        loc = f"§{r['para']}" if r.get("para") else str(r["line"])
         print(
-            f"{paint(r['line'], 32)}:{paint(f'{r['score']:.2f}', 33)}: {r['text'][:120]}"
+            f"{paint(loc, 32)}:{paint(f'{r['score']:.2f}', 33)}: {r['text'][:120]}"
         )
 
 

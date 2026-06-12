@@ -122,13 +122,21 @@ def article_meta(slugs: list[str]) -> str:
     return "\n".join(lines)
 
 
+def _snippet(text: str, max_words: int = 30) -> str:
+    words = text.split()
+    if len(words) <= max_words:
+        return text
+    return " ".join(words[:max_words]) + " …"
+
+
 @tool
 def sgrep(query: str, top: int = 5) -> str:
     """Semantic search over the WRI blog articles.
 
     Finds the most relevant paragraphs by meaning, even when exact keywords
-    don't match. Returns matches as "<file>:<line> (<score>): <text>" lines,
-    where <file> is the article path you can pass to read_file.
+    don't match. Returns matches as "<file> §N (<score>): <snippet>" lines,
+    where <file> is the article path you can pass to read_file and §N the
+    paragraph number within it.
 
     Args:
         query: Natural-language search query.
@@ -137,10 +145,14 @@ def sgrep(query: str, top: int = 5) -> str:
     results = query_index(DEFAULT_INDEX_DIR, query, k=top)
     if not results:
         return "No matching paragraphs found."
-    return "\n".join(
-        f"{r['file']}:{r['line']} ({r['score']:.2f}): {r['text']}"
-        for r in results
-    )
+    lines = []
+    for r in results:
+        loc = f"§{r['para']}" if r.get("para") else f":{r['line']}"
+        section = f" [{r['section']}]" if r.get("section") else ""
+        lines.append(
+            f"{r['file']} {loc} ({r['score']:.2f}){section}: {_snippet(r['text'])}"
+        )
+    return "\n".join(lines)
 
 
 def create_search_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
