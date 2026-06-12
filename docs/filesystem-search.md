@@ -27,7 +27,7 @@ write it to disk. That's it — the article store is a directory you can `ls`,
 
 The agent gets a `FilesystemBackend` pointed at that folder, so it can `read_file`
 any article and read `index.json` for metadata. The directory layout does the
-work a database schema usually does, and it stays simple to inspect, diff, and 
+work a database schema usually does, and it stays simple to inspect, diff, and
 version.
 
 The actual search agent's loop is: search a couple of times → shortlist →
