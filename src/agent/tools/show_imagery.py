@@ -40,12 +40,18 @@ def _feedback(message: str, tool_call_id: Optional[str]) -> Command:
 async def show_imagery(
     state: Annotated[Dict, InjectedState],
     target_date: Optional[str] = None,
+    window_days: Optional[int] = None,
+    max_cloud_cover: Optional[int] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Show a Sentinel-2 satellite imagery layer on the map for the AOI in state.
 
     target_date (YYYY-MM-DD) picks the date the imagery should be closest
-    to; defaults to today. Run pick_aoi first. Regional areas only.
+    to; defaults to today. window_days (default 7, max 183) widens the
+    search to ±N days around target_date; max_cloud_cover (default 20,
+    percent) loosens the cloud filter. Only raise them when the defaults
+    find no scenes and the user agrees. Run pick_aoi first. Regional
+    areas only.
     """
     aois = (state.get("aoi_selection") or {}).get("aois") or []
     if not aois:
@@ -77,6 +83,12 @@ async def show_imagery(
     recipe = MosaicRecipe(
         aois=aoi_refs,
         target_date=parsed_date or date.today(),
+        window_days=max(1, min(window_days, 183))
+        if window_days is not None
+        else 7,
+        max_cloud_cover=max(1, min(max_cloud_cover, 100))
+        if max_cloud_cover is not None
+        else 20,
         user_id=user_id,
     )
 
@@ -90,8 +102,11 @@ async def show_imagery(
         return _feedback(str(e), tool_call_id)
     except NoScenesFoundError:
         return _feedback(
-            "No cloud-free Sentinel-2 scenes found for this AOI around "
-            f"{recipe.target_date}. Try a different date.",
+            f"No Sentinel-2 scenes with under {recipe.max_cloud_cover}% "
+            f"cloud cover found within ±{recipe.window_days} days of "
+            f"{recipe.target_date}. Suggest to the user: widen the search "
+            "window (window_days), allow cloudier scenes (max_cloud_cover) "
+            "or pick a different date — then retry with their choice.",
             tool_call_id,
         )
     except StacSearchError:
