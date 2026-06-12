@@ -5,6 +5,8 @@ from typing import Optional
 import structlog
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from titiler.core.errors import DEFAULT_STATUS_CODES, add_exception_handlers
+from titiler.mosaic.errors import MOSAIC_STATUS_CODES
 
 from src.agent.graph import close_checkpointer_pool, get_checkpointer_pool
 from src.api.routers import (
@@ -108,3 +110,10 @@ app.include_router(insights.router)
 app.include_router(metadata.router)
 app.include_router(admin.router)
 app.include_router(imager.router, prefix="/mosaic", tags=["Map Tiles"])
+
+# Map titiler/cogeo-mosaic errors to proper status codes (e.g. tile requests
+# outside the mosaic bounds -> 404, unknown mosaic id -> 404). The catch-all
+# Exception entry is dropped to leave non-tiler error handling unchanged.
+_tiler_status_codes = {**DEFAULT_STATUS_CODES, **MOSAIC_STATUS_CODES}
+_tiler_status_codes.pop(Exception, None)
+add_exception_handlers(app, _tiler_status_codes)

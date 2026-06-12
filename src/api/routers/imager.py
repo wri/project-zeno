@@ -7,6 +7,7 @@ from typing import Optional
 import attr
 import pystac_client
 from cogeo_mosaic.backends.base import BaseBackend
+from cogeo_mosaic.errors import MosaicNotFoundError
 from cogeo_mosaic.mosaic import MosaicJSON
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -36,7 +37,7 @@ class _InMemoryBackend(BaseBackend):
     def _read(self) -> MosaicJSON:
         mosaic = _mosaic_store.get(self.input)
         if mosaic is None:
-            raise FileNotFoundError(f"Mosaic '{self.input}' not found")
+            raise MosaicNotFoundError(f"Mosaic '{self.input}' not found")
         return mosaic
 
     def write(self, overwrite: bool = False) -> None:
@@ -90,7 +91,7 @@ async def create_mosaic(
         items = list(search.items())
     except Exception as e:
         logger.error("STAC search failed", error=str(e))
-        raise HTTPException(status_code=502, detail=f"STAC search failed: {e}")
+        raise HTTPException(status_code=502, detail="STAC search failed")
 
     if not items:
         raise HTTPException(
@@ -107,9 +108,7 @@ async def create_mosaic(
         )
     except Exception as e:
         logger.error("MosaicJSON creation failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Mosaic build failed: {e}"
-        )
+        raise HTTPException(status_code=500, detail="Mosaic build failed")
 
     mosaic_id = uuid.uuid4().hex
     _mosaic_store[mosaic_id] = mosaic
