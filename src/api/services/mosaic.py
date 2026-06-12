@@ -14,6 +14,8 @@ the unauthenticated tile endpoints.
 """
 
 import asyncio
+import os
+import time
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional
@@ -36,6 +38,24 @@ from src.shared.geocoding_helpers import get_geometry_data
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+# GDAL tuning for reading remote COGs (read by rasterio at open time, so
+# deployment env vars take precedence). Without GDAL_DISABLE_READDIR_ON_OPEN
+# every COG open issues extra (404ing) sidecar-file requests against S3.
+_GDAL_ENV_DEFAULTS = {
+    "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
+    "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES",
+    "GDAL_HTTP_MULTIPLEX": "YES",
+    "GDAL_HTTP_VERSION": "2",
+    "GDAL_CACHEMAX": "200",
+    "VSI_CACHE": "TRUE",
+    "VSI_CACHE_SIZE": "5000000",
+    "CPL_VSIL_CURL_CACHE_SIZE": "200000000",
+    # Sentinel-2 COG headers are larger than GDAL's 16KB default read.
+    "GDAL_INGESTED_BYTES_AT_OPEN": "32768",
+}
+for _key, _value in _GDAL_ENV_DEFAULTS.items():
+    os.environ.setdefault(_key, _value)
 
 STAC_URL = "https://earth-search.aws.element84.com/v1"
 SENTINEL2_COLLECTION = "sentinel-2-l2a"
@@ -84,6 +104,14 @@ class InMemoryBackend(BaseBackend):
             raise MosaicNotFoundError("Mosaic not found")
         return mosaic
 
+    def tile(self, *args, **kwargs):
+        # Read scenes sequentially with lazy early exit: with the default
+        # "first" pixel selection, reading stops as soon as the tile is
+        # covered. The factory default (threads=70) would instead fetch
+        # every candidate scene from S3 concurrently and discard most.
+        kwargs["threads"] = 0
+        return super().tile(*args, **kwargs)
+
     def write(self, overwrite: bool = False) -> None:
         pass
 
@@ -99,7 +127,7 @@ class MosaicRecipe:
 
     aois: tuple[tuple[str, str], ...]  # (source, src_id) pairs
     target_date: date
-    window_days: int = 30
+    window_days: int = 7
     max_cloud_cover: int = 20
     max_items: int = 50
     user_id: Optional[str] = None
@@ -205,12 +233,27 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
         )
         return list(search.items())
 
+    search_start = time.perf_counter()
     try:
         # pystac_client is synchronous; keep it off the event loop.
         items = await run_in_threadpool(_search)
     except Exception as e:
-        logger.error("STAC search failed", error=str(e))
+        logger.error(
+            "STAC search failed",
+            error=str(e),
+            datetime_range=f"{actual_start}/{actual_end}",
+            elapsed_ms=round((time.perf_counter() - search_start) * 1000),
+        )
         raise StacSearchError("STAC search failed") from e
+
+    logger.info(
+        "STAC search completed",
+        item_count=len(items),
+        datetime_range=f"{actual_start}/{actual_end}",
+        max_cloud_cover=recipe.max_cloud_cover,
+        max_items=recipe.max_items,
+        elapsed_ms=round((time.perf_counter() - search_start) * 1000),
+    )
 
     if not items:
         raise NoScenesFoundError(
@@ -227,16 +270,24 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
         )
     )
 
+    build_start = time.perf_counter()
     mosaic = MosaicJSON.from_features(
         [item.to_dict() for item in items],
         minzoom=8,
         maxzoom=14,
         accessor=lambda f: f["assets"][VISUAL_ASSET]["href"],
+        # Bound the sequential first-match reads per tile; items are sorted
+        # by date proximity, so the nearest scenes are kept.
+        maximum_items_per_tile=12,
     )
 
     token = encode_recipe(recipe)
     _mosaic_store[token] = mosaic
-    logger.info("Mosaic created", item_count=len(items))
+    logger.info(
+        "Mosaic created",
+        item_count=len(items),
+        build_ms=round((time.perf_counter() - build_start) * 1000),
+    )
 
     item_dates = [item.datetime.date() for item in items]
     return MosaicResult(

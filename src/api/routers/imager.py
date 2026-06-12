@@ -48,7 +48,7 @@ async def create_mosaic(
     source: str,
     src_id: str,
     target_date: Optional[date] = None,
-    window_days: int = Query(30, ge=1, le=183),
+    window_days: int = Query(7, ge=1, le=183),
     max_cloud_cover: int = Query(20, ge=0, le=100),
     max_items: int = Query(50, ge=1, le=100),
     user: UserModel = Depends(require_auth),
