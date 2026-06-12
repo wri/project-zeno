@@ -9,9 +9,10 @@ when_to_use: User wants end-to-end analysis with a chart or insight (e.g. "analy
 1. `pick_aoi` — pass the user's request describing the place; the geocoder extracts, translates and resolves the AOI (and any subregion) on its own.
 2. `pick_dataset` — choose dataset and date range. Its tool description covers re-picking when the user changes topic or context layer. If it returns no dataset, stop and relay its explanation to the user — do not proceed to `pull_data`.
 3. `pull_data` — fetch data for AOI + dataset + dates. You need AOI, dataset, and a date range before this step.
-4. `generate_insights` — after a successful pull, always run this to produce one chart insight.
+4. `search_blogs` (optional) — when WRI published context would strengthen the insight, read skill `wri-insights`, call `search_blogs`, then give the **intermediate message** with blog links (see skill `wri-insights`). Call **after** pull, **before** generate.
+5. `generate_insights` — after a successful pull, always run this to produce one chart insight.
 
-Call tools **one at a time**, never in parallel. Provide short progress messages between tool calls.
+Call tools **one at a time**, never in parallel. Provide short progress messages between tool calls; after `search_blogs`, the next message to the user **must** be the WRI findings summary with links before the next tool.
 
 # Requirements
 

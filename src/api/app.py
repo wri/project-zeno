@@ -7,8 +7,10 @@ from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.agent.graph import close_checkpointer_pool, get_checkpointer_pool
+from src.agent.utils.sgrep import data_status
 from src.api.routers import (
     admin,
+    blogs,
     chat,
     custom_areas,
     geometry,
@@ -27,6 +29,14 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    blog_data_ok, blog_data_detail = data_status()
+    if blog_data_ok:
+        logger.info("Blog search data ready", detail=blog_data_detail)
+    else:
+        logger.error(
+            "Blog search data missing - search_blogs will fail",
+            detail=blog_data_detail,
+        )
     await initialize_global_pool()
     await get_checkpointer_pool()
     yield
@@ -105,4 +115,5 @@ app.include_router(geometry.router)
 app.include_router(thumbnails.router)
 app.include_router(insights.router)
 app.include_router(metadata.router)
+app.include_router(blogs.router)
 app.include_router(admin.router)
