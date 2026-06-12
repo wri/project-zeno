@@ -6,10 +6,12 @@ from typing import Optional
 
 import attr
 import pystac_client
+from cachetools import TTLCache
 from cogeo_mosaic.backends.base import BaseBackend
 from cogeo_mosaic.errors import MosaicNotFoundError
 from cogeo_mosaic.mosaic import MosaicJSON
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from titiler.mosaic.factory import MosaicTilerFactory
 
@@ -24,8 +26,10 @@ _STAC_URL = "https://earth-search.aws.element84.com/v1"
 _SENTINEL2_COLLECTION = "sentinel-2-l2a"
 _VISUAL_ASSET = "visual"
 
-# mosaic_id → MosaicJSON — in-memory only; swap for Redis/DB in production
-_mosaic_store: dict[str, MosaicJSON] = {}
+# mosaic_id → MosaicJSON. In-memory and per-process: mosaics expire after the
+# TTL and are not shared across workers/replicas — swap for Redis/DB if the
+# API ever runs with more than one process.
+_mosaic_store: TTLCache = TTLCache(maxsize=256, ttl=12 * 3600)
 
 
 @attr.s
@@ -79,7 +83,7 @@ async def create_mosaic(
     if not data or not data.get("geometry"):
         raise HTTPException(status_code=404, detail="Geometry not found")
 
-    try:
+    def _search() -> list:
         catalog = pystac_client.Client.open(_STAC_URL)
         search = catalog.search(
             collections=[_SENTINEL2_COLLECTION],
@@ -88,7 +92,11 @@ async def create_mosaic(
             query={"eo:cloud_cover": {"lt": max_cloud_cover}},
             max_items=max_items,
         )
-        items = list(search.items())
+        return list(search.items())
+
+    try:
+        # pystac_client is synchronous; keep it off the event loop.
+        items = await run_in_threadpool(_search)
     except Exception as e:
         logger.error("STAC search failed", error=str(e))
         raise HTTPException(status_code=502, detail="STAC search failed")
