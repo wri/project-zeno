@@ -53,6 +53,9 @@ class AgentState(TypedDict):
     end_date: str
     statistics: Annotated[list[Statistics], operator.add]
 
+    # show-imagery tool
+    imagery: dict
+
     # generate-insights tool
     insight: str
     follow_up_suggestions: list[str]
