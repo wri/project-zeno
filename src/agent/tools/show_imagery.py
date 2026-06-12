@@ -123,6 +123,8 @@ async def show_imagery(
         "date_start": result.date_start.isoformat(),
         "date_end": result.date_end.isoformat(),
         "target_date": recipe.target_date.isoformat(),
+        "window_days": recipe.window_days,
+        "max_cloud_cover": recipe.max_cloud_cover,
         "aoi_names": aoi_names,
     }
 

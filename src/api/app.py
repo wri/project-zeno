@@ -63,7 +63,8 @@ async def mosaic_cache_headers(request: Request, call_next) -> Response:
         and request.url.path.startswith("/mosaic/")
         and response.status_code == 200
     ):
-        response.headers["Cache-Control"] = "public, max-age=86400"
+        # private: responses require auth, so only browsers should cache.
+        response.headers["Cache-Control"] = "private, max-age=86400"
     return response
 
 

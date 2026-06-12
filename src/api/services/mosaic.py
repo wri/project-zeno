@@ -4,16 +4,19 @@ Searches the earth-search STAC API for Sentinel-2 L2A scenes (COGs hosted in
 the public sentinel-cogs AWS bucket) around a target date and builds a
 MosaicJSON.
 
-Mosaics are not persisted: the mosaic id handed to clients is a signed token
+Mosaics are not persisted: the mosaic id handed to clients is a token
 encoding the build recipe (AOI references, target date, search parameters).
 The in-memory store is only a per-process cache — on a cache miss the
 ensure_mosaic route dependency rebuilds the mosaic from its token, so any
 previously issued mosaic URL keeps working across restarts, workers and
-replicas. Signing (itsdangerous) prevents outsiders from crafting tokens for
-the unauthenticated tile endpoints.
+replicas. The tile endpoints require the same bearer auth as the rest of
+the API, so the token needs no signature: crafting one grants nothing the
+authenticated create endpoint would not.
 """
 
 import asyncio
+import base64
+import json
 import os
 import time
 from dataclasses import dataclass
@@ -28,12 +31,10 @@ from cogeo_mosaic.errors import MosaicNotFoundError
 from cogeo_mosaic.mosaic import MosaicJSON
 from fastapi import HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
-from itsdangerous import BadSignature, URLSafeSerializer
 from pyproj import Geod
 from shapely import union_all
 from shapely.geometry import mapping, shape
 
-from src.api.config import APISettings
 from src.shared.geocoding_helpers import get_geometry_data
 from src.shared.logging_config import get_logger
 
@@ -152,10 +153,6 @@ class MosaicResult:
         return f"/mosaic/WebMercatorQuad/tilejson.json?url={self.mosaic_id}"
 
 
-def _serializer() -> URLSafeSerializer:
-    return URLSafeSerializer(APISettings.mosaic_token_secret, salt="mosaic")
-
-
 def encode_recipe(recipe: MosaicRecipe) -> str:
     payload = {
         "a": [list(pair) for pair in recipe.aois],
@@ -166,22 +163,28 @@ def encode_recipe(recipe: MosaicRecipe) -> str:
     }
     if recipe.user_id:
         payload["u"] = recipe.user_id
-    return _serializer().dumps(payload)
+    raw = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
 
 
 def decode_recipe(token: str) -> MosaicRecipe:
-    """Decode and verify a mosaic token; raise MosaicNotFoundError if bad."""
+    """Decode a mosaic token; raise MosaicNotFoundError if malformed.
+
+    Parameters are clamped to the same bounds the create endpoint
+    enforces, since tokens are plain encodings anyone could construct.
+    """
     try:
-        payload = _serializer().loads(token)
+        raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4))
+        payload = json.loads(raw)
         return MosaicRecipe(
             aois=tuple((source, src_id) for source, src_id in payload["a"]),
             target_date=date.fromisoformat(payload["d"]),
-            window_days=payload["w"],
-            max_cloud_cover=payload["c"],
-            max_items=payload["n"],
+            window_days=max(1, min(int(payload["w"]), 183)),
+            max_cloud_cover=max(1, min(int(payload["c"]), 100)),
+            max_items=max(1, min(int(payload["n"]), 100)),
             user_id=payload.get("u"),
         )
-    except (BadSignature, KeyError, ValueError, TypeError):
+    except (KeyError, ValueError, TypeError):
         raise MosaicNotFoundError("Invalid mosaic token")
 
 
@@ -315,7 +318,12 @@ async def ensure_mosaic(url: str = Query(...)) -> None:
             recipe = decode_recipe(url)
             logger.info("Rebuilding mosaic from token")
             try:
-                await create_sentinel2_mosaic(recipe)
+                result = await create_sentinel2_mosaic(recipe)
+                # If decoding clamped any parameter, the rebuilt mosaic is
+                # stored under the canonical token; alias the requested one
+                # so this URL does not rebuild on every request.
+                if result.mosaic_id != url:
+                    _mosaic_store[url] = _mosaic_store[result.mosaic_id]
             except AoiTooLargeError as e:
                 raise HTTPException(status_code=422, detail=str(e))
             except NoScenesFoundError as e:

@@ -1,5 +1,7 @@
 """Tests for the Sentinel-2 mosaic service and endpoints."""
 
+import base64
+import json
 from datetime import date, datetime, timezone
 from unittest.mock import AsyncMock, patch
 
@@ -101,12 +103,31 @@ def test_recipe_token_is_deterministic():
     assert encode_recipe(RECIPE) == encode_recipe(RECIPE)
 
 
-def test_decode_rejects_tampered_token():
+def test_decode_rejects_malformed_token():
     token = encode_recipe(RECIPE)
     with pytest.raises(MosaicNotFoundError):
         decode_recipe(token[:-2] + "xx")
     with pytest.raises(MosaicNotFoundError):
         decode_recipe("garbage")
+
+
+def test_decode_clamps_parameters():
+    payload = {
+        "a": [["gadm", "X"]],
+        "d": "2025-06-15",
+        "w": 9999,
+        "c": 500,
+        "n": 100000,
+    }
+    token = (
+        base64.urlsafe_b64encode(json.dumps(payload).encode())
+        .decode()
+        .rstrip("=")
+    )
+    recipe = decode_recipe(token)
+    assert recipe.window_days == 183
+    assert recipe.max_cloud_cover == 100
+    assert recipe.max_items == 100
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +257,8 @@ async def test_create_mosaic_success_and_rebuild_on_cold_cache(
 
         # The cached mosaic is served through the titiler endpoints.
         tilejson = await client.get(
-            f"/mosaic/WebMercatorQuad/tilejson.json?url={body['mosaic_id']}"
+            f"/mosaic/WebMercatorQuad/tilejson.json?url={body['mosaic_id']}",
+            headers={"Authorization": "Bearer test-token"},
         )
         assert tilejson.status_code == 200
         assert tilejson.json()["minzoom"] == 8
@@ -244,15 +266,27 @@ async def test_create_mosaic_success_and_rebuild_on_cold_cache(
         # A cold cache (restart, other worker) rebuilds from the token.
         _mosaic_store.clear()
         tilejson = await client.get(
-            f"/mosaic/WebMercatorQuad/tilejson.json?url={body['mosaic_id']}"
+            f"/mosaic/WebMercatorQuad/tilejson.json?url={body['mosaic_id']}",
+            headers={"Authorization": "Bearer test-token"},
         )
         assert tilejson.status_code == 200
         assert body["mosaic_id"] in _mosaic_store
 
 
 @pytest.mark.asyncio
-async def test_tilejson_invalid_token_returns_404(client):
+async def test_tilejson_requires_auth(client):
+    token = encode_recipe(RECIPE)
     response = await client.get(
-        "/mosaic/WebMercatorQuad/tilejson.json?url=unknown"
+        f"/mosaic/WebMercatorQuad/tilejson.json?url={token}"
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_tilejson_invalid_token_returns_404(client, auth_override):
+    auth_override("test-user-1")
+    response = await client.get(
+        "/mosaic/WebMercatorQuad/tilejson.json?url=unknown",
+        headers={"Authorization": "Bearer test-token"},
     )
     assert response.status_code == 404
