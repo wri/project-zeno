@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import time
 import warnings
 from functools import lru_cache
@@ -22,7 +23,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import tool
 
 from src.agent.llms import MODEL_REGISTRY, SMALL_MODEL
-from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, query_index
+from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, TAG_RE, query_index
 
 DATA_DIR = Path(__file__).resolve().parents[4] / "data" / "wri_insights"
 DEFAULT_MODEL = SMALL_MODEL
@@ -155,11 +156,125 @@ def sgrep(query: str, top: int = 5) -> str:
     return "\n".join(lines)
 
 
+def _md_link_target(raw: str) -> str:
+    """Return the URL from a '[text](url)' markdown link or the raw string."""
+    m = re.match(r"\[[^\]]*\]\(([^)]+)\)", raw)
+    return m.group(1) if m else raw
+
+
+@tool
+def read_paragraphs(slug: str, paras: list[int], context: int = 1) -> str:
+    """Read specific paragraphs of an article by their §N numbers.
+
+    Much cheaper than read_file: returns only the requested paragraphs plus
+    `context` neighbours on each side, along with the article title and URL.
+    Use the §N numbers returned by sgrep and grep_articles.
+
+    Args:
+        slug: Article slug or "<slug>.md" filename.
+        paras: Paragraph numbers to read (e.g. [3, 7]).
+        context: Neighbouring paragraphs to include on each side (default: 1).
+    """
+    slug = slug[:-3] if slug.endswith(".md") else slug
+    path = DATA_DIR / f"{slug}.md"
+    if not path.exists():
+        return f"{slug}: article not found"
+
+    title = url = ""
+    by_num: dict[int, tuple[str | None, str]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("# ") and not title:
+            title = line[2:].strip()
+        elif line.startswith("**URL:**") and not url:
+            url = _md_link_target(line.removeprefix("**URL:**").strip())
+        else:
+            m = TAG_RE.match(line)
+            if m:
+                by_num[int(m.group("para"))] = (
+                    m.group("section"),
+                    m.group("text"),
+                )
+
+    wanted = sorted(
+        {
+            n
+            for p in paras
+            for n in range(p - context, p + context + 1)
+            if n in by_num
+        }
+    )
+    if not wanted:
+        return f"{slug}: no such paragraphs (article has §1-§{max(by_num, default=0)})"
+
+    out = [title, f"URL: {url}", ""]
+    prev_n: int | None = None
+    prev_section: str | None = None
+    for n in wanted:
+        section, text = by_num[n]
+        if prev_n is not None and n > prev_n + 1:
+            out.append("[...]")
+        if section and section != prev_section:
+            out.append(f"## {section}")
+        out.append(f"[§{n}] {text}")
+        prev_n, prev_section = n, section
+    return "\n".join(out)
+
+
+def _match_window(text: str, match: re.Match, words: int = 12) -> str:
+    """Return ~`words` words of context on each side of the match."""
+    before = text[: match.start()].split()
+    after = text[match.end() :].split()
+    snippet = " ".join(
+        [*before[-words:], text[match.start() : match.end()], *after[:words]]
+    ).strip()
+    prefix = "… " if len(before) > words else ""
+    suffix = " …" if len(after) > words else ""
+    return prefix + snippet + suffix
+
+
+@tool
+def grep_articles(pattern: str, max_results: int = 10) -> str:
+    """Keyword/regex search over the WRI blog articles (case-insensitive).
+
+    Best for specific terms, names, acronyms, or numbers. Returns matches as
+    "<file> §N: …snippet…" lines with a short window around the match; pass
+    the file and §N to read_paragraphs to read the full paragraphs.
+
+    Args:
+        pattern: Regular expression (or plain keywords) to search for.
+        max_results: Maximum number of matching paragraphs (default: 10).
+    """
+    try:
+        rx = re.compile(pattern, re.IGNORECASE)
+    except re.error as exc:
+        return f"Invalid pattern: {exc}"
+
+    out: list[str] = []
+    for path in sorted(DATA_DIR.glob("*.md")):
+        per_file = 0
+        for line in path.read_text(encoding="utf-8").splitlines():
+            m = TAG_RE.match(line)
+            text = m.group("text") if m else line
+            hit = rx.search(text)
+            if not hit:
+                continue
+            loc = f" §{m.group('para')}" if m else ""
+            out.append(f"{path.name}{loc}: {_match_window(text, hit)}")
+            per_file += 1
+            if per_file >= 2:
+                break
+        if len(out) >= max_results:
+            break
+    if not out:
+        return "No matches found."
+    return "\n".join(out[:max_results])
+
+
 def create_search_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
     """Create a deep agent backed by the local articles directory."""
     return create_deep_agent(
         model=model,
-        tools=[sgrep, article_meta],
+        tools=[sgrep, grep_articles, read_paragraphs, article_meta],
         backend=FilesystemBackend(
             root_dir=str(DATA_DIR),
             virtual_mode=True,

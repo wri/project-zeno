@@ -28,7 +28,7 @@ MODEL_NAME = "minishlab/potion-retrieval-32M"
 
 # Citation-tagged paragraph: [§N] or [§N | Section: "..."], optionally
 # linkified as [...](url#pN)
-_TAG_RE = re.compile(
+TAG_RE = re.compile(
     r'^\[§(?P<para>\d+)(?:\s*\|\s*Section:\s*"(?P<section>[^"]*)")?\]'
     r"(?:\([^)]*\))?\s*(?P<text>.*)$"
 )
@@ -69,7 +69,7 @@ def chunks(text):
     """
     tagged = []
     for n, line in enumerate(text.split("\n"), 1):
-        m = _TAG_RE.match(line)
+        m = TAG_RE.match(line)
         if m and m.group("text").strip():
             tagged.append(
                 (n, int(m.group("para")), m.group("section"), m.group("text"))
