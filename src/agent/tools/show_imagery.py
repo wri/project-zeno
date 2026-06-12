@@ -9,6 +9,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.models import ImageryState
 from src.api.services.mosaic import (
     AoiTooLargeError,
     MosaicRecipe,
@@ -115,22 +116,22 @@ async def show_imagery(
             tool_call_id,
         )
 
-    imagery = {
-        "tile_url": result.tile_url,
-        "tilejson_url": result.tilejson_url,
-        "mosaic_id": result.mosaic_id,
-        "item_count": result.item_count,
-        "date_start": result.date_start.isoformat(),
-        "date_end": result.date_end.isoformat(),
-        "target_date": recipe.target_date.isoformat(),
-        "window_days": recipe.window_days,
-        "max_cloud_cover": recipe.max_cloud_cover,
-        "aoi_names": aoi_names,
-    }
+    imagery_state = ImageryState(
+        tile_url=result.tile_url,
+        tilejson_url=result.tilejson_url,
+        mosaic_id=result.mosaic_id,
+        item_count=result.item_count,
+        date_start=result.date_start.isoformat(),
+        date_end=result.date_end.isoformat(),
+        target_date=recipe.target_date.isoformat(),
+        window_days=recipe.window_days,
+        max_cloud_cover=recipe.max_cloud_cover,
+        aoi_names=aoi_names,
+    )
 
     return Command(
         update={
-            "imagery": imagery,
+            "imagery": imagery_state.model_dump(),
             "messages": [
                 ToolMessage(
                     f"Sentinel-2 imagery layer created for {', '.join(aoi_names)} "

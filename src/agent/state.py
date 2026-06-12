@@ -53,7 +53,7 @@ class AgentState(TypedDict):
     end_date: str
     statistics: Annotated[list[Statistics], operator.add]
 
-    # show-imagery tool
+    # show-imagery tool (see ImageryState in src.agent.models for structure)
     imagery: dict
 
     # generate-insights tool

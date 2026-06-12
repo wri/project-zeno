@@ -11,10 +11,10 @@ from typing import Optional
 
 from cogeo_mosaic.errors import MosaicNotFoundError
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 from titiler.mosaic.factory import MosaicTilerFactory
 
 from src.api.auth.dependencies import require_auth
+from src.api.models import MosaicCreateResponse
 from src.api.schemas import UserModel
 from src.api.services.mosaic import (
     AoiTooLargeError,
@@ -36,13 +36,6 @@ router.include_router(
     _mosaic_tiler.router,
     dependencies=[Depends(require_auth), Depends(ensure_mosaic)],
 )
-
-
-class MosaicCreateResponse(BaseModel):
-    mosaic_id: str
-    item_count: int
-    date_start: date
-    date_end: date
 
 
 @router.post("/create/{source}/{src_id}", response_model=MosaicCreateResponse)
