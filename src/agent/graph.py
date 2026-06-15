@@ -18,7 +18,7 @@ from psycopg_pool import AsyncConnectionPool
 from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
 from src.agent.state import AgentState
-from src.agent.tool_profiles import Profile, resolve_profile
+from src.agent.tool_profiles import Profile, ProfileRegistry, default_registry
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -35,7 +35,7 @@ def get_prompt(
     (User info is otherwise ignored.)
     """
     if profile is None:
-        profile = resolve_profile()
+        profile = default_registry.resolve()
     skill_lines = [
         f"- {s.name}: {s.description} (use when: {s.when_to_use})"
         for s in profile.skills()
@@ -190,28 +190,32 @@ _CHECKPOINTER_UNSET = object()
 async def fetch_zeno(
     user: Optional[dict] = None,
     ff: Optional[str] = None,
+    registry: ProfileRegistry = default_registry,
     system_prompt: Optional[str] = None,
     checkpointer: Any = _CHECKPOINTER_UNSET,
     profile: Optional[Profile] = None,
 ) -> CompiledStateGraph:
     """Setup the Zeno agent with the tools and prompt for the requested profile.
 
-    The tool profile is resolved from ``ff`` (the feature-flag query parameter
-    passed by the client) unless an explicit ``profile`` is provided.
+    The tool profile is resolved from ``ff`` via ``registry``; unknown flags
+    fall back to the registry's default profile. Pass a custom ``registry``
+    in tests to inject isolated profiles without mutating global state.
 
     By default the Postgres checkpointer is used (API and durable CLI runs).
     Pass an explicit ``checkpointer`` (e.g. ``InMemorySaver()``) for local
     runs without Postgres, or ``None`` for a stateless single-turn agent.
     """
     if profile is None:
-        profile = resolve_profile(ff)
+        profile = registry.resolve(ff)
     if checkpointer is _CHECKPOINTER_UNSET:
         checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(
         model=MODEL,
         tools=profile.tools(),
         state_schema=AgentState,
-        system_prompt=system_prompt or get_prompt(user, profile),
+        system_prompt=system_prompt
+        or profile.system_prompt
+        or get_prompt(user, profile),
         middleware=_build_middleware(),
         checkpointer=checkpointer,
     )

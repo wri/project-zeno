@@ -1,20 +1,20 @@
-"""Agent tool profiles: which tools (and their prompt descriptions) load per conversation.
+"""Agent tool profiles: which tools (and prompt) load per feature flag.
 
-A *profile* bundles a set of tools together with the prompt fragment that
-describes each one, so the system prompt can never describe a tool that isn't
-bound (or omit one that is) — the two are derived from the same source.
+A *profile* bundles a named set of tools together with the prompt fragments
+that describe each one, so the system prompt can never describe a tool that
+isn't bound (or omit one that is). An optional ``system_prompt`` override
+replaces the generated prompt entirely — useful for testing or bespoke agents.
 
-The profile is chosen per conversation from the user's ``agent_profile`` field:
-- users set to ``experimental`` get that profile, which adds experimental tools
-  on top of the production set;
-- everyone else (incl. anonymous) gets the production ``default``.
+Profiles are held in a ``ProfileRegistry``. The module-level
+``default_registry`` is used in production; tests create isolated instances
+and inject them, keeping global state clean.
 
-To expose a new experimental tool, register it in ``TOOL_REGISTRY`` and add its
-name to ``_EXPERIMENTAL_TOOLS``. Promote it to ``_CORE_TOOLS`` once it ships to
-production.
+To expose a new tool behind a feature flag:
+1. Register it in ``TOOL_REGISTRY``.
+2. Register a new ``Profile`` in ``default_registry`` with the flag name.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
@@ -26,6 +26,8 @@ from src.agent.tools import pull_data
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+DEFAULT_PROFILE = "default"
 
 
 class ToolCategory(str, Enum):
@@ -79,10 +81,6 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     ),
 }
 
-DEFAULT_PROFILE = "default"
-EXPERIMENTAL_PROFILE = "experimental"
-
-# Tools every user gets in production.
 _CORE_TOOLS = [
     "pick_aoi",
     "pick_dataset",
@@ -91,34 +89,23 @@ _CORE_TOOLS = [
     "read_skill",
 ]
 
-# Experimental tools, exposed only to users with agent_profile=experimental.
-# Add new tools here first (e.g. "show_imagery"); promote to _CORE_TOOLS to ship.
-_EXPERIMENTAL_TOOLS: list[str] = []
-
 
 @dataclass(frozen=True)
 class Profile:
     """A named tool set the agent loads for a conversation.
 
-    Holds only the tool *names*; the tool objects, their prompt fragments and
-    the skill registry stay single-sourced in ``TOOL_REGISTRY`` / ``all_skills``.
-    Add fields here (e.g. a model override or extra prompt block) to parametrize
-    profiles further.
+    ``system_prompt`` overrides the generated prompt when set — useful for
+    testing or bespoke agents with a fixed persona and no tools.
     """
 
     name: str
     tool_names: tuple[str, ...]
+    system_prompt: Optional[str] = field(default=None)
 
     def tools(self) -> list[BaseTool]:
-        """The tool objects bound to the agent for this profile."""
         return [TOOL_REGISTRY[name].tool for name in self.tool_names]
 
     def tool_descriptions(self) -> str:
-        """Render the Tools + Subagents prompt sections for this profile.
-
-        Grouped by category so the prompt only ever describes tools that are
-        actually bound for this profile.
-        """
         blocks = []
         for category in ToolCategory:
             fragments = [
@@ -133,43 +120,36 @@ class Profile:
         return "\n\n".join(blocks)
 
     def skills(self) -> list[SkillMeta]:
-        """Skills whose required tools are all bound in this profile.
-
-        A skill recipe directs the model to call specific tools (declared in its
-        ``requires`` frontmatter), so we only advertise a skill when this
-        profile binds every tool it needs — otherwise the workflow would tell
-        the model to call a tool that isn't available.
-        """
         available = set(self.tool_names)
         return [s for s in all_skills() if set(s.requires) <= available]
 
 
-PROFILES: dict[str, Profile] = {
-    DEFAULT_PROFILE: Profile(DEFAULT_PROFILE, tuple(_CORE_TOOLS)),
-    EXPERIMENTAL_PROFILE: Profile(
-        EXPERIMENTAL_PROFILE, tuple(_CORE_TOOLS + _EXPERIMENTAL_TOOLS)
-    ),
-}
+class ProfileRegistry:
+    """Holds named profiles and resolves feature flags to them.
 
-
-def get_profile(name: str) -> Profile:
-    """Look up a profile by name, falling back to the default if unknown."""
-    profile = PROFILES.get(name)
-    if profile is None:
-        logger.warning(
-            "Unknown tool profile %r, falling back to %r",
-            name,
-            DEFAULT_PROFILE,
-        )
-        return PROFILES[DEFAULT_PROFILE]
-    return profile
-
-
-def resolve_profile(ff: Optional[str] = None) -> Profile:
-    """Pick the tool profile for a conversation from the ff query parameter.
-
-    If ``ff`` exactly matches a known profile name, that profile is used;
-    anything else (including None, empty string, or unknown names) falls back
-    to the production default.
+    Create one instance per context (production uses ``default_registry``;
+    tests create isolated instances so global state is never mutated).
     """
-    return get_profile(ff) if ff else PROFILES[DEFAULT_PROFILE]
+
+    def __init__(self) -> None:
+        self._profiles: dict[str, Profile] = {}
+
+    def register(self, profile: Profile) -> None:
+        self._profiles[profile.name] = profile
+
+    def resolve(self, ff: Optional[str] = None) -> Profile:
+        """Return the profile for ``ff``, falling back to the default."""
+        if ff and ff in self._profiles:
+            return self._profiles[ff]
+        if ff:
+            logger.warning(
+                "Unknown feature flag %r, falling back to %r",
+                ff,
+                DEFAULT_PROFILE,
+            )
+        return self._profiles[DEFAULT_PROFILE]
+
+
+# Production registry — add new flag profiles here.
+default_registry = ProfileRegistry()
+default_registry.register(Profile(DEFAULT_PROFILE, tuple(_CORE_TOOLS)))
