@@ -83,6 +83,8 @@ async def chat(
             "country_code": user.country_code,
             "preferred_language_code": user.preferred_language_code,
             "areas_of_interest": user.areas_of_interest,
+            # Selects the agent tool profile (experimental tools for opted-in testers).
+            "help_test_features": user.help_test_features,
         }
         if user.sector_code and user.sector_code in SECTORS:
             user_dict["sector_code"] = SECTORS[user.sector_code]

@@ -17,23 +17,36 @@ from psycopg_pool import AsyncConnectionPool
 
 from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
-from src.agent.skills import all_skills, read_skill
 from src.agent.state import AgentState
-from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
-from src.agent.tools import pull_data
+from src.agent.tool_profiles import (
+    resolve_profile_name,
+    skills_for_profile,
+    tool_descriptions_for_profile,
+    tools_for_profile,
+)
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 
-def get_prompt(user: Optional[dict] = None) -> str:
-    """Generate the system prompt with the current date. (Ignores user info.)"""
+def get_prompt(
+    user: Optional[dict] = None, profile: Optional[str] = None
+) -> str:
+    """Generate the system prompt with the current date and the profile's tools.
+
+    The Tools/Subagents sections are rendered from the same profile that decides
+    which tools are bound, so the prompt never drifts from the bound tool set.
+    (User info is otherwise ignored.)
+    """
+    if profile is None:
+        profile = resolve_profile_name(user)
     skill_lines = [
         f"- {s.name}: {s.description} (use when: {s.when_to_use})"
-        for s in all_skills()
+        for s in skills_for_profile(profile)
     ]
     skills_block = "\n".join(skill_lines) if skill_lines else "(none)"
+    tool_descriptions = tool_descriptions_for_profile(profile)
     today = datetime.now().strftime("%Y-%m-%d")
     return f"""You are Global Nature Watch's Geospatial Agent. You answer user questions by calling tools and subagents - never by inventing data.
 
@@ -43,16 +56,7 @@ A [Session — date] system message is prepended to every model call with the li
 
 Call tools one at a time, never in parallel.
 
-# Tools (primitives — call when you need them)
-
-- pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.
-- read_skill(name): load a skill's full workflow — call it once, after you have committed to using that skill.
-
-# Subagents (call as tools — each does its own reasoning; just forward the user's intent)
-
-- pick_aoi(question): natural-language geocoder. Pass the place request verbatim ("tree cover loss in Pará, Brazil", "the districts of Odisha", "forest loss worldwide"); it extracts, translates and resolves the place — and any subregions — itself. Updates the AOI in state, or returns a clarifying question.
-- pick_dataset(query): dataset-selection subagent. Picks the dataset, context layer and date range that best answer the request. May return no dataset if none is a good fit — in that case relay its explanation and closest alternatives to the user; do not proceed to pull_data. Call it again whenever the user changes the dataset, context layer or parameters.
-- generate_insights(query): analyst subagent. Turns pulled data into one chart insight with follow-up suggestions. Requires pull_data to have run first.
+{tool_descriptions}
 
 # Skills (multi-step recipes)
 
@@ -88,14 +92,6 @@ UI / map selections (when the message mentions a UI action or changed map select
 - If the user asks to change selections, override prior UI selections.
 """
 
-
-tools = [
-    pick_aoi,
-    pick_dataset,
-    pull_data,
-    generate_insights,
-    read_skill,
-]
 
 load_dotenv()
 
@@ -197,18 +193,22 @@ async def fetch_zeno_anonymous(
     user: Optional[dict] = None,
     system_prompt: Optional[str] = None,
     checkpointer=None,
+    profile: Optional[str] = None,
 ) -> CompiledStateGraph:
     """Setup the Zeno agent for anonymous users with the provided tools and prompt.
 
-    Pass `checkpointer` (e.g. an in-memory `InMemorySaver`) to keep graph
-    state across turns without the Postgres checkpointer; defaults to None
-    (stateless).
+    The tool profile is resolved from `user` unless one is passed explicitly
+    (anonymous users get the default profile). Pass `checkpointer` (e.g. an
+    in-memory `InMemorySaver`) to keep graph state across turns without the
+    Postgres checkpointer; defaults to None (stateless).
     """
+    if profile is None:
+        profile = resolve_profile_name(user)
     zeno_agent = create_agent(
         model=MODEL,
-        tools=tools,
+        tools=tools_for_profile(profile),
         state_schema=AgentState,
-        system_prompt=system_prompt or get_prompt(user),
+        system_prompt=system_prompt or get_prompt(user, profile),
         middleware=_build_middleware(),
         checkpointer=checkpointer,
     )
@@ -218,15 +218,21 @@ async def fetch_zeno_anonymous(
 async def fetch_zeno(
     user: Optional[dict] = None,
     system_prompt: Optional[str] = None,
+    profile: Optional[str] = None,
 ) -> CompiledStateGraph:
-    """Setup the Zeno agent with the provided tools and prompt."""
+    """Setup the Zeno agent with the tools and prompt for the user's profile.
 
+    The tool profile is resolved from `user` (e.g. opted-in testers get the
+    experimental profile) unless one is passed explicitly.
+    """
+    if profile is None:
+        profile = resolve_profile_name(user)
     checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(
         model=MODEL,
-        tools=tools,
+        tools=tools_for_profile(profile),
         state_schema=AgentState,
-        system_prompt=system_prompt or get_prompt(user),
+        system_prompt=system_prompt or get_prompt(user, profile),
         middleware=_build_middleware(),
         checkpointer=checkpointer,
     )
