@@ -10,6 +10,7 @@ from langchain_core.messages import HumanMessage
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
+from src.agent.agent_config import AgentConfigRegistry, default_registry
 from src.agent.graph import fetch_zeno
 from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_aoi.tool import fetch_aoi_bbox
@@ -123,6 +124,7 @@ async def stream_chat(
     langfuse_metadata: Optional[Dict] = {},
     user: Optional[dict] = None,
     ff: Optional[str] = None,
+    registry: AgentConfigRegistry = default_registry,
 ):
     langfuse_handler = CallbackHandler(update_trace=True)
     config = {
@@ -131,7 +133,7 @@ async def stream_chat(
         "metadata": langfuse_metadata,
     }
 
-    zeno_async = await fetch_zeno(user, ff=ff)
+    zeno_async = await fetch_zeno(ff=ff, registry=registry)
 
     messages = []
     ui_action_message = []

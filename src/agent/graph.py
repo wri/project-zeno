@@ -185,7 +185,6 @@ _CHECKPOINTER_UNSET = object()
 
 
 async def fetch_zeno(
-    user: Optional[dict] = None,
     ff: Optional[str] = None,
     registry: AgentConfigRegistry = default_registry,
     checkpointer: Any = _CHECKPOINTER_UNSET,
