@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from src.agent.datasets.config import DATASETS
-from src.agent.graph import fetch_zeno_anonymous
+from src.agent.graph import fetch_zeno
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -341,7 +341,7 @@ async def run_agent(query: str, thread_id: str | None = None):
     steps = []
 
     # Fetch the agent instance
-    zeno_agent = await fetch_zeno_anonymous()
+    zeno_agent = await fetch_zeno(checkpointer=None)
 
     i = 0
     async for step in zeno_agent.astream(

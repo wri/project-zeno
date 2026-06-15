@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent
@@ -193,35 +193,22 @@ def _build_middleware():
     return middleware
 
 
-async def fetch_zeno_anonymous(
-    user: Optional[dict] = None,
-    system_prompt: Optional[str] = None,
-    checkpointer=None,
-) -> CompiledStateGraph:
-    """Setup the Zeno agent for anonymous users with the provided tools and prompt.
-
-    Pass `checkpointer` (e.g. an in-memory `InMemorySaver`) to keep graph
-    state across turns without the Postgres checkpointer; defaults to None
-    (stateless).
-    """
-    zeno_agent = create_agent(
-        model=MODEL,
-        tools=tools,
-        state_schema=AgentState,
-        system_prompt=system_prompt or get_prompt(user),
-        middleware=_build_middleware(),
-        checkpointer=checkpointer,
-    )
-    return zeno_agent
+_CHECKPOINTER_UNSET = object()
 
 
 async def fetch_zeno(
     user: Optional[dict] = None,
     system_prompt: Optional[str] = None,
+    checkpointer: Any = _CHECKPOINTER_UNSET,
 ) -> CompiledStateGraph:
-    """Setup the Zeno agent with the provided tools and prompt."""
+    """Setup the Zeno agent with the provided tools and prompt.
 
-    checkpointer = await fetch_checkpointer()
+    By default the Postgres checkpointer is used (API and durable CLI runs).
+    Pass an explicit ``checkpointer`` (e.g. ``InMemorySaver()``) for local
+    runs without Postgres, or ``None`` for a stateless single-turn agent.
+    """
+    if checkpointer is _CHECKPOINTER_UNSET:
+        checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(
         model=MODEL,
         tools=tools,
