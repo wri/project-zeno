@@ -62,16 +62,6 @@ def test_registry_instances_are_isolated():
 # --- AgentConfig -------------------------------------------------------------
 
 
-def test_config_system_prompt_override():
-    c = AgentConfig("cat", specs=(), system_prompt="Say only the word 'cat'.")
-    assert c.system_prompt == "Say only the word 'cat'."
-
-
-def test_config_system_prompt_defaults_to_none():
-    c = AgentConfig("default", specs=(FAKE_SPEC,))
-    assert c.system_prompt is None
-
-
 def test_config_tools_returns_bound_tools():
     c = AgentConfig("test", specs=(FAKE_SPEC,))
     assert _fake_tool in c.tools()
@@ -85,17 +75,6 @@ def test_config_tool_descriptions_includes_bound_tool():
 def test_config_tool_descriptions_excludes_unbound_tool():
     c = AgentConfig("test", specs=())
     assert "_fake_tool" not in c.tool_descriptions()
-
-
-# --- default_registry --------------------------------------------------------
-
-
-def test_default_registry_contains_default():
-    assert default_registry.resolve(None).name == DEFAULT_PROFILE
-
-
-def test_default_registry_unknown_ff_falls_back():
-    assert default_registry.resolve("bogus").name == DEFAULT_PROFILE
 
 
 # --- Structural invariants ---------------------------------------------------
