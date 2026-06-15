@@ -5,6 +5,7 @@ import io
 import json
 import re
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import select
@@ -711,6 +712,9 @@ async def test_superuser_can_view_other_users_private_threads(
     assert response.status_code == 200
 
 
+# --- PATCH /api/admin/users/{user_id}/agent-profile -----------------------
+
+
 # --- GET /api/admin/users/export ------------------------------------------
 
 EXPORT_COLUMNS = [
@@ -848,7 +852,7 @@ async def test_export_users_response_headers(
 async def test_export_users_header_row(
     client, auth_override, superuser_factory
 ):
-    """First CSV row is the expected 21-column header in exact order."""
+    """First CSV row is the expected 22-column header in exact order."""
     su = await superuser_factory("su-export-header-row@example.test")
     auth_override(su.id)
 
@@ -1014,3 +1018,49 @@ async def test_export_users_renders_rows_correctly(
     comma_row = by_id["export-comma"]
     assert comma_row[header.index("name")] == "Lastname, Firstname"
     assert comma_row[header.index("topics")] == "[]"
+
+
+# --- POST /api/chat feature flag auth ---
+
+
+async def _mock_stream(*args, **kwargs):
+    yield b'{"node": "agent", "update": "{}"}\n'
+
+
+@pytest.mark.asyncio
+async def test_ff_rejected_for_regular_user(client, auth_override):
+    """Regular users cannot use the ff parameter."""
+    auth_override("ff-regular-user")
+
+    with patch("src.api.routers.chat.stream_chat", _mock_stream):
+        response = await client.post(
+            "/api/chat",
+            json={
+                "query": "test",
+                "thread_id": "ff-regular-thread",
+                "ff": "my-flag",
+            },
+            headers={"Authorization": "Bearer test-token"},
+        )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_ff_allowed_for_admin(client, auth_override, admin_user_factory):
+    """Admin users can use the ff parameter."""
+    admin = await admin_user_factory("ff-admin@example.test")
+    auth_override(admin.id)
+
+    with patch("src.api.routers.chat.stream_chat", _mock_stream):
+        response = await client.post(
+            "/api/chat",
+            json={
+                "query": "test",
+                "thread_id": "ff-admin-thread",
+                "ff": "my-flag",
+            },
+            headers={"Authorization": "Bearer test-token"},
+        )
+
+    assert response.status_code == 200

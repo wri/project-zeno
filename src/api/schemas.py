@@ -337,6 +337,14 @@ class ChatRequest(BaseModel):
     # Pure UI actions - no query
     ui_action_only: Optional[bool] = False
 
+    # Feature flag: selects the agent tool profile for this request.
+    ff: Optional[str] = Field(
+        None,
+        max_length=64,
+        pattern=r"^[a-z0-9][a-z0-9-]*$",
+        description="Feature flag selecting the agent profile (slug: lowercase, digits, hyphens)",
+    )
+
     # Chat info
     thread_id: Optional[str] = Field(None, description="The thread ID")
     metadata: Optional[dict] = Field(None, description="The metadata")
