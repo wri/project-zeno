@@ -29,7 +29,12 @@ from langchain_core.messages import (
 from langgraph.checkpoint.memory import InMemorySaver
 from sqlalchemy import select
 
-from src.agent.agent_config import CORE_SPECS, DEFAULT_PROFILE, AgentConfig
+from src.agent.agent_config import (
+    CORE_SPECS,
+    DEFAULT_PROFILE,
+    AgentConfig,
+    default_registry,
+)
 from src.agent.graph import (
     close_checkpointer_pool,
     fetch_zeno,
@@ -602,12 +607,16 @@ async def _fetch_agent(
     *,
     use_postgres: bool,
     use_memory: bool,
+    ff: Optional[str] = None,
 ):
-    config = AgentConfig(
-        DEFAULT_PROFILE,
-        specs=CORE_SPECS,
-        system_prompt=system_prompt,
-    )
+    if ff:
+        config = default_registry.resolve(ff)
+    else:
+        config = AgentConfig(
+            DEFAULT_PROFILE,
+            specs=CORE_SPECS,
+            system_prompt=system_prompt,
+        )
     if use_postgres:
         return await fetch_zeno(config=config)
     checkpointer = InMemorySaver() if use_memory else None
@@ -669,6 +678,7 @@ async def _async_main(
     user_id: str,
     user_email: str,
     verbose: bool,
+    ff: Optional[str] = None,
 ) -> None:
     structlog.contextvars.clear_contextvars()
     bind_request_logging_context(user_id=user_id, thread_id=thread_id)
@@ -692,7 +702,10 @@ async def _async_main(
             await get_checkpointer_pool()
 
         agent = await _fetch_agent(
-            system_prompt, use_postgres=use_postgres, use_memory=use_memory
+            system_prompt,
+            use_postgres=use_postgres,
+            use_memory=use_memory,
+            ff=ff,
         )
         try:
             if is_interactive:
@@ -701,7 +714,8 @@ async def _async_main(
                     thread_id=thread_id,
                     is_checkpointed=is_checkpointed,
                     checkpoint_kind=checkpoint_kind,
-                    using_custom_prompt=system_prompt is not None,
+                    using_custom_prompt=system_prompt is not None
+                    or ff is not None,
                     printer=printer,
                 )
             elif query:
@@ -744,6 +758,10 @@ async def _async_main(
     help="Read system prompt from a file.",
 )
 @click.option(
+    "--ff",
+    help="Feature flag: load a named agent profile from the registry (e.g. 'cat').",
+)
+@click.option(
     "--show-prompt",
     is_flag=True,
     help="Print the default system prompt and exit.",
@@ -783,6 +801,7 @@ def main(
     interactive: bool,
     prompt: Optional[str],
     prompt_file: Optional[Path],
+    ff: Optional[str],
     show_prompt: bool,
     thread_id: Optional[str],
     checkpoint: bool,
@@ -797,6 +816,10 @@ def main(
 
     if prompt and prompt_file:
         raise click.UsageError("Use only one of --prompt or --prompt-file.")
+    if ff and (prompt or prompt_file):
+        raise click.UsageError(
+            "Use only one of --ff or --prompt/--prompt-file."
+        )
 
     system_prompt = _resolve_system_prompt(prompt, prompt_file)
     resolved_thread_id = thread_id or str(uuid.uuid4())
@@ -813,6 +836,7 @@ def main(
                 user_id=user_id,
                 user_email=resolved_user_email,
                 verbose=verbose,
+                ff=ff,
             )
         )
     except KeyboardInterrupt:
