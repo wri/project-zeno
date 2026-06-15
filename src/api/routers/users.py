@@ -79,7 +79,6 @@ async def update_user_profile(
         created_at=db_user.created_at,
         updated_at=db_user.updated_at,
         user_type=db_user.user_type,
-        agent_profile=db_user.agent_profile,
         threads=[],
         first_name=db_user.first_name,
         last_name=db_user.last_name,

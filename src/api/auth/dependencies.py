@@ -87,7 +87,6 @@ def _orm_to_user_model(user: UserOrm) -> UserModel:
         created_at=user.created_at,
         updated_at=user.updated_at,
         user_type=user.user_type,
-        agent_profile=user.agent_profile,
         first_name=user.first_name,
         last_name=user.last_name,
         profile_description=user.profile_description,
