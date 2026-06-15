@@ -1,5 +1,6 @@
 import asyncio
-from typing import Annotated, Literal, Optional, get_args
+from enum import StrEnum
+from typing import Annotated, Literal, Optional
 
 import pandas as pd
 import structlog
@@ -39,18 +40,19 @@ RESULT_LIMIT = 10
 SUBREGION_LIMIT_ADMIN = 1000
 SUBREGION_LIMIT = 50
 
-Area_Of_Interest_Type = Literal[
-    "adminstrative area (country, state/region, country/subregion)",
-    "protected area, park, or reserve",
-    "indigenous region or territory",
-    "key biodiversity area",
-]
+
+class AreaOfInterestType(StrEnum):
+    GADM = "adminstrative area (country, state/region, country/subregion)"
+    WDPA = ("protected area, park, or reserve",)
+    LANDMARK = ("indigenous region or territory",)
+    KBA = "key biodiversity area"
+
 
 aoi_to_table = {
-    get_args(Area_Of_Interest_Type)[0]: "gadm",
-    get_args(Area_Of_Interest_Type)[1]: "wdpa",
-    get_args(Area_Of_Interest_Type)[2]: "landmark",
-    get_args(Area_Of_Interest_Type)[3]: "kba",
+    AreaOfInterestType.GADM: "gadm",
+    AreaOfInterestType.WDPA: "wdpa",
+    AreaOfInterestType.LANDMARK: "landmark",
+    AreaOfInterestType.KBA: "kba",
 }
 
 load_dotenv()
@@ -152,7 +154,7 @@ class AOIIndex(BaseModel):
 
 async def query_aoi_database(
     place_name: str,
-    aoi_type: Optional[Area_Of_Interest_Type],
+    aoi_type: Optional[AreaOfInterestType],
     result_limit: int = 10,
 ):
     """Query the PostGIS database for location information.
@@ -647,7 +649,7 @@ class Geocoder:
     async def resolve(
         self,
         question: str,
-        aoi_type: Optional[Area_Of_Interest_Type],
+        aoi_type: Optional[AreaOfInterestType],
         tool_call_id: Optional[str] = None,
     ) -> Command:
         """Full resolution: extract place(s) from the request, then look up."""
@@ -681,7 +683,7 @@ class Geocoder:
         )
 
     async def extract(
-        self, question: str, aoi_type: Optional[Area_Of_Interest_Type]
+        self, question: str, aoi_type: Optional[AreaOfInterestType]
     ) -> PlaceQuery:
         """LLM step: turn the user's request into place(s) + subregion."""
         chain = (
@@ -695,7 +697,7 @@ class Geocoder:
         question: str,
         places: list[str],
         subregion: Optional[SubregionType] = None,
-        aoi_type: Optional[Area_Of_Interest_Type] = None,
+        aoi_type: Optional[AreaOfInterestType] = None,
         tool_call_id: Optional[str] = None,
     ) -> Command:
         """DB step: resolve known place name(s) to AOI geometry."""
@@ -810,7 +812,7 @@ class Geocoder:
 @tool("pick_aoi")
 async def pick_aoi(
     question: str,
-    area_of_interest: Optional[Area_Of_Interest_Type],
+    area_of_interest: Optional[AreaOfInterestType],
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Resolve the place(s) in the user's request to map geometry (the AOI).
