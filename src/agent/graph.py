@@ -15,10 +15,14 @@ from langgraph.graph.state import CompiledStateGraph
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
+from src.agent.agent_config import (
+    AgentConfig,
+    AgentConfigRegistry,
+    default_registry,
+)
 from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
 from src.agent.state import AgentState
-from src.agent.tool_profiles import Profile, ProfileRegistry, default_registry
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -26,7 +30,7 @@ logger = get_logger(__name__)
 
 
 def get_prompt(
-    user: Optional[dict] = None, profile: Optional[Profile] = None
+    user: Optional[dict] = None, profile: Optional[AgentConfig] = None
 ) -> str:
     """Generate the system prompt with the current date and the profile's tools.
 
@@ -190,10 +194,10 @@ _CHECKPOINTER_UNSET = object()
 async def fetch_zeno(
     user: Optional[dict] = None,
     ff: Optional[str] = None,
-    registry: ProfileRegistry = default_registry,
+    registry: AgentConfigRegistry = default_registry,
     system_prompt: Optional[str] = None,
     checkpointer: Any = _CHECKPOINTER_UNSET,
-    profile: Optional[Profile] = None,
+    profile: Optional[AgentConfig] = None,
 ) -> CompiledStateGraph:
     """Setup the Zeno agent with the tools and prompt for the requested profile.
 

@@ -1,55 +1,55 @@
-"""Tests for agent tool profiles and ProfileRegistry."""
+"""Tests for agent tool profiles and AgentConfigRegistry."""
 
-from src.agent.skills import all_skills
-from src.agent.tool_profiles import (
+from src.agent.agent_config import (
     DEFAULT_PROFILE,
     TOOL_REGISTRY,
-    Profile,
-    ProfileRegistry,
+    AgentConfig,
+    AgentConfigRegistry,
     default_registry,
 )
+from src.agent.skills import all_skills
 
-# --- ProfileRegistry ---------------------------------------------------------
+# --- AgentConfigRegistry ---------------------------------------------------------
 
 
 def test_registry_resolves_known_ff():
-    registry = ProfileRegistry()
-    registry.register(Profile("default", ()))
-    registry.register(Profile("blog", ("pick_aoi",)))
+    registry = AgentConfigRegistry()
+    registry.register(AgentConfig("default", ()))
+    registry.register(AgentConfig("blog", ("pick_aoi",)))
     assert registry.resolve("blog").name == "blog"
 
 
 def test_registry_falls_back_to_default_for_unknown_ff():
-    registry = ProfileRegistry()
-    registry.register(Profile("default", ()))
+    registry = AgentConfigRegistry()
+    registry.register(AgentConfig("default", ()))
     assert registry.resolve("bogus").name == DEFAULT_PROFILE
 
 
 def test_registry_falls_back_to_default_for_none():
-    registry = ProfileRegistry()
-    registry.register(Profile("default", ()))
+    registry = AgentConfigRegistry()
+    registry.register(AgentConfig("default", ()))
     assert registry.resolve(None).name == DEFAULT_PROFILE
 
 
 def test_registry_instances_are_isolated():
-    registry_a = ProfileRegistry()
-    registry_a.register(Profile("default", ()))
-    registry_a.register(Profile("cat", (), "Say only the word 'cat'."))
+    registry_a = AgentConfigRegistry()
+    registry_a.register(AgentConfig("default", ()))
+    registry_a.register(AgentConfig("cat", (), "Say only the word 'cat'."))
 
-    registry_b = ProfileRegistry()
-    registry_b.register(Profile("default", ()))
+    registry_b = AgentConfigRegistry()
+    registry_b.register(AgentConfig("default", ()))
 
     assert registry_a.resolve("cat").name == "cat"
     assert registry_b.resolve("cat").name == DEFAULT_PROFILE  # not leaked
 
 
 def test_profile_system_prompt_override():
-    p = Profile("cat", (), "Say only the word 'cat'.")
+    p = AgentConfig("cat", (), "Say only the word 'cat'.")
     assert p.system_prompt == "Say only the word 'cat'."
 
 
 def test_profile_system_prompt_defaults_to_none():
-    p = Profile("default", ("pick_aoi",))
+    p = AgentConfig("default", ("pick_aoi",))
     assert p.system_prompt is None
 
 

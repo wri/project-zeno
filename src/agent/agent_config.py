@@ -1,17 +1,17 @@
-"""Agent tool profiles: which tools (and prompt) load per feature flag.
+"""Agent configurations: which tools (and prompt) load per feature flag.
 
-A *profile* bundles a named set of tools together with the prompt fragments
-that describe each one, so the system prompt can never describe a tool that
-isn't bound (or omit one that is). An optional ``system_prompt`` override
-replaces the generated prompt entirely — useful for testing or bespoke agents.
+An ``AgentConfig`` bundles a named set of tools together with the prompt
+fragments that describe each one, so the system prompt can never describe a
+tool that isn't bound. An optional ``system_prompt`` override replaces the
+generated prompt entirely — useful for testing or bespoke agents.
 
-Profiles are held in a ``ProfileRegistry``. The module-level
+Configs are held in an ``AgentConfigRegistry``. The module-level
 ``default_registry`` is used in production; tests create isolated instances
 and inject them, keeping global state clean.
 
 To expose a new tool behind a feature flag:
 1. Register it in ``TOOL_REGISTRY``.
-2. Register a new ``Profile`` in ``default_registry`` with the flag name.
+2. Register a new ``AgentConfig`` in ``default_registry`` with the flag name.
 """
 
 from dataclasses import dataclass, field
@@ -91,7 +91,7 @@ _CORE_TOOLS = [
 
 
 @dataclass(frozen=True)
-class Profile:
+class AgentConfig:
     """A named tool set the agent loads for a conversation.
 
     ``system_prompt`` overrides the generated prompt when set — useful for
@@ -124,7 +124,7 @@ class Profile:
         return [s for s in all_skills() if set(s.requires) <= available]
 
 
-class ProfileRegistry:
+class AgentConfigRegistry:
     """Holds named profiles and resolves feature flags to them.
 
     Create one instance per context (production uses ``default_registry``;
@@ -132,12 +132,12 @@ class ProfileRegistry:
     """
 
     def __init__(self) -> None:
-        self._profiles: dict[str, Profile] = {}
+        self._profiles: dict[str, AgentConfig] = {}
 
-    def register(self, profile: Profile) -> None:
+    def register(self, profile: AgentConfig) -> None:
         self._profiles[profile.name] = profile
 
-    def resolve(self, ff: Optional[str] = None) -> Profile:
+    def resolve(self, ff: Optional[str] = None) -> AgentConfig:
         """Return the profile for ``ff``, falling back to the default."""
         if ff and ff in self._profiles:
             return self._profiles[ff]
@@ -151,5 +151,5 @@ class ProfileRegistry:
 
 
 # Production registry — add new flag profiles here.
-default_registry = ProfileRegistry()
-default_registry.register(Profile(DEFAULT_PROFILE, tuple(_CORE_TOOLS)))
+default_registry = AgentConfigRegistry()
+default_registry.register(AgentConfig(DEFAULT_PROFILE, tuple(_CORE_TOOLS)))

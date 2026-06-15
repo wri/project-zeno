@@ -3,18 +3,22 @@
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
+from src.agent.agent_config import (
+    DEFAULT_PROFILE,
+    AgentConfig,
+    AgentConfigRegistry,
+)
 from src.agent.graph import fetch_zeno
-from src.agent.tool_profiles import DEFAULT_PROFILE, Profile, ProfileRegistry
 
 
 @pytest.mark.asyncio
 async def test_cat_profile_responds_with_only_cat():
     """A profile with a custom system prompt and no tools should make the
     agent respond with only the word 'cat'."""
-    registry = ProfileRegistry()
-    registry.register(Profile(DEFAULT_PROFILE, ()))
+    registry = AgentConfigRegistry()
+    registry.register(AgentConfig(DEFAULT_PROFILE, ()))
     registry.register(
-        Profile(
+        AgentConfig(
             "cat",
             (),
             "Say only the word 'cat' in response to everything. "
