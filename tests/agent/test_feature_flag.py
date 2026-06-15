@@ -16,13 +16,15 @@ async def test_cat_profile_responds_with_only_cat():
     """A profile with a custom system prompt and no tools should make the
     agent respond with only the word 'cat'."""
     registry = AgentConfigRegistry()
-    registry.register(AgentConfig(DEFAULT_PROFILE, ()))
+    registry.register(AgentConfig(DEFAULT_PROFILE, specs=()))
     registry.register(
         AgentConfig(
             "cat",
-            (),
-            "Say only the word 'cat' in response to everything. "
-            "Do not say anything else.",
+            specs=(),
+            system_prompt=(
+                "Say only the word 'cat' in response to everything. "
+                "Do not say anything else."
+            ),
         )
     )
 

@@ -17,6 +17,12 @@ class ToolCategory(str, Enum):
     SUBAGENT = "subagent"
 
 
+CATEGORY_HEADERS: dict[ToolCategory, str] = {
+    ToolCategory.PRIMITIVE: "# Tools (primitives — call when you need them)",
+    ToolCategory.SUBAGENT: "# Subagents (call as tools — each does its own reasoning; just forward the user's intent)",
+}
+
+
 @dataclass(frozen=True)
 class ToolSpec:
     """A tool plus the prompt fragment that teaches the model to use it."""
