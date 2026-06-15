@@ -32,7 +32,6 @@ from sqlalchemy import select
 from src.agent.graph import (
     close_checkpointer_pool,
     fetch_zeno,
-    fetch_zeno_anonymous,
     get_checkpointer_pool,
     get_prompt,
 )
@@ -606,7 +605,7 @@ async def _fetch_agent(
     if use_postgres:
         return await fetch_zeno(system_prompt=system_prompt)
     checkpointer = InMemorySaver() if use_memory else None
-    return await fetch_zeno_anonymous(
+    return await fetch_zeno(
         system_prompt=system_prompt, checkpointer=checkpointer
     )
 
