@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.agent.agent_config import AgentConfigRegistry
 from src.api.auth.dependencies import require_auth
 from src.api.config import APISettings
-from src.api.data_models import ThreadOrm
+from src.api.data_models import ThreadOrm, UserType
 from src.api.dependencies import get_registry
 from src.api.schemas import ChatRequest, QuotaModel, UserModel
 from src.api.services.chat import generate_thread_name, stream_chat
@@ -46,6 +46,14 @@ async def chat(
     Accepts a chat query and returns a streamed response. Tracks quota usage
     and includes quota information in response headers when quota checking is enabled.
     """
+    if chat_request.ff and user.user_type not in {
+        UserType.ADMIN,
+        UserType.SUPERUSER,
+        UserType.MACHINE,
+    }:
+        raise HTTPException(
+            status_code=403, detail="Feature flags require admin access"
+        )
     bind_request_logging_context(
         thread_id=chat_request.thread_id,
         session_id=chat_request.session_id,
