@@ -29,23 +29,16 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def get_prompt(
-    user: Optional[dict] = None, profile: Optional[AgentConfig] = None
-) -> str:
-    """Generate the system prompt with the current date and the profile's tools.
-
-    The Tools/Subagents sections are rendered from the same profile that decides
-    which tools are bound, so the prompt never drifts from the bound tool set.
-    (User info is otherwise ignored.)
-    """
-    if profile is None:
-        profile = default_registry.resolve()
+def get_prompt(config: Optional[AgentConfig] = None) -> str:
+    """Generate the system prompt from the config's tools and skills."""
+    if config is None:
+        config = default_registry.resolve()
     skill_lines = [
         f"- {s.name}: {s.description} (use when: {s.when_to_use})"
-        for s in profile.skills()
+        for s in config.skills()
     ]
     skills_block = "\n".join(skill_lines) if skill_lines else "(none)"
-    tool_descriptions = profile.tool_descriptions()
+    tool_descriptions = config.tool_descriptions()
     today = datetime.now().strftime("%Y-%m-%d")
     return f"""You are Global Nature Watch's Geospatial Agent. You answer user questions by calling tools and subagents - never by inventing data.
 
@@ -195,31 +188,28 @@ async def fetch_zeno(
     user: Optional[dict] = None,
     ff: Optional[str] = None,
     registry: AgentConfigRegistry = default_registry,
-    system_prompt: Optional[str] = None,
     checkpointer: Any = _CHECKPOINTER_UNSET,
-    profile: Optional[AgentConfig] = None,
+    config: Optional[AgentConfig] = None,
 ) -> CompiledStateGraph:
-    """Setup the Zeno agent with the tools and prompt for the requested profile.
+    """Setup the Zeno agent for the given config and feature flag.
 
-    The tool profile is resolved from ``ff`` via ``registry``; unknown flags
-    fall back to the registry's default profile. Pass a custom ``registry``
-    in tests to inject isolated profiles without mutating global state.
+    The config is resolved from ``ff`` via ``registry``; unknown flags fall
+    back to the registry's default. Pass a custom ``registry`` in tests to
+    inject isolated configs without mutating global state.
 
     By default the Postgres checkpointer is used (API and durable CLI runs).
     Pass an explicit ``checkpointer`` (e.g. ``InMemorySaver()``) for local
     runs without Postgres, or ``None`` for a stateless single-turn agent.
     """
-    if profile is None:
-        profile = registry.resolve(ff)
+    if config is None:
+        config = registry.resolve(ff)
     if checkpointer is _CHECKPOINTER_UNSET:
         checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(
         model=MODEL,
-        tools=profile.tools(),
+        tools=config.tools(),
         state_schema=AgentState,
-        system_prompt=system_prompt
-        or profile.system_prompt
-        or get_prompt(user, profile),
+        system_prompt=config.system_prompt or get_prompt(config),
         middleware=_build_middleware(),
         checkpointer=checkpointer,
     )

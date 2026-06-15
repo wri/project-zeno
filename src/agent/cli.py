@@ -29,6 +29,7 @@ from langchain_core.messages import (
 from langgraph.checkpoint.memory import InMemorySaver
 from sqlalchemy import select
 
+from src.agent.agent_config import CORE_SPECS, DEFAULT_PROFILE, AgentConfig
 from src.agent.graph import (
     close_checkpointer_pool,
     fetch_zeno,
@@ -602,12 +603,15 @@ async def _fetch_agent(
     use_postgres: bool,
     use_memory: bool,
 ):
-    if use_postgres:
-        return await fetch_zeno(system_prompt=system_prompt)
-    checkpointer = InMemorySaver() if use_memory else None
-    return await fetch_zeno(
-        system_prompt=system_prompt, checkpointer=checkpointer
+    config = AgentConfig(
+        DEFAULT_PROFILE,
+        specs=CORE_SPECS,
+        system_prompt=system_prompt,
     )
+    if use_postgres:
+        return await fetch_zeno(config=config)
+    checkpointer = InMemorySaver() if use_memory else None
+    return await fetch_zeno(config=config, checkpointer=checkpointer)
 
 
 async def _interactive_loop(
