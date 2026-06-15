@@ -18,6 +18,7 @@ from src.api.routers import (
     metadata,
     threads,
     thumbnails,
+    traces,
     users,
 )
 from src.shared.database import close_global_pool, initialize_global_pool
@@ -110,3 +111,4 @@ app.include_router(thumbnails.router)
 app.include_router(insights.router)
 app.include_router(metadata.router)
 app.include_router(admin.router)
+app.include_router(traces.router)
