@@ -11,16 +11,10 @@ from langchain_core.tools import BaseTool
 
 
 class ToolCategory(str, Enum):
-    """How a tool is grouped under a heading in the system prompt."""
+    """The system-prompt heading under which a tool is grouped."""
 
-    PRIMITIVE = "primitive"
-    SUBAGENT = "subagent"
-
-
-CATEGORY_HEADERS: dict[ToolCategory, str] = {
-    ToolCategory.PRIMITIVE: "# Tools (primitives — call when you need them)",
-    ToolCategory.SUBAGENT: "# Subagents (call as tools — each does its own reasoning; just forward the user's intent)",
-}
+    PRIMITIVE = "# Tools (primitives — call when you need them)"
+    SUBAGENT = "# Subagents (call as tools — each does its own reasoning; just forward the user's intent)"
 
 
 @dataclass(frozen=True)

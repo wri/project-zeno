@@ -23,7 +23,7 @@ from src.agent.skills.tool import SPEC as read_skill_spec
 from src.agent.subagents.analyst.tool import SPEC as generate_insights_spec
 from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
-from src.agent.tool_spec import CATEGORY_HEADERS, ToolCategory, ToolSpec
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.pull_data import SPEC as pull_data_spec
 from src.shared.logging_config import get_logger
 
@@ -62,9 +62,7 @@ class AgentConfig:
                 s.prompt_fragment for s in self.specs if s.category == category
             ]
             if fragments:
-                blocks.append(
-                    CATEGORY_HEADERS[category] + "\n\n" + "\n".join(fragments)
-                )
+                blocks.append(category + "\n\n" + "\n".join(fragments))
         return "\n\n".join(blocks)
 
     def skills(self) -> list[SkillMeta]:
