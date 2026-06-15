@@ -18,12 +18,7 @@ from psycopg_pool import AsyncConnectionPool
 from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
 from src.agent.state import AgentState
-from src.agent.tool_profiles import (
-    resolve_profile_name,
-    skills_for_profile,
-    tool_descriptions_for_profile,
-    tools_for_profile,
-)
+from src.agent.tool_profiles import Profile, resolve_profile
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -31,7 +26,7 @@ logger = get_logger(__name__)
 
 
 def get_prompt(
-    user: Optional[dict] = None, profile: Optional[str] = None
+    user: Optional[dict] = None, profile: Optional[Profile] = None
 ) -> str:
     """Generate the system prompt with the current date and the profile's tools.
 
@@ -40,13 +35,13 @@ def get_prompt(
     (User info is otherwise ignored.)
     """
     if profile is None:
-        profile = resolve_profile_name(user)
+        profile = resolve_profile(user)
     skill_lines = [
         f"- {s.name}: {s.description} (use when: {s.when_to_use})"
-        for s in skills_for_profile(profile)
+        for s in profile.skills()
     ]
     skills_block = "\n".join(skill_lines) if skill_lines else "(none)"
-    tool_descriptions = tool_descriptions_for_profile(profile)
+    tool_descriptions = profile.tool_descriptions()
     today = datetime.now().strftime("%Y-%m-%d")
     return f"""You are Global Nature Watch's Geospatial Agent. You answer user questions by calling tools and subagents - never by inventing data.
 
@@ -193,7 +188,7 @@ async def fetch_zeno_anonymous(
     user: Optional[dict] = None,
     system_prompt: Optional[str] = None,
     checkpointer=None,
-    profile: Optional[str] = None,
+    profile: Optional[Profile] = None,
 ) -> CompiledStateGraph:
     """Setup the Zeno agent for anonymous users with the provided tools and prompt.
 
@@ -203,10 +198,10 @@ async def fetch_zeno_anonymous(
     Postgres checkpointer; defaults to None (stateless).
     """
     if profile is None:
-        profile = resolve_profile_name(user)
+        profile = resolve_profile(user)
     zeno_agent = create_agent(
         model=MODEL,
-        tools=tools_for_profile(profile),
+        tools=profile.tools(),
         state_schema=AgentState,
         system_prompt=system_prompt or get_prompt(user, profile),
         middleware=_build_middleware(),
@@ -218,7 +213,7 @@ async def fetch_zeno_anonymous(
 async def fetch_zeno(
     user: Optional[dict] = None,
     system_prompt: Optional[str] = None,
-    profile: Optional[str] = None,
+    profile: Optional[Profile] = None,
 ) -> CompiledStateGraph:
     """Setup the Zeno agent with the tools and prompt for the user's profile.
 
@@ -226,11 +221,11 @@ async def fetch_zeno(
     experimental profile) unless one is passed explicitly.
     """
     if profile is None:
-        profile = resolve_profile_name(user)
+        profile = resolve_profile(user)
     checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(
         model=MODEL,
-        tools=tools_for_profile(profile),
+        tools=profile.tools(),
         state_schema=AgentState,
         system_prompt=system_prompt or get_prompt(user, profile),
         middleware=_build_middleware(),

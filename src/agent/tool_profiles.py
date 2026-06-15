@@ -95,13 +95,77 @@ _CORE_TOOLS = [
 # Add new tools here first (e.g. "show_imagery"); promote to _CORE_TOOLS to ship.
 _EXPERIMENTAL_TOOLS: list[str] = []
 
-PROFILES: dict[str, list[str]] = {
-    DEFAULT_PROFILE: _CORE_TOOLS,
-    EXPERIMENTAL_PROFILE: _CORE_TOOLS + _EXPERIMENTAL_TOOLS,
+
+@dataclass(frozen=True)
+class Profile:
+    """A named tool set the agent loads for a conversation.
+
+    Holds only the tool *names*; the tool objects, their prompt fragments and
+    the skill registry stay single-sourced in ``TOOL_REGISTRY`` / ``all_skills``.
+    Add fields here (e.g. a model override or extra prompt block) to parametrize
+    profiles further.
+    """
+
+    name: str
+    tool_names: tuple[str, ...]
+
+    def tools(self) -> list[BaseTool]:
+        """The tool objects bound to the agent for this profile."""
+        return [TOOL_REGISTRY[name].tool for name in self.tool_names]
+
+    def tool_descriptions(self) -> str:
+        """Render the Tools + Subagents prompt sections for this profile.
+
+        Grouped by category so the prompt only ever describes tools that are
+        actually bound for this profile.
+        """
+        blocks = []
+        for category in ToolCategory:
+            fragments = [
+                TOOL_REGISTRY[name].prompt_fragment
+                for name in self.tool_names
+                if TOOL_REGISTRY[name].category == category
+            ]
+            if fragments:
+                blocks.append(
+                    _CATEGORY_HEADERS[category] + "\n\n" + "\n".join(fragments)
+                )
+        return "\n\n".join(blocks)
+
+    def skills(self) -> list[SkillMeta]:
+        """Skills whose required tools are all bound in this profile.
+
+        A skill recipe directs the model to call specific tools (declared in its
+        ``requires`` frontmatter), so we only advertise a skill when this
+        profile binds every tool it needs — otherwise the workflow would tell
+        the model to call a tool that isn't available.
+        """
+        available = set(self.tool_names)
+        return [s for s in all_skills() if set(s.requires) <= available]
+
+
+PROFILES: dict[str, Profile] = {
+    DEFAULT_PROFILE: Profile(DEFAULT_PROFILE, tuple(_CORE_TOOLS)),
+    EXPERIMENTAL_PROFILE: Profile(
+        EXPERIMENTAL_PROFILE, tuple(_CORE_TOOLS + _EXPERIMENTAL_TOOLS)
+    ),
 }
 
 
-def resolve_profile_name(user: Optional[dict] = None) -> str:
+def get_profile(name: str) -> Profile:
+    """Look up a profile by name, falling back to the default if unknown."""
+    profile = PROFILES.get(name)
+    if profile is None:
+        logger.warning(
+            "Unknown tool profile %r, falling back to %r",
+            name,
+            DEFAULT_PROFILE,
+        )
+        return PROFILES[DEFAULT_PROFILE]
+    return profile
+
+
+def resolve_profile(user: Optional[dict] = None) -> Profile:
     """Pick the tool profile for a conversation based on the user.
 
     Testers who opted in via ``help_test_features`` get the experimental
@@ -109,54 +173,5 @@ def resolve_profile_name(user: Optional[dict] = None) -> str:
     default.
     """
     if user and user.get("help_test_features"):
-        return EXPERIMENTAL_PROFILE
-    return DEFAULT_PROFILE
-
-
-def _profile_tool_names(profile: str) -> list[str]:
-    if profile not in PROFILES:
-        logger.warning(
-            "Unknown tool profile %r, falling back to %r",
-            profile,
-            DEFAULT_PROFILE,
-        )
-        profile = DEFAULT_PROFILE
-    return PROFILES[profile]
-
-
-def tools_for_profile(profile: str) -> list[BaseTool]:
-    """The tool objects bound to the agent for a profile."""
-    return [TOOL_REGISTRY[name].tool for name in _profile_tool_names(profile)]
-
-
-def tool_descriptions_for_profile(profile: str) -> str:
-    """Render the Tools + Subagents prompt sections for a profile's tools.
-
-    Grouped by category so the prompt only ever describes tools that are
-    actually bound for this profile.
-    """
-    names = _profile_tool_names(profile)
-    blocks = []
-    for category in ToolCategory:
-        fragments = [
-            TOOL_REGISTRY[name].prompt_fragment
-            for name in names
-            if TOOL_REGISTRY[name].category == category
-        ]
-        if fragments:
-            blocks.append(
-                _CATEGORY_HEADERS[category] + "\n\n" + "\n".join(fragments)
-            )
-    return "\n\n".join(blocks)
-
-
-def skills_for_profile(profile: str) -> list[SkillMeta]:
-    """Skills whose required tools are all bound in this profile.
-
-    A skill recipe directs the model to call specific tools (declared in its
-    ``requires`` frontmatter), so we only advertise a skill when the active
-    profile binds every tool it needs — otherwise the workflow would tell the
-    model to call a tool that isn't available.
-    """
-    available = set(_profile_tool_names(profile))
-    return [s for s in all_skills() if set(s.requires) <= available]
+        return PROFILES[EXPERIMENTAL_PROFILE]
+    return PROFILES[DEFAULT_PROFILE]
