@@ -1,5 +1,5 @@
 import asyncio
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional, get_args
 
 import pandas as pd
 import structlog
@@ -38,6 +38,20 @@ from src.shared.logging_config import get_logger
 RESULT_LIMIT = 10
 SUBREGION_LIMIT_ADMIN = 1000
 SUBREGION_LIMIT = 50
+
+Area_Of_Interest_Type = Literal[
+    "adminstrative area (country, state/region, country/subregion)",
+    "protected area, park, or reserve",
+    "indigenous region or territory",
+    "key biodiversity area",
+]
+
+aoi_to_table = {
+    get_args(Area_Of_Interest_Type)[0]: "gadm",
+    get_args(Area_Of_Interest_Type)[1]: "wdpa",
+    get_args(Area_Of_Interest_Type)[2]: "landmark",
+    get_args(Area_Of_Interest_Type)[3]: "kba",
+}
 
 load_dotenv()
 logger = get_logger(__name__)
@@ -138,7 +152,7 @@ class AOIIndex(BaseModel):
 
 async def query_aoi_database(
     place_name: str,
-    aoi_type: Optional[str],
+    aoi_type: Optional[Area_Of_Interest_Type],
     result_limit: int = 10,
 ):
     """Query the PostGIS database for location information.
@@ -208,14 +222,15 @@ async def query_aoi_database(
         union_parts = []
 
         if aoi_type is not None:
-            if aoi_type in existing_tables:
-                existing_tables = [aoi_type]
+            aoi_table = aoi_to_table[aoi_type]
+            if aoi_table in existing_tables:
+                existing_tables = [aoi_table]
             else:
                 # This cannot happen in production, unless the AOI tables are
                 # misconfigured. This is to catch the case where not all tables have
                 # been created locally.
                 raise ValueError(
-                    f"Required geometry table {aoi_type} does not exist in the database"
+                    f"Required geometry table {aoi_table} does not exist in the database"
                 )
 
         if "gadm" in existing_tables:
@@ -587,13 +602,6 @@ SubregionType = Literal[
     "landmark",
 ]
 
-AOIType = Literal[
-    "gadm",
-    "wdpa",
-    "landmark",
-    "kba",
-]
-
 
 class PlaceQuery(BaseModel):
     """A place request the geocoder extracts from the user's message."""
@@ -610,13 +618,6 @@ class PlaceQuery(BaseModel):
         description=(
             "Set only to compare or analyze across many administrative units "
             "inside the place(s); otherwise leave null."
-        ),
-    )
-    aoi_type: Optional[AOIType] = Field(
-        default=None,
-        description=(
-            "Set if user's query implies that the place names are a particular type of AOI;"
-            "otherwise leave null."
         ),
     )
 
@@ -644,10 +645,13 @@ class Geocoder:
     """
 
     async def resolve(
-        self, question: str, tool_call_id: Optional[str] = None
+        self,
+        question: str,
+        aoi_type: Optional[Area_Of_Interest_Type],
+        tool_call_id: Optional[str] = None,
     ) -> Command:
         """Full resolution: extract place(s) from the request, then look up."""
-        query = await self.extract(question)
+        query = await self.extract(question, aoi_type)
         print(query)
         logger.info(
             "GEOCODER: extracted places=%r subregion=%r",
@@ -672,11 +676,13 @@ class Geocoder:
             question,
             query.places,
             query.subregion,
-            query.aoi_type,
+            aoi_type,
             tool_call_id,
         )
 
-    async def extract(self, question: str) -> PlaceQuery:
+    async def extract(
+        self, question: str, aoi_type: Optional[Area_Of_Interest_Type]
+    ) -> PlaceQuery:
         """LLM step: turn the user's request into place(s) + subregion."""
         chain = (
             GEOCODER_EXTRACTION_PROMPT
@@ -689,7 +695,7 @@ class Geocoder:
         question: str,
         places: list[str],
         subregion: Optional[SubregionType] = None,
-        aoi_type: Optional[AOIType] = None,
+        aoi_type: Optional[Area_Of_Interest_Type] = None,
         tool_call_id: Optional[str] = None,
     ) -> Command:
         """DB step: resolve known place name(s) to AOI geometry."""
@@ -804,6 +810,7 @@ class Geocoder:
 @tool("pick_aoi")
 async def pick_aoi(
     question: str,
+    area_of_interest: Optional[Area_Of_Interest_Type],
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Resolve the place(s) in the user's request to map geometry (the AOI).
@@ -821,4 +828,6 @@ async def pick_aoi(
     Updates the AOI selection in state. If the place is ambiguous or missing,
     it returns a clarifying question for the user instead.
     """
-    return await Geocoder().resolve(question, tool_call_id)
+    print(question)
+    print(f"aoi_type: {area_of_interest}")
+    return await Geocoder().resolve(question, area_of_interest, tool_call_id)

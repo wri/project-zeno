@@ -338,7 +338,8 @@ async def test_query_cross_antimeridian(structlog_context):
 
 async def test_extract_single_place(structlog_context):
     query = await Geocoder().extract(
-        "Analyze deforestation rates in Para, Brazil"
+        "Analyze deforestation rates in Para, Brazil",
+        "adminstrative area (country, state/region, country/subregion)",
     )
     assert any("para" in p.lower() for p in query.places)
     assert query.subregion is None
@@ -346,21 +347,26 @@ async def test_extract_single_place(structlog_context):
 
 async def test_extract_subregion_comparison(structlog_context):
     query = await Geocoder().extract(
-        "Compare tree cover loss across all states in Brazil"
+        "Compare tree cover loss across all states in Brazil",
+        "adminstrative area (country, state/region, country/subregion)",
     )
     assert any("brazil" in p.lower() for p in query.places)
     assert query.subregion == "state"
 
 
 async def test_extract_translates_place_to_english(structlog_context):
-    query = await Geocoder().extract("desmatamento em São Paulo, Brasil")
+    query = await Geocoder().extract(
+        "desmatamento em São Paulo, Brasil",
+        "adminstrative area (country, state/region, country/subregion)",
+    )
     joined = " ".join(query.places).lower()
     assert "sao paulo" in joined
 
 
 async def test_extract_global_query_uses_country_subregion(structlog_context):
     query = await Geocoder().extract(
-        "Which countries have the most deforestation worldwide?"
+        "Which countries have the most deforestation worldwide?",
+        "adminstrative area (country, state/region, country/subregion)",
     )
     assert query.subregion == "country"
     assert query.places
