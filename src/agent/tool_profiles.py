@@ -7,7 +7,7 @@ bound (or omit one that is) — the two are derived from the same source.
 The profile is chosen per conversation from the user:
 - testers who opted in via ``help_test_features`` get the ``experimental``
   profile, which adds experimental tools on top of the production set;
-- everyone else (including anonymous users) gets the production ``default``.
+- everyone else gets the production ``default``.
 
 To expose a new experimental tool, register it in ``TOOL_REGISTRY`` and add its
 name to ``_EXPERIMENTAL_TOOLS``. Promote it to ``_CORE_TOOLS`` once it ships to
@@ -169,7 +169,7 @@ def resolve_profile(user: Optional[dict] = None) -> Profile:
     """Pick the tool profile for a conversation based on the user.
 
     Testers who opted in via ``help_test_features`` get the experimental
-    profile; everyone else (including anonymous users) gets the production
+    profile; everyone else gets the production
     default.
     """
     if user and user.get("help_test_features"):
