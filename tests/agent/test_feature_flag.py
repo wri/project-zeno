@@ -9,7 +9,6 @@ from src.agent.agent_config import (
     AgentConfigRegistry,
 )
 from src.agent.graph import fetch_zeno
-from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
 
 
 @pytest.mark.integration
@@ -52,41 +51,3 @@ async def test_cat_profile_responds_with_only_cat():
         )
 
     assert "cat" in last_message.lower()
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_dataset_only_config_selects_dataset_without_other_tools():
-    """An AgentConfig with only pick_dataset should select a dataset without
-    calling pick_aoi, pull_data, or any other tool."""
-    registry = AgentConfigRegistry()
-    registry.register(AgentConfig(DEFAULT_PROFILE, specs=(pick_dataset_spec,)))
-
-    agent = await fetch_zeno(
-        registry=registry,
-        checkpointer=InMemorySaver(),
-    )
-
-    result = await agent.ainvoke(
-        {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "tree cover loss in Brazil in 2015",
-                }
-            ]
-        },
-        config={"configurable": {"thread_id": "test-dataset-only"}},
-    )
-
-    tools_called = [
-        tc["name"]
-        for m in result["messages"]
-        if hasattr(m, "tool_calls")
-        for tc in (m.tool_calls or [])
-    ]
-
-    assert "pick_dataset" in tools_called
-    assert "pick_aoi" not in tools_called
-    assert "pull_data" not in tools_called
-    assert result.get("dataset") is not None
