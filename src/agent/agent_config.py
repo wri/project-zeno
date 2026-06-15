@@ -15,70 +15,38 @@ To expose a new tool behind a feature flag:
 """
 
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Optional
 
 from langchain_core.tools import BaseTool
 
-from src.agent.skills import SkillMeta, all_skills, read_skill
-from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
-from src.agent.tools import pull_data
+# Prompt fragments live next to each tool's implementation, not here.
+from src.agent.skills import SkillMeta, all_skills
+from src.agent.skills.tool import SPEC as _READ_SKILL_SPEC
+from src.agent.subagents.analyst.tool import SPEC as _GENERATE_INSIGHTS_SPEC
+from src.agent.subagents.pick_aoi.tool import SPEC as _PICK_AOI_SPEC
+from src.agent.subagents.pick_dataset.tool import SPEC as _PICK_DATASET_SPEC
+from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.pull_data import SPEC as _PULL_DATA_SPEC
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 DEFAULT_PROFILE = "default"
 
-
-class ToolCategory(str, Enum):
-    """How a tool is grouped under a heading in the system prompt."""
-
-    PRIMITIVE = "primitive"
-    SUBAGENT = "subagent"
-
-
 _CATEGORY_HEADERS = {
     ToolCategory.PRIMITIVE: "# Tools (primitives — call when you need them)",
     ToolCategory.SUBAGENT: "# Subagents (call as tools — each does its own reasoning; just forward the user's intent)",
 }
 
-
-@dataclass(frozen=True)
-class ToolSpec:
-    """A tool plus the prompt fragment that teaches the model to use it."""
-
-    tool: BaseTool
-    category: ToolCategory
-    prompt_fragment: str
-
-
-# Every tool the agent can load, keyed by name. Profiles reference these names.
 TOOL_REGISTRY: dict[str, ToolSpec] = {
-    "pull_data": ToolSpec(
-        pull_data,
-        ToolCategory.PRIMITIVE,
-        "- pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.",
-    ),
-    "read_skill": ToolSpec(
-        read_skill,
-        ToolCategory.PRIMITIVE,
-        "- read_skill(name): load a skill's full workflow — call it once, after you have committed to using that skill.",
-    ),
-    "pick_aoi": ToolSpec(
-        pick_aoi,
-        ToolCategory.SUBAGENT,
-        '- pick_aoi(question): natural-language geocoder. Pass the place request verbatim ("tree cover loss in Pará, Brazil", "the districts of Odisha", "forest loss worldwide"); it extracts, translates and resolves the place — and any subregions — itself. Updates the AOI in state, or returns a clarifying question.',
-    ),
-    "pick_dataset": ToolSpec(
-        pick_dataset,
-        ToolCategory.SUBAGENT,
-        "- pick_dataset(query): dataset-selection subagent. Picks the dataset, context layer and date range that best answer the request. May return no dataset if none is a good fit — in that case relay its explanation and closest alternatives to the user; do not proceed to pull_data. Call it again whenever the user changes the dataset, context layer or parameters.",
-    ),
-    "generate_insights": ToolSpec(
-        generate_insights,
-        ToolCategory.SUBAGENT,
-        "- generate_insights(query): analyst subagent. Turns pulled data into one chart insight with follow-up suggestions. Requires pull_data to have run first.",
-    ),
+    s.tool.name: s
+    for s in [
+        _PULL_DATA_SPEC,
+        _READ_SKILL_SPEC,
+        _PICK_AOI_SPEC,
+        _PICK_DATASET_SPEC,
+        _GENERATE_INSIGHTS_SPEC,
+    ]
 }
 
 _CORE_TOOLS = [

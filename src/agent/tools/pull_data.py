@@ -11,6 +11,7 @@ from langgraph.types import Command
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.agent.datasets.handlers.base import DataPullResult
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.api.data_models import StatisticsOrm
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
@@ -193,3 +194,10 @@ async def pull_data(
             "messages": [tool_message],
         },
     )
+
+
+SPEC = ToolSpec(
+    tool=pull_data,
+    category=ToolCategory.PRIMITIVE,
+    prompt_fragment="- pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.",
+)

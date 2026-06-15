@@ -20,6 +20,7 @@ from src.agent.subagents.analyst.prompts import (
     EXECUTOR_WORKFLOW,
     WORDING_GUIDE,
 )
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.shared.database import get_session_from_pool
@@ -506,3 +507,10 @@ async def generate_insights(
         dataset=state.get("dataset") or {},
         tool_call_id=tool_call_id,
     )
+
+
+SPEC = ToolSpec(
+    tool=generate_insights,
+    category=ToolCategory.SUBAGENT,
+    prompt_fragment="- generate_insights(query): analyst subagent. Turns pulled data into one chart insight with follow-up suggestions. Requires pull_data to have run first.",
+)
