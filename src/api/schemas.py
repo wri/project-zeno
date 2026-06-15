@@ -340,7 +340,9 @@ class ChatRequest(BaseModel):
     # Feature flag: selects the agent tool profile for this request.
     ff: Optional[str] = Field(
         None,
-        description="Feature flag selecting the agent profile (e.g. 'experimental')",
+        max_length=64,
+        pattern=r"^[a-z0-9][a-z0-9-]*$",
+        description="Feature flag selecting the agent profile (slug: lowercase, digits, hyphens)",
     )
 
     # Chat info
