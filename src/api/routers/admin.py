@@ -11,7 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth.dependencies import _orm_to_user_model, require_superuser
 from src.api.data_models import UserOrm, UserType
-from src.api.schemas import UserModel, UserTypeUpdateRequest
+from src.api.schemas import (
+    AgentProfileUpdateRequest,
+    UserModel,
+    UserTypeUpdateRequest,
+)
 from src.shared.database import get_session_from_pool_dependency
 
 router = APIRouter()
@@ -23,6 +27,7 @@ _EXPORT_COLUMNS: tuple[str, ...] = (
     "created_at",
     "updated_at",
     "user_type",
+    "agent_profile",
     "first_name",
     "last_name",
     "profile_description",
@@ -99,6 +104,32 @@ async def update_user_type(
         )
 
     target.user_type = body.user_type.value
+    target.updated_at = datetime.now()
+
+    await session.commit()
+    await session.refresh(target)
+
+    return _orm_to_user_model(target)
+
+
+@router.patch(
+    "/api/admin/users/{user_id}/agent-profile", response_model=UserModel
+)
+async def update_agent_profile(
+    user_id: str,
+    body: AgentProfileUpdateRequest,
+    _superuser: UserModel = Depends(require_superuser),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+):
+    """Set a user's agent_profile. Superuser-only."""
+    result = await session.execute(
+        select(UserOrm).where(UserOrm.id == user_id)
+    )
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target.agent_profile = body.agent_profile.value
     target.updated_at = datetime.now()
 
     await session.commit()

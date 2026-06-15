@@ -4,10 +4,10 @@ A *profile* bundles a set of tools together with the prompt fragment that
 describes each one, so the system prompt can never describe a tool that isn't
 bound (or omit one that is) — the two are derived from the same source.
 
-The profile is chosen per conversation from the user:
-- testers who opted in via ``help_test_features`` get the ``experimental``
-  profile, which adds experimental tools on top of the production set;
-- everyone else gets the production ``default``.
+The profile is chosen per conversation from the user's ``agent_profile`` field:
+- users set to ``experimental`` get that profile, which adds experimental tools
+  on top of the production set;
+- everyone else (incl. anonymous) gets the production ``default``.
 
 To expose a new experimental tool, register it in ``TOOL_REGISTRY`` and add its
 name to ``_EXPERIMENTAL_TOOLS``. Promote it to ``_CORE_TOOLS`` once it ships to
@@ -23,6 +23,7 @@ from langchain_core.tools import BaseTool
 from src.agent.skills import SkillMeta, all_skills, read_skill
 from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
 from src.agent.tools import pull_data
+from src.api.data_models import AgentProfile
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -79,8 +80,8 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     ),
 }
 
-DEFAULT_PROFILE = "default"
-EXPERIMENTAL_PROFILE = "experimental"
+DEFAULT_PROFILE = AgentProfile.DEFAULT.value
+EXPERIMENTAL_PROFILE = AgentProfile.EXPERIMENTAL.value
 
 # Tools every user gets in production.
 _CORE_TOOLS = [
@@ -91,7 +92,7 @@ _CORE_TOOLS = [
     "read_skill",
 ]
 
-# Experimental tools, exposed only to opted-in testers (help_test_features).
+# Experimental tools, exposed only to users with agent_profile=experimental.
 # Add new tools here first (e.g. "show_imagery"); promote to _CORE_TOOLS to ship.
 _EXPERIMENTAL_TOOLS: list[str] = []
 
@@ -166,12 +167,10 @@ def get_profile(name: str) -> Profile:
 
 
 def resolve_profile(user: Optional[dict] = None) -> Profile:
-    """Pick the tool profile for a conversation based on the user.
+    """Pick the tool profile for a conversation from the user's agent_profile.
 
-    Testers who opted in via ``help_test_features`` get the experimental
-    profile; everyone else gets the production
-    default.
+    Reads the user's ``agent_profile`` field; unknown or missing values (incl.
+    anonymous users) fall back to the production default via ``get_profile``.
     """
-    if user and user.get("help_test_features"):
-        return PROFILES[EXPERIMENTAL_PROFILE]
-    return PROFILES[DEFAULT_PROFILE]
+    name = (user or {}).get("agent_profile") or DEFAULT_PROFILE
+    return get_profile(str(name))

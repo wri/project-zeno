@@ -711,6 +711,110 @@ async def test_superuser_can_view_other_users_private_threads(
     assert response.status_code == 200
 
 
+# --- PATCH /api/admin/users/{user_id}/agent-profile -----------------------
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_profile_requires_auth(client):
+    """Unauthenticated PATCH must return 401."""
+    response = await client.patch(
+        "/api/admin/users/some-id/agent-profile",
+        json={"agent_profile": "experimental"},
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_profile_requires_superuser_not_regular(
+    client, auth_override
+):
+    """A regular user must receive 403."""
+    regular = await _seed_user(
+        "reg-ap", "reg_ap@example.com", UserType.REGULAR
+    )
+    target = await _seed_user(
+        "target-ap-r", "target_ap_r@example.com", UserType.REGULAR
+    )
+    auth_override(regular.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/agent-profile",
+        headers={"Authorization": "Bearer test-token"},
+        json={"agent_profile": "experimental"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_superuser_can_set_agent_profile(
+    client, auth_override, superuser_factory
+):
+    """Superuser switches a user to the experimental profile and back."""
+    su = await superuser_factory("su_ap@example.com")
+    target = await _seed_user(
+        "target-ap", "target_ap@example.com", UserType.REGULAR
+    )
+    auth_override(su.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/agent-profile",
+        headers={"Authorization": "Bearer test-token"},
+        json={"agent_profile": "experimental"},
+    )
+    assert response.status_code == 200
+    assert response.json()["agentProfile"] == "experimental"
+
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(UserOrm).where(UserOrm.id == target.id)
+        )
+        db_user = result.scalar_one()
+        assert db_user.agent_profile == "experimental"
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/agent-profile",
+        headers={"Authorization": "Bearer test-token"},
+        json={"agent_profile": "default"},
+    )
+    assert response.status_code == 200
+    assert response.json()["agentProfile"] == "default"
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_profile_invalid_value(
+    client, auth_override, superuser_factory
+):
+    """Unknown agent_profile value is rejected with 422."""
+    su = await superuser_factory("su_ap_invalid@example.com")
+    target = await _seed_user(
+        "target-ap-invalid", "target_ap_invalid@example.com", UserType.REGULAR
+    )
+    auth_override(su.id)
+
+    response = await client.patch(
+        f"/api/admin/users/{target.id}/agent-profile",
+        headers={"Authorization": "Bearer test-token"},
+        json={"agent_profile": "bogus"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_profile_user_not_found(
+    client, auth_override, superuser_factory
+):
+    """PATCH on unknown user_id returns 404."""
+    su = await superuser_factory("su_ap_404@example.com")
+    auth_override(su.id)
+
+    response = await client.patch(
+        "/api/admin/users/does-not-exist/agent-profile",
+        headers={"Authorization": "Bearer test-token"},
+        json={"agent_profile": "experimental"},
+    )
+    assert response.status_code == 404
+
+
 # --- GET /api/admin/users/export ------------------------------------------
 
 EXPORT_COLUMNS = [
@@ -720,6 +824,7 @@ EXPORT_COLUMNS = [
     "created_at",
     "updated_at",
     "user_type",
+    "agent_profile",
     "first_name",
     "last_name",
     "profile_description",
@@ -848,7 +953,7 @@ async def test_export_users_response_headers(
 async def test_export_users_header_row(
     client, auth_override, superuser_factory
 ):
-    """First CSV row is the expected 21-column header in exact order."""
+    """First CSV row is the expected 22-column header in exact order."""
     su = await superuser_factory("su-export-header-row@example.test")
     auth_override(su.id)
 

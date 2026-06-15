@@ -33,6 +33,11 @@ class UserType(str, enum.Enum):
     SUPERUSER = "superuser"
 
 
+class AgentProfile(str, enum.Enum):
+    DEFAULT = "default"
+    EXPERIMENTAL = "experimental"
+
+
 class UserOrm(Base):
     __tablename__ = "users"
 
@@ -44,6 +49,9 @@ class UserOrm(Base):
         DateTime, nullable=False, default=datetime.now, onupdate=datetime.now
     )
     user_type = Column(String, nullable=False, default=UserType.REGULAR.value)
+    agent_profile = Column(
+        String, nullable=False, default=AgentProfile.DEFAULT.value
+    )
 
     # New profile fields - Basic
     first_name = Column(String, nullable=True)
