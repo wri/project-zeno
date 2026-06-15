@@ -228,7 +228,12 @@ class DatasetSelector:
                         ],
                         "messages": [
                             ToolMessage(
-                                tool_message, tool_call_id=tool_call_id
+                                tool_message,
+                                tool_call_id=tool_call_id,
+                                status="success",
+                                response_metadata={
+                                    "msg_type": "human_feedback"
+                                },
                             )
                         ],
                     }
