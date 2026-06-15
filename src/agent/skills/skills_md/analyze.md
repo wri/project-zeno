@@ -8,7 +8,7 @@ requires: pick_aoi, pick_dataset, pull_data, generate_insights
 # Workflow
 
 1. `pick_aoi` — pass the user's request describing the place; the geocoder extracts, translates and resolves the AOI (and any subregion) on its own.
-2. `pick_dataset` — choose dataset and date range. Its tool description covers re-picking when the user changes topic or context layer. If it returns no dataset, stop and relay its explanation to the user — do not proceed to `pull_data`.
+2. `pick_dataset` — choose dataset and date range. Its tool description covers re-picking when the user changes topic or context layer. If it returns no dataset, **or only suggested/alternative datasets**, stop and relay its explanation and the alternatives to the user — do not proceed to `pull_data`, and do not pick one of the suggestions yourself. Wait for the user to choose.
 3. `pull_data` — fetch data for AOI + dataset + dates. You need AOI, dataset, and a date range before this step.
 4. `generate_insights` — after a successful pull, always run this to produce one chart insight.
 
