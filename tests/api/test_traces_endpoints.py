@@ -104,6 +104,45 @@ async def test_list_pagination(client, auth_override, superuser_factory):
     assert body["items"][0]["id"] == "p4"  # newest
 
 
+@pytest.mark.asyncio
+async def test_list_surfaces_derived_fields(
+    client, auth_override, superuser_factory
+):
+    """datasets_analysed/language/language_confidence are lifted from the
+    ``derived`` JSONB onto each list item (so tracey's analytics can build its
+    dataframe in one paginated fetch)."""
+    su = await superuser_factory("su_derived@example.com")
+    auth_override(su.id)
+    await _seed_trace(
+        "dv1",
+        prompt="deforestation in Brazil",
+        trace_timestamp=datetime(2026, 6, 1, tzinfo=timezone.utc),
+        derived={
+            "datasets_analysed_cumulative": ["tree_cover_loss", "land_cover"],
+            "language": "en",
+            "language_confidence": 0.97,
+        },
+    )
+    # a trace with no derived payload still serializes (fields default to None)
+    await _seed_trace(
+        "dv2",
+        prompt="no derived here",
+        trace_timestamp=datetime(2026, 5, 1, tzinfo=timezone.utc),
+    )
+
+    body = (await client.get("/api/traces", headers=H)).json()
+    item = next(i for i in body["items"] if i["id"] == "dv1")
+    assert item["datasets_analysed"] == ["tree_cover_loss", "land_cover"]
+    assert item["language"] == "en"
+    assert item["language_confidence"] == 0.97
+    # derived itself is never leaked on the list item
+    assert "derived" not in item
+
+    empty = next(i for i in body["items"] if i["id"] == "dv2")
+    assert empty["datasets_analysed"] is None
+    assert empty["language"] is None
+
+
 # --- detail ----------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_detail_returns_derived_from_db_and_io_from_langfuse(

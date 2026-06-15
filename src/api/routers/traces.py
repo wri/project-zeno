@@ -47,6 +47,10 @@ class TraceListItem(BaseModel):
     tool_error_count: Optional[int] = None
     latency_seconds: Optional[float] = None
     total_cost: Optional[float] = None
+    # Sourced from the ``derived`` JSONB (long-tail fields kept out of columns).
+    datasets_analysed: Optional[list[str]] = None
+    language: Optional[str] = None
+    language_confidence: Optional[float] = None
 
 
 class TraceListResponse(BaseModel):
@@ -94,7 +98,23 @@ _LIST_COLUMNS = (
     LangfuseTraceOrm.tool_error_count,
     LangfuseTraceOrm.latency_seconds,
     LangfuseTraceOrm.total_cost,
+    # Selected so the list response can surface the derived fields below without
+    # a per-trace detail fetch (datasets_analysed/language live in JSONB).
+    LangfuseTraceOrm.derived,
 )
+
+
+def _list_item_from_row(r: dict[str, Any]) -> TraceListItem:
+    """Build a list item from a row mapping, lifting the three derived fields
+    out of the ``derived`` JSONB and dropping it from the column kwargs."""
+    derived = r.get("derived") or {}
+    cols = {k: v for k, v in r.items() if k != "derived"}
+    return TraceListItem(
+        **cols,
+        datasets_analysed=derived.get("datasets_analysed_cumulative"),
+        language=derived.get("language"),
+        language_confidence=derived.get("language_confidence"),
+    )
 
 
 def _filters(
@@ -163,7 +183,7 @@ async def list_traces(
         total=total,
         limit=limit,
         offset=offset,
-        items=[TraceListItem(**dict(r)) for r in rows],
+        items=[_list_item_from_row(dict(r)) for r in rows],
     )
 
 
@@ -447,6 +467,8 @@ async def get_trace(
     raw_available = isinstance(trace, dict)
     trace = trace or {}
 
+    derived = row.derived or {}
+
     return TraceDetail(
         id=row.id,
         session_id=row.session_id,
@@ -473,6 +495,9 @@ async def get_trace(
         tool_error_count=row.tool_error_count,
         latency_seconds=row.latency_seconds,
         total_cost=row.total_cost,
+        datasets_analysed=derived.get("datasets_analysed_cumulative"),
+        language=derived.get("language"),
+        language_confidence=derived.get("language_confidence"),
         parser_version=row.parser_version,
         parse_error=row.parse_error,
         recognized_contract=row.recognized_contract,
