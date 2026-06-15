@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent
@@ -184,45 +184,28 @@ def _build_middleware():
     return middleware
 
 
-async def fetch_zeno_anonymous(
-    user: Optional[dict] = None,
-    system_prompt: Optional[str] = None,
-    checkpointer=None,
-    profile: Optional[Profile] = None,
-) -> CompiledStateGraph:
-    """Setup the Zeno agent for anonymous users with the provided tools and prompt.
-
-    The tool profile is resolved from `user` unless one is passed explicitly
-    (anonymous users get the default profile). Pass `checkpointer` (e.g. an
-    in-memory `InMemorySaver`) to keep graph state across turns without the
-    Postgres checkpointer; defaults to None (stateless).
-    """
-    if profile is None:
-        profile = resolve_profile(user)
-    zeno_agent = create_agent(
-        model=MODEL,
-        tools=profile.tools(),
-        state_schema=AgentState,
-        system_prompt=system_prompt or get_prompt(user, profile),
-        middleware=_build_middleware(),
-        checkpointer=checkpointer,
-    )
-    return zeno_agent
+_CHECKPOINTER_UNSET = object()
 
 
 async def fetch_zeno(
     user: Optional[dict] = None,
     system_prompt: Optional[str] = None,
+    checkpointer: Any = _CHECKPOINTER_UNSET,
     profile: Optional[Profile] = None,
 ) -> CompiledStateGraph:
     """Setup the Zeno agent with the tools and prompt for the user's profile.
 
     The tool profile is resolved from `user` (e.g. opted-in testers get the
     experimental profile) unless one is passed explicitly.
+
+    By default the Postgres checkpointer is used (API and durable CLI runs).
+    Pass an explicit ``checkpointer`` (e.g. ``InMemorySaver()``) for local
+    runs without Postgres, or ``None`` for a stateless single-turn agent.
     """
     if profile is None:
         profile = resolve_profile(user)
-    checkpointer = await fetch_checkpointer()
+    if checkpointer is _CHECKPOINTER_UNSET:
+        checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(
         model=MODEL,
         tools=profile.tools(),
