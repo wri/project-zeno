@@ -1,7 +1,7 @@
 import uuid
 from importlib import import_module
-from unittest.mock import AsyncMock, patch
 from typing import Optional
+from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
@@ -193,7 +193,9 @@ async def test_pick_aoi_handles_empty_subregion_results(
 ):
     pick_aoi_module = import_module("src.agent.subagents.pick_aoi.tool")
 
-    async def fake_query_aoi_database(place_name: str, aoi_type: Optional[str], result_limit: int = 10):
+    async def fake_query_aoi_database(
+        place_name: str, aoi_type: Optional[str], result_limit: int = 10
+    ):
         return pd.DataFrame(
             [
                 {

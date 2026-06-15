@@ -109,7 +109,9 @@ def replay_aoi_queries_for_tools_tests() -> Any:
             "live DB query.",
             place_name,
         )
-        return await live_query_aoi_database(place_name, aoi_type, result_limit)
+        return await live_query_aoi_database(
+            place_name, aoi_type, result_limit
+        )
 
     async def query_subregion_database_replay(
         subregion_name: str, source: str, src_id: Any
