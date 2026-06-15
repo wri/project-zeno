@@ -23,7 +23,6 @@ from langchain_core.tools import BaseTool
 from src.agent.skills import SkillMeta, all_skills, read_skill
 from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
 from src.agent.tools import pull_data
-from src.api.data_models import AgentProfile
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -80,8 +79,8 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     ),
 }
 
-DEFAULT_PROFILE = AgentProfile.DEFAULT.value
-EXPERIMENTAL_PROFILE = AgentProfile.EXPERIMENTAL.value
+DEFAULT_PROFILE = "default"
+EXPERIMENTAL_PROFILE = "experimental"
 
 # Tools every user gets in production.
 _CORE_TOOLS = [
@@ -166,11 +165,11 @@ def get_profile(name: str) -> Profile:
     return profile
 
 
-def resolve_profile(user: Optional[dict] = None) -> Profile:
-    """Pick the tool profile for a conversation from the user's agent_profile.
+def resolve_profile(ff: Optional[str] = None) -> Profile:
+    """Pick the tool profile for a conversation from the ff query parameter.
 
-    Reads the user's ``agent_profile`` field; unknown or missing values (incl.
-    anonymous users) fall back to the production default via ``get_profile``.
+    If ``ff`` exactly matches a known profile name, that profile is used;
+    anything else (including None, empty string, or unknown names) falls back
+    to the production default.
     """
-    name = (user or {}).get("agent_profile") or DEFAULT_PROFILE
-    return get_profile(str(name))
+    return get_profile(ff) if ff else PROFILES[DEFAULT_PROFILE]

@@ -122,6 +122,7 @@ async def stream_chat(
     thread_id: Optional[str] = None,
     langfuse_metadata: Optional[Dict] = {},
     user: Optional[dict] = None,
+    ff: Optional[str] = None,
 ):
     langfuse_handler = CallbackHandler(update_trace=True)
     config = {
@@ -130,7 +131,7 @@ async def stream_chat(
         "metadata": langfuse_metadata,
     }
 
-    zeno_async = await fetch_zeno(user)
+    zeno_async = await fetch_zeno(user, ff=ff)
 
     messages = []
     ui_action_message = []

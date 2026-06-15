@@ -11,7 +11,7 @@ from pydantic import (
     field_validator,
 )
 
-from src.api.data_models import AgentProfile, UserType
+from src.api.data_models import UserType
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.api.user_profile_configs.languages import LANGUAGES
@@ -80,7 +80,6 @@ class UserModel(BaseModel):
     updated_at: datetime
     threads: list[ThreadModel] = []
     user_type: UserType = UserType.REGULAR
-    agent_profile: AgentProfile = AgentProfile.DEFAULT
 
     # New profile fields - Basic
     first_name: Optional[str] = None
@@ -172,12 +171,6 @@ class UserTypeUpdateRequest(BaseModel):
                 "machine user_type cannot be assigned via this endpoint"
             )
         return v
-
-
-class AgentProfileUpdateRequest(BaseModel):
-    """Request schema for changing a user's agent_profile (admin endpoint)."""
-
-    agent_profile: AgentProfile
 
 
 class UserProfileUpdateRequest(BaseModel):
@@ -343,6 +336,12 @@ class ChatRequest(BaseModel):
 
     # Pure UI actions - no query
     ui_action_only: Optional[bool] = False
+
+    # Feature flag: selects the agent tool profile for this request.
+    ff: Optional[str] = Field(
+        None,
+        description="Feature flag selecting the agent profile (e.g. 'experimental')",
+    )
 
     # Chat info
     thread_id: Optional[str] = Field(None, description="The thread ID")

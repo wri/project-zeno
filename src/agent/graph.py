@@ -35,7 +35,7 @@ def get_prompt(
     (User info is otherwise ignored.)
     """
     if profile is None:
-        profile = resolve_profile(user)
+        profile = resolve_profile()
     skill_lines = [
         f"- {s.name}: {s.description} (use when: {s.when_to_use})"
         for s in profile.skills()
@@ -189,21 +189,22 @@ _CHECKPOINTER_UNSET = object()
 
 async def fetch_zeno(
     user: Optional[dict] = None,
+    ff: Optional[str] = None,
     system_prompt: Optional[str] = None,
     checkpointer: Any = _CHECKPOINTER_UNSET,
     profile: Optional[Profile] = None,
 ) -> CompiledStateGraph:
-    """Setup the Zeno agent with the tools and prompt for the user's profile.
+    """Setup the Zeno agent with the tools and prompt for the requested profile.
 
-    The tool profile is resolved from `user` (e.g. opted-in testers get the
-    experimental profile) unless one is passed explicitly.
+    The tool profile is resolved from ``ff`` (the feature-flag query parameter
+    passed by the client) unless an explicit ``profile`` is provided.
 
     By default the Postgres checkpointer is used (API and durable CLI runs).
     Pass an explicit ``checkpointer`` (e.g. ``InMemorySaver()``) for local
     runs without Postgres, or ``None`` for a stateless single-turn agent.
     """
     if profile is None:
-        profile = resolve_profile(user)
+        profile = resolve_profile(ff)
     if checkpointer is _CHECKPOINTER_UNSET:
         checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(

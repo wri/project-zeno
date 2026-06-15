@@ -83,8 +83,6 @@ async def chat(
             "country_code": user.country_code,
             "preferred_language_code": user.preferred_language_code,
             "areas_of_interest": user.areas_of_interest,
-            # Selects which agent tool profile (default/experimental) to load.
-            "agent_profile": user.agent_profile.value,
         }
         if user.sector_code and user.sector_code in SECTORS:
             user_dict["sector_code"] = SECTORS[user.sector_code]
@@ -106,6 +104,7 @@ async def chat(
                     ui_action_only=chat_request.ui_action_only,
                     langfuse_metadata=langfuse_metadata,
                     user=user_dict,
+                    ff=chat_request.ff,
                 ),
             ),
             media_type="application/x-ndjson",

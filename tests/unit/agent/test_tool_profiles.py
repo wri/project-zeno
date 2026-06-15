@@ -11,20 +11,20 @@ from src.agent.tool_profiles import (
 )
 
 
-def test_resolve_profile_gates_on_agent_profile():
-    assert resolve_profile(None).name == DEFAULT_PROFILE
-    assert resolve_profile({}).name == DEFAULT_PROFILE
-    assert resolve_profile({"agent_profile": None}).name == DEFAULT_PROFILE
+def test_resolve_profile_defaults_to_default():
+    assert resolve_profile().name == DEFAULT_PROFILE
+    assert resolve_profile(ff=None).name == DEFAULT_PROFILE
+
+
+def test_resolve_profile_exact_ff_match():
     assert (
-        resolve_profile({"agent_profile": DEFAULT_PROFILE}).name
-        == DEFAULT_PROFILE
+        resolve_profile(ff=EXPERIMENTAL_PROFILE).name == EXPERIMENTAL_PROFILE
     )
-    assert (
-        resolve_profile({"agent_profile": EXPERIMENTAL_PROFILE}).name
-        == EXPERIMENTAL_PROFILE
-    )
-    # Unknown profile names fall back to the default.
-    assert resolve_profile({"agent_profile": "bogus"}).name == DEFAULT_PROFILE
+
+
+def test_resolve_profile_unknown_ff_falls_back_to_default():
+    assert resolve_profile(ff="bogus").name == DEFAULT_PROFILE
+    assert resolve_profile(ff="").name == DEFAULT_PROFILE
 
 
 def test_experimental_is_a_superset_of_default():
