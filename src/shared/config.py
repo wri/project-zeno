@@ -1,3 +1,5 @@
+from typing import Optional
+
 from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -35,6 +37,16 @@ class _SharedSettings(BaseSettings):
         default="RETRIEVAL_QUERY",
         alias="DATASET_EMBEDDINGS_TASK_TYPE",
     )
+
+    # Sentinel-2 mosaic storage. Built MosaicJSON files are written to this
+    # (private) S3 bucket and served by an external titiler that reads them
+    # via s3:// using IAM credentials.
+    mosaic_s3_bucket: str = Field(default="", alias="MOSAIC_S3_BUCKET")
+    mosaic_s3_prefix: str = Field(default="mosaics", alias="MOSAIC_S3_PREFIX")
+    mosaic_s3_region: Optional[str] = Field(
+        default=None, alias="MOSAIC_S3_REGION"
+    )
+    mosaic_tiler_url: str = Field(default="", alias="MOSAIC_TILER_URL")
 
     model_config = {
         "env_file": ".env",

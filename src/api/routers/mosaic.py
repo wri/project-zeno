@@ -1,9 +1,10 @@
-"""Sentinel-2 mosaic tile service over AOI geometries.
+"""Sentinel-2 mosaic creation over AOI geometries.
 
-All endpoints — including the titiler tile/tilejson routes — require the
-same bearer auth as the rest of the API; map clients must attach the
-Authorization header to tile requests. Mosaic ids are recipe tokens (see
-src/api/services/mosaic.py).
+The create endpoint builds a MosaicJSON, persists it to S3 (see
+src/api/services/mosaic.py) and returns a recipe-token mosaic id. Tiles are
+served by an external titiler that reads the MosaicJSON from S3; this repo no
+longer serves tiles. Creation requires the same bearer auth as the rest of
+the API.
 """
 
 from datetime import date
@@ -11,31 +12,22 @@ from typing import Optional
 
 from cogeo_mosaic.errors import MosaicNotFoundError
 from fastapi import APIRouter, Depends, HTTPException, Query
-from titiler.mosaic.factory import MosaicTilerFactory
 
 from src.api.auth.dependencies import require_auth
 from src.api.models import MosaicCreateResponse
 from src.api.schemas import UserModel
 from src.api.services.mosaic import (
     AoiTooLargeError,
-    InMemoryBackend,
     MosaicRecipe,
     NoScenesFoundError,
     StacSearchError,
     create_sentinel2_mosaic,
-    ensure_mosaic,
 )
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-_mosaic_tiler = MosaicTilerFactory(backend=InMemoryBackend)
-
 router = APIRouter()
-router.include_router(
-    _mosaic_tiler.router,
-    dependencies=[Depends(require_auth), Depends(ensure_mosaic)],
-)
 
 
 @router.post("/create/{source}/{src_id}", response_model=MosaicCreateResponse)
@@ -50,11 +42,11 @@ async def create_mosaic(
 ):
     """
     Search Sentinel-2 L2A scenes covering an AOI around target_date
-    (within ±window_days) and cache a MosaicJSON.
+    (within ±window_days) and persist a MosaicJSON to S3.
 
-    Returns a mosaic_id to pass as ?url= to the titiler mosaic endpoints:
-      GET /mosaic/tiles/WebMercatorQuad/{z}/{x}/{y}[.{format}]?url={mosaic_id}
-      GET /mosaic/WebMercatorQuad/tilejson.json?url={mosaic_id}
+    Returns a mosaic_id (recipe token). Tiles are served by the external
+    titiler, which reads the MosaicJSON from S3; the tile/tilejson URLs are
+    available on the MosaicResult (tile_url / tilejson_url).
     """
     recipe = MosaicRecipe(
         aois=((source, src_id),),

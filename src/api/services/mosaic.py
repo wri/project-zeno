@@ -4,59 +4,41 @@ Searches the earth-search STAC API for Sentinel-2 L2A scenes (COGs hosted in
 the public sentinel-cogs AWS bucket) around a target date and builds a
 MosaicJSON.
 
-Mosaics are not persisted: the mosaic id handed to clients is a token
-encoding the build recipe (AOI references, target date, search parameters).
-The in-memory store is only a per-process cache — on a cache miss the
-ensure_mosaic route dependency rebuilds the mosaic from its token, so any
-previously issued mosaic URL keeps working across restarts, workers and
-replicas. The tile endpoints require the same bearer auth as the rest of
-the API, so the token needs no signature: crafting one grants nothing the
-authenticated create endpoint would not.
+The built MosaicJSON is written to a private S3 bucket under a key derived
+from a deterministic, self-describing recipe token (AOI references, target
+date, search parameters). Tiles are served by an external, vanilla titiler
+deployment that reads the MosaicJSON from S3 via ``s3://`` using IAM
+credentials — this repo no longer serves tiles itself.
+
+Before building, we look up the recipe token in S3: if a mosaic already
+exists we skip the (expensive) STAC search, build and upload, and return the
+metadata recorded in a small sidecar object written alongside the mosaic.
 """
 
-import asyncio
 import base64
+import functools
 import json
-import os
 import time
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional
+from urllib.parse import quote
 
-import attr
+import boto3
 import pystac_client
-from cachetools import TTLCache
-from cogeo_mosaic.backends.base import BaseBackend
+from botocore.exceptions import ClientError
 from cogeo_mosaic.errors import MosaicNotFoundError
 from cogeo_mosaic.mosaic import MosaicJSON
-from fastapi import HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from pyproj import Geod
 from shapely import union_all
 from shapely.geometry import mapping, shape
 
+from src.shared.config import SharedSettings
 from src.shared.geocoding_helpers import get_geometry_data
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-# GDAL tuning for reading remote COGs (read by rasterio at open time, so
-# deployment env vars take precedence). Without GDAL_DISABLE_READDIR_ON_OPEN
-# every COG open issues extra (404ing) sidecar-file requests against S3.
-_GDAL_ENV_DEFAULTS = {
-    "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
-    "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES",
-    "GDAL_HTTP_MULTIPLEX": "YES",
-    "GDAL_HTTP_VERSION": "2",
-    "GDAL_CACHEMAX": "200",
-    "VSI_CACHE": "TRUE",
-    "VSI_CACHE_SIZE": "5000000",
-    "CPL_VSIL_CURL_CACHE_SIZE": "200000000",
-    # Sentinel-2 COG headers are larger than GDAL's 16KB default read.
-    "GDAL_INGESTED_BYTES_AT_OPEN": "32768",
-}
-for _key, _value in _GDAL_ENV_DEFAULTS.items():
-    os.environ.setdefault(_key, _value)
 
 STAC_URL = "https://earth-search.aws.element84.com/v1"
 SENTINEL2_COLLECTION = "sentinel-2-l2a"
@@ -66,13 +48,6 @@ VISUAL_ASSET = "visual"
 MAX_AOI_AREA_KM2 = 50_000
 
 _geod = Geod(ellps="WGS84")
-
-# token → MosaicJSON. Pure per-process cache; misses are rebuilt from the
-# token by ensure_mosaic.
-_mosaic_store: TTLCache = TTLCache(maxsize=256, ttl=12 * 3600)
-
-# token → lock, so concurrent tile requests trigger at most one rebuild.
-_rebuild_locks: dict[str, asyncio.Lock] = {}
 
 
 class AoiTooLargeError(Exception):
@@ -93,28 +68,79 @@ class NoScenesFoundError(Exception):
     pass
 
 
-@attr.s
-class InMemoryBackend(BaseBackend):
-    """Resolve a mosaic by token from the module-level _mosaic_store."""
+# ---------------------------------------------------------------------------
+# S3 persistence
+# ---------------------------------------------------------------------------
 
-    _backend_name = "InMemory"
 
-    def _read(self) -> MosaicJSON:
-        mosaic = _mosaic_store.get(self.input)
-        if mosaic is None:
-            raise MosaicNotFoundError("Mosaic not found")
-        return mosaic
+@functools.lru_cache(maxsize=1)
+def _s3_client():
+    return boto3.client(
+        "s3", region_name=SharedSettings.mosaic_s3_region or None
+    )
 
-    def tile(self, *args, **kwargs):
-        # Read scenes sequentially with lazy early exit: with the default
-        # "first" pixel selection, reading stops as soon as the tile is
-        # covered. The factory default (threads=70) would instead fetch
-        # every candidate scene from S3 concurrently and discard most.
-        kwargs["threads"] = 0
-        return super().tile(*args, **kwargs)
 
-    def write(self, overwrite: bool = False) -> None:
-        pass
+def _s3_key(token: str) -> str:
+    return f"{SharedSettings.mosaic_s3_prefix.strip('/')}/{token}.json"
+
+
+def _meta_key(token: str) -> str:
+    return f"{SharedSettings.mosaic_s3_prefix.strip('/')}/{token}.meta.json"
+
+
+def _s3_uri(token: str) -> str:
+    return f"s3://{SharedSettings.mosaic_s3_bucket}/{_s3_key(token)}"
+
+
+def _read_meta(token: str) -> Optional[dict]:
+    """Return the mosaic's metadata sidecar, or None if it does not exist.
+
+    The sidecar is written last, so its presence implies the mosaic object
+    itself is fully written.
+    """
+    try:
+        resp = _s3_client().get_object(
+            Bucket=SharedSettings.mosaic_s3_bucket, Key=_meta_key(token)
+        )
+    except ClientError as e:
+        if e.response["Error"]["Code"] in ("NoSuchKey", "404", "NotFound"):
+            return None
+        raise
+    return json.loads(resp["Body"].read())
+
+
+def _write_mosaic(
+    token: str,
+    mosaic: MosaicJSON,
+    item_count: int,
+    date_start: date,
+    date_end: date,
+) -> None:
+    """Upload the MosaicJSON and its metadata sidecar to S3.
+
+    The mosaic object is written first, then the sidecar, so a present
+    sidecar always implies a complete mosaic.
+    """
+    client = _s3_client()
+    bucket = SharedSettings.mosaic_s3_bucket
+    client.put_object(
+        Bucket=bucket,
+        Key=_s3_key(token),
+        Body=mosaic.model_dump_json(exclude_none=True).encode("utf-8"),
+        ContentType="application/json",
+    )
+    client.put_object(
+        Bucket=bucket,
+        Key=_meta_key(token),
+        Body=json.dumps(
+            {
+                "item_count": item_count,
+                "date_start": date_start.isoformat(),
+                "date_end": date_end.isoformat(),
+            }
+        ).encode("utf-8"),
+        ContentType="application/json",
+    )
 
 
 @dataclass(frozen=True)
@@ -143,14 +169,18 @@ class MosaicResult:
 
     @property
     def tile_url(self) -> str:
+        base = SharedSettings.mosaic_tiler_url.rstrip("/")
+        url = quote(_s3_uri(self.mosaic_id), safe="")
         return (
-            "/mosaic/tiles/WebMercatorQuad/{z}/{x}/{y}.png"
-            f"?url={self.mosaic_id}"
+            f"{base}/mosaic/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png"
+            f"?url={url}"
         )
 
     @property
     def tilejson_url(self) -> str:
-        return f"/mosaic/WebMercatorQuad/tilejson.json?url={self.mosaic_id}"
+        base = SharedSettings.mosaic_tiler_url.rstrip("/")
+        url = quote(_s3_uri(self.mosaic_id), safe="")
+        return f"{base}/mosaic/WebMercatorQuad/tilejson.json?url={url}"
 
 
 def encode_recipe(recipe: MosaicRecipe) -> str:
@@ -212,11 +242,26 @@ async def _load_geometry(recipe: MosaicRecipe) -> dict:
 
 
 async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
-    """Build the mosaic for a recipe and cache it under its token.
+    """Build the mosaic for a recipe and persist it to S3.
+
+    If a mosaic for this recipe already exists in S3, the STAC search, build
+    and upload are skipped and the recorded metadata is returned.
 
     Raises MosaicNotFoundError (AOI geometry gone), AoiTooLargeError,
     StacSearchError or NoScenesFoundError.
     """
+    token = encode_recipe(recipe)
+
+    # S3-based lookup: if the mosaic already exists, return without rebuilding.
+    meta = await run_in_threadpool(_read_meta, token)
+    if meta is not None:
+        return MosaicResult(
+            mosaic_id=token,
+            item_count=meta["item_count"],
+            date_start=date.fromisoformat(meta["date_start"]),
+            date_end=date.fromisoformat(meta["date_end"]),
+        )
+
     geometry = await _load_geometry(recipe)
     check_aoi_area(geometry)
 
@@ -284,53 +329,22 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
         maximum_items_per_tile=12,
     )
 
-    token = encode_recipe(recipe)
-    _mosaic_store[token] = mosaic
+    item_dates = [item.datetime.date() for item in items]
+    date_start = min(item_dates)
+    date_end = max(item_dates)
+
+    await run_in_threadpool(
+        _write_mosaic, token, mosaic, len(items), date_start, date_end
+    )
     logger.info(
         "Mosaic created",
         item_count=len(items),
         build_ms=round((time.perf_counter() - build_start) * 1000),
     )
 
-    item_dates = [item.datetime.date() for item in items]
     return MosaicResult(
         mosaic_id=token,
         item_count=len(items),
-        date_start=min(item_dates),
-        date_end=max(item_dates),
+        date_start=date_start,
+        date_end=date_end,
     )
-
-
-async def ensure_mosaic(url: str = Query(...)) -> None:
-    """Route dependency: rebuild the mosaic from its token if not cached.
-
-    Runs before the (synchronous) titiler endpoints so the rebuild can use
-    the async DB pool for geometry lookups.
-    """
-    if url in _mosaic_store:
-        return
-
-    lock = _rebuild_locks.setdefault(url, asyncio.Lock())
-    try:
-        async with lock:
-            if url in _mosaic_store:
-                return
-            recipe = decode_recipe(url)
-            logger.info("Rebuilding mosaic from token")
-            try:
-                result = await create_sentinel2_mosaic(recipe)
-                # If decoding clamped any parameter, the rebuilt mosaic is
-                # stored under the canonical token; alias the requested one
-                # so this URL does not rebuild on every request.
-                if result.mosaic_id != url:
-                    _mosaic_store[url] = _mosaic_store[result.mosaic_id]
-            except AoiTooLargeError as e:
-                raise HTTPException(status_code=422, detail=str(e))
-            except NoScenesFoundError as e:
-                raise HTTPException(status_code=404, detail=str(e))
-            except StacSearchError:
-                raise HTTPException(
-                    status_code=502, detail="STAC search failed"
-                )
-    finally:
-        _rebuild_locks.pop(url, None)
