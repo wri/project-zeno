@@ -1,8 +1,15 @@
-"""Tests for blog.py cited article extraction from subagent tool calls."""
+"""Tests for blog.py cited article extraction and search_blogs tool."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
-from src.agent.subagents.search.blog import _articles_from_tool_calls
+import pytest
+from langchain_core.messages import AIMessage
+from langgraph.types import Command
+
+from src.agent.subagents.search.blog import (
+    _articles_from_tool_calls,
+    search_blogs,
+)
 
 FAKE_INDEX = {
     "some-article": {
@@ -116,3 +123,81 @@ def test_strips_md_extension_from_slug():
 
 def test_returns_empty_for_no_messages():
     assert _patched([]) == []
+
+
+# --- search_blogs tool ---
+
+
+def _make_subagent_result(answer: str, article_slugs: list[str]) -> dict:
+    """Build a minimal fake subagent message trace."""
+    tool_call_msg = AIMessage(
+        content="",
+        tool_calls=[
+            {
+                "name": "article_meta",
+                "args": {"slugs": article_slugs},
+                "id": "call_1",
+                "type": "tool_call",
+            }
+        ],
+    )
+    answer_msg = AIMessage(content=answer)
+    return {"messages": [tool_call_msg, answer_msg]}
+
+
+@pytest.mark.asyncio
+async def test_search_blogs_returns_command_with_answer_and_cited_articles():
+    fake_result = _make_subagent_result(
+        "Peatlands cover 12% of land.", ["some-article"]
+    )
+    mock_agent = AsyncMock()
+    mock_agent.ainvoke.return_value = fake_result
+
+    with (
+        patch(
+            "src.agent.subagents.search.blog._cached_agent",
+            return_value=mock_agent,
+        ),
+        patch(
+            "src.agent.subagents.search.blog._article_index",
+            return_value=FAKE_INDEX,
+        ),
+    ):
+        cmd = await search_blogs.ainvoke(
+            {
+                "type": "tool_call",
+                "name": "search_blogs",
+                "args": {"query": "peatlands"},
+                "id": "tc-1",
+            }
+        )
+
+    assert isinstance(cmd, Command)
+    tool_msg = cmd.update["messages"][0]
+    assert tool_msg.content == "Peatlands cover 12% of land."
+    assert tool_msg.tool_call_id == "tc-1"
+    assert len(cmd.update["cited_articles"]) == 1
+    assert cmd.update["cited_articles"][0]["slug"] == "some-article"
+
+
+@pytest.mark.asyncio
+async def test_search_blogs_returns_fallback_when_no_answer():
+    mock_agent = AsyncMock()
+    mock_agent.ainvoke.return_value = {"messages": []}
+
+    with patch(
+        "src.agent.subagents.search.blog._cached_agent",
+        return_value=mock_agent,
+    ):
+        cmd = await search_blogs.ainvoke(
+            {
+                "type": "tool_call",
+                "name": "search_blogs",
+                "args": {"query": "peatlands"},
+                "id": "tc-2",
+            }
+        )
+
+    assert isinstance(cmd, Command)
+    assert "No answer" in cmd.update["messages"][0].content
+    assert cmd.update["cited_articles"] == []
