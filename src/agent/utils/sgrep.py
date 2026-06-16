@@ -221,26 +221,39 @@ def _chunk_text(data_dir: Path, m: dict) -> str:
     return _chunk_texts(str(data_dir / m["file"])).get(key, "")
 
 
-def query_index(
-    index_dir: Path, query: str, k: int = 10, threshold: float = 0.3
-) -> list[dict]:
-    """Return the top-k matching paragraphs as a list of result dicts."""
-    emb = np.load(index_dir / "embeddings.npy", mmap_mode="r")
+@lru_cache(maxsize=4)
+def _load_index(
+    index_dir_str: str,
+) -> tuple[np.ndarray, list[dict], float, Path]:
+    """Load and cache the embedding matrix, metadata, and config for an index.
+
+    Converts int8 → float32 once so every query_index call avoids the 123 MB
+    per-call allocation that mmap + asarray would otherwise produce.
+    """
+    index_dir = Path(index_dir_str)
+    emb = np.load(index_dir / "embeddings.npy").astype("float32")
     config = json.loads(
         (index_dir / "config.json").read_text(encoding="utf-8")
     )
-    scale = config["scale"]
-    data_dir = _resolve_data_dir(config["data_dir"])
     meta = [
         json.loads(line)
         for line in (index_dir / "meta.jsonl")
         .read_text(encoding="utf-8")
         .splitlines()
+        if line.strip()
     ]
+    return emb, meta, config["scale"], _resolve_data_dir(config["data_dir"])
+
+
+def query_index(
+    index_dir: Path, query: str, k: int = 10, threshold: float = 0.3
+) -> list[dict]:
+    """Return the top-k matching paragraphs as a list of result dicts."""
+    emb, meta, scale, data_dir = _load_index(str(index_dir))
     qv = normalize(_index_model(index_dir).encode([query])[0]).astype(
         "float32"
     )
-    scores = (np.asarray(emb, dtype="float32") @ qv) * scale
+    scores = (emb @ qv) * scale
 
     results = []
     for i in np.argsort(-scores)[:k]:

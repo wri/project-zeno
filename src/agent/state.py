@@ -6,6 +6,16 @@ from langgraph.graph import add_messages
 from typing_extensions import NotRequired, TypedDict
 
 
+class CitedArticle(TypedDict):
+    slug: str
+    title: str
+    abstract: str
+    url: str
+    lastmod: str
+    image: str
+    image_alt: str
+
+
 class AOISelection(TypedDict):
     name: str
     aois: list[dict]
@@ -55,6 +65,9 @@ class AgentState(TypedDict):
 
     # show-imagery tool (see ImageryState in src.agent.models for structure)
     imagery: dict
+
+    # search-blogs tool
+    cited_articles: Annotated[list[CitedArticle], operator.add]
 
     # generate-insights tool
     insight: str

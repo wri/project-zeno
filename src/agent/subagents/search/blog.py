@@ -15,14 +15,17 @@ import time
 import warnings
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
+from langchain_core.tools.base import InjectedToolCallId
+from langgraph.types import Command
 
-from src.agent.llms import HAIKU, MODEL_REGISTRY
+from src.agent.llms import MODEL_REGISTRY, SMALL_MODEL
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, TAG_RE, query_index
 from src.shared.logging_config import get_logger
@@ -30,7 +33,7 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parents[4] / "data" / "wri_insights"
-DEFAULT_MODEL = HAIKU
+DEFAULT_MODEL = SMALL_MODEL
 BLOG_SEARCH_PROMPT = """\
 You are a WRI (World Resources Institute) research assistant.
 Your job is to search through a library of WRI Insights blog articles
@@ -54,8 +57,10 @@ Do NOT run repeated series of lookups.
      keywords don't match. Run it ONCE (~5 results).
    - `grep_articles` — exact/regex keyword search; best for specific terms,
      names, acronyms, or numbers. Run it 2-3 times MAX with different
-     phrasings; be aware this is an exact search operation. Do NOT use the
-     generic `grep` tool.
+     phrasings. Pass `slugs` from sgrep results to restrict the search to
+     those articles (much faster); only omit `slugs` for a full-corpus search
+     when sgrep returned no useful candidates. Do NOT use the generic `grep`
+     tool.
 3. **Shortlist & read** — use `article_meta` on the candidate slugs to check
    titles/abstracts and decide which are genuinely relevant, then
    `read_paragraphs` with the §N numbers from the search results (raise
@@ -257,7 +262,11 @@ def _match_window(text: str, match: re.Match, words: int = 12) -> str:
 
 
 @tool
-def grep_articles(pattern: str, max_results: int = 10) -> str:
+def grep_articles(
+    pattern: str,
+    slugs: list[str] | None = None,
+    max_results: int = 10,
+) -> str:
     """Keyword/regex search over the WRI blog articles (case-insensitive).
 
     Best for specific terms, names, acronyms, or numbers. Returns matches as
@@ -266,6 +275,8 @@ def grep_articles(pattern: str, max_results: int = 10) -> str:
 
     Args:
         pattern: Regular expression (or plain keywords) to search for.
+        slugs: Optional list of article slugs to restrict the search to (e.g.
+            from sgrep results). Omit to search the full corpus.
         max_results: Maximum number of matching paragraphs (default: 10).
     """
     try:
@@ -274,8 +285,16 @@ def grep_articles(pattern: str, max_results: int = 10) -> str:
         logger.warning(f"grep_articles invalid pattern={pattern!r}: {exc}")
         return f"Invalid pattern: {exc}"
 
+    if slugs:
+        paths = [
+            DATA_DIR / (slug.removesuffix(".md") + ".md") for slug in slugs
+        ]
+        paths = [path for path in paths if path.exists()]
+    else:
+        paths = sorted(DATA_DIR.glob("*.md"))
+
     out: list[str] = []
-    for path in sorted(DATA_DIR.glob("*.md")):
+    for path in paths:
         per_file = 0
         for line in path.read_text(encoding="utf-8").splitlines():
             m = TAG_RE.match(line)
@@ -290,13 +309,14 @@ def grep_articles(pattern: str, max_results: int = 10) -> str:
                 break
         if len(out) >= max_results:
             break
+
     logger.debug(
-        f"grep_articles pattern={pattern!r} max={max_results} "
-        f"-> {len(out[:max_results])} matches"
+        f"grep_articles pattern={pattern!r} slugs={slugs} max={max_results} "
+        f"-> {len(out)} matches"
     )
     if not out:
         return "No matches found."
-    return "\n".join(out[:max_results])
+    return "\n".join(out)
 
 
 def create_search_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
@@ -331,8 +351,42 @@ def _cached_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
     return create_search_agent(model=model)
 
 
+def _articles_from_tool_calls(messages: list) -> list[dict]:
+    """Return metadata for articles shortlisted via article_meta tool calls."""
+    index = _article_index()
+    seen: set[str] = set()
+    cited = []
+    for msg in messages:
+        if type(msg).__name__ != "AIMessage":
+            continue
+        for tc in getattr(msg, "tool_calls", []) or []:
+            if tc["name"] != "article_meta":
+                continue
+            for s in tc["args"].get("slugs", []):
+                slug = s[:-3] if s.endswith(".md") else s
+                if slug in seen or slug not in index:
+                    continue
+                seen.add(slug)
+                a = index[slug]
+                cited.append(
+                    {
+                        "slug": a["slug"],
+                        "title": a["title"],
+                        "abstract": a["abstract"],
+                        "url": a["url"],
+                        "lastmod": a["lastmod"],
+                        "image": a.get("image", ""),
+                        "image_alt": a.get("image_alt", ""),
+                    }
+                )
+    return cited
+
+
 @tool("search_blogs")
-async def search_blogs(query: str) -> str:
+async def search_blogs(
+    query: str,
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
     """Search WRI Insights blog articles and return a synthesized, cited answer.
 
     Runs a dedicated research agent that semantically and keyword-searches the
@@ -376,18 +430,52 @@ async def search_blogs(query: str) -> str:
                     f"{len(messages)} messages, tools={tool_calls}, "
                     f"answer={len(text)} chars"
                 )
-                return text
+                return Command(
+                    update={
+                        "messages": [
+                            ToolMessage(
+                                content=text, tool_call_id=tool_call_id
+                            )
+                        ],
+                        "cited_articles": _articles_from_tool_calls(messages),
+                    }
+                )
     logger.warning(
         f"search_blogs produced no answer query={query!r} "
         f"{elapsed:.2f}s {len(messages)} messages, tools={tool_calls}"
     )
-    return "No answer produced by the blog search."
+    return Command(
+        update={
+            "messages": [
+                ToolMessage(
+                    content="No answer produced by the blog search.",
+                    tool_call_id=tool_call_id,
+                )
+            ],
+            "cited_articles": [],
+        }
+    )
 
 
 SPEC = ToolSpec(
     tool=search_blogs,
     category=ToolCategory.SUBAGENT,
-    prompt_fragment="- search_blogs(query): research subagent over WRI Insights blog posts; returns a synthesized answer with inline [N](url) citation markers that your reply must keep. Use to answer questions about WRI's research (read skill `wri-insights`), to explore a vague topic before any AOI/dataset is set (read skill `explore`), or to enrich an analysis after pull_data and before generate_insights (read skill `wri-insights`).",
+    prompt_fragment=(
+        "- search_blogs(query): research subagent over WRI Insights blog posts;"
+        " returns a synthesized answer with inline [N](url) citation markers that"
+        " your reply must keep. Use to answer questions about WRI's research (read"
+        " skill `wri-insights`), to explore a vague topic before any AOI/dataset is"
+        " set (read skill `explore`), or to enrich an analysis after pull_data and"
+        " before generate_insights (read skill `wri-insights`).\n"
+        "  Routing: exploratory / vague query (no place, dataset or date — e.g."
+        ' "I want to conserve elephants"): read `explore`, call search_blogs, then'
+        ' recommend concrete datasets/areas/dates. WRI research lookup ("what does'
+        ' WRI say about X"): read `wri-insights`, call search_blogs, then answer'
+        " with inline [N](url) markers.\n"
+        "  Policy: replies using these findings must keep the [N](url) citation"
+        " markers (rendered as citation icons); never invent URLs and do not add a"
+        " Sources list."
+    ),
 )
 
 

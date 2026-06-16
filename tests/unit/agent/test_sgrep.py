@@ -1,8 +1,12 @@
 import json
 from pathlib import Path
+from unittest.mock import patch
+
+import numpy as np
 
 from src.agent.utils.sgrep import (
     _ROOT,
+    _load_index,
     _portable_path,
     _resolve_data_dir,
     data_status,
@@ -122,3 +126,25 @@ def test_data_status_inconsistent_index(tmp_path: Path) -> None:
     ok, detail = data_status(data_dir=data_dir, index_dir=index_dir)
     assert not ok
     assert "inconsistent" in detail
+
+
+def test_load_index_reads_files_once(tmp_path: Path) -> None:
+    index_dir = tmp_path / "index"
+    _write_index(index_dir, n_chunks=3)
+    _load_index.cache_clear()
+
+    with patch("src.agent.utils.sgrep.np.load", wraps=np.load) as mock_load:
+        _load_index(str(index_dir))
+        _load_index(str(index_dir))
+
+    assert mock_load.call_count == 1
+
+
+def test_load_index_returns_float32(tmp_path: Path) -> None:
+    index_dir = tmp_path / "index"
+    _write_index(index_dir, n_chunks=2)
+    _load_index.cache_clear()
+
+    emb, _, _, _ = _load_index(str(index_dir))
+
+    assert emb.dtype == np.float32
