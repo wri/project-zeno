@@ -1,8 +1,9 @@
 name: WRI Insights Data Snapshot
 
-# Fetches the WRI Insights blog corpus, builds the sgrep index, and publishes
-# both as a data image. The app Dockerfile copies /data out of this image, so
-# refreshing content = run this workflow, then rebuild/redeploy the app image.
+# Fetches the WRI Insights blog corpus, builds the sgrep index, and uploads
+# both as a single tarball to S3. The container is ephemeral: nothing is
+# published as an image. The app Dockerfile pulls this tarball at build time,
+# so refreshing content = run this workflow, then rebuild/redeploy the app.
 
 on:
   workflow_dispatch:
@@ -10,8 +11,7 @@ on:
     - cron: "0 5 * * 1" # Mondays 05:00 UTC
 
 env:
-  REGISTRY: public.ecr.aws/b7u8b0a6
-  IMAGE_NAME: project-zeno/wri-insights-data
+  WRI_INSIGHTS_S3_URI: ${{ vars.WRI_INSIGHTS_S3_URI }}
 
 jobs:
   snapshot:
@@ -36,26 +36,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Login to Amazon ECR Public
-        id: login-ecr-public
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registry-type: public
-
       - name: Seed from previous snapshot
         # Reuse the last snapshot so the lastmod-based sync only fetches new
-        # or changed articles instead of re-scraping all of wri.org. The pull
-        # fails on the very first run, which then does a full fetch.
-        run: |
-          mkdir -p data
-          if docker pull "$REGISTRY/$IMAGE_NAME:latest"; then
-            id=$(docker create "$REGISTRY/$IMAGE_NAME:latest" noop)
-            docker cp "$id":/data/. data/
-            docker rm "$id"
-            echo "Seeded from previous snapshot."
-          else
-            echo "No previous snapshot found; doing a full fetch."
-          fi
+        # or changed articles instead of re-scraping all of wri.org. A missing
+        # object (the very first run) is tolerated and does a full fetch.
+        run: uv run python scripts/wri_insights_snapshot.py pull
 
       - name: Fetch articles
         run: uv run python scripts/fetch_wri_insights.py --workers 4
@@ -73,21 +58,5 @@ jobs:
           sys.exit(0 if ok else 1)
           "
 
-      - name: Build and push data image
-        # Build from a staging dir rather than the repo root: the repo's
-        # .dockerignore excludes data/*, which would empty the image.
-        run: |
-          mkdir -p snapshot-context
-          cp -r data/wri_insights data/wri_insights_index snapshot-context/
-          cat > snapshot-context/Dockerfile <<'EOF'
-          FROM scratch
-          COPY wri_insights /data/wri_insights
-          COPY wri_insights_index /data/wri_insights_index
-          EOF
-          DATE_TAG=$(date -u +%Y.%m.%d)
-          docker build \
-            -t "$REGISTRY/$IMAGE_NAME:latest" \
-            -t "$REGISTRY/$IMAGE_NAME:$DATE_TAG" \
-            snapshot-context
-          docker push "$REGISTRY/$IMAGE_NAME:latest"
-          docker push "$REGISTRY/$IMAGE_NAME:$DATE_TAG"
+      - name: Upload snapshot to S3
+        run: uv run python scripts/wri_insights_snapshot.py push

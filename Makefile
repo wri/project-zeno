@@ -65,12 +65,10 @@ api: ## Run API locally
 	@uv run uvicorn src.api.app:app --reload --reload-dir src --host 0.0.0.0 --port 8000
 
 # Utilities
-insights-data: ## Download WRI Insights blog corpus + search index from the published snapshot
-	@echo "📚 Pulling WRI Insights data snapshot..."
-	@docker pull public.ecr.aws/b7u8b0a6/project-zeno/wri-insights-data:latest
-	@id=$$(docker create public.ecr.aws/b7u8b0a6/project-zeno/wri-insights-data:latest noop) && \
-		docker cp $$id:/data/. data/ && \
-		docker rm $$id > /dev/null
+insights-data: ## Download WRI Insights blog corpus + search index from the S3 snapshot
+	@echo "📚 Pulling WRI Insights data snapshot from S3..."
+	@WRI_INSIGHTS_S3_URI=$${WRI_INSIGHTS_S3_URI:?set WRI_INSIGHTS_S3_URI to the s3:// snapshot prefix and ensure AWS credentials are configured} \
+		uv run python scripts/wri_insights_snapshot.py pull
 	@echo "✅ Blog data ready in data/wri_insights + data/wri_insights_index"
 
 test: ## Run tests

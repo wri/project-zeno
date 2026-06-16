@@ -122,22 +122,20 @@ for running the system locally.
    The `search_blogs` tool reads a corpus of WRI Insights articles plus a
    semantic search index from `data/wri_insights/` and
    `data/wri_insights_index/` (both gitignored). The easiest way to get them
-   is to pull the published snapshot image — built weekly by the
-   `wri-insights-data` GitHub workflow, anonymous pull, no AWS credentials
-   needed:
+   is to pull the published snapshot from S3 — refreshed weekly by the
+   `wri-insights-data` GitHub workflow. Point `WRI_INSIGHTS_S3_URI` at the
+   snapshot prefix and make sure your AWS credentials are configured:
 
    ```bash
+   export WRI_INSIGHTS_S3_URI=s3://<bucket>/wri-insights/
    make insights-data
    ```
 
-   That shortcut pulls the snapshot image and copies its `/data` directory
-   out, equivalent to:
+   That shortcut downloads `latest.tar.gz` and extracts it into `data/`,
+   equivalent to:
 
    ```bash
-   docker pull public.ecr.aws/b7u8b0a6/project-zeno/wri-insights-data:latest
-   id=$(docker create public.ecr.aws/b7u8b0a6/project-zeno/wri-insights-data:latest noop)
-   docker cp $id:/data/. data/
-   docker rm $id
+   uv run python scripts/wri_insights_snapshot.py pull
    ```
 
    Alternatively, build everything from scratch (scrapes ~2,800 articles

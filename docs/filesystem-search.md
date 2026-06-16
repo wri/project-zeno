@@ -91,14 +91,17 @@ only reads what survived the shortlist.
 ## Deployment
 
 The corpus and index are gitignored, so they have to reach production some
-other way. We bake them into the app image via a published data snapshot:
+other way. We build them in an ephemeral job, store them as a single tarball
+in S3, and bake that into the app image:
 
 - The `wri-insights-data` workflow (`.github/workflows/wri-insights-data.yml`)
   runs weekly (and on demand): it seeds `data/` from the previous snapshot,
   fetches new/changed articles from the sitemap, rebuilds the sgrep index, and
-  pushes the result as `public.ecr.aws/b7u8b0a6/project-zeno/wri-insights-data`
-  (tags: `latest` and `YYYY.MM.DD`).
-- The app `Dockerfile` copies `/data` out of that image into `/app/data`,
+  uploads the result to `$WRI_INSIGHTS_S3_URI` as `latest.tar.gz` plus a dated
+  `YYYY.MM.DD.tar.gz`. The runner is ephemeral — nothing is published as an
+  image. Both ends use `scripts/wri_insights_snapshot.py` (`pull`/`push`).
+- The app `Dockerfile` runs `scripts/wri_insights_snapshot.py pull` (AWS creds
+  passed as build secrets) to download + extract the snapshot into `/app/data`,
   pre-downloads the `potion-retrieval-32M` embedding model into `HF_HOME`
   inside the image (no Hugging Face egress at runtime), and fails the build
   if the snapshot is missing or inconsistent (`sgrep.data_status`).
@@ -106,6 +109,6 @@ other way. We bake them into the app image via a published data snapshot:
   is visible in the logs immediately rather than on the first search query.
 
 Refreshing content in production = run the data workflow, then rebuild and
-redeploy the app image as usual (no Helm/infra changes needed). Local
-`docker build` works the same way — the data image is pulled anonymously
-from public ECR.
+redeploy the app image as usual (no Helm/infra changes needed). A local
+`docker build` without `WRI_INSIGHTS_S3_URI`/creds skips the pull and relies on
+the bind-mounted `./data` at runtime instead.
