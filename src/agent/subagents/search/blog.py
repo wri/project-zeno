@@ -387,7 +387,22 @@ async def search_blogs(query: str) -> str:
 SPEC = ToolSpec(
     tool=search_blogs,
     category=ToolCategory.SUBAGENT,
-    prompt_fragment="- search_blogs(query): research subagent over WRI Insights blog posts; returns a synthesized answer with inline [N](url) citation markers that your reply must keep. Use to answer questions about WRI's research (read skill `wri-insights`), to explore a vague topic before any AOI/dataset is set (read skill `explore`), or to enrich an analysis after pull_data and before generate_insights (read skill `wri-insights`).",
+    prompt_fragment=(
+        "- search_blogs(query): research subagent over WRI Insights blog posts;"
+        " returns a synthesized answer with inline [N](url) citation markers that"
+        " your reply must keep. Use to answer questions about WRI's research (read"
+        " skill `wri-insights`), to explore a vague topic before any AOI/dataset is"
+        " set (read skill `explore`), or to enrich an analysis after pull_data and"
+        " before generate_insights (read skill `wri-insights`).\n"
+        "  Routing: exploratory / vague query (no place, dataset or date — e.g."
+        ' "I want to conserve elephants"): read `explore`, call search_blogs, then'
+        ' recommend concrete datasets/areas/dates. WRI research lookup ("what does'
+        ' WRI say about X"): read `wri-insights`, call search_blogs, then answer'
+        " with inline [N](url) markers.\n"
+        "  Policy: replies using these findings must keep the [N](url) citation"
+        " markers (rendered as citation icons); never invent URLs and do not add a"
+        " Sources list."
+    ),
 )
 
 
