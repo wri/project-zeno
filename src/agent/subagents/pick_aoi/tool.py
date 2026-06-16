@@ -22,6 +22,7 @@ from src.agent.subagents.pick_aoi.selection_name_util import (
     build_selection_name,
 )
 from src.agent.subagents.progress import emit_progress
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
     CUSTOM_AREA_TABLE,
@@ -786,3 +787,10 @@ async def pick_aoi(
     it returns a clarifying question for the user instead.
     """
     return await Geocoder().resolve(question, tool_call_id)
+
+
+SPEC = ToolSpec(
+    tool=pick_aoi,
+    category=ToolCategory.SUBAGENT,
+    prompt_fragment='- pick_aoi(question): natural-language geocoder. Pass the place request verbatim ("tree cover loss in Pará, Brazil", "the districts of Odisha", "forest loss worldwide"); it extracts, translates and resolves the place — and any subregions — itself. Updates the AOI in state, or returns a clarifying question.',
+)

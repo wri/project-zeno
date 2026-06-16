@@ -36,6 +36,7 @@ from src.agent.subagents.pick_dataset.schema import (
     DatasetSelectionResult,
 )
 from src.agent.subagents.progress import emit_progress
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -228,7 +229,12 @@ class DatasetSelector:
                         ],
                         "messages": [
                             ToolMessage(
-                                tool_message, tool_call_id=tool_call_id
+                                tool_message,
+                                tool_call_id=tool_call_id,
+                                status="success",
+                                response_metadata={
+                                    "msg_type": "human_feedback"
+                                },
                             )
                         ],
                     }
@@ -538,3 +544,10 @@ def get_dates_for_dataset(
     )
 
     return resolved_start_date, resolved_end_date
+
+
+SPEC = ToolSpec(
+    tool=pick_dataset,
+    category=ToolCategory.SUBAGENT,
+    prompt_fragment="- pick_dataset(query): dataset-selection subagent. Picks the dataset, context layer and date range that best answer the request. May return no dataset if none is a good fit — in that case relay its explanation and closest alternatives to the user; do not proceed to pull_data. Call it again whenever the user changes the dataset, context layer or parameters.",
+)

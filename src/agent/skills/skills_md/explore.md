@@ -2,6 +2,7 @@
 name: explore
 description: Turn a vague topic or goal into concrete, runnable analysis recommendations grounded in WRI research.
 when_to_use: User states an interest or goal with no specific place, dataset or date range (e.g. "I want to conserve elephants", "I'm interested in deforestation worldwide", "how do I help with water stress"). Not when the user already named a place + topic for analysis — use `analyze` instead.
+requires: search_blogs
 ---
 
 # Workflow

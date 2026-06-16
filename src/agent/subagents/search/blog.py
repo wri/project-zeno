@@ -23,6 +23,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import tool
 
 from src.agent.llms import MODEL_REGISTRY, SMALL_MODEL
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, TAG_RE, query_index
 from src.shared.logging_config import get_logger
 
@@ -381,6 +382,13 @@ async def search_blogs(query: str) -> str:
         f"{elapsed:.2f}s {len(messages)} messages, tools={tool_calls}"
     )
     return "No answer produced by the blog search."
+
+
+SPEC = ToolSpec(
+    tool=search_blogs,
+    category=ToolCategory.SUBAGENT,
+    prompt_fragment="- search_blogs(query): research subagent over WRI Insights blog posts; returns a synthesized answer with inline [N](url) citation markers that your reply must keep. Use to answer questions about WRI's research (read skill `wri-insights`), to explore a vague topic before any AOI/dataset is set (read skill `explore`), or to enrich an analysis after pull_data and before generate_insights (read skill `wri-insights`).",
+)
 
 
 def run_search(query: str, model: str | BaseChatModel = DEFAULT_MODEL) -> dict:

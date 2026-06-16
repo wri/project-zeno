@@ -2,6 +2,7 @@
 name: wri-insights
 description: Enrich an analysis with WRI Insights published research to ground findings and cite sources.
 when_to_use: Before or during full analysis when WRI's published perspective would strengthen the answer (policy context, drivers, methodology, regional background). Also when the user asks about WRI research or wants citations from wri.org/insights.
+requires: search_blogs
 ---
 
 # Workflow

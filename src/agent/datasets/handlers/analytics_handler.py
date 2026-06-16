@@ -465,7 +465,9 @@ class AnalyticsHandler(DataSourceHandler):
 
         # Enrich raw_data with names
         aois_id_to_name = {
-            format_id(item["src_id"]): item["name"].split(",")[0]
+            format_id(item["src_id"]): item.get("name", item["src_id"]).split(
+                ","
+            )[0]
             for item in aois
         }
         raw_data["name"] = [aois_id_to_name[idx] for idx in raw_data["aoi_id"]]
@@ -572,7 +574,9 @@ class AnalyticsHandler(DataSourceHandler):
                 )
 
             # Handle pending status with retry logic
-            aoi_names = ", ".join([aoi["name"] for aoi in aois])
+            aoi_names = ", ".join(
+                [aoi.get("name", aoi["src_id"]) for aoi in aois]
+            )
             if result["status"] == "pending":
                 logger.info(
                     "Analytics request is pending, will retry with polling..."
