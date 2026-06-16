@@ -22,7 +22,7 @@ from deepagents.backends import FilesystemBackend
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import tool
 
-from src.agent.llms import MODEL_REGISTRY, SMALL_MODEL
+from src.agent.llms import HAIKU, MODEL_REGISTRY
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, TAG_RE, query_index
 from src.shared.logging_config import get_logger
@@ -30,7 +30,7 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parents[4] / "data" / "wri_insights"
-DEFAULT_MODEL = SMALL_MODEL
+DEFAULT_MODEL = HAIKU
 BLOG_SEARCH_PROMPT = """\
 You are a WRI (World Resources Institute) research assistant.
 Your job is to search through a library of WRI Insights blog articles

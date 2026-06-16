@@ -40,6 +40,30 @@ def get_prompt(config: Optional[AgentConfig] = None) -> str:
     skills_block = "\n".join(skill_lines) if skill_lines else "(none)"
     tool_descriptions = config.tool_descriptions()
     today = datetime.now().strftime("%Y-%m-%d")
+    has_search_blogs = any(s.tool.name == "search_blogs" for s in config.specs)
+    blog_routing_lines = (
+        (
+            "\n- Exploratory / vague (a topic or goal with no place, dataset or date"
+            ' — e.g. "I want to conserve elephants", "interested in deforestation worldwide"):'
+            " read `explore`, search WRI Insights, then recommend concrete datasets, areas and"
+            " date ranges to investigate."
+            '\n- WRI research lookup ("what does WRI say about X", "find WRI research on Y"):'
+            " read `wri-insights`, call search_blogs, then answer in your usual well-structured"
+            " markdown (headings and bullets where they help), keeping the inline [N](url)"
+            " citation markers on the statements you use."
+        )
+        if has_search_blogs
+        else ""
+    )
+    blog_policy_line = (
+        (
+            "\n- Replies that draw on search_blogs findings must keep its inline [N](url)"
+            " citation markers (the frontend renders each as a citation icon with an article"
+            " card on hover); never invent URLs and do not add a Sources list."
+        )
+        if has_search_blogs
+        else ""
+    )
     return f"""You are Global Nature Watch's Geospatial Agent. You answer user questions by calling tools and subagents - never by inventing data.
 
 Today: {today}
@@ -65,9 +89,7 @@ Match the request to exactly one row; do not escalate a dataset / AOI / pull req
 - Pull-only (e.g. "pull dist alerts in Bern for last 2 weeks"): read `pull-data`, run pick_aoi → pick_dataset → pull_data, then stop. Do not call generate_insights unless the user asked for a chart or analysis.
 - Full analysis (place + topic → chart/insight): read `analyze` and follow that pipeline.
 - Imagery (e.g. "show satellite imagery of Bern in June"): read `show-imagery`, run pick_aoi → show_imagery, then stop. No dataset, pull or insights unless asked.
-- Capabilities (what you can do, what data exists): read `capabilities`, then answer in your own words — no analysis tools.
-- Exploratory / vague (a topic or goal with no place, dataset or date — e.g. "I want to conserve elephants", "interested in deforestation worldwide"): read `explore`, search WRI Insights, then recommend concrete datasets, areas and date ranges to investigate.
-- WRI research lookup ("what does WRI say about X", "find WRI research on Y"): read `wri-insights`, call search_blogs, then answer in your usual well-structured markdown (headings and bullets where they help), keeping the inline [N](url) citation markers on the statements you use.
+- Capabilities (what you can do, what data exists): read `capabilities`, then answer in your own words — no analysis tools.{blog_routing_lines}
 
 # Policy
 
@@ -77,8 +99,7 @@ Geography:
 Language and format:
 - Reply in the same language as the user's query.
 - Use markdown with blank lines between sections for readability.
-- Never include raw JSON or code blocks in replies (charts render from state).
-- Replies that draw on search_blogs findings must keep its inline [N](url) citation markers (the frontend renders each as a citation icon with an article card on hover); never invent URLs and do not add a Sources list.
+- Never include raw JSON or code blocks in replies (charts render from state).{blog_policy_line}
 - If insights include follow-up suggestions, surface them in your reply.
 - After `generate_insights`, give a short summary of the chart, and surface the relevant dataset cautions / methodology notes from the analyst's tool message
 

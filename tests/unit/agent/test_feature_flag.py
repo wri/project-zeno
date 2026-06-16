@@ -5,6 +5,7 @@ from langchain_core.tools import tool
 from src.agent.agent_config import (
     DEFAULT_PROFILE,
     EXPERIMENTAL_PROFILE,
+    WRI_BLOG_SEARCH_PROFILE,
     AgentConfig,
     AgentConfigRegistry,
     default_registry,
@@ -98,7 +99,11 @@ def test_skill_dependencies_satisfiable_by_some_profile():
     skill requiring a tool no profile binds — it could never be advertised.
     """
     bound = set()
-    for profile in (DEFAULT_PROFILE, EXPERIMENTAL_PROFILE):
+    for profile in (
+        DEFAULT_PROFILE,
+        WRI_BLOG_SEARCH_PROFILE,
+        EXPERIMENTAL_PROFILE,
+    ):
         bound |= {s.tool.name for s in default_registry.resolve(profile).specs}
     for skill in all_skills():
         for tool_name in skill.requires:
@@ -121,9 +126,22 @@ def test_default_config_advertises_core_skills():
         "analyze",
         "capabilities",
         "pull-data",
-        "explore",
-        "wri-insights",
     }
+
+
+def test_wri_blog_search_config_adds_search_blogs_and_skills():
+    """The wri-blog-search profile layers search_blogs on top of the default
+    set; the default profile exposes neither search_blogs nor its skills."""
+    default = default_registry.resolve(DEFAULT_PROFILE)
+    wri = default_registry.resolve(WRI_BLOG_SEARCH_PROFILE)
+
+    assert "search_blogs" not in {t.name for t in default.tools()}
+    assert "search_blogs" in {t.name for t in wri.tools()}
+
+    assert "explore" not in {s.name for s in default.skills()}
+    assert "wri-insights" not in {s.name for s in default.skills()}
+    assert "explore" in {s.name for s in wri.skills()}
+    assert "wri-insights" in {s.name for s in wri.skills()}
 
 
 def test_experimental_config_adds_show_imagery():

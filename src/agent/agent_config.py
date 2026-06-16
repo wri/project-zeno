@@ -36,14 +36,19 @@ DEFAULT_PROFILE = "default"
 # Feature flag exposing the experimental Sentinel-2 imagery tool.
 EXPERIMENTAL_PROFILE = "experimental"
 
+# Feature flag exposing WRI Insights blog search.
+WRI_BLOG_SEARCH_PROFILE = "wri-blog-search"
+
 CORE_SPECS = (
     pick_aoi_spec,
     pick_dataset_spec,
     pull_data_spec,
     generate_insights_spec,
-    search_blogs_spec,
     read_skill_spec,
 )
+
+# WRI blog search layered on top of the core set.
+WRI_BLOG_SEARCH_SPECS = (*CORE_SPECS, search_blogs_spec)
 
 # Experimental, opt-in tools layered on top of the core set.
 EXPERIMENTAL_SPECS = (*CORE_SPECS, show_imagery_spec)
@@ -108,6 +113,9 @@ class AgentConfigRegistry:
 # Production registry — register new flag configs here.
 default_registry = AgentConfigRegistry()
 default_registry.register(AgentConfig(DEFAULT_PROFILE, specs=CORE_SPECS))
+default_registry.register(
+    AgentConfig(WRI_BLOG_SEARCH_PROFILE, specs=WRI_BLOG_SEARCH_SPECS)
+)
 default_registry.register(
     AgentConfig(EXPERIMENTAL_PROFILE, specs=EXPERIMENTAL_SPECS)
 )
