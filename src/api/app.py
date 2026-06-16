@@ -13,7 +13,6 @@ from src.agent.utils.sgrep import data_status
 from src.api.routers import (
     admin,
     analyze,
-    blogs,
     chat,
     custom_areas,
     geometry,
@@ -146,7 +145,6 @@ app.include_router(geometry.router)
 app.include_router(thumbnails.router)
 app.include_router(insights.router)
 app.include_router(metadata.router)
-app.include_router(blogs.router)
 app.include_router(admin.router)
 app.include_router(traces.router)
 app.include_router(mosaic.router, prefix="/mosaic", tags=["Map Tiles"])

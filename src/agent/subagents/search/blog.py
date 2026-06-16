@@ -15,12 +15,15 @@ import time
 import warnings
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
+from langchain_core.tools.base import InjectedToolCallId
+from langgraph.types import Command
 
 from src.agent.llms import HAIKU, MODEL_REGISTRY
 from src.agent.tool_spec import ToolCategory, ToolSpec
@@ -331,8 +334,39 @@ def _cached_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
     return create_search_agent(model=model)
 
 
+_CITATION_RE = re.compile(r"\[\d+\]\((https://www\.wri\.org/insights/[^)]+)\)")
+
+
+def _extract_cited_articles(answer: str) -> list[dict]:
+    """Parse [N](url) markers from the answer and return article metadata."""
+    index = _article_index()
+    seen: set[str] = set()
+    cited = []
+    for url in _CITATION_RE.findall(answer):
+        slug = url.split("#")[0].split("?")[0].rstrip("/").rsplit("/", 1)[-1]
+        if slug in seen or slug not in index:
+            continue
+        seen.add(slug)
+        a = index[slug]
+        cited.append(
+            {
+                "slug": a["slug"],
+                "title": a["title"],
+                "abstract": a["abstract"],
+                "url": a["url"],
+                "lastmod": a["lastmod"],
+                "image": a.get("image", ""),
+                "image_alt": a.get("image_alt", ""),
+            }
+        )
+    return cited
+
+
 @tool("search_blogs")
-async def search_blogs(query: str) -> str:
+async def search_blogs(
+    query: str,
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
     """Search WRI Insights blog articles and return a synthesized, cited answer.
 
     Runs a dedicated research agent that semantically and keyword-searches the
@@ -376,12 +410,31 @@ async def search_blogs(query: str) -> str:
                     f"{len(messages)} messages, tools={tool_calls}, "
                     f"answer={len(text)} chars"
                 )
-                return text
+                return Command(
+                    update={
+                        "messages": [
+                            ToolMessage(
+                                content=text, tool_call_id=tool_call_id
+                            )
+                        ],
+                        "cited_articles": _extract_cited_articles(text),
+                    }
+                )
     logger.warning(
         f"search_blogs produced no answer query={query!r} "
         f"{elapsed:.2f}s {len(messages)} messages, tools={tool_calls}"
     )
-    return "No answer produced by the blog search."
+    return Command(
+        update={
+            "messages": [
+                ToolMessage(
+                    content="No answer produced by the blog search.",
+                    tool_call_id=tool_call_id,
+                )
+            ],
+            "cited_articles": [],
+        }
+    )
 
 
 SPEC = ToolSpec(
