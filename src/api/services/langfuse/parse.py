@@ -41,6 +41,7 @@ EXPECTED_STATE_KEYS = frozenset(
         "start_date",
         "end_date",
         "statistics",
+        "imagery",
         "insight",
         "insight_id",
         "follow_up_suggestions",

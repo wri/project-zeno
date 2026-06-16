@@ -41,7 +41,6 @@ CORE_SPECS = (
     pull_data_spec,
     generate_insights_spec,
     read_skill_spec,
-    show_imagery_spec,
 )
 
 # Experimental, opt-in tools layered on top of the core set.
