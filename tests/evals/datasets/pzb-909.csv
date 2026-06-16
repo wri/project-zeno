@@ -1,0 +1,5 @@
+test_id,test_group,status,query,expected_aoi_ids,expected_aoi_source,expected_dataset_id,expected_dataset_name,expected_context_layer,expected_start_date,expected_end_date,expected_answer,expected_clarification,expected_text,expected_suggested_datasets
+pzb-909-1,regression,ready,Which US state lost more forest due to wildfires? Washington or Oregon? Use the latest available data,USA.38_1;USA.48_1,gadm,10,Tree cover loss due to fires,,,,Oregon,,,
+pzb-909-2,regression,ready,What is the tree cover loss in Navajo territory USA in 2024,USA20100,landmark,4,Tree cover loss,,,,0.0 hectares,,,
+pzb-909-3,regression,ready,show me tree cover loss in Cobaipo protected area in Bolivia,555592663,wdpa,4,Tree cover loss,,,,significant upward trend,,,
+pzb-909-4,regression,ready,In the Kurtjar People territory in Australia - what percentage of land is non-natural?,AUS390,landmark,3,SBTN Natural Lands Map,,,,1.20%,,,
