@@ -203,6 +203,7 @@ async def fetch_zeno(
     """
     if config is None:
         config = registry.resolve(ff)
+    logger.info("Agent profile set", profile=config.name)
     if checkpointer is _CHECKPOINTER_UNSET:
         checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(
