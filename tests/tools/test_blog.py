@@ -1,8 +1,8 @@
-"""Tests for blog.py citation extraction."""
+"""Tests for blog.py cited article extraction from subagent tool calls."""
 
 from unittest.mock import patch
 
-from src.agent.subagents.search.blog import _extract_cited_articles
+from src.agent.subagents.search.blog import _articles_from_tool_calls
 
 FAKE_INDEX = {
     "some-article": {
@@ -26,54 +26,93 @@ FAKE_INDEX = {
 }
 
 
-def _patched(answer: str) -> list[dict]:
+class _AIMessage:
+    def __init__(self, tool_calls):
+        self.__class__.__name__ = "AIMessage"
+        self.tool_calls = tool_calls
+
+
+def _patched(messages):
     with patch(
         "src.agent.subagents.search.blog._article_index",
         return_value=FAKE_INDEX,
     ):
-        return _extract_cited_articles(answer)
+        return _articles_from_tool_calls(messages)
 
 
-def test_extracts_single_citation():
-    answer = (
-        "Forests are shrinking [1](https://www.wri.org/insights/some-article)."
-    )
-    result = _patched(answer)
+def test_extracts_from_article_meta_call():
+    msgs = [
+        _AIMessage(
+            [{"name": "article_meta", "args": {"slugs": ["some-article"]}}]
+        )
+    ]
+    result = _patched(msgs)
     assert len(result) == 1
     assert result[0]["slug"] == "some-article"
     assert result[0]["title"] == "Some Article"
     assert result[0]["image"] == "https://files.wri.org/hero.jpg"
 
 
-def test_extracts_multiple_citations():
-    answer = (
-        "First point [1](https://www.wri.org/insights/some-article). "
-        "Second point [2](https://www.wri.org/insights/other-article)."
-    )
-    result = _patched(answer)
+def test_extracts_multiple_from_single_call():
+    msgs = [
+        _AIMessage(
+            [
+                {
+                    "name": "article_meta",
+                    "args": {"slugs": ["some-article", "other-article"]},
+                }
+            ]
+        )
+    ]
+    result = _patched(msgs)
     assert [r["slug"] for r in result] == ["some-article", "other-article"]
 
 
-def test_deduplicates_repeated_citation():
-    answer = (
-        "First [1](https://www.wri.org/insights/some-article). "
-        "Again [1](https://www.wri.org/insights/some-article)."
-    )
-    result = _patched(answer)
-    assert len(result) == 1
+def test_deduplicates_across_multiple_calls():
+    msgs = [
+        _AIMessage(
+            [{"name": "article_meta", "args": {"slugs": ["some-article"]}}]
+        ),
+        _AIMessage(
+            [
+                {
+                    "name": "article_meta",
+                    "args": {"slugs": ["some-article", "other-article"]},
+                }
+            ]
+        ),
+    ]
+    result = _patched(msgs)
+    assert len(result) == 2
 
 
-def test_returns_empty_for_no_citations():
-    assert _patched("No citations here.") == []
+def test_ignores_non_article_meta_calls():
+    msgs = [
+        _AIMessage([{"name": "sgrep", "args": {"query": "peatlands"}}]),
+        _AIMessage([{"name": "grep_articles", "args": {"pattern": "peat"}}]),
+    ]
+    assert _patched(msgs) == []
 
 
 def test_skips_unknown_slug():
-    answer = "Unknown [1](https://www.wri.org/insights/does-not-exist)."
-    assert _patched(answer) == []
+    msgs = [
+        _AIMessage(
+            [{"name": "article_meta", "args": {"slugs": ["does-not-exist"]}}]
+        )
+    ]
+    assert _patched(msgs) == []
 
 
-def test_strips_fragment_from_url():
-    answer = "Cited [1](https://www.wri.org/insights/some-article#p3)."
-    result = _patched(answer)
+def test_strips_md_extension_from_slug():
+    msgs = [
+        _AIMessage(
+            [{"name": "article_meta", "args": {"slugs": ["some-article.md"]}}]
+        )
+    ]
+    result = _patched(msgs)
     assert len(result) == 1
     assert result[0]["slug"] == "some-article"
+
+
+def test_returns_empty_for_no_messages():
+    assert _patched([]) == []

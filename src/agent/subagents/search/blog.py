@@ -334,31 +334,34 @@ def _cached_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
     return create_search_agent(model=model)
 
 
-_CITATION_RE = re.compile(r"\[\d+\]\((https://www\.wri\.org/insights/[^)]+)\)")
-
-
-def _extract_cited_articles(answer: str) -> list[dict]:
-    """Parse [N](url) markers from the answer and return article metadata."""
+def _articles_from_tool_calls(messages: list) -> list[dict]:
+    """Return metadata for articles shortlisted via article_meta tool calls."""
     index = _article_index()
     seen: set[str] = set()
     cited = []
-    for url in _CITATION_RE.findall(answer):
-        slug = url.split("#")[0].split("?")[0].rstrip("/").rsplit("/", 1)[-1]
-        if slug in seen or slug not in index:
+    for msg in messages:
+        if type(msg).__name__ != "AIMessage":
             continue
-        seen.add(slug)
-        a = index[slug]
-        cited.append(
-            {
-                "slug": a["slug"],
-                "title": a["title"],
-                "abstract": a["abstract"],
-                "url": a["url"],
-                "lastmod": a["lastmod"],
-                "image": a.get("image", ""),
-                "image_alt": a.get("image_alt", ""),
-            }
-        )
+        for tc in getattr(msg, "tool_calls", []) or []:
+            if tc["name"] != "article_meta":
+                continue
+            for s in tc["args"].get("slugs", []):
+                slug = s[:-3] if s.endswith(".md") else s
+                if slug in seen or slug not in index:
+                    continue
+                seen.add(slug)
+                a = index[slug]
+                cited.append(
+                    {
+                        "slug": a["slug"],
+                        "title": a["title"],
+                        "abstract": a["abstract"],
+                        "url": a["url"],
+                        "lastmod": a["lastmod"],
+                        "image": a.get("image", ""),
+                        "image_alt": a.get("image_alt", ""),
+                    }
+                )
     return cited
 
 
@@ -417,7 +420,7 @@ async def search_blogs(
                                 content=text, tool_call_id=tool_call_id
                             )
                         ],
-                        "cited_articles": _extract_cited_articles(text),
+                        "cited_articles": _articles_from_tool_calls(messages),
                     }
                 )
     logger.warning(
