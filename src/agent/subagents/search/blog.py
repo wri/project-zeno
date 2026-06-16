@@ -27,7 +27,12 @@ from langgraph.types import Command
 
 from src.agent.llms import HAIKU, MODEL_REGISTRY
 from src.agent.tool_spec import ToolCategory, ToolSpec
-from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, TAG_RE, query_index
+from src.agent.utils.sgrep import (
+    DEFAULT_INDEX_DIR,
+    TAG_RE,
+    chunks,
+    query_index,
+)
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -57,8 +62,10 @@ Do NOT run repeated series of lookups.
      keywords don't match. Run it ONCE (~5 results).
    - `grep_articles` — exact/regex keyword search; best for specific terms,
      names, acronyms, or numbers. Run it 2-3 times MAX with different
-     phrasings; be aware this is an exact search operation. Do NOT use the
-     generic `grep` tool.
+     phrasings. Pass `slugs` from sgrep results to restrict the search to
+     those articles (much faster); only omit `slugs` for a full-corpus search
+     when sgrep returned no useful candidates. Do NOT use the generic `grep`
+     tool.
 3. **Shortlist & read** — use `article_meta` on the candidate slugs to check
    titles/abstracts and decide which are genuinely relevant, then
    `read_paragraphs` with the §N numbers from the search results (raise
@@ -259,8 +266,29 @@ def _match_window(text: str, match: re.Match, words: int = 12) -> str:
     return prefix + snippet + suffix
 
 
+@lru_cache(maxsize=1)
+def _paragraph_index() -> list[tuple[str, int, str]]:
+    """Load all tagged paragraphs into memory: (filename, para_num, text).
+
+    Built once at first call and cached for the process lifetime, eliminating
+    per-call file I/O in grep_articles.
+    """
+    rows = []
+    for path in sorted(DATA_DIR.glob("*.md")):
+        for _, para, _section, text in chunks(
+            path.read_text(encoding="utf-8")
+        ):
+            if para is not None:
+                rows.append((path.name, para, text))
+    return rows
+
+
 @tool
-def grep_articles(pattern: str, max_results: int = 10) -> str:
+def grep_articles(
+    pattern: str,
+    slugs: list[str] | None = None,
+    max_results: int = 10,
+) -> str:
     """Keyword/regex search over the WRI blog articles (case-insensitive).
 
     Best for specific terms, names, acronyms, or numbers. Returns matches as
@@ -269,6 +297,8 @@ def grep_articles(pattern: str, max_results: int = 10) -> str:
 
     Args:
         pattern: Regular expression (or plain keywords) to search for.
+        slugs: Optional list of article slugs to restrict the search to (e.g.
+            from sgrep results). Omit to search the full corpus.
         max_results: Maximum number of matching paragraphs (default: 10).
     """
     try:
@@ -277,29 +307,35 @@ def grep_articles(pattern: str, max_results: int = 10) -> str:
         logger.warning(f"grep_articles invalid pattern={pattern!r}: {exc}")
         return f"Invalid pattern: {exc}"
 
+    index = _paragraph_index()
+    if slugs:
+        allowed = {slug.removesuffix(".md") + ".md" for slug in slugs}
+        index = [
+            (filename, para_num, text)
+            for filename, para_num, text in index
+            if filename in allowed
+        ]
+
     out: list[str] = []
-    for path in sorted(DATA_DIR.glob("*.md")):
-        per_file = 0
-        for line in path.read_text(encoding="utf-8").splitlines():
-            m = TAG_RE.match(line)
-            text = m.group("text") if m else line
-            hit = rx.search(text)
-            if not hit:
-                continue
-            loc = f" §{m.group('para')}" if m else ""
-            out.append(f"{path.name}{loc}: {_match_window(text, hit)}")
-            per_file += 1
-            if per_file >= 2:
-                break
+    per_file: dict[str, int] = {}
+    for filename, para_num, text in index:
+        if per_file.get(filename, 0) >= 2:
+            continue
+        hit = rx.search(text)
+        if not hit:
+            continue
+        out.append(f"{filename} §{para_num}: {_match_window(text, hit)}")
+        per_file[filename] = per_file.get(filename, 0) + 1
         if len(out) >= max_results:
             break
+
     logger.debug(
-        f"grep_articles pattern={pattern!r} max={max_results} "
-        f"-> {len(out[:max_results])} matches"
+        f"grep_articles pattern={pattern!r} slugs={slugs} max={max_results} "
+        f"-> {len(out)} matches"
     )
     if not out:
         return "No matches found."
-    return "\n".join(out[:max_results])
+    return "\n".join(out)
 
 
 def create_search_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:

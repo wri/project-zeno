@@ -8,6 +8,8 @@ from langgraph.types import Command
 
 from src.agent.subagents.search.blog import (
     _articles_from_tool_calls,
+    _paragraph_index,
+    grep_articles,
     search_blogs,
 )
 
@@ -201,3 +203,52 @@ async def test_search_blogs_returns_fallback_when_no_answer():
     assert isinstance(cmd, Command)
     assert "No answer" in cmd.update["messages"][0].content
     assert cmd.update["cited_articles"] == []
+
+
+# --- grep_articles (in-memory index) ---
+
+FAKE_PARAGRAPHS = [
+    ("article-a.md", 1, "Indonesia peatlands cover 12 percent of land."),
+    ("article-a.md", 2, "Peat fires release large amounts of CO2."),
+    ("article-b.md", 1, "Forest Resilience Bond raised 4.6 million dollars."),
+    ("article-b.md", 3, "The Yuba watershed covers 15000 acres."),
+    ("article-c.md", 1, "WRI works on climate adaptation globally."),
+]
+
+
+def _patched_grep(pattern, slugs=None, max_results=10):
+    _paragraph_index.cache_clear()
+    with patch(
+        "src.agent.subagents.search.blog._paragraph_index",
+        return_value=FAKE_PARAGRAPHS,
+    ):
+        return grep_articles.invoke(
+            {"pattern": pattern, "slugs": slugs, "max_results": max_results}
+        )
+
+
+def test_grep_articles_finds_match_in_memory():
+    result = _patched_grep("peat")
+    assert "article-a.md" in result
+    assert "§1" in result or "§2" in result
+
+
+def test_grep_articles_slug_filter_restricts_to_specified_articles():
+    result = _patched_grep("peat", slugs=["article-b"])
+    assert "No matches found" in result
+
+
+def test_grep_articles_slug_filter_finds_match_in_scoped_articles():
+    result = _patched_grep("Yuba", slugs=["article-b"])
+    assert "article-b.md" in result
+    assert "article-a.md" not in result
+
+
+def test_grep_articles_slug_filter_accepts_md_extension():
+    result = _patched_grep("Yuba", slugs=["article-b.md"])
+    assert "article-b.md" in result
+
+
+def test_grep_articles_respects_max_results():
+    result = _patched_grep("a", max_results=2)
+    assert result.count("\n") < 2  # at most 2 lines
