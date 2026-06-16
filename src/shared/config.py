@@ -24,6 +24,11 @@ class _SharedSettings(BaseSettings):
         alias="EOAPI_BASE_URL",
     )
 
+    # This API's own public base URL. Used as the tiler base for Sentinel-2
+    # mosaics when MOSAIC_TILER_URL is unset, so tile URLs resolve to this
+    # app's in-repo titiler routes rather than being host-relative.
+    api_base_url: str = Field(default="", alias="API_BASE_URL")
+
     # Dataset embeddings database
     dataset_embeddings_db: str = Field(
         default="gnw-dataset-index-gemini-v3",

@@ -268,9 +268,30 @@ def test_mosaic_result_urls():
     assert _s3_uri("abc123") == "s3://test-bucket/mosaics/abc123.json"
 
 
-def test_mosaic_result_urls_relative_when_no_external_tiler(monkeypatch):
-    """With MOSAIC_TILER_URL unset, tile URLs are relative to this app."""
+def test_mosaic_result_urls_fall_back_to_api_base_url(monkeypatch):
+    """With MOSAIC_TILER_URL unset, tile URLs use this app's own host."""
     monkeypatch.setattr(SharedSettings, "mosaic_tiler_url", "")
+    monkeypatch.setattr(SharedSettings, "api_base_url", "https://api.example/")
+    result = MosaicResult(
+        mosaic_id="abc123",
+        item_count=1,
+        date_start=date(2025, 1, 1),
+        date_end=date(2025, 1, 2),
+    )
+    assert result.tile_url == (
+        "https://api.example/mosaic/tiles/WebMercatorQuad/{z}/{x}/{y}.png"
+        "?url=s3%3A%2F%2Ftest-bucket%2Fmosaics%2Fabc123.json"
+    )
+    assert result.tilejson_url == (
+        "https://api.example/mosaic/WebMercatorQuad/tilejson.json"
+        "?url=s3%3A%2F%2Ftest-bucket%2Fmosaics%2Fabc123.json"
+    )
+
+
+def test_mosaic_result_urls_relative_when_nothing_set(monkeypatch):
+    """With both MOSAIC_TILER_URL and API_BASE_URL unset, URLs are relative."""
+    monkeypatch.setattr(SharedSettings, "mosaic_tiler_url", "")
+    monkeypatch.setattr(SharedSettings, "api_base_url", "")
     result = MosaicResult(
         mosaic_id="abc123",
         item_count=1,

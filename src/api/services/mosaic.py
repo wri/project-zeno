@@ -11,7 +11,9 @@ date, search parameters).
 Tiles can be served two ways, depending on the MOSAIC_TILER_URL setting:
   * unset (default) — this app serves tiles itself via the titiler
     MosaicTilerFactory wired to S3MosaicBackend, which reads the MosaicJSON
-    from S3 via the ``s3://`` uri carried in the tile URL's ``?url=`` param;
+    from S3 via the ``s3://`` uri carried in the tile URL's ``?url=`` param.
+    The tile URLs are then based on API_BASE_URL (this app's own host), or
+    host-relative if that is also unset;
   * set — tiles are served by an external, vanilla titiler deployment that
     reads the same MosaicJSON from S3 via ``s3://`` using IAM credentials.
 
@@ -115,6 +117,17 @@ def _s3_key(token: str) -> str:
 
 def _s3_uri(token: str) -> str:
     return f"s3://{SharedSettings.mosaic_s3_bucket}/{_s3_key(token)}"
+
+
+def _tiler_base() -> str:
+    """Base URL for tile/tilejson links, without a trailing slash.
+
+    Prefers the external titiler (MOSAIC_TILER_URL); falls back to this app's
+    own host (API_BASE_URL) so the in-repo titiler routes get absolute URLs.
+    If neither is set, returns "" so URLs are host-relative.
+    """
+    base = SharedSettings.mosaic_tiler_url or SharedSettings.api_base_url
+    return base.rstrip("/")
 
 
 def _mosaic_exists(token: str) -> bool:
@@ -252,7 +265,7 @@ class MosaicResult:
 
     @property
     def tile_url(self) -> str:
-        base = SharedSettings.mosaic_tiler_url.rstrip("/")
+        base = _tiler_base()
         url = quote(_s3_uri(self.mosaic_id), safe="")
         return (
             f"{base}/mosaic/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png"
@@ -261,7 +274,7 @@ class MosaicResult:
 
     @property
     def tilejson_url(self) -> str:
-        base = SharedSettings.mosaic_tiler_url.rstrip("/")
+        base = _tiler_base()
         url = quote(_s3_uri(self.mosaic_id), safe="")
         return f"{base}/mosaic/WebMercatorQuad/tilejson.json?url={url}"
 
