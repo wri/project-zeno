@@ -6,9 +6,14 @@ MosaicJSON.
 
 The built MosaicJSON is written to a private S3 bucket under a key derived
 from a deterministic, self-describing recipe token (AOI references, target
-date, search parameters). Tiles are served by an external, vanilla titiler
-deployment that reads the MosaicJSON from S3 via ``s3://`` using IAM
-credentials — this repo no longer serves tiles itself.
+date, search parameters).
+
+Tiles can be served two ways, depending on the MOSAIC_TILER_URL setting:
+  * unset (default) — this app serves tiles itself via the titiler
+    MosaicTilerFactory wired to S3MosaicBackend, which reads the MosaicJSON
+    from S3 via the ``s3://`` uri carried in the tile URL's ``?url=`` param;
+  * set — tiles are served by an external, vanilla titiler deployment that
+    reads the same MosaicJSON from S3 via ``s3://`` using IAM credentials.
 
 Before building, we look up the recipe token in S3: if a mosaic already
 exists we skip the (expensive) STAC search, build and upload, and return the
@@ -18,15 +23,19 @@ metadata recorded in a small sidecar object written alongside the mosaic.
 import base64
 import functools
 import json
+import os
 import time
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
+import attr
 import boto3
 import pystac_client
 from botocore.exceptions import ClientError
+from cachetools import TTLCache
+from cogeo_mosaic.backends.base import BaseBackend
 from cogeo_mosaic.errors import MosaicNotFoundError
 from cogeo_mosaic.mosaic import MosaicJSON
 from fastapi.concurrency import run_in_threadpool
@@ -39,6 +48,25 @@ from src.shared.geocoding_helpers import get_geometry_data
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+# GDAL tuning for reading remote COGs (read by rasterio at open time, so
+# deployment env vars take precedence). Only relevant when this app serves
+# tiles itself. Without GDAL_DISABLE_READDIR_ON_OPEN every COG open issues
+# extra (404ing) sidecar-file requests against S3.
+_GDAL_ENV_DEFAULTS = {
+    "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
+    "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES",
+    "GDAL_HTTP_MULTIPLEX": "YES",
+    "GDAL_HTTP_VERSION": "2",
+    "GDAL_CACHEMAX": "200",
+    "VSI_CACHE": "TRUE",
+    "VSI_CACHE_SIZE": "5000000",
+    "CPL_VSIL_CURL_CACHE_SIZE": "200000000",
+    # Sentinel-2 COG headers are larger than GDAL's 16KB default read.
+    "GDAL_INGESTED_BYTES_AT_OPEN": "32768",
+}
+for _key, _value in _GDAL_ENV_DEFAULTS.items():
+    os.environ.setdefault(_key, _value)
 
 STAC_URL = "https://earth-search.aws.element84.com/v1"
 SENTINEL2_COLLECTION = "sentinel-2-l2a"
@@ -103,10 +131,76 @@ def _read_meta(token: str) -> Optional[dict]:
             Bucket=SharedSettings.mosaic_s3_bucket, Key=_meta_key(token)
         )
     except ClientError as e:
-        if e.response["Error"]["Code"] in ("NoSuchKey", "404", "NotFound"):
+        code = e.response["Error"]["Code"]
+        if code in ("NoSuchKey", "404", "NotFound"):
             return None
+        # AccessDenied / NoSuchBucket / wrong region etc. — this is a real
+        # config/permission problem, not a cache miss, so surface it instead
+        # of failing the create opaquely.
+        logger.error(
+            "Mosaic metadata read failed",
+            bucket=SharedSettings.mosaic_s3_bucket,
+            key=_meta_key(token),
+            region=SharedSettings.mosaic_s3_region,
+            error_code=code,
+            error=str(e),
+        )
         raise
     return json.loads(resp["Body"].read())
+
+
+# uri -> MosaicJSON. Per-process cache so repeated tile requests for the same
+# mosaic don't re-fetch the (immutable) MosaicJSON document from S3.
+_mosaic_store: TTLCache = TTLCache(maxsize=256, ttl=12 * 3600)
+
+
+def _read_mosaic_from_uri(uri: str) -> MosaicJSON:
+    """Load a MosaicJSON from its ``s3://bucket/key`` uri.
+
+    Raises MosaicNotFoundError if the object does not exist.
+    """
+    parsed = urlparse(uri)
+    if parsed.scheme != "s3":
+        raise MosaicNotFoundError(f"Unsupported mosaic uri: {uri}")
+    try:
+        resp = _s3_client().get_object(
+            Bucket=parsed.netloc, Key=parsed.path.lstrip("/")
+        )
+    except ClientError as e:
+        if e.response["Error"]["Code"] in ("NoSuchKey", "404", "NotFound"):
+            raise MosaicNotFoundError(f"Mosaic not found: {uri}")
+        raise
+    return MosaicJSON.model_validate_json(resp["Body"].read())
+
+
+@attr.s
+class S3MosaicBackend(BaseBackend):
+    """Resolve a mosaic by its ``s3://`` uri, reading the MosaicJSON from S3.
+
+    titiler hands the tile URL's ``?url=`` value (an ``s3://bucket/key`` uri)
+    to this backend; the MosaicJSON is fetched from S3 once and cached in
+    _mosaic_store for the per-process TTL.
+    """
+
+    _backend_name = "ZenoS3"
+
+    def _read(self) -> MosaicJSON:
+        mosaic = _mosaic_store.get(self.input)
+        if mosaic is None:
+            mosaic = _read_mosaic_from_uri(self.input)
+            _mosaic_store[self.input] = mosaic
+        return mosaic
+
+    def tile(self, *args, **kwargs):
+        # Read scenes sequentially with lazy early exit: with the default
+        # "first" pixel selection, reading stops as soon as the tile is
+        # covered. The factory default (threads=70) would instead fetch
+        # every candidate scene from S3 concurrently and discard most.
+        kwargs["threads"] = 0
+        return super().tile(*args, **kwargs)
+
+    def write(self, overwrite: bool = False) -> None:
+        pass
 
 
 def _write_mosaic(
@@ -123,24 +217,36 @@ def _write_mosaic(
     """
     client = _s3_client()
     bucket = SharedSettings.mosaic_s3_bucket
-    client.put_object(
-        Bucket=bucket,
-        Key=_s3_key(token),
-        Body=mosaic.model_dump_json(exclude_none=True).encode("utf-8"),
-        ContentType="application/json",
-    )
-    client.put_object(
-        Bucket=bucket,
-        Key=_meta_key(token),
-        Body=json.dumps(
-            {
-                "item_count": item_count,
-                "date_start": date_start.isoformat(),
-                "date_end": date_end.isoformat(),
-            }
-        ).encode("utf-8"),
-        ContentType="application/json",
-    )
+    try:
+        client.put_object(
+            Bucket=bucket,
+            Key=_s3_key(token),
+            Body=mosaic.model_dump_json(exclude_none=True).encode("utf-8"),
+            ContentType="application/json",
+        )
+        client.put_object(
+            Bucket=bucket,
+            Key=_meta_key(token),
+            Body=json.dumps(
+                {
+                    "item_count": item_count,
+                    "date_start": date_start.isoformat(),
+                    "date_end": date_end.isoformat(),
+                }
+            ).encode("utf-8"),
+            ContentType="application/json",
+        )
+    except ClientError as e:
+        logger.error(
+            "Mosaic upload failed",
+            bucket=bucket,
+            key=_s3_key(token),
+            region=SharedSettings.mosaic_s3_region,
+            error_code=e.response["Error"]["Code"],
+            error=str(e),
+        )
+        raise
+    logger.info("Mosaic uploaded to S3", bucket=bucket, key=_s3_key(token))
 
 
 @dataclass(frozen=True)
@@ -250,6 +356,12 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     Raises MosaicNotFoundError (AOI geometry gone), AoiTooLargeError,
     StacSearchError or NoScenesFoundError.
     """
+    if not SharedSettings.mosaic_s3_bucket:
+        logger.error(
+            "MOSAIC_S3_BUCKET is not configured; cannot persist mosaic"
+        )
+        raise RuntimeError("MOSAIC_S3_BUCKET is not configured")
+
     token = encode_recipe(recipe)
 
     # S3-based lookup: if the mosaic already exists, return without rebuilding.

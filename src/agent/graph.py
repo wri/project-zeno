@@ -64,6 +64,7 @@ Match the request to exactly one row; do not escalate a dataset / AOI / pull req
 - AOI-only (e.g. "zoom to Pará"): call pick_aoi, then stop unless asked for more.
 - Pull-only (e.g. "pull dist alerts in Bern for last 2 weeks"): read `pull-data`, run pick_aoi → pick_dataset → pull_data, then stop. Do not call generate_insights unless the user asked for a chart or analysis.
 - Full analysis (place + topic → chart/insight): read `analyze` and follow that pipeline.
+- Imagery (e.g. "show satellite imagery of Bern in June"): read `show-imagery`, run pick_aoi → show_imagery, then stop. No dataset, pull or insights unless asked.
 - Capabilities (what you can do, what data exists): read `capabilities`, then answer in your own words — no analysis tools.
 
 # Policy

@@ -55,7 +55,8 @@ async def show_imagery(
     find no scenes and the user agrees. Run pick_aoi first. Regional
     areas only.
     """
-    aois = (state.get("aoi_selection") or {}).get("aois") or []
+    logger.info("show_imagery tool called")
+    aois = ((state or {}).get("aoi_selection") or {}).get("aois") or []
     if not aois:
         return _feedback(
             "No AOI selected. Run pick_aoi before requesting satellite imagery.",
@@ -114,6 +115,21 @@ async def show_imagery(
     except StacSearchError:
         return _feedback(
             "The Sentinel-2 catalog is currently unavailable. Try again later.",
+            tool_call_id,
+        )
+    except Exception as e:
+        # Anything else (e.g. S3 read/write failure, missing mosaic bucket
+        # config, credentials) would otherwise propagate unlogged. Surface it
+        # in the logs and hand the agent a graceful message.
+        logger.exception(
+            "show_imagery failed unexpectedly",
+            error=str(e),
+            aoi_names=aoi_names,
+            target_date=recipe.target_date.isoformat(),
+        )
+        return _feedback(
+            "Something went wrong while building the satellite imagery layer. "
+            "Please try again later.",
             tool_call_id,
         )
 
