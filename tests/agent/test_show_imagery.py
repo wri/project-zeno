@@ -64,7 +64,9 @@ async def test_show_imagery_success():
 
     imagery = command.update["imagery"]
     assert imagery["mosaic_id"] == "abc123"
-    assert imagery["tile_url"].endswith("?url=abc123")
+    # The tool passes the MosaicResult's external titiler URLs through.
+    assert imagery["tile_url"] == result.tile_url
+    assert imagery["tilejson_url"] == result.tilejson_url
     assert imagery["target_date"] == "2025-06-01"
     assert imagery["window_days"] == 7
     assert imagery["max_cloud_cover"] == 20
