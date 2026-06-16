@@ -27,6 +27,7 @@ def test_skills_registry_is_the_three_recipes():
         "analyze",
         "capabilities",
         "pull-data",
+        "show-imagery",
     }
 
 

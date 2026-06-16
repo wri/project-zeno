@@ -197,3 +197,5 @@ nbs/
 
 # Judge eval results
 tests/evals/results/
+
+.claude/
