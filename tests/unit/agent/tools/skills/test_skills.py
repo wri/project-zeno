@@ -19,13 +19,14 @@ def test_load_skills():
     assert "ui-selections" not in names
 
 
-def test_skills_registry_is_the_five_recipes():
+def test_skills_registry_is_the_six_recipes():
     assert {s.name for s in all_skills()} == {
         "analyze",
         "capabilities",
         "explore",
         "pull-data",
         "wri-insights",
+        "show-imagery",
     }
 
 

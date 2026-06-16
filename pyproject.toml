@@ -1,6 +1,6 @@
 [project]
 name = "project-zeno"
-version = "2026.6.16.1"
+version = "2026.6.16.2"
 description = "Language Interface for Maps & WRI/LCL data APIs."
 readme = "README.md"
 requires-python = "==3.12.8"
@@ -19,7 +19,8 @@ dependencies = [
     "fiona==1.10.1",
     "geopandas==1.0.1",
     "langgraph==1.1.3",
-    # 1.0.9+ imports ServerInfo, which langgraph<1.2 lacks (and langchain caps langgraph at <1.2)
+    # Pin: prebuilt 1.0.10 imports ServerInfo, removed from langgraph 1.1.3's
+    # runtime (the dep is unbounded, so a re-lock can otherwise break imports).
     "langgraph-prebuilt==1.0.8",
     "pystac==1.13.0",
     "pystac-client==0.9.0",
@@ -30,7 +31,7 @@ dependencies = [
     "sqlalchemy==2.0.41",
     "pypgstac==0.9.7",
     "psycopg==3.2.9",
-    "rio-stac==0.11.0",
+    "rio-stac==0.12.0",
     "psycopg-pool==3.2.6",
     "langgraph-checkpoint-postgres==3.0.5",
     "langchain-anthropic==1.4.0",
@@ -56,6 +57,7 @@ dependencies = [
     "trafilatura>=2.0.0",
     "deepagents[quickjs]>=0.4.12",
     "model2vec>=0.8.2",
+    "titiler-mosaic==0.25.0",
 ]
 
 [dependency-groups]

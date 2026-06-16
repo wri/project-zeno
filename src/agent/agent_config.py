@@ -26,11 +26,15 @@ from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
 from src.agent.subagents.search.blog import SPEC as search_blogs_spec
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.pull_data import SPEC as pull_data_spec
+from src.agent.tools.show_imagery import SPEC as show_imagery_spec
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 DEFAULT_PROFILE = "default"
+
+# Feature flag exposing the experimental Sentinel-2 imagery tool.
+EXPERIMENTAL_PROFILE = "experimental"
 
 CORE_SPECS = (
     pick_aoi_spec,
@@ -40,6 +44,9 @@ CORE_SPECS = (
     search_blogs_spec,
     read_skill_spec,
 )
+
+# Experimental, opt-in tools layered on top of the core set.
+EXPERIMENTAL_SPECS = (*CORE_SPECS, show_imagery_spec)
 
 
 @dataclass(frozen=True)
@@ -101,3 +108,6 @@ class AgentConfigRegistry:
 # Production registry — register new flag configs here.
 default_registry = AgentConfigRegistry()
 default_registry.register(AgentConfig(DEFAULT_PROFILE, specs=CORE_SPECS))
+default_registry.register(
+    AgentConfig(EXPERIMENTAL_PROFILE, specs=EXPERIMENTAL_SPECS)
+)
