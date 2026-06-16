@@ -9,8 +9,7 @@ from titiler.core.errors import DEFAULT_STATUS_CODES, add_exception_handlers
 from titiler.mosaic.errors import MOSAIC_STATUS_CODES
 
 from src.agent.graph import close_checkpointer_pool, get_checkpointer_pool
-from src.agent.subagents.search.blog import _paragraph_index
-from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, _load_index, data_status
+from src.agent.utils.sgrep import data_status
 from src.api.routers import (
     admin,
     analyze,
@@ -38,8 +37,6 @@ async def lifespan(app: FastAPI):
     blog_data_ok, blog_data_detail = data_status()
     if blog_data_ok:
         logger.info("Blog search data ready", detail=blog_data_detail)
-        _load_index(str(DEFAULT_INDEX_DIR))  # pre-warm sgrep embedding matrix
-        _paragraph_index()  # pre-warm grep in-memory paragraph index
     else:
         logger.error(
             "Blog search data missing - search_blogs will fail",
