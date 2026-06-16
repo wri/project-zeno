@@ -15,9 +15,10 @@ Tiles can be served two ways, depending on the MOSAIC_TILER_URL setting:
   * set — tiles are served by an external, vanilla titiler deployment that
     reads the same MosaicJSON from S3 via ``s3://`` using IAM credentials.
 
-Before building, we look up the recipe token in S3: if a mosaic already
-exists we skip the (expensive) STAC search, build and upload, and return the
-metadata recorded in a small sidecar object written alongside the mosaic.
+Before building, we check S3 for the mosaic object: if it already exists we
+skip the (expensive) STAC search, build and upload. The scene count and
+acquired date range are only known at build time and are not persisted, so a
+cache hit returns without them.
 """
 
 import base64
@@ -112,41 +113,37 @@ def _s3_key(token: str) -> str:
     return f"{SharedSettings.mosaic_s3_prefix.strip('/')}/{token}.json"
 
 
-def _meta_key(token: str) -> str:
-    return f"{SharedSettings.mosaic_s3_prefix.strip('/')}/{token}.meta.json"
-
-
 def _s3_uri(token: str) -> str:
     return f"s3://{SharedSettings.mosaic_s3_bucket}/{_s3_key(token)}"
 
 
-def _read_meta(token: str) -> Optional[dict]:
-    """Return the mosaic's metadata sidecar, or None if it does not exist.
+def _mosaic_exists(token: str) -> bool:
+    """Return True if the mosaic object for this recipe is already in S3.
 
-    The sidecar is written last, so its presence implies the mosaic object
-    itself is fully written.
+    S3 puts are atomic, so a present object is always a complete mosaic and
+    can be served without rebuilding.
     """
     try:
-        resp = _s3_client().get_object(
-            Bucket=SharedSettings.mosaic_s3_bucket, Key=_meta_key(token)
+        _s3_client().head_object(
+            Bucket=SharedSettings.mosaic_s3_bucket, Key=_s3_key(token)
         )
     except ClientError as e:
         code = e.response["Error"]["Code"]
         if code in ("NoSuchKey", "404", "NotFound"):
-            return None
-        # AccessDenied / NoSuchBucket / wrong region etc. — this is a real
+            return False
+        # AccessDenied / NoSuchBucket / wrong region etc. — a real
         # config/permission problem, not a cache miss, so surface it instead
         # of failing the create opaquely.
         logger.error(
-            "Mosaic metadata read failed",
+            "Mosaic existence check failed",
             bucket=SharedSettings.mosaic_s3_bucket,
-            key=_meta_key(token),
+            key=_s3_key(token),
             region=SharedSettings.mosaic_s3_region,
             error_code=code,
             error=str(e),
         )
         raise
-    return json.loads(resp["Body"].read())
+    return True
 
 
 # uri -> MosaicJSON. Per-process cache so repeated tile requests for the same
@@ -203,18 +200,8 @@ class S3MosaicBackend(BaseBackend):
         pass
 
 
-def _write_mosaic(
-    token: str,
-    mosaic: MosaicJSON,
-    item_count: int,
-    date_start: date,
-    date_end: date,
-) -> None:
-    """Upload the MosaicJSON and its metadata sidecar to S3.
-
-    The mosaic object is written first, then the sidecar, so a present
-    sidecar always implies a complete mosaic.
-    """
+def _write_mosaic(token: str, mosaic: MosaicJSON) -> None:
+    """Upload the MosaicJSON to S3."""
     client = _s3_client()
     bucket = SharedSettings.mosaic_s3_bucket
     try:
@@ -222,18 +209,6 @@ def _write_mosaic(
             Bucket=bucket,
             Key=_s3_key(token),
             Body=mosaic.model_dump_json(exclude_none=True).encode("utf-8"),
-            ContentType="application/json",
-        )
-        client.put_object(
-            Bucket=bucket,
-            Key=_meta_key(token),
-            Body=json.dumps(
-                {
-                    "item_count": item_count,
-                    "date_start": date_start.isoformat(),
-                    "date_end": date_end.isoformat(),
-                }
-            ).encode("utf-8"),
             ContentType="application/json",
         )
     except ClientError as e:
@@ -268,10 +243,12 @@ class MosaicRecipe:
 
 @dataclass
 class MosaicResult:
+    # item_count / date_start / date_end are only known when the mosaic is
+    # built; on a cache hit (mosaic already in S3) they are None.
     mosaic_id: str
-    item_count: int
-    date_start: date
-    date_end: date
+    item_count: Optional[int] = None
+    date_start: Optional[date] = None
+    date_end: Optional[date] = None
 
     @property
     def tile_url(self) -> str:
@@ -351,7 +328,8 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     """Build the mosaic for a recipe and persist it to S3.
 
     If a mosaic for this recipe already exists in S3, the STAC search, build
-    and upload are skipped and the recorded metadata is returned.
+    and upload are skipped; the returned result then carries no item_count or
+    date range (those are only known at build time and are not persisted).
 
     Raises MosaicNotFoundError (AOI geometry gone), AoiTooLargeError,
     StacSearchError or NoScenesFoundError.
@@ -364,15 +342,11 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
 
     token = encode_recipe(recipe)
 
-    # S3-based lookup: if the mosaic already exists, return without rebuilding.
-    meta = await run_in_threadpool(_read_meta, token)
-    if meta is not None:
-        return MosaicResult(
-            mosaic_id=token,
-            item_count=meta["item_count"],
-            date_start=date.fromisoformat(meta["date_start"]),
-            date_end=date.fromisoformat(meta["date_end"]),
-        )
+    # S3-based lookup: if the mosaic already exists, serve it without
+    # rebuilding. The scene count and date range are not persisted, so a
+    # cache hit returns without them.
+    if await run_in_threadpool(_mosaic_exists, token):
+        return MosaicResult(mosaic_id=token)
 
     geometry = await _load_geometry(recipe)
     check_aoi_area(geometry)
@@ -445,9 +419,7 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     date_start = min(item_dates)
     date_end = max(item_dates)
 
-    await run_in_threadpool(
-        _write_mosaic, token, mosaic, len(items), date_start, date_end
-    )
+    await run_in_threadpool(_write_mosaic, token, mosaic)
     logger.info(
         "Mosaic created",
         item_count=len(items),

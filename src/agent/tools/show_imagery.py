@@ -138,23 +138,32 @@ async def show_imagery(
         tilejson_url=result.tilejson_url,
         mosaic_id=result.mosaic_id,
         item_count=result.item_count,
-        date_start=result.date_start.isoformat(),
-        date_end=result.date_end.isoformat(),
+        date_start=result.date_start.isoformat()
+        if result.date_start
+        else None,
+        date_end=result.date_end.isoformat() if result.date_end else None,
         target_date=recipe.target_date.isoformat(),
         window_days=recipe.window_days,
         max_cloud_cover=recipe.max_cloud_cover,
         aoi_names=aoi_names,
     )
 
+    # item_count / dates are absent when the mosaic was served from cache.
+    if result.item_count is not None:
+        summary = (
+            f" from {result.item_count} scenes acquired between "
+            f"{result.date_start} and {result.date_end}"
+        )
+    else:
+        summary = ""
+
     return Command(
         update={
             "imagery": imagery_state.model_dump(),
             "messages": [
                 ToolMessage(
-                    f"Sentinel-2 imagery layer created for {', '.join(aoi_names)} "
-                    f"from {result.item_count} scenes acquired between "
-                    f"{result.date_start} and {result.date_end}. "
-                    "The layer is shown on the map.",
+                    f"Sentinel-2 imagery layer created for "
+                    f"{', '.join(aoi_names)}{summary} and shown on the map.",
                     tool_call_id=tool_call_id,
                 )
             ],

@@ -17,7 +17,6 @@ from src.api.services.mosaic import (
     MosaicRecipe,
     MosaicResult,
     NoScenesFoundError,
-    _meta_key,
     _s3_key,
     _s3_uri,
     check_aoi_area,
@@ -214,9 +213,8 @@ async def test_create_mosaic_orders_scenes_by_date_proximity(fake_s3):
     assert result.date_start == date(2025, 5, 1)
     assert result.date_end == date(2025, 6, 14)
 
-    # The mosaic and its metadata sidecar are persisted to S3.
+    # The mosaic is persisted to S3.
     assert _s3_key(result.mosaic_id) in fake_s3.store
-    assert _meta_key(result.mosaic_id) in fake_s3.store
 
     # The scene closest to the target date must be first per quadkey, since
     # the mosaic renders the first valid scene.
@@ -227,24 +225,27 @@ async def test_create_mosaic_orders_scenes_by_date_proximity(fake_s3):
 
 @pytest.mark.asyncio
 async def test_create_mosaic_skips_when_exists(fake_s3):
-    """A second build for the same recipe reads S3 and skips search/upload."""
+    """A second build for the same recipe finds the mosaic in S3 and skips
+    geometry load, STAC search and upload."""
     item = FakeItem(date(2025, 6, 1), 3.0, "https://example.com/a.tif")
     with _patch_geometry(), _patch_search([item]):
         first = await create_sentinel2_mosaic(RECIPE)
 
-    # Drop the mosaic body but keep the sidecar to prove the upload is skipped
-    # (the sidecar alone drives the cache-hit response).
-    fake_s3.store.pop(_s3_key(first.mosaic_id))
+    # The mosaic object itself is the cache marker (S3 puts are atomic).
+    assert _s3_key(first.mosaic_id) in fake_s3.store
 
     with _patch_geometry() as geo, _patch_search([item]) as search:
         second = await create_sentinel2_mosaic(RECIPE)
 
-    assert second == first
-    # On a hit we return from the sidecar without loading geometry, searching
-    # STAC, or re-uploading the mosaic body.
+    assert second.mosaic_id == first.mosaic_id
+    # The scene count and date range are only known at build time, so a cache
+    # hit returns without them.
+    assert second.item_count is None
+    assert second.date_start is None
+    assert second.date_end is None
+    # On a hit we return without loading geometry, searching STAC or uploading.
     geo.assert_not_called()
     search.assert_not_called()
-    assert _s3_key(first.mosaic_id) not in fake_s3.store
 
 
 def test_mosaic_result_urls():
@@ -380,6 +381,11 @@ async def test_create_mosaic_success_and_idempotent(
         )
 
     assert response.status_code == 200
-    assert response.json() == body
+    cached = response.json()
+    assert cached["mosaic_id"] == body["mosaic_id"]
+    # The cache hit serves the mosaic without the build-time stats.
+    assert cached["item_count"] is None
+    assert cached["date_start"] is None
+    assert cached["date_end"] is None
     geo.assert_not_called()
     search.assert_not_called()
