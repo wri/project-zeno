@@ -23,6 +23,7 @@ from src.agent.subagents.pick_aoi.selection_name_util import (
     build_selection_name,
 )
 from src.agent.subagents.progress import emit_progress
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
     CUSTOM_AREA_TABLE,
@@ -830,6 +831,11 @@ async def pick_aoi(
     Updates the AOI selection in state. If the place is ambiguous or missing,
     it returns a clarifying question for the user instead.
     """
-    print(question)
-    print(f"aoi_type: {area_of_interest}")
     return await Geocoder().resolve(question, area_of_interest, tool_call_id)
+
+
+SPEC = ToolSpec(
+    tool=pick_aoi,
+    category=ToolCategory.SUBAGENT,
+    prompt_fragment='- pick_aoi(question): natural-language geocoder. Pass the place request verbatim ("tree cover loss in Pará, Brazil", "the districts of Odisha", "forest loss worldwide"). If there is an obvious type of area of interest, then specify as that well. It extracts, translates and resolves the place — and any subregions — itself. Updates the AOI in state, or returns a clarifying question.',
+)
