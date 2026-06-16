@@ -4,6 +4,7 @@ from langchain_core.tools import tool
 
 from src.agent.agent_config import (
     DEFAULT_PROFILE,
+    EXPERIMENTAL_PROFILE,
     AgentConfig,
     AgentConfigRegistry,
     default_registry,
@@ -89,14 +90,21 @@ def test_prompt_describes_exactly_bound_tools():
     assert "_fake_tool" not in descriptions
 
 
-def test_skill_dependencies_all_have_tools():
-    """Every tool a skill requires must exist in the default config."""
-    available = {s.tool.name for s in default_registry.resolve(None).specs}
+def test_skill_dependencies_satisfiable_by_some_profile():
+    """Every tool a skill requires must be bound by at least one profile.
+
+    A skill may legitimately require a tool that only an experimental profile
+    binds (e.g. show-imagery needs show_imagery). What must never happen is a
+    skill requiring a tool no profile binds — it could never be advertised.
+    """
+    bound = set()
+    for profile in (DEFAULT_PROFILE, EXPERIMENTAL_PROFILE):
+        bound |= {s.tool.name for s in default_registry.resolve(profile).specs}
     for skill in all_skills():
         for tool_name in skill.requires:
-            assert tool_name in available, (
+            assert tool_name in bound, (
                 f"skill {skill.name!r} requires {tool_name!r} "
-                "which is not in the default config"
+                "which no registered profile binds"
             )
 
 
@@ -114,3 +122,16 @@ def test_default_config_advertises_core_skills():
         "capabilities",
         "pull-data",
     }
+
+
+def test_experimental_config_adds_show_imagery():
+    """The experimental profile layers show_imagery and its skill on top of
+    the default set; the default profile exposes neither."""
+    default = default_registry.resolve(DEFAULT_PROFILE)
+    experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
+
+    assert "show_imagery" not in {t.name for t in default.tools()}
+    assert "show_imagery" in {t.name for t in experimental.tools()}
+
+    assert "show-imagery" not in {s.name for s in default.skills()}
+    assert "show-imagery" in {s.name for s in experimental.skills()}

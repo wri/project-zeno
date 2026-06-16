@@ -10,6 +10,7 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
 from src.agent.models import ImageryState
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.api.services.mosaic import (
     AoiTooLargeError,
     MosaicRecipe,
@@ -143,3 +144,14 @@ async def show_imagery(
             ],
         },
     )
+
+
+SPEC = ToolSpec(
+    tool=show_imagery,
+    category=ToolCategory.PRIMITIVE,
+    prompt_fragment=(
+        "- show_imagery(target_date): show a Sentinel-2 satellite imagery "
+        "layer on the map for the AOI in state. Run pick_aoi first; regional "
+        "areas only."
+    ),
+)

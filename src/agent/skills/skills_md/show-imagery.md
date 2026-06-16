@@ -2,6 +2,7 @@
 name: show-imagery
 description: Display Sentinel-2 satellite imagery on the map for a place around a date.
 when_to_use: User asks to see satellite imagery, a satellite view, or Sentinel-2 of a place — optionally around a date. Not for data analysis or charts.
+requires: pick_aoi, show_imagery
 ---
 
 # Showing satellite imagery
