@@ -23,6 +23,7 @@ from src.agent.skills.tool import SPEC as read_skill_spec
 from src.agent.subagents.analyst.tool import SPEC as generate_insights_spec
 from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
+from src.agent.subagents.search.blog import SPEC as search_blogs_spec
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.pull_data import SPEC as pull_data_spec
 from src.agent.tools.show_imagery import SPEC as show_imagery_spec
@@ -32,7 +33,8 @@ logger = get_logger(__name__)
 
 DEFAULT_PROFILE = "default"
 
-# Feature flag exposing the experimental Sentinel-2 imagery tool.
+# Feature flag exposing experimental, opt-in tools (Sentinel-2 imagery and
+# WRI Insights blog search).
 EXPERIMENTAL_PROFILE = "experimental"
 
 CORE_SPECS = (
@@ -44,7 +46,7 @@ CORE_SPECS = (
 )
 
 # Experimental, opt-in tools layered on top of the core set.
-EXPERIMENTAL_SPECS = (*CORE_SPECS, show_imagery_spec)
+EXPERIMENTAL_SPECS = (*CORE_SPECS, show_imagery_spec, search_blogs_spec)
 
 
 @dataclass(frozen=True)

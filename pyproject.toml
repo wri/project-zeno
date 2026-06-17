@@ -1,6 +1,6 @@
 [project]
 name = "project-zeno"
-version = "2026.6.16.2"
+version = "2026.6.17"
 description = "Language Interface for Maps & WRI/LCL data APIs."
 readme = "README.md"
 requires-python = "==3.12.8"
@@ -53,6 +53,10 @@ dependencies = [
     "click==8.1.8",
     "google-genai==1.68.0",
     "antimeridian==0.4.7",
+    "beautifulsoup4>=4.14.3",
+    "trafilatura>=2.0.0",
+    "deepagents[quickjs]>=0.4.12",
+    "model2vec>=0.8.2",
     "titiler-mosaic==0.25.0",
 ]
 
@@ -91,6 +95,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[project.scripts]
+sgrep = "src.agent.utils.sgrep:main"
 
 [tool.mypy]
 python_version = "3.12"

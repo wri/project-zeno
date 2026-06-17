@@ -117,13 +117,49 @@ for running the system locally.
    aws s3 sync s3://zeno-static-data/ data/
    ```
 
-4. **Start infrastructure services:**
+4. **Get the WRI Insights blog corpus (for blog search):**
+
+   The `search_blogs` tool reads a corpus of WRI Insights articles plus a
+   semantic search index from `data/wri_insights/` and
+   `data/wri_insights_index/` (both gitignored). The easiest way to get them
+   is to pull the published snapshot from S3 — refreshed weekly by the
+   `wri-insights-data` GitHub workflow. Point `WRI_INSIGHTS_S3_URI` at the
+   snapshot prefix and make sure your AWS credentials are configured:
+
+   ```bash
+   export WRI_INSIGHTS_S3_URI=s3://<bucket>/wri-insights/
+   make insights-data
+   ```
+
+   That shortcut downloads `latest.tar.gz` and extracts it into `data/`,
+   equivalent to:
+
+   ```bash
+   uv run python scripts/wri_insights_snapshot.py pull
+   ```
+
+   Alternatively, build everything from scratch (scrapes ~2,800 articles
+   from wri.org, takes ~15 minutes on the first run):
+
+   ```bash
+   uv run python scripts/fetch_wri_insights.py --workers 4
+   uv run python -m src.agent.utils.sgrep index
+   ```
+
+   Without this data the API still starts — it logs
+   `Blog search data missing` — but blog search queries will fail. The first
+   semantic query downloads a small embedding model (~100 MB) from
+   Hugging Face into your local HF cache; in the production image both the
+   data and the model are baked in at build time (see
+   `docs/filesystem-search.md`).
+
+5. **Start infrastructure services:**
 
    ```bash
    make up       # Start Docker services (PostgreSQL, test DB, migrations, Langfuse via docker-compose.dev.yaml)
    ```
 
-5. **Ingest data (required after starting database):**
+6. **Ingest data (required after starting database):**
 
    After starting the database and infrastructure services, you need to ingest the required datasets. Feel free to run all or just the ones you need.
 
@@ -140,7 +176,7 @@ for running the system locally.
 
    See `src/ingest/` directory for details on each ingestion script.
 
-6. **Start application services:**
+7. **Start application services:**
 
    ```bash
    make api      # Run API locally (port 8000)
@@ -152,7 +188,7 @@ for running the system locally.
    make dev      # Starts API (requires infrastructure already running)
    ```
 
-7. **Setup Local Langfuse:**
+8. **Setup Local Langfuse:**
 
    Langfuse traces every agent run, tool call, and LLM interaction — useful for debugging the full agent flow. It is included in `make up` — no separate setup is required.
 
@@ -169,7 +205,7 @@ for running the system locally.
    LANGFUSE_TRACING_ENABLED=true
    ```
 
-8. **Access the application:**
+9. **Access the application:**
 
    - API: <http://localhost:8000>
    - Langfuse: <http://localhost:3001>
@@ -239,7 +275,18 @@ Runs all services — API, PostgreSQL, Langfuse, and ClickHouse — in container
 
    See `src/ingest/` directory for details on each ingestion script.
 
-4. **Verify Langfuse:**
+4. **Get the WRI Insights blog corpus (for blog search):**
+
+   The production image has the blog corpus and search index baked in, but
+   `docker-compose.yaml` bind-mounts `./data:/app/data`, which shadows the
+   baked-in copy with your (initially empty) host directory. Populate it
+   once from the published snapshot:
+
+   ```bash
+   make insights-data
+   ```
+
+5. **Verify Langfuse:**
 
    Langfuse traces every agent run, tool call, and LLM interaction — useful for debugging the full agent flow. Access the UI at <http://localhost:3001> and log in with the pre-seeded credentials:
    - Email: `admin@example.com`
@@ -247,7 +294,7 @@ Runs all services — API, PostgreSQL, Langfuse, and ClickHouse — in container
 
    > **Note:** The API container communicates with Langfuse on port 3000 (internal service name `langfuse-web:3000`). Port 3001 is only for browser access to the Langfuse UI.
 
-5. **Access the application:**
+6. **Access the application:**
 
    - API: <http://localhost:8000>
    - Langfuse: <http://localhost:3001>
@@ -260,6 +307,7 @@ make up       # Start Docker infrastructure
 make down     # Stop Docker infrastructure
 make api      # Run API with hot reload
 make dev      # Start full development environment
+make insights-data # Download WRI Insights blog corpus + search index
 ```
 
 ## Testing

@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
 
 from src.agent.config import AgentSettings
 
@@ -9,12 +8,12 @@ load_dotenv()
 
 # Anthropic
 SONNET = ChatAnthropic(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-4-6",
     temperature=0,
     max_tokens=64_000,  # Sonnet has a limit of max 64000 tokens
 )
 HAIKU = ChatAnthropic(
-    model="claude-3-5-haiku-latest",
+    model="claude-haiku-4-5",
     temperature=0,
     max_tokens=8_192,  # Haiku has a limit of max 8192 tokens
 )
@@ -48,11 +47,11 @@ GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
     timeout=300,
 )
 # OpenAI
-GPT = ChatOpenAI(
-    model="gpt-4o",
-    temperature=0,
-    max_tokens=None,  # max_tokens=None means no limit
-)
+# GPT = ChatOpenAI(
+#     model="gpt-4o",
+#     temperature=0,
+#     max_tokens=None,  # max_tokens=None means no limit
+# )
 
 # Model Registry for dynamic selection
 MODEL_REGISTRY = {
@@ -61,7 +60,7 @@ MODEL_REGISTRY = {
     "gemini": GEMINI,
     "gemini-flash": GEMINI_FLASH,
     "gemini-flash-lite": GEMINI_FLASH_LITE,
-    "gpt": GPT,
+    # "gpt": GPT,
 }
 
 # Available models list for frontend

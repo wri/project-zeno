@@ -124,14 +124,22 @@ def test_default_config_advertises_core_skills():
     }
 
 
-def test_experimental_config_adds_show_imagery():
-    """The experimental profile layers show_imagery and its skill on top of
-    the default set; the default profile exposes neither."""
+def test_experimental_config_adds_experimental_tools_and_skills():
+    """The experimental profile layers show_imagery and search_blogs (and their
+    skills) on top of the default set; the default profile exposes none."""
     default = default_registry.resolve(DEFAULT_PROFILE)
     experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
 
-    assert "show_imagery" not in {t.name for t in default.tools()}
-    assert "show_imagery" in {t.name for t in experimental.tools()}
+    default_tools = {t.name for t in default.tools()}
+    experimental_tools = {t.name for t in experimental.tools()}
+    assert {"show_imagery", "search_blogs"} & default_tools == set()
+    assert {"show_imagery", "search_blogs"} <= experimental_tools
 
-    assert "show-imagery" not in {s.name for s in default.skills()}
-    assert "show-imagery" in {s.name for s in experimental.skills()}
+    default_skills = {s.name for s in default.skills()}
+    experimental_skills = {s.name for s in experimental.skills()}
+    assert {
+        "show-imagery",
+        "explore",
+        "wri-insights",
+    } & default_skills == set()
+    assert {"show-imagery", "explore", "wri-insights"} <= experimental_skills

@@ -1,0 +1,62 @@
+name: WRI Insights Data Snapshot
+
+# Fetches the WRI Insights blog corpus, builds the sgrep index, and uploads
+# both as a single tarball to S3. The container is ephemeral: nothing is
+# published as an image. The app Dockerfile pulls this tarball at build time,
+# so refreshing content = run this workflow, then rebuild/redeploy the app.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1" # Mondays 05:00 UTC
+
+env:
+  WRI_INSIGHTS_S3_URI: ${{ vars.WRI_INSIGHTS_S3_URI }}
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Sync dependencies
+        run: uv sync --frozen --no-dev
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Seed from previous snapshot
+        # Reuse the last snapshot so the lastmod-based sync only fetches new
+        # or changed articles instead of re-scraping all of wri.org. A missing
+        # object (the very first run) is tolerated and does a full fetch.
+        run: uv run python scripts/wri_insights_snapshot.py pull
+
+      - name: Fetch articles
+        run: uv run python scripts/fetch_wri_insights.py --workers 4
+
+      - name: Build sgrep index
+        run: uv run python -m src.agent.utils.sgrep index
+
+      - name: Sanity-check snapshot
+        run: |
+          uv run python -c "
+          import sys
+          from src.agent.utils.sgrep import data_status
+          ok, detail = data_status(min_articles=2000)
+          print(detail)
+          sys.exit(0 if ok else 1)
+          "
+
+      - name: Upload snapshot to S3
+        run: uv run python scripts/wri_insights_snapshot.py push
