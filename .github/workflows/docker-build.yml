@@ -44,7 +44,7 @@ jobs:
           # by scripts/wri_insights_snapshot.py (see Dockerfile). Creds are
           # passed as build secrets so they never land in image layers.
           build-args: |
-            WRI_INSIGHTS_S3_URI=${{ vars.WRI_INSIGHTS_S3_URI }}
+            WRI_INSIGHTS_S3_URI=s3://zeno-static-data/wri-insights/
           secrets: |
             aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
             aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
