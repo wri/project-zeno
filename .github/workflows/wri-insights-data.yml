@@ -11,7 +11,7 @@ on:
     - cron: "0 5 * * 1" # Mondays 05:00 UTC
 
 env:
-  WRI_INSIGHTS_S3_URI: ${{ vars.WRI_INSIGHTS_S3_URI }}
+  WRI_INSIGHTS_S3_URI: s3://zeno-static-data/wri-insights/
 
 jobs:
   snapshot:
