@@ -5,7 +5,6 @@ from langchain_core.tools import tool
 from src.agent.agent_config import (
     DEFAULT_PROFILE,
     EXPERIMENTAL_PROFILE,
-    WRI_BLOG_SEARCH_PROFILE,
     AgentConfig,
     AgentConfigRegistry,
     default_registry,
@@ -99,11 +98,7 @@ def test_skill_dependencies_satisfiable_by_some_profile():
     skill requiring a tool no profile binds — it could never be advertised.
     """
     bound = set()
-    for profile in (
-        DEFAULT_PROFILE,
-        WRI_BLOG_SEARCH_PROFILE,
-        EXPERIMENTAL_PROFILE,
-    ):
+    for profile in (DEFAULT_PROFILE, EXPERIMENTAL_PROFILE):
         bound |= {s.tool.name for s in default_registry.resolve(profile).specs}
     for skill in all_skills():
         for tool_name in skill.requires:
@@ -129,29 +124,22 @@ def test_default_config_advertises_core_skills():
     }
 
 
-def test_wri_blog_search_config_adds_search_blogs_and_skills():
-    """The wri-blog-search profile layers search_blogs on top of the default
-    set; the default profile exposes neither search_blogs nor its skills."""
-    default = default_registry.resolve(DEFAULT_PROFILE)
-    wri = default_registry.resolve(WRI_BLOG_SEARCH_PROFILE)
-
-    assert "search_blogs" not in {t.name for t in default.tools()}
-    assert "search_blogs" in {t.name for t in wri.tools()}
-
-    assert "explore" not in {s.name for s in default.skills()}
-    assert "wri-insights" not in {s.name for s in default.skills()}
-    assert "explore" in {s.name for s in wri.skills()}
-    assert "wri-insights" in {s.name for s in wri.skills()}
-
-
-def test_experimental_config_adds_show_imagery():
-    """The experimental profile layers show_imagery and its skill on top of
-    the default set; the default profile exposes neither."""
+def test_experimental_config_adds_experimental_tools_and_skills():
+    """The experimental profile layers show_imagery and search_blogs (and their
+    skills) on top of the default set; the default profile exposes none."""
     default = default_registry.resolve(DEFAULT_PROFILE)
     experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
 
-    assert "show_imagery" not in {t.name for t in default.tools()}
-    assert "show_imagery" in {t.name for t in experimental.tools()}
+    default_tools = {t.name for t in default.tools()}
+    experimental_tools = {t.name for t in experimental.tools()}
+    assert {"show_imagery", "search_blogs"} & default_tools == set()
+    assert {"show_imagery", "search_blogs"} <= experimental_tools
 
-    assert "show-imagery" not in {s.name for s in default.skills()}
-    assert "show-imagery" in {s.name for s in experimental.skills()}
+    default_skills = {s.name for s in default.skills()}
+    experimental_skills = {s.name for s in experimental.skills()}
+    assert {
+        "show-imagery",
+        "explore",
+        "wri-insights",
+    } & default_skills == set()
+    assert {"show-imagery", "explore", "wri-insights"} <= experimental_skills
