@@ -351,6 +351,44 @@ def _cached_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
     return create_search_agent(model=model)
 
 
+_CITATION_URL_RE = re.compile(
+    r"\[\d{1,3}\]\((https?://(?:www\.)?wri\.org/insights/[^)\s]+)\)"
+)
+
+
+def _slug_from_insights_url(url: str) -> str:
+    """Extract article slug from a WRI Insights URL (strips query/fragment)."""
+    path = url.split("/insights/", 1)[-1]
+    return path.split("#", 1)[0].split("?", 1)[0].rstrip("/")
+
+
+def _article_entry(index: dict[str, dict], slug: str) -> dict:
+    a = index[slug]
+    return {
+        "slug": a["slug"],
+        "title": a["title"],
+        "abstract": a["abstract"],
+        "url": a["url"],
+        "lastmod": a["lastmod"],
+        "image": a.get("image", ""),
+        "image_alt": a.get("image_alt", ""),
+    }
+
+
+def _articles_cited_in_text(text: str) -> list[dict]:
+    """Return metadata for articles cited as [N](url) in synthesized text."""
+    index = _article_index()
+    seen: set[str] = set()
+    cited = []
+    for match in _CITATION_URL_RE.finditer(text):
+        slug = _slug_from_insights_url(match.group(1))
+        if slug in seen or slug not in index:
+            continue
+        seen.add(slug)
+        cited.append(_article_entry(index, slug))
+    return cited
+
+
 def _articles_from_tool_calls(messages: list) -> list[dict]:
     """Return metadata for articles shortlisted via article_meta tool calls."""
     index = _article_index()
@@ -367,19 +405,16 @@ def _articles_from_tool_calls(messages: list) -> list[dict]:
                 if slug in seen or slug not in index:
                     continue
                 seen.add(slug)
-                a = index[slug]
-                cited.append(
-                    {
-                        "slug": a["slug"],
-                        "title": a["title"],
-                        "abstract": a["abstract"],
-                        "url": a["url"],
-                        "lastmod": a["lastmod"],
-                        "image": a.get("image", ""),
-                        "image_alt": a.get("image_alt", ""),
-                    }
-                )
+                cited.append(_article_entry(index, slug))
     return cited
+
+
+def _cited_articles_for_search(text: str, messages: list) -> list[dict]:
+    """Metadata for cited articles, preferring [N](url) markers in the answer."""
+    from_text = _articles_cited_in_text(text)
+    if from_text:
+        return from_text
+    return _articles_from_tool_calls(messages)
 
 
 @tool("search_blogs")
@@ -437,7 +472,9 @@ async def search_blogs(
                                 content=text, tool_call_id=tool_call_id
                             )
                         ],
-                        "cited_articles": _articles_from_tool_calls(messages),
+                        "cited_articles": _cited_articles_for_search(
+                            text, messages
+                        ),
                     }
                 )
     logger.warning(

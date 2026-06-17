@@ -7,6 +7,7 @@ from langchain_core.messages import AIMessage
 from langgraph.types import Command
 
 from src.agent.subagents.search.blog import (
+    _articles_cited_in_text,
     _articles_from_tool_calls,
     grep_articles,
     search_blogs,
@@ -124,6 +125,22 @@ def test_strips_md_extension_from_slug():
 
 def test_returns_empty_for_no_messages():
     assert _patched([]) == []
+
+
+def test_articles_cited_in_text_extracts_metadata_from_markers():
+    text = (
+        "Peatlands matter [1](https://www.wri.org/insights/some-article) "
+        "and forests too [2](https://www.wri.org/insights/other-article#p3)."
+    )
+    with patch(
+        "src.agent.subagents.search.blog._article_index",
+        return_value=FAKE_INDEX,
+    ):
+        result = _articles_cited_in_text(text)
+    assert [r["slug"] for r in result] == ["some-article", "other-article"]
+    assert result[0]["title"] == "Some Article"
+    assert result[0]["abstract"] == "An abstract."
+    assert result[0]["image"] == "https://files.wri.org/hero.jpg"
 
 
 # --- search_blogs tool ---
