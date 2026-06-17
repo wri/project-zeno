@@ -9,6 +9,12 @@ The snapshot lives at ``$WRI_INSIGHTS_S3_URI`` (e.g. ``s3://bucket/prefix/``):
 The tarball bundles ``wri_insights/`` and ``wri_insights_index/`` so it extracts
 straight into ``data/``. Gzip is used so Python's stdlib ``tarfile`` can unpack
 it with no extra tooling in the app image.
+
+``push`` ALSO mirrors the two payload dirs, unzipped, at the bucket root
+(``s3://bucket/wri_insights/`` and ``.../wri_insights_index/``). The image build
+consumes the tarball; the runtime pods' init container runs
+``aws s3 sync s3://bucket /app/data`` and so needs the dirs laid out plainly,
+not tarred. The mirror is upload/overwrite only -- it never deletes from S3.
 """
 
 from __future__ import annotations
@@ -68,6 +74,21 @@ def pull() -> int:
     return 0
 
 
+def _sync_dir_to_s3(client, bucket: str, local_dir) -> None:
+    """Upload every file under ``local_dir`` to ``s3://<bucket>/<dirname>/``,
+    overwriting in place. Upload-only: nothing is ever deleted from S3. Lands at
+    the bucket root regardless of the tarball prefix, because the runtime init
+    container syncs the whole bucket into ``data/``."""
+    root_key = local_dir.name
+    count = 0
+    for path in sorted(local_dir.rglob("*")):
+        if path.is_file():
+            key = f"{root_key}/{path.relative_to(local_dir).as_posix()}"
+            client.upload_file(str(path), bucket, key)
+            count += 1
+    print(f"Uploaded {count} files to s3://{bucket}/{root_key}/")
+
+
 def push() -> int:
     uri = os.environ.get(_ENV_VAR, "").strip()
     if not uri:
@@ -95,6 +116,11 @@ def push() -> int:
     for key in (date_key, latest_key):
         client.put_object(Bucket=bucket, Key=key, Body=data)
         print(f"Uploaded s3://{bucket}/{key} ({len(data) / 1e6:.1f} MB)")
+
+    # Mirror the unzipped payload dirs at the bucket root for the runtime init
+    # container's `aws s3 sync` (the tarball above is for the image build).
+    for path in _PAYLOAD_DIRS:
+        _sync_dir_to_s3(client, bucket, path)
     return 0
 
 
