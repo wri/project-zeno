@@ -99,6 +99,9 @@ def _mosaic_exists(token: str) -> bool:
         code = e.response["Error"]["Code"]
         if code in ("NoSuchKey", "404", "NotFound"):
             return False
+        # AccessDenied / NoSuchBucket / wrong region etc. — a real
+        # config/permission problem, not a cache miss, so surface it instead
+        # of failing the create opaquely.
         logger.error(
             "Mosaic existence check failed",
             bucket=SharedSettings.mosaic_s3_bucket,
@@ -137,7 +140,12 @@ def _write_mosaic(token: str, mosaic: MosaicJSON) -> None:
 
 @dataclass(frozen=True)
 class MosaicRecipe:
-    """Everything needed to (re)build a mosaic deterministically."""
+    """Everything needed to (re)build a mosaic deterministically.
+
+    target_date is always a resolved date, never an implicit "today", so a
+    token rebuilt later yields the same imagery. user_id is only set when a
+    custom area is referenced (its geometry lookup is scoped to the owner).
+    """
 
     aois: tuple[tuple[str, str], ...]  # (source, src_id) pairs
     target_date: date
@@ -245,6 +253,9 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
 
     token = encode_recipe(recipe)
 
+    # S3-based lookup: if the mosaic already exists, serve it without
+    # rebuilding. The scene count and date range are not persisted, so a
+    # cache hit returns without them.
     if await run_in_threadpool(_mosaic_exists, token):
         return MosaicResult(mosaic_id=token)
 
@@ -269,6 +280,7 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
 
     search_start = time.perf_counter()
     try:
+        # pystac_client is synchronous; keep it off the event loop.
         items = await run_in_threadpool(_search)
     except Exception as e:
         logger.error(
@@ -293,6 +305,9 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
             "No Sentinel-2 scenes found for this AOI and date range"
         )
 
+    # The mosaic renders the first valid scene per tile, so order items by
+    # proximity to the target date (cloud cover as tiebreak) to keep the
+    # displayed imagery as close to the requested date as possible.
     items.sort(
         key=lambda item: (
             abs((item.datetime.date() - recipe.target_date).days),
@@ -306,6 +321,8 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
         minzoom=8,
         maxzoom=14,
         accessor=lambda f: f["assets"][VISUAL_ASSET]["href"],
+        # Bound the sequential first-match reads per tile; items are sorted
+        # by date proximity, so the nearest scenes are kept.
         maximum_items_per_tile=12,
     )
 
