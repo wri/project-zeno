@@ -70,9 +70,6 @@ def fake_s3(monkeypatch):
     monkeypatch.setattr(mosaic_service, "_s3_client", lambda: client)
     monkeypatch.setattr(SharedSettings, "mosaic_s3_bucket", "test-bucket")
     monkeypatch.setattr(SharedSettings, "mosaic_s3_prefix", "mosaics")
-    monkeypatch.setattr(
-        SharedSettings, "mosaic_tiler_url", "https://titiler.example"
-    )
     return client
 
 
@@ -256,82 +253,16 @@ def test_mosaic_result_urls():
         date_end=date(2025, 1, 2),
     )
     assert result.tile_url == (
-        "https://titiler.example/mosaic/tiles/WebMercatorQuad/"
-        "{z}/{x}/{y}.png"
+        "https://tiles.globalforestwatch.org/cog/mosaic/tiles/WebMercatorQuad"
+        "/{z}/{x}/{y}.png"
         "?url=s3%3A%2F%2Ftest-bucket%2Fmosaics%2Fabc123.json"
     )
     assert result.tilejson_url == (
-        "https://titiler.example/mosaic/WebMercatorQuad/tilejson.json"
+        "https://tiles.globalforestwatch.org/cog/mosaic/WebMercatorQuad"
+        "/tilejson.json"
         "?url=s3%3A%2F%2Ftest-bucket%2Fmosaics%2Fabc123.json"
     )
-    # The url query value is the URL-encoded s3:// uri the titiler resolves.
     assert _s3_uri("abc123") == "s3://test-bucket/mosaics/abc123.json"
-
-
-def test_mosaic_result_urls_fall_back_to_api_base_url(monkeypatch):
-    """With MOSAIC_TILER_URL unset, tile URLs use this app's own host."""
-    monkeypatch.setattr(SharedSettings, "mosaic_tiler_url", "")
-    monkeypatch.setattr(SharedSettings, "api_base_url", "https://api.example/")
-    result = MosaicResult(
-        mosaic_id="abc123",
-        item_count=1,
-        date_start=date(2025, 1, 1),
-        date_end=date(2025, 1, 2),
-    )
-    assert result.tile_url == (
-        "https://api.example/mosaic/tiles/WebMercatorQuad/{z}/{x}/{y}.png"
-        "?url=s3%3A%2F%2Ftest-bucket%2Fmosaics%2Fabc123.json"
-    )
-    assert result.tilejson_url == (
-        "https://api.example/mosaic/WebMercatorQuad/tilejson.json"
-        "?url=s3%3A%2F%2Ftest-bucket%2Fmosaics%2Fabc123.json"
-    )
-
-
-def test_mosaic_result_urls_relative_when_nothing_set(monkeypatch):
-    """With both MOSAIC_TILER_URL and API_BASE_URL unset, URLs are relative."""
-    monkeypatch.setattr(SharedSettings, "mosaic_tiler_url", "")
-    monkeypatch.setattr(SharedSettings, "api_base_url", "")
-    result = MosaicResult(
-        mosaic_id="abc123",
-        item_count=1,
-        date_start=date(2025, 1, 1),
-        date_end=date(2025, 1, 2),
-    )
-    assert result.tile_url == (
-        "/mosaic/tiles/WebMercatorQuad/{z}/{x}/{y}.png"
-        "?url=s3%3A%2F%2Ftest-bucket%2Fmosaics%2Fabc123.json"
-    )
-    assert result.tilejson_url == (
-        "/mosaic/WebMercatorQuad/tilejson.json"
-        "?url=s3%3A%2F%2Ftest-bucket%2Fmosaics%2Fabc123.json"
-    )
-
-
-def test_s3_mosaic_backend_reads_from_s3(fake_s3):
-    """The in-repo backend resolves an s3:// uri to its MosaicJSON via S3."""
-    mosaic_service._mosaic_store.clear()
-    mosaic = MosaicJSON(
-        mosaicjson="0.0.3",
-        minzoom=8,
-        maxzoom=14,
-        bounds=[8.0, 46.8, 9.0, 47.5],
-        tiles={"0231": ["https://example.com/a.tif"]},
-    )
-    fake_s3.store[_s3_key("abc123")] = mosaic.model_dump_json(
-        exclude_none=True
-    ).encode("utf-8")
-
-    with mosaic_service.S3MosaicBackend(_s3_uri("abc123")) as backend:
-        assert backend.mosaic_def.tiles == mosaic.tiles
-    # The fetched document is cached for subsequent tile requests.
-    assert _s3_uri("abc123") in mosaic_service._mosaic_store
-
-
-def test_s3_mosaic_backend_missing_raises_not_found(fake_s3):
-    mosaic_service._mosaic_store.clear()
-    with pytest.raises(MosaicNotFoundError):
-        mosaic_service.S3MosaicBackend(_s3_uri("does-not-exist"))
 
 
 # ---------------------------------------------------------------------------
