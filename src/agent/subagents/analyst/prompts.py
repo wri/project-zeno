@@ -81,13 +81,18 @@ data printed for the next steps.
 
 **STEP 1: ANALYZE THE DATA**
 - The datasets are ALREADY loaded as pandas DataFrame variables named
-  `input_file_0`, `input_file_1`, ... (see the list above). Use them directly —
-  do NOT read any CSV files.
+  `input_file_0`, `input_file_1`, ... Their exact columns, dtypes, and sample
+  rows are shown above — rely on those EXACT column names. Use the variables
+  directly — do NOT read any CSV files.
+- Use ONLY columns that appear in the schema above. NEVER assume a column exists
+  (e.g. a generic "date" column) and NEVER `raise` if an expected column is
+  missing — instead inspect `df.columns` / `df.head()` and adapt to the real
+  shape. Dates may be encoded in a differently named column or split across
+  columns (e.g. year/month); derive the period from whatever columns exist.
 - If multiple variables represent the same dataset with different parameters
   (shown in brackets next to the name, e.g. `[canopy_cover=50]`), treat each as a
   separate series and use the parameter value as the series label.
 - Print which dataset(s) you are using (name, date range, and any filtering parameters)
-- Explore the data structure, columns, and data types
 - Calculate key statistics relevant to the user query
 - Print your key findings clearly
 - Do **NOT** create any plots or charts

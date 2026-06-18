@@ -89,16 +89,32 @@ class LocalCodeExecutor(CodeExecutor):
         keys = [primary] + [k for k in fallbacks if k and k != primary]
         return keys
 
+    # How many sample rows of each dataframe to show the model.
+    PREVIEW_ROWS = 5
+
     def build_file_references(
         self, dataframes: List[Tuple[pd.DataFrame, str]]
     ) -> str:
-        """List the DataFrame variables available in the interpreter."""
-        lines = []
-        for i, (_, display_name) in enumerate(dataframes):
-            lines.append(
-                f"- `input_file_{i}` (pandas DataFrame) → {display_name}"
+        """Describe each DataFrame variable with its real schema + a preview.
+
+        Weaker coding models guess column names and write defensive code that
+        raises when a guessed column is absent. Showing the actual columns,
+        dtypes, and a few rows up front removes the guessing.
+        """
+        blocks = []
+        for i, (df, display_name) in enumerate(dataframes):
+            cols = "\n".join(
+                f"    - {col}: {dtype}" for col, dtype in df.dtypes.items()
             )
-        return "\n".join(lines)
+            preview = df.head(self.PREVIEW_ROWS).to_csv(index=False).strip()
+            blocks.append(
+                f"- `input_file_{i}` (pandas DataFrame) → {display_name}\n"
+                f"  shape: {df.shape[0]} rows × {df.shape[1]} columns\n"
+                f"  columns (name: dtype):\n{cols}\n"
+                f"  first {min(self.PREVIEW_ROWS, len(df))} rows (CSV):\n"
+                f"```\n{preview}\n```"
+            )
+        return "\n".join(blocks)
 
     async def prepare_dataframes(
         self, dataframes: List[Tuple[pd.DataFrame, str]]
