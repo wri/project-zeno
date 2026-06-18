@@ -1,6 +1,6 @@
 [project]
 name = "project-zeno"
-version = "2026.6.17.2"
+version = "2026.6.18"
 description = "Language Interface for Maps & WRI/LCL data APIs."
 readme = "README.md"
 requires-python = "==3.12.8"
@@ -12,6 +12,8 @@ dependencies = [
     "langfuse==3.10.1",
     "langchain-chroma==1.1.0",
     "langchain-google-genai==4.2.1",
+    "langchain-ollama>=1.0,<2",
+    "smolagents>=1.10",
     "fastapi[standard]==0.136.1",
     "watchdog==6.0.0",
     "uvicorn[standard]==0.35.0",

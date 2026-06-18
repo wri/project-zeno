@@ -12,7 +12,7 @@ from langfuse.langchain import CallbackHandler
 
 from src.agent.agent_config import AgentConfigRegistry, default_registry
 from src.agent.graph import fetch_zeno
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import SMALL_MODEL, structured_output
 from src.agent.subagents.pick_aoi.tool import fetch_aoi_bbox
 from src.api.schemas import ThreadNameOutput
 from src.shared.logging_config import get_logger
@@ -270,8 +270,8 @@ async def generate_thread_name(query: str) -> str:
         RULES:
         - Never include any dates in the name, the user might ask for a date range that is not available.
         """
-        response = await SMALL_MODEL.with_structured_output(
-            ThreadNameOutput
+        response = await structured_output(
+            SMALL_MODEL, ThreadNameOutput
         ).ainvoke(prompt)
         name = response.name
         if len(name) > 50:

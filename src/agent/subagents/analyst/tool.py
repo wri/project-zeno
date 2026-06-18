@@ -10,7 +10,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from src.agent.subagents.analyst.code_executors import GeminiCodeExecutor
+from src.agent.subagents.analyst.code_executors import get_code_executor
 from src.agent.subagents.analyst.code_executors.base import (
     ChartInsight,
     MultiChartInsight,
@@ -175,6 +175,7 @@ def build_analysis_prompt(
     dataset_cautions: str = "",
     code_instructions: str | None = None,
     context_layer: str | None = None,
+    workflow: str = EXECUTOR_WORKFLOW,
 ) -> str:
     """
     Build the analysis prompt for the code executor.
@@ -186,6 +187,8 @@ def build_analysis_prompt(
         dataset_cautions: Dataset-specific cautions
         code_instructions: Dataset-specific chart type and data shaping rules (tiered PoC)
         context_layer: Active context layer name, if any (e.g. "driver")
+        workflow: Executor-specific step-by-step workflow text (file-based for
+            Gemini, variable-based for the local executor)
 
     Returns:
         Formatted prompt string
@@ -219,7 +222,7 @@ def build_analysis_prompt(
 ---
 """
 
-    executor_workflow = EXECUTOR_WORKFLOW
+    executor_workflow = workflow
     wording = WORDING_GUIDE
 
     prompt = f"""### User Query:
@@ -286,8 +289,8 @@ class Analyst:
         dataset_cautions = dataset.get(
             "cautions", "No specific dataset cautions provided."
         )
-        # 3. INITIALIZE EXECUTOR: Create Gemini code executor
-        executor = GeminiCodeExecutor()
+        # 3. INITIALIZE EXECUTOR: Select code executor via CODE_EXECUTOR setting
+        executor = get_code_executor()
 
         # 4. BUILD PROMPT: Create analysis prompt with executor-specific file references
         file_references = executor.build_file_references(dataframes)
@@ -298,14 +301,15 @@ class Analyst:
             dataset_cautions=dataset_cautions,
             code_instructions=code_instructions,
             context_layer=dataset.get("context_layer"),
+            workflow=executor.workflow,
         )
         logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 
-        # 4. PREPARE DATA: Convert DataFrames to inline data format
+        # 4. PREPARE DATA: Convert DataFrames to the executor's payload format
         file_refs = await executor.prepare_dataframes(dataframes)
-        logger.info(f"Prepared {len(file_refs)} inline data parts for Gemini")
+        logger.info(f"Prepared {len(file_refs)} data parts for the executor")
 
-        # 5. EXECUTE CODE: Run analysis with Gemini
+        # 5. EXECUTE CODE: Run analysis with the selected executor
         result = await executor.execute(analysis_prompt, file_refs)
 
         # Check for errors

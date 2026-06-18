@@ -12,21 +12,26 @@ from google.genai import types
 from src.agent.config import AgentSettings
 from src.agent.subagents.analyst.code_executors.base import (
     CodeActPart,
+    CodeExecutor,
     ExecutionResult,
     MultiChartInsight,
     PartType,
 )
+from src.agent.subagents.analyst.prompts import EXECUTOR_WORKFLOW
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 
-class GeminiCodeExecutor:
+class GeminiCodeExecutor(CodeExecutor):
     """Simple Gemini code executor with inline data support."""
 
     MAX_RETRIES = 2
     INITIAL_DELAY = 1.0
     BACKOFF_FACTOR = 2.0
+
+    #: File-based workflow: Gemini's native sandbox reads/writes CSV + JSON files.
+    workflow = EXECUTOR_WORKFLOW
 
     def __init__(self):
         """

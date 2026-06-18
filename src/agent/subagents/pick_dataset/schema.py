@@ -40,7 +40,8 @@ class DatasetOption(BaseModel):
         description="User defined end date truncated to the dataset's available range.",
     )
     reason: str = Field(
-        description="Short reason why the dataset is the best match."
+        default="",
+        description="Short reason why the dataset is the best match.",
     )
 
     @field_validator("dataset_id")
@@ -123,7 +124,8 @@ class DatasetSelectionResponse(BaseModel):
         None, max_length=3
     )
     reason: str = Field(
-        description="Explain what datasets were considered, what each covers, and specifically why no single one directly answers the query. Name the datasets evaluated and describe where each falls short."
+        default="",
+        description="Explain what datasets were considered, what each covers, and specifically why no single one directly answers the query. Name the datasets evaluated and describe where each falls short.",
     )
 
 

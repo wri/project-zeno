@@ -1,10 +1,12 @@
 """Base classes and types for code executors."""
 
+from abc import ABC, abstractmethod
 from base64 import b64encode
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
+import pandas as pd
 from pydantic import BaseModel, Field, model_validator
 
 CHART_TYPES_WITHOUT_AXIS = {"pie", "table"}
@@ -105,3 +107,34 @@ class ExecutionResult:
             }
             for part in self.parts
         ]
+
+
+class CodeExecutor(ABC):
+    """Interface every code executor must implement.
+
+    The analyst (`generate_insights`) drives any executor through three calls:
+    `build_file_references` (prompt text describing the data), then
+    `prepare_dataframes` (executor-specific payload), then `execute`. Each
+    executor also exposes a `workflow` string so the analyst can inject the
+    matching step-by-step instructions into the prompt (file-based vs
+    variable-based).
+    """
+
+    #: Step-by-step workflow text injected into the analysis prompt.
+    workflow: str = ""
+
+    @abstractmethod
+    def build_file_references(
+        self, dataframes: List[Tuple[pd.DataFrame, str]]
+    ) -> str:
+        """Return the prompt section describing the available data."""
+
+    @abstractmethod
+    async def prepare_dataframes(
+        self, dataframes: List[Tuple[pd.DataFrame, str]]
+    ) -> Any:
+        """Convert dataframes into the executor-specific payload."""
+
+    @abstractmethod
+    async def execute(self, prompt: str, prepared: Any) -> ExecutionResult:
+        """Run the analysis and return an ExecutionResult."""

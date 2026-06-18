@@ -28,7 +28,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_FIRES_ID,
     TREE_COVER_LOSS_ID,
 )
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import SMALL_MODEL, structured_output
 from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
     ContextLayer,
@@ -150,9 +150,8 @@ async def select_best_dataset(
     )
 
     logger.debug("Invoking dataset selection chain...")
-    dataset_selection_chain = (
-        DATASET_SELECTION_PROMPT
-        | SMALL_MODEL.with_structured_output(DatasetSelectionResponse)
+    dataset_selection_chain = DATASET_SELECTION_PROMPT | structured_output(
+        SMALL_MODEL, DatasetSelectionResponse
     )
 
     if aoi_selection is None:

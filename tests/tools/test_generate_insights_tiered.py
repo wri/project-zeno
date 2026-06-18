@@ -65,6 +65,21 @@ def reset_google_clients():
     yield
 
 
+@pytest.fixture(scope="module", autouse=True)
+def force_gemini_executor():
+    """These live tests validate the Gemini code-execution sandbox output.
+
+    The default executor is now the local (smolagents) one; pin these to Gemini
+    so they keep exercising the path their assertions were written against.
+    """
+    from src.agent.config import AgentSettings
+
+    previous = AgentSettings.code_executor
+    AgentSettings.code_executor = "gemini"
+    yield
+    AgentSettings.code_executor = previous
+
+
 def _mock_session_factory():
     global _last_insight_row
     session = AsyncMock()
@@ -509,6 +524,8 @@ async def test_generate_insights_persists_statistics_provenance(monkeypatch):
             return [{"type": "text_output", "content": "Brazil has one unit."}]
 
     class FakeExecutor:
+        workflow = "STEP-BY-STEP WORKFLOW"
+
         def build_file_references(self, dataframes):
             return "input_file_0.csv"
 
@@ -519,7 +536,7 @@ async def test_generate_insights_persists_statistics_provenance(monkeypatch):
             return FakeExecutionResult()
 
     monkeypatch.setattr(
-        generate_insights_module, "GeminiCodeExecutor", FakeExecutor
+        generate_insights_module, "get_code_executor", lambda: FakeExecutor()
     )
 
     await invoke_generate_insights(

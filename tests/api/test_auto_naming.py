@@ -53,11 +53,11 @@ async def test_custom_area_name_success(client, auth_override):
     mock_response = AsyncMock()
     mock_response.name = "Equatorial Coast"
 
-    with patch("src.api.routers.custom_areas.SMALL_MODEL") as mock_model:
-        # Mock the chained method call: SMALL_MODEL.with_structured_output().ainvoke()
+    with patch("src.api.routers.custom_areas.structured_output") as mock_so:
+        # Mock the helper: structured_output(SMALL_MODEL, schema).ainvoke()
         mock_structured_output = AsyncMock()
         mock_structured_output.ainvoke = AsyncMock(return_value=mock_response)
-        mock_model.with_structured_output.return_value = mock_structured_output
+        mock_so.return_value = mock_structured_output
 
         response = await client.post(
             "/api/custom_area_name",
@@ -129,11 +129,11 @@ async def test_custom_area_name_with_realistic_geometry(client, auth_override):
     mock_response = AsyncMock()
     mock_response.name = "Equatorial Coast"
 
-    with patch("src.api.routers.custom_areas.SMALL_MODEL") as mock_model:
-        # Mock the chained method call: SMALL_MODEL.with_structured_output().ainvoke()
+    with patch("src.api.routers.custom_areas.structured_output") as mock_so:
+        # Mock the helper: structured_output(SMALL_MODEL, schema).ainvoke()
         mock_structured_output = AsyncMock()
         mock_structured_output.ainvoke = AsyncMock(return_value=mock_response)
-        mock_model.with_structured_output.return_value = mock_structured_output
+        mock_so.return_value = mock_structured_output
 
         response = await client.post(
             "/api/custom_area_name",
@@ -156,11 +156,11 @@ async def test_generate_thread_name():
     mock_response = AsyncMock()
     mock_response.name = "Brazil Deforestation Analysis"
 
-    with patch("src.api.services.chat.SMALL_MODEL") as mock_model:
-        # Mock the chained method call: SMALL_MODEL.with_structured_output().ainvoke()
+    with patch("src.api.services.chat.structured_output") as mock_so:
+        # Mock the helper: structured_output(SMALL_MODEL, schema).ainvoke()
         mock_structured_output = AsyncMock()
         mock_structured_output.ainvoke = AsyncMock(return_value=mock_response)
-        mock_model.with_structured_output.return_value = mock_structured_output
+        mock_so.return_value = mock_structured_output
 
         result = await generate_thread_name(test_query)
 

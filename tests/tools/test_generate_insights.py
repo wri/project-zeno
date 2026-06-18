@@ -41,6 +41,21 @@ def reset_google_clients():
     yield
 
 
+@pytest.fixture(scope="module", autouse=True)
+def force_gemini_executor():
+    """Pin these live tests to the Gemini code-execution sandbox.
+
+    The default executor is now the local (smolagents) one; these assertions
+    were written against Gemini's output, so keep them on that path.
+    """
+    from src.agent.config import AgentSettings
+
+    previous = AgentSettings.code_executor
+    AgentSettings.code_executor = "gemini"
+    yield
+    AgentSettings.code_executor = previous
+
+
 def _mock_session_factory():
     """Create a mock async session that captures InsightOrm rows."""
     session = AsyncMock()

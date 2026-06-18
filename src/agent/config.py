@@ -10,16 +10,20 @@ class _AgentSettings(BaseSettings):
 
     # Model configuration
     model: str = Field(default="gemini", alias="MODEL")
-    small_model: str = Field(default="gemini-flash", alias="SMALL_MODEL")
-    coding_model: str = Field(
-        default="gemini-3.1-pro-preview", alias="CODING_MODEL"
-    )
+    small_model: str = Field(default="nemotron", alias="SMALL_MODEL")
+    # Code executor selection: "local" (smolagents in-process) or "gemini"
+    # (Google native code execution sandbox).
+    code_executor: str = Field(default="local", alias="CODE_EXECUTOR")
+    # CODING_MODEL meaning depends on CODE_EXECUTOR:
+    #  - "local": a MODEL_REGISTRY key (e.g. "qwen3-coder")
+    #  - "gemini": a raw google-genai model id (e.g. "gemini-3.1-pro-preview")
+    coding_model: str = Field(default="qwen3-coder", alias="CODING_MODEL")
     coding_fallback_models: str = Field(
-        default="gemini-2.5-pro,gemini-3-flash-preview",
+        default="gpt-oss",
         alias="CODING_FALLBACK_MODELS",
     )
     fallback_models: str = Field(
-        default="gemini-flash,gemini-flash-lite", alias="FALLBACK_MODELS"
+        default="gpt-oss,gemini-flash", alias="FALLBACK_MODELS"
     )
     # Retries handled by ModelRetryMiddleware, so default should be 0
     # this is only used in unit tests

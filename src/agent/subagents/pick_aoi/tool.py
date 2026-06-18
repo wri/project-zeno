@@ -13,7 +13,7 @@ from langgraph.types import Command
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import SMALL_MODEL, structured_output
 from src.agent.subagents.pick_aoi.global_queries import (
     handle_global_request,
     is_global_request,
@@ -486,8 +486,8 @@ async def select_best_aoi(
     )
 
     # Chain for selecting the best location match and returning the src_id
-    AOI_SELECTION_CHAIN = (
-        AOI_SELECTION_PROMPT | SMALL_MODEL.with_structured_output(AOIId)
+    AOI_SELECTION_CHAIN = AOI_SELECTION_PROMPT | structured_output(
+        SMALL_MODEL, AOIId
     )
 
     selected_aoi_index = await AOI_SELECTION_CHAIN.ainvoke(
@@ -687,9 +687,8 @@ class Geocoder:
         self, question: str, aoi_type: Optional[AreaOfInterestType]
     ) -> PlaceQuery:
         """LLM step: turn the user's request into place(s) + subregion."""
-        chain = (
-            GEOCODER_EXTRACTION_PROMPT
-            | SMALL_MODEL.with_structured_output(PlaceQuery)
+        chain = GEOCODER_EXTRACTION_PROMPT | structured_output(
+            SMALL_MODEL, PlaceQuery
         )
         return await chain.ainvoke({"question": question})
 

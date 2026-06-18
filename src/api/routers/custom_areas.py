@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agent.llms import SMALL_MODEL
+from src.agent.llms import SMALL_MODEL, structured_output
 from src.api.auth.dependencies import require_auth
 from src.api.data_models import CustomAreaOrm
 from src.api.schemas import (
@@ -47,8 +47,8 @@ async def custom_area_name(
 
         Features: {features}
         """
-        response = await SMALL_MODEL.with_structured_output(
-            CustomAreaNameResponse
+        response = await structured_output(
+            SMALL_MODEL, CustomAreaNameResponse
         ).ainvoke(prompt.format(features=request.features[0]))
         return {"name": response.name}
     except Exception as e:
