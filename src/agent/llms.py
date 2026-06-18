@@ -83,8 +83,16 @@ GPT_OSS = ChatOllama(
     **_OLLAMA_CLOUD_KWARGS,
 )
 # General/small model for tool-heavy subagents (geocoder, dataset selection,
-# naming). Benchmarked as the most reliable accessible Ollama Cloud model on
-# nested structured-output decisions.
+# naming). Benchmarked as the best accessible Ollama Cloud model end-to-end:
+# Gemini-level geocoder calibration (3/3) AND reliable dataset selection (4/4),
+# while being a smaller/faster 31B model with native tool calling.
+GEMMA4 = ChatOllama(
+    model="gemma4:31b",
+    temperature=0.3,
+    **_OLLAMA_CLOUD_KWARGS,
+)
+# Alternative small model. Strong on isolated nested-decision tasks but poorly
+# calibrated on the geocoder (over-sets subregion), so not the default.
 NEMOTRON = ChatOllama(
     model="nemotron-3-super",
     temperature=0.3,
@@ -105,6 +113,7 @@ MODEL_REGISTRY = {
     "gemini-flash": GEMINI_FLASH,
     "gemini-flash-lite": GEMINI_FLASH_LITE,
     "gpt-oss": GPT_OSS,
+    "gemma4": GEMMA4,
     "nemotron": NEMOTRON,
     "qwen3-coder": QWEN3_CODER,
     # "gpt": GPT,

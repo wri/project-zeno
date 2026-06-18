@@ -10,7 +10,7 @@ class _AgentSettings(BaseSettings):
 
     # Model configuration
     model: str = Field(default="gemini", alias="MODEL")
-    small_model: str = Field(default="nemotron", alias="SMALL_MODEL")
+    small_model: str = Field(default="gemma4", alias="SMALL_MODEL")
     # Code executor selection: "local" (smolagents in-process) or "gemini"
     # (Google native code execution sandbox).
     code_executor: str = Field(default="local", alias="CODE_EXECUTOR")
