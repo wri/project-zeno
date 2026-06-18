@@ -122,15 +122,13 @@ class LocalCodeExecutor(CodeExecutor):
         """Map each DataFrame to its interpreter variable name."""
         return {f"input_file_{i}": df for i, (df, _) in enumerate(dataframes)}
 
-    def _new_executor(self) -> LocalPythonExecutor:
-        executor = LocalPythonExecutor(
-            additional_authorized_imports=AUTHORIZED_IMPORTS,
-            timeout_seconds=self.EXECUTION_TIMEOUT,
-        )
-        # send_tools is required to populate the base builtins (print, range,
-        # math helpers, ...) before any code can run.
-        executor.send_tools({})
-        return executor
+    def _make_runner(self) -> "_Runner":
+        """Build the execution backend for one model attempt.
+
+        Subclasses override this to swap how code blocks actually run (e.g. the
+        sandboxed subprocess) while reusing the whole CodeAct loop below.
+        """
+        return _SmolagentsRunner(self.EXECUTION_TIMEOUT)
 
     @staticmethod
     def _extract_code(content: str) -> Optional[str]:
@@ -215,10 +213,17 @@ class LocalCodeExecutor(CodeExecutor):
     async def _run_with_model(
         self, model, prompt: str, prepared: Dict[str, pd.DataFrame]
     ) -> ExecutionResult:
-        """Run the full CodeAct loop with a single model."""
-        executor = self._new_executor()
-        executor.send_variables(prepared)
+        """Run the full CodeAct loop with a single model and runner backend."""
+        runner = self._make_runner()
+        await runner.start(prepared)
+        try:
+            return await self._codeact_loop(model, prompt, runner)
+        finally:
+            await runner.close()
 
+    async def _codeact_loop(
+        self, model, prompt: str, runner: "_Runner"
+    ) -> ExecutionResult:
         messages = [
             SystemMessage(content=_SYSTEM_PROMPT),
             HumanMessage(content=prompt),
@@ -226,7 +231,8 @@ class LocalCodeExecutor(CodeExecutor):
         parts: List[CodeActPart] = []
         chart_data: Optional[List[Dict]] = None
         insight: Optional[MultiChartInsight] = None
-        loop = asyncio.get_running_loop()
+        raw_chart = None
+        raw_insight = None
 
         for iteration in range(self.MAX_ITERATIONS):
             response = await model.ainvoke(messages)
@@ -246,11 +252,7 @@ class LocalCodeExecutor(CodeExecutor):
                     f"Model produced no code block on iteration {iteration}"
                 )
                 feedback = self._build_feedback(
-                    executor.state.get("chart_data"),
-                    chart_data,
-                    executor.state.get("insight"),
-                    insight,
-                    None,
+                    raw_chart, chart_data, raw_insight, insight, None
                 )
                 messages.append(
                     HumanMessage(
@@ -262,21 +264,11 @@ class LocalCodeExecutor(CodeExecutor):
 
             parts.append(CodeActPart(type=PartType.CODE_BLOCK, content=code))
 
-            try:
-                result = await loop.run_in_executor(
-                    None, partial(executor, code)
-                )
-                output = result.logs or ""
-            except Exception as e:
-                output = f"Error: {e}"
-                logger.warning(f"Code execution error: {e}")
-
+            output, raw_chart, raw_insight = await runner.run_block(code)
             parts.append(
                 CodeActPart(type=PartType.EXECUTION_OUTPUT, content=output)
             )
 
-            raw_chart = executor.state.get("chart_data")
-            raw_insight = executor.state.get("insight")
             chart_data = self._coerce_chart_data(raw_chart)
             insight, insight_err = self._coerce_insight(raw_insight)
             if chart_data is not None and insight is not None:
@@ -354,4 +346,61 @@ class LocalCodeExecutor(CodeExecutor):
             chart_data=None,
             insight=None,
             error=last_error or "No usable coding model configured",
+        )
+
+
+class _Runner:
+    """Execution backend for one CodeAct session.
+
+    Holds a persistent, stateful namespace across code blocks. ``run_block``
+    returns ``(output, raw_chart_data, raw_insight)`` where the raw values are
+    read from the ``chart_data`` / ``insight`` variables after the block runs
+    (or None if not yet defined).
+    """
+
+    async def start(self, prepared: Dict[str, pd.DataFrame]) -> None:
+        raise NotImplementedError
+
+    async def run_block(self, code: str) -> Tuple[str, object, object]:
+        raise NotImplementedError
+
+    async def close(self) -> None:
+        pass
+
+
+class _SmolagentsRunner(_Runner):
+    """In-process runner backed by smolagents' LocalPythonExecutor.
+
+    Restricted (import allowlist + op limits) but NOT a security sandbox — runs
+    in this process. Use the subprocess sandbox executor for untrusted input.
+    """
+
+    def __init__(self, timeout_seconds: int):
+        self._timeout = timeout_seconds
+        self._executor: Optional[LocalPythonExecutor] = None
+
+    async def start(self, prepared: Dict[str, pd.DataFrame]) -> None:
+        executor = LocalPythonExecutor(
+            additional_authorized_imports=AUTHORIZED_IMPORTS,
+            timeout_seconds=self._timeout,
+        )
+        # send_tools populates base builtins (print, range, ...) before any run.
+        executor.send_tools({})
+        executor.send_variables(prepared)
+        self._executor = executor
+
+    async def run_block(self, code: str) -> Tuple[str, object, object]:
+        loop = asyncio.get_running_loop()
+        executor = self._executor
+        assert executor is not None, "run_block called before start"
+        try:
+            result = await loop.run_in_executor(None, partial(executor, code))
+            output = result.logs or ""
+        except Exception as e:
+            output = f"Error: {e}"
+            logger.warning(f"Code execution error: {e}")
+        return (
+            output,
+            executor.state.get("chart_data"),
+            executor.state.get("insight"),
         )

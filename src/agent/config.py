@@ -11,9 +11,17 @@ class _AgentSettings(BaseSettings):
     # Model configuration
     model: str = Field(default="gemini", alias="MODEL")
     small_model: str = Field(default="gemma4", alias="SMALL_MODEL")
-    # Code executor selection: "local" (smolagents in-process) or "gemini"
-    # (Google native code execution sandbox).
+    # Code executor selection: "sandboxed" (locked-down subprocess), "local"
+    # (smolagents in-process) or "gemini" (Google native sandbox).
     code_executor: str = Field(default="local", alias="CODE_EXECUTOR")
+    # Sandbox (CODE_EXECUTOR=sandboxed) tuning:
+    #  - seccomp: install the syscall filter (blocks network/exec/fork). Linux
+    #    + pyseccomp only; harmlessly no-ops elsewhere.
+    #  - strict: also block opening new files (no file reads) — strongest, but
+    #    can break code paths that lazily import. Leave off unless inputs are
+    #    fully untrusted.
+    sandbox_seccomp: bool = Field(default=True, alias="SANDBOX_SECCOMP")
+    sandbox_strict: bool = Field(default=False, alias="SANDBOX_STRICT")
     # CODING_MODEL meaning depends on CODE_EXECUTOR:
     #  - "local": a MODEL_REGISTRY key (e.g. "qwen3-coder")
     #  - "gemini": a raw google-genai model id (e.g. "gemini-3.1-pro-preview")

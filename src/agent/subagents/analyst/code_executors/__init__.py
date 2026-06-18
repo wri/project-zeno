@@ -5,21 +5,27 @@ from src.agent.config import AgentSettings
 from .base import CodeExecutor, ExecutionResult
 from .gemini_executor import GeminiCodeExecutor
 from .local_executor import LocalCodeExecutor
+from .subprocess_executor import SubprocessSandboxExecutor
 
 
 def get_code_executor() -> CodeExecutor:
     """Return the executor selected by the CODE_EXECUTOR setting.
 
-    "local" (default) → smolagents in-process Python interpreter.
-    "gemini"          → Google native code-execution sandbox.
+    "sandboxed" → locked-down subprocess (scrubbed env + rlimits + seccomp);
+                  the only option safe for untrusted input, no Docker needed.
+    "local"     → smolagents in-process interpreter (fast, dev/trusted only).
+    "gemini"    → Google native code-execution sandbox.
     """
     selection = AgentSettings.code_executor.strip().lower()
+    if selection == "sandboxed":
+        return SubprocessSandboxExecutor()
     if selection == "gemini":
         return GeminiCodeExecutor()
     if selection == "local":
         return LocalCodeExecutor()
     raise ValueError(
-        f"Unknown CODE_EXECUTOR '{selection}'. Use 'local' or 'gemini'."
+        f"Unknown CODE_EXECUTOR '{selection}'. "
+        "Use 'sandboxed', 'local', or 'gemini'."
     )
 
 
@@ -28,5 +34,6 @@ __all__ = [
     "ExecutionResult",
     "GeminiCodeExecutor",
     "LocalCodeExecutor",
+    "SubprocessSandboxExecutor",
     "get_code_executor",
 ]

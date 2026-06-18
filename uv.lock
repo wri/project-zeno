@@ -3095,6 +3095,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pypgstac" },
+    { name = "pyseccomp", marker = "sys_platform == 'linux'" },
     { name = "pystac" },
     { name = "pystac-client" },
     { name = "requests" },
@@ -3170,6 +3171,7 @@ requires-dist = [
     { name = "pydantic", specifier = "==2.11.7" },
     { name = "pydantic-settings", specifier = "==2.10.1" },
     { name = "pypgstac", specifier = "==0.9.7" },
+    { name = "pyseccomp", marker = "sys_platform == 'linux'", specifier = ">=0.1.2" },
     { name = "pystac", specifier = "==1.13.0" },
     { name = "pystac-client", specifier = "==0.9.0" },
     { name = "requests", specifier = "==2.32.5" },
@@ -3579,6 +3581,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e7/82/28175b2414effca1cdac8dc99f76d660e7a4fb0ceefa4b4ab8f5f6742925/pyproject_hooks-1.2.0.tar.gz", hash = "sha256:1e859bd5c40fae9448642dd871adf459e5e2084186e8d2c2a79a824c970da1f8", size = 19228, upload-time = "2024-09-29T09:24:13.293Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/24/12818598c362d7f300f18e74db45963dbcb85150324092410c8b49405e42/pyproject_hooks-1.2.0-py3-none-any.whl", hash = "sha256:9e5c6bfa8dcc30091c74b0cf803c81fdd29d94f01992a7707bc97babb1141913", size = 10216, upload-time = "2024-09-29T09:24:11.978Z" },
+]
+
+[[package]]
+name = "pyseccomp"
+version = "0.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/08/e2/f761ad7bd34745af8c8aa6d76a71a240eef45ee4635e2022dcc1b133b4d8/pyseccomp-0.1.2.tar.gz", hash = "sha256:0d54efacf71bda4bdfd21233f5444b730cbecf593d602f796e6412a8682258bd", size = 4943, upload-time = "2021-01-02T22:48:01.278Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/5a/2c454fe11c9bf0d8d77a8d89d05e9f2f4203b39c000d0e38a060c273ab7f/pyseccomp-0.1.2-py3-none-any.whl", hash = "sha256:19177748e1202603ca4b2c41d728916402c018c4fee49dca1e3568ea218b7c23", size = 5667, upload-time = "2021-01-02T22:48:00.578Z" },
 ]
 
 [[package]]
