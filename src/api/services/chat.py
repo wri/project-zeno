@@ -119,6 +119,7 @@ async def stream_chat(
     query: str,
     user_persona: Optional[str] = None,
     ui_context: Optional[dict] = None,
+    view_context: Optional[dict] = None,
     ui_action_only: Optional[bool] = False,
     thread_id: Optional[str] = None,
     langfuse_metadata: Optional[Dict] = {},
@@ -163,6 +164,11 @@ async def stream_chat(
                 case _:
                     content = f"User performed action in UI: {action_type}\n\n"
             ui_action_message.append(content)
+
+    # Ambient view state is stored as-is for on-demand inspection — unlike
+    # ui_context above, it does not become a message or merge into selections.
+    if view_context:
+        state_updates["view_context"] = view_context
 
     ui_action_content = "\n".join(ui_action_message).strip()
     if ui_action_content:

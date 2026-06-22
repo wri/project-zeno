@@ -25,6 +25,9 @@ from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
 from src.agent.subagents.search.blog import SPEC as search_blogs_spec
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.inspect_view_context import (
+    SPEC as inspect_view_context_spec,
+)
 from src.agent.tools.pull_data import SPEC as pull_data_spec
 from src.agent.tools.show_imagery import SPEC as show_imagery_spec
 from src.shared.logging_config import get_logger
@@ -42,6 +45,7 @@ CORE_SPECS = (
     pick_dataset_spec,
     pull_data_spec,
     generate_insights_spec,
+    inspect_view_context_spec,
     read_skill_spec,
 )
 

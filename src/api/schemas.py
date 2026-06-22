@@ -334,6 +334,20 @@ class ChatRequest(BaseModel):
         None  # {"aoi_selected": {...}, "dataset_selected": {...}, "daterange_selected": {...}}
     )
 
+    # Ambient frontend view state — what the user is currently looking at.
+    # Unlike ui_context (deliberate actions), this is reference material the
+    # agent consults on demand via the inspect_view_context tool; it is NOT
+    # turned into a message or eagerly merged into the agent's selections.
+    # Free-form (the frontend owns the shape), e.g.:
+    #   {"page": "map" | "report",
+    #    "viewport": {"bbox": [minx, miny, maxx, maxy], "zoom": 5},
+    #    "visible_layers": [{"id": "...", "name": "..."}],
+    #    "visible_aois": [{"source": "...", "src_id": "...", "name": "..."}]}
+    view_context: Optional[dict] = Field(
+        None,
+        description="Ambient frontend view state (page, viewport, visible layers/AOIs)",
+    )
+
     # Pure UI actions - no query
     ui_action_only: Optional[bool] = False
 

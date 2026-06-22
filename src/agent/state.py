@@ -51,6 +51,12 @@ class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     user_persona: str
 
+    # Ambient frontend view state (what the user is currently looking at):
+    # page, map viewport, visible layers/AOIs. Last-write-wins each turn —
+    # no reducer; we only ever want the latest snapshot. Read on demand via
+    # the inspect_view_context tool, not eagerly injected into the prompt.
+    view_context: dict
+
     # pick-aoi tool
     aoi_selection: AOISelection
 
