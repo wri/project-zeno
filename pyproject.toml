@@ -1,6 +1,6 @@
 [project]
 name = "project-zeno"
-version = "2026.6.17.2"
+version = "2026.6.17.3"
 description = "Language Interface for Maps & WRI/LCL data APIs."
 readme = "README.md"
 requires-python = "==3.12.8"
@@ -57,7 +57,7 @@ dependencies = [
     "trafilatura>=2.0.0",
     "deepagents[quickjs]>=0.4.12",
     "model2vec>=0.8.2",
-    "titiler-mosaic==0.25.0",
+    "cogeo-mosaic==8.2.0",
 ]
 
 [dependency-groups]

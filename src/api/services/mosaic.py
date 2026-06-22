@@ -1,4 +1,4 @@
-"""Sentinel-2 mosaic creation shared by the API router and the agent tool.
+"""Sentinel-2 mosaic creation over AOI geometries.
 
 Searches the earth-search STAC API for Sentinel-2 L2A scenes (COGs hosted in
 the public sentinel-cogs AWS bucket) around a target date and builds a
@@ -6,16 +6,8 @@ MosaicJSON.
 
 The built MosaicJSON is written to a private S3 bucket under a key derived
 from a deterministic, self-describing recipe token (AOI references, target
-date, search parameters).
-
-Tiles can be served two ways, depending on the MOSAIC_TILER_URL setting:
-  * unset (default) — this app serves tiles itself via the titiler
-    MosaicTilerFactory wired to S3MosaicBackend, which reads the MosaicJSON
-    from S3 via the ``s3://`` uri carried in the tile URL's ``?url=`` param.
-    The tile URLs are then based on API_BASE_URL (this app's own host), or
-    host-relative if that is also unset;
-  * set — tiles are served by an external, vanilla titiler deployment that
-    reads the same MosaicJSON from S3 via ``s3://`` using IAM credentials.
+date, search parameters). Tiles are served by the GFW tiles service at
+https://tiles.globalforestwatch.org, which reads the MosaicJSON from S3.
 
 Before building, we check S3 for the mosaic object: if it already exists we
 skip the (expensive) STAC search, build and upload. The scene count and
@@ -26,19 +18,15 @@ cache hit returns without them.
 import base64
 import functools
 import json
-import os
 import time
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
-import attr
 import boto3
 import pystac_client
 from botocore.exceptions import ClientError
-from cachetools import TTLCache
-from cogeo_mosaic.backends.base import BaseBackend
 from cogeo_mosaic.errors import MosaicNotFoundError
 from cogeo_mosaic.mosaic import MosaicJSON
 from fastapi.concurrency import run_in_threadpool
@@ -52,28 +40,10 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# GDAL tuning for reading remote COGs (read by rasterio at open time, so
-# deployment env vars take precedence). Only relevant when this app serves
-# tiles itself. Without GDAL_DISABLE_READDIR_ON_OPEN every COG open issues
-# extra (404ing) sidecar-file requests against S3.
-_GDAL_ENV_DEFAULTS = {
-    "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
-    "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES",
-    "GDAL_HTTP_MULTIPLEX": "YES",
-    "GDAL_HTTP_VERSION": "2",
-    "GDAL_CACHEMAX": "200",
-    "VSI_CACHE": "TRUE",
-    "VSI_CACHE_SIZE": "5000000",
-    "CPL_VSIL_CURL_CACHE_SIZE": "200000000",
-    # Sentinel-2 COG headers are larger than GDAL's 16KB default read.
-    "GDAL_INGESTED_BYTES_AT_OPEN": "32768",
-}
-for _key, _value in _GDAL_ENV_DEFAULTS.items():
-    os.environ.setdefault(_key, _value)
-
 STAC_URL = "https://earth-search.aws.element84.com/v1"
 SENTINEL2_COLLECTION = "sentinel-2-l2a"
 VISUAL_ASSET = "visual"
+GFW_TILES_BASE = "https://tiles.globalforestwatch.org"
 
 # Mosaics are meant for regional AOIs; mid-size countries exceed this.
 MAX_AOI_AREA_KM2 = 50_000
@@ -119,23 +89,8 @@ def _s3_uri(token: str) -> str:
     return f"s3://{SharedSettings.mosaic_s3_bucket}/{_s3_key(token)}"
 
 
-def _tiler_base() -> str:
-    """Base URL for tile/tilejson links, without a trailing slash.
-
-    Prefers the external titiler (MOSAIC_TILER_URL); falls back to this app's
-    own host (API_BASE_URL) so the in-repo titiler routes get absolute URLs.
-    If neither is set, returns "" so URLs are host-relative.
-    """
-    base = SharedSettings.mosaic_tiler_url or SharedSettings.api_base_url
-    return base.rstrip("/")
-
-
 def _mosaic_exists(token: str) -> bool:
-    """Return True if the mosaic object for this recipe is already in S3.
-
-    S3 puts are atomic, so a present object is always a complete mosaic and
-    can be served without rebuilding.
-    """
+    """Return True if the mosaic object for this recipe is already in S3."""
     try:
         _s3_client().head_object(
             Bucket=SharedSettings.mosaic_s3_bucket, Key=_s3_key(token)
@@ -157,60 +112,6 @@ def _mosaic_exists(token: str) -> bool:
         )
         raise
     return True
-
-
-# uri -> MosaicJSON. Per-process cache so repeated tile requests for the same
-# mosaic don't re-fetch the (immutable) MosaicJSON document from S3.
-_mosaic_store: TTLCache = TTLCache(maxsize=256, ttl=12 * 3600)
-
-
-def _read_mosaic_from_uri(uri: str) -> MosaicJSON:
-    """Load a MosaicJSON from its ``s3://bucket/key`` uri.
-
-    Raises MosaicNotFoundError if the object does not exist.
-    """
-    parsed = urlparse(uri)
-    if parsed.scheme != "s3":
-        raise MosaicNotFoundError(f"Unsupported mosaic uri: {uri}")
-    try:
-        resp = _s3_client().get_object(
-            Bucket=parsed.netloc, Key=parsed.path.lstrip("/")
-        )
-    except ClientError as e:
-        if e.response["Error"]["Code"] in ("NoSuchKey", "404", "NotFound"):
-            raise MosaicNotFoundError(f"Mosaic not found: {uri}")
-        raise
-    return MosaicJSON.model_validate_json(resp["Body"].read())
-
-
-@attr.s
-class S3MosaicBackend(BaseBackend):
-    """Resolve a mosaic by its ``s3://`` uri, reading the MosaicJSON from S3.
-
-    titiler hands the tile URL's ``?url=`` value (an ``s3://bucket/key`` uri)
-    to this backend; the MosaicJSON is fetched from S3 once and cached in
-    _mosaic_store for the per-process TTL.
-    """
-
-    _backend_name = "ZenoS3"
-
-    def _read(self) -> MosaicJSON:
-        mosaic = _mosaic_store.get(self.input)
-        if mosaic is None:
-            mosaic = _read_mosaic_from_uri(self.input)
-            _mosaic_store[self.input] = mosaic
-        return mosaic
-
-    def tile(self, *args, **kwargs):
-        # Read scenes sequentially with lazy early exit: with the default
-        # "first" pixel selection, reading stops as soon as the tile is
-        # covered. The factory default (threads=70) would instead fetch
-        # every candidate scene from S3 concurrently and discard most.
-        kwargs["threads"] = 0
-        return super().tile(*args, **kwargs)
-
-    def write(self, overwrite: bool = False) -> None:
-        pass
 
 
 def _write_mosaic(token: str, mosaic: MosaicJSON) -> None:
@@ -265,18 +166,19 @@ class MosaicResult:
 
     @property
     def tile_url(self) -> str:
-        base = _tiler_base()
         url = quote(_s3_uri(self.mosaic_id), safe="")
         return (
-            f"{base}/mosaic/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png"
-            f"?url={url}"
+            f"{GFW_TILES_BASE}/cog/mosaic/tiles/WebMercatorQuad"
+            f"/{{z}}/{{x}}/{{y}}.png?url={url}"
         )
 
     @property
     def tilejson_url(self) -> str:
-        base = _tiler_base()
         url = quote(_s3_uri(self.mosaic_id), safe="")
-        return f"{base}/mosaic/WebMercatorQuad/tilejson.json?url={url}"
+        return (
+            f"{GFW_TILES_BASE}/cog/mosaic/WebMercatorQuad"
+            f"/tilejson.json?url={url}"
+        )
 
 
 def encode_recipe(recipe: MosaicRecipe) -> str:
@@ -294,11 +196,7 @@ def encode_recipe(recipe: MosaicRecipe) -> str:
 
 
 def decode_recipe(token: str) -> MosaicRecipe:
-    """Decode a mosaic token; raise MosaicNotFoundError if malformed.
-
-    Parameters are clamped to the same bounds the create endpoint
-    enforces, since tokens are plain encodings anyone could construct.
-    """
+    """Decode a mosaic token; raise MosaicNotFoundError if malformed."""
     try:
         raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4))
         payload = json.loads(raw)

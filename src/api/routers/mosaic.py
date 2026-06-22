@@ -1,17 +1,8 @@
-"""Sentinel-2 mosaic creation and tile serving over AOI geometries.
+"""Sentinel-2 mosaic creation endpoint.
 
-The create endpoint builds a MosaicJSON, persists it to S3 (see
-src/api/services/mosaic.py) and returns a recipe-token mosaic id.
-
-Tiles are served by the titiler MosaicTilerFactory mounted here, wired to
-S3MosaicBackend so it reads the persisted MosaicJSON from S3 via the
-``s3://`` uri in the tile URL's ``?url=`` param. When MOSAIC_TILER_URL is
-set, MosaicResult instead emits absolute URLs to that external titiler and
-these in-repo tile routes go unused.
-
-All endpoints — including the titiler tile/tilejson routes — require the
-same bearer auth as the rest of the API; map clients must attach the
-Authorization header to tile requests.
+Searches Sentinel-2 L2A scenes for an AOI and builds a MosaicJSON persisted
+to S3. Tiles are served externally by the GFW tiles service at
+https://tiles.globalforestwatch.org using the s3:// URI returned here.
 """
 
 from datetime import date
@@ -19,7 +10,6 @@ from typing import Optional
 
 from cogeo_mosaic.errors import MosaicNotFoundError
 from fastapi import APIRouter, Depends, HTTPException, Query
-from titiler.mosaic.factory import MosaicTilerFactory
 
 from src.api.auth.dependencies import require_auth
 from src.api.models import MosaicCreateResponse
@@ -28,7 +18,6 @@ from src.api.services.mosaic import (
     AoiTooLargeError,
     MosaicRecipe,
     NoScenesFoundError,
-    S3MosaicBackend,
     StacSearchError,
     create_sentinel2_mosaic,
 )
@@ -36,13 +25,7 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-_mosaic_tiler = MosaicTilerFactory(backend=S3MosaicBackend)
-
 router = APIRouter()
-router.include_router(
-    _mosaic_tiler.router,
-    dependencies=[Depends(require_auth)],
-)
 
 
 @router.post("/create/{source}/{src_id}", response_model=MosaicCreateResponse)
@@ -59,9 +42,8 @@ async def create_mosaic(
     Search Sentinel-2 L2A scenes covering an AOI around target_date
     (within ±window_days) and persist a MosaicJSON to S3.
 
-    Returns a mosaic_id (recipe token). The tile/tilejson URLs that read the
-    persisted MosaicJSON from S3 are available on the MosaicResult
-    (tile_url / tilejson_url).
+    Returns a mosaic_id (recipe token). Tile and TileJSON URLs pointing to
+    the GFW tiles service are available on the result (tile_url / tilejson_url).
     """
     recipe = MosaicRecipe(
         aois=((source, src_id),),

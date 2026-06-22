@@ -24,9 +24,6 @@ class _SharedSettings(BaseSettings):
         alias="EOAPI_BASE_URL",
     )
 
-    # This API's own public base URL. Used as the tiler base for Sentinel-2
-    # mosaics when MOSAIC_TILER_URL is unset, so tile URLs resolve to this
-    # app's in-repo titiler routes rather than being host-relative.
     api_base_url: str = Field(default="", alias="API_BASE_URL")
 
     # Dataset embeddings database
@@ -44,14 +41,13 @@ class _SharedSettings(BaseSettings):
     )
 
     # Sentinel-2 mosaic storage. Built MosaicJSON files are written to this
-    # (private) S3 bucket and served by an external titiler that reads them
-    # via s3:// using IAM credentials.
+    # S3 bucket and served by the GFW tiles service at
+    # https://tiles.globalforestwatch.org.
     mosaic_s3_bucket: str = Field(default="", alias="MOSAIC_S3_BUCKET")
     mosaic_s3_prefix: str = Field(default="mosaics", alias="MOSAIC_S3_PREFIX")
     mosaic_s3_region: Optional[str] = Field(
         default=None, alias="MOSAIC_S3_REGION"
     )
-    mosaic_tiler_url: str = Field(default="", alias="MOSAIC_TILER_URL")
 
     model_config = {
         "env_file": ".env",

@@ -14,6 +14,7 @@ from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.api.services.mosaic import (
     AoiTooLargeError,
     MosaicRecipe,
+    MosaicResult,
     NoScenesFoundError,
     StacSearchError,
     create_sentinel2_mosaic,
@@ -96,7 +97,7 @@ async def show_imagery(
     )
 
     try:
-        result = await create_sentinel2_mosaic(recipe)
+        result: MosaicResult = await create_sentinel2_mosaic(recipe)
     except MosaicNotFoundError:
         return _feedback(
             "Could not load the geometry of the selected AOI.", tool_call_id
