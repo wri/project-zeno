@@ -61,6 +61,18 @@ def _parse_dt(raw: Any) -> Optional[datetime]:
         return None
 
 
+def _strip_nul(value: Any) -> Any:
+    """Recursively drop NUL (U+0000) from strings. Postgres text and jsonb
+    reject 0x00, so an unsanitized trace text would abort the whole batch."""
+    if isinstance(value, str):
+        return value.replace("\x00", "") if "\x00" in value else value
+    if isinstance(value, dict):
+        return {_strip_nul(k): _strip_nul(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_strip_nul(v) for v in value]
+    return value
+
+
 # --------------------------------------------------------------------------- #
 # Row building
 # --------------------------------------------------------------------------- #
@@ -94,7 +106,7 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
         row["parse_error"] = str(e)[:500]
         row["parser_version"] = P.PARSER_VERSION
         row["recognized_contract"] = None
-    return row
+    return _strip_nul(row)
 
 
 # --------------------------------------------------------------------------- #
