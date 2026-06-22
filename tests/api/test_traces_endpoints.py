@@ -3,11 +3,46 @@
 from datetime import datetime, timezone
 
 import pytest
+from fastapi import Request
 
+from src.api.app import app
+from src.api.auth.dependencies import fetch_user_from_rw_api
+from src.api.auth.scopes import TRACES_READ
 from src.api.data_models import LangfuseTraceOrm
+from src.api.schemas import UserModel
 from tests.conftest import async_session_maker
 
 H = {"Authorization": "Bearer test-token"}
+
+
+@pytest.fixture
+def machine_auth_override():
+    """Override auth with a machine identity carrying the given scopes (set on
+    request.state, as validate_machine_user_token does for a real key)."""
+    original = app.dependency_overrides.get(fetch_user_from_rw_api)
+
+    def _set(scopes, user_id="machine-traces"):
+        async def _dep(request: Request):
+            request.state.token_scopes = list(scopes)
+            return UserModel.model_validate(
+                {
+                    "id": user_id,
+                    "name": user_id,
+                    "email": f"{user_id}@example.com",
+                    "user_type": "machine",
+                    "createdAt": "2024-01-01T00:00:00Z",
+                    "updatedAt": "2024-01-01T00:00:00Z",
+                }
+            )
+
+        app.dependency_overrides[fetch_user_from_rw_api] = _dep
+
+    yield _set
+
+    if original is not None:
+        app.dependency_overrides[fetch_user_from_rw_api] = original
+    else:
+        app.dependency_overrides.pop(fetch_user_from_rw_api, None)
 
 
 async def _seed_trace(trace_id: str, **kw) -> None:
@@ -41,6 +76,20 @@ async def test_list_requires_superuser_not_regular(
     client, auth_override, user
 ):
     auth_override(user.id)
+    assert (await client.get("/api/traces", headers=H)).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_machine_key_with_scope_allowed(client, machine_auth_override):
+    machine_auth_override([TRACES_READ])
+    assert (await client.get("/api/traces", headers=H)).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_machine_key_without_scope_forbidden(
+    client, machine_auth_override
+):
+    machine_auth_override([])
     assert (await client.get("/api/traces", headers=H)).status_code == 403
 
 
