@@ -181,6 +181,7 @@ class MachineUserKeyOrm(Base):
     last_used_at = Column(DateTime, nullable=True)
     expires_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
+    scopes = Column(ARRAY(String), nullable=False, server_default="{}")
 
     user = relationship("UserOrm", back_populates="machine_user_keys")
 

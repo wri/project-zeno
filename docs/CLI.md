@@ -43,8 +43,76 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 - This command changes their user type from regular user to admin
 - Admin users have higher prompt quotas
 
+### Machine users & API keys (scopes)
+
+Machine users are accounts for programmatic (machine-to-machine) access. They
+authenticate with an API key passed as a bearer token:
+`Authorization: Bearer zeno-key:<prefix>:<secret>`.
+
+Authorization is granted per-key via **scopes** (independent of `user_type`). An
+endpoint that requires a scope is accessible to a superuser human, or to a machine
+key that carries that scope. Currently defined scopes:
+
+- `traces:read` — read access to the traces API (`/api/traces/*`).
+
+**Create a machine user with a scoped key:**
+```bash
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py create-machine-user \
+  --name "Traces Reader" --email "traces-reader@example.com" \
+  --create-key --key-name "traces" --scope traces:read
+```
+
+**Add a key (with one or more scopes) to an existing machine user:**
+```bash
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py create-api-key \
+  --user-id "machine_xxx" --key-name "traces" --scope traces:read
+```
+
+**Parameters:**
+- `--scope` (repeatable): authorization scope(s) to grant the key. Unknown scopes
+  are rejected. Defaults to none (a key with no scopes cannot reach scoped
+  endpoints).
+
+The token is printed once at creation — save it then; it is not recoverable.
+`list-api-keys --user-id <id>` shows each key's scopes. Rotate/revoke with
+`rotate-key` / `revoke-key`.
+
+### ingest-langfuse-traces
+
+Ingests Langfuse traces into Postgres (`langfuse_traces`) with an idempotent
+upsert, recording a watermark per run so subsequent runs resume incrementally.
+
+**Usage:**
+```bash
+# Default: resume from the last watermark (or last 24h on first run)
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py ingest-langfuse-traces
+
+# Historical backfill over an explicit window
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py ingest-langfuse-traces --backfill --since 2025-12-22T00:00:00Z
+```
+
+**Parameters:**
+- `--since` (ISO datetime): start of the window; overrides the watermark. Required with `--backfill`.
+- `--until` (ISO datetime): end of the window (default: now).
+- `--backfill`: historical backfill from `--since`.
+- `--environment` (repeatable): filter to specific environment(s) (default: all).
+- `--overlap-hours` (default 12): re-scan overlap before the watermark to catch delayed traces.
+- `--chunk-hours` (default 24): window chunk size.
+- `--batch-size` (default 300): fetch page / upsert batch size.
+- `--dry-run`: fetch + parse but do not write (connectivity/parse smoke test).
+
+**Notes:**
+- Requires `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and `DATABASE_URL` in the pod environment.
+- Each run prints a summary line: `fetched=… upserted=… chunks=… failed=… status=… watermark=…`.
+- The watermark only advances on fully-completed chunks, so an interrupted run is safe to re-run.
+
 ## Error Handling
 
 The command includes error handling:
 
 - **make-user-admin**: Returns an error if the user with the specified email doesn't exist
+- **create-api-key / create-machine-user**: Returns an error if an unknown `--scope` is supplied

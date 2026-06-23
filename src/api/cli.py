@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.api.auth.machine_user import MACHINE_USER_PREFIX
+from src.api.auth.scopes import KNOWN_SCOPES
 from src.api.data_models import (
     MachineUserKeyOrm,
     UserOrm,
@@ -55,6 +56,17 @@ class DatabaseManager:
     async def close(self):
         """Close database connection"""
         await self.engine.dispose()
+
+
+def _validate_scopes(scopes: tuple) -> list[str]:
+    """Reject unknown scopes so a typo never silently mints a dead key."""
+    unknown = sorted(set(scopes) - KNOWN_SCOPES)
+    if unknown:
+        raise click.BadParameter(
+            f"Unknown scope(s): {', '.join(unknown)}. "
+            f"Known: {', '.join(sorted(KNOWN_SCOPES))}"
+        )
+    return list(scopes)
 
 
 def generate_api_key() -> tuple[str, str, str]:
@@ -117,6 +129,7 @@ async def create_api_key(
     user_id: str,
     key_name: str,
     expires_at: Optional[datetime] = None,
+    scopes: Optional[list[str]] = None,
 ) -> tuple[str, MachineUserKeyOrm]:
     """Create a new API key for a machine user"""
 
@@ -138,6 +151,7 @@ async def create_api_key(
         key_hash=secret_hash,
         key_prefix=prefix,
         expires_at=expires_at,
+        scopes=scopes or [],
         created_at=datetime.now(),
         is_active=True,
     )
@@ -301,14 +315,23 @@ def cli():
     default="default",
     help='Name for the initial API key (default: "default")',
 )
+@click.option(
+    "--scope",
+    "scopes",
+    multiple=True,
+    help="Authorization scope for the initial key; repeatable.",
+)
 def create_machine_user_command(
     name: str,
     email: str,
     description: Optional[str],
     create_key: bool,
     key_name: str,
+    scopes: tuple,
 ):
     """Create a new machine user"""
+
+    scope_list = _validate_scopes(scopes)
 
     async def _create():
         db = DatabaseManager()
@@ -328,13 +351,16 @@ def create_machine_user_command(
                 if create_key:
                     click.echo("\n🔑 Creating initial API key...")
                     full_token, api_key = await create_api_key(
-                        session, user.id, key_name
+                        session, user.id, key_name, scopes=scope_list
                     )
                     click.echo("✅ Created API key:")
                     click.echo(f"   Key ID: {api_key.id}")
                     click.echo(f"   Name: {api_key.key_name}")
                     click.echo(f"   Token: {full_token}")
                     click.echo(f"   Prefix: {api_key.key_prefix}")
+                    click.echo(
+                        f"   Scopes: {', '.join(api_key.scopes) or '(none)'}"
+                    )
                     click.echo(f"   Created: {api_key.created_at}")
                     click.echo(
                         "\n⚠️  IMPORTANT: Save this token now - it won't be shown again!"
@@ -351,10 +377,18 @@ def create_machine_user_command(
 @click.option(
     "--expires-days", type=int, help="Number of days until key expires"
 )
+@click.option(
+    "--scope",
+    "scopes",
+    multiple=True,
+    help="Authorization scope for the key; repeatable.",
+)
 def create_api_key_command(
-    user_id: str, key_name: str, expires_days: Optional[int]
+    user_id: str, key_name: str, expires_days: Optional[int], scopes: tuple
 ):
     """Create a new API key for a machine user"""
+
+    scope_list = _validate_scopes(scopes)
 
     async def _create():
         db = DatabaseManager()
@@ -367,7 +401,7 @@ def create_api_key_command(
                     expires_at = datetime.now() + timedelta(days=expires_days)
 
                 full_token, api_key = await create_api_key(
-                    session, user_id, key_name, expires_at
+                    session, user_id, key_name, expires_at, scopes=scope_list
                 )
 
                 click.echo("✅ Created API key:")
@@ -375,6 +409,9 @@ def create_api_key_command(
                 click.echo(f"   Name: {api_key.key_name}")
                 click.echo(f"   Token: {full_token}")
                 click.echo(f"   Prefix: {api_key.key_prefix}")
+                click.echo(
+                    f"   Scopes: {', '.join(api_key.scopes) or '(none)'}"
+                )
                 if api_key.expires_at:
                     click.echo(f"   Expires: {api_key.expires_at}")
                 click.echo(f"   Created: {api_key.created_at}")
@@ -443,6 +480,9 @@ def list_api_keys_command(user_id: str):
                     click.echo(f"🔑 {key.key_name} - {status}")
                     click.echo(f"   Key ID: {key.id}")
                     click.echo(f"   Prefix: {key.key_prefix}")
+                    click.echo(
+                        f"   Scopes: {', '.join(key.scopes) or '(none)'}"
+                    )
                     if key.expires_at:
                         click.echo(f"   Expires: {key.expires_at}")
                     if key.last_used_at:

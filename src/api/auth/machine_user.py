@@ -2,7 +2,7 @@ from datetime import datetime
 
 import bcrypt
 import structlog
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -16,9 +16,11 @@ MACHINE_USER_PREFIX = "zeno-key"
 
 
 async def validate_machine_user_token(
-    token: str, session: AsyncSession
+    token: str, session: AsyncSession, request: Request
 ) -> UserModel:
-    """Validate machine user API key and return associated user."""
+    """Validate machine user API key and return associated user. The key's
+    authorization scopes are stashed on ``request.state.token_scopes`` for
+    downstream scope checks (see ``require_scope``)."""
     # Parse token format: zeno-key:prefix:secret
     parts = token.split(":")
     if len(parts) != 3 or parts[0] != MACHINE_USER_PREFIX:
@@ -62,6 +64,9 @@ async def validate_machine_user_token(
         raise HTTPException(
             status_code=401, detail="Machine user key has expired"
         )
+
+    # Expose the key's scopes for downstream authorization (require_scope).
+    request.state.token_scopes = list(key_record.scopes or [])
 
     # Update last_used_at timestamp
     key_record.last_used_at = datetime.now()

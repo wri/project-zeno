@@ -1,4 +1,7 @@
-"""Superuser-only endpoints for exploring ingested Langfuse traces.
+"""Endpoints for exploring ingested Langfuse traces.
+
+Gated on the ``traces:read`` scope: a superuser human or a machine key carrying
+that scope (see ``require_scope``).
 
 Read path over ``langfuse_traces`` (see src/api/services/langfuse for ingestion).
 List/detail here; analytics + conversation views live alongside. All derived
@@ -17,7 +20,8 @@ from pydantic import BaseModel
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.auth.dependencies import require_superuser
+from src.api.auth.dependencies import require_scope
+from src.api.auth.scopes import TRACES_READ
 from src.api.data_models import LangfuseTraceOrm
 from src.api.schemas import UserModel
 from src.api.services.langfuse.fetch import LangfuseClient
@@ -159,7 +163,7 @@ async def list_traces(
     prompt_contains: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    _superuser: UserModel = Depends(require_superuser),
+    _reader: UserModel = Depends(require_scope(TRACES_READ)),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> TraceListResponse:
     """List/filter traces (derived columns only — never raw/output)."""
@@ -274,7 +278,7 @@ async def trace_analytics(
     user_id: Optional[str] = Query(None),
     start: Optional[datetime] = Query(None),
     end: Optional[datetime] = Query(None),
-    _superuser: UserModel = Depends(require_superuser),
+    _reader: UserModel = Depends(require_scope(TRACES_READ)),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> TraceAnalytics:
     """Server-side aggregates over the filtered trace set. All metrics are
@@ -390,7 +394,7 @@ async def list_sessions(
     end: Optional[datetime] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    _superuser: UserModel = Depends(require_superuser),
+    _reader: UserModel = Depends(require_scope(TRACES_READ)),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> SessionListResponse:
     """Conversation browser: one row per session (thread), newest first, with the
@@ -447,7 +451,7 @@ async def list_sessions(
 @router.get("/{trace_id}", response_model=TraceDetail)
 async def get_trace(
     trace_id: str,
-    _superuser: UserModel = Depends(require_superuser),
+    _reader: UserModel = Depends(require_scope(TRACES_READ)),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> TraceDetail:
     """Full detail for one trace: our derived columns from Postgres, plus the
