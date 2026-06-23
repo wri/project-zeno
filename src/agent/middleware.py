@@ -98,6 +98,9 @@ def _view_breadcrumb(view: dict | None) -> str:
     aois = view.get("visible_aois") or []
     if aois:
         parts.append(f"{len(aois)} AOI(s) visible")
+    insights = view.get("visible_insights") or []
+    if insights:
+        parts.append(f"{len(insights)} insight(s) on screen")
 
     summary = " · ".join(parts) if parts else "active"
     return f"View: {summary} (call inspect_view_context for details)"
