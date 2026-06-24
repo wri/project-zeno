@@ -35,22 +35,22 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 DEFAULT_PROFILE = "default"
-
-# Feature flag exposing experimental, opt-in tools (Sentinel-2 imagery and
-# WRI Insights blog search).
-EXPERIMENTAL_PROFILE = "experimental"
-
 CORE_SPECS = (
     pick_aoi_spec,
     pick_dataset_spec,
     pull_data_spec,
     generate_insights_spec,
-    inspect_view_context_spec,
     read_skill_spec,
 )
 
 # Experimental, opt-in tools layered on top of the core set.
-EXPERIMENTAL_SPECS = (*CORE_SPECS, show_imagery_spec, search_blogs_spec)
+EXPERIMENTAL_PROFILE = "experimental"
+EXPERIMENTAL_SPECS = (
+    *CORE_SPECS,
+    inspect_view_context_spec,
+    show_imagery_spec,
+    search_blogs_spec,
+)
 
 
 @dataclass(frozen=True)
