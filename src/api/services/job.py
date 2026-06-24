@@ -2,8 +2,11 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
+
+if TYPE_CHECKING:
+    from src.agent.subagents.analyst.charts import InsightBundle
 
 
 class JobStatus(str, Enum):
@@ -60,8 +63,8 @@ class JobRepository(ABC):
         job_id: UUID,
         user_id: str,
         thread_id: Optional[str],
-        charts: list[dict],
-    ) -> None: ...
+        bundle: "InsightBundle",
+    ) -> str: ...
 
     @abstractmethod
     async def get_job(self, job_id: UUID) -> Optional[JobData]: ...

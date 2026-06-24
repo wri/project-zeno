@@ -3,59 +3,43 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
+from src.agent.subagents.analyst.charts import InsightBundle, InsightChart
 from src.api.services.analysis_job import AnalysisJobRunner
-from src.api.services.analyze import AnalyzeService
-from src.api.services.charts import ChartGenerator
+from src.api.services.analyze import AnalyzeResult
 from src.api.services.job import JobRepository, JobStatus
 
 JOB_ID = uuid4()
 USER_ID = "user123"
 AOI = {"source": "gadm", "src_id": "BRA", "subtype": "country"}
 
-SUCCESS_RESULT = DataPullResult(
-    success=True,
-    data={
-        "tree_cover_loss_year": [2020],
-        "area_ha": [1000.0],
-        "carbon_emissions_MgCO2e": [500.0],
-        "aoi_id": ["BRA"],
-        "aoi_type": ["admin"],
-    },
-    message="ok",
-    data_points_count=1,
-    analytics_api_url="https://analytics.example.com/abc",
-)
-FAILURE_RESULT = DataPullResult(
-    success=False, data=None, message="upstream error", data_points_count=0
-)
+CHARTS = [
+    InsightChart(
+        position=0,
+        title="Annual Tree Cover Loss",
+        chart_type="bar",
+        x_axis="tree_cover_loss_year",
+        y_axis="area_ha",
+        chart_data=[{"tree_cover_loss_year": 2020, "area_ha": 1000.0}],
+    )
+]
 
 
-class FakeHandler(DataSourceHandler):
-    def __init__(self, result: DataPullResult):
-        self._result = result
-
-    def can_handle(self, dataset) -> bool:
-        return True
-
-    async def pull_data(
-        self,
-        query,
-        dataset,
-        start_date,
-        end_date,
-        change_over_time_query,
-        aois,
-    ):
-        return self._result
+class _Result:
+    def __init__(self, success, message=""):
+        self.success = success
+        self.message = message
 
 
-class FakeChartGenerator(ChartGenerator):
-    def can_handle(self, dataset_id: int) -> bool:
-        return True
+class FakeService:
+    def __init__(self, *, success: bool, charts):
+        self._success = success
+        self._charts = charts
 
-    def generate(self, result: DataPullResult) -> list[dict]:
-        return [{"id": "chart_0", "type": "bar", "title": "Test"}]
+    async def analyze(self, aois, dataset_id, start_date, end_date):
+        return AnalyzeResult(
+            data=_Result(self._success, "upstream error"),
+            charts=self._charts if self._success else [],
+        )
 
 
 class FakeJobRepository(JobRepository):
@@ -74,29 +58,30 @@ class FakeJobRepository(JobRepository):
         job_id: UUID,
         user_id: str,
         thread_id: Optional[str],
-        charts: list[dict],
-    ) -> None:
+        bundle: InsightBundle,
+    ) -> str:
         self.insight_resources.append(
             {
                 "job_id": job_id,
                 "user_id": user_id,
                 "thread_id": thread_id,
-                "charts": charts,
+                "bundle": bundle,
             }
         )
+        return "insight-123"
 
     async def get_job(self, job_id: UUID):
         return None
 
 
-def make_service(result: DataPullResult) -> AnalyzeService:
-    return AnalyzeService(FakeHandler(result), [FakeChartGenerator()])
+def make_runner(repo, *, success=True, charts=CHARTS):
+    return AnalysisJobRunner(FakeService(success=success, charts=charts), repo)
 
 
 @pytest.mark.asyncio
 async def test_run_sets_job_to_running_then_completed():
     repo = FakeJobRepository()
-    runner = AnalysisJobRunner(make_service(SUCCESS_RESULT), repo)
+    runner = make_runner(repo)
 
     await runner.run(JOB_ID, USER_ID, [AOI], 4, "2020-01-01", "2022-12-31")
 
@@ -105,49 +90,36 @@ async def test_run_sets_job_to_running_then_completed():
 
 
 @pytest.mark.asyncio
-async def test_run_creates_insight_resource_on_success():
+async def test_run_creates_insight_resource_with_charts_only():
     repo = FakeJobRepository()
-    runner = AnalysisJobRunner(make_service(SUCCESS_RESULT), repo)
+    runner = make_runner(repo)
 
     await runner.run(JOB_ID, USER_ID, [AOI], 4, "2020-01-01", "2022-12-31")
 
     assert len(repo.insight_resources) == 1
-    assert repo.insight_resources[0]["job_id"] == JOB_ID
-    assert repo.insight_resources[0]["user_id"] == USER_ID
-
-
-@pytest.mark.asyncio
-async def test_run_passes_charts_to_insight_resource():
-    repo = FakeJobRepository()
-    runner = AnalysisJobRunner(make_service(SUCCESS_RESULT), repo)
-
-    await runner.run(JOB_ID, USER_ID, [AOI], 4, "2020-01-01", "2022-12-31")
-
-    assert len(repo.insight_resources[0]["charts"]) > 0
+    bundle = repo.insight_resources[0]["bundle"]
+    assert len(bundle.charts) == 1
+    # The /api/analyze path persists charts only; no LLM-generated narrative.
+    assert bundle.primary_insight == ""
+    assert bundle.follow_up_suggestions == []
 
 
 @pytest.mark.asyncio
 async def test_run_passes_thread_id_to_insight_resource():
     repo = FakeJobRepository()
-    runner = AnalysisJobRunner(make_service(SUCCESS_RESULT), repo)
+    runner = make_runner(repo)
 
     await runner.run(
-        JOB_ID,
-        USER_ID,
-        [AOI],
-        4,
-        "2020-01-01",
-        "2022-12-31",
-        thread_id="t-123",
+        JOB_ID, USER_ID, [AOI], 4, "2020-01-01", "2022-12-31", thread_id="t-1"
     )
 
-    assert repo.insight_resources[0]["thread_id"] == "t-123"
+    assert repo.insight_resources[0]["thread_id"] == "t-1"
 
 
 @pytest.mark.asyncio
 async def test_run_on_failure_sets_job_to_failed():
     repo = FakeJobRepository()
-    runner = AnalysisJobRunner(make_service(FAILURE_RESULT), repo)
+    runner = make_runner(repo, success=False)
 
     await runner.run(JOB_ID, USER_ID, [AOI], 4, "2020-01-01", "2022-12-31")
 
@@ -157,8 +129,25 @@ async def test_run_on_failure_sets_job_to_failed():
 @pytest.mark.asyncio
 async def test_run_on_failure_does_not_create_insight_resource():
     repo = FakeJobRepository()
-    runner = AnalysisJobRunner(make_service(FAILURE_RESULT), repo)
+    runner = make_runner(repo, success=False)
 
     await runner.run(JOB_ID, USER_ID, [AOI], 4, "2020-01-01", "2022-12-31")
 
     assert len(repo.insight_resources) == 0
+
+
+@pytest.mark.asyncio
+async def test_run_marks_job_failed_when_persistence_raises():
+    repo = FakeJobRepository()
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("db down")
+
+    repo.create_insight_resource = boom
+    runner = make_runner(repo)
+
+    # Must not propagate out of the background task...
+    await runner.run(JOB_ID, USER_ID, [AOI], 4, "2020-01-01", "2022-12-31")
+
+    # ...and the job must reach a terminal FAILED state, not stay RUNNING.
+    assert repo.job_statuses[-1] == (JOB_ID, JobStatus.FAILED)

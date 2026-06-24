@@ -1,5 +1,6 @@
 import asyncio
 import re
+from base64 import b64encode
 from typing import Annotated, Dict, List, Optional
 
 import pandas as pd
@@ -10,20 +11,21 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.subagents.analyst.charts import (
+    InsightBundle,
+    InsightChart,
+)
 from src.agent.subagents.analyst.code_executors import GeminiCodeExecutor
 from src.agent.subagents.analyst.code_executors.base import (
     ChartInsight,
     MultiChartInsight,
     PartType,
 )
-from src.agent.subagents.analyst.prompts import (
-    EXECUTOR_WORKFLOW,
-    WORDING_GUIDE,
-)
+from src.agent.subagents.analyst.prompts import EXECUTOR_WORKFLOW
+from src.agent.subagents.analyst.text_generator import InsightTextGenerator
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.pull_data import fetch_statistics_from_url
-from src.api.data_models import InsightChartOrm, InsightOrm
-from src.shared.database import get_session_from_pool
+from src.api.repositories.insight_writer import persist_insight
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -173,8 +175,8 @@ def build_analysis_prompt(
     file_references: str,
     dataset_guidelines: str = "",
     dataset_cautions: str = "",
-    code_instructions: str | None = None,
-    context_layer: str | None = None,
+    code_instructions: Optional[str] = None,
+    context_layer: Optional[str] = None,
 ) -> str:
     """
     Build the analysis prompt for the code executor.
@@ -206,7 +208,6 @@ def build_analysis_prompt(
 ---
 """
 
-    # Build dataset-specific rules section when tiered code_instructions are available
     dataset_rules_section = ""
     if code_instructions:
         header = "### DATASET-SPECIFIC RULES (follow these strictly):\n"
@@ -219,10 +220,7 @@ def build_analysis_prompt(
 ---
 """
 
-    executor_workflow = EXECUTOR_WORKFLOW
-    wording = WORDING_GUIDE
-
-    prompt = f"""### User Query:
+    return f"""### User Query:
 {query}
 
 
@@ -237,28 +235,152 @@ For example: "I will begin by loading and examining" -> "Load and examine"
 {dataset_rules_section}
 {cautions_section}
 
-{executor_workflow}
+{EXECUTOR_WORKFLOW}
 
    Here is the JSON schema for the insight:
    {MultiChartInsight.model_json_schema()}
 
    Here is the JSON schema for the chart data:
    {ChartInsight.model_json_schema()}
-
-{wording}
 """
 
-    return prompt
+
+def _error_command(message: str, tool_call_id: Optional[str]) -> Command:
+    return Command(
+        update={
+            "messages": [
+                ToolMessage(
+                    content=message,
+                    tool_call_id=tool_call_id,
+                    status="error",
+                )
+            ]
+        }
+    )
+
+
+def _encode_parts(parts: list) -> list[dict]:
+    return [
+        {
+            "type": part.type.value,
+            "content": b64encode(part.content.encode("utf-8")).decode("utf-8"),
+        }
+        for part in parts
+    ]
+
+
+def _build_tool_message(bundle: InsightBundle, dataset_cautions: str) -> str:
+    """Human-feedback message summarizing the generated charts + insight."""
+    tool_message = f"Generated {len(bundle.charts)} chart(s)\n"
+    tool_message += f"Key Finding: {bundle.primary_insight}\n\n"
+    for idx, chart in enumerate(bundle.charts, 1):
+        tool_message += f"Chart {idx}: {chart.title}\n"
+
+    if bundle.charts:
+        chart_data_df = pd.DataFrame(bundle.charts[0].chart_data)
+        formatted_df = chart_data_df.apply(
+            lambda col: (
+                col.map(lambda x: f"{x:.4f}".rstrip("0").rstrip("."))
+                if pd.api.types.is_float_dtype(col)
+                else col
+            )
+        )
+        csv_str = formatted_df.to_csv(index=False)
+        if len(csv_str) < 4000:
+            tool_message += f"\nChart data CSV:\n{csv_str}"
+
+    if dataset_cautions:
+        tool_message += f"\n\nDataset cautions:\n{dataset_cautions}"
+
+    tool_message += "\n\nFollow-up suggestions:"
+    for i, suggestion in enumerate(bundle.follow_up_suggestions, 1):
+        tool_message += f"\n{i}. {suggestion}"
+    return tool_message
 
 
 class Analyst:
     """Insight subagent: turns pulled data into a chart artifact.
 
-    Used as a tool by the orchestrator via `generate_insights`. Given the
-    pulled `statistics` and the active `dataset`, it builds dataframes, runs
-    the code executor (driven by EXECUTOR_WORKFLOW + WORDING_GUIDE), persists
-    the resulting insight and charts, and updates state.
+    Used as a tool by the orchestrator via `generate_insights`. The pipeline has
+    two independent stages: (1) build charts from the pulled data via the LLM
+    code executor, and (2) generate the narrative insight text from those
+    charts. It then persists the insight + charts and updates state.
     """
+
+    async def _resolve_charts(
+        self,
+        query: str,
+        statistics: list[dict],
+        dataset: dict,
+    ) -> tuple[Optional[list[InsightChart]], list[dict], Optional[str]]:
+        """Build charts via the LLM code executor.
+
+        Returns (charts, encoded_codeact_parts, error_message). On success
+        `charts` is non-empty and error is None. On failure `charts` is None and
+        a user-facing error message is returned.
+        """
+        dataframes, source_urls = await prepare_dataframes(statistics)
+        logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
+
+        # When a dataset provides code_instructions, use those and drop
+        # prompt_instructions to avoid sending overlapping guidance.
+        code_instructions = dataset.get("code_instructions")
+        dataset_guidelines = (
+            "" if code_instructions else dataset.get("prompt_instructions", "")
+        )
+        dataset_cautions = dataset.get(
+            "cautions", "No specific dataset cautions provided."
+        )
+
+        executor = GeminiCodeExecutor()
+        analysis_prompt = build_analysis_prompt(
+            query,
+            executor.build_file_references(dataframes),
+            dataset_guidelines=dataset_guidelines,
+            dataset_cautions=dataset_cautions,
+            code_instructions=code_instructions,
+            context_layer=dataset.get("context_layer"),
+        )
+        logger.debug(f"Analysis prompt:\n{analysis_prompt}")
+
+        file_refs = await executor.prepare_dataframes(dataframes)
+        result = await executor.execute(analysis_prompt, file_refs)
+
+        text_output = " ".join(
+            part.content
+            for part in result.parts
+            if part.type == PartType.TEXT_OUTPUT
+        )
+        if result.error:
+            logger.error(f"Code execution error: {result.error}")
+            return None, [], f"Analysis failed: {result.error}"
+        if not result.chart_data:
+            logger.error("No chart data generated")
+            return (
+                None,
+                [],
+                f"Failed to generate chart data. Feedback:{text_output}",
+            )
+        if result.insight is None or not result.insight.charts:
+            logger.error("No chart insight generated")
+            return (
+                None,
+                [],
+                f"Failed to generate chart insight. Feedback:{text_output}",
+            )
+
+        # Make code blocks runnable anywhere by swapping CSV paths for URLs.
+        for part in result.parts:
+            if part.type == PartType.CODE_BLOCK:
+                part.content = replace_csv_paths_with_urls(
+                    part.content, source_urls
+                )
+
+        charts = [
+            InsightChart.from_chart_insight(chart, result.chart_data, idx)
+            for idx, chart in enumerate(result.insight.charts)
+        ]
+        return charts, _encode_parts(result.parts), None
 
     async def analyze(
         self,
@@ -271,212 +393,55 @@ class Analyst:
         logger.info("ANALYST: generating insight")
         logger.debug(f"Generating insights for query: {query}")
         dataset = dataset or {}
-
-        # 1. PREPARE DATAFRAMES: Fetch data from source URLs and build DataFrames
-        dataframes, source_urls = await prepare_dataframes(statistics)
-        logger.info(f"Prepared {len(dataframes)} dataframes for analysis")
-
-        # 2. EXTRACT DATASET GUIDELINES: Get dataset-specific instructions early
-        # For tiered datasets, code_instructions replaces the code-relevant parts of
-        # prompt_instructions — skip the legacy blob to avoid redundancy.
-        code_instructions = dataset.get("code_instructions")
-        dataset_guidelines = (
-            "" if code_instructions else dataset.get("prompt_instructions", "")
-        )
         dataset_cautions = dataset.get(
             "cautions", "No specific dataset cautions provided."
         )
-        # 3. INITIALIZE EXECUTOR: Create Gemini code executor
-        executor = GeminiCodeExecutor()
 
-        # 4. BUILD PROMPT: Create analysis prompt with executor-specific file references
-        file_references = executor.build_file_references(dataframes)
-        analysis_prompt = build_analysis_prompt(
+        # STAGE 1: build charts from the pulled data.
+        charts, codeact_parts, error = await self._resolve_charts(
             query,
-            file_references,
-            dataset_guidelines=dataset_guidelines,
-            dataset_cautions=dataset_cautions,
-            code_instructions=code_instructions,
-            context_layer=dataset.get("context_layer"),
+            statistics,
+            dataset,
         )
-        logger.debug(f"Analysis prompt:\n{analysis_prompt}")
-
-        # 4. PREPARE DATA: Convert DataFrames to inline data format
-        file_refs = await executor.prepare_dataframes(dataframes)
-        logger.info(f"Prepared {len(file_refs)} inline data parts for Gemini")
-
-        # 5. EXECUTE CODE: Run analysis with Gemini
-        result = await executor.execute(analysis_prompt, file_refs)
-
-        # Check for errors
-        if result.error:
-            logger.error(f"Code execution error: {result.error}")
-            return Command(
-                update={
-                    "messages": [
-                        ToolMessage(
-                            content=f"Analysis failed: {result.error}",
-                            tool_call_id=tool_call_id,
-                            status="error",
-                        )
-                    ]
-                }
+        if error or not charts:
+            return _error_command(
+                error or "Failed to generate charts.", tool_call_id
             )
 
-        text_output = " ".join(
-            [
-                part.content
-                for part in result.parts
-                if part.type == PartType.TEXT_OUTPUT
-            ]
-        )
+        # STAGE 2: generate insight text from the resolved charts.
+        text = await InsightTextGenerator().generate(charts, dataset, query)
+        bundle = InsightBundle(
+            charts=charts,
+            primary_insight=text.primary_insight,
+            follow_up_suggestions=text.follow_up_suggestions,
+        ).stamp_insight()
 
-        # Check for chart data
-        if not result.chart_data:
-            logger.error("No chart data generated")
-            return Command(
-                update={
-                    "messages": [
-                        ToolMessage(
-                            content=f"Failed to generate chart data. Feedback:{text_output}",
-                            tool_call_id=tool_call_id,
-                            status="error",
-                        )
-                    ]
-                }
-            )
-
-        if result.insight is None:
-            logger.error("No chart insight generated")
-            return Command(
-                update={
-                    "messages": [
-                        ToolMessage(
-                            content=f"Failed to generate chart insight. Feedback:{text_output}",
-                            tool_call_id=tool_call_id,
-                            status="error",
-                        )
-                    ]
-                }
-            )
-
-        logger.info(f"Generated chart data with {len(result.chart_data)} rows")
-
-        # 5.5. REPLACE CSV PATHS: Replace CSV file paths with URL-based loading
-        # This makes the code blocks runnable in any environment.
-        for part in result.parts:
-            if part.type == PartType.CODE_BLOCK:
-                part.content = replace_csv_paths_with_urls(
-                    part.content, source_urls
-                )
-
-        # 6. GENERATE CHART SCHEMA: Use LLM to create structured chart metadata
-        chart_data_df = pd.DataFrame(result.chart_data)
-
-        # 7. BUILD RESPONSE - Support multiple charts
-        tool_message = f"Generated {len(result.insight.charts)} chart(s)\n"
-        tool_message += f"Key Finding: {result.insight.primary_insight}\n\n"
-
-        for idx, chart in enumerate(result.insight.charts, 1):
-            tool_message += f"Chart {idx}: {chart.title}\n"
-
-        MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE = 4000
-        formatted_df = chart_data_df.apply(
-            lambda col: col.map(lambda x: f"{x:.4f}".rstrip("0").rstrip("."))
-            if pd.api.types.is_float_dtype(col)
-            else col
-        )
-        csv_str = formatted_df.to_csv(index=False)
-        if len(csv_str) < MAX_CHART_DATA_CHARS_FOR_TOOL_MESSAGE:
-            tool_message += f"\nChart data CSV:\n{csv_str}"
-
-        tool_message += "\n\nFollow-up suggestions:"
-
-        if dataset_cautions:
-            tool_message += f"\n\nDataset cautions:\n{dataset_cautions}"
-
-        for i, suggestion in enumerate(
-            result.insight.follow_up_suggestions, 1
-        ):
-            tool_message += f"\n{i}. {suggestion}"
-
-        # 8. BUILD INLINE STATE (kept for backwards compatibility during migration)
-        encoded_parts = result.get_encoded_parts()
-        charts_data = []
-        for idx, chart in enumerate(result.insight.charts):
-            charts_data.append(
-                {
-                    "id": f"chart_{idx}",
-                    "title": chart.title,
-                    "type": chart.chart_type,
-                    "insight": result.insight.primary_insight,
-                    "data": result.chart_data,
-                    "xAxis": chart.x_axis,
-                    "yAxis": chart.y_axis,
-                    "colorField": chart.color_field,
-                    "stackField": chart.stack_field,
-                    "groupField": chart.group_field,
-                    "seriesFields": chart.series_fields,
-                }
-            )
-
-        # 9. PERSIST INSIGHT(S) TO DB
+        # PERSIST + STATE.
         ctx = structlog.contextvars.get_contextvars()
-        statistics_ids = _extract_statistics_ids(statistics)
-        insight_ids: list[str] = []
-        async with get_session_from_pool() as session:
-            insight_row = InsightOrm(
-                user_id=ctx.get("user_id"),
-                thread_id=ctx.get("thread_id", ""),
-                insight_text=result.insight.primary_insight,
-                follow_up_suggestions=result.insight.follow_up_suggestions,
-                statistics_ids=statistics_ids,
-                codeact_types=[p["type"] for p in encoded_parts],
-                codeact_contents=[p["content"] for p in encoded_parts],
-            )
-            session.add(insight_row)
-            await session.flush()
-
-            for idx, chart in enumerate(result.insight.charts):
-                session.add(
-                    InsightChartOrm(
-                        insight_id=insight_row.id,
-                        position=idx,
-                        title=chart.title,
-                        chart_type=chart.chart_type,
-                        x_axis=chart.x_axis,
-                        y_axis=chart.y_axis,
-                        color_field=chart.color_field,
-                        stack_field=chart.stack_field,
-                        group_field=chart.group_field,
-                        series_fields=chart.series_fields,
-                        chart_data=result.chart_data,
-                    )
-                )
-
-            await session.commit()
-            await session.refresh(insight_row)
-            insight_ids.append(str(insight_row.id))
-
-        insight_id = insight_ids[0] if insight_ids else ""
+        insight_id = await persist_insight(
+            bundle,
+            user_id=ctx.get("user_id"),
+            thread_id=ctx.get("thread_id", ""),
+            statistics_ids=_extract_statistics_ids(statistics),
+            codeact_parts=codeact_parts,
+        )
         logger.info(f"Persisted insight to DB: {insight_id}")
 
         updated_state = {
             "insight_id": insight_id,
-            "insight": result.insight.primary_insight,
-            "follow_up_suggestions": result.insight.follow_up_suggestions,
-            "codeact_parts": encoded_parts,
-            "charts_data": charts_data,
+            "insight": bundle.primary_insight,
+            "follow_up_suggestions": bundle.follow_up_suggestions,
+            "codeact_parts": codeact_parts,
+            "charts_data": [c.to_frontend_dict() for c in bundle.charts],
             "messages": [
                 ToolMessage(
-                    content=tool_message,
+                    content=_build_tool_message(bundle, dataset_cautions),
                     tool_call_id=tool_call_id,
                     status="success",
                     response_metadata={"msg_type": "human_feedback"},
                 )
             ],
         }
-
         return Command(update=updated_state)
 
 
@@ -490,17 +455,7 @@ async def generate_insights(
     if not state or "statistics" not in state:
         error_msg = "No statistics available yet. Please pull data first."
         logger.error(error_msg)
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(
-                        content=error_msg,
-                        tool_call_id=tool_call_id,
-                        status="error",
-                    )
-                ]
-            }
-        )
+        return _error_command(error_msg, tool_call_id)
     return await Analyst().analyze(
         query,
         statistics=state["statistics"],

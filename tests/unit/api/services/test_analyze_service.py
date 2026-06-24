@@ -1,13 +1,22 @@
 import pytest
 
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
+from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.analyze import AnalyzeService
-from src.api.services.charts import ChartGenerator
 
 UNHANDLED_DATASET_ID = 1
 HANDLED_DATASET_ID = 99
 
-FAKE_CHARTS = [{"id": "chart_0", "title": "Fake", "type": "bar"}]
+FAKE_CHARTS = [
+    InsightChart(
+        position=0,
+        title="Fake",
+        chart_type="bar",
+        x_axis="year",
+        y_axis="value",
+        chart_data=[],
+    )
+]
 
 
 class FakeHandler(DataSourceHandler):
@@ -38,18 +47,18 @@ class FakeHandler(DataSourceHandler):
         return self._result
 
 
-class FakeChartGenerator(ChartGenerator):
+class FakeChartGenerator:
     def can_handle(self, dataset_id: int) -> bool:
         return dataset_id == HANDLED_DATASET_ID
 
-    def generate(self, result: DataPullResult) -> list[dict]:
+    def generate(self, rows):
         return FAKE_CHARTS
 
 
 AOI = {"source": "gadm", "src_id": "BRA", "subtype": "country"}
 SUCCESS_RESULT = DataPullResult(
     success=True,
-    data={"rows": []},
+    data={"year": [2020], "area_ha": [5]},
     message="ok",
     data_points_count=5,
     analytics_api_url="https://analytics.example.com/result/abc123",
@@ -59,19 +68,23 @@ FAILURE_RESULT = DataPullResult(
 )
 
 
+def make_service(handler):
+    return AnalyzeService(handler, [FakeChartGenerator()])
+
+
 @pytest.mark.asyncio
 async def test_analyze_passes_correct_args_to_handler():
     handler = FakeHandler(SUCCESS_RESULT)
-    service = AnalyzeService(handler, [])
+    service = make_service(handler)
 
     await service.analyze(
         aois=[AOI],
-        dataset_id=4,
+        dataset_id=HANDLED_DATASET_ID,
         start_date="2020-01-01",
         end_date="2020-12-31",
     )
 
-    assert handler.last_call["dataset"] == {"dataset_id": 4}
+    assert handler.last_call["dataset"] == {"dataset_id": HANDLED_DATASET_ID}
     assert handler.last_call["aois"] == [AOI]
     assert handler.last_call["start_date"] == "2020-01-01"
     assert handler.last_call["end_date"] == "2020-12-31"
@@ -80,11 +93,11 @@ async def test_analyze_passes_correct_args_to_handler():
 @pytest.mark.asyncio
 async def test_analyze_always_passes_change_over_time_false():
     handler = FakeHandler(SUCCESS_RESULT)
-    service = AnalyzeService(handler, [])
+    service = make_service(handler)
 
     await service.analyze(
         aois=[AOI],
-        dataset_id=1,
+        dataset_id=HANDLED_DATASET_ID,
         start_date="2020-01-01",
         end_date="2020-12-31",
     )
@@ -95,11 +108,11 @@ async def test_analyze_always_passes_change_over_time_false():
 @pytest.mark.asyncio
 async def test_analyze_returns_data_on_success():
     handler = FakeHandler(SUCCESS_RESULT)
-    service = AnalyzeService(handler, [])
+    service = make_service(handler)
 
     result = await service.analyze(
         aois=[AOI],
-        dataset_id=4,
+        dataset_id=HANDLED_DATASET_ID,
         start_date="2020-01-01",
         end_date="2020-12-31",
     )
@@ -111,23 +124,24 @@ async def test_analyze_returns_data_on_success():
 @pytest.mark.asyncio
 async def test_analyze_propagates_failed_pull():
     handler = FakeHandler(FAILURE_RESULT)
-    service = AnalyzeService(handler, [])
+    service = make_service(handler)
 
     result = await service.analyze(
         aois=[AOI],
-        dataset_id=4,
+        dataset_id=HANDLED_DATASET_ID,
         start_date="2020-01-01",
         end_date="2020-12-31",
     )
 
     assert result.data.success is False
     assert result.data.message == "upstream error"
+    assert result.charts == []
 
 
 @pytest.mark.asyncio
-async def test_uses_matching_generator():
+async def test_uses_deterministic_source_when_one_matches():
     handler = FakeHandler(SUCCESS_RESULT)
-    service = AnalyzeService(handler, [FakeChartGenerator()])
+    service = make_service(handler)
 
     result = await service.analyze(
         aois=[AOI],
@@ -140,9 +154,9 @@ async def test_uses_matching_generator():
 
 
 @pytest.mark.asyncio
-async def test_returns_none_charts_when_no_generator_matches():
+async def test_no_charts_when_no_deterministic_source():
     handler = FakeHandler(SUCCESS_RESULT)
-    service = AnalyzeService(handler, [FakeChartGenerator()])
+    service = make_service(handler)
 
     result = await service.analyze(
         aois=[AOI],
@@ -151,4 +165,4 @@ async def test_returns_none_charts_when_no_generator_matches():
         end_date="2020-12-31",
     )
 
-    assert result.charts is None
+    assert result.charts == []
