@@ -47,3 +47,14 @@ def _load_datasets() -> list[dict]:
 
 
 DATASETS = _load_datasets()
+
+
+def agent_datasets() -> list[dict]:
+    """Datasets the agent may select and advertise.
+
+    All datasets stay in ``DATASETS`` (handlers and metadata lookups need
+    them), but a dataset can be hidden from the agent — kept loaded yet not
+    embedded for retrieval nor listed in capabilities — by setting
+    ``agent_enabled: false`` in its YAML.
+    """
+    return [d for d in DATASETS if d.get("agent_enabled", True)]

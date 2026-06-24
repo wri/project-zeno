@@ -1,5 +1,6 @@
 dataset_id: 0
 dataset_name: Global all ecosystem disturbance alerts (DIST-ALERT)
+agent_enabled: false
 context_layers:
 - value: driver
   description: 'Shows the primary driver or likely causes of disturbance to natural land due to: conversion, cropland dynamics,

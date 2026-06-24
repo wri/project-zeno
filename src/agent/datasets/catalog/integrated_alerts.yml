@@ -1,0 +1,83 @@
+dataset_id: 11
+dataset_name: Integrated Alerts
+context_layers: null
+parameters: null
+variables: null
+tile_url: https://tiles.globalforestwatch.org/gfw_integrated_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color
+license: CC by 4.0
+geographic_coverage: Pan-tropical (humid tropics)
+resolution: 10 x 10 meters
+update_frequency: Weekly, updated when any of the three source alert systems (GLAD-L, GLAD-S2, RADD) is updated.
+content_date: 1 December 2023 - present
+start_date: '2023-12-01'
+content_date_fixed: false
+keywords:
+- alerts
+- deforestation
+- forest disturbance
+- near-real-time
+analytics_api_endpoint: /v0/land_change/integrated_alerts/analytics
+prompt_instructions: 'Use this dataset to show recent vegetation and forest disturbance across the humid tropics, integrating three alert
+  systems (GLAD-L, GLAD-S2, RADD) into a single layer. Data is measured in hectares (ha); use this as the unit of analysis
+  in all cases. Alerts carry one of three confidence levels: low, high (detected twice by one system), and highest (detected
+  by two or more systems — effectively eliminates false detections). Clarify
+  whether the user cares about temporary disturbance or permanent conversion; recommend annual tree cover loss for historical
+  or long-term changes. For recent trends, show alert areas over time using line charts. Use grouped bar charts with alert
+  date (month) on the x-axis, area in hectares (area_ha) on the y-axis, and confidence level to differentiate bars. Always
+  interpret alerts as indicators of potential disturbance, not definitive deforestation outcomes.
+
+  '
+selection_hints: 'Best dataset for near-real-time vegetation and forest disturbance alerts across the humid tropics at 10m resolution,
+  measured in hectares. Integrates GLAD-L, GLAD-S2, RADD and DIST into one layer, detecting disturbance faster than any single
+  system. Provides low, high, and highest confidence alerts (highest = confirmed by multiple systems). Prefer when the user
+  asks about recent disturbance, clearing, or deforestation alerts. For historical or long-term tree cover change, prefer
+  Tree Cover Loss instead; for driver attribution of tree cover loss, prefer Tree Cover Loss by Dominant Driver.
+
+  '
+code_instructions: "CHART TYPES: - Recent trends over time → line chart (x=alert month, y=area in hectares) - Distribution\
+  \ by confidence → bar chart (x=month, y=area_ha, group=confidence level) DATA RULES: - All areas in hectares (ha) -\
+  \ Confidence levels are low, high, and highest; 'highest' means detected by multiple alert systems - There are NO driver,\
+  \ land-cover, or natural-lands intersections — do NOT create class/driver breakdowns DO/DON'T: - Always interpret alerts\
+  \ as indicators of potential disturbance, not definitive outcomes - Recent alerts may include false positives that have not\
+  \ yet raised their confidence level - Do not use alerts for area estimates or long-term trend assessment; recommend annual\
+  \ tree cover loss instead\n"
+presentation_instructions: 'Describe results as integrated alerts (potential vegetation/forest disturbance), not confirmed
+  deforestation. Note the three confidence levels (low, high, highest) and that ''highest'' confidence alerts were detected
+  by more than one alert system. Clarify if the user cares about temporary disturbance vs permanent conversion; recommend
+  annual tree cover loss for historical changes. Coverage is the humid tropics only.
+
+  '
+description: 'Integrated Alerts, assembled by Global Forest Watch, aggregates near-real-time deforestation alerts from three
+  alert systems (GLAD-L, GLAD-S2, RADD) into a single integrated layer at 10-meter resolution across the humid tropics.
+  Integrating the systems detects disturbance faster than any single system alone, since the layer updates whenever any source
+  system updates. Alerts are classified low confidence on first detection, high confidence when detected twice by a single
+  system, and highest confidence when detected by two or more systems — where multiple sensors observe the same change,
+  false detections are effectively eliminated.
+
+  '
+methodology: 'The integrated layer combines GLAD-L (Landsat, resampled from 30m to 10m), GLAD-S2 (Sentinel-2, 10m), and RADD
+  (Sentinel-1 radar, 10m) alerts on a common grid, avoiding double counting of overlapping alerts by classifying them at a
+  higher confidence level. Each pixel preserves the earliest date of detection from any system. The systems have differing
+  spatial and temporal coverage and definitions of forest/tree cover disturbance; see the source publications for details.
+  Available on Google Earth Engine (asset projects/forma-250/assets/gfw_integrated_alerts/default_latest).
+
+  '
+cautions: 'Although called ''deforestation alerts'' these detect forest or tree cover disturbances and do not distinguish
+  human-caused from other disturbance types. We do not recommend using alerts for global or regional trend assessment, nor
+  for area estimates; use annual tree cover loss for that. Recent alerts include false positives that have yet to raise their
+  confidence level and may later be removed. The ''highest confidence'' level can only be achieved where more than one alert
+  system was operating for that region and time period. Because GLAD-L is resampled from 30m to 10m, the count of integrated
+  alerts is much greater than native GLAD-L alerts and pixels may not align exactly.
+
+  '
+function_usage_notes: 'Monitor forest disturbance in near-real-time across the humid tropics using integrated alerts from
+  three alerting systems, detecting new disturbances faster and reaching confidence sooner than any single system.
+
+  '
+providers: 'Integrated deforestation alerts were assembled by Global Forest Watch from GLAD-L and GLAD-S2 (University of Maryland
+  GLAD lab) and RADD (Wageningen University) alert systems.
+
+  '
+citation: '"Integrated Deforestation Alerts". UMD/GLAD and WUR, accessed through Global Forest Watch on [date].
+
+  '

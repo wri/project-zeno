@@ -62,6 +62,13 @@ def test_capabilities_skill_includes_datasets():
     assert body.strip().startswith("# Workflow")
 
 
+def test_capabilities_lists_integrated_alerts_not_dist():
+    body = get_skill_body("capabilities")
+    assert body is not None
+    assert "Integrated Alerts" in body
+    assert "DIST-ALERT" not in body
+
+
 def test_get_skill_body():
     body = get_skill_body("analyze")
     assert body is not None
