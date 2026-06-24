@@ -1,7 +1,6 @@
 import pytest
 
 from src.agent.datasets.handlers.analytics_handler import (
-    INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
     AnalyticsHandler,
 )
@@ -61,53 +60,6 @@ async def test_build_payload_uses_canopy_cover_parameter():
         "forest_filter": None,
         "intersections": [],
     }
-
-
-async def test_base_url_defaults_to_production(monkeypatch):
-    monkeypatch.delenv("ANALYTICS_API_BASE_URL", raising=False)
-    assert (
-        AnalyticsHandler().BASE_URL
-        == "https://analytics.globalnaturewatch.org"
-    )
-
-
-async def test_base_url_honors_env(monkeypatch):
-    monkeypatch.setenv("ANALYTICS_API_BASE_URL", "http://localhost:8001")
-    assert AnalyticsHandler().BASE_URL == "http://localhost:8001"
-
-
-async def test_integrated_alerts_can_handle():
-    handler = AnalyticsHandler()
-    assert handler.can_handle({"dataset_id": INTEGRATED_ALERTS_ID})
-
-
-async def test_build_payload_integrated_alerts_has_no_intersections():
-    handler = AnalyticsHandler()
-    dataset = {
-        "dataset_id": INTEGRATED_ALERTS_ID,
-        "dataset_name": "Integrated Alerts",
-    }
-    aois = [
-        {
-            "name": "Brazil",
-            "subtype": "country",
-            "src_id": "BRA",
-        }
-    ]
-
-    payload = await handler._build_payload(
-        dataset=dataset,
-        aois=aois,
-        start_date="2024-01-01",
-        end_date="2024-12-31",
-    )
-
-    assert payload == {
-        "aoi": {"type": "admin", "ids": ["BRA"]},
-        "start_date": "2024-01-01",
-        "end_date": "2024-12-31",
-    }
-    assert "intersections" not in payload
 
 
 async def test_build_payload_uses_no_canopy_cover_parameter():

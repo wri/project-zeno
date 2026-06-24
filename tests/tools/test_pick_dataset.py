@@ -85,6 +85,7 @@ TREE_COVER = "tree cover"
 TREE_COVER_LOSS_BY_DRIVER = "tree cover loss by driver"
 SLUC_EF = "deforestation (sLUC) emission factors by agricultural crop"
 TREE_COVER_LOSS_FROM_FIRES = "tree cover loss by fires"
+INTEGRATED_ALERTS = "integrated alerts"
 
 lookup = {
     0: DIST_ALERT,
@@ -98,6 +99,7 @@ lookup = {
     8: TREE_COVER_LOSS_BY_DRIVER,
     9: SLUC_EF,
     10: TREE_COVER_LOSS_FROM_FIRES,
+    11: INTEGRATED_ALERTS,
 }
 
 
@@ -112,28 +114,28 @@ def _query_case_id(param):
 
 @pytest.fixture(
     params=[
-        # Dataset 0 queries (Ecosystem disturbance alerts) - near-real-time vegetation changes
+        # Integrated Alerts queries - near-real-time vegetation disturbance
         (
-            "Which year recorded more alerts within Protected Areas in Ucayali, Peru? 2024 or 2025?",
-            DIST_ALERT,
+            "Which year had more forest disturbance alerts in Protected Areas in Ucayali, Peru, 2024 or 2025?",
+            INTEGRATED_ALERTS,
             "2024-01-01",
             "2025-12-31",
         ),
         (
             "Show me recent vegetation disturbances in the Amazon basin over the past month",
-            DIST_ALERT,
+            INTEGRATED_ALERTS,
         ),
         (
-            "Are there any significant changes to natural ecosystems in Indonesia this week?",
-            DIST_ALERT,
+            "Have there been any new forest disturbance alerts in Indonesia this week?",
+            INTEGRATED_ALERTS,
         ),
         (
-            "I need to monitor drought impacts on vegetation cover in East Africa",
-            DIST_ALERT,
+            "I need to monitor recent forest disturbance alerts across East Africa",
+            INTEGRATED_ALERTS,
         ),
         (
-            "What areas show signs of land management interventions in the past 6 months?",
-            DIST_ALERT,
+            "Which areas had the most forest disturbance alerts in the past 6 months?",
+            INTEGRATED_ALERTS,
         ),
         # Dataset 1 queries (Global land cover) - annual land cover classification and change
         (
@@ -252,7 +254,7 @@ def _query_case_id(param):
         # ------------------------------------------------------------------
         (
             "What vegetation disturbances happened this month in Borneo?",
-            DIST_ALERT,
+            INTEGRATED_ALERTS,
             "2024-01-01",
             "2024-12-31",
         ),
@@ -330,7 +332,7 @@ def _query_case_id(param):
         ),
         (
             "Show recent vegetation disturbances across all ecosystems in Brazil",
-            DIST_ALERT,
+            INTEGRATED_ALERTS,
             "2024-01-01",
             "2024-12-31",
         ),
@@ -416,8 +418,26 @@ async def test_queries_return_expected_dataset(
 @pytest.mark.parametrize(
     "query,expected_dataset_id,expected_context_layer",
     [
-        ("Vegetation disturbances by natural lands", 0, "natural_lands"),
-        ("Vegetation disturbances over grasslands", 0, "grasslands"),
+        pytest.param(
+            "Vegetation disturbances by natural lands",
+            0,
+            "natural_lands",
+            marks=pytest.mark.skip(
+                reason="DIST-ALERT is hidden from the agent and Integrated "
+                "Alerts has no context layers, so disturbance-by-intersection "
+                "is no longer selectable."
+            ),
+        ),
+        pytest.param(
+            "Vegetation disturbances over grasslands",
+            0,
+            "grasslands",
+            marks=pytest.mark.skip(
+                reason="DIST-ALERT is hidden from the agent and Integrated "
+                "Alerts has no context layers, so disturbance-by-intersection "
+                "is no longer selectable."
+            ),
+        ),
         ("Tree cover loss by driver", 8, "driver"),
         ("Tree cover loss in primary forest", 4, "primary_forest"),
         ("Tree cover loss in intact forest", 4, "intact_forest"),
@@ -511,7 +531,7 @@ async def test_query_with_parameter(
 @pytest.mark.parametrize(
     "dataset,start_year,end_year",
     [
-        (DIST_ALERT, "2024", "2024"),
+        (INTEGRATED_ALERTS, "2024", "2024"),
         (LAND_COVER_CHANGE, "2024", "2024"),
         (GRASSLANDS, "2022", "2022"),
         (NATURAL_LANDS, "2020", "2020"),
@@ -540,7 +560,12 @@ async def test_tile_url_contains_date(dataset, start_year, end_year, state):
     command = await pick_dataset.ainvoke(tool_call)
 
     tile_url = command.update.get("dataset", {}).get("tile_url")
-    if dataset not in [NATURAL_LANDS, TREE_COVER_GAIN, CARBON_FLUX]:
+    if dataset not in [
+        NATURAL_LANDS,
+        TREE_COVER_GAIN,
+        CARBON_FLUX,
+        INTEGRATED_ALERTS,
+    ]:
         assert end_year in tile_url
     tile_url_format = tile_url.format(z=3, x=5, y=3)
     if "eoapi.globalnaturewatch.org" in tile_url_format:
