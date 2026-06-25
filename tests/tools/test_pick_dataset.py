@@ -418,26 +418,10 @@ async def test_queries_return_expected_dataset(
 @pytest.mark.parametrize(
     "query,expected_dataset_id,expected_context_layer",
     [
-        pytest.param(
-            "Vegetation disturbances by natural lands",
-            0,
-            "natural_lands",
-            marks=pytest.mark.skip(
-                reason="DIST-ALERT is hidden from the agent and Integrated "
-                "Alerts has no context layers, so disturbance-by-intersection "
-                "is no longer selectable."
-            ),
-        ),
-        pytest.param(
-            "Vegetation disturbances over grasslands",
-            0,
-            "grasslands",
-            marks=pytest.mark.skip(
-                reason="DIST-ALERT is hidden from the agent and Integrated "
-                "Alerts has no context layers, so disturbance-by-intersection "
-                "is no longer selectable."
-            ),
-        ),
+        # DIST-ALERT is selected (over Integrated Alerts) when the query needs
+        # a context-layer breakdown that Integrated Alerts cannot provide.
+        ("Vegetation disturbances by natural lands", 0, "natural_lands"),
+        ("Vegetation disturbances over grasslands", 0, "grasslands"),
         ("Tree cover loss by driver", 8, "driver"),
         ("Tree cover loss in primary forest", 4, "primary_forest"),
         ("Tree cover loss in intact forest", 4, "intact_forest"),

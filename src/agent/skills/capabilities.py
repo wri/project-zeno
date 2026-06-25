@@ -3,10 +3,10 @@ DATASETS_PLACEHOLDER = "{{AVAILABLE_DATASETS}}"
 
 def load_datasets_info() -> str:
     """Build a bullet list of datasets from configuration."""
-    from src.agent.datasets.config import agent_datasets
+    from src.agent.datasets.config import DATASETS
 
     datasets_info = []
-    for dataset in agent_datasets():
+    for dataset in DATASETS:
         name = dataset.get("dataset_name", "Unknown")
         content_date = dataset.get("content_date", "Unknown")
         resolution = dataset.get("resolution", "Unknown")

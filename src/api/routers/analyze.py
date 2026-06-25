@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends
 
 from src.agent.datasets.handlers.analytics_handler import (
+    INTEGRATED_ALERTS_ID,
     TREE_COVER_LOSS_ID,
     AnalyticsHandler,
 )
@@ -14,13 +15,19 @@ from src.api.repositories.job_repository import get_job_repository
 from src.api.schemas import AnalyzeRequest, JobResponse, UserModel
 from src.api.services.analysis_job import AnalysisJobRunner
 from src.api.services.analyze import AnalyzeService
-from src.api.services.charts import TCLChartGenerator
+from src.api.services.charts import (
+    IntegratedAlertsChartGenerator,
+    TCLChartGenerator,
+)
 from src.api.services.job import JobRepository, JobType
 
 router = APIRouter()
 
 handler = AnalyticsHandler()
-generators = [TCLChartGenerator(TREE_COVER_LOSS_ID)]
+generators = [
+    TCLChartGenerator(TREE_COVER_LOSS_ID),
+    IntegratedAlertsChartGenerator(INTEGRATED_ALERTS_ID),
+]
 
 
 def get_analysis_runner(

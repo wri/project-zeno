@@ -31,13 +31,13 @@ prompt_instructions: >-
   confidence level to differentiate bars. Always interpret alerts as indicators of potential disturbance, not definitive
   deforestation outcomes.
 selection_hints: >-
-  Best dataset for near-real-time vegetation and forest disturbance alerts globally at 10m resolution, measured in
-  hectares. Integrates DIST-ALERT, GLAD-L, GLAD-S2 and RADD into one layer, detecting disturbance faster than any single
-  system. Provides low, high, and highest confidence alerts (highest = confirmed by multiple systems). Prefer when the
-  user asks about recent disturbance, clearing, or deforestation alerts. Has NO intersections/context layers — for
-  breakdowns by driver, land cover, or natural-lands class use a different dataset. For historical or long-term tree cover
-  change, prefer Tree Cover Loss instead; for driver attribution of tree cover loss, prefer Tree Cover Loss by Dominant
-  Driver.
+  DEFAULT dataset for near-real-time vegetation and forest disturbance, clearing, and deforestation alerts globally at
+  10m resolution, measured in hectares. Integrates DIST-ALERT, GLAD-L, GLAD-S2 and RADD into one layer, detecting
+  disturbance faster than any single system. Provides low, high, and highest confidence alerts (highest = confirmed by
+  multiple systems). PREFER this for any recent disturbance/clearing/deforestation-alert query. It has NO context layers
+  / intersections — ONLY when the user needs a breakdown by driver, land cover, natural lands, or grasslands should
+  DIST-ALERT be used instead. For historical or long-term tree cover change, prefer Tree Cover Loss; for driver
+  attribution of tree cover loss, prefer Tree Cover Loss by Dominant Driver.
 code_instructions: |-
   CHART TYPES:
   - Recent trends over time → line chart (x=alert month from alert_date, y=area_ha in hectares)
