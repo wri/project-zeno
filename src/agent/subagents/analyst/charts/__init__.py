@@ -1,12 +1,12 @@
-"""Chart layer for the analyst: the canonical `InsightChart`/`InsightBundle`
+"""Chart layer for the analyst: the canonical `InsightChart`/`Insight`
 seam model shared by both insight paths."""
 
 from src.agent.subagents.analyst.charts.model import (
-    InsightBundle,
+    Insight,
     InsightChart,
 )
 
 __all__ = [
-    "InsightBundle",
+    "Insight",
     "InsightChart",
 ]

@@ -2,7 +2,7 @@ import time
 from typing import Optional
 from uuid import UUID
 
-from src.agent.subagents.analyst.charts import InsightBundle
+from src.agent.subagents.analyst.charts import Insight
 from src.api.services.analyze import AnalyzeService
 from src.api.services.job import JobRepository, JobStatus
 from src.shared.logging_config import get_logger
@@ -59,13 +59,13 @@ class AnalysisJobRunner:
 
             # Charts only, no narrative: this job doesn't run the LLM text
             # generation step.
-            bundle = InsightBundle(charts=result.charts)
+            insight = Insight(charts=result.charts)
 
             await self._repo.create_insight_resource(
                 job_id=job_id,
                 user_id=user_id,
                 thread_id=thread_id,
-                bundle=bundle,
+                insight=insight,
             )
 
             await self._repo.update_job_status(job_id, JobStatus.COMPLETED)

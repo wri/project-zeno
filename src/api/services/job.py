@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from src.agent.subagents.analyst.charts import InsightBundle
+from src.agent.subagents.analyst.charts import Insight
 
 
 class JobStatus(str, Enum):
@@ -62,7 +62,7 @@ class JobRepository(ABC):
         job_id: UUID,
         user_id: str,
         thread_id: Optional[str],
-        bundle: InsightBundle,
+        insight: Insight,
     ) -> str: ...
 
     @abstractmethod

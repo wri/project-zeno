@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from src.agent.subagents.analyst.charts import InsightBundle, InsightChart
+from src.agent.subagents.analyst.charts import Insight, InsightChart
 from src.api.services.analysis_job import AnalysisJobRunner
 from src.api.services.analyze import AnalyzeResult
 from src.api.services.job import JobRepository, JobStatus
@@ -58,14 +58,14 @@ class FakeJobRepository(JobRepository):
         job_id: UUID,
         user_id: str,
         thread_id: Optional[str],
-        bundle: InsightBundle,
+        insight: Insight,
     ) -> str:
         self.insight_resources.append(
             {
                 "job_id": job_id,
                 "user_id": user_id,
                 "thread_id": thread_id,
-                "bundle": bundle,
+                "insight": insight,
             }
         )
         return "insight-123"
@@ -97,11 +97,11 @@ async def test_run_creates_insight_resource_with_charts_only():
     await runner.run(JOB_ID, USER_ID, [AOI], 4, "2020-01-01", "2022-12-31")
 
     assert len(repo.insight_resources) == 1
-    bundle = repo.insight_resources[0]["bundle"]
-    assert len(bundle.charts) == 1
+    insight = repo.insight_resources[0]["insight"]
+    assert len(insight.charts) == 1
     # The /api/analyze path persists charts only; no LLM-generated narrative.
-    assert bundle.primary_insight == ""
-    assert bundle.follow_up_suggestions == []
+    assert insight.primary_insight == ""
+    assert insight.follow_up_suggestions == []
 
 
 @pytest.mark.asyncio

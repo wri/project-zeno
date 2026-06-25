@@ -1,9 +1,9 @@
-"""Unit tests for the canonical InsightChart/InsightBundle seam model."""
+"""Unit tests for the canonical InsightChart/Insight seam model."""
 
 import pytest
 
 from src.agent.subagents.analyst.charts.model import (
-    InsightBundle,
+    Insight,
     InsightChart,
 )
 from src.agent.subagents.analyst.code_executors.base import ChartInsight
@@ -87,11 +87,11 @@ def test_axis_validator_allows_pie_without_axis():
     assert chart.chart_type == "pie"
 
 
-def test_bundle_stamp_insight_copies_text_to_each_chart():
-    bundle = InsightBundle(
+def test_stamp_insight_copies_text_to_each_chart():
+    insight = Insight(
         charts=[_sample_chart(), _sample_chart()],
         primary_insight="Loss increased.",
         follow_up_suggestions=["Compare regions."],
     ).stamp_insight()
-    assert all(c.insight == "Loss increased." for c in bundle.charts)
-    assert bundle.charts[0].to_frontend_dict()["insight"] == "Loss increased."
+    assert all(c.insight == "Loss increased." for c in insight.charts)
+    assert insight.charts[0].to_frontend_dict()["insight"] == "Loss increased."

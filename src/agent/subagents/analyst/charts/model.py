@@ -8,7 +8,7 @@ the two wire shapes:
 - snake_case for the DB (`InsightChartOrm`) via `to_orm_kwargs()`
 - camelCase for the frontend `charts_data` via `to_frontend_dict()`
 
-`InsightBundle` groups the resolved charts with the narrative produced by the
+`Insight` groups the resolved charts with the narrative produced by the
 text stage.
 """
 
@@ -100,14 +100,14 @@ class InsightChart(BaseModel):
         )
 
 
-class InsightBundle(BaseModel):
+class Insight(BaseModel):
     """Resolved charts plus the narrative from the text stage."""
 
     charts: List[InsightChart]
     primary_insight: str = ""
     follow_up_suggestions: List[str] = Field(default_factory=list)
 
-    def stamp_insight(self) -> "InsightBundle":
+    def stamp_insight(self) -> "Insight":
         """Copy `primary_insight` onto each chart's `insight` field, so the
         frontend `charts_data` carries the narrative per chart."""
         for chart in self.charts:

@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from src.agent.subagents.analyst.charts import InsightBundle
+from src.agent.subagents.analyst.charts import Insight
 from src.api.data_models import (
     JobOrm,
     JobResourceOrm,
@@ -53,10 +53,10 @@ class DBJobRepository(JobRepository):
         job_id: UUID,
         user_id: str,
         thread_id: Optional[str],
-        bundle: InsightBundle,
+        insight: Insight,
     ) -> str:
         insight_id = await persist_insight(
-            bundle,
+            insight,
             user_id=user_id,
             thread_id=thread_id or "",
         )
@@ -73,7 +73,7 @@ class DBJobRepository(JobRepository):
             "insight_resource_created",
             job_id=str(job_id),
             insight_id=insight_id,
-            charts_count=len(bundle.charts),
+            charts_count=len(insight.charts),
         )
         return insight_id
 

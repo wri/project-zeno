@@ -12,7 +12,7 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
 from src.agent.subagents.analyst.charts import (
-    InsightBundle,
+    Insight,
     InsightChart,
 )
 from src.agent.subagents.analyst.code_executors import GeminiCodeExecutor
@@ -269,15 +269,15 @@ def _encode_parts(parts: list) -> list[dict]:
     ]
 
 
-def _build_tool_message(bundle: InsightBundle, dataset_cautions: str) -> str:
+def _build_tool_message(insight: Insight, dataset_cautions: str) -> str:
     """Human-feedback message summarizing the generated charts + insight."""
-    tool_message = f"Generated {len(bundle.charts)} chart(s)\n"
-    tool_message += f"Key Finding: {bundle.primary_insight}\n\n"
-    for idx, chart in enumerate(bundle.charts, 1):
+    tool_message = f"Generated {len(insight.charts)} chart(s)\n"
+    tool_message += f"Key Finding: {insight.primary_insight}\n\n"
+    for idx, chart in enumerate(insight.charts, 1):
         tool_message += f"Chart {idx}: {chart.title}\n"
 
-    if bundle.charts:
-        chart_data_df = pd.DataFrame(bundle.charts[0].chart_data)
+    if insight.charts:
+        chart_data_df = pd.DataFrame(insight.charts[0].chart_data)
         formatted_df = chart_data_df.apply(
             lambda col: (
                 col.map(lambda x: f"{x:.4f}".rstrip("0").rstrip("."))
@@ -293,7 +293,7 @@ def _build_tool_message(bundle: InsightBundle, dataset_cautions: str) -> str:
         tool_message += f"\n\nDataset cautions:\n{dataset_cautions}"
 
     tool_message += "\n\nFollow-up suggestions:"
-    for i, suggestion in enumerate(bundle.follow_up_suggestions, 1):
+    for i, suggestion in enumerate(insight.follow_up_suggestions, 1):
         tool_message += f"\n{i}. {suggestion}"
     return tool_message
 
@@ -410,7 +410,7 @@ class Analyst:
 
         # STAGE 2: generate insight text from the resolved charts.
         text = await InsightTextGenerator().generate(charts, dataset, query)
-        bundle = InsightBundle(
+        insight = Insight(
             charts=charts,
             primary_insight=text.primary_insight,
             follow_up_suggestions=text.follow_up_suggestions,
@@ -419,7 +419,7 @@ class Analyst:
         # PERSIST + STATE.
         ctx = structlog.contextvars.get_contextvars()
         insight_id = await persist_insight(
-            bundle,
+            insight,
             user_id=ctx.get("user_id"),
             thread_id=ctx.get("thread_id", ""),
             statistics_ids=_extract_statistics_ids(statistics),
@@ -429,13 +429,13 @@ class Analyst:
 
         updated_state = {
             "insight_id": insight_id,
-            "insight": bundle.primary_insight,
-            "follow_up_suggestions": bundle.follow_up_suggestions,
+            "insight": insight.primary_insight,
+            "follow_up_suggestions": insight.follow_up_suggestions,
             "codeact_parts": codeact_parts,
-            "charts_data": [c.to_frontend_dict() for c in bundle.charts],
+            "charts_data": [c.to_frontend_dict() for c in insight.charts],
             "messages": [
                 ToolMessage(
-                    content=_build_tool_message(bundle, dataset_cautions),
+                    content=_build_tool_message(insight, dataset_cautions),
                     tool_call_id=tool_call_id,
                     status="success",
                     response_metadata={"msg_type": "human_feedback"},
