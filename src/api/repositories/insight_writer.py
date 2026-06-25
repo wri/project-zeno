@@ -32,7 +32,7 @@ async def persist_insight(
     codeact_parts = codeact_parts or []
 
     async with get_session_from_pool() as session:
-        insight = InsightOrm(
+        insight_orm = InsightOrm(
             user_id=user_id,
             thread_id=thread_id,
             insight_text=insight.primary_insight,
@@ -41,17 +41,17 @@ async def persist_insight(
             codeact_types=[p["type"] for p in codeact_parts],
             codeact_contents=[p["content"] for p in codeact_parts],
         )
-        session.add(insight)
+        session.add(insight_orm)
         await session.flush()
 
         session.add_all(
-            InsightChartOrm(insight_id=insight.id, **chart.to_orm_kwargs())
+            InsightChartOrm(insight_id=insight_orm.id, **chart.to_orm_kwargs())
             for chart in insight.charts
         )
 
         await session.commit()
-        await session.refresh(insight)
-        insight_id = str(insight.id)
+        await session.refresh(insight_orm)
+        insight_id = str(insight_orm.id)
 
     logger.info(
         "insight_persisted",
