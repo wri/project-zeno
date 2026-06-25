@@ -57,10 +57,8 @@ class AnalysisJobRunner:
                 )
                 return
 
-            # The /api/analyze path persists the resolved charts only. Narrative
-            # text (primary insight + follow-ups) is an LLM call that belongs on
-            # the chat request path; generating it here would make this
-            # background job depend on a Gemini call.
+            # Charts only, no narrative: this job doesn't run the LLM text
+            # generation step.
             bundle = InsightBundle(charts=result.charts)
 
             await self._repo.create_insight_resource(
@@ -78,11 +76,10 @@ class AnalysisJobRunner:
                 duration_ms=duration_ms,
             )
         except Exception:
-            # This runs as a fire-and-forget BackgroundTask, so an unhandled
-            # exception would silently leave the job stuck in RUNNING with no
-            # terminal state for the polling client. Mark it FAILED instead.
-            # (A persistence failure here can still orphan an InsightOrm row
-            # without a JobResource — that is unreferenced data, not a wedge.)
+            # Fire-and-forget BackgroundTask: an unhandled exception would leave
+            # the job stuck in RUNNING, so mark it FAILED instead. (May leave an
+            # InsightOrm row with no JobResource pointing at it — harmless dead
+            # data, not something that blocks the job or future requests.)
             await self._repo.update_job_status(job_id, JobStatus.FAILED)
             logger.exception(
                 "analysis_job_errored",
