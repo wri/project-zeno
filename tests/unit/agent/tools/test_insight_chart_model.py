@@ -44,12 +44,6 @@ def test_to_frontend_dict_has_exact_legacy_keys():
     assert fe["data"] == [{"year": 2020, "area_ha": 5.0}]
 
 
-def test_frontend_round_trip_is_stable():
-    fe = _sample_chart().to_frontend_dict()
-    back = InsightChart.from_frontend_dict(fe, position=1)
-    assert back.to_frontend_dict() == fe
-
-
 def test_to_orm_kwargs_is_snake_case_and_complete():
     kwargs = _sample_chart().to_orm_kwargs()
     assert set(kwargs.keys()) == {

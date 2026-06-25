@@ -6,8 +6,7 @@ object passed between stages and into persistence, and it exposes adapters for
 the two wire shapes:
 
 - snake_case for the DB (`InsightChartOrm`) via `to_orm_kwargs()`
-- camelCase for the frontend `charts_data` via `to_frontend_dict()` /
-  `from_frontend_dict()`
+- camelCase for the frontend `charts_data` via `to_frontend_dict()`
 
 `InsightBundle` groups the resolved charts with the narrative produced by the
 text stage.
@@ -78,29 +77,6 @@ class InsightChart(BaseModel):
             "groupField": self.group_field,
             "seriesFields": self.series_fields,
         }
-
-    @classmethod
-    def from_frontend_dict(
-        cls, data: dict, position: int = 0
-    ) -> "InsightChart":
-        """Inverse of `to_frontend_dict()` — rehydrate a chart already in state.
-
-        `id` is derived from `position` on the way out, so it is not read back
-        here; the caller supplies `position` (defaulting to the list index).
-        """
-        return cls(
-            position=position,
-            title=data.get("title", ""),
-            chart_type=data.get("type", "bar"),
-            x_axis=data.get("xAxis", ""),
-            y_axis=data.get("yAxis", ""),
-            color_field=data.get("colorField", ""),
-            stack_field=data.get("stackField", ""),
-            group_field=data.get("groupField", ""),
-            series_fields=data.get("seriesFields", []),
-            chart_data=data.get("data", []),
-            insight=data.get("insight", ""),
-        )
 
     @classmethod
     def from_chart_insight(
