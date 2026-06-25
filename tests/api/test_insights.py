@@ -28,7 +28,7 @@ async def _create_user(user_id: str, email: str | None = None) -> UserOrm:
 async def _create_insight(
     *,
     user_id: str | None,
-    thread_id: str = "thread-1",
+    thread_id: str | None = "thread-1",
     title: str = "Test Insight",
     is_public: bool = False,
 ) -> InsightOrm:
@@ -145,6 +145,23 @@ async def test_get_own_private_insight(client, auth_override):
     assert body["codeact_parts"] == [
         {"type": "code_block", "content": "print('hi')"}
     ]
+
+
+@pytest.mark.asyncio
+async def test_get_insight_with_null_thread_id(client, auth_override):
+    """Insights created without a thread_id (e.g. via /api/analyze without a
+    thread_id) must still serialize — thread_id is nullable."""
+    user = await _create_user("null-thread-owner")
+    auth_override(user.id)
+
+    insight = await _create_insight(user_id=user.id, thread_id=None)
+
+    response = await client.get(
+        f"/api/insights/{insight.id}",
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    assert response.json()["thread_id"] is None
 
 
 @pytest.mark.asyncio
