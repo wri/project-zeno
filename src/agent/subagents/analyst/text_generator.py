@@ -16,7 +16,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
-from src.agent.llms import GEMINI_FLASH
+from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
@@ -64,7 +64,7 @@ _PROMPT = ChatPromptTemplate.from_messages(
 class InsightTextGenerator:
     """Generates insight text from resolved charts."""
 
-    def __init__(self, model=GEMINI_FLASH):
+    def __init__(self, model=SMALL_MODEL):
         self._chain = (
             _PROMPT | model.with_structured_output(InsightText)
         ).with_config(run_name="generate_insight_text")
