@@ -422,7 +422,7 @@ class InsightResponse(BaseModel):
 
     id: UUID
     user_id: Optional[str] = None
-    thread_id: str
+    thread_id: Optional[str] = None
     insight_text: str
     follow_up_suggestions: List[str]
     statistics_ids: List[str] = []
