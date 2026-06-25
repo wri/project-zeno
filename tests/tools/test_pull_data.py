@@ -43,9 +43,29 @@ def mock_pull_data_db_session(monkeypatch):
 # as of 2025-08-06
 ALL_DATASET_COMBINATIONS = [
     {
-        "dataset_id": 11,
-        "dataset_name": "Integrated Alerts",
+        "dataset_id": 0,
+        "dataset_name": "Ecosystem disturbance alerts",
         "context_layer": None,
+    },
+    {
+        "dataset_id": 0,
+        "dataset_name": "Ecosystem disturbance alerts",
+        "context_layer": "driver",
+    },
+    {
+        "dataset_id": 0,
+        "dataset_name": "Ecosystem disturbance alerts",
+        "context_layer": "natural_lands",
+    },
+    {
+        "dataset_id": 0,
+        "dataset_name": "Ecosystem disturbance alerts",
+        "context_layer": "grasslands",
+    },
+    {
+        "dataset_id": 0,
+        "dataset_name": "Ecosystem disturbance alerts",
+        "context_layer": "land_cover",
     },
     {
         "dataset_id": 1,
