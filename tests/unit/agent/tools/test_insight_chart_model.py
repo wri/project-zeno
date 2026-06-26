@@ -1,5 +1,8 @@
 """Unit tests for the canonical InsightChart/Insight seam model."""
 
+import json
+import math
+
 import pytest
 
 from src.agent.subagents.analyst.charts.model import (
@@ -75,6 +78,35 @@ def test_from_chart_insight_carries_spec_and_data():
     assert chart.chart_type == "stacked-bar"
     assert chart.series_fields == ["a", "b"]
     assert chart.chart_data == rows
+
+
+def test_chart_data_nan_is_sanitized_to_none():
+    # pandas to_dict() emits float('nan') for missing cells; these are not valid
+    # JSONB tokens and must be scrubbed before persistence. The failing payload
+    # had NaN in both value and key positions.
+    chart = InsightChart(
+        title="Disturbance",
+        chart_type="pie",
+        x_axis="name",
+        chart_data=[
+            {"name": "forest", "value": 540.0},
+            {"name": float("nan"), "value": float("nan")},
+            {"name": "infra", "value": float("inf")},
+        ],
+    )
+    assert chart.chart_data == [
+        {"name": "forest", "value": 540.0},
+        {"name": None, "value": None},
+        {"name": "infra", "value": None},
+    ]
+    # The sanitized rows must survive a strict (NaN-rejecting) JSON dump,
+    # which is what the Postgres JSONB parser does.
+    json.dumps(chart.to_orm_kwargs()["chart_data"], allow_nan=False)
+    assert not any(
+        isinstance(v, float) and not math.isfinite(v)
+        for row in chart.chart_data
+        for v in row.values()
+    )
 
 
 def test_axis_validator_rejects_missing_axis():

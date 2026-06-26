@@ -12,14 +12,32 @@ the two wire shapes:
 text stage.
 """
 
+import math
 from typing import List
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.agent.subagents.analyst.code_executors.base import (
     CHART_TYPES_WITHOUT_AXIS,
     ChartInsight,
 )
+
+
+def _json_safe(value):
+    """Recursively replace NaN/Inf floats with None.
+
+    `chart_data` rows come from `pandas.DataFrame.to_dict()`, which emits
+    `float('nan')` for missing cells. `NaN`/`Infinity` are not valid JSON tokens
+    under Postgres' strict `JSONB` parser, so they must be scrubbed before the
+    row reaches `to_orm_kwargs()` (DB) or `to_frontend_dict()` (frontend).
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    return value
 
 
 class InsightChart(BaseModel):
@@ -40,6 +58,12 @@ class InsightChart(BaseModel):
     series_fields: List[str] = Field(default_factory=list)
     chart_data: List[dict] = Field(default_factory=list)
     insight: str = ""
+
+    @field_validator("chart_data")
+    @classmethod
+    def sanitize_chart_data(cls, rows: List[dict]) -> List[dict]:
+        """Scrub non-finite floats (NaN/Inf) so rows are valid JSONB."""
+        return [_json_safe(row) for row in rows]
 
     @model_validator(mode="after")
     def validate_axis_config(self) -> "InsightChart":
