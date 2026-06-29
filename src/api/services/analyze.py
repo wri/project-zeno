@@ -1,14 +1,15 @@
-from dataclasses import dataclass
-from typing import Any, Optional, Sequence
+from dataclasses import dataclass, field
+from typing import Optional, Sequence
 
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
-from src.api.services.charts import ChartGenerator
+from src.agent.subagents.analyst.charts import InsightChart
+from src.api.services.charts import ChartGenerator, column_to_rows
 
 
 @dataclass
 class AnalyzeResult:
     data: DataPullResult
-    charts: Optional[Any] = None
+    charts: list[InsightChart] = field(default_factory=list)
     source_urls: Optional[list[str]] = None
 
 
@@ -36,15 +37,20 @@ class AnalyzeService:
             change_over_time_query=False,
             aois=aois,
         )
-        charts = None
+
+        charts: list[InsightChart] = []
         if result.success and result.data:
+            rows = column_to_rows(result.data)
             for gen in self._generators:
                 if gen.can_handle(dataset_id):
-                    charts = gen.generate(result)
+                    charts = gen.generate(rows)
                     break
+
         source_urls = (
             [result.analytics_api_url] if result.analytics_api_url else None
         )
         return AnalyzeResult(
-            data=result, charts=charts, source_urls=source_urls
+            data=result,
+            charts=charts,
+            source_urls=source_urls,
         )

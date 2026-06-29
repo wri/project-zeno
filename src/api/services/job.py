@@ -5,6 +5,8 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
 
+from src.agent.subagents.analyst.charts import Insight
+
 
 class JobStatus(str, Enum):
     PENDING = "pending"
@@ -60,8 +62,8 @@ class JobRepository(ABC):
         job_id: UUID,
         user_id: str,
         thread_id: Optional[str],
-        charts: list[dict],
-    ) -> None: ...
+        insight: Insight,
+    ) -> str: ...
 
     @abstractmethod
     async def get_job(self, job_id: UUID) -> Optional[JobData]: ...

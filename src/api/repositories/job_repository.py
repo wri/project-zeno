@@ -4,12 +4,12 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from src.agent.subagents.analyst.charts import Insight
 from src.api.data_models import (
-    InsightChartOrm,
-    InsightOrm,
     JobOrm,
     JobResourceOrm,
 )
+from src.api.repositories.insight_writer import persist_insight
 from src.api.services.job import (
     JobData,
     JobRepository,
@@ -53,52 +53,29 @@ class DBJobRepository(JobRepository):
         job_id: UUID,
         user_id: str,
         thread_id: Optional[str],
-        charts: list[dict],
-    ) -> None:
+        insight: Insight,
+    ) -> str:
+        insight_id = await persist_insight(
+            insight,
+            user_id=user_id,
+            thread_id=thread_id or "",
+        )
         async with get_session_from_pool() as session:
-            insight = InsightOrm(
-                user_id=user_id,
-                thread_id=thread_id,
-                insight_text="",
-                follow_up_suggestions=[],
-                statistics_ids=[],
-                codeact_types=[],
-                codeact_contents=[],
-            )
-            session.add(insight)
-            await session.flush()
-
-            session.add_all(
-                InsightChartOrm(
-                    insight_id=insight.id,
-                    position=idx,
-                    title=chart.get("title", ""),
-                    chart_type=chart.get("type", "bar"),
-                    x_axis=chart.get("xAxis", ""),
-                    y_axis=chart.get("yAxis", ""),
-                    color_field=chart.get("colorField", ""),
-                    stack_field=chart.get("stackField", ""),
-                    group_field=chart.get("groupField", ""),
-                    series_fields=chart.get("seriesFields", []),
-                    chart_data=chart.get("data", []),
-                )
-                for idx, chart in enumerate(charts)
-            )
-
             session.add(
                 JobResourceOrm(
                     job_id=job_id,
-                    resource_url=f"/api/insights/{insight.id}",
+                    resource_url=f"/api/insights/{insight_id}",
                     status=ResourceStatus.COMPLETED.value,
                 )
             )
             await session.commit()
-            logger.info(
-                "insight_resource_created",
-                job_id=str(job_id),
-                insight_id=str(insight.id),
-                charts_count=len(charts),
-            )
+        logger.info(
+            "insight_resource_created",
+            job_id=str(job_id),
+            insight_id=insight_id,
+            charts_count=len(insight.charts),
+        )
+        return insight_id
 
     async def get_job(self, job_id: UUID) -> Optional[JobData]:
         async with get_session_from_pool() as session:
