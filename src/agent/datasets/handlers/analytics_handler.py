@@ -92,7 +92,7 @@ DIST_ALERT_ID = [
 INTEGRATED_ALERTS_ID = [
     ds["dataset_id"]
     for ds in DATASETS
-    if ds["dataset_name"] == "Integrated Alerts"
+    if ds["dataset_name"] == "Integrated alerts"
 ][0]
 NATURAL_LANDS_ID = [
     ds["dataset_id"]

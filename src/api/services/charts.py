@@ -64,9 +64,9 @@ class TCLChartGenerator(ChartGenerator):
 
 
 class IntegratedAlertsChartGenerator(ChartGenerator):
-    """Integrated Alerts: monthly disturbed area, grouped by confidence.
+    """Integrated alerts: monthly disturbed area over time, by confidence.
 
-    Aggregates the daily ``area_ha`` rows into one bar per month, colored by
+    Aggregates the daily ``area_ha`` rows into a monthly line per
     ``alert_confidence`` (low / high / highest) — there are no driver or
     land-cover intersections to break down by.
     """
@@ -94,7 +94,7 @@ class IntegratedAlertsChartGenerator(ChartGenerator):
             InsightChart(
                 position=0,
                 title="Integrated Deforestation Alerts by Confidence",
-                chart_type="bar",
+                chart_type="line",
                 x_axis="month",
                 y_axis="area_ha",
                 color_field="alert_confidence",

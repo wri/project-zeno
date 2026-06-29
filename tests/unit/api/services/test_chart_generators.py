@@ -88,10 +88,10 @@ def test_integrated_alerts_generator_registered():
     )
 
 
-def test_ia_generates_one_grouped_bar_by_confidence():
+def test_ia_generates_one_line_chart_by_confidence():
     chart = IntegratedAlertsChartGenerator().generate(IA_ROWS)[0]
     fe = chart.to_frontend_dict()
-    assert fe["type"] == "bar"
+    assert fe["type"] == "line"
     assert fe["xAxis"] == "month"
     assert fe["yAxis"] == "area_ha"
     assert fe["colorField"] == "alert_confidence"
