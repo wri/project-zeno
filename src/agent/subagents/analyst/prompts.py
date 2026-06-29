@@ -20,12 +20,11 @@ IMPORTANT: Write one code block for each step, so that you can use the actual da
 - Print your key findings clearly
 - Do **NOT** create any plots or charts yet
 
-**STEP 2: IDENTIFY WHAT TO CHART**
-- Identify the patterns, trends, or comparisons in the data worth visualizing
-  for the user query, and which fields and contextual layers/parameters the
-  chart(s) should use.
-- Do NOT write a narrative summary of the findings — a separate stage produces
-  the insight text. Your job is to select and shape the chart(s).
+**STEP 2: SUMMARIZE INSIGHTS**
+- Summarize the data relevant to the user query
+- Identify the most important patterns, trends, or comparisons
+- Include contextual layers or parameters used for analysis on the datasets
+- Use this summary to ground the chart(s) you generate in the next step
 
 **STEP 3: GENERATE CHART DATA**
 Now prepare the data for visualization in Recharts.js:
