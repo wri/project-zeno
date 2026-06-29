@@ -89,6 +89,11 @@ DIST_ALERT_ID = [
     if ds["dataset_name"]
     == "Global all ecosystem disturbance alerts (DIST-ALERT)"
 ][0]
+INTEGRATED_ALERTS_ID = [
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"] == "Integrated alerts"
+][0]
 NATURAL_LANDS_ID = [
     ds["dataset_id"]
     for ds in DATASETS
@@ -143,7 +148,13 @@ TREE_COVER_LOSS_BY_FIRES_ID = [
 class AnalyticsHandler(DataSourceHandler):
     """Generalized handler for GFW Analytics API endpoints"""
 
-    BASE_URL = "https://analytics.globalnaturewatch.org"
+    def __init__(self) -> None:
+        # Base URL is env-configurable so evals/local runs can target a
+        # non-production analytics API (e.g. http://localhost:8001).
+        self.BASE_URL = os.getenv(
+            "ANALYTICS_API_BASE_URL",
+            "https://analytics.globalnaturewatch.org",
+        )
 
     HEADERS = {
         "Accept": "application/json",
@@ -160,6 +171,7 @@ class AnalyticsHandler(DataSourceHandler):
         """Check if this handler can process the given dataset"""
         return dataset.get("dataset_id") in [
             DIST_ALERT_ID,
+            INTEGRATED_ALERTS_ID,
             NATURAL_LANDS_ID,
             LAND_COVER_CHANGE_ID,
             GRASSLANDS_ID,
@@ -267,6 +279,14 @@ class AnalyticsHandler(DataSourceHandler):
                     if dataset.get("context_layer")
                     else []
                 ),
+            }
+
+        elif dataset.get("dataset_id") == INTEGRATED_ALERTS_ID:
+            # Integrated Alerts has no intersections; it takes full dates only.
+            payload = {
+                **base_payload,
+                "start_date": start_date,
+                "end_date": end_date,
             }
 
         elif dataset.get("dataset_id") in [
