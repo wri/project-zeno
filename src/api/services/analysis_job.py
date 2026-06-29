@@ -2,6 +2,7 @@ import time
 from typing import Optional
 from uuid import UUID
 
+from src.agent.subagents.analyst.charts import Insight
 from src.api.services.analyze import AnalyzeService
 from src.api.services.job import JobRepository, JobStatus
 from src.shared.logging_config import get_logger
@@ -35,36 +36,54 @@ class AnalysisJobRunner:
         )
 
         started_at = time.perf_counter()
-        result = await self._service.analyze(
-            aois=aois,
-            dataset_id=dataset_id,
-            start_date=start_date,
-            end_date=end_date,
-        )
-        duration_ms = round((time.perf_counter() - started_at) * 1000)
+        try:
+            result = await self._service.analyze(
+                aois=aois,
+                dataset_id=dataset_id,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            duration_ms = round((time.perf_counter() - started_at) * 1000)
 
-        if not result.data.success:
-            await self._repo.update_job_status(job_id, JobStatus.FAILED)
-            logger.error(
-                "analysis_job_failed",
-                severity="high",
+            if not result.data.success:
+                await self._repo.update_job_status(job_id, JobStatus.FAILED)
+                logger.error(
+                    "analysis_job_failed",
+                    severity="high",
+                    job_id=str(job_id),
+                    user_id=user_id,
+                    duration_ms=duration_ms,
+                    error_details=result.data.message,
+                )
+                return
+
+            # Charts only, no narrative: this job doesn't run the LLM text
+            # generation step.
+            insight = Insight(charts=result.charts)
+
+            await self._repo.create_insight_resource(
+                job_id=job_id,
+                user_id=user_id,
+                thread_id=thread_id,
+                insight=insight,
+            )
+
+            await self._repo.update_job_status(job_id, JobStatus.COMPLETED)
+            logger.info(
+                "analysis_job_completed",
                 job_id=str(job_id),
                 user_id=user_id,
                 duration_ms=duration_ms,
-                error_details=result.data.message,
             )
-            return
-
-        await self._repo.create_insight_resource(
-            job_id=job_id,
-            user_id=user_id,
-            thread_id=thread_id,
-            charts=result.charts or [],
-        )
-        await self._repo.update_job_status(job_id, JobStatus.COMPLETED)
-        logger.info(
-            "analysis_job_completed",
-            job_id=str(job_id),
-            user_id=user_id,
-            duration_ms=duration_ms,
-        )
+        except Exception:
+            # Fire-and-forget BackgroundTask: an unhandled exception would leave
+            # the job stuck in RUNNING, so mark it FAILED instead. (May leave an
+            # InsightOrm row with no JobResource pointing at it — harmless dead
+            # data, not something that blocks the job or future requests.)
+            await self._repo.update_job_status(job_id, JobStatus.FAILED)
+            logger.exception(
+                "analysis_job_errored",
+                severity="high",
+                job_id=str(job_id),
+                user_id=user_id,
+            )

@@ -57,20 +57,18 @@ class ChartInsight(BaseModel):
 
 class MultiChartInsight(BaseModel):
     """
-    Represents multiple chart-based insights from a single analysis.
-    Used when the data supports multiple visualizations (e.g., tree cover loss AND emissions).
+    The chart spec(s) the code executor produces from a single analysis. Used
+    when the data supports multiple visualizations (e.g., tree cover loss AND
+    emissions).
+
+    Charts only — the narrative (insight text + follow-ups) is produced by a
+    separate text stage (`InsightTextGenerator`), not the executor.
     """
 
     charts: List[ChartInsight] = Field(
         min_length=1,
         max_length=2,
         description="List of 1-2 charts to display, each with title, type, and field mappings",
-    )
-    primary_insight: str = Field(
-        description="Overall insight that ties all charts together (2-3 sentences)"
-    )
-    follow_up_suggestions: List[str] = Field(
-        description="List of 1-2 follow-up suggestions based on available data and capability"
     )
 
 

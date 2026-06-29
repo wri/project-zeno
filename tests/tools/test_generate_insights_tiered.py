@@ -20,9 +20,11 @@ import pytest
 
 from src.agent.datasets.config import DATASETS
 from src.agent.state import Statistics
-from src.agent.subagents.analyst.tool import (
+from src.agent.subagents.analyst.code_executors.base import (
     ChartInsight,
     MultiChartInsight,
+)
+from src.agent.subagents.analyst.tool import (
     _extract_statistics_ids,
     generate_insights,
     prepare_dataframes,
@@ -95,7 +97,7 @@ def mock_insight_db():
         yield mock_session
 
     with patch(
-        "src.agent.subagents.analyst.tool.get_session_from_pool",
+        "src.api.repositories.insight_writer.get_session_from_pool",
         fake_pool,
     ):
         yield mock_session
@@ -490,8 +492,6 @@ async def test_generate_insights_persists_statistics_provenance(monkeypatch):
                 y_axis="value",
             )
         ],
-        primary_insight="Brazil has one unit.",
-        follow_up_suggestions=["Compare another area."],
     )
 
     class FakeExecutionResult:
@@ -520,6 +520,19 @@ async def test_generate_insights_persists_statistics_provenance(monkeypatch):
 
     monkeypatch.setattr(
         generate_insights_module, "GeminiCodeExecutor", FakeExecutor
+    )
+
+    class _Text:
+        primary_insight = "Brazil has one unit."
+        follow_up_suggestions = ["Compare another area."]
+
+    async def fake_generate(self, charts, dataset, query="", config=None):
+        return _Text()
+
+    monkeypatch.setattr(
+        generate_insights_module.InsightTextGenerator,
+        "generate",
+        fake_generate,
     )
 
     await invoke_generate_insights(
