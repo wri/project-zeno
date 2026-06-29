@@ -1,9 +1,9 @@
 """Prompts for the analyst subagent behind `generate_insights`.
 
 EXECUTOR_WORKFLOW is the step-by-step workflow the code executor follows to
-turn pulled data into chart + insight JSON. WORDING_GUIDE is the neutral,
-measurement-first language guide for user-facing text. Both are assembled
-into the executor prompt by `build_analysis_prompt`.
+turn pulled data into chart JSON. WORDING_GUIDE is the neutral,
+measurement-first language guide for user-facing text, used by the separate
+text stage (`InsightTextGenerator`).
 """
 
 EXECUTOR_WORKFLOW = """### STEP-BY-STEP WORKFLOW (follow in order)
@@ -23,8 +23,8 @@ IMPORTANT: Write one code block for each step, so that you can use the actual da
 **STEP 2: SUMMARIZE INSIGHTS**
 - Summarize the data relevant to the user query
 - Identify the most important patterns, trends, or comparisons
-- Print a clear summary of what the data shows
 - Include contextual layers or parameters used for analysis on the datasets
+- Use this summary to ground the chart(s) you generate in the next step
 
 **STEP 3: GENERATE CHART DATA**
 Now prepare the data for visualization in Recharts.js:
@@ -59,12 +59,11 @@ Now prepare the data for visualization in Recharts.js:
 
    c) **SAVE THE DATA**: Save as `chart_data.csv` — pipeline only reads this file. Final step must call `to_csv('chart_data.csv', index=False)`.
 
-   d) **SAVE THE INSIGHT**: Save as `insight.json` — pipeline only reads this file.
+   d) **SAVE THE CHART SPEC**: Save the chart spec(s) as `insight.json` — the
+      pipeline only reads this file. A separate stage generates the narrative,
+      so do not write any insight text here.
 
    e) **PRINT CHART TYPE**: State the recommended chart type in the output
-
-**STEP 4: FINAL DATA-DRIVEN INSIGHT**
-- Concise 2–3 sentence insight grounded in the numbers found
 """
 
 WORDING_GUIDE = """# Wording

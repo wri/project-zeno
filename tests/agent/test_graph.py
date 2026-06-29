@@ -64,7 +64,7 @@ def mock_insight_db():
         yield mock_session
 
     with patch(
-        "src.agent.subagents.analyst.tool.get_session_from_pool",
+        "src.api.repositories.insight_writer.get_session_from_pool",
         fake_pool,
     ):
         yield mock_session
