@@ -6,7 +6,12 @@ import pytest
 
 from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
-from src.api.data_models import InsightChartOrm, InsightOrm, UserOrm
+from src.api.data_models import (
+    InsightChartOrm,
+    InsightOrm,
+    StatisticsOrm,
+    UserOrm,
+)
 from tests.conftest import async_session_maker
 
 
@@ -25,19 +30,43 @@ async def _create_user(user_id: str, email: str | None = None) -> UserOrm:
         return user
 
 
+async def _create_statistic(
+    *,
+    user_id: str | None,
+    dataset_name: str,
+    aoi_names: list[str],
+) -> StatisticsOrm:
+    async with async_session_maker() as session:
+        row = StatisticsOrm(
+            user_id=user_id,
+            thread_id="thread-1",
+            dataset_name=dataset_name,
+            start_date="2020-01-01",
+            end_date="2020-12-31",
+            aoi_names=aoi_names,
+        )
+        session.add(row)
+        await session.commit()
+        await session.refresh(row)
+        return row
+
+
 async def _create_insight(
     *,
     user_id: str | None,
     thread_id: str | None = "thread-1",
     title: str = "Test Insight",
     is_public: bool = False,
+    insight_text: str = "Sample insight text",
+    statistics_ids: list[str] | None = None,
 ) -> InsightOrm:
     async with async_session_maker() as session:
         row = InsightOrm(
             user_id=user_id,
             thread_id=thread_id,
-            insight_text="Sample insight text",
+            insight_text=insight_text,
             follow_up_suggestions=["Try a different area"],
+            statistics_ids=statistics_ids or [],
             codeact_types=["code_block"],
             codeact_contents=["print('hi')"],
             is_public=is_public,
@@ -106,6 +135,131 @@ async def test_list_insights_filter_by_thread(client, auth_override):
     data = response.json()
     assert len(data) == 1
     assert data[0]["id"] == str(i2.id)
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_by_text(client, auth_override):
+    user = await _create_user("text-owner")
+    auth_override(user.id)
+
+    match = await _create_insight(
+        user_id=user.id, insight_text="Deforestation spiked in 2021"
+    )
+    await _create_insight(
+        user_id=user.id, insight_text="Tree cover gain was steady"
+    )
+
+    response = await client.get(
+        "/api/insights",
+        params={"text": "deforestation"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert [i["id"] for i in data] == [str(match.id)]
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_by_dataset(client, auth_override):
+    user = await _create_user("dataset-owner")
+    auth_override(user.id)
+
+    stat_a = await _create_statistic(
+        user_id=user.id, dataset_name="Tree cover loss", aoi_names=["Brazil"]
+    )
+    stat_b = await _create_statistic(
+        user_id=user.id, dataset_name="Tree cover gain", aoi_names=["Brazil"]
+    )
+    match = await _create_insight(
+        user_id=user.id, statistics_ids=[str(stat_a.id)]
+    )
+    await _create_insight(user_id=user.id, statistics_ids=[str(stat_b.id)])
+    await _create_insight(user_id=user.id, statistics_ids=[])
+
+    response = await client.get(
+        "/api/insights",
+        params={"dataset": "Tree cover loss"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert [i["id"] for i in data] == [str(match.id)]
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_by_aoi(client, auth_override):
+    user = await _create_user("aoi-owner")
+    auth_override(user.id)
+
+    stat_a = await _create_statistic(
+        user_id=user.id,
+        dataset_name="Tree cover loss",
+        aoi_names=["Brazil", "Peru"],
+    )
+    stat_b = await _create_statistic(
+        user_id=user.id, dataset_name="Tree cover loss", aoi_names=["Kenya"]
+    )
+    match = await _create_insight(
+        user_id=user.id, statistics_ids=[str(stat_a.id)]
+    )
+    await _create_insight(user_id=user.id, statistics_ids=[str(stat_b.id)])
+
+    response = await client.get(
+        "/api/insights",
+        params={"aoi": "Peru"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert [i["id"] for i in data] == [str(match.id)]
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_by_aoi_and_dataset(client, auth_override):
+    user = await _create_user("aoi-dataset-owner")
+    auth_override(user.id)
+
+    stat_match = await _create_statistic(
+        user_id=user.id, dataset_name="Tree cover loss", aoi_names=["Brazil"]
+    )
+    # Same AOI, different dataset — must be excluded.
+    stat_other = await _create_statistic(
+        user_id=user.id, dataset_name="Tree cover gain", aoi_names=["Brazil"]
+    )
+    match = await _create_insight(
+        user_id=user.id, statistics_ids=[str(stat_match.id)]
+    )
+    await _create_insight(user_id=user.id, statistics_ids=[str(stat_other.id)])
+
+    response = await client.get(
+        "/api/insights",
+        params={"aoi": "Brazil", "dataset": "Tree cover loss"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert [i["id"] for i in data] == [str(match.id)]
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_no_matching_statistics(
+    client, auth_override
+):
+    user = await _create_user("no-match-owner")
+    auth_override(user.id)
+
+    stat = await _create_statistic(
+        user_id=user.id, dataset_name="Tree cover loss", aoi_names=["Brazil"]
+    )
+    await _create_insight(user_id=user.id, statistics_ids=[str(stat.id)])
+
+    response = await client.get(
+        "/api/insights",
+        params={"dataset": "Nonexistent dataset"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 @pytest.mark.asyncio

@@ -4,12 +4,12 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.api.auth.dependencies import optional_auth, require_auth
-from src.api.data_models import InsightOrm, UserType
+from src.api.data_models import InsightOrm, StatisticsOrm, UserType
 from src.api.schemas import (
     InsightChartResponse,
     InsightPublicToggleRequest,
@@ -62,10 +62,25 @@ def _row_to_response(row: InsightOrm) -> InsightResponse:
 @router.get("/api/insights", response_model=list[InsightResponse])
 async def list_insights(
     thread_id: Optional[str] = None,
+    aoi: Optional[str] = None,
+    dataset: Optional[str] = None,
+    text: Optional[str] = None,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """List all insights belonging to the authenticated user, optionally filtered by thread."""
+    """List insights belonging to the authenticated user.
+
+    Optional filters:
+    - ``thread_id``: only insights from the given thread.
+    - ``dataset``: only insights derived from the named dataset.
+    - ``aoi``: only insights derived from the named area of interest.
+    - ``text``: case-insensitive substring match on the insight text.
+
+    ``dataset`` and ``aoi`` are properties of the ``StatisticsOrm`` rows linked
+    via ``InsightOrm.statistics_ids`` (a JSONB array of stringified statistics
+    UUIDs), so they are resolved by matching statistics and keeping insights
+    whose ``statistics_ids`` overlap.
+    """
     stmt = (
         select(InsightOrm)
         .options(selectinload(InsightOrm.charts))
@@ -73,6 +88,27 @@ async def list_insights(
     )
     if thread_id:
         stmt = stmt.where(InsightOrm.thread_id == thread_id)
+    if text:
+        stmt = stmt.where(InsightOrm.insight_text.ilike(f"%{text}%"))
+
+    if dataset or aoi:
+        matching_stat_ids = select(
+            func.array_agg(cast(StatisticsOrm.id, String))
+        )
+        if dataset:
+            matching_stat_ids = matching_stat_ids.where(
+                StatisticsOrm.dataset_name == dataset
+            )
+        if aoi:
+            matching_stat_ids = matching_stat_ids.where(
+                StatisticsOrm.aoi_names.has_key(aoi)
+            )
+        stmt = stmt.where(
+            InsightOrm.statistics_ids.has_any(
+                matching_stat_ids.scalar_subquery()
+            )
+        )
+
     stmt = stmt.order_by(InsightOrm.created_at.desc())
 
     result = await session.execute(stmt)
