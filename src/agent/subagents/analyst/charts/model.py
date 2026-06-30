@@ -123,6 +123,26 @@ class InsightChart(BaseModel):
             chart_data=chart_data,
         )
 
+    @classmethod
+    def from_orm_row(cls, row) -> "InsightChart":
+        """Rebuild the seam model from a persisted `InsightChartOrm` row.
+
+        The inverse of `to_orm_kwargs()`: used when an existing insight is
+        loaded back from the DB to be restyled (no new data is pulled).
+        """
+        return cls(
+            position=row.position,
+            title=row.title,
+            chart_type=row.chart_type,
+            x_axis=row.x_axis,
+            y_axis=row.y_axis,
+            color_field=row.color_field,
+            stack_field=row.stack_field,
+            group_field=row.group_field,
+            series_fields=row.series_fields or [],
+            chart_data=row.chart_data or [],
+        )
+
 
 class Insight(BaseModel):
     """Resolved charts plus the narrative from the text stage."""

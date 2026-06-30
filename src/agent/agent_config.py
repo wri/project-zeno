@@ -29,7 +29,11 @@ from src.agent.tools.inspect_view_context import (
     SPEC as inspect_view_context_spec,
 )
 from src.agent.tools.pull_data import SPEC as pull_data_spec
+from src.agent.tools.search_insights import SPEC as search_insights_spec
 from src.agent.tools.show_imagery import SPEC as show_imagery_spec
+from src.agent.tools.update_insight_display import (
+    SPEC as update_insight_display_spec,
+)
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -50,6 +54,8 @@ EXPERIMENTAL_SPECS = (
     inspect_view_context_spec,
     show_imagery_spec,
     search_blogs_spec,
+    update_insight_display_spec,
+    search_insights_spec,
 )
 
 
