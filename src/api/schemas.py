@@ -294,6 +294,22 @@ class GeometryResponse(BaseModel):
     geometry: dict = Field(..., description="GeoJSON geometry")
 
 
+class AOISearchResult(BaseModel):
+    """A single AOI returned by the ``GET /api/aois`` search endpoint."""
+
+    source: str = Field(
+        ...,
+        description="Source of the AOI (gadm, kba, wdpa, landmark, custom)",
+    )
+    src_id: str = Field(..., description="Source-specific ID of the AOI")
+    name: str = Field(..., description="Name of the AOI")
+    subtype: str = Field(..., description="Subtype of the AOI")
+    bbox: List[float] = Field(
+        default=[-180.0, -90.0, 180.0, 90.0],
+        description="Bounding box as [minx, miny, maxx, maxy]",
+    )
+
+
 class DailyUsageModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str

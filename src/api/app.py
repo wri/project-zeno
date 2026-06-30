@@ -11,6 +11,7 @@ from src.agent.utils.sgrep import data_status
 from src.api.routers import (
     admin,
     analyze,
+    aois,
     chat,
     custom_areas,
     geometry,
@@ -139,6 +140,7 @@ app.include_router(chat.router)
 app.include_router(threads.router)
 app.include_router(users.router)
 app.include_router(custom_areas.router)
+app.include_router(aois.router)
 app.include_router(geometry.router)
 app.include_router(thumbnails.router)
 app.include_router(insights.router)

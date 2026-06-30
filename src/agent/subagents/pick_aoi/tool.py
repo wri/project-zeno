@@ -26,7 +26,8 @@ from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
-    CUSTOM_AREA_TABLE,
+    BBOX_SQL,
+    CUSTOM_BBOX_SQL,
     GADM_STANDARD_ID_RE,
     GADM_TABLE,
     KBA_TABLE,
@@ -34,6 +35,7 @@ from src.shared.geocoding_helpers import (
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
     WDPA_TABLE,
+    search_aois,
 )
 from src.shared.logging_config import get_logger
 
@@ -58,60 +60,6 @@ aoi_to_table = {
 
 load_dotenv()
 logger = get_logger(__name__)
-
-
-def _antimeridian_bbox_sql(geom_expr: str) -> str:
-    """
-    Returns [west, south, east, north] JSON array.
-    For antimeridian-crossing geometries (span > 180°), clips to each
-    half-plane to get the bbox of the eastern and western parts separately —
-    no ST_Dump, no vertex iteration. Falls back to naive bbox if either
-    clip returns nothing (geometry doesn't truly cross the antimeridian).
-    """
-    east_half = "ST_MakeEnvelope(0, -90, 180, 90, 4326)"
-    west_half = "ST_MakeEnvelope(-180, -90, 0, 90, 4326)"
-    return f"""
-    CASE
-        WHEN ST_XMax({geom_expr}) - ST_XMin({geom_expr}) > 180
-        THEN (
-            SELECT COALESCE(
-                CASE
-                    WHEN west IS NOT NULL AND east IS NOT NULL
-                    THEN json_build_array(west, ST_YMin({geom_expr}), east, ST_YMax({geom_expr}))
-                END,
-                json_build_array(ST_XMin({geom_expr}), ST_YMin({geom_expr}), ST_XMax({geom_expr}), ST_YMax({geom_expr}))
-            )
-            FROM (
-                SELECT
-                    ST_XMin(ST_Envelope(ST_ClipByBox2D({geom_expr}, {east_half}))) AS west,
-                    ST_XMax(ST_Envelope(ST_ClipByBox2D({geom_expr}, {west_half}))) AS east
-            ) AS parts
-        )
-        ELSE json_build_array(
-            ST_XMin({geom_expr}),
-            ST_YMin({geom_expr}),
-            ST_XMax({geom_expr}),
-            ST_YMax({geom_expr})
-        )
-    END
-    """
-
-
-BBOX_SQL = f"({_antimeridian_bbox_sql('geometry')}) AS bbox"
-
-# The custom geometries table stores geometries as an list of geojsons,
-# requiring a funky SQL to pull out the overall bounds
-CUSTOM_BBOX_SQL = f"""
-(
-    SELECT {_antimeridian_bbox_sql("bounds.geometry")}
-    FROM (
-        SELECT ST_Envelope(
-            ST_Collect(ST_SetSRID(ST_GeomFromGeoJSON(geom_json), 4326))
-        ) AS geometry
-        FROM jsonb_array_elements_text(geometries) AS geom(geom_json)
-    ) AS bounds
-) AS bbox
-"""
 
 
 async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
@@ -168,181 +116,15 @@ async def query_aoi_database(
     Returns:
         DataFrame containing location information
     """
-    async with get_connection_from_pool() as conn:
-        # Enable pg_trgm extension for similarity function
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
-        await conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
-        await conn.commit()
-
-        user_id = structlog.contextvars.get_contextvars().get("user_id")
-
-        # Check which tables exist first
-        existing_tables = []
-
-        # Check GADM table
-        try:
-            await conn.execute(text(f"SELECT 1 FROM {GADM_TABLE} LIMIT 1"))
-            existing_tables.append("gadm")
-        except Exception:
-            logger.warning(f"Table {GADM_TABLE} does not exist")
-            await conn.rollback()
-
-        # Check KBA table
-        try:
-            await conn.execute(text(f"SELECT 1 FROM {KBA_TABLE} LIMIT 1"))
-            existing_tables.append("kba")
-        except Exception:
-            logger.warning(f"Table {KBA_TABLE} does not exist")
-            await conn.rollback()
-
-        # Check Landmark table
-        try:
-            await conn.execute(text(f"SELECT 1 FROM {LANDMARK_TABLE} LIMIT 1"))
-            existing_tables.append("landmark")
-        except Exception:
-            logger.warning(f"Table {LANDMARK_TABLE} does not exist")
-            await conn.rollback()
-
-        # Check WDPA table
-        try:
-            await conn.execute(text(f"SELECT 1 FROM {WDPA_TABLE} LIMIT 1"))
-            existing_tables.append("wdpa")
-        except Exception:
-            logger.warning(f"Table {WDPA_TABLE} does not exist")
-            await conn.rollback()
-
-        # Check Custom Areas table
-        try:
-            await conn.execute(
-                text(f"SELECT 1 FROM {CUSTOM_AREA_TABLE} LIMIT 1")
-            )
-            existing_tables.append("custom")
-        except Exception:
-            logger.warning(f"Table {CUSTOM_AREA_TABLE} does not exist")
-            await conn.rollback()
-
-        # Build the query based on existing tables
-        union_parts = []
-
-        if aoi_type is not None:
-            aoi_table = aoi_to_table[aoi_type]
-            if aoi_table in existing_tables:
-                existing_tables = [aoi_table]
-            else:
-                # This cannot happen in production, unless the AOI tables are
-                # misconfigured. This is to catch the case where not all tables have
-                # been created locally.
-                raise ValueError(
-                    f"Required geometry table {aoi_table} does not exist in the database"
-                )
-
-        if "gadm" in existing_tables:
-            union_parts.append(
-                f"""
-                SELECT gadm_id AS src_id,
-                    name, subtype, 'gadm' as source, {BBOX_SQL}
-                FROM {GADM_TABLE}
-                WHERE name IS NOT NULL AND name % :place_name
-                AND gadm_id ~ '{GADM_STANDARD_ID_RE}'
-            """
-            )
-
-        if "kba" in existing_tables:
-            src_id = SOURCE_ID_MAPPING["kba"]["id_column"]
-            union_parts.append(
-                f"""
-                SELECT CAST({src_id} as TEXT) as src_id,
-                       name,
-                       subtype,
-                       'kba' as source,
-                       {BBOX_SQL}
-                FROM {KBA_TABLE}
-                WHERE name IS NOT NULL AND name % :place_name
-            """
-            )
-
-        if "landmark" in existing_tables:
-            src_id = SOURCE_ID_MAPPING["landmark"]["id_column"]
-            union_parts.append(
-                f"""
-                SELECT CAST({src_id} as TEXT) as src_id,
-                       name,
-                       subtype,
-                       'landmark' as source,
-                       {BBOX_SQL}
-                FROM {LANDMARK_TABLE}
-                WHERE name IS NOT NULL AND name % :place_name
-            """
-            )
-
-        if "wdpa" in existing_tables:
-            src_id = SOURCE_ID_MAPPING["wdpa"]["id_column"]
-            union_parts.append(
-                f"""
-                SELECT CAST({src_id} as TEXT) as src_id,
-                       name,
-                       subtype,
-                       'wdpa' as source,
-                       {BBOX_SQL}
-                FROM {WDPA_TABLE}
-                WHERE name IS NOT NULL AND name % :place_name
-            """
-            )
-        if "custom" in existing_tables:
-            src_id = SOURCE_ID_MAPPING["custom"]["id_column"]
-            if not user_id:
-                raise ValueError("user_id required for custom areas")
-
-            union_parts.append(
-                f"""
-                SELECT CAST({src_id} as TEXT) as src_id,
-                        name,
-                        'custom-area' as subtype,
-                        'custom' as source,
-                        {CUSTOM_BBOX_SQL}
-                FROM {CUSTOM_AREA_TABLE}
-                WHERE user_id = :user_id
-                AND name IS NOT NULL AND name % :place_name
-            """
-            )
-
-        if not union_parts:
-            logger.error("No geometry tables exist in the database")
-            return pd.DataFrame()
-
-        # Create the combined search query
-        combined_query = " UNION ALL ".join(union_parts)
-
-        sql_query = f"""
-            WITH combined_search AS (
-                {combined_query}
-            )
-            SELECT *,
-                   similarity(LOWER(name), LOWER(:place_name)) AS similarity_score
-            FROM combined_search
-            WHERE name IS NOT NULL
-            AND name % :place_name
-            ORDER BY similarity_score DESC
-            LIMIT :limit_val
-        """
-
-        logger.debug(f"Executing AOI query: {sql_query}")
-
-        def _read(sync_conn):
-            return pd.read_sql(
-                text(sql_query),
-                sync_conn,
-                params={
-                    "place_name": place_name,
-                    "limit_val": result_limit,
-                    "user_id": user_id,
-                },
-            )
-
-        query_results = await conn.run_sync(_read)
-
-    logger.debug(f"AOI query results: {query_results}")
-    return query_results
+    sources = [aoi_to_table[aoi_type]] if aoi_type is not None else None
+    user_id = structlog.contextvars.get_contextvars().get("user_id")
+    return await search_aois(
+        name=place_name,
+        sources=sources,
+        user_id=user_id,
+        limit=result_limit,
+        offset=0,
+    )
 
 
 async def query_subregion_database(
