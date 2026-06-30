@@ -197,10 +197,17 @@ class StatisticsOrm(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
     thread_id = Column(String, nullable=True)
     dataset_name = Column(String, nullable=False)
+    # Catalog id of the dataset (parallel to dataset_name). Nullable so existing
+    # rows stay valid without backfill.
+    dataset_id = Column(Integer, nullable=True)
     start_date = Column(String, nullable=False)
     end_date = Column(String, nullable=False)
     source_url = Column(String, nullable=True)
     aoi_names = Column(JSONB, nullable=False, server_default="[]")
+    # src_ids of the analysed AOIs, parallel to aoi_names. src_id is only unique
+    # per source, so aoi_sources carries the matching source for each entry.
+    aoi_ids = Column(JSONB, nullable=False, server_default="[]")
+    aoi_sources = Column(JSONB, nullable=False, server_default="[]")
     parameters = Column(JSONB, nullable=True)
     context_layer = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)

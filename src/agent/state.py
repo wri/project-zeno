@@ -29,6 +29,7 @@ class StatisticsParameter(TypedDict):
 class Statistics(TypedDict):
     id: NotRequired[str]
     dataset_name: str
+    dataset_id: NotRequired[int | None]
     start_date: str
     end_date: str
     source_url: NotRequired[str]
@@ -38,6 +39,10 @@ class Statistics(TypedDict):
     # re-applied after URL fetch so chart labels stay readable.
     aoi_id_to_name: NotRequired[dict]
     aoi_names: list[str]
+    # src_ids of the analysed AOIs, parallel to aoi_names; aoi_sources carries
+    # the matching source per id since src_id is only unique per source.
+    aoi_ids: NotRequired[list[str]]
+    aoi_sources: NotRequired[list[str]]
     parameters: list[StatisticsParameter] | None
     context_layer: str | None
 

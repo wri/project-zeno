@@ -155,15 +155,20 @@ async def pull_data(
     raw = result.data if isinstance(result.data, dict) else {}
     aoi_id_to_name = dict(zip(raw.get("aoi_id", []), raw.get("name", [])))
 
+    aois = state["aoi_selection"]["aois"]
     statistics = {
         "dataset_name": dataset["dataset_name"],
+        "dataset_id": dataset.get("dataset_id"),
         "start_date": effective_start,
         "end_date": effective_end,
         "source_url": result.analytics_api_url,
         # ID-backed statistics keep state light; fetch data from source_url when needed.
         "data": {},
         "aoi_id_to_name": aoi_id_to_name,
-        "aoi_names": [aoi["name"] for aoi in state["aoi_selection"]["aois"]],
+        "aoi_names": [aoi["name"] for aoi in aois],
+        # src_id is only unique per source, so sources are kept parallel to ids.
+        "aoi_ids": [aoi["src_id"] for aoi in aois],
+        "aoi_sources": [aoi["source"] for aoi in aois],
         "parameters": dataset.get("parameters"),
         "context_layer": dataset.get("context_layer"),
     }
@@ -174,10 +179,13 @@ async def pull_data(
             user_id=ctx.get("user_id"),
             thread_id=ctx.get("thread_id"),
             dataset_name=statistics["dataset_name"],
+            dataset_id=statistics["dataset_id"],
             start_date=statistics["start_date"],
             end_date=statistics["end_date"],
             source_url=statistics["source_url"],
             aoi_names=statistics["aoi_names"],
+            aoi_ids=statistics["aoi_ids"],
+            aoi_sources=statistics["aoi_sources"],
             parameters=statistics["parameters"],
             context_layer=statistics["context_layer"],
         )
