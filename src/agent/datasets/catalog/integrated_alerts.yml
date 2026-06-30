@@ -26,12 +26,12 @@ prompt_instructions: >-
   effectively eliminates false detections). Low-confidence alerts are not shown for DIST-ALERT. There are NO driver,
   land-cover, or natural-lands intersections — report disturbed area by date and by confidence only; do not attempt class
   or driver breakdowns. Clarify whether the user cares about temporary disturbance or permanent conversion; recommend
-  annual tree cover loss for historical or long-term changes. Choose the chart by what the user asked: for totals or the
-  breakdown by confidence, use a PIE chart with one slice per confidence tier (low, high, highest) showing total area in
-  hectares (area_ha); for trends over time, use a LINE chart of area_ha over time (x = alert month from alert_date,
-  one line per confidence tier). Do NOT render the temporal view as bars, and do NOT use grouped bar charts for the
-  confidence breakdown. Always interpret alerts as indicators of potential disturbance, not definitive deforestation
-  outcomes.
+  annual tree cover loss for historical or long-term changes. Generate exactly ONE chart, chosen by what the user asked
+  (never both a pie and a line): for totals or the breakdown by confidence, use a PIE chart with one slice per confidence
+  tier (low, high, highest) showing total area in hectares (area_ha); for trends over time, use a LINE chart of area_ha
+  over time (x = alert month from alert_date, one line per confidence tier). Do NOT render the temporal view as bars, and
+  do NOT use grouped bar charts for the confidence breakdown. Always interpret alerts as indicators of potential
+  disturbance, not definitive deforestation outcomes.
 selection_hints: >-
   DEFAULT dataset for near-real-time vegetation and forest disturbance, clearing, and deforestation alerts globally at
   10m resolution, measured in hectares. Integrates DIST-ALERT, GLAD-L, GLAD-S2 and RADD into one layer, detecting
@@ -41,9 +41,10 @@ selection_hints: >-
   DIST-ALERT be used instead. For historical or long-term tree cover change, prefer Tree Cover Loss; for driver
   attribution of tree cover loss, prefer Tree Cover Loss by Dominant Driver.
 code_instructions: |-
-  CHART TYPES (pick by what the user asked):
+  CHART TYPES — generate EXACTLY ONE chart for Integrated alerts, chosen by the query; never emit both a pie and a line:
   - Totals / breakdown by confidence → PIE chart, one slice per confidence tier (low, high, highest), value = total area_ha summed over the period
   - Alerts over time / recent trends → LINE chart ONLY (x=alert month from alert_date, y=area_ha, one line per confidence tier); the x-axis may be aggregated to month, but render it as a line, NOT as bars
+  - The charts list must contain exactly one chart. If the query does not clearly ask for totals, default to the LINE over time.
   - Do NOT use bar charts for Integrated alerts unless specifically asked by the user
   DATA RULES:
   - Result columns are: aoi_id, alert_date, alert_confidence, area_ha, aoi_type
