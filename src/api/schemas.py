@@ -342,7 +342,8 @@ class ChatRequest(BaseModel):
     #   {"page": "map" | "report",
     #    "viewport": {"bbox": [minx, miny, maxx, maxy], "zoom": 5},
     #    "visible_layers": [{"id": "...", "name": "..."}],
-    #    "visible_aois": [{"source": "...", "src_id": "...", "name": "..."}]}
+    #    "visible_aois": [{"source": "...", "src_id": "...", "name": "..."}],
+    #    "visible_insights": ["<uuid>", "<uuid>"]}
     view_context: Optional[dict] = Field(
         None,
         description="Ambient frontend view state (page, viewport, visible layers/AOIs)",

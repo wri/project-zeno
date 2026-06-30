@@ -216,14 +216,23 @@ async def inspect_view_context(
     refers to "this", "here", the current view, the report, or an insight on
     screen, and you need those details to answer.
     """
-    logger.info("inspect_view_context tool called")
     view = (state or {}).get("view_context") or {}
+    logger.info(
+        "inspect_view_context tool called",
+        page=view.get("page"),
+        has_view_context=bool(view),
+    )
 
     sections = [format_view_context(view)]
 
     insight_ids = _extract_insight_ids(view.get("visible_insights"))
     if insight_ids:
         rows = await _load_insights(insight_ids)
+        logger.info(
+            "inspect_view_context loaded insights",
+            requested=len(insight_ids),
+            loaded=len(rows),
+        )
         if rows:
             sections.append(format_insights(rows))
         else:
