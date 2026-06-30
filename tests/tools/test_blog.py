@@ -14,7 +14,31 @@ from src.agent.subagents.search.blog import (
 )
 
 FAKE_INDEX = {
+    "wri/some-article": {
+        "id": "wri/some-article",
+        "source": "wri",
+        "slug": "some-article",
+        "title": "Some Article",
+        "abstract": "An abstract.",
+        "url": "https://www.wri.org/insights/some-article",
+        "lastmod": "2026-01-01T00:00Z",
+        "image": "https://files.wri.org/hero.jpg",
+        "image_alt": "A hero image",
+    },
+    "lcl/other-article": {
+        "id": "lcl/other-article",
+        "source": "lcl",
+        "slug": "other-article",
+        "title": "Other Article",
+        "abstract": "Another abstract.",
+        "url": "https://landcarbonlab.org/insights/other-article",
+        "lastmod": "2026-02-01T00:00Z",
+        "image": "",
+        "image_alt": "",
+    },
     "some-article": {
+        "id": "wri/some-article",
+        "source": "wri",
         "slug": "some-article",
         "title": "Some Article",
         "abstract": "An abstract.",
@@ -24,13 +48,19 @@ FAKE_INDEX = {
         "image_alt": "A hero image",
     },
     "other-article": {
+        "id": "lcl/other-article",
+        "source": "lcl",
         "slug": "other-article",
         "title": "Other Article",
         "abstract": "Another abstract.",
-        "url": "https://www.wri.org/insights/other-article",
+        "url": "https://landcarbonlab.org/insights/other-article",
         "lastmod": "2026-02-01T00:00Z",
         "image": "",
         "image_alt": "",
+    },
+    "__url_to_id__": {
+        "https://www.wri.org/insights/some-article": "wri/some-article",
+        "https://landcarbonlab.org/insights/other-article": "lcl/other-article",
     },
 }
 
@@ -74,7 +104,10 @@ def test_extracts_multiple_from_single_call():
         )
     ]
     result = _patched(msgs)
-    assert [r["slug"] for r in result] == ["some-article", "other-article"]
+    assert [r["id"] for r in result] == [
+        "wri/some-article",
+        "lcl/other-article",
+    ]
 
 
 def test_deduplicates_across_multiple_calls():
@@ -86,7 +119,7 @@ def test_deduplicates_across_multiple_calls():
             [
                 {
                     "name": "article_meta",
-                    "args": {"slugs": ["some-article", "other-article"]},
+                    "args": {"slugs": ["some-article", "lcl/other-article"]},
                 }
             ]
         ),
@@ -130,14 +163,17 @@ def test_returns_empty_for_no_messages():
 def test_articles_cited_in_text_extracts_metadata_from_markers():
     text = (
         "Peatlands matter [1](https://www.wri.org/insights/some-article) "
-        "and forests too [2](https://www.wri.org/insights/other-article#p3)."
+        "and forests too [2](https://landcarbonlab.org/insights/other-article#p3)."
     )
     with patch(
         "src.agent.subagents.search.blog._article_index",
         return_value=FAKE_INDEX,
     ):
         result = _articles_cited_in_text(text)
-    assert [r["slug"] for r in result] == ["some-article", "other-article"]
+    assert [r["id"] for r in result] == [
+        "wri/some-article",
+        "lcl/other-article",
+    ]
     assert result[0]["title"] == "Some Article"
     assert result[0]["abstract"] == "An abstract."
     assert result[0]["image"] == "https://files.wri.org/hero.jpg"
@@ -229,14 +265,45 @@ _ARTICLE_C = "[§1] WRI works on climate adaptation globally.\n"
 
 
 def _write_corpus(tmp_path):
-    (tmp_path / "article-a.md").write_text(_ARTICLE_A)
-    (tmp_path / "article-b.md").write_text(_ARTICLE_B)
-    (tmp_path / "article-c.md").write_text(_ARTICLE_C)
+    (tmp_path / "wri").mkdir()
+    (tmp_path / "lcl").mkdir()
+    (tmp_path / "wri" / "article-a.md").write_text(_ARTICLE_A)
+    (tmp_path / "lcl" / "article-b.md").write_text(_ARTICLE_B)
+    (tmp_path / "wri" / "article-c.md").write_text(_ARTICLE_C)
     return tmp_path
 
 
 def _patched_grep(tmp_path, pattern, slugs=None, max_results=10):
-    with patch("src.agent.subagents.search.blog.DATA_DIR", tmp_path):
+    fake_index = {
+        "wri/article-a": {
+            "id": "wri/article-a",
+            "source": "wri",
+            "slug": "article-a",
+        },
+        "lcl/article-b": {
+            "id": "lcl/article-b",
+            "source": "lcl",
+            "slug": "article-b",
+        },
+        "wri/article-c": {
+            "id": "wri/article-c",
+            "source": "wri",
+            "slug": "article-c",
+        },
+        "article-a": {
+            "id": "wri/article-a",
+            "source": "wri",
+            "slug": "article-a",
+        },
+        "__url_to_id__": {},
+    }
+    with (
+        patch("src.agent.subagents.search.blog.DATA_DIR", tmp_path),
+        patch(
+            "src.agent.subagents.search.blog._article_index",
+            return_value=fake_index,
+        ),
+    ):
         return grep_articles.invoke(
             {"pattern": pattern, "slugs": slugs, "max_results": max_results}
         )
@@ -245,27 +312,27 @@ def _patched_grep(tmp_path, pattern, slugs=None, max_results=10):
 def test_grep_articles_finds_match(tmp_path):
     _write_corpus(tmp_path)
     result = _patched_grep(tmp_path, "peat")
-    assert "article-a.md" in result
+    assert "wri/article-a.md" in result
     assert "§1" in result or "§2" in result
 
 
 def test_grep_articles_slug_filter_restricts_to_specified_articles(tmp_path):
     _write_corpus(tmp_path)
-    result = _patched_grep(tmp_path, "peat", slugs=["article-b"])
+    result = _patched_grep(tmp_path, "peat", slugs=["lcl/article-b"])
     assert "No matches found" in result
 
 
 def test_grep_articles_slug_filter_finds_match_in_scoped_articles(tmp_path):
     _write_corpus(tmp_path)
-    result = _patched_grep(tmp_path, "Yuba", slugs=["article-b"])
-    assert "article-b.md" in result
-    assert "article-a.md" not in result
+    result = _patched_grep(tmp_path, "Yuba", slugs=["lcl/article-b"])
+    assert "lcl/article-b.md" in result
+    assert "wri/article-a.md" not in result
 
 
 def test_grep_articles_slug_filter_accepts_md_extension(tmp_path):
     _write_corpus(tmp_path)
-    result = _patched_grep(tmp_path, "Yuba", slugs=["article-b.md"])
-    assert "article-b.md" in result
+    result = _patched_grep(tmp_path, "Yuba", slugs=["lcl/article-b.md"])
+    assert "lcl/article-b.md" in result
 
 
 def test_grep_articles_respects_max_results(tmp_path):
