@@ -25,6 +25,9 @@ from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
 from src.agent.subagents.search.blog import SPEC as search_blogs_spec
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.inspect_view_context import (
+    SPEC as inspect_view_context_spec,
+)
 from src.agent.tools.pull_data import SPEC as pull_data_spec
 from src.agent.tools.show_imagery import SPEC as show_imagery_spec
 from src.shared.logging_config import get_logger
@@ -32,11 +35,6 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 DEFAULT_PROFILE = "default"
-
-# Feature flag exposing experimental, opt-in tools (Sentinel-2 imagery and
-# WRI Insights blog search).
-EXPERIMENTAL_PROFILE = "experimental"
-
 CORE_SPECS = (
     pick_aoi_spec,
     pick_dataset_spec,
@@ -46,7 +44,13 @@ CORE_SPECS = (
 )
 
 # Experimental, opt-in tools layered on top of the core set.
-EXPERIMENTAL_SPECS = (*CORE_SPECS, show_imagery_spec, search_blogs_spec)
+EXPERIMENTAL_PROFILE = "experimental"
+EXPERIMENTAL_SPECS = (
+    *CORE_SPECS,
+    inspect_view_context_spec,
+    show_imagery_spec,
+    search_blogs_spec,
+)
 
 
 @dataclass(frozen=True)

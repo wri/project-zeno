@@ -74,7 +74,36 @@ def format_session_block(state: dict) -> str:
         else "Active insight: none"
     )
 
+    lines.append(_view_breadcrumb(state.get("view_context")))
+
     return "\n".join(lines)
+
+
+def _view_breadcrumb(view: dict | None) -> str:
+    """One-line hint that frontend view state exists, with details on demand.
+
+    Keeps the bulky snapshot (exact viewport, full layer list) out of the
+    prompt — the agent calls inspect_view_context when it actually needs it.
+    """
+    if not view:
+        return "View: none"
+
+    parts = []
+    page = view.get("page")
+    if page:
+        parts.append(f"{page} page")
+    layers = view.get("visible_layers") or []
+    if layers:
+        parts.append(f"{len(layers)} layer(s)")
+    aois = view.get("visible_aois") or []
+    if aois:
+        parts.append(f"{len(aois)} AOI(s) visible")
+    insights = view.get("visible_insights") or []
+    if insights:
+        parts.append(f"{len(insights)} insight(s) on screen")
+
+    summary = " · ".join(parts) if parts else "active"
+    return f"View: {summary} (call inspect_view_context for details)"
 
 
 class SessionContextMiddleware(AgentMiddleware):
