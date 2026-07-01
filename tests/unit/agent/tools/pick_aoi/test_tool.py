@@ -8,9 +8,9 @@ from src.agent.subagents.pick_aoi import Geocoder, pick_aoi
 from src.agent.subagents.pick_aoi.tool import (
     AOIIndex,
     PlaceQuery,
-    _antimeridian_bbox_sql,
     fetch_aoi_bbox,
 )
+from src.shared.geocoding_helpers import _antimeridian_bbox_sql
 
 
 def test_sql_contains_crossing_condition():
