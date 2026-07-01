@@ -35,6 +35,7 @@ EXPECTED_STATE_KEYS = frozenset(
     {
         "messages",
         "user_persona",
+        "view_context",
         "aoi_selection",
         "dataset",
         "suggested_datasets",
