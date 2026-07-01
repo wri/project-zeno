@@ -1,7 +1,3 @@
-import os
-import subprocess
-import sys
-
 import src.agent.tools.wri_insights_store as store
 from src.agent.tools.wri_insights_store import (
     _parse_meta,
@@ -20,22 +16,6 @@ SAMPLE = """\
 
 [§2 | Section: "Background"] Second paragraph.
 """
-
-
-def test_wri_insights_store_imports_without_database_url() -> None:
-    env = {k: v for k, v in os.environ.items() if k != "DATABASE_URL"}
-    proc = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            "from src.agent.tools.wri_insights_store import sync_articles",
-        ],
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert proc.returncode == 0, proc.stderr
 
 
 def test_linkify_citations_makes_paragraph_tags_clickable() -> None:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch WRI Insights articles from the sitemap into data/insights/wri/."""
+"""Fetch WRI Insights articles from the sitemap into data/wri_insights/."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from src.agent.tools.wri_insights_store import sync_articles
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Fetch WRI Insights blog posts into data/insights/wri/"
+        description="Fetch WRI Insights blog posts into data/wri_insights/"
     )
     parser.add_argument(
         "--limit",

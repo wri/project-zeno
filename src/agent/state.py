@@ -7,8 +7,6 @@ from typing_extensions import NotRequired, TypedDict
 
 
 class CitedArticle(TypedDict):
-    id: str
-    source: str
     slug: str
     title: str
     abstract: str
