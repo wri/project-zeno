@@ -136,6 +136,7 @@ TEST_AOIS = [
     {
         "name": "Brazil",
         "subtype": "country",
+        "source": "gadm",
         "src_id": "BRA",
         "gadm_id": "BRA",
         "aoi_type": "country",
@@ -144,6 +145,7 @@ TEST_AOIS = [
     {
         "name": "Berne, Bern, Bern, Switzerland",
         "subtype": "municipality",
+        "source": "gadm",
         "src_id": "CHE.6.3_1",
         "gadm_id": "CHE.6.3_1",
         "aoi_type": "municipality",
@@ -152,6 +154,7 @@ TEST_AOIS = [
     {
         "name": "Marungu highlands, Marungu highlands, COD",
         "subtype": "key-biodiversity-area",
+        "source": "kba",
         "src_id": "6072",
         "gadm_id": None,
         "aoi_type": "key-biodiversity-area",
@@ -160,6 +163,7 @@ TEST_AOIS = [
     {
         "name": "Protected area",
         "subtype": "protected-area",
+        "source": "wdpa",
         "src_id": "148322",
         "gadm_id": None,
         "aoi_type": "protected-area",
@@ -168,6 +172,7 @@ TEST_AOIS = [
     {
         "name": "Indigenous land",
         "subtype": "indigenous-and-community-land",
+        "source": "landmark",
         "src_id": "MEX9713",
         "gadm_id": None,
         "aoi_type": "indigenous-and-community-land",
@@ -310,9 +315,12 @@ async def test_pull_data_persists_statistics(monkeypatch):
         statistics_row = result.scalar_one()
 
     assert statistics_row.dataset_name == "Tree cover loss"
+    assert statistics_row.dataset_id == 4
     assert statistics_row.start_date == "2020-01-01"
     assert statistics_row.end_date == "2020-12-31"
     assert statistics_row.aoi_names == ["Brazil"]
+    assert statistics_row.aoi_ids == ["BRA"]
+    assert statistics_row.aoi_sources == ["gadm"]
     assert statistics_row.parameters == [
         {"name": "canopy_cover", "values": [75]}
     ]
