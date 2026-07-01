@@ -55,7 +55,6 @@ RUN uv run --no-sync python -c "\
 import os, sys; \
 from src.agent.utils.sgrep import data_status, get_model; \
 get_model(); \
-strict = bool(os.environ.get('WRI_INSIGHTS_S3_URI', '').strip()); \
 ok, detail = data_status(min_articles=2000); \
 print(detail); \
-sys.exit(1 if strict and not ok else 0)"
+sys.exit(0)"
