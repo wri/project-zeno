@@ -23,10 +23,8 @@ _URL_HEADER_RE = re.compile(
 SITEMAP_NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 USER_AGENT = "Mozilla/5.0 (compatible; project-zeno/1.0)"
 
-_CORPUS_ROOT = Path(__file__).resolve().parents[3] / "data" / "insights"
-_SOURCE = "wri"
-_DATA_DIR = _CORPUS_ROOT / _SOURCE
-_INDEX_PATH = _CORPUS_ROOT / "index.json"
+_DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "wri_insights"
+_INDEX_PATH = _DATA_DIR / "index.json"
 
 
 def articles_dir() -> Path:
@@ -203,8 +201,6 @@ def fetch_article(
         abstract=meta["abstract"],
     )
     entry = {
-        "id": f"{_SOURCE}/{slug}",
-        "source": _SOURCE,
         "slug": slug,
         "title": meta["title"],
         "abstract": meta["abstract"],
@@ -219,14 +215,9 @@ def fetch_article(
 def load_index() -> list[dict]:
     if _INDEX_PATH.exists():
         data = json.loads(_INDEX_PATH.read_text(encoding="utf-8"))
-        articles = [
-            a
-            for a in data.get("articles", [])
-            if a.get("source", "wri") == _SOURCE
-        ]
+        articles = data.get("articles", [])
         for art in articles:
-            source = art.get("source", _SOURCE)
-            art["path"] = _CORPUS_ROOT / source / f"{art['slug']}.md"
+            art["path"] = _DATA_DIR / f"{art['slug']}.md"
         return articles
 
     if not _DATA_DIR.exists():
@@ -261,23 +252,10 @@ def load_index() -> list[dict]:
 
 def save_index(articles: list[dict]) -> None:
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
-    _CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
-    existing: list[dict] = []
-    if _INDEX_PATH.exists():
-        existing = json.loads(_INDEX_PATH.read_text(encoding="utf-8")).get(
-            "articles", []
-        )
-    keep = [a for a in existing if a.get("source", "wri") != _SOURCE]
-    merged = keep + [
-        {
-            **{k: v for k, v in art.items() if k != "path"},
-            "source": _SOURCE,
-            "id": f"{_SOURCE}/{art['slug']}",
-        }
-        for art in articles
-    ]
     payload = {
-        "articles": merged,
+        "articles": [
+            {k: v for k, v in art.items() if k != "path"} for art in articles
+        ],
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     _INDEX_PATH.write_text(

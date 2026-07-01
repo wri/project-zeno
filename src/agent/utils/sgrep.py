@@ -7,8 +7,8 @@ sgrep - semantic grep for markdown.
     sgrep "query" --top N    return top N results (default: 10)
 
 Defaults:
-    --data   data/insights
-    --index  data/insights_index
+    --data   data/wri_insights
+    --index  data/wri_insights_index
 """
 
 import argparse
@@ -22,10 +22,8 @@ import numpy as np
 from model2vec import StaticModel
 
 _ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_DATA_DIR = _ROOT / "data" / "insights"
-DEFAULT_INDEX_DIR = _ROOT / "data" / "insights_index"
-LEGACY_DEFAULT_DATA_DIR = _ROOT / "data" / "wri_insights"
-LEGACY_DEFAULT_INDEX_DIR = _ROOT / "data" / "wri_insights_index"
+DEFAULT_DATA_DIR = _ROOT / "data" / "wri_insights"
+DEFAULT_INDEX_DIR = _ROOT / "data" / "wri_insights_index"
 MODEL_NAME = "minishlab/potion-retrieval-32M"
 
 # Citation-tagged paragraph: [§N] or [§N | Section: "..."], optionally
@@ -110,11 +108,7 @@ def _resolve_data_dir(raw: str) -> Path:
     if not data_dir.is_absolute():
         data_dir = _ROOT / data_dir
     if not data_dir.exists():  # index moved with the repo
-        data_dir = (
-            LEGACY_DEFAULT_DATA_DIR
-            if LEGACY_DEFAULT_DATA_DIR.exists()
-            else DEFAULT_DATA_DIR
-        )
+        data_dir = DEFAULT_DATA_DIR
     return data_dir
 
 
@@ -129,12 +123,6 @@ def data_status(
     loudly when an image was built without the data snapshot, instead of
     erroring on the first search query.
     """
-    if (
-        data_dir == DEFAULT_DATA_DIR
-        and not data_dir.exists()
-        and LEGACY_DEFAULT_DATA_DIR.exists()
-    ):
-        data_dir = LEGACY_DEFAULT_DATA_DIR
     index_json = data_dir / "index.json"
     if not index_json.exists():
         return False, f"missing article corpus at {data_dir}"
@@ -174,12 +162,9 @@ def build_index(data_dir: Path, index_dir: Path):
         for line, para, section, text in chunks(
             path.read_text(encoding="utf-8")
         ):
-            rel_path = path.relative_to(data_dir)
-            source = rel_path.parts[0] if len(rel_path.parts) > 1 else "wri"
             meta.append(
                 {
-                    "file": str(rel_path),
-                    "source": source,
+                    "file": str(path.relative_to(data_dir)),
                     "line": line,
                     "para": para,
                     "section": section,
@@ -278,7 +263,6 @@ def query_index(
         results.append(
             {
                 "file": m["file"],
-                "source": m.get("source", "wri"),
                 "line": m["line"],
                 "para": m.get("para"),
                 "section": m.get("section"),
