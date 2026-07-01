@@ -51,14 +51,14 @@ def _write_index(index_dir: Path, n_chunks: int = 1) -> None:
         encoding="utf-8",
     )
     (index_dir / "config.json").write_text(
-        json.dumps({"scale": 1.0, "dim": 4, "data_dir": "data/wri_insights"}),
+        json.dumps({"scale": 1.0, "dim": 4, "data_dir": "data/insights"}),
         encoding="utf-8",
     )
 
 
 def test_portable_path_is_relative_inside_repo() -> None:
-    assert _portable_path(_ROOT / "data" / "wri_insights") == str(
-        Path("data") / "wri_insights"
+    assert _portable_path(_ROOT / "data" / "insights") == str(
+        Path("data") / "insights"
     )
 
 
@@ -72,7 +72,7 @@ def test_resolve_data_dir_resolves_relative_against_repo_root(
     assert (
         _resolve_data_dir(str(tmp_path)) == tmp_path
     )  # existing absolute path is kept
-    resolved = _resolve_data_dir("data/wri_insights")
+    resolved = _resolve_data_dir("data/insights")
     assert resolved.is_absolute()
 
 
