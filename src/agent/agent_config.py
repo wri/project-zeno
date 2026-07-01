@@ -41,6 +41,7 @@ CORE_SPECS = (
     pull_data_spec,
     generate_insights_spec,
     read_skill_spec,
+    search_blogs_spec,
 )
 
 # Experimental, opt-in tools layered on top of the core set.
@@ -49,7 +50,6 @@ EXPERIMENTAL_SPECS = (
     *CORE_SPECS,
     inspect_view_context_spec,
     show_imagery_spec,
-    search_blogs_spec,
 )
 
 
