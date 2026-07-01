@@ -1,4 +1,4 @@
-"""WRI Blog Search using deep agents with FilesystemBackend.
+"""Insights blog search using deep agents with FilesystemBackend.
 
 Usage:
     uv run python -m src.agent.subagents.search.blog "renewable energy in Africa"
@@ -27,24 +27,28 @@ from langgraph.types import Command
 
 from src.agent.llms import MODEL_REGISTRY, SMALL_MODEL
 from src.agent.tool_spec import ToolCategory, ToolSpec
-from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, TAG_RE, query_index
+from src.agent.utils.sgrep import (
+    DEFAULT_INDEX_DIR,
+    TAG_RE,
+    query_index,
+)
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-DATA_DIR = Path(__file__).resolve().parents[4] / "data" / "wri_insights"
+DATA_DIR = Path(__file__).resolve().parents[4] / "data" / "insights"
 DEFAULT_MODEL = SMALL_MODEL
 BLOG_SEARCH_PROMPT = """\
-You are a WRI (World Resources Institute) research assistant.
-Your job is to search through a library of WRI Insights blog articles
+You are a land-climate research assistant.
+Your job is to search through a library of Insights articles
 and answer the user's question with well-cited, accurate information.
 
 ## Data layout
 
-The library is a directory of markdown articles, one `<slug>.md` file per
-article, with paragraphs numbered by [§N] tags. The search tools return
-references as `<slug>.md §N` — everything you need for targeted reads
-and citations.
+The library is a directory of markdown articles, one `<source>/<slug>.md`
+file per article (for example `wri/...` or `lcl/...`), with paragraphs
+numbered by [§N] tags. The search tools return references as
+`<source>/<slug>.md §N` — everything you need for targeted reads and citations.
 
 ## Your workflow
 
@@ -73,8 +77,8 @@ Do NOT run repeated series of lookups.
 The §N tags are for your own research (targeted reads); do not put them in
 your final answer. Cite with compact numbered markers: append [N](url)
 directly after the statement it supports, where url is the article's
-canonical URL from article_meta / read_paragraphs — never a #pN fragment
-(those anchors do not exist on wri.org). Number articles by first
+canonical URL from article_meta / read_paragraphs — never a #pN fragment.
+Number articles by first
 appearance and reuse the same number for repeat citations. Write the prose
 naturally — do not name article titles or write "according to ..." around
 citations; the markers carry the attribution. Do not add a Sources list.
@@ -107,11 +111,63 @@ def _silence_logs() -> None:
     warnings.filterwarnings("ignore")
 
 
+def _infer_source_from_url(url: str) -> str:
+    url = url.lower()
+    if "wri.org/insights/" in url:
+        return "wri"
+    if "landcarbonlab.org/insights/" in url:
+        return "lcl"
+    return "unknown"
+
+
+def _canonical_url(url: str) -> str:
+    return url.split("#", 1)[0].split("?", 1)[0].rstrip("/")
+
+
 @lru_cache(maxsize=1)
 def _article_index() -> dict[str, dict]:
-    """Load index.json once, keyed by slug."""
+    """Load index.json once and expose source-aware article keys."""
     data = json.loads((DATA_DIR / "index.json").read_text(encoding="utf-8"))
-    return {a["slug"]: a for a in data["articles"]}
+    by_id: dict[str, dict] = {}
+    slug_to_ids: dict[str, list[str]] = {}
+    url_to_id: dict[str, str] = {}
+    for article in data["articles"]:
+        source = article.get("source") or _infer_source_from_url(
+            article.get("url", "")
+        )
+        slug = article["slug"]
+        article_id = f"{source}/{slug}"
+        enriched = {**article, "source": source, "id": article_id}
+        by_id[article_id] = enriched
+        slug_to_ids.setdefault(slug, []).append(article_id)
+        url = _canonical_url(article.get("url", ""))
+        if url:
+            url_to_id[url] = article_id
+
+    # Backward compatibility for old callers that pass plain slugs when unique.
+    for slug, article_ids in slug_to_ids.items():
+        if len(article_ids) == 1:
+            by_id[slug] = by_id[article_ids[0]]
+
+    by_id["__url_to_id__"] = url_to_id
+    return by_id
+
+
+def _resolve_article(ref: str, index: dict[str, dict]) -> dict | None:
+    key = ref[:-3] if ref.endswith(".md") else ref
+    key = key.strip().strip("/")
+    return index.get(key)
+
+
+def _resolve_article_path(ref: str, index: dict[str, dict]) -> Path:
+    key = ref[:-3] if ref.endswith(".md") else ref
+    key = key.strip().strip("/")
+    if "/" in key:
+        return DATA_DIR / f"{key}.md"
+    resolved = _resolve_article(key, index)
+    if resolved and resolved.get("source"):
+        return DATA_DIR / resolved["source"] / f"{resolved['slug']}.md"
+    return DATA_DIR / f"{key}.md"
 
 
 @tool
@@ -128,13 +184,13 @@ def article_meta(slugs: list[str]) -> str:
     index = _article_index()
     lines = []
     for s in slugs:
-        slug = s[:-3] if s.endswith(".md") else s
-        a = index.get(slug)
+        key = s[:-3] if s.endswith(".md") else s
+        a = _resolve_article(key, index)
         if a is None:
-            lines.append(f"{slug}: not found")
+            lines.append(f"{key}: not found")
         else:
             lines.append(
-                f"{slug} ({a['lastmod']})\n  {a['title']}\n  {a['abstract']}\n  {a['url']}"
+                f"{a['id']} ({a['lastmod']})\n  [{a['source']}] {a['title']}\n  {a['abstract']}\n  {a['url']}"
             )
     return "\n".join(lines)
 
@@ -195,11 +251,12 @@ def read_paragraphs(slug: str, paras: list[int], context: int = 1) -> str:
         paras: Paragraph numbers to read (e.g. [3, 7]).
         context: Neighbouring paragraphs to include on each side (default: 1).
     """
-    slug = slug[:-3] if slug.endswith(".md") else slug
-    path = DATA_DIR / f"{slug}.md"
+    index = _article_index()
+    key = slug[:-3] if slug.endswith(".md") else slug
+    path = _resolve_article_path(key, index)
     if not path.exists():
-        logger.warning(f"read_paragraphs slug={slug!r} -> article not found")
-        return f"{slug}: article not found"
+        logger.warning(f"read_paragraphs slug={key!r} -> article not found")
+        return f"{key}: article not found"
 
     title = url = ""
     by_num: dict[int, tuple[str | None, str]] = {}
@@ -226,13 +283,13 @@ def read_paragraphs(slug: str, paras: list[int], context: int = 1) -> str:
     )
     if not wanted:
         logger.debug(
-            f"read_paragraphs slug={slug!r} paras={paras} -> none in range "
+            f"read_paragraphs slug={key!r} paras={paras} -> none in range "
             f"(article has §1-§{max(by_num, default=0)})"
         )
-        return f"{slug}: no such paragraphs (article has §1-§{max(by_num, default=0)})"
+        return f"{key}: no such paragraphs (article has §1-§{max(by_num, default=0)})"
 
     logger.debug(
-        f"read_paragraphs slug={slug!r} paras={paras} context={context} "
+        f"read_paragraphs slug={key!r} paras={paras} context={context} "
         f"-> {len(wanted)} paragraphs"
     )
     out = [title, f"URL: {url}", ""]
@@ -285,13 +342,12 @@ def grep_articles(
         logger.warning(f"grep_articles invalid pattern={pattern!r}: {exc}")
         return f"Invalid pattern: {exc}"
 
+    index = _article_index()
     if slugs:
-        paths = [
-            DATA_DIR / (slug.removesuffix(".md") + ".md") for slug in slugs
-        ]
+        paths = [_resolve_article_path(slug, index) for slug in slugs]
         paths = [path for path in paths if path.exists()]
     else:
-        paths = sorted(DATA_DIR.glob("*.md"))
+        paths = sorted(DATA_DIR.rglob("*.md"))
 
     out: list[str] = []
     for path in paths:
@@ -303,7 +359,11 @@ def grep_articles(
             if not hit:
                 continue
             loc = f" §{m.group('para')}" if m else ""
-            out.append(f"{path.name}{loc}: {_match_window(text, hit)}")
+            try:
+                file_ref = str(path.relative_to(DATA_DIR))
+            except ValueError:
+                file_ref = path.name
+            out.append(f"{file_ref}{loc}: {_match_window(text, hit)}")
             per_file += 1
             if per_file >= 2:
                 break
@@ -351,20 +411,14 @@ def _cached_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
     return create_search_agent(model=model)
 
 
-_CITATION_URL_RE = re.compile(
-    r"\[\d{1,3}\]\((https?://(?:www\.)?wri\.org/insights/[^)\s]+)\)"
-)
-
-
-def _slug_from_insights_url(url: str) -> str:
-    """Extract article slug from a WRI Insights URL (strips query/fragment)."""
-    path = url.split("/insights/", 1)[-1]
-    return path.split("#", 1)[0].split("?", 1)[0].rstrip("/")
+_CITATION_URL_RE = re.compile(r"\[\d{1,3}\]\((https?://[^)\s]+)\)")
 
 
 def _article_entry(index: dict[str, dict], slug: str) -> dict:
     a = index[slug]
     return {
+        "id": a.get("id", slug),
+        "source": a.get("source", "unknown"),
         "slug": a["slug"],
         "title": a["title"],
         "abstract": a["abstract"],
@@ -380,12 +434,13 @@ def _articles_cited_in_text(text: str) -> list[dict]:
     index = _article_index()
     seen: set[str] = set()
     cited = []
+    url_to_id = index.get("__url_to_id__", {})
     for match in _CITATION_URL_RE.finditer(text):
-        slug = _slug_from_insights_url(match.group(1))
-        if slug in seen or slug not in index:
+        article_id = url_to_id.get(_canonical_url(match.group(1)))
+        if not article_id or article_id in seen or article_id not in index:
             continue
-        seen.add(slug)
-        cited.append(_article_entry(index, slug))
+        seen.add(article_id)
+        cited.append(_article_entry(index, article_id))
     return cited
 
 
@@ -401,11 +456,15 @@ def _articles_from_tool_calls(messages: list) -> list[dict]:
             if tc["name"] != "article_meta":
                 continue
             for s in tc["args"].get("slugs", []):
-                slug = s[:-3] if s.endswith(".md") else s
-                if slug in seen or slug not in index:
+                key = s[:-3] if s.endswith(".md") else s
+                resolved = _resolve_article(key, index)
+                if not resolved:
                     continue
-                seen.add(slug)
-                cited.append(_article_entry(index, slug))
+                article_id = resolved.get("id", key)
+                if article_id in seen:
+                    continue
+                seen.add(article_id)
+                cited.append(_article_entry(index, article_id))
     return cited
 
 
@@ -422,12 +481,12 @@ async def search_blogs(
     query: str,
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
-    """Search WRI Insights blog articles and return a synthesized, cited answer.
+    """Search Insights blog articles and return a synthesized, cited answer.
 
     Runs a dedicated research agent that semantically and keyword-searches the
-    local WRI Insights corpus, reads the most relevant articles, and writes a
+    local WRI + LCL corpus, reads the most relevant articles, and writes a
     concise answer with inline [N](url) citation markers after the statements
-    they support. Use to ground a response in WRI's published research or to
+    they support. Use to ground a response in published research or to
     explore a topic before analysis.
 
     When your reply uses these findings, keep the [N](url) markers on the
@@ -498,9 +557,9 @@ SPEC = ToolSpec(
     tool=search_blogs,
     category=ToolCategory.SUBAGENT,
     prompt_fragment=(
-        "- search_blogs(query): research subagent over WRI Insights blog posts;"
+        "- search_blogs(query): research subagent over WRI + LCL Insights posts;"
         " returns a synthesized answer with inline [N](url) citation markers that"
-        " your reply must keep. Use to answer questions about WRI's research (read"
+        " your reply must keep. Use to answer questions about published research (read"
         " skill `wri-insights`), to explore a vague topic before any AOI/dataset is"
         " set (read skill `explore`), or to enrich an analysis after pull_data and"
         " before generate_insights (read skill `wri-insights`).\n"
