@@ -117,13 +117,13 @@ for running the system locally.
    aws s3 sync s3://zeno-static-data/ data/
    ```
 
-4. **Get the WRI Insights blog corpus (for blog search):**
+4. **Get the insights blog corpus (for blog search):**
 
-   The `search_blogs` tool reads a corpus of WRI Insights articles plus a
-   semantic search index from `data/wri_insights/` and
-   `data/wri_insights_index/` (both gitignored). The easiest way to get them
+   The `search_blogs` tool reads a corpus of WRI and LCL Insights articles
+   plus a semantic search index from `data/insights/` and
+   `data/insights_index/` (both gitignored). The easiest way to get them
    is to pull the published snapshot from S3 — refreshed weekly by the
-   `wri-insights-data` GitHub workflow. Point `WRI_INSIGHTS_S3_URI` at the
+   `ingest-blog-data` GitHub workflow. Point `WRI_INSIGHTS_S3_URI` at the
    snapshot prefix and make sure your AWS credentials are configured:
 
    ```bash
@@ -143,6 +143,7 @@ for running the system locally.
 
    ```bash
    uv run python scripts/fetch_wri_insights.py --workers 4
+   uv run python scripts/fetch_lcl_insights.py
    uv run python -m src.agent.utils.sgrep index
    ```
 
