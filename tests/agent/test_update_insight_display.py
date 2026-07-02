@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.display_reviser import (
@@ -105,6 +106,42 @@ def test_apply_revision_drops_unknown_columns():
     assert out.charts[0].y_axis == "loss"
 
 
+def test_revised_chart_rejects_unknown_chart_type():
+    # chart_type is a Literal: an off-list value from the LLM fails structured
+    # output validation instead of being persisted for the frontend to choke on.
+    with pytest.raises(ValidationError):
+        RevisedChart(
+            position=0, title="Bad", chart_type="sankey", y_axis="loss"
+        )
+
+
+def test_apply_revision_finds_columns_in_later_rows():
+    # 'gain' only appears from the second data row on; the revision must not
+    # be dropped just because the first row lacks it.
+    original = InsightChart(
+        position=0,
+        title="Old title",
+        chart_type="bar",
+        x_axis="year",
+        y_axis="loss",
+        chart_data=[
+            {"year": 2020, "loss": 5},
+            {"year": 2021, "loss": 3, "gain": 2},
+        ],
+    )
+    revised = RevisedInsight(
+        primary_insight="x",
+        follow_up_suggestions=["f"],
+        charts=[
+            RevisedChart(
+                position=0, title="Gain", chart_type="bar", y_axis="gain"
+            )
+        ],
+    )
+    out = _apply_revision([original], revised)
+    assert out.charts[0].y_axis == "gain"
+
+
 @pytest.mark.asyncio
 async def test_update_insight_display_no_target_errors():
     command = await update_insight_display.coroutine(
@@ -125,6 +162,16 @@ async def test_update_insight_display_not_editable_errors():
             insight_id=str(uuid4()),
             tool_call_id="t1",
         )
+    assert command.update["messages"][0].status == "error"
+    assert "not found or not editable" in _content(command)
+
+
+@pytest.mark.asyncio
+async def test_update_insight_display_malformed_id_errors():
+    # UUID parsing fails before any DB access; same error as "not found".
+    command = await update_insight_display.coroutine(
+        instruction="rename it", insight_id="not-a-uuid", tool_call_id="t1"
+    )
     assert command.update["messages"][0].status == "error"
     assert "not found or not editable" in _content(command)
 

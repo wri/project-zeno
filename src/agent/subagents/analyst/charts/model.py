@@ -76,6 +76,17 @@ class InsightChart(BaseModel):
                 )
         return self
 
+    def available_columns(self) -> List[str]:
+        """Column names present across all data rows, in first-seen order.
+
+        Rows may be heterogeneous (a column can appear only in later rows),
+        so this unions keys over every row rather than trusting the first.
+        """
+        columns: dict = {}
+        for row in self.chart_data:
+            columns.update(dict.fromkeys(row))
+        return list(columns)
+
     # --- adapters -----------------------------------------------------------
 
     def to_orm_kwargs(self) -> dict:

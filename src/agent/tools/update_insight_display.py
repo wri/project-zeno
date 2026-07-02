@@ -31,6 +31,7 @@ from src.agent.subagents.analyst.display_reviser import (
 )
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.api.data_models import InsightOrm
+from src.api.repositories.insight_access import is_editable_by_user
 from src.api.repositories.insight_writer import update_insight
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
@@ -55,20 +56,23 @@ def _error_command(message: str, tool_call_id: Optional[str]) -> Command:
 async def _load_editable_insight(insight_id: str) -> Optional[InsightOrm]:
     """Load an insight (with charts) the current user is allowed to edit.
 
-    Editable means the user owns it (or it has no owner, e.g. CLI runs). Public
-    insights owned by someone else are read-only and not returned.
+    Editable means the current user owns it (`insight_access` rule). Public or
+    owner-less insights are read-only; without an authenticated user nothing
+    is editable. Malformed ids are treated as not found.
     """
     user_id = structlog.contextvars.get_contextvars().get("user_id")
+    try:
+        target = UUID(insight_id)
+    except ValueError:
+        return None
     async with get_session_from_pool() as session:
         result = await session.execute(
             select(InsightOrm)
             .options(selectinload(InsightOrm.charts))
-            .where(InsightOrm.id == UUID(insight_id))
+            .where(InsightOrm.id == target)
         )
         row = result.scalar_one_or_none()
-    if row is None:
-        return None
-    if row.user_id and user_id and row.user_id != user_id:
+    if row is None or not is_editable_by_user(row, user_id):
         return None
     return row
 
@@ -100,11 +104,7 @@ def _apply_revision(
     new_charts: list[InsightChart] = []
     for original in originals:
         rc = revised_by_pos.get(original.position)
-        available = (
-            set(original.chart_data[0].keys())
-            if original.chart_data
-            else set()
-        )
+        available = set(original.available_columns())
         if rc is None or not _referenced_columns(rc) <= available:
             if rc is not None:
                 logger.warning(

@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 
 from src.agent.tools.search_insights import (
+    _escape_like,
     _score,
     _terms,
     search_insights,
@@ -53,6 +54,10 @@ def test_terms_drops_short_tokens_and_lowercases():
         "the",
         "amazon",
     ]
+
+
+def test_escape_like_escapes_metacharacters():
+    assert _escape_like("100%_gain\\") == "100\\%\\_gain\\\\"
 
 
 def test_score_rewards_phrase_match():
@@ -108,6 +113,15 @@ async def test_search_insights_picks_highest_scoring():
             query="tree cover amazon", tool_call_id="t1"
         )
     assert command.update["insight_id"] == str(strong.id)
+
+
+@pytest.mark.asyncio
+async def test_search_insights_rejects_empty_query():
+    # No DB call: an empty query would ILIKE-match every insight.
+    command = await search_insights.coroutine(query="  ", tool_call_id="t1")
+    assert command.update["messages"][0].status == "error"
+    assert "too short" in _content(command)
+    assert "insight_id" not in command.update
 
 
 @pytest.mark.asyncio

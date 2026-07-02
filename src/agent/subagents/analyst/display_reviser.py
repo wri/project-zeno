@@ -19,22 +19,14 @@ from pydantic import BaseModel, Field
 
 from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.analyst.charts.model import Insight
+from src.agent.subagents.analyst.code_executors.base import (
+    CHART_TYPES,
+    ChartType,
+)
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-# The chart types the frontend can render (mirrors ChartInsight's description).
-ALLOWED_CHART_TYPES = [
-    "line",
-    "bar",
-    "stacked-bar",
-    "grouped-bar",
-    "pie",
-    "area",
-    "scatter",
-    "table",
-]
 
 
 class RevisedChart(BaseModel):
@@ -45,8 +37,8 @@ class RevisedChart(BaseModel):
         "position of an existing chart so the data can be re-attached."
     )
     title: str = Field(description="Clear, descriptive chart title")
-    chart_type: str = Field(
-        description=f"One of: {', '.join(ALLOWED_CHART_TYPES)}"
+    chart_type: ChartType = Field(
+        description=f"One of: {', '.join(CHART_TYPES)}"
     )
     x_axis: str = Field(
         default="", description="Existing column for the X-axis"
@@ -143,12 +135,12 @@ class InsightDisplayReviser:
 
         columns = "\n".join(
             f"- {chart.position}: "
-            f"{', '.join(chart.chart_data[0].keys()) if chart.chart_data else '(no data)'}"
+            f"{', '.join(chart.available_columns()) or '(no data)'}"
             for chart in insight.charts
         )
 
         inputs = {
-            "chart_types": ", ".join(ALLOWED_CHART_TYPES),
+            "chart_types": ", ".join(CHART_TYPES),
             "wording_guide": WORDING_GUIDE,
             "instruction": instruction or "(none provided)",
             "current": current,

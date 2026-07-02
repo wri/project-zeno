@@ -3,10 +3,23 @@
 from base64 import b64encode
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional, get_args
 
 from pydantic import BaseModel, Field, model_validator
 
+# The chart types the frontend can render. `ChartType` is the validating
+# annotation; `CHART_TYPES` the same names as plain strings for prompts.
+ChartType = Literal[
+    "line",
+    "bar",
+    "stacked-bar",
+    "grouped-bar",
+    "pie",
+    "area",
+    "scatter",
+    "table",
+]
+CHART_TYPES: tuple[str, ...] = get_args(ChartType)
 CHART_TYPES_WITHOUT_AXIS = {"pie", "table"}
 
 
@@ -17,7 +30,7 @@ class ChartInsight(BaseModel):
 
     title: str = Field(description="Clear, descriptive title for the chart")
     chart_type: str = Field(
-        description="Chart type: 'line', 'bar', 'stacked-bar', 'grouped-bar', 'pie', 'area', 'scatter', or 'table'"
+        description="Chart type: " + ", ".join(f"'{t}'" for t in CHART_TYPES)
     )
     x_axis: str = Field(
         description="Name of the field to use for X-axis (for applicable chart types)"

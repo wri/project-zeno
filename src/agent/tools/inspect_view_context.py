@@ -30,6 +30,7 @@ from sqlalchemy.orm import selectinload
 
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.api.data_models import InsightOrm
+from src.api.repositories.insight_access import is_visible_to_user
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 
@@ -134,9 +135,8 @@ def _extract_insight_ids(refs: object) -> list[UUID]:
 async def _load_insights(insight_ids: list[UUID]) -> list[InsightOrm]:
     """Load insights (with charts) the current user is allowed to see.
 
-    Ownership mirrors the /api/insights/{id} endpoint: a user's own insights
-    plus any public one. The user id comes from the request-scoped logging
-    context bound by the auth dependency.
+    Visibility is the shared `insight_access` rule (own + public). The user id
+    comes from the request-scoped logging context bound by the auth dependency.
     """
     if not insight_ids:
         return []
@@ -148,11 +148,7 @@ async def _load_insights(insight_ids: list[UUID]) -> list[InsightOrm]:
             .where(InsightOrm.id.in_(insight_ids))
         )
         rows = result.scalars().all()
-    return [
-        row
-        for row in rows
-        if row.is_public or (user_id and row.user_id == user_id)
-    ]
+    return [row for row in rows if is_visible_to_user(row, user_id)]
 
 
 def _chart_variables(chart) -> str:

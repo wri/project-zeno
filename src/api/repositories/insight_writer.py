@@ -75,13 +75,19 @@ async def update_insight(insight_id: str, insight: Insight) -> bool:
     the `codeact_*` provenance and `created_at` are deliberately left untouched:
     this path restyles an insight, it does not pull new data or re-run code.
 
-    Returns ``True`` on success, ``False`` if the insight no longer exists.
+    Returns ``True`` on success, ``False`` if the insight no longer exists
+    (or the id is malformed).
     """
+    try:
+        target = UUID(insight_id)
+    except ValueError:
+        return False
+
     async with get_session_from_pool() as session:
         result = await session.execute(
             select(InsightOrm)
             .options(selectinload(InsightOrm.charts))
-            .where(InsightOrm.id == UUID(insight_id))
+            .where(InsightOrm.id == target)
         )
         insight_orm = result.scalar_one_or_none()
         if insight_orm is None:
