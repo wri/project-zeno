@@ -94,9 +94,9 @@ The corpus and index are gitignored, so they have to reach production some
 other way. We build them in an ephemeral job, store them as a single tarball
 in S3, and bake that into the app image:
 
-- The `wri-insights-data` workflow (`.github/workflows/wri-insights-data.yml`)
+- The `ingest-blog-data` workflow (`.github/workflows/ingest-blog-data.yml`)
   runs weekly (and on demand): it seeds `data/` from the previous snapshot,
-  fetches new/changed articles from the sitemap, rebuilds the sgrep index, and
+  fetches new/changed WRI and LCL articles, rebuilds the sgrep index, and
   uploads the result to `$WRI_INSIGHTS_S3_URI` as `latest.tar.gz` plus a dated
   `YYYY.MM.DD.tar.gz`. The runner is ephemeral — nothing is published as an
   image. Both ends use `scripts/wri_insights_snapshot.py` (`pull`/`push`).

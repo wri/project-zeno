@@ -32,8 +32,8 @@ WORKDIR /app
 # Install only the main dependencies - no dev deps
 RUN uv sync --frozen --no-dev
 
-# Pull the WRI Insights corpus + sgrep index snapshot from S3, published by the
-# wri-insights-data workflow (.github/workflows/wri-insights-data.yml). The
+# Pull the insights blog corpus + sgrep index snapshot from S3, published by
+# the ingest-blog-data workflow (.github/workflows/ingest-blog-data.yml). The
 # snapshot downloads + extracts into /app/data. AWS creds are passed as build
 # secrets (kept out of image layers); when no S3 URI/creds are supplied (local
 # builds) the pull is a no-op and the bind-mounted ./data supplies the corpus.

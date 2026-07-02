@@ -1,4 +1,4 @@
-name: WRI Insights Data Snapshot
+name: Ingest Blog Data
 
 # Fetches the WRI and LCL Insights blog corpora, builds the sgrep index, and
 # uploads both as a single tarball to S3. The container is ephemeral: nothing
