@@ -1,9 +1,10 @@
 name: WRI Insights Data Snapshot
 
-# Fetches the WRI Insights blog corpus, builds the sgrep index, and uploads
-# both as a single tarball to S3. The container is ephemeral: nothing is
-# published as an image. The app Dockerfile pulls this tarball at build time,
-# so refreshing content = run this workflow, then rebuild/redeploy the app.
+# Fetches the WRI and LCL Insights blog corpora, builds the sgrep index, and
+# uploads both as a single tarball to S3. The container is ephemeral: nothing
+# is published as an image. The app Dockerfile pulls this tarball at build
+# time, so refreshing content = run this workflow, then rebuild/redeploy the
+# app.
 
 on:
   workflow_dispatch:
@@ -42,8 +43,11 @@ jobs:
         # object (the very first run) is tolerated and does a full fetch.
         run: uv run python scripts/wri_insights_snapshot.py pull
 
-      - name: Fetch articles
+      - name: Fetch WRI articles
         run: uv run python scripts/fetch_wri_insights.py --workers 4
+
+      - name: Fetch LCL articles
+        run: uv run python scripts/fetch_lcl_insights.py
 
       - name: Build sgrep index
         run: uv run python -m src.agent.utils.sgrep index
