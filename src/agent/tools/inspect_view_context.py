@@ -29,7 +29,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from src.agent.tool_spec import ToolCategory, ToolSpec
-from src.api.data_models import InsightOrm
+from src.api.data_models import DashboardOrm, InsightOrm
+from src.api.repositories import dashboard_writer
+from src.api.repositories.dashboard_access import (
+    is_visible_to_user as dashboard_is_visible_to_user,
+)
 from src.api.repositories.insight_access import is_visible_to_user
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
@@ -44,6 +48,7 @@ _KNOWN_KEYS = {
     "visible_layers",
     "visible_aois",
     "visible_insights",
+    "dashboard_id",
 }
 
 
@@ -103,6 +108,12 @@ def format_view_context(view: dict) -> str:
         # Detail is loaded from the DB and appended by the tool; here we just
         # note the count so the line shows even if a load later turns up empty.
         lines.append(f"- Visible insights: {len(insights)} (detail below)")
+
+    if view.get("dashboard_id"):
+        # Same deal: the dashboard content is loaded from the DB by the tool.
+        lines.append(
+            f"- Dashboard being viewed: {view['dashboard_id']} (detail below)"
+        )
 
     # Surface any other keys the frontend sent so nothing is lost.
     extra = {k: v for k, v in view.items() if k not in _KNOWN_KEYS}
@@ -198,6 +209,54 @@ def format_insights(rows: list[InsightOrm]) -> str:
     return "\n".join(lines)
 
 
+async def _load_dashboard(dashboard_id) -> Optional[DashboardOrm]:
+    """Load the dashboard being viewed, if the current user may see it.
+
+    Visibility is the shared `dashboard_access` rule (own + public); rows the
+    user may not see are treated the same as missing ones.
+    """
+    user_id = structlog.contextvars.get_contextvars().get("user_id")
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    if row is None or not dashboard_is_visible_to_user(row, user_id):
+        return None
+    return row
+
+
+async def format_dashboard(dashboard: DashboardOrm) -> str:
+    """Render the dashboard being viewed: name, area(s) and its widgets.
+
+    Insight widgets are expanded with the shared `format_insights` rendering
+    (visibility-filtered), so the agent can reason about what each widget
+    shows; other widgets are listed by type and config.
+    """
+    lines = [f"Dashboard being viewed: '{dashboard.name}' ({dashboard.id})"]
+    if dashboard.description:
+        lines.append(f"  Description: {dashboard.description}")
+    areas = ", ".join(
+        f"{aoi.name} ({aoi.source}/{aoi.subtype})"
+        for aoi in dashboard.aois or []
+    )
+    lines.append(f"  Area(s): {areas or 'none'}")
+
+    widgets = dashboard.widgets or []
+    lines.append(f"  Widgets: {len(widgets)}")
+    insight_ids = [w.insight_id for w in widgets if w.insight_id]
+    for widget in widgets:
+        if widget.widget_type == "insight":
+            continue  # detail comes from the insight rendering below
+        lines.append(
+            f"  Widget {widget.position} ({widget.widget_type}): "
+            f"{json.dumps(widget.config or {}, default=str)}"
+        )
+
+    sections = ["\n".join(lines)]
+    if insight_ids:
+        rows = await _load_insights(insight_ids)
+        if rows:
+            sections.append(format_insights(rows))
+    return "\n\n".join(sections)
+
+
 @tool("inspect_view_context")
 async def inspect_view_context(
     state: Annotated[Dict, InjectedState],
@@ -205,12 +264,14 @@ async def inspect_view_context(
 ) -> Command:
     """Return what the user is currently looking at in the app.
 
-    Reports the current page (map vs report), the map viewport, the layers and
-    AOIs visible on screen, and — when the frontend reports visible insights
-    (e.g. on the report page) — the key content of each insight: its summary,
-    chart titles and the variables behind each chart. Call this when the user
-    refers to "this", "here", the current view, the report, or an insight on
-    screen, and you need those details to answer.
+    Reports the current page (map vs report vs dashboard), the map viewport,
+    the layers and AOIs visible on screen, and — when the frontend reports
+    visible insights (e.g. on the report page) — the key content of each
+    insight: its summary, chart titles and the variables behind each chart.
+    When the user is viewing a dashboard, reports its name, area(s) and
+    widgets, with insight widgets expanded the same way. Call this when the
+    user refers to "this", "here", the current view, the report, the
+    dashboard, or an insight on screen, and you need those details to answer.
     """
     view = (state or {}).get("view_context") or {}
     logger.info(
@@ -237,6 +298,16 @@ async def inspect_view_context(
                 "(not found or not accessible)."
             )
 
+    if view.get("dashboard_id"):
+        dashboard = await _load_dashboard(view["dashboard_id"])
+        if dashboard is not None:
+            sections.append(await format_dashboard(dashboard))
+        else:
+            sections.append(
+                "Dashboard being viewed: referenced but could not be loaded "
+                "(not found or not accessible)."
+            )
+
     return Command(
         update={
             "messages": [
@@ -255,9 +326,10 @@ SPEC = ToolSpec(
     category=ToolCategory.PRIMITIVE,
     prompt_fragment=(
         "- inspect_view_context(): returns what the user is currently looking "
-        "at in the app (page, map viewport, visible layers, visible AOIs, and "
-        "the content of any insights on screen — summary, charts and "
-        "variables). Call this when the user refers to 'this', 'here', the "
-        "current view, the report, or an insight on screen."
+        "at in the app (page, map viewport, visible layers, visible AOIs, the "
+        "content of any insights on screen — summary, charts and variables — "
+        "and, on the dashboard page, the dashboard's name, areas and "
+        "widgets). Call this when the user refers to 'this', 'here', the "
+        "current view, the report, the dashboard, or an insight on screen."
     ),
 )

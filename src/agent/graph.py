@@ -65,6 +65,7 @@ Match the request to exactly one row; do not escalate a dataset / AOI / pull req
 - Pull-only (e.g. "pull dist alerts in Bern for last 2 weeks"): read `pull-data`, run pick_aoi → pick_dataset → pull_data, then stop. Do not call generate_insights unless the user asked for a chart or analysis.
 - Full analysis (place + topic → chart/insight): read `analyze` and follow that pipeline.
 - Recall a past insight (e.g. "show that tree-cover insight again", "pull up the fires analysis from before"): call search_insights and then STOP. search_insights is terminal — the insight already exists and is put on screen, so it is NEVER followed by pick_aoi, pick_dataset, pull_data or generate_insights. "Show/recall/pull up an earlier insight" is a recall request, never a request for new analysis. After it returns, reply with a one-line summary only.
+- Dashboard (e.g. "add this to my dashboard", "build a dashboard for X"): read skill `dashboard` and follow it.
 - Imagery (e.g. "show satellite imagery of Bern in June"): read `show-imagery`, run pick_aoi → show_imagery, then stop. No dataset, pull or insights unless asked.
 - Capabilities (what you can do, what data exists): read `capabilities`, then answer in your own words — no analysis tools.
 

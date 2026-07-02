@@ -267,6 +267,104 @@ class InsightChartOrm(Base):
     insight = relationship("InsightOrm", back_populates="charts")
 
 
+class DashboardOrm(Base):
+    __tablename__ = "dashboards"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    is_public = Column(Boolean, nullable=False, server_default="false")
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        onupdate=datetime.now,
+    )
+
+    aois = relationship(
+        "DashboardAoiOrm",
+        back_populates="dashboard",
+        cascade="all, delete-orphan",
+        order_by="DashboardAoiOrm.position",
+    )
+    widgets = relationship(
+        "DashboardWidgetOrm",
+        back_populates="dashboard",
+        cascade="all, delete-orphan",
+        order_by="DashboardWidgetOrm.position",
+    )
+
+
+class DashboardAoiOrm(Base):
+    """An AOI reference on a dashboard — the canonical (source, src_id,
+    subtype) address plus a denormalized display name, never geometry."""
+
+    __tablename__ = "dashboard_aois"
+    __table_args__ = (
+        UniqueConstraint(
+            "dashboard_id",
+            "source",
+            "src_id",
+            name="uq_dashboard_aois_dashboard_source_src_id",
+        ),
+    )
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    dashboard_id = Column(
+        PostgresUUID, ForeignKey("dashboards.id"), nullable=False
+    )
+    source = Column(String, nullable=False)
+    src_id = Column(String, nullable=False)
+    subtype = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    position = Column(Integer, nullable=False, server_default="0")
+
+    dashboard = relationship("DashboardOrm", back_populates="aois")
+
+
+class DashboardWidgetOrm(Base):
+    """One widget on a dashboard: a reference to an insight (or a map layer
+    described in `config`) plus presentation config — never chart data,
+    geometry or tile URLs."""
+
+    __tablename__ = "dashboard_widgets"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    dashboard_id = Column(
+        PostgresUUID, ForeignKey("dashboards.id"), nullable=False
+    )
+    position = Column(Integer, nullable=False, server_default="0")
+    # "insight" | "map" — plain String like JobOrm.type; validated in Pydantic.
+    widget_type = Column(String, nullable=False)
+    # Deleting an insight silently drops widgets that reference it.
+    insight_id = Column(
+        PostgresUUID,
+        ForeignKey("insights.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    # Presentation only: default_view ("map"|"chart"|"table"), optional title
+    # override; for map widgets dataset_id, start_date/end_date, viewport.
+    # A future `refresh` key (relative date window) is reserved, not implemented.
+    config = Column(JSONB, nullable=False, server_default="{}")
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+
+    dashboard = relationship("DashboardOrm", back_populates="widgets")
+
+
 class JobOrm(Base):
     __tablename__ = "jobs"
 

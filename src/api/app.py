@@ -14,6 +14,7 @@ from src.api.routers import (
     aois,
     chat,
     custom_areas,
+    dashboards,
     geometry,
     insights,
     jobs,
@@ -144,6 +145,7 @@ app.include_router(aois.router)
 app.include_router(geometry.router)
 app.include_router(thumbnails.router)
 app.include_router(insights.router)
+app.include_router(dashboards.router)
 app.include_router(metadata.router)
 app.include_router(admin.router)
 app.include_router(traces.router)

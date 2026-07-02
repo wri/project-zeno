@@ -82,6 +82,10 @@ class AgentState(TypedDict):
     # search-blogs tool
     cited_articles: Annotated[list[CitedArticle], operator.add]
 
+    # create-dashboard / add-to-dashboard tools — the dashboard the
+    # conversation is working on (last created or added-to this thread).
+    dashboard_id: str
+
     # generate-insights tool
     insight: str
     follow_up_suggestions: list[str]
