@@ -223,12 +223,40 @@ async def _load_dashboard(dashboard_id) -> Optional[DashboardOrm]:
     return row
 
 
+def _format_map_widget(config: dict) -> Optional[str]:
+    """One-line summary of a map widget's layer snapshot, sans tile URLs.
+
+    Returns None when the config carries neither a dataset nor an imagery
+    snapshot, so the caller can fall back to a raw dump.
+    """
+    dataset = config.get("dataset")
+    if isinstance(dataset, dict):
+        line = f"map: dataset '{dataset.get('dataset_name', '?')}'"
+        if dataset.get("start_date") or dataset.get("end_date"):
+            line += (
+                f" ({dataset.get('start_date', '?')}–"
+                f"{dataset.get('end_date', '?')})"
+            )
+        if dataset.get("context_layer"):
+            line += f", context layer {dataset['context_layer']}"
+        return line
+    imagery = config.get("imagery")
+    if isinstance(imagery, dict):
+        areas = ", ".join(imagery.get("aoi_names") or []) or "?"
+        return (
+            f"map: Sentinel-2 imagery around "
+            f"{imagery.get('target_date', '?')} ({areas})"
+        )
+    return None
+
+
 async def format_dashboard(dashboard: DashboardOrm) -> str:
     """Render the dashboard being viewed: name, area(s) and its widgets.
 
     Insight widgets are expanded with the shared `format_insights` rendering
     (visibility-filtered), so the agent can reason about what each widget
-    shows; other widgets are listed by type and config.
+    shows; map widgets are summarized by dataset name/dates or imagery
+    date/areas; anything else is listed by type and config.
     """
     lines = [f"Dashboard being viewed: '{dashboard.name}' ({dashboard.id})"]
     if dashboard.description:
@@ -245,9 +273,11 @@ async def format_dashboard(dashboard: DashboardOrm) -> str:
     for widget in widgets:
         if widget.widget_type == "insight":
             continue  # detail comes from the insight rendering below
+        summary = _format_map_widget(widget.config or {})
+        if summary is None:
+            summary = json.dumps(widget.config or {}, default=str)
         lines.append(
-            f"  Widget {widget.position} ({widget.widget_type}): "
-            f"{json.dumps(widget.config or {}, default=str)}"
+            f"  Widget {widget.position} ({widget.widget_type}): {summary}"
         )
 
     sections = ["\n".join(lines)]

@@ -25,6 +25,7 @@ from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
 from src.agent.subagents.search.blog import SPEC as search_blogs_spec
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.add_map_widget import SPEC as add_map_widget_spec
 from src.agent.tools.add_to_dashboard import SPEC as add_to_dashboard_spec
 from src.agent.tools.create_dashboard import SPEC as create_dashboard_spec
 from src.agent.tools.inspect_view_context import (
@@ -60,6 +61,7 @@ EXPERIMENTAL_SPECS = (
     search_insights_spec,
     create_dashboard_spec,
     add_to_dashboard_spec,
+    add_map_widget_spec,
 )
 
 

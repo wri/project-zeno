@@ -423,6 +423,99 @@ async def test_widget_insight_must_be_visible(client, auth_override):
 
 
 @pytest.mark.asyncio
+async def test_map_widget_config_accepted(client, auth_override):
+    user = await _create_user("map-widget-ok")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+
+    dataset_config = {
+        "default_view": "map",
+        "dataset": {
+            "dataset_id": 4,
+            "dataset_name": "Tree cover loss",
+            "tile_url": "https://tiles.example.com/{z}/{x}/{y}.png",
+            "context_layer": None,
+            "context_layers": [],
+            "parameters": None,
+            "start_date": "2024-01-01",
+            "end_date": "2024-12-31",
+        },
+    }
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={"widget_type": "map", "config": dataset_config},
+    )
+    assert response.status_code == 201
+
+    imagery_config = {
+        "default_view": "map",
+        "imagery": {
+            "tile_url": "https://tiles.example.com/mosaic/{z}/{x}/{y}.png",
+            "tilejson_url": "https://tiles.example.com/tilejson.json",
+            "mosaic_id": "abc123",
+            "target_date": "2024-06-01",
+            "window_days": 7,
+            "max_cloud_cover": 20,
+            "aoi_names": ["Paraná"],
+        },
+    }
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={"widget_type": "map", "config": imagery_config},
+    )
+    assert response.status_code == 201
+
+    # Configs are echoed verbatim on the render endpoint; no insight payload.
+    rendered = await client.get(
+        f"/api/dashboards/{dashboard['id']}", headers=AUTH
+    )
+    widgets = rendered.json()["widgets"]
+    assert [w["config"] for w in widgets] == [dataset_config, imagery_config]
+    assert all(w["insight"] is None for w in widgets)
+
+
+@pytest.mark.asyncio
+async def test_map_widget_config_validated(client, auth_override):
+    user = await _create_user("map-widget-bad")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    url = f"/api/dashboards/{dashboard['id']}/widgets"
+    layer = {"tile_url": "https://t/{z}"}
+
+    bad_bodies = [
+        # No config at all.
+        {"widget_type": "map"},
+        # Neither dataset nor imagery.
+        {"widget_type": "map", "config": {"default_view": "map"}},
+        # Both at once.
+        {
+            "widget_type": "map",
+            "config": {"dataset": layer, "imagery": layer},
+        },
+        # Missing tile_url.
+        {"widget_type": "map", "config": {"dataset": {"dataset_id": 4}}},
+    ]
+    for body in bad_bodies:
+        response = await client.post(url, headers=AUTH, json=body)
+        assert response.status_code == 422, body
+
+    # Insight widgets keep their plain presentation config.
+    insight = await _create_insight(user_id=user.id)
+    response = await client.post(
+        url,
+        headers=AUTH,
+        json={
+            "widget_type": "insight",
+            "insight_id": str(insight.id),
+            "config": {"default_view": "chart"},
+        },
+    )
+    assert response.status_code == 201
+
+
+@pytest.mark.asyncio
 async def test_widget_add_reorder_remove(client, auth_override):
     user = await _create_user("widget-lifecycle")
     auth_override(user.id)
@@ -437,7 +530,13 @@ async def test_widget_add_reorder_remove(client, auth_override):
     map_widget = await client.post(
         f"/api/dashboards/{dashboard['id']}/widgets",
         headers=AUTH,
-        json={"widget_type": "map", "config": {"dataset_id": 4}},
+        json={
+            "widget_type": "map",
+            "config": {
+                "default_view": "map",
+                "dataset": {"dataset_id": 4, "tile_url": "https://t/{z}"},
+            },
+        },
     )
     widgets = map_widget.json()["widgets"]
     assert [w["position"] for w in widgets] == [0, 1]

@@ -130,12 +130,7 @@ expanded with its full insight payload:
       "position": 1,
       "widget_type": "map",
       "insight_id": null,
-      "config": {
-        "default_view": "map",
-        "dataset_id": 4,
-        "start_date": "2024-01-01",
-        "end_date": "2024-12-31"
-      },
+      "config": { "…": "see dashboards-map-widgets-handoff.md" },
       "created_at": "2026-07-03T14:12:00",
       "insight": null
     }
@@ -147,9 +142,10 @@ expanded with its full insight payload:
 `GET /api/insights/{id}` — reuse the existing insight-card component with no
 new data mapping. The widget adds only `config` (presentation) on top.
 
-`widget_type` is `"insight"` or `"map"`. Map widgets carry their layer spec
-entirely in `config` (`dataset_id`, `start_date`/`end_date`, optional
-`viewport`); resolve to tiles the same way the explorer does.
+`widget_type` is `"insight"` or `"map"`. Map widgets carry a self-contained
+layer snapshot in `config` — the full contract (dataset layers, Sentinel-2
+imagery, map focus, validation) lives in
+**`dashboards-map-widgets-handoff.md`**.
 
 An **insight widget with `"insight": null`** means the insight is not
 visible to this viewer (e.g. it was made private again after the dashboard
@@ -207,9 +203,9 @@ Removes the dashboard and its widgets; insights survive.
 
 ## Chat / agent integration
 
-The agent's dashboard tools (`create_dashboard`, `add_to_dashboard`) are in
-the **experimental profile** — send `"ff": "experimental"` in the chat
-request for dashboard-aware chat.
+The agent's dashboard tools (`create_dashboard`, `add_to_dashboard`,
+`add_map_widget`) are in the **experimental profile** — send
+`"ff": "experimental"` in the chat request for dashboard-aware chat.
 
 **Outbound — tell the agent where the user is.** While on the dashboard
 page, include in every chat request:
@@ -259,5 +255,5 @@ trip needed. Untoggling is `DELETE` on the widget.
 3. Chat wiring: `view_context` outbound, `dashboard_updated` refetch,
    sidebar "Add to dashboard" toggle.
 4. Publish/share flow with the cascade confirmation dialog.
-5. Map widgets (layer resolution from `config`) — last; insight widgets are
-   the MVP core.
+5. Map widgets — see `dashboards-map-widgets-handoff.md` (self-contained
+   configs, no layer resolution needed); insight widgets are the MVP core.

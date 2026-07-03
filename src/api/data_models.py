@@ -333,9 +333,10 @@ class DashboardAoiOrm(Base):
 
 
 class DashboardWidgetOrm(Base):
-    """One widget on a dashboard: a reference to an insight (or a map layer
-    described in `config`) plus presentation config — never chart data,
-    geometry or tile URLs."""
+    """One widget on a dashboard. Insight widgets reference an insight and
+    carry presentation config only. Map widgets are self-contained: their
+    `config` snapshots the resolved layer (tile URLs included by design)
+    under a `dataset` or `imagery` key — never chart data or geometry."""
 
     __tablename__ = "dashboard_widgets"
 
@@ -356,8 +357,10 @@ class DashboardWidgetOrm(Base):
         ForeignKey("insights.id", ondelete="CASCADE"),
         nullable=True,
     )
-    # Presentation only: default_view ("map"|"chart"|"table"), optional title
-    # override; for map widgets dataset_id, start_date/end_date, viewport.
+    # default_view ("map"|"chart"|"table"), optional title override; for map
+    # widgets a layer snapshot under exactly one of "dataset" (resolved
+    # tile_url, context layers, parameters, dates) or "imagery" (Sentinel-2
+    # mosaic_id + tile URLs), plus an optional viewport override.
     # A future `refresh` key (relative date window) is reserved, not implemented.
     config = Column(JSONB, nullable=False, server_default="{}")
     created_at = Column(DateTime, nullable=False, default=datetime.now)

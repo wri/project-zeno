@@ -9,6 +9,7 @@ from pydantic import (
     Field,
     alias_generators,
     field_validator,
+    model_validator,
 )
 
 from src.api.data_models import UserType
@@ -583,9 +584,13 @@ class DashboardWidgetCreateRequest(BaseModel):
     config: Optional[dict] = Field(
         default=None,
         description=(
-            "Presentation config: `default_view` (map|chart|table), optional "
-            "`title` override; for map widgets `dataset_id`, `start_date`/"
-            "`end_date`, optional viewport."
+            "Widget config. Insight widgets: presentation only — "
+            "`default_view` (map|chart|table), optional `title` override. "
+            "Map widgets: a self-contained layer snapshot under exactly one "
+            "of the keys `dataset` (resolved tile_url, context layers, "
+            "parameters, dates) or `imagery` (Sentinel-2 mosaic_id and tile "
+            "URLs); optional `viewport` override — by default map widgets "
+            "render fitted to the dashboard's area."
         ),
     )
     position: Optional[int] = None
@@ -597,6 +602,29 @@ class DashboardWidgetCreateRequest(BaseModel):
                 f"widget_type must be one of {', '.join(_WIDGET_TYPES)}"
             )
         return v
+
+    @model_validator(mode="after")
+    def validate_map_config(self) -> "DashboardWidgetCreateRequest":
+        """Map widgets need a renderable layer snapshot in config.
+
+        Only the discriminator and its tile_url are checked — the remaining
+        snapshot keys may evolve without a schema change here.
+        """
+        if self.widget_type != "map":
+            return self
+        config = self.config or {}
+        kinds = [k for k in ("dataset", "imagery") if k in config]
+        if len(kinds) != 1:
+            raise ValueError(
+                "map widgets require a config with exactly one of "
+                "'dataset' or 'imagery'"
+            )
+        layer = config[kinds[0]]
+        if not isinstance(layer, dict) or not layer.get("tile_url"):
+            raise ValueError(
+                f"map widget {kinds[0]} config requires a tile_url"
+            )
+        return self
 
 
 class DashboardWidgetUpdateRequest(BaseModel):

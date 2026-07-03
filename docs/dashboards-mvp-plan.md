@@ -56,7 +56,9 @@ migration. Scope here is backend only: models, repositories, API, agent tools.
    deferred until there is a real multi-stage LLM pipeline to hide (mirrors
    the insights split: primitives + Analyst).
 4. Widgets don't store chart data, geometry, or tile URLs — only references
-   plus presentation config.
+   plus presentation config. *Superseded for map widgets (2026-07-03):
+   their config snapshots the resolved layer including tile URLs, mirroring
+   the `dataset`/`imagery` state updates the explorer already renders.*
 
 ## 1. Data model + migration
 

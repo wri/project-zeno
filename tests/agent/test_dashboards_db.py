@@ -143,6 +143,38 @@ async def test_widget_add_reorder_remove(user):
     )
 
 
+async def test_map_widget_persists_config(user):
+    # A map widget's config is a self-contained layer snapshot (nested dicts,
+    # lists, nulls) that must round-trip through JSONB unchanged.
+    dashboard_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Paraná", aois=[PARANA]
+    )
+    config = {
+        "default_view": "map",
+        "dataset": {
+            "dataset_id": 4,
+            "dataset_name": "Tree cover loss",
+            "tile_url": "https://tiles.example.com/{z}/{x}/{y}.png?t=30",
+            "context_layer": None,
+            "context_layers": [{"name": "driver", "tile_url": "https://d"}],
+            "parameters": [{"name": "canopy_cover", "values": [30]}],
+            "start_date": "2024-01-01",
+            "end_date": None,
+        },
+    }
+
+    widget_id = await dashboard_writer.add_widget(
+        dashboard_id, widget_type="map", config=config
+    )
+
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    (widget,) = row.widgets
+    assert str(widget.id) == widget_id
+    assert widget.widget_type == "map"
+    assert widget.insight_id is None
+    assert widget.config == config
+
+
 async def test_add_to_dashboard_tool_owner_only_edit(user, user_ds):
     """The full tool path: own dashboard editable, someone else's is not."""
     theirs = await dashboard_writer.create_dashboard(

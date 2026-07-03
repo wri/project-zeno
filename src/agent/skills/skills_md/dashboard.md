@@ -1,15 +1,16 @@
 ---
 name: dashboard
-description: Create a dashboard for an area and fill it with insights (new or recalled).
-when_to_use: User asks to build/create a dashboard for a place, or to add an insight/analysis to a dashboard. Not for one-off analysis without a dashboard — use `analyze`.
-requires: create_dashboard, add_to_dashboard
+description: Create a dashboard for an area and fill it with insights (new or recalled) and map widgets.
+when_to_use: User asks to build/create a dashboard for a place, to add an insight/analysis to a dashboard, or to add a map layer / satellite imagery to a dashboard. Not for one-off analysis without a dashboard — use `analyze`.
+requires: create_dashboard, add_to_dashboard, add_map_widget
 ---
 
 # Dashboards
 
-A dashboard is a persistent collection of insights for ONE area (a country, a
-state, a protected area). Widgets reference insights that already exist —
-adding to a dashboard never recomputes anything.
+A dashboard is a persistent collection of widgets for ONE area (a country, a
+state, a protected area). Widgets are insights or map layers. Widgets
+reference or snapshot work that already exists — adding to a dashboard never
+recomputes anything.
 
 # Which dashboard to use
 
@@ -29,7 +30,9 @@ adding to a dashboard never recomputes anything.
 2. Per topic, reuse existing work before computing: if the user refers to an
    earlier finding, `search_insights` → `add_to_dashboard`. Otherwise run the
    `analyze` pipeline (pick_dataset → pull_data → generate_insights) →
-   `add_to_dashboard`.
+   `add_to_dashboard`. If the user asks for a map/layer/imagery view of a
+   topic, add it with `add_map_widget` after the dataset is picked (or after
+   `show_imagery`) — a map widget does not need an insight.
 3. Give a short progress message per topic added.
 
 # Adding a single insight ("add this to my dashboard")
@@ -37,6 +40,14 @@ adding to a dashboard never recomputes anything.
 `add_to_dashboard` — it defaults to the current insight in state and the
 dashboard in state/on screen. Recall the insight first (`search_insights`)
 only if the user refers to a past finding that is not the current one.
+
+# Adding a map layer ("add this layer / the imagery to my dashboard")
+
+`add_map_widget(layer="dataset")` snapshots the currently selected dataset
+layer — run `pick_dataset` first if none is selected.
+`add_map_widget(layer="imagery")` snapshots the Sentinel-2 mosaic — run
+`show_imagery` first. Build the layer/imagery for the dashboard's area. Map
+widgets render focused on the dashboard's area automatically.
 
 # Stop conditions
 
