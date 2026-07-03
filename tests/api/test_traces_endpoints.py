@@ -319,6 +319,50 @@ async def test_analytics(client, auth_override, superuser_factory):
 
 
 @pytest.mark.asyncio
+async def test_analytics_turn_position_filters(
+    client, auth_override, superuser_factory
+):
+    """The same turn-position filters as the list endpoint scope the aggregates,
+    so turn 1 and turn 3+ can be compared via two calls."""
+    su = await superuser_factory("su_an_turn@example.com")
+    auth_override(su.id)
+    # one 3-turn session: costs 0.01 / 0.02 / 0.04 across turns 1/2/3
+    for ti, cost in ((1, 0.01), (2, 0.02), (3, 0.04)):
+        await _seed_trace(
+            f"an_t{ti}",
+            outcome="ANSWER",
+            session_id="ans",
+            turn_index=ti,
+            total_cost=cost,
+            trace_timestamp=datetime(2026, 6, 1, ti, tzinfo=timezone.utc),
+        )
+
+    first = (
+        await client.get(
+            "/api/traces/analytics?first_turn_only=true", headers=H
+        )
+    ).json()
+    assert first["total_traces"] == 1
+    assert first["cost"]["total"] == 0.01
+
+    later = (
+        await client.get("/api/traces/analytics?min_turn_index=2", headers=H)
+    ).json()
+    assert later["total_traces"] == 2
+    assert later["cost"]["total"] == 0.06
+
+    exact = (
+        await client.get("/api/traces/analytics?turn_index=2", headers=H)
+    ).json()
+    assert exact["total_traces"] == 1
+
+    capped = (
+        await client.get("/api/traces/analytics?max_turn_index=2", headers=H)
+    ).json()
+    assert capped["total_traces"] == 2
+
+
+@pytest.mark.asyncio
 async def test_analytics_requires_superuser(client, auth_override, user):
     auth_override(user.id)
     assert (

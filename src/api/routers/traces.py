@@ -315,8 +315,17 @@ def _where_sql(
     end: Optional[datetime],
     *,
     require_session: bool = False,
+    turn_index: Optional[int] = None,
+    min_turn_index: Optional[int] = None,
+    max_turn_index: Optional[int] = None,
+    first_turn_only: bool = False,
 ) -> tuple[str, dict[str, Any]]:
-    """Build a parameterised WHERE clause (bound params — no injection)."""
+    """Build a parameterised WHERE clause (bound params — no injection).
+
+    The turn-position filters compare the stored, indexed ``turn_index``
+    (``ix_langfuse_traces_turn_index``), so the aggregate SQL stays window-free.
+    ``first_turn_only`` is a convenience alias for ``turn_index = 1``.
+    """
     clauses: list[str] = []
     params: dict[str, Any] = {}
     if require_session:
@@ -336,6 +345,17 @@ def _where_sql(
     if end:
         clauses.append("trace_timestamp < :end")
         params["end"] = end
+    if first_turn_only:
+        clauses.append("turn_index = 1")
+    if turn_index is not None:
+        clauses.append("turn_index = :turn_index")
+        params["turn_index"] = turn_index
+    if min_turn_index is not None:
+        clauses.append("turn_index >= :min_turn_index")
+        params["min_turn_index"] = min_turn_index
+    if max_turn_index is not None:
+        clauses.append("turn_index <= :max_turn_index")
+        params["max_turn_index"] = max_turn_index
     where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     return where, params
 
@@ -351,12 +371,37 @@ async def trace_analytics(
     user_id: Optional[str] = Query(None),
     start: Optional[datetime] = Query(None),
     end: Optional[datetime] = Query(None),
+    turn_index: Optional[int] = Query(
+        None,
+        ge=1,
+        description="exact 1-based turn position within the session",
+    ),
+    min_turn_index: Optional[int] = Query(None, ge=1),
+    max_turn_index: Optional[int] = Query(None, ge=1),
+    first_turn_only: bool = Query(
+        False, description="only first turns (alias for turn_index=1)"
+    ),
     _reader: UserModel = Depends(require_scope(TRACES_READ)),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> TraceAnalytics:
     """Server-side aggregates over the filtered trace set. All metrics are
-    turn-level (one row per trace), so counts/sums are not double-counted."""
-    where, params = _where_sql(environment, outcome, user_id, start, end)
+    turn-level (one row per trace), so counts/sums are not double-counted.
+
+    The turn-position filters let one endpoint answer "how does turn 1 differ
+    from turn 3+" via two calls — they filter the indexed stored ``turn_index``,
+    so the aggregates stay window-free.
+    """
+    where, params = _where_sql(
+        environment,
+        outcome,
+        user_id,
+        start,
+        end,
+        turn_index=turn_index,
+        min_turn_index=min_turn_index,
+        max_turn_index=max_turn_index,
+        first_turn_only=first_turn_only,
+    )
 
     summary = (
         (
