@@ -94,8 +94,12 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
         "trace_updated_at": _parse_dt(trace.get("updatedAt")),
         "latency_seconds": trace.get("latency"),
         "total_cost": trace.get("totalCost"),
+        # Turn position + per-turn diffs are cross-row: session rows carry None and
+        # are filled by the post-upsert recompute; singletons are set below.
         "turn_index": 1 if is_singleton else None,
         "is_final_turn_in_thread": True if is_singleton else None,
+        "insight_created_this_turn": None,
+        "datasets_analysed_this_turn": None,
         "parsed_at": _utcnow(),
         "parse_error": None,
     }
@@ -113,6 +117,15 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
         row["parse_error"] = str(e)[:500]
         row["parser_version"] = P.PARSER_VERSION
         row["recognized_contract"] = None
+    if is_singleton:
+        # No predecessor: a singleton turn "creates" any insight it carries, and
+        # its whole cumulative dataset list is new this turn. Parse-failure rows
+        # (no insight_id / derived) fall back to False / empty.
+        derived = row.get("derived") or {}
+        row["insight_created_this_turn"] = row.get("insight_id") is not None
+        row["datasets_analysed_this_turn"] = (
+            derived.get("datasets_analysed_cumulative") or []
+        )
     return _strip_nul(row)
 
 
@@ -132,17 +145,28 @@ async def _upsert(session: AsyncSession, rows: list[dict[str, Any]]) -> int:
     return len(rows)
 
 
-# Recompute turn_index / is_final_turn_in_thread for the given sessions from
-# current table state. Cross-row (a new/late/out-of-order trace shifts its
-# siblings' ordinals), so it runs once per chunk over the *full* touched
-# session(s), not per batch. Deterministic -> re-ingesting a window is idempotent.
-# Null-session rows are singleton threads set in build_row and never renumbered.
+# Recompute the cross-row turn fields for the given sessions from current table
+# state: turn_index / is_final_turn_in_thread (position) plus the per-turn diffs
+# insight_created_this_turn / datasets_analysed_this_turn (this turn vs. the prior
+# one). All depend on siblings (a new/late/out-of-order trace shifts ordinals and
+# the neighbouring diffs), so it runs once per chunk over the *full* touched
+# session(s), not per batch, on a single window. Deterministic -> re-ingesting a
+# window is idempotent. Null-session rows are singleton threads set in build_row
+# and never touched here.
 _RECOMPUTE_SQL = text(
     """
     WITH ranked AS (
         SELECT id,
                row_number() OVER w AS rn,
-               count(*)     OVER (PARTITION BY session_id) AS n
+               count(*)     OVER (PARTITION BY session_id) AS n,
+               insight_id,
+               lag(insight_id) OVER w AS prev_insight,
+               ARRAY(SELECT jsonb_array_elements_text(
+                   COALESCE(derived->'datasets_analysed_cumulative', '[]'::jsonb)
+               )) AS cur_ds,
+               lag(ARRAY(SELECT jsonb_array_elements_text(
+                   COALESCE(derived->'datasets_analysed_cumulative', '[]'::jsonb)
+               ))) OVER w AS prev_ds
         FROM langfuse_traces
         WHERE session_id = ANY(:ids)
         WINDOW w AS (
@@ -152,7 +176,15 @@ _RECOMPUTE_SQL = text(
     )
     UPDATE langfuse_traces t
     SET turn_index = ranked.rn,
-        is_final_turn_in_thread = (ranked.rn = ranked.n)
+        is_final_turn_in_thread = (ranked.rn = ranked.n),
+        insight_created_this_turn =
+            (ranked.insight_id IS NOT NULL
+             AND ranked.insight_id IS DISTINCT FROM ranked.prev_insight),
+        datasets_analysed_this_turn = ARRAY(
+            SELECT unnest(ranked.cur_ds)
+            EXCEPT
+            SELECT unnest(COALESCE(ranked.prev_ds, ARRAY[]::text[]))
+        )
     FROM ranked
     WHERE t.id = ranked.id
     """

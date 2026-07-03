@@ -487,6 +487,14 @@ class LangfuseTraceOrm(Base):
     turn_index = Column(Integer, nullable=True)
     is_final_turn_in_thread = Column(Boolean, nullable=True)
 
+    # --- Per-turn diffs (honest "this turn" signals vs. the cumulative fields
+    # above). Cross-row, so maintained by the same ingest recompute as turn_index
+    # (null-session singletons are set directly in build_row).
+    # insight_created_this_turn: insight_id changed to non-null on this turn.
+    # datasets_analysed_this_turn: datasets new this turn (cumulative minus prior).
+    insight_created_this_turn = Column(Boolean, nullable=True)
+    datasets_analysed_this_turn = Column(ARRAY(String), nullable=True)
+
     # Long-tail + cumulative derived fields, kept out of the column set to keep
     # migrations rare. Includes turn_tools_used, turn_datasets, aoi_source,
     # aoi_count, aois, primary_dataset_id, analysis_start/end_date,

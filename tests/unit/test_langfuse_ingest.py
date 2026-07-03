@@ -53,8 +53,36 @@ def test_build_row_null_session_is_singleton_turn():
 
 
 def test_build_row_session_turn_index_deferred_to_recompute():
-    # With a session, turn position is cross-row and filled by recompute; the
-    # builder leaves it None so a re-ingest doesn't assert a stale ordinal.
+    # With a session, turn position AND the per-turn diffs are cross-row and filled
+    # by recompute; the builder leaves them None so a re-ingest doesn't assert a
+    # stale ordinal/diff.
     row = build_row({"id": "t1", "sessionId": "s1"})
     assert row["turn_index"] is None
     assert row["is_final_turn_in_thread"] is None
+    assert row["insight_created_this_turn"] is None
+    assert row["datasets_analysed_this_turn"] is None
+
+
+def test_build_row_singleton_diffs_reflect_this_turn():
+    # A singleton (null-session) turn has no predecessor: any insight it carries is
+    # created this turn and every cumulative dataset is new this turn.
+    row = build_row(
+        {
+            "id": "t1",
+            "output": {
+                "messages": [],
+                "insight_id": "ins1",
+                "statistics": [{"dataset_name": "gfw"}],
+            },
+        }
+    )
+    assert row["session_id"] is None
+    assert row["insight_created_this_turn"] is True
+    assert row["datasets_analysed_this_turn"] == ["gfw"]
+
+
+def test_build_row_singleton_without_insight_has_empty_diffs():
+    # No insight, no datasets => diffs are the empty defaults (not None).
+    row = build_row({"id": "t1", "environment": "production"})
+    assert row["insight_created_this_turn"] is False
+    assert row["datasets_analysed_this_turn"] == []

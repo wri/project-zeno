@@ -16,7 +16,7 @@ from datetime import date, datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,19 +43,52 @@ class TraceListItem(BaseModel):
     prompt: Optional[str] = None
     aoi_name: Optional[str] = None
     aoi_type: Optional[str] = None
-    primary_dataset_name: Optional[str] = None
-    has_insight: Optional[bool] = None
+    primary_dataset_name: Optional[str] = Field(
+        None,
+        description=(
+            "Thread-cumulative as of this turn: the primary dataset in effect at "
+            "this turn, which may have been selected on an earlier turn. For the "
+            "datasets newly analysed on this turn use datasets_analysed_this_turn."
+        ),
+    )
+    has_insight: Optional[bool] = Field(
+        None,
+        description=(
+            "Thread-cumulative as of this turn: whether an insight exists in the "
+            "thread as of this turn (possibly created earlier). For whether *this* "
+            "turn created one use insight_created_this_turn."
+        ),
+    )
     is_global: Optional[bool] = None
     # 1-based position of this turn within its session (ordered by
     # trace_timestamp); session-less traces are singletons (turn_index 1).
     turn_index: Optional[int] = None
+    # Per-turn diffs (honest "this turn" signals, vs. the cumulative fields above).
+    insight_created_this_turn: Optional[bool] = Field(
+        None,
+        description="True only on the turn whose insight_id first became non-null.",
+    )
+    datasets_analysed_this_turn: Optional[list[str]] = Field(
+        None,
+        description=(
+            "Datasets new to this turn (this turn's cumulative set minus the "
+            "previous turn's), vs. datasets_analysed which is thread-cumulative."
+        ),
+    )
     turn_tokens: Optional[int] = None
     turn_tool_calls: Optional[int] = None
     tool_error_count: Optional[int] = None
     latency_seconds: Optional[float] = None
     total_cost: Optional[float] = None
     # Sourced from the ``derived`` JSONB (long-tail fields kept out of columns).
-    datasets_analysed: Optional[list[str]] = None
+    datasets_analysed: Optional[list[str]] = Field(
+        None,
+        description=(
+            "Thread-cumulative as of this turn: every dataset analysed in the "
+            "thread up to and including this turn. For the per-turn delta use "
+            "datasets_analysed_this_turn."
+        ),
+    )
     language: Optional[str] = None
     language_confidence: Optional[float] = None
 
@@ -101,6 +134,8 @@ _LIST_COLUMNS = (
     LangfuseTraceOrm.has_insight,
     LangfuseTraceOrm.is_global,
     LangfuseTraceOrm.turn_index,
+    LangfuseTraceOrm.insight_created_this_turn,
+    LangfuseTraceOrm.datasets_analysed_this_turn,
     LangfuseTraceOrm.turn_tokens,
     LangfuseTraceOrm.turn_tool_calls,
     LangfuseTraceOrm.tool_error_count,
@@ -530,6 +565,8 @@ async def get_trace(
         has_insight=row.has_insight,
         is_global=row.is_global,
         turn_index=row.turn_index,
+        insight_created_this_turn=row.insight_created_this_turn,
+        datasets_analysed_this_turn=row.datasets_analysed_this_turn,
         insight_id=row.insight_id,
         turn_tokens=row.turn_tokens,
         turn_input_tokens=row.turn_input_tokens,

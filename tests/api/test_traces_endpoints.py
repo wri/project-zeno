@@ -478,3 +478,69 @@ async def test_recompute_turn_positions_orders_flags_and_is_idempotent():
     await _recompute()
     assert await _turn_fields("r3") == (3, False)
     assert await _turn_fields("r4") == (4, True)
+
+
+# --- per-turn diffs (Phase 1) ----------------------------------------------
+async def _diff_fields(trace_id: str) -> tuple:
+    """Read (insight_created_this_turn, datasets_analysed_this_turn) from the DB."""
+    async with async_session_maker() as session:
+        row = (
+            await session.execute(
+                select(LangfuseTraceOrm).where(LangfuseTraceOrm.id == trace_id)
+            )
+        ).scalar_one()
+        return row.insight_created_this_turn, row.datasets_analysed_this_turn
+
+
+@pytest.mark.asyncio
+async def test_recompute_computes_per_turn_diffs():
+    """insight_created_this_turn is true only on the turn insight_id newly becomes
+    non-null / changes; datasets_analysed_this_turn is the per-turn delta of the
+    cumulative list, not the cumulative list itself."""
+    # (id, hour, insight_id, cumulative datasets as of this turn)
+    seeds = [
+        ("p1", 1, None, ["a"]),
+        ("p2", 2, "ins1", ["a", "b"]),
+        ("p3", 3, "ins1", ["a", "b"]),
+        ("p4", 4, "ins2", ["a", "b", "c"]),
+    ]
+    for tid, hour, ins, ds in seeds:
+        await _seed_trace(
+            tid,
+            session_id="ps",
+            insight_id=ins,
+            derived={"datasets_analysed_cumulative": ds},
+            trace_timestamp=datetime(2026, 6, 1, hour, tzinfo=timezone.utc),
+        )
+
+    async with async_session_maker() as session:
+        await recompute_turn_positions(session, {"ps"})
+        await session.commit()
+
+    assert await _diff_fields("p1") == (False, ["a"])  # first turn: all new
+    assert await _diff_fields("p2") == (True, ["b"])  # insight appears; +b
+    assert await _diff_fields("p3") == (False, [])  # unchanged: nothing new
+    assert await _diff_fields("p4") == (True, ["c"])  # insight changes; +c
+
+
+@pytest.mark.asyncio
+async def test_per_turn_diffs_surfaced_on_list_item(
+    client, auth_override, superuser_factory
+):
+    su = await superuser_factory("su_diff@example.com")
+    auth_override(su.id)
+    await _seed_trace(
+        "diff1",
+        session_id="dfs",
+        turn_index=2,
+        insight_created_this_turn=True,
+        datasets_analysed_this_turn=["b"],
+        derived={"datasets_analysed_cumulative": ["a", "b"]},
+        trace_timestamp=datetime(2026, 6, 1, 2, tzinfo=timezone.utc),
+    )
+    body = (await client.get("/api/traces?session_id=dfs", headers=H)).json()
+    item = body["items"][0]
+    assert item["insight_created_this_turn"] is True
+    assert item["datasets_analysed_this_turn"] == ["b"]
+    # the cumulative field still reflects the whole thread as of this turn
+    assert item["datasets_analysed"] == ["a", "b"]
