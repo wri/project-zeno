@@ -167,31 +167,46 @@ _RECOMPUTE_SQL = text(
             PARTITION BY session_id
             ORDER BY trace_timestamp ASC NULLS LAST, id ASC
         )
+    ),
+    computed AS (
+        SELECT id,
+               rn AS turn_index,
+               (rn = n) AS is_final,
+               (insight_id IS NOT NULL
+                AND insight_id IS DISTINCT FROM prev_insight) AS created,
+               ARRAY(
+                   SELECT unnest(cur_ds)
+                   EXCEPT
+                   SELECT unnest(COALESCE(prev_ds, ARRAY[]::text[]))
+               )::varchar[] AS new_ds  -- match the column type for the guard below
+        FROM ranked
     )
     UPDATE langfuse_traces t
-    SET turn_index = ranked.rn,
-        is_final_turn_in_thread = (ranked.rn = ranked.n),
-        insight_created_this_turn =
-            (ranked.insight_id IS NOT NULL
-             AND ranked.insight_id IS DISTINCT FROM ranked.prev_insight),
-        datasets_analysed_this_turn = ARRAY(
-            SELECT unnest(ranked.cur_ds)
-            EXCEPT
-            SELECT unnest(COALESCE(ranked.prev_ds, ARRAY[]::text[]))
-        )
-    FROM ranked
-    WHERE t.id = ranked.id
+    SET turn_index = c.turn_index,
+        is_final_turn_in_thread = c.is_final,
+        insight_created_this_turn = c.created,
+        datasets_analysed_this_turn = c.new_ds
+    FROM computed c
+    WHERE t.id = c.id
+      -- Skip rows already current: an UPDATE writes a new tuple even when nothing
+      -- changed, so this guard avoids re-versioning every sibling each recompute.
+      AND (t.turn_index                 IS DISTINCT FROM c.turn_index
+        OR t.is_final_turn_in_thread    IS DISTINCT FROM c.is_final
+        OR t.insight_created_this_turn  IS DISTINCT FROM c.created
+        OR t.datasets_analysed_this_turn IS DISTINCT FROM c.new_ds)
     """
 )
 
 
 async def recompute_turn_positions(
     session: AsyncSession, session_ids: set[str]
-) -> None:
+) -> int:
+    """Returns rows actually rewritten (0 when all sessions are already current)."""
     ids = [s for s in session_ids if s]
     if not ids:
-        return
-    await session.execute(_RECOMPUTE_SQL, {"ids": ids})
+        return 0
+    result = await session.execute(_RECOMPUTE_SQL, {"ids": ids})
+    return result.rowcount or 0
 
 
 # --------------------------------------------------------------------------- #

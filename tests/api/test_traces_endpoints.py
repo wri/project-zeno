@@ -770,6 +770,42 @@ async def test_recompute_turn_positions_orders_flags_and_is_idempotent():
     assert await _turn_fields("r4") == (4, True)
 
 
+@pytest.mark.asyncio
+async def test_recompute_skips_unchanged_rows():
+    """The no-op guard: the first recompute writes the session's rows, a second
+    identical recompute rewrites nothing (rowcount 0) so siblings aren't
+    re-versioned on every ingest. Covers a multi-element datasets_analysed_this_turn
+    array too (its order comes from EXCEPT), so the guard's array comparison is
+    exercised, not just the empty case."""
+    for i, (hour, cum) in enumerate(
+        (
+            (0, ["a"]),
+            (1, ["a", "b", "c"]),  # -> datasets_analysed_this_turn = [b, c]
+            (2, ["a", "b", "c"]),  # -> [] (nothing new)
+        ),
+        start=1,
+    ):
+        await _seed_trace(
+            f"nz{i}",
+            session_id="nz",
+            trace_timestamp=datetime(2026, 6, 1, hour, tzinfo=timezone.utc),
+            derived={"datasets_analysed_cumulative": cum},
+        )
+
+    async def _recompute() -> int:
+        async with async_session_maker() as session:
+            n = await recompute_turn_positions(session, {"nz"})
+            await session.commit()
+            return n
+
+    assert await _recompute() == 3  # all three go from NULL to their positions
+    assert await _recompute() == 0  # already current -> no rewrite
+    # the multi-element diff is stored (set diff; EXCEPT order is unspecified but
+    # stable, which is exactly why the second recompute is a no-op)
+    created, new_ds = await _diff_fields("nz2")
+    assert created is False and sorted(new_ds) == ["b", "c"]
+
+
 # --- per-turn diffs (Phase 1) ----------------------------------------------
 async def _diff_fields(trace_id: str) -> tuple:
     """Read (insight_created_this_turn, datasets_analysed_this_turn) from the DB."""
