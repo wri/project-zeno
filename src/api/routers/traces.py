@@ -13,8 +13,9 @@ labelled as such. Only ``/sessions`` groups by session.
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -161,90 +162,80 @@ def _list_item_from_row(r: dict[str, Any]) -> TraceListItem:
     )
 
 
-def _filters(
-    environment: Optional[str],
-    outcome: Optional[str],
-    user_id: Optional[str],
-    session_id: Optional[str],
-    start: Optional[datetime],
-    end: Optional[datetime],
-    prompt_contains: Optional[str],
-    turn_index: Optional[int] = None,
-    min_turn_index: Optional[int] = None,
-    max_turn_index: Optional[int] = None,
-    first_turn_only: bool = False,
-) -> list[Any]:
+@dataclass
+class TurnAnalyticsFilters:
+    """Shared query-param filter set for the list + analytics endpoints. The
+    turn-position filters compare the stored, indexed ``turn_index`` (so no window);
+    ``first_turn_only`` is a convenience alias for ``turn_index == 1``."""
+
+    environment: Annotated[Optional[str], Query()] = None
+    outcome: Annotated[Optional[str], Query()] = None
+    user_id: Annotated[Optional[str], Query()] = None
+    start: Annotated[
+        Optional[datetime], Query(description="trace_timestamp >= (ISO)")
+    ] = None
+    end: Annotated[
+        Optional[datetime], Query(description="trace_timestamp < (ISO)")
+    ] = None
+    turn_index: Annotated[
+        Optional[int],
+        Query(ge=1, description="exact 1-based turn position in the session"),
+    ] = None
+    min_turn_index: Annotated[Optional[int], Query(ge=1)] = None
+    max_turn_index: Annotated[Optional[int], Query(ge=1)] = None
+    first_turn_only: Annotated[
+        bool, Query(description="only first turns (alias for turn_index=1)")
+    ] = False
+
+    def __post_init__(self) -> None:
+        _check_turn_range(self.min_turn_index, self.max_turn_index)
+
+
+@dataclass
+class ListFilters(TurnAnalyticsFilters):
+    """TurnAnalyticsFilters plus the list-only text filters."""
+
+    session_id: Annotated[Optional[str], Query()] = None
+    prompt_contains: Annotated[Optional[str], Query()] = None
+
+
+def _filters(flt: ListFilters) -> list[Any]:
     conds: list[Any] = []
-    if environment:
-        conds.append(LangfuseTraceOrm.environment == environment)
-    if outcome:
-        conds.append(LangfuseTraceOrm.outcome == outcome)
-    if user_id:
-        conds.append(LangfuseTraceOrm.user_id == user_id)
-    if session_id:
-        conds.append(LangfuseTraceOrm.session_id == session_id)
-    if start:
-        conds.append(LangfuseTraceOrm.trace_timestamp >= start)
-    if end:
-        conds.append(LangfuseTraceOrm.trace_timestamp < end)
-    if prompt_contains:
-        conds.append(LangfuseTraceOrm.prompt.ilike(f"%{prompt_contains}%"))
-    # Turn-position filters (stored turn_index -> true position, index-backed).
-    # first_turn_only is a convenience alias for turn_index == 1.
-    if first_turn_only:
+    if flt.environment:
+        conds.append(LangfuseTraceOrm.environment == flt.environment)
+    if flt.outcome:
+        conds.append(LangfuseTraceOrm.outcome == flt.outcome)
+    if flt.user_id:
+        conds.append(LangfuseTraceOrm.user_id == flt.user_id)
+    if flt.session_id:
+        conds.append(LangfuseTraceOrm.session_id == flt.session_id)
+    if flt.start:
+        conds.append(LangfuseTraceOrm.trace_timestamp >= flt.start)
+    if flt.end:
+        conds.append(LangfuseTraceOrm.trace_timestamp < flt.end)
+    if flt.prompt_contains:
+        conds.append(LangfuseTraceOrm.prompt.ilike(f"%{flt.prompt_contains}%"))
+    if flt.first_turn_only:
         conds.append(LangfuseTraceOrm.turn_index == 1)
-    if turn_index is not None:
-        conds.append(LangfuseTraceOrm.turn_index == turn_index)
-    if min_turn_index is not None:
-        conds.append(LangfuseTraceOrm.turn_index >= min_turn_index)
-    if max_turn_index is not None:
-        conds.append(LangfuseTraceOrm.turn_index <= max_turn_index)
+    if flt.turn_index is not None:
+        conds.append(LangfuseTraceOrm.turn_index == flt.turn_index)
+    if flt.min_turn_index is not None:
+        conds.append(LangfuseTraceOrm.turn_index >= flt.min_turn_index)
+    if flt.max_turn_index is not None:
+        conds.append(LangfuseTraceOrm.turn_index <= flt.max_turn_index)
     return conds
 
 
 @router.get("", response_model=TraceListResponse)
 async def list_traces(
-    environment: Optional[str] = Query(None),
-    outcome: Optional[str] = Query(None),
-    user_id: Optional[str] = Query(None),
-    session_id: Optional[str] = Query(None),
-    start: Optional[datetime] = Query(
-        None, description="trace_timestamp >= (ISO)"
-    ),
-    end: Optional[datetime] = Query(
-        None, description="trace_timestamp < (ISO)"
-    ),
-    prompt_contains: Optional[str] = Query(None),
-    turn_index: Optional[int] = Query(
-        None,
-        ge=1,
-        description="exact 1-based turn position within the session",
-    ),
-    min_turn_index: Optional[int] = Query(None, ge=1),
-    max_turn_index: Optional[int] = Query(None, ge=1),
-    first_turn_only: bool = Query(
-        False, description="only first turns (alias for turn_index=1)"
-    ),
+    flt: ListFilters = Depends(),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     _reader: UserModel = Depends(require_scope(TRACES_READ)),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> TraceListResponse:
     """List/filter traces (derived columns only — never raw/output)."""
-    _check_turn_range(min_turn_index, max_turn_index)
-    conds = _filters(
-        environment,
-        outcome,
-        user_id,
-        session_id,
-        start,
-        end,
-        prompt_contains,
-        turn_index,
-        min_turn_index,
-        max_turn_index,
-        first_turn_only,
-    )
+    conds = _filters(flt)
 
     count_stmt = select(func.count()).select_from(LangfuseTraceOrm)
     for c in conds:
@@ -368,54 +359,41 @@ class SessionListResponse(BaseModel):
 
 
 def _where_sql(
-    environment: Optional[str],
-    outcome: Optional[str],
-    user_id: Optional[str],
-    start: Optional[datetime],
-    end: Optional[datetime],
-    *,
-    require_session: bool = False,
-    turn_index: Optional[int] = None,
-    min_turn_index: Optional[int] = None,
-    max_turn_index: Optional[int] = None,
-    first_turn_only: bool = False,
+    flt: TurnAnalyticsFilters, *, require_session: bool = False
 ) -> tuple[str, dict[str, Any]]:
-    """Build a parameterised WHERE clause (bound params — no injection).
-
-    The turn-position filters compare the stored, indexed ``turn_index``
-    (``ix_langfuse_traces_turn_index``), so the aggregate SQL stays window-free.
-    ``first_turn_only`` is a convenience alias for ``turn_index = 1``.
-    """
+    """Build a parameterised WHERE clause (bound params — no injection). The
+    turn-position filters compare the stored, indexed ``turn_index``, so the
+    aggregate SQL stays window-free."""
     clauses: list[str] = []
     params: dict[str, Any] = {}
     if require_session:
         clauses.append("session_id IS NOT NULL")
-    if environment:
+    if flt.environment:
         clauses.append("environment = :environment")
-        params["environment"] = environment
-    if outcome:
+        params["environment"] = flt.environment
+    if flt.outcome:
         clauses.append("outcome = :outcome")
-        params["outcome"] = outcome
-    if user_id:
+        params["outcome"] = flt.outcome
+    if flt.user_id:
         clauses.append("user_id = :user_id")
-        params["user_id"] = user_id
-    if start:
+        params["user_id"] = flt.user_id
+    if flt.start:
         clauses.append("trace_timestamp >= :start")
-        params["start"] = start
-    if end:
+        params["start"] = flt.start
+    if flt.end:
         clauses.append("trace_timestamp < :end")
-        params["end"] = end
-    if first_turn_only:
+        params["end"] = flt.end
+    if flt.first_turn_only:
         clauses.append("turn_index = 1")
-    if turn_index is not None:
+    if flt.turn_index is not None:
         clauses.append("turn_index = :turn_index")
-        params["turn_index"] = turn_index
-    if min_turn_index is not None:
+        params["turn_index"] = flt.turn_index
+    if flt.min_turn_index is not None:
         clauses.append("turn_index >= :min_turn_index")
-        params["min_turn_index"] = min_turn_index
-    if max_turn_index is not None:
+        params["min_turn_index"] = flt.min_turn_index
+    if flt.max_turn_index is not None:
         clauses.append("turn_index <= :max_turn_index")
-        params["max_turn_index"] = max_turn_index
+        params["max_turn_index"] = flt.max_turn_index
     where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     return where, params
 
@@ -484,43 +462,15 @@ def _metrics_dict(r: Any) -> dict[str, Any]:
 
 @router.get("/analytics", response_model=TraceAnalytics)
 async def trace_analytics(
-    environment: Optional[str] = Query(None),
-    outcome: Optional[str] = Query(None),
-    user_id: Optional[str] = Query(None),
-    start: Optional[datetime] = Query(None),
-    end: Optional[datetime] = Query(None),
-    turn_index: Optional[int] = Query(
-        None,
-        ge=1,
-        description="exact 1-based turn position within the session",
-    ),
-    min_turn_index: Optional[int] = Query(None, ge=1),
-    max_turn_index: Optional[int] = Query(None, ge=1),
-    first_turn_only: bool = Query(
-        False, description="only first turns (alias for turn_index=1)"
-    ),
+    flt: TurnAnalyticsFilters = Depends(),
     _reader: UserModel = Depends(require_scope(TRACES_READ)),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> TraceAnalytics:
     """Server-side aggregates over the filtered trace set. All metrics are
-    turn-level (one row per trace), so counts/sums are not double-counted.
-
-    The turn-position filters let one endpoint answer "how does turn 1 differ
-    from turn 3+" via two calls — they filter the indexed stored ``turn_index``,
-    so the aggregates stay window-free.
-    """
-    _check_turn_range(min_turn_index, max_turn_index)
-    where, params = _where_sql(
-        environment,
-        outcome,
-        user_id,
-        start,
-        end,
-        turn_index=turn_index,
-        min_turn_index=min_turn_index,
-        max_turn_index=max_turn_index,
-        first_turn_only=first_turn_only,
-    )
+    turn-level (one row per trace), so counts/sums are not double-counted. The
+    turn-position filters answer "how does turn 1 differ from turn 3+" via two
+    calls, filtering the indexed ``turn_index`` (no window)."""
+    where, params = _where_sql(flt)
 
     summary = (
         (
@@ -595,17 +545,7 @@ async def trace_analytics(
 
 @router.get("/analytics/by-turn", response_model=TurnAnalytics)
 async def trace_analytics_by_turn(
-    environment: Optional[str] = Query(None),
-    outcome: Optional[str] = Query(None),
-    user_id: Optional[str] = Query(None),
-    start: Optional[datetime] = Query(None),
-    end: Optional[datetime] = Query(None),
-    turn_index: Optional[int] = Query(None, ge=1),
-    min_turn_index: Optional[int] = Query(None, ge=1),
-    max_turn_index: Optional[int] = Query(None, ge=1),
-    first_turn_only: bool = Query(
-        False, description="only first turns (alias for turn_index=1)"
-    ),
+    flt: TurnAnalyticsFilters = Depends(),
     turn_bucket_cap: int = Query(
         10,
         ge=1,
@@ -620,18 +560,7 @@ async def trace_analytics_by_turn(
     ``turn_bucket_cap`` collapse into one terminal bucket. Any turn-position filter
     applies *before* bucketing (filter, then bucket). Filters compose with the
     stored, indexed ``turn_index`` — no window, no view."""
-    _check_turn_range(min_turn_index, max_turn_index)
-    where, params = _where_sql(
-        environment,
-        outcome,
-        user_id,
-        start,
-        end,
-        turn_index=turn_index,
-        min_turn_index=min_turn_index,
-        max_turn_index=max_turn_index,
-        first_turn_only=first_turn_only,
-    )
+    where, params = _where_sql(flt)
 
     # Grand total over the whole filtered set (includes NULL-turn rows), plus the
     # NULL-turn count so groups (which exclude NULLs) reconcile against it.
@@ -705,7 +634,10 @@ async def list_sessions(
     """Conversation browser: one row per session (thread), newest first, with the
     first prompt of the thread and a turn count."""
     where, params = _where_sql(
-        environment, None, user_id, start, end, require_session=True
+        TurnAnalyticsFilters(
+            environment=environment, user_id=user_id, start=start, end=end
+        ),
+        require_session=True,
     )
 
     total = int(
