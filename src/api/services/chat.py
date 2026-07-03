@@ -134,7 +134,14 @@ async def stream_chat(
         "metadata": langfuse_metadata,
     }
 
-    zeno_async = await fetch_zeno(ff=ff, registry=registry)
+    # The page the user is on conditions the "# Current surface" prompt
+    # section; the rest of view_context stays ambient (see below).
+    page = (view_context or {}).get("page")
+    zeno_async = await fetch_zeno(
+        ff=ff,
+        registry=registry,
+        page=page if isinstance(page, str) else None,
+    )
 
     messages = []
     ui_action_message = []

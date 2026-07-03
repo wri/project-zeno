@@ -361,7 +361,10 @@ class ChatRequest(BaseModel):
     #    "visible_aois": [{"source": "...", "src_id": "...", "name": "..."}],
     #    "visible_insights": ["<uuid>", "<uuid>"]}
     # On the dashboard page the snapshot carries the dashboard being viewed:
-    #   {"page": "dashboard", "dashboard_id": "<uuid>"}
+    #   {"page": "dashboard", "dashboard_id": "<uuid>", "dashboard_name": "…"}
+    # Known "page" values get scope semantics on the backend (session-block
+    # line + system-prompt section) via src/agent/view_pages.py; see
+    # docs/view-context-pages.md. Unknown pages degrade gracefully.
     view_context: Optional[dict] = Field(
         None,
         description="Ambient frontend view state (page, viewport, visible layers/AOIs)",

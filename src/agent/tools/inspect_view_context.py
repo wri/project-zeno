@@ -49,6 +49,7 @@ _KNOWN_KEYS = {
     "visible_aois",
     "visible_insights",
     "dashboard_id",
+    "dashboard_name",
 }
 
 

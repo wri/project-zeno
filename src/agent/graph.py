@@ -23,14 +23,23 @@ from src.agent.agent_config import (
 from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
 from src.agent.state import AgentState
+from src.agent.view_pages import prompt_section
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 
-def get_prompt(config: Optional[AgentConfig] = None) -> str:
-    """Generate the system prompt from the config's tools and skills."""
+def get_prompt(
+    config: Optional[AgentConfig] = None, page: Optional[str] = None
+) -> str:
+    """Generate the system prompt from the config's tools and skills.
+
+    ``page`` is the frontend surface the user is on (from
+    ``view_context["page"]``, known at request time); registered pages
+    (src/agent/view_pages.py) contribute a "# Current surface" section with
+    their scope and routing hints. Unknown/absent pages add nothing.
+    """
     if config is None:
         config = default_registry.resolve()
     skill_lines = [
@@ -39,13 +48,15 @@ def get_prompt(config: Optional[AgentConfig] = None) -> str:
     ]
     skills_block = "\n".join(skill_lines) if skill_lines else "(none)"
     tool_descriptions = config.tool_descriptions()
+    surface = prompt_section(page)
+    surface_block = f"\n# Current surface\n\n{surface}\n" if surface else ""
     today = datetime.now().strftime("%Y-%m-%d")
     return f"""You are Global Nature Watch's Geospatial Agent. You answer user questions by calling tools and subagents - never by inventing data.
 
 Today: {today}
 
 A [Session — date] system message is prepended to every model call with the live AOI, dataset, date range, pulled data and active insight. Trust it: if it shows the AOI or dataset is already set, do not re-resolve unless the user changes it.
-
+{surface_block}
 Call tools one at a time, never in parallel.
 
 {tool_descriptions}
@@ -192,12 +203,18 @@ async def fetch_zeno(
     registry: AgentConfigRegistry = default_registry,
     checkpointer: Any = _CHECKPOINTER_UNSET,
     config: Optional[AgentConfig] = None,
+    page: Optional[str] = None,
 ) -> CompiledStateGraph:
     """Setup the Zeno agent for the given config and feature flag.
 
     The config is resolved from ``ff`` via ``registry``; unknown flags fall
     back to the registry's default. Pass a custom ``registry`` in tests to
     inject isolated configs without mutating global state.
+
+    ``page`` is the frontend surface for this request (from
+    ``view_context["page"]``); it conditions the "# Current surface" prompt
+    section. The agent is built per request, so a mid-thread page switch
+    simply produces the matching prompt on the next request.
 
     By default the Postgres checkpointer is used (API and durable CLI runs).
     Pass an explicit ``checkpointer`` (e.g. ``InMemorySaver()``) for local
@@ -212,7 +229,7 @@ async def fetch_zeno(
         model=MODEL,
         tools=config.tools(),
         state_schema=AgentState,
-        system_prompt=config.system_prompt or get_prompt(config),
+        system_prompt=config.system_prompt or get_prompt(config, page=page),
         middleware=_build_middleware(),
         checkpointer=checkpointer,
     )
