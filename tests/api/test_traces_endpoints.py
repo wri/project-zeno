@@ -597,6 +597,25 @@ async def test_by_turn_requires_superuser(client, auth_override, user):
     ).status_code == 403
 
 
+@pytest.mark.asyncio
+async def test_inverted_turn_range_rejected(
+    client, auth_override, superuser_factory
+):
+    """min_turn_index > max_turn_index is a 422 on every filtered endpoint, not a
+    silently-empty result."""
+    su = await superuser_factory("su_range@example.com")
+    auth_override(su.id)
+    for path in (
+        "/api/traces",
+        "/api/traces/analytics",
+        "/api/traces/analytics/by-turn",
+    ):
+        resp = await client.get(
+            f"{path}?min_turn_index=5&max_turn_index=2", headers=H
+        )
+        assert resp.status_code == 422
+
+
 # --- sessions --------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_sessions(client, auth_override, superuser_factory):

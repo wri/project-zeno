@@ -81,9 +81,9 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
     failures still yield a row (identity + parse_error) so one bad trace never
     aborts the batch."""
     session_id = trace.get("sessionId")
-    # Null-session traces are singleton threads (COALESCE(session_id, id)); set
-    # their turn position directly. Session-scoped rows get it from the post-upsert
-    # recompute (cross-row), so they carry None here to be filled in-transaction.
+    # Turn position + per-turn diffs are cross-row. Session rows carry None and are
+    # filled by the post-upsert recompute; null-session rows are singleton threads
+    # (COALESCE(session_id, id)) never renumbered, so they're set directly below.
     is_singleton = session_id is None
     row: dict[str, Any] = {
         "id": trace.get("id"),
@@ -94,8 +94,6 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
         "trace_updated_at": _parse_dt(trace.get("updatedAt")),
         "latency_seconds": trace.get("latency"),
         "total_cost": trace.get("totalCost"),
-        # Turn position + per-turn diffs are cross-row: session rows carry None and
-        # are filled by the post-upsert recompute; singletons are set below.
         "turn_index": 1 if is_singleton else None,
         "is_final_turn_in_thread": True if is_singleton else None,
         "insight_created_this_turn": None,
@@ -118,9 +116,8 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
         row["parser_version"] = P.PARSER_VERSION
         row["recognized_contract"] = None
     if is_singleton:
-        # No predecessor: a singleton turn "creates" any insight it carries, and
-        # its whole cumulative dataset list is new this turn. Parse-failure rows
-        # (no insight_id / derived) fall back to False / empty.
+        # No predecessor: the turn "creates" any insight it carries and its whole
+        # cumulative dataset list is new. Parse failures fall back to False / [].
         derived = row.get("derived") or {}
         row["insight_created_this_turn"] = row.get("insight_id") is not None
         row["datasets_analysed_this_turn"] = (
@@ -145,14 +142,11 @@ async def _upsert(session: AsyncSession, rows: list[dict[str, Any]]) -> int:
     return len(rows)
 
 
-# Recompute the cross-row turn fields for the given sessions from current table
-# state: turn_index / is_final_turn_in_thread (position) plus the per-turn diffs
-# insight_created_this_turn / datasets_analysed_this_turn (this turn vs. the prior
-# one). All depend on siblings (a new/late/out-of-order trace shifts ordinals and
-# the neighbouring diffs), so it runs once per chunk over the *full* touched
-# session(s), not per batch, on a single window. Deterministic -> re-ingesting a
-# window is idempotent. Null-session rows are singleton threads set in build_row
-# and never touched here.
+# Recompute the cross-row turn fields (turn_index, is_final_turn_in_thread, and the
+# per-turn diffs) for the given sessions from current table state. Each depends on
+# siblings, so a late/out-of-order trace can shift them; running once per chunk over
+# the *full* touched session(s) on a single window keeps it deterministic (hence
+# idempotent). Null-session singletons are set in build_row and never touched here.
 _RECOMPUTE_SQL = text(
     """
     WITH ranked AS (
@@ -308,7 +302,7 @@ async def ingest_window(
 ) -> WindowStats:
     """Fetch one closed window, parse, and upsert (chunked). The sync fetch runs
     in a thread so it doesn't block the event loop. Fetch page size is clamped to
-    the Langfuse API max (100); the upsert batch size is independent."""
+    the Langfuse list-page max (``MAX_PAGE_SIZE``); the upsert batch is independent."""
     page_size = min(batch_size, MAX_PAGE_SIZE)
     traces = await asyncio.to_thread(
         client.fetch_window, from_ts, to_ts, environment, page_size

@@ -3,10 +3,11 @@
 Gated on the ``traces:read`` scope: a superuser human or a machine key carrying
 that scope (see ``require_scope``).
 
-Read path over ``langfuse_traces`` (see src/api/services/langfuse for ingestion).
-List/detail here; analytics + conversation views live alongside. All derived
-fields are turn-level (per the parser); cumulative thread state lives under
-``derived`` and the analytics surface dedups per session.
+Read path over ``langfuse_traces`` (see src/api/services/langfuse for ingestion):
+list/detail, per-turn and turn-bucketed analytics, and a session (thread) view.
+Each row is one turn; most fields are per-turn, but a few (``datasets_analysed``,
+``has_insight``, ``primary_dataset_name``) carry thread-cumulative state and are
+labelled as such. Only ``/sessions`` groups by session.
 """
 
 from __future__ import annotations
@@ -230,6 +231,7 @@ async def list_traces(
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> TraceListResponse:
     """List/filter traces (derived columns only — never raw/output)."""
+    _check_turn_range(min_turn_index, max_turn_index)
     conds = _filters(
         environment,
         outcome,
@@ -422,6 +424,20 @@ def _f(x: Any) -> Optional[float]:
     return round(float(x), 4) if x is not None else None
 
 
+def _check_turn_range(
+    min_turn_index: Optional[int], max_turn_index: Optional[int]
+) -> None:
+    if (
+        min_turn_index is not None
+        and max_turn_index is not None
+        and min_turn_index > max_turn_index
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="min_turn_index must be <= max_turn_index",
+        )
+
+
 # The scalar aggregate expressions shared by /analytics' summary and
 # /analytics/by-turn's grand-total + grouped queries, so the two can't drift.
 # Consumed via _metrics_from_row (reads the aliased columns below).
@@ -440,29 +456,30 @@ _SCALAR_METRICS_SQL = """
 """.strip()
 
 
-def _metrics_from_row(r: Any) -> TurnMetrics:
-    """Map a result row carrying the _SCALAR_METRICS_SQL columns into TurnMetrics."""
-    return TurnMetrics(
-        total_traces=int(r["total"] or 0),
-        latency={
+def _metrics_dict(r: Any) -> dict[str, Any]:
+    """Map a result row carrying the _SCALAR_METRICS_SQL columns into the
+    TurnMetrics field dict (splat into TurnMetrics or TurnGroup)."""
+    return {
+        "total_traces": int(r["total"] or 0),
+        "latency": {
             "avg": _f(r["lat_avg"]),
             "p50": _f(r["lat_p50"]),
             "p95": _f(r["lat_p95"]),
         },
-        cost={
+        "cost": {
             "avg": _f(r["cost_avg"]),
             "p95": _f(r["cost_p95"]),
             "total": _f(r["cost_total"]),
         },
-        tokens={
+        "tokens": {
             "avg_turn_tokens": _f(r["tok_avg"]),
             "total_turn_tokens": _f(r["tok_total"]),
         },
-        tool_usage={
+        "tool_usage": {
             "avg_tool_calls": _f(r["tool_avg"]),
             "tool_error_rate": _f(r["tool_err_rate"]),
         },
-    )
+    }
 
 
 @router.get("/analytics", response_model=TraceAnalytics)
@@ -492,6 +509,7 @@ async def trace_analytics(
     from turn 3+" via two calls — they filter the indexed stored ``turn_index``,
     so the aggregates stay window-free.
     """
+    _check_turn_range(min_turn_index, max_turn_index)
     where, params = _where_sql(
         environment,
         outcome,
@@ -519,7 +537,7 @@ async def trace_analytics(
         .mappings()
         .one()
     )
-    metrics = _metrics_from_row(summary)
+    metrics = _metrics_dict(summary)
 
     outcomes = (
         (
@@ -566,16 +584,12 @@ async def trace_analytics(
     )
 
     return TraceAnalytics(
-        total_traces=metrics.total_traces,
         unique_sessions=int(summary["sessions"] or 0),
         unique_users=int(summary["users"] or 0),
         outcome_breakdown=[NamedCount(**dict(r)) for r in outcomes],
         daily_volume=[DailyCount(**dict(r)) for r in daily],
         aoi_type_breakdown=[NamedCount(**dict(r)) for r in aoi],
-        latency=metrics.latency,
-        cost=metrics.cost,
-        tokens=metrics.tokens,
-        tool_usage=metrics.tool_usage,
+        **metrics,
     )
 
 
@@ -606,6 +620,7 @@ async def trace_analytics_by_turn(
     ``turn_bucket_cap`` collapse into one terminal bucket. Any turn-position filter
     applies *before* bucketing (filter, then bucket). Filters compose with the
     stored, indexed ``turn_index`` — no window, no view."""
+    _check_turn_range(min_turn_index, max_turn_index)
     where, params = _where_sql(
         environment,
         outcome,
@@ -663,7 +678,7 @@ async def trace_analytics_by_turn(
             turn_index_min=int(r["turn_index_min"]),
             turn_index_max=int(r["turn_index_max"]),
             sessions_reaching=int(r["sessions_reaching"] or 0),
-            **_metrics_from_row(r).model_dump(),
+            **_metrics_dict(r),
         )
         for r in group_rows
     ]
@@ -671,7 +686,7 @@ async def trace_analytics_by_turn(
     return TurnAnalytics(
         turn_bucket_cap=turn_bucket_cap,
         ungrouped_traces=int(grand["ungrouped"] or 0),
-        grand_total=_metrics_from_row(grand),
+        grand_total=TurnMetrics(**_metrics_dict(grand)),
         groups=groups,
     )
 

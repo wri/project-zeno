@@ -4,20 +4,15 @@ Revision ID: c2e8b4d1f6a7
 Revises: b1f7a3c9d2e5
 Create Date: 2026-07-03 11:00:00.000000
 
-Hand-written (alembic autogenerate is disabled). Adds two honest per-turn signals
-that complement the thread-cumulative fields already on the table:
-
-- ``insight_created_this_turn``: the turn's ``insight_id`` became non-null on this
-  turn (vs. reflecting an insight created several turns earlier).
-- ``datasets_analysed_this_turn``: datasets new to *this* turn, i.e. this turn's
-  ``derived->datasets_analysed_cumulative`` minus the previous turn's.
-
-Both are cross-row (depend on the previous turn), so ongoing rows are maintained by
-the same session-scoped recompute in the ingest path as ``turn_index``; this
-migration backfills existing rows once. The backfill partitions by
-COALESCE(session_id, id) so null-session traces are singleton turn-1 threads (no
-predecessor -> insight_created = insight present, datasets_this_turn = the full
-cumulative list). No view change: these columns are list-surface only.
+Hand-written (autogenerate disabled). Adds two per-turn signals complementing the
+thread-cumulative fields:
+- ``insight_created_this_turn``: insight_id became non-null on this turn.
+- ``datasets_analysed_this_turn``: this turn's derived->datasets_analysed_cumulative
+  minus the previous turn's.
+Both are cross-row, so ongoing rows are maintained by the same ingest recompute as
+``turn_index``; this backfills existing rows once, partitioned by
+COALESCE(session_id, id) (null-session singletons have no predecessor). List-surface
+only, so no view change.
 """
 
 from typing import Sequence, Union

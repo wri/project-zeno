@@ -4,19 +4,14 @@ Revision ID: b1f7a3c9d2e5
 Revises: a1b2c3d4e5f6
 Create Date: 2026-07-03 10:00:00.000000
 
-Hand-written (alembic autogenerate is disabled). Adds a stored per-turn ordinal
-(``turn_index``, 1-based position within a session ordered by trace_timestamp) so
-turn-position analytics is index-filterable rather than a per-request window, and
-starts populating the previously-unused ``is_final_turn_in_thread`` column.
-
-Session-less traces (null session_id) are singleton threads via
-COALESCE(session_id, id) -> turn_index 1, is_final True. Ongoing rows are kept
-current by a session-scoped recompute in the ingest path; this migration backfills
+Hand-written (autogenerate disabled). Adds the stored per-turn ordinal ``turn_index``
+(1-based within a session by trace_timestamp) so turn-position analytics is
+index-filterable rather than a per-request window, and starts populating
+``is_final_turn_in_thread``. Null-session traces are singleton threads via
+COALESCE(session_id, id) -> turn_index 1. The ``langfuse_traces_analytics`` view is
+rewritten to read the stored flag (dropping its row_number() window) and expose
+``turn_index``. Ongoing rows are kept current by the ingest recompute; this backfills
 existing rows once.
-
-The ``langfuse_traces_analytics`` view is rewritten to read the *stored*
-``is_final_turn_in_thread`` (dropping its own row_number() window) and to expose
-``turn_index``.
 """
 
 from typing import Sequence, Union
