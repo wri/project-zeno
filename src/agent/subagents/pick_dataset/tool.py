@@ -22,6 +22,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     DIST_ALERT_ID,
     FOREST_CARBON_FLUX_ID,
     GRASSLANDS_ID,
+    INTEGRATED_ALERTS_ID,
     LAND_COVER_CHANGE_ID,
     TREE_COVER_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
@@ -36,6 +37,7 @@ from src.agent.subagents.pick_dataset.schema import (
     DatasetSelectionResult,
 )
 from src.agent.subagents.progress import emit_progress
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -228,7 +230,12 @@ class DatasetSelector:
                         ],
                         "messages": [
                             ToolMessage(
-                                tool_message, tool_call_id=tool_call_id
+                                tool_message,
+                                tool_call_id=tool_call_id,
+                                status="success",
+                                response_metadata={
+                                    "msg_type": "human_feedback"
+                                },
                             )
                         ],
                     }
@@ -515,7 +522,7 @@ def get_tile_services_for_dataset(
             )
         else:
             tile_url += "&start_year=2001&end_year=2025"
-    elif selection_result.dataset_id == DIST_ALERT_ID:
+    elif selection_result.dataset_id in [DIST_ALERT_ID, INTEGRATED_ALERTS_ID]:
         tile_url += f"&start_date={start_date}&end_date={end_date}"
     elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
         # Annual raster item in URL; start/end are already clamped to dataset YAML
@@ -543,3 +550,10 @@ def get_dates_for_dataset(
     )
 
     return resolved_start_date, resolved_end_date
+
+
+SPEC = ToolSpec(
+    tool=pick_dataset,
+    category=ToolCategory.SUBAGENT,
+    prompt_fragment="- pick_dataset(query): dataset-selection subagent. Picks the dataset, context layer and date range that best answer the request. May return no dataset if none is a good fit — in that case relay its explanation and closest alternatives to the user; do not proceed to pull_data. Call it again whenever the user changes the dataset, context layer or parameters.",
+)

@@ -62,10 +62,29 @@ def mock_insight_db():
         yield mock_session
 
     with patch(
-        "src.agent.subagents.analyst.tool.get_session_from_pool",
+        "src.api.repositories.insight_writer.get_session_from_pool",
         fake_pool,
     ):
         yield mock_session
+
+
+@pytest.fixture(autouse=True)
+def mock_insight_text():
+    """Stub the text stage so these chart-focused tests don't require a
+    second live LLM call. The chart stage (Gemini code exec) still runs."""
+
+    class _Text:
+        primary_insight = "Synthetic insight text for tests."
+        follow_up_suggestions = ["Follow-up one."]
+
+    async def fake_generate(self, charts, dataset, query="", config=None):
+        return _Text()
+
+    with patch(
+        "src.agent.subagents.analyst.tool.InsightTextGenerator.generate",
+        new=fake_generate,
+    ):
+        yield
 
 
 async def test_generate_insights_comparison():

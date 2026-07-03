@@ -8,9 +8,9 @@ from src.agent.subagents.pick_aoi import Geocoder, pick_aoi
 from src.agent.subagents.pick_aoi.tool import (
     AOIIndex,
     PlaceQuery,
-    _antimeridian_bbox_sql,
     fetch_aoi_bbox,
 )
+from src.shared.geocoding_helpers import _antimeridian_bbox_sql
 
 
 def test_sql_contains_crossing_condition():
@@ -118,10 +118,10 @@ async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
     then runs the DB lookup. No places/subregion args from the caller."""
     tool_module = import_module("src.agent.subagents.pick_aoi.tool")
 
-    async def fake_extract(self, question):
+    async def fake_extract(self, question, aoi_type):
         return PlaceQuery(places=["Para, Brazil"], subregion=None)
 
-    async def fake_query_aoi_database(place_name, result_limit=10):
+    async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
         return pd.DataFrame(
             [
                 {
@@ -149,7 +149,10 @@ async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
 
     command = await pick_aoi.ainvoke(
         {
-            "args": {"question": "tree cover loss in Para, Brazil"},
+            "args": {
+                "question": "tree cover loss in Para, Brazil",
+                "area_of_interest": "adminstrative area (country, state/region, country/subregion)",
+            },
             "id": "tc-1",
             "type": "tool_call",
         }
@@ -164,17 +167,17 @@ async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
 async def test_pick_aoi_tool_asks_for_clarification_when_no_place(
     monkeypatch,
 ):
-    """If the request names no place, the subagent returns a clarifying
-    question instead of touching the database."""
-
-    async def fake_extract(self, question):
+    async def fake_extract(self, question, aoi_type):
         return PlaceQuery(places=[], subregion=None)
 
     monkeypatch.setattr(Geocoder, "extract", fake_extract)
 
     command = await pick_aoi.ainvoke(
         {
-            "args": {"question": "show me tree cover loss"},
+            "args": {
+                "question": "show me tree cover loss",
+                "area_of_interest": None,
+            },
             "id": "tc-2",
             "type": "tool_call",
         }

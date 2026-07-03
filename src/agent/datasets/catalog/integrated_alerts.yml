@@ -1,0 +1,100 @@
+dataset_id: 11
+dataset_name: Integrated alerts
+context_layers: null
+parameters: null
+variables: null
+tile_url: https://tiles.globalforestwatch.org/gfw_integrated_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color
+license: CC by 4.0
+geographic_coverage: Global
+resolution: 10 x 10 meters
+update_frequency: Daily, updated when any of the four source alert systems (DIST-ALERT, GLAD-L, GLAD-S2, RADD) is updated.
+content_date: 1 December 2023 - present
+start_date: '2023-12-01'
+content_date_fixed: false
+keywords:
+- alerts
+- deforestation
+- forest disturbance
+- vegetation disturbance
+- near-real-time
+analytics_api_endpoint: /v0/land_change/integrated_alerts/analytics
+prompt_instructions: >-
+  Use this dataset to show recent vegetation and forest disturbance globally, integrating four alert systems (DIST-ALERT,
+  GLAD-L, GLAD-S2, RADD) into a single layer. Data is measured in hectares (ha); use this as the unit of analysis in all
+  cases. Alerts carry one of three confidence levels: low, high (detected multiple times by a single system — two or more
+  times for GLAD-L, GLAD-S2 and RADD, four or more for DIST-ALERT), and highest (detected by two or more systems —
+  effectively eliminates false detections). Low-confidence alerts are not shown for DIST-ALERT. There are NO driver,
+  land-cover, or natural-lands intersections — report disturbed area by date and by confidence only; do not attempt class
+  or driver breakdowns. Clarify whether the user cares about temporary disturbance or permanent conversion; recommend
+  annual tree cover loss for historical or long-term changes. Generate exactly ONE chart, chosen by what the user asked
+  (never both a pie and a line): for totals or the breakdown by confidence, use a PIE chart with one slice per confidence
+  tier (low, high, highest) showing total area in hectares (area_ha); for trends over time, use a LINE chart of area_ha
+  over time (x = alert month from alert_date, one line per confidence tier). Do NOT render the temporal view as bars, and
+  do NOT use grouped bar charts for the confidence breakdown. Always interpret alerts as indicators of potential
+  disturbance, not definitive deforestation outcomes.
+selection_hints: >-
+  DEFAULT dataset for near-real-time vegetation and forest disturbance, clearing, and deforestation alerts globally at
+  10m resolution, measured in hectares. Integrates DIST-ALERT, GLAD-L, GLAD-S2 and RADD into one layer, detecting
+  disturbance faster than any single system. Provides low, high, and highest confidence alerts (highest = confirmed by
+  multiple systems). PREFER this for any recent disturbance/clearing/deforestation-alert query. It has NO context layers
+  / intersections — ONLY when the user needs a breakdown by driver, land cover, natural lands, or grasslands should
+  DIST-ALERT be used instead. For historical or long-term tree cover change, prefer Tree Cover Loss; for driver
+  attribution of tree cover loss, prefer Tree Cover Loss by Dominant Driver.
+code_instructions: |-
+  CHART TYPES — generate EXACTLY ONE chart for Integrated alerts, chosen by the query; never emit both a pie and a line:
+  - Totals / breakdown by confidence → PIE chart, one slice per confidence tier (low, high, highest), value = total area_ha summed over the period
+  - Alerts over time / recent trends → LINE chart ONLY (x=alert month from alert_date, y=area_ha, one line per confidence tier); the x-axis may be aggregated to month, but render it as a line, NOT as bars
+  - The charts list must contain exactly one chart. If the query does not clearly ask for totals, default to the LINE over time.
+  - Do NOT use bar charts for Integrated alerts unless specifically asked by the user
+  DATA RULES:
+  - Result columns are: aoi_id, alert_date, alert_confidence, area_ha, aoi_type
+  - All areas are in hectares (ha) in the area_ha column
+  - alert_confidence values are low, high, and highest; 'highest' means detected by two or more alert systems (it may be absent when only one system covered the area/time)
+  - There are NO driver, land-cover, or natural-lands intersections — do NOT create class/driver breakdowns
+  DO/DON'T:
+  - Always interpret alerts as indicators of potential disturbance, not definitive outcomes
+  - Recent alerts may include false positives that have not yet raised their confidence level
+  - Do not use alerts for area estimates or long-term trend assessment; recommend annual tree cover loss instead
+presentation_instructions: >-
+  Describe results as integrated disturbance alerts (potential vegetation and forest disturbance), not confirmed
+  deforestation. Always reference the confidence tiers shown and the selected time range. Include a caution that explains
+  (a) the alert systems contributing to the integrated count — DIST-ALERT, GLAD-L, GLAD-S2 and RADD — and (b) what each
+  confidence level means: low = detected once; high = detected multiple times by a single system (two or more for
+  GLAD-L/GLAD-S2/RADD, four or more for DIST-ALERT); highest = detected by two or more systems, which effectively
+  eliminates false detections. Note 'highest' may not appear when only one system covered the area and time period.
+  Clarify if the user cares about temporary disturbance vs permanent conversion; recommend annual tree cover loss for
+  historical changes. Coverage is global.
+description: >-
+  Integrated Alerts, assembled by Global Forest Watch, aggregates near-real-time deforestation and vegetation disturbance
+  alerts from four alert systems (DIST-ALERT, GLAD-L, GLAD-S2, RADD) into a single integrated layer at 10-meter resolution
+  with global coverage. Integrating the systems detects disturbance faster than any single system alone, since the layer
+  updates whenever any source system updates. Alerts are classified low confidence on first detection, high confidence when
+  detected multiple times by a single system (two or more times for GLAD-L, GLAD-S2 and RADD; four or more for DIST-ALERT),
+  and highest confidence when detected by two or more systems — where multiple sensors observe the same change, false
+  detections are effectively eliminated.
+methodology: >-
+  The integrated layer combines DIST-ALERT (OPERA/HLS, resampled from 30m to 10m), GLAD-L (Landsat, resampled from 30m to
+  10m), GLAD-S2 (Sentinel-2, 10m), and RADD (Sentinel-1 radar, 10m) alerts on a common 10m grid, avoiding double counting
+  of overlapping alerts by classifying them at a higher confidence level. Alerts from multiple systems within 180 days (6
+  months) of each other are treated as a single event, and the earliest detection date within that window is preserved as
+  the alert date; with DIST-ALERT included, an alert date can be overwritten when a new disturbance is detected more than
+  180 days later in the same pixel. The systems have differing spatial and temporal coverage and definitions of forest and
+  vegetation disturbance; see the source publications for details. Available on Google Earth Engine (asset
+  projects/landandcarbon/assets/integrated_dist_alerts/intdist_tropics).
+cautions: >-
+  Although often called 'deforestation alerts', these detect forest or vegetation disturbances and do not distinguish
+  human-caused from other disturbance types; within plantation forests alerts may indicate timber harvesting rather than
+  conversion to a non-forest land use. We do not recommend using alerts for global or regional trend assessment, nor for
+  area estimates; use annual tree cover loss for that. Recent alerts include false positives that have yet to raise their
+  confidence level and may later be removed. The 'highest confidence' level can only be achieved where more than one alert
+  system was operating for that region and time period. Because DIST-ALERT and GLAD-L are resampled from 30m to 10m, the
+  count of integrated alerts is much greater than the native 30m alerts and pixels may not align exactly. Confidence levels
+  can change retroactively as source data is updated; low-confidence alerts are not shown for DIST-ALERT on GFW.
+function_usage_notes: >-
+  Monitor vegetation and forest disturbance in near-real-time across the globe using integrated alerts from four alerting
+  systems, detecting new disturbances faster and reaching confidence sooner than any single system.
+providers: >-
+  Integrated disturbance alerts were assembled by Global Forest Watch from DIST-ALERT (OPERA Land Surface Disturbance,
+  NASA/UMD), GLAD-L and GLAD-S2 (University of Maryland GLAD lab), and RADD (Wageningen University) alert systems.
+citation: >-
+  "Global Integrated Disturbance Alerts". UMD/GLAD and WUR, accessed through Global Forest Watch on [date].

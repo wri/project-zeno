@@ -10,6 +10,7 @@ Examples:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 import sys
@@ -29,10 +30,15 @@ from langchain_core.messages import (
 from langgraph.checkpoint.memory import InMemorySaver
 from sqlalchemy import select
 
+from src.agent.agent_config import (
+    CORE_SPECS,
+    DEFAULT_PROFILE,
+    AgentConfig,
+    default_registry,
+)
 from src.agent.graph import (
     close_checkpointer_pool,
     fetch_zeno,
-    fetch_zeno_anonymous,
     get_checkpointer_pool,
     get_prompt,
 )
@@ -71,6 +77,7 @@ _TOOL_ACTION_LABELS = {
     "pick_dataset": "Choosing dataset",
     "pull_data": "Fetching data",
     "generate_insights": "Generating insights",
+    "search_blogs": "Searching WRI Insights",
 }
 
 
@@ -557,6 +564,7 @@ async def _run_query(
     message_history: list[BaseMessage],
     printer: _CliPrinter,
     show_header: bool,
+    view_context: Optional[dict] = None,
 ) -> None:
     if show_header:
         printer.print_turn_header(query)
@@ -565,11 +573,18 @@ async def _run_query(
         # The checkpointer restores prior messages and graph state for the
         # thread, so only the new message is sent.
         config = {"configurable": {"thread_id": thread_id}}
-        input_state = {"messages": [HumanMessage(content=query)]}
+        input_state: dict[str, Any] = {
+            "messages": [HumanMessage(content=query)]
+        }
     else:
         config = {}
         message_history.append(HumanMessage(content=query))
         input_state = {"messages": message_history}
+
+    # Mirror the chat service: attach the ambient view-state snapshot to the
+    # turn so inspect_view_context (and the session breadcrumb) can see it.
+    if view_context:
+        input_state["view_context"] = view_context
 
     new_messages = await _stream_turn(
         agent, input_state, config, printer=printer
@@ -602,13 +617,20 @@ async def _fetch_agent(
     *,
     use_postgres: bool,
     use_memory: bool,
+    ff: Optional[str] = None,
 ):
+    if ff:
+        config = default_registry.resolve(ff)
+    else:
+        config = AgentConfig(
+            DEFAULT_PROFILE,
+            specs=CORE_SPECS,
+            system_prompt=system_prompt,
+        )
     if use_postgres:
-        return await fetch_zeno(system_prompt=system_prompt)
+        return await fetch_zeno(config=config)
     checkpointer = InMemorySaver() if use_memory else None
-    return await fetch_zeno_anonymous(
-        system_prompt=system_prompt, checkpointer=checkpointer
-    )
+    return await fetch_zeno(config=config, checkpointer=checkpointer)
 
 
 async def _interactive_loop(
@@ -619,6 +641,7 @@ async def _interactive_loop(
     checkpoint_kind: str,
     using_custom_prompt: bool,
     printer: _CliPrinter,
+    view_context: Optional[dict] = None,
 ) -> None:
     click.echo(
         click.style("Zeno agent CLI", bold=True)
@@ -654,6 +677,7 @@ async def _interactive_loop(
             message_history=message_history,
             printer=printer,
             show_header=True,
+            view_context=view_context,
         )
 
 
@@ -666,6 +690,8 @@ async def _async_main(
     user_id: str,
     user_email: str,
     verbose: bool,
+    ff: Optional[str] = None,
+    view_context: Optional[dict] = None,
 ) -> None:
     structlog.contextvars.clear_contextvars()
     bind_request_logging_context(user_id=user_id, thread_id=thread_id)
@@ -689,7 +715,10 @@ async def _async_main(
             await get_checkpointer_pool()
 
         agent = await _fetch_agent(
-            system_prompt, use_postgres=use_postgres, use_memory=use_memory
+            system_prompt,
+            use_postgres=use_postgres,
+            use_memory=use_memory,
+            ff=ff,
         )
         try:
             if is_interactive:
@@ -698,8 +727,10 @@ async def _async_main(
                     thread_id=thread_id,
                     is_checkpointed=is_checkpointed,
                     checkpoint_kind=checkpoint_kind,
-                    using_custom_prompt=system_prompt is not None,
+                    using_custom_prompt=system_prompt is not None
+                    or ff is not None,
                     printer=printer,
+                    view_context=view_context,
                 )
             elif query:
                 await _run_query(
@@ -710,6 +741,7 @@ async def _async_main(
                     message_history=[],
                     printer=printer,
                     show_header=True,
+                    view_context=view_context,
                 )
         finally:
             await close_global_pool()
@@ -741,6 +773,10 @@ async def _async_main(
     help="Read system prompt from a file.",
 )
 @click.option(
+    "--ff",
+    help="Feature flag: load a named agent profile from the registry (e.g. 'cat').",
+)
+@click.option(
     "--show-prompt",
     is_flag=True,
     help="Print the default system prompt and exit.",
@@ -770,6 +806,17 @@ async def _async_main(
     help="Email for the CLI user row (default: <user-id>@cli.local).",
 )
 @click.option(
+    "--view-context",
+    "view_context_arg",
+    default=None,
+    help=(
+        "Frontend view state to attach to every turn, as inline JSON or a "
+        "path to a .json file. Exercises inspect_view_context and the session "
+        "breadcrumb. Keys: page, viewport, visible_layers, visible_aois, "
+        "visible_insights (insight ids — must exist in the DB to load)."
+    ),
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
@@ -780,11 +827,13 @@ def main(
     interactive: bool,
     prompt: Optional[str],
     prompt_file: Optional[Path],
+    ff: Optional[str],
     show_prompt: bool,
     thread_id: Optional[str],
     checkpoint: bool,
     user_id: str,
     user_email: str,
+    view_context_arg: Optional[str],
     verbose: bool,
 ) -> None:
     """Run the Zeno geospatial agent locally."""
@@ -794,8 +843,13 @@ def main(
 
     if prompt and prompt_file:
         raise click.UsageError("Use only one of --prompt or --prompt-file.")
+    if ff and (prompt or prompt_file):
+        raise click.UsageError(
+            "Use only one of --ff or --prompt/--prompt-file."
+        )
 
     system_prompt = _resolve_system_prompt(prompt, prompt_file)
+    view_context = _resolve_view_context(view_context_arg)
     resolved_thread_id = thread_id or str(uuid.uuid4())
     resolved_user_email = user_email or f"{user_id}@cli.local"
 
@@ -810,6 +864,8 @@ def main(
                 user_id=user_id,
                 user_email=resolved_user_email,
                 verbose=verbose,
+                ff=ff,
+                view_context=view_context,
             )
         )
     except KeyboardInterrupt:
@@ -826,6 +882,22 @@ def _resolve_system_prompt(
     if prompt is not None:
         return prompt.strip()
     return None
+
+
+def _resolve_view_context(value: Optional[str]) -> Optional[dict]:
+    """Parse --view-context: inline JSON object or a path to a .json file."""
+    if not value:
+        return None
+    path = Path(value)
+    if path.exists():
+        value = path.read_text(encoding="utf-8")
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise click.UsageError(f"--view-context is not valid JSON: {exc}")
+    if not isinstance(parsed, dict):
+        raise click.UsageError("--view-context must be a JSON object.")
+    return parsed
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.agent.datasets.handlers.fao_fra_handler import FAOFRAHandler
+from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.api.data_models import StatisticsOrm
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
@@ -173,14 +174,19 @@ async def pull_data(
         inline_records if isinstance(inline_records, list) else None
     )
 
+    aois = state["aoi_selection"]["aois"]
     statistics = {
         "dataset_name": dataset["dataset_name"],
+        "dataset_id": dataset.get("dataset_id"),
         "start_date": effective_start,
         "end_date": effective_end,
         "source_url": result.analytics_api_url,
         "data": inline_records if inline_records is not None else {},
         "aoi_id_to_name": aoi_id_to_name,
-        "aoi_names": [aoi["name"] for aoi in state["aoi_selection"]["aois"]],
+        "aoi_names": [aoi["name"] for aoi in aois],
+        # src_id is only unique per source, so sources are kept parallel to ids.
+        "aoi_ids": [aoi["src_id"] for aoi in aois],
+        "aoi_sources": [aoi["source"] for aoi in aois],
         "parameters": dataset.get("parameters"),
         "context_layer": dataset.get("context_layer"),
     }
@@ -191,10 +197,13 @@ async def pull_data(
             user_id=ctx.get("user_id"),
             thread_id=ctx.get("thread_id"),
             dataset_name=statistics["dataset_name"],
+            dataset_id=statistics["dataset_id"],
             start_date=statistics["start_date"],
             end_date=statistics["end_date"],
             source_url=statistics["source_url"],
             aoi_names=statistics["aoi_names"],
+            aoi_ids=statistics["aoi_ids"],
+            aoi_sources=statistics["aoi_sources"],
             parameters=statistics["parameters"],
             context_layer=statistics["context_layer"],
         )
@@ -211,3 +220,10 @@ async def pull_data(
             "messages": [tool_message],
         },
     )
+
+
+SPEC = ToolSpec(
+    tool=pull_data,
+    category=ToolCategory.PRIMITIVE,
+    prompt_fragment="- pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.",
+)

@@ -40,7 +40,7 @@ async def fetch_user_from_rw_api(
     token = authorization.credentials
 
     if token and token.startswith(f"{MACHINE_USER_PREFIX}:"):
-        return await validate_machine_user_token(token, session)
+        return await validate_machine_user_token(token, session, request)
 
     if token and token in _user_info_cache:
         return _user_info_cache[token]
@@ -160,6 +160,28 @@ async def require_superuser(
             detail="Superuser privileges required",
         )
     return user
+
+
+def require_scope(scope: str):
+    """Dependency factory: allow a superuser, or a machine key whose scopes
+    include ``scope``. The key's scopes are read from ``request.state``, set
+    during token validation (see ``validate_machine_user_token``)."""
+
+    async def _dep(
+        request: Request,
+        user: UserModel = Depends(require_auth),
+    ) -> UserModel:
+        if user.user_type == UserType.SUPERUSER:
+            return user
+        scopes = getattr(request.state, "token_scopes", []) or []
+        if scope in scopes:
+            return user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Missing required scope: {scope}",
+        )
+
+    return _dep
 
 
 async def fetch_user(

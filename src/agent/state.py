@@ -6,6 +6,18 @@ from langgraph.graph import add_messages
 from typing_extensions import NotRequired, TypedDict
 
 
+class CitedArticle(TypedDict):
+    id: str
+    source: str
+    slug: str
+    title: str
+    abstract: str
+    url: str
+    lastmod: str
+    image: str
+    image_alt: str
+
+
 class AOISelection(TypedDict):
     name: str
     aois: list[dict]
@@ -19,6 +31,7 @@ class StatisticsParameter(TypedDict):
 class Statistics(TypedDict):
     id: NotRequired[str]
     dataset_name: str
+    dataset_id: NotRequired[int | None]
     start_date: str
     end_date: str
     source_url: NotRequired[str]
@@ -28,6 +41,10 @@ class Statistics(TypedDict):
     # re-applied after URL fetch so chart labels stay readable.
     aoi_id_to_name: NotRequired[dict]
     aoi_names: list[str]
+    # src_ids of the analysed AOIs, parallel to aoi_names; aoi_sources carries
+    # the matching source per id since src_id is only unique per source.
+    aoi_ids: NotRequired[list[str]]
+    aoi_sources: NotRequired[list[str]]
     parameters: list[StatisticsParameter] | None
     context_layer: str | None
 
@@ -41,6 +58,12 @@ class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     user_persona: str
 
+    # Ambient frontend view state (what the user is currently looking at):
+    # page, map viewport, visible layers/AOIs. Last-write-wins each turn —
+    # no reducer; we only ever want the latest snapshot. Read on demand via
+    # the inspect_view_context tool, not eagerly injected into the prompt.
+    view_context: dict
+
     # pick-aoi tool
     aoi_selection: AOISelection
 
@@ -52,6 +75,12 @@ class AgentState(TypedDict):
     start_date: str
     end_date: str
     statistics: Annotated[list[Statistics], operator.add]
+
+    # show-imagery tool (see ImageryState in src.agent.models for structure)
+    imagery: dict
+
+    # search-blogs tool
+    cited_articles: Annotated[list[CitedArticle], operator.add]
 
     # generate-insights tool
     insight: str

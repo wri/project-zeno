@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from src.agent.datasets.config import DATASETS
-from src.agent.graph import fetch_zeno_anonymous
+from src.agent.graph import fetch_zeno
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -64,7 +64,7 @@ def mock_insight_db():
         yield mock_session
 
     with patch(
-        "src.agent.subagents.analyst.tool.get_session_from_pool",
+        "src.api.repositories.insight_writer.get_session_from_pool",
         fake_pool,
     ):
         yield mock_session
@@ -99,7 +99,7 @@ def mock_pull_data_db():
 def mock_query_aoi_database():
     """Mock query_aoi_database to return MOCK_AOI_QUERY_RESULTS_PARA_BRAZIL."""
 
-    async def _return_mock_df(_place_name, result_limit=10):
+    async def _return_mock_df(_place_name, aoi_type, result_limit=10):
         if "Parana" in _place_name or "Paraná" in _place_name:
             print("Returning MOCK_AOI_QUERY_RESULTS_PARANA")
             return MOCK_AOI_QUERY_RESULTS_PARANA.copy()
@@ -341,7 +341,7 @@ async def run_agent(query: str, thread_id: str | None = None):
     steps = []
 
     # Fetch the agent instance
-    zeno_agent = await fetch_zeno_anonymous()
+    zeno_agent = await fetch_zeno(checkpointer=None)
 
     i = 0
     async for step in zeno_agent.astream(

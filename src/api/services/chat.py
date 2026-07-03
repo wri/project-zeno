@@ -10,6 +10,7 @@ from langchain_core.messages import HumanMessage
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
+from src.agent.agent_config import AgentConfigRegistry, default_registry
 from src.agent.graph import fetch_zeno
 from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_aoi.tool import fetch_aoi_bbox
@@ -118,10 +119,13 @@ async def stream_chat(
     query: str,
     user_persona: Optional[str] = None,
     ui_context: Optional[dict] = None,
+    view_context: Optional[dict] = None,
     ui_action_only: Optional[bool] = False,
     thread_id: Optional[str] = None,
     langfuse_metadata: Optional[Dict] = {},
     user: Optional[dict] = None,
+    ff: Optional[str] = None,
+    registry: AgentConfigRegistry = default_registry,
 ):
     langfuse_handler = CallbackHandler(update_trace=True)
     config = {
@@ -130,7 +134,7 @@ async def stream_chat(
         "metadata": langfuse_metadata,
     }
 
-    zeno_async = await fetch_zeno(user)
+    zeno_async = await fetch_zeno(ff=ff, registry=registry)
 
     messages = []
     ui_action_message = []
@@ -160,6 +164,11 @@ async def stream_chat(
                 case _:
                     content = f"User performed action in UI: {action_type}\n\n"
             ui_action_message.append(content)
+
+    # Ambient view state is stored as-is for on-demand inspection — unlike
+    # ui_context above, it does not become a message or merge into selections.
+    if view_context:
+        state_updates["view_context"] = view_context
 
     ui_action_content = "\n".join(ui_action_message).strip()
     if ui_action_content:

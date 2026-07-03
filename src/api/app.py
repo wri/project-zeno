@@ -7,15 +7,21 @@ from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.agent.graph import close_checkpointer_pool, get_checkpointer_pool
+from src.agent.utils.sgrep import data_status
 from src.api.routers import (
     admin,
+    analyze,
+    aois,
     chat,
     custom_areas,
     geometry,
     insights,
+    jobs,
     metadata,
+    mosaic,
     threads,
     thumbnails,
+    traces,
     users,
 )
 from src.shared.database import close_global_pool, initialize_global_pool
@@ -27,6 +33,14 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    blog_data_ok, blog_data_detail = data_status()
+    if blog_data_ok:
+        logger.info("Blog search data ready", detail=blog_data_detail)
+    else:
+        logger.error(
+            "Blog search data missing - search_blogs will fail",
+            detail=blog_data_detail,
+        )
     await initialize_global_pool()
     await get_checkpointer_pool()
     yield
@@ -49,6 +63,20 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Disposition", "X-Next-Cursor"],
 )
+
+
+@app.middleware("http")
+async def mosaic_cache_headers(request: Request, call_next) -> Response:
+    """Mosaic tiles are immutable per token; let browsers cache them."""
+    response = await call_next(request)
+    if (
+        request.method == "GET"
+        and request.url.path.startswith("/mosaic/")
+        and response.status_code == 200
+    ):
+        # private: responses require auth, so only browsers should cache.
+        response.headers["Cache-Control"] = "private, max-age=86400"
+    return response
 
 
 @app.middleware("http")
@@ -87,7 +115,16 @@ async def logging_middleware(request: Request, call_next) -> Response:
                 content="Internal Server Error",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        logger.info(
+        # Error responses produced by exception handlers (e.g. titiler tiler
+        # errors -> 404/500) never hit the except branch above, so log them
+        # here too — otherwise a failing tile request looks like a normal
+        # "Response sent" at INFO.
+        log = logger.info
+        if response_code is not None and response_code >= 500:
+            log = logger.error
+        elif response_code is not None and response_code >= 400:
+            log = logger.warning
+        log(
             "Response sent",
             method=request.method,
             url=str(request.url),
@@ -97,12 +134,17 @@ async def logging_middleware(request: Request, call_next) -> Response:
     return response
 
 
+app.include_router(analyze.router)
+app.include_router(jobs.router)
 app.include_router(chat.router)
 app.include_router(threads.router)
 app.include_router(users.router)
 app.include_router(custom_areas.router)
+app.include_router(aois.router)
 app.include_router(geometry.router)
 app.include_router(thumbnails.router)
 app.include_router(insights.router)
 app.include_router(metadata.router)
 app.include_router(admin.router)
+app.include_router(traces.router)
+app.include_router(mosaic.router, prefix="/mosaic", tags=["Map Tiles"])

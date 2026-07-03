@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent
@@ -15,25 +15,30 @@ from langgraph.graph.state import CompiledStateGraph
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
+from src.agent.agent_config import (
+    AgentConfig,
+    AgentConfigRegistry,
+    default_registry,
+)
 from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
-from src.agent.skills import all_skills, read_skill
 from src.agent.state import AgentState
-from src.agent.subagents import generate_insights, pick_aoi, pick_dataset
-from src.agent.tools import pull_data
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 
-def get_prompt(user: Optional[dict] = None) -> str:
-    """Generate the system prompt with the current date. (Ignores user info.)"""
+def get_prompt(config: Optional[AgentConfig] = None) -> str:
+    """Generate the system prompt from the config's tools and skills."""
+    if config is None:
+        config = default_registry.resolve()
     skill_lines = [
         f"- {s.name}: {s.description} (use when: {s.when_to_use})"
-        for s in all_skills()
+        for s in config.skills()
     ]
     skills_block = "\n".join(skill_lines) if skill_lines else "(none)"
+    tool_descriptions = config.tool_descriptions()
     today = datetime.now().strftime("%Y-%m-%d")
     return f"""You are Global Nature Watch's Geospatial Agent. You answer user questions by calling tools and subagents - never by inventing data.
 
@@ -43,16 +48,7 @@ A [Session — date] system message is prepended to every model call with the li
 
 Call tools one at a time, never in parallel.
 
-# Tools (primitives — call when you need them)
-
-- pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.
-- read_skill(name): load a skill's full workflow — call it once, after you have committed to using that skill.
-
-# Subagents (call as tools — each does its own reasoning; just forward the user's intent)
-
-- pick_aoi(question): natural-language geocoder. Pass the place request verbatim ("tree cover loss in Pará, Brazil", "the districts of Odisha", "forest loss worldwide"); it extracts, translates and resolves the place — and any subregions — itself. Updates the AOI in state, or returns a clarifying question.
-- pick_dataset(query): dataset-selection subagent. Picks the dataset, context layer and date range that best answer the request. May return no dataset if none is a good fit — in that case relay its explanation and closest alternatives to the user; do not proceed to pull_data. Call it again whenever the user changes the dataset, context layer or parameters.
-- generate_insights(query): analyst subagent. Turns pulled data into one chart insight with follow-up suggestions. Requires pull_data to have run first.
+{tool_descriptions}
 
 # Skills (multi-step recipes)
 
@@ -68,6 +64,7 @@ Match the request to exactly one row; do not escalate a dataset / AOI / pull req
 - AOI-only (e.g. "zoom to Pará"): call pick_aoi, then stop unless asked for more.
 - Pull-only (e.g. "pull dist alerts in Bern for last 2 weeks"): read `pull-data`, run pick_aoi → pick_dataset → pull_data, then stop. Do not call generate_insights unless the user asked for a chart or analysis.
 - Full analysis (place + topic → chart/insight): read `analyze` and follow that pipeline.
+- Imagery (e.g. "show satellite imagery of Bern in June"): read `show-imagery`, run pick_aoi → show_imagery, then stop. No dataset, pull or insights unless asked.
 - Capabilities (what you can do, what data exists): read `capabilities`, then answer in your own words — no analysis tools.
 
 # Policy
@@ -88,14 +85,6 @@ UI / map selections (when the message mentions a UI action or changed map select
 - If the user asks to change selections, override prior UI selections.
 """
 
-
-tools = [
-    pick_aoi,
-    pick_dataset,
-    pull_data,
-    generate_insights,
-    read_skill,
-]
 
 load_dotenv()
 
@@ -193,40 +182,35 @@ def _build_middleware():
     return middleware
 
 
-async def fetch_zeno_anonymous(
-    user: Optional[dict] = None,
-    system_prompt: Optional[str] = None,
-    checkpointer=None,
-) -> CompiledStateGraph:
-    """Setup the Zeno agent for anonymous users with the provided tools and prompt.
-
-    Pass `checkpointer` (e.g. an in-memory `InMemorySaver`) to keep graph
-    state across turns without the Postgres checkpointer; defaults to None
-    (stateless).
-    """
-    zeno_agent = create_agent(
-        model=MODEL,
-        tools=tools,
-        state_schema=AgentState,
-        system_prompt=system_prompt or get_prompt(user),
-        middleware=_build_middleware(),
-        checkpointer=checkpointer,
-    )
-    return zeno_agent
+_CHECKPOINTER_UNSET = object()
 
 
 async def fetch_zeno(
-    user: Optional[dict] = None,
-    system_prompt: Optional[str] = None,
+    ff: Optional[str] = None,
+    registry: AgentConfigRegistry = default_registry,
+    checkpointer: Any = _CHECKPOINTER_UNSET,
+    config: Optional[AgentConfig] = None,
 ) -> CompiledStateGraph:
-    """Setup the Zeno agent with the provided tools and prompt."""
+    """Setup the Zeno agent for the given config and feature flag.
 
-    checkpointer = await fetch_checkpointer()
+    The config is resolved from ``ff`` via ``registry``; unknown flags fall
+    back to the registry's default. Pass a custom ``registry`` in tests to
+    inject isolated configs without mutating global state.
+
+    By default the Postgres checkpointer is used (API and durable CLI runs).
+    Pass an explicit ``checkpointer`` (e.g. ``InMemorySaver()``) for local
+    runs without Postgres, or ``None`` for a stateless single-turn agent.
+    """
+    if config is None:
+        config = registry.resolve(ff)
+    logger.info("Agent profile set", profile=config.name)
+    if checkpointer is _CHECKPOINTER_UNSET:
+        checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(
         model=MODEL,
-        tools=tools,
+        tools=config.tools(),
         state_schema=AgentState,
-        system_prompt=system_prompt or get_prompt(user),
+        system_prompt=config.system_prompt or get_prompt(config),
         middleware=_build_middleware(),
         checkpointer=checkpointer,
     )

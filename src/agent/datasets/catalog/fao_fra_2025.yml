@@ -1,7 +1,7 @@
-dataset_id: 11
+dataset_id: 12
 dataset_name: FAO Global Forest Resources Assessment (FRA) 2025
 # Routed through the standard pick_dataset → pull_data pipeline. The
-# FAOFRAHandler dispatches on `dataset_id == 11`, reads the chosen
+# FAOFRAHandler dispatches on `dataset_id == 12`, reads the chosen
 # `context_layer` (the FAO variable name picked by pick_dataset's LLM),
 # looks up the FAO API table + variable filter from the context_layer
 # entry below, and fetches via `datasets/handlers/fao_fra_client`.

@@ -1,7 +1,7 @@
 # Project Zeno Development Makefile
 # Usage: make <target>
 
-.PHONY: help dev dev-api up down restart logs api test clean
+.PHONY: help dev dev-api up down restart logs api test clean insights-data
 
 # Default target - show help
 help: ## Show available commands
@@ -20,6 +20,7 @@ help: ## Show available commands
 	@echo "  make api          - Run API locally (requires infrastructure)"
 	@echo ""
 	@echo "Utilities:"
+	@echo "  make insights-data - Download insights blog corpus + search index"
 	@echo "  make test         - Run tests"
 	@echo "  make clean        - Clean up containers and volumes"
 	@echo "  make help         - Show this help message"
@@ -64,6 +65,12 @@ api: ## Run API locally
 	@uv run uvicorn src.api.app:app --reload --reload-dir src --host 0.0.0.0 --port 8000
 
 # Utilities
+insights-data: ## Download insights blog corpus + search index from the S3 snapshot
+	@echo "📚 Pulling insights blog data snapshot from S3..."
+	@WRI_INSIGHTS_S3_URI=$${WRI_INSIGHTS_S3_URI:?set WRI_INSIGHTS_S3_URI to the s3:// snapshot prefix and ensure AWS credentials are configured} \
+		uv run python scripts/wri_insights_snapshot.py pull
+	@echo "✅ Blog data ready in data/wri_insights + data/wri_insights_index"
+
 test: ## Run tests
 	@echo "🧪 Running tests..."
 	@uv run pytest tests/ -v

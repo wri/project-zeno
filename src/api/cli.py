@@ -20,7 +20,7 @@ Usage:
 import asyncio
 import secrets
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.api.auth.machine_user import MACHINE_USER_PREFIX
+from src.api.auth.scopes import KNOWN_SCOPES
 from src.api.data_models import (
     MachineUserKeyOrm,
     UserOrm,
@@ -55,6 +56,17 @@ class DatabaseManager:
     async def close(self):
         """Close database connection"""
         await self.engine.dispose()
+
+
+def _validate_scopes(scopes: tuple) -> list[str]:
+    """Reject unknown scopes so a typo never silently mints a dead key."""
+    unknown = sorted(set(scopes) - KNOWN_SCOPES)
+    if unknown:
+        raise click.BadParameter(
+            f"Unknown scope(s): {', '.join(unknown)}. "
+            f"Known: {', '.join(sorted(KNOWN_SCOPES))}"
+        )
+    return list(scopes)
 
 
 def generate_api_key() -> tuple[str, str, str]:
@@ -117,6 +129,7 @@ async def create_api_key(
     user_id: str,
     key_name: str,
     expires_at: Optional[datetime] = None,
+    scopes: Optional[list[str]] = None,
 ) -> tuple[str, MachineUserKeyOrm]:
     """Create a new API key for a machine user"""
 
@@ -138,6 +151,7 @@ async def create_api_key(
         key_hash=secret_hash,
         key_prefix=prefix,
         expires_at=expires_at,
+        scopes=scopes or [],
         created_at=datetime.now(),
         is_active=True,
     )
@@ -301,14 +315,23 @@ def cli():
     default="default",
     help='Name for the initial API key (default: "default")',
 )
+@click.option(
+    "--scope",
+    "scopes",
+    multiple=True,
+    help="Authorization scope for the initial key; repeatable.",
+)
 def create_machine_user_command(
     name: str,
     email: str,
     description: Optional[str],
     create_key: bool,
     key_name: str,
+    scopes: tuple,
 ):
     """Create a new machine user"""
+
+    scope_list = _validate_scopes(scopes)
 
     async def _create():
         db = DatabaseManager()
@@ -328,13 +351,16 @@ def create_machine_user_command(
                 if create_key:
                     click.echo("\n🔑 Creating initial API key...")
                     full_token, api_key = await create_api_key(
-                        session, user.id, key_name
+                        session, user.id, key_name, scopes=scope_list
                     )
                     click.echo("✅ Created API key:")
                     click.echo(f"   Key ID: {api_key.id}")
                     click.echo(f"   Name: {api_key.key_name}")
                     click.echo(f"   Token: {full_token}")
                     click.echo(f"   Prefix: {api_key.key_prefix}")
+                    click.echo(
+                        f"   Scopes: {', '.join(api_key.scopes) or '(none)'}"
+                    )
                     click.echo(f"   Created: {api_key.created_at}")
                     click.echo(
                         "\n⚠️  IMPORTANT: Save this token now - it won't be shown again!"
@@ -351,10 +377,18 @@ def create_machine_user_command(
 @click.option(
     "--expires-days", type=int, help="Number of days until key expires"
 )
+@click.option(
+    "--scope",
+    "scopes",
+    multiple=True,
+    help="Authorization scope for the key; repeatable.",
+)
 def create_api_key_command(
-    user_id: str, key_name: str, expires_days: Optional[int]
+    user_id: str, key_name: str, expires_days: Optional[int], scopes: tuple
 ):
     """Create a new API key for a machine user"""
+
+    scope_list = _validate_scopes(scopes)
 
     async def _create():
         db = DatabaseManager()
@@ -367,7 +401,7 @@ def create_api_key_command(
                     expires_at = datetime.now() + timedelta(days=expires_days)
 
                 full_token, api_key = await create_api_key(
-                    session, user_id, key_name, expires_at
+                    session, user_id, key_name, expires_at, scopes=scope_list
                 )
 
                 click.echo("✅ Created API key:")
@@ -375,6 +409,9 @@ def create_api_key_command(
                 click.echo(f"   Name: {api_key.key_name}")
                 click.echo(f"   Token: {full_token}")
                 click.echo(f"   Prefix: {api_key.key_prefix}")
+                click.echo(
+                    f"   Scopes: {', '.join(api_key.scopes) or '(none)'}"
+                )
                 if api_key.expires_at:
                     click.echo(f"   Expires: {api_key.expires_at}")
                 click.echo(f"   Created: {api_key.created_at}")
@@ -443,6 +480,9 @@ def list_api_keys_command(user_id: str):
                     click.echo(f"🔑 {key.key_name} - {status}")
                     click.echo(f"   Key ID: {key.id}")
                     click.echo(f"   Prefix: {key.key_prefix}")
+                    click.echo(
+                        f"   Scopes: {', '.join(key.scopes) or '(none)'}"
+                    )
                     if key.expires_at:
                         click.echo(f"   Expires: {key.expires_at}")
                     if key.last_used_at:
@@ -612,6 +652,112 @@ def list_pro_users_command():
             await db.close()
 
     asyncio.run(_list_pro_users())
+
+
+def _parse_cli_dt(s: str) -> datetime:
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+@cli.command("ingest-langfuse-traces")
+@click.option(
+    "--since",
+    help="ISO start (overrides watermark). Required with --backfill.",
+)
+@click.option("--until", help="ISO end (default: now).")
+@click.option(
+    "--backfill", is_flag=True, help="Historical backfill from --since."
+)
+@click.option(
+    "--environment",
+    "environments",
+    multiple=True,
+    help="Filter to environment(s); repeatable. Default: all.",
+)
+@click.option(
+    "--overlap-hours",
+    type=int,
+    default=12,
+    help="Re-scan overlap before watermark.",
+)
+@click.option(
+    "--chunk-hours",
+    type=int,
+    default=24,
+    help="Window chunk size for backfill.",
+)
+@click.option(
+    "--batch-size",
+    type=int,
+    default=300,
+    help="Fetch page / upsert batch size.",
+)
+@click.option(
+    "--dry-run", is_flag=True, help="Fetch + parse but do not write."
+)
+def ingest_langfuse_traces_command(
+    since: Optional[str],
+    until: Optional[str],
+    backfill: bool,
+    environments: tuple,
+    overlap_hours: int,
+    chunk_hours: int,
+    batch_size: int,
+    dry_run: bool,
+):
+    """Ingest Langfuse traces into Postgres (idempotent upsert)."""
+    from src.api.services.langfuse.ingest import (
+        resolve_start_watermark,
+        run_ingestion,
+    )
+
+    async def _run():
+        db = DatabaseManager()
+        try:
+            async with db.async_session() as session:
+                until_dt = (
+                    _parse_cli_dt(until)
+                    if until
+                    else datetime.now(timezone.utc)
+                )
+                envs = list(environments) or [None]
+                for env in envs:
+                    if since:
+                        since_dt = _parse_cli_dt(since)
+                    elif backfill:
+                        raise click.UsageError("--backfill requires --since")
+                    else:
+                        wm = await resolve_start_watermark(session, env)
+                        if wm is None:
+                            since_dt = until_dt - timedelta(hours=24)
+                            click.echo(
+                                "ℹ️  No watermark; defaulting to last 24h "
+                                "(use --backfill --since for history)."
+                            )
+                        else:
+                            since_dt = wm - timedelta(hours=overlap_hours)
+
+                    result = await run_ingestion(
+                        session,
+                        since=since_dt,
+                        until=until_dt,
+                        environment=env,
+                        chunk_hours=chunk_hours,
+                        batch_size=batch_size,
+                        dry_run=dry_run,
+                    )
+                    click.echo(
+                        f"[{env or 'all'}] {since_dt.isoformat()} → {until_dt.isoformat()} | "
+                        f"fetched={result.fetched} upserted={result.upserted} "
+                        f"chunks={result.chunks_total} failed={result.chunks_failed} "
+                        f"status={result.status} watermark={result.watermark}"
+                    )
+        finally:
+            await db.close()
+
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":

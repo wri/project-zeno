@@ -17,17 +17,26 @@ def test_load_skills():
     # Always-on policy was folded into the system prompt.
     assert "general-rules" not in names
     assert "ui-selections" not in names
-    assert "explore" not in names
 
 
-def test_skills_registry_is_the_three_recipes():
-    # The registry holds exactly the three orchestrator recipes. Tool-owned
-    # guidance and the analyst's executor/wording prompts live elsewhere.
+def test_skills_registry_is_the_six_recipes():
     assert {s.name for s in all_skills()} == {
         "analyze",
         "capabilities",
+        "explore",
         "pull-data",
+        "wri-insights",
+        "show-imagery",
     }
+
+
+def test_wri_insights_skill_citation_guidance():
+    body = get_skill_body("wri-insights")
+    assert body is not None
+    assert "wri_insights" in body
+    assert "intermediate" in body.lower()
+    assert "affirmative" in body.lower()
+    assert "generate_insights" in body
 
 
 def test_generate_insights_is_a_thin_subagent_tool():

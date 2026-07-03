@@ -12,6 +12,9 @@ class SkillMeta:
     description: str
     when_to_use: str
     body: str
+    # Tools the skill's workflow requires; the skill is only advertised in a
+    # profile that binds all of them. Empty for informational skills.
+    requires: tuple[str, ...] = ()
 
 
 def _parse(path: Path) -> SkillMeta | None:
@@ -30,11 +33,15 @@ def _parse(path: Path) -> SkillMeta | None:
         k, _, v = line.partition(":")
         meta[k.strip()] = v.strip()
     name = meta.get("name") or path.stem
+    requires = tuple(
+        t.strip() for t in meta.get("requires", "").split(",") if t.strip()
+    )
     return SkillMeta(
         name=name,
         description=meta.get("description", ""),
         when_to_use=meta.get("when_to_use", ""),
         body=body,
+        requires=requires,
     )
 
 

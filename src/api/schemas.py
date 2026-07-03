@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
 
@@ -294,6 +294,22 @@ class GeometryResponse(BaseModel):
     geometry: dict = Field(..., description="GeoJSON geometry")
 
 
+class AOISearchResult(BaseModel):
+    """A single AOI returned by the ``GET /api/aois`` search endpoint."""
+
+    source: str = Field(
+        ...,
+        description="Source of the AOI (gadm, kba, wdpa, landmark, custom)",
+    )
+    src_id: str = Field(..., description="Source-specific ID of the AOI")
+    name: str = Field(..., description="Name of the AOI")
+    subtype: str = Field(..., description="Subtype of the AOI")
+    bbox: List[float] = Field(
+        default=[-180.0, -90.0, 180.0, 90.0],
+        description="Bounding box as [minx, miny, maxx, maxy]",
+    )
+
+
 class DailyUsageModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -334,8 +350,30 @@ class ChatRequest(BaseModel):
         None  # {"aoi_selected": {...}, "dataset_selected": {...}, "daterange_selected": {...}}
     )
 
+    # Ambient frontend view state — what the user is currently looking at.
+    # Unlike ui_context (deliberate actions), this is reference material the
+    # agent consults on demand via the inspect_view_context tool; it is NOT
+    # turned into a message or eagerly merged into the agent's selections.
+    # Free-form (the frontend owns the shape), e.g.:
+    #   {"page": "map" | "report",
+    #    "viewport": {"bbox": [minx, miny, maxx, maxy], "zoom": 5},
+    #    "visible_layers": [{"id": "...", "name": "..."}],
+    #    "visible_aois": [{"source": "...", "src_id": "...", "name": "..."}]}
+    view_context: Optional[dict] = Field(
+        None,
+        description="Ambient frontend view state (page, viewport, visible layers/AOIs)",
+    )
+
     # Pure UI actions - no query
     ui_action_only: Optional[bool] = False
+
+    # Feature flag: selects the agent tool profile for this request.
+    ff: Optional[str] = Field(
+        None,
+        max_length=64,
+        pattern=r"^[a-z0-9][a-z0-9-]*$",
+        description="Feature flag selecting the agent profile (slug: lowercase, digits, hyphens)",
+    )
 
     # Chat info
     thread_id: Optional[str] = Field(None, description="The thread ID")
@@ -414,7 +452,7 @@ class InsightResponse(BaseModel):
 
     id: UUID
     user_id: Optional[str] = None
-    thread_id: str
+    thread_id: Optional[str] = None
     insight_text: str
     follow_up_suggestions: List[str]
     statistics_ids: List[str] = []
@@ -426,3 +464,74 @@ class InsightResponse(BaseModel):
 
 class InsightPublicToggleRequest(BaseModel):
     is_public: bool
+
+
+class JobResourceResponse(BaseModel):
+    id: UUID
+    resource_url: str = Field(
+        description="URL of the created resource, e.g. `/api/insights/{id}`."
+    )
+    status: str = Field(description="Always `completed`.")
+    created_at: datetime
+
+
+class JobResponse(BaseModel):
+    id: UUID
+    type: str = Field(description="Job type, e.g. `analysis`.")
+    status: str = Field(
+        description=(
+            "Current job status: `pending`, `running`, `completed`, or "
+            "`failed`. While `pending` or `running`, poll again after the "
+            "number of seconds in the `Retry-After` response header."
+        )
+    )
+    thread_id: Optional[str] = Field(
+        default=None,
+        description="Agent thread the results were written into, if provided.",
+    )
+    resources: List[JobResourceResponse] = Field(
+        default=[],
+        description=(
+            "Resources created by the job. Empty until the job completes. "
+            "Follow each `resource_url` to retrieve the result."
+        ),
+    )
+    created_at: datetime
+
+
+class AreaOfInterest(BaseModel):
+    source: str = Field(
+        description=(
+            "Data source of the area, e.g. `gadm`, `custom`, `wdpa`, "
+            "`kba`, `landmark`."
+        )
+    )
+    src_id: str = Field(
+        description="Source-specific identifier, e.g. `BRA` or a UUID."
+    )
+    subtype: str = Field(
+        description=(
+            "Administrative level or area category, e.g. `country`, "
+            "`state-province`, `custom-area`."
+        )
+    )
+
+
+class AnalyzeRequest(BaseModel):
+    aois: List[AreaOfInterest] = Field(
+        min_length=1,
+        description="One or more areas of interest to analyse.",
+    )
+    dataset_id: int = Field(description="ID of the dataset to query.")
+    start_date: date = Field(
+        description="Start of the date range (YYYY-MM-DD)."
+    )
+    end_date: date = Field(description="End of the date range (YYYY-MM-DD).")
+    thread_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Agent thread ID. When provided, the results are written into "
+            "the agent state for that thread so follow-up chat messages can "
+            "reference the data without re-fetching."
+        ),
+    )

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -22,6 +24,8 @@ class _SharedSettings(BaseSettings):
         alias="EOAPI_BASE_URL",
     )
 
+    api_base_url: str = Field(default="", alias="API_BASE_URL")
+
     # Dataset embeddings database
     dataset_embeddings_db: str = Field(
         default="gnw-dataset-index-gemini-v3",
@@ -34,6 +38,15 @@ class _SharedSettings(BaseSettings):
     dataset_embeddings_task_type: str = Field(
         default="RETRIEVAL_QUERY",
         alias="DATASET_EMBEDDINGS_TASK_TYPE",
+    )
+
+    # Sentinel-2 mosaic storage. Built MosaicJSON files are written to this
+    # S3 bucket and served by the GFW tiles service at
+    # https://tiles.globalforestwatch.org.
+    mosaic_s3_bucket: str = Field(default="", alias="MOSAIC_S3_BUCKET")
+    mosaic_s3_prefix: str = Field(default="mosaics", alias="MOSAIC_S3_PREFIX")
+    mosaic_s3_region: Optional[str] = Field(
+        default=None, alias="MOSAIC_S3_REGION"
     )
 
     model_config = {

@@ -11,7 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth.dependencies import _orm_to_user_model, require_superuser
 from src.api.data_models import UserOrm, UserType
-from src.api.schemas import UserModel, UserTypeUpdateRequest
+from src.api.schemas import (
+    UserModel,
+    UserTypeUpdateRequest,
+)
 from src.shared.database import get_session_from_pool_dependency
 
 router = APIRouter()

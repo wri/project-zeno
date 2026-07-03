@@ -1,5 +1,7 @@
-from .pull_data import pull_data
+"""Agent tools package.
 
-__all__ = [
-    "pull_data",
-]
+Submodules are imported directly (e.g. ``src.agent.tools.pull_data``) so data
+ingestion scripts can load lightweight stores without initializing DB settings.
+"""
+
+__all__: list[str] = []
