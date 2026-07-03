@@ -209,6 +209,67 @@ async def recompute_turn_positions(
     return result.rowcount or 0
 
 
+# Null-session rows are singleton threads with no predecessor: set their turn fields
+# directly (mirrors build_row's singleton branch). Guarded like _RECOMPUTE_SQL so a
+# re-run rewrites nothing.
+_BACKFILL_SINGLETONS_SQL = text(
+    """
+    UPDATE langfuse_traces t
+    SET turn_index = 1,
+        is_final_turn_in_thread = true,
+        insight_created_this_turn = c.created,
+        datasets_analysed_this_turn = c.new_ds
+    FROM (
+        SELECT id,
+               (insight_id IS NOT NULL) AS created,
+               ARRAY(SELECT jsonb_array_elements_text(
+                   COALESCE(derived->'datasets_analysed_cumulative', '[]'::jsonb)
+               ))::varchar[] AS new_ds
+        FROM langfuse_traces
+        WHERE session_id IS NULL
+    ) c
+    WHERE t.id = c.id
+      AND (t.turn_index                 IS DISTINCT FROM 1
+        OR t.is_final_turn_in_thread    IS DISTINCT FROM true
+        OR t.insight_created_this_turn  IS DISTINCT FROM c.created
+        OR t.datasets_analysed_this_turn IS DISTINCT FROM c.new_ds)
+    """
+)
+
+_DISTINCT_SESSIONS_SQL = text(
+    "SELECT DISTINCT session_id FROM langfuse_traces WHERE session_id IS NOT NULL"
+)
+
+
+async def backfill_turn_fields(
+    session: AsyncSession, *, batch_size: int = 500, dry_run: bool = False
+) -> int:
+    """One-off catch-up of the turn fields for rows predating the feature (new rows
+    are set during ingest). Idempotent — reuses the no-op-guarded recompute, so a
+    re-run writes 0 rows. Sessions are processed in committed batches to bound the
+    transaction. Returns the number of rows that would be / were written.
+
+    This is the out-of-band alternative to a migration backfill: run it manually after
+    deploying (``backfill-turn-fields`` CLI command), not in the deploy path.
+    """
+    written = 0
+    # Singletons first (independent of sessions), then each session renumbered.
+    written += (await session.execute(_BACKFILL_SINGLETONS_SQL)).rowcount or 0
+    session_ids = (
+        (await session.execute(_DISTINCT_SESSIONS_SQL)).scalars().all()
+    )
+    for i in range(0, len(session_ids), batch_size):
+        batch = set(session_ids[i : i + batch_size])
+        written += await recompute_turn_positions(session, batch)
+        if not dry_run:
+            await session.commit()
+    if dry_run:
+        await session.rollback()
+    else:
+        await session.commit()  # covers the singleton-only case (no sessions)
+    return written
+
+
 # --------------------------------------------------------------------------- #
 # Per-run metric accumulation
 # --------------------------------------------------------------------------- #

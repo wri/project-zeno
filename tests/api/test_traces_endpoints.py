@@ -11,7 +11,10 @@ from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.auth.scopes import TRACES_READ
 from src.api.data_models import LangfuseTraceOrm
 from src.api.schemas import UserModel
-from src.api.services.langfuse.ingest import recompute_turn_positions
+from src.api.services.langfuse.ingest import (
+    backfill_turn_fields,
+    recompute_turn_positions,
+)
 from tests.conftest import async_session_maker
 
 H = {"Authorization": "Bearer test-token"}
@@ -847,6 +850,70 @@ async def test_recompute_computes_per_turn_diffs():
     assert await _diff_fields("p2") == (True, ["b"])  # insight appears; +b
     assert await _diff_fields("p3") == (False, [])  # unchanged: nothing new
     assert await _diff_fields("p4") == (True, ["c"])  # insight changes; +c
+
+
+@pytest.mark.asyncio
+async def test_backfill_turn_fields_covers_sessions_and_singletons():
+    """The out-of-band backfill (schema-only migration + CLI) populates all turn
+    fields for pre-existing rows: multi-turn sessions get renumbered + diffed, and
+    null-session singletons are set directly. Idempotent — a re-run writes 0."""
+    # a 3-turn session, seeded out of order with all turn fields NULL
+    for tid, hour, ins, ds in [
+        ("bf1", 0, None, ["a"]),
+        ("bf3", 2, "ins1", ["a", "b"]),
+        ("bf2", 1, "ins1", ["a", "b"]),
+    ]:
+        await _seed_trace(
+            tid,
+            session_id="bf",
+            insight_id=ins,
+            derived={"datasets_analysed_cumulative": ds},
+            trace_timestamp=datetime(2026, 6, 1, hour, tzinfo=timezone.utc),
+        )
+    # two singletons (null session): one with an insight + datasets, one bare
+    await _seed_trace(
+        "solo_ins",
+        insight_id="ins9",
+        derived={"datasets_analysed_cumulative": ["x", "y"]},
+    )
+    await _seed_trace("solo_bare")
+
+    async with async_session_maker() as session:
+        first = await backfill_turn_fields(session, batch_size=500)
+    async with async_session_maker() as session:
+        second = await backfill_turn_fields(session, batch_size=500)
+
+    assert first == 5  # 3 session rows + 2 singletons
+    assert second == 0  # idempotent
+
+    # session: positions + final flag + per-turn diffs
+    assert await _turn_fields("bf1") == (1, False)
+    assert await _turn_fields("bf2") == (2, False)
+    assert await _turn_fields("bf3") == (3, True)
+    assert await _diff_fields("bf1") == (False, ["a"])
+    assert await _diff_fields("bf2") == (True, ["b"])
+    assert await _diff_fields("bf3") == (False, [])
+
+    # singletons: turn 1, final, diffs reflect the whole (predecessor-less) turn
+    assert await _turn_fields("solo_ins") == (1, True)
+    created, new_ds = await _diff_fields("solo_ins")
+    assert created is True and sorted(new_ds) == ["x", "y"]
+    assert await _turn_fields("solo_bare") == (1, True)
+    assert await _diff_fields("solo_bare") == (False, [])
+
+
+@pytest.mark.asyncio
+async def test_backfill_turn_fields_dry_run_writes_nothing():
+    """--dry-run reports the would-write count but rolls back."""
+    await _seed_trace(
+        "dr1",
+        session_id="dr",
+        trace_timestamp=datetime(2026, 6, 1, tzinfo=timezone.utc),
+    )
+    async with async_session_maker() as session:
+        n = await backfill_turn_fields(session, dry_run=True)
+    assert n == 1
+    assert await _turn_fields("dr1") == (None, None)  # rolled back
 
 
 @pytest.mark.asyncio

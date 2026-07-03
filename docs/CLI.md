@@ -110,6 +110,36 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 - Each run prints a summary line: `fetched=… upserted=… chunks=… failed=… status=… watermark=…`.
 - The watermark only advances on fully-completed chunks, so an interrupted run is safe to re-run.
 
+### backfill-turn-fields
+
+Backfills the turn-analytics columns (`turn_index`, `is_final_turn_in_thread`,
+`insight_created_this_turn`, `datasets_analysed_this_turn`) for rows that predate the
+feature. The migrations add these columns **empty** — this command populates them
+out-of-band, keeping the data pass out of the blocking deploy migration. **Run it once
+after deploying the turn-analytics migrations.** New rows are set automatically during
+ingest, so this is a one-time catch-up; it's idempotent and safe to re-run (writes
+nothing the second time).
+
+**Usage:**
+```bash
+# Preview how many rows would change
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py backfill-turn-fields --dry-run
+
+# Run the backfill
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py backfill-turn-fields
+```
+
+**Parameters:**
+- `--batch-size` (default 500): sessions renumbered per committed batch (bounds the transaction).
+- `--dry-run`: report how many rows would change without writing.
+
+**Notes:**
+- Requires `DATABASE_URL` in the pod environment.
+- Until it runs, pre-existing rows report NULL turn fields — the API tolerates this
+  (analytics is just incomplete for those rows), so there's no rush within a deploy.
+
 ## Error Handling
 
 The command includes error handling:
