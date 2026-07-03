@@ -1,6 +1,6 @@
 """Tests for the superuser-gated Langfuse trace explorer endpoints."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import Request
@@ -367,6 +367,233 @@ async def test_analytics_requires_superuser(client, auth_override, user):
     auth_override(user.id)
     assert (
         await client.get("/api/traces/analytics", headers=H)
+    ).status_code == 403
+
+
+# --- analytics/by-turn -----------------------------------------------------
+_BASE = datetime(2026, 6, 1, tzinfo=timezone.utc)
+
+
+async def _seed_session_turns(session_id: str, n: int, **kw) -> None:
+    """Seed a session as n turns, turn_index 1..n (timestamps spaced by minute)."""
+    for ti in range(1, n + 1):
+        await _seed_trace(
+            f"{session_id}_{ti}",
+            session_id=session_id,
+            turn_index=ti,
+            trace_timestamp=_BASE + timedelta(minutes=ti),
+            **kw,
+        )
+
+
+def _by_index(body) -> dict:
+    return {g["turn_index"]: g for g in body["groups"]}
+
+
+@pytest.mark.asyncio
+async def test_by_turn_buckets_and_terminal(
+    client, auth_override, superuser_factory
+):
+    """15 turns, cap=10 -> buckets 1..10; the terminal bucket collapses turns
+    10..15 and reports the true range."""
+    su = await superuser_factory("su_bt1@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 15, total_cost=0.01)
+
+    body = (
+        await client.get(
+            "/api/traces/analytics/by-turn?turn_bucket_cap=10", headers=H
+        )
+    ).json()
+    assert body["turn_bucket_cap"] == 10
+    assert body["ungrouped_traces"] == 0
+    assert body["grand_total"]["total_traces"] == 15
+
+    groups = _by_index(body)
+    assert sorted(groups) == list(range(1, 11))
+    assert sum(g["total_traces"] for g in body["groups"]) == 15
+
+    # non-terminal buckets are a single exact position
+    assert groups[1]["is_terminal"] is False
+    assert groups[1]["total_traces"] == 1
+    assert groups[1]["turn_index_min"] == groups[1]["turn_index_max"] == 1
+
+    # terminal bucket aggregates turns 10..15, honestly labelled
+    term = groups[10]
+    assert term["is_terminal"] is True
+    assert term["total_traces"] == 6
+    assert term["turn_index_min"] == 10
+    assert term["turn_index_max"] == 15
+
+
+@pytest.mark.asyncio
+async def test_by_turn_no_overflow(client, auth_override, superuser_factory):
+    """Max turn below the cap -> no bucket is terminal."""
+    su = await superuser_factory("su_bt2@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 4)
+
+    body = (
+        await client.get(
+            "/api/traces/analytics/by-turn?turn_bucket_cap=10", headers=H
+        )
+    ).json()
+    groups = _by_index(body)
+    assert sorted(groups) == [1, 2, 3, 4]
+    assert all(g["is_terminal"] is False for g in body["groups"])
+    assert all(
+        g["turn_index_min"] == g["turn_index_max"] == g["turn_index"]
+        for g in body["groups"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_by_turn_terminal_exactly_at_cap(
+    client, auth_override, superuser_factory
+):
+    """Max turn == cap with nothing beyond: the terminal bucket exists and is
+    flagged, but turn_index_max == cap proves is_terminal is NOT 'rows beyond
+    the cap exist'."""
+    su = await superuser_factory("su_bt3@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 10)
+
+    body = (
+        await client.get(
+            "/api/traces/analytics/by-turn?turn_bucket_cap=10", headers=H
+        )
+    ).json()
+    term = _by_index(body)[10]
+    assert term["is_terminal"] is True
+    assert term["total_traces"] == 1
+    assert term["turn_index_max"] == 10  # nothing beyond the cap
+
+
+@pytest.mark.asyncio
+async def test_by_turn_reconciles_null_turn_rows(
+    client, auth_override, superuser_factory
+):
+    """NULL-turn rows are excluded from groups but counted in ungrouped_traces,
+    so the buckets + ungrouped reconcile against the grand total."""
+    su = await superuser_factory("su_bt4@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 2)
+    await _seed_trace("bt_null", session_id="bt_late", turn_index=None)
+
+    body = (
+        await client.get("/api/traces/analytics/by-turn", headers=H)
+    ).json()
+    assert body["ungrouped_traces"] == 1
+    grouped = sum(g["total_traces"] for g in body["groups"])
+    assert grouped == 2
+    assert (
+        grouped + body["ungrouped_traces"]
+        == body["grand_total"]["total_traces"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_by_turn_empty(client, auth_override, superuser_factory):
+    """A filter matching nothing -> groups [] and zeroed grand total, not a 500."""
+    su = await superuser_factory("su_bt5@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 3)
+
+    resp = await client.get(
+        "/api/traces/analytics/by-turn?user_id=nobody", headers=H
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["groups"] == []
+    assert body["grand_total"]["total_traces"] == 0
+    assert body["ungrouped_traces"] == 0
+
+
+@pytest.mark.asyncio
+async def test_by_turn_sessions_reaching_funnel(
+    client, auth_override, superuser_factory
+):
+    """sessions_reaching is a funnel: distinct sessions per depth, non-increasing
+    and NOT summing to the session total."""
+    su = await superuser_factory("su_bt6@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("sa", 3)
+    await _seed_session_turns("sb", 2)
+
+    body = (
+        await client.get("/api/traces/analytics/by-turn", headers=H)
+    ).json()
+    reaching = {
+        g["turn_index"]: g["sessions_reaching"] for g in body["groups"]
+    }
+    assert reaching == {1: 2, 2: 2, 3: 1}
+
+
+@pytest.mark.asyncio
+async def test_by_turn_filter_applies_before_bucketing(
+    client, auth_override, superuser_factory
+):
+    """A floor filter applies before bucketing: turns 20..25 collapse into the
+    terminal bucket, labelled 10 but honestly reporting turn_index_min=20."""
+    su = await superuser_factory("su_bt7@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 25)
+
+    body = (
+        await client.get(
+            "/api/traces/analytics/by-turn"
+            "?min_turn_index=20&turn_bucket_cap=10",
+            headers=H,
+        )
+    ).json()
+    assert len(body["groups"]) == 1
+    term = body["groups"][0]
+    assert term["turn_index"] == 10
+    assert term["is_terminal"] is True
+    assert term["turn_index_min"] == 20
+    assert term["turn_index_max"] == 25
+    assert term["total_traces"] == 6
+
+
+@pytest.mark.asyncio
+async def test_by_turn_grand_total_parity_with_analytics(
+    client, auth_override, superuser_factory
+):
+    """The grand-total block must match /analytics' summary for the same filter
+    (guards the shared aggregate fragment)."""
+    su = await superuser_factory("su_bt8@example.com")
+    auth_override(su.id)
+    for ti, (lat, cost, tok) in enumerate(
+        [(1.0, 0.01, 100), (3.0, 0.03, 200), (2.0, 0.02, 50)], start=1
+    ):
+        await _seed_trace(
+            f"pty_{ti}",
+            session_id="pty",
+            turn_index=ti,
+            outcome="ANSWER",
+            latency_seconds=lat,
+            total_cost=cost,
+            turn_tokens=tok,
+            turn_tool_calls=ti,
+            tool_error_count=0,
+            trace_timestamp=_BASE + timedelta(minutes=ti),
+        )
+
+    analytics = (await client.get("/api/traces/analytics", headers=H)).json()
+    grand = (
+        await client.get("/api/traces/analytics/by-turn", headers=H)
+    ).json()["grand_total"]
+
+    assert grand["total_traces"] == analytics["total_traces"]
+    for k in ("latency", "cost", "tokens", "tool_usage"):
+        assert grand[k] == analytics[k]
+
+
+@pytest.mark.asyncio
+async def test_by_turn_requires_superuser(client, auth_override, user):
+    auth_override(user.id)
+    assert (
+        await client.get("/api/traces/analytics/by-turn", headers=H)
     ).status_code == 403
 
 

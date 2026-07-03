@@ -290,6 +290,64 @@ class TraceAnalytics(BaseModel):
     tool_usage: dict[str, Optional[float]]
 
 
+class TurnMetrics(BaseModel):
+    """The scalar metric block shared by ``/analytics/by-turn``'s grand total and
+    each per-turn bucket (same shape as the corresponding fields on
+    ``TraceAnalytics``)."""
+
+    total_traces: int
+    latency: dict[str, Optional[float]]  # {avg, p50, p95}
+    cost: dict[str, Optional[float]] = Field(
+        ...,
+        description=(
+            "{avg, p95, total}. The sums (total) are within-bucket totals and are "
+            "NOT comparable across buckets — the terminal bucket aggregates many "
+            "turn positions. Compare averages/percentiles across buckets."
+        ),
+    )
+    tokens: dict[str, Optional[float]]  # {avg_turn_tokens, total_turn_tokens}
+    tool_usage: dict[str, Optional[float]]  # {avg_tool_calls, tool_error_rate}
+
+
+class TurnGroup(TurnMetrics):
+    """One turn-position bucket. Positions at/above ``turn_bucket_cap`` collapse
+    into a single terminal bucket, so ``turn_index`` is the bucket label
+    (``== cap`` means "cap or more") while ``turn_index_min``/``turn_index_max``
+    give the true range within it."""
+
+    turn_index: int
+    is_terminal: bool = Field(
+        ...,
+        description=(
+            "The collapsing bucket (turn_index == turn_bucket_cap). True here does "
+            "NOT by itself mean turns beyond the cap exist — check turn_index_max > "
+            "turn_bucket_cap for that."
+        ),
+    )
+    turn_index_min: int
+    turn_index_max: int
+    sessions_reaching: int = Field(
+        ...,
+        description=(
+            "Distinct sessions that reached this turn position (a funnel/retention "
+            "curve). A session spans buckets, so this is NOT summable across buckets."
+        ),
+    )
+
+
+class TurnAnalytics(BaseModel):
+    turn_bucket_cap: int
+    ungrouped_traces: int = Field(
+        ...,
+        description=(
+            "Traces with a NULL turn_index (excluded from groups). "
+            "sum(groups.total_traces) + ungrouped_traces == grand_total.total_traces."
+        ),
+    )
+    grand_total: TurnMetrics
+    groups: list[TurnGroup]
+
+
 class SessionItem(BaseModel):
     session_id: str
     user_id: Optional[str] = None
@@ -364,6 +422,49 @@ def _f(x: Any) -> Optional[float]:
     return round(float(x), 4) if x is not None else None
 
 
+# The scalar aggregate expressions shared by /analytics' summary and
+# /analytics/by-turn's grand-total + grouped queries, so the two can't drift.
+# Consumed via _metrics_from_row (reads the aliased columns below).
+_SCALAR_METRICS_SQL = """
+  count(*) AS total,
+  avg(latency_seconds) AS lat_avg,
+  percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_seconds) AS lat_p50,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_seconds) AS lat_p95,
+  avg(total_cost) AS cost_avg,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY total_cost) AS cost_p95,
+  sum(total_cost) AS cost_total,
+  avg(turn_tokens) AS tok_avg,
+  sum(turn_tokens) AS tok_total,
+  avg(turn_tool_calls) AS tool_avg,
+  avg(CASE WHEN tool_error_count > 0 THEN 1.0 ELSE 0.0 END) AS tool_err_rate
+""".strip()
+
+
+def _metrics_from_row(r: Any) -> TurnMetrics:
+    """Map a result row carrying the _SCALAR_METRICS_SQL columns into TurnMetrics."""
+    return TurnMetrics(
+        total_traces=int(r["total"] or 0),
+        latency={
+            "avg": _f(r["lat_avg"]),
+            "p50": _f(r["lat_p50"]),
+            "p95": _f(r["lat_p95"]),
+        },
+        cost={
+            "avg": _f(r["cost_avg"]),
+            "p95": _f(r["cost_p95"]),
+            "total": _f(r["cost_total"]),
+        },
+        tokens={
+            "avg_turn_tokens": _f(r["tok_avg"]),
+            "total_turn_tokens": _f(r["tok_total"]),
+        },
+        tool_usage={
+            "avg_tool_calls": _f(r["tool_avg"]),
+            "tool_error_rate": _f(r["tool_err_rate"]),
+        },
+    )
+
+
 @router.get("/analytics", response_model=TraceAnalytics)
 async def trace_analytics(
     environment: Optional[str] = Query(None),
@@ -407,23 +508,10 @@ async def trace_analytics(
         (
             await session.execute(
                 text(
-                    f"""
-                SELECT
-                  count(*) AS total,
-                  count(DISTINCT session_id) AS sessions,
-                  count(DISTINCT user_id) AS users,
-                  avg(latency_seconds) AS lat_avg,
-                  percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_seconds) AS lat_p50,
-                  percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_seconds) AS lat_p95,
-                  avg(total_cost) AS cost_avg,
-                  percentile_cont(0.95) WITHIN GROUP (ORDER BY total_cost) AS cost_p95,
-                  sum(total_cost) AS cost_total,
-                  avg(turn_tokens) AS tok_avg,
-                  sum(turn_tokens) AS tok_total,
-                  avg(turn_tool_calls) AS tool_avg,
-                  avg(CASE WHEN tool_error_count > 0 THEN 1.0 ELSE 0.0 END) AS tool_err_rate
-                FROM langfuse_traces{where}
-                """
+                    f"SELECT {_SCALAR_METRICS_SQL}, "
+                    f"count(DISTINCT session_id) AS sessions, "
+                    f"count(DISTINCT user_id) AS users "
+                    f"FROM langfuse_traces{where}"
                 ),
                 params,
             )
@@ -431,6 +519,7 @@ async def trace_analytics(
         .mappings()
         .one()
     )
+    metrics = _metrics_from_row(summary)
 
     outcomes = (
         (
@@ -477,30 +566,113 @@ async def trace_analytics(
     )
 
     return TraceAnalytics(
-        total_traces=int(summary["total"] or 0),
+        total_traces=metrics.total_traces,
         unique_sessions=int(summary["sessions"] or 0),
         unique_users=int(summary["users"] or 0),
         outcome_breakdown=[NamedCount(**dict(r)) for r in outcomes],
         daily_volume=[DailyCount(**dict(r)) for r in daily],
         aoi_type_breakdown=[NamedCount(**dict(r)) for r in aoi],
-        latency={
-            "avg": _f(summary["lat_avg"]),
-            "p50": _f(summary["lat_p50"]),
-            "p95": _f(summary["lat_p95"]),
-        },
-        cost={
-            "avg": _f(summary["cost_avg"]),
-            "p95": _f(summary["cost_p95"]),
-            "total": _f(summary["cost_total"]),
-        },
-        tokens={
-            "avg_turn_tokens": _f(summary["tok_avg"]),
-            "total_turn_tokens": _f(summary["tok_total"]),
-        },
-        tool_usage={
-            "avg_tool_calls": _f(summary["tool_avg"]),
-            "tool_error_rate": _f(summary["tool_err_rate"]),
-        },
+        latency=metrics.latency,
+        cost=metrics.cost,
+        tokens=metrics.tokens,
+        tool_usage=metrics.tool_usage,
+    )
+
+
+@router.get("/analytics/by-turn", response_model=TurnAnalytics)
+async def trace_analytics_by_turn(
+    environment: Optional[str] = Query(None),
+    outcome: Optional[str] = Query(None),
+    user_id: Optional[str] = Query(None),
+    start: Optional[datetime] = Query(None),
+    end: Optional[datetime] = Query(None),
+    turn_index: Optional[int] = Query(None, ge=1),
+    min_turn_index: Optional[int] = Query(None, ge=1),
+    max_turn_index: Optional[int] = Query(None, ge=1),
+    first_turn_only: bool = Query(
+        False, description="only first turns (alias for turn_index=1)"
+    ),
+    turn_bucket_cap: int = Query(
+        10,
+        ge=1,
+        le=50,
+        description="turn positions >= this collapse into one terminal bucket",
+    ),
+    _reader: UserModel = Depends(require_scope(TRACES_READ)),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+) -> TurnAnalytics:
+    """The same scalar metrics as ``/analytics`` but broken down per turn position,
+    so "how do turns evolve within a session" is a single call. Positions at/above
+    ``turn_bucket_cap`` collapse into one terminal bucket. Any turn-position filter
+    applies *before* bucketing (filter, then bucket). Filters compose with the
+    stored, indexed ``turn_index`` — no window, no view."""
+    where, params = _where_sql(
+        environment,
+        outcome,
+        user_id,
+        start,
+        end,
+        turn_index=turn_index,
+        min_turn_index=min_turn_index,
+        max_turn_index=max_turn_index,
+        first_turn_only=first_turn_only,
+    )
+
+    # Grand total over the whole filtered set (includes NULL-turn rows), plus the
+    # NULL-turn count so groups (which exclude NULLs) reconcile against it.
+    grand = (
+        (
+            await session.execute(
+                text(
+                    f"SELECT {_SCALAR_METRICS_SQL}, "
+                    f"count(*) FILTER (WHERE turn_index IS NULL) AS ungrouped "
+                    f"FROM langfuse_traces{where}"
+                ),
+                params,
+            )
+        )
+        .mappings()
+        .one()
+    )
+
+    # Per-bucket: LEAST(turn_index, cap) folds the tail; min/max expose the true
+    # range (so the terminal label is honest); sessions_reaching is the funnel.
+    group_rows = (
+        (
+            await session.execute(
+                text(
+                    f"SELECT LEAST(turn_index, :cap) AS turn_index, "
+                    f"min(turn_index) AS turn_index_min, "
+                    f"max(turn_index) AS turn_index_max, "
+                    f"count(DISTINCT session_id) AS sessions_reaching, "
+                    f"{_SCALAR_METRICS_SQL} FROM langfuse_traces{where}"
+                    f"{' AND' if where else ' WHERE'} turn_index IS NOT NULL "
+                    f"GROUP BY 1 ORDER BY 1"
+                ),
+                {**params, "cap": turn_bucket_cap},
+            )
+        )
+        .mappings()
+        .all()
+    )
+
+    groups = [
+        TurnGroup(
+            turn_index=int(r["turn_index"]),
+            is_terminal=int(r["turn_index"]) == turn_bucket_cap,
+            turn_index_min=int(r["turn_index_min"]),
+            turn_index_max=int(r["turn_index_max"]),
+            sessions_reaching=int(r["sessions_reaching"] or 0),
+            **_metrics_from_row(r).model_dump(),
+        )
+        for r in group_rows
+    ]
+
+    return TurnAnalytics(
+        turn_bucket_cap=turn_bucket_cap,
+        ungrouped_traces=int(grand["ungrouped"] or 0),
+        grand_total=_metrics_from_row(grand),
+        groups=groups,
     )
 
 
