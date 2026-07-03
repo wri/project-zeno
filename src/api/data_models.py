@@ -480,6 +480,11 @@ class LangfuseTraceOrm(Base):
     has_insight = Column(Boolean, nullable=True)
     is_global = Column(Boolean, nullable=True)
     insight_id = Column(String, nullable=True)  # soft FK -> insights.id
+    # Turn position within the session (1-based, ordered by trace_timestamp).
+    # Stored (not a query-time window) so it is index-filterable; maintained by a
+    # session-scoped recompute in the ingest path. Null-session traces are
+    # singleton threads (turn_index 1, is_final True).
+    turn_index = Column(Integer, nullable=True)
     is_final_turn_in_thread = Column(Boolean, nullable=True)
 
     # Long-tail + cumulative derived fields, kept out of the column set to keep
@@ -504,6 +509,13 @@ class LangfuseTraceOrm(Base):
         Index("ix_langfuse_traces_session_id", "session_id"),
         Index("ix_langfuse_traces_insight_id", "insight_id"),
         Index("ix_langfuse_traces_env_ts", "environment", "trace_timestamp"),
+        Index("ix_langfuse_traces_turn_index", "turn_index"),
+        # Serves "first turns, newest first" (first_turn_only) directly.
+        Index(
+            "ix_langfuse_traces_first_turn",
+            text("trace_timestamp DESC"),
+            postgresql_where=text("turn_index = 1"),
+        ),
     )
 
 

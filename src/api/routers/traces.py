@@ -46,6 +46,9 @@ class TraceListItem(BaseModel):
     primary_dataset_name: Optional[str] = None
     has_insight: Optional[bool] = None
     is_global: Optional[bool] = None
+    # 1-based position of this turn within its session (ordered by
+    # trace_timestamp); session-less traces are singletons (turn_index 1).
+    turn_index: Optional[int] = None
     turn_tokens: Optional[int] = None
     turn_tool_calls: Optional[int] = None
     tool_error_count: Optional[int] = None
@@ -97,6 +100,7 @@ _LIST_COLUMNS = (
     LangfuseTraceOrm.primary_dataset_name,
     LangfuseTraceOrm.has_insight,
     LangfuseTraceOrm.is_global,
+    LangfuseTraceOrm.turn_index,
     LangfuseTraceOrm.turn_tokens,
     LangfuseTraceOrm.turn_tool_calls,
     LangfuseTraceOrm.tool_error_count,
@@ -129,6 +133,10 @@ def _filters(
     start: Optional[datetime],
     end: Optional[datetime],
     prompt_contains: Optional[str],
+    turn_index: Optional[int] = None,
+    min_turn_index: Optional[int] = None,
+    max_turn_index: Optional[int] = None,
+    first_turn_only: bool = False,
 ) -> list[Any]:
     conds: list[Any] = []
     if environment:
@@ -145,6 +153,16 @@ def _filters(
         conds.append(LangfuseTraceOrm.trace_timestamp < end)
     if prompt_contains:
         conds.append(LangfuseTraceOrm.prompt.ilike(f"%{prompt_contains}%"))
+    # Turn-position filters (stored turn_index -> true position, index-backed).
+    # first_turn_only is a convenience alias for turn_index == 1.
+    if first_turn_only:
+        conds.append(LangfuseTraceOrm.turn_index == 1)
+    if turn_index is not None:
+        conds.append(LangfuseTraceOrm.turn_index == turn_index)
+    if min_turn_index is not None:
+        conds.append(LangfuseTraceOrm.turn_index >= min_turn_index)
+    if max_turn_index is not None:
+        conds.append(LangfuseTraceOrm.turn_index <= max_turn_index)
     return conds
 
 
@@ -161,6 +179,16 @@ async def list_traces(
         None, description="trace_timestamp < (ISO)"
     ),
     prompt_contains: Optional[str] = Query(None),
+    turn_index: Optional[int] = Query(
+        None,
+        ge=1,
+        description="exact 1-based turn position within the session",
+    ),
+    min_turn_index: Optional[int] = Query(None, ge=1),
+    max_turn_index: Optional[int] = Query(None, ge=1),
+    first_turn_only: bool = Query(
+        False, description="only first turns (alias for turn_index=1)"
+    ),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     _reader: UserModel = Depends(require_scope(TRACES_READ)),
@@ -168,7 +196,17 @@ async def list_traces(
 ) -> TraceListResponse:
     """List/filter traces (derived columns only — never raw/output)."""
     conds = _filters(
-        environment, outcome, user_id, session_id, start, end, prompt_contains
+        environment,
+        outcome,
+        user_id,
+        session_id,
+        start,
+        end,
+        prompt_contains,
+        turn_index,
+        min_turn_index,
+        max_turn_index,
+        first_turn_only,
     )
 
     count_stmt = select(func.count()).select_from(LangfuseTraceOrm)
@@ -491,6 +529,7 @@ async def get_trace(
         primary_dataset_name=row.primary_dataset_name,
         has_insight=row.has_insight,
         is_global=row.is_global,
+        turn_index=row.turn_index,
         insight_id=row.insight_id,
         turn_tokens=row.turn_tokens,
         turn_input_tokens=row.turn_input_tokens,

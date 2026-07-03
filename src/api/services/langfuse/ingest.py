@@ -80,15 +80,22 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
     """Map a trace to a langfuse_traces (derived analytics) row dict. Parse
     failures still yield a row (identity + parse_error) so one bad trace never
     aborts the batch."""
+    session_id = trace.get("sessionId")
+    # Null-session traces are singleton threads (COALESCE(session_id, id)); set
+    # their turn position directly. Session-scoped rows get it from the post-upsert
+    # recompute (cross-row), so they carry None here to be filled in-transaction.
+    is_singleton = session_id is None
     row: dict[str, Any] = {
         "id": trace.get("id"),
-        "session_id": trace.get("sessionId"),
+        "session_id": session_id,
         "user_id": trace.get("userId"),
         "environment": trace.get("environment"),
         "trace_timestamp": _parse_dt(trace.get("timestamp")),
         "trace_updated_at": _parse_dt(trace.get("updatedAt")),
         "latency_seconds": trace.get("latency"),
         "total_cost": trace.get("totalCost"),
+        "turn_index": 1 if is_singleton else None,
+        "is_final_turn_in_thread": True if is_singleton else None,
         "parsed_at": _utcnow(),
         "parse_error": None,
     }
@@ -123,6 +130,42 @@ async def _upsert(session: AsyncSession, rows: list[dict[str, Any]]) -> int:
     stmt = stmt.on_conflict_do_update(index_elements=["id"], set_=update_cols)
     await session.execute(stmt)
     return len(rows)
+
+
+# Recompute turn_index / is_final_turn_in_thread for the given sessions from
+# current table state. Cross-row (a new/late/out-of-order trace shifts its
+# siblings' ordinals), so it runs once per chunk over the *full* touched
+# session(s), not per batch. Deterministic -> re-ingesting a window is idempotent.
+# Null-session rows are singleton threads set in build_row and never renumbered.
+_RECOMPUTE_SQL = text(
+    """
+    WITH ranked AS (
+        SELECT id,
+               row_number() OVER w AS rn,
+               count(*)     OVER (PARTITION BY session_id) AS n
+        FROM langfuse_traces
+        WHERE session_id = ANY(:ids)
+        WINDOW w AS (
+            PARTITION BY session_id
+            ORDER BY trace_timestamp ASC NULLS LAST, id ASC
+        )
+    )
+    UPDATE langfuse_traces t
+    SET turn_index = ranked.rn,
+        is_final_turn_in_thread = (ranked.rn = ranked.n)
+    FROM ranked
+    WHERE t.id = ranked.id
+    """
+)
+
+
+async def recompute_turn_positions(
+    session: AsyncSession, session_ids: set[str]
+) -> None:
+    ids = [s for s in session_ids if s]
+    if not ids:
+        return
+    await session.execute(_RECOMPUTE_SQL, {"ids": ids})
 
 
 # --------------------------------------------------------------------------- #
@@ -215,6 +258,9 @@ class WindowStats:
     fetched: int = 0
     upserted: int = 0
     max_ts: Optional[datetime] = None
+    # Session ids upserted this window; their turn positions are recomputed once
+    # at the chunk boundary (see run_ingestion).
+    touched_sessions: set[str] = field(default_factory=set)
 
 
 async def ingest_window(
@@ -262,6 +308,9 @@ async def _flush(
     await _accumulate_fk(session, batch, metrics)
     if not dry_run:
         stats.upserted += await _upsert(session, batch)
+        stats.touched_sessions.update(
+            r["session_id"] for r in batch if r.get("session_id")
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -356,6 +405,9 @@ async def run_ingestion(
         result.fetched += ws.fetched
         result.upserted += ws.upserted
         if not dry_run:
+            # Renumber turn positions for touched sessions from current table
+            # state, in-transaction, before the chunk is committed.
+            await recompute_turn_positions(session, ws.touched_sessions)
             await session.commit()  # persist chunk before advancing watermark
         result.watermark = cto  # contiguous advance
         logger.info(

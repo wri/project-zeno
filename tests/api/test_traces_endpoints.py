@@ -4,12 +4,14 @@ from datetime import datetime, timezone
 
 import pytest
 from fastapi import Request
+from sqlalchemy import select
 
 from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.auth.scopes import TRACES_READ
 from src.api.data_models import LangfuseTraceOrm
 from src.api.schemas import UserModel
+from src.api.services.langfuse.ingest import recompute_turn_positions
 from tests.conftest import async_session_maker
 
 H = {"Authorization": "Bearer test-token"}
@@ -49,6 +51,17 @@ async def _seed_trace(trace_id: str, **kw) -> None:
     async with async_session_maker() as session:
         session.add(LangfuseTraceOrm(id=trace_id, parser_version=1, **kw))
         await session.commit()
+
+
+async def _turn_fields(trace_id: str) -> tuple:
+    """Read (turn_index, is_final_turn_in_thread) straight from the DB."""
+    async with async_session_maker() as session:
+        row = (
+            await session.execute(
+                select(LangfuseTraceOrm).where(LangfuseTraceOrm.id == trace_id)
+            )
+        ).scalar_one()
+        return row.turn_index, row.is_final_turn_in_thread
 
 
 def _stub_langfuse_fetch(monkeypatch, trace):
@@ -347,3 +360,121 @@ async def test_sessions(client, auth_override, superuser_factory):
     sx = next(s for s in b["items"] if s["session_id"] == "sx")
     assert sx["turn_count"] == 2
     assert sx["first_prompt"] == "first question"  # earliest turn's prompt
+
+
+# --- turn position (Phase 0) -----------------------------------------------
+@pytest.mark.asyncio
+async def test_turn_index_surfaced_and_filtered(
+    client, auth_override, superuser_factory
+):
+    su = await superuser_factory("su_turn@example.com")
+    auth_override(su.id)
+    for ti in (1, 2, 3):
+        await _seed_trace(
+            f"ti{ti}",
+            session_id="ts",
+            turn_index=ti,
+            trace_timestamp=datetime(2026, 6, 1, ti, tzinfo=timezone.utc),
+        )
+
+    # turn_index is on the list item
+    body = (await client.get("/api/traces?session_id=ts", headers=H)).json()
+    assert {i["id"]: i["turn_index"] for i in body["items"]} == {
+        "ti1": 1,
+        "ti2": 2,
+        "ti3": 3,
+    }
+
+    ft = (
+        await client.get("/api/traces?first_turn_only=true", headers=H)
+    ).json()
+    assert [i["id"] for i in ft["items"]] == ["ti1"]
+
+    ex = (await client.get("/api/traces?turn_index=2", headers=H)).json()
+    assert [i["id"] for i in ex["items"]] == ["ti2"]
+
+    mn = (await client.get("/api/traces?min_turn_index=2", headers=H)).json()
+    assert sorted(i["id"] for i in mn["items"]) == ["ti2", "ti3"]
+
+    mx = (await client.get("/api/traces?max_turn_index=1", headers=H)).json()
+    assert [i["id"] for i in mx["items"]] == ["ti1"]
+
+
+@pytest.mark.asyncio
+async def test_turn_index_is_true_position_under_date_filter(
+    client, auth_override, superuser_factory
+):
+    """A stored turn_index is the true in-session position, so a date filter that
+    cuts a session mid-thread does NOT renumber the surviving turns (the client-
+    side-reconstruction bug this replaces)."""
+    su = await superuser_factory("su_turn_date@example.com")
+    auth_override(su.id)
+    for ti, day in ((1, 1), (2, 2), (3, 3)):
+        await _seed_trace(
+            f"d{ti}",
+            session_id="ds",
+            turn_index=ti,
+            trace_timestamp=datetime(2026, 6, day, tzinfo=timezone.utc),
+        )
+
+    body = (
+        await client.get("/api/traces?start=2026-06-02T00:00:00Z", headers=H)
+    ).json()
+    # earliest turn excluded, but survivors keep their true ordinals (2, 3)
+    assert {i["id"]: i["turn_index"] for i in body["items"]} == {
+        "d2": 2,
+        "d3": 3,
+    }
+    # first_turn_only over that same window returns nothing (turn 1 is filtered
+    # out) — not a renumbered "first of the filtered set".
+    ft = (
+        await client.get(
+            "/api/traces?start=2026-06-02T00:00:00Z&first_turn_only=true",
+            headers=H,
+        )
+    ).json()
+    assert ft["items"] == []
+
+
+@pytest.mark.asyncio
+async def test_recompute_turn_positions_orders_flags_and_is_idempotent():
+    # three turns of one session, seeded out of order, all turn_index NULL
+    await _seed_trace(
+        "r3",
+        session_id="rs",
+        trace_timestamp=datetime(2026, 6, 1, 3, tzinfo=timezone.utc),
+    )
+    await _seed_trace(
+        "r1",
+        session_id="rs",
+        trace_timestamp=datetime(2026, 6, 1, 1, tzinfo=timezone.utc),
+    )
+    await _seed_trace(
+        "r2",
+        session_id="rs",
+        trace_timestamp=datetime(2026, 6, 1, 2, tzinfo=timezone.utc),
+    )
+
+    async def _recompute():
+        async with async_session_maker() as session:
+            await recompute_turn_positions(session, {"rs"})
+            await session.commit()
+
+    await _recompute()
+    assert await _turn_fields("r1") == (1, False)
+    assert await _turn_fields("r2") == (2, False)
+    assert await _turn_fields("r3") == (3, True)
+
+    # idempotent: recomputing the same session yields identical ordinals
+    await _recompute()
+    assert await _turn_fields("r3") == (3, True)
+
+    # a late/out-of-order trace shifts the final flag and extends the numbering
+    await _seed_trace(
+        "r4",
+        session_id="rs",
+        trace_timestamp=datetime(2026, 6, 1, 4, tzinfo=timezone.utc),
+    )
+    await _recompute()
+    assert await _turn_fields("r3") == (3, False)
+    assert await _turn_fields("r4") == (4, True)

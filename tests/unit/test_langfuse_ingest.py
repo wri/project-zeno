@@ -41,3 +41,20 @@ def test_build_row_strips_nul_from_identity_fields():
     assert "\x00" not in row["user_id"]
     assert row["user_id"] == "userid"
     assert row["id"] == "t1"
+
+
+def test_build_row_null_session_is_singleton_turn():
+    # No sessionId => singleton thread; turn position is set directly (the
+    # post-upsert recompute only touches session-scoped rows).
+    row = build_row({"id": "t1", "environment": "production"})
+    assert row["session_id"] is None
+    assert row["turn_index"] == 1
+    assert row["is_final_turn_in_thread"] is True
+
+
+def test_build_row_session_turn_index_deferred_to_recompute():
+    # With a session, turn position is cross-row and filled by recompute; the
+    # builder leaves it None so a re-ingest doesn't assert a stale ordinal.
+    row = build_row({"id": "t1", "sessionId": "s1"})
+    assert row["turn_index"] is None
+    assert row["is_final_turn_in_thread"] is None
