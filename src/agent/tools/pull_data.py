@@ -1,4 +1,4 @@
-from typing import Annotated, Dict, Optional
+from typing import Annotated, Dict, List, Optional
 
 import httpx
 import structlog
@@ -10,7 +10,8 @@ from langgraph.types import Command
 
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
-from src.agent.datasets.handlers.base import DataPullResult
+from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
+from src.agent.datasets.handlers.fao_fra_handler import FAOFRAHandler
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.api.data_models import StatisticsOrm
 from src.shared.database import get_session_from_pool
@@ -35,9 +36,12 @@ async def fetch_statistics_from_url(source_url: str) -> dict:
 class DataPullOrchestrator:
     """Orchestrates data pulling using appropriate handlers"""
 
-    def __init__(self):
-        self.handlers = [
+    def __init__(
+        self, handlers: Optional[List[DataSourceHandler]] = None
+    ) -> None:
+        self.handlers = handlers or [
             AnalyticsHandler(),
+            FAOFRAHandler(),
         ]
 
     async def pull_data(
@@ -155,6 +159,21 @@ async def pull_data(
     raw = result.data if isinstance(result.data, dict) else {}
     aoi_id_to_name = dict(zip(raw.get("aoi_id", []), raw.get("name", [])))
 
+    # Two output conventions are supported here:
+    # 1. ID-backed (analytics API): handler returns a flat dict with
+    #    `aoi_id`/`name` arrays; we keep `data: {}` in state and the
+    #    analyst fetches the actual rows lazily via `source_url`. The
+    #    analytics responses are large enough that lazy-fetch is the
+    #    right default.
+    # 2. Inline records (FAO FRA and similar small APIs): handler
+    #    returns `{"data": [record, record, ...]}` and we pass that
+    #    list straight through into state. The analyst's
+    #    `_extract_inline_statistics_data` already handles this shape.
+    inline_records = raw.get("data")
+    inline_records = (
+        inline_records if isinstance(inline_records, list) else None
+    )
+
     aois = state["aoi_selection"]["aois"]
     statistics = {
         "dataset_name": dataset["dataset_name"],
@@ -162,8 +181,7 @@ async def pull_data(
         "start_date": effective_start,
         "end_date": effective_end,
         "source_url": result.analytics_api_url,
-        # ID-backed statistics keep state light; fetch data from source_url when needed.
-        "data": {},
+        "data": inline_records if inline_records is not None else {},
         "aoi_id_to_name": aoi_id_to_name,
         "aoi_names": [aoi["name"] for aoi in aois],
         # src_id is only unique per source, so sources are kept parallel to ids.

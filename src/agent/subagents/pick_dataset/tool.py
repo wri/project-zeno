@@ -445,11 +445,15 @@ def get_tile_services_for_dataset(
     selection_result, selected_row, start_date, end_date
 ):
     context_layers = []
+    # `tile_url` is None for datasets without a map layer (e.g. FAO FRA,
+    # which is country-reported statistics with no pixel imagery to
+    # render). Leave it None so downstream rendering knows to skip the
+    # tile layer.
     tile_url = selected_row.tile_url
     start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-    if not selected_row.tile_url.startswith("http"):
+    if tile_url and not tile_url.startswith("http"):
         tile_url = SharedSettings.eoapi_base_url + tile_url
 
     if (
@@ -464,11 +468,12 @@ def get_tile_services_for_dataset(
             ),
             None,
         )
-        context_layer = ContextLayer(
-            name=selected_context_layer.get("value"),
-            tile_url=selected_context_layer.get("tile_url"),
-        )
-        context_layers.append(context_layer)
+        if selected_context_layer is not None:
+            context_layer = ContextLayer(
+                name=selected_context_layer.get("value"),
+                tile_url=selected_context_layer.get("tile_url"),
+            )
+            context_layers.append(context_layer)
 
     if selected_row.dataset_id in [
         TREE_COVER_LOSS_ID,

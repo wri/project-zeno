@@ -271,10 +271,13 @@ def _encode_parts(parts: list) -> list[dict]:
 
 def _build_tool_message(insight: Insight, dataset_cautions: str) -> str:
     """Human-feedback message summarizing the generated charts + insight."""
-    tool_message = f"Generated {len(insight.charts)} chart(s)\n"
-    tool_message += f"Key Finding: {insight.primary_insight}\n\n"
+    tool_message = f"Generated {len(insight.charts)} chart(s):\n"
     for idx, chart in enumerate(insight.charts, 1):
-        tool_message += f"Chart {idx}: {chart.title}\n"
+        marker = f"[Chart {idx}]"
+        tool_message += (
+            f"Place {marker} in your reply to represent the chart. Use this exact UUID; do not invent UUIDs."
+            f"Title: '{chart.title}'.\n\n"
+        )
 
     if insight.charts:
         chart_data_df = pd.DataFrame(insight.charts[0].chart_data)
