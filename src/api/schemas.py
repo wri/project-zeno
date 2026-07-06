@@ -570,12 +570,12 @@ class DashboardPublicToggleRequest(BaseModel):
     is_public: bool
 
 
-_WIDGET_TYPES = ("insight", "map")
+_WIDGET_TYPES = ("insight", "map", "text")
 
 
 class DashboardWidgetCreateRequest(BaseModel):
     widget_type: str = Field(
-        description="Widget kind: `insight` or `map`.",
+        description="Widget kind: `insight`, `map` or `text`.",
     )
     insight_id: Optional[UUID] = Field(
         default=None,
@@ -590,7 +590,8 @@ class DashboardWidgetCreateRequest(BaseModel):
             "of the keys `dataset` (resolved tile_url, context layers, "
             "parameters, dates) or `imagery` (Sentinel-2 mosaic_id and tile "
             "URLs); optional `viewport` override — by default map widgets "
-            "render fitted to the dashboard's area."
+            "render fitted to the dashboard's area. "
+            "Text widgets: `text` (markdown string)."
         ),
     )
     position: Optional[int] = None
@@ -623,6 +624,18 @@ class DashboardWidgetCreateRequest(BaseModel):
         if not isinstance(layer, dict) or not layer.get("tile_url"):
             raise ValueError(
                 f"map widget {kinds[0]} config requires a tile_url"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_text_config(self) -> "DashboardWidgetCreateRequest":
+        """Text widgets carry their markdown body in config.text."""
+        if self.widget_type != "text":
+            return self
+        config = self.config or {}
+        if not isinstance(config.get("text"), str):
+            raise ValueError(
+                "text widgets require a config with a 'text' string"
             )
         return self
 

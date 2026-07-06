@@ -516,6 +516,43 @@ async def test_map_widget_config_validated(client, auth_override):
 
 
 @pytest.mark.asyncio
+async def test_text_widget_config_validated(client, auth_override):
+    user = await _create_user("text-widget")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    url = f"/api/dashboards/{dashboard['id']}/widgets"
+
+    bad_bodies = [
+        # No config at all.
+        {"widget_type": "text"},
+        # No text key.
+        {"widget_type": "text", "config": {"default_view": "chart"}},
+        # Non-string text.
+        {"widget_type": "text", "config": {"text": 42}},
+    ]
+    for body in bad_bodies:
+        response = await client.post(url, headers=AUTH, json=body)
+        assert response.status_code == 422, body
+
+    text_config = {"text": "## Notes\n\nDeforestation slowed in 2024."}
+    response = await client.post(
+        url,
+        headers=AUTH,
+        json={"widget_type": "text", "config": text_config},
+    )
+    assert response.status_code == 201
+
+    # Config echoed verbatim on the render endpoint; no insight payload.
+    rendered = await client.get(
+        f"/api/dashboards/{dashboard['id']}", headers=AUTH
+    )
+    widgets = rendered.json()["widgets"]
+    assert widgets[-1]["widget_type"] == "text"
+    assert widgets[-1]["config"] == text_config
+    assert widgets[-1]["insight"] is None
+
+
+@pytest.mark.asyncio
 async def test_widget_add_reorder_remove(client, auth_override):
     user = await _create_user("widget-lifecycle")
     auth_override(user.id)
