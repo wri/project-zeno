@@ -47,18 +47,22 @@ prompt_instructions: 'Use this dataset to show recent vegetation changes across 
 
   '
 selection_hints: >-
-  Use this dataset ONLY when the user needs a disturbance-alert breakdown that Integrated Alerts cannot provide — a
-  context layer of driver (likely cause / LDACS), land_cover, natural_lands, or grasslands. For any near-real-time
-  disturbance, clearing, deforestation, or conversion alert query that does NOT require one of those breakdowns, prefer
-  Integrated Alerts instead. DIST-ALERT is being deprecated in favor of Integrated Alerts, which already includes
-  DIST-ALERT alongside GLAD-L, GLAD-S2 and RADD. Covers all ecosystems (not just forests), Dec 2023 to present at 30m,
-  measured in hectares, with low and high confidence alerts. Apply context layers when the query targets a specific
-  breakdown: grasslands for natural grasslands/shrublands/savannas, natural_lands for natural land classes, driver for
-  likely causes of disturbance, land_cover for specific land cover classes. Driver (LDACS) is updated quarterly, covers
+  Use this dataset ONLY when the user needs disturbance alerts RESTRICTED TO or BROKEN DOWN BY a specific ecosystem or
+  class that Integrated Alerts cannot filter — via a context layer: natural_lands (forests, natural forests, natural
+  lands / natural areas, natural ecosystems), grasslands (natural grasslands/shrublands/savannas), land_cover (a
+  specific land-cover class such as tree cover, wetlands, or cropland), or driver (likely cause / LDACS). For any
+  near-real-time disturbance, clearing, deforestation, or conversion alert query over a whole area that does NOT require
+  such a filter or breakdown, prefer Integrated Alerts instead. DIST-ALERT is being deprecated in favor of Integrated
+  Alerts, which already includes DIST-ALERT alongside GLAD-L, GLAD-S2 and RADD. Covers all ecosystems, Dec 2023 to
+  present at 30m, measured in hectares, with low and high confidence alerts. Apply context layers when the query targets
+  a specific breakdown: natural_lands for forests / natural land classes, grasslands for natural
+  grasslands/shrublands/savannas, driver for likely causes of disturbance, land_cover for specific land cover classes. Driver (LDACS) is updated quarterly, covers
   the most recent 12 months, and has no classification for the last 90 days. For historical or long-term tree cover
   change prefer Tree Cover Loss; for driver attribution of tree cover loss specifically prefer Tree Cover Loss by
   Dominant Driver.
-code_instructions: "CHART TYPES: - Recent trends over time → line chart (x=alert month, y=area in hectares) - Distribution\
+code_instructions: "CHART TYPES — generate EXACTLY ONE chart; choose the single best type for what the user\
+  \ asked and never emit more than one chart (all charts share one data table, so a second chart of a different shape\
+  \ breaks the output). Pick from: - Recent trends over time → line chart (x=alert month, y=area in hectares) - Distribution\
   \ by driver → pie chart (one slice per driver class) - Distribution by land cover class or natural land type → pie chart\
   \ - Seasonal patterns by driver → grouped bar chart (x=month, y=area_ha, group=class name) DATA RULES: - All areas in hectares\
   \ (ha) - Show classified alerts by driver (LDACS) by default when driver context layer is active - If one driver accounts\
