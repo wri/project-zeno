@@ -3,7 +3,7 @@ dataset_name: Integrated alerts
 context_layers: null
 parameters: null
 variables: null
-tile_url: https://tiles.globalforestwatch.org/gfw_integrated_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color
+tile_url: https://tiles.globalforestwatch.org/gfw_integrated_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color
 license: CC by 4.0
 geographic_coverage: Global
 resolution: 10 x 10 meters
@@ -33,13 +33,15 @@ prompt_instructions: >-
   do NOT use grouped bar charts for the confidence breakdown. Always interpret alerts as indicators of potential
   disturbance, not definitive deforestation outcomes.
 selection_hints: >-
-  DEFAULT dataset for near-real-time vegetation and forest disturbance, clearing, and deforestation alerts globally at
-  10m resolution, measured in hectares. Integrates DIST-ALERT, GLAD-L, GLAD-S2 and RADD into one layer, detecting
-  disturbance faster than any single system. Provides low, high, and highest confidence alerts (highest = confirmed by
-  multiple systems). PREFER this for any recent disturbance/clearing/deforestation-alert query. It has NO context layers
-  / intersections — ONLY when the user needs a breakdown by driver, land cover, natural lands, or grasslands should
-  DIST-ALERT be used instead. For historical or long-term tree cover change, prefer Tree Cover Loss; for driver
-  attribution of tree cover loss, prefer Tree Cover Loss by Dominant Driver.
+  DEFAULT dataset for near-real-time disturbance, clearing, and deforestation alerts globally at 10m resolution,
+  measured in hectares. Integrates DIST-ALERT, GLAD-L, GLAD-S2 and RADD into one layer, detecting disturbance faster
+  than any single system. Provides low, high, and highest confidence alerts (highest = confirmed by multiple systems).
+  Reports TOTAL disturbed area across ALL vegetation — it is NOT filtered to forests or any ecosystem, and has NO
+  context layers / intersections. PREFER this for a plain recent-disturbance/clearing/deforestation-alert query over a
+  whole area. Use DIST-ALERT instead whenever the user wants alerts RESTRICTED TO or BROKEN DOWN BY a specific ecosystem
+  or class — forests, natural forests, natural lands / natural areas, grasslands, a land-cover class, or a driver/cause
+  (DIST-ALERT's natural_lands / grasslands / land_cover / driver context layers). For historical or long-term tree cover
+  change, prefer Tree Cover Loss; for driver attribution of tree cover loss, prefer Tree Cover Loss by Dominant Driver.
 code_instructions: |-
   CHART TYPES — generate EXACTLY ONE chart for Integrated alerts, chosen by the query; never emit both a pie and a line:
   - Totals / breakdown by confidence → PIE chart, one slice per confidence tier (low, high, highest), value = total area_ha summed over the period
@@ -49,6 +51,7 @@ code_instructions: |-
   DATA RULES:
   - Result columns are: aoi_id, alert_date, alert_confidence, area_ha, aoi_type
   - All areas are in hectares (ha) in the area_ha column
+  - ALWAYS label the unit hectares (ha) in the output: on the chart's y-axis/legend and title, and on every table column header and total that shows area — never present a bare area number without "ha"
   - alert_confidence values are low, high, and highest; 'highest' means detected by two or more alert systems (it may be absent when only one system covered the area/time)
   - There are NO driver, land-cover, or natural-lands intersections — do NOT create class/driver breakdowns
   DO/DON'T:
@@ -57,7 +60,8 @@ code_instructions: |-
   - Do not use alerts for area estimates or long-term trend assessment; recommend annual tree cover loss instead
 presentation_instructions: >-
   Describe results as integrated disturbance alerts (potential vegetation and forest disturbance), not confirmed
-  deforestation. Always reference the confidence tiers shown and the selected time range. Include a caution that explains
+  deforestation. Always state the unit hectares (ha) with every area figure in the narrative. Always reference the
+  confidence tiers shown and the selected time range. Include a caution that explains
   (a) the alert systems contributing to the integrated count — DIST-ALERT, GLAD-L, GLAD-S2 and RADD — and (b) what each
   confidence level means: low = detected once; high = detected multiple times by a single system (two or more for
   GLAD-L/GLAD-S2/RADD, four or more for DIST-ALERT); highest = detected by two or more systems, which effectively
