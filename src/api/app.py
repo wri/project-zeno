@@ -25,6 +25,7 @@ from src.api.routers import (
     traces,
     users,
 )
+from src.shared.config import SharedSettings
 from src.shared.database import close_global_pool, initialize_global_pool
 from src.shared.logging_config import get_logger
 from src.shared.version import get_version
@@ -34,6 +35,15 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Deploy logs must show the *effective* values of host settings that a
+    # deployed env var can override: a rotated default in code (e.g. the
+    # eoapi cache host) is silently shadowed by a stale override, and tile
+    # URLs then break browser-side only, with no server-side signal.
+    logger.info(
+        "settings_resolved",
+        eoapi_base_url=SharedSettings.eoapi_base_url,
+        api_base_url=SharedSettings.api_base_url,
+    )
     blog_data_ok, blog_data_detail = data_status()
     if blog_data_ok:
         logger.info("Blog search data ready", detail=blog_data_detail)
