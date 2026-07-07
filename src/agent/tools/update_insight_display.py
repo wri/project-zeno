@@ -29,9 +29,9 @@ from src.agent.subagents.analyst.display_reviser import (
 )
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import (
-    current_user_id,
     error_command,
     insight_updated_command,
+    require_current_user_id,
 )
 from src.api.data_models import InsightOrm
 from src.api.repositories.insight_access import is_editable_by_user
@@ -60,7 +60,9 @@ async def _load_editable_insight(insight_id: str) -> Optional[InsightOrm]:
             .where(InsightOrm.id == target)
         )
         row = result.scalar_one_or_none()
-    if row is None or not is_editable_by_user(row, current_user_id()):
+    if row is None or not is_editable_by_user(
+        row, require_current_user_id("update_insight_display")
+    ):
         return None
     return row
 

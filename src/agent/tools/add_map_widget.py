@@ -179,7 +179,9 @@ async def add_map_widget(
         dashboard_id=str(target_dashboard),
     )
 
-    dashboard = await load_editable_dashboard(target_dashboard)
+    dashboard = await load_editable_dashboard(
+        target_dashboard, "add_map_widget"
+    )
     if dashboard is None:
         return error_command(
             f"Dashboard {target_dashboard} not found or not editable.",

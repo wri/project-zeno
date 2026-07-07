@@ -23,7 +23,33 @@ from src.agent.subagents.analyst.charts.model import Insight
 from src.api.data_models import DashboardOrm
 from src.api.repositories import dashboard_writer
 from src.api.repositories.dashboard_access import is_editable_by_user
+from src.shared.logging_config import get_logger
 from src.shared.request_context import current_user_id as current_user_id
+
+logger = get_logger(__name__)
+
+
+def require_current_user_id(tool_name: str) -> str:
+    """The authenticated user this tool call acts as; raises when unbound.
+
+    Every path into the agent binds an identity (the chat endpoint requires
+    auth, the CLI binds a default user), so a missing user id inside a tool
+    can only mean the identity channel itself broke — e.g. contextvar
+    propagation lost across an async boundary. Silently degrading instead
+    (searches narrowing to public rows, writes reporting "not found or not
+    editable") is indistinguishable from an ordinary permission miss, so
+    authorization-relevant reads in tools must come through here rather than
+    calling ``current_user_id`` directly. The raise lands in the generic
+    tool-error funnel, which logs it and returns a clean error to the model.
+    """
+    user_id = current_user_id()
+    if user_id is None:
+        logger.error("tool_invoked_without_identity", tool_name=tool_name)
+        raise RuntimeError(
+            f"{tool_name} invoked without an authenticated user id; "
+            "the request identity context is not bound."
+        )
+    return user_id
 
 
 def error_command(message: str, tool_call_id: Optional[str]) -> Command:
@@ -51,12 +77,14 @@ def resolve_dashboard_id(
     return explicit or state.get("dashboard_id") or view.get("dashboard_id")
 
 
-async def load_editable_dashboard(dashboard_id) -> Optional[DashboardOrm]:
+async def load_editable_dashboard(
+    dashboard_id, tool_name: str
+) -> Optional[DashboardOrm]:
     """Load a dashboard the current user may edit (owner-only rule);
     None when it does not exist or the user may not touch it."""
     dashboard = await dashboard_writer.get_dashboard(str(dashboard_id))
     if dashboard is None or not is_editable_by_user(
-        dashboard, current_user_id()
+        dashboard, require_current_user_id(tool_name)
     ):
         return None
     return dashboard

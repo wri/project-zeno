@@ -2,6 +2,8 @@
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from src.agent.tools.create_dashboard import create_dashboard
 from src.shared.request_context import bound_user_id
 
@@ -75,13 +77,12 @@ async def test_create_dashboard_explicit_name():
     assert create.await_args.kwargs["name"] == "Forest monitoring"
 
 
-async def test_create_dashboard_requires_user():
-    command = await create_dashboard.coroutine(
-        state=_state(), tool_call_id="t1"
-    )
-    assert command.update["messages"][0].status == "error"
-    assert "no authenticated user" in _content(command)
-    assert "dashboard_id" not in command.update
+async def test_create_dashboard_raises_without_user():
+    """A missing identity means the request context channel broke — every
+    entry point binds a user — so the tool raises (into the generic error
+    funnel) instead of degrading into a misleading permission error."""
+    with pytest.raises(RuntimeError, match="without an authenticated user"):
+        await create_dashboard.coroutine(state=_state(), tool_call_id="t1")
 
 
 async def test_create_dashboard_requires_aoi():

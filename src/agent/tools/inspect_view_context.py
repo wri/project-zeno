@@ -28,7 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from src.agent.tool_spec import ToolCategory, ToolSpec
-from src.agent.tools.common import current_user_id
+from src.agent.tools.common import require_current_user_id
 from src.api.data_models import DashboardOrm, InsightOrm
 from src.api.repositories import dashboard_writer
 from src.api.repositories.dashboard_access import (
@@ -148,11 +148,11 @@ async def _load_insights(insight_ids: list[UUID]) -> list[InsightOrm]:
     """Load insights (with charts) the current user is allowed to see.
 
     Visibility is the shared `insight_access` rule (own + public). The user id
-    comes from the request-scoped logging context bound by the auth dependency.
+    comes from the request context bound by the auth dependency.
     """
     if not insight_ids:
         return []
-    user_id = current_user_id()
+    user_id = require_current_user_id("inspect_view_context")
     async with get_session_from_pool() as session:
         result = await session.execute(
             select(InsightOrm)
@@ -217,7 +217,9 @@ async def _load_dashboard(dashboard_id) -> Optional[DashboardOrm]:
     user may not see are treated the same as missing ones.
     """
     row = await dashboard_writer.get_dashboard(dashboard_id)
-    if row is None or not dashboard_is_visible_to_user(row, current_user_id()):
+    if row is None or not dashboard_is_visible_to_user(
+        row, require_current_user_id("inspect_view_context")
+    ):
         return None
     return row
 

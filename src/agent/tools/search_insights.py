@@ -20,9 +20,9 @@ from sqlalchemy.orm import selectinload
 from src.agent.subagents.analyst.charts.model import Insight
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import (
-    current_user_id,
     error_command,
     insight_updated_command,
+    require_current_user_id,
 )
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.api.repositories.insight_access import visible_insights_clause
@@ -110,7 +110,9 @@ async def _search_insights(query: str, limit: int = 25) -> list[InsightOrm]:
             select(InsightOrm)
             .options(selectinload(InsightOrm.charts))
             .where(
-                visible_insights_clause(current_user_id()),
+                visible_insights_clause(
+                    require_current_user_id("search_insights")
+                ),
                 _text_match_clause(_like_patterns(query)),
             )
             .order_by(InsightOrm.created_at.desc())

@@ -17,9 +17,9 @@ from langgraph.types import Command
 
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import (
-    current_user_id,
     dashboard_updated_command,
     error_command,
+    require_current_user_id,
 )
 from src.api.repositories import dashboard_writer
 from src.shared.logging_config import get_logger
@@ -52,13 +52,7 @@ async def create_dashboard(
     The dashboard starts empty; add insights to it with add_to_dashboard.
     `name` defaults to the selected area's name.
     """
-    user_id = current_user_id()
-    if not user_id:
-        return error_command(
-            "Cannot create a dashboard: no authenticated user. Dashboards "
-            "are always owned.",
-            tool_call_id,
-        )
+    user_id = require_current_user_id("create_dashboard")
 
     selection = (state or {}).get("aoi_selection") or {}
     aois = selection.get("aois") or []

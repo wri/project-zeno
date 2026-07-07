@@ -19,10 +19,10 @@ from sqlalchemy import select
 
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import (
-    current_user_id,
     dashboard_updated_command,
     error_command,
     load_editable_dashboard,
+    require_current_user_id,
     resolve_dashboard_id,
 )
 from src.api.data_models import InsightOrm
@@ -48,7 +48,9 @@ async def _load_visible_insight(insight_id: str) -> Optional[InsightOrm]:
             select(InsightOrm).where(InsightOrm.id == target)
         )
         row = result.scalar_one_or_none()
-    if row is None or not is_visible_to_user(row, current_user_id()):
+    if row is None or not is_visible_to_user(
+        row, require_current_user_id("add_to_dashboard")
+    ):
         return None
     return row
 
@@ -99,7 +101,9 @@ async def add_to_dashboard(
         dashboard_id=str(target_dashboard),
     )
 
-    dashboard = await load_editable_dashboard(target_dashboard)
+    dashboard = await load_editable_dashboard(
+        target_dashboard, "add_to_dashboard"
+    )
     if dashboard is None:
         return error_command(
             f"Dashboard {target_dashboard} not found or not editable.",
