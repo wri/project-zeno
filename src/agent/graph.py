@@ -151,15 +151,42 @@ async def fetch_checkpointer() -> AsyncPostgresSaver:
     return checkpointer
 
 
+# Tool args whose values identify the artifact a failed call was targeting;
+# logged with the exception so an error can be tied to a specific record.
+_TARGET_ID_ARGS = ("dashboard_id", "insight_id", "widget_id")
+
+
 @wrap_tool_call
 async def handle_tool_errors(request, handler):
+    """Last-resort funnel for exceptions a tool did not anticipate.
+
+    The raw exception stays server-side only: the returned ToolMessage is
+    streamed to the model and on to the browser, so it must never carry
+    driver/ORM text (SQL fragments, table names) — just the tool and the
+    exception class.
+    """
     try:
         return await handler(request)
     except Exception as e:
-        logger.exception("Tool execution failed")
+        tool_call = request.tool_call
+        tool_name = tool_call.get("name") or "unknown"
+        args = tool_call.get("args") or {}
+        target_ids = {
+            key: str(args[key]) for key in _TARGET_ID_ARGS if args.get(key)
+        }
+        logger.exception(
+            "tool_execution_failed",
+            tool_name=tool_name,
+            tool_call_id=tool_call.get("id"),
+            **target_ids,
+        )
         return ToolMessage(
-            content=f"Tool error: {str(e)}",
-            tool_call_id=request.tool_call["id"],
+            content=(
+                f"Tool '{tool_name}' failed unexpectedly "
+                f"({type(e).__name__}). The error has been logged."
+            ),
+            tool_call_id=tool_call.get("id"),
+            status="error",
         )
 
 
