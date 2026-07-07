@@ -16,7 +16,6 @@ resolve → check → write → reply steps.
 
 from typing import Optional
 
-import structlog
 from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 
@@ -24,12 +23,7 @@ from src.agent.subagents.analyst.charts.model import Insight
 from src.api.data_models import DashboardOrm
 from src.api.repositories import dashboard_writer
 from src.api.repositories.dashboard_access import is_editable_by_user
-
-
-def current_user_id() -> Optional[str]:
-    """The authenticated user id, read from the request-scoped structlog
-    context bound by the auth dependency; None when unauthenticated."""
-    return structlog.contextvars.get_contextvars().get("user_id")
+from src.shared.request_context import current_user_id as current_user_id
 
 
 def error_command(message: str, tool_call_id: Optional[str]) -> Command:

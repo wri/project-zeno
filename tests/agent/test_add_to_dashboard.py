@@ -4,9 +4,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
-import structlog
-
 from src.agent.tools.add_to_dashboard import add_to_dashboard
+from src.shared.request_context import bound_user_id
 
 
 def _content(command):
@@ -57,7 +56,7 @@ async def test_add_to_dashboard_defaults_from_state():
         get_dash,
         load_insight,
         add_widget as add_widget_mock,
-        structlog.contextvars.bound_contextvars(user_id="user-1"),
+        bound_user_id("user-1"),
     ):
         command = await add_to_dashboard.coroutine(
             state=state, tool_call_id="t1"
@@ -92,7 +91,7 @@ async def test_add_to_dashboard_falls_back_to_view_context():
         get_dash,
         load_insight,
         add_widget,
-        structlog.contextvars.bound_contextvars(user_id="user-1"),
+        bound_user_id("user-1"),
     ):
         command = await add_to_dashboard.coroutine(
             state=state, tool_call_id="t1"
@@ -102,7 +101,7 @@ async def test_add_to_dashboard_falls_back_to_view_context():
 
 
 async def test_add_to_dashboard_requires_insight():
-    with structlog.contextvars.bound_contextvars(user_id="user-1"):
+    with bound_user_id("user-1"):
         command = await add_to_dashboard.coroutine(
             dashboard_id=str(uuid4()), state={}, tool_call_id="t1"
         )
@@ -111,7 +110,7 @@ async def test_add_to_dashboard_requires_insight():
 
 
 async def test_add_to_dashboard_requires_dashboard():
-    with structlog.contextvars.bound_contextvars(user_id="user-1"):
+    with bound_user_id("user-1"):
         command = await add_to_dashboard.coroutine(
             insight_id=str(uuid4()), state={}, tool_call_id="t1"
         )
@@ -129,7 +128,7 @@ async def test_add_to_dashboard_owner_only():
         get_dash,
         load_insight,
         add_widget as add_widget_mock,
-        structlog.contextvars.bound_contextvars(user_id="user-1"),
+        bound_user_id("user-1"),
     ):
         command = await add_to_dashboard.coroutine(
             insight_id=str(insight.id),
@@ -149,7 +148,7 @@ async def test_add_to_dashboard_insight_must_be_visible():
         get_dash,
         load_insight,
         add_widget as add_widget_mock,
-        structlog.contextvars.bound_contextvars(user_id="user-1"),
+        bound_user_id("user-1"),
     ):
         command = await add_to_dashboard.coroutine(
             insight_id=str(uuid4()),

@@ -10,7 +10,6 @@ multiple AOIs (portfolio-ready schema).
 
 from uuid import UUID, uuid4
 
-import structlog
 from sqlalchemy import select
 
 from src.agent.tools.add_to_dashboard import add_to_dashboard
@@ -21,6 +20,7 @@ from src.api.data_models import (
     InsightOrm,
 )
 from src.api.repositories import dashboard_writer
+from src.shared.request_context import bound_user_id
 from tests.conftest import async_session_maker
 
 PARANA = {
@@ -185,7 +185,7 @@ async def test_add_to_dashboard_tool_owner_only_edit(user, user_ds):
     )
     insight_id = await _insert_insight(user_id=user.id)
 
-    with structlog.contextvars.bound_contextvars(user_id=user.id):
+    with bound_user_id(user.id):
         denied = await add_to_dashboard.coroutine(
             insight_id=str(insight_id),
             dashboard_id=theirs,

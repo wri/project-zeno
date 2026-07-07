@@ -4,13 +4,12 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
-import structlog
-
 from src.agent.tools.add_map_widget import (
     _dataset_config,
     _imagery_config,
     add_map_widget,
 )
+from src.shared.request_context import bound_user_id
 
 
 def _content(command):
@@ -89,7 +88,7 @@ async def test_add_map_widget_dataset_from_state():
     with (
         get_dash,
         add_widget as add_widget_mock,
-        structlog.contextvars.bound_contextvars(user_id="user-1"),
+        bound_user_id("user-1"),
     ):
         command = await add_map_widget.coroutine(
             layer="dataset", state=state, tool_call_id="t1"
@@ -132,7 +131,7 @@ async def test_add_map_widget_imagery_from_state():
     with (
         get_dash,
         add_widget as add_widget_mock,
-        structlog.contextvars.bound_contextvars(user_id="user-1"),
+        bound_user_id("user-1"),
     ):
         command = await add_map_widget.coroutine(
             layer="imagery", state=state, tool_call_id="t1"
@@ -153,7 +152,7 @@ async def test_add_map_widget_title_passthrough():
     with (
         get_dash,
         add_widget as add_widget_mock,
-        structlog.contextvars.bound_contextvars(user_id="user-1"),
+        bound_user_id("user-1"),
     ):
         await add_map_widget.coroutine(
             layer="dataset", title="Loss layer", state=state, tool_call_id="t1"
@@ -174,7 +173,7 @@ async def test_add_map_widget_falls_back_to_view_context():
     with (
         get_dash,
         add_widget,
-        structlog.contextvars.bound_contextvars(user_id="user-1"),
+        bound_user_id("user-1"),
     ):
         command = await add_map_widget.coroutine(
             layer="dataset", state=state, tool_call_id="t1"
@@ -184,7 +183,7 @@ async def test_add_map_widget_falls_back_to_view_context():
 
 
 async def test_add_map_widget_rejects_unknown_layer():
-    with structlog.contextvars.bound_contextvars(user_id="user-1"):
+    with bound_user_id("user-1"):
         command = await add_map_widget.coroutine(
             layer="chart", state={}, tool_call_id="t1"
         )
@@ -193,7 +192,7 @@ async def test_add_map_widget_rejects_unknown_layer():
 
 
 async def test_add_map_widget_requires_dataset_in_state():
-    with structlog.contextvars.bound_contextvars(user_id="user-1"):
+    with bound_user_id("user-1"):
         command = await add_map_widget.coroutine(
             layer="dataset",
             dashboard_id=str(uuid4()),
@@ -206,7 +205,7 @@ async def test_add_map_widget_requires_dataset_in_state():
 
 async def test_add_map_widget_requires_dataset_tile_url():
     state = {"dataset": {"dataset_id": 4, "dataset_name": "TCL"}}
-    with structlog.contextvars.bound_contextvars(user_id="user-1"):
+    with bound_user_id("user-1"):
         command = await add_map_widget.coroutine(
             layer="dataset",
             dashboard_id=str(uuid4()),
@@ -218,7 +217,7 @@ async def test_add_map_widget_requires_dataset_tile_url():
 
 
 async def test_add_map_widget_requires_imagery_in_state():
-    with structlog.contextvars.bound_contextvars(user_id="user-1"):
+    with bound_user_id("user-1"):
         command = await add_map_widget.coroutine(
             layer="imagery",
             dashboard_id=str(uuid4()),
@@ -230,7 +229,7 @@ async def test_add_map_widget_requires_imagery_in_state():
 
 
 async def test_add_map_widget_requires_dashboard():
-    with structlog.contextvars.bound_contextvars(user_id="user-1"):
+    with bound_user_id("user-1"):
         command = await add_map_widget.coroutine(
             layer="dataset",
             state={"dataset": _dataset_state()},
@@ -248,7 +247,7 @@ async def test_add_map_widget_owner_only():
     with (
         get_dash,
         add_widget as add_widget_mock,
-        structlog.contextvars.bound_contextvars(user_id="user-1"),
+        bound_user_id("user-1"),
     ):
         command = await add_map_widget.coroutine(
             layer="dataset",

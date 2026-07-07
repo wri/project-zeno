@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
-import structlog
 
 from src.agent.subagents.pick_aoi import Geocoder
 from src.agent.subagents.pick_aoi.tool import AOIIndex
+from src.shared.request_context import bound_user_id
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
@@ -176,7 +176,7 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
     assert create_response.status_code == 200
 
     # Ensure user_id is bound to structlog context for the pick_aoi call
-    with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
+    with bound_user_id("test-user-123"):
         command = await Geocoder().lookup(
             question="Measure deforestation in My Custom Area",
             places=["My Custom Area"],

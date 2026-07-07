@@ -18,6 +18,7 @@ from src.api.data_models import UserOrm, UserType
 from src.api.schemas import UserModel
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import bind_request_logging_context, get_logger
+from src.shared.request_context import set_current_user_id
 
 logger = get_logger(__name__)
 
@@ -134,6 +135,7 @@ async def require_auth(
 
     user = await _get_or_create_user(user_info, session)
     bind_request_logging_context(user_id=user.id)
+    set_current_user_id(user.id)
     return _orm_to_user_model(user)
 
 
@@ -147,6 +149,7 @@ async def optional_auth(
 
     user = await _get_or_create_user(user_info, session)
     bind_request_logging_context(user_id=user.id)
+    set_current_user_id(user.id)
     return _orm_to_user_model(user)
 
 

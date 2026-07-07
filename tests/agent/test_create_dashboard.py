@@ -2,9 +2,8 @@
 
 from unittest.mock import AsyncMock, patch
 
-import structlog
-
 from src.agent.tools.create_dashboard import create_dashboard
+from src.shared.request_context import bound_user_id
 
 
 def _content(command):
@@ -31,7 +30,7 @@ async def test_create_dashboard_from_state_aoi():
         patch(
             "src.api.repositories.dashboard_writer.create_dashboard", create
         ),
-        structlog.contextvars.bound_contextvars(user_id="user-1"),
+        bound_user_id("user-1"),
     ):
         command = await create_dashboard.coroutine(
             state=_state(), tool_call_id="t1"
@@ -68,7 +67,7 @@ async def test_create_dashboard_explicit_name():
         patch(
             "src.api.repositories.dashboard_writer.create_dashboard", create
         ),
-        structlog.contextvars.bound_contextvars(user_id="user-1"),
+        bound_user_id("user-1"),
     ):
         await create_dashboard.coroutine(
             name="Forest monitoring", state=_state(), tool_call_id="t1"
@@ -86,7 +85,7 @@ async def test_create_dashboard_requires_user():
 
 
 async def test_create_dashboard_requires_aoi():
-    with structlog.contextvars.bound_contextvars(user_id="user-1"):
+    with bound_user_id("user-1"):
         command = await create_dashboard.coroutine(state={}, tool_call_id="t1")
     assert command.update["messages"][0].status == "error"
     assert "No area selected" in _content(command)
@@ -107,7 +106,7 @@ async def test_create_dashboard_rejects_multi_aoi_selection():
             "name": "Argentina",
         },
     ]
-    with structlog.contextvars.bound_contextvars(user_id="user-1"):
+    with bound_user_id("user-1"):
         command = await create_dashboard.coroutine(
             state=_state(aois=aois, name="Brazil and Argentina"),
             tool_call_id="t1",

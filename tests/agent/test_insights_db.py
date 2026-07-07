@@ -9,7 +9,6 @@ replacement + provenance preservation in `update_insight`.
 from datetime import datetime
 from uuid import uuid4
 
-import structlog
 from sqlalchemy import func, select
 
 from src.agent.subagents.analyst.charts.model import Insight, InsightChart
@@ -17,6 +16,7 @@ from src.agent.tools.search_insights import _search_insights
 from src.agent.tools.update_insight_display import _load_editable_insight
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.api.repositories.insight_writer import update_insight
+from src.shared.request_context import bound_user_id
 from tests.conftest import async_session_maker
 
 
@@ -91,7 +91,7 @@ async def test_search_returns_own_and_public_only(user, user_ds):
         user_id=None, text="Ownerless Amazon CLI insight."
     )
 
-    with structlog.contextvars.bound_contextvars(user_id=user.id):
+    with bound_user_id(user.id):
         rows = await _search_insights("amazon")
 
     assert {row.id for row in rows} == {own, theirs_public}
@@ -112,7 +112,7 @@ async def test_invisible_rows_do_not_consume_the_limit(user, user_ds):
             created_at=datetime(2026, 6, day),
         )
 
-    with structlog.contextvars.bound_contextvars(user_id=user.id):
+    with bound_user_id(user.id):
         rows = await _search_insights("amazon", limit=1)
 
     assert [row.id for row in rows] == [own]
@@ -126,7 +126,7 @@ async def test_search_matches_chart_title_and_data(user):
         chart_data=[{"country": "Brazil", "fires": 120}],
     )
 
-    with structlog.contextvars.bound_contextvars(user_id=user.id):
+    with bound_user_id(user.id):
         by_title = await _search_insights("para fires")
         by_data = await _search_insights("brazil")
 
@@ -141,7 +141,7 @@ async def test_load_editable_insight_owner_only(user, user_ds):
     )
     ownerless = await _insert_insight(user_id=None, text="Ownerless.")
 
-    with structlog.contextvars.bound_contextvars(user_id=user.id):
+    with bound_user_id(user.id):
         assert (await _load_editable_insight(str(own))).id == own
         assert await _load_editable_insight(str(theirs)) is None
         assert await _load_editable_insight(str(ownerless)) is None
