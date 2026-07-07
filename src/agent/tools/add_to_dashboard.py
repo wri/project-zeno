@@ -117,11 +117,19 @@ async def add_to_dashboard(
             tool_call_id,
         )
 
-    widget_id = await dashboard_writer.add_widget(
-        str(target_dashboard),
-        widget_type="insight",
-        insight_id=str(target_insight),
-    )
+    try:
+        widget_id = await dashboard_writer.add_widget(
+            str(target_dashboard),
+            widget_type="insight",
+            insight_id=str(target_insight),
+        )
+    except dashboard_writer.DuplicateInsightWidgetError:
+        return error_command(
+            f"Insight {target_insight} is already on dashboard "
+            f"'{dashboard.name}' ({dashboard.id}) — nothing to add. Tell "
+            "the user it is already there; do not retry.",
+            tool_call_id,
+        )
     if widget_id is None:
         return error_command(
             f"Dashboard {target_dashboard} disappeared before the insight "

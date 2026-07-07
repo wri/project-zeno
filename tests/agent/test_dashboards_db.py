@@ -10,6 +10,7 @@ multiple AOIs (portfolio-ready schema).
 
 from uuid import UUID, uuid4
 
+import pytest
 from sqlalchemy import select
 
 from src.agent.tools.add_to_dashboard import add_to_dashboard
@@ -202,6 +203,79 @@ async def test_map_widget_eoapi_tile_url_persisted_host_less(user):
         "dataset_name": "Tree cover loss",
         "tile_path": "/raster/tiles/{z}/{x}/{y}.png?tcd=30",
     }
+
+
+async def test_add_widget_same_insight_twice_raises(user):
+    """The partial unique index makes insight adds idempotent: a retry
+    (agent after an ambiguous error, REST after a dropped response) raises
+    instead of silently duplicating the widget."""
+    dashboard_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Paraná", aois=[PARANA]
+    )
+    other_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Other", aois=[PARANA]
+    )
+    insight_id = await _insert_insight(user_id=user.id)
+
+    first = await dashboard_writer.add_widget(
+        dashboard_id, widget_type="insight", insight_id=str(insight_id)
+    )
+    assert first is not None
+
+    with pytest.raises(dashboard_writer.DuplicateInsightWidgetError):
+        await dashboard_writer.add_widget(
+            dashboard_id, widget_type="insight", insight_id=str(insight_id)
+        )
+
+    # Only insight widgets dedupe; the same insight on another dashboard and
+    # additional map widgets are fine.
+    assert (
+        await dashboard_writer.add_widget(
+            other_id, widget_type="insight", insight_id=str(insight_id)
+        )
+        is not None
+    )
+    for _ in range(2):
+        assert (
+            await dashboard_writer.add_widget(
+                dashboard_id,
+                widget_type="map",
+                config={"dataset": {"tile_url": "https://t/{z}"}},
+            )
+            is not None
+        )
+
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    assert len(row.widgets) == 3  # one insight + two maps
+
+
+async def test_add_to_dashboard_tool_reports_duplicate(user):
+    dashboard_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Paraná", aois=[PARANA]
+    )
+    insight_id = await _insert_insight(user_id=user.id)
+
+    with bound_user_id(user.id):
+        first = await add_to_dashboard.coroutine(
+            insight_id=str(insight_id),
+            dashboard_id=dashboard_id,
+            state={},
+            tool_call_id="t1",
+        )
+        again = await add_to_dashboard.coroutine(
+            insight_id=str(insight_id),
+            dashboard_id=dashboard_id,
+            state={},
+            tool_call_id="t2",
+        )
+
+    assert first.update["messages"][0].status == "success"
+    message = again.update["messages"][0]
+    assert message.status == "error"
+    assert "already on dashboard" in message.content
+
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    assert len(row.widgets) == 1
 
 
 async def test_add_to_dashboard_tool_owner_only_edit(user, user_ds):

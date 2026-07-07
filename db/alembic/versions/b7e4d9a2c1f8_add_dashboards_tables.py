@@ -101,6 +101,15 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
+    # An insight appears on a dashboard at most once, so retries cannot
+    # duplicate widgets. Partial: map/text widgets (insight_id NULL) exempt.
+    op.create_index(
+        "uq_dashboard_widgets_dashboard_insight",
+        "dashboard_widgets",
+        ["dashboard_id", "insight_id"],
+        unique=True,
+        postgresql_where=sa.text("widget_type = 'insight'"),
+    )
 
 
 def downgrade() -> None:

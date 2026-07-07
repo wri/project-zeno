@@ -477,7 +477,30 @@ async def test_map_widget_config_accepted(client, auth_override):
     assert all(w["insight"] is None for w in widgets)
 
 
-@pytest.mark.asyncio
+async def test_add_same_insight_widget_twice_conflicts(client, auth_override):
+    """A retried POST cannot duplicate an insight widget: the second add
+    of the same insight to the same dashboard is a 409."""
+    user = await _create_user("widget-duplicate")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    insight = await _create_insight(user_id=user.id)
+
+    url = f"/api/dashboards/{dashboard['id']}/widgets"
+    body = {"widget_type": "insight", "insight_id": str(insight.id)}
+
+    first = await client.post(url, headers=AUTH, json=body)
+    assert first.status_code == 201
+
+    again = await client.post(url, headers=AUTH, json=body)
+    assert again.status_code == 409
+    assert "already on this dashboard" in again.json()["detail"]
+
+    rendered = await client.get(
+        f"/api/dashboards/{dashboard['id']}", headers=AUTH
+    )
+    assert len(rendered.json()["widgets"]) == 1
+
+
 async def test_map_widget_eoapi_tile_url_follows_host_rotation(
     client, auth_override, monkeypatch
 ):

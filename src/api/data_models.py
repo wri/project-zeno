@@ -340,6 +340,19 @@ class DashboardWidgetOrm(Base):
 
     __tablename__ = "dashboard_widgets"
 
+    # An insight appears on a dashboard at most once, enforced at the DB so
+    # retries (agent after an ambiguous error, REST client after a dropped
+    # response) cannot duplicate widgets. Map/text widgets are exempt.
+    __table_args__ = (
+        Index(
+            "uq_dashboard_widgets_dashboard_insight",
+            "dashboard_id",
+            "insight_id",
+            unique=True,
+            postgresql_where=text("widget_type = 'insight'"),
+        ),
+    )
+
     id = Column(
         PostgresUUID,
         primary_key=True,

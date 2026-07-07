@@ -272,13 +272,19 @@ async def add_widget(
         ):
             raise HTTPException(status_code=404, detail="Insight not found")
 
-    await dashboard_writer.add_widget(
-        dashboard_id,
-        widget_type=body.widget_type,
-        insight_id=str(body.insight_id) if body.insight_id else None,
-        config=body.config,
-        position=body.position,
-    )
+    try:
+        await dashboard_writer.add_widget(
+            dashboard_id,
+            widget_type=body.widget_type,
+            insight_id=str(body.insight_id) if body.insight_id else None,
+            config=body.config,
+            position=body.position,
+        )
+    except dashboard_writer.DuplicateInsightWidgetError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="insight is already on this dashboard",
+        )
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
 

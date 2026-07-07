@@ -11,6 +11,7 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from src.api.data_models import (
@@ -24,6 +25,22 @@ from src.shared.logging_config import get_logger
 from src.shared.tile_urls import relativize_widget_config
 
 logger = get_logger(__name__)
+
+
+class DuplicateInsightWidgetError(Exception):
+    """The dashboard already has a widget for this insight.
+
+    Raised by ``add_widget`` when the partial unique index on
+    ``(dashboard_id, insight_id)`` rejects the insert — the signal that a
+    retry (agent or REST) is re-adding rather than adding.
+    """
+
+    def __init__(self, dashboard_id: str, insight_id: str):
+        self.dashboard_id = dashboard_id
+        self.insight_id = insight_id
+        super().__init__(
+            f"insight {insight_id} is already on dashboard {dashboard_id}"
+        )
 
 
 def _parse_uuid(value) -> Optional[UUID]:
@@ -141,7 +158,19 @@ async def add_widget(
             position=position,
         )
         session.add(widget)
-        await session.commit()
+        try:
+            await session.commit()
+        except IntegrityError as exc:
+            if "uq_dashboard_widgets_dashboard_insight" not in str(exc.orig):
+                raise
+            logger.warning(
+                "dashboard_widget_duplicate",
+                dashboard_id=str(target),
+                insight_id=insight_id,
+            )
+            raise DuplicateInsightWidgetError(
+                str(target), str(insight_id)
+            ) from exc
         widget_id = str(widget.id)
 
     logger.info(
