@@ -41,6 +41,7 @@ from src.api.schemas import (
 )
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
+from src.shared.tile_urls import absolutize_widget_config
 
 logger = get_logger(__name__)
 
@@ -81,7 +82,7 @@ def _row_to_response(
                 position=widget.position,
                 widget_type=widget.widget_type,
                 insight_id=widget.insight_id,
-                config=widget.config or {},
+                config=absolutize_widget_config(widget.config) or {},
                 created_at=widget.created_at,
                 insight=(
                     _insight_row_to_response(insights_by_id[widget.insight_id])

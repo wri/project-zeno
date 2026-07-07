@@ -21,6 +21,7 @@ from src.api.data_models import (
 )
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
+from src.shared.tile_urls import relativize_widget_config
 
 logger = get_logger(__name__)
 
@@ -136,7 +137,7 @@ async def add_widget(
             dashboard_id=target,
             widget_type=widget_type,
             insight_id=insight_uuid,
-            config=config or {},
+            config=relativize_widget_config(config) or {},
             position=position,
         )
         session.add(widget)
@@ -170,7 +171,7 @@ async def update_widget(
         if position is not None:
             widget.position = position
         if config is not None:
-            widget.config = config
+            widget.config = relativize_widget_config(config)
         await session.commit()
 
     logger.info("dashboard_widget_updated", widget_id=str(target))

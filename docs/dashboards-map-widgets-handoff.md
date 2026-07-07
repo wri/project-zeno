@@ -61,6 +61,15 @@ reuse that layer-rendering code.
 explorer renders when this dataset is selected in chat. `context_layer` names
 which entry of `context_layers` is active; render it like the explorer does.
 
+Storage note (backend-internal, no frontend action): tile URLs on the eoapi
+host are persisted as a relative `tile_path` and reassembled against the
+currently configured host on every read, so an eoapi host rotation is a
+config change rather than a breakage of existing widgets. API responses
+always carry the absolute `tile_url` shown above; a `tile_path` key may also
+appear in the config and can be ignored. Imagery mosaics live on the GFW
+tiles host and are stored verbatim (their `mosaic_id` allows re-derivation
+if that host ever moves).
+
 ### Imagery map widget
 
 ```json

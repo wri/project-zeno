@@ -20,6 +20,7 @@ from src.api.data_models import (
     InsightOrm,
 )
 from src.api.repositories import dashboard_writer
+from src.shared.config import SharedSettings
 from src.shared.request_context import bound_user_id
 from tests.conftest import async_session_maker
 
@@ -173,6 +174,34 @@ async def test_map_widget_persists_config(user):
     assert widget.widget_type == "map"
     assert widget.insight_id is None
     assert widget.config == config
+
+
+async def test_map_widget_eoapi_tile_url_persisted_host_less(user):
+    # Tile URLs on the configured eoapi host are stored as a relative
+    # tile_path so a host rotation (a config change) never orphans persisted
+    # widgets; the API read path prepends the current host again.
+    base = SharedSettings.eoapi_base_url.rstrip("/")
+    dashboard_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Paraná", aois=[PARANA]
+    )
+    config = {
+        "default_view": "map",
+        "dataset": {
+            "dataset_name": "Tree cover loss",
+            "tile_url": f"{base}/raster/tiles/{{z}}/{{x}}/{{y}}.png?tcd=30",
+        },
+    }
+
+    await dashboard_writer.add_widget(
+        dashboard_id, widget_type="map", config=config
+    )
+
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    (widget,) = row.widgets
+    assert widget.config["dataset"] == {
+        "dataset_name": "Tree cover loss",
+        "tile_path": "/raster/tiles/{z}/{x}/{y}.png?tcd=30",
+    }
 
 
 async def test_add_to_dashboard_tool_owner_only_edit(user, user_ds):

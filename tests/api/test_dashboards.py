@@ -5,6 +5,7 @@ import uuid
 import pytest
 
 from src.api.data_models import InsightOrm, UserOrm
+from src.shared.config import SharedSettings
 from tests.conftest import async_session_maker
 
 PARANA = {
@@ -474,6 +475,46 @@ async def test_map_widget_config_accepted(client, auth_override):
     widgets = rendered.json()["widgets"]
     assert [w["config"] for w in widgets] == [dataset_config, imagery_config]
     assert all(w["insight"] is None for w in widgets)
+
+
+@pytest.mark.asyncio
+async def test_map_widget_eoapi_tile_url_follows_host_rotation(
+    client, auth_override, monkeypatch
+):
+    """eoapi tile URLs are persisted host-less and reassembled per request,
+    so rotating the tile host (a config change) re-points every existing
+    map widget instead of orphaning it browser-side."""
+    user = await _create_user("map-widget-rotate")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+
+    base = SharedSettings.eoapi_base_url.rstrip("/")
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={
+            "widget_type": "map",
+            "config": {
+                "default_view": "map",
+                "dataset": {
+                    "dataset_name": "Tree cover loss",
+                    "tile_url": f"{base}/raster/tiles/{{z}}/{{x}}/{{y}}.png",
+                },
+            },
+        },
+    )
+    assert response.status_code == 201
+
+    monkeypatch.setattr(
+        SharedSettings, "eoapi_base_url", "https://eoapi-next.example.org"
+    )
+    rendered = await client.get(
+        f"/api/dashboards/{dashboard['id']}", headers=AUTH
+    )
+    (widget,) = rendered.json()["widgets"]
+    assert widget["config"]["dataset"]["tile_url"] == (
+        "https://eoapi-next.example.org/raster/tiles/{z}/{x}/{y}.png"
+    )
 
 
 @pytest.mark.asyncio
