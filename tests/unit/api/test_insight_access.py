@@ -3,10 +3,13 @@
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import or_
 
+from src.api.data_models import InsightOrm
 from src.api.repositories.insight_access import (
     is_editable_by_user,
     is_visible_to_user,
+    visible_insights_clause,
 )
 
 
@@ -43,3 +46,17 @@ def test_is_visible_to_user(row, user_id, visible):
 )
 def test_is_editable_by_user(row, user_id, editable):
     assert is_editable_by_user(row, user_id) is editable
+
+
+def test_visible_clause_with_user_selects_public_or_own():
+    expected = or_(
+        InsightOrm.is_public.is_(True),
+        InsightOrm.user_id == "me",
+    )
+    assert visible_insights_clause("me").compare(expected)
+
+
+def test_visible_clause_without_user_selects_public_only():
+    expected = InsightOrm.is_public.is_(True)
+    assert visible_insights_clause(None).compare(expected)
+    assert visible_insights_clause("").compare(expected)
