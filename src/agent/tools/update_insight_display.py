@@ -14,8 +14,6 @@ place and pushed back onto state so the frontend re-renders it.
 from typing import Annotated, Dict, Optional
 from uuid import UUID
 
-import structlog
-from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
@@ -30,6 +28,11 @@ from src.agent.subagents.analyst.display_reviser import (
     RevisedInsight,
 )
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.common import (
+    current_user_id,
+    error_command,
+    insight_updated_command,
+)
 from src.api.data_models import InsightOrm
 from src.api.repositories.insight_access import is_editable_by_user
 from src.api.repositories.insight_writer import update_insight
@@ -39,20 +42,6 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def _error_command(message: str, tool_call_id: Optional[str]) -> Command:
-    return Command(
-        update={
-            "messages": [
-                ToolMessage(
-                    content=message,
-                    tool_call_id=tool_call_id,
-                    status="error",
-                )
-            ]
-        }
-    )
-
-
 async def _load_editable_insight(insight_id: str) -> Optional[InsightOrm]:
     """Load an insight (with charts) the current user is allowed to edit.
 
@@ -60,7 +49,6 @@ async def _load_editable_insight(insight_id: str) -> Optional[InsightOrm]:
     owner-less insights are read-only; without an authenticated user nothing
     is editable. Malformed ids are treated as not found.
     """
-    user_id = structlog.contextvars.get_contextvars().get("user_id")
     try:
         target = UUID(insight_id)
     except ValueError:
@@ -72,7 +60,7 @@ async def _load_editable_insight(insight_id: str) -> Optional[InsightOrm]:
             .where(InsightOrm.id == target)
         )
         row = result.scalar_one_or_none()
-    if row is None or not is_editable_by_user(row, user_id):
+    if row is None or not is_editable_by_user(row, current_user_id()):
         return None
     return row
 
@@ -156,7 +144,7 @@ async def update_insight_display(
     """
     target_id = insight_id or (state or {}).get("insight_id")
     if not target_id:
-        return _error_command(
+        return error_command(
             "No insight to update. Generate an insight first, or pass an "
             "insight_id.",
             tool_call_id,
@@ -166,58 +154,36 @@ async def update_insight_display(
 
     row = await _load_editable_insight(str(target_id))
     if row is None:
-        return _error_command(
+        return error_command(
             f"Insight {target_id} not found or not editable.", tool_call_id
         )
 
-    current = Insight(
-        charts=[InsightChart.from_orm_row(c) for c in (row.charts or [])],
-        primary_insight=row.insight_text,
-        follow_up_suggestions=row.follow_up_suggestions or [],
-    )
-
+    current = Insight.from_orm_row(row)
     revised = await InsightDisplayReviser().revise(current, instruction)
 
     try:
         updated = _apply_revision(current.charts, revised)
     except ValueError as exc:
         logger.warning("update_insight_display: invalid revision: %s", exc)
-        return _error_command(
+        return error_command(
             f"Could not apply that change: {exc}", tool_call_id
         )
 
     if not await update_insight(str(target_id), updated):
-        return _error_command(
+        return error_command(
             f"Insight {target_id} disappeared before it could be updated.",
             tool_call_id,
         )
 
     chart_titles = ", ".join(c.title for c in updated.charts)
-    return Command(
-        update={
-            "insight_id": str(target_id),
-            "insight": updated.primary_insight,
-            "follow_up_suggestions": updated.follow_up_suggestions,
-            "charts_data": [c.to_frontend_dict() for c in updated.charts],
-            "messages": [
-                ToolMessage(
-                    content=(
-                        f"Updated insight {target_id}. "
-                        f"Charts: {chart_titles}.\n\n"
-                        f"Summary: {updated.primary_insight}"
-                    ),
-                    tool_call_id=tool_call_id,
-                    status="success",
-                    # Distinct from "human_feedback" (a new insight) so the
-                    # frontend replaces the existing insight in place / re-fetches
-                    # /api/insights/{insight_id} rather than rendering a new card.
-                    response_metadata={
-                        "msg_type": "insight_updated",
-                        "insight_id": str(target_id),
-                    },
-                )
-            ],
-        }
+    return insight_updated_command(
+        target_id,
+        updated,
+        (
+            f"Updated insight {target_id}. Charts: {chart_titles}.\n\n"
+            f"Summary: {updated.primary_insight}"
+        ),
+        tool_call_id,
     )
 
 

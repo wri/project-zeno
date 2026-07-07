@@ -11,8 +11,6 @@ same access rules the API applies.
 from typing import Annotated, Dict, Optional
 from uuid import UUID
 
-import structlog
-from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
@@ -20,9 +18,15 @@ from langgraph.types import Command
 from sqlalchemy import select
 
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.common import (
+    current_user_id,
+    dashboard_updated_command,
+    error_command,
+    load_editable_dashboard,
+    resolve_dashboard_id,
+)
 from src.api.data_models import InsightOrm
 from src.api.repositories import dashboard_writer
-from src.api.repositories.dashboard_access import is_editable_by_user
 from src.api.repositories.insight_access import is_visible_to_user
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
@@ -30,27 +34,11 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def _error_command(message: str, tool_call_id: Optional[str]) -> Command:
-    return Command(
-        update={
-            "messages": [
-                ToolMessage(
-                    content=message,
-                    tool_call_id=tool_call_id,
-                    status="error",
-                )
-            ]
-        }
-    )
-
-
 async def _load_visible_insight(insight_id: str) -> Optional[InsightOrm]:
     """Load an insight the current user may see (own + public rule).
 
-    Malformed ids are treated as not found. The user id comes from the
-    request-scoped logging context bound by the auth dependency.
+    Malformed ids are treated as not found.
     """
-    user_id = structlog.contextvars.get_contextvars().get("user_id")
     try:
         target = UUID(insight_id)
     except (ValueError, TypeError):
@@ -60,9 +48,16 @@ async def _load_visible_insight(insight_id: str) -> Optional[InsightOrm]:
             select(InsightOrm).where(InsightOrm.id == target)
         )
         row = result.scalar_one_or_none()
-    if row is None or not is_visible_to_user(row, user_id):
+    if row is None or not is_visible_to_user(row, current_user_id()):
         return None
     return row
+
+
+def _insight_summary(insight: InsightOrm, max_chars: int = 200) -> str:
+    summary = (insight.insight_text or "").strip()
+    if len(summary) > max_chars:
+        summary = summary[:max_chars] + "…"
+    return summary
 
 
 @tool("add_to_dashboard")
@@ -81,22 +76,18 @@ async def add_to_dashboard(
     must be one they can see.
     """
     state = state or {}
-    user_id = structlog.contextvars.get_contextvars().get("user_id")
 
     target_insight = insight_id or state.get("insight_id")
     if not target_insight:
-        return _error_command(
+        return error_command(
             "No insight to add. Generate or recall an insight first, or "
             "pass an insight_id.",
             tool_call_id,
         )
 
-    view = state.get("view_context") or {}
-    target_dashboard = (
-        dashboard_id or state.get("dashboard_id") or view.get("dashboard_id")
-    )
+    target_dashboard = resolve_dashboard_id(state, dashboard_id)
     if not target_dashboard:
-        return _error_command(
+        return error_command(
             "No dashboard to add to. Create one with create_dashboard, or "
             "pass a dashboard_id.",
             tool_call_id,
@@ -108,16 +99,16 @@ async def add_to_dashboard(
         dashboard_id=str(target_dashboard),
     )
 
-    dashboard = await dashboard_writer.get_dashboard(str(target_dashboard))
-    if dashboard is None or not is_editable_by_user(dashboard, user_id):
-        return _error_command(
+    dashboard = await load_editable_dashboard(target_dashboard)
+    if dashboard is None:
+        return error_command(
             f"Dashboard {target_dashboard} not found or not editable.",
             tool_call_id,
         )
 
     insight = await _load_visible_insight(str(target_insight))
     if insight is None:
-        return _error_command(
+        return error_command(
             f"Insight {target_insight} not found or not accessible.",
             tool_call_id,
         )
@@ -128,36 +119,20 @@ async def add_to_dashboard(
         insight_id=str(target_insight),
     )
     if widget_id is None:
-        return _error_command(
+        return error_command(
             f"Dashboard {target_dashboard} disappeared before the insight "
             "could be added.",
             tool_call_id,
         )
 
-    summary = (insight.insight_text or "").strip()
-    if len(summary) > 200:
-        summary = summary[:200] + "…"
-    return Command(
-        update={
-            "dashboard_id": str(dashboard.id),
-            "messages": [
-                ToolMessage(
-                    content=(
-                        f"Added insight {target_insight} to dashboard "
-                        f"'{dashboard.name}' ({dashboard.id}).\n"
-                        f"Insight: {summary}"
-                    ),
-                    tool_call_id=tool_call_id,
-                    status="success",
-                    # The dashboard changed on disk: the frontend re-fetches
-                    # /api/dashboards/{id} on this signal.
-                    response_metadata={
-                        "msg_type": "dashboard_updated",
-                        "dashboard_id": str(dashboard.id),
-                    },
-                )
-            ],
-        },
+    return dashboard_updated_command(
+        dashboard.id,
+        (
+            f"Added insight {target_insight} to dashboard "
+            f"'{dashboard.name}' ({dashboard.id}).\n"
+            f"Insight: {_insight_summary(insight)}"
+        ),
+        tool_call_id,
     )
 
 

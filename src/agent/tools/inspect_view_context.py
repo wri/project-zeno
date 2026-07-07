@@ -19,7 +19,6 @@ import json
 from typing import Annotated, Dict, Optional
 from uuid import UUID
 
-import structlog
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
@@ -29,6 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.common import current_user_id
 from src.api.data_models import DashboardOrm, InsightOrm
 from src.api.repositories import dashboard_writer
 from src.api.repositories.dashboard_access import (
@@ -152,7 +152,7 @@ async def _load_insights(insight_ids: list[UUID]) -> list[InsightOrm]:
     """
     if not insight_ids:
         return []
-    user_id = structlog.contextvars.get_contextvars().get("user_id")
+    user_id = current_user_id()
     async with get_session_from_pool() as session:
         result = await session.execute(
             select(InsightOrm)
@@ -216,9 +216,8 @@ async def _load_dashboard(dashboard_id) -> Optional[DashboardOrm]:
     Visibility is the shared `dashboard_access` rule (own + public); rows the
     user may not see are treated the same as missing ones.
     """
-    user_id = structlog.contextvars.get_contextvars().get("user_id")
     row = await dashboard_writer.get_dashboard(dashboard_id)
-    if row is None or not dashboard_is_visible_to_user(row, user_id):
+    if row is None or not dashboard_is_visible_to_user(row, current_user_id()):
         return None
     return row
 

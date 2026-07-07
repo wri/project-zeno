@@ -10,7 +10,6 @@ the frontend renders it as a normal insight card.
 import re
 from typing import Annotated, Optional
 
-import structlog
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
@@ -18,8 +17,13 @@ from langgraph.types import Command
 from sqlalchemy import Text, cast, or_, select
 from sqlalchemy.orm import selectinload
 
-from src.agent.subagents.analyst.charts.model import Insight, InsightChart
+from src.agent.subagents.analyst.charts.model import Insight
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.common import (
+    current_user_id,
+    error_command,
+    insight_updated_command,
+)
 from src.api.data_models import InsightChartOrm, InsightOrm
 from src.api.repositories.insight_access import visible_insights_clause
 from src.shared.database import get_session_from_pool
@@ -62,23 +66,19 @@ def _score(row: InsightOrm, terms: list[str], phrase: str) -> int:
     return score
 
 
-async def _search_insights(query: str, limit: int = 25) -> list[InsightOrm]:
-    """Fetch candidate insights the user may see whose summary matches `query`.
-
-    Search spans ALL of the user's conversations — it is deliberately not scoped
-    to the current thread. Visibility is the shared rule from `insight_access`
-    (own + public), applied in SQL so invisible rows never consume the limit.
-    Matching is an ILIKE (per term or full phrase) across the summary, the
-    chart titles, and the chart data text — so place names and datasets that
-    only show up in a title or a data value are still found. Ranking is in Python.
-    """
-    terms = _terms(query)
-    user_id = structlog.contextvars.get_contextvars().get("user_id")
-
-    patterns = [f"%{_escape_like(t)}%" for t in terms]
+def _like_patterns(query: str) -> list[str]:
+    """ILIKE patterns for a query: one per term, plus the full phrase."""
+    patterns = [f"%{_escape_like(t)}%" for t in _terms(query)]
     if query.strip():
         patterns.append(f"%{_escape_like(query.strip())}%")
-    text_match = or_(
+    return patterns
+
+
+def _text_match_clause(patterns: list[str]):
+    """SQL clause matching any pattern against the summary, the chart titles
+    or the chart data text — so place names and datasets that only show up in
+    a title or a data value are still found."""
+    return or_(
         *[
             cond
             for p in patterns
@@ -96,15 +96,48 @@ async def _search_insights(query: str, limit: int = 25) -> list[InsightOrm]:
         ]
     )
 
+
+async def _search_insights(query: str, limit: int = 25) -> list[InsightOrm]:
+    """Fetch candidate insights the user may see whose summary matches `query`.
+
+    Search spans ALL of the user's conversations — it is deliberately not scoped
+    to the current thread. Visibility is the shared rule from `insight_access`
+    (own + public), applied in SQL so invisible rows never consume the limit.
+    Ranking is in Python.
+    """
     async with get_session_from_pool() as session:
         result = await session.execute(
             select(InsightOrm)
             .options(selectinload(InsightOrm.charts))
-            .where(visible_insights_clause(user_id), text_match)
+            .where(
+                visible_insights_clause(current_user_id()),
+                _text_match_clause(_like_patterns(query)),
+            )
             .order_by(InsightOrm.created_at.desc())
             .limit(limit)
         )
         return list(result.scalars().all())
+
+
+def _best_match(rows: list[InsightOrm], query: str) -> InsightOrm:
+    """The highest-scoring candidate; ties go to the most recent insight."""
+    terms = _terms(query)
+    return max(rows, key=lambda r: (_score(r, terms, query), r.created_at))
+
+
+def _recalled_message(insight_id, insight: Insight, query: str) -> str:
+    """The recall report to the model — including the stop instruction, since
+    the recalled insight is already on screen and terminal for this turn."""
+    chart_titles = ", ".join(c.title for c in insight.charts) or "(no charts)"
+    return (
+        f"Found a past insight ({insight_id}) matching '{query}'.\n"
+        f"Charts: {chart_titles}.\n\n"
+        f"Summary: {insight.primary_insight}\n\n"
+        "STOP HERE. This insight already exists and is now on screen. Do "
+        "NOT call pull_data, generate_insights or any other tool. Reply to "
+        "the user with a one-line summary of this recalled insight and "
+        "nothing else."
+    )
 
 
 @tool("search_insights")
@@ -125,20 +158,10 @@ async def search_insights(
     # Without at least one usable pattern the ILIKE degenerates to '%%' and
     # "matches" every insight — refuse instead of recalling an arbitrary one.
     if not _terms(query) and len(query.strip()) < 3:
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(
-                        content=(
-                            "Query too short to search past insights. Describe "
-                            "the insight to recall, e.g. a place, dataset or "
-                            "phrase from its summary."
-                        ),
-                        tool_call_id=tool_call_id,
-                        status="error",
-                    )
-                ]
-            }
+        return error_command(
+            "Query too short to search past insights. Describe the insight "
+            "to recall, e.g. a place, dataset or phrase from its summary.",
+            tool_call_id,
         )
 
     rows = await _search_insights(query)
@@ -155,51 +178,19 @@ async def search_insights(
             }
         )
 
-    terms = _terms(query)
-    best = max(rows, key=lambda r: (_score(r, terms, query), r.created_at))
+    best = _best_match(rows, query)
     logger.info(
         "search_insights matched",
         insight_id=str(best.id),
         candidates=len(rows),
     )
 
-    insight = Insight(
-        charts=[InsightChart.from_orm_row(c) for c in (best.charts or [])],
-        primary_insight=best.insight_text,
-        follow_up_suggestions=best.follow_up_suggestions or [],
-    ).stamp_insight()
-
-    chart_titles = ", ".join(c.title for c in insight.charts) or "(no charts)"
-    return Command(
-        update={
-            "insight_id": str(best.id),
-            "insight": insight.primary_insight,
-            "follow_up_suggestions": insight.follow_up_suggestions,
-            "charts_data": [c.to_frontend_dict() for c in insight.charts],
-            "messages": [
-                ToolMessage(
-                    content=(
-                        f"Found a past insight ({best.id}) matching '{query}'.\n"
-                        f"Charts: {chart_titles}.\n\n"
-                        f"Summary: {insight.primary_insight}\n\n"
-                        "STOP HERE. This insight already exists and is now on "
-                        "screen. Do NOT call pull_data, generate_insights or any "
-                        "other tool. Reply to the user with a one-line summary "
-                        "of this recalled insight and nothing else."
-                    ),
-                    tool_call_id=tool_call_id,
-                    status="success",
-                    # Same signal as update_insight_display: the insight already
-                    # exists, so the frontend re-fetches /api/insights/{id} and
-                    # shows it (replacing in place, or rendering it if not yet
-                    # mounted) rather than treating it as a brand-new analysis.
-                    response_metadata={
-                        "msg_type": "insight_updated",
-                        "insight_id": str(best.id),
-                    },
-                )
-            ],
-        },
+    insight = Insight.from_orm_row(best).stamp_insight()
+    return insight_updated_command(
+        best.id,
+        insight,
+        _recalled_message(best.id, insight, query),
+        tool_call_id,
     )
 
 

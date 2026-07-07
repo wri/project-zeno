@@ -12,23 +12,24 @@ copied, so the prose fields on the dataset state (description, methodology,
 instructions, ...) can never leak into the database.
 """
 
-from typing import Annotated, Dict, Optional
+from typing import Annotated, Callable, Dict, NamedTuple, Optional
 
-import structlog
-from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.common import (
+    dashboard_updated_command,
+    error_command,
+    load_editable_dashboard,
+    resolve_dashboard_id,
+)
 from src.api.repositories import dashboard_writer
-from src.api.repositories.dashboard_access import is_editable_by_user
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-_LAYER_KINDS = ("dataset", "imagery")
 
 # Render-relevant fields of the imagery state (ImageryState) — all of it.
 _IMAGERY_KEYS = (
@@ -43,20 +44,6 @@ _IMAGERY_KEYS = (
     "max_cloud_cover",
     "aoi_names",
 )
-
-
-def _error_command(message: str, tool_call_id: Optional[str]) -> Command:
-    return Command(
-        update={
-            "messages": [
-                ToolMessage(
-                    content=message,
-                    tool_call_id=tool_call_id,
-                    status="error",
-                )
-            ]
-        }
-    )
 
 
 def _dataset_config(state: dict) -> Optional[dict]:
@@ -99,6 +86,56 @@ def _imagery_config(state: dict) -> Optional[dict]:
     return {key: imagery.get(key) for key in _IMAGERY_KEYS}
 
 
+def _dataset_summary(snapshot: dict) -> str:
+    return (
+        f"map widget for dataset '{snapshot['dataset_name']}' "
+        f"({snapshot['start_date']}–{snapshot['end_date']})"
+    )
+
+
+def _imagery_summary(snapshot: dict) -> str:
+    return (
+        f"Sentinel-2 imagery map widget (around "
+        f"{snapshot['target_date']}, areas: "
+        f"{', '.join(snapshot['aoi_names'] or [])})"
+    )
+
+
+class _LayerKind(NamedTuple):
+    """Everything layer-specific about a map widget, in one row."""
+
+    snapshot: Callable[[dict], Optional[dict]]
+    summary: Callable[[dict], str]
+    missing_message: str
+
+
+_LAYER_KINDS = {
+    "dataset": _LayerKind(
+        snapshot=_dataset_config,
+        summary=_dataset_summary,
+        missing_message=(
+            "No dataset layer selected. Run pick_dataset first, then add "
+            "the layer to the dashboard."
+        ),
+    ),
+    "imagery": _LayerKind(
+        snapshot=_imagery_config,
+        summary=_imagery_summary,
+        missing_message=(
+            "No imagery built this conversation. Run show_imagery first, "
+            "then add it to the dashboard."
+        ),
+    ),
+}
+
+
+def _widget_config(layer: str, snapshot: dict, title: Optional[str]) -> dict:
+    config: dict = {"default_view": "map", layer: snapshot}
+    if title:
+        config["title"] = title
+    return config
+
+
 @tool("add_map_widget")
 async def add_map_widget(
     layer: str,
@@ -117,36 +154,20 @@ async def add_map_widget(
     dashboard's area. Only dashboards the user owns can be edited.
     """
     state = state or {}
-    user_id = structlog.contextvars.get_contextvars().get("user_id")
 
-    if layer not in _LAYER_KINDS:
-        return _error_command(
+    kind = _LAYER_KINDS.get(layer)
+    if kind is None:
+        return error_command(
             "layer must be 'dataset' or 'imagery'.", tool_call_id
         )
 
-    if layer == "dataset":
-        snapshot = _dataset_config(state)
-        if snapshot is None:
-            return _error_command(
-                "No dataset layer selected. Run pick_dataset first, then "
-                "add the layer to the dashboard.",
-                tool_call_id,
-            )
-    else:
-        snapshot = _imagery_config(state)
-        if snapshot is None:
-            return _error_command(
-                "No imagery built this conversation. Run show_imagery "
-                "first, then add it to the dashboard.",
-                tool_call_id,
-            )
+    snapshot = kind.snapshot(state)
+    if snapshot is None:
+        return error_command(kind.missing_message, tool_call_id)
 
-    view = state.get("view_context") or {}
-    target_dashboard = (
-        dashboard_id or state.get("dashboard_id") or view.get("dashboard_id")
-    )
+    target_dashboard = resolve_dashboard_id(state, dashboard_id)
     if not target_dashboard:
-        return _error_command(
+        return error_command(
             "No dashboard to add to. Create one with create_dashboard, or "
             "pass a dashboard_id.",
             tool_call_id,
@@ -158,60 +179,32 @@ async def add_map_widget(
         dashboard_id=str(target_dashboard),
     )
 
-    dashboard = await dashboard_writer.get_dashboard(str(target_dashboard))
-    if dashboard is None or not is_editable_by_user(dashboard, user_id):
-        return _error_command(
+    dashboard = await load_editable_dashboard(target_dashboard)
+    if dashboard is None:
+        return error_command(
             f"Dashboard {target_dashboard} not found or not editable.",
             tool_call_id,
         )
 
-    config: dict = {"default_view": "map", layer: snapshot}
-    if title:
-        config["title"] = title
-
     widget_id = await dashboard_writer.add_widget(
         str(target_dashboard),
         widget_type="map",
-        config=config,
+        config=_widget_config(layer, snapshot, title),
     )
     if widget_id is None:
-        return _error_command(
+        return error_command(
             f"Dashboard {target_dashboard} disappeared before the map "
             "widget could be added.",
             tool_call_id,
         )
 
-    if layer == "dataset":
-        summary = (
-            f"map widget for dataset '{snapshot['dataset_name']}' "
-            f"({snapshot['start_date']}–{snapshot['end_date']})"
-        )
-    else:
-        summary = (
-            f"Sentinel-2 imagery map widget (around "
-            f"{snapshot['target_date']}, areas: "
-            f"{', '.join(snapshot['aoi_names'] or [])})"
-        )
-    return Command(
-        update={
-            "dashboard_id": str(dashboard.id),
-            "messages": [
-                ToolMessage(
-                    content=(
-                        f"Added {summary} to dashboard "
-                        f"'{dashboard.name}' ({dashboard.id})."
-                    ),
-                    tool_call_id=tool_call_id,
-                    status="success",
-                    # The dashboard changed on disk: the frontend re-fetches
-                    # /api/dashboards/{id} on this signal.
-                    response_metadata={
-                        "msg_type": "dashboard_updated",
-                        "dashboard_id": str(dashboard.id),
-                    },
-                )
-            ],
-        },
+    return dashboard_updated_command(
+        dashboard.id,
+        (
+            f"Added {kind.summary(snapshot)} to dashboard "
+            f"'{dashboard.name}' ({dashboard.id})."
+        ),
+        tool_call_id,
     )
 
 

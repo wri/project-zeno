@@ -168,3 +168,13 @@ class Insight(BaseModel):
         for chart in self.charts:
             chart.insight = self.primary_insight
         return self
+
+    @classmethod
+    def from_orm_row(cls, row) -> "Insight":
+        """Rebuild the full insight from a persisted `InsightOrm` row
+        (charts relationship loaded): the read twin of `insight_writer`."""
+        return cls(
+            charts=[InsightChart.from_orm_row(c) for c in (row.charts or [])],
+            primary_insight=row.insight_text,
+            follow_up_suggestions=row.follow_up_suggestions or [],
+        )
