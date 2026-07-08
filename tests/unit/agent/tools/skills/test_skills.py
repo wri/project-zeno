@@ -251,3 +251,31 @@ def test_get_prompt_scope_and_policy():
     # only the three recipe skills are advertised
     assert "pick-aoi" not in prompt
     assert "pick-dataset" not in prompt
+
+
+def test_get_prompt_routing_excludes_rows_for_unbound_profiles():
+    """The default profile has no dashboard/show-imagery/search_insights
+    tools bound, so the Routing table must not route to them — it would
+    just send the model into a read_skill/tool call that fails."""
+    from src.agent.graph import get_prompt
+
+    prompt = get_prompt()
+    assert "Dashboard (" not in prompt
+    assert "read skill `dashboard`" not in prompt
+    assert "Imagery (" not in prompt
+    assert "read `show-imagery`" not in prompt
+    assert "Recall a past insight" not in prompt
+    assert "search_insights" not in prompt
+
+
+def test_get_prompt_routing_includes_rows_when_tools_bound():
+    from src.agent.agent_config import EXPERIMENTAL_PROFILE, default_registry
+    from src.agent.graph import get_prompt
+
+    config = default_registry.resolve(EXPERIMENTAL_PROFILE)
+    prompt = get_prompt(config=config)
+    assert "Dashboard (" in prompt
+    assert "read skill `dashboard`" in prompt
+    assert "Imagery (" in prompt
+    assert "read `show-imagery`" in prompt
+    assert "Recall a past insight" in prompt

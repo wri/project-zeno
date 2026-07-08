@@ -90,7 +90,7 @@ def test_unregistered_page_falls_back_to_generic_breadcrumb():
 # ---------------------------------------------------------------------------
 def test_prompt_section_for_registered_pages():
     assert "map explorer" in prompt_section("map")
-    dashboard = prompt_section("dashboard")
+    dashboard = prompt_section("dashboard", frozenset({"dashboard"}))
     assert "add_to_dashboard" in dashboard
     assert "dashboard's area" in dashboard
     assert "skill `dashboard`" in dashboard
@@ -100,6 +100,20 @@ def test_prompt_section_unknown_is_none():
     assert prompt_section(None) is None
     assert prompt_section("report") is None
     assert prompt_section("") is None
+
+
+def test_prompt_section_drops_skill_mention_when_unavailable():
+    """A profile without the dashboard skill (its required tools aren't all
+    bound) must not be told to read it — read_skill would just refuse."""
+    dashboard = prompt_section("dashboard", frozenset())
+    # The page-level orientation stays; only the skill pointer is gated.
+    assert "add_to_dashboard" in dashboard
+    assert "dashboard's area" in dashboard
+    assert "skill `dashboard`" not in dashboard
+
+
+def test_prompt_section_defaults_to_no_available_skills():
+    assert "skill `dashboard`" not in prompt_section("dashboard")
 
 
 def test_get_prompt_includes_surface_section_only_for_known_pages():
@@ -113,5 +127,17 @@ def test_get_prompt_includes_surface_section_only_for_known_pages():
     assert "add_to_dashboard, which defaults to the dashboard" in dashboard
     # The rest of the prompt is unchanged.
     assert "# Routing" in dashboard
+    # The default profile has no dashboard tools, so the dashboard skill
+    # is unavailable — the surface section must not point at it.
+    assert "skill `dashboard`" not in dashboard
 
     assert "# Current surface" not in get_prompt(page="report")
+
+
+def test_get_prompt_dashboard_surface_names_the_skill_when_available():
+    from src.agent.agent_config import EXPERIMENTAL_PROFILE, default_registry
+    from src.agent.graph import get_prompt
+
+    config = default_registry.resolve(EXPERIMENTAL_PROFILE)
+    dashboard = get_prompt(config=config, page="dashboard")
+    assert "skill `dashboard`" in dashboard

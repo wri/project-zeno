@@ -76,24 +76,35 @@ class ViewPage:
 
     name: str
     session_line: Callable[[dict], str]
-    prompt_section: str
+    # Takes the calling profile's available skill/tool names so it can drop
+    # any "read skill `x`" mention the profile can't actually serve — the
+    # same rule read_skill enforces at call time, applied here so the model
+    # is never routed toward a skill it will just be told "not found" for.
+    prompt_section: Callable[[frozenset[str]], str]
 
 
-_MAP_PROMPT = (
-    "The user is on the map explorer — free exploration of areas and "
-    "layers. 'This area', 'here' or 'what I'm looking at' refer to what is "
-    "on the map: check the session block or call inspect_view_context "
-    "before asking the user for a location."
-)
+def _map_prompt(available: frozenset[str]) -> str:
+    return (
+        "The user is on the map explorer — free exploration of areas and "
+        "layers. 'This area', 'here' or 'what I'm looking at' refer to what "
+        "is on the map: check the session block or call "
+        "inspect_view_context before asking the user for a location."
+    )
 
-_DASHBOARD_PROMPT = (
-    "The user is viewing a dashboard — a persistent collection of insight "
-    "widgets for one area. 'Add this' / 'add it to my dashboard' means "
-    "add_to_dashboard, which defaults to the dashboard on screen. New "
-    "analyses should use the dashboard's area unless the user names another "
-    "place. Call inspect_view_context to see the dashboard's area and "
-    "widgets; read skill `dashboard` for the compose workflow."
-)
+
+def _dashboard_prompt(available: frozenset[str]) -> str:
+    base = (
+        "The user is viewing a dashboard — a persistent collection of "
+        "insight widgets for one area. 'Add this' / 'add it to my "
+        "dashboard' means add_to_dashboard, which defaults to the "
+        "dashboard on screen. New analyses should use the dashboard's area "
+        "unless the user names another place. Call inspect_view_context to "
+        "see the dashboard's area and widgets"
+    )
+    if "dashboard" in available:
+        return base + "; read skill `dashboard` for the compose workflow."
+    return base + "."
+
 
 PAGES: dict[str, ViewPage] = {
     page.name: page
@@ -101,12 +112,12 @@ PAGES: dict[str, ViewPage] = {
         ViewPage(
             name="map",
             session_line=_map_session_line,
-            prompt_section=_MAP_PROMPT,
+            prompt_section=_map_prompt,
         ),
         ViewPage(
             name="dashboard",
             session_line=_dashboard_session_line,
-            prompt_section=_DASHBOARD_PROMPT,
+            prompt_section=_dashboard_prompt,
         ),
     )
 }
@@ -122,9 +133,16 @@ def get_page(view: Optional[dict]) -> Optional[ViewPage]:
     return PAGES.get(page)
 
 
-def prompt_section(page_name: Optional[str]) -> Optional[str]:
-    """System-prompt surface hints for a page name; None when unknown."""
+def prompt_section(
+    page_name: Optional[str], available: frozenset[str] = frozenset()
+) -> Optional[str]:
+    """System-prompt surface hints for a page name; None when unknown.
+
+    ``available`` is the calling profile's skill and tool names (see
+    ``AgentConfig.skills()`` / ``.tool_names()``) — pages use it to drop any
+    skill mention the profile can't actually serve.
+    """
     if not isinstance(page_name, str):
         return None
     page = PAGES.get(page_name)
-    return page.prompt_section if page else None
+    return page.prompt_section(available) if page else None
