@@ -23,7 +23,7 @@ from src.agent.agent_config import (
 from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
 from src.agent.state import AgentState
-from src.agent.tool_spec import set_bound_tool_names
+from src.agent.tool_spec import Gate, set_bound_tool_names
 from src.agent.view_pages import prompt_section
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
@@ -34,7 +34,7 @@ logger = get_logger(__name__)
 # says which namespace the row depends on — ("skill", name) or ("tool", name)
 # — or None for rows served by the core tools every profile binds. Kept
 # module-level so tests can verify every gate resolves to a real skill/tool.
-ROUTING_ROWS: tuple[tuple[Optional[tuple[str, str]], str], ...] = (
+ROUTING_ROWS: tuple[tuple[Gate, str], ...] = (
     (
         None,
         '- Dataset-only (e.g. "pick tcl by driver"): call pick_dataset, '
@@ -112,11 +112,7 @@ def get_prompt(
     surface = prompt_section(page, available)
     surface_block = f"\n# Current surface\n\n{surface}\n" if surface else ""
     routing_block = "\n".join(
-        line
-        for gate, line in ROUTING_ROWS
-        if gate is None
-        or (gate[0] == "skill" and available.has_skill(gate[1]))
-        or (gate[0] == "tool" and available.has_tool(gate[1]))
+        line for gate, line in ROUTING_ROWS if available.allows(gate)
     )
     today = datetime.now().strftime("%Y-%m-%d")
     return f"""You are Global Nature Watch's Geospatial Agent. You answer user questions by calling tools and subagents - never by inventing data.

@@ -1,6 +1,6 @@
 from langchain_core.tools import tool
 
-from src.agent.skills.loader import get_skill, get_skill_body
+from src.agent.skills.loader import get_skill, render_body
 from src.agent.tool_spec import ToolCategory, ToolSpec, bound_tool_names
 from src.shared.logging_config import get_logger
 
@@ -22,10 +22,8 @@ def read_skill(name: str) -> str:
             missing_tools=sorted(missing),
         )
         return f"skill not found: {name}"
-    body = get_skill_body(name)
-    assert body is not None  # skill exists: confirmed by get_skill above
     logger.info("read_skill: loaded skill", skill_name=name)
-    return body
+    return render_body(skill)
 
 
 SPEC = ToolSpec(

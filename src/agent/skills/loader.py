@@ -63,13 +63,16 @@ def get_skill(name: str) -> SkillMeta | None:
     return _SKILLS.get(name)
 
 
+def render_body(skill: SkillMeta) -> str:
+    """A skill's body as handed to the model (capabilities is templated)."""
+    if skill.name == "capabilities":
+        return render_capabilities_body(skill.body)
+    return skill.body
+
+
 def get_skill_body(name: str) -> str | None:
     s = _SKILLS.get(name)
-    if s is None:
-        return None
-    if name == "capabilities":
-        return render_capabilities_body(s.body)
-    return s.body
+    return None if s is None else render_body(s)
 
 
 def all_skills() -> list[SkillMeta]:

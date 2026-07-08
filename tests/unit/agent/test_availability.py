@@ -8,17 +8,19 @@ modes into a test failure:
 - skill and tool names must never collide (a flat name check would conflate
   them — the bug the Availability split exists to prevent),
 - every ROUTING_ROWS gate must resolve to a real skill/tool,
+- every ViewPage skill_pointer must name a real skill,
 - every skill's ``requires:`` entry must name a tool some profile binds.
 """
 
 from src.agent.agent_config import default_registry
 from src.agent.graph import ROUTING_ROWS
 from src.agent.skills import all_skills
+from src.agent.view_pages import PAGES
 
 
 def _all_registered_tool_names() -> frozenset[str]:
     return frozenset().union(
-        *(config.tool_names() for config in default_registry._configs.values())
+        *(config.tool_names() for config in default_registry.configs())
     )
 
 
@@ -40,12 +42,24 @@ def test_routing_gates_resolve_to_real_skills_and_tools():
     for gate, line in ROUTING_ROWS:
         if gate is None:
             continue
-        kind, name = gate
-        assert kind in ("skill", "tool"), f"unknown gate kind in: {line!r}"
+        kind, name = gate  # kind is checked by mypy via the Gate Literal
         universe = skill_names if kind == "skill" else tool_names
         assert (
             name in universe
         ), f"routing row gated on unknown {kind} {name!r}: {line!r}"
+
+
+def test_page_skill_pointers_name_real_skills():
+    """A renamed skill must fail here, not silently strip its pointer from
+    the page's "# Current surface" section."""
+    skill_names = {s.name for s in all_skills()}
+    for page in PAGES.values():
+        if page.skill_pointer is None:
+            continue
+        skill, _ = page.skill_pointer
+        assert (
+            skill in skill_names
+        ), f"page {page.name!r} points at unknown skill {skill!r}"
 
 
 def test_skill_requires_reference_registered_tools():

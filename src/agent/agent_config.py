@@ -121,6 +121,10 @@ class AgentConfigRegistry:
     def register(self, config: AgentConfig) -> None:
         self._configs[config.name] = config
 
+    def configs(self) -> tuple[AgentConfig, ...]:
+        """All registered configs, e.g. for invariant checks across profiles."""
+        return tuple(self._configs.values())
+
     def resolve(self, ff: Optional[str] = None) -> AgentConfig:
         """Return the config for ``ff``, falling back to the default."""
         if ff and ff in self._configs:

@@ -78,34 +78,21 @@ class ViewPage:
 
     name: str
     session_line: Callable[[dict], str]
-    # Takes the calling profile's Availability so it can drop any
-    # "read skill `x`" mention the profile can't actually serve — the
-    # same rule read_skill enforces at call time, applied here so the model
-    # is never routed toward a skill it will just be told "not found" for.
-    prompt_section: Callable[[Availability], str]
+    prompt_base: str
+    # Optional (skill name, suffix sentence) appended to prompt_base only
+    # when the calling profile can serve that skill — the same rule
+    # read_skill enforces at call time, applied here so the model is never
+    # routed toward a skill it will just be told "not found" for. Kept as
+    # data (not a closure) so tests can verify the skill name resolves.
+    skill_pointer: Optional[tuple[str, str]] = None
 
-
-def _map_prompt(available: Availability) -> str:
-    return (
-        "The user is on the map explorer — free exploration of areas and "
-        "layers. 'This area', 'here' or 'what I'm looking at' refer to what "
-        "is on the map: check the session block or call "
-        "inspect_view_context before asking the user for a location."
-    )
-
-
-def _dashboard_prompt(available: Availability) -> str:
-    base = (
-        "The user is viewing a dashboard — a persistent collection of "
-        "insight widgets for one area. 'Add this' / 'add it to my "
-        "dashboard' means add_to_dashboard, which defaults to the "
-        "dashboard on screen. New analyses should use the dashboard's area "
-        "unless the user names another place. Call inspect_view_context to "
-        "see the dashboard's area and widgets"
-    )
-    if available.has_skill("dashboard"):
-        return base + "; read skill `dashboard` for the compose workflow."
-    return base + "."
+    def render_prompt(self, available: Availability) -> str:
+        if self.skill_pointer is None:
+            return self.prompt_base
+        skill, suffix = self.skill_pointer
+        if available.has_skill(skill):
+            return f"{self.prompt_base}; {suffix}"
+        return f"{self.prompt_base}."
 
 
 PAGES: dict[str, ViewPage] = {
@@ -114,12 +101,30 @@ PAGES: dict[str, ViewPage] = {
         ViewPage(
             name="map",
             session_line=_map_session_line,
-            prompt_section=_map_prompt,
+            prompt_base=(
+                "The user is on the map explorer — free exploration of "
+                "areas and layers. 'This area', 'here' or 'what I'm looking "
+                "at' refer to what is on the map: check the session block "
+                "or call inspect_view_context before asking the user for a "
+                "location."
+            ),
         ),
         ViewPage(
             name="dashboard",
             session_line=_dashboard_session_line,
-            prompt_section=_dashboard_prompt,
+            prompt_base=(
+                "The user is viewing a dashboard — a persistent collection "
+                "of insight widgets for one area. 'Add this' / 'add it to "
+                "my dashboard' means add_to_dashboard, which defaults to "
+                "the dashboard on screen. New analyses should use the "
+                "dashboard's area unless the user names another place. "
+                "Call inspect_view_context to see the dashboard's area and "
+                "widgets"
+            ),
+            skill_pointer=(
+                "dashboard",
+                "read skill `dashboard` for the compose workflow.",
+            ),
         ),
     )
 }
@@ -136,8 +141,7 @@ def get_page(view: Optional[dict]) -> Optional[ViewPage]:
 
 
 def prompt_section(
-    page_name: Optional[str],
-    available: Availability = Availability(frozenset(), frozenset()),
+    page_name: Optional[str], available: Availability
 ) -> Optional[str]:
     """System-prompt surface hints for a page name; None when unknown.
 
@@ -148,4 +152,4 @@ def prompt_section(
     if not isinstance(page_name, str):
         return None
     page = PAGES.get(page_name)
-    return page.prompt_section(available) if page else None
+    return page.render_prompt(available) if page else None

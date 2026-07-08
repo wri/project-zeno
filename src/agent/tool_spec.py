@@ -7,8 +7,14 @@ both ToolSpec (from here) and each tool's SPEC (from tool files).
 from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import Enum
+from typing import Literal, Optional
 
 from langchain_core.tools import BaseTool
+
+# A prompt-content gate: which skill or tool a piece of prompt text depends
+# on, or None for text every profile can serve. The Literal kind lets mypy
+# reject a misspelled namespace at the definition site.
+Gate = Optional[tuple[Literal["skill", "tool"], str]]
 
 
 class ToolCategory(str, Enum):
@@ -42,6 +48,13 @@ class Availability:
 
     def has_tool(self, name: str) -> bool:
         return name in self.tools
+
+    def allows(self, gate: Gate) -> bool:
+        """Whether prompt text behind ``gate`` may be shown to this profile."""
+        if gate is None:
+            return True
+        kind, name = gate
+        return name in (self.skills if kind == "skill" else self.tools)
 
 
 # The bound tool names of the current request's agent profile. Set once per
