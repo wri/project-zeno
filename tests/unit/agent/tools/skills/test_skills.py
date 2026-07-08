@@ -106,25 +106,44 @@ def test_get_skill_capabilities_has_no_requires():
 
 def test_read_skill_refuses_when_a_required_tool_is_unbound():
     """analyze requires pick_aoi, pick_dataset, pull_data, generate_insights;
-    binding only some of them must not hand back the skill body."""
+    binding only some of them must not hand back the skill body. To the
+    model this must read exactly like an unknown skill name — it's already
+    excluded from what this profile advertises (AgentConfig.skills())."""
     set_bound_tool_names(frozenset({"pick_aoi", "pick_dataset"}))
     result = read_skill.invoke({"name": "analyze"})
-    assert "not available in this profile" in result
-    assert "pull_data" in result
-    assert "generate_insights" in result
+    assert result == "skill not found: analyze"
 
 
 def test_read_skill_refuses_when_no_tools_are_bound():
     set_bound_tool_names(frozenset())
     result = read_skill.invoke({"name": "analyze"})
-    assert "not available in this profile" in result
+    assert result == "skill not found: analyze"
 
 
-def test_read_skill_lists_every_missing_tool_sorted():
+def test_read_skill_logs_every_missing_tool_sorted_without_exposing_them(
+    monkeypatch,
+):
+    """The model-facing message stays a generic "not found"; the specifics
+    are only for our own logs."""
+    warnings = []
+
+    class _FakeLogger:
+        def warning(self, event, **kwargs):
+            warnings.append((event, kwargs))
+
+        def info(self, *args, **kwargs):
+            pass
+
+    monkeypatch.setattr("src.agent.skills.tool.logger", _FakeLogger())
     set_bound_tool_names(frozenset())
     result = read_skill.invoke({"name": "analyze"})
-    missing_clause = result.split("missing tools: ")[1].rstrip(")")
-    assert missing_clause.split(", ") == sorted(
+
+    assert "pull_data" not in result
+    assert "generate_insights" not in result
+    [(event, kwargs)] = warnings
+    assert event == "read_skill: skill not available in this profile"
+    assert kwargs["skill_name"] == "analyze"
+    assert kwargs["missing_tools"] == sorted(
         ["pick_aoi", "pick_dataset", "pull_data", "generate_insights"]
     )
 

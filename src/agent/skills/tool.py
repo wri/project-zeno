@@ -21,10 +21,7 @@ def read_skill(name: str) -> str:
             skill_name=name,
             missing_tools=sorted(missing),
         )
-        return (
-            f"skill {name!r} not available in this profile "
-            f"(missing tools: {', '.join(sorted(missing))})"
-        )
+        return f"skill not found: {name}"
     body = get_skill_body(name)
     assert body is not None  # skill exists: confirmed by get_skill above
     logger.info("read_skill: loaded skill", skill_name=name)
