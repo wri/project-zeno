@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
-import structlog
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import NullPool, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -22,6 +21,7 @@ from src.shared.database import (
     get_session_from_pool_dependency,
     initialize_global_pool,
 )
+from src.shared.request_context import bound_user_id
 
 # Test database settings
 if os.getenv("TEST_DATABASE_URL"):
@@ -220,8 +220,8 @@ async def thread_factory():
 
 @pytest.fixture(scope="function")
 def structlog_context():
-    """Provide structlog context with test user ID for all tests."""
-    with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
+    """Bind the request-context test user ID for all tests."""
+    with bound_user_id("test-user-123"):
         yield
 
 

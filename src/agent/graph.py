@@ -23,14 +23,23 @@ from src.agent.agent_config import (
 from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
 from src.agent.state import AgentState
+from src.agent.view_pages import prompt_section
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 
-def get_prompt(config: Optional[AgentConfig] = None) -> str:
-    """Generate the system prompt from the config's tools and skills."""
+def get_prompt(
+    config: Optional[AgentConfig] = None, page: Optional[str] = None
+) -> str:
+    """Generate the system prompt from the config's tools and skills.
+
+    ``page`` is the frontend surface the user is on (from
+    ``view_context["page"]``, known at request time); registered pages
+    (src/agent/view_pages.py) contribute a "# Current surface" section with
+    their scope and routing hints. Unknown/absent pages add nothing.
+    """
     if config is None:
         config = default_registry.resolve()
     skill_lines = [
@@ -39,13 +48,15 @@ def get_prompt(config: Optional[AgentConfig] = None) -> str:
     ]
     skills_block = "\n".join(skill_lines) if skill_lines else "(none)"
     tool_descriptions = config.tool_descriptions()
+    surface = prompt_section(page)
+    surface_block = f"\n# Current surface\n\n{surface}\n" if surface else ""
     today = datetime.now().strftime("%Y-%m-%d")
     return f"""You are Global Nature Watch's Geospatial Agent. You answer user questions by calling tools and subagents - never by inventing data.
 
 Today: {today}
 
 A [Session — date] system message is prepended to every model call with the live AOI, dataset, date range, pulled data and active insight. Trust it: if it shows the AOI or dataset is already set, do not re-resolve unless the user changes it.
-
+{surface_block}
 Call tools one at a time, never in parallel.
 
 {tool_descriptions}
@@ -64,6 +75,8 @@ Match the request to exactly one row; do not escalate a dataset / AOI / pull req
 - AOI-only (e.g. "zoom to Pará"): call pick_aoi, then stop unless asked for more.
 - Pull-only (e.g. "pull dist alerts in Bern for last 2 weeks"): read `pull-data`, run pick_aoi → pick_dataset → pull_data, then stop. Do not call generate_insights unless the user asked for a chart or analysis.
 - Full analysis (place + topic → chart/insight): read `analyze` and follow that pipeline.
+- Recall a past insight (e.g. "show that tree-cover insight again", "pull up the fires analysis from before"): call search_insights and then STOP. search_insights is terminal — the insight already exists and is put on screen, so it is NEVER followed by pick_aoi, pick_dataset, pull_data or generate_insights. "Show/recall/pull up an earlier insight" is a recall request, never a request for new analysis. After it returns, reply with a one-line summary only.
+- Dashboard (e.g. "add this to my dashboard", "add this layer/imagery to my dashboard", "build a dashboard for X"): read skill `dashboard` and follow it.
 - Imagery (e.g. "show satellite imagery of Bern in June"): read `show-imagery`, run pick_aoi → show_imagery, then stop. No dataset, pull or insights unless asked.
 - Capabilities (what you can do, what data exists): read `capabilities`, then answer in your own words — no analysis tools.
 
@@ -138,15 +151,42 @@ async def fetch_checkpointer() -> AsyncPostgresSaver:
     return checkpointer
 
 
+# Tool args whose values identify the artifact a failed call was targeting;
+# logged with the exception so an error can be tied to a specific record.
+_TARGET_ID_ARGS = ("dashboard_id", "insight_id", "widget_id")
+
+
 @wrap_tool_call
 async def handle_tool_errors(request, handler):
+    """Last-resort funnel for exceptions a tool did not anticipate.
+
+    The raw exception stays server-side only: the returned ToolMessage is
+    streamed to the model and on to the browser, so it must never carry
+    driver/ORM text (SQL fragments, table names) — just the tool and the
+    exception class.
+    """
     try:
         return await handler(request)
     except Exception as e:
-        logger.exception("Tool execution failed")
+        tool_call = request.tool_call
+        tool_name = tool_call.get("name") or "unknown"
+        args = tool_call.get("args") or {}
+        target_ids = {
+            key: str(args[key]) for key in _TARGET_ID_ARGS if args.get(key)
+        }
+        logger.exception(
+            "tool_execution_failed",
+            tool_name=tool_name,
+            tool_call_id=tool_call.get("id"),
+            **target_ids,
+        )
         return ToolMessage(
-            content=f"Tool error: {str(e)}",
-            tool_call_id=request.tool_call["id"],
+            content=(
+                f"Tool '{tool_name}' failed unexpectedly "
+                f"({type(e).__name__}). The error has been logged."
+            ),
+            tool_call_id=tool_call.get("id"),
+            status="error",
         )
 
 
@@ -190,12 +230,18 @@ async def fetch_zeno(
     registry: AgentConfigRegistry = default_registry,
     checkpointer: Any = _CHECKPOINTER_UNSET,
     config: Optional[AgentConfig] = None,
+    page: Optional[str] = None,
 ) -> CompiledStateGraph:
     """Setup the Zeno agent for the given config and feature flag.
 
     The config is resolved from ``ff`` via ``registry``; unknown flags fall
     back to the registry's default. Pass a custom ``registry`` in tests to
     inject isolated configs without mutating global state.
+
+    ``page`` is the frontend surface for this request (from
+    ``view_context["page"]``); it conditions the "# Current surface" prompt
+    section. The agent is built per request, so a mid-thread page switch
+    simply produces the matching prompt on the next request.
 
     By default the Postgres checkpointer is used (API and durable CLI runs).
     Pass an explicit ``checkpointer`` (e.g. ``InMemorySaver()``) for local
@@ -210,7 +256,7 @@ async def fetch_zeno(
         model=MODEL,
         tools=config.tools(),
         state_schema=AgentState,
-        system_prompt=config.system_prompt or get_prompt(config),
+        system_prompt=config.system_prompt or get_prompt(config, page=page),
         middleware=_build_middleware(),
         checkpointer=checkpointer,
     )

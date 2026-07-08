@@ -50,6 +50,7 @@ from src.shared.database import (
     initialize_global_pool,
 )
 from src.shared.logging_config import bind_request_logging_context
+from src.shared.request_context import set_current_user_id
 
 DEFAULT_CLI_USER_ID = "zeno-default-user"
 
@@ -695,6 +696,7 @@ async def _async_main(
 ) -> None:
     structlog.contextvars.clear_contextvars()
     bind_request_logging_context(user_id=user_id, thread_id=thread_id)
+    set_current_user_id(user_id)
 
     printer = _CliPrinter(verbose=verbose)
 

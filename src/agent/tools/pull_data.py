@@ -15,6 +15,7 @@ from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.api.data_models import StatisticsOrm
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
+from src.shared.request_context import current_user_id
 
 logger = get_logger(__name__)
 
@@ -176,7 +177,7 @@ async def pull_data(
     ctx = structlog.contextvars.get_contextvars()
     async with get_session_from_pool() as session:
         statistics_row = StatisticsOrm(
-            user_id=ctx.get("user_id"),
+            user_id=current_user_id(),
             thread_id=ctx.get("thread_id"),
             dataset_name=statistics["dataset_name"],
             dataset_id=statistics["dataset_id"],

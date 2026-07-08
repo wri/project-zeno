@@ -1,7 +1,6 @@
 from datetime import date
 from typing import Annotated, Dict, Optional
 
-import structlog
 from cogeo_mosaic.errors import MosaicNotFoundError
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
@@ -20,6 +19,7 @@ from src.api.services.mosaic import (
     create_sentinel2_mosaic,
 )
 from src.shared.logging_config import get_logger
+from src.shared.request_context import current_user_id
 
 logger = get_logger(__name__)
 
@@ -82,7 +82,7 @@ async def show_imagery(
     aoi_refs = tuple((a["source"], a["src_id"]) for a in aois)
     user_id = None
     if any(source == "custom" for source, _ in aoi_refs):
-        user_id = structlog.contextvars.get_contextvars().get("user_id")
+        user_id = current_user_id()
 
     recipe = MosaicRecipe(
         aois=aoi_refs,

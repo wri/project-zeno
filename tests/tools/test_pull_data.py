@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
 import pytest
-import structlog
 from sqlalchemy import select
 
 from src.agent.datasets.config import DATASETS
@@ -18,6 +17,7 @@ from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.data_models import StatisticsOrm
 from src.api.schemas import UserModel
+from src.shared.request_context import bound_user_id
 from tests.conftest import async_session_maker
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
@@ -438,7 +438,7 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
     }
     query = f"find commodities in {aoi_data['query_description']}"
     # Ensure user_id is bound to structlog context for the pick_aoi call
-    with structlog.contextvars.bound_contextvars(user_id="test-user-123"):
+    with bound_user_id("test-user-123"):
         tool_call = {
             "type": "tool_call",
             "name": "pull_data",

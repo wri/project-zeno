@@ -89,6 +89,9 @@ async def get_insight(
     """
     Get a single insight. Public insights can be accessed by anyone.
     Private insights require authentication and ownership.
+
+    Same read rule as `src.api.repositories.insight_access` (used by the
+    agent tools), plus the admin/superuser override and HTTP error semantics.
     """
     result = await session.execute(
         select(InsightOrm)

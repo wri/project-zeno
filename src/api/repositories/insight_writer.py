@@ -6,6 +6,10 @@ the single place that mapping lives, driven by the canonical `Insight`.
 """
 
 from typing import Optional
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from src.agent.subagents.analyst.charts.model import Insight
 from src.api.data_models import InsightChartOrm, InsightOrm
@@ -60,3 +64,49 @@ async def persist_insight(
         charts_count=len(insight.charts),
     )
     return insight_id
+
+
+async def update_insight(insight_id: str, insight: Insight) -> bool:
+    """Rewrite an existing insight's display layer in place.
+
+    Only the generative/presentation fields are replaced — narrative text,
+    follow-up suggestions and the chart specs (titles, types, field mappings,
+    per-chart `chart_data`). Ownership (`user_id`/`thread_id`), `statistics_ids`,
+    the `codeact_*` provenance and `created_at` are deliberately left untouched:
+    this path restyles an insight, it does not pull new data or re-run code.
+
+    Returns ``True`` on success, ``False`` if the insight no longer exists
+    (or the id is malformed).
+    """
+    try:
+        target = UUID(insight_id)
+    except ValueError:
+        return False
+
+    async with get_session_from_pool() as session:
+        result = await session.execute(
+            select(InsightOrm)
+            .options(selectinload(InsightOrm.charts))
+            .where(InsightOrm.id == target)
+        )
+        insight_orm = result.scalar_one_or_none()
+        if insight_orm is None:
+            return False
+
+        insight_orm.insight_text = insight.primary_insight
+        insight_orm.follow_up_suggestions = insight.follow_up_suggestions
+        # Reassigning the collection lets the delete-orphan cascade drop the old
+        # chart rows and insert the revised ones in their place.
+        insight_orm.charts = [
+            InsightChartOrm(**chart.to_orm_kwargs())
+            for chart in insight.charts
+        ]
+
+        await session.commit()
+
+    logger.info(
+        "insight_updated",
+        insight_id=insight_id,
+        charts_count=len(insight.charts),
+    )
+    return True

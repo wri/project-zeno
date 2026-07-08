@@ -19,7 +19,6 @@ import json
 from typing import Annotated, Dict, Optional
 from uuid import UUID
 
-import structlog
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
@@ -29,7 +28,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from src.agent.tool_spec import ToolCategory, ToolSpec
-from src.api.data_models import InsightOrm
+from src.agent.tools.common import require_current_user_id
+from src.api.data_models import DashboardOrm, InsightOrm
+from src.api.repositories import dashboard_writer
+from src.api.repositories.dashboard_access import (
+    is_visible_to_user as dashboard_is_visible_to_user,
+)
+from src.api.repositories.insight_access import is_visible_to_user
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 
@@ -43,6 +48,8 @@ _KNOWN_KEYS = {
     "visible_layers",
     "visible_aois",
     "visible_insights",
+    "dashboard_id",
+    "dashboard_name",
 }
 
 
@@ -103,6 +110,12 @@ def format_view_context(view: dict) -> str:
         # note the count so the line shows even if a load later turns up empty.
         lines.append(f"- Visible insights: {len(insights)} (detail below)")
 
+    if view.get("dashboard_id"):
+        # Same deal: the dashboard content is loaded from the DB by the tool.
+        lines.append(
+            f"- Dashboard being viewed: {view['dashboard_id']} (detail below)"
+        )
+
     # Surface any other keys the frontend sent so nothing is lost.
     extra = {k: v for k, v in view.items() if k not in _KNOWN_KEYS}
     if extra:
@@ -134,13 +147,12 @@ def _extract_insight_ids(refs: object) -> list[UUID]:
 async def _load_insights(insight_ids: list[UUID]) -> list[InsightOrm]:
     """Load insights (with charts) the current user is allowed to see.
 
-    Ownership mirrors the /api/insights/{id} endpoint: a user's own insights
-    plus any public one. The user id comes from the request-scoped logging
-    context bound by the auth dependency.
+    Visibility is the shared `insight_access` rule (own + public). The user id
+    comes from the request context bound by the auth dependency.
     """
     if not insight_ids:
         return []
-    user_id = structlog.contextvars.get_contextvars().get("user_id")
+    user_id = require_current_user_id("inspect_view_context")
     async with get_session_from_pool() as session:
         result = await session.execute(
             select(InsightOrm)
@@ -148,11 +160,7 @@ async def _load_insights(insight_ids: list[UUID]) -> list[InsightOrm]:
             .where(InsightOrm.id.in_(insight_ids))
         )
         rows = result.scalars().all()
-    return [
-        row
-        for row in rows
-        if row.is_public or (user_id and row.user_id == user_id)
-    ]
+    return [row for row in rows if is_visible_to_user(row, user_id)]
 
 
 def _chart_variables(chart) -> str:
@@ -202,6 +210,85 @@ def format_insights(rows: list[InsightOrm]) -> str:
     return "\n".join(lines)
 
 
+async def _load_dashboard(dashboard_id) -> Optional[DashboardOrm]:
+    """Load the dashboard being viewed, if the current user may see it.
+
+    Visibility is the shared `dashboard_access` rule (own + public); rows the
+    user may not see are treated the same as missing ones.
+    """
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    if row is None or not dashboard_is_visible_to_user(
+        row, require_current_user_id("inspect_view_context")
+    ):
+        return None
+    return row
+
+
+def _format_map_widget(config: dict) -> Optional[str]:
+    """One-line summary of a map widget's layer snapshot, sans tile URLs.
+
+    Returns None when the config carries neither a dataset nor an imagery
+    snapshot, so the caller can fall back to a raw dump.
+    """
+    dataset = config.get("dataset")
+    if isinstance(dataset, dict):
+        line = f"map: dataset '{dataset.get('dataset_name', '?')}'"
+        if dataset.get("start_date") or dataset.get("end_date"):
+            line += (
+                f" ({dataset.get('start_date', '?')}–"
+                f"{dataset.get('end_date', '?')})"
+            )
+        if dataset.get("context_layer"):
+            line += f", context layer {dataset['context_layer']}"
+        return line
+    imagery = config.get("imagery")
+    if isinstance(imagery, dict):
+        areas = ", ".join(imagery.get("aoi_names") or []) or "?"
+        return (
+            f"map: Sentinel-2 imagery around "
+            f"{imagery.get('target_date', '?')} ({areas})"
+        )
+    return None
+
+
+async def format_dashboard(dashboard: DashboardOrm) -> str:
+    """Render the dashboard being viewed: name, area(s) and its widgets.
+
+    Insight widgets are expanded with the shared `format_insights` rendering
+    (visibility-filtered), so the agent can reason about what each widget
+    shows; map widgets are summarized by dataset name/dates or imagery
+    date/areas; anything else is listed by type and config.
+    """
+    lines = [f"Dashboard being viewed: '{dashboard.name}' ({dashboard.id})"]
+    if dashboard.description:
+        lines.append(f"  Description: {dashboard.description}")
+    areas = ", ".join(
+        f"{aoi.name} ({aoi.source}/{aoi.subtype})"
+        for aoi in dashboard.aois or []
+    )
+    lines.append(f"  Area(s): {areas or 'none'}")
+
+    widgets = dashboard.widgets or []
+    lines.append(f"  Widgets: {len(widgets)}")
+    insight_ids = [w.insight_id for w in widgets if w.insight_id]
+    for widget in widgets:
+        if widget.widget_type == "insight":
+            continue  # detail comes from the insight rendering below
+        summary = _format_map_widget(widget.config or {})
+        if summary is None:
+            summary = json.dumps(widget.config or {}, default=str)
+        lines.append(
+            f"  Widget {widget.position} ({widget.widget_type}): {summary}"
+        )
+
+    sections = ["\n".join(lines)]
+    if insight_ids:
+        rows = await _load_insights(insight_ids)
+        if rows:
+            sections.append(format_insights(rows))
+    return "\n\n".join(sections)
+
+
 @tool("inspect_view_context")
 async def inspect_view_context(
     state: Annotated[Dict, InjectedState],
@@ -209,26 +296,47 @@ async def inspect_view_context(
 ) -> Command:
     """Return what the user is currently looking at in the app.
 
-    Reports the current page (map vs report), the map viewport, the layers and
-    AOIs visible on screen, and — when the frontend reports visible insights
-    (e.g. on the report page) — the key content of each insight: its summary,
-    chart titles and the variables behind each chart. Call this when the user
-    refers to "this", "here", the current view, the report, or an insight on
-    screen, and you need those details to answer.
+    Reports the current page (map vs report vs dashboard), the map viewport,
+    the layers and AOIs visible on screen, and — when the frontend reports
+    visible insights (e.g. on the report page) — the key content of each
+    insight: its summary, chart titles and the variables behind each chart.
+    When the user is viewing a dashboard, reports its name, area(s) and
+    widgets, with insight widgets expanded the same way. Call this when the
+    user refers to "this", "here", the current view, the report, the
+    dashboard, or an insight on screen, and you need those details to answer.
     """
-    logger.info("inspect_view_context tool called")
     view = (state or {}).get("view_context") or {}
+    logger.info(
+        "inspect_view_context tool called",
+        page=view.get("page"),
+        has_view_context=bool(view),
+    )
 
     sections = [format_view_context(view)]
 
     insight_ids = _extract_insight_ids(view.get("visible_insights"))
     if insight_ids:
         rows = await _load_insights(insight_ids)
+        logger.info(
+            "inspect_view_context loaded insights",
+            requested=len(insight_ids),
+            loaded=len(rows),
+        )
         if rows:
             sections.append(format_insights(rows))
         else:
             sections.append(
                 "Insights on screen: referenced but none could be loaded "
+                "(not found or not accessible)."
+            )
+
+    if view.get("dashboard_id"):
+        dashboard = await _load_dashboard(view["dashboard_id"])
+        if dashboard is not None:
+            sections.append(await format_dashboard(dashboard))
+        else:
+            sections.append(
+                "Dashboard being viewed: referenced but could not be loaded "
                 "(not found or not accessible)."
             )
 
@@ -250,9 +358,10 @@ SPEC = ToolSpec(
     category=ToolCategory.PRIMITIVE,
     prompt_fragment=(
         "- inspect_view_context(): returns what the user is currently looking "
-        "at in the app (page, map viewport, visible layers, visible AOIs, and "
-        "the content of any insights on screen — summary, charts and "
-        "variables). Call this when the user refers to 'this', 'here', the "
-        "current view, the report, or an insight on screen."
+        "at in the app (page, map viewport, visible layers, visible AOIs, the "
+        "content of any insights on screen — summary, charts and variables — "
+        "and, on the dashboard page, the dashboard's name, areas and "
+        "widgets). Call this when the user refers to 'this', 'here', the "
+        "current view, the report, the dashboard, or an insight on screen."
     ),
 )

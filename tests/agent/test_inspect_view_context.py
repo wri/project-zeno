@@ -11,6 +11,8 @@ from src.agent.middleware import format_session_block
 from src.agent.tools.inspect_view_context import (
     _chart_variables,
     _extract_insight_ids,
+    _format_map_widget,
+    format_dashboard,
     format_insights,
     format_view_context,
     inspect_view_context,
@@ -134,6 +136,91 @@ def test_format_insights_prints_key_content():
     assert "x=year, y=loss_ha" in out
     assert "2 data point(s)" in out
     assert "Follow-ups: Compare to fires; Break down by driver" in out
+
+
+def test_format_map_widget_dataset():
+    line = _format_map_widget(
+        {
+            "dataset": {
+                "dataset_name": "Tree cover loss",
+                "tile_url": "https://tiles.example.com/{z}/{x}/{y}.png",
+                "start_date": "2024-01-01",
+                "end_date": "2024-12-31",
+                "context_layer": "driver",
+            }
+        }
+    )
+    assert line == (
+        "map: dataset 'Tree cover loss' (2024-01-01–2024-12-31), "
+        "context layer driver"
+    )
+    assert "tile_url" not in line
+
+
+def test_format_map_widget_imagery():
+    line = _format_map_widget(
+        {
+            "imagery": {
+                "tile_url": "https://tiles.example.com/{z}/{x}/{y}.png",
+                "target_date": "2024-06-01",
+                "aoi_names": ["Paraná", "Santa Catarina"],
+            }
+        }
+    )
+    assert line == (
+        "map: Sentinel-2 imagery around 2024-06-01 (Paraná, Santa Catarina)"
+    )
+    assert "tiles.example.com" not in line
+
+
+def test_format_map_widget_unknown_config():
+    assert _format_map_widget({}) is None
+    assert _format_map_widget({"default_view": "map"}) is None
+
+
+@pytest.mark.asyncio
+async def test_format_dashboard_summarizes_map_widgets():
+    dashboard = SimpleNamespace(
+        id=uuid4(),
+        name="Paraná",
+        description=None,
+        aois=[
+            SimpleNamespace(
+                name="Paraná", source="gadm", subtype="state-province"
+            )
+        ],
+        widgets=[
+            SimpleNamespace(
+                widget_type="map",
+                position=0,
+                insight_id=None,
+                config={
+                    "dataset": {
+                        "dataset_name": "Tree cover loss",
+                        "tile_url": "https://t/{z}",
+                        "start_date": "2024-01-01",
+                        "end_date": "2024-12-31",
+                    }
+                },
+            ),
+            SimpleNamespace(
+                widget_type="map",
+                position=1,
+                insight_id=None,
+                config={
+                    "imagery": {
+                        "tile_url": "https://t/{z}",
+                        "target_date": "2024-06-01",
+                        "aoi_names": ["Paraná"],
+                    }
+                },
+            ),
+        ],
+    )
+    out = await format_dashboard(dashboard)
+    assert "map: dataset 'Tree cover loss' (2024-01-01–2024-12-31)" in out
+    assert "map: Sentinel-2 imagery around 2024-06-01 (Paraná)" in out
+    assert "https://t/{z}" not in out
 
 
 @pytest.mark.asyncio

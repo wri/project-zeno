@@ -3,7 +3,6 @@ from enum import StrEnum
 from typing import Annotated, Literal, Optional
 
 import pandas as pd
-import structlog
 from dotenv import load_dotenv
 from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -38,6 +37,7 @@ from src.shared.geocoding_helpers import (
     search_aois,
 )
 from src.shared.logging_config import get_logger
+from src.shared.request_context import current_user_id
 
 RESULT_LIMIT = 10
 SUBREGION_LIMIT_ADMIN = 1000
@@ -117,7 +117,7 @@ async def query_aoi_database(
         DataFrame containing location information
     """
     sources = [aoi_to_table[aoi_type]] if aoi_type is not None else None
-    user_id = structlog.contextvars.get_contextvars().get("user_id")
+    user_id = current_user_id()
     return await search_aois(
         name=place_name,
         sources=sources,

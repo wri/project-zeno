@@ -27,6 +27,7 @@ from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.repositories.insight_writer import persist_insight
 from src.shared.logging_config import get_logger
+from src.shared.request_context import current_user_id
 
 logger = get_logger(__name__)
 
@@ -420,7 +421,7 @@ class Analyst:
         ctx = structlog.contextvars.get_contextvars()
         insight_id = await persist_insight(
             insight,
-            user_id=ctx.get("user_id"),
+            user_id=current_user_id(),
             thread_id=ctx.get("thread_id", ""),
             statistics_ids=_extract_statistics_ids(statistics),
             codeact_parts=codeact_parts,

@@ -13,6 +13,8 @@ from datetime import date
 from langchain.agents.middleware.types import AgentMiddleware, ModelRequest
 from langchain_core.messages import SystemMessage
 
+from src.agent.view_pages import get_page, on_screen_counts
+
 
 def format_session_block(state: dict) -> str:
     """Render a short text block summarizing the current session state.
@@ -80,27 +82,26 @@ def format_session_block(state: dict) -> str:
 
 
 def _view_breadcrumb(view: dict | None) -> str:
-    """One-line hint that frontend view state exists, with details on demand.
+    """One-line scope hint for the surface the user is on.
 
-    Keeps the bulky snapshot (exact viewport, full layer list) out of the
-    prompt — the agent calls inspect_view_context when it actually needs it.
+    Registered pages (src/agent/view_pages.py) render their own line with
+    the page's scope semantics ("this dashboard" = ..., etc.); unregistered
+    pages fall back to the generic count summary. Either way the bulky
+    snapshot (exact viewport, full layer list) stays out of the prompt —
+    the agent calls inspect_view_context when it actually needs it.
     """
     if not view:
         return "View: none"
+
+    page_meta = get_page(view)
+    if page_meta is not None:
+        return page_meta.session_line(view)
 
     parts = []
     page = view.get("page")
     if page:
         parts.append(f"{page} page")
-    layers = view.get("visible_layers") or []
-    if layers:
-        parts.append(f"{len(layers)} layer(s)")
-    aois = view.get("visible_aois") or []
-    if aois:
-        parts.append(f"{len(aois)} AOI(s) visible")
-    insights = view.get("visible_insights") or []
-    if insights:
-        parts.append(f"{len(insights)} insight(s) on screen")
+    parts.extend(on_screen_counts(view))
 
     summary = " · ".join(parts) if parts else "active"
     return f"View: {summary} (call inspect_view_context for details)"

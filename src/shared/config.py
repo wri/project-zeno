@@ -18,9 +18,12 @@ class _SharedSettings(BaseSettings):
     db_pool_timeout: int = Field(default=30, alias="DB_POOL_TIMEOUT")
     db_pool_recycle: int = Field(default=3600, alias="DB_POOL_RECYCLE")
 
-    # External API endpoints
+    # External API endpoints. The eoapi cache is the canonical tile host:
+    # eoapi.globalnaturewatch.org serves a certificate that does not cover
+    # the hostname and the staging host's certificate is expired (both
+    # verified 2026-07-03), so browsers refuse tiles from either.
     eoapi_base_url: str = Field(
-        default="https://eoapi.staging.globalnaturewatch.org",
+        default="https://eoapi-cache.globalnaturewatch.org",
         alias="EOAPI_BASE_URL",
     )
 

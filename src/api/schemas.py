@@ -9,6 +9,7 @@ from pydantic import (
     Field,
     alias_generators,
     field_validator,
+    model_validator,
 )
 
 from src.api.data_models import UserType
@@ -358,7 +359,13 @@ class ChatRequest(BaseModel):
     #   {"page": "map" | "report",
     #    "viewport": {"bbox": [minx, miny, maxx, maxy], "zoom": 5},
     #    "visible_layers": [{"id": "...", "name": "..."}],
-    #    "visible_aois": [{"source": "...", "src_id": "...", "name": "..."}]}
+    #    "visible_aois": [{"source": "...", "src_id": "...", "name": "..."}],
+    #    "visible_insights": ["<uuid>", "<uuid>"]}
+    # On the dashboard page the snapshot carries the dashboard being viewed:
+    #   {"page": "dashboard", "dashboard_id": "<uuid>", "dashboard_name": "…"}
+    # Known "page" values get scope semantics on the backend (session-block
+    # line + system-prompt section) via src/agent/view_pages.py; see
+    # docs/view-context-pages.md. Unknown pages degrade gracefully.
     view_context: Optional[dict] = Field(
         None,
         description="Ambient frontend view state (page, viewport, visible layers/AOIs)",
@@ -533,5 +540,155 @@ class AnalyzeRequest(BaseModel):
             "Agent thread ID. When provided, the results are written into "
             "the agent state for that thread so follow-up chat messages can "
             "reference the data without re-fetching."
+        ),
+    )
+
+
+class DashboardAoi(AreaOfInterest):
+    """An AOI reference on a dashboard: canonical address plus display name."""
+
+    name: str = Field(description="Display name of the area, e.g. `Paraná`.")
+
+
+class DashboardCreateRequest(BaseModel):
+    name: Optional[str] = Field(
+        default=None,
+        description="Dashboard name; defaults to the first AOI's name.",
+    )
+    description: Optional[str] = None
+    # min/max length 1 is the MVP single-area constraint — the schema supports
+    # multiple areas (portfolios); lift later by raising max_length.
+    aois: List[DashboardAoi] = Field(min_length=1, max_length=1)
+
+
+class DashboardUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class DashboardPublicToggleRequest(BaseModel):
+    is_public: bool
+
+
+_WIDGET_TYPES = ("insight", "map", "text")
+
+
+class DashboardWidgetCreateRequest(BaseModel):
+    widget_type: str = Field(
+        description="Widget kind: `insight`, `map` or `text`.",
+    )
+    insight_id: Optional[UUID] = Field(
+        default=None,
+        description="Insight the widget references; required for `insight` widgets.",
+    )
+    config: Optional[dict] = Field(
+        default=None,
+        description=(
+            "Widget config. Insight widgets: presentation only — "
+            "`default_view` (map|chart|table), optional `title` override. "
+            "Map widgets: a self-contained layer snapshot under exactly one "
+            "of the keys `dataset` (resolved tile_url, context layers, "
+            "parameters, dates) or `imagery` (Sentinel-2 mosaic_id and tile "
+            "URLs); optional `viewport` override — by default map widgets "
+            "render fitted to the dashboard's area. "
+            "Text widgets: `text` (markdown string)."
+        ),
+    )
+    position: Optional[int] = None
+
+    @field_validator("widget_type")
+    def validate_widget_type(cls, v):
+        if v not in _WIDGET_TYPES:
+            raise ValueError(
+                f"widget_type must be one of {', '.join(_WIDGET_TYPES)}"
+            )
+        return v
+
+    @model_validator(mode="after")
+    def validate_map_config(self) -> "DashboardWidgetCreateRequest":
+        """Map widgets need a renderable layer snapshot in config.
+
+        Only the discriminator and its tile_url are checked — the remaining
+        snapshot keys may evolve without a schema change here.
+        """
+        if self.widget_type != "map":
+            return self
+        config = self.config or {}
+        kinds = [k for k in ("dataset", "imagery") if k in config]
+        if len(kinds) != 1:
+            raise ValueError(
+                "map widgets require a config with exactly one of "
+                "'dataset' or 'imagery'"
+            )
+        layer = config[kinds[0]]
+        if not isinstance(layer, dict) or not layer.get("tile_url"):
+            raise ValueError(
+                f"map widget {kinds[0]} config requires a tile_url"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_text_config(self) -> "DashboardWidgetCreateRequest":
+        """Text widgets carry their markdown body in config.text."""
+        if self.widget_type != "text":
+            return self
+        config = self.config or {}
+        if not isinstance(config.get("text"), str):
+            raise ValueError(
+                "text widgets require a config with a 'text' string"
+            )
+        return self
+
+
+class DashboardWidgetUpdateRequest(BaseModel):
+    position: Optional[int] = None
+    config: Optional[dict] = None
+
+
+class DashboardAoiResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    source: str
+    src_id: str
+    subtype: str
+    name: str
+    position: int
+
+
+class DashboardWidgetResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    position: int
+    widget_type: str
+    insight_id: Optional[UUID] = None
+    config: dict
+    created_at: datetime
+    # Expanded insight payload (same shape the insights endpoints return) so
+    # the frontend renders widgets like insights. Populated on the single-
+    # dashboard endpoint; None when the insight is not visible to the viewer.
+    insight: Optional[InsightResponse] = None
+
+
+class DashboardResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    user_id: str
+    name: str
+    description: Optional[str] = None
+    is_public: bool
+    created_at: datetime
+    updated_at: datetime
+    aois: List[DashboardAoiResponse] = []
+    widgets: List[DashboardWidgetResponse] = []
+
+
+class DashboardPublicToggleResponse(DashboardResponse):
+    publicized_insight_ids: List[UUID] = Field(
+        default=[],
+        description=(
+            "Insights flipped to public because this dashboard was published."
         ),
     )
