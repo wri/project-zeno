@@ -10,7 +10,7 @@ from src.agent.agent_config import (
     default_registry,
 )
 from src.agent.skills import all_skills
-from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tool_spec import ToolCategory, ToolSpec, bound_tool_names
 
 # --- Lightweight test fixtures -----------------------------------------------
 
@@ -78,6 +78,11 @@ def test_config_tool_descriptions_excludes_unbound_tool():
     assert "_fake_tool" not in c.tool_descriptions()
 
 
+def test_config_tool_names_returns_bound_tool_names():
+    c = AgentConfig("test", specs=(FAKE_SPEC,))
+    assert c.tool_names() == frozenset({"_fake_tool"})
+
+
 # --- Structural invariants ---------------------------------------------------
 
 
@@ -122,6 +127,24 @@ def test_default_config_advertises_core_skills():
         "capabilities",
         "pull-data",
     }
+
+
+async def test_fetch_zeno_binds_the_resolved_configs_tool_names():
+    """read_skill relies on bound_tool_names() reflecting the profile that
+    was actually resolved for this request, not just what's listed in the
+    prompt (see AgentConfig.skills())."""
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from src.agent.graph import fetch_zeno
+
+    registry = AgentConfigRegistry()
+    registry.register(AgentConfig("default", specs=()))
+    registry.register(AgentConfig("fake", specs=(FAKE_SPEC,)))
+
+    await fetch_zeno(
+        ff="fake", registry=registry, checkpointer=InMemorySaver()
+    )
+    assert bound_tool_names() == frozenset({"_fake_tool"})
 
 
 def test_experimental_config_adds_experimental_tools_and_skills():

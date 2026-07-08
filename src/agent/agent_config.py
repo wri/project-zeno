@@ -90,8 +90,11 @@ class AgentConfig:
                 blocks.append(category + "\n\n" + "\n".join(fragments))
         return "\n\n".join(blocks)
 
+    def tool_names(self) -> frozenset[str]:
+        return frozenset(s.tool.name for s in self.specs)
+
     def skills(self) -> list[SkillMeta]:
-        available = {s.tool.name for s in self.specs}
+        available = self.tool_names()
         return [sk for sk in all_skills() if set(sk.requires) <= available]
 
 

@@ -23,6 +23,7 @@ from src.agent.agent_config import (
 from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
 from src.agent.state import AgentState
+from src.agent.tool_spec import set_bound_tool_names
 from src.agent.view_pages import prompt_section
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
@@ -249,6 +250,7 @@ async def fetch_zeno(
     """
     if config is None:
         config = registry.resolve(ff)
+    set_bound_tool_names(config.tool_names())
     logger.info("Agent profile set", profile=config.name)
     if checkpointer is _CHECKPOINTER_UNSET:
         checkpointer = await fetch_checkpointer()

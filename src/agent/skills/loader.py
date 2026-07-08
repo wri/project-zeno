@@ -59,6 +59,10 @@ def load_skills() -> list[SkillMeta]:
 _SKILLS: dict[str, SkillMeta] = {s.name: s for s in load_skills()}
 
 
+def get_skill(name: str) -> SkillMeta | None:
+    return _SKILLS.get(name)
+
+
 def get_skill_body(name: str) -> str | None:
     s = _SKILLS.get(name)
     if s is None:

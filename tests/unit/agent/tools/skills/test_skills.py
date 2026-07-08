@@ -1,8 +1,20 @@
+import pytest
+
 from src.agent.skills import (
     all_skills,
+    get_skill,
     get_skill_body,
     load_skills,
 )
+from src.agent.skills.tool import read_skill
+from src.agent.tool_spec import set_bound_tool_names
+
+
+@pytest.fixture(autouse=True)
+def _reset_bound_tool_names():
+    """``bound_tool_names`` is a ContextVar; tests must not leak state."""
+    yield
+    set_bound_tool_names(frozenset())
 
 
 def test_load_skills():
@@ -67,6 +79,93 @@ def test_get_skill_body():
     body = get_skill_body("analyze")
     assert body is not None
     assert "pick_aoi" in body
+
+
+def test_get_skill_returns_meta_with_requires():
+    skill = get_skill("analyze")
+    assert skill is not None
+    assert set(skill.requires) == {
+        "pick_aoi",
+        "pick_dataset",
+        "pull_data",
+        "generate_insights",
+    }
+
+
+def test_get_skill_returns_none_for_unknown_name():
+    assert get_skill("does-not-exist") is None
+
+
+def test_get_skill_capabilities_has_no_requires():
+    """Informational skills with no tool dependencies must always pass the
+    read_skill gate, bound tools or not."""
+    skill = get_skill("capabilities")
+    assert skill is not None
+    assert skill.requires == ()
+
+
+def test_read_skill_refuses_when_a_required_tool_is_unbound():
+    """analyze requires pick_aoi, pick_dataset, pull_data, generate_insights;
+    binding only some of them must not hand back the skill body."""
+    set_bound_tool_names(frozenset({"pick_aoi", "pick_dataset"}))
+    result = read_skill.invoke({"name": "analyze"})
+    assert "not available in this profile" in result
+    assert "pull_data" in result
+    assert "generate_insights" in result
+
+
+def test_read_skill_refuses_when_no_tools_are_bound():
+    set_bound_tool_names(frozenset())
+    result = read_skill.invoke({"name": "analyze"})
+    assert "not available in this profile" in result
+
+
+def test_read_skill_lists_every_missing_tool_sorted():
+    set_bound_tool_names(frozenset())
+    result = read_skill.invoke({"name": "analyze"})
+    missing_clause = result.split("missing tools: ")[1].rstrip(")")
+    assert missing_clause.split(", ") == sorted(
+        ["pick_aoi", "pick_dataset", "pull_data", "generate_insights"]
+    )
+
+
+def test_read_skill_serves_body_when_all_required_tools_bound():
+    set_bound_tool_names(
+        frozenset(
+            {"pick_aoi", "pick_dataset", "pull_data", "generate_insights"}
+        )
+    )
+    result = read_skill.invoke({"name": "analyze"})
+    assert result == get_skill_body("analyze")
+
+
+def test_read_skill_serves_body_when_bound_tools_are_a_superset():
+    """Extra bound tools beyond what the skill requires must not matter."""
+    set_bound_tool_names(
+        frozenset(
+            {
+                "pick_aoi",
+                "pick_dataset",
+                "pull_data",
+                "generate_insights",
+                "show_imagery",
+            }
+        )
+    )
+    result = read_skill.invoke({"name": "analyze"})
+    assert result == get_skill_body("analyze")
+
+
+def test_read_skill_serves_no_requires_skill_even_with_no_tools_bound():
+    set_bound_tool_names(frozenset())
+    result = read_skill.invoke({"name": "capabilities"})
+    assert result == get_skill_body("capabilities")
+
+
+def test_read_skill_unknown_name_still_reports_not_found():
+    set_bound_tool_names(frozenset())
+    result = read_skill.invoke({"name": "does-not-exist"})
+    assert "skill not found" in result
 
 
 def test_pick_dataset_is_a_thin_subagent_tool():

@@ -1,6 +1,7 @@
 from .loader import (
     SkillMeta,
     all_skills,
+    get_skill,
     get_skill_body,
     load_skills,
 )
@@ -10,6 +11,7 @@ __all__ = [
     "read_skill",
     "SkillMeta",
     "all_skills",
+    "get_skill",
     "get_skill_body",
     "load_skills",
 ]
