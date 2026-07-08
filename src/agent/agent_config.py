@@ -24,7 +24,7 @@ from src.agent.subagents.analyst.tool import SPEC as generate_insights_spec
 from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
 from src.agent.subagents.search.blog import SPEC as search_blogs_spec
-from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tool_spec import Availability, ToolCategory, ToolSpec
 from src.agent.tools.add_map_widget import SPEC as add_map_widget_spec
 from src.agent.tools.add_to_dashboard import SPEC as add_to_dashboard_spec
 from src.agent.tools.create_dashboard import SPEC as create_dashboard_spec
@@ -96,6 +96,16 @@ class AgentConfig:
     def skills(self) -> list[SkillMeta]:
         available = self.tool_names()
         return [sk for sk in all_skills() if set(sk.requires) <= available]
+
+    def availability(self) -> Availability:
+        """What this profile can route to — the same rule read_skill enforces
+        at call time (a skill's ``requires`` must all be bound), so prompt
+        builders never advertise a skill or tool the model would just get
+        "not found"/refused for."""
+        return Availability(
+            skills=frozenset(sk.name for sk in self.skills()),
+            tools=self.tool_names(),
+        )
 
 
 class AgentConfigRegistry:

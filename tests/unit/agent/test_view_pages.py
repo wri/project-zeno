@@ -6,6 +6,7 @@ the graceful fallback for unknown/absent pages.
 """
 
 from src.agent.middleware import format_session_block
+from src.agent.tool_spec import Availability
 from src.agent.view_pages import get_page, prompt_section
 
 MAP_STATE = {
@@ -90,7 +91,10 @@ def test_unregistered_page_falls_back_to_generic_breadcrumb():
 # ---------------------------------------------------------------------------
 def test_prompt_section_for_registered_pages():
     assert "map explorer" in prompt_section("map")
-    dashboard = prompt_section("dashboard", frozenset({"dashboard"}))
+    dashboard = prompt_section(
+        "dashboard",
+        Availability(skills=frozenset({"dashboard"}), tools=frozenset()),
+    )
     assert "add_to_dashboard" in dashboard
     assert "dashboard's area" in dashboard
     assert "skill `dashboard`" in dashboard
@@ -105,11 +109,23 @@ def test_prompt_section_unknown_is_none():
 def test_prompt_section_drops_skill_mention_when_unavailable():
     """A profile without the dashboard skill (its required tools aren't all
     bound) must not be told to read it — read_skill would just refuse."""
-    dashboard = prompt_section("dashboard", frozenset())
+    dashboard = prompt_section(
+        "dashboard", Availability(skills=frozenset(), tools=frozenset())
+    )
     # The page-level orientation stays; only the skill pointer is gated.
     assert "add_to_dashboard" in dashboard
     assert "dashboard's area" in dashboard
     assert "skill `dashboard`" not in dashboard
+
+
+def test_prompt_section_ignores_tools_that_shadow_a_skill_name():
+    """A *tool* named like a skill must not satisfy a skill gate — the two
+    namespaces are separate (this is what the flat-set version got wrong)."""
+    shadowed = prompt_section(
+        "dashboard",
+        Availability(skills=frozenset(), tools=frozenset({"dashboard"})),
+    )
+    assert "skill `dashboard`" not in shadowed
 
 
 def test_prompt_section_defaults_to_no_available_skills():

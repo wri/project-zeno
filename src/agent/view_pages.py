@@ -27,6 +27,8 @@ docs/view-context-pages.md for the full design.
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from src.agent.tool_spec import Availability
+
 
 def on_screen_counts(view: dict) -> list[str]:
     """The on-screen item counts shared by the breadcrumb renderings."""
@@ -76,14 +78,14 @@ class ViewPage:
 
     name: str
     session_line: Callable[[dict], str]
-    # Takes the calling profile's available skill/tool names so it can drop
-    # any "read skill `x`" mention the profile can't actually serve — the
+    # Takes the calling profile's Availability so it can drop any
+    # "read skill `x`" mention the profile can't actually serve — the
     # same rule read_skill enforces at call time, applied here so the model
     # is never routed toward a skill it will just be told "not found" for.
-    prompt_section: Callable[[frozenset[str]], str]
+    prompt_section: Callable[[Availability], str]
 
 
-def _map_prompt(available: frozenset[str]) -> str:
+def _map_prompt(available: Availability) -> str:
     return (
         "The user is on the map explorer — free exploration of areas and "
         "layers. 'This area', 'here' or 'what I'm looking at' refer to what "
@@ -92,7 +94,7 @@ def _map_prompt(available: frozenset[str]) -> str:
     )
 
 
-def _dashboard_prompt(available: frozenset[str]) -> str:
+def _dashboard_prompt(available: Availability) -> str:
     base = (
         "The user is viewing a dashboard — a persistent collection of "
         "insight widgets for one area. 'Add this' / 'add it to my "
@@ -101,7 +103,7 @@ def _dashboard_prompt(available: frozenset[str]) -> str:
         "unless the user names another place. Call inspect_view_context to "
         "see the dashboard's area and widgets"
     )
-    if "dashboard" in available:
+    if available.has_skill("dashboard"):
         return base + "; read skill `dashboard` for the compose workflow."
     return base + "."
 
@@ -134,13 +136,14 @@ def get_page(view: Optional[dict]) -> Optional[ViewPage]:
 
 
 def prompt_section(
-    page_name: Optional[str], available: frozenset[str] = frozenset()
+    page_name: Optional[str],
+    available: Availability = Availability(frozenset(), frozenset()),
 ) -> Optional[str]:
     """System-prompt surface hints for a page name; None when unknown.
 
-    ``available`` is the calling profile's skill and tool names (see
-    ``AgentConfig.skills()`` / ``.tool_names()``) — pages use it to drop any
-    skill mention the profile can't actually serve.
+    ``available`` is the calling profile's ``Availability`` (see
+    ``AgentConfig.availability()``) — pages use it to drop any skill
+    mention the profile can't actually serve.
     """
     if not isinstance(page_name, str):
         return None

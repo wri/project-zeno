@@ -27,6 +27,23 @@ class ToolSpec:
     prompt_fragment: str
 
 
+@dataclass(frozen=True)
+class Availability:
+    """What one agent profile can serve, with skill and tool names kept in
+    separate namespaces — a bare ``name in available`` check can't tell a
+    skill called ``dashboard`` from a tool called ``dashboard``, and prompt
+    gating must never conflate the two."""
+
+    skills: frozenset[str]
+    tools: frozenset[str]
+
+    def has_skill(self, name: str) -> bool:
+        return name in self.skills
+
+    def has_tool(self, name: str) -> bool:
+        return name in self.tools
+
+
 # The bound tool names of the current request's agent profile. Set once per
 # request (``fetch_zeno``) and read from inside tools (``read_skill``) that
 # need to know what's actually callable, not just what's listed in the
