@@ -101,16 +101,18 @@ def _imagery_summary(snapshot: dict) -> str:
     )
 
 
-class _LayerKind(NamedTuple):
-    """Everything layer-specific about a map widget, in one row."""
+class LayerHandler(NamedTuple):
+    """How to build a map widget for one `layer` argument value: snapshot the
+    relevant agent state, summarize it for the reply, or explain why neither
+    is possible yet."""
 
     snapshot: Callable[[dict], Optional[dict]]
     summary: Callable[[dict], str]
     missing_message: str
 
 
-_LAYER_KINDS = {
-    "dataset": _LayerKind(
+LAYER_HANDLERS = {
+    "dataset": LayerHandler(
         snapshot=_dataset_config,
         summary=_dataset_summary,
         missing_message=(
@@ -118,7 +120,7 @@ _LAYER_KINDS = {
             "the layer to the dashboard."
         ),
     ),
-    "imagery": _LayerKind(
+    "imagery": LayerHandler(
         snapshot=_imagery_config,
         summary=_imagery_summary,
         missing_message=(
@@ -155,15 +157,15 @@ async def add_map_widget(
     """
     state = state or {}
 
-    kind = _LAYER_KINDS.get(layer)
-    if kind is None:
+    layer_type = LAYER_HANDLERS.get(layer)
+    if layer_type is None:
         return error_command(
             "layer must be 'dataset' or 'imagery'.", tool_call_id
         )
 
-    snapshot = kind.snapshot(state)
+    snapshot = layer_type.snapshot(state)
     if snapshot is None:
-        return error_command(kind.missing_message, tool_call_id)
+        return error_command(layer_type.missing_message, tool_call_id)
 
     target_dashboard = resolve_dashboard_id(state, dashboard_id)
     if not target_dashboard:
@@ -203,7 +205,7 @@ async def add_map_widget(
     return dashboard_updated_command(
         dashboard.id,
         (
-            f"Added {kind.summary(snapshot)} to dashboard "
+            f"Added {layer_type.summary(snapshot)} to dashboard "
             f"'{dashboard.name}' ({dashboard.id})."
         ),
         tool_call_id,
