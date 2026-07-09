@@ -136,8 +136,6 @@ def upgrade() -> None:
             "relationship",
             sa.Enum(
                 "owner",
-                "shared_edit",
-                "shared_view",
                 "saved",
                 name="aoi_relationship",
                 native_enum=False,

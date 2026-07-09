@@ -171,13 +171,12 @@ class CustomAreaOrm(Base):
 class AoiRelationship(str, enum.Enum):
     """A user's relationship to an AOI in ``user_aois``.
 
-    ``owner``/``shared_edit`` may edit the AOI; ``saved``/``shared_view`` are
-    read-only. Having any row means the AOI is in the user's list.
+    ``owner`` may edit the AOI; ``saved`` is read-only. Having any row means the
+    AOI is in the user's list. Shared/collaborator relationships will be added
+    when those use-cases are built.
     """
 
     OWNER = "owner"
-    SHARED_EDIT = "shared_edit"
-    SHARED_VIEW = "shared_view"
     SAVED = "saved"
 
 
@@ -234,7 +233,7 @@ class AoiOrm(Base):
 
 
 class UserAoiOrm(Base):
-    """User<->AOI relationships: owner / shared / saved.
+    """User<->AOI relationships: owner / saved.
 
     A single join carrying the whole permission model. ``aoi_id`` is a clean
     single-column FK to ``aois.id`` (the payoff of unifying storage). "In my
