@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import String, cast, func, select, text
+from sqlalchemy import String, cast, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -59,14 +59,13 @@ def _row_to_response(row: InsightOrm) -> InsightResponse:
     )
 
 
-def _aoi_pair_exists_clause(aoi_source: str, aoi_id: str):
-    """SQL EXISTS clause matching a (source, src_id) pair against the parallel
+def _aoi_pair_match(aoi_source: str, aoi_id: str):
+    """Match a (source, src_id) pair against the parallel
     ``StatisticsOrm.aoi_sources``/``aoi_ids`` JSONB arrays.
 
-    ``src_id`` is only unique per source, so the two arrays must be zipped by
-    index (via ``WITH ORDINALITY``) rather than checked for membership
-    independently — otherwise an AOI id from one source could false-match an
-    unrelated AOI source elsewhere in the same row.
+    ``src_id`` is only unique per source, so the arrays are matched pairwise
+    by index — independent membership checks would let an id from one source
+    false-match a different source elsewhere in the same row.
     """
     return text(
         """
@@ -74,10 +73,8 @@ def _aoi_pair_exists_clause(aoi_source: str, aoi_id: str):
             SELECT 1
             FROM jsonb_array_elements_text(statistics.aoi_ids)
                 WITH ORDINALITY AS ids(val, idx)
-            JOIN jsonb_array_elements_text(statistics.aoi_sources)
-                WITH ORDINALITY AS srcs(val, idx)
-                ON ids.idx = srcs.idx
-            WHERE ids.val = :aoi_id AND srcs.val = :aoi_source
+            WHERE ids.val = :aoi_id
+                AND statistics.aoi_sources ->> (ids.idx - 1)::int = :aoi_source
         )
         """
     ).bindparams(aoi_id=aoi_id, aoi_source=aoi_source)
@@ -103,8 +100,8 @@ async def list_insights(
 
     ``dataset_id`` and the AOI pair are properties of the ``StatisticsOrm``
     rows linked via ``InsightOrm.statistics_ids`` (a JSONB array of
-    stringified statistics UUIDs), so they are resolved by matching
-    statistics and keeping insights whose ``statistics_ids`` overlap.
+    stringified statistics UUIDs), so an insight matches when a statistics
+    row satisfying the filters appears in its ``statistics_ids``.
     """
     if (aoi_source is None) != (aoi_id is None):
         raise HTTPException(
@@ -121,22 +118,16 @@ async def list_insights(
         stmt = stmt.where(InsightOrm.thread_id == thread_id)
 
     if dataset_id is not None or aoi_id is not None:
-        matching_stat_ids = select(
-            func.array_agg(cast(StatisticsOrm.id, String))
+        stat_match = select(StatisticsOrm.id).where(
+            InsightOrm.statistics_ids.has_key(cast(StatisticsOrm.id, String))
         )
         if dataset_id is not None:
-            matching_stat_ids = matching_stat_ids.where(
+            stat_match = stat_match.where(
                 StatisticsOrm.dataset_id == dataset_id
             )
         if aoi_id is not None and aoi_source is not None:
-            matching_stat_ids = matching_stat_ids.where(
-                _aoi_pair_exists_clause(aoi_source, aoi_id)
-            )
-        stmt = stmt.where(
-            InsightOrm.statistics_ids.has_any(
-                matching_stat_ids.scalar_subquery()
-            )
-        )
+            stat_match = stat_match.where(_aoi_pair_match(aoi_source, aoi_id))
+        stmt = stmt.where(stat_match.exists())
 
     stmt = stmt.order_by(InsightOrm.created_at.desc())
 
