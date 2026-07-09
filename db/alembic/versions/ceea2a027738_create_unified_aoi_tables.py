@@ -17,6 +17,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 from geoalchemy2 import Geometry
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "ceea2a027738"
@@ -68,6 +69,11 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("created_by", sa.String(), nullable=True),
+        # Arbitrary/source-specific key-values: an escape hatch for
+        # user-uploaded custom-AOI attributes and source columns that don't map
+        # to the typed columns above. Left NULL by build-aois for now; anything
+        # we filter/facet/sort on gets promoted to a real column instead.
+        sa.Column("properties", postgresql.JSONB(), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(),

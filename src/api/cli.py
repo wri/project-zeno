@@ -809,6 +809,11 @@ def backfill_turn_fields_command(batch_size: int, dry_run: bool):
 # Reference sources first, custom last (custom depends only on custom_areas).
 _BUILD_SOURCES = ["gadm", "kba", "wdpa", "landmark", "custom"]
 
+# Note: `aois.properties` (JSONB) is intentionally left NULL by this transform.
+# It exists as an escape hatch for user-uploaded custom-AOI attributes (needs
+# the PR2 API change to accept them) and source-specific reference columns
+# (a deliberate follow-up); neither is populated in PR1.
+
 # Which source column carries the ISO3 country code(s), per reference source.
 # Resolved case-insensitively at runtime: geometries_* are built by GeoPandas
 # `to_postgis` and preserve the source file's (often upper-case) column casing.

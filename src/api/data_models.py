@@ -217,6 +217,11 @@ class AoiOrm(Base):
     is_deprecated = Column(Boolean, nullable=False, default=False)
     # Provenance / "uploaded_by": set for custom areas, null for reference.
     created_by = Column(String, ForeignKey("users.id"), nullable=True)
+    # Arbitrary/source-specific key-values: escape hatch for user-uploaded
+    # custom-AOI attributes and source columns that don't map to the typed
+    # columns above. Left NULL by build-aois for now; anything we
+    # filter/facet/sort on gets promoted to a real column instead.
+    properties = Column(JSONB, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(
         DateTime,
