@@ -9,10 +9,11 @@ modes into a test failure:
   them — the bug the Availability split exists to prevent),
 - every ROUTING_ROWS gate must resolve to a real skill/tool,
 - every ViewPage skill_pointer must name a real skill,
-- every skill's ``requires:`` entry must name a tool some profile binds.
+- every skill's ``requires:`` entry must name a spec in ALL_SPECS,
+- every skill file must be declared by some profile (else it's dead content).
 """
 
-from src.agent.agent_config import default_registry
+from src.agent.agent_config import ALL_SPECS, default_registry
 from src.agent.graph import ROUTING_ROWS
 from src.agent.skills import all_skills
 from src.agent.view_pages import PAGES
@@ -62,14 +63,28 @@ def test_page_skill_pointers_name_real_skills():
         ), f"page {page.name!r} points at unknown skill {skill!r}"
 
 
-def test_skill_requires_reference_registered_tools():
-    """A typo in a skill's ``requires:`` frontmatter would make the skill
-    unavailable in every profile forever, with no signal until a model
-    asks for it at runtime."""
-    tool_names = _all_registered_tool_names()
+def test_skill_requires_reference_known_specs():
+    """A typo in a skill's ``requires:`` frontmatter would blow up any
+    profile that declares the skill (AgentConfig.__post_init__) — and a
+    skill nobody declares yet would hide the typo entirely. Check every
+    skill file against the full spec catalogue."""
+    spec_names = {s.tool.name for s in ALL_SPECS}
     for skill in all_skills():
-        unknown = set(skill.requires) - tool_names
+        unknown = set(skill.requires) - spec_names
         assert not unknown, (
-            f"skill {skill.name!r} requires unregistered tools: "
+            f"skill {skill.name!r} requires tools missing from ALL_SPECS: "
             f"{sorted(unknown)}"
         )
+
+
+def test_every_skill_is_declared_by_some_profile():
+    """Profiles declare skills explicitly now, so a skill file nobody
+    declares is dead content the model can never reach — the drift this
+    refactor exists to make visible."""
+    declared = set().union(
+        *(config.skills for config in default_registry.configs())
+    )
+    undeclared = {s.name for s in all_skills()} - declared
+    assert (
+        not undeclared
+    ), f"skills not declared by any profile: {sorted(undeclared)}"

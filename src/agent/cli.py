@@ -31,8 +31,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 from sqlalchemy import select
 
 from src.agent.agent_config import (
-    CORE_SPECS,
     DEFAULT_PROFILE,
+    DEFAULT_SKILLS,
     AgentConfig,
     default_registry,
 )
@@ -625,7 +625,7 @@ async def _fetch_agent(
     else:
         config = AgentConfig(
             DEFAULT_PROFILE,
-            specs=CORE_SPECS,
+            skills=DEFAULT_SKILLS,
             system_prompt=system_prompt,
         )
     if use_postgres:
