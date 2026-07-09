@@ -4,12 +4,12 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import String, cast, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.api.auth.dependencies import optional_auth, require_auth
-from src.api.data_models import InsightOrm, UserType
+from src.api.data_models import InsightOrm, StatisticsOrm, UserType
 from src.api.schemas import (
     InsightChartResponse,
     InsightPublicToggleRequest,
@@ -59,13 +59,59 @@ def _row_to_response(row: InsightOrm) -> InsightResponse:
     )
 
 
+def _aoi_pair_exists_clause(aoi_source: str, aoi_id: str):
+    """SQL EXISTS clause matching a (source, src_id) pair against the parallel
+    ``StatisticsOrm.aoi_sources``/``aoi_ids`` JSONB arrays.
+
+    ``src_id`` is only unique per source, so the two arrays must be zipped by
+    index (via ``WITH ORDINALITY``) rather than checked for membership
+    independently — otherwise an AOI id from one source could false-match an
+    unrelated AOI source elsewhere in the same row.
+    """
+    return text(
+        """
+        EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements_text(statistics.aoi_ids)
+                WITH ORDINALITY AS ids(val, idx)
+            JOIN jsonb_array_elements_text(statistics.aoi_sources)
+                WITH ORDINALITY AS srcs(val, idx)
+                ON ids.idx = srcs.idx
+            WHERE ids.val = :aoi_id AND srcs.val = :aoi_source
+        )
+        """
+    ).bindparams(aoi_id=aoi_id, aoi_source=aoi_source)
+
+
 @router.get("/api/insights", response_model=list[InsightResponse])
 async def list_insights(
     thread_id: Optional[str] = None,
+    dataset_id: Optional[int] = None,
+    aoi_source: Optional[str] = None,
+    aoi_id: Optional[str] = None,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """List all insights belonging to the authenticated user, optionally filtered by thread."""
+    """List insights belonging to the authenticated user.
+
+    Optional filters:
+    - ``thread_id``: only insights from the given thread.
+    - ``dataset_id``: only insights derived from the given dataset id.
+    - ``aoi_source`` + ``aoi_id``: only insights derived from the AOI
+      identified by that (source, src_id) pair. Both must be given together —
+      ``src_id`` is only unique per source, so either alone is ambiguous.
+
+    ``dataset_id`` and the AOI pair are properties of the ``StatisticsOrm``
+    rows linked via ``InsightOrm.statistics_ids`` (a JSONB array of
+    stringified statistics UUIDs), so they are resolved by matching
+    statistics and keeping insights whose ``statistics_ids`` overlap.
+    """
+    if (aoi_source is None) != (aoi_id is None):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="aoi_source and aoi_id must be provided together",
+        )
+
     stmt = (
         select(InsightOrm)
         .options(selectinload(InsightOrm.charts))
@@ -73,6 +119,25 @@ async def list_insights(
     )
     if thread_id:
         stmt = stmt.where(InsightOrm.thread_id == thread_id)
+
+    if dataset_id is not None or aoi_id is not None:
+        matching_stat_ids = select(
+            func.array_agg(cast(StatisticsOrm.id, String))
+        )
+        if dataset_id is not None:
+            matching_stat_ids = matching_stat_ids.where(
+                StatisticsOrm.dataset_id == dataset_id
+            )
+        if aoi_id is not None and aoi_source is not None:
+            matching_stat_ids = matching_stat_ids.where(
+                _aoi_pair_exists_clause(aoi_source, aoi_id)
+            )
+        stmt = stmt.where(
+            InsightOrm.statistics_ids.has_any(
+                matching_stat_ids.scalar_subquery()
+            )
+        )
+
     stmt = stmt.order_by(InsightOrm.created_at.desc())
 
     result = await session.execute(stmt)
