@@ -25,7 +25,7 @@ from typing import Optional
 
 import bcrypt
 import click
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -37,6 +37,12 @@ from src.api.data_models import (
     UserType,
 )
 from src.shared.config import SharedSettings
+from src.shared.geocoding_helpers import (
+    GADM_LEVELS,
+    GADM_STANDARD_ID_RE,
+    SOURCE_ID_MAPPING,
+    _antimeridian_bbox_sql,
+)
 
 
 class DatabaseManager:
@@ -790,6 +796,261 @@ def backfill_turn_fields_command(batch_size: int, dry_run: bool):
                 )
                 verb = "would update" if dry_run else "updated"
                 click.echo(f"backfill-turn-fields: {verb} {written} row(s)")
+        finally:
+            await db.close()
+
+    asyncio.run(_run())
+
+
+# ---------------------------------------------------------------------------
+# build-aois: populate the unified `aois` / `user_aois` tables
+# ---------------------------------------------------------------------------
+
+# Reference sources first, custom last (custom depends only on custom_areas).
+_BUILD_SOURCES = ["gadm", "kba", "wdpa", "landmark", "custom"]
+
+# Which source column carries the ISO3 country code(s), per reference source.
+# Resolved case-insensitively at runtime: geometries_* are built by GeoPandas
+# `to_postgis` and preserve the source file's (often upper-case) column casing.
+_ISO3_SOURCE_COLUMNS = {
+    "gadm": ["GID_0"],
+    "kba": ["ISO3"],
+    "wdpa": ["iso3"],
+    "landmark": ["iso_code"],
+}
+
+
+def _bbox_float_array_sql(geom_expr: str) -> str:
+    """A ``float8[]`` ``[west, south, east, north]`` for *geom_expr*.
+
+    Wraps the shared antimeridian-aware bbox (which yields a JSON array) and
+    turns it into a real Postgres array so it lands in ``aois.bbox`` directly.
+    ``WITH ORDINALITY`` pins the element order.
+    """
+    return (
+        "(SELECT array_agg(e::double precision ORDER BY ord) "
+        f"FROM json_array_elements_text({_antimeridian_bbox_sql(geom_expr)}) "
+        "WITH ORDINALITY AS t(e, ord))"
+    )
+
+
+async def _table_exists(session: AsyncSession, table: str) -> bool:
+    result = await session.execute(
+        text("SELECT to_regclass(:t) IS NOT NULL"), {"t": f"public.{table}"}
+    )
+    return bool(result.scalar())
+
+
+async def _resolve_column(
+    session: AsyncSession, table: str, candidates: list[str]
+) -> Optional[str]:
+    """Return the real (correctly-cased) name of the first present candidate."""
+    for cand in candidates:
+        result = await session.execute(
+            text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = :table AND lower(column_name) = lower(:c) "
+                "LIMIT 1"
+            ),
+            {"table": table, "c": cand},
+        )
+        found = result.scalar()
+        if found:
+            return found
+    return None
+
+
+async def _build_reference_aois(session: AsyncSession, source: str) -> int:
+    """Transform one ``geometries_<source>`` table into ``aois`` (idempotent)."""
+    cfg = SOURCE_ID_MAPPING[source]
+    table, id_col = cfg["table"], cfg["id_column"]
+
+    iso3_col = await _resolve_column(
+        session, table, _ISO3_SOURCE_COLUMNS[source]
+    )
+    iso3_expr = (
+        f"string_to_array(NULLIF(btrim(\"{iso3_col}\"::text), ''), ';')"
+        if iso3_col
+        else "NULL::text[]"
+    )
+
+    if source == "gadm":
+        # subtype -> GADM admin level (0..5), in GADM_LEVELS declaration order.
+        admin_expr = (
+            "CASE subtype "
+            + " ".join(
+                f"WHEN '{st}' THEN {lvl}" for lvl, st in enumerate(GADM_LEVELS)
+            )
+            + " ELSE NULL END"
+        )
+        # Disputed territories (e.g. "Z01") lack a 3-letter ISO prefix; keep
+        # the rows but flag them so search can exclude via its partial index.
+        disputed_expr = f"NOT (\"{id_col}\" ~ '{GADM_STANDARD_ID_RE}')"
+    else:
+        admin_expr = "NULL::smallint"
+        disputed_expr = "false"
+
+    sql = f"""
+        INSERT INTO aois (
+            source, source_id, name, subtype, geometry,
+            bbox, area_km2, iso3, admin_level, is_disputed
+        )
+        SELECT
+            '{source}',
+            CAST("{id_col}" AS TEXT),
+            name,
+            subtype,
+            geometry,
+            {_bbox_float_array_sql("geometry")},
+            ST_Area(geometry::geography) / 1e6,
+            {iso3_expr},
+            {admin_expr},
+            {disputed_expr}
+        FROM {table}
+        WHERE name IS NOT NULL AND geometry IS NOT NULL
+        ON CONFLICT (source, source_id) WHERE NOT is_deprecated
+        DO UPDATE SET
+            name = EXCLUDED.name,
+            subtype = EXCLUDED.subtype,
+            geometry = EXCLUDED.geometry,
+            bbox = EXCLUDED.bbox,
+            area_km2 = EXCLUDED.area_km2,
+            iso3 = EXCLUDED.iso3,
+            admin_level = EXCLUDED.admin_level,
+            is_disputed = EXCLUDED.is_disputed,
+            updated_at = now()
+    """
+    result = await session.execute(text(sql))
+    return result.rowcount
+
+
+async def _build_custom_aois(session: AsyncSession) -> int:
+    """Transform ``custom_areas`` into ``aois`` + one ``owner`` link each.
+
+    Geometry is the ``ST_Collect`` of the stored GeoJSON-string list (same
+    shape ``CUSTOM_BBOX_SQL`` reads). Each area gets exactly one ``owner`` row
+    in ``user_aois`` for its ``user_id``. Returns the owner-link upsert count.
+    """
+    sql = f"""
+        WITH collected AS (
+            SELECT
+                ca.id,
+                ca.user_id,
+                ca.name,
+                ca.created_at,
+                ca.updated_at,
+                (
+                    SELECT ST_Collect(ST_SetSRID(ST_GeomFromGeoJSON(g), 4326))
+                    FROM jsonb_array_elements_text(ca.geometries) AS g
+                ) AS geom
+            FROM custom_areas ca
+        ),
+        ins AS (
+            INSERT INTO aois (
+                source, source_id, name, subtype, geometry,
+                bbox, area_km2, created_by, created_at, updated_at
+            )
+            SELECT
+                'custom',
+                id::text,
+                name,
+                'custom-area',
+                geom,
+                {_bbox_float_array_sql("geom")},
+                ST_Area(geom::geography) / 1e6,
+                user_id,
+                created_at,
+                updated_at
+            FROM collected
+            WHERE name IS NOT NULL AND geom IS NOT NULL
+            ON CONFLICT (source, source_id) WHERE NOT is_deprecated
+            DO UPDATE SET
+                name = EXCLUDED.name,
+                geometry = EXCLUDED.geometry,
+                bbox = EXCLUDED.bbox,
+                area_km2 = EXCLUDED.area_km2,
+                updated_at = now()
+            RETURNING id AS aoi_id, created_by AS user_id
+        )
+        INSERT INTO user_aois (user_id, aoi_id, relationship)
+        SELECT user_id, aoi_id, 'owner' FROM ins
+        ON CONFLICT (user_id, aoi_id, relationship) DO NOTHING
+    """
+    result = await session.execute(text(sql))
+    return result.rowcount
+
+
+@cli.command("build-aois")
+@click.option(
+    "--source",
+    "sources",
+    multiple=True,
+    type=click.Choice(_BUILD_SOURCES),
+    help="Limit to source(s); repeatable. Default: all.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Run the transform in a transaction, report counts, then roll back.",
+)
+def build_aois_command(sources: tuple, dry_run: bool):
+    """Populate the unified aois/user_aois tables from already-loaded data.
+
+    Idempotent, set-based, in-DB transform of the reference geometries_*
+    tables and custom_areas into the unified schema. Run post-deploy (heavy
+    work must not run in the blocking migrate Job). Purely additive: the live
+    API keeps serving from geometries_* / custom_areas until the API PR.
+    """
+    selected = list(sources) or _BUILD_SOURCES
+
+    async def _run():
+        db = DatabaseManager()
+        try:
+            async with db.async_session() as session:
+                for source in selected:
+                    table = (
+                        "custom_areas"
+                        if source == "custom"
+                        else SOURCE_ID_MAPPING[source]["table"]
+                    )
+                    if not await _table_exists(session, table):
+                        click.echo(
+                            f"⏭️  {source}: {table} not found, skipping."
+                        )
+                        continue
+
+                    if source == "custom":
+                        links = await _build_custom_aois(session)
+                        click.echo(
+                            f"✅ custom: {links} owner link(s) upserted."
+                        )
+                    else:
+                        n = await _build_reference_aois(session, source)
+                        click.echo(f"✅ {source}: {n} aoi row(s) upserted.")
+
+                # Summary from the tables (visible within this transaction).
+                summary = await session.execute(
+                    text(
+                        "SELECT source, count(*) FROM aois "
+                        "GROUP BY source ORDER BY source"
+                    )
+                )
+                click.echo("\n📊 aois by source:")
+                for src, cnt in summary.all():
+                    click.echo(f"   {src}: {cnt}")
+                links_total = await session.execute(
+                    text("SELECT count(*) FROM user_aois")
+                )
+                click.echo(f"   user_aois: {links_total.scalar()}")
+
+                if dry_run:
+                    await session.rollback()
+                    click.echo(
+                        "\n🔎 --dry-run: rolled back, no changes saved."
+                    )
+                else:
+                    await session.commit()
+                    click.echo("\n💾 Committed.")
         finally:
             await db.close()
 
