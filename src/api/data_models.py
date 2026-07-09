@@ -11,10 +11,12 @@ from sqlalchemy import (
     Column,
     Date,
     DateTime,
+    Enum,
     Float,
     ForeignKey,
     Index,
     Integer,
+    SmallInteger,
     String,
     UniqueConstraint,
     text,
@@ -79,6 +81,7 @@ class UserOrm(Base):
     machine_user_keys = relationship(
         "MachineUserKeyOrm", back_populates="user"
     )
+    user_aois = relationship("UserAoiOrm", back_populates="user")
 
 
 class ThreadOrm(Base):
@@ -163,6 +166,135 @@ class CustomAreaOrm(Base):
     )
 
     user = relationship("UserOrm", back_populates="custom_areas")
+
+
+class AoiRelationship(str, enum.Enum):
+    """A user's relationship to an AOI in ``user_aois``.
+
+    ``owner``/``shared_edit`` may edit the AOI; ``saved``/``shared_view`` are
+    read-only. Having any row means the AOI is in the user's list.
+    """
+
+    OWNER = "owner"
+    SHARED_EDIT = "shared_edit"
+    SHARED_VIEW = "shared_view"
+    SAVED = "saved"
+
+
+class AoiOrm(Base):
+    """Unified AOI table: one row per live ``(source, source_id)``.
+
+    Holds every kind of area -- reference sources (gadm/kba/wdpa/landmark) and
+    custom drawn areas -- addressed by a stable UUID ``id`` and by the logical
+    ``(source, source_id)`` key.
+
+    Deliberately PostGIS-free at the ORM layer, like the rest of this module:
+    the real ``geometry geometry(GEOMETRY, 4326)`` column plus the GiST,
+    partial trigram, and partial-unique indexes live in the Alembic migration
+    only. The test DB is built from this metadata via ``create_all`` and has no
+    PostGIS/pg_trgm; geometry is read/written through raw SQL (see
+    ``src/shared/geocoding_helpers.py``).
+    """
+
+    __tablename__ = "aois"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    source = Column(String, nullable=False)
+    source_id = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    subtype = Column(String, nullable=False)
+    # bbox as [west, south, east, north]; precomputed, antimeridian-aware.
+    bbox = Column(ARRAY(Float), nullable=True)
+    area_km2 = Column(Float, nullable=True)
+    iso3 = Column(ARRAY(String), nullable=True)
+    admin_level = Column(SmallInteger, nullable=True)
+    # Kept in the table but excluded from search via a partial index.
+    is_disputed = Column(Boolean, nullable=False, default=False)
+    # Inert today; reserved for future versioning (deprecate-old on update).
+    is_deprecated = Column(Boolean, nullable=False, default=False)
+    # Provenance / "uploaded_by": set for custom areas, null for reference.
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        onupdate=datetime.now,
+    )
+
+    user_links = relationship(
+        "UserAoiOrm",
+        back_populates="aoi",
+        cascade="all, delete-orphan",
+    )
+
+
+class UserAoiOrm(Base):
+    """User<->AOI relationships: owner / shared / saved.
+
+    A single join carrying the whole permission model. ``aoi_id`` is a clean
+    single-column FK to ``aois.id`` (the payoff of unifying storage). "In my
+    list" == any row for the user; ``relationship`` says what they may do.
+    """
+
+    __tablename__ = "user_aois"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    aoi_id = Column(
+        PostgresUUID,
+        ForeignKey("aois.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # native_enum=False -> VARCHAR + CHECK, so create_all needs no PG type.
+    relationship_type = Column(
+        "relationship",
+        Enum(
+            AoiRelationship,
+            native_enum=False,
+            create_constraint=True,
+            values_callable=lambda e: [m.value for m in e],
+            name="aoi_relationship",
+        ),
+        nullable=False,
+    )
+    # User's per-list label; null falls back to aois.name.
+    name = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        onupdate=datetime.now,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "aoi_id",
+            "relationship",
+            name="uq_user_aoi_relationship",
+        ),
+        # Powers custom-visibility semi-join and saved-first sort.
+        Index(
+            "idx_user_aois_user_rel_aoi",
+            "user_id",
+            "relationship",
+            "aoi_id",
+        ),
+        Index("idx_user_aois_aoi_id", "aoi_id"),
+    )
+
+    user = relationship("UserOrm", back_populates="user_aois")
+    aoi = relationship("AoiOrm", back_populates="user_links")
 
 
 class MachineUserKeyOrm(Base):
