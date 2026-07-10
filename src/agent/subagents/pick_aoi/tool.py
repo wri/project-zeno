@@ -9,7 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.types import Command
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, create_model
 from sqlalchemy import text
 
 from src.agent.llms import SMALL_MODEL
@@ -80,10 +80,6 @@ async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
         if row and row[0]:
             return row[0]
     return [-180.0, -90.0, 180.0, 90.0]
-
-
-class AOIId(BaseModel):
-    src_id: str = Field(description="`src_id` of the best matched location.")
 
 
 class AOIIndex(BaseModel):
@@ -267,9 +263,21 @@ async def select_best_aoi(
         ]
     )
 
+    # Constrain src_id to an enum of the actual candidate ids (rather than a
+    # bare `str`) so the schema itself rules out picking an id that wasn't
+    # offered, instead of relying on the model to stay grounded on its own.
+    candidate_ids = tuple(candidate_aois["src_id"])
+    AOIIdChoice = create_model(
+        "AOIId",
+        src_id=(
+            Literal[candidate_ids],
+            Field(description="`src_id` of the best matched location."),
+        ),
+    )
+
     # Chain for selecting the best location match and returning the src_id
     AOI_SELECTION_CHAIN = (
-        AOI_SELECTION_PROMPT | SMALL_MODEL.with_structured_output(AOIId)
+        AOI_SELECTION_PROMPT | SMALL_MODEL.with_structured_output(AOIIdChoice)
     )
 
     selected_aoi_index = await AOI_SELECTION_CHAIN.ainvoke(
@@ -278,10 +286,21 @@ async def select_best_aoi(
             "user_query": question,
         }
     )
-    # Get the original data row for the selected AOI
-    selected_aoi_row = candidate_aois[
+    # Get the original data row for the selected AOI. Even with the id
+    # constrained to an enum above, a weak/misbehaving model can still return
+    # something else (e.g. from validation being skipped or overridden) —
+    # fall back to the top fuzzy-match candidate rather than crashing.
+    matches = candidate_aois[
         candidate_aois["src_id"] == selected_aoi_index.src_id
-    ].iloc[0]
+    ]
+    if matches.empty:
+        logger.warning(
+            f"Model selected src_id {selected_aoi_index.src_id!r} not found "
+            "among candidates; falling back to top candidate"
+        )
+        selected_aoi_row = candidate_aois.iloc[0]
+    else:
+        selected_aoi_row = matches.iloc[0]
     selected_aoi = AOIIndex(**selected_aoi_row.to_dict())
 
     logger.debug(f"Candidate AOIs: {candidate_aois}")
@@ -595,7 +614,7 @@ class Geocoder:
 @tool("pick_aoi")
 async def pick_aoi(
     question: str,
-    area_of_interest: Optional[AreaOfInterestType],
+    area_of_interest: Optional[AreaOfInterestType] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Resolve the place(s) in the user's request to map geometry (the AOI).

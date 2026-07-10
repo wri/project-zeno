@@ -1,6 +1,9 @@
+import os
+
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
 from src.agent.config import AgentSettings
 
@@ -53,6 +56,19 @@ GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
 #     max_tokens=None,  # max_tokens=None means no limit
 # )
 
+# Giotto (OpenAI-compatible gateway; auth token is "client_id:client_secret")
+# enable_thinking=False per Giotto support: the model's chain-of-thought
+# otherwise leaks into structured/tool-call output instead of valid JSON.
+GIOTTO = ChatOpenAI(
+    model="giotto-model",
+    base_url="https://cloud.giotto.ai/v1",
+    api_key=f"{os.environ.get('GIOTTO_CLIENT_ID', '')}:"
+    f"{os.environ.get('GIOTTO_CLIENT_SECRET', '')}",
+    temperature=0,
+    max_tokens=None,  # max_tokens=None means no limit
+    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+)
+
 # Model Registry for dynamic selection
 MODEL_REGISTRY = {
     "sonnet": SONNET,
@@ -60,6 +76,7 @@ MODEL_REGISTRY = {
     "gemini": GEMINI,
     "gemini-flash": GEMINI_FLASH,
     "gemini-flash-lite": GEMINI_FLASH_LITE,
+    "giotto": GIOTTO,
     # "gpt": GPT,
 }
 

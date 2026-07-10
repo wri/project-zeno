@@ -119,16 +119,26 @@ class SessionContextMiddleware(AgentMiddleware):
     async def awrap_model_call(self, request: ModelRequest, handler):
         state = request.state or {}
         block = format_session_block(state)
-        request.messages = [
-            SystemMessage(content=block),
-            *request.messages,
-        ]
+        # ModelRequest.messages excludes the system message: the factory
+        # prepends request.system_message to messages right before calling
+        # the model. So the session block must be merged into
+        # system_message (not messages[0]) or the framework ends up
+        # sending two system messages, which some providers (e.g. Giotto's
+        # Ray Serve backend) reject with "System message must be at the
+        # beginning."
+        if request.system_message is not None:
+            merged = SystemMessage(
+                content=f"{block}\n\n{request.system_message.text}"
+            )
+        else:
+            merged = SystemMessage(content=block)
+        request = request.override(system_message=merged)
         if request.runtime is not None:
             request.runtime.stream_writer(
                 {
                     "type": "context",
                     "session_block": block,
-                    "message_count": len(request.messages),
+                    "message_count": len(request.messages) + 1,
                 }
             )
         return await handler(request)
