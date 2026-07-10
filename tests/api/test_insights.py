@@ -6,7 +6,12 @@ import pytest
 
 from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
-from src.api.data_models import InsightChartOrm, InsightOrm, UserOrm
+from src.api.data_models import (
+    InsightChartOrm,
+    InsightOrm,
+    StatisticsOrm,
+    UserOrm,
+)
 from tests.conftest import async_session_maker
 
 
@@ -31,6 +36,7 @@ async def _create_insight(
     thread_id: str | None = "thread-1",
     title: str = "Test Insight",
     is_public: bool = False,
+    statistics_ids: list[str] | None = None,
 ) -> InsightOrm:
     async with async_session_maker() as session:
         row = InsightOrm(
@@ -38,6 +44,7 @@ async def _create_insight(
             thread_id=thread_id,
             insight_text="Sample insight text",
             follow_up_suggestions=["Try a different area"],
+            statistics_ids=statistics_ids or [],
             codeact_types=["code_block"],
             codeact_contents=["print('hi')"],
             is_public=is_public,
@@ -54,6 +61,30 @@ async def _create_insight(
             chart_data=[{"x": 1, "y": 2}],
         )
         session.add(chart)
+        await session.commit()
+        await session.refresh(row)
+        return row
+
+
+async def _create_statistics(
+    *,
+    dataset_id: int | None = None,
+    dataset_name: str = "tree_cover_loss",
+    aoi_ids: list[str] | None = None,
+    aoi_sources: list[str] | None = None,
+    aoi_names: list[str] | None = None,
+) -> StatisticsOrm:
+    async with async_session_maker() as session:
+        row = StatisticsOrm(
+            dataset_name=dataset_name,
+            dataset_id=dataset_id,
+            start_date="2020-01-01",
+            end_date="2020-12-31",
+            aoi_names=aoi_names or [],
+            aoi_ids=aoi_ids or [],
+            aoi_sources=aoi_sources or [],
+        )
+        session.add(row)
         await session.commit()
         await session.refresh(row)
         return row
@@ -106,6 +137,217 @@ async def test_list_insights_filter_by_thread(client, auth_override):
     data = response.json()
     assert len(data) == 1
     assert data[0]["id"] == str(i2.id)
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_by_dataset_id(client, auth_override):
+    user = await _create_user("dataset-filter-owner")
+    auth_override(user.id)
+
+    stat_match = await _create_statistics(dataset_id=42)
+    stat_other = await _create_statistics(dataset_id=99)
+
+    i_match = await _create_insight(
+        user_id=user.id, statistics_ids=[str(stat_match.id)]
+    )
+    await _create_insight(user_id=user.id, statistics_ids=[str(stat_other.id)])
+
+    response = await client.get(
+        "/api/insights",
+        params={"dataset_id": 42},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == str(i_match.id)
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_by_dataset_id_no_match(
+    client, auth_override
+):
+    user = await _create_user("dataset-filter-no-match")
+    auth_override(user.id)
+
+    stat = await _create_statistics(dataset_id=1)
+    await _create_insight(user_id=user.id, statistics_ids=[str(stat.id)])
+
+    response = await client.get(
+        "/api/insights",
+        params={"dataset_id": 999},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_by_aoi_pair(client, auth_override):
+    user = await _create_user("aoi-filter-owner")
+    auth_override(user.id)
+
+    stat_match = await _create_statistics(
+        aoi_ids=["IDN.24_1"], aoi_sources=["gadm"]
+    )
+    stat_other = await _create_statistics(
+        aoi_ids=["BRA.1_1"], aoi_sources=["gadm"]
+    )
+
+    i_match = await _create_insight(
+        user_id=user.id, statistics_ids=[str(stat_match.id)]
+    )
+    await _create_insight(user_id=user.id, statistics_ids=[str(stat_other.id)])
+
+    response = await client.get(
+        "/api/insights",
+        params={"aoi_source": "gadm", "aoi_id": "IDN.24_1"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == str(i_match.id)
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_by_aoi_pair_does_not_cross_match(
+    client, auth_override
+):
+    """A stats row analysing (gadm, X) and (wdpa, Y) must not match a query
+    for (gadm, Y) or (wdpa, X) — the id and source arrays are parallel and
+    must be matched pairwise by index, not as independent membership checks.
+    """
+    user = await _create_user("aoi-filter-crossmatch")
+    auth_override(user.id)
+
+    stat = await _create_statistics(
+        aoi_ids=["X", "Y"], aoi_sources=["gadm", "wdpa"]
+    )
+    await _create_insight(user_id=user.id, statistics_ids=[str(stat.id)])
+
+    response = await client.get(
+        "/api/insights",
+        params={"aoi_source": "gadm", "aoi_id": "Y"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+
+    response = await client.get(
+        "/api/insights",
+        params={"aoi_source": "wdpa", "aoi_id": "X"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+
+    # Sanity check: the true pairs do match.
+    response = await client.get(
+        "/api/insights",
+        params={"aoi_source": "gadm", "aoi_id": "X"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert len(response.json()) == 1
+
+    response = await client.get(
+        "/api/insights",
+        params={"aoi_source": "wdpa", "aoi_id": "Y"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert len(response.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_aoi_id_without_source_returns_400(
+    client, auth_override
+):
+    user = await _create_user("aoi-filter-missing-source")
+    auth_override(user.id)
+
+    response = await client.get(
+        "/api/insights",
+        params={"aoi_id": "IDN.24_1"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_aoi_source_without_id_returns_400(
+    client, auth_override
+):
+    user = await _create_user("aoi-filter-missing-id")
+    auth_override(user.id)
+
+    response = await client.get(
+        "/api/insights",
+        params={"aoi_source": "gadm"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_by_dataset_id_and_aoi_pair_combined(
+    client, auth_override
+):
+    """Combining dataset_id and the AOI pair filters narrows results with
+    AND semantics — an insight must match both to be returned."""
+    user = await _create_user("combined-filter-owner")
+    auth_override(user.id)
+
+    stat_both = await _create_statistics(
+        dataset_id=1, aoi_ids=["IDN.24_1"], aoi_sources=["gadm"]
+    )
+    stat_dataset_only = await _create_statistics(
+        dataset_id=1, aoi_ids=["BRA.1_1"], aoi_sources=["gadm"]
+    )
+    stat_aoi_only = await _create_statistics(
+        dataset_id=2, aoi_ids=["IDN.24_1"], aoi_sources=["gadm"]
+    )
+
+    i_both = await _create_insight(
+        user_id=user.id, statistics_ids=[str(stat_both.id)]
+    )
+    await _create_insight(
+        user_id=user.id, statistics_ids=[str(stat_dataset_only.id)]
+    )
+    await _create_insight(
+        user_id=user.id, statistics_ids=[str(stat_aoi_only.id)]
+    )
+
+    response = await client.get(
+        "/api/insights",
+        params={"dataset_id": 1, "aoi_source": "gadm", "aoi_id": "IDN.24_1"},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == str(i_both.id)
+
+
+@pytest.mark.asyncio
+async def test_list_insights_filter_by_dataset_id_scoped_to_own_insights(
+    client, auth_override
+):
+    """Filters narrow within the caller's own insights; they never leak
+    another user's insights even on a dataset_id match."""
+    owner = await _create_user("scoped-filter-owner")
+    other = await _create_user("scoped-filter-other")
+
+    stat = await _create_statistics(dataset_id=7)
+    await _create_insight(user_id=other.id, statistics_ids=[str(stat.id)])
+
+    auth_override(owner.id)
+    response = await client.get(
+        "/api/insights",
+        params={"dataset_id": 7},
+        headers={"Authorization": "Bearer t"},
+    )
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 @pytest.mark.asyncio
