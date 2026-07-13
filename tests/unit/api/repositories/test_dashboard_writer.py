@@ -49,6 +49,9 @@ class TestMalformedIdsAreNotFound:
             is None
         )
 
+    async def test_get_widget(self, bad):
+        assert await dashboard_writer.get_widget(bad) is None
+
     async def test_update_widget(self, bad):
         assert await dashboard_writer.update_widget(bad, position=1) is False
 
