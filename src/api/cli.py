@@ -825,6 +825,22 @@ _ISO3_SOURCE_COLUMNS = {
 }
 
 
+def _multipolygon_sql(geom_expr: str) -> str:
+    """Normalize *geom_expr* to a valid 2D MultiPolygon (for the typed column).
+
+    ``ST_MakeValid`` repairs self-intersections / ring errors;
+    ``ST_CollectionExtract(..., 3)`` keeps only polygonal parts (dropping the
+    line/point slivers ``ST_MakeValid`` can emit); ``ST_Multi`` guarantees the
+    ``MULTIPOLYGON`` type the ``aois.geometry`` column enforces. Callers filter
+    out an empty result (a geometry with no areal component) with
+    ``NOT ST_IsEmpty(...)`` so such rows are skipped, not stored empty.
+    """
+    return (
+        "ST_Multi(ST_CollectionExtract("
+        f"ST_MakeValid(ST_Force2D({geom_expr})), 3))"
+    )
+
+
 def _bbox_float_array_sql(geom_expr: str) -> str:
     """A ``float8[]`` ``[west, south, east, north]`` for *geom_expr*.
 
@@ -895,24 +911,39 @@ async def _build_reference_aois(session: AsyncSession, source: str) -> int:
         admin_expr = "NULL::smallint"
         disputed_expr = "false"
 
+    # Normalize source geometry to a valid MultiPolygon once, then derive
+    # geometry / bbox / area_km2 from the same shape.
+    norm_geom = _multipolygon_sql("geometry")
     sql = f"""
+        WITH normalized AS (
+            SELECT
+                CAST("{id_col}" AS TEXT) AS source_id,
+                name,
+                subtype,
+                {norm_geom} AS geom,
+                {iso3_expr} AS iso3,
+                {admin_expr} AS admin_level,
+                {disputed_expr} AS is_disputed
+            FROM {table}
+            WHERE name IS NOT NULL AND geometry IS NOT NULL
+        )
         INSERT INTO aois (
             source, source_id, name, subtype, geometry,
             bbox, area_km2, iso3, admin_level, is_disputed
         )
         SELECT
             '{source}',
-            CAST("{id_col}" AS TEXT),
+            source_id,
             name,
             subtype,
-            geometry,
-            {_bbox_float_array_sql("geometry")},
-            ST_Area(geometry::geography) / 1e6,
-            {iso3_expr},
-            {admin_expr},
-            {disputed_expr}
-        FROM {table}
-        WHERE name IS NOT NULL AND geometry IS NOT NULL
+            geom,
+            {_bbox_float_array_sql("geom")},
+            ST_Area(geom::geography) / 1e6,
+            iso3,
+            admin_level,
+            is_disputed
+        FROM normalized
+        WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
         ON CONFLICT (source, source_id) WHERE NOT is_deprecated
         DO UPDATE SET
             name = EXCLUDED.name,
@@ -926,16 +957,40 @@ async def _build_reference_aois(session: AsyncSession, source: str) -> int:
             updated_at = now()
     """
     result = await session.execute(text(sql))
+
+    # Surface (don't silently drop) rows whose geometry couldn't be coerced to
+    # a non-empty MultiPolygon.
+    skipped = await session.scalar(
+        text(
+            f"SELECT count(*) FROM {table} "
+            f"WHERE name IS NOT NULL AND geometry IS NOT NULL "
+            f"AND ({norm_geom} IS NULL OR ST_IsEmpty({norm_geom}))"
+        )
+    )
+    if skipped:
+        click.echo(
+            f"⚠️  {source}: {skipped} row(s) skipped "
+            f"(geometry not coercible to a non-empty MultiPolygon)."
+        )
     return result.rowcount
 
 
 async def _build_custom_aois(session: AsyncSession) -> int:
     """Transform ``custom_areas`` into ``aois`` + one ``owner`` link each.
 
-    Geometry is the ``ST_Collect`` of the stored GeoJSON-string list (same
-    shape ``CUSTOM_BBOX_SQL`` reads). Each area gets exactly one ``owner`` row
-    in ``user_aois`` for its ``user_id``. Returns the owner-link upsert count.
+    Geometry is the dissolved union of the stored GeoJSON-string list, coerced
+    to a valid MultiPolygon: overlapping user-drawn parts merge (so ``area_km2``
+    is not double-counted) and the result satisfies the typed column. Each area
+    gets exactly one ``owner`` row in ``user_aois`` for its ``user_id``. Returns
+    the owner-link upsert count.
     """
+    # Union dissolves overlapping parts; _multipolygon_sql makes it a valid
+    # MultiPolygon. ST_MakeValid per element guards invalid input polygons.
+    geom_sql = _multipolygon_sql(
+        "(SELECT ST_Union("
+        "ST_MakeValid(ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON(g), 4326)))"
+        ") FROM jsonb_array_elements_text(ca.geometries) AS g)"
+    )
     sql = f"""
         WITH collected AS (
             SELECT
@@ -944,10 +999,7 @@ async def _build_custom_aois(session: AsyncSession) -> int:
                 ca.name,
                 ca.created_at,
                 ca.updated_at,
-                (
-                    SELECT ST_Collect(ST_SetSRID(ST_GeomFromGeoJSON(g), 4326))
-                    FROM jsonb_array_elements_text(ca.geometries) AS g
-                ) AS geom
+                {geom_sql} AS geom
             FROM custom_areas ca
         ),
         ins AS (
@@ -967,7 +1019,7 @@ async def _build_custom_aois(session: AsyncSession) -> int:
                 created_at,
                 updated_at
             FROM collected
-            WHERE name IS NOT NULL AND geom IS NOT NULL
+            WHERE name IS NOT NULL AND geom IS NOT NULL AND NOT ST_IsEmpty(geom)
             ON CONFLICT (source, source_id) WHERE NOT is_deprecated
             DO UPDATE SET
                 name = EXCLUDED.name,
@@ -982,6 +1034,21 @@ async def _build_custom_aois(session: AsyncSession) -> int:
         ON CONFLICT (user_id, aoi_id, relationship) DO NOTHING
     """
     result = await session.execute(text(sql))
+
+    # Surface (don't silently drop) custom areas whose geometries couldn't be
+    # coerced to a non-empty MultiPolygon.
+    skipped = await session.scalar(
+        text(
+            f"SELECT count(*) FROM custom_areas ca "
+            f"WHERE ca.name IS NOT NULL "
+            f"AND ({geom_sql} IS NULL OR ST_IsEmpty({geom_sql}))"
+        )
+    )
+    if skipped:
+        click.echo(
+            f"⚠️  custom: {skipped} area(s) skipped "
+            f"(geometries not coercible to a non-empty MultiPolygon)."
+        )
     return result.rowcount
 
 

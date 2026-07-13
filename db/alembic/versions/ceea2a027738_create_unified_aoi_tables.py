@@ -44,11 +44,16 @@ def upgrade() -> None:
         sa.Column("source_id", sa.String(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("subtype", sa.String(), nullable=False),
+        # Typed MULTIPOLYGON: every AOI is one areal shape, so the typmod
+        # rejects any non-MultiPolygon / non-4326 insert. build-aois normalizes
+        # source geometry (ST_MakeValid + dissolve + ST_Multi) to satisfy this.
         # spatial_index=False: the GiST index is created explicitly below so
         # its name is controlled and not auto-emitted by geoalchemy2.
         sa.Column(
             "geometry",
-            Geometry(geometry_type="GEOMETRY", srid=4326, spatial_index=False),
+            Geometry(
+                geometry_type="MULTIPOLYGON", srid=4326, spatial_index=False
+            ),
             nullable=False,
         ),
         # [west, south, east, north]; precomputed, antimeridian-aware.
