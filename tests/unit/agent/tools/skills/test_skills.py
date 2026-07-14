@@ -7,14 +7,20 @@ from src.agent.skills import (
     load_skills,
 )
 from src.agent.skills.tool import read_skill
-from src.agent.tool_spec import set_bound_tool_names
+from src.agent.tool_spec import Availability, set_bound_availability
+
+_EMPTY = Availability(skills=frozenset(), tools=frozenset())
+
+
+def _availability(*skills: str) -> Availability:
+    return Availability(skills=frozenset(skills), tools=frozenset())
 
 
 @pytest.fixture(autouse=True)
-def _reset_bound_tool_names():
-    """``bound_tool_names`` is a ContextVar; tests must not leak state."""
+def _reset_bound_availability():
+    """``bound_availability`` is a ContextVar; tests must not leak state."""
     yield
-    set_bound_tool_names(frozenset())
+    set_bound_availability(_EMPTY)
 
 
 def test_load_skills():
@@ -97,34 +103,36 @@ def test_get_skill_returns_none_for_unknown_name():
 
 
 def test_get_skill_capabilities_has_no_requires():
-    """Informational skills with no tool dependencies must always pass the
-    read_skill gate, bound tools or not."""
+    """Informational skills contribute no tools to the profiles that
+    declare them."""
     skill = get_skill("capabilities")
     assert skill is not None
     assert skill.requires == ()
 
 
-def test_read_skill_refuses_when_a_required_tool_is_unbound():
-    """analyze requires pick_aoi, pick_dataset, pull_data, generate_insights;
-    binding only some of them must not hand back the skill body. To the
-    model this must read exactly like an unknown skill name — it's already
-    excluded from what this profile advertises (AgentConfig.skills())."""
-    set_bound_tool_names(frozenset({"pick_aoi", "pick_dataset"}))
+def test_read_skill_refuses_a_skill_the_profile_does_not_declare():
+    """The profile's declared skills are the capability surface; anything
+    else must read exactly like an unknown skill name to the model — it's
+    already excluded from what this profile advertises
+    (AgentConfig.skill_metas())."""
+    set_bound_availability(_availability("pull-data", "capabilities"))
     result = read_skill.invoke({"name": "analyze"})
     assert result == "skill not found: analyze"
 
 
-def test_read_skill_refuses_when_no_tools_are_bound():
-    set_bound_tool_names(frozenset())
-    result = read_skill.invoke({"name": "analyze"})
-    assert result == "skill not found: analyze"
+def test_read_skill_refuses_everything_when_nothing_is_bound():
+    """Outside fetch_zeno no profile is bound, so no skill is served — even
+    ones with no tool requirements."""
+    for name in ("analyze", "capabilities"):
+        result = read_skill.invoke({"name": name})
+        assert result == f"skill not found: {name}"
 
 
-def test_read_skill_logs_every_missing_tool_sorted_without_exposing_them(
+def test_read_skill_logs_the_refusal_without_exposing_profile_details(
     monkeypatch,
 ):
-    """The model-facing message stays a generic "not found"; the specifics
-    are only for our own logs."""
+    """The model-facing message stays a generic "not found"; the reason is
+    only for our own logs."""
     warnings = []
 
     class _FakeLogger:
@@ -135,54 +143,32 @@ def test_read_skill_logs_every_missing_tool_sorted_without_exposing_them(
             pass
 
     monkeypatch.setattr("src.agent.skills.tool.logger", _FakeLogger())
-    set_bound_tool_names(frozenset())
+    set_bound_availability(_availability("capabilities"))
     result = read_skill.invoke({"name": "analyze"})
 
-    assert "pull_data" not in result
-    assert "generate_insights" not in result
+    assert result == "skill not found: analyze"
     [(event, kwargs)] = warnings
-    assert event == "read_skill: skill not available in this profile"
+    assert event == "read_skill: skill not declared by this profile"
     assert kwargs["skill_name"] == "analyze"
-    assert kwargs["missing_tools"] == sorted(
-        ["pick_aoi", "pick_dataset", "pull_data", "generate_insights"]
-    )
 
 
-def test_read_skill_serves_body_when_all_required_tools_bound():
-    set_bound_tool_names(
-        frozenset(
-            {"pick_aoi", "pick_dataset", "pull_data", "generate_insights"}
-        )
-    )
+def test_read_skill_serves_a_declared_skill():
+    set_bound_availability(_availability("analyze"))
     result = read_skill.invoke({"name": "analyze"})
     assert result == get_skill_body("analyze")
 
 
-def test_read_skill_serves_body_when_bound_tools_are_a_superset():
-    """Extra bound tools beyond what the skill requires must not matter."""
-    set_bound_tool_names(
-        frozenset(
-            {
-                "pick_aoi",
-                "pick_dataset",
-                "pull_data",
-                "generate_insights",
-                "show_imagery",
-            }
-        )
+def test_read_skill_serves_each_skill_a_profile_declares():
+    """Declaring more skills must not interfere with serving any of them."""
+    set_bound_availability(_availability("analyze", "capabilities"))
+    assert read_skill.invoke({"name": "capabilities"}) == get_skill_body(
+        "capabilities"
     )
-    result = read_skill.invoke({"name": "analyze"})
-    assert result == get_skill_body("analyze")
-
-
-def test_read_skill_serves_no_requires_skill_even_with_no_tools_bound():
-    set_bound_tool_names(frozenset())
-    result = read_skill.invoke({"name": "capabilities"})
-    assert result == get_skill_body("capabilities")
+    assert read_skill.invoke({"name": "analyze"}) == get_skill_body("analyze")
 
 
 def test_read_skill_unknown_name_still_reports_not_found():
-    set_bound_tool_names(frozenset())
+    set_bound_availability(_availability("analyze"))
     result = read_skill.invoke({"name": "does-not-exist"})
     assert "skill not found" in result
 
@@ -237,13 +223,14 @@ def test_get_prompt_scope_and_policy():
     from src.agent.graph import get_prompt
 
     prompt = get_prompt()
-    assert "pull-data" in prompt
-    assert "Pull-only" in prompt
-    assert "Capabilities (what you can do" in prompt
-    assert "read `capabilities`" in prompt
-    assert "capabilities" in prompt
+    # per-skill routing lives in the skills block, not the Routing table
+    assert "- pull-data:" in prompt
+    assert "- capabilities:" in prompt
+    assert "- analyze:" in prompt
     assert "get_capabilities" not in prompt
-    assert "read `analyze`" in prompt
+    # the no-skill request shapes stay in Routing
+    assert "Dataset-only" in prompt
+    assert "AOI-only" in prompt
     # always-on policy folded in
     assert "# Policy" in prompt
     assert "same language" in prompt
@@ -253,29 +240,30 @@ def test_get_prompt_scope_and_policy():
     assert "pick-dataset" not in prompt
 
 
-def test_get_prompt_routing_excludes_rows_for_unbound_profiles():
-    """The default profile has no dashboard/show-imagery/search_insights
-    tools bound, so the Routing table must not route to them — it would
-    just send the model into a read_skill/tool call that fails."""
-    from src.agent.graph import get_prompt
-
-    prompt = get_prompt()
-    assert "Dashboard (" not in prompt
-    assert "read skill `dashboard`" not in prompt
-    assert "Imagery (" not in prompt
-    assert "read `show-imagery`" not in prompt
-    assert "Recall a past insight" not in prompt
-    assert "search_insights" not in prompt
-
-
-def test_get_prompt_routing_includes_rows_when_tools_bound():
+def test_get_prompt_has_no_per_skill_routing_rows():
+    """Per-skill routing restated each skill's when_to_use; it must stay
+    dropped for every profile so the skills block is the single source."""
     from src.agent.agent_config import EXPERIMENTAL_PROFILE, default_registry
     from src.agent.graph import get_prompt
 
-    config = default_registry.resolve(EXPERIMENTAL_PROFILE)
-    prompt = get_prompt(config=config)
-    assert "Dashboard (" in prompt
-    assert "read skill `dashboard`" in prompt
-    assert "Imagery (" in prompt
-    assert "read `show-imagery`" in prompt
-    assert "Recall a past insight" in prompt
+    for config in (None, default_registry.resolve(EXPERIMENTAL_PROFILE)):
+        prompt = get_prompt(config=config)
+        assert "Pull-only" not in prompt
+        assert "Full analysis (place + topic" not in prompt
+        assert "Dashboard (" not in prompt
+        assert "Imagery (" not in prompt
+        assert "Capabilities (what you can do" not in prompt
+
+
+def test_get_prompt_routing_gates_recall_row_on_search_insights():
+    """The recall row routes to the search_insights tool; a profile that
+    doesn't bind it must not see the row."""
+    from src.agent.agent_config import EXPERIMENTAL_PROFILE, default_registry
+    from src.agent.graph import get_prompt
+
+    default_prompt = get_prompt()
+    assert "Recall a past insight" not in default_prompt
+    assert "search_insights" not in default_prompt
+
+    experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
+    assert "Recall a past insight" in get_prompt(config=experimental)

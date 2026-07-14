@@ -23,17 +23,20 @@ from src.agent.agent_config import (
 from src.agent.llms import FALLBACK_MODELS, MODEL
 from src.agent.middleware import SessionContextMiddleware
 from src.agent.state import AgentState
-from src.agent.tool_spec import Gate, set_bound_tool_names
+from src.agent.tool_spec import Gate, set_bound_availability
 from src.agent.view_pages import prompt_section
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# The "# Routing" table, one (gate, line) pair per request shape. The gate
-# says which namespace the row depends on — ("skill", name) or ("tool", name)
-# — or None for rows served by the core tools every profile binds. Kept
-# module-level so tests can verify every gate resolves to a real skill/tool.
+# The "# Routing" table — only the request shapes the skills block can't
+# carry: the no-skill shapes (dataset-only, AOI-only) and the recall stop
+# semantics. Per-skill routing lives in each skill's ``when_to_use`` and
+# body, not here. The gate says which namespace a row depends on —
+# ("skill", name) or ("tool", name) — or None for rows served by the core
+# tools every profile binds. Kept module-level so tests can verify every
+# gate resolves to a real skill/tool.
 ROUTING_ROWS: tuple[tuple[Gate, str], ...] = (
     (
         None,
@@ -46,18 +49,6 @@ ROUTING_ROWS: tuple[tuple[Gate, str], ...] = (
         "unless asked for more.",
     ),
     (
-        ("skill", "pull-data"),
-        '- Pull-only (e.g. "pull dist alerts in Bern for last 2 '
-        'weeks"): read `pull-data`, run pick_aoi → pick_dataset → '
-        "pull_data, then stop. Do not call generate_insights unless "
-        "the user asked for a chart or analysis.",
-    ),
-    (
-        ("skill", "analyze"),
-        "- Full analysis (place + topic → chart/insight): read "
-        "`analyze` and follow that pipeline.",
-    ),
-    (
         ("tool", "search_insights"),
         '- Recall a past insight (e.g. "show that tree-cover insight '
         'again", "pull up the fires analysis from before"): call '
@@ -67,24 +58,6 @@ ROUTING_ROWS: tuple[tuple[Gate, str], ...] = (
         'generate_insights. "Show/recall/pull up an earlier insight" '
         "is a recall request, never a request for new analysis. After "
         "it returns, reply with a one-line summary only.",
-    ),
-    (
-        ("skill", "dashboard"),
-        '- Dashboard (e.g. "add this to my dashboard", "add this '
-        'layer/imagery to my dashboard", "build a dashboard for X"): '
-        "read skill `dashboard` and follow it.",
-    ),
-    (
-        ("skill", "show-imagery"),
-        '- Imagery (e.g. "show satellite imagery of Bern in June"): '
-        "read `show-imagery`, run pick_aoi → show_imagery, then stop. "
-        "No dataset, pull or insights unless asked.",
-    ),
-    (
-        ("skill", "capabilities"),
-        "- Capabilities (what you can do, what data exists): read "
-        "`capabilities`, then answer in your own words — no analysis "
-        "tools.",
     ),
 )
 
@@ -101,12 +74,27 @@ def get_prompt(
     """
     if config is None:
         config = default_registry.resolve()
-    skills = config.skills()
     skill_lines = [
         f"- {s.name}: {s.description} (use when: {s.when_to_use})"
-        for s in skills
+        for s in config.skill_metas()
     ]
-    skills_block = "\n".join(skill_lines) if skill_lines else "(none)"
+    # A profile without skills (base) binds no read_skill, so the whole
+    # skills section — including the read_skill instruction — is omitted.
+    if skill_lines:
+        skills_section = (
+            "# Skills (multi-step recipes)\n"
+            "\n"
+            'Call read_skill(name) only when a skill\'s "use when" clause '
+            "matches the request — usually one skill, not the whole list.\n"
+            "\n" + "\n".join(skill_lines) + "\n"
+            "\n"
+        )
+        routing_intro = (
+            "Match the request to exactly one skill (above) or one row (below)"
+        )
+    else:
+        skills_section = ""
+        routing_intro = "Match the request to exactly one row below"
     tool_descriptions = config.tool_descriptions()
     available = config.availability()
     surface = prompt_section(page, available)
@@ -125,15 +113,9 @@ Call tools one at a time, never in parallel.
 
 {tool_descriptions}
 
-# Skills (multi-step recipes)
+{skills_section}# Routing
 
-Call read_skill(name) only when a skill's "use when" clause matches the request — usually one skill, not the whole list.
-
-{skills_block}
-
-# Routing
-
-Match the request to exactly one row; do not escalate a dataset / AOI / pull request into a full analysis.
+{routing_intro}; do not escalate a dataset / AOI / pull request into a full analysis.
 
 {routing_block}
 
@@ -306,13 +288,13 @@ async def fetch_zeno(
     """
     if config is None:
         config = registry.resolve(ff)
-    set_bound_tool_names(config.tool_names())
+    set_bound_availability(config.availability())
     logger.info("Agent profile set", profile=config.name)
     if checkpointer is _CHECKPOINTER_UNSET:
         checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(
         model=MODEL,
-        tools=config.tools(),
+        tools=config.bound_tools(),
         state_schema=AgentState,
         system_prompt=config.system_prompt or get_prompt(config, page=page),
         middleware=_build_middleware(),

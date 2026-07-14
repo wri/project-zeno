@@ -57,21 +57,23 @@ class Availability:
         return name in (self.skills if kind == "skill" else self.tools)
 
 
-# The bound tool names of the current request's agent profile. Set once per
+# The availability of the current request's agent profile. Set once per
 # request (``fetch_zeno``) and read from inside tools (``read_skill``) that
-# need to know what's actually callable, not just what's listed in the
+# need to know what this profile declares, not just what's listed in the
 # prompt. Mirrors ``current_user_id`` in ``src.shared.request_context``.
-_bound_tool_names: ContextVar[frozenset[str]] = ContextVar(
-    "bound_tool_names", default=frozenset()
+_bound_availability: ContextVar[Availability] = ContextVar(
+    "bound_availability",
+    default=Availability(skills=frozenset(), tools=frozenset()),
 )
 
 
-def set_bound_tool_names(names: frozenset[str]) -> None:
-    """Bind the tool names available in the current request's agent profile,
-    for the remainder of this context."""
-    _bound_tool_names.set(names)
+def set_bound_availability(available: Availability) -> None:
+    """Bind the current request's agent-profile availability, for the
+    remainder of this context."""
+    _bound_availability.set(available)
 
 
-def bound_tool_names() -> frozenset[str]:
-    """The tool names bound by ``set_bound_tool_names``; empty when unset."""
-    return _bound_tool_names.get()
+def bound_availability() -> Availability:
+    """The availability bound by ``set_bound_availability``; empty when
+    unset."""
+    return _bound_availability.get()
