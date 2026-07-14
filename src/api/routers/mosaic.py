@@ -73,4 +73,5 @@ async def create_mosaic(
         item_count=result.item_count,
         date_start=result.date_start,
         date_end=result.date_end,
+        mean_cloud_cover=result.mean_cloud_cover,
     )

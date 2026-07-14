@@ -64,6 +64,7 @@ def _imagery_state():
         "target_date": "2024-06-01",
         "window_days": 7,
         "max_cloud_cover": 20,
+        "mean_cloud_cover": 8.5,
         "aoi_names": ["Paraná"],
     }
 

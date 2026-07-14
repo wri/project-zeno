@@ -29,6 +29,13 @@ class ImageryState(BaseModel):
     )
     window_days: int = Field(..., description="Search window in days")
     max_cloud_cover: int = Field(..., description="Max cloud cover percentage")
+    mean_cloud_cover: Optional[float] = Field(
+        None,
+        description=(
+            "Observed mean cloud cover across the mosaic's scenes, percent "
+            "(None when the cached mosaic predates the metadata sidecar)"
+        ),
+    )
     aoi_names: list[str] = Field(
         ..., description="Names of selected areas of interest"
     )

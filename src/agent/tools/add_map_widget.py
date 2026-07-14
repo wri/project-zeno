@@ -42,6 +42,7 @@ _IMAGERY_KEYS = (
     "target_date",
     "window_days",
     "max_cloud_cover",
+    "mean_cloud_cover",
     "aoi_names",
 )
 

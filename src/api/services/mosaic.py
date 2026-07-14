@@ -10,9 +10,10 @@ date, search parameters). Tiles are served by the GFW tiles service at
 https://tiles.globalforestwatch.org, which reads the MosaicJSON from S3.
 
 Before building, we check S3 for the mosaic object: if it already exists we
-skip the (expensive) STAC search, build and upload. The scene count and
-acquired date range are only known at build time and are not persisted, so a
-cache hit returns without them.
+skip the (expensive) STAC search, build and upload. The build-time stats
+(scene count, acquired date range, mean cloud cover) are persisted in a
+metadata sidecar object next to the mosaic, so a cache hit serves them too;
+mosaics written before the sidecar existed serve without them.
 """
 
 import base64
@@ -85,6 +86,11 @@ def _s3_key(token: str) -> str:
     return f"{SharedSettings.mosaic_s3_prefix.strip('/')}/{token}.json"
 
 
+def _meta_key(token: str) -> str:
+    """Key of the build-metadata sidecar written next to the mosaic."""
+    return f"{SharedSettings.mosaic_s3_prefix.strip('/')}/{token}.meta.json"
+
+
 def _s3_uri(token: str) -> str:
     return f"s3://{SharedSettings.mosaic_s3_bucket}/{_s3_key(token)}"
 
@@ -138,6 +144,63 @@ def _write_mosaic(token: str, mosaic: MosaicJSON) -> None:
     logger.info("Mosaic uploaded to S3", bucket=bucket, key=_s3_key(token))
 
 
+def _write_metadata(token: str, meta: dict) -> None:
+    """Upload the build-metadata sidecar to S3. Best-effort: the mosaic is
+    already valid without it, so a failure is logged, not raised — cache hits
+    then simply serve without the build-time stats."""
+    try:
+        _s3_client().put_object(
+            Bucket=SharedSettings.mosaic_s3_bucket,
+            Key=_meta_key(token),
+            Body=json.dumps(meta).encode("utf-8"),
+            ContentType="application/json",
+        )
+    except ClientError as e:
+        logger.error(
+            "Mosaic metadata upload failed",
+            bucket=SharedSettings.mosaic_s3_bucket,
+            key=_meta_key(token),
+            error_code=e.response["Error"]["Code"],
+            error=str(e),
+        )
+
+
+def _read_metadata(token: str) -> Optional[dict]:
+    """Read and parse the build-metadata sidecar for a cached mosaic.
+
+    Returns the MosaicResult stat fields, or None when the sidecar is absent
+    (mosaics written before it existed), unreadable or malformed — a cache
+    hit then degrades to serving without the build-time stats.
+    """
+    try:
+        response = _s3_client().get_object(
+            Bucket=SharedSettings.mosaic_s3_bucket, Key=_meta_key(token)
+        )
+        raw = json.loads(response["Body"].read())
+        mean = raw.get("mean_cloud_cover")
+        return {
+            "item_count": int(raw["item_count"]),
+            "date_start": date.fromisoformat(raw["date_start"]),
+            "date_end": date.fromisoformat(raw["date_end"]),
+            "mean_cloud_cover": float(mean) if mean is not None else None,
+        }
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code not in ("NoSuchKey", "404", "NotFound"):
+            logger.warning(
+                "Mosaic metadata read failed",
+                key=_meta_key(token),
+                error_code=code,
+                error=str(e),
+            )
+        return None
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+        logger.warning(
+            "Mosaic metadata malformed", key=_meta_key(token), error=str(e)
+        )
+        return None
+
+
 @dataclass(frozen=True)
 class MosaicRecipe:
     """Everything needed to (re)build a mosaic deterministically.
@@ -157,12 +220,16 @@ class MosaicRecipe:
 
 @dataclass
 class MosaicResult:
-    # item_count / date_start / date_end are only known when the mosaic is
-    # built; on a cache hit (mosaic already in S3) they are None.
+    # The build-time stats are computed when the mosaic is built and served
+    # from the metadata sidecar on a cache hit; they are None only for
+    # mosaics written before the sidecar existed (or when it is unreadable).
+    # mean_cloud_cover is the observed mean across the mosaic's scenes —
+    # distinct from the recipe's max_cloud_cover search filter.
     mosaic_id: str
     item_count: Optional[int] = None
     date_start: Optional[date] = None
     date_end: Optional[date] = None
+    mean_cloud_cover: Optional[float] = None
 
     @property
     def tile_url(self) -> str:
@@ -239,8 +306,9 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     """Build the mosaic for a recipe and persist it to S3.
 
     If a mosaic for this recipe already exists in S3, the STAC search, build
-    and upload are skipped; the returned result then carries no item_count or
-    date range (those are only known at build time and are not persisted).
+    and upload are skipped; the build-time stats (item_count, date range,
+    mean cloud cover) are then served from the metadata sidecar — or omitted
+    for mosaics written before the sidecar existed.
 
     Raises MosaicNotFoundError (AOI geometry gone), AoiTooLargeError,
     StacSearchError or NoScenesFoundError.
@@ -254,10 +322,10 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     token = encode_recipe(recipe)
 
     # S3-based lookup: if the mosaic already exists, serve it without
-    # rebuilding. The scene count and date range are not persisted, so a
-    # cache hit returns without them.
+    # rebuilding, with the build-time stats from the metadata sidecar.
     if await run_in_threadpool(_mosaic_exists, token):
-        return MosaicResult(mosaic_id=token)
+        meta = await run_in_threadpool(_read_metadata, token)
+        return MosaicResult(mosaic_id=token, **(meta or {}))
 
     geometry = await _load_geometry(recipe)
     check_aoi_area(geometry)
@@ -330,7 +398,32 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     date_start = min(item_dates)
     date_end = max(item_dates)
 
+    # Observed cloud cover across the mosaic's scenes — what the imagery
+    # actually looks like, as opposed to the recipe's search threshold.
+    cloud_values = [
+        cover
+        for cover in (item.properties.get("eo:cloud_cover") for item in items)
+        if isinstance(cover, (int, float))
+    ]
+    mean_cloud_cover = (
+        round(sum(cloud_values) / len(cloud_values), 1)
+        if cloud_values
+        else None
+    )
+
     await run_in_threadpool(_write_mosaic, token, mosaic)
+    # Sidecar written after the mosaic (the mosaic object is the cache
+    # marker); a concurrent hit in that window degrades to a bare result.
+    await run_in_threadpool(
+        _write_metadata,
+        token,
+        {
+            "item_count": len(items),
+            "date_start": date_start.isoformat(),
+            "date_end": date_end.isoformat(),
+            "mean_cloud_cover": mean_cloud_cover,
+        },
+    )
     logger.info(
         "Mosaic created",
         item_count=len(items),
@@ -342,4 +435,5 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
         item_count=len(items),
         date_start=date_start,
         date_end=date_end,
+        mean_cloud_cover=mean_cloud_cover,
     )

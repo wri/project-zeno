@@ -50,6 +50,7 @@ async def test_show_imagery_success():
         item_count=4,
         date_start=date(2025, 5, 20),
         date_end=date(2025, 6, 10),
+        mean_cloud_cover=7.5,
     )
 
     with _patch_create(return_value=result) as mock_create:
@@ -70,6 +71,7 @@ async def test_show_imagery_success():
     assert imagery["target_date"] == "2025-06-01"
     assert imagery["window_days"] == 7
     assert imagery["max_cloud_cover"] == 20
+    assert imagery["mean_cloud_cover"] == 7.5
     assert imagery["aoi_names"] == ["Zurich"]
     assert "4 scenes" in _messages(command)[0].content
 

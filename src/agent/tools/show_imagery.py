@@ -146,6 +146,7 @@ async def show_imagery(
         target_date=recipe.target_date.isoformat(),
         window_days=recipe.window_days,
         max_cloud_cover=recipe.max_cloud_cover,
+        mean_cloud_cover=result.mean_cloud_cover,
         aoi_names=aoi_names,
     )
 
