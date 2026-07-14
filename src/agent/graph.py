@@ -78,7 +78,23 @@ def get_prompt(
         f"- {s.name}: {s.description} (use when: {s.when_to_use})"
         for s in config.skill_metas()
     ]
-    skills_block = "\n".join(skill_lines) if skill_lines else "(none)"
+    # A profile without skills (base) binds no read_skill, so the whole
+    # skills section — including the read_skill instruction — is omitted.
+    if skill_lines:
+        skills_section = (
+            "# Skills (multi-step recipes)\n"
+            "\n"
+            'Call read_skill(name) only when a skill\'s "use when" clause '
+            "matches the request — usually one skill, not the whole list.\n"
+            "\n" + "\n".join(skill_lines) + "\n"
+            "\n"
+        )
+        routing_intro = (
+            "Match the request to exactly one skill (above) or one row (below)"
+        )
+    else:
+        skills_section = ""
+        routing_intro = "Match the request to exactly one row below"
     tool_descriptions = config.tool_descriptions()
     available = config.availability()
     surface = prompt_section(page, available)
@@ -97,15 +113,9 @@ Call tools one at a time, never in parallel.
 
 {tool_descriptions}
 
-# Skills (multi-step recipes)
+{skills_section}# Routing
 
-Call read_skill(name) only when a skill's "use when" clause matches the request — usually one skill, not the whole list.
-
-{skills_block}
-
-# Routing
-
-Match the request to exactly one skill (above) or one row (below); do not escalate a dataset / AOI / pull request into a full analysis.
+{routing_intro}; do not escalate a dataset / AOI / pull request into a full analysis.
 
 {routing_block}
 
@@ -284,7 +294,7 @@ async def fetch_zeno(
         checkpointer = await fetch_checkpointer()
     zeno_agent = create_agent(
         model=MODEL,
-        tools=config.tools(),
+        tools=config.bound_tools(),
         state_schema=AgentState,
         system_prompt=config.system_prompt or get_prompt(config, page=page),
         middleware=_build_middleware(),

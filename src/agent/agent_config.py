@@ -1,23 +1,42 @@
-"""Agent configurations: which skills (and prompt) load per feature flag.
+"""Agent configurations: which skills and tools (and prompt) load per feature flag.
 
-An ``AgentConfig`` declares its capability surface as a tuple of *skill
-names*; the tools those skills ``require:`` are derived from ``ALL_SPECS``,
-so a profile can never advertise a skill whose tools aren't bound — and,
-conversely, adding a tool can never silently activate an unintended skill.
-Tools useful on their own (not part of any skill's workflow) go in
-``extra_tools``. An optional ``system_prompt`` override replaces the
-generated prompt entirely — useful for testing or bespoke agents.
+Profiles form a chain, each one a small delta on its parent:
 
-Configs are held in an ``AgentConfigRegistry``. The module-level
-``default_registry`` is used in production; tests create isolated instances
-and inject them, keeping global state clean.
+    base         — the core toolbox (pick_aoi, pick_dataset, pull_data,
+                   generate_insights), no skills. Ships on its own so raw
+                   tool-calling can be evaluated without recipe guidance.
+    default      — base + the core skills (analyze, pull-data, capabilities).
+    experimental — default + opt-in skills and standalone tools.
+
+An ``AgentConfig`` declares three things:
+
+- ``extends`` — the parent profile whose skills and tools it inherits.
+- ``skills`` — skill names this profile adds. The tools those skills
+  ``require:`` are derived from ``ALL_SPECS``, so a profile can never
+  advertise a skill whose tools aren't bound — and, conversely, adding a
+  tool can never silently activate an unintended skill.
+- ``tools`` — specs bound directly, independent of any skill: the base
+  profile's core toolbox, or standalone extras no skill's workflow owns.
+
+A skill's ``requires:`` stays a complete list of what its workflow calls,
+even when the parent profile already binds those tools — the overlap
+dedupes, and the skill stays portable to profiles built on a leaner base.
+
+An optional ``system_prompt`` override replaces the generated prompt
+entirely — useful for testing or bespoke agents.
+
+Configs are held in an ``AgentConfigRegistry``, which flattens ``extends``
+at registration time. The module-level ``default_registry`` is used in
+production; tests create isolated instances and inject them, keeping global
+state clean.
 
 To expose a new skill behind a feature flag, register a new ``AgentConfig``
-in ``default_registry`` with the flag name (and add any new tools' specs to
-``ALL_SPECS``).
+in ``default_registry`` that extends an existing profile (and add any new
+tools' specs to ``ALL_SPECS``). Each production profile's full derived
+surface is snapshot-tested in ``tests/unit/agent/test_profile_manifest.py``.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional
 
 from langchain_core.tools import BaseTool
@@ -65,34 +84,48 @@ ALL_SPECS = (
 )
 _SPEC_BY_NAME = {s.tool.name: s for s in ALL_SPECS}
 
+# The core toolbox every profile builds on: resolve an AOI, pick a dataset,
+# pull data, generate insights.
+BASE_PROFILE = "base"
+CORE_TOOLS = (
+    pick_aoi_spec,
+    pick_dataset_spec,
+    pull_data_spec,
+    generate_insights_spec,
+)
+
+# The core skills layered on the base toolbox.
 DEFAULT_PROFILE = "default"
 DEFAULT_SKILLS = ("analyze", "pull-data", "capabilities")
 
-# Experimental, opt-in skills/tools layered on top of the default set.
+# Experimental, opt-in additions over the default profile.
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = (
-    *DEFAULT_SKILLS,
-    "dashboard",
-    "show-imagery",
-    "wri-insights",
-    "explore",
+EXPERIMENTAL_SKILLS = ("dashboard", "show-imagery", "wri-insights", "explore")
+EXPERIMENTAL_TOOLS = (
+    inspect_view_context_spec,
+    update_insight_display_spec,
+    search_insights_spec,
 )
 
 
 @dataclass(frozen=True)
 class AgentConfig:
-    """A named agent configuration: declared skills and an optional prompt.
+    """A named agent configuration: a parent to extend, declared skills,
+    directly-bound tools, and an optional prompt.
 
-    ``skills`` is the capability surface; the tools those skills require are
-    derived (see ``specs``). ``extra_tools`` holds specs not tied to any
-    skill's workflow. ``system_prompt`` overrides the generated prompt when
-    set — useful for testing or bespoke agents with a fixed persona and no
-    tools.
+    ``extends`` names a parent profile; the registry merges the parent's
+    skills and tools into this config at registration time. ``skills`` is
+    the capability surface this profile adds; the tools those skills require
+    are derived (see ``specs``). ``tools`` holds specs bound directly,
+    independent of any skill. ``system_prompt`` overrides the generated
+    prompt when set — useful for testing or bespoke agents with a fixed
+    persona and no tools.
     """
 
     name: str
+    extends: Optional[str] = None
     skills: tuple[str, ...] = ()
-    extra_tools: tuple[ToolSpec, ...] = ()
+    tools: tuple[ToolSpec, ...] = ()
     system_prompt: Optional[str] = field(default=None)
 
     def __post_init__(self) -> None:
@@ -113,9 +146,9 @@ class AgentConfig:
 
     @property
     def specs(self) -> tuple[ToolSpec, ...]:
-        """The profile's tool specs: the union of its skills' ``requires``
-        (plus ``read_skill`` when any skill is declared) and ``extra_tools``,
-        in canonical ``ALL_SPECS`` order."""
+        """The profile's tool specs: the directly-bound ``tools`` plus the
+        union of its skills' ``requires`` (and ``read_skill`` when any skill
+        is declared), in canonical ``ALL_SPECS`` order."""
         names = {
             tool_name
             for skill_name in self.skills
@@ -123,14 +156,14 @@ class AgentConfig:
         }
         if self.skills:
             names.add(read_skill_spec.tool.name)
-        names.update(s.tool.name for s in self.extra_tools)
+        names.update(s.tool.name for s in self.tools)
         derived = tuple(s for s in ALL_SPECS if s.tool.name in names)
         unregistered = tuple(
-            s for s in self.extra_tools if s.tool.name not in _SPEC_BY_NAME
+            s for s in self.tools if s.tool.name not in _SPEC_BY_NAME
         )
         return derived + unregistered
 
-    def tools(self) -> list[BaseTool]:
+    def bound_tools(self) -> list[BaseTool]:
         return [s.tool for s in self.specs]
 
     def tool_descriptions(self) -> str:
@@ -159,6 +192,78 @@ class AgentConfig:
             tools=self.tool_names(),
         )
 
+    def describe(self) -> str:
+        """A plain-text manifest of everything this profile can do, grouped
+        by layer: skills (recipes loaded on demand), subagents (tools that
+        run their own reasoning), and primitive tools.
+
+        Profiles declare deltas (``extends`` plus their own skills/tools),
+        so the full bound surface is not visible at the declaration site —
+        this renders it in one place. Snapshot-tested per production profile
+        in ``tests/unit/agent/test_profile_manifest.py``.
+        """
+        lines = [f"profile: {self.name}"]
+        if self.extends is not None:
+            lines.append(f"extends: {self.extends}")
+
+        def section(title: str, entries: list[str]) -> None:
+            lines.append(f"{title}:")
+            if entries:
+                lines.extend(f"  - {entry}" for entry in entries)
+            else:
+                lines.append("  (none)")
+
+        skill_entries = []
+        for skill in self.skill_metas():
+            if skill.requires:
+                skill_entries.append(
+                    f"{skill.name} (requires: {', '.join(skill.requires)})"
+                )
+            else:
+                skill_entries.append(skill.name)
+        section("skills", skill_entries)
+        section(
+            "subagents",
+            [
+                s.tool.name
+                for s in self.specs
+                if s.category is ToolCategory.SUBAGENT
+            ],
+        )
+        section(
+            "tools",
+            [
+                s.tool.name
+                for s in self.specs
+                if s.category is ToolCategory.PRIMITIVE
+            ],
+        )
+        return "\n".join(lines)
+
+
+def _merge_skills(
+    parent: tuple[str, ...], child: tuple[str, ...]
+) -> tuple[str, ...]:
+    """Parent's skills first, then the child's new ones; no duplicates."""
+    merged = list(parent)
+    for name in child:
+        if name not in merged:
+            merged.append(name)
+    return tuple(merged)
+
+
+def _merge_tools(
+    parent: tuple[ToolSpec, ...], child: tuple[ToolSpec, ...]
+) -> tuple[ToolSpec, ...]:
+    """Parent's tools first, then the child's new ones; deduped by name."""
+    merged = list(parent)
+    seen = {s.tool.name for s in parent}
+    for spec in child:
+        if spec.tool.name not in seen:
+            merged.append(spec)
+            seen.add(spec.tool.name)
+    return tuple(merged)
+
 
 class AgentConfigRegistry:
     """Holds named configs and resolves feature flags to them.
@@ -171,6 +276,25 @@ class AgentConfigRegistry:
         self._configs: dict[str, AgentConfig] = {}
 
     def register(self, config: AgentConfig) -> None:
+        """Store ``config``, flattening its ``extends`` chain first.
+
+        A config that extends another inherits the parent's skills and tools
+        and adds its own; the parent must already be registered. The stored
+        config is fully flattened (the parent it names was flattened when it
+        registered), so lookups never walk the chain.
+        """
+        if config.extends is not None:
+            parent = self._configs.get(config.extends)
+            if parent is None:
+                raise ValueError(
+                    f"profile {config.name!r} extends unknown profile "
+                    f"{config.extends!r}; register the parent first"
+                )
+            config = replace(
+                config,
+                skills=_merge_skills(parent.skills, config.skills),
+                tools=_merge_tools(parent.tools, config.tools),
+            )
         self._configs[config.name] = config
 
     def configs(self) -> tuple[AgentConfig, ...]:
@@ -190,17 +314,22 @@ class AgentConfigRegistry:
         return self._configs[DEFAULT_PROFILE]
 
 
-# Production registry — register new flag configs here.
+# Production registry — register new flag configs here. Each profile is a
+# delta on its parent; parents must be registered before children.
 default_registry = AgentConfigRegistry()
-default_registry.register(AgentConfig(DEFAULT_PROFILE, skills=DEFAULT_SKILLS))
+default_registry.register(AgentConfig(BASE_PROFILE, tools=CORE_TOOLS))
+default_registry.register(
+    AgentConfig(
+        DEFAULT_PROFILE,
+        extends=BASE_PROFILE,
+        skills=DEFAULT_SKILLS,
+    )
+)
 default_registry.register(
     AgentConfig(
         EXPERIMENTAL_PROFILE,
+        extends=DEFAULT_PROFILE,
         skills=EXPERIMENTAL_SKILLS,
-        extra_tools=(
-            inspect_view_context_spec,
-            update_insight_display_spec,
-            search_insights_spec,
-        ),
+        tools=EXPERIMENTAL_TOOLS,
     )
 )

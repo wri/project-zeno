@@ -16,6 +16,7 @@ import re
 import sys
 import uuid
 from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
@@ -30,12 +31,7 @@ from langchain_core.messages import (
 from langgraph.checkpoint.memory import InMemorySaver
 from sqlalchemy import select
 
-from src.agent.agent_config import (
-    DEFAULT_PROFILE,
-    DEFAULT_SKILLS,
-    AgentConfig,
-    default_registry,
-)
+from src.agent.agent_config import default_registry
 from src.agent.graph import (
     close_checkpointer_pool,
     fetch_zeno,
@@ -623,10 +619,10 @@ async def _fetch_agent(
     if ff:
         config = default_registry.resolve(ff)
     else:
-        config = AgentConfig(
-            DEFAULT_PROFILE,
-            skills=DEFAULT_SKILLS,
-            system_prompt=system_prompt,
+        # The production default profile, with only the prompt overridden —
+        # so the CLI always binds the same surface as the server.
+        config = replace(
+            default_registry.resolve(), system_prompt=system_prompt
         )
     if use_postgres:
         return await fetch_zeno(config=config)
