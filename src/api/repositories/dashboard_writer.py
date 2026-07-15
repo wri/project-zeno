@@ -113,6 +113,16 @@ async def get_dashboard(dashboard_id) -> Optional[DashboardOrm]:
         return result.scalar_one_or_none()
 
 
+async def get_widget(widget_id) -> Optional[DashboardWidgetOrm]:
+    """Load a single widget by id; the caller applies access checks via the
+    owning dashboard. Malformed ids are not-found (None), never an error."""
+    target = _parse_uuid(widget_id)
+    if target is None:
+        return None
+    async with get_session_from_pool() as session:
+        return await session.get(DashboardWidgetOrm, target)
+
+
 async def add_widget(
     dashboard_id,
     *,

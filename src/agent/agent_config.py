@@ -50,8 +50,10 @@ from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
 from src.agent.subagents.search.blog import SPEC as search_blogs_spec
 from src.agent.tool_spec import Availability, ToolCategory, ToolSpec
 from src.agent.tools.add_map_widget import SPEC as add_map_widget_spec
+from src.agent.tools.add_text_widget import SPEC as add_text_widget_spec
 from src.agent.tools.add_to_dashboard import SPEC as add_to_dashboard_spec
 from src.agent.tools.create_dashboard import SPEC as create_dashboard_spec
+from src.agent.tools.edit_text_widget import SPEC as edit_text_widget_spec
 from src.agent.tools.inspect_view_context import (
     SPEC as inspect_view_context_spec,
 )
@@ -82,6 +84,8 @@ ALL_SPECS = (
     create_dashboard_spec,
     add_to_dashboard_spec,
     add_map_widget_spec,
+    add_text_widget_spec,
+    edit_text_widget_spec,
 )
 _SPEC_BY_NAME = {s.tool.name: s for s in ALL_SPECS}
 
