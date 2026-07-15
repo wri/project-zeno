@@ -5,7 +5,8 @@ Profiles form a chain, each one a small delta on its parent:
     base         — the core toolbox (pick_aoi, pick_dataset, pull_data,
                    generate_insights), no skills. Ships on its own so raw
                    tool-calling can be evaluated without recipe guidance.
-    default      — base + the core skills (analyze, pull-data, capabilities).
+    default      — base + the core skills (analyze, pull-data, capabilities,
+                   wri-insights).
     experimental — default + opt-in skills and standalone tools.
 
 An ``AgentConfig`` declares three things:
@@ -96,11 +97,11 @@ CORE_TOOLS = (
 
 # The core skills layered on the base toolbox.
 DEFAULT_PROFILE = "default"
-DEFAULT_SKILLS = ("analyze", "pull-data", "capabilities")
+DEFAULT_SKILLS = ("analyze", "pull-data", "capabilities", "wri-insights")
 
 # Experimental, opt-in additions over the default profile.
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = ("dashboard", "show-imagery", "wri-insights", "explore")
+EXPERIMENTAL_SKILLS = ("dashboard", "show-imagery", "explore")
 EXPERIMENTAL_TOOLS = (
     inspect_view_context_spec,
     update_insight_display_spec,

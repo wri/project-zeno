@@ -251,6 +251,7 @@ def test_default_profile_derives_exactly_the_core_tools():
             "pull_data",
             "generate_insights",
             "read_skill",
+            "search_blogs",
         }
     )
 
@@ -299,22 +300,18 @@ async def test_fetch_zeno_binds_the_resolved_configs_availability():
 
 
 def test_experimental_config_adds_experimental_tools_and_skills():
-    """The experimental profile layers show_imagery and search_blogs (and
-    their skills) on top of the default set; the default profile exposes
-    none."""
+    """The experimental profile layers show_imagery (and its skill, plus
+    explore) on top of the default set; the default profile exposes
+    neither."""
     default = default_registry.resolve(DEFAULT_PROFILE)
     experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
 
     default_tools = {t.name for t in default.bound_tools()}
     experimental_tools = {t.name for t in experimental.bound_tools()}
-    assert {"show_imagery", "search_blogs"} & default_tools == set()
+    assert "show_imagery" not in default_tools
     assert {"show_imagery", "search_blogs"} <= experimental_tools
 
     default_skills = {s.name for s in default.skill_metas()}
     experimental_skills = {s.name for s in experimental.skill_metas()}
-    assert {
-        "show-imagery",
-        "explore",
-        "wri-insights",
-    } & default_skills == set()
+    assert {"show-imagery", "explore"} & default_skills == set()
     assert {"show-imagery", "explore", "wri-insights"} <= experimental_skills
