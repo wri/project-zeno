@@ -145,6 +145,24 @@ async def test_widget_add_reorder_remove(user):
     )
 
 
+async def test_get_widget(user):
+    dashboard_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Paraná", aois=[PARANA]
+    )
+    widget_id = await dashboard_writer.add_widget(
+        dashboard_id, widget_type="text", config={"text": "# A note"}
+    )
+
+    widget = await dashboard_writer.get_widget(widget_id)
+    assert str(widget.id) == widget_id
+    assert str(widget.dashboard_id) == dashboard_id
+    assert widget.widget_type == "text"
+    assert widget.config == {"text": "# A note"}
+
+    assert await dashboard_writer.get_widget(str(uuid4())) is None
+    assert await dashboard_writer.get_widget("not-a-uuid") is None
+
+
 async def test_map_widget_persists_config(user):
     # A map widget's config is a self-contained layer snapshot (nested dicts,
     # lists, nulls) that must round-trip through JSONB unchanged.
