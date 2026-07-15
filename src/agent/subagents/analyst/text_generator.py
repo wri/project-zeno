@@ -39,6 +39,11 @@ _SYSTEM = """You write the narrative insight for one or two charts that have \
 already been produced from geospatial data. Describe what the data shows — do \
 not invent numbers, and do not redescribe the chart mechanics.
 
+If a total, sum, or other statistic appears in "Pre-computed findings from \
+code execution", cite that figure exactly — do not recompute or re-derive it \
+yourself from the chart data rows. Only compute a figure yourself if it is not \
+already present in the pre-computed findings.
+
 Write a 2-3 sentence `primary_insight` grounded in the numbers, and 1-2 \
 `follow_up_suggestions`.
 
@@ -46,6 +51,9 @@ Write a 2-3 sentence `primary_insight` grounded in the numbers, and 1-2 \
 
 _USER = """## User query
 {query}
+
+## Pre-computed findings from code execution
+{executor_context}
 
 ## Dataset cautions
 {cautions}
@@ -74,6 +82,7 @@ class InsightTextGenerator:
         charts: List[InsightChart],
         dataset: dict,
         query: str = "",
+        executor_context: Optional[str] = None,
         config: Optional[RunnableConfig] = None,
     ) -> InsightText:
         charts_block = "\n".join(
@@ -82,6 +91,7 @@ class InsightTextGenerator:
         inputs = {
             "wording_guide": WORDING_GUIDE,
             "query": query or "(none provided)",
+            "executor_context": executor_context or "(none)",
             "cautions": dataset.get(
                 "cautions", "No specific dataset cautions provided."
             ),

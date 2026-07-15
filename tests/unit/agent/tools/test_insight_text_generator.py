@@ -66,6 +66,23 @@ async def test_generate_returns_structured_text(generator):
 
 
 @pytest.mark.asyncio
+async def test_generate_passes_executor_context(generator):
+    gen, fake = generator
+    context = "High total: 1306617.82 ha\nHighest total: 12982.53 ha"
+    await gen.generate(
+        CHARTS, DATASET, query="Loss?", executor_context=context
+    )
+    assert fake.last_inputs["executor_context"] == context
+
+
+@pytest.mark.asyncio
+async def test_generate_defaults_executor_context(generator):
+    gen, fake = generator
+    await gen.generate(CHARTS, DATASET, query="Loss?")
+    assert fake.last_inputs["executor_context"] == "(none)"
+
+
+@pytest.mark.asyncio
 async def test_prompt_includes_cautions_and_presentation(generator):
     gen, fake = generator
     await gen.generate(CHARTS, DATASET, query="Loss in Brazil?")
