@@ -50,11 +50,23 @@ RUN --mount=type=secret,id=aws_access_key_id \
 # image fails at build time rather than on the first search query. The data
 # check is enforced only when a snapshot was pulled (WRI_INSIGHTS_S3_URI set);
 # local builds without it rely on the bind-mounted ./data at runtime.
+#
+# build_index() bundles its own copy of the model into
+# data/insights_index/model/ (see sgrep.py), which travels with the
+# wri-insights S3 snapshot pulled above -- so _index_model() below normally
+# loads it from disk and never touches the Hugging Face Hub. Local builds
+# without a pulled snapshot (and any snapshot predating the bundled model)
+# fall back to the Hub, so a short retry stays as a safety net for that path.
 ENV HF_HOME=/app/.hf-cache
-RUN uv run --no-sync python -c "\
+RUN for i in 1 2 3; do \
+    uv run --no-sync python -c "\
 import os, sys; \
-from src.agent.utils.sgrep import data_status, get_model; \
-get_model(); \
+from src.agent.utils.sgrep import DEFAULT_INDEX_DIR, _index_model, data_status; \
+_index_model(DEFAULT_INDEX_DIR); \
 ok, detail = data_status(min_articles=2000); \
 print(detail); \
-sys.exit(0)"
+sys.exit(0)" && exit 0; \
+    echo "Embedding model check failed (attempt $i/3), retrying in 15s..." >&2; \
+    sleep 15; \
+    done; \
+    exit 1
