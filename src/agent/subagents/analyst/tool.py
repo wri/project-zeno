@@ -31,6 +31,11 @@ from src.shared.request_context import current_user_id
 
 logger = get_logger(__name__)
 
+# Generous cap on the executor-output text forwarded to the text-generator
+# stage — bounds prompt size against a verbose print (e.g. a full df dump)
+# without dropping the pre-computed totals we actually want it grounded in.
+MAX_EXECUTOR_CONTEXT_CHARS = 20_000
+
 
 async def _extract_inline_statistics_data(data: dict) -> dict | None:
     inline_data = data.get("data")
@@ -313,10 +318,12 @@ class Analyst:
         query: str,
         statistics: list[dict],
         dataset: dict,
-    ) -> tuple[Optional[list[InsightChart]], list[dict], Optional[str]]:
+    ) -> tuple[Optional[list[InsightChart]], list[dict], str, Optional[str]]:
         """Build charts via the LLM code executor.
 
-        Returns (charts, encoded_codeact_parts, error_message). On success
+        Returns (charts, encoded_codeact_parts, executor_context, error_message).
+        `executor_context` is the concatenated execution-output text (printed
+        totals, key statistics) for the text-generator stage. On success
         `charts` is non-empty and error is None. On failure `charts` is None and
         a user-facing error message is returned.
         """
@@ -354,12 +361,13 @@ class Analyst:
         )
         if result.error:
             logger.error(f"Code execution error: {result.error}")
-            return None, [], f"Analysis failed: {result.error}"
+            return None, [], "", f"Analysis failed: {result.error}"
         if not result.chart_data:
             logger.error("No chart data generated")
             return (
                 None,
                 [],
+                "",
                 f"Failed to generate chart data. Feedback:{text_output}",
             )
         if result.insight is None or not result.insight.charts:
@@ -367,6 +375,7 @@ class Analyst:
             return (
                 None,
                 [],
+                "",
                 f"Failed to generate chart insight. Feedback:{text_output}",
             )
 
@@ -381,7 +390,20 @@ class Analyst:
             InsightChart.from_chart_insight(chart, result.chart_data, idx)
             for idx, chart in enumerate(result.insight.charts)
         ]
-        return charts, _encode_parts(result.parts), None
+        # Collect execution-output text (printed totals, statistics) so the
+        # text-generator stage can ground its narrative in pre-computed values
+        # instead of re-deriving them from chart rows.
+        executor_context = "\n---\n".join(
+            part.content
+            for part in result.parts
+            if part.type == PartType.EXECUTION_OUTPUT
+        )
+        if len(executor_context) > MAX_EXECUTOR_CONTEXT_CHARS:
+            executor_context = (
+                executor_context[:MAX_EXECUTOR_CONTEXT_CHARS]
+                + "\n...[truncated]"
+            )
+        return charts, _encode_parts(result.parts), executor_context, None
 
     async def analyze(
         self,
@@ -399,7 +421,12 @@ class Analyst:
         )
 
         # STAGE 1: build charts from the pulled data.
-        charts, codeact_parts, error = await self._resolve_charts(
+        (
+            charts,
+            codeact_parts,
+            executor_context,
+            error,
+        ) = await self._resolve_charts(
             query,
             statistics,
             dataset,
@@ -410,7 +437,9 @@ class Analyst:
             )
 
         # STAGE 2: generate insight text from the resolved charts.
-        text = await InsightTextGenerator().generate(charts, dataset, query)
+        text = await InsightTextGenerator().generate(
+            charts, dataset, query, executor_context=executor_context
+        )
         insight = Insight(
             charts=charts,
             primary_insight=text.primary_insight,

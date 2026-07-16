@@ -77,7 +77,9 @@ def mock_insight_text():
         primary_insight = "Synthetic insight text for tests."
         follow_up_suggestions = ["Follow-up one."]
 
-    async def fake_generate(self, charts, dataset, query="", config=None):
+    async def fake_generate(
+        self, charts, dataset, query="", executor_context=None, config=None
+    ):
         return _Text()
 
     with patch(
