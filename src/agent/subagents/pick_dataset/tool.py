@@ -90,6 +90,7 @@ async def rag_candidate_datasets(query: str, k=3):
 SELECTION_RULES = """- Only choose a dataset if it can usefully answer ALL parts of the user's question.
 - If no candidate can do that, return dataset_id as null and explain in the reason field what data we do have and why it falls short.
 - Use the selection hints above — they are the primary signal for which dataset fits.
+- If the query asks about a specific ecosystem, land-cover class, or ecological context, the chosen dataset MUST provide a context layer that can filter to that class. A dataset without context layers cannot answer such queries, even if it otherwise seems relevant.
 - Select a context layer when its description matches the query (pre-filtered to the AOI).
 - Select parameters only when relevant; use only values listed in the dataset.
 - If the user specifies a date range or time granularity (e.g. monthly, a specific year, daily alerts), only select a dataset if it genuinely supports that.

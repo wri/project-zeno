@@ -5,7 +5,10 @@ context_layers:
   description: 'Shows the primary driver or likely causes of disturbance to natural land due to: conversion, cropland dynamics,
     fire-related, water-related, or unclassified.'
 - value: natural_lands
-  description: 'Shows intersection with natural lands classes (2020): '
+  description: 'Shows disturbance alerts intersected with natural land classes (2020 baseline): natural
+    forest, mangrove, natural peat forest, wetland natural forest, natural short vegetation,
+    natural water, bare, and snow. Use this layer when the query asks about disturbance,
+    risk, or alerts specifically within natural lands or natural ecosystems.'
 - value: grasslands
   description: Shows disturbances to natural grasslands, shrublands, and savannas
 - value: land_cover
@@ -47,19 +50,23 @@ prompt_instructions: 'Use this dataset to show recent vegetation changes across 
 
   '
 selection_hints: >-
-  Use this dataset ONLY when the user needs disturbance alerts RESTRICTED TO or BROKEN DOWN BY a specific ecosystem or
-  class that Integrated Alerts cannot filter — via a context layer: natural_lands (forests, natural forests, natural
-  lands / natural areas, natural ecosystems), grasslands (natural grasslands/shrublands/savannas), land_cover (a
-  specific land-cover class such as tree cover, wetlands, or cropland), or driver (likely cause / LDACS). For any
-  near-real-time disturbance, clearing, deforestation, or conversion alert query over a whole area that does NOT require
-  such a filter or breakdown, prefer Integrated Alerts instead. DIST-ALERT is being deprecated in favor of Integrated
-  Alerts, which already includes DIST-ALERT alongside GLAD-L, GLAD-S2 and RADD. Covers all ecosystems, Dec 2023 to
-  present at 30m, measured in hectares, with low and high confidence alerts. Apply context layers when the query targets
-  a specific breakdown: natural_lands for forests / natural land classes, grasslands for natural
-  grasslands/shrublands/savannas, driver for likely causes of disturbance, land_cover for specific land cover classes. Driver (LDACS) is updated quarterly, covers
-  the most recent 12 months, and has no classification for the last 90 days. For historical or long-term tree cover
-  change prefer Tree Cover Loss; for driver attribution of tree cover loss specifically prefer Tree Cover Loss by
-  Dominant Driver.
+  Use this dataset instead of Integrated Alerts when the user needs disturbance alerts
+  RESTRICTED TO or BROKEN DOWN BY a specific ecosystem or class — via a context layer:
+  natural_lands (natural forests, natural lands / natural ecosystems), grasslands (natural
+  grasslands/shrublands/savannas), land_cover (a specific land-cover class such as tree cover,
+  wetlands, or cropland), or driver (likely cause / LDACS). Integrated Alerts has no context
+  layers and cannot perform this kind of filtering or breakdown. For any near-real-time
+  disturbance, clearing, deforestation, or conversion alert query over a whole area that does
+  NOT require such a filter or breakdown, prefer Integrated Alerts instead. DIST-ALERT is being
+  deprecated in favor of Integrated Alerts, which already includes DIST-ALERT alongside GLAD-L,
+  GLAD-S2 and RADD. Covers all ecosystems, Dec 2023 to present at 30m, measured in hectares,
+  with low and high confidence alerts. Apply context layers when the query targets a specific
+  breakdown: natural_lands for forests / natural land classes, grasslands for natural
+  grasslands/shrublands/savannas, driver for likely causes of disturbance, land_cover for
+  specific land cover classes. Driver (LDACS) is updated quarterly, covers the most recent 12
+  months, and has no classification for the last 90 days. For historical or long-term tree
+  cover change prefer Tree Cover Loss; for driver attribution of tree cover loss specifically
+  prefer Tree Cover Loss by Dominant Driver.
 code_instructions: "CHART TYPES — generate EXACTLY ONE chart; choose the single best type for what the user\
   \ asked and never emit more than one chart (all charts share one data table, so a second chart of a different shape\
   \ breaks the output). Pick from: - Recent trends over time → line chart (x=alert month, y=area in hectares) - Distribution\

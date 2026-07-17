@@ -38,10 +38,11 @@ selection_hints: >-
   than any single system. Provides low, high, and highest confidence alerts (highest = confirmed by multiple systems).
   Reports TOTAL disturbed area across ALL vegetation — it is NOT filtered to forests or any ecosystem, and has NO
   context layers / intersections. PREFER this for a plain recent-disturbance/clearing/deforestation-alert query over a
-  whole area. Use DIST-ALERT instead whenever the user wants alerts RESTRICTED TO or BROKEN DOWN BY a specific ecosystem
-  or class — forests, natural forests, natural lands / natural areas, grasslands, a land-cover class, or a driver/cause
-  (DIST-ALERT's natural_lands / grasslands / land_cover / driver context layers). For historical or long-term tree cover
-  change, prefer Tree Cover Loss; for driver attribution of tree cover loss, prefer Tree Cover Loss by Dominant Driver.
+  whole area. Use DIST-ALERT instead whenever the user wants alerts RESTRICTED TO or BROKEN DOWN BY a specific
+  ecosystem or class — forests, natural forests, natural lands / natural areas, grasslands, a land-cover class, or a
+  driver/cause (only DIST-ALERT provides the natural_lands, grasslands, land_cover, and driver context layers needed
+  for that). For historical or long-term tree cover change, prefer Tree Cover Loss; for driver attribution of tree
+  cover loss, prefer Tree Cover Loss by Dominant Driver.
 code_instructions: |-
   CHART TYPES — generate EXACTLY ONE chart for Integrated alerts, chosen by the query; never emit both a pie and a line:
   - Totals / breakdown by confidence → PIE chart, one slice per confidence tier (low, high, highest), value = total area_ha summed over the period

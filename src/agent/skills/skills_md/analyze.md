@@ -1,7 +1,7 @@
 ---
 name: analyze
 description: Full pipeline — resolve AOI, pick dataset, pull data, generate chart insight.
-when_to_use: User wants end-to-end analysis with a chart or insight (e.g. "analyze", "show a chart"). Not when they only say pull/fetch/get data — use `pull-data` instead.
+when_to_use: User asks a question that needs data to answer: analysis, charts, insights, comparisons across places or time, or "which/what/where/how many" fact-finding over real data (e.g. "analyze", "show a chart", "which district had the most deforestation", "compare X across regions"). Not when they only say pull/fetch/get data without asking a data-driven question — use `pull-data` instead.
 requires: pick_aoi, pick_dataset, pull_data, generate_insights
 ---
 

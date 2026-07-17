@@ -45,7 +45,8 @@ Now prepare the data for visualization in Recharts.js:
       3. **Numeric values**: Always numbers, never strings (e.g., 100 not "100")
       4. **Date ordering**: Chronological order for time series, not alphabetical
       5. **Grouping fields**: Group only by categorical, readable label columns such as names, dates, periods, classes, or metric labels. Do not group by numeric measure/value columns like 'value', 'count', 'area', 'sum', or continuous numeric readings unless the user explicitly asks for a distribution or histogram; aggregate those numeric columns instead.
-      6. **Data format by chart type**:
+      6. **Query-aligned labels**: Chart category labels must use the concepts from the user's query, not raw data column values — if the query describes a category in its own words while the data encodes it under a different label, relabel the category to match the query's language. If the query asks for a percentage, compute and include percentage values so a reader can verify the answer directly from the chart.
+      7. **Data format by chart type**:
          - **Single-series line/bar**: [{"date": "2020-01", "value": 100}]
            → One metric column, use y_axis="value" (REQUIRED — must not be empty)
          - **Multi-series line/bar/area**: [{"year": "2020", "metric1": 100, "metric2": 50}]
