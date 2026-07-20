@@ -60,17 +60,27 @@ async def _get_retriever():
             data_dir / SharedSettings.dataset_embeddings_db,
             embedding=embeddings,
         )
+        # The catalog is small (currently a dozen datasets), so retrieve all
+        # of them rather than truncating to a top-k: similarity ranking can
+        # bury a uniquely-correct but jargon-heavy dataset (e.g. a
+        # "mangrove" query ranking the SBTN Natural Lands Map near-last
+        # because its description is dominated by supply-chain terminology)
+        # below a hard cutoff. The selection LLM, not embedding similarity,
+        # is what actually decides fit — this step only needs to make sure
+        # the right candidate is in front of it.
         retriever_cache = index.as_retriever(
-            search_type="similarity", search_kwargs={"k": 5}
+            search_type="similarity", search_kwargs={"k": len(DATASETS)}
         )
     return retriever_cache
 
 
-async def rag_candidate_datasets(query: str, k=3):
+async def rag_candidate_datasets(query: str, k=None):
     logger.debug(f"Retrieving candidate datasets for query: '{query}'")
     candidate_datasets = []
     retriever = await _get_retriever()
     match_documents = await retriever.ainvoke(query)
+    if k is not None:
+        match_documents = match_documents[:k]
     for doc in match_documents:
         data = [ds for ds in DATASETS if ds["dataset_id"] == int(doc.id)]
         if not data:
@@ -203,8 +213,10 @@ class DatasetSelector:
         """Resolve a request to the best dataset and update state."""
         logger.info("DATASET-SELECTOR: resolving query")
 
-        # Step 1: RAG lookup of candidate datasets
-        candidate_datasets = await rag_candidate_datasets(query, k=5)
+        # Step 1: RAG lookup of candidate datasets (see _get_retriever: the
+        # whole catalog is retrieved, not just a top-k, so this doesn't
+        # truncate)
+        candidate_datasets = await rag_candidate_datasets(query)
         # Step 2: LLM picks the best dataset and context layer
         selection_result = await select_best_dataset(
             query, candidate_datasets, start_date, end_date, aoi_selection
