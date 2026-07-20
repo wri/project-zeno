@@ -364,7 +364,12 @@ async def pick_dataset(
     """Pick the dataset, context layer and date range that best answer the
     user's request — a dataset-selection subagent.
 
-    Pass the user's request as `query`. The subagent retrieves candidate
+    Pass the user's own wording as `query`, close to verbatim — do not
+    paraphrase or summarize it, and never add an ecosystem, land-cover class,
+    or scope the user didn't state (e.g. do not turn "disturbed area" into
+    "forest disturbance"). The subagent decides whether a context layer is
+    needed from the literal wording, so injecting an assumption here forces
+    it into a filter the user never asked for. It retrieves candidate
     datasets, picks the best match, resolves the context layer/parameters and
     clamps the date range to what the dataset actually covers.
 
@@ -375,8 +380,10 @@ async def pick_dataset(
     - Re-pick: call this again before pull_data whenever the user changes the
       dataset, the context layer (drivers, land cover change, time dynamics,
       etc.) or parameters.
-    - Optional start_date/end_date (YYYY-MM-DD) narrow the range; if they
-      don't exactly match the dataset, the closest valid range is used.
+    - Always pass start_date/end_date (YYYY-MM-DD) from the user's query when
+      it mentions a time period or year. If the user says "in 2024" or "last
+      year", narrow to that year. If no dates are mentioned, pass None and the
+      subagent will use the dataset's closest valid range.
     """
     return await DatasetSelector().resolve(
         query,
