@@ -25,7 +25,7 @@ from typing import Optional
 
 import bcrypt
 import click
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -37,6 +37,12 @@ from src.api.data_models import (
     UserType,
 )
 from src.shared.config import SharedSettings
+from src.shared.geocoding_helpers import (
+    GADM_LEVELS,
+    GADM_STANDARD_ID_RE,
+    SOURCE_ID_MAPPING,
+    _antimeridian_bbox_sql,
+)
 
 
 class DatabaseManager:
@@ -790,6 +796,357 @@ def backfill_turn_fields_command(batch_size: int, dry_run: bool):
                 )
                 verb = "would update" if dry_run else "updated"
                 click.echo(f"backfill-turn-fields: {verb} {written} row(s)")
+        finally:
+            await db.close()
+
+    asyncio.run(_run())
+
+
+# ---------------------------------------------------------------------------
+# build-aois: populate the unified `aois` / `user_aois` tables
+# ---------------------------------------------------------------------------
+
+# Reference sources first, custom last (custom depends only on custom_areas).
+_BUILD_SOURCES = ["gadm", "kba", "wdpa", "landmark", "custom"]
+
+# Note: `aois.properties` (JSONB) is intentionally left NULL by this transform.
+# It exists as an escape hatch for user-uploaded custom-AOI attributes (needs
+# the PR2 API change to accept them) and source-specific reference columns
+# (a deliberate follow-up); neither is populated in PR1.
+
+# Which source column carries the ISO3 country code(s), per reference source.
+# Resolved case-insensitively at runtime: geometries_* are built by GeoPandas
+# `to_postgis` and preserve the source file's (often upper-case) column casing.
+_ISO3_SOURCE_COLUMNS = {
+    "gadm": ["GID_0"],
+    "kba": ["ISO3"],
+    "wdpa": ["iso3"],
+    "landmark": ["iso_code"],
+}
+
+
+def _multipolygon_sql(geom_expr: str) -> str:
+    """Normalize *geom_expr* to a valid 2D MultiPolygon (for the typed column).
+
+    ``ST_MakeValid`` repairs self-intersections / ring errors;
+    ``ST_CollectionExtract(..., 3)`` keeps only polygonal parts (dropping the
+    line/point slivers ``ST_MakeValid`` can emit); ``ST_Multi`` guarantees the
+    ``MULTIPOLYGON`` type the ``aois.geometry`` column enforces. Callers filter
+    out an empty result (a geometry with no areal component) with
+    ``NOT ST_IsEmpty(...)`` so such rows are skipped, not stored empty.
+    """
+    return (
+        "ST_Multi(ST_CollectionExtract("
+        f"ST_MakeValid(ST_Force2D({geom_expr})), 3))"
+    )
+
+
+def _bbox_float_array_sql(geom_expr: str) -> str:
+    """A ``float8[]`` ``[west, south, east, north]`` for *geom_expr*.
+
+    Wraps the shared antimeridian-aware bbox (which yields a JSON array) and
+    turns it into a real Postgres array so it lands in ``aois.bbox`` directly.
+    ``WITH ORDINALITY`` pins the element order.
+    """
+    return (
+        "(SELECT array_agg(e::double precision ORDER BY ord) "
+        f"FROM json_array_elements_text({_antimeridian_bbox_sql(geom_expr)}) "
+        "WITH ORDINALITY AS t(e, ord))"
+    )
+
+
+async def _table_exists(session: AsyncSession, table: str) -> bool:
+    result = await session.execute(
+        text("SELECT to_regclass(:t) IS NOT NULL"), {"t": f"public.{table}"}
+    )
+    return bool(result.scalar())
+
+
+async def _resolve_column(
+    session: AsyncSession, table: str, candidates: list[str]
+) -> Optional[str]:
+    """Return the real (correctly-cased) name of the first present candidate."""
+    for cand in candidates:
+        result = await session.execute(
+            text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = :table AND lower(column_name) = lower(:c) "
+                "LIMIT 1"
+            ),
+            {"table": table, "c": cand},
+        )
+        found = result.scalar()
+        if found:
+            return found
+    return None
+
+
+async def _build_reference_aois(session: AsyncSession, source: str) -> int:
+    """Transform one ``geometries_<source>`` table into ``aois`` (idempotent)."""
+    cfg = SOURCE_ID_MAPPING[source]
+    table, id_col = cfg["table"], cfg["id_column"]
+
+    iso3_col = await _resolve_column(
+        session, table, _ISO3_SOURCE_COLUMNS[source]
+    )
+    iso3_expr = (
+        f"string_to_array(NULLIF(btrim(\"{iso3_col}\"::text), ''), ';')"
+        if iso3_col
+        else "NULL::text[]"
+    )
+
+    if source == "gadm":
+        # subtype -> GADM admin level (0..5), in GADM_LEVELS declaration order.
+        admin_expr = (
+            "CASE subtype "
+            + " ".join(
+                f"WHEN '{st}' THEN {lvl}" for lvl, st in enumerate(GADM_LEVELS)
+            )
+            + " ELSE NULL END"
+        )
+        # Disputed territories (e.g. "Z01") lack a 3-letter ISO prefix; keep
+        # the rows but flag them so search can exclude via its partial index.
+        disputed_expr = f"NOT (\"{id_col}\" ~ '{GADM_STANDARD_ID_RE}')"
+    else:
+        admin_expr = "NULL::smallint"
+        disputed_expr = "false"
+
+    # Normalize source geometry to a valid MultiPolygon once, then derive
+    # geometry / bbox / area_km2 from the same shape.
+    norm_geom = _multipolygon_sql("geometry")
+    sql = f"""
+        WITH normalized AS (
+            SELECT
+                CAST("{id_col}" AS TEXT) AS source_id,
+                name,
+                subtype,
+                {norm_geom} AS geom,
+                {iso3_expr} AS iso3,
+                {admin_expr} AS admin_level,
+                {disputed_expr} AS is_disputed
+            FROM {table}
+            WHERE name IS NOT NULL AND geometry IS NOT NULL
+        )
+        INSERT INTO aois (
+            source, source_id, name, subtype, geometry,
+            bbox, area_km2, iso3, admin_level, is_disputed
+        )
+        SELECT
+            '{source}',
+            source_id,
+            name,
+            subtype,
+            geom,
+            {_bbox_float_array_sql("geom")},
+            ST_Area(geom::geography) / 1e6,
+            iso3,
+            admin_level,
+            is_disputed
+        FROM normalized
+        WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+        ON CONFLICT (source, source_id) WHERE NOT is_deprecated
+        DO UPDATE SET
+            name = EXCLUDED.name,
+            subtype = EXCLUDED.subtype,
+            geometry = EXCLUDED.geometry,
+            bbox = EXCLUDED.bbox,
+            area_km2 = EXCLUDED.area_km2,
+            iso3 = EXCLUDED.iso3,
+            admin_level = EXCLUDED.admin_level,
+            is_disputed = EXCLUDED.is_disputed,
+            updated_at = now()
+    """
+    result = await session.execute(text(sql))
+
+    # Surface (don't silently drop) rows whose geometry couldn't be coerced to
+    # a non-empty MultiPolygon.
+    skipped = await session.scalar(
+        text(
+            f"SELECT count(*) FROM {table} "
+            f"WHERE name IS NOT NULL AND geometry IS NOT NULL "
+            f"AND ({norm_geom} IS NULL OR ST_IsEmpty({norm_geom}))"
+        )
+    )
+    if skipped:
+        click.echo(
+            f"⚠️  {source}: {skipped} row(s) skipped "
+            f"(geometry not coercible to a non-empty MultiPolygon)."
+        )
+    return result.rowcount
+
+
+async def _build_custom_aois(session: AsyncSession) -> int:
+    """Transform ``custom_areas`` into ``aois`` + one ``owner`` link each.
+
+    Geometry is the dissolved union of the stored GeoJSON-string list, coerced
+    to a valid MultiPolygon: overlapping user-drawn parts merge (so ``area_km2``
+    is not double-counted) and the result satisfies the typed column. Each area
+    gets exactly one ``owner`` row in ``user_aois`` for its ``user_id``. Returns
+    the owner-link upsert count.
+    """
+    # Union dissolves overlapping parts; _multipolygon_sql makes it a valid
+    # MultiPolygon. ST_MakeValid per element guards invalid input polygons.
+    geom_sql = _multipolygon_sql(
+        "(SELECT ST_Union("
+        "ST_MakeValid(ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON(g), 4326)))"
+        ") FROM jsonb_array_elements_text(ca.geometries) AS g)"
+    )
+    sql = f"""
+        WITH collected AS (
+            SELECT
+                ca.id,
+                ca.user_id,
+                ca.name,
+                ca.created_at,
+                ca.updated_at,
+                {geom_sql} AS geom
+            FROM custom_areas ca
+        ),
+        ins AS (
+            INSERT INTO aois (
+                source, source_id, name, subtype, geometry,
+                bbox, area_km2, created_by, created_at, updated_at
+            )
+            SELECT
+                'custom',
+                id::text,
+                name,
+                'custom-area',
+                geom,
+                {_bbox_float_array_sql("geom")},
+                ST_Area(geom::geography) / 1e6,
+                user_id,
+                created_at,
+                updated_at
+            FROM collected
+            WHERE name IS NOT NULL AND geom IS NOT NULL AND NOT ST_IsEmpty(geom)
+            ON CONFLICT (source, source_id) WHERE NOT is_deprecated
+            DO UPDATE SET
+                name = EXCLUDED.name,
+                geometry = EXCLUDED.geometry,
+                bbox = EXCLUDED.bbox,
+                area_km2 = EXCLUDED.area_km2,
+                updated_at = now()
+            RETURNING id AS aoi_id, created_by AS user_id
+        )
+        INSERT INTO user_aois (user_id, aoi_id, relationship)
+        SELECT user_id, aoi_id, 'owner' FROM ins
+        ON CONFLICT (user_id, aoi_id, relationship) DO NOTHING
+    """
+    result = await session.execute(text(sql))
+
+    # Surface (don't silently drop) custom areas whose geometries couldn't be
+    # coerced to a non-empty MultiPolygon.
+    skipped = await session.scalar(
+        text(
+            f"SELECT count(*) FROM custom_areas ca "
+            f"WHERE ca.name IS NOT NULL "
+            f"AND ({geom_sql} IS NULL OR ST_IsEmpty({geom_sql}))"
+        )
+    )
+    if skipped:
+        click.echo(
+            f"⚠️  custom: {skipped} area(s) skipped "
+            f"(geometries not coercible to a non-empty MultiPolygon)."
+        )
+    return result.rowcount
+
+
+@cli.command("build-aois")
+@click.option(
+    "--source",
+    "sources",
+    multiple=True,
+    type=click.Choice(_BUILD_SOURCES),
+    help="Limit to source(s); repeatable. Default: all.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Run the transform in a transaction, report counts, then roll back.",
+)
+def build_aois_command(sources: tuple, dry_run: bool):
+    """Populate the unified aois/user_aois tables from already-loaded data.
+
+    Idempotent, set-based, in-DB transform of the reference geometries_*
+    tables and custom_areas into the unified schema. Run post-deploy (heavy
+    work must not run in the blocking migrate Job). Purely additive: the live
+    API keeps serving from geometries_* / custom_areas until the API PR.
+    """
+    selected = list(sources) or _BUILD_SOURCES
+    outcome = "would be upserted" if dry_run else "upserted"
+
+    async def _run():
+        db = DatabaseManager()
+        committed: list[str] = []
+        try:
+            for source in selected:
+                # One transaction per source. Each build is independently
+                # idempotent, so committing as we go keeps a late failure
+                # from discarding sources that already succeeded -- GADM
+                # alone is far too large to hold in an open transaction
+                # while the remaining sources run.
+                async with db.async_session() as session:
+                    table = (
+                        "custom_areas"
+                        if source == "custom"
+                        else SOURCE_ID_MAPPING[source]["table"]
+                    )
+                    if not await _table_exists(session, table):
+                        click.echo(
+                            f"⏭️  {source}: {table} not found, skipping."
+                        )
+                        continue
+
+                    if source == "custom":
+                        links = await _build_custom_aois(session)
+                        click.echo(
+                            f"✅ custom: {links} owner link(s) {outcome}."
+                        )
+                    else:
+                        n = await _build_reference_aois(session, source)
+                        click.echo(f"✅ {source}: {n} aoi row(s) {outcome}.")
+
+                    if dry_run:
+                        await session.rollback()
+                    else:
+                        await session.commit()
+                        committed.append(source)
+
+            if dry_run:
+                click.echo(
+                    "\n🔎 --dry-run: each source rolled back, nothing saved."
+                )
+            else:
+                done = ", ".join(committed) if committed else "nothing"
+                click.echo(f"\n💾 Committed: {done}.")
+
+            # Fresh session, so this reports *committed* state only. Under
+            # --dry-run that is the pre-existing table contents, not this
+            # run's rolled-back work -- the per-source counts above are the
+            # authoritative dry-run output.
+            async with db.async_session() as session:
+                summary = await session.execute(
+                    text(
+                        "SELECT source, count(*) FROM aois "
+                        "GROUP BY source ORDER BY source"
+                    )
+                )
+                click.echo("\n📊 aois by source (committed):")
+                for src, cnt in summary.all():
+                    click.echo(f"   {src}: {cnt}")
+                links_total = await session.execute(
+                    text("SELECT count(*) FROM user_aois")
+                )
+                click.echo(f"   user_aois: {links_total.scalar()}")
+        except Exception:
+            if committed:
+                click.echo(
+                    "\n⚠️  Committed before the failure: "
+                    f"{', '.join(committed)}. build-aois is idempotent -- "
+                    "re-run to resume."
+                )
+            raise
         finally:
             await db.close()
 
