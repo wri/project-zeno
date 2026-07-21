@@ -80,15 +80,24 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
     """Map a trace to a langfuse_traces (derived analytics) row dict. Parse
     failures still yield a row (identity + parse_error) so one bad trace never
     aborts the batch."""
+    session_id = trace.get("sessionId")
+    # Turn position + per-turn diffs are cross-row. Session rows carry None and are
+    # filled by the post-upsert recompute; null-session rows are singleton threads
+    # (COALESCE(session_id, id)) never renumbered, so they're set directly below.
+    is_singleton = session_id is None
     row: dict[str, Any] = {
         "id": trace.get("id"),
-        "session_id": trace.get("sessionId"),
+        "session_id": session_id,
         "user_id": trace.get("userId"),
         "environment": trace.get("environment"),
         "trace_timestamp": _parse_dt(trace.get("timestamp")),
         "trace_updated_at": _parse_dt(trace.get("updatedAt")),
         "latency_seconds": trace.get("latency"),
         "total_cost": trace.get("totalCost"),
+        "turn_index": 1 if is_singleton else None,
+        "is_final_turn_in_thread": True if is_singleton else None,
+        "insight_created_this_turn": None,
+        "datasets_analysed_this_turn": None,
         "parsed_at": _utcnow(),
         "parse_error": None,
     }
@@ -106,6 +115,14 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
         row["parse_error"] = str(e)[:500]
         row["parser_version"] = P.PARSER_VERSION
         row["recognized_contract"] = None
+    if is_singleton:
+        # No predecessor: the turn "creates" any insight it carries and its whole
+        # cumulative dataset list is new. Parse failures fall back to False / [].
+        derived = row.get("derived") or {}
+        row["insight_created_this_turn"] = row.get("insight_id") is not None
+        row["datasets_analysed_this_turn"] = (
+            derived.get("datasets_analysed_cumulative") or []
+        )
     return _strip_nul(row)
 
 
@@ -123,6 +140,134 @@ async def _upsert(session: AsyncSession, rows: list[dict[str, Any]]) -> int:
     stmt = stmt.on_conflict_do_update(index_elements=["id"], set_=update_cols)
     await session.execute(stmt)
     return len(rows)
+
+
+# Recompute the cross-row turn fields (turn_index, is_final_turn_in_thread, and the
+# per-turn diffs) for the given sessions from current table state. Each depends on
+# siblings, so a late/out-of-order trace can shift them; running once per chunk over
+# the *full* touched session(s) on a single window keeps it deterministic (hence
+# idempotent). Null-session singletons are set in build_row and never touched here.
+_RECOMPUTE_SQL = text(
+    """
+    WITH ranked AS (
+        SELECT id,
+               row_number() OVER w AS rn,
+               count(*)     OVER (PARTITION BY session_id) AS n,
+               insight_id,
+               lag(insight_id) OVER w AS prev_insight,
+               ARRAY(SELECT jsonb_array_elements_text(
+                   COALESCE(derived->'datasets_analysed_cumulative', '[]'::jsonb)
+               )) AS cur_ds,
+               lag(ARRAY(SELECT jsonb_array_elements_text(
+                   COALESCE(derived->'datasets_analysed_cumulative', '[]'::jsonb)
+               ))) OVER w AS prev_ds
+        FROM langfuse_traces
+        WHERE session_id = ANY(:ids)
+        WINDOW w AS (
+            PARTITION BY session_id
+            ORDER BY trace_timestamp ASC NULLS LAST, id ASC
+        )
+    ),
+    computed AS (
+        SELECT id,
+               rn AS turn_index,
+               (rn = n) AS is_final,
+               (insight_id IS NOT NULL
+                AND insight_id IS DISTINCT FROM prev_insight) AS created,
+               ARRAY(
+                   SELECT unnest(cur_ds)
+                   EXCEPT
+                   SELECT unnest(COALESCE(prev_ds, ARRAY[]::text[]))
+               )::varchar[] AS new_ds  -- match the column type for the guard below
+        FROM ranked
+    )
+    UPDATE langfuse_traces t
+    SET turn_index = c.turn_index,
+        is_final_turn_in_thread = c.is_final,
+        insight_created_this_turn = c.created,
+        datasets_analysed_this_turn = c.new_ds
+    FROM computed c
+    WHERE t.id = c.id
+      -- Skip rows already current: an UPDATE writes a new tuple even when nothing
+      -- changed, so this guard avoids re-versioning every sibling each recompute.
+      AND (t.turn_index                 IS DISTINCT FROM c.turn_index
+        OR t.is_final_turn_in_thread    IS DISTINCT FROM c.is_final
+        OR t.insight_created_this_turn  IS DISTINCT FROM c.created
+        OR t.datasets_analysed_this_turn IS DISTINCT FROM c.new_ds)
+    """
+)
+
+
+async def recompute_turn_positions(
+    session: AsyncSession, session_ids: set[str]
+) -> int:
+    """Returns rows actually rewritten (0 when all sessions are already current)."""
+    ids = [s for s in session_ids if s]
+    if not ids:
+        return 0
+    result = await session.execute(_RECOMPUTE_SQL, {"ids": ids})
+    return result.rowcount or 0
+
+
+# Null-session rows are singleton threads with no predecessor: set their turn fields
+# directly (mirrors build_row's singleton branch). Guarded like _RECOMPUTE_SQL so a
+# re-run rewrites nothing.
+_BACKFILL_SINGLETONS_SQL = text(
+    """
+    UPDATE langfuse_traces t
+    SET turn_index = 1,
+        is_final_turn_in_thread = true,
+        insight_created_this_turn = c.created,
+        datasets_analysed_this_turn = c.new_ds
+    FROM (
+        SELECT id,
+               (insight_id IS NOT NULL) AS created,
+               ARRAY(SELECT jsonb_array_elements_text(
+                   COALESCE(derived->'datasets_analysed_cumulative', '[]'::jsonb)
+               ))::varchar[] AS new_ds
+        FROM langfuse_traces
+        WHERE session_id IS NULL
+    ) c
+    WHERE t.id = c.id
+      AND (t.turn_index                 IS DISTINCT FROM 1
+        OR t.is_final_turn_in_thread    IS DISTINCT FROM true
+        OR t.insight_created_this_turn  IS DISTINCT FROM c.created
+        OR t.datasets_analysed_this_turn IS DISTINCT FROM c.new_ds)
+    """
+)
+
+_DISTINCT_SESSIONS_SQL = text(
+    "SELECT DISTINCT session_id FROM langfuse_traces WHERE session_id IS NOT NULL"
+)
+
+
+async def backfill_turn_fields(
+    session: AsyncSession, *, batch_size: int = 500, dry_run: bool = False
+) -> int:
+    """One-off catch-up of the turn fields for rows predating the feature (new rows
+    are set during ingest). Idempotent — reuses the no-op-guarded recompute, so a
+    re-run writes 0 rows. Sessions are processed in committed batches to bound the
+    transaction. Returns the number of rows that would be / were written.
+
+    This is the out-of-band alternative to a migration backfill: run it manually after
+    deploying (``backfill-turn-fields`` CLI command), not in the deploy path.
+    """
+    written = 0
+    # Singletons first (independent of sessions), then each session renumbered.
+    written += (await session.execute(_BACKFILL_SINGLETONS_SQL)).rowcount or 0
+    session_ids = (
+        (await session.execute(_DISTINCT_SESSIONS_SQL)).scalars().all()
+    )
+    for i in range(0, len(session_ids), batch_size):
+        batch = set(session_ids[i : i + batch_size])
+        written += await recompute_turn_positions(session, batch)
+        if not dry_run:
+            await session.commit()
+    if dry_run:
+        await session.rollback()
+    else:
+        await session.commit()  # covers the singleton-only case (no sessions)
+    return written
 
 
 # --------------------------------------------------------------------------- #
@@ -215,6 +360,9 @@ class WindowStats:
     fetched: int = 0
     upserted: int = 0
     max_ts: Optional[datetime] = None
+    # Session ids upserted this window; their turn positions are recomputed once
+    # at the chunk boundary (see run_ingestion).
+    touched_sessions: set[str] = field(default_factory=set)
 
 
 async def ingest_window(
@@ -230,7 +378,7 @@ async def ingest_window(
 ) -> WindowStats:
     """Fetch one closed window, parse, and upsert (chunked). The sync fetch runs
     in a thread so it doesn't block the event loop. Fetch page size is clamped to
-    the Langfuse API max (100); the upsert batch size is independent."""
+    the Langfuse list-page max (``MAX_PAGE_SIZE``); the upsert batch is independent."""
     page_size = min(batch_size, MAX_PAGE_SIZE)
     traces = await asyncio.to_thread(
         client.fetch_window, from_ts, to_ts, environment, page_size
@@ -262,6 +410,9 @@ async def _flush(
     await _accumulate_fk(session, batch, metrics)
     if not dry_run:
         stats.upserted += await _upsert(session, batch)
+        stats.touched_sessions.update(
+            r["session_id"] for r in batch if r.get("session_id")
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -356,6 +507,9 @@ async def run_ingestion(
         result.fetched += ws.fetched
         result.upserted += ws.upserted
         if not dry_run:
+            # Renumber turn positions for touched sessions from current table
+            # state, in-transaction, before the chunk is committed.
+            await recompute_turn_positions(session, ws.touched_sessions)
             await session.commit()  # persist chunk before advancing watermark
         result.watermark = cto  # contiguous advance
         logger.info(

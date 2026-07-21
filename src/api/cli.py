@@ -760,5 +760,41 @@ def ingest_langfuse_traces_command(
     asyncio.run(_run())
 
 
+@cli.command("backfill-turn-fields")
+@click.option(
+    "--batch-size",
+    type=int,
+    default=500,
+    help="Sessions renumbered per committed batch.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Report how many rows would change without writing.",
+)
+def backfill_turn_fields_command(batch_size: int, dry_run: bool):
+    """Backfill turn_index / is_final / per-turn diffs for pre-existing rows.
+
+    Run once after deploying the turn-analytics migrations (which add these columns
+    empty, keeping the data pass out of the blocking deploy path). New rows are set
+    during normal ingest. Idempotent — safe to re-run (writes nothing the 2nd time).
+    """
+    from src.api.services.langfuse.ingest import backfill_turn_fields
+
+    async def _run():
+        db = DatabaseManager()
+        try:
+            async with db.async_session() as session:
+                written = await backfill_turn_fields(
+                    session, batch_size=batch_size, dry_run=dry_run
+                )
+                verb = "would update" if dry_run else "updated"
+                click.echo(f"backfill-turn-fields: {verb} {written} row(s)")
+        finally:
+            await db.close()
+
+    asyncio.run(_run())
+
+
 if __name__ == "__main__":
     cli()

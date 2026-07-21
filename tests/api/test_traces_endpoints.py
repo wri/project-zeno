@@ -1,15 +1,20 @@
 """Tests for the superuser-gated Langfuse trace explorer endpoints."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import Request
+from sqlalchemy import select
 
 from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.auth.scopes import TRACES_READ
 from src.api.data_models import LangfuseTraceOrm
 from src.api.schemas import UserModel
+from src.api.services.langfuse.ingest import (
+    backfill_turn_fields,
+    recompute_turn_positions,
+)
 from tests.conftest import async_session_maker
 
 H = {"Authorization": "Bearer test-token"}
@@ -49,6 +54,17 @@ async def _seed_trace(trace_id: str, **kw) -> None:
     async with async_session_maker() as session:
         session.add(LangfuseTraceOrm(id=trace_id, parser_version=1, **kw))
         await session.commit()
+
+
+async def _turn_fields(trace_id: str) -> tuple:
+    """Read (turn_index, is_final_turn_in_thread) straight from the DB."""
+    async with async_session_maker() as session:
+        row = (
+            await session.execute(
+                select(LangfuseTraceOrm).where(LangfuseTraceOrm.id == trace_id)
+            )
+        ).scalar_one()
+        return row.turn_index, row.is_final_turn_in_thread
 
 
 def _stub_langfuse_fetch(monkeypatch, trace):
@@ -306,11 +322,301 @@ async def test_analytics(client, auth_override, superuser_factory):
 
 
 @pytest.mark.asyncio
+async def test_analytics_turn_position_filters(
+    client, auth_override, superuser_factory
+):
+    """The same turn-position filters as the list endpoint scope the aggregates,
+    so turn 1 and turn 3+ can be compared via two calls."""
+    su = await superuser_factory("su_an_turn@example.com")
+    auth_override(su.id)
+    # one 3-turn session: costs 0.01 / 0.02 / 0.04 across turns 1/2/3
+    for ti, cost in ((1, 0.01), (2, 0.02), (3, 0.04)):
+        await _seed_trace(
+            f"an_t{ti}",
+            outcome="ANSWER",
+            session_id="ans",
+            turn_index=ti,
+            total_cost=cost,
+            trace_timestamp=datetime(2026, 6, 1, ti, tzinfo=timezone.utc),
+        )
+
+    first = (
+        await client.get(
+            "/api/traces/analytics?first_turn_only=true", headers=H
+        )
+    ).json()
+    assert first["total_traces"] == 1
+    assert first["cost"]["total"] == 0.01
+
+    later = (
+        await client.get("/api/traces/analytics?min_turn_index=2", headers=H)
+    ).json()
+    assert later["total_traces"] == 2
+    assert later["cost"]["total"] == 0.06
+
+    exact = (
+        await client.get("/api/traces/analytics?turn_index=2", headers=H)
+    ).json()
+    assert exact["total_traces"] == 1
+
+    capped = (
+        await client.get("/api/traces/analytics?max_turn_index=2", headers=H)
+    ).json()
+    assert capped["total_traces"] == 2
+
+
+@pytest.mark.asyncio
 async def test_analytics_requires_superuser(client, auth_override, user):
     auth_override(user.id)
     assert (
         await client.get("/api/traces/analytics", headers=H)
     ).status_code == 403
+
+
+# --- analytics/by-turn -----------------------------------------------------
+_BASE = datetime(2026, 6, 1, tzinfo=timezone.utc)
+
+
+async def _seed_session_turns(session_id: str, n: int, **kw) -> None:
+    """Seed a session as n turns, turn_index 1..n (timestamps spaced by minute)."""
+    for ti in range(1, n + 1):
+        await _seed_trace(
+            f"{session_id}_{ti}",
+            session_id=session_id,
+            turn_index=ti,
+            trace_timestamp=_BASE + timedelta(minutes=ti),
+            **kw,
+        )
+
+
+def _by_index(body) -> dict:
+    return {g["turn_index"]: g for g in body["groups"]}
+
+
+@pytest.mark.asyncio
+async def test_by_turn_buckets_and_terminal(
+    client, auth_override, superuser_factory
+):
+    """15 turns, cap=10 -> buckets 1..10; the terminal bucket collapses turns
+    10..15 and reports the true range."""
+    su = await superuser_factory("su_bt1@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 15, total_cost=0.01)
+
+    body = (
+        await client.get(
+            "/api/traces/analytics/by-turn?turn_bucket_cap=10", headers=H
+        )
+    ).json()
+    assert body["turn_bucket_cap"] == 10
+    assert body["ungrouped_traces"] == 0
+    assert body["grand_total"]["total_traces"] == 15
+
+    groups = _by_index(body)
+    assert sorted(groups) == list(range(1, 11))
+    assert sum(g["total_traces"] for g in body["groups"]) == 15
+
+    # non-terminal buckets are a single exact position
+    assert groups[1]["is_terminal"] is False
+    assert groups[1]["total_traces"] == 1
+    assert groups[1]["turn_index_min"] == groups[1]["turn_index_max"] == 1
+
+    # terminal bucket aggregates turns 10..15, honestly labelled
+    term = groups[10]
+    assert term["is_terminal"] is True
+    assert term["total_traces"] == 6
+    assert term["turn_index_min"] == 10
+    assert term["turn_index_max"] == 15
+
+
+@pytest.mark.asyncio
+async def test_by_turn_no_overflow(client, auth_override, superuser_factory):
+    """Max turn below the cap -> no bucket is terminal."""
+    su = await superuser_factory("su_bt2@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 4)
+
+    body = (
+        await client.get(
+            "/api/traces/analytics/by-turn?turn_bucket_cap=10", headers=H
+        )
+    ).json()
+    groups = _by_index(body)
+    assert sorted(groups) == [1, 2, 3, 4]
+    assert all(g["is_terminal"] is False for g in body["groups"])
+    assert all(
+        g["turn_index_min"] == g["turn_index_max"] == g["turn_index"]
+        for g in body["groups"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_by_turn_terminal_exactly_at_cap(
+    client, auth_override, superuser_factory
+):
+    """Max turn == cap with nothing beyond: the terminal bucket exists and is
+    flagged, but turn_index_max == cap proves is_terminal is NOT 'rows beyond
+    the cap exist'."""
+    su = await superuser_factory("su_bt3@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 10)
+
+    body = (
+        await client.get(
+            "/api/traces/analytics/by-turn?turn_bucket_cap=10", headers=H
+        )
+    ).json()
+    term = _by_index(body)[10]
+    assert term["is_terminal"] is True
+    assert term["total_traces"] == 1
+    assert term["turn_index_max"] == 10  # nothing beyond the cap
+
+
+@pytest.mark.asyncio
+async def test_by_turn_reconciles_null_turn_rows(
+    client, auth_override, superuser_factory
+):
+    """NULL-turn rows are excluded from groups but counted in ungrouped_traces,
+    so the buckets + ungrouped reconcile against the grand total."""
+    su = await superuser_factory("su_bt4@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 2)
+    await _seed_trace("bt_null", session_id="bt_late", turn_index=None)
+
+    body = (
+        await client.get("/api/traces/analytics/by-turn", headers=H)
+    ).json()
+    assert body["ungrouped_traces"] == 1
+    grouped = sum(g["total_traces"] for g in body["groups"])
+    assert grouped == 2
+    assert (
+        grouped + body["ungrouped_traces"]
+        == body["grand_total"]["total_traces"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_by_turn_empty(client, auth_override, superuser_factory):
+    """A filter matching nothing -> groups [] and zeroed grand total, not a 500."""
+    su = await superuser_factory("su_bt5@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 3)
+
+    resp = await client.get(
+        "/api/traces/analytics/by-turn?user_id=nobody", headers=H
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["groups"] == []
+    assert body["grand_total"]["total_traces"] == 0
+    assert body["ungrouped_traces"] == 0
+
+
+@pytest.mark.asyncio
+async def test_by_turn_sessions_reaching_funnel(
+    client, auth_override, superuser_factory
+):
+    """sessions_reaching is a funnel: distinct sessions per depth, non-increasing
+    and NOT summing to the session total."""
+    su = await superuser_factory("su_bt6@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("sa", 3)
+    await _seed_session_turns("sb", 2)
+
+    body = (
+        await client.get("/api/traces/analytics/by-turn", headers=H)
+    ).json()
+    reaching = {
+        g["turn_index"]: g["sessions_reaching"] for g in body["groups"]
+    }
+    assert reaching == {1: 2, 2: 2, 3: 1}
+
+
+@pytest.mark.asyncio
+async def test_by_turn_filter_applies_before_bucketing(
+    client, auth_override, superuser_factory
+):
+    """A floor filter applies before bucketing: turns 20..25 collapse into the
+    terminal bucket, labelled 10 but honestly reporting turn_index_min=20."""
+    su = await superuser_factory("su_bt7@example.com")
+    auth_override(su.id)
+    await _seed_session_turns("bt", 25)
+
+    body = (
+        await client.get(
+            "/api/traces/analytics/by-turn"
+            "?min_turn_index=20&turn_bucket_cap=10",
+            headers=H,
+        )
+    ).json()
+    assert len(body["groups"]) == 1
+    term = body["groups"][0]
+    assert term["turn_index"] == 10
+    assert term["is_terminal"] is True
+    assert term["turn_index_min"] == 20
+    assert term["turn_index_max"] == 25
+    assert term["total_traces"] == 6
+
+
+@pytest.mark.asyncio
+async def test_by_turn_grand_total_parity_with_analytics(
+    client, auth_override, superuser_factory
+):
+    """The grand-total block must match /analytics' summary for the same filter
+    (guards the shared aggregate fragment)."""
+    su = await superuser_factory("su_bt8@example.com")
+    auth_override(su.id)
+    for ti, (lat, cost, tok) in enumerate(
+        [(1.0, 0.01, 100), (3.0, 0.03, 200), (2.0, 0.02, 50)], start=1
+    ):
+        await _seed_trace(
+            f"pty_{ti}",
+            session_id="pty",
+            turn_index=ti,
+            outcome="ANSWER",
+            latency_seconds=lat,
+            total_cost=cost,
+            turn_tokens=tok,
+            turn_tool_calls=ti,
+            tool_error_count=0,
+            trace_timestamp=_BASE + timedelta(minutes=ti),
+        )
+
+    analytics = (await client.get("/api/traces/analytics", headers=H)).json()
+    grand = (
+        await client.get("/api/traces/analytics/by-turn", headers=H)
+    ).json()["grand_total"]
+
+    assert grand["total_traces"] == analytics["total_traces"]
+    for k in ("latency", "cost", "tokens", "tool_usage"):
+        assert grand[k] == analytics[k]
+
+
+@pytest.mark.asyncio
+async def test_by_turn_requires_superuser(client, auth_override, user):
+    auth_override(user.id)
+    assert (
+        await client.get("/api/traces/analytics/by-turn", headers=H)
+    ).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_inverted_turn_range_rejected(
+    client, auth_override, superuser_factory
+):
+    """min_turn_index > max_turn_index is a 422 on every filtered endpoint, not a
+    silently-empty result."""
+    su = await superuser_factory("su_range@example.com")
+    auth_override(su.id)
+    for path in (
+        "/api/traces",
+        "/api/traces/analytics",
+        "/api/traces/analytics/by-turn",
+    ):
+        resp = await client.get(
+            f"{path}?min_turn_index=5&max_turn_index=2", headers=H
+        )
+        assert resp.status_code == 422
 
 
 # --- sessions --------------------------------------------------------------
@@ -347,3 +653,287 @@ async def test_sessions(client, auth_override, superuser_factory):
     sx = next(s for s in b["items"] if s["session_id"] == "sx")
     assert sx["turn_count"] == 2
     assert sx["first_prompt"] == "first question"  # earliest turn's prompt
+
+
+# --- turn position (Phase 0) -----------------------------------------------
+@pytest.mark.asyncio
+async def test_turn_index_surfaced_and_filtered(
+    client, auth_override, superuser_factory
+):
+    su = await superuser_factory("su_turn@example.com")
+    auth_override(su.id)
+    for ti in (1, 2, 3):
+        await _seed_trace(
+            f"ti{ti}",
+            session_id="ts",
+            turn_index=ti,
+            trace_timestamp=datetime(2026, 6, 1, ti, tzinfo=timezone.utc),
+        )
+
+    # turn_index is on the list item
+    body = (await client.get("/api/traces?session_id=ts", headers=H)).json()
+    assert {i["id"]: i["turn_index"] for i in body["items"]} == {
+        "ti1": 1,
+        "ti2": 2,
+        "ti3": 3,
+    }
+
+    ft = (
+        await client.get("/api/traces?first_turn_only=true", headers=H)
+    ).json()
+    assert [i["id"] for i in ft["items"]] == ["ti1"]
+
+    ex = (await client.get("/api/traces?turn_index=2", headers=H)).json()
+    assert [i["id"] for i in ex["items"]] == ["ti2"]
+
+    mn = (await client.get("/api/traces?min_turn_index=2", headers=H)).json()
+    assert sorted(i["id"] for i in mn["items"]) == ["ti2", "ti3"]
+
+    mx = (await client.get("/api/traces?max_turn_index=1", headers=H)).json()
+    assert [i["id"] for i in mx["items"]] == ["ti1"]
+
+
+@pytest.mark.asyncio
+async def test_turn_index_is_true_position_under_date_filter(
+    client, auth_override, superuser_factory
+):
+    """A stored turn_index is the true in-session position, so a date filter that
+    cuts a session mid-thread does NOT renumber the surviving turns (the client-
+    side-reconstruction bug this replaces)."""
+    su = await superuser_factory("su_turn_date@example.com")
+    auth_override(su.id)
+    for ti, day in ((1, 1), (2, 2), (3, 3)):
+        await _seed_trace(
+            f"d{ti}",
+            session_id="ds",
+            turn_index=ti,
+            trace_timestamp=datetime(2026, 6, day, tzinfo=timezone.utc),
+        )
+
+    body = (
+        await client.get("/api/traces?start=2026-06-02T00:00:00Z", headers=H)
+    ).json()
+    # earliest turn excluded, but survivors keep their true ordinals (2, 3)
+    assert {i["id"]: i["turn_index"] for i in body["items"]} == {
+        "d2": 2,
+        "d3": 3,
+    }
+    # first_turn_only over that same window returns nothing (turn 1 is filtered
+    # out) — not a renumbered "first of the filtered set".
+    ft = (
+        await client.get(
+            "/api/traces?start=2026-06-02T00:00:00Z&first_turn_only=true",
+            headers=H,
+        )
+    ).json()
+    assert ft["items"] == []
+
+
+@pytest.mark.asyncio
+async def test_recompute_turn_positions_orders_flags_and_is_idempotent():
+    # three turns of one session, seeded out of order, all turn_index NULL
+    await _seed_trace(
+        "r3",
+        session_id="rs",
+        trace_timestamp=datetime(2026, 6, 1, 3, tzinfo=timezone.utc),
+    )
+    await _seed_trace(
+        "r1",
+        session_id="rs",
+        trace_timestamp=datetime(2026, 6, 1, 1, tzinfo=timezone.utc),
+    )
+    await _seed_trace(
+        "r2",
+        session_id="rs",
+        trace_timestamp=datetime(2026, 6, 1, 2, tzinfo=timezone.utc),
+    )
+
+    async def _recompute():
+        async with async_session_maker() as session:
+            await recompute_turn_positions(session, {"rs"})
+            await session.commit()
+
+    await _recompute()
+    assert await _turn_fields("r1") == (1, False)
+    assert await _turn_fields("r2") == (2, False)
+    assert await _turn_fields("r3") == (3, True)
+
+    # idempotent: recomputing the same session yields identical ordinals
+    await _recompute()
+    assert await _turn_fields("r3") == (3, True)
+
+    # a late/out-of-order trace shifts the final flag and extends the numbering
+    await _seed_trace(
+        "r4",
+        session_id="rs",
+        trace_timestamp=datetime(2026, 6, 1, 4, tzinfo=timezone.utc),
+    )
+    await _recompute()
+    assert await _turn_fields("r3") == (3, False)
+    assert await _turn_fields("r4") == (4, True)
+
+
+@pytest.mark.asyncio
+async def test_recompute_skips_unchanged_rows():
+    """The no-op guard: the first recompute writes the session's rows, a second
+    identical recompute rewrites nothing (rowcount 0) so siblings aren't
+    re-versioned on every ingest. Covers a multi-element datasets_analysed_this_turn
+    array too (its order comes from EXCEPT), so the guard's array comparison is
+    exercised, not just the empty case."""
+    for i, (hour, cum) in enumerate(
+        (
+            (0, ["a"]),
+            (1, ["a", "b", "c"]),  # -> datasets_analysed_this_turn = [b, c]
+            (2, ["a", "b", "c"]),  # -> [] (nothing new)
+        ),
+        start=1,
+    ):
+        await _seed_trace(
+            f"nz{i}",
+            session_id="nz",
+            trace_timestamp=datetime(2026, 6, 1, hour, tzinfo=timezone.utc),
+            derived={"datasets_analysed_cumulative": cum},
+        )
+
+    async def _recompute() -> int:
+        async with async_session_maker() as session:
+            n = await recompute_turn_positions(session, {"nz"})
+            await session.commit()
+            return n
+
+    assert await _recompute() == 3  # all three go from NULL to their positions
+    assert await _recompute() == 0  # already current -> no rewrite
+    # the multi-element diff is stored (set diff; EXCEPT order is unspecified but
+    # stable, which is exactly why the second recompute is a no-op)
+    created, new_ds = await _diff_fields("nz2")
+    assert created is False and sorted(new_ds) == ["b", "c"]
+
+
+# --- per-turn diffs (Phase 1) ----------------------------------------------
+async def _diff_fields(trace_id: str) -> tuple:
+    """Read (insight_created_this_turn, datasets_analysed_this_turn) from the DB."""
+    async with async_session_maker() as session:
+        row = (
+            await session.execute(
+                select(LangfuseTraceOrm).where(LangfuseTraceOrm.id == trace_id)
+            )
+        ).scalar_one()
+        return row.insight_created_this_turn, row.datasets_analysed_this_turn
+
+
+@pytest.mark.asyncio
+async def test_recompute_computes_per_turn_diffs():
+    """insight_created_this_turn is true only on the turn insight_id newly becomes
+    non-null / changes; datasets_analysed_this_turn is the per-turn delta of the
+    cumulative list, not the cumulative list itself."""
+    # (id, hour, insight_id, cumulative datasets as of this turn)
+    seeds = [
+        ("p1", 1, None, ["a"]),
+        ("p2", 2, "ins1", ["a", "b"]),
+        ("p3", 3, "ins1", ["a", "b"]),
+        ("p4", 4, "ins2", ["a", "b", "c"]),
+    ]
+    for tid, hour, ins, ds in seeds:
+        await _seed_trace(
+            tid,
+            session_id="ps",
+            insight_id=ins,
+            derived={"datasets_analysed_cumulative": ds},
+            trace_timestamp=datetime(2026, 6, 1, hour, tzinfo=timezone.utc),
+        )
+
+    async with async_session_maker() as session:
+        await recompute_turn_positions(session, {"ps"})
+        await session.commit()
+
+    assert await _diff_fields("p1") == (False, ["a"])  # first turn: all new
+    assert await _diff_fields("p2") == (True, ["b"])  # insight appears; +b
+    assert await _diff_fields("p3") == (False, [])  # unchanged: nothing new
+    assert await _diff_fields("p4") == (True, ["c"])  # insight changes; +c
+
+
+@pytest.mark.asyncio
+async def test_backfill_turn_fields_covers_sessions_and_singletons():
+    """The out-of-band backfill (schema-only migration + CLI) populates all turn
+    fields for pre-existing rows: multi-turn sessions get renumbered + diffed, and
+    null-session singletons are set directly. Idempotent — a re-run writes 0."""
+    # a 3-turn session, seeded out of order with all turn fields NULL
+    for tid, hour, ins, ds in [
+        ("bf1", 0, None, ["a"]),
+        ("bf3", 2, "ins1", ["a", "b"]),
+        ("bf2", 1, "ins1", ["a", "b"]),
+    ]:
+        await _seed_trace(
+            tid,
+            session_id="bf",
+            insight_id=ins,
+            derived={"datasets_analysed_cumulative": ds},
+            trace_timestamp=datetime(2026, 6, 1, hour, tzinfo=timezone.utc),
+        )
+    # two singletons (null session): one with an insight + datasets, one bare
+    await _seed_trace(
+        "solo_ins",
+        insight_id="ins9",
+        derived={"datasets_analysed_cumulative": ["x", "y"]},
+    )
+    await _seed_trace("solo_bare")
+
+    async with async_session_maker() as session:
+        first = await backfill_turn_fields(session, batch_size=500)
+    async with async_session_maker() as session:
+        second = await backfill_turn_fields(session, batch_size=500)
+
+    assert first == 5  # 3 session rows + 2 singletons
+    assert second == 0  # idempotent
+
+    # session: positions + final flag + per-turn diffs
+    assert await _turn_fields("bf1") == (1, False)
+    assert await _turn_fields("bf2") == (2, False)
+    assert await _turn_fields("bf3") == (3, True)
+    assert await _diff_fields("bf1") == (False, ["a"])
+    assert await _diff_fields("bf2") == (True, ["b"])
+    assert await _diff_fields("bf3") == (False, [])
+
+    # singletons: turn 1, final, diffs reflect the whole (predecessor-less) turn
+    assert await _turn_fields("solo_ins") == (1, True)
+    created, new_ds = await _diff_fields("solo_ins")
+    assert created is True and sorted(new_ds) == ["x", "y"]
+    assert await _turn_fields("solo_bare") == (1, True)
+    assert await _diff_fields("solo_bare") == (False, [])
+
+
+@pytest.mark.asyncio
+async def test_backfill_turn_fields_dry_run_writes_nothing():
+    """--dry-run reports the would-write count but rolls back."""
+    await _seed_trace(
+        "dr1",
+        session_id="dr",
+        trace_timestamp=datetime(2026, 6, 1, tzinfo=timezone.utc),
+    )
+    async with async_session_maker() as session:
+        n = await backfill_turn_fields(session, dry_run=True)
+    assert n == 1
+    assert await _turn_fields("dr1") == (None, None)  # rolled back
+
+
+@pytest.mark.asyncio
+async def test_per_turn_diffs_surfaced_on_list_item(
+    client, auth_override, superuser_factory
+):
+    su = await superuser_factory("su_diff@example.com")
+    auth_override(su.id)
+    await _seed_trace(
+        "diff1",
+        session_id="dfs",
+        turn_index=2,
+        insight_created_this_turn=True,
+        datasets_analysed_this_turn=["b"],
+        derived={"datasets_analysed_cumulative": ["a", "b"]},
+        trace_timestamp=datetime(2026, 6, 1, 2, tzinfo=timezone.utc),
+    )
+    body = (await client.get("/api/traces?session_id=dfs", headers=H)).json()
+    item = body["items"][0]
+    assert item["insight_created_this_turn"] is True
+    assert item["datasets_analysed_this_turn"] == ["b"]
+    # the cumulative field still reflects the whole thread as of this turn
+    assert item["datasets_analysed"] == ["a", "b"]

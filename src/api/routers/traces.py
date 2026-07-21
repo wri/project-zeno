@@ -3,20 +3,22 @@
 Gated on the ``traces:read`` scope: a superuser human or a machine key carrying
 that scope (see ``require_scope``).
 
-Read path over ``langfuse_traces`` (see src/api/services/langfuse for ingestion).
-List/detail here; analytics + conversation views live alongside. All derived
-fields are turn-level (per the parser); cumulative thread state lives under
-``derived`` and the analytics surface dedups per session.
+Read path over ``langfuse_traces`` (see src/api/services/langfuse for ingestion):
+list/detail, per-turn and turn-bucketed analytics, and a session (thread) view.
+Each row is one turn; most fields are per-turn, but a few (``datasets_analysed``,
+``has_insight``, ``primary_dataset_name``) carry thread-cumulative state and are
+labelled as such. Only ``/sessions`` groups by session.
 """
 
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,16 +45,52 @@ class TraceListItem(BaseModel):
     prompt: Optional[str] = None
     aoi_name: Optional[str] = None
     aoi_type: Optional[str] = None
-    primary_dataset_name: Optional[str] = None
-    has_insight: Optional[bool] = None
+    primary_dataset_name: Optional[str] = Field(
+        None,
+        description=(
+            "Thread-cumulative as of this turn: the primary dataset in effect at "
+            "this turn, which may have been selected on an earlier turn. For the "
+            "datasets newly analysed on this turn use datasets_analysed_this_turn."
+        ),
+    )
+    has_insight: Optional[bool] = Field(
+        None,
+        description=(
+            "Thread-cumulative as of this turn: whether an insight exists in the "
+            "thread as of this turn (possibly created earlier). For whether *this* "
+            "turn created one use insight_created_this_turn."
+        ),
+    )
     is_global: Optional[bool] = None
+    # 1-based position of this turn within its session (ordered by
+    # trace_timestamp); session-less traces are singletons (turn_index 1).
+    turn_index: Optional[int] = None
+    # Per-turn diffs (honest "this turn" signals, vs. the cumulative fields above).
+    insight_created_this_turn: Optional[bool] = Field(
+        None,
+        description="True only on the turn whose insight_id first became non-null.",
+    )
+    datasets_analysed_this_turn: Optional[list[str]] = Field(
+        None,
+        description=(
+            "Datasets new to this turn (this turn's cumulative set minus the "
+            "previous turn's), vs. datasets_analysed which is thread-cumulative."
+        ),
+    )
     turn_tokens: Optional[int] = None
     turn_tool_calls: Optional[int] = None
     tool_error_count: Optional[int] = None
     latency_seconds: Optional[float] = None
     total_cost: Optional[float] = None
     # Sourced from the ``derived`` JSONB (long-tail fields kept out of columns).
-    datasets_analysed: Optional[list[str]] = None
+    datasets_analysed: Optional[list[str]] = Field(
+        None,
+        description=(
+            "Thread-cumulative as of this turn: every dataset analysed in the "
+            "thread up to and including this turn. For the per-turn delta use "
+            "datasets_analysed_this_turn."
+        ),
+    )
     language: Optional[str] = None
     language_confidence: Optional[float] = None
 
@@ -97,6 +135,9 @@ _LIST_COLUMNS = (
     LangfuseTraceOrm.primary_dataset_name,
     LangfuseTraceOrm.has_insight,
     LangfuseTraceOrm.is_global,
+    LangfuseTraceOrm.turn_index,
+    LangfuseTraceOrm.insight_created_this_turn,
+    LangfuseTraceOrm.datasets_analysed_this_turn,
     LangfuseTraceOrm.turn_tokens,
     LangfuseTraceOrm.turn_tool_calls,
     LangfuseTraceOrm.tool_error_count,
@@ -121,55 +162,80 @@ def _list_item_from_row(r: dict[str, Any]) -> TraceListItem:
     )
 
 
-def _filters(
-    environment: Optional[str],
-    outcome: Optional[str],
-    user_id: Optional[str],
-    session_id: Optional[str],
-    start: Optional[datetime],
-    end: Optional[datetime],
-    prompt_contains: Optional[str],
-) -> list[Any]:
+@dataclass
+class TurnAnalyticsFilters:
+    """Shared query-param filter set for the list + analytics endpoints. The
+    turn-position filters compare the stored, indexed ``turn_index`` (so no window);
+    ``first_turn_only`` is a convenience alias for ``turn_index == 1``."""
+
+    environment: Annotated[Optional[str], Query()] = None
+    outcome: Annotated[Optional[str], Query()] = None
+    user_id: Annotated[Optional[str], Query()] = None
+    start: Annotated[
+        Optional[datetime], Query(description="trace_timestamp >= (ISO)")
+    ] = None
+    end: Annotated[
+        Optional[datetime], Query(description="trace_timestamp < (ISO)")
+    ] = None
+    turn_index: Annotated[
+        Optional[int],
+        Query(ge=1, description="exact 1-based turn position in the session"),
+    ] = None
+    min_turn_index: Annotated[Optional[int], Query(ge=1)] = None
+    max_turn_index: Annotated[Optional[int], Query(ge=1)] = None
+    first_turn_only: Annotated[
+        bool, Query(description="only first turns (alias for turn_index=1)")
+    ] = False
+
+    def __post_init__(self) -> None:
+        _check_turn_range(self.min_turn_index, self.max_turn_index)
+
+
+@dataclass
+class ListFilters(TurnAnalyticsFilters):
+    """TurnAnalyticsFilters plus the list-only text filters."""
+
+    session_id: Annotated[Optional[str], Query()] = None
+    prompt_contains: Annotated[Optional[str], Query()] = None
+
+
+def _filters(flt: ListFilters) -> list[Any]:
     conds: list[Any] = []
-    if environment:
-        conds.append(LangfuseTraceOrm.environment == environment)
-    if outcome:
-        conds.append(LangfuseTraceOrm.outcome == outcome)
-    if user_id:
-        conds.append(LangfuseTraceOrm.user_id == user_id)
-    if session_id:
-        conds.append(LangfuseTraceOrm.session_id == session_id)
-    if start:
-        conds.append(LangfuseTraceOrm.trace_timestamp >= start)
-    if end:
-        conds.append(LangfuseTraceOrm.trace_timestamp < end)
-    if prompt_contains:
-        conds.append(LangfuseTraceOrm.prompt.ilike(f"%{prompt_contains}%"))
+    if flt.environment:
+        conds.append(LangfuseTraceOrm.environment == flt.environment)
+    if flt.outcome:
+        conds.append(LangfuseTraceOrm.outcome == flt.outcome)
+    if flt.user_id:
+        conds.append(LangfuseTraceOrm.user_id == flt.user_id)
+    if flt.session_id:
+        conds.append(LangfuseTraceOrm.session_id == flt.session_id)
+    if flt.start:
+        conds.append(LangfuseTraceOrm.trace_timestamp >= flt.start)
+    if flt.end:
+        conds.append(LangfuseTraceOrm.trace_timestamp < flt.end)
+    if flt.prompt_contains:
+        conds.append(LangfuseTraceOrm.prompt.ilike(f"%{flt.prompt_contains}%"))
+    if flt.first_turn_only:
+        conds.append(LangfuseTraceOrm.turn_index == 1)
+    if flt.turn_index is not None:
+        conds.append(LangfuseTraceOrm.turn_index == flt.turn_index)
+    if flt.min_turn_index is not None:
+        conds.append(LangfuseTraceOrm.turn_index >= flt.min_turn_index)
+    if flt.max_turn_index is not None:
+        conds.append(LangfuseTraceOrm.turn_index <= flt.max_turn_index)
     return conds
 
 
 @router.get("", response_model=TraceListResponse)
 async def list_traces(
-    environment: Optional[str] = Query(None),
-    outcome: Optional[str] = Query(None),
-    user_id: Optional[str] = Query(None),
-    session_id: Optional[str] = Query(None),
-    start: Optional[datetime] = Query(
-        None, description="trace_timestamp >= (ISO)"
-    ),
-    end: Optional[datetime] = Query(
-        None, description="trace_timestamp < (ISO)"
-    ),
-    prompt_contains: Optional[str] = Query(None),
+    flt: ListFilters = Depends(),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     _reader: UserModel = Depends(require_scope(TRACES_READ)),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> TraceListResponse:
     """List/filter traces (derived columns only — never raw/output)."""
-    conds = _filters(
-        environment, outcome, user_id, session_id, start, end, prompt_contains
-    )
+    conds = _filters(flt)
 
     count_stmt = select(func.count()).select_from(LangfuseTraceOrm)
     for c in conds:
@@ -217,6 +283,64 @@ class TraceAnalytics(BaseModel):
     tool_usage: dict[str, Optional[float]]
 
 
+class TurnMetrics(BaseModel):
+    """The scalar metric block shared by ``/analytics/by-turn``'s grand total and
+    each per-turn bucket (same shape as the corresponding fields on
+    ``TraceAnalytics``)."""
+
+    total_traces: int
+    latency: dict[str, Optional[float]]  # {avg, p50, p95}
+    cost: dict[str, Optional[float]] = Field(
+        ...,
+        description=(
+            "{avg, p95, total}. The sums (total) are within-bucket totals and are "
+            "NOT comparable across buckets — the terminal bucket aggregates many "
+            "turn positions. Compare averages/percentiles across buckets."
+        ),
+    )
+    tokens: dict[str, Optional[float]]  # {avg_turn_tokens, total_turn_tokens}
+    tool_usage: dict[str, Optional[float]]  # {avg_tool_calls, tool_error_rate}
+
+
+class TurnGroup(TurnMetrics):
+    """One turn-position bucket. Positions at/above ``turn_bucket_cap`` collapse
+    into a single terminal bucket, so ``turn_index`` is the bucket label
+    (``== cap`` means "cap or more") while ``turn_index_min``/``turn_index_max``
+    give the true range within it."""
+
+    turn_index: int
+    is_terminal: bool = Field(
+        ...,
+        description=(
+            "The collapsing bucket (turn_index == turn_bucket_cap). True here does "
+            "NOT by itself mean turns beyond the cap exist — check turn_index_max > "
+            "turn_bucket_cap for that."
+        ),
+    )
+    turn_index_min: int
+    turn_index_max: int
+    sessions_reaching: int = Field(
+        ...,
+        description=(
+            "Distinct sessions that reached this turn position (a funnel/retention "
+            "curve). A session spans buckets, so this is NOT summable across buckets."
+        ),
+    )
+
+
+class TurnAnalytics(BaseModel):
+    turn_bucket_cap: int
+    ungrouped_traces: int = Field(
+        ...,
+        description=(
+            "Traces with a NULL turn_index (excluded from groups). "
+            "sum(groups.total_traces) + ungrouped_traces == grand_total.total_traces."
+        ),
+    )
+    grand_total: TurnMetrics
+    groups: list[TurnGroup]
+
+
 class SessionItem(BaseModel):
     session_id: str
     user_id: Optional[str] = None
@@ -235,34 +359,41 @@ class SessionListResponse(BaseModel):
 
 
 def _where_sql(
-    environment: Optional[str],
-    outcome: Optional[str],
-    user_id: Optional[str],
-    start: Optional[datetime],
-    end: Optional[datetime],
-    *,
-    require_session: bool = False,
+    flt: TurnAnalyticsFilters, *, require_session: bool = False
 ) -> tuple[str, dict[str, Any]]:
-    """Build a parameterised WHERE clause (bound params — no injection)."""
+    """Build a parameterised WHERE clause (bound params — no injection). The
+    turn-position filters compare the stored, indexed ``turn_index``, so the
+    aggregate SQL stays window-free."""
     clauses: list[str] = []
     params: dict[str, Any] = {}
     if require_session:
         clauses.append("session_id IS NOT NULL")
-    if environment:
+    if flt.environment:
         clauses.append("environment = :environment")
-        params["environment"] = environment
-    if outcome:
+        params["environment"] = flt.environment
+    if flt.outcome:
         clauses.append("outcome = :outcome")
-        params["outcome"] = outcome
-    if user_id:
+        params["outcome"] = flt.outcome
+    if flt.user_id:
         clauses.append("user_id = :user_id")
-        params["user_id"] = user_id
-    if start:
+        params["user_id"] = flt.user_id
+    if flt.start:
         clauses.append("trace_timestamp >= :start")
-        params["start"] = start
-    if end:
+        params["start"] = flt.start
+    if flt.end:
         clauses.append("trace_timestamp < :end")
-        params["end"] = end
+        params["end"] = flt.end
+    if flt.first_turn_only:
+        clauses.append("turn_index = 1")
+    if flt.turn_index is not None:
+        clauses.append("turn_index = :turn_index")
+        params["turn_index"] = flt.turn_index
+    if flt.min_turn_index is not None:
+        clauses.append("turn_index >= :min_turn_index")
+        params["min_turn_index"] = flt.min_turn_index
+    if flt.max_turn_index is not None:
+        clauses.append("turn_index <= :max_turn_index")
+        params["max_turn_index"] = flt.max_turn_index
     where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     return where, params
 
@@ -271,41 +402,84 @@ def _f(x: Any) -> Optional[float]:
     return round(float(x), 4) if x is not None else None
 
 
+def _check_turn_range(
+    min_turn_index: Optional[int], max_turn_index: Optional[int]
+) -> None:
+    if (
+        min_turn_index is not None
+        and max_turn_index is not None
+        and min_turn_index > max_turn_index
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="min_turn_index must be <= max_turn_index",
+        )
+
+
+# The scalar aggregate expressions shared by /analytics' summary and
+# /analytics/by-turn's grand-total + grouped queries, so the two can't drift.
+# Consumed via _metrics_from_row (reads the aliased columns below).
+_SCALAR_METRICS_SQL = """
+  count(*) AS total,
+  avg(latency_seconds) AS lat_avg,
+  percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_seconds) AS lat_p50,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_seconds) AS lat_p95,
+  avg(total_cost) AS cost_avg,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY total_cost) AS cost_p95,
+  sum(total_cost) AS cost_total,
+  avg(turn_tokens) AS tok_avg,
+  sum(turn_tokens) AS tok_total,
+  avg(turn_tool_calls) AS tool_avg,
+  avg(CASE WHEN tool_error_count > 0 THEN 1.0 ELSE 0.0 END) AS tool_err_rate
+""".strip()
+
+
+def _metrics_dict(r: Any) -> dict[str, Any]:
+    """Map a result row carrying the _SCALAR_METRICS_SQL columns into the
+    TurnMetrics field dict (splat into TurnMetrics or TurnGroup)."""
+    return {
+        "total_traces": int(r["total"] or 0),
+        "latency": {
+            "avg": _f(r["lat_avg"]),
+            "p50": _f(r["lat_p50"]),
+            "p95": _f(r["lat_p95"]),
+        },
+        "cost": {
+            "avg": _f(r["cost_avg"]),
+            "p95": _f(r["cost_p95"]),
+            "total": _f(r["cost_total"]),
+        },
+        "tokens": {
+            "avg_turn_tokens": _f(r["tok_avg"]),
+            "total_turn_tokens": _f(r["tok_total"]),
+        },
+        "tool_usage": {
+            "avg_tool_calls": _f(r["tool_avg"]),
+            "tool_error_rate": _f(r["tool_err_rate"]),
+        },
+    }
+
+
 @router.get("/analytics", response_model=TraceAnalytics)
 async def trace_analytics(
-    environment: Optional[str] = Query(None),
-    outcome: Optional[str] = Query(None),
-    user_id: Optional[str] = Query(None),
-    start: Optional[datetime] = Query(None),
-    end: Optional[datetime] = Query(None),
+    flt: TurnAnalyticsFilters = Depends(),
     _reader: UserModel = Depends(require_scope(TRACES_READ)),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ) -> TraceAnalytics:
     """Server-side aggregates over the filtered trace set. All metrics are
-    turn-level (one row per trace), so counts/sums are not double-counted."""
-    where, params = _where_sql(environment, outcome, user_id, start, end)
+    turn-level (one row per trace), so counts/sums are not double-counted. The
+    turn-position filters answer "how does turn 1 differ from turn 3+" via two
+    calls, filtering the indexed ``turn_index`` (no window)."""
+    where, params = _where_sql(flt)
 
     summary = (
         (
             await session.execute(
                 text(
-                    f"""
-                SELECT
-                  count(*) AS total,
-                  count(DISTINCT session_id) AS sessions,
-                  count(DISTINCT user_id) AS users,
-                  avg(latency_seconds) AS lat_avg,
-                  percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_seconds) AS lat_p50,
-                  percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_seconds) AS lat_p95,
-                  avg(total_cost) AS cost_avg,
-                  percentile_cont(0.95) WITHIN GROUP (ORDER BY total_cost) AS cost_p95,
-                  sum(total_cost) AS cost_total,
-                  avg(turn_tokens) AS tok_avg,
-                  sum(turn_tokens) AS tok_total,
-                  avg(turn_tool_calls) AS tool_avg,
-                  avg(CASE WHEN tool_error_count > 0 THEN 1.0 ELSE 0.0 END) AS tool_err_rate
-                FROM langfuse_traces{where}
-                """
+                    f"SELECT {_SCALAR_METRICS_SQL}, "
+                    f"count(DISTINCT session_id) AS sessions, "
+                    f"count(DISTINCT user_id) AS users "
+                    f"FROM langfuse_traces{where}"
                 ),
                 params,
             )
@@ -313,6 +487,7 @@ async def trace_analytics(
         .mappings()
         .one()
     )
+    metrics = _metrics_dict(summary)
 
     outcomes = (
         (
@@ -359,30 +534,89 @@ async def trace_analytics(
     )
 
     return TraceAnalytics(
-        total_traces=int(summary["total"] or 0),
         unique_sessions=int(summary["sessions"] or 0),
         unique_users=int(summary["users"] or 0),
         outcome_breakdown=[NamedCount(**dict(r)) for r in outcomes],
         daily_volume=[DailyCount(**dict(r)) for r in daily],
         aoi_type_breakdown=[NamedCount(**dict(r)) for r in aoi],
-        latency={
-            "avg": _f(summary["lat_avg"]),
-            "p50": _f(summary["lat_p50"]),
-            "p95": _f(summary["lat_p95"]),
-        },
-        cost={
-            "avg": _f(summary["cost_avg"]),
-            "p95": _f(summary["cost_p95"]),
-            "total": _f(summary["cost_total"]),
-        },
-        tokens={
-            "avg_turn_tokens": _f(summary["tok_avg"]),
-            "total_turn_tokens": _f(summary["tok_total"]),
-        },
-        tool_usage={
-            "avg_tool_calls": _f(summary["tool_avg"]),
-            "tool_error_rate": _f(summary["tool_err_rate"]),
-        },
+        **metrics,
+    )
+
+
+@router.get("/analytics/by-turn", response_model=TurnAnalytics)
+async def trace_analytics_by_turn(
+    flt: TurnAnalyticsFilters = Depends(),
+    turn_bucket_cap: int = Query(
+        10,
+        ge=1,
+        le=50,
+        description="turn positions >= this collapse into one terminal bucket",
+    ),
+    _reader: UserModel = Depends(require_scope(TRACES_READ)),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+) -> TurnAnalytics:
+    """The same scalar metrics as ``/analytics`` but broken down per turn position,
+    so "how do turns evolve within a session" is a single call. Positions at/above
+    ``turn_bucket_cap`` collapse into one terminal bucket. Any turn-position filter
+    applies *before* bucketing (filter, then bucket). Filters compose with the
+    stored, indexed ``turn_index`` — no window, no view."""
+    where, params = _where_sql(flt)
+
+    # Grand total over the whole filtered set (includes NULL-turn rows), plus the
+    # NULL-turn count so groups (which exclude NULLs) reconcile against it.
+    grand = (
+        (
+            await session.execute(
+                text(
+                    f"SELECT {_SCALAR_METRICS_SQL}, "
+                    f"count(*) FILTER (WHERE turn_index IS NULL) AS ungrouped "
+                    f"FROM langfuse_traces{where}"
+                ),
+                params,
+            )
+        )
+        .mappings()
+        .one()
+    )
+
+    # Per-bucket: LEAST(turn_index, cap) folds the tail; min/max expose the true
+    # range (so the terminal label is honest); sessions_reaching is the funnel.
+    group_rows = (
+        (
+            await session.execute(
+                text(
+                    f"SELECT LEAST(turn_index, :cap) AS turn_index, "
+                    f"min(turn_index) AS turn_index_min, "
+                    f"max(turn_index) AS turn_index_max, "
+                    f"count(DISTINCT session_id) AS sessions_reaching, "
+                    f"{_SCALAR_METRICS_SQL} FROM langfuse_traces{where}"
+                    f"{' AND' if where else ' WHERE'} turn_index IS NOT NULL "
+                    f"GROUP BY 1 ORDER BY 1"
+                ),
+                {**params, "cap": turn_bucket_cap},
+            )
+        )
+        .mappings()
+        .all()
+    )
+
+    groups = [
+        TurnGroup(
+            turn_index=int(r["turn_index"]),
+            is_terminal=int(r["turn_index"]) == turn_bucket_cap,
+            turn_index_min=int(r["turn_index_min"]),
+            turn_index_max=int(r["turn_index_max"]),
+            sessions_reaching=int(r["sessions_reaching"] or 0),
+            **_metrics_dict(r),
+        )
+        for r in group_rows
+    ]
+
+    return TurnAnalytics(
+        turn_bucket_cap=turn_bucket_cap,
+        ungrouped_traces=int(grand["ungrouped"] or 0),
+        grand_total=TurnMetrics(**_metrics_dict(grand)),
+        groups=groups,
     )
 
 
@@ -400,7 +634,10 @@ async def list_sessions(
     """Conversation browser: one row per session (thread), newest first, with the
     first prompt of the thread and a turn count."""
     where, params = _where_sql(
-        environment, None, user_id, start, end, require_session=True
+        TurnAnalyticsFilters(
+            environment=environment, user_id=user_id, start=start, end=end
+        ),
+        require_session=True,
     )
 
     total = int(
@@ -491,6 +728,9 @@ async def get_trace(
         primary_dataset_name=row.primary_dataset_name,
         has_insight=row.has_insight,
         is_global=row.is_global,
+        turn_index=row.turn_index,
+        insight_created_this_turn=row.insight_created_this_turn,
+        datasets_analysed_this_turn=row.datasets_analysed_this_turn,
         insight_id=row.insight_id,
         turn_tokens=row.turn_tokens,
         turn_input_tokens=row.turn_input_tokens,
