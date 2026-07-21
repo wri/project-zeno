@@ -38,8 +38,10 @@ selection_hints: 'Single-year baseline map of natural vs non-natural lands for 2
 
   '
 code_instructions: "CHART TYPES: - Natural vs non-natural proportions → bar chart or pie chart DATA RULES: - Natural forests
-  = classes 2, 5, 8, 9 (natural forest + mangrove + wetland natural\n  forest + natural peat forest) — combine into one
-  \"Natural forest\" category when\n  user asks about natural forests\n- Non-natural tree cover = classes 14, 17, 18 - All
+  = classes 2, 5, 8, 9 (natural forest + mangrove + wetland natural\n  forest + natural peat forest). Combine into one
+  \"Natural forest\" category ONLY when the user asks for the total/aggregate natural forest area.\n  Do NOT combine when
+  the user asks to rank, compare, list, or break down individual classes (e.g. \"second largest class\", \"top classes\",
+  \"how much mangrove\") — keep classes separate in those cases.\n- Non-natural tree cover = classes 14, 17, 18 - All
    areas in hectares (ha) - For natural vs non-natural queries: ALWAYS group by the is_natural column (True → label 'Natural',
    False → label 'Non-natural'), sum area_ha across groups. Chart data MUST have exactly two rows. DO/DON'T: - This is a
    SINGLE YEAR (2020) snapshot — do NOT attempt timeseries or change analysis - These data do NOT represent protection status
@@ -48,8 +50,10 @@ code_instructions: "CHART TYPES: - Natural vs non-natural proportions → bar ch
   Cover dataset by name for change analysis\n  (c) This recommendation is REQUIRED, not optional\n"
 presentation_instructions: 'Clarify this is a 2020 baseline snapshot, not a timeseries. "Natural" follows the AFi definition:
   land that substantially resembles what would be found without major human impacts, including managed or degraded ecosystems.
-  Does not represent legal protection status. For change analysis, suggest the Global Land Cover dataset. When reporting natural
-  forests, specify that it combines natural forest, mangrove, wetland natural forest, and natural peat forest.
+  Does not represent legal protection status. For change analysis, suggest the Global Land Cover dataset. If the analysis combined
+  natural forest, mangrove, wetland natural forest, and natural peat forest into one "Natural forest" category, say so explicitly.
+  If instead the classes were reported individually (e.g. a ranking or breakdown), describe them as separate classes and do
+  not imply they were combined.
 
   '
 description: 'The SBTN Natural Lands Map v1.1 is a 2020 baseline map of natural and non-natural land covers intended for use
@@ -86,9 +90,6 @@ cautions: '"Natural" and "non-natural" definitions were adapted from the Account
   This map overestimates the extent of natural lands, and while remote sensing data, on which the map is based, can provide
   powerful insights, additional field work should be used for validation and to understand local dynamics. Caution should
   be used if calculating areas with the SBTN Natural Lands Map.
-
-  Natural forests include the following classes: natural forest, natural peat forests, wetland natural forests, and mangroves
-  (2,5,8,9).
 
   '
 function_usage_notes: 'The Natural Lands Map was created for companies to use as a baseline when identifying if there has

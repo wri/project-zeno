@@ -70,7 +70,9 @@ code_instructions: "CHART TYPES: - Land cover change → table with columns: lan
   - Transitions to \"short vegetation\" or \"bare ground\" may reflect seasonality,\n  not real restoration or degradation\
   \ — note this in output\nDO/DON'T: - This is NOT an annual timeseries — do NOT attempt year-by-year charts - Only 2 snapshots\
   \ exist: 2015 and 2024 - Data does NOT capture classes that stayed the same — only transitions - For composition/snapshot\
-  \ questions, show 2024 data ONLY\n"
+  \ questions, show 2024 data ONLY\n- Do NOT combine cropland/cultivated grassland into \"Agriculture\" if the user asks\n
+  \ to rank, compare, or view individual land cover classes, or asks about cropland or cultivated grassland\n  specifically
+  — keep them separate in those cases\n"
 presentation_instructions: 'Clarify that this dataset shows land cover change between 2015 and 2024 only, not annual or intra-annual
   changes. Warn that it does not capture classes that remained unchanged. Note that transitions to "short vegetation" or "bare"
   may reflect seasonal variation rather than actual degradation or restoration. This shows land cover change, not necessarily

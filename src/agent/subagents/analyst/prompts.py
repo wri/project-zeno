@@ -19,6 +19,7 @@ IMPORTANT: Write one code block for each step, so that you can use the actual da
 - Calculate key statistics relevant to the user query
 - Print your key findings clearly
 - Do **NOT** create any plots or charts yet
+- If a dataset rule suggests combining several classes into one category, that only applies to aggregate/total questions. If the user's query asks to rank, list, or compare individual classes, or asks about one specific class, keep classes separate so each one remains individually identifiable — do not apply the grouping.
 
 **STEP 2: SUMMARIZE INSIGHTS**
 - Summarize the data relevant to the user query

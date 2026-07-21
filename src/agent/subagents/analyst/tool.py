@@ -216,7 +216,13 @@ def build_analysis_prompt(
 
     dataset_rules_section = ""
     if code_instructions:
-        header = "### DATASET-SPECIFIC RULES (follow these strictly):\n"
+        header = (
+            "### DATASET-SPECIFIC RULES:\n"
+            "Apply a rule only when it clearly matches the user's query. "
+            "If the query asks for a ranking, a breakdown of individual classes, "
+            "or the value of one specific class, do not merge classes together "
+            "even if a rule below says to combine them for aggregate questions.\n"
+        )
         if context_layer:
             header += f"Active context layer: {context_layer}\n"
         dataset_rules_section = f"""

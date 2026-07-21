@@ -67,7 +67,10 @@ code_instructions: "CHART TYPES: - Driver breakdown → pie chart or table ONLY 
   \ insects, rivers)\nDO/DON'T: - DO NOT use \"deforestation\" — use \"tree cover loss\" - If user asks for annual timeseries,\
   \ REFUSE and suggest base \"Tree cover loss\" dataset - Common groupings to apply where relevant:\n  Deforestation proxy:\
   \ permanent agriculture + hard commodities + settlements & infrastructure\n  Temporary disturbance: shifting cultivation\
-  \ + logging + wildfire + other natural disturbances\n  All agriculture: permanent agriculture + shifting cultivation\n"
+  \ + logging + wildfire + other natural disturbances\n  All agriculture: permanent agriculture + shifting cultivation\n-\
+  \ Only apply these groupings for aggregate/total questions. Do NOT group drivers if the user asks\n  to rank, compare,\
+  \ or break down individual driver classes, or asks about one specific driver — keep the 7\n  driver classes separate in\
+  \ those cases\n"
 presentation_instructions: 'Use "tree cover loss" not "deforestation." Driver = dominant driver in each ~1km cell over full
   period 2001-2025, not per-event attribution. Does not distinguish natural forest from plantations. Classification is an
   approximation — does not monitor regrowth or permanence.
