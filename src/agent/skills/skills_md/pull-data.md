@@ -11,7 +11,7 @@ When the user wants data retrieved but does **not** ask for analysis, a chart, o
 
 1. `pick_aoi` — pass the user's request describing the place; the geocoder extracts, translates and resolves the AOI (and any subregion) on its own.
 2. `pick_dataset` — choose dataset and date range. Dataset-only/re-pick rules are in its tool description. If it returns no dataset, **or only suggested/alternative datasets**, stop and relay its explanation and the alternatives to the user — do not proceed to `pull_data`, and do not pick one of the suggestions yourself. Wait for the user to choose.
-3. `pull_data` — fetch data for AOI + dataset + dates.
+3. `pull_data` — fetch data for AOI + dataset + dates. Set `change_over_time_query=True` when the user asks about change/transition/dynamics between the dates (e.g. "transition", "shift", "converted to/from"); leave it `False` for a composition/snapshot question about one point in time.
 4. **Stop.** Confirm what was pulled. Do **not** call `generate_insights`.
 
 Do **not** read skill `analyze` for pull-only requests — that skill always runs insights after pull.

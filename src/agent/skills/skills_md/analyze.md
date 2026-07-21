@@ -9,7 +9,7 @@ requires: pick_aoi, pick_dataset, pull_data, generate_insights
 
 1. `pick_aoi` — pass the user's request describing the place; the geocoder extracts, translates and resolves the AOI (and any subregion) on its own.
 2. `pick_dataset` — choose dataset and date range. Its tool description covers re-picking when the user changes topic or context layer. If it returns no dataset, **or only suggested/alternative datasets**, stop and relay its explanation and the alternatives to the user — do not proceed to `pull_data`, and do not pick one of the suggestions yourself. Wait for the user to choose.
-3. `pull_data` — fetch data for AOI + dataset + dates. You need AOI, dataset, and a date range before this step.
+3. `pull_data` — fetch data for AOI + dataset + dates. You need AOI, dataset, and a date range before this step. Set `change_over_time_query=True` when the user asks about change/transition/dynamics between the dates (e.g. "transition", "shift", "converted to/from"); leave it `False` for a composition/snapshot question about one point in time. Getting this wrong on the Global land cover dataset pulls a single-year snapshot instead of the 2015→2024 transition matrix, so the data can't answer the question.
 4. `search_blogs` (optional) — when WRI published context would strengthen the insight, read skill `wri-insights`, call `search_blogs`, then give the **intermediate message** with blog links (see skill `wri-insights`). Call **after** pull, **before** generate.
 5. `generate_insights` — after a successful pull, always run this to produce one chart insight.
 

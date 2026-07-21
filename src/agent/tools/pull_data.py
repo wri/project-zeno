@@ -84,7 +84,11 @@ async def pull_data(
     change_over_time_query: bool = False,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
-    """Pull data for the selected AOIs and dataset between start_date and end_date (YYYY-MM-DD)."""
+    """Pull data for the selected AOIs and dataset between start_date and end_date (YYYY-MM-DD).
+
+    Set change_over_time_query=True for change/transition questions, False for
+    composition/snapshot questions.
+    """
     dataset = state["dataset"]
     aoi_names = [a["name"] for a in state["aoi_selection"]["aois"]]
     logger.info(
@@ -208,5 +212,5 @@ async def pull_data(
 SPEC = ToolSpec(
     tool=pull_data,
     category=ToolCategory.PRIMITIVE,
-    prompt_fragment="- pull_data(query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first.",
+    prompt_fragment="- pull_data(query, change_over_time_query): fetch data for the AOI and dataset currently in state. Run pick_aoi and pick_dataset first. Set change_over_time_query=True for change/transition questions, False for composition/snapshot questions.",
 )
