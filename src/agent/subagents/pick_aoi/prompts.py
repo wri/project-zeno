@@ -52,7 +52,7 @@ it from what the parent place already is.
 Use subregion:
 - "Which countries have the most deforestation globally?" → places=["global"], subregion=country
 - "Compare forest loss across provinces in Canada" → places=["Canada"], subregion=state (Canada is a country; its provinces are the top admin level)
-- "Which province of Galicia (ESP) gained the least tree cover?" → places=["Galicia, Spain"], subregion=district (Galicia is already a state-level region; its provinces are one level down)
+- "Which province of Lombardy (ITA) had the most tree cover loss?" → places=["Lombardy, Italy"], subregion=district (Lombardy is already a state-level region; its provinces are one level down)
 - "Which districts in Odisha have tiger threats?" → places=["Odisha"], subregion=district
 - "Which KBAs in Brazil have highest biodiversity loss?" → places=["Brazil"], subregion=kba
 

@@ -1,7 +1,7 @@
 ---
 name: wri-insights
 description: Enrich an analysis with WRI Insights published research to ground findings and cite sources.
-when_to_use: Before or during full analysis when WRI's published perspective would strengthen the answer (policy context, drivers, methodology, regional background). Also when the user asks about WRI research or wants citations from wri.org/insights.
+when_to_use: Before or during full analysis when WRI's published perspective would strengthen the answer (policy context, drivers, methodology, regional background). Also for a standalone research-literature question that does NOT name a place plus a data-shaped topic (e.g. "what does WRI say about deforestation drivers", "any recent WRI research on mangrove restoration"). If the question names a specific place and a data-shaped topic — including "how/why does X impact/affect Y in <place>" phrasing — use `analyze` instead and let `pick_dataset` run first (see `search_blogs`'s routing rule for the exact boundary and an example); call this skill only after a successful `pull_data`, per the workflow below.
 requires: search_blogs
 ---
 

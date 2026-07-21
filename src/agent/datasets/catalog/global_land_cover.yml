@@ -12,6 +12,7 @@ content_date: 2015-2024
 start_date: '2015-01-01'
 end_date: '2024-12-31'
 content_date_fixed: false
+default_to_latest_year: true
 keywords:
 - global
 - land cover
@@ -56,23 +57,22 @@ selection_hints: 'Best dataset for land cover composition or land cover CHANGE b
   timeseries. Does NOT capture classes that remained the same between 2015 and 2024. Can provide extent of classes in either 2015
   or 2024. Classes: bare ground & sparse vegetation,
   short vegetation, tree cover, wetlands, water, snow/ice, cropland, cultivated grasslands, built-up land. For tree cover
-  loss specifically, prefer Tree Cover Loss dataset. For natural/semi-natural grasslands specifically, prefer the Grasslands
-  dataset. This is THE dataset for "cropland area/extent" questions in a given year — use it even though "cropland" also
-  appears in other datasets'' text: the Deforestation sLUC Emission Factors dataset only covers crop-linked emissions
-  (tCO2e), not cropland area, and DIST-ALERT''s land_cover context layer only filters disturbance alerts to within
-  cropland, it does not report cropland extent itself. Neither is a substitute for a plain "how much cropland" question.
+  loss specifically, prefer Tree Cover Loss dataset. For grassland questions, prefer the Grasslands dataset by default — a
+  plain, unqualified "grassland" query (no explicit "cultivated", "planted", or "pasture" qualifier) means natural/semi-natural
+  grassland extent, not this dataset''s narrower "cultivated grasslands" class. Only use this dataset''s cultivated grasslands
+  class when the user explicitly asks about cultivated, planted, or improved pasture/grassland. This is THE dataset for
+  "cropland area/extent" questions in a given year — "cropland" also appears in the sLUC Emission Factors (crop-linked
+  emissions only, not area) and DIST-ALERT (alerts filtered to cropland, not cropland extent) datasets, but neither is a
+  substitute for a plain "how much cropland" question.
 
   '
 code_instructions: "CHART TYPES: - Land cover change → table with columns: land_cover_class_start, land_cover_class_end, area_ha\
   \ - Land cover composition (snapshot) → pie chart for 2024 ONLY DATA RULES: - Drop rows where area_ha = 0 - When user asks\
-  \ about agriculture, farming, or agricultural land: you MUST combine\n  \"cropland\" AND \"cultivated grassland\" into a\
-  \ single \"Agriculture\" category. Do NOT\n  show them as separate classes unless the user explicitly asks to see them separately.\n\
-  - Transitions to \"short vegetation\" or \"bare ground\" may reflect seasonality,\n  not real restoration or degradation\
-  \ — note this in output\nDO/DON'T: - This is NOT an annual timeseries — do NOT attempt year-by-year charts - Only 2 snapshots\
-  \ exist: 2015 and 2024 - Data does NOT capture classes that stayed the same — only transitions - For composition/snapshot\
-  \ questions, show 2024 data ONLY\n- Do NOT combine cropland/cultivated grassland into \"Agriculture\" if the user asks\n
-  \ to rank, compare, or view individual land cover classes, or asks about cropland or cultivated grassland\n  specifically
-  — keep them separate in those cases\n"
+  \ about agriculture, farming, or agricultural land as an aggregate/total: combine\n  \"cropland\" AND \"cultivated grassland\"\
+  \ into a single \"Agriculture\" category.\n- Transitions to \"short vegetation\" or \"bare ground\" may reflect seasonality,\
+  \ not real restoration or degradation — note this in output\nDO/DON'T: - This is NOT an annual timeseries — do NOT attempt\
+  \ year-by-year charts - Only 2 snapshots exist: 2015 and 2024 - Data does NOT capture classes that stayed the same — only\
+  \ transitions - For composition/snapshot questions, show 2024 data ONLY\n"
 presentation_instructions: 'Clarify that this dataset shows land cover change between 2015 and 2024 only, not annual or intra-annual
   changes. Warn that it does not capture classes that remained unchanged. Note that transitions to "short vegetation" or "bare"
   may reflect seasonal variation rather than actual degradation or restoration. This shows land cover change, not necessarily

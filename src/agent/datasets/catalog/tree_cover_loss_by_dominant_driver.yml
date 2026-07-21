@@ -28,10 +28,11 @@ keywords:
 - infrastructure
 - settlements
 analytics_api_endpoint: /v0/land_change/tree_cover_loss/analytics
-prompt_instructions: "Shows the delta of the primary driver or cause of tree cover loss over the entire range 2001-2025. The\
-  \ data represents the change for the whole period of time, not a timeseries. IMPORTANT: If a user asks for specific time\
-  \ ranges (e.g. last five years), single years (e.g. 2024), or trends over time, do not use this dataset, select Tree cover\
-  \ loss instead. Classes are defined as follows: - Permanent agriculture: Long-term, permanent tree cover loss for small-\
+prompt_instructions: "Shows the delta of the primary driver or cause of tree cover loss over the entire fixed range 2001-2025\
+  \ — a named sub-range (e.g. \"2005-2020\") does not narrow the total; report the full-period figure and note the range\
+  \ difference (see code_instructions for the full rule). The data represents the change for the whole period of time, not\
+  \ a timeseries. IMPORTANT: If a user asks for a single year (e.g. 2024), a year-by-year breakdown, or a trend/timeseries\
+  \ over time, do not use this dataset, select Tree cover loss instead. Classes are defined as follows: - Permanent agriculture: Long-term, permanent tree cover loss for small-\
   \ to large-scale agriculture. - Hard commodities: Loss due to the establishment or expansion of mining or energy infrastructure.\
   \ - Shifting cultivation: Tree cover loss due to small- to medium-scale clearing for temporary\n  cultivation that is later\
   \ abandoned and followed by subsequent regrowth of secondary forest or\n  vegetation.\n- Logging: Forest management and\
@@ -50,27 +51,33 @@ prompt_instructions: "Shows the delta of the primary driver or cause of tree cov
   \ settlements and infrastructure can be combined\n  to represent drivers of deforestation.\n- Shifting cultivation, logging,\
   \ wildfire, and other natural disturbances can be combined\n  to represent drivers of temporary disturbances.\n- Permanent\
   \ agriculture and shifting cultivation can be combined to represent all\n  agriculture-driven disturbances.\n"
-selection_hints: 'Use when user asks WHY tree cover was lost — attributes loss to 7 driver classes. Shows dominant driver
-  of loss over entire period 2001-2025 (NOT annual). Cannot produce timeseries or data for specific dates or years. 1 km
+selection_hints: 'Use when user asks WHY tree cover was lost — attributes loss to 7 driver classes. Also use this — not
+  plain Tree cover loss — whenever the query specifically says "deforestation" (rather than generic "tree cover loss" or
+  "forest loss"), including "deforestation-related emissions/carbon" ranking or total questions across states/countries:
+  plain Tree cover loss cannot distinguish permanent deforestation from temporary disturbances (harvest, fire, regrowth),
+  but this dataset can, via the driver classes — group permanent agriculture + hard commodities + settlements & infrastructure
+  as the deforestation-proxy total (see code_instructions). Shows dominant driver of loss over the entire fixed period
+  2001-2025 (NOT annual, and not narrowed by a requested sub-range — see code_instructions). Cannot produce a year-by-year
+  breakdown, a single-year value, or a timeseries/trend — use Tree cover loss for those. 1 km
   drivers are overlayed on 30m loss pixel data to classify each pixel, which provides a class per loss pixel but may be
   inaccurate when examining small land parcels. Drivers: permanent agriculture, hard commodities, shifting cultivation, logging, wildfire, settlements & infrastructure,
   other natural disturbances, and unknown (for any unclassified loss pixel). All drivers combined add to the total tree cover loss.
 
   '
-code_instructions: "CHART TYPES: - Driver breakdown → pie chart or table ONLY - DO NOT attempt a timeseries — this is a single-period\
-  \ aggregate (2001-2025) DATA RULES: - Exclude the \"Unknown\" driver class from analysis - Show area_ha or emissions (MgCO2e)\
-  \ per driver class for the full period 2001-2025 - 7 driver classes:\n  1. Permanent agriculture — long-term, permanent\
+code_instructions: "CHART TYPES: - Driver breakdown → pie chart or table ONLY - DO NOT attempt a timeseries or year-by-year\
+  \ breakdown — this is a single-period aggregate for the full fixed 2001-2025 record, even when the user named a narrower\
+  \ range; state that the figures cover the full period DATA RULES: - Exclude the \"Unknown\" driver class from analysis -\
+  \ Show area_ha or emissions (MgCO2e) per driver class for the full period 2001-2025 - 7 driver classes:\n  1. Permanent agriculture — long-term, permanent\
   \ tree cover loss for agriculture\n  2. Hard commodities — loss due to mining or energy infrastructure\n  3. Shifting cultivation\
   \ — small/medium-scale temporary cultivation, later abandoned\n  4. Logging — forest management within managed/natural/semi-natural\
   \ forests and plantations\n  5. Wildfire — fire with no visible human conversion afterward\n  6. Settlements and infrastructure\
   \ — roads, urban areas, built infrastructure\n  7. Other natural disturbances — non-fire natural disturbances (landslides,\
   \ insects, rivers)\nDO/DON'T: - DO NOT use \"deforestation\" — use \"tree cover loss\" - If user asks for annual timeseries,\
-  \ REFUSE and suggest base \"Tree cover loss\" dataset - Common groupings to apply where relevant:\n  Deforestation proxy:\
-  \ permanent agriculture + hard commodities + settlements & infrastructure\n  Temporary disturbance: shifting cultivation\
-  \ + logging + wildfire + other natural disturbances\n  All agriculture: permanent agriculture + shifting cultivation\n-\
-  \ Only apply these groupings for aggregate/total questions. Do NOT group drivers if the user asks\n  to rank, compare,\
-  \ or break down individual driver classes, or asks about one specific driver — keep the 7\n  driver classes separate in\
-  \ those cases\n"
+  \ REFUSE and suggest base \"Tree cover loss\" dataset - Common groupings to apply for aggregate/total questions (see the\
+  \ general ranking/breakdown exception in the analyst workflow — do not group when the user wants individual classes):\n\
+  \  Deforestation proxy: permanent agriculture + hard commodities + settlements & infrastructure\n  Temporary disturbance:\
+  \ shifting cultivation + logging + wildfire + other natural disturbances\n  All agriculture: permanent agriculture + shifting\
+  \ cultivation\n"
 presentation_instructions: 'Use "tree cover loss" not "deforestation." Driver = dominant driver in each ~1km cell over full
   period 2001-2025, not per-event attribution. Does not distinguish natural forest from plantations. Classification is an
   approximation — does not monitor regrowth or permanence.

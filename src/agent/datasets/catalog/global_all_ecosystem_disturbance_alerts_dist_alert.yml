@@ -72,7 +72,7 @@ selection_hints: >-
   dataset instead.
 code_instructions: |-
   CHART TYPES — generate EXACTLY ONE chart; choose the single best type for what the user asked and never emit more than one chart (all charts share one data table, so a second chart of a different shape breaks the output). Pick from:
-  - Comparing/ranking multiple places (e.g. "which country/region had more disturbed area", "compare X and Y") → bar chart, one bar per AOI (use the `name` column), value = total area_ha summed over the period
+  - Comparing/ranking multiple places → bar chart, one bar per AOI (use the `name` column), value = total area_ha summed over the period
   - Recent trends over time → line chart (x=alert month, y=area in hectares)
   - Distribution by driver → pie chart (one slice per driver class)
   - Distribution by land cover class or natural land type → pie chart

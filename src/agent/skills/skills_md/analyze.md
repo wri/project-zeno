@@ -1,7 +1,7 @@
 ---
 name: analyze
 description: Full pipeline — resolve AOI, pick dataset, pull data, generate chart insight.
-when_to_use: User asks a question that needs data to answer: analysis, charts, insights, comparisons across places or time, or "which/what/where/how many" fact-finding over real data (e.g. "analyze", "show a chart", "which district had the most deforestation", "compare X across regions"). Not when they only say pull/fetch/get data without asking a data-driven question — use `pull-data` instead.
+when_to_use: User asks a question that needs data to answer: analysis, charts, insights, comparisons across places or time, or "which/what/where/how many/how does X impact Y" fact-finding over real data (e.g. "analyze", "show a chart", "which district had the most deforestation", "compare X across regions"). A question naming a place plus a data-shaped topic (fires, deforestation, tree cover, emissions, ...) is a data question even when phrased as "impact"/"effect" — route here, not to `wri-insights` (see that skill's routing rule for the exact boundary), even if no single dataset or date range is given yet: `pick_dataset` may itself come back with only suggested datasets, which is the correct outcome to relay to the user (see step 2 below). Not when they only say pull/fetch/get data without asking a data-driven question — use `pull-data` instead.
 requires: pick_aoi, pick_dataset, pull_data, generate_insights
 ---
 

@@ -1,5 +1,9 @@
 """
 Centralized dataset configuration to avoid circular imports.
+
+Note: catalog *.yml files are data, not code, so uvicorn's --reload watcher
+(which by default only tracks *.py) won't pick up yml-only edits. Touch this
+module after editing a catalog yml to force a reload of DATASETS.
 """
 
 from pathlib import Path

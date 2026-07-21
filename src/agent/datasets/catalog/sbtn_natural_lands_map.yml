@@ -39,9 +39,8 @@ selection_hints: 'Single-year baseline map of natural vs non-natural lands for 2
   '
 code_instructions: "CHART TYPES: - Natural vs non-natural proportions → bar chart or pie chart DATA RULES: - Natural forests
   = classes 2, 5, 8, 9 (natural forest + mangrove + wetland natural\n  forest + natural peat forest). Combine into one
-  \"Natural forest\" category ONLY when the user asks for the total/aggregate natural forest area.\n  Do NOT combine when
-  the user asks to rank, compare, list, or break down individual classes (e.g. \"second largest class\", \"top classes\",
-  \"how much mangrove\") — keep classes separate in those cases.\n- Non-natural tree cover = classes 14, 17, 18 - All
+  \"Natural forest\" category only for a total/aggregate natural forest question (e.g. a query asking for the combined natural\
+  \ forest area, not a per-class ranking or breakdown).\n- Non-natural tree cover = classes 14, 17, 18 - All
    areas in hectares (ha) - For natural vs non-natural queries: ALWAYS group by the is_natural column (True → label 'Natural',
    False → label 'Non-natural'), sum area_ha across groups. Chart data MUST have exactly two rows. DO/DON'T: - This is a
    SINGLE YEAR (2020) snapshot — do NOT attempt timeseries or change analysis - These data do NOT represent protection status

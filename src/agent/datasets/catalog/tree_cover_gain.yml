@@ -33,15 +33,33 @@ selection_hints: 'Shows cumulative tree cover gain (vegetation growing above 5m 
   loss questions, use Tree Cover Loss dataset instead.
 
   '
-code_instructions: "CHART TYPES: - Default: bar chart with one bar per CUMULATIVE period (2000-2020, 2005-2020, 2010-2020,\
-  \ 2015-2020) - X-axis labels MUST use the raw cumulative period labels, NOT decomposed intervals - Do NOT split cumulative\
-  \ periods into 5-year buckets unless the user explicitly asks DATA RULES: - Cumulative gain over 4 periods: 2000-2020, 2005-2020,\
-  \ 2010-2020, 2015-2020 - ONLY if user explicitly asks for a specific sub-period (e.g., \"gain between 2005 and 2010\"):\n\
-  \  calculate Area[Y1 to Y2] = Area[Y1 to 2020] - Area[Y2 to 2020]\n- All areas in hectares (ha) DO/DON'T: - Do NOT use the\
-  \ term \"restoration\" — use \"tree cover gain\" - If user asks for net gain/loss or net change: EITHER refuse entirely\
-  \ OR show gain\n  data with a MANDATORY warning. Either way, the insight text MUST state that gain and\n  loss datasets\
-  \ use different methodologies and CANNOT be combined for net change.\n- These are estimates suitable as indicators, NOT\
-  \ for precise verification of\n  restoration activities at local scales\n"
+code_instructions: |
+  CHART TYPES:
+  - Default: bar chart with one bar per CUMULATIVE period (2000-2020, 2005-2020, 2010-2020, 2015-2020)
+  - X-axis labels MUST use the raw cumulative period labels, NOT decomposed intervals
+  - Do NOT split cumulative periods into 5-year buckets unless the user explicitly asks
+  - TWO-PERIOD COMPARISON EXCEPTION: if the user asks to compare exactly two specific, non-overlapping periods (e.g.
+    "2000-2010 vs 2010-2020", a true/false question, or "which period had more gain"), do NOT use the 4-bar
+    cumulative-to-2020 default — those overlap (both would include 2010-2020) and cannot show which non-overlapping
+    period had more gain. Instead compute each period as a discrete delta by summing the underlying 5-year interval
+    buckets that fall inside it, e.g. gain_2000_2010 = area[2000-2005] + area[2005-2010] and
+    gain_2010_2020 = area[2010-2015] + area[2015-2020], then chart ONLY those two discrete totals as a single 2-bar
+    chart (x_axis = the two period labels from the query, y_axis = gain area).
+
+  DATA RULES:
+  - Cumulative gain over 4 periods: 2000-2020, 2005-2020, 2010-2020, 2015-2020
+  - ONLY if user explicitly asks for a single sub-period, not a two-period comparison (e.g., "gain between 2005 and 2010"):
+    calculate Area[Y1 to Y2] = Area[Y1 to 2020] - Area[Y2 to 2020]
+  - For a two-period comparison, see the TWO-PERIOD COMPARISON EXCEPTION above
+  - All areas in hectares (ha)
+
+  DO/DON'T:
+  - Do NOT use the term "restoration" — use "tree cover gain"
+  - If user asks for net gain/loss or net change: EITHER refuse entirely OR show gain data with a MANDATORY warning.
+    Either way, the insight text MUST state that gain and loss datasets use different methodologies and CANNOT be
+    combined for net change.
+  - These are estimates suitable as indicators, NOT for precise verification of restoration activities at local scales
+
 presentation_instructions: 'Use "tree cover gain" not "restoration" — gain includes plantation cycles, natural regrowth, and
   land abandonment, not just ecological restoration. Tree cover gain is defined as vegetation growing from under 5m to over
   5m height. Cannot be subtracted from tree cover loss for net change — different methodologies. ALWAYS include this warning

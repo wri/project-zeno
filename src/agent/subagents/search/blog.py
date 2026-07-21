@@ -559,15 +559,19 @@ SPEC = ToolSpec(
     prompt_fragment=(
         "- search_blogs(query): research subagent over WRI + LCL Insights posts;"
         " returns a synthesized answer with inline [N](url) citation markers that"
-        " your reply must keep. Use to answer questions about published research (read"
-        " skill `wri-insights`), to explore a vague topic before any AOI/dataset is"
-        " set (read skill `explore`), or to enrich an analysis after pull_data and"
-        " before generate_insights (read skill `wri-insights`).\n"
+        " your reply must keep. Use to answer a standalone question about published"
+        " research (read skill `wri-insights`), to explore a vague topic before any"
+        " AOI/dataset is set (read skill `explore`), or to enrich an analysis after"
+        " pull_data and before generate_insights (read skill `wri-insights`).\n"
         "  Routing: exploratory / vague query (no place, dataset or date — e.g."
         ' "I want to conserve elephants"): read `explore`, call search_blogs, then'
-        ' recommend concrete datasets/areas/dates. WRI research lookup ("what does'
-        ' WRI say about X"): read `wri-insights`, call search_blogs, then answer'
-        " with inline [N](url) markers.\n"
+        " recommend concrete datasets/areas/dates. Place + data-shaped topic query,"
+        ' including "how/why does X impact/affect Y in <place>" phrasing (e.g. "how'
+        ' does drought affect farmland in Kenya"): read `analyze` first — do not call'
+        " search_blogs before pick_dataset has run; wri-insights (and search_blogs)"
+        ' only come after a successful pull_data. Standalone WRI research lookup ("what'
+        ' does WRI say about X", with no place+data question attached): read'
+        " `wri-insights`, call search_blogs, then answer with inline [N](url) markers.\n"
         "  Policy: replies using these findings must keep the [N](url) citation"
         " markers (rendered as citation icons); never invent URLs and do not add a"
         " Sources list."

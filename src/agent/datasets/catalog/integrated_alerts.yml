@@ -45,7 +45,7 @@ selection_hints: >-
   cover loss, prefer Tree Cover Loss by Dominant Driver.
 code_instructions: |-
   CHART TYPES — generate EXACTLY ONE chart for Integrated alerts, chosen by the query; never emit both a pie and a line:
-  - Comparing/ranking multiple places (e.g. "which country/region had more disturbed area", "compare X and Y") → BAR chart, one bar per AOI (use the `name` column), value = total area_ha summed over the period and confidence tiers
+  - Comparing/ranking multiple places → BAR chart, one bar per AOI (use the `name` column), value = total area_ha summed over the period and confidence tiers
   - Totals / breakdown by confidence for a single area → PIE chart, one slice per confidence tier (low, high, highest), value = total area_ha summed over the period
   - Alerts over time / recent trends → LINE chart ONLY (x=alert month from alert_date, y=area_ha, one line per confidence tier); the x-axis may be aggregated to month, but render it as a line, NOT as bars
   - The charts list must contain exactly one chart. If the query does not clearly ask for totals, default to the LINE over time.

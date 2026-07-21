@@ -32,7 +32,7 @@ Now prepare the data for visualization in Recharts.js:
 
    a) **CHART TYPE SELECTION** - Choose the most appropriate chart type:
       - **line**: Time series data, trends over time (supports multi-series)
-      - **bar**: Categorical comparisons, rankings (supports multi-series for grouped bars)
+      - **bar**: Categorical comparisons, rankings (supports multi-series for grouped bars). For a query comparing/ranking multiple AOIs (places), use one bar per AOI unless a dataset's own code_instructions specify otherwise.
       - **stacked-bar**: Show composition within categories (use wide format with multiple metric columns)
       - **grouped-bar**: Compare multiple metrics side-by-side (use long format with group column)
       - **pie**: Part-to-whole relationships (limit to 6-8 categories max)

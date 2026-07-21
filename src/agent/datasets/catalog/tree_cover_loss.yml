@@ -2,12 +2,12 @@ dataset_id: 4
 dataset_name: Tree cover loss
 context_layers:
 - value: primary_forest
-  description: Shows tree cover loss within humid tropical primary forests across pan-tropical regions. Default to this layer for general forest loss or deforestation requests when the AOI is within its extent, unless the user explicitly asks for all tree cover, non-primary/secondary forest, plantations, or otherwise indicates they want forest types beyond primary forest.
+  description: Shows tree cover loss within humid tropical primary forests across pan-tropical regions. Default to this layer only when the user's phrasing is ambiguous about forest type, e.g. "forest loss" or "deforestation" requests, when the AOI is within its extent. Do NOT apply this default when the user explicitly uses the term "tree cover loss" (this dataset's own name for the full, unfiltered metric) — that phrasing means they want the complete dataset, not just primary forest. Also skip this default if the user explicitly asks for all tree cover, non-primary/secondary forest, plantations, or otherwise indicates they want forest types beyond primary forest.
   extent:  [-180.0, -30, 180.0, 30]
   tile_url: https://tiles.globalforestwatch.org/umd_regional_primary_forest_2001/v201901/uint16/{z}/{x}/{y}.png
   start_date: '2002-01-01'
 - value: intact_forest
-  description: Tree cover loss within intact forest landscapes (IFLs) — large, undisturbed natural forest expanses free of significant human activity. Use this layer when the user explicitly asks for intact forest loss, or as the default context layer for deforestation/forest loss requests when primary_forest is not available for the AOI.
+  description: Tree cover loss within intact forest landscapes (IFLs) — large, undisturbed natural forest expanses free of significant human activity. Use this layer when the user explicitly asks for intact forest loss, or as the default context layer for deforestation/forest loss requests when primary_forest is not available for the AOI. EXCEPTION — do NOT apply this default for a ranking/comparison query across multiple sub-areas (e.g. "which state/province/region had the most/highest deforestation or carbon emissions"). IFL coverage is sparse and very unevenly distributed, so filtering to it produces area-nonrepresentative totals that can pick the wrong "highest" sub-area. For those ranking/comparison queries, leave context_layer unset (use full tree cover loss) unless the user explicitly asks about intact forest specifically.
   tile_url: https://tiles.globalforestwatch.org/ifl_intact_forest_landscapes/v2025/default/{z}/{x}/{y}.png
   start_date: '2000-01-01'
 parameters:

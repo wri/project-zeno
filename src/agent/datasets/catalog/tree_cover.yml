@@ -32,7 +32,14 @@ prompt_instructions: 'Shows tree cover area (area_ha) per pixel for year 2000 wi
   (gains and losses).
 
   '
-selection_hints: 'Single-year snapshot of tree cover canopy density for year 2000 only. Vegetation >5m height including natural
+selection_hints: 'This is a single 2000 snapshot, so no dataset can give an exact tree-cover-extent snapshot for a
+  different requested year. When a query asks for tree cover extent/ranking in a year other than 2000, no single dataset
+  is a clear match — suggest this dataset (the closest available baseline) together with Tree Cover Loss (whose annual
+  series spans most requested years, even though it reports loss rather than remaining extent) as the two candidates.
+  Do not substitute a land-cover classification dataset (e.g. Global land cover) for either: those use a different,
+  incompatible classification methodology and, for years before 2015, aren''t closer to the requested year either.
+
+  Single-year snapshot of tree cover canopy density for year 2000 only. Vegetation >5m height including natural
   forests and plantations, at 30m resolution. Cannot show change or comparisons between years and dates — use Tree Cover Loss
   for loss, Tree Cover Gain for gain. Only use the term "forest" when combined with primary forest or IFL layers; otherwise
   use "tree cover."

@@ -44,9 +44,11 @@ prompt_instructions: 'Natural/semi-natural grassland extent and change for each 
 
   '
 selection_hints: 'Best dataset for natural/semi-natural grassland extent and change (2000-2022). Annual data at 30m resolution,
-  measured in hectares. Covers grasslands, shrublands, and savannas (low vegetation <3m, ≥30% cover). NOT for cultivated grasslands,
-  croplands, or open shrublands — use Global Land Cover for those. Can quantify area in a single year or track gains/losses
-  over time.
+  measured in hectares. Covers grasslands, shrublands, and savannas (low vegetation <3m, ≥30% cover). This IS the default
+  dataset for a plain, unqualified "grassland" question (extent, ranking, least/most, over time) — do not treat "grassland"
+  as ambiguous or ask the user to disambiguate natural vs. cultivated when they did not raise cultivation themselves. NOT
+  for cultivated grasslands, croplands, or open shrublands — only route to Global Land Cover when the user explicitly says
+  "cultivated", "planted", or "pasture" grassland. Can quantify area in a single year or track gains/losses over time.
 
   '
 code_instructions: "CHART TYPES: - Area over time → bar chart or line chart (x=year, y=area_ha) - Comparison across ≤8 geographic\

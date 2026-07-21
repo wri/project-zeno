@@ -12,6 +12,7 @@ content_date: 2020-2024
 start_date: '2020-01-01'
 end_date: '2024-12-31'
 content_date_fixed: true
+default_to_latest_year: true
 keywords:
 - statistical land use change
 - sLUC
