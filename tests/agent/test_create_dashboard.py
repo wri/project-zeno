@@ -45,6 +45,7 @@ async def test_create_dashboard_from_state_aoi():
     assert message.response_metadata == {
         "msg_type": "dashboard_updated",
         "dashboard_id": "dash-1",
+        "dashboard_name": "Paraná",
     }
     assert "Paraná" in message.content
 

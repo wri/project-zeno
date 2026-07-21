@@ -204,6 +204,7 @@ async def add_map_widget(
 
     return dashboard_updated_command(
         dashboard.id,
+        dashboard.name,
         (
             f"Added {layer_type.summary(snapshot)} to dashboard "
             f"'{dashboard.name}' ({dashboard.id})."
