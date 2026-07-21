@@ -50,7 +50,10 @@ selection_hints: 'Best dataset for annual tree cover loss questions (2001-2025) 
 
   '
 code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha) - Cumulative loss → stacked-area chart - Emissions
-  → MUST be a SEPARATE chart from loss area (NEVER combine on same chart) DATA RULES: - Always include GHG emissions (MgCO2e)
+  → MUST be a SEPARATE chart from loss area (NEVER combine on same chart) CHART ORDER: - The FIRST chart must plot the metric
+  the user actually asked about - if the query is about CO2, emissions, carbon, or tonnes/MgCO2e, the emissions chart (y=emissions
+  column) MUST be chart 1 (not area_ha) - only put area_ha first when the query is about area/hectares/extent of loss, or
+  neither metric is specified - DATA RULES: - Always include GHG emissions (MgCO2e)
   alongside loss area, but in a SEPARATE chart - Drop rows where area_ha = 0 - Use 30% canopy density threshold - If primary_forest
   or intact_forest variable is active, filter accordingly DO/DON''T: - If neither primary_forest nor intact_forest is active,
   DO NOT use the term "deforestation"; use "tree cover loss" - If user asks for intra-year or seasonal breakdown, REFUSE
