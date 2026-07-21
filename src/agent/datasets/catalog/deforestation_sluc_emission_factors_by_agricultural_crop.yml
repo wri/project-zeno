@@ -45,7 +45,8 @@ prompt_instructions: 'This dataset provides statistical land use change (sLUC) e
 selection_hints: 'Provides sLUC (statistical land use change) emission factors for 42 agricultural crops. Quantifies GHG emissions
   (tCO2e) per tonne of crop product from deforestation-linked agricultural expansion. Available at ADM0, ADM1, ADM2 levels,
   2020-2024. Use when user asks about crop-specific deforestation emissions or emission factors. Tabular data only — no spatial/map
-  output possible. Not all crops available in all regions.
+  output possible. Not all crops available in all regions. Does NOT report cropland area or extent — for "how much cropland"
+  or cropland-area questions, use the Global land cover dataset instead.
 
   '
 code_instructions: "CHART TYPES:\n- Proportional emissions by gas type (CO2, CH4, N2O) → pie chart (single crop)\n- Multiple\

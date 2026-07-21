@@ -66,7 +66,10 @@ selection_hints: >-
   specific land cover classes. Driver (LDACS) is updated quarterly, covers the most recent 12
   months, and has no classification for the last 90 days. For historical or long-term tree
   cover change prefer Tree Cover Loss; for driver attribution of tree cover loss specifically
-  prefer Tree Cover Loss by Dominant Driver.
+  prefer Tree Cover Loss by Dominant Driver. The land_cover context layer filters disturbance
+  ALERTS to within a class such as cropland — it does not report the extent/area of that class
+  itself. For a plain "how much cropland" or cropland-area question, use the Global land cover
+  dataset instead.
 code_instructions: "CHART TYPES — generate EXACTLY ONE chart; choose the single best type for what the user\
   \ asked and never emit more than one chart (all charts share one data table, so a second chart of a different shape\
   \ breaks the output). Pick from: - Recent trends over time → line chart (x=alert month, y=area in hectares) - Distribution\

@@ -143,6 +143,10 @@ def _query_case_id(param):
             LAND_COVER_CHANGE,
         ),
         (
+            "Which had more cropland area in 2024, Nigeria or Ghana?",
+            LAND_COVER_CHANGE,
+        ),
+        (
             "How has in agricultural expanded across Southeast Asia since 2015?",
             LAND_COVER_CHANGE,
         ),

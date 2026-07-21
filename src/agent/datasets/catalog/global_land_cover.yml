@@ -57,7 +57,10 @@ selection_hints: 'Best dataset for land cover composition or land cover CHANGE b
   or 2024. Classes: bare ground & sparse vegetation,
   short vegetation, tree cover, wetlands, water, snow/ice, cropland, cultivated grasslands, built-up land. For tree cover
   loss specifically, prefer Tree Cover Loss dataset. For natural/semi-natural grasslands specifically, prefer the Grasslands
-  dataset.
+  dataset. This is THE dataset for "cropland area/extent" questions in a given year — use it even though "cropland" also
+  appears in other datasets'' text: the Deforestation sLUC Emission Factors dataset only covers crop-linked emissions
+  (tCO2e), not cropland area, and DIST-ALERT''s land_cover context layer only filters disturbance alerts to within
+  cropland, it does not report cropland extent itself. Neither is a substitute for a plain "how much cropland" question.
 
   '
 code_instructions: "CHART TYPES: - Land cover change → table with columns: land_cover_class_start, land_cover_class_end, area_ha\
