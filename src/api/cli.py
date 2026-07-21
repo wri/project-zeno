@@ -1074,12 +1074,19 @@ def build_aois_command(sources: tuple, dry_run: bool):
     API keeps serving from geometries_* / custom_areas until the API PR.
     """
     selected = list(sources) or _BUILD_SOURCES
+    outcome = "would be upserted" if dry_run else "upserted"
 
     async def _run():
         db = DatabaseManager()
+        committed: list[str] = []
         try:
-            async with db.async_session() as session:
-                for source in selected:
+            for source in selected:
+                # One transaction per source. Each build is independently
+                # idempotent, so committing as we go keeps a late failure
+                # from discarding sources that already succeeded -- GADM
+                # alone is far too large to hold in an open transaction
+                # while the remaining sources run.
+                async with db.async_session() as session:
                     table = (
                         "custom_areas"
                         if source == "custom"
@@ -1094,35 +1101,52 @@ def build_aois_command(sources: tuple, dry_run: bool):
                     if source == "custom":
                         links = await _build_custom_aois(session)
                         click.echo(
-                            f"✅ custom: {links} owner link(s) upserted."
+                            f"✅ custom: {links} owner link(s) {outcome}."
                         )
                     else:
                         n = await _build_reference_aois(session, source)
-                        click.echo(f"✅ {source}: {n} aoi row(s) upserted.")
+                        click.echo(f"✅ {source}: {n} aoi row(s) {outcome}.")
 
-                # Summary from the tables (visible within this transaction).
+                    if dry_run:
+                        await session.rollback()
+                    else:
+                        await session.commit()
+                        committed.append(source)
+
+            if dry_run:
+                click.echo(
+                    "\n🔎 --dry-run: each source rolled back, nothing saved."
+                )
+            else:
+                done = ", ".join(committed) if committed else "nothing"
+                click.echo(f"\n💾 Committed: {done}.")
+
+            # Fresh session, so this reports *committed* state only. Under
+            # --dry-run that is the pre-existing table contents, not this
+            # run's rolled-back work -- the per-source counts above are the
+            # authoritative dry-run output.
+            async with db.async_session() as session:
                 summary = await session.execute(
                     text(
                         "SELECT source, count(*) FROM aois "
                         "GROUP BY source ORDER BY source"
                     )
                 )
-                click.echo("\n📊 aois by source:")
+                click.echo("\n📊 aois by source (committed):")
                 for src, cnt in summary.all():
                     click.echo(f"   {src}: {cnt}")
                 links_total = await session.execute(
                     text("SELECT count(*) FROM user_aois")
                 )
                 click.echo(f"   user_aois: {links_total.scalar()}")
-
-                if dry_run:
-                    await session.rollback()
-                    click.echo(
-                        "\n🔎 --dry-run: rolled back, no changes saved."
-                    )
-                else:
-                    await session.commit()
-                    click.echo("\n💾 Committed.")
+        except Exception:
+            if committed:
+                click.echo(
+                    "\n⚠️  Committed before the failure: "
+                    f"{', '.join(committed)}. build-aois is idempotent -- "
+                    "re-run to resume."
+                )
+            raise
         finally:
             await db.close()
 
