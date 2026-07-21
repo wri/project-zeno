@@ -31,14 +31,28 @@ request names no place at all, return an empty list.
 Set `subregion` ONLY when the user wants to analyze or compare across
 multiple administrative units inside a parent area. Otherwise leave it null.
 
-Types: country, state, district, municipality, locality, neighbourhood, kba,
-wdpa, landmark — where state is a province/region, district is a county, kba
-is a Key Biodiversity Area, wdpa is a protected area, and landmark is an
-Indigenous/community land.
+Types form a hierarchy, each nested inside the previous: country > state >
+district > municipality > locality > neighbourhood. state is the admin level
+directly below country (a US/Canadian state, a Spanish comunidad autonoma,
+a French region, etc). district is the admin level directly below state (a
+US county, an Odisha district, a Spanish provincia, etc). There are also
+three non-hierarchical types: kba (Key Biodiversity Area), wdpa (protected
+area), and landmark (Indigenous/community land).
+
+The subregion you pick is always the admin level directly below the parent
+place you return in `places` — NOT a literal translation of whatever word
+the user used. The word "province" alone does not tell you the type: judge
+it from what the parent place already is.
+- If the parent place is a country, its provinces/states/regions are the
+  level directly below country → subregion=state.
+- If the parent place is itself already a state/region (e.g. Galicia is a
+  comunidad autonoma of Spain, Bavaria is a state of Germany), then ITS
+  provinces/subregions are the level below state → subregion=district.
 
 Use subregion:
 - "Which countries have the most deforestation globally?" → places=["global"], subregion=country
-- "Compare forest loss across provinces in Canada" → places=["Canada"], subregion=state
+- "Compare forest loss across provinces in Canada" → places=["Canada"], subregion=state (Canada is a country; its provinces are the top admin level)
+- "Which province of Galicia (ESP) gained the least tree cover?" → places=["Galicia, Spain"], subregion=district (Galicia is already a state-level region; its provinces are one level down)
 - "Which districts in Odisha have tiger threats?" → places=["Odisha"], subregion=district
 - "Which KBAs in Brazil have highest biodiversity loss?" → places=["Brazil"], subregion=kba
 

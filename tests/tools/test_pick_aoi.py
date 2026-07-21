@@ -104,6 +104,13 @@ async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
             "state",
             27,
         ),
+        (
+            "Which province of Galicia (ESP), gained the least tree cover "
+            "between 2000-2020?",
+            "Galicia, Spain",
+            "district",
+            4,
+        ),
     ],
 )
 async def test_query_aoi_subregion(
@@ -370,3 +377,17 @@ async def test_extract_global_query_uses_country_subregion(structlog_context):
     )
     assert query.subregion == "country"
     assert query.places
+
+
+async def test_extract_province_of_state_level_parent_uses_district(
+    structlog_context,
+):
+    # Galicia is itself a Spanish state-level region (comunidad autonoma),
+    # so its provinces are one level down: district, not state.
+    query = await Geocoder().extract(
+        "Which province of Galicia (ESP), gained the least tree cover between "
+        "2000-2020?",
+        "adminstrative area (country, state/region, country/subregion)",
+    )
+    assert any("galicia" in p.lower() for p in query.places)
+    assert query.subregion == "district"
