@@ -70,20 +70,25 @@ selection_hints: >-
   ALERTS to within a class such as cropland — it does not report the extent/area of that class
   itself. For a plain "how much cropland" or cropland-area question, use the Global land cover
   dataset instead.
-code_instructions: "CHART TYPES — generate EXACTLY ONE chart; choose the single best type for what the user\
-  \ asked and never emit more than one chart (all charts share one data table, so a second chart of a different shape\
-  \ breaks the output). Pick from: - Recent trends over time → line chart (x=alert month, y=area in hectares) - Distribution\
-  \ by driver → pie chart (one slice per driver class) - Distribution by land cover class or natural land type → pie chart\
-  \ - Seasonal patterns by driver → grouped bar chart (x=month, y=area_ha, group=class name) DATA RULES: - All areas in hectares\
-  \ (ha) - Show classified alerts by driver (LDACS) by default when driver context layer is active - If one driver accounts\
-  \ for >80% of alerts in any month, call it out in the\n  insight text but keep it in the same chart — do NOT create a separate\
-  \ chart\n- Include unclassified alerts by default for completeness - Exclude unclassified alerts ONLY if user explicitly\
-  \ asks for \"known drivers only\"\n  or \"classified alerts only\"\n- For natural forests with natural_lands context layer,\
-  \ select classes 2,5,8,9 - For non-natural tree cover with natural_lands context layer, select classes 14,17,18 DO/DON'T:\
-  \ - LDACS classification NOT available for last 90 days — omit driver breakdown for that period - Potential conversion requires\
-  \ ≥75 days of sustained loss — recent clearing may not appear - Conversion may be undercounted when fire is used for clearing\
-  \ or near rivers - Severe boreal fires may be misclassified as conversion - Always interpret alerts as indicators, not definitive\
-  \ outcomes\n"
+code_instructions: |-
+  CHART TYPES — generate EXACTLY ONE chart; choose the single best type for what the user asked and never emit more than one chart (all charts share one data table, so a second chart of a different shape breaks the output). Pick from:
+  - Comparing/ranking multiple places (e.g. "which country/region had more disturbed area", "compare X and Y") → bar chart, one bar per AOI (use the `name` column), value = total area_ha summed over the period
+  - Recent trends over time → line chart (x=alert month, y=area in hectares)
+  - Distribution by driver → pie chart (one slice per driver class)
+  - Distribution by land cover class or natural land type → pie chart
+  - Seasonal patterns by driver → grouped bar chart (x=month, y=area_ha, group=class name)
+  DATA RULES:
+  - All areas in hectares (ha)
+  - Show classified alerts by driver (LDACS) by default when driver context layer is active
+  - If one driver accounts for >80% of alerts in any month, call it out in the insight text but keep it in the same chart — do NOT create a separate chart
+  - Include unclassified alerts by default for completeness - Exclude unclassified alerts ONLY if user explicitly asks for "known drivers only" or "classified alerts only"
+  - For natural forests with natural_lands context layer, select classes 2,5,8,9 - For non-natural tree cover with natural_lands context layer, select classes 14,17,18
+  DO/DON'T:
+  - LDACS classification NOT available for last 90 days — omit driver breakdown for that period
+  - Potential conversion requires ≥75 days of sustained loss — recent clearing may not appear
+  - Conversion may be undercounted when fire is used for clearing or near rivers
+  - Severe boreal fires may be misclassified as conversion
+  - Always interpret alerts as indicators, not definitive outcomes
 presentation_instructions: >-
   Inform the user that the DIST-ALERT layer is being deprecated soon in favor of Integrated Alerts — which combines
   DIST-ALERT with the GLAD-L, GLAD-S2 and RADD alert systems — and suggest Integrated Alerts for future analyses that do

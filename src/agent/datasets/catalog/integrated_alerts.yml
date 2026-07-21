@@ -45,12 +45,13 @@ selection_hints: >-
   cover loss, prefer Tree Cover Loss by Dominant Driver.
 code_instructions: |-
   CHART TYPES — generate EXACTLY ONE chart for Integrated alerts, chosen by the query; never emit both a pie and a line:
-  - Totals / breakdown by confidence → PIE chart, one slice per confidence tier (low, high, highest), value = total area_ha summed over the period
+  - Comparing/ranking multiple places (e.g. "which country/region had more disturbed area", "compare X and Y") → BAR chart, one bar per AOI (use the `name` column), value = total area_ha summed over the period and confidence tiers
+  - Totals / breakdown by confidence for a single area → PIE chart, one slice per confidence tier (low, high, highest), value = total area_ha summed over the period
   - Alerts over time / recent trends → LINE chart ONLY (x=alert month from alert_date, y=area_ha, one line per confidence tier); the x-axis may be aggregated to month, but render it as a line, NOT as bars
   - The charts list must contain exactly one chart. If the query does not clearly ask for totals, default to the LINE over time.
-  - Do NOT use bar charts for Integrated alerts unless specifically asked by the user
+  - Do NOT use bar charts for Integrated alerts unless specifically asked by the user or comparing multiple AOIs
   DATA RULES:
-  - Result columns are: aoi_id, alert_date, alert_confidence, area_ha, aoi_type
+  - Result columns are: aoi_id, name, alert_date, alert_confidence, area_ha, aoi_type
   - All areas are in hectares (ha) in the area_ha column
   - ALWAYS label the unit hectares (ha) in the output: on the chart's y-axis/legend and title, and on every table column header and total that shows area — never present a bare area number without "ha"
   - alert_confidence values are low, high, and highest; 'highest' means detected by two or more alert systems (it may be absent when only one system covered the area/time)
