@@ -914,9 +914,16 @@ async def _build_reference_aois(session: AsyncSession, source: str) -> int:
     # Normalize source geometry to a valid MultiPolygon once, then derive
     # geometry / bbox / area_km2 from the same shape.
     norm_geom = _multipolygon_sql("geometry")
+    # The geometries_* tables are bulk-loaded by GeoPandas with no unique
+    # constraint, so the same id can appear on several rows (GADM does).
+    # Postgres aborts the whole INSERT ... ON CONFLICT DO UPDATE if one
+    # statement proposes the same conflict key twice, so collapse duplicates
+    # here, keeping the largest geometry -- the real feature when the rest
+    # are slivers. Ranking uses planar ST_Area on the *raw* column: it is
+    # only a comparison, and this avoids recomputing the normalized shape.
     sql = f"""
         WITH normalized AS (
-            SELECT
+            SELECT DISTINCT ON (CAST("{id_col}" AS TEXT))
                 CAST("{id_col}" AS TEXT) AS source_id,
                 name,
                 subtype,
@@ -926,6 +933,10 @@ async def _build_reference_aois(session: AsyncSession, source: str) -> int:
                 {disputed_expr} AS is_disputed
             FROM {table}
             WHERE name IS NOT NULL AND geometry IS NOT NULL
+            ORDER BY
+                CAST("{id_col}" AS TEXT),
+                ST_Area(geometry) DESC NULLS LAST,
+                name
         )
         INSERT INTO aois (
             source, source_id, name, subtype, geometry,
@@ -957,6 +968,21 @@ async def _build_reference_aois(session: AsyncSession, source: str) -> int:
             updated_at = now()
     """
     result = await session.execute(text(sql))
+
+    # Report the collapse above, so discarding a duplicate is never silent.
+    # Cheap: counts ids only, no geometry work.
+    duplicates = await session.scalar(
+        text(
+            f'SELECT count(*) - count(DISTINCT CAST("{id_col}" AS TEXT)) '
+            f"FROM {table} "
+            f"WHERE name IS NOT NULL AND geometry IS NOT NULL"
+        )
+    )
+    if duplicates:
+        click.echo(
+            f"⚠️  {source}: {duplicates} duplicate row(s) collapsed "
+            f"(same {id_col}; kept the largest geometry)."
+        )
 
     # Surface (don't silently drop) rows whose geometry couldn't be coerced to
     # a non-empty MultiPolygon.
