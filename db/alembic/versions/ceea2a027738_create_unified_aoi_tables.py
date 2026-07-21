@@ -1,7 +1,7 @@
 """create unified aoi tables
 
 Revision ID: ceea2a027738
-Revises: a1b2c3d4e5f6
+Revises: 98638da8f348
 Create Date: 2026-07-08 14:34:50.155560
 
 Schema only. The unified ``aois`` table and the ``user_aois`` relationship
@@ -21,7 +21,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "ceea2a027738"
-down_revision: Union[str, None] = "a1b2c3d4e5f6"
+down_revision: Union[str, None] = "98638da8f348"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
