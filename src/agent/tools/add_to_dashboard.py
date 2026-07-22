@@ -139,6 +139,7 @@ async def add_to_dashboard(
 
     return dashboard_updated_command(
         dashboard.id,
+        dashboard.name,
         (
             f"Added insight {target_insight} to dashboard "
             f"'{dashboard.name}' ({dashboard.id}).\n"

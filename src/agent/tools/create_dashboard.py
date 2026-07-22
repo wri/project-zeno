@@ -86,6 +86,7 @@ async def create_dashboard(
 
     return dashboard_updated_command(
         dashboard_id,
+        dashboard_name,
         (
             f"Created dashboard '{dashboard_name}' ({dashboard_id}) for "
             f"{aois[0]['name']}. It is empty — use add_to_dashboard to "

@@ -91,10 +91,15 @@ async def load_editable_dashboard(
 
 
 def dashboard_updated_command(
-    dashboard_id, content: str, tool_call_id: Optional[str]
+    dashboard_id,
+    dashboard_name: str,
+    content: str,
+    tool_call_id: Optional[str],
 ) -> Command:
     """Success reply for a dashboard write: pins the dashboard in state and
-    signals the frontend to re-fetch /api/dashboards/{id}."""
+    signals the frontend to re-fetch /api/dashboards/{id}. The name rides
+    along so the frontend can render a link to the dashboard without an
+    extra fetch."""
     return Command(
         update={
             "dashboard_id": str(dashboard_id),
@@ -106,6 +111,7 @@ def dashboard_updated_command(
                     response_metadata={
                         "msg_type": "dashboard_updated",
                         "dashboard_id": str(dashboard_id),
+                        "dashboard_name": dashboard_name,
                     },
                 )
             ],

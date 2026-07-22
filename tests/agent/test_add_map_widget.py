@@ -99,6 +99,7 @@ async def test_add_map_widget_dataset_from_state():
     assert message.response_metadata == {
         "msg_type": "dashboard_updated",
         "dashboard_id": str(dashboard.id),
+        "dashboard_name": dashboard.name,
     }
     assert command.update["dashboard_id"] == str(dashboard.id)
     add_widget_mock.assert_awaited_once()
