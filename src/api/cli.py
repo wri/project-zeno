@@ -881,8 +881,20 @@ async def _resolve_column(
     return None
 
 
-async def _build_reference_aois(session: AsyncSession, source: str) -> int:
-    """Transform one ``geometries_<source>`` table into ``aois`` (idempotent)."""
+async def _build_reference_aois(
+    session: AsyncSession, source: str, *, nchunks: int, dry_run: bool
+) -> int:
+    """Transform one ``geometries_<source>`` table into ``aois`` (idempotent).
+
+    The INSERT runs in ``nchunks`` passes partitioned by a hash of the source
+    id -- each pass its own statement and its own transaction. This bounds the
+    peak memory of the per-row geometry repair (``ST_MakeValid`` over millions
+    of large polygons in a single statement can exhaust the backend and drop
+    the connection mid-operation) and keeps a late failure from discarding
+    chunks that already committed. Every row for a given id hashes to the same
+    chunk, so the per-chunk ``DISTINCT ON`` dedup and ``ON CONFLICT`` upsert
+    stay correct with no cross-chunk boundary effects.
+    """
     cfg = SOURCE_ID_MAPPING[source]
     table, id_col = cfg["table"], cfg["id_column"]
 
@@ -921,6 +933,8 @@ async def _build_reference_aois(session: AsyncSession, source: str) -> int:
     # here, keeping the largest geometry -- the real feature when the rest
     # are slivers. Ranking uses planar ST_Area on the *raw* column: it is
     # only a comparison, and this avoids recomputing the normalized shape.
+    # ::bigint before abs(): hashtext returns int4 and abs(-2147483648)
+    # overflows int4; widening first makes the modulo safe for every id.
     sql = f"""
         WITH normalized AS (
             SELECT DISTINCT ON (CAST("{id_col}" AS TEXT))
@@ -933,6 +947,8 @@ async def _build_reference_aois(session: AsyncSession, source: str) -> int:
                 {disputed_expr} AS is_disputed
             FROM {table}
             WHERE name IS NOT NULL AND geometry IS NOT NULL
+              AND (abs(hashtext(CAST("{id_col}" AS TEXT))::bigint) % :nchunks)
+                  = :chunk
             ORDER BY
                 CAST("{id_col}" AS TEXT),
                 ST_Area(geometry) DESC NULLS LAST,
@@ -967,38 +983,48 @@ async def _build_reference_aois(session: AsyncSession, source: str) -> int:
             is_disputed = EXCLUDED.is_disputed,
             updated_at = now()
     """
-    result = await session.execute(text(sql))
-
-    # Report the collapse above, so discarding a duplicate is never silent.
-    # Cheap: counts ids only, no geometry work.
-    duplicates = await session.scalar(
-        text(
-            f'SELECT count(*) - count(DISTINCT CAST("{id_col}" AS TEXT)) '
-            f"FROM {table} "
-            f"WHERE name IS NOT NULL AND geometry IS NOT NULL"
+    inserted = 0
+    for chunk in range(nchunks):
+        result = await session.execute(
+            text(sql), {"nchunks": nchunks, "chunk": chunk}
         )
-    )
+        inserted += result.rowcount
+        # One transaction per chunk: bounds the open transaction and makes a
+        # real run resumable. dry_run discards each chunk once its counts land.
+        if dry_run:
+            await session.rollback()
+        else:
+            await session.commit()
+
+    # Cheap accounting (no geometry work): one scan yields both figures.
+    total_rows, distinct_ids = (
+        await session.execute(
+            text(
+                f'SELECT count(*), count(DISTINCT CAST("{id_col}" AS TEXT)) '
+                f"FROM {table} "
+                f"WHERE name IS NOT NULL AND geometry IS NOT NULL"
+            )
+        )
+    ).one()
+
+    # Duplicate ids collapsed by DISTINCT ON, so the collapse is never silent.
+    duplicates = total_rows - distinct_ids
     if duplicates:
         click.echo(
             f"⚠️  {source}: {duplicates} duplicate row(s) collapsed "
             f"(same {id_col}; kept the largest geometry)."
         )
 
-    # Surface (don't silently drop) rows whose geometry couldn't be coerced to
-    # a non-empty MultiPolygon.
-    skipped = await session.scalar(
-        text(
-            f"SELECT count(*) FROM {table} "
-            f"WHERE name IS NOT NULL AND geometry IS NOT NULL "
-            f"AND ({norm_geom} IS NULL OR ST_IsEmpty({norm_geom}))"
-        )
-    )
+    # Distinct ids whose largest representative row didn't coerce to a
+    # non-empty MultiPolygon (so it never made it into aois). Derived by
+    # arithmetic to avoid a second full-table ST_MakeValid pass.
+    skipped = distinct_ids - inserted
     if skipped:
         click.echo(
-            f"⚠️  {source}: {skipped} row(s) skipped "
-            f"(geometry not coercible to a non-empty MultiPolygon)."
+            f"⚠️  {source}: {skipped} AOI(s) dropped (representative "
+            f"geometry not coercible to a non-empty MultiPolygon)."
         )
-    return result.rowcount
+    return inserted
 
 
 async def _build_custom_aois(session: AsyncSession) -> int:
@@ -1091,7 +1117,17 @@ async def _build_custom_aois(session: AsyncSession) -> int:
     is_flag=True,
     help="Run the transform in a transaction, report counts, then roll back.",
 )
-def build_aois_command(sources: tuple, dry_run: bool):
+@click.option(
+    "--chunks",
+    default=16,
+    type=click.IntRange(min=1),
+    show_default=True,
+    help=(
+        "Hash-partitioned passes per reference source; each is its own "
+        "statement and transaction. Higher = lower peak memory, more scans."
+    ),
+)
+def build_aois_command(sources: tuple, dry_run: bool, chunks: int):
     """Populate the unified aois/user_aois tables from already-loaded data.
 
     Idempotent, set-based, in-DB transform of the reference geometries_*
@@ -1107,11 +1143,11 @@ def build_aois_command(sources: tuple, dry_run: bool):
         committed: list[str] = []
         try:
             for source in selected:
-                # One transaction per source. Each build is independently
-                # idempotent, so committing as we go keeps a late failure
-                # from discarding sources that already succeeded -- GADM
-                # alone is far too large to hold in an open transaction
-                # while the remaining sources run.
+                # Each build is independently idempotent and commits as it
+                # goes (reference sources per chunk, custom once), so a late
+                # failure never discards sources -- or chunks -- that already
+                # succeeded; re-run resumes. The big reference tables are far
+                # too large to hold in one open transaction.
                 async with db.async_session() as session:
                     table = (
                         "custom_areas"
@@ -1130,9 +1166,14 @@ def build_aois_command(sources: tuple, dry_run: bool):
                             f"✅ custom: {links} owner link(s) {outcome}."
                         )
                     else:
-                        n = await _build_reference_aois(session, source)
+                        n = await _build_reference_aois(
+                            session, source, nchunks=chunks, dry_run=dry_run
+                        )
                         click.echo(f"✅ {source}: {n} aoi row(s) {outcome}.")
 
+                    # Reference sources self-commit per chunk; this trailing
+                    # commit/rollback is then a no-op for them and remains the
+                    # single-transaction boundary for custom.
                     if dry_run:
                         await session.rollback()
                     else:
