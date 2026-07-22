@@ -40,6 +40,24 @@ def sort_rows(rows: List[dict], column: str) -> List[dict]:
     return sorted(rows, key=lambda row: row[column])
 
 
+def group_sum(
+    rows: List[dict], key_column: str, value_column: str
+) -> List[dict]:
+    """Sum ``value_column`` per ``key_column`` value, sorted descending by
+    total. Also collapses rows from multi-AOI requests into one row per
+    key."""
+    totals: dict = {}
+    for row in rows:
+        key = row.get(key_column)
+        totals[key] = totals.get(key, 0.0) + (row.get(value_column) or 0.0)
+    return [
+        {key_column: key, value_column: value}
+        for key, value in sorted(
+            totals.items(), key=lambda item: item[1], reverse=True
+        )
+    ]
+
+
 def monthly_totals(
     rows: List[dict],
     date_column: str,

@@ -1,6 +1,7 @@
 from src.api.services.charts.base import (
     column_to_rows,
     drop_zero_rows,
+    group_sum,
     monthly_totals,
     sort_rows,
 )
@@ -32,6 +33,20 @@ def test_drop_zero_rows_removes_zero_and_missing():
 def test_sort_rows_orders_by_column():
     rows = [{"y": 2}, {"y": 1}]
     assert sort_rows(rows, "y") == [{"y": 1}, {"y": 2}]
+
+
+def test_group_sum_totals_per_key_sorted_descending():
+    rows = [
+        {"k": "a", "v": 1.0},
+        {"k": "b", "v": 5.0},
+        {"k": "a", "v": 2.0},
+        {"k": "c", "v": None},
+    ]
+    assert group_sum(rows, "k", "v") == [
+        {"k": "b", "v": 5.0},
+        {"k": "a", "v": 3.0},
+        {"k": "c", "v": 0.0},
+    ]
 
 
 def test_monthly_totals_ungrouped_sums_by_month():
