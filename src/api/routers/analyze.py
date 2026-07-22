@@ -11,7 +11,7 @@ from src.api.repositories.job_repository import get_job_repository
 from src.api.schemas import AnalyzeRequest, JobResponse, UserModel
 from src.api.services.analysis_job import AnalysisJobRunner
 from src.api.services.analyze import AnalyzeService
-from src.api.services.charts import DETERMINISTIC_GENERATORS
+from src.api.services.charts import GENERATORS
 from src.api.services.job import JobRepository, JobType
 
 router = APIRouter()
@@ -23,7 +23,7 @@ def get_analysis_runner(
     repo: JobRepository = Depends(get_job_repository),
 ) -> AnalysisJobRunner:
     return AnalysisJobRunner(
-        service=AnalyzeService(handler, DETERMINISTIC_GENERATORS),
+        service=AnalyzeService(handler, GENERATORS),
         repo=repo,
     )
 
