@@ -154,6 +154,9 @@ async def show_imagery(
         if result.date_start
         else None,
         date_end=result.date_end.isoformat() if result.date_end else None,
+        mean_cloud_cover=result.mean_cloud_cover,
+        min_cloud_cover=result.min_cloud_cover,
+        max_cloud_cover_observed=result.max_cloud_cover,
         target_date=recipe.target_date.isoformat(),
         window_days=recipe.window_days,
         max_cloud_cover=recipe.max_cloud_cover,
