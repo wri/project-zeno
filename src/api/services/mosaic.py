@@ -9,10 +9,12 @@ from a deterministic, self-describing recipe token (AOI references, target
 date, search parameters). Tiles are served by the GFW tiles service at
 https://tiles.globalforestwatch.org, which reads the MosaicJSON from S3.
 
+Build metadata (scene count, date range, cloud cover stats) is persisted as
+extra fields inside the MosaicJSON itself, so cache hits can serve them back
+without rerunning the STAC search.
+
 Before building, we check S3 for the mosaic object: if it already exists we
-skip the (expensive) STAC search, build and upload. The scene count and
-acquired date range are only known at build time and are not persisted, so a
-cache hit returns without them.
+skip the (expensive) STAC search, build and upload.
 """
 
 import base64
@@ -89,40 +91,74 @@ def _s3_uri(token: str) -> str:
     return f"s3://{SharedSettings.mosaic_s3_bucket}/{_s3_key(token)}"
 
 
-def _mosaic_exists(token: str) -> bool:
-    """Return True if the mosaic object for this recipe is already in S3."""
+def _read_mosaic(token: str) -> Optional[dict]:
+    """Read the mosaic JSON object for this recipe from S3.
+
+    Returns None if the mosaic doesn't exist (cache miss). Returns {} if it
+    exists but its JSON body is unreadable (never raises for that case, so a
+    corrupt object degrades to a bare result instead of failing the create).
+
+    A single GET serves both the existence check and the metadata read, so a
+    cache hit costs one S3 round trip, not one HEAD plus one GET.
+    """
+    client = _s3_client()
+    bucket = SharedSettings.mosaic_s3_bucket
+    key = _s3_key(token)
     try:
-        _s3_client().head_object(
-            Bucket=SharedSettings.mosaic_s3_bucket, Key=_s3_key(token)
-        )
+        resp = client.get_object(Bucket=bucket, Key=key)
+        raw = resp["Body"].read().decode("utf-8")
     except ClientError as e:
         code = e.response["Error"]["Code"]
         if code in ("NoSuchKey", "404", "NotFound"):
-            return False
+            return None
         # AccessDenied / NoSuchBucket / wrong region etc. — a real
         # config/permission problem, not a cache miss, so surface it instead
         # of failing the create opaquely.
         logger.error(
             "Mosaic existence check failed",
-            bucket=SharedSettings.mosaic_s3_bucket,
-            key=_s3_key(token),
+            bucket=bucket,
+            key=key,
             region=SharedSettings.mosaic_s3_region,
             error_code=code,
             error=str(e),
         )
         raise
-    return True
+    try:
+        parsed = json.loads(raw)
+        if not isinstance(parsed, dict):
+            raise ValueError("mosaic JSON body is not an object")
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.warning(
+            "Corrupt mosaic JSON — cannot extract metadata",
+            key=key,
+            error=str(e),
+        )
+        return {}
+    return parsed
 
 
-def _write_mosaic(token: str, mosaic: MosaicJSON) -> None:
-    """Upload the MosaicJSON to S3."""
+def _write_mosaic(
+    token: str, mosaic: MosaicJSON, extra: Optional[dict] = None
+) -> None:
+    """Upload the MosaicJSON to S3 with optional extra metadata fields.
+
+    The MosaicJSON spec v0.0.3 allows unknown keys. We store build metadata
+    (scene count, date range, cloud cover stats) as top-level extra fields.
+    """
     client = _s3_client()
     bucket = SharedSettings.mosaic_s3_bucket
+    body = mosaic.model_dump_json(exclude_none=True)
+    if extra:
+        # Inject extra fields into the JSON object (after serialization so
+        # Pydantic extra='ignore' on MosaicJSON doesn't drop them).
+        body_dict = json.loads(body)
+        body_dict.update(extra)
+        body = json.dumps(body_dict)
     try:
         client.put_object(
             Bucket=bucket,
             Key=_s3_key(token),
-            Body=mosaic.model_dump_json(exclude_none=True).encode("utf-8"),
+            Body=body.encode("utf-8"),
             ContentType="application/json",
         )
     except ClientError as e:
@@ -157,12 +193,16 @@ class MosaicRecipe:
 
 @dataclass
 class MosaicResult:
-    # item_count / date_start / date_end are only known when the mosaic is
-    # built; on a cache hit (mosaic already in S3) they are None.
+    # item_count / date_start / date_end / cloud_cover stats are read from
+    # the mosaic JSON extra fields on a cache hit; absent only if the mosaic
+    # was written before these fields were added or the JSON is unreadable.
     mosaic_id: str
     item_count: Optional[int] = None
     date_start: Optional[date] = None
     date_end: Optional[date] = None
+    mean_cloud_cover: Optional[float] = None
+    min_cloud_cover: Optional[float] = None
+    max_cloud_cover: Optional[float] = None
 
     @property
     def tile_url(self) -> str:
@@ -212,6 +252,22 @@ def decode_recipe(token: str) -> MosaicRecipe:
         raise MosaicNotFoundError("Invalid mosaic token")
 
 
+# ---------------------------------------------------------------------------
+# Metadata extra fields
+# ---------------------------------------------------------------------------
+
+_METADATA_KEYS = frozenset(
+    {
+        "item_count",
+        "date_start",
+        "date_end",
+        "mean_cloud_cover",
+        "min_cloud_cover",
+        "max_cloud_cover",
+    }
+)
+
+
 def check_aoi_area(geometry: dict) -> float:
     """Return the geodesic area of a GeoJSON geometry in km².
 
@@ -239,8 +295,8 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     """Build the mosaic for a recipe and persist it to S3.
 
     If a mosaic for this recipe already exists in S3, the STAC search, build
-    and upload are skipped; the returned result then carries no item_count or
-    date range (those are only known at build time and are not persisted).
+    and upload are skipped; metadata is read from the mosaic JSON extra fields
+    if available.
 
     Raises MosaicNotFoundError (AOI geometry gone), AoiTooLargeError,
     StacSearchError or NoScenesFoundError.
@@ -254,9 +310,25 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     token = encode_recipe(recipe)
 
     # S3-based lookup: if the mosaic already exists, serve it without
-    # rebuilding. The scene count and date range are not persisted, so a
-    # cache hit returns without them.
-    if await run_in_threadpool(_mosaic_exists, token):
+    # rebuilding. A single GET both confirms existence and (if present)
+    # reads back the persisted build metadata.
+    existing = await run_in_threadpool(_read_mosaic, token)
+    if existing is not None:
+        meta = {k: v for k, v in existing.items() if k in _METADATA_KEYS}
+        if meta:
+            return MosaicResult(
+                mosaic_id=token,
+                item_count=meta.get("item_count"),
+                date_start=date.fromisoformat(meta["date_start"])
+                if meta.get("date_start")
+                else None,
+                date_end=date.fromisoformat(meta["date_end"])
+                if meta.get("date_end")
+                else None,
+                mean_cloud_cover=meta.get("mean_cloud_cover"),
+                min_cloud_cover=meta.get("min_cloud_cover"),
+                max_cloud_cover=meta.get("max_cloud_cover"),
+            )
         return MosaicResult(mosaic_id=token)
 
     geometry = await _load_geometry(recipe)
@@ -330,7 +402,29 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
     date_start = min(item_dates)
     date_end = max(item_dates)
 
-    await run_in_threadpool(_write_mosaic, token, mosaic)
+    # Compute cloud cover stats from items that have a numeric eo:cloud_cover.
+    cloud_covers = [
+        item.properties["eo:cloud_cover"]
+        for item in items
+        if isinstance(item.properties.get("eo:cloud_cover"), (int, float))
+    ]
+    cc_stats = {}
+    if cloud_covers:
+        cc_stats = {
+            "mean_cloud_cover": round(
+                sum(cloud_covers) / len(cloud_covers), 2
+            ),
+            "min_cloud_cover": min(cloud_covers),
+            "max_cloud_cover": max(cloud_covers),
+        }
+
+    extra = {
+        "item_count": len(items),
+        "date_start": date_start.isoformat(),
+        "date_end": date_end.isoformat(),
+        **cc_stats,
+    }
+    await run_in_threadpool(_write_mosaic, token, mosaic, extra)
     logger.info(
         "Mosaic created",
         item_count=len(items),
@@ -342,4 +436,7 @@ async def create_sentinel2_mosaic(recipe: MosaicRecipe) -> MosaicResult:
         item_count=len(items),
         date_start=date_start,
         date_end=date_end,
+        mean_cloud_cover=cc_stats.get("mean_cloud_cover"),
+        min_cloud_cover=cc_stats.get("min_cloud_cover"),
+        max_cloud_cover=cc_stats.get("max_cloud_cover"),
     )
