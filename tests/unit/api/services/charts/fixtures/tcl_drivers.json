@@ -1,0 +1,77 @@
+{
+  "slug": "tcl_drivers",
+  "dataset_id": 8,
+  "success": true,
+  "message": "Successfully pulled Tree cover loss by dominant driver data from GFW Analytics for Costa Rica. Found 8 data points.",
+  "data_points_count": 8,
+  "columns": [
+    "aoi_id",
+    "aoi_type",
+    "tree_cover_loss_driver",
+    "area_ha",
+    "carbon_emissions_MgCO2e",
+    "name"
+  ],
+  "data": {
+    "aoi_id": [
+      "CRI",
+      "CRI",
+      "CRI",
+      "CRI",
+      "CRI",
+      "CRI",
+      "CRI",
+      "CRI"
+    ],
+    "aoi_type": [
+      "admin",
+      "admin",
+      "admin",
+      "admin",
+      "admin",
+      "admin",
+      "admin",
+      "admin"
+    ],
+    "tree_cover_loss_driver": [
+      "Hard commodities",
+      "Settlements and infrastructure",
+      "Logging",
+      "Other natural disturbances",
+      "Shifting cultivation",
+      "Permanent agriculture",
+      "Unknown",
+      "Wildfire"
+    ],
+    "area_ha": [
+      250.89554749722015,
+      3856.614717155496,
+      902.2711241837668,
+      5695.4212353381545,
+      10924.917977841525,
+      214216.08000425398,
+      1213.5293642846516,
+      3378.296666574486
+    ],
+    "carbon_emissions_MgCO2e": [
+      150549.9958820343,
+      2196485.5318493843,
+      527742.2754526138,
+      2790100.3899993896,
+      7411813.7021461725,
+      125030964.05619648,
+      579328.9140313268,
+      1271731.731850624
+    ],
+    "name": [
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica"
+    ]
+  }
+}

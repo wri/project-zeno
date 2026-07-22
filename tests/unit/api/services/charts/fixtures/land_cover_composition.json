@@ -1,0 +1,66 @@
+{
+  "slug": "land_cover_composition",
+  "dataset_id": 1,
+  "success": true,
+  "message": "Successfully pulled Global land cover data from GFW Analytics for Costa Rica. Found 8 data points.",
+  "data_points_count": 8,
+  "columns": [
+    "aoi_id",
+    "aoi_type",
+    "land_cover_class",
+    "area_ha",
+    "name"
+  ],
+  "data": {
+    "aoi_id": [
+      "CRI",
+      "CRI",
+      "CRI",
+      "CRI",
+      "CRI",
+      "CRI",
+      "CRI",
+      "CRI"
+    ],
+    "aoi_type": [
+      "admin",
+      "admin",
+      "admin",
+      "admin",
+      "admin",
+      "admin",
+      "admin",
+      "admin"
+    ],
+    "land_cover_class": [
+      "Bare and sparse vegetation",
+      "Built-up",
+      "Cropland",
+      "Cultivated grasslands",
+      "Short vegetation",
+      "Tree cover",
+      "Water",
+      "Wetland \u2013 short vegetation"
+    ],
+    "area_ha": [
+      10696.908203125,
+      390704.75,
+      162980.09375,
+      313432.625,
+      289116.34375,
+      3797553.5,
+      22883.646484375,
+      156096.171875
+    ],
+    "name": [
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica"
+    ]
+  }
+}

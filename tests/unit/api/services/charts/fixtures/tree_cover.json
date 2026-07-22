@@ -1,0 +1,27 @@
+{
+  "slug": "tree_cover",
+  "dataset_id": 7,
+  "success": true,
+  "message": "Successfully pulled Tree cover data from GFW Analytics for Costa Rica. Found 1 data points.",
+  "data_points_count": 1,
+  "columns": [
+    "aoi_id",
+    "aoi_type",
+    "area_ha",
+    "name"
+  ],
+  "data": {
+    "aoi_id": [
+      "CRI"
+    ],
+    "aoi_type": [
+      "admin"
+    ],
+    "area_ha": [
+      3118338.419035785
+    ],
+    "name": [
+      "Costa Rica"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "slug": "carbon_flux",
+  "dataset_id": 6,
+  "success": true,
+  "message": "Successfully pulled Forest greenhouse gas net flux data from GFW Analytics for Costa Rica. Found 1 data points.",
+  "data_points_count": 1,
+  "columns": [
+    "aoi_id",
+    "aoi_type",
+    "carbon_net_flux_Mg_CO2e",
+    "carbon_gross_emissions_Mg_CO2e",
+    "carbon_gross_removals_Mg_CO2e",
+    "name"
+  ],
+  "data": {
+    "aoi_id": [
+      "CRI"
+    ],
+    "aoi_type": [
+      "admin"
+    ],
+    "carbon_net_flux_Mg_CO2e": [
+      -182805496.54824015
+    ],
+    "carbon_gross_emissions_Mg_CO2e": [
+      143896890.23334953
+    ],
+    "carbon_gross_removals_Mg_CO2e": [
+      326702386.7939159
+    ],
+    "name": [
+      "Costa Rica"
+    ]
+  }
+}
