@@ -3,8 +3,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
+from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.api.auth.dependencies import require_auth
 from src.api.repositories.job_repository import get_job_repository
@@ -17,6 +18,8 @@ from src.api.services.job import JobRepository, JobType
 router = APIRouter()
 
 handler = AnalyticsHandler()
+
+CATALOG_DATASET_IDS = {ds["dataset_id"] for ds in DATASETS}
 
 
 def get_analysis_runner(
@@ -49,6 +52,12 @@ async def create_analysis_job(
     written into the agent state for that thread, so follow-up chat messages
     can reference the data without re-fetching.
     """
+    if request.dataset_id not in CATALOG_DATASET_IDS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown dataset_id: {request.dataset_id}",
+        )
+
     job_id = await repo.create_job(
         user_id=user.id,
         thread_id=request.thread_id,
