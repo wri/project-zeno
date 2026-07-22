@@ -23,12 +23,16 @@ from src.agent.datasets.handlers.analytics_handler import (
 )
 from src.api.services.charts.base import ChartGenerator
 from src.api.services.charts.carbon_flux import CarbonFluxChartGenerator
+from src.api.services.charts.dist_alerts import DistAlertsChartGenerator
 from src.api.services.charts.grasslands import GrasslandsChartGenerator
 from src.api.services.charts.integrated_alerts import (
     IntegratedAlertsChartGenerator,
 )
 from src.api.services.charts.land_cover import LandCoverChartGenerator
 from src.api.services.charts.natural_lands import NaturalLandsChartGenerator
+from src.api.services.charts.sluc_emission_factors import (
+    SlucEmissionFactorsChartGenerator,
+)
 from src.api.services.charts.tcl_drivers import TCLDriversChartGenerator
 from src.api.services.charts.tcl_fires import TCLFiresChartGenerator
 from src.api.services.charts.tree_cover import TreeCoverChartGenerator
@@ -39,10 +43,9 @@ from src.api.services.charts.tree_cover_loss import TCLChartGenerator
 
 GENERATORS: dict[int, ChartGenerator] = {}
 
-DATASETS_WITHOUT_CURATED_INSIGHTS: set[int] = {
-    DIST_ALERT_ID,
-    SLUC_EMISSION_FACTORS_ID,
-}
+# Empty since every catalog dataset ships a curated generator; new catalog
+# YAMLs must add a generator or a deliberate entry here.
+DATASETS_WITHOUT_CURATED_INSIGHTS: set[int] = set()
 
 
 def register(dataset_id: int, generator: ChartGenerator) -> None:
@@ -61,3 +64,5 @@ register(NATURAL_LANDS_ID, NaturalLandsChartGenerator())
 register(LAND_COVER_CHANGE_ID, LandCoverChartGenerator())
 register(TREE_COVER_LOSS_BY_DRIVER_ID, TCLDriversChartGenerator())
 register(FOREST_CARBON_FLUX_ID, CarbonFluxChartGenerator())
+register(DIST_ALERT_ID, DistAlertsChartGenerator())
+register(SLUC_EMISSION_FACTORS_ID, SlucEmissionFactorsChartGenerator())
