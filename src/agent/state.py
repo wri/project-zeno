@@ -58,6 +58,12 @@ class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     user_persona: str
 
+    # Conversation language (ISO 639-1, e.g. "es"), resolved per turn by
+    # src.agent.language.resolve_language. Last-write-wins: a turn with no
+    # new signal (short message, no profile preference) omits this key from
+    # its state update, so the thread's last-known language carries over.
+    language: str
+
     # Ambient frontend view state (what the user is currently looking at):
     # page, map viewport, visible layers/AOIs. Last-write-wins each turn —
     # no reducer; we only ever want the latest snapshot. Read on demand via

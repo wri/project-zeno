@@ -467,6 +467,7 @@ class InsightResponse(BaseModel):
     codeact_parts: List[CodeActPartResponse]
     is_public: bool
     created_at: datetime
+    language_code: Optional[str] = None
 
 
 class InsightPublicToggleRequest(BaseModel):

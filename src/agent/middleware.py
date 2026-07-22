@@ -13,6 +13,7 @@ from datetime import date
 from langchain.agents.middleware.types import AgentMiddleware, ModelRequest
 from langchain_core.messages import SystemMessage
 
+from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.view_pages import get_page, on_screen_counts
 
 
@@ -24,6 +25,13 @@ def format_session_block(state: dict) -> str:
     """
     today = date.today().isoformat()
     lines = [f"[Session — {today}]"]
+
+    language = state.get("language") or DEFAULT_LANGUAGE
+    lines.append(
+        f"Language: {language_name(language)} ({language}) — write all "
+        "user-facing text (replies, insights, chart titles) in this "
+        "language"
+    )
 
     aoi = state.get("aoi_selection") or {}
     name = aoi.get("name")

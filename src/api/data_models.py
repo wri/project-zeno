@@ -369,6 +369,10 @@ class InsightOrm(Base):
 
     is_public = Column(Boolean, nullable=False, server_default="false")
     created_at = Column(DateTime, nullable=False, default=datetime.now)
+    # ISO 639-1 code the insight text/charts were generated in (see
+    # src.agent.language); null for insights persisted before this field
+    # existed.
+    language_code = Column(String, nullable=True)
 
     charts = relationship(
         "InsightChartOrm",

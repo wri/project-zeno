@@ -16,6 +16,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
+from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.analyst.charts.model import InsightChart
 from src.agent.subagents.analyst.prompts import WORDING_GUIDE
@@ -46,6 +47,9 @@ already present in the pre-computed findings.
 
 Write a 2-3 sentence `primary_insight` grounded in the numbers, and 1-2 \
 `follow_up_suggestions`.
+
+Write both in {language} — regardless of what language the query, dataset \
+cautions, or presentation instructions below are written in.
 
 {wording_guide}"""
 
@@ -83,6 +87,7 @@ class InsightTextGenerator:
         dataset: dict,
         query: str = "",
         executor_context: Optional[str] = None,
+        language: str = DEFAULT_LANGUAGE,
         config: Optional[RunnableConfig] = None,
     ) -> InsightText:
         charts_block = "\n".join(
@@ -90,6 +95,7 @@ class InsightTextGenerator:
         )
         inputs = {
             "wording_guide": WORDING_GUIDE,
+            "language": language_name(language),
             "query": query or "(none provided)",
             "executor_context": executor_context or "(none)",
             "cautions": dataset.get(

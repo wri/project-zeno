@@ -12,6 +12,7 @@ from langfuse.langchain import CallbackHandler
 
 from src.agent.agent_config import AgentConfigRegistry, default_registry
 from src.agent.graph import fetch_zeno
+from src.agent.language import resolve_language
 from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_aoi.tool import fetch_aoi_bbox
 from src.api.schemas import ThreadNameOutput
@@ -192,6 +193,15 @@ async def stream_chat(
 
     state_updates["messages"] = messages
     state_updates["user_persona"] = user_persona
+
+    # Omitted (rather than defaulted) when there's no new signal, so the
+    # thread's last-known language (AgentState.language) carries over.
+    language = resolve_language(
+        preferred_language_code=(user or {}).get("preferred_language_code"),
+        query=query,
+    )
+    if language:
+        state_updates["language"] = language
 
     try:
         stream = zeno_async.astream(
