@@ -187,3 +187,48 @@ async def test_pick_aoi_tool_asks_for_clarification_when_no_place(
     assert "couldn't identify a place" in str(
         command.update["messages"][0].content
     )
+
+
+@pytest.mark.asyncio
+async def test_select_best_aoi_empty_candidates_returns_none():
+    """When DB search returns zero rows, select_best_aoi should return None
+    instead of crashing with 'single positional indexer is out-of-bounds'."""
+    from src.agent.subagents.pick_aoi.tool import select_best_aoi
+
+    result = await select_best_aoi("some question", pd.DataFrame())
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_pick_aoi_returns_no_match_when_db_search_empty(monkeypatch):
+    """When the DB returns no candidates, pick_aoi should return a helpful
+    message instead of crashing."""
+    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
+
+    async def fake_extract(self, question, aoi_type):
+        return PlaceQuery(places=["Nonexistent Place"], subregion=None)
+
+    async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
+        return pd.DataFrame()  # empty results
+
+    monkeypatch.setattr(Geocoder, "extract", fake_extract)
+    monkeypatch.setattr(
+        tool_module, "query_aoi_database", fake_query_aoi_database
+    )
+
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": "trees around Nonexistent Place",
+                "area_of_interest": None,
+            },
+            "id": "tc-3",
+            "type": "tool_call",
+        }
+    )
+
+    assert "aoi_selection" not in command.update
+    assert (
+        "no matching location"
+        in str(command.update["messages"][0].content).lower()
+    )

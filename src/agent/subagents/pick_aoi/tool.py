@@ -236,7 +236,7 @@ async def query_subregion_database(
 
 async def select_best_aoi(
     question: str, candidate_aois: pd.DataFrame
-) -> AOIIndex:
+) -> Optional[AOIIndex]:
     """Select the best AOI based on the user query.
 
     Args:
@@ -244,8 +244,12 @@ async def select_best_aoi(
         candidate_aois: Candidate AOIs to select from
 
     Returns:
-        Selected AOI: AOIIndex
+        Selected AOI: AOIIndex, or None if no candidates or no match found
     """
+    if candidate_aois.empty:
+        logger.debug("No candidate AOIs to select from")
+        return None
+
     # Prompt template for selecting the best location match based on user query
     AOI_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
@@ -279,9 +283,16 @@ async def select_best_aoi(
         }
     )
     # Get the original data row for the selected AOI
-    selected_aoi_row = candidate_aois[
+    matched = candidate_aois[
         candidate_aois["src_id"] == selected_aoi_index.src_id
-    ].iloc[0]
+    ]
+    if matched.empty:
+        logger.warning(
+            f"LLM selected src_id '{selected_aoi_index.src_id}' "
+            f"not found in candidates. Available: {list(candidate_aois['src_id'])}"
+        )
+        return None
+    selected_aoi_row = matched.iloc[0]
     selected_aoi = AOIIndex(**selected_aoi_row.to_dict())
 
     logger.debug(f"Candidate AOIs: {candidate_aois}")
@@ -508,9 +519,25 @@ class Geocoder:
                 + (f" — {'; '.join(names[:8])}" if names else ""),
             )
 
-        selected_aois = await asyncio.gather(
+        selected_aois_raw = await asyncio.gather(
             *[select_best_aoi(question, result) for result in all_results]
         )
+        selected_aois = [aoi for aoi in selected_aois_raw if aoi is not None]
+        if not selected_aois:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            "No matching location was found for your request. "
+                            "Try a broader place name (e.g., the country or region) "
+                            "or rephrase the location.",
+                            tool_call_id=tool_call_id,
+                            status="success",
+                            response_metadata={"msg_type": "human_feedback"},
+                        )
+                    ],
+                },
+            )
 
         duplicate_check = await check_duplicate_aois(
             selected_aois, all_results
