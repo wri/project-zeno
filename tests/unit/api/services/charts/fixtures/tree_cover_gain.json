@@ -1,0 +1,46 @@
+{
+  "slug": "tree_cover_gain",
+  "dataset_id": 5,
+  "success": true,
+  "message": "Successfully pulled Tree cover gain data from GFW Analytics for Costa Rica. Found 4 data points.",
+  "data_points_count": 4,
+  "columns": [
+    "aoi_id",
+    "aoi_type",
+    "tree_cover_gain_period",
+    "area_ha",
+    "name"
+  ],
+  "data": {
+    "aoi_id": [
+      "CRI",
+      "CRI",
+      "CRI",
+      "CRI"
+    ],
+    "aoi_type": [
+      "admin",
+      "admin",
+      "admin",
+      "admin"
+    ],
+    "tree_cover_gain_period": [
+      "2000-2005",
+      "2010-2015",
+      "2015-2020",
+      "2005-2010"
+    ],
+    "area_ha": [
+      23316.565826416016,
+      8168.686861991882,
+      13432.564709663391,
+      12844.425102233887
+    ],
+    "name": [
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica",
+      "Costa Rica"
+    ]
+  }
+}

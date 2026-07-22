@@ -22,8 +22,13 @@ from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_ID,
 )
 from src.api.services.charts.base import ChartGenerator
+from src.api.services.charts.grasslands import GrasslandsChartGenerator
 from src.api.services.charts.integrated_alerts import (
     IntegratedAlertsChartGenerator,
+)
+from src.api.services.charts.tcl_fires import TCLFiresChartGenerator
+from src.api.services.charts.tree_cover_gain import (
+    TreeCoverGainChartGenerator,
 )
 from src.api.services.charts.tree_cover_loss import TCLChartGenerator
 
@@ -32,14 +37,11 @@ GENERATORS: dict[int, ChartGenerator] = {}
 DATASETS_WITHOUT_CURATED_INSIGHTS: set[int] = {
     DIST_ALERT_ID,
     LAND_COVER_CHANGE_ID,
-    GRASSLANDS_ID,
     NATURAL_LANDS_ID,
-    TREE_COVER_GAIN_ID,
     FOREST_CARBON_FLUX_ID,
     TREE_COVER_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     SLUC_EMISSION_FACTORS_ID,
-    TREE_COVER_LOSS_BY_FIRES_ID,
 }
 
 
@@ -51,3 +53,6 @@ def register(dataset_id: int, generator: ChartGenerator) -> None:
 
 register(TREE_COVER_LOSS_ID, TCLChartGenerator())
 register(INTEGRATED_ALERTS_ID, IntegratedAlertsChartGenerator())
+register(GRASSLANDS_ID, GrasslandsChartGenerator())
+register(TREE_COVER_GAIN_ID, TreeCoverGainChartGenerator())
+register(TREE_COVER_LOSS_BY_FIRES_ID, TCLFiresChartGenerator())
