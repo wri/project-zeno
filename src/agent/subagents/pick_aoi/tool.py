@@ -522,15 +522,21 @@ class Geocoder:
         selected_aois_raw = await asyncio.gather(
             *[select_best_aoi(question, result) for result in all_results]
         )
+        unmatched_places = [
+            place
+            for place, aoi in zip(places, selected_aois_raw)
+            if aoi is None
+        ]
         selected_aois = [aoi for aoi in selected_aois_raw if aoi is not None]
         if not selected_aois:
             return Command(
                 update={
                     "messages": [
                         ToolMessage(
-                            "No matching location was found for your request. "
-                            "Try a broader place name (e.g., the country or region) "
-                            "or rephrase the location.",
+                            "No matching location was found for: "
+                            f"{', '.join(unmatched_places)}. Try a broader "
+                            "place name (e.g., the country or region) or "
+                            "rephrase the location.",
                             tool_call_id=tool_call_id,
                             status="success",
                             response_metadata={"msg_type": "human_feedback"},
@@ -597,6 +603,11 @@ class Geocoder:
         tool_message = "Selected AOIs:"
         for selected_aoi in final_aois:
             tool_message += f"\n- {selected_aoi.name}"
+        if unmatched_places:
+            tool_message += (
+                "\n\nNo match found for: "
+                f"{', '.join(unmatched_places)}. These were skipped."
+            )
 
         logger.debug(f"Pick AOI tool message: {tool_message}")
 
