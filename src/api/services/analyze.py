@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Mapping, Optional
 
+from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts import ChartGenerator, column_to_rows
@@ -29,6 +30,13 @@ class AnalyzeService:
         start_date: str,
         end_date: str,
     ) -> AnalyzeResult:
+        # The frontend sends one global default range; clamp it to the
+        # dataset's actual coverage (fixed-content datasets force their
+        # full range) so e.g. integrated alerts is not queried from 2001.
+        start_date, end_date, _ = await revise_date_range(
+            start_date, end_date, dataset_id
+        )
+
         result = await self._handler.pull_data(
             query="",
             dataset={"dataset_id": dataset_id},
