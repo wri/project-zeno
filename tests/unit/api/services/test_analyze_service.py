@@ -1,11 +1,18 @@
 import pytest
 
+from src.agent.datasets.handlers.analytics_handler import (
+    GRASSLANDS_ID,
+    NATURAL_LANDS_ID,
+    TREE_COVER_LOSS_ID,
+)
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.analyze import AnalyzeService
 
-UNHANDLED_DATASET_ID = 1
-HANDLED_DATASET_ID = 99
+# Real catalog ids: analyze clamps dates against the dataset catalog, so
+# made-up ids would raise. "Unhandled" means absent from the generator map.
+HANDLED_DATASET_ID = TREE_COVER_LOSS_ID
+UNHANDLED_DATASET_ID = GRASSLANDS_ID
 
 FAKE_CHARTS = [
     InsightChart(
@@ -81,8 +88,59 @@ async def test_analyze_passes_correct_args_to_handler():
         end_date="2020-12-31",
     )
 
-    assert handler.last_call["dataset"] == {"dataset_id": HANDLED_DATASET_ID}
+    assert handler.last_call["dataset"]["dataset_id"] == HANDLED_DATASET_ID
     assert handler.last_call["aois"] == [AOI]
+    assert handler.last_call["start_date"] == "2020-01-01"
+    assert handler.last_call["end_date"] == "2020-12-31"
+
+
+@pytest.mark.asyncio
+async def test_canopy_cover_pinned_to_catalog_default():
+    handler = FakeHandler(SUCCESS_RESULT)
+    service = make_service(handler)
+
+    await service.analyze(
+        aois=[AOI],
+        dataset_id=HANDLED_DATASET_ID,
+        start_date="2020-01-01",
+        end_date="2020-12-31",
+    )
+
+    # Without explicit parameters the payload builder would use
+    # max(catalog values) = 75% instead of the mandated 30% default.
+    assert handler.last_call["dataset"]["parameters"] == [
+        {"name": "canopy_cover", "values": [30]}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_dates_clamped_to_dataset_coverage():
+    handler = FakeHandler(SUCCESS_RESULT)
+    service = make_service(handler)
+
+    await service.analyze(
+        aois=[AOI],
+        dataset_id=TREE_COVER_LOSS_ID,  # coverage 2001-2025
+        start_date="1990-01-01",
+        end_date="2030-12-31",
+    )
+
+    assert handler.last_call["start_date"] == "2001-01-01"
+    assert handler.last_call["end_date"] == "2025-12-31"
+
+
+@pytest.mark.asyncio
+async def test_fixed_content_dataset_forces_its_full_range():
+    handler = FakeHandler(SUCCESS_RESULT)
+    service = make_service(handler)
+
+    await service.analyze(
+        aois=[AOI],
+        dataset_id=NATURAL_LANDS_ID,  # fixed 2020 snapshot
+        start_date="2001-01-01",
+        end_date="2025-12-31",
+    )
+
     assert handler.last_call["start_date"] == "2020-01-01"
     assert handler.last_call["end_date"] == "2020-12-31"
 
