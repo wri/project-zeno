@@ -107,6 +107,7 @@ async def add_text_widget(
 
     return dashboard_updated_command(
         dashboard.id,
+        dashboard.name,
         (
             f"Added text widget {widget_id} to dashboard "
             f"'{dashboard.name}' ({dashboard.id}). Use this widget id with "

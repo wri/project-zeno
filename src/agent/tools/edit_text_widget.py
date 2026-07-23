@@ -172,6 +172,7 @@ async def edit_text_widget(
 
     return dashboard_updated_command(
         dashboard.id,
+        dashboard.name,
         (
             f"Updated text widget {widget.id} on dashboard "
             f"'{dashboard.name}' ({dashboard.id})."

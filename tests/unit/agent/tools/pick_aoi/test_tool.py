@@ -187,3 +187,139 @@ async def test_pick_aoi_tool_asks_for_clarification_when_no_place(
     assert "couldn't identify a place" in str(
         command.update["messages"][0].content
     )
+
+
+@pytest.mark.asyncio
+async def test_select_best_aoi_empty_candidates_returns_none():
+    """When DB search returns zero rows, select_best_aoi should return None
+    instead of crashing with 'single positional indexer is out-of-bounds'."""
+    from src.agent.subagents.pick_aoi.tool import select_best_aoi
+
+    result = await select_best_aoi("some question", pd.DataFrame())
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_select_best_aoi_bad_src_id_returns_none(monkeypatch):
+    """When the LLM picks a src_id that isn't among the candidates,
+    select_best_aoi should return None instead of crashing on .iloc[0]."""
+    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
+
+    async def fake_structured_output(_input):
+        return tool_module.AOIId(src_id="does-not-exist")
+
+    class _FakeSmallModel:
+        def with_structured_output(self, schema):
+            return fake_structured_output
+
+    monkeypatch.setattr(tool_module, "SMALL_MODEL", _FakeSmallModel())
+
+    candidates = pd.DataFrame(
+        [
+            {
+                "src_id": "BRA.14_1",
+                "name": "Para, Brazil",
+                "subtype": "state-province",
+                "source": "gadm",
+            }
+        ]
+    )
+    result = await tool_module.select_best_aoi("some question", candidates)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_pick_aoi_returns_no_match_when_db_search_empty(monkeypatch):
+    """When the DB returns no candidates, pick_aoi should return a helpful
+    message instead of crashing."""
+    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
+
+    async def fake_extract(self, question, aoi_type):
+        return PlaceQuery(places=["Nonexistent Place"], subregion=None)
+
+    async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
+        return pd.DataFrame()  # empty results
+
+    monkeypatch.setattr(Geocoder, "extract", fake_extract)
+    monkeypatch.setattr(
+        tool_module, "query_aoi_database", fake_query_aoi_database
+    )
+
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": "trees around Nonexistent Place",
+                "area_of_interest": None,
+            },
+            "id": "tc-3",
+            "type": "tool_call",
+        }
+    )
+
+    assert "aoi_selection" not in command.update
+    assert (
+        "no matching location"
+        in str(command.update["messages"][0].content).lower()
+    )
+
+
+@pytest.mark.asyncio
+async def test_pick_aoi_reports_unmatched_places_alongside_matches(
+    monkeypatch,
+):
+    """When some places match and others don't, pick_aoi should still return
+    the matches but name the place(s) it couldn't find rather than silently
+    dropping them."""
+    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
+
+    async def fake_extract(self, question, aoi_type):
+        return PlaceQuery(
+            places=["Para, Brazil", "Nonexistent Place"], subregion=None
+        )
+
+    async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
+        if place_name == "Para, Brazil":
+            return pd.DataFrame(
+                [
+                    {
+                        "src_id": "BRA.14_1",
+                        "name": "Para, Brazil",
+                        "subtype": "state-province",
+                        "source": "gadm",
+                    }
+                ]
+            )
+        return pd.DataFrame()
+
+    async def fake_select_best_aoi(question, candidate_aois):
+        if candidate_aois.empty:
+            return None
+        return AOIIndex(
+            src_id="BRA.14_1",
+            name="Para, Brazil",
+            subtype="state-province",
+            source="gadm",
+        )
+
+    monkeypatch.setattr(Geocoder, "extract", fake_extract)
+    monkeypatch.setattr(
+        tool_module, "query_aoi_database", fake_query_aoi_database
+    )
+    monkeypatch.setattr(tool_module, "select_best_aoi", fake_select_best_aoi)
+
+    command = await pick_aoi.ainvoke(
+        {
+            "args": {
+                "question": (
+                    "tree cover loss in Para, Brazil and Nonexistent Place"
+                ),
+                "area_of_interest": None,
+            },
+            "id": "tc-4",
+            "type": "tool_call",
+        }
+    )
+
+    selection = command.update["aoi_selection"]
+    assert selection["aois"][0]["src_id"] == "BRA.14_1"
+    assert "Nonexistent Place" in str(command.update["messages"][0].content)
