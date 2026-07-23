@@ -46,6 +46,18 @@ GEMINI_FLASH_LITE = ChatGoogleGenerativeAI(
     thinking_level="low",
     timeout=300,
 )
+# Single-shot classification (e.g. language detection in src.agent.language):
+# minimal thinking cuts latency roughly in half vs. GEMINI_FLASH_LITE's "low"
+# for tasks that need no reasoning at all, just a short constrained answer.
+GEMINI_FLASH_LITE_MINIMAL = ChatGoogleGenerativeAI(
+    model="gemini-3.1-flash-lite-preview",
+    temperature=0,
+    max_tokens=20,
+    include_thoughts=False,
+    max_retries=AgentSettings.llm_max_retries,
+    thinking_level="minimal",
+    timeout=30,
+)
 # OpenAI
 # GPT = ChatOpenAI(
 #     model="gpt-4o",

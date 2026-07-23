@@ -413,7 +413,7 @@ async def pick_dataset(
     # standalone, without going through that per-turn resolution.
     language = (
         state.get("language")
-        or resolve_language(query=query)
+        or await resolve_language(query=query)
         or DEFAULT_LANGUAGE
     )
     return await DatasetSelector().resolve(

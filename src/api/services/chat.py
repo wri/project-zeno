@@ -196,9 +196,13 @@ async def stream_chat(
 
     # Omitted (rather than defaulted) when there's no new signal, so the
     # thread's last-known language (AgentState.language) carries over.
-    language = resolve_language(
+    # Detection only runs once per conversation (see resolve_language) — an
+    # extra checkpoint read here is cheaper than an extra LLM call every turn.
+    existing_state = await zeno_async.aget_state(config=config)
+    language = await resolve_language(
         preferred_language_code=(user or {}).get("preferred_language_code"),
         query=query,
+        already_resolved=bool(existing_state.values.get("language")),
     )
     if language:
         state_updates["language"] = language
