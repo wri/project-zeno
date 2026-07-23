@@ -11,6 +11,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.subagents.analyst.charts import (
     Insight,
@@ -284,12 +285,29 @@ def _encode_parts(parts: list) -> list[dict]:
     ]
 
 
-def _build_tool_message(insight: Insight, dataset_cautions: str) -> str:
+async def _build_tool_message(
+    insight: Insight, dataset_cautions: str, language: str = DEFAULT_LANGUAGE
+) -> str:
     """Human-feedback message summarizing the generated charts + insight."""
-    tool_message = f"Generated {len(insight.charts)} chart(s)\n"
-    tool_message += f"Key Finding: {insight.primary_insight}\n\n"
+    tool_message = (
+        await t(
+            "analyst.generated_charts",
+            language,
+            count=len(insight.charts),
+        )
+        + "\n"
+    )
+    tool_message += (
+        await t("analyst.key_finding", language, text=insight.primary_insight)
+        + "\n\n"
+    )
     for idx, chart in enumerate(insight.charts, 1):
-        tool_message += f"Chart {idx}: {chart.title}\n"
+        tool_message += (
+            await t(
+                "analyst.chart_label", language, idx=idx, title=chart.title
+            )
+            + "\n"
+        )
 
     if insight.charts:
         chart_data_df = pd.DataFrame(insight.charts[0].chart_data)
@@ -302,12 +320,14 @@ def _build_tool_message(insight: Insight, dataset_cautions: str) -> str:
         )
         csv_str = formatted_df.to_csv(index=False)
         if len(csv_str) < 4000:
-            tool_message += f"\nChart data CSV:\n{csv_str}"
+            header = await t("analyst.chart_data_csv_header", language)
+            tool_message += f"\n{header}\n{csv_str}"
 
     if dataset_cautions:
-        tool_message += f"\n\nDataset cautions:\n{dataset_cautions}"
+        header = await t("analyst.dataset_cautions_header", language)
+        tool_message += f"\n\n{header}\n{dataset_cautions}"
 
-    tool_message += "\n\nFollow-up suggestions:"
+    tool_message += "\n\n" + await t("analyst.follow_up_header", language)
     for i, suggestion in enumerate(insight.follow_up_suggestions, 1):
         tool_message += f"\n{i}. {suggestion}"
     return tool_message
@@ -482,7 +502,9 @@ class Analyst:
             "charts_data": [c.to_frontend_dict() for c in insight.charts],
             "messages": [
                 ToolMessage(
-                    content=_build_tool_message(insight, dataset_cautions),
+                    content=await _build_tool_message(
+                        insight, dataset_cautions, language
+                    ),
                     tool_call_id=tool_call_id,
                     status="success",
                     response_metadata={"msg_type": "human_feedback"},

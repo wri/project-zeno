@@ -29,7 +29,12 @@ from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_FIRES_ID,
     TREE_COVER_LOSS_ID,
 )
-from src.agent.language import DEFAULT_LANGUAGE, language_name
+from src.agent.i18n import t
+from src.agent.language import (
+    DEFAULT_LANGUAGE,
+    language_name,
+    resolve_language,
+)
 from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
@@ -231,7 +236,15 @@ class DatasetSelector:
                     f"- {name_by_id.get(o.dataset_id, str(o.dataset_id))}: {o.reason}"
                     for o in selection_result.suggested_datasets
                 )
-                tool_message = f"No single dataset directly matches the query. {selection_result.reason}\n\nHere are the closest available options:\n{reasons}"
+                intro = await t(
+                    "pick_dataset.no_single_match",
+                    language,
+                    reason=selection_result.reason,
+                )
+                options_header = await t(
+                    "pick_dataset.closest_options_header", language
+                )
+                tool_message = f"{intro}\n\n{options_header}\n{reasons}"
                 return Command(
                     update={
                         "suggested_datasets": [
@@ -258,7 +271,11 @@ class DatasetSelector:
                     update={
                         "messages": [
                             ToolMessage(
-                                f"No dataset selected: {selection_result.reason}",
+                                await t(
+                                    "pick_dataset.no_match",
+                                    language,
+                                    reason=selection_result.reason,
+                                ),
                                 tool_call_id=tool_call_id,
                             )
                         ]
@@ -390,13 +407,22 @@ async def pick_dataset(
     - Optional start_date/end_date (YYYY-MM-DD) narrow the range; if they
       don't exactly match the dataset, the closest valid range is used.
     """
+    # state["language"] should already carry the turn's resolved language
+    # (see src.agent.language.resolve_language, set in chat.py); detecting
+    # from `query` here is a fallback for callers that invoke this subagent
+    # standalone, without going through that per-turn resolution.
+    language = (
+        state.get("language")
+        or resolve_language(query=query)
+        or DEFAULT_LANGUAGE
+    )
     return await DatasetSelector().resolve(
         query,
         aoi_selection=state.get("aoi_selection"),
         start_date=start_date,
         end_date=end_date,
         tool_call_id=tool_call_id,
-        language=state.get("language") or DEFAULT_LANGUAGE,
+        language=language,
     )
 
 
