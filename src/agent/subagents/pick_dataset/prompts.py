@@ -39,4 +39,7 @@ C — No match: leave both `selected_dataset` and `suggested_datasets` null.
 
 Always fill in `reason` explaining your decision. Clearly state what data we do
 have and why a clear choice could or could not be made.
+
+Write `reason` (including each suggested dataset's own `reason`) in {language}
+— regardless of what language the user query or dataset metadata is in.
 """

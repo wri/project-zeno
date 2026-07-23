@@ -26,15 +26,11 @@ async def persist_insight(
     thread_id: str,
     statistics_ids: Optional[list[str]] = None,
     codeact_parts: Optional[list[dict]] = None,
-    language_code: Optional[str] = None,
 ) -> str:
     """Persist an insight and its charts; return the new insight id (str).
 
     `codeact_parts` are the base64-encoded code/output blocks (as produced by
     `ExecutionResult.get_encoded_parts`); empty for deterministic charts.
-    `language_code` is the ISO 639-1 language the insight text/charts were
-    generated in (see src.agent.language); left null for callers that don't
-    have a conversation to derive it from (e.g. the deterministic job path).
     """
     statistics_ids = statistics_ids or []
     codeact_parts = codeact_parts or []
@@ -48,7 +44,6 @@ async def persist_insight(
             statistics_ids=statistics_ids,
             codeact_types=[p["type"] for p in codeact_parts],
             codeact_contents=[p["content"] for p in codeact_parts],
-            language_code=language_code,
         )
         session.add(insight_orm)
         await session.flush()

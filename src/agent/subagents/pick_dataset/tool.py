@@ -29,6 +29,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_BY_FIRES_ID,
     TREE_COVER_LOSS_ID,
 )
+from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
@@ -112,10 +113,16 @@ async def select_best_dataset(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     aoi_selection=None,
+    language: str = DEFAULT_LANGUAGE,
 ) -> DatasetSelectionResponse:
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
-            ("system", DATASET_SELECTOR_PROMPT),
+            (
+                "system",
+                DATASET_SELECTOR_PROMPT.format(
+                    language=language_name(language)
+                ),
+            ),
             (
                 "user",
                 """## When to prefer each candidate dataset
@@ -198,6 +205,7 @@ class DatasetSelector:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         tool_call_id: Optional[str] = None,
+        language: str = DEFAULT_LANGUAGE,
     ) -> Command:
         """Resolve a request to the best dataset and update state."""
         logger.info("DATASET-SELECTOR: resolving query")
@@ -206,7 +214,12 @@ class DatasetSelector:
         candidate_datasets = await rag_candidate_datasets(query, k=5)
         # Step 2: LLM picks the best dataset and context layer
         selection_result = await select_best_dataset(
-            query, candidate_datasets, start_date, end_date, aoi_selection
+            query,
+            candidate_datasets,
+            start_date,
+            end_date,
+            aoi_selection,
+            language=language,
         )
 
         if selection_result.selected_dataset is None:
@@ -383,6 +396,7 @@ async def pick_dataset(
         start_date=start_date,
         end_date=end_date,
         tool_call_id=tool_call_id,
+        language=state.get("language") or DEFAULT_LANGUAGE,
     )
 
 

@@ -471,7 +471,6 @@ class Analyst:
             thread_id=ctx.get("thread_id", ""),
             statistics_ids=_extract_statistics_ids(statistics),
             codeact_parts=codeact_parts,
-            language_code=language,
         )
         logger.info(f"Persisted insight to DB: {insight_id}")
 
