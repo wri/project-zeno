@@ -1,0 +1,233 @@
+name: 'Production Lag Report'
+
+on:
+  schedule:
+    - cron: '0 8 * * 4'   # Every Thursday at 08:00 UTC
+  workflow_dispatch:        # Allow manual runs
+
+jobs:
+  report:
+    name: 'Generate and post production lag report'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Get deploy repo token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: project-zeno-deploy
+
+      - name: Extract production image tag from deploy repo
+        id: prod
+        env:
+          DEPLOY_REPO_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          # Read values.yaml from the main branch of the deploy repo using
+          # a GitHub App installation token with read-only contents access to project-zeno-deploy.
+          TAG=$(curl -s \
+            -H "Authorization: Bearer ${DEPLOY_REPO_TOKEN}" \
+            -H "Accept: application/vnd.github.v3.raw" \
+            "https://api.github.com/repos/wri/project-zeno-deploy/contents/helm/zeno/values.yaml?ref=main" \
+            | grep -E '^\s+tag:' | head -1 | awk '{print $2}')
+          echo "sha=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Production SHA: ${TAG}"
+
+      - name: Compare and score commits
+        id: compare
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PROD_SHA="${{ steps.prod.outputs.sha }}"
+          RESPONSE=$(gh api "repos/wri/project-zeno/compare/${PROD_SHA}...main")
+
+          PROD_DATE=$(gh api "repos/wri/project-zeno/commits/${PROD_SHA}" --jq '.commit.author.date')
+          PROD_MSG=$(gh api  "repos/wri/project-zeno/commits/${PROD_SHA}" --jq '.commit.message | split("\n")[0]')
+          LATEST_SHA=$(echo "$RESPONSE"  | jq -r '.commits[-1].sha[0:8]')
+          LATEST_MSG=$(echo "$RESPONSE"  | jq -r '.commits[-1].commit.message | split("\n")[0]')
+          LATEST_DATE=$(echo "$RESPONSE" | jq -r '.commits[-1].commit.author.date')
+
+          # Filtered commits as JSON array, newest first
+          FILTERED=$(echo "$RESPONSE" | jq '[
+            .commits[]
+            | select(.commit.message | test("^Merge ";  "i") | not)
+            | select(.commit.message | test("^Merged "; "i") | not)
+            | select(.commit.message | test("^Bump version"; "i") | not)
+            | select(.commit.message | test("^chore: sync uv"; "i") | not)
+            | {sha: .sha, msg: (.commit.message | split("\n")[0])}
+          ] | reverse')
+
+          AHEAD=$(echo "$FILTERED" | jq 'length')
+
+          # Score each commit via the GitHub API
+          TOTAL_RISK=0
+          BULLETS=""
+
+          while IFS= read -r COMMIT; do
+            SHA=$(echo "$COMMIT" | jq -r '.sha')
+            MSG=$(echo "$COMMIT" | jq -r '.msg')
+
+            STATS=$(gh api "repos/wri/project-zeno/commits/$SHA" --jq '{
+              total: (.stats.total // 0),
+              high_risk: ([.files[].filename] | map(test("alembic|migration|\\.sql|schema|model|auth"; "i")) | any)
+            }')
+
+            TOTAL=$(echo "$STATS" | jq '.total')
+            HIGH_RISK=$(echo "$STATS" | jq '.high_risk')
+
+            if   [ "$TOTAL" -lt 20  ]; then LSCORE=1
+            elif [ "$TOTAL" -lt 100 ]; then LSCORE=2
+            elif [ "$TOTAL" -lt 300 ]; then LSCORE=3
+            elif [ "$TOTAL" -lt 500 ]; then LSCORE=4
+            else LSCORE=5; fi
+
+            SCORE=$LSCORE
+            [ "$HIGH_RISK" = "true" ] && SCORE=$((SCORE + 1))
+            [ "$SCORE" -gt 5 ] && SCORE=5
+
+            TOTAL_RISK=$((TOTAL_RISK + SCORE))
+
+            case $SCORE in
+              1) BADGE=":white_circle:[1]" ;;
+              2) BADGE=":large_yellow_circle:[2]" ;;
+              3) BADGE=":large_orange_circle:[3]" ;;
+              4) BADGE=":large_orange_circle:[4]" ;;
+              5) BADGE=":red_circle:[5]" ;;
+            esac
+            BULLETS="${BULLETS}• ${BADGE} \`${SHA:0:8}\` ${MSG}"$'\n'
+          done < <(echo "$FILTERED" | jq -c '.[]')
+
+          # Aggregate risk rating (integer math, no bc needed)
+          if [ "$AHEAD" -gt 0 ]; then
+            AVG_TIMES10=$(( (TOTAL_RISK * 10) / AHEAD ))
+            AVG_INT=$(( AVG_TIMES10 / 10 ))
+            AVG_FRAC=$(( AVG_TIMES10 % 10 ))
+            AVG_RISK="${AVG_INT}.${AVG_FRAC}"
+          else
+            AVG_RISK="0.0"
+            AVG_INT=0
+          fi
+
+          if   [ "$AVG_INT" -le 1 ]; then RISK_LABEL=":large_green_circle: *Low*"
+          elif [ "$AVG_INT" -le 2 ]; then RISK_LABEL=":large_yellow_circle: *Medium*"
+          elif [ "$AVG_INT" -le 3 ]; then RISK_LABEL=":large_orange_circle: *High*"
+          else                             RISK_LABEL=":red_circle: *Critical*"
+          fi
+
+          RISK_SUMMARY="${RISK_LABEL} — total score ${TOTAL_RISK} across ${AHEAD} commits (avg ${AVG_RISK}/commit)"
+
+          echo "ahead=${AHEAD}"               >> "$GITHUB_OUTPUT"
+          echo "prod_sha=${PROD_SHA:0:8}"     >> "$GITHUB_OUTPUT"
+          echo "prod_date=${PROD_DATE}"       >> "$GITHUB_OUTPUT"
+          echo "prod_msg=${PROD_MSG}"         >> "$GITHUB_OUTPUT"
+          echo "latest_sha=${LATEST_SHA}"     >> "$GITHUB_OUTPUT"
+          echo "latest_msg=${LATEST_MSG}"     >> "$GITHUB_OUTPUT"
+          echo "latest_date=${LATEST_DATE}"   >> "$GITHUB_OUTPUT"
+          {
+            echo "bullets<<EOF"
+            printf '%s' "$BULLETS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "risk_summary<<EOF"
+            echo "$RISK_SUMMARY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and post Slack message
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          AHEAD: ${{ steps.compare.outputs.ahead }}
+          PROD_SHA: ${{ steps.compare.outputs.prod_sha }}
+          PROD_DATE: ${{ steps.compare.outputs.prod_date }}
+          PROD_MSG: ${{ steps.compare.outputs.prod_msg }}
+          LATEST_SHA: ${{ steps.compare.outputs.latest_sha }}
+          LATEST_MSG: ${{ steps.compare.outputs.latest_msg }}
+          LATEST_DATE: ${{ steps.compare.outputs.latest_date }}
+          BULLETS: ${{ steps.compare.outputs.bullets }}
+          RISK_SUMMARY: ${{ steps.compare.outputs.risk_summary }}
+        run: |
+
+          PROD_DATE_FMT=$(echo "$PROD_DATE"     | cut -c1-10)
+          LATEST_DATE_FMT=$(echo "$LATEST_DATE" | cut -c1-10)
+
+          PROD_TS=$(date -d "$PROD_DATE_FMT" +%s)
+          LATEST_TS=$(date -d "$LATEST_DATE_FMT" +%s)
+          DAYS=$(( (LATEST_TS - PROD_TS) / 86400 ))
+
+          if [ "$AHEAD" -eq 0 ]; then
+            HEADER=":white_check_mark: *Zeno production is up to date* — no unreleased commits on \`main\`."
+            COLOR="good"
+          elif [ "$AHEAD" -lt 10 ]; then
+            HEADER=":large_yellow_circle: *Zeno production lag report* — *${AHEAD} commits* unreleased (~${DAYS} days)"
+            COLOR="warning"
+          else
+            HEADER=":red_circle: *Zeno production lag report* — *${AHEAD} commits* unreleased (~${DAYS} days)"
+            COLOR="danger"
+          fi
+
+          COMPARE_URL="https://github.com/wri/project-zeno/compare/${PROD_SHA}...main"
+
+          LEGEND=":white_check_mark: 0 commits — up to date    :large_yellow_circle: 1–9 commits — mild lag    :red_circle: 10+ commits — significant lag"
+          LEGEND="${LEGEND}"$'\n'"*Commit risk score (1–5):* :white_circle: 1 trivial (<20 lines)  :large_yellow_circle: 2 small (<100)  :large_orange_circle: 3–4 medium/large (<500)  :red_circle: 5 critical (500+ lines or touches migrations/schema/auth)"
+          LEGEND="${LEGEND}"$'\n'"_Merge commits, version bumps, and lockfile syncs are excluded._"
+
+          PAYLOAD=$(jq -n \
+            --arg header       "$HEADER" \
+            --arg prod_sha     "$PROD_SHA" \
+            --arg prod_msg     "$PROD_MSG" \
+            --arg prod_date    "$PROD_DATE_FMT" \
+            --arg latest_sha   "$LATEST_SHA" \
+            --arg latest_msg   "$LATEST_MSG" \
+            --arg latest_date  "$LATEST_DATE_FMT" \
+            --arg bullets      "$BULLETS" \
+            --arg risk_summary "$RISK_SUMMARY" \
+            --arg legend       "$LEGEND" \
+            --arg compare_url  "$COMPARE_URL" \
+            --arg color        "$COLOR" \
+            '{
+              attachments: [{
+                color: $color,
+                blocks: [
+                  {
+                    type: "section",
+                    text: { type: "mrkdwn", text: $header }
+                  },
+                  {
+                    type: "section",
+                    fields: [
+                      { type: "mrkdwn", text: ("*Production commit*\n`" + $prod_sha + "` " + $prod_msg + "\n_" + $prod_date + "_") },
+                      { type: "mrkdwn", text: ("*Latest on main*\n`"    + $latest_sha + "` " + $latest_msg + "\n_" + $latest_date + "_") }
+                    ]
+                  },
+                  {
+                    type: "section",
+                    text: { type: "mrkdwn", text: ("*Deployment risk*\n" + $risk_summary) }
+                  },
+                  {
+                    type: "section",
+                    text: { type: "mrkdwn", text: ("*Unreleased commits (newest first)*\n" + $bullets) }
+                  },
+                  { type: "divider" },
+                  {
+                    type: "section",
+                    text: { type: "mrkdwn", text: $legend }
+                  },
+                  {
+                    type: "actions",
+                    elements: [{
+                      type: "button",
+                      text: { type: "plain_text", text: "View full diff on GitHub" },
+                      url: $compare_url
+                    }]
+                  }
+                ]
+              }]
+            }')
+
+          curl -s -o /dev/null -w "%{http_code}" \
+            -X POST -H 'Content-type: application/json' \
+            --data "$PAYLOAD" \
+            "$SLACK_WEBHOOK_URL" | grep -q "200" && echo "Slack message posted." || echo "::error::Slack webhook returned non-200"
