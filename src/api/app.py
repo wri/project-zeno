@@ -5,6 +5,7 @@ from typing import Optional
 import structlog
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from src.agent.graph import close_checkpointer_pool, get_checkpointer_pool
 from src.agent.utils.sgrep import data_status
@@ -31,6 +32,20 @@ from src.shared.logging_config import get_logger
 from src.shared.version import get_version
 
 logger = get_logger(__name__)
+
+
+def _add_cors_headers_for_error(request: Request, response: Response) -> None:
+    origin = request.headers.get("origin")
+    if not origin:
+        return
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    vary = response.headers.get("Vary")
+    if vary:
+        if "Origin" not in vary:
+            response.headers["Vary"] = f"{vary}, Origin"
+    else:
+        response.headers["Vary"] = "Origin"
 
 
 @asynccontextmanager
@@ -94,6 +109,7 @@ async def mosaic_cache_headers(request: Request, call_next) -> Response:
 async def logging_middleware(request: Request, call_next) -> Response:
     """Middleware to log requests and bind request ID to context."""
     req_id = uuid.uuid4().hex
+    request.state.request_id = req_id
 
     structlog.contextvars.clear_contextvars()
     structlog.contextvars.bind_contextvars(request_id=req_id)
@@ -119,7 +135,14 @@ async def logging_middleware(request: Request, call_next) -> Response:
             request_id=req_id,
         )
         response_code = 500
-        raise e
+        response = JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "detail": "Internal Server Error",
+                "request_id": req_id,
+            },
+        )
+        _add_cors_headers_for_error(request, response)
     finally:
         if not response:
             response = Response(
