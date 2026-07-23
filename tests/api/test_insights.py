@@ -12,6 +12,7 @@ from src.api.data_models import (
     StatisticsOrm,
     UserOrm,
 )
+from src.api.routers import insights as insights_router
 from tests.conftest import async_session_maker
 
 
@@ -404,6 +405,34 @@ async def test_get_insight_with_null_thread_id(client, auth_override):
     )
     assert response.status_code == 200
     assert response.json()["thread_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_insight_internal_error_keeps_cors_headers(
+    client, auth_override, monkeypatch
+):
+    user = await _create_user("cors-error-owner")
+    auth_override(user.id)
+    insight = await _create_insight(user_id=user.id)
+
+    def _raise_runtime_error(_row):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        insights_router, "_row_to_response", _raise_runtime_error
+    )
+
+    response = await client.get(
+        f"/api/insights/{insight.id}",
+        headers={
+            "Authorization": "Bearer t",
+            "Origin": "https://example.org",
+        },
+    )
+    assert response.status_code == 500
+    assert response.headers.get("access-control-allow-origin") is not None
+    assert response.json()["detail"] == "Internal Server Error"
+    assert isinstance(response.json().get("request_id"), str)
 
 
 @pytest.mark.asyncio
