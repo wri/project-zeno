@@ -252,6 +252,7 @@ async def test_pick_aoi_returns_no_match_when_db_search_empty(monkeypatch):
             "args": {
                 "question": "trees around Nonexistent Place",
                 "area_of_interest": None,
+                "state": {},
             },
             "id": "tc-3",
             "type": "tool_call",
@@ -316,6 +317,7 @@ async def test_pick_aoi_reports_unmatched_places_alongside_matches(
                     "tree cover loss in Para, Brazil and Nonexistent Place"
                 ),
                 "area_of_interest": None,
+                "state": {},
             },
             "id": "tc-4",
             "type": "tool_call",

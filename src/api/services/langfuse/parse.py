@@ -26,7 +26,7 @@ from typing import Any, Optional
 
 # Bump on any change to derivation logic; to apply it to existing rows, re-run
 # ingestion for the affected window (`ingest-langfuse-traces --backfill --since`).
-PARSER_VERSION = 1
+PARSER_VERSION = 2
 
 # Top-level keys we expect on ``trace.output`` (the AgentState snapshot).
 # Used for drift detection: unknown keys => additive drift (benign, logged);
@@ -35,6 +35,7 @@ EXPECTED_STATE_KEYS = frozenset(
     {
         "messages",
         "user_persona",
+        "language",
         "view_context",
         "aoi_selection",
         "dataset",
