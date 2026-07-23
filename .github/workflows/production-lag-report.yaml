@@ -64,6 +64,8 @@ jobs:
           # Score each commit via the GitHub API
           TOTAL_RISK=0
           BULLETS=""
+          SHOWN=0
+          MAX_DISPLAY=30
 
           while IFS= read -r COMMIT; do
             SHA=$(echo "$COMMIT" | jq -r '.sha')
@@ -89,15 +91,24 @@ jobs:
 
             TOTAL_RISK=$((TOTAL_RISK + SCORE))
 
-            case $SCORE in
-              1) BADGE=":white_circle:[1]" ;;
-              2) BADGE=":large_yellow_circle:[2]" ;;
-              3) BADGE=":large_orange_circle:[3]" ;;
-              4) BADGE=":large_orange_circle:[4]" ;;
-              5) BADGE=":red_circle:[5]" ;;
-            esac
-            BULLETS="${BULLETS}• ${BADGE} \`${SHA:0:8}\` ${MSG}"$'\n'
+            if [ "$SHOWN" -lt "$MAX_DISPLAY" ]; then
+              case $SCORE in
+                1) BADGE=":white_circle:[1]" ;;
+                2) BADGE=":large_yellow_circle:[2]" ;;
+                3) BADGE=":large_orange_circle:[3]" ;;
+                4) BADGE=":large_orange_circle:[4]" ;;
+                5) BADGE=":red_circle:[5]" ;;
+              esac
+              BULLETS="${BULLETS}• ${BADGE} \`${SHA:0:8}\` ${MSG}"$'\n'
+              SHOWN=$((SHOWN + 1))
+            fi
           done < <(echo "$FILTERED" | jq -c '.[]')
+
+          # Append overflow notice (risk score still reflects ALL commits)
+          if [ "$AHEAD" -gt "$MAX_DISPLAY" ]; then
+            OVERFLOW=$(( AHEAD - MAX_DISPLAY ))
+            BULLETS="${BULLETS}"$'\n'":radioactive_sign: *…and ${OVERFLOW} more commits not shown.* Risk score above reflects all ${AHEAD} commits."$'\n'
+          fi
 
           # Aggregate risk rating (integer math, no bc needed)
           if [ "$AHEAD" -gt 0 ]; then
