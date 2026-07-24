@@ -11,6 +11,8 @@ from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 from sqlalchemy import text
 
+from src.agent.i18n import t
+from src.agent.language import DEFAULT_LANGUAGE
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
     GADM_STANDARD_ID_RE,
@@ -38,7 +40,9 @@ def is_global_request(places: list[str]) -> bool:
 
 
 async def handle_global_request(
-    subregion: str | None, tool_call_id: str | None
+    subregion: str | None,
+    tool_call_id: str | None,
+    language: str = DEFAULT_LANGUAGE,
 ) -> Command:
     """Entry point called by pick_aoi when a global place is detected.
 
@@ -50,8 +54,10 @@ async def handle_global_request(
             update={
                 "messages": [
                     ToolMessage(
-                        "Global queries only support subregion='country'. "
-                        "Please set subregion='country' to compare across all countries.",
+                        await t(
+                            "pick_aoi.global_subregion_country_only",
+                            language,
+                        ),
                         tool_call_id=tool_call_id,
                         status="success",
                         response_metadata={"msg_type": "human_feedback"},

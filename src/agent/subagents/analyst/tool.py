@@ -11,6 +11,8 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.i18n import t
+from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.subagents.analyst.charts import (
     Insight,
     InsightChart,
@@ -183,6 +185,7 @@ def build_analysis_prompt(
     dataset_cautions: str = "",
     code_instructions: Optional[str] = None,
     context_layer: Optional[str] = None,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """
     Build the analysis prompt for the code executor.
@@ -194,6 +197,8 @@ def build_analysis_prompt(
         dataset_cautions: Dataset-specific cautions
         code_instructions: Dataset-specific chart type and data shaping rules (tiered PoC)
         context_layer: Active context layer name, if any (e.g. "driver")
+        language: Conversation language for human-readable chart text (titles,
+            axis/series labels) — column/field names stay English identifiers
 
     Returns:
         Formatted prompt string
@@ -236,6 +241,11 @@ You have access to the following datasets (read-only):
 For your text output , don't use first person, but imperative or neutral language.
 
 For example: "I will begin by loading and examining" -> "Load and examine"
+
+Write any human-readable text in the chart spec (chart title, axis labels,
+series/legend labels) in {language_name(language)} — column/field names in
+the saved data (e.g. 'date', 'value', 'category') stay English identifiers
+regardless of language.
 ---
 {guidelines_section}
 {dataset_rules_section}
@@ -275,12 +285,29 @@ def _encode_parts(parts: list) -> list[dict]:
     ]
 
 
-def _build_tool_message(insight: Insight, dataset_cautions: str) -> str:
+async def _build_tool_message(
+    insight: Insight, dataset_cautions: str, language: str = DEFAULT_LANGUAGE
+) -> str:
     """Human-feedback message summarizing the generated charts + insight."""
-    tool_message = f"Generated {len(insight.charts)} chart(s)\n"
-    tool_message += f"Key Finding: {insight.primary_insight}\n\n"
+    tool_message = (
+        await t(
+            "analyst.generated_charts",
+            language,
+            count=len(insight.charts),
+        )
+        + "\n"
+    )
+    tool_message += (
+        await t("analyst.key_finding", language, text=insight.primary_insight)
+        + "\n\n"
+    )
     for idx, chart in enumerate(insight.charts, 1):
-        tool_message += f"Chart {idx}: {chart.title}\n"
+        tool_message += (
+            await t(
+                "analyst.chart_label", language, idx=idx, title=chart.title
+            )
+            + "\n"
+        )
 
     if insight.charts:
         chart_data_df = pd.DataFrame(insight.charts[0].chart_data)
@@ -293,12 +320,14 @@ def _build_tool_message(insight: Insight, dataset_cautions: str) -> str:
         )
         csv_str = formatted_df.to_csv(index=False)
         if len(csv_str) < 4000:
-            tool_message += f"\nChart data CSV:\n{csv_str}"
+            header = await t("analyst.chart_data_csv_header", language)
+            tool_message += f"\n{header}\n{csv_str}"
 
     if dataset_cautions:
-        tool_message += f"\n\nDataset cautions:\n{dataset_cautions}"
+        header = await t("analyst.dataset_cautions_header", language)
+        tool_message += f"\n\n{header}\n{dataset_cautions}"
 
-    tool_message += "\n\nFollow-up suggestions:"
+    tool_message += "\n\n" + await t("analyst.follow_up_header", language)
     for i, suggestion in enumerate(insight.follow_up_suggestions, 1):
         tool_message += f"\n{i}. {suggestion}"
     return tool_message
@@ -318,6 +347,7 @@ class Analyst:
         query: str,
         statistics: list[dict],
         dataset: dict,
+        language: str = DEFAULT_LANGUAGE,
     ) -> tuple[Optional[list[InsightChart]], list[dict], str, Optional[str]]:
         """Build charts via the LLM code executor.
 
@@ -348,6 +378,7 @@ class Analyst:
             dataset_cautions=dataset_cautions,
             code_instructions=code_instructions,
             context_layer=dataset.get("context_layer"),
+            language=language,
         )
         logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 
@@ -411,6 +442,7 @@ class Analyst:
         statistics: list[dict],
         dataset: Optional[dict] = None,
         tool_call_id: Optional[str] = None,
+        language: str = DEFAULT_LANGUAGE,
     ) -> Command:
         """Analyze pulled data and produce one chart insight."""
         logger.info("ANALYST: generating insight")
@@ -430,6 +462,7 @@ class Analyst:
             query,
             statistics,
             dataset,
+            language,
         )
         if error or not charts:
             return _error_command(
@@ -438,7 +471,11 @@ class Analyst:
 
         # STAGE 2: generate insight text from the resolved charts.
         text = await InsightTextGenerator().generate(
-            charts, dataset, query, executor_context=executor_context
+            charts,
+            dataset,
+            query,
+            executor_context=executor_context,
+            language=language,
         )
         insight = Insight(
             charts=charts,
@@ -465,7 +502,9 @@ class Analyst:
             "charts_data": [c.to_frontend_dict() for c in insight.charts],
             "messages": [
                 ToolMessage(
-                    content=_build_tool_message(insight, dataset_cautions),
+                    content=await _build_tool_message(
+                        insight, dataset_cautions, language
+                    ),
                     tool_call_id=tool_call_id,
                     status="success",
                     response_metadata={"msg_type": "human_feedback"},
@@ -491,6 +530,7 @@ async def generate_insights(
         statistics=state["statistics"],
         dataset=state.get("dataset") or {},
         tool_call_id=tool_call_id,
+        language=state.get("language") or DEFAULT_LANGUAGE,
     )
 
 

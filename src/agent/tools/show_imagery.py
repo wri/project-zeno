@@ -8,6 +8,8 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.i18n import t
+from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.models import ImageryState
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.api.services.mosaic import (
@@ -57,10 +59,11 @@ async def show_imagery(
     areas only.
     """
     logger.info("show_imagery tool called")
+    language = (state or {}).get("language") or DEFAULT_LANGUAGE
     aois = ((state or {}).get("aoi_selection") or {}).get("aois") or []
     if not aois:
         return _feedback(
-            "No AOI selected. Run pick_aoi before requesting satellite imagery.",
+            await t("show_imagery.no_aoi", language),
             tool_call_id,
         )
 
@@ -70,7 +73,11 @@ async def show_imagery(
             parsed_date = date.fromisoformat(target_date)
         except ValueError:
             return _feedback(
-                f"Invalid target_date '{target_date}'. Use YYYY-MM-DD.",
+                await t(
+                    "show_imagery.invalid_date",
+                    language,
+                    target_date=target_date,
+                ),
                 tool_call_id,
             )
 
@@ -100,22 +107,27 @@ async def show_imagery(
         result: MosaicResult = await create_sentinel2_mosaic(recipe)
     except MosaicNotFoundError:
         return _feedback(
-            "Could not load the geometry of the selected AOI.", tool_call_id
+            await t("show_imagery.geometry_error", language), tool_call_id
         )
     except AoiTooLargeError as e:
-        return _feedback(str(e), tool_call_id)
+        return _feedback(
+            await t("show_imagery.aoi_too_large", language, error=str(e)),
+            tool_call_id,
+        )
     except NoScenesFoundError:
         return _feedback(
-            f"No Sentinel-2 scenes with under {recipe.max_cloud_cover}% "
-            f"cloud cover found within ±{recipe.window_days} days of "
-            f"{recipe.target_date}. Suggest to the user: widen the search "
-            "window (window_days), allow cloudier scenes (max_cloud_cover) "
-            "or pick a different date — then retry with their choice.",
+            await t(
+                "show_imagery.no_scenes_found",
+                language,
+                cloud_cover=recipe.max_cloud_cover,
+                window_days=recipe.window_days,
+                target_date=recipe.target_date,
+            ),
             tool_call_id,
         )
     except StacSearchError:
         return _feedback(
-            "The Sentinel-2 catalog is currently unavailable. Try again later.",
+            await t("show_imagery.stac_unavailable", language),
             tool_call_id,
         )
     except Exception as e:
@@ -129,8 +141,7 @@ async def show_imagery(
             target_date=recipe.target_date.isoformat(),
         )
         return _feedback(
-            "Something went wrong while building the satellite imagery layer. "
-            "Please try again later.",
+            await t("show_imagery.unexpected_error", language),
             tool_call_id,
         )
 
@@ -151,9 +162,12 @@ async def show_imagery(
 
     # item_count / dates are absent when the mosaic was served from cache.
     if result.item_count is not None:
-        summary = (
-            f" from {result.item_count} scenes acquired between "
-            f"{result.date_start} and {result.date_end}"
+        summary = await t(
+            "show_imagery.success_summary",
+            language,
+            count=result.item_count,
+            start=result.date_start,
+            end=result.date_end,
         )
     else:
         summary = ""
@@ -163,8 +177,12 @@ async def show_imagery(
             "imagery": imagery_state.model_dump(),
             "messages": [
                 ToolMessage(
-                    f"Sentinel-2 imagery layer created for "
-                    f"{', '.join(aoi_names)}{summary} and shown on the map.",
+                    await t(
+                        "show_imagery.success",
+                        language,
+                        aois=", ".join(aoi_names),
+                        summary=summary,
+                    ),
                     tool_call_id=tool_call_id,
                 )
             ],

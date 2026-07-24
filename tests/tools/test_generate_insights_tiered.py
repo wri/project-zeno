@@ -527,7 +527,13 @@ async def test_generate_insights_persists_statistics_provenance(monkeypatch):
         follow_up_suggestions = ["Compare another area."]
 
     async def fake_generate(
-        self, charts, dataset, query="", executor_context=None, config=None
+        self,
+        charts,
+        dataset,
+        query="",
+        executor_context=None,
+        language="en",
+        config=None,
     ):
         return _Text()
 

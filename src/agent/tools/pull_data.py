@@ -11,6 +11,8 @@ from langgraph.types import Command
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.agent.datasets.handlers.base import DataPullResult
+from src.agent.i18n import t
+from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.api.data_models import StatisticsOrm
 from src.shared.database import get_session_from_pool
@@ -85,6 +87,7 @@ async def pull_data(
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Pull data for the selected AOIs and dataset between start_date and end_date (YYYY-MM-DD)."""
+    language = state.get("language") or DEFAULT_LANGUAGE
     dataset = state["dataset"]
     aoi_names = [a["name"] for a in state["aoi_selection"]["aois"]]
     logger.info(
@@ -104,8 +107,15 @@ async def pull_data(
             update={
                 "messages": [
                     ToolMessage(
-                        f"The requested date range ({start_date} to {end_date}) is outside the available range for {dataset['dataset_name']} "
-                        f"(available: {effective_start} to {effective_end}). Please choose dates within this range.",
+                        await t(
+                            "pull_data.date_out_of_range",
+                            language,
+                            start_date=start_date,
+                            end_date=end_date,
+                            dataset_name=dataset["dataset_name"],
+                            available_start=effective_start,
+                            available_end=effective_end,
+                        ),
                         tool_call_id=tool_call_id,
                         status="success",
                         response_metadata={"msg_type": "human_feedback"},
@@ -133,7 +143,11 @@ async def pull_data(
             update={
                 "messages": [
                     ToolMessage(
-                        f"No data found for the selected AOIs and dataset {dataset['dataset_name']}.",
+                        await t(
+                            "pull_data.no_data",
+                            language,
+                            dataset_name=dataset["dataset_name"],
+                        ),
                         tool_call_id=tool_call_id,
                         status="success",
                         response_metadata={"msg_type": "human_feedback"},
