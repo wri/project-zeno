@@ -52,6 +52,10 @@ def _fake_orm_row(**kwargs):
                 group_field="",
                 series_fields=[],
                 chart_data=[{"year": 2020, "loss": 5, "gain": 2}],
+                dataset_id=4,
+                color_map={},
+                series_color="#DC6C9A",
+                divergent_colors=None,
             )
         ],
     )
@@ -84,6 +88,47 @@ def test_apply_revision_restyles_and_keeps_data():
     assert chart.chart_data == [{"year": 2020, "loss": 5, "gain": 2}]
     # stamp_insight copies the primary onto each chart.
     assert chart.insight == "New summary"
+
+
+def test_apply_revision_preserves_dataset_id_and_recolors():
+    original = InsightChart(
+        position=0,
+        title="Old title",
+        chart_type="bar",
+        x_axis="year",
+        y_axis="loss",
+        color_field="",
+        dataset_id=8,
+        chart_data=[
+            {
+                "year": 2020,
+                "loss": 5,
+                "driver": "Logging",
+                "driver__slug": "logging",
+            }
+        ],
+    )
+    revised = RevisedInsight(
+        primary_insight="x",
+        follow_up_suggestions=["f"],
+        charts=[
+            RevisedChart(
+                position=0,
+                title="By driver",
+                chart_type="bar",
+                x_axis="year",
+                y_axis="loss",
+                color_field="driver",
+            )
+        ],
+    )
+    out = _apply_revision([original], revised)
+    chart = out.charts[0]
+    # dataset_id carried over from the original chart (not part of RevisedChart).
+    assert chart.dataset_id == 8
+    # color_field changed to a categorical column -> colors re-resolved against it.
+    assert chart.color_map == {"logging": "#52A44E"}
+    assert chart.series_color == "#DC6C9A"
 
 
 def test_apply_revision_drops_unknown_columns():

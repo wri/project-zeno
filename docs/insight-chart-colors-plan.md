@@ -1,8 +1,10 @@
 # Insight chart colors — implementation plan
 
-*Status: agreed design, phase 1 in progress. Written 2026-07-24. This document
-is self-contained: a fresh session can pick up any phase from here without
-prior conversation context.*
+*Status: agreed design. Written 2026-07-24. Phase 1 and phase 2 are both
+implemented (same day) on top of each other in the existing phase-1
+branches/PRs (backend PR #771, frontend PR #615) — phase 3 cleanup is not yet
+started. This document is self-contained: a fresh session can pick up any
+phase from here without prior conversation context.*
 
 ## Problem
 
@@ -242,13 +244,37 @@ this same registry.
 
 ## Build order
 
-1. **Phase 1 (this pass)**: registry data (A) + loader + new endpoint (B) +
+1. **Phase 1 (done)**: registry data (A) + loader + new endpoint (B) +
    frontend legend fetch (part of F). Ships independently, fixes the GHG
    drift bug, zero risk to the agent/LLM pipeline.
-2. **Phase 2**: slug threading (C) + resolver (D) + schema/DB (E) + chart-side
-   frontend cutover (rest of F) — the harder LLM-prompt/schema work.
-3. **Phase 3 (cleanup)**: delete dead frontend color code once phase 2 is
-   verified in production for a while.
+2. **Phase 2 (done)**: slug threading (C) + resolver (D) + schema/DB (E) +
+   chart-side frontend cutover (rest of F).
+   - C/D: `EXECUTOR_WORKFLOW` (`src/agent/subagents/analyst/prompts.py`) now
+     instructs the code executor to emit a `{column}__slug` sibling column
+     next to any categorical color column, using canonical slugs passed in
+     via a new `category_slug_hints` section of the analysis prompt
+     (`Analyst._resolve_charts` in `tool.py`, built from
+     `get_dataset_palette(dataset_id)`). A new deterministic resolver,
+     `resolve_chart_colors()` in
+     `src/agent/subagents/analyst/charts/color_resolver.py`, attaches
+     `color_map` (slug -> hex, with a hashed fallback for unrecognized
+     slugs), `series_color` and `divergent_colors` onto each `InsightChart`
+     after the executor runs. `update_insight_display` re-runs this resolver
+     when a revision changes which column drives color, using the
+     `dataset_id` persisted on the original chart.
+   - E: `InsightChart` (model + ORM + `InsightChartResponse`) gained
+     `dataset_id`, `color_map`, `series_color`, `divergent_colors` — see
+     migration `d4f7b1e9a3c2_add_chart_color_registry_fields`.
+   - F (chart side): `formatChartData` (project-zeno-next
+     `app/utils/formatCharts.tsx`) now takes an optional `colorOverrides`
+     param (`colorMap`/`seriesColor`/`divergentColors`) read off each
+     `InsightWidget`/`ChartDTO`, preferred over the local
+     `chartColorMappings.ts` config. Pie-chart row coloring resolves via the
+     row's `{field}__slug` value when present, falling back to the raw field
+     value for chart data with no slug column (e.g. pre-migration insights).
+3. **Phase 3 (cleanup, not started)**: delete dead frontend color code
+   (`chartColorMappings.ts`) once phase 2 is verified in production for a
+   while.
 
 ## Out of scope (deliberately)
 

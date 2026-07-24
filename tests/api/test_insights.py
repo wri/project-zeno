@@ -667,4 +667,8 @@ async def test_insight_response_shape(client, auth_override):
         "group_field",
         "series_fields",
         "chart_data",
+        "dataset_id",
+        "color_map",
+        "series_color",
+        "divergent_colors",
     }

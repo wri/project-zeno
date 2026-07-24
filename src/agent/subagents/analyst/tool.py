@@ -11,11 +11,13 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.datasets.palette import get_dataset_palette
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.subagents.analyst.charts import (
     Insight,
     InsightChart,
+    resolve_chart_colors,
 )
 from src.agent.subagents.analyst.code_executors import GeminiCodeExecutor
 from src.agent.subagents.analyst.code_executors.base import (
@@ -186,6 +188,7 @@ def build_analysis_prompt(
     code_instructions: Optional[str] = None,
     context_layer: Optional[str] = None,
     language: str = DEFAULT_LANGUAGE,
+    category_slug_hints: Optional[str] = None,
 ) -> str:
     """
     Build the analysis prompt for the code executor.
@@ -199,6 +202,9 @@ def build_analysis_prompt(
         context_layer: Active context layer name, if any (e.g. "driver")
         language: Conversation language for human-readable chart text (titles,
             axis/series labels) — column/field names stay English identifiers
+        category_slug_hints: "label_en -> slug" lines from the dataset's color
+            registry entry, if it has one — see EXECUTOR_WORKFLOW's stable
+            category slug column instructions.
 
     Returns:
         Formatted prompt string
@@ -231,6 +237,14 @@ def build_analysis_prompt(
 ---
 """
 
+    slug_hints_section = ""
+    if category_slug_hints:
+        slug_hints_section = f"""
+### STABLE CATEGORY SLUGS (for the `__slug` sibling column — see workflow step 3c):
+{category_slug_hints}
+---
+"""
+
     return f"""### User Query:
 {query}
 
@@ -249,6 +263,7 @@ regardless of language.
 ---
 {guidelines_section}
 {dataset_rules_section}
+{slug_hints_section}
 {cautions_section}
 
 {EXECUTOR_WORKFLOW}
@@ -370,6 +385,19 @@ class Analyst:
             "cautions", "No specific dataset cautions provided."
         )
 
+        dataset_id = dataset.get("dataset_id")
+        palette = (
+            get_dataset_palette(dataset_id) if dataset_id is not None else None
+        )
+        category_slug_hints = (
+            "\n".join(
+                f'- "{category["label_en"]}" -> {category["slug"]}'
+                for category in palette["categories"]
+            )
+            if palette and palette["categories"]
+            else None
+        )
+
         executor = GeminiCodeExecutor()
         analysis_prompt = build_analysis_prompt(
             query,
@@ -379,6 +407,7 @@ class Analyst:
             code_instructions=code_instructions,
             context_layer=dataset.get("context_layer"),
             language=language,
+            category_slug_hints=category_slug_hints,
         )
         logger.debug(f"Analysis prompt:\n{analysis_prompt}")
 
@@ -418,7 +447,10 @@ class Analyst:
                 )
 
         charts = [
-            InsightChart.from_chart_insight(chart, result.chart_data, idx)
+            resolve_chart_colors(
+                InsightChart.from_chart_insight(chart, result.chart_data, idx),
+                dataset_id,
+            )
             for idx, chart in enumerate(result.insight.charts)
         ]
         # Collect execution-output text (printed totals, statistics) so the

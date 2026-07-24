@@ -45,6 +45,10 @@ def _row_to_response(row: InsightOrm) -> InsightResponse:
                 group_field=chart.group_field,
                 series_fields=chart.series_fields or [],
                 chart_data=chart.chart_data or [],
+                dataset_id=chart.dataset_id,
+                color_map=chart.color_map or {},
+                series_color=chart.series_color,
+                divergent_colors=chart.divergent_colors,
             )
             for chart in (row.charts or [])
         ],

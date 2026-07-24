@@ -2,6 +2,7 @@
 
 import json
 import math
+from types import SimpleNamespace
 
 import pytest
 
@@ -24,6 +25,9 @@ FRONTEND_KEYS = {
     "stackField",
     "groupField",
     "seriesFields",
+    "colorMap",
+    "seriesColor",
+    "divergentColors",
 }
 
 
@@ -60,6 +64,10 @@ def test_to_orm_kwargs_is_snake_case_and_complete():
         "group_field",
         "series_fields",
         "chart_data",
+        "dataset_id",
+        "color_map",
+        "series_color",
+        "divergent_colors",
     }
     assert kwargs["chart_type"] == "bar"
     assert kwargs["y_axis"] == "area_ha"
@@ -117,6 +125,30 @@ def test_axis_validator_rejects_missing_axis():
 def test_axis_validator_allows_pie_without_axis():
     chart = InsightChart(title="ok", chart_type="pie", x_axis="name")
     assert chart.chart_type == "pie"
+
+
+def test_from_orm_row_restores_color_fields():
+    row = SimpleNamespace(
+        position=0,
+        title="Drivers",
+        chart_type="pie",
+        x_axis="driver",
+        y_axis="",
+        color_field="",
+        stack_field="",
+        group_field="",
+        series_fields=[],
+        chart_data=[{"driver": "Logging", "value": 5}],
+        dataset_id=8,
+        color_map={"logging": "#52A44E"},
+        series_color="#DC6C9A",
+        divergent_colors=None,
+    )
+    chart = InsightChart.from_orm_row(row)
+    assert chart.dataset_id == 8
+    assert chart.color_map == {"logging": "#52A44E"}
+    assert chart.series_color == "#DC6C9A"
+    assert chart.divergent_colors is None
 
 
 def test_stamp_insight_copies_text_to_each_chart():
