@@ -13,7 +13,7 @@ text stage.
 """
 
 import math
-from typing import List
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -58,6 +58,15 @@ class InsightChart(BaseModel):
     series_fields: List[str] = Field(default_factory=list)
     chart_data: List[dict] = Field(default_factory=list)
     insight: str = ""
+
+    # Color registry resolution (phase 2, see docs/insight-chart-colors-plan.md).
+    # `dataset_id` identifies which catalog entry the colors were resolved
+    # from; it is not itself sent to the frontend, only persisted so a later
+    # display revision can re-resolve colors against the same dataset.
+    dataset_id: Optional[int] = None
+    color_map: Dict[str, str] = Field(default_factory=dict)
+    series_color: Optional[str] = None
+    divergent_colors: Optional[Dict[str, str]] = None
 
     @field_validator("chart_data")
     @classmethod
@@ -111,6 +120,9 @@ class InsightChart(BaseModel):
             "stackField": self.stack_field,
             "groupField": self.group_field,
             "seriesFields": self.series_fields,
+            "colorMap": self.color_map,
+            "seriesColor": self.series_color,
+            "divergentColors": self.divergent_colors,
         }
 
     @classmethod
@@ -152,6 +164,10 @@ class InsightChart(BaseModel):
             group_field=row.group_field,
             series_fields=row.series_fields or [],
             chart_data=row.chart_data or [],
+            dataset_id=row.dataset_id,
+            color_map=row.color_map or {},
+            series_color=row.series_color,
+            divergent_colors=row.divergent_colors,
         )
 
 
