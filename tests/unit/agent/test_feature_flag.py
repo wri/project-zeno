@@ -275,6 +275,7 @@ def test_experimental_profile_derives_exactly_the_experimental_tools():
             "add_map_widget",
             "add_text_widget",
             "edit_text_widget",
+            "send_nudge",
         }
     )
 

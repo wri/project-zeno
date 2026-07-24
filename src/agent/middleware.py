@@ -11,7 +11,7 @@ This restores harness idea #2 ("current state auto-loads every turn").
 from datetime import date
 
 from langchain.agents.middleware.types import AgentMiddleware, ModelRequest
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, ToolMessage
 
 from src.agent.view_pages import get_page, on_screen_counts
 
@@ -131,4 +131,40 @@ class SessionContextMiddleware(AgentMiddleware):
                     "message_count": len(request.messages),
                 }
             )
+        return await handler(request)
+
+
+class StopOnHumanFeedbackMiddleware(AgentMiddleware):
+    """Hard-stop the ReAct loop after a tool signals it's waiting on the
+    user (``response_metadata={"msg_type": "human_feedback"}`` — pick_aoi's
+    and pick_dataset's clarifying questions, send_nudge's clickable
+    options, etc.).
+
+    Nothing in the standard create_agent loop enforces this: the model ->
+    tools -> model edge only checks whether the last AI message made tool
+    calls, never response_metadata, so the model is otherwise free to
+    ignore the "stop and wait" instructions scattered across tool/skill
+    prompts and chain another tool call (or answer on the user's behalf)
+    in the same turn. This makes it structurally impossible instead of
+    merely discouraged: whenever the most recent run of ToolMessages
+    (since the last non-tool message) includes a human_feedback tag, the
+    upcoming model call is stripped of its tools, so the model can only
+    reply in plain text — which the existing "zero tool calls" edge then
+    ends the turn on.
+    """
+
+    async def awrap_model_call(self, request: ModelRequest, handler):
+        recent_tool_messages = []
+        for message in reversed(request.messages):
+            if not isinstance(message, ToolMessage):
+                break
+            recent_tool_messages.append(message)
+
+        waiting_on_user = any(
+            (message.response_metadata or {}).get("msg_type")
+            == "human_feedback"
+            for message in recent_tool_messages
+        )
+        if waiting_on_user:
+            request = request.override(tools=[])
         return await handler(request)
