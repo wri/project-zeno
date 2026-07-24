@@ -158,3 +158,31 @@ citation: 'Annual 30-m maps of Global Land Cover and Land Use 2015-2024 based on
   Data, 11(1), 1303. [doi:10.1038/s41597-024-04139-6](https://doi.org/10.1038/s41597-024-04139-6)
 
   '
+categories:
+- slug: tree_cover
+  label_en: Tree cover
+  color: "#246E24"
+- slug: short_vegetation
+  label_en: Short vegetation
+  color: "#B9B91E"
+- slug: wetland_short_vegetation
+  label_en: Wetland – short vegetation
+  color: "#74D6B4"
+- slug: bare_and_sparse_vegetation
+  label_en: Bare and sparse vegetation
+  color: "#FEFECC"
+- slug: water
+  label_en: Water
+  color: "#6BAED6"
+- slug: snow_ice
+  label_en: Snow/ice
+  color: "#ACD1E8"
+- slug: cropland
+  label_en: Cropland
+  color: "#fff183"
+- slug: cultivated_grasslands
+  label_en: Cultivated grasslands
+  color: "#FFCD73"
+- slug: built_up
+  label_en: Built-up
+  color: "#e8765d"

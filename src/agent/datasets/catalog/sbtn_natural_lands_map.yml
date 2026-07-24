@@ -104,3 +104,68 @@ citation: 'Mazur, E., M. Sims, E. Goldman, M. Schneider, M.D. Pirri, C.R. Beatty
   Targets Network. [SBTN Natural Lands Map Technical Documentation](https://sciencebasedtargetsnetwork.org/wp-content/uploads/2025/02/Technical-Guidance-2025-Step3-Land-v1_1-Natural-Lands-Map.pdf)
 
   '
+categories:
+- slug: natural_forests
+  label_en: Natural forests
+  color: "#246E24"
+- slug: natural_peat_forests
+  label_en: Natural peat forests
+  color: "#093D09"
+- slug: natural_peat_short_vegetation
+  label_en: Natural peat short vegetation
+  color: "#99991A"
+- slug: mangroves
+  label_en: Mangroves
+  color: "#06A285"
+- slug: wet_natural_forests
+  label_en: Wet natural forests
+  color: "#589558"
+- slug: wet_natural_short_vegetation
+  label_en: Wet natural short vegetation
+  color: "#DBDB7B"
+- slug: natural_short_vegetation
+  label_en: Natural short vegetation
+  color: "#B9B91E"
+- slug: natural_water
+  label_en: Natural water
+  color: "#6BAED6"
+- slug: bare
+  label_en: Bare
+  color: "#FEFECC"
+- slug: snow
+  label_en: Snow
+  color: "#ACD1E8"
+- slug: crop
+  label_en: Crop
+  color: "#D3D3D3"
+- slug: built
+  label_en: Built
+  color: "#D3D3D3"
+- slug: non_natural_tree_cover
+  label_en: Non-natural tree cover
+  color: "#D3D3D3"
+- slug: non_natural_short_vegetation
+  label_en: Non-natural short vegetation
+  color: "#D3D3D3"
+- slug: wet_non_natural_tree_cover
+  label_en: Wet non-natural tree cover
+  color: "#D3D3D3"
+- slug: non_natural_peat_tree_cover
+  label_en: Non-natural peat tree cover
+  color: "#D3D3D3"
+- slug: wet_non_natural_short_vegetation
+  label_en: Wet non-natural short vegetation
+  color: "#D3D3D3"
+- slug: non_natural_peat_short_vegetation
+  label_en: Non-natural peat short vegetation
+  color: "#D3D3D3"
+- slug: non_natural_water
+  label_en: Non-natural water
+  color: "#D3D3D3"
+- slug: non_natural_bare
+  label_en: Non-natural bare
+  color: "#D3D3D3"
+- slug: other
+  label_en: Other
+  color: "#D3D3D3"
+legend_categories: false

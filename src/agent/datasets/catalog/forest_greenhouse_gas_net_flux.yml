@@ -110,3 +110,6 @@ providers: 'Harris, N.L., D.A. Gibbs, A. Baccini, R.A. Birdsey, S. de Bruin, M. 
 citation: 'Harris et al. (2021). Global maps of 21st century forest carbon fluxes. Accessed on <date> from Global Forest Watch.
 
   '
+divergent_colors:
+  positive: "#9a65c0"
+  negative: "#137375"
