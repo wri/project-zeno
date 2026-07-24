@@ -147,3 +147,28 @@ async def test_show_imagery_relays_aoi_too_large():
     assert "too large" in message.content
     assert message.response_metadata["msg_type"] == "human_feedback"
     assert "imagery" not in command.update
+
+
+@pytest.mark.asyncio
+async def test_show_imagery_carries_cloud_cover():
+    """Cloud cover stats from MosaicResult are threaded into ImageryState."""
+    result = MosaicResult(
+        mosaic_id="abc123",
+        item_count=4,
+        date_start=date(2025, 5, 20),
+        date_end=date(2025, 6, 10),
+        mean_cloud_cover=7.35,
+        min_cloud_cover=2.1,
+        max_cloud_cover=14.8,
+    )
+
+    with _patch_create(return_value=result):
+        command = await show_imagery.coroutine(
+            state=AOI_STATE, target_date="2025-06-01", tool_call_id="t1"
+        )
+
+    imagery = command.update["imagery"]
+    assert imagery["mean_cloud_cover"] == 7.35
+    assert imagery["min_cloud_cover"] == 2.1
+    assert imagery["max_cloud_cover_observed"] == 14.8
+    assert imagery["max_cloud_cover"] == 20  # from recipe (search threshold)

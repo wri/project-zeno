@@ -61,9 +61,12 @@ def _imagery_state():
         "item_count": 12,
         "date_start": "2024-05-28",
         "date_end": "2024-06-04",
+        "mean_cloud_cover": 8.5,
+        "min_cloud_cover": 2.1,
+        "max_cloud_cover_observed": 15.3,
+        "max_cloud_cover": 20,
         "target_date": "2024-06-01",
         "window_days": 7,
-        "max_cloud_cover": 20,
         "aoi_names": ["Paraná"],
     }
 
@@ -284,3 +287,13 @@ def test_imagery_config_none_without_essentials():
     assert _imagery_config({}) is None
     assert _imagery_config({"imagery": {"tile_url": "x"}}) is None
     assert _imagery_config({"imagery": {"mosaic_id": "x"}}) is None
+
+
+def test_imagery_config_includes_cloud_cover():
+    """Cloud cover fields are included in the widget config snapshot."""
+    state = {"imagery": _imagery_state()}
+    config = _imagery_config(state)
+    assert config["mean_cloud_cover"] == 8.5
+    assert config["min_cloud_cover"] == 2.1
+    assert config["max_cloud_cover_observed"] == 15.3
+    assert config["max_cloud_cover"] == 20
