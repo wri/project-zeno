@@ -21,7 +21,10 @@ from src.agent.agent_config import (
     default_registry,
 )
 from src.agent.llms import FALLBACK_MODELS, MODEL
-from src.agent.middleware import SessionContextMiddleware
+from src.agent.middleware import (
+    SessionContextMiddleware,
+    StopOnHumanFeedbackMiddleware,
+)
 from src.agent.state import AgentState
 from src.agent.tool_spec import Gate, set_bound_availability
 from src.agent.view_pages import prompt_section
@@ -243,7 +246,11 @@ def _build_middleware():
     3. handle_tool_errors: Catches tool execution errors and returns ToolMessage
        - Final safety net for tool-specific failures
 
-    4. SessionContextMiddleware: Prepends a live state snapshot before every
+    4. StopOnHumanFeedbackMiddleware: Strips tools from the model call after a
+       tool signals it's waiting on the user, so the loop cannot chain
+       another tool call instead of stopping.
+
+    5. SessionContextMiddleware: Prepends a live state snapshot before every
        model call (innermost, so it runs on every retry/fallback attempt)
     """
     middleware = [
@@ -257,6 +264,7 @@ def _build_middleware():
     if FALLBACK_MODELS:
         middleware.append(ModelFallbackMiddleware(*FALLBACK_MODELS))
     middleware.append(handle_tool_errors)
+    middleware.append(StopOnHumanFeedbackMiddleware())
     middleware.append(SessionContextMiddleware())
     return middleware
 
