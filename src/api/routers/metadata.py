@@ -3,7 +3,9 @@
 from fastapi import APIRouter
 
 from src.agent.config import AgentSettings
+from src.agent.datasets.palette import PALETTES
 from src.agent.llms import get_model, get_small_model
+from src.api.schemas import DatasetCatalogResponse
 from src.shared.geocoding_helpers import (
     GADM_SUBTYPE_MAP,
     SOURCE_ID_MAPPING,
@@ -41,3 +43,18 @@ async def api_metadata() -> dict:
             "small_model_class": small_model.__class__.__name__,
         },
     }
+
+
+@router.get("/api/datasets/catalog")
+async def datasets_catalog() -> DatasetCatalogResponse:
+    """
+    Returns the canonical color registry for each dataset: category colors
+    (keyed by a stable English slug, not a translated label), single-series
+    colors, and divergent (positive/negative) colors.
+
+    This is the single source of truth for chart and map-legend colors —
+    see docs/insight-chart-colors-plan.md. Only datasets with color data
+    defined in their catalog YAML are included.
+    """
+    ordered = sorted(PALETTES.values(), key=lambda p: p["dataset_id"])
+    return DatasetCatalogResponse.model_validate({"datasets": ordered})

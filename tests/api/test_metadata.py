@@ -63,3 +63,70 @@ async def test_metadata_layer_id_mapping_has_known_sources(client):
     # These sources are expected to be present based on geocoding_helpers
     assert isinstance(layer_id_mapping, dict)
     assert len(layer_id_mapping) > 0
+
+
+@pytest.mark.asyncio
+async def test_datasets_catalog_no_auth_required(client):
+    """Dataset catalog endpoint is public - no authentication needed."""
+    response = await client.get("/api/datasets/catalog")
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_datasets_catalog_includes_global_land_cover(client):
+    """Global land cover (dataset_id=1) exposes its category color mapping."""
+    response = await client.get("/api/datasets/catalog")
+    datasets = response.json()["datasets"]
+
+    land_cover = next(d for d in datasets if d["dataset_id"] == 1)
+    assert land_cover["dataset_name"] == "Global land cover"
+    assert land_cover["series_color"] is None
+    assert land_cover["divergent_colors"] is None
+    assert land_cover["legend_categories"] is True
+    slugs = [c["slug"] for c in land_cover["categories"]]
+    assert "tree_cover" in slugs
+    assert "cropland" in slugs
+    tree_cover = next(
+        c for c in land_cover["categories"] if c["slug"] == "tree_cover"
+    )
+    assert tree_cover["label_en"] == "Tree cover"
+    assert tree_cover["color"] == "#246E24"
+
+
+@pytest.mark.asyncio
+async def test_datasets_catalog_natural_lands_opts_out_of_legend_categories(
+    client,
+):
+    """SBTN Natural Lands (dataset_id=3) curates its map legend down to fewer
+    rows — chart colors still cover all categories, but legend_categories=False
+    tells the frontend not to expand its legend to the full category list."""
+    response = await client.get("/api/datasets/catalog")
+    datasets = response.json()["datasets"]
+
+    natural_lands = next(d for d in datasets if d["dataset_id"] == 3)
+    assert len(natural_lands["categories"]) == 21
+    assert natural_lands["legend_categories"] is False
+
+
+@pytest.mark.asyncio
+async def test_datasets_catalog_includes_divergent_colors(client):
+    """Forest GHG net flux (dataset_id=6) exposes divergent positive/negative colors."""
+    response = await client.get("/api/datasets/catalog")
+    datasets = response.json()["datasets"]
+
+    ghg = next(d for d in datasets if d["dataset_id"] == 6)
+    assert ghg["categories"] == []
+    assert ghg["divergent_colors"] == {
+        "positive": "#9a65c0",
+        "negative": "#137375",
+    }
+
+
+@pytest.mark.asyncio
+async def test_datasets_catalog_only_includes_datasets_with_colors(client):
+    """Datasets without any category/series/divergent colors are omitted."""
+    response = await client.get("/api/datasets/catalog")
+    datasets = response.json()["datasets"]
+
+    dataset_ids = {d["dataset_id"] for d in datasets}
+    assert dataset_ids == {0, 1, 2, 3, 4, 5, 6, 7, 8}

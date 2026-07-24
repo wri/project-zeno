@@ -692,3 +692,27 @@ class DashboardPublicToggleResponse(DashboardResponse):
             "Insights flipped to public because this dashboard was published."
         ),
     )
+
+
+class DatasetPaletteCategoryResponse(BaseModel):
+    slug: str
+    label_en: str
+    color: str
+
+
+class DatasetDivergentColorsResponse(BaseModel):
+    positive: str
+    negative: str
+
+
+class DatasetPaletteResponse(BaseModel):
+    dataset_id: int
+    dataset_name: str
+    categories: List[DatasetPaletteCategoryResponse] = []
+    series_color: Optional[str] = None
+    divergent_colors: Optional[DatasetDivergentColorsResponse] = None
+    legend_categories: bool = True
+
+
+class DatasetCatalogResponse(BaseModel):
+    datasets: List[DatasetPaletteResponse]
