@@ -54,6 +54,21 @@ class EncodedCodeActPart(TypedDict):
     content: str
 
 
+class Nudge(TypedDict):
+    # Free-form category, not an enum — same convention as the plain-string
+    # msg_type tags on ToolMessage.response_metadata. Known values so far:
+    # "dataset_choice" (pick_dataset alternatives), "aoi_choice" (pick_aoi
+    # same-name-different-country disambiguation), "dashboard_choice" /
+    # "insight_choice" (create-new vs update-current, see the dashboard
+    # skill and update_insight_display), plus whatever send_nudge is called
+    # with directly (e.g. "confirm", "clarify").
+    type: str
+    # Clickable choices; clicking one resubmits it as the next human
+    # message — no dedicated resolver tool, same mechanism
+    # follow_up_suggestions already relies on.
+    options: list[str]
+
+
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     user_persona: str
@@ -69,7 +84,11 @@ class AgentState(TypedDict):
 
     # pick-dataset tool
     dataset: dict
-    suggested_datasets: list[dict]
+
+    # send_nudge tool — generic "offer the user clickable options" signal,
+    # also used by pick-dataset to offer dataset alternatives. Last-write-
+    # wins, no reducer.
+    nudge: Nudge
 
     # pull-data tool
     start_date: str

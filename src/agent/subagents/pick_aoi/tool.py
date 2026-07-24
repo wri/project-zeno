@@ -303,7 +303,7 @@ async def select_best_aoi(
 
 async def check_multiple_matches(
     src_id: str, short_name: str, results: pd.DataFrame
-) -> Optional[str]:
+) -> Optional[list[dict]]:
     # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
     selected_country = src_id.split(".")[0] if "." in src_id else None
 
@@ -329,17 +329,18 @@ async def check_multiple_matches(
                 & (results.source == "gadm")
             ]
 
-            candidate_names = all_matches[
-                ["name", "subtype", "src_id"]
-            ].to_dict(orient="records")
-            return "\n".join(
-                [
-                    f"{candidate['name']} - ({candidate['subtype']}) [{candidate['src_id'].split('.')[0]}]"
-                    for candidate in candidate_names
-                ]
+            return all_matches[["name", "subtype", "src_id"]].to_dict(
+                orient="records"
             )
 
     return None
+
+
+def _format_aoi_candidate(candidate: dict) -> str:
+    return (
+        f"{candidate['name']} - ({candidate['subtype']}) "
+        f"[{candidate['src_id'].split('.')[0]}]"
+    )
 
 
 async def check_aoi_selection(aois: list[AOIIndex]) -> Optional[str]:
@@ -373,15 +374,25 @@ async def check_aoi_selection(aois: list[AOIIndex]) -> Optional[str]:
 
 async def check_duplicate_aois(
     selected_aois: list[AOIIndex], all_results: list[pd.DataFrame]
-) -> Optional[str]:
+) -> Optional[tuple[str, list[str]]]:
+    """Returns (message, options) when the same place name matches AOIs in
+    different countries — ``options`` are the exact candidate strings for the
+    ``aoi_choice`` nudge; clicking one resubmits it as the next question."""
     for selected_aoi, result in zip(selected_aois, all_results):
         if selected_aoi.source == "gadm":
             short_name = selected_aoi.name.split(",")[0]
-            candidate_names = await check_multiple_matches(
+            candidates = await check_multiple_matches(
                 selected_aoi.src_id, short_name, result
             )
-            if candidate_names:
-                return f"I found multiple locations named '{short_name}' in different countries. Please tell me which one you meant:\n\n{candidate_names}\n\nWhich location are you looking for?"
+            if candidates:
+                options = [_format_aoi_candidate(c) for c in candidates]
+                message = (
+                    f"I found multiple locations named '{short_name}' in "
+                    "different countries. Please tell me which one you "
+                    "meant:\n\n" + "\n".join(options) + "\n\nWhich location "
+                    "are you looking for?"
+                )
+                return message, options
 
     return None
 
@@ -549,10 +560,17 @@ class Geocoder:
             selected_aois, all_results
         )
         if duplicate_check:
+            message, options = duplicate_check
             return Command(
                 update={
+                    "nudge": {"type": "aoi_choice", "options": options},
                     "messages": [
-                        ToolMessage(duplicate_check, tool_call_id=tool_call_id)
+                        ToolMessage(
+                            message,
+                            tool_call_id=tool_call_id,
+                            status="success",
+                            response_metadata={"msg_type": "human_feedback"},
+                        )
                     ],
                 },
             )

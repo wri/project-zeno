@@ -221,13 +221,13 @@ class DatasetSelector:
                 tool_message = f"No single dataset directly matches the query. {selection_result.reason}\n\nHere are the closest available options:\n{reasons}"
                 return Command(
                     update={
-                        "suggested_datasets": [
-                            {
-                                **o.model_dump(),
-                                "dataset_name": name_by_id[o.dataset_id],
-                            }
-                            for o in selection_result.suggested_datasets
-                        ],
+                        "nudge": {
+                            "type": "dataset_choice",
+                            "options": [
+                                name_by_id[o.dataset_id]
+                                for o in selection_result.suggested_datasets
+                            ],
+                        },
                         "messages": [
                             ToolMessage(
                                 tool_message,
@@ -344,7 +344,7 @@ class DatasetSelector:
         return Command(
             update={
                 "dataset": dataset_result.model_dump(),
-                "suggested_datasets": [],
+                "nudge": {"type": "", "options": []},
                 "messages": [
                     ToolMessage(tool_message, tool_call_id=tool_call_id)
                 ],

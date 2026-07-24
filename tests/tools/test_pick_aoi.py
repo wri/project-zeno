@@ -30,6 +30,9 @@ async def test_query_aoi_multiple_matches(structlog_context):
     assert str(command.update.get("messages")[0].content).startswith(
         "I found multiple locations named 'Puri"
     )
+    nudge = command.update.get("nudge")
+    assert nudge["type"] == "aoi_choice"
+    assert len(nudge["options"]) > 1
 
 
 async def test_query_aoi_multiple_sources(structlog_context):

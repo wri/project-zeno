@@ -59,6 +59,7 @@ from src.agent.tools.inspect_view_context import (
 )
 from src.agent.tools.pull_data import SPEC as pull_data_spec
 from src.agent.tools.search_insights import SPEC as search_insights_spec
+from src.agent.tools.send_nudge import SPEC as send_nudge_spec
 from src.agent.tools.show_imagery import SPEC as show_imagery_spec
 from src.agent.tools.update_insight_display import (
     SPEC as update_insight_display_spec,
@@ -86,6 +87,7 @@ ALL_SPECS = (
     add_map_widget_spec,
     add_text_widget_spec,
     edit_text_widget_spec,
+    send_nudge_spec,
 )
 _SPEC_BY_NAME = {s.tool.name: s for s in ALL_SPECS}
 
@@ -110,6 +112,7 @@ EXPERIMENTAL_TOOLS = (
     inspect_view_context_spec,
     update_insight_display_spec,
     search_insights_spec,
+    send_nudge_spec,
 )
 
 

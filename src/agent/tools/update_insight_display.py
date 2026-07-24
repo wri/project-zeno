@@ -143,6 +143,12 @@ async def update_insight_display(
 
     By default it updates the most recent insight in this conversation; pass
     `insight_id` to target a specific one (e.g. an insight visible on screen).
+
+    If it's genuinely unclear whether the user wants this restyle or a brand
+    new insight (generate_insights always creates a new one, never replaces
+    the current card in place), don't guess: call
+    send_nudge(nudge_type="insight_choice", options=["Create a new insight",
+    "Update the current insight"]) and wait for their answer first.
     """
     target_id = insight_id or (state or {}).get("insight_id")
     if not target_id:
@@ -198,6 +204,9 @@ SPEC = ToolSpec(
         "rename charts, change a chart type, or re-map a chart to columns it "
         "already has. Defaults to the most recent insight; pass insight_id to "
         "target a specific one. Use generate_insights when new data or "
-        "analysis is needed."
+        "analysis is needed. If it's unclear whether the user wants a "
+        "restyle or a new insight, ask via send_nudge(nudge_type="
+        '"insight_choice", options=["Create a new insight", "Update the '
+        'current insight"]) rather than guessing.'
     ),
 )

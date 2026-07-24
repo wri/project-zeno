@@ -38,7 +38,7 @@ EXPECTED_STATE_KEYS = frozenset(
         "view_context",
         "aoi_selection",
         "dataset",
-        "suggested_datasets",
+        "nudge",
         "start_date",
         "end_date",
         "statistics",
