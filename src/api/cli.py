@@ -825,7 +825,7 @@ _ISO3_SOURCE_COLUMNS = {
 }
 
 
-def _multipolygon_sql(geom_expr: str) -> str:
+def _multipolygon_sql(geom_expr: str, *, only_if_invalid: bool = False) -> str:
     """Normalize *geom_expr* to a valid 2D MultiPolygon (for the typed column).
 
     ``ST_MakeValid`` repairs self-intersections / ring errors;
@@ -834,11 +834,22 @@ def _multipolygon_sql(geom_expr: str) -> str:
     ``MULTIPOLYGON`` type the ``aois.geometry`` column enforces. Callers filter
     out an empty result (a geometry with no areal component) with
     ``NOT ST_IsEmpty(...)`` so such rows are skipped, not stored empty.
+
+    ``only_if_invalid`` gates the repair behind ``ST_IsValid``: ``ST_MakeValid``
+    is the expensive step (on huge, dense polygons it can allocate enough to get
+    the backend OOM-killed) and is a no-op on already-valid input, so skipping
+    it there is output-equivalent and spares the common path -- including big
+    but valid geometries. It references *geom_expr* three times, so only pass it
+    when *geom_expr* is a cheap column read, not a subquery.
     """
-    return (
-        "ST_Multi(ST_CollectionExtract("
-        f"ST_MakeValid(ST_Force2D({geom_expr})), 3))"
+    force2d = f"ST_Force2D({geom_expr})"
+    core = (
+        f"CASE WHEN ST_IsValid({force2d}) THEN {force2d} "
+        f"ELSE ST_MakeValid({force2d}) END"
+        if only_if_invalid
+        else f"ST_MakeValid({force2d})"
     )
+    return f"ST_Multi(ST_CollectionExtract({core}, 3))"
 
 
 def _bbox_float_array_sql(geom_expr: str) -> str:
@@ -888,12 +899,14 @@ async def _build_reference_aois(
 
     The INSERT runs in ``nchunks`` passes partitioned by a hash of the source
     id -- each pass its own statement and its own transaction. This bounds the
-    peak memory of the per-row geometry repair (``ST_MakeValid`` over millions
-    of large polygons in a single statement can exhaust the backend and drop
-    the connection mid-operation) and keeps a late failure from discarding
-    chunks that already committed. Every row for a given id hashes to the same
-    chunk, so the per-chunk ``DISTINCT ON`` dedup and ``ON CONFLICT`` upsert
-    stay correct with no cross-chunk boundary effects.
+    open transaction and makes a late failure resumable (committed chunks are
+    kept). Every row for a given id hashes to the same chunk, so the per-chunk
+    ``DISTINCT ON`` dedup and ``ON CONFLICT`` upsert stay correct with no
+    cross-chunk boundary effects. Note chunking does *not* bound the cost of any
+    single geometry -- a lone million-vertex polygon can still exhaust the
+    backend; that is the job of ``only_if_invalid`` (skip the repair on valid
+    input) and the ``MATERIALIZED`` CTE (compute each shape once), with
+    simplification of the genuine monsters handled separately.
     """
     cfg = SOURCE_ID_MAPPING[source]
     table, id_col = cfg["table"], cfg["id_column"]
@@ -924,8 +937,9 @@ async def _build_reference_aois(
         disputed_expr = "false"
 
     # Normalize source geometry to a valid MultiPolygon once, then derive
-    # geometry / bbox / area_km2 from the same shape.
-    norm_geom = _multipolygon_sql("geometry")
+    # geometry / bbox / area_km2 from the same shape. only_if_invalid skips the
+    # costly ST_MakeValid on already-valid rows (safe: geometry is a column).
+    norm_geom = _multipolygon_sql("geometry", only_if_invalid=True)
     # The geometries_* tables are bulk-loaded by GeoPandas with no unique
     # constraint, so the same id can appear on several rows (GADM does).
     # Postgres aborts the whole INSERT ... ON CONFLICT DO UPDATE if one
@@ -935,8 +949,12 @@ async def _build_reference_aois(
     # only a comparison, and this avoids recomputing the normalized shape.
     # ::bigint before abs(): hashtext returns int4 and abs(-2147483648)
     # overflows int4; widening first makes the modulo safe for every id.
+    # AS MATERIALIZED: geom is read ~13 times downstream (the geometry itself,
+    # ST_Area, ST_IsEmpty, and ~10 times inside the antimeridian bbox). A
+    # single-use CTE would be inlined and the geometry repair re-evaluated at
+    # each site; materializing computes each shape exactly once and stores it.
     sql = f"""
-        WITH normalized AS (
+        WITH normalized AS MATERIALIZED (
             SELECT DISTINCT ON (CAST("{id_col}" AS TEXT))
                 CAST("{id_col}" AS TEXT) AS source_id,
                 name,
@@ -1025,6 +1043,56 @@ async def _build_reference_aois(
             f"geometry not coercible to a non-empty MultiPolygon)."
         )
     return inserted
+
+
+async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
+    """Print memory-light geometry stats for one ``geometries_<source>`` table.
+
+    A diagnostic to size up before building: ``ST_NPoints`` only counts
+    coordinates (one deserialize per row, freed immediately -- no
+    ``ST_MakeValid``-style blowup), and ``ST_GeometryType`` is cheap, so this is
+    safe to run on tables that a full transform cannot survive. Surfaces the
+    vertex distribution that drives the simplification threshold.
+    """
+    cfg = SOURCE_ID_MAPPING[source]
+    table, id_col = cfg["table"], cfg["id_column"]
+
+    rows, distinct_ids, null_geom, max_pts, avg_pts, gt100k, gt500k, gt1m = (
+        await session.execute(
+            text(
+                f'SELECT count(*), count(DISTINCT CAST("{id_col}" AS TEXT)), '
+                "count(*) FILTER (WHERE geometry IS NULL), "
+                "max(ST_NPoints(geometry)), "
+                "round(avg(ST_NPoints(geometry))), "
+                "count(*) FILTER (WHERE ST_NPoints(geometry) > 100000), "
+                "count(*) FILTER (WHERE ST_NPoints(geometry) > 500000), "
+                "count(*) FILTER (WHERE ST_NPoints(geometry) > 1000000) "
+                f"FROM {table}"
+            )
+        )
+    ).one()
+
+    click.echo(f"\n🔬 {source} ({table}):")
+    click.echo(f"   rows: {rows}  distinct ids: {distinct_ids}")
+    if null_geom:
+        click.echo(f"   null geometry: {null_geom}")
+    click.echo(
+        f"   vertices/row -> max: {max_pts}  avg: "
+        f"{int(avg_pts) if avg_pts is not None else 0}"
+    )
+    click.echo(
+        f"   over threshold -> >100k: {gt100k}  >500k: {gt500k}  >1M: {gt1m}"
+    )
+
+    types = await session.execute(
+        text(
+            f"SELECT ST_GeometryType(geometry), count(*) FROM {table} "
+            "WHERE geometry IS NOT NULL GROUP BY 1 ORDER BY 2 DESC"
+        )
+    )
+    click.echo("   geometry types:")
+    for gtype, cnt in types.all():
+        click.echo(f"     {gtype}: {cnt}")
 
 
 async def _build_custom_aois(session: AsyncSession) -> int:
@@ -1127,7 +1195,17 @@ async def _build_custom_aois(session: AsyncSession) -> int:
         "statement and transaction. Higher = lower peak memory, more scans."
     ),
 )
-def build_aois_command(sources: tuple, dry_run: bool, chunks: int):
+@click.option(
+    "--inspect",
+    is_flag=True,
+    help=(
+        "Don't build: print memory-light geometry stats (vertex distribution, "
+        "types) per reference source, to size up before a real run."
+    ),
+)
+def build_aois_command(
+    sources: tuple, dry_run: bool, chunks: int, inspect: bool
+):
     """Populate the unified aois/user_aois tables from already-loaded data.
 
     Idempotent, set-based, in-DB transform of the reference geometries_*
@@ -1137,6 +1215,27 @@ def build_aois_command(sources: tuple, dry_run: bool, chunks: int):
     """
     selected = list(sources) or _BUILD_SOURCES
     outcome = "would be upserted" if dry_run else "upserted"
+
+    async def _inspect():
+        db = DatabaseManager()
+        try:
+            async with db.async_session() as session:
+                for source in selected:
+                    if source == "custom":
+                        click.echo(
+                            "\n🔬 custom: skipped "
+                            "(GeoJSON-string list, not a geometry column)."
+                        )
+                        continue
+                    table = SOURCE_ID_MAPPING[source]["table"]
+                    if not await _table_exists(session, table):
+                        click.echo(
+                            f"⏭️  {source}: {table} not found, skipping."
+                        )
+                        continue
+                    await _inspect_reference_aois(session, source)
+        finally:
+            await db.close()
 
     async def _run():
         db = DatabaseManager()
@@ -1217,7 +1316,7 @@ def build_aois_command(sources: tuple, dry_run: bool, chunks: int):
         finally:
             await db.close()
 
-    asyncio.run(_run())
+    asyncio.run(_inspect() if inspect else _run())
 
 
 if __name__ == "__main__":
