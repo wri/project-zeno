@@ -57,11 +57,6 @@ class FakeS3Client:
             raise ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
         return {"Body": io.BytesIO(self.store[Key])}
 
-    def head_object(self, Bucket, Key):
-        if Key not in self.store:
-            raise ClientError({"Error": {"Code": "404"}}, "HeadObject")
-        return {}
-
 
 @pytest.fixture(autouse=True)
 def fake_s3(monkeypatch):
@@ -222,8 +217,8 @@ async def test_create_mosaic_orders_scenes_by_date_proximity(fake_s3):
 
 @pytest.mark.asyncio
 async def test_create_mosaic_skips_when_exists(fake_s3):
-    """A second build for the same recipe finds the mosaic in S3 and skips
-    geometry load, STAC search and upload."""
+    """A second build for the same recipe finds the mosaic in S3 and reads
+    persisted metadata instead of loading geometry, searching STAC, uploading."""
     item = FakeItem(date(2025, 6, 1), 3.0, "https://example.com/a.tif")
     with _patch_geometry(), _patch_search([item]):
         first = await create_sentinel2_mosaic(RECIPE)
@@ -235,11 +230,13 @@ async def test_create_mosaic_skips_when_exists(fake_s3):
         second = await create_sentinel2_mosaic(RECIPE)
 
     assert second.mosaic_id == first.mosaic_id
-    # The scene count and date range are only known at build time, so a cache
-    # hit returns without them.
-    assert second.item_count is None
-    assert second.date_start is None
-    assert second.date_end is None
+    # On a cache hit, persisted metadata is read from the mosaic JSON.
+    assert second.item_count == 1
+    assert second.date_start == date(2025, 6, 1)
+    assert second.date_end == date(2025, 6, 1)
+    assert second.mean_cloud_cover == 3.0
+    assert second.min_cloud_cover == 3.0
+    assert second.max_cloud_cover == 3.0
     # On a hit we return without loading geometry, searching STAC or uploading.
     geo.assert_not_called()
     search.assert_not_called()
@@ -325,7 +322,7 @@ async def test_create_mosaic_success_and_idempotent(
     # The mosaic is persisted to S3, where the tiler reads it from.
     assert _s3_key(body["mosaic_id"]) in fake_s3.store
 
-    # A second identical create hits S3 and skips the STAC search entirely.
+    # A second identical create hits S3 and reads persisted metadata.
     with _patch_geometry() as geo, _patch_search([item]) as search:
         response = await client.post(
             "/mosaic/create/gadm/CHE.1_1?target_date=2025-06-15",
@@ -335,9 +332,125 @@ async def test_create_mosaic_success_and_idempotent(
     assert response.status_code == 200
     cached = response.json()
     assert cached["mosaic_id"] == body["mosaic_id"]
-    # The cache hit serves the mosaic without the build-time stats.
-    assert cached["item_count"] is None
-    assert cached["date_start"] is None
-    assert cached["date_end"] is None
+    # The cache hit reads metadata from the mosaic JSON.
+    assert cached["item_count"] == 1
+    assert cached["date_start"] == "2025-06-01"
+    assert cached["date_end"] == "2025-06-01"
+    assert cached["mean_cloud_cover"] == 3.0
+    assert cached["min_cloud_cover"] == 3.0
+    assert cached["max_cloud_cover"] == 3.0
     geo.assert_not_called()
     search.assert_not_called()
+
+
+class FakeItemNonNumericCloudCover(FakeItem):
+    """A STAC item whose eo:cloud_cover is a non-numeric string."""
+
+    def __init__(self, day: date, href: str):
+        self.datetime = datetime(
+            day.year, day.month, day.day, tzinfo=timezone.utc
+        )
+        self.properties = {
+            "datetime": self.datetime.isoformat(),
+            "eo:cloud_cover": "N/A",
+        }
+        self._href = href
+
+    def to_dict(self):
+        return {
+            "type": "Feature",
+            "geometry": REGIONAL_POLYGON,
+            "bbox": [8.0, 46.8, 9.0, 47.5],
+            "properties": self.properties,
+            "assets": {"visual": {"href": self._href}},
+        }
+
+
+# ---------------------------------------------------------------------------
+# Metadata extra fields
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_cache_hit_missing_fields_returns_bare_result(fake_s3):
+    """A mosaic written before the metadata fields were added returns
+    a bare MosaicResult (graceful degradation)."""
+    token = encode_recipe(RECIPE)
+    # Write a mosaic JSON without any extra fields.
+    fake_s3.store[_s3_key(token)] = json.dumps(
+        {
+            "mosaic": "0.0.3",
+            "tiles": {},
+            "minzoom": 8,
+            "maxzoom": 14,
+        }
+    ).encode("utf-8")
+
+    result = await create_sentinel2_mosaic(RECIPE)
+    assert result.mosaic_id == token
+    assert result.item_count is None
+    assert result.date_start is None
+    assert result.date_end is None
+    assert result.mean_cloud_cover is None
+
+
+@pytest.mark.asyncio
+async def test_cache_hit_corrupt_json_returns_bare_result(fake_s3):
+    """A corrupt/unreadable mosaic JSON returns a bare MosaicResult,
+    not an error."""
+    token = encode_recipe(RECIPE)
+    fake_s3.store[_s3_key(token)] = b"{not valid json at all"
+
+    result = await create_sentinel2_mosaic(RECIPE)
+    assert result.mosaic_id == token
+    assert result.item_count is None
+    assert result.date_start is None
+
+
+@pytest.mark.asyncio
+async def test_cache_hit_non_object_json_returns_bare_result(fake_s3):
+    """Valid JSON that isn't an object (e.g. a bare array) also degrades to
+    a bare MosaicResult rather than raising."""
+    token = encode_recipe(RECIPE)
+    fake_s3.store[_s3_key(token)] = b"[1, 2, 3]"
+
+    result = await create_sentinel2_mosaic(RECIPE)
+    assert result.mosaic_id == token
+    assert result.item_count is None
+    assert result.date_start is None
+
+
+@pytest.mark.asyncio
+async def test_cloud_cover_stats_computed(fake_s3):
+    """Cloud cover stats are computed across multiple scenes with
+    varying values."""
+    items = [
+        FakeItem(date(2025, 6, 1), 5.0, "https://example.com/a.tif"),
+        FakeItem(date(2025, 6, 3), 12.0, "https://example.com/b.tif"),
+        FakeItem(date(2025, 6, 5), 1.0, "https://example.com/c.tif"),
+    ]
+    with _patch_geometry(), _patch_search(items):
+        result = await create_sentinel2_mosaic(RECIPE)
+
+    assert result.item_count == 3
+    assert result.mean_cloud_cover == round((5.0 + 12.0 + 1.0) / 3, 2)
+    assert result.min_cloud_cover == 1.0
+    assert result.max_cloud_cover == 12.0
+
+
+@pytest.mark.asyncio
+async def test_cloud_cover_ignores_non_numeric_items(fake_s3):
+    """Items without a numeric eo:cloud_cover are excluded from stats."""
+    items = [
+        FakeItem(date(2025, 6, 1), 10.0, "https://example.com/a.tif"),
+        FakeItemNonNumericCloudCover(
+            date(2025, 6, 3), "https://example.com/b.tif"
+        ),
+    ]
+    with _patch_geometry(), _patch_search(items):
+        result = await create_sentinel2_mosaic(RECIPE)
+
+    assert result.item_count == 2
+    assert result.mean_cloud_cover == 10.0
+    assert result.min_cloud_cover == 10.0
+    assert result.max_cloud_cover == 10.0

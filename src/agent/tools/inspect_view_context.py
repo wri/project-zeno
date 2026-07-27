@@ -52,6 +52,14 @@ _KNOWN_KEYS = {
     "dashboard_name",
 }
 
+# Rows at or below this get full data injected; above get per-column stats.
+_DATA_INJECT_THRESHOLD = 20
+# Meta-columns that add no signal for stats and are skipped.
+_DATA_SKIP_COLUMNS = {"aoi_id", "aoi_type"}
+# Secondary cap on full-table output; if the formatted table exceeds this,
+# fall back to stats even if row count is below the threshold.
+_DATA_TABLE_CHAR_LIMIT = 4000
+
 
 def _label(item: object, *keys: str) -> str:
     """Best human-readable label for a layer/AOI entry, always a string."""
@@ -163,6 +171,78 @@ async def _load_insights(insight_ids: list[UUID]) -> list[InsightOrm]:
     return [row for row in rows if is_visible_to_user(row, user_id)]
 
 
+def _format_numeric_stats(values: list) -> str:
+    """Min/max/mean for a list of numeric values, ignoring None/non-numeric."""
+    nums = [v for v in values if isinstance(v, (int, float)) and v is not None]
+    if not nums:
+        return "(no numeric values)"
+    mn, mx = min(nums), max(nums)
+    avg = sum(nums) / len(nums)
+    # If avg is a whole number, drop decimal entirely; otherwise format to 2dp
+    # and strip trailing zeros (2.50 -> 2.5).
+    if avg == int(avg):
+        return f"min {mn}, max {mx}, mean {int(avg)}"
+    return f"min {mn}, max {mx}, mean {avg:.2f}".rstrip("0").rstrip(".")
+
+
+def _format_chart_data(chart) -> str:
+    """Format chart data for the agent: full rows if small, stats if large.
+
+    For series <= DATA_INJECT_THRESHOLD: a compact text table of the rows.
+    For larger series: per-column min/max/mean (numeric) or distinct count +
+    samples (string).
+    """
+    data = chart.chart_data or []
+    if not data:
+        return "(no data)"
+
+    rows_n = len(data)
+    # Collect columns in first-seen order, skipping meta-columns.
+    columns: dict = {}
+    for row in data:
+        for k, v in row.items():
+            if k not in columns and k not in _DATA_SKIP_COLUMNS:
+                columns[k] = v
+    col_names = list(columns.keys())
+    if not col_names:
+        return f"({rows_n} rows, all meta-columns)"
+
+    if rows_n <= _DATA_INJECT_THRESHOLD:
+        # Small: render full table, but fall back to stats if it would be
+        # too large (many columns or long values).
+        lines = [f"  Data ({rows_n} rows, {len(col_names)} cols):"]
+        # Header.
+        lines.append(f"    {''.join(f'{c:<18}' for c in col_names)}")
+        for row in data:
+            cells = [
+                str(row.get(c, ""))[:16] if row.get(c) is not None else ""
+                for c in col_names
+            ]
+            lines.append(f"    {''.join(f'{v:<18}' for v in cells)}")
+        table_str = "\n".join(lines)
+        if len(table_str) <= _DATA_TABLE_CHAR_LIMIT:
+            return table_str
+        # Table too wide — fall through to stats.
+
+    # Large: per-column stats.
+    lines = [f"  Data ({rows_n} rows) — per-column stats:"]
+    for col in col_names:
+        values = [row.get(col) for row in data]
+        nums = [
+            v for v in values if isinstance(v, (int, float)) and v is not None
+        ]
+        if nums:
+            lines.append(f"    {col}: {_format_numeric_stats(values)}")
+        else:
+            distinct = set(str(v) for v in values if v is not None)
+            samples = list(distinct)[:4]
+            lines.append(
+                f"    {col}: {len(distinct)} distinct values "
+                f"({', '.join(samples) + '...' if len(distinct) > 4 else ''})"
+            )
+    return "\n".join(lines)
+
+
 def _chart_variables(chart) -> str:
     """Summarize the fields (variables) a chart is built from."""
     parts = []
@@ -184,9 +264,8 @@ def _chart_variables(chart) -> str:
 def format_insights(rows: list[InsightOrm]) -> str:
     """Render the most important content of each on-screen insight.
 
-    Prints the summary, each chart's title + variables and the follow-up
-    suggestions. The raw chart data rows are deliberately omitted (only the
-    row count) to keep the message focused and cheap.
+    Prints the summary, each chart's title + variables + data (full rows if
+    small, per-column stats if large) and the follow-up suggestions.
     """
     lines = ["Insights on screen:"]
     for row in rows:
@@ -203,6 +282,7 @@ def format_insights(rows: list[InsightOrm]) -> str:
                 f'  Chart "{title}" ({chart.chart_type}): '
                 f"{_chart_variables(chart)} — {rows_n} data point(s)"
             )
+            lines.append(_format_chart_data(chart))
         if row.follow_up_suggestions:
             lines.append(
                 "  Follow-ups: " + "; ".join(row.follow_up_suggestions)

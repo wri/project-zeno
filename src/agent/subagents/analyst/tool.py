@@ -26,6 +26,7 @@ from src.agent.subagents.analyst.code_executors.base import (
 from src.agent.subagents.analyst.prompts import EXECUTOR_WORKFLOW
 from src.agent.subagents.analyst.text_generator import InsightTextGenerator
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.inspect_view_context import _format_chart_data
 from src.agent.tools.pull_data import fetch_statistics_from_url
 from src.api.repositories.insight_writer import persist_insight
 from src.shared.logging_config import get_logger
@@ -309,19 +310,8 @@ async def _build_tool_message(
             + "\n"
         )
 
-    if insight.charts:
-        chart_data_df = pd.DataFrame(insight.charts[0].chart_data)
-        formatted_df = chart_data_df.apply(
-            lambda col: (
-                col.map(lambda x: f"{x:.4f}".rstrip("0").rstrip("."))
-                if pd.api.types.is_float_dtype(col)
-                else col
-            )
-        )
-        csv_str = formatted_df.to_csv(index=False)
-        if len(csv_str) < 4000:
-            header = await t("analyst.chart_data_csv_header", language)
-            tool_message += f"\n{header}\n{csv_str}"
+    for chart in insight.charts:
+        tool_message += "\n" + _format_chart_data(chart)
 
     if dataset_cautions:
         header = await t("analyst.dataset_cautions_header", language)
