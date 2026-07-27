@@ -825,7 +825,7 @@ _ISO3_SOURCE_COLUMNS = {
 }
 
 
-def _multipolygon_sql(geom_expr: str, *, only_if_invalid: bool = False) -> str:
+def _multipolygon_sql(geom_expr: str) -> str:
     """Normalize *geom_expr* to a valid 2D MultiPolygon (for the typed column).
 
     ``ST_MakeValid`` repairs self-intersections / ring errors;
@@ -835,21 +835,18 @@ def _multipolygon_sql(geom_expr: str, *, only_if_invalid: bool = False) -> str:
     out an empty result (a geometry with no areal component) with
     ``NOT ST_IsEmpty(...)`` so such rows are skipped, not stored empty.
 
-    ``only_if_invalid`` gates the repair behind ``ST_IsValid``: ``ST_MakeValid``
-    is the expensive step (on huge, dense polygons it can allocate enough to get
-    the backend OOM-killed) and is a no-op on already-valid input, so skipping
-    it there is output-equivalent and spares the common path -- including big
-    but valid geometries. It references *geom_expr* three times, so only pass it
-    when *geom_expr* is a cheap column read, not a subquery.
+    The repair runs per part (``ST_Dump`` -> ``ST_MakeValid`` ->
+    ``ST_Collect``): on a whole MultiPolygon ``ST_MakeValid`` resolves every
+    ring against every other in one GEOS overlay, whose cost scales with part
+    count and can exhaust the backend on many-part rows. The tradeoff is that
+    overlaps *between* parts go unresolved, so the result is not guaranteed
+    OGC-valid -- fine here, as the column enforces type but not validity.
     """
-    force2d = f"ST_Force2D({geom_expr})"
-    core = (
-        f"CASE WHEN ST_IsValid({force2d}) THEN {force2d} "
-        f"ELSE ST_MakeValid({force2d}) END"
-        if only_if_invalid
-        else f"ST_MakeValid({force2d})"
+    return (
+        "ST_Multi(ST_CollectionExtract("
+        "(SELECT ST_Collect(ST_MakeValid(d.geom)) "
+        f"FROM ST_Dump(ST_Force2D({geom_expr})) d), 3))"
     )
-    return f"ST_Multi(ST_CollectionExtract({core}, 3))"
 
 
 def _bbox_float_array_sql(geom_expr: str) -> str:
@@ -903,10 +900,8 @@ async def _build_reference_aois(
     kept). Every row for a given id hashes to the same chunk, so the per-chunk
     ``DISTINCT ON`` dedup and ``ON CONFLICT`` upsert stay correct with no
     cross-chunk boundary effects. Note chunking does *not* bound the cost of any
-    single geometry -- a lone million-vertex polygon can still exhaust the
-    backend; that is the job of ``only_if_invalid`` (skip the repair on valid
-    input) and the ``MATERIALIZED`` CTE (compute each shape once), with
-    simplification of the genuine monsters handled separately.
+    single geometry -- that is the job of the part-wise repair in
+    ``_multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
     """
     cfg = SOURCE_ID_MAPPING[source]
     table, id_col = cfg["table"], cfg["id_column"]
@@ -937,9 +932,8 @@ async def _build_reference_aois(
         disputed_expr = "false"
 
     # Normalize source geometry to a valid MultiPolygon once, then derive
-    # geometry / bbox / area_km2 from the same shape. only_if_invalid skips the
-    # costly ST_MakeValid on already-valid rows (safe: geometry is a column).
-    norm_geom = _multipolygon_sql("geometry", only_if_invalid=True)
+    # geometry / bbox / area_km2 from the same shape.
+    norm_geom = _multipolygon_sql("geometry")
     # The geometries_* tables are bulk-loaded by GeoPandas with no unique
     # constraint, so the same id can appear on several rows (GADM does).
     # Postgres aborts the whole INSERT ... ON CONFLICT DO UPDATE if one
@@ -1048,16 +1042,31 @@ async def _build_reference_aois(
 async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
     """Print memory-light geometry stats for one ``geometries_<source>`` table.
 
-    A diagnostic to size up before building: ``ST_NPoints`` only counts
-    coordinates (one deserialize per row, freed immediately -- no
-    ``ST_MakeValid``-style blowup), and ``ST_GeometryType`` is cheap, so this is
-    safe to run on tables that a full transform cannot survive. Surfaces the
-    vertex distribution that drives the simplification threshold.
+    A diagnostic to size up before building: ``ST_NPoints`` /
+    ``ST_NumGeometries`` walk the serialized structure without touching
+    coordinates, and ``ST_GeometryType`` is cheap, so this is safe to run on
+    tables that a full transform cannot survive.
+
+    The part figures matter more than the per-row totals: the transform repairs
+    each part separately, so its peak cost tracks the largest single part, while
+    a high part count is what makes a whole-geometry repair blow up. The
+    largest-part pass needs ``ST_Dump``, so it is slower than the rest.
     """
     cfg = SOURCE_ID_MAPPING[source]
     table, id_col = cfg["table"], cfg["id_column"]
 
-    rows, distinct_ids, null_geom, max_pts, avg_pts, gt100k, gt500k, gt1m = (
+    (
+        rows,
+        distinct_ids,
+        null_geom,
+        max_pts,
+        avg_pts,
+        gt100k,
+        gt500k,
+        gt1m,
+        max_parts,
+        avg_parts,
+    ) = (
         await session.execute(
             text(
                 f'SELECT count(*), count(DISTINCT CAST("{id_col}" AS TEXT)), '
@@ -1066,7 +1075,9 @@ async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
                 "round(avg(ST_NPoints(geometry))), "
                 "count(*) FILTER (WHERE ST_NPoints(geometry) > 100000), "
                 "count(*) FILTER (WHERE ST_NPoints(geometry) > 500000), "
-                "count(*) FILTER (WHERE ST_NPoints(geometry) > 1000000) "
+                "count(*) FILTER (WHERE ST_NPoints(geometry) > 1000000), "
+                "max(ST_NumGeometries(geometry)), "
+                "round(avg(ST_NumGeometries(geometry))) "
                 f"FROM {table}"
             )
         )
@@ -1083,6 +1094,18 @@ async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
     click.echo(
         f"   over threshold -> >100k: {gt100k}  >500k: {gt500k}  >1M: {gt1m}"
     )
+    click.echo(
+        f"   parts/row -> max: {max_parts}  avg: "
+        f"{int(avg_parts) if avg_parts is not None else 0}"
+    )
+
+    max_part_pts = await session.scalar(
+        text(
+            f"SELECT max(ST_NPoints(d.geom)) FROM {table} w "
+            "CROSS JOIN LATERAL ST_Dump(w.geometry) d"
+        )
+    )
+    click.echo(f"   vertices in largest single part: {max_part_pts}")
 
     types = await session.execute(
         text(
