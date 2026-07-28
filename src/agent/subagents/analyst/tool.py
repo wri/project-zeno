@@ -311,7 +311,7 @@ async def _build_tool_message(
         )
 
     for chart in insight.charts:
-        tool_message += "\n" + format_chart_data(chart)
+        tool_message += "\n" + await format_chart_data(chart, language)
 
     if dataset_cautions:
         header = await t("analyst.dataset_cautions_header", language)

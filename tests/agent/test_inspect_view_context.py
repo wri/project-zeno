@@ -131,8 +131,9 @@ def test_chart_variables_lists_only_populated_fields():
     assert "stack=" not in out
 
 
-def test_format_insights_prints_key_content():
-    out = format_insights([_fake_insight()])
+@pytest.mark.asyncio
+async def test_format_insights_prints_key_content():
+    out = await format_insights([_fake_insight()])
     assert "Summary: Tree cover loss rose 12%" in out
     assert 'Chart "Annual tree cover loss" (bar)' in out
     assert "x=year, y=loss_ha" in out
@@ -264,7 +265,8 @@ async def test_inspect_view_context_insight_load_empty():
     assert "none could be loaded" in _content(command)
 
 
-def test_format_chart_data_small_injects_full_table():
+@pytest.mark.asyncio
+async def test_format_chart_data_small_injects_full_table():
     """Series <= threshold renders all rows."""
     chart = SimpleNamespace(
         chart_data=[
@@ -272,7 +274,7 @@ def test_format_chart_data_small_injects_full_table():
             {"year": 2021, "area_ha": 750, "driver": "Logging"},
         ]
     )
-    out = format_chart_data(chart)
+    out = await format_chart_data(chart)
     assert "Data (2 rows, 3 cols):" in out
     assert "2020" in out
     assert "500" in out
@@ -281,33 +283,36 @@ def test_format_chart_data_small_injects_full_table():
     assert "Logging" in out
 
 
-def test_format_chart_data_large_renders_stats():
+@pytest.mark.asyncio
+async def test_format_chart_data_large_renders_stats():
     """Series > threshold renders per-column stats, not rows."""
     big_data = [
         {"year": y, "area_ha": y * 100, "driver": "Ag" if y % 2 else "Fire"}
-        for y in range(2000, 2025)
-    ]  # 25 rows, > threshold
+        for y in range(2000, 2035)
+    ]  # 35 rows, > threshold
     chart = SimpleNamespace(chart_data=big_data)
-    out = format_chart_data(chart)
-    assert "Data (25 rows)" in out
+    out = await format_chart_data(chart)
+    assert "Data (35 rows)" in out
     assert "per-column stats" in out
     # Numeric stats
     assert "year:" in out
     assert "min 2000" in out
-    assert "max 2024" in out
+    assert "max 2034" in out
     assert "area_ha:" in out
     assert "min 200000" in out
     # String stats
     assert "driver: 2 distinct" in out
 
 
-def test_format_chart_data_empty():
+@pytest.mark.asyncio
+async def test_format_chart_data_empty():
     """Empty chart_data returns a no-data sentinel."""
     chart = SimpleNamespace(chart_data=[])
-    assert format_chart_data(chart) == "(no data)"
+    assert await format_chart_data(chart) == "(no data)"
 
 
-def test_format_chart_data_char_limit_fallback():
+@pytest.mark.asyncio
+async def test_format_chart_data_char_limit_fallback():
     """Few rows but many columns/truncated values → falls back to stats if
     the table would exceed the char limit."""
     from src.agent.tools.inspect_view_context import DATA_TABLE_CHAR_LIMIT
@@ -316,7 +321,7 @@ def test_format_chart_data_char_limit_fallback():
     wide_cols = [f"col_{i:04d}" for i in range(100)]
     row_data = {col: f"value_{col}" for col in wide_cols}
     chart = SimpleNamespace(chart_data=[row_data] * 10)  # 10 rows, 100 cols
-    out = format_chart_data(chart)
+    out = await format_chart_data(chart)
     # Must fall back to stats, not the full table.
     assert "per-column stats" in out
     assert "rows, 100 cols" not in out
@@ -324,19 +329,21 @@ def test_format_chart_data_char_limit_fallback():
     assert len(out) < DATA_TABLE_CHAR_LIMIT
 
 
-def test_format_chart_data_skips_meta_columns():
+@pytest.mark.asyncio
+async def test_format_chart_data_skips_meta_columns():
     """aoi_id and aoi_type are excluded from both table and stats."""
     chart = SimpleNamespace(
         chart_data=[
             {"year": 2020, "aoi_id": "BRA.14", "aoi_type": "admin"},
         ]
     )
-    out = format_chart_data(chart)
+    out = await format_chart_data(chart)
     assert "aoi_id" not in out
     assert "aoi_type" not in out
 
 
-def test_format_chart_data_all_meta_columns():
+@pytest.mark.asyncio
+async def test_format_chart_data_all_meta_columns():
     """When only meta-columns exist, reports that fact."""
     chart = SimpleNamespace(
         chart_data=[
@@ -344,31 +351,36 @@ def test_format_chart_data_all_meta_columns():
             {"aoi_id": "BRA.15", "aoi_type": "admin"},
         ]
     )
-    out = format_chart_data(chart)
+    out = await format_chart_data(chart)
     assert "all meta-columns" in out
 
 
-def test_format_numeric_stats_integers():
-    out = format_numeric_stats([10, 20, 30])
+@pytest.mark.asyncio
+async def test_format_numeric_stats_integers():
+    out = await format_numeric_stats([10, 20, 30])
     assert out == "min 10, max 30, mean 20"
 
 
-def test_format_numeric_stats_floats():
-    out = format_numeric_stats([1.5, 2.5, 3.5])
+@pytest.mark.asyncio
+async def test_format_numeric_stats_floats():
+    out = await format_numeric_stats([1.5, 2.5, 3.5])
     assert out == "min 1.5, max 3.5, mean 2.5"
 
 
-def test_format_numeric_stats_with_none_and_non_numeric():
-    out = format_numeric_stats([10, None, "skip", 30])
+@pytest.mark.asyncio
+async def test_format_numeric_stats_with_none_and_non_numeric():
+    out = await format_numeric_stats([10, None, "skip", 30])
     assert out == "min 10, max 30, mean 20"
 
 
-def test_format_numeric_stats_all_none():
-    out = format_numeric_stats([None, None])
+@pytest.mark.asyncio
+async def test_format_numeric_stats_all_none():
+    out = await format_numeric_stats([None, None])
     assert out == "(no numeric values)"
 
 
-def test_format_numeric_stats_truncated_mean():
+@pytest.mark.asyncio
+async def test_format_numeric_stats_truncated_mean():
     """Non-integer mean is formatted to 2 decimal places."""
-    out = format_numeric_stats([1, 2, 4])
+    out = await format_numeric_stats([1, 2, 4])
     assert "mean 2.33" in out
