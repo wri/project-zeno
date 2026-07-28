@@ -1,19 +1,17 @@
 """Analysis job endpoint."""
 
-from datetime import datetime
-from uuid import UUID
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from src.agent.datasets.config import DATASETS
 from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
 from src.api.auth.dependencies import require_auth
 from src.api.repositories.job_repository import get_job_repository
+from src.api.routers.jobs import job_to_response
 from src.api.schemas import AnalyzeRequest, JobResponse, UserModel
 from src.api.services.analysis_job import AnalysisJobRunner
 from src.api.services.analyze import AnalyzeService
 from src.api.services.charts import GENERATORS
-from src.api.services.job import JobRepository, JobType
+from src.api.services.job import JobRepository
 
 router = APIRouter()
 
@@ -34,23 +32,20 @@ def get_analysis_runner(
 @router.post("/api/analyze", response_model=JobResponse)
 async def create_analysis_job(
     request: AnalyzeRequest,
-    background_tasks: BackgroundTasks,
     user: UserModel = Depends(require_auth),
-    repo: JobRepository = Depends(get_job_repository),
     runner: AnalysisJobRunner = Depends(get_analysis_runner),
 ):
     """
-    Start an analysis job for one or more areas of interest.
+    Run an analysis for one or more areas of interest.
 
-    Returns a Job resource immediately with `status: pending`. The analysis
-    runs in the background — poll `GET /api/jobs/{id}` until `status` is
-    `completed` or `failed`. When completed, each entry in `resources` contains
-    a `resource_url` pointing to the generated insight (e.g.
-    `/api/insights/{id}`).
+    The analysis runs within the request: the response is a Job resource that
+    is already terminal — `status` is `completed` or `failed`. When completed,
+    each entry in `resources` contains a `resource_url` pointing to the
+    generated insight (e.g. `/api/insights/{id}`). The job can be re-fetched
+    later via `GET /api/jobs/{id}`.
 
-    If `thread_id` is provided the resulting charts and statistics are also
-    written into the agent state for that thread, so follow-up chat messages
-    can reference the data without re-fetching.
+    The job, its insight and charts are persisted in a single transaction once
+    the analysis finishes — a failure at any point leaves no partial state.
     """
     if request.dataset_id not in CATALOG_DATASET_IDS:
         raise HTTPException(
@@ -58,42 +53,12 @@ async def create_analysis_job(
             detail=f"Unknown dataset_id: {request.dataset_id}",
         )
 
-    job_id = await repo.create_job(
+    job = await runner.run(
         user_id=user.id,
-        thread_id=request.thread_id,
-        type=JobType.ANALYSIS,
-    )
-
-    background_tasks.add_task(
-        _run_job,
-        job_id=job_id,
-        user_id=user.id,
-        request=request,
-        runner=runner,
-    )
-
-    return JobResponse(
-        id=job_id,
-        type=JobType.ANALYSIS.value,
-        status="pending",
-        thread_id=request.thread_id,
-        resources=[],
-        created_at=datetime.now(),
-    )
-
-
-async def _run_job(
-    job_id: UUID,
-    user_id: str,
-    request: AnalyzeRequest,
-    runner: AnalysisJobRunner,
-):
-    await runner.run(
-        job_id=job_id,
-        user_id=user_id,
         aois=[aoi.model_dump() for aoi in request.aois],
         dataset_id=request.dataset_id,
         start_date=request.start_date.isoformat(),
         end_date=request.end_date.isoformat(),
         thread_id=request.thread_id,
     )
+    return job_to_response(job)

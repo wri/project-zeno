@@ -7,9 +7,29 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Response
 from src.api.auth.dependencies import require_auth
 from src.api.repositories.job_repository import get_job_repository
 from src.api.schemas import JobResourceResponse, JobResponse, UserModel
-from src.api.services.job import JobRepository, JobStatus
+from src.api.services.job import JobData, JobRepository, JobStatus
 
 router = APIRouter()
+
+
+def job_to_response(job: JobData) -> JobResponse:
+    """Map the repository's JobData to the API response shape."""
+    return JobResponse(
+        id=job.id,
+        type=job.type.value,
+        status=job.status.value,
+        thread_id=job.thread_id,
+        created_at=job.created_at,
+        resources=[
+            JobResourceResponse(
+                id=r.id,
+                resource_url=r.resource_url,
+                status=r.status.value,
+                created_at=r.created_at,
+            )
+            for r in job.resources
+        ],
+    )
 
 
 @router.get(
@@ -52,19 +72,4 @@ async def get_job(
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status in (JobStatus.PENDING, JobStatus.RUNNING):
         response.headers["Retry-After"] = "1"
-    return JobResponse(
-        id=job.id,
-        type=job.type.value,
-        status=job.status.value,
-        thread_id=job.thread_id,
-        created_at=job.created_at,
-        resources=[
-            JobResourceResponse(
-                id=r.id,
-                resource_url=r.resource_url,
-                status=r.status.value,
-                created_at=r.created_at,
-            )
-            for r in job.resources
-        ],
-    )
+    return job_to_response(job)
