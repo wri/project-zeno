@@ -1,18 +1,18 @@
 """Tests for the analyze endpoint: auth, validation and the synchronous cycle.
 
-`POST /api/analyze` runs the analysis inside the request and returns a
-terminal job. The analytics pull is faked; persistence goes through the real
-`DBJobRepository` against the test database.
+`POST /api/analyze` runs the analysis inside the request and returns the
+generated insight. The analytics pull is faked; persistence goes through the
+real `persist_insight` against the test database.
 """
 
 import pytest
+from sqlalchemy import select
 
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.app import app
-from src.api.data_models import UserOrm
-from src.api.repositories.job_repository import DBJobRepository
+from src.api.data_models import InsightOrm, UserOrm
 from src.api.routers.analyze import CATALOG_DATASET_IDS, get_analysis_runner
-from src.api.services.analysis_job import AnalysisJobRunner
+from src.api.services.analysis_runner import AnalysisRunner
 from src.api.services.analyze import AnalyzeResult
 from tests.conftest import async_session_maker
 
@@ -58,13 +58,11 @@ class FakeAnalyzeService:
 
 @pytest.fixture
 def runner_override():
-    """Swap the analytics pull for a fake; keep the real DB repository."""
+    """Swap the analytics pull for a fake; keep the real insight persistence."""
 
     def _override(*, success: bool = True):
         app.dependency_overrides[get_analysis_runner] = lambda: (
-            AnalysisJobRunner(
-                FakeAnalyzeService(success=success), DBJobRepository()
-            )
+            AnalysisRunner(FakeAnalyzeService(success=success))
         )
 
     yield _override
@@ -81,6 +79,14 @@ async def _create_user(user_id: str) -> UserOrm:
         session.add(user)
         await session.commit()
         return user
+
+
+async def _insight_count(user_id: str) -> int:
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(InsightOrm).where(InsightOrm.user_id == user_id)
+        )
+        return len(result.scalars().all())
 
 
 async def test_analyze_requires_auth(client):
@@ -102,7 +108,7 @@ async def test_analyze_rejects_unknown_dataset_id(client, auth_override):
     assert "Unknown dataset_id" in response.json()["detail"]
 
 
-async def test_analyze_returns_completed_job_with_resource(
+async def test_analyze_returns_persisted_insight(
     client, auth_override, runner_override
 ):
     await _create_user("user-analyze")
@@ -117,15 +123,17 @@ async def test_analyze_returns_completed_job_with_resource(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "completed"
     assert body["thread_id"] == "t-1"
-    assert len(body["resources"]) == 1
-    assert body["resources"][0]["resource_url"].startswith("/api/insights/")
+    # Charts only, no narrative: this path doesn't run the LLM text step.
+    assert body["insight_text"] == ""
+    assert len(body["charts"]) == 1
+    assert body["charts"][0]["title"] == "Annual Tree Cover Loss"
 
 
-async def test_analyze_job_is_terminal_via_jobs_endpoint(
+async def test_analyze_insight_is_retrievable(
     client, auth_override, runner_override
 ):
+    """The response is the same resource `GET /api/insights/{id}` serves."""
     await _create_user("user-analyze")
     auth_override("user-analyze")
     runner_override(success=True)
@@ -139,21 +147,19 @@ async def test_analyze_job_is_terminal_via_jobs_endpoint(
     ).json()
 
     response = await client.get(
-        f"/api/jobs/{created['id']}",
+        f"/api/insights/{created['id']}",
         headers={"Authorization": "Bearer token"},
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "completed"
-    # Terminal on arrival: no Retry-After, the poll loop ends immediately.
-    assert "Retry-After" not in response.headers
-    assert [r["resource_url"] for r in body["resources"]] == [
-        created["resources"][0]["resource_url"]
+    assert body["id"] == created["id"]
+    assert [c["title"] for c in body["charts"]] == [
+        c["title"] for c in created["charts"]
     ]
 
 
-async def test_analyze_upstream_failure_returns_failed_job(
+async def test_analyze_upstream_failure_returns_502_and_persists_nothing(
     client, auth_override, runner_override
 ):
     await _create_user("user-analyze")
@@ -166,7 +172,6 @@ async def test_analyze_upstream_failure_returns_failed_job(
         headers={"Authorization": "Bearer token"},
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["status"] == "failed"
-    assert body["resources"] == []
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Analysis failed"
+    assert await _insight_count("user-analyze") == 0

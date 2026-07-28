@@ -1,10 +1,12 @@
+"""Synchronous analysis execution for `/api/analyze`."""
+
 import asyncio
 import time
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from src.agent.subagents.analyst.charts import Insight
+from src.api.repositories.insight_writer import persist_insight
 from src.api.services.analyze import AnalyzeService
-from src.api.services.job import JobData, JobRepository, JobType
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -12,28 +14,38 @@ logger = get_logger(__name__)
 # Upper bound on the analytics pull. The request waits for the analysis, so
 # this must stay comfortably below the infrastructure's gateway/idle timeout
 # (typically 60s) — otherwise the client sees a dropped connection instead of
-# a failed job.
+# a clean error response.
 ANALYZE_TIMEOUT_SECONDS = 50.0
 
+PersistInsight = Callable[..., Awaitable[str]]
 
-class AnalysisJobRunner:
-    """Runs an analysis synchronously and persists the outcome in one go.
 
-    Unlike the previous fire-and-forget background task, `run` returns only
-    after the job reached a terminal state. Success writes the job, insight,
-    charts and resource link in a single transaction; there is no intermediate
-    `pending`/`running` state to strand if the process dies mid-analysis —
-    nothing is persisted until the outcome is known.
+class AnalysisError(Exception):
+    """The analysis did not produce a result (upstream failure or error)."""
+
+
+class AnalysisTimeoutError(AnalysisError):
+    """The analytics pull exceeded the request-cycle time budget."""
+
+
+class AnalysisRunner:
+    """Runs an analysis synchronously and persists the resulting insight.
+
+    Mirrors the agent/chat path (`Analyst.analyze`): success persists an
+    insight with its charts via `persist_insight` and returns the insight id;
+    failure raises without persisting anything, surfacing to the client as an
+    HTTP error — the same philosophy as a failed chart-generation turn in
+    chat, where nothing is persisted either.
     """
 
     def __init__(
         self,
         service: AnalyzeService,
-        repo: JobRepository,
+        persist: PersistInsight = persist_insight,
         timeout_seconds: float = ANALYZE_TIMEOUT_SECONDS,
     ):
         self._service = service
-        self._repo = repo
+        self._persist = persist
         self._timeout_seconds = timeout_seconds
 
     async def run(
@@ -44,9 +56,10 @@ class AnalysisJobRunner:
         start_date: str,
         end_date: str,
         thread_id: Optional[str] = None,
-    ) -> JobData:
+    ) -> str:
+        """Run the analysis and return the persisted insight's id."""
         logger.info(
-            "analysis_job_started",
+            "analysis_started",
             user_id=user_id,
             dataset_id=dataset_id,
             start_date=start_date,
@@ -62,60 +75,52 @@ class AnalysisJobRunner:
                     start_date=start_date,
                     end_date=end_date,
                 )
-        except TimeoutError:
+        except TimeoutError as exc:
             logger.error(
-                "analysis_job_timed_out",
+                "analysis_timed_out",
                 severity="high",
                 user_id=user_id,
                 dataset_id=dataset_id,
                 timeout_seconds=self._timeout_seconds,
             )
-            return await self._fail(user_id, thread_id)
-        except Exception:
+            raise AnalysisTimeoutError("Analysis timed out") from exc
+        except Exception as exc:
             logger.exception(
-                "analysis_job_errored",
+                "analysis_errored",
                 severity="high",
                 user_id=user_id,
                 dataset_id=dataset_id,
             )
-            return await self._fail(user_id, thread_id)
+            raise AnalysisError("Analysis failed") from exc
 
         duration_ms = round((time.perf_counter() - started_at) * 1000)
 
         if not result.data.success:
             logger.error(
-                "analysis_job_failed",
+                "analysis_failed",
                 severity="high",
                 user_id=user_id,
                 duration_ms=duration_ms,
                 error_details=result.data.message,
             )
-            return await self._fail(user_id, thread_id)
+            raise AnalysisError("Analysis failed")
 
-        # Charts only, no narrative: this job doesn't run the LLM text
+        # Charts only, no narrative: this path doesn't run the LLM text
         # generation step.
         insight = Insight(charts=result.charts)
 
-        # A persistence error propagates to the caller (router → 500): the
-        # transaction rolled back atomically, so nothing partial exists and a
-        # retry starts clean.
-        job = await self._repo.create_completed_job(
+        # A persistence error propagates as-is (router → 500): the transaction
+        # rolled back atomically, so nothing partial exists and a retry starts
+        # clean.
+        insight_id = await self._persist(
+            insight,
             user_id=user_id,
-            thread_id=thread_id,
-            type=JobType.ANALYSIS,
-            insight=insight,
+            thread_id=thread_id or "",
         )
         logger.info(
-            "analysis_job_completed",
-            job_id=str(job.id),
+            "analysis_completed",
+            insight_id=insight_id,
             user_id=user_id,
             duration_ms=duration_ms,
         )
-        return job
-
-    async def _fail(self, user_id: str, thread_id: Optional[str]) -> JobData:
-        return await self._repo.create_failed_job(
-            user_id=user_id,
-            thread_id=thread_id,
-            type=JobType.ANALYSIS,
-        )
+        return insight_id

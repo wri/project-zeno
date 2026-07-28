@@ -362,7 +362,7 @@ class DashboardWidgetOrm(Base):
         PostgresUUID, ForeignKey("dashboards.id"), nullable=False
     )
     position = Column(Integer, nullable=False, server_default="0")
-    # "insight" | "map" — plain String like JobOrm.type; validated in Pydantic.
+    # "insight" | "map" — plain String; validated in Pydantic.
     widget_type = Column(String, nullable=False)
     # Deleting an insight silently drops widgets that reference it.
     insight_id = Column(
@@ -379,46 +379,6 @@ class DashboardWidgetOrm(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.now)
 
     dashboard = relationship("DashboardOrm", back_populates="widgets")
-
-
-class JobOrm(Base):
-    __tablename__ = "jobs"
-
-    id = Column(
-        PostgresUUID,
-        primary_key=True,
-        server_default=text("gen_random_uuid()"),
-    )
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    thread_id = Column(String, nullable=True)
-    type = Column(String, nullable=False)
-    status = Column(String, nullable=False, default="pending")
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
-    updated_at = Column(
-        DateTime, nullable=False, default=datetime.now, onupdate=datetime.now
-    )
-
-    resources = relationship(
-        "JobResourceOrm",
-        back_populates="job",
-        order_by="JobResourceOrm.created_at",
-    )
-
-
-class JobResourceOrm(Base):
-    __tablename__ = "job_resources"
-
-    id = Column(
-        PostgresUUID,
-        primary_key=True,
-        server_default=text("gen_random_uuid()"),
-    )
-    job_id = Column(PostgresUUID, ForeignKey("jobs.id"), nullable=False)
-    resource_url = Column(String, nullable=False)
-    status = Column(String, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
-
-    job = relationship("JobOrm", back_populates="resources")
 
 
 def _utcnow() -> datetime:

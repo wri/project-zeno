@@ -25,7 +25,7 @@ from src.api.repositories.insight_access import (
     is_visible_to_user as insight_is_visible_to_user,
 )
 from src.api.routers.insights import (
-    _row_to_response as _insight_row_to_response,
+    row_to_response as _insight_row_to_response,
 )
 from src.api.schemas import (
     DashboardAoiResponse,

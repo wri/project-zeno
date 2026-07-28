@@ -1,8 +1,11 @@
 # Analyze Flow
 
-`POST /api/analyze` returns a `Job` immediately and runs data fetching and chart
-generation as a background task. The client polls `GET /api/jobs/{id}` until
-the job completes, then follows `resource_url` to retrieve the results.
+`POST /api/analyze` runs data fetching and chart generation synchronously
+inside the request and returns the generated insight — the same shape as
+`GET /api/insights/{id}`. The insight and its charts are persisted in a
+single transaction; a failed analysis persists nothing and surfaces as an
+HTTP error (`502` when the analytics pull fails, `504` when it exceeds the
+in-request time budget).
 
 ## Sequence
 
@@ -10,40 +13,32 @@ the job completes, then follows `resource_url` to retrieve the results.
 sequenceDiagram
     participant FE as Frontend
     participant Analyze as routers/analyze.py<br/>POST /api/analyze
-    participant Jobs as routers/jobs.py<br/>GET /api/jobs/{id}
-    participant Insights as GET /api/insights/{id}
-    participant BG as AnalysisJobRunner (background)
+    participant Runner as AnalysisRunner
     participant Analytics as GFW Analytics API
     participant DB as Database
 
     FE->>Analyze: POST /api/analyze<br/>{aois, dataset_id, start_date, end_date}
-    Analyze->>DB: create Job (status=pending)
-    Analyze-->>FE: {id, type, status: "pending", resources: []}
-    Analyze--)BG: start background task
+    Analyze->>Runner: run (asyncio.timeout 50s)
+    Runner->>Analytics: POST analytics endpoint<br/>(dataset, aois, date range)
+    Analytics-->>Runner: raw data (area_ha, emissions, etc.)
+    Runner->>Runner: chart generator → chart dicts
+    Runner->>DB: create Insight + InsightCharts<br/>(one transaction, via persist_insight)
+    Runner-->>Analyze: insight id
+    Analyze->>DB: load insight + charts
+    Analyze-->>FE: 200 InsightResponse<br/>{id, insight_text: "", charts: [...]}
 
-    par background task
-        BG->>DB: update Job (status=running)
-        BG->>Analytics: POST analytics endpoint<br/>(dataset, aois, date range)
-        Analytics-->>BG: raw data (area_ha, emissions, etc.)
-        BG->>BG: TCLChartGenerator → chart dicts
-        BG->>DB: create Insight + InsightCharts
-        BG->>DB: create JobResource<br/>{resource_url: "/api/insights/{id}"}
-        BG->>DB: update Job (status=completed)
-    and client polling
-        loop until status=completed
-            FE->>Jobs: GET /api/jobs/{id}
-            alt pending or running
-                Jobs-->>FE: 200 + Retry-After: 1<br/>{status: "pending"|"running", resources: []}
-                Note over FE: wait 1s then retry
-            else completed
-                Jobs-->>FE: 200<br/>{status: "completed", resources: [{resource_url}]}
-            end
-        end
+    alt analytics failure
+        Runner-->>Analyze: AnalysisError
+        Analyze-->>FE: 502 {detail: "Analysis failed"}<br/>(nothing persisted)
+    else timeout
+        Runner-->>Analyze: AnalysisTimeoutError
+        Analyze-->>FE: 504 {detail: "Analysis timed out"}<br/>(nothing persisted)
     end
-
-    FE->>Insights: GET /api/insights/{id}
-    Insights-->>FE: {charts: [{title, chart_type, x_axis, y_axis, chart_data}]}
 ```
+
+The insight can be re-fetched at any time via `GET /api/insights/{id}` and is
+listable through `GET /api/insights` — the same read path the agent/chat flow
+uses.
 
 ## Example
 
@@ -58,42 +53,15 @@ POST /api/analyze
 }
 ```
 
-**Immediate response** (`status: pending`)
+**Response** (the persisted insight; `insight_text` is empty — this path
+generates deterministic charts only, no LLM narrative)
 ```json
-{
-  "id": "3ac814f6-5065-4da2-beb5-b683c2740c02",
-  "type": "analysis",
-  "status": "pending",
-  "thread_id": null,
-  "resources": [],
-  "created_at": "2026-06-08T16:21:51.777511"
-}
-```
-
-**Poll response** (`status: completed`)
-```json
-{
-  "id": "3ac814f6-5065-4da2-beb5-b683c2740c02",
-  "type": "analysis",
-  "status": "completed",
-  "resources": [
-    {
-      "id": "aa774e4b-f866-4f47-976b-fd4d42dd68f7",
-      "resource_url": "/api/insights/e7021a4c-21ae-440a-a847-874cca10890c",
-      "status": "completed",
-      "created_at": "2026-06-08T16:21:52.480180"
-    }
-  ]
-}
-```
-
-**Follow resource_url**
-```json
-GET /api/insights/e7021a4c-21ae-440a-a847-874cca10890c
-
 {
   "id": "e7021a4c-21ae-440a-a847-874cca10890c",
+  "user_id": "user-123",
+  "thread_id": null,
   "insight_text": "",
+  "follow_up_suggestions": [],
   "charts": [
     {
       "title": "Annual Tree Cover Loss",
@@ -113,6 +81,8 @@ GET /api/insights/e7021a4c-21ae-440a-a847-874cca10890c
       "y_axis": "carbon_emissions_MgCO2e",
       "chart_data": [...]
     }
-  ]
+  ],
+  "is_public": false,
+  "created_at": "2026-06-08T16:21:51.777511"
 }
 ```

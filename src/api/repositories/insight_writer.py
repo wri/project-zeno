@@ -1,15 +1,15 @@
 """Centralized insight persistence shared by both insight paths.
 
 Both the agent/chat path (`Analyst.analyze`) and the deterministic
-`/api/analyze` job write the same `InsightOrm` + `InsightChartOrm` rows. This is
-the single place that mapping lives, driven by the canonical `Insight`.
+`/api/analyze` endpoint write the same `InsightOrm` + `InsightChartOrm` rows.
+This is the single place that mapping lives, driven by the canonical
+`Insight`.
 """
 
 from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.agent.subagents.analyst.charts.model import Insight
@@ -18,43 +18,6 @@ from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-
-async def add_insight(
-    session: AsyncSession,
-    insight: Insight,
-    *,
-    user_id: Optional[str],
-    thread_id: str,
-    statistics_ids: Optional[list[str]] = None,
-    codeact_parts: Optional[list[dict]] = None,
-) -> InsightOrm:
-    """Add an insight and its charts to the caller's session; return the row.
-
-    Flushes (so `InsightOrm.id` materialises) but does NOT commit — the
-    transaction boundary belongs to the caller. Use this to persist an insight
-    atomically alongside other rows (e.g. a job + its resource link).
-    """
-    statistics_ids = statistics_ids or []
-    codeact_parts = codeact_parts or []
-
-    insight_orm = InsightOrm(
-        user_id=user_id,
-        thread_id=thread_id,
-        insight_text=insight.primary_insight,
-        follow_up_suggestions=insight.follow_up_suggestions,
-        statistics_ids=statistics_ids,
-        codeact_types=[p["type"] for p in codeact_parts],
-        codeact_contents=[p["content"] for p in codeact_parts],
-    )
-    session.add(insight_orm)
-    await session.flush()
-
-    session.add_all(
-        InsightChartOrm(insight_id=insight_orm.id, **chart.to_orm_kwargs())
-        for chart in insight.charts
-    )
-    return insight_orm
 
 
 async def persist_insight(
@@ -70,15 +33,27 @@ async def persist_insight(
     `codeact_parts` are the base64-encoded code/output blocks (as produced by
     `ExecutionResult.get_encoded_parts`); empty for deterministic charts.
     """
+    statistics_ids = statistics_ids or []
+    codeact_parts = codeact_parts or []
+
     async with get_session_from_pool() as session:
-        insight_orm = await add_insight(
-            session,
-            insight,
+        insight_orm = InsightOrm(
             user_id=user_id,
             thread_id=thread_id,
+            insight_text=insight.primary_insight,
+            follow_up_suggestions=insight.follow_up_suggestions,
             statistics_ids=statistics_ids,
-            codeact_parts=codeact_parts,
+            codeact_types=[p["type"] for p in codeact_parts],
+            codeact_contents=[p["content"] for p in codeact_parts],
         )
+        session.add(insight_orm)
+        await session.flush()
+
+        session.add_all(
+            InsightChartOrm(insight_id=insight_orm.id, **chart.to_orm_kwargs())
+            for chart in insight.charts
+        )
+
         await session.commit()
         await session.refresh(insight_orm)
         insight_id = str(insight_orm.id)

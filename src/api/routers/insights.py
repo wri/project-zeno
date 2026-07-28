@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
-def _row_to_response(row: InsightOrm) -> InsightResponse:
+def row_to_response(row: InsightOrm) -> InsightResponse:
     return InsightResponse(
         id=row.id,
         user_id=row.user_id,
@@ -133,7 +133,7 @@ async def list_insights(
 
     result = await session.execute(stmt)
     rows = result.scalars().all()
-    return [_row_to_response(row) for row in rows]
+    return [row_to_response(row) for row in rows]
 
 
 @router.get("/api/insights/{insight_id}", response_model=InsightResponse)
@@ -159,7 +159,7 @@ async def get_insight(
         raise HTTPException(status_code=404, detail="Insight not found")
 
     if row.is_public:
-        return _row_to_response(row)
+        return row_to_response(row)
 
     if not user:
         raise HTTPException(
@@ -173,7 +173,7 @@ async def get_insight(
     ):
         raise HTTPException(status_code=404, detail="Insight not found")
 
-    return _row_to_response(row)
+    return row_to_response(row)
 
 
 @router.patch(
@@ -205,4 +205,4 @@ async def toggle_insight_public(
     row.is_public = body.is_public
     await session.commit()
     await session.refresh(row)
-    return _row_to_response(row)
+    return row_to_response(row)

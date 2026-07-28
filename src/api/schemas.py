@@ -473,39 +473,6 @@ class InsightPublicToggleRequest(BaseModel):
     is_public: bool
 
 
-class JobResourceResponse(BaseModel):
-    id: UUID
-    resource_url: str = Field(
-        description="URL of the created resource, e.g. `/api/insights/{id}`."
-    )
-    status: str = Field(description="Always `completed`.")
-    created_at: datetime
-
-
-class JobResponse(BaseModel):
-    id: UUID
-    type: str = Field(description="Job type, e.g. `analysis`.")
-    status: str = Field(
-        description=(
-            "Job status: `completed` or `failed`. Jobs are terminal when "
-            "returned; `pending`/`running` only appear on legacy rows "
-            "created by the old background-task flow."
-        )
-    )
-    thread_id: Optional[str] = Field(
-        default=None,
-        description="Agent thread the results are associated with, if provided.",
-    )
-    resources: List[JobResourceResponse] = Field(
-        default=[],
-        description=(
-            "Resources created by the job; empty if it failed. "
-            "Follow each `resource_url` to retrieve the result."
-        ),
-    )
-    created_at: datetime
-
-
 class AreaOfInterest(BaseModel):
     source: str = Field(
         description=(
@@ -537,7 +504,7 @@ class AnalyzeRequest(BaseModel):
     thread_id: Optional[str] = Field(
         default=None,
         description=(
-            "Agent thread ID. When provided, the job and its insight are "
+            "Agent thread ID. When provided, the generated insight is "
             "associated with that thread."
         ),
     )

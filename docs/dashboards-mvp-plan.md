@@ -28,8 +28,9 @@ migration. Scope here is backend only: models, repositories, API, agent tools.
   are rows in `custom_areas` referenced as `source="custom"`. Dashboards store
   these references, never geometry.
 - **Deterministic analysis**: `POST /api/analyze` (`src/api/routers/analyze.py`)
-  turns (AOIs + dataset_id + dates) into a new insight via a background job.
-  This is the future refresh/alerts mechanism — nothing to build now.
+  turns (AOIs + dataset_id + dates) into a new insight synchronously within
+  the request. This is the future refresh/alerts mechanism — nothing to
+  build now.
 - **Access rules**: `src/api/repositories/insight_access.py` centralizes
   own+public read / owner-only edit. Dashboards get twin functions.
 - **Agent harness**: everything is a tool on one agent (`src/agent/graph.py`);
