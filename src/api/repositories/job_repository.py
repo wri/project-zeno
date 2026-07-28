@@ -9,7 +9,7 @@ from src.api.data_models import (
     JobOrm,
     JobResourceOrm,
 )
-from src.api.repositories.insight_writer import add_insight, persist_insight
+from src.api.repositories.insight_writer import add_insight
 from src.api.services.job import (
     JobData,
     JobRepository,
@@ -25,58 +25,6 @@ logger = get_logger(__name__)
 
 
 class DBJobRepository(JobRepository):
-    async def create_job(
-        self, user_id: str, thread_id: Optional[str], type: JobType
-    ) -> UUID:
-        async with get_session_from_pool() as session:
-            row = JobOrm(
-                user_id=user_id,
-                thread_id=thread_id,
-                type=type.value,
-                status=JobStatus.PENDING.value,
-            )
-            session.add(row)
-            await session.flush()
-            job_id = row.id
-            await session.commit()
-            return job_id
-
-    async def update_job_status(self, job_id: UUID, status: JobStatus) -> None:
-        async with get_session_from_pool() as session:
-            row = await session.get(JobOrm, job_id)
-            if row:
-                row.status = status.value
-                await session.commit()
-
-    async def create_insight_resource(
-        self,
-        job_id: UUID,
-        user_id: str,
-        thread_id: Optional[str],
-        insight: Insight,
-    ) -> str:
-        insight_id = await persist_insight(
-            insight,
-            user_id=user_id,
-            thread_id=thread_id or "",
-        )
-        async with get_session_from_pool() as session:
-            session.add(
-                JobResourceOrm(
-                    job_id=job_id,
-                    resource_url=f"/api/insights/{insight_id}",
-                    status=ResourceStatus.COMPLETED.value,
-                )
-            )
-            await session.commit()
-        logger.info(
-            "insight_resource_created",
-            job_id=str(job_id),
-            insight_id=insight_id,
-            charts_count=len(insight.charts),
-        )
-        return insight_id
-
     async def create_completed_job(
         self,
         user_id: str,

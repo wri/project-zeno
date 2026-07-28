@@ -9,6 +9,9 @@ from src.agent.subagents.analyst.charts import Insight
 
 
 class JobStatus(str, Enum):
+    # PENDING/RUNNING are no longer written — jobs are persisted already
+    # terminal — but remain readable for rows created by the old
+    # background-task flow.
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -43,28 +46,6 @@ class JobData:
 
 
 class JobRepository(ABC):
-    @abstractmethod
-    async def create_job(
-        self,
-        user_id: str,
-        thread_id: Optional[str],
-        type: JobType,
-    ) -> UUID: ...
-
-    @abstractmethod
-    async def update_job_status(
-        self, job_id: UUID, status: JobStatus
-    ) -> None: ...
-
-    @abstractmethod
-    async def create_insight_resource(
-        self,
-        job_id: UUID,
-        user_id: str,
-        thread_id: Optional[str],
-        insight: Insight,
-    ) -> str: ...
-
     @abstractmethod
     async def create_completed_job(
         self,

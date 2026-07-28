@@ -39,7 +39,9 @@ class _Result:
 
 
 class FakeService:
-    def __init__(self, *, success: bool = True, charts=CHARTS, delay: float = 0):
+    def __init__(
+        self, *, success: bool = True, charts=CHARTS, delay: float = 0
+    ):
         self._success = success
         self._charts = charts
         self._delay = delay
@@ -57,25 +59,6 @@ class FakeJobRepository(JobRepository):
     def __init__(self):
         self.completed_calls: list[dict] = []
         self.failed_calls: list[dict] = []
-
-    # --- legacy background-task methods: the sync runner must not use them ---
-
-    async def create_job(self, user_id, thread_id, type) -> UUID:
-        raise AssertionError("legacy create_job must not be called")
-
-    async def update_job_status(self, job_id: UUID, status: JobStatus) -> None:
-        raise AssertionError("legacy update_job_status must not be called")
-
-    async def create_insight_resource(
-        self,
-        job_id: UUID,
-        user_id: str,
-        thread_id: Optional[str],
-        insight: Insight,
-    ) -> str:
-        raise AssertionError("legacy create_insight_resource must not be called")
-
-    # --- single-transaction methods ---
 
     async def create_completed_job(
         self,
@@ -206,9 +189,7 @@ async def test_run_on_service_exception_returns_failed_job():
 @pytest.mark.asyncio
 async def test_run_on_timeout_returns_failed_job():
     repo = FakeJobRepository()
-    runner = make_runner(
-        repo, FakeService(delay=5), timeout_seconds=0.01
-    )
+    runner = make_runner(repo, FakeService(delay=5), timeout_seconds=0.01)
     job = await _run(runner)
 
     assert job.status == JobStatus.FAILED

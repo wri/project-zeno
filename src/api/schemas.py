@@ -487,19 +487,19 @@ class JobResponse(BaseModel):
     type: str = Field(description="Job type, e.g. `analysis`.")
     status: str = Field(
         description=(
-            "Current job status: `pending`, `running`, `completed`, or "
-            "`failed`. While `pending` or `running`, poll again after the "
-            "number of seconds in the `Retry-After` response header."
+            "Job status: `completed` or `failed`. Jobs are terminal when "
+            "returned; `pending`/`running` only appear on legacy rows "
+            "created by the old background-task flow."
         )
     )
     thread_id: Optional[str] = Field(
         default=None,
-        description="Agent thread the results were written into, if provided.",
+        description="Agent thread the results are associated with, if provided.",
     )
     resources: List[JobResourceResponse] = Field(
         default=[],
         description=(
-            "Resources created by the job. Empty until the job completes. "
+            "Resources created by the job; empty if it failed. "
             "Follow each `resource_url` to retrieve the result."
         ),
     )
@@ -537,9 +537,8 @@ class AnalyzeRequest(BaseModel):
     thread_id: Optional[str] = Field(
         default=None,
         description=(
-            "Agent thread ID. When provided, the results are written into "
-            "the agent state for that thread so follow-up chat messages can "
-            "reference the data without re-fetching."
+            "Agent thread ID. When provided, the job and its insight are "
+            "associated with that thread."
         ),
     )
 

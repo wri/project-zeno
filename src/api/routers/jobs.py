@@ -60,12 +60,14 @@ async def get_job(
     """
     Get the current status of a job.
 
-    While the job is `pending` or `running` the response includes a
-    `Retry-After: 1` header — poll again after that many seconds. Once
-    `status` is `completed`, `resources` contains one or more entries each
-    with a `resource_url` you can follow to retrieve the result (e.g.
-    `GET /api/insights/{id}`). If the job `failed`, `resources` will be
-    empty.
+    Jobs created by `POST /api/analyze` are terminal on arrival (`completed`
+    or `failed`); this endpoint re-fetches them. When `completed`, `resources`
+    contains one or more entries each with a `resource_url` you can follow to
+    retrieve the result (e.g. `GET /api/insights/{id}`). If the job `failed`,
+    `resources` will be empty.
+
+    Rows created by the old background-task flow may still be `pending` or
+    `running`; for those the response includes a `Retry-After: 1` header.
     """
     job = await repo.get_job(job_id)
     if not job or job.user_id != user.id:

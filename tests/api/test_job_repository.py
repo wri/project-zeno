@@ -57,7 +57,9 @@ async def _create_user() -> None:
 
 async def _count(orm_cls) -> int:
     async with async_session_maker() as session:
-        result = await session.execute(select(func.count()).select_from(orm_cls))
+        result = await session.execute(
+            select(func.count()).select_from(orm_cls)
+        )
         return result.scalar_one()
 
 
