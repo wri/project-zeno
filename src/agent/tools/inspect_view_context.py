@@ -53,12 +53,12 @@ _KNOWN_KEYS = {
 }
 
 # Rows at or below this get full data injected; above get per-column stats.
-_DATA_INJECT_THRESHOLD = 20
+DATA_INJECT_THRESHOLD = 20
 # Meta-columns that add no signal for stats and are skipped.
-_DATA_SKIP_COLUMNS = {"aoi_id", "aoi_type"}
+DATA_SKIP_COLUMNS = {"aoi_id", "aoi_type"}
 # Secondary cap on full-table output; if the formatted table exceeds this,
 # fall back to stats even if row count is below the threshold.
-_DATA_TABLE_CHAR_LIMIT = 4000
+DATA_TABLE_CHAR_LIMIT = 4000
 
 
 def _label(item: object, *keys: str) -> str:
@@ -171,7 +171,7 @@ async def _load_insights(insight_ids: list[UUID]) -> list[InsightOrm]:
     return [row for row in rows if is_visible_to_user(row, user_id)]
 
 
-def _format_numeric_stats(values: list) -> str:
+def format_numeric_stats(values: list) -> str:
     """Min/max/mean for a list of numeric values, ignoring None/non-numeric."""
     nums = [v for v in values if isinstance(v, (int, float)) and v is not None]
     if not nums:
@@ -185,7 +185,7 @@ def _format_numeric_stats(values: list) -> str:
     return f"min {mn}, max {mx}, mean {avg:.2f}".rstrip("0").rstrip(".")
 
 
-def _format_chart_data(chart) -> str:
+def format_chart_data(chart) -> str:
     """Format chart data for the agent: full rows if small, stats if large.
 
     For series <= DATA_INJECT_THRESHOLD: a compact text table of the rows.
@@ -198,16 +198,15 @@ def _format_chart_data(chart) -> str:
 
     rows_n = len(data)
     # Collect columns in first-seen order, skipping meta-columns.
-    columns: dict = {}
-    for row in data:
-        for k, v in row.items():
-            if k not in columns and k not in _DATA_SKIP_COLUMNS:
-                columns[k] = v
-    col_names = list(columns.keys())
+    col_names = list(
+        dict.fromkeys(
+            k for row in data for k in row if k not in DATA_SKIP_COLUMNS
+        )
+    )
     if not col_names:
         return f"({rows_n} rows, all meta-columns)"
 
-    if rows_n <= _DATA_INJECT_THRESHOLD:
+    if rows_n <= DATA_INJECT_THRESHOLD:
         # Small: render full table, but fall back to stats if it would be
         # too large (many columns or long values).
         lines = [f"  Data ({rows_n} rows, {len(col_names)} cols):"]
@@ -220,7 +219,7 @@ def _format_chart_data(chart) -> str:
             ]
             lines.append(f"    {''.join(f'{v:<18}' for v in cells)}")
         table_str = "\n".join(lines)
-        if len(table_str) <= _DATA_TABLE_CHAR_LIMIT:
+        if len(table_str) <= DATA_TABLE_CHAR_LIMIT:
             return table_str
         # Table too wide — fall through to stats.
 
@@ -232,10 +231,14 @@ def _format_chart_data(chart) -> str:
             v for v in values if isinstance(v, (int, float)) and v is not None
         ]
         if nums:
-            lines.append(f"    {col}: {_format_numeric_stats(values)}")
+            lines.append(f"    {col}: {format_numeric_stats(nums)}")
         else:
-            distinct = set(str(v) for v in values if v is not None)
-            samples = list(distinct)[:4]
+            # dict.fromkeys preserves first-seen order (unlike set()), so
+            # samples are stable across runs.
+            distinct = list(
+                dict.fromkeys(str(v) for v in values if v is not None)
+            )
+            samples = distinct[:4]
             lines.append(
                 f"    {col}: {len(distinct)} distinct values "
                 f"({', '.join(samples) + '...' if len(distinct) > 4 else ''})"
@@ -282,7 +285,7 @@ def format_insights(rows: list[InsightOrm]) -> str:
                 f'  Chart "{title}" ({chart.chart_type}): '
                 f"{_chart_variables(chart)} — {rows_n} data point(s)"
             )
-            lines.append(_format_chart_data(chart))
+            lines.append(format_chart_data(chart))
         if row.follow_up_suggestions:
             lines.append(
                 "  Follow-ups: " + "; ".join(row.follow_up_suggestions)
