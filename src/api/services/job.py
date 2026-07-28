@@ -66,4 +66,31 @@ class JobRepository(ABC):
     ) -> str: ...
 
     @abstractmethod
+    async def create_completed_job(
+        self,
+        user_id: str,
+        thread_id: Optional[str],
+        type: JobType,
+        insight: Insight,
+    ) -> JobData:
+        """Persist a finished job in one transaction.
+
+        Writes the job (already `completed`), the insight, its charts and the
+        resource row linking job → insight atomically: either the full cycle
+        exists or nothing does. There is no intermediate `pending`/`running`
+        state to strand if the process dies.
+        """
+        ...
+
+    @abstractmethod
+    async def create_failed_job(
+        self,
+        user_id: str,
+        thread_id: Optional[str],
+        type: JobType,
+    ) -> JobData:
+        """Persist a job that failed, as a terminal record with no resources."""
+        ...
+
+    @abstractmethod
     async def get_job(self, job_id: UUID) -> Optional[JobData]: ...

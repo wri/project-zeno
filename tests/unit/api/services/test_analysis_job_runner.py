@@ -70,6 +70,12 @@ class FakeJobRepository(JobRepository):
         )
         return "insight-123"
 
+    async def create_completed_job(self, user_id, thread_id, type, insight):
+        raise NotImplementedError
+
+    async def create_failed_job(self, user_id, thread_id, type):
+        raise NotImplementedError
+
     async def get_job(self, job_id: UUID):
         return None
 

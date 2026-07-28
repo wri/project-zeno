@@ -9,7 +9,7 @@ from src.api.data_models import (
     JobOrm,
     JobResourceOrm,
 )
-from src.api.repositories.insight_writer import persist_insight
+from src.api.repositories.insight_writer import add_insight, persist_insight
 from src.api.services.job import (
     JobData,
     JobRepository,
@@ -76,6 +76,95 @@ class DBJobRepository(JobRepository):
             charts_count=len(insight.charts),
         )
         return insight_id
+
+    async def create_completed_job(
+        self,
+        user_id: str,
+        thread_id: Optional[str],
+        type: JobType,
+        insight: Insight,
+    ) -> JobData:
+        async with get_session_from_pool() as session:
+            job = JobOrm(
+                user_id=user_id,
+                thread_id=thread_id,
+                type=type.value,
+                status=JobStatus.COMPLETED.value,
+            )
+            session.add(job)
+
+            insight_orm = await add_insight(
+                session,
+                insight,
+                user_id=user_id,
+                thread_id=thread_id or "",
+            )
+
+            # Linked via the relationship (not job.id) so the FK is resolved
+            # at flush time regardless of whether the job row is flushed yet.
+            resource = JobResourceOrm(
+                job=job,
+                resource_url=f"/api/insights/{insight_orm.id}",
+                status=ResourceStatus.COMPLETED.value,
+            )
+            session.add(resource)
+            await session.flush()
+
+            job_data = JobData(
+                id=job.id,
+                user_id=job.user_id,
+                type=JobType(job.type),
+                status=JobStatus(job.status),
+                thread_id=job.thread_id,
+                created_at=job.created_at,
+                resources=[
+                    JobResourceData(
+                        id=resource.id,
+                        resource_url=resource.resource_url,
+                        status=ResourceStatus(resource.status),
+                        created_at=resource.created_at,
+                    )
+                ],
+            )
+            await session.commit()
+
+        logger.info(
+            "job_completed",
+            job_id=str(job_data.id),
+            insight_id=str(insight_orm.id),
+            charts_count=len(insight.charts),
+        )
+        return job_data
+
+    async def create_failed_job(
+        self,
+        user_id: str,
+        thread_id: Optional[str],
+        type: JobType,
+    ) -> JobData:
+        async with get_session_from_pool() as session:
+            job = JobOrm(
+                user_id=user_id,
+                thread_id=thread_id,
+                type=type.value,
+                status=JobStatus.FAILED.value,
+            )
+            session.add(job)
+            await session.flush()
+
+            job_data = JobData(
+                id=job.id,
+                user_id=job.user_id,
+                type=JobType(job.type),
+                status=JobStatus(job.status),
+                thread_id=job.thread_id,
+                created_at=job.created_at,
+                resources=[],
+            )
+            await session.commit()
+
+        logger.info("job_failed", job_id=str(job_data.id))
+        return job_data
 
     async def get_job(self, job_id: UUID) -> Optional[JobData]:
         async with get_session_from_pool() as session:
