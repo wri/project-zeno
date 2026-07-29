@@ -257,6 +257,13 @@ class DatasetSelector:
                                 name_by_id[o.dataset_id]
                                 for o in selection_result.suggested_datasets
                             ],
+                            "data": [
+                                {
+                                    **o.model_dump(),
+                                    "dataset_name": name_by_id[o.dataset_id],
+                                }
+                                for o in selection_result.suggested_datasets
+                            ],
                         },
                         "messages": [
                             ToolMessage(

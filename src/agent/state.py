@@ -67,6 +67,16 @@ class Nudge(TypedDict):
     # message — no dedicated resolver tool, same mechanism
     # follow_up_suggestions already relies on.
     options: list[str]
+    # Optional richer payload, parallel to `options` (same order/length).
+    # Additive-only so existing consumers that just read `options` are
+    # unaffected. Populated per nudge type to match the shape a pick would
+    # have produced: "dataset_choice" carries each suggested dataset's full
+    # DatasetOption fields plus dataset_name (matching the pre-nudge
+    # `suggested_datasets` state shape, removed when nudges were
+    # generalized); "aoi_choice" carries each candidate as an AOIIndex-
+    # shaped dict, matching an aoi_selection.aois entry. Not populated for
+    # other nudge types.
+    data: NotRequired[list[dict]]
 
 
 class AgentState(TypedDict):

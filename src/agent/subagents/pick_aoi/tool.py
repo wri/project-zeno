@@ -333,9 +333,11 @@ async def check_multiple_matches(
                 & (results.source == "gadm")
             ]
 
-            return all_matches[["name", "subtype", "src_id"]].to_dict(
-                orient="records"
-            )
+            # Same columns as AOIIndex, so these candidates match the shape
+            # of an already-picked aoi_selection entry.
+            return all_matches[
+                ["source", "src_id", "name", "subtype", "bbox"]
+            ].to_dict(orient="records")
 
     return None
 
@@ -379,10 +381,12 @@ async def check_duplicate_aois(
     selected_aois: list[AOIIndex],
     all_results: list[pd.DataFrame],
     language: str = DEFAULT_LANGUAGE,
-) -> Optional[tuple[str, list[str]]]:
-    """Returns (message, options) when the same place name matches AOIs in
-    different countries — ``options`` are the exact candidate strings for the
-    ``aoi_choice`` nudge; clicking one resubmits it as the next question."""
+) -> Optional[tuple[str, list[str], list[dict]]]:
+    """Returns (message, options, data) when the same place name matches
+    AOIs in different countries — ``options`` are the exact candidate
+    strings for the ``aoi_choice`` nudge (clicking one resubmits it as the
+    next question); ``data`` are the same candidates as AOIIndex-shaped
+    dicts, matching the aoi_selection.aois entries a pick would produce."""
     for selected_aoi, result in zip(selected_aois, all_results):
         if selected_aoi.source == "gadm":
             short_name = selected_aoi.name.split(",")[0]
@@ -397,7 +401,7 @@ async def check_duplicate_aois(
                     short_name=short_name,
                     candidate_names="\n".join(options),
                 )
-                return message, options
+                return message, options, candidates
 
     return None
 
@@ -569,10 +573,14 @@ class Geocoder:
             selected_aois, all_results, language
         )
         if duplicate_check:
-            message, options = duplicate_check
+            message, options, data = duplicate_check
             return Command(
                 update={
-                    "nudge": {"type": "aoi_choice", "options": options},
+                    "nudge": {
+                        "type": "aoi_choice",
+                        "options": options,
+                        "data": data,
+                    },
                     "messages": [
                         ToolMessage(
                             message + NUDGE_ALREADY_SET_NOTE,
