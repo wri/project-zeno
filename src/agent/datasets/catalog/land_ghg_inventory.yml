@@ -1,0 +1,71 @@
+dataset_id: 12
+dataset_name: Land GHG Inventory
+context_layers: null
+parameters: null
+variables: null
+tile_url: ""
+license: CC by 4.0
+geographic_coverage: GADM administrative areas (country, state/province, district) only
+resolution: Reported per administrative area
+update_frequency: Annual
+content_date: 2015 - present
+start_date: '2015-01-01'
+content_date_fixed: false
+keywords:
+- carbon
+- greenhouse gas
+- emissions
+- removals
+- net flux
+- AFOLU
+- land use
+- agriculture
+- forest carbon
+analytics_api_endpoint: /v0/land_change/land_ghg_inventory/analytics
+prompt_instructions: >-
+  Use this dataset for a land greenhouse-gas (GHG) inventory of an administrative
+  area: vegetation carbon (gross emissions, gross removals and net flux, broken
+  down by forest-change state — tree loss, tree gain, trees remaining, and
+  non-trees) and agriculture emissions (cropland and livestock). All values are
+  measured in MgCO2e (tonnes CO2 equivalent); emissions are positive (a source)
+  and removals are negative (a sink). Results are returned as tables, one per
+  section (vegetation and agriculture). Only available for GADM administrative
+  areas down to admin level 2 (country, state/province, district).
+selection_hints: >-
+  DEFAULT dataset for carbon / greenhouse-gas net-flux and emissions-and-removals
+  questions from 2015 onward, when no time period is given, or when broken down by
+  forest-change state (tree loss, tree gain, stable/remaining forest, non-forest)
+  or by agriculture (cropland, livestock). Reports vegetation emissions/removals/
+  net flux and agriculture emissions in MgCO2e for an administrative area.
+  IMPORTANT: only available for GADM administrative areas to admin level 2
+  (country, state/province, district) — for protected areas, KBAs, landmark or
+  custom areas, or finer admin levels, use Forest greenhouse gas net flux instead.
+  For 2001-2025 cumulative carbon totals, prefer Forest greenhouse gas net flux;
+  for annual tree-cover-loss emissions specifically, Tree cover loss also carries
+  a carbon-emissions metric.
+description: >-
+  Land GHG Inventory reports a greenhouse-gas accounting for an administrative
+  area, combining vegetation carbon flux — gross emissions, gross removals and net
+  flux by forest-change state (tree loss, tree gain, trees remaining, non-trees),
+  per year — with agriculture emissions (cropland and livestock). Values are in
+  MgCO2e; emissions are positive (source) and removals negative (sink).
+methodology: >-
+  Vegetation carbon flux is derived from land-state transitions (tree loss, gain,
+  stable tree cover and non-tree cover) combined with per-pixel carbon densities
+  and emission/removal factors, aggregated to the administrative area and year.
+  Agriculture emissions aggregate cropland and livestock sources. See the source
+  publications for the underlying factors and definitions.
+cautions: >-
+  Emissions and removals are gross figures; net flux is emissions plus removals
+  (removals stored as negative). Values are model estimates, not measured, and
+  should be interpreted as indicative. The inventory is only computed for GADM
+  administrative areas down to admin level 2; it is not available for protected
+  areas, KBAs, landmark areas, custom areas, or finer admin levels.
+function_usage_notes: >-
+  Provide a land greenhouse-gas inventory for an administrative area — vegetation
+  emissions, removals and net flux by forest-change state, plus agriculture
+  emissions — for 2015 onward.
+citation: >-
+  "Land GHG Inventory". Global Forest Watch / Global Nature Watch, accessed on [date].
+code_instructions: N/A
+presentation_instructions: N/A

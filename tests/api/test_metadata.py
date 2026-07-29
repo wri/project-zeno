@@ -30,8 +30,10 @@ async def test_metadata_model_info(client):
 
     assert "current" in model_info
     assert "model_class" in model_info
+    assert "model_name" in model_info
     assert "small" in model_info
     assert "small_model_class" in model_info
+    assert "small_model_name" in model_info
 
 
 @pytest.mark.asyncio

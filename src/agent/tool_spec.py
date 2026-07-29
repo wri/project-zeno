@@ -42,6 +42,7 @@ class Availability:
 
     skills: frozenset[str]
     tools: frozenset[str]
+    excluded_datasets: frozenset[str] = frozenset()
 
     def has_skill(self, name: str) -> bool:
         return name in self.skills

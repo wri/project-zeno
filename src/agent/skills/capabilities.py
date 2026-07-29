@@ -2,12 +2,17 @@ DATASETS_PLACEHOLDER = "{{AVAILABLE_DATASETS}}"
 
 
 def load_datasets_info() -> str:
-    """Build a bullet list of datasets from configuration."""
+    """Build a bullet list of datasets from configuration, skipping any the
+    current agent profile (feature flag) excludes."""
     from src.agent.datasets.config import DATASETS
+    from src.agent.tool_spec import bound_availability
 
+    excluded = bound_availability().excluded_datasets
     datasets_info = []
     for dataset in DATASETS:
         name = dataset.get("dataset_name", "Unknown")
+        if name in excluded:
+            continue
         content_date = dataset.get("content_date", "Unknown")
         resolution = dataset.get("resolution", "Unknown")
         update_frequency = dataset.get("update_frequency", "Unknown")

@@ -43,11 +43,24 @@ from src.agent.subagents.pick_dataset.schema import (
     DatasetSelectionResult,
 )
 from src.agent.subagents.progress import emit_progress
-from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tool_spec import ToolCategory, ToolSpec, bound_availability
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+
+def _drop_excluded_datasets(
+    candidate_datasets: pd.DataFrame, excluded: frozenset[str]
+) -> pd.DataFrame:
+    """Remove datasets the current agent profile excludes from the candidate
+    set, so a hidden dataset is never offered to the selector."""
+    if not excluded:
+        return candidate_datasets
+    return candidate_datasets[
+        ~candidate_datasets["dataset_name"].isin(excluded)
+    ]
+
 
 data_dir = Path("data")
 
@@ -217,6 +230,11 @@ class DatasetSelector:
 
         # Step 1: RAG lookup of candidate datasets
         candidate_datasets = await rag_candidate_datasets(query, k=5)
+        # Drop datasets the current agent profile (feature flag) excludes, so
+        # they can never be selected under a flag that hides them.
+        candidate_datasets = _drop_excluded_datasets(
+            candidate_datasets, bound_availability().excluded_datasets
+        )
         # Step 2: LLM picks the best dataset and context layer
         selection_result = await select_best_dataset(
             query,

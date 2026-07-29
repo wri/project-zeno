@@ -199,6 +199,55 @@ def test_config_tool_descriptions_excludes_unbound_tool():
     assert "_fake_tool" not in c.tool_descriptions()
 
 
+# --- AgentConfig: excluded_datasets ------------------------------------------
+
+
+def test_excluded_datasets_defaults_empty():
+    """A profile that says nothing excludes no datasets."""
+    assert AgentConfig("test").excluded_datasets == frozenset()
+
+
+def test_config_rejects_unknown_dataset_name():
+    """A typo'd dataset exclusion must fail at registration, not silently
+    exclude nothing (an allow-through) the way a name that matches no catalog
+    entry would."""
+    with pytest.raises(ValueError, match="unknown dataset 'Nope Dataset'"):
+        AgentConfig("test", excluded_datasets=frozenset({"Nope Dataset"}))
+
+
+def test_excluded_datasets_not_inherited_across_extends():
+    """Unlike skills/tools, excludes do NOT accumulate: a child reveals a
+    parent-hidden dataset simply by not listing it."""
+    registry = AgentConfigRegistry()
+    registry.register(
+        AgentConfig(
+            "default", excluded_datasets=frozenset({"Tree cover loss"})
+        )
+    )
+    registry.register(AgentConfig("child", extends="default"))
+    assert registry.resolve("child").excluded_datasets == frozenset()
+
+
+def test_availability_carries_excluded_datasets():
+    """The bound ContextVar must expose the excludes so pick_dataset and
+    capabilities can read them per request."""
+    c = AgentConfig("test", excluded_datasets=frozenset({"Tree cover loss"}))
+    assert c.availability().excluded_datasets == frozenset({"Tree cover loss"})
+
+
+# --- Production wiring: Land GHG behind the flag ------------------------------
+
+
+def test_default_profile_excludes_land_ghg():
+    config = default_registry.resolve(DEFAULT_PROFILE)
+    assert "Land GHG Inventory" in config.availability().excluded_datasets
+
+
+def test_experimental_profile_reveals_land_ghg():
+    config = default_registry.resolve(EXPERIMENTAL_PROFILE)
+    assert "Land GHG Inventory" not in config.availability().excluded_datasets
+
+
 # --- Structural invariants ---------------------------------------------------
 
 
