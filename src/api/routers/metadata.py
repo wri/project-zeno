@@ -39,8 +39,10 @@ async def api_metadata() -> dict:
         "model": {
             "current": current_model_name,
             "model_class": current_model.__class__.__name__,
+            "model_name": current_model.model,
             "small": small_model_name,
             "small_model_class": small_model.__class__.__name__,
+            "small_model_name": small_model.model,
         },
     }
 
