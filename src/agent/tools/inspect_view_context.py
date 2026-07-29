@@ -9,7 +9,7 @@ a query that refers to what the user is looking at.
 
 Insights are the exception to "just echo what the frontend sent": they carry a
 lot of content that lives in the database, not the snapshot. When the frontend
-reports visible insight ids (typically on the report page), the tool loads each
+reports visible insight ids (on the map or dashboard page), the tool loads each
 insight and prints its most important content — summary, chart titles and the
 variables behind each chart — so the agent can reason about what's on screen
 even when that detail isn't already in the conversation history.
@@ -61,6 +61,10 @@ DATA_SKIP_COLUMNS = {"aoi_id", "aoi_type"}
 # Secondary cap on full-table output; if the formatted table exceeds this,
 # fall back to stats even if row count is below the threshold.
 DATA_TABLE_CHAR_LIMIT = 4000
+# Cap on a text widget's markdown body; the agent composes these itself
+# (add_text_widget) so they're normally short, but this guards against a
+# pathological note dominating the dashboard rendering.
+TEXT_WIDGET_CHAR_LIMIT = 2000
 
 
 def _label(item: object, *keys: str) -> str:
@@ -360,13 +364,28 @@ def _format_map_widget(config: dict) -> Optional[str]:
     return None
 
 
+def _format_text_widget(config: dict) -> str:
+    """A text widget's markdown body, capped to guard against a runaway note.
+
+    The body is agent-composed (add_text_widget) so it's normally short;
+    this is a defensive cap, not a routine truncation.
+    """
+    text = str(config.get("text") or "").strip()
+    if not text:
+        return "(empty)"
+    if len(text) > TEXT_WIDGET_CHAR_LIMIT:
+        return text[:TEXT_WIDGET_CHAR_LIMIT] + "… (truncated)"
+    return text
+
+
 async def format_dashboard(dashboard: DashboardOrm) -> str:
     """Render the dashboard being viewed: name, area(s) and its widgets.
 
     Insight widgets are expanded with the shared `format_insights` rendering
     (visibility-filtered), so the agent can reason about what each widget
     shows; map widgets are summarized by dataset name/dates or imagery
-    date/areas; anything else is listed by type and config.
+    date/areas; text widgets show their markdown body; anything else is
+    listed by type and config.
     """
     lines = [f"Dashboard being viewed: '{dashboard.name}' ({dashboard.id})"]
     if dashboard.description:
@@ -383,9 +402,14 @@ async def format_dashboard(dashboard: DashboardOrm) -> str:
     for widget in widgets:
         if widget.widget_type == "insight":
             continue  # detail comes from the insight rendering below
-        summary = _format_map_widget(widget.config or {})
-        if summary is None:
-            summary = json.dumps(widget.config or {}, default=str)
+        config = widget.config or {}
+        summary: str
+        if widget.widget_type == "text":
+            summary = _format_text_widget(config)
+        else:
+            summary = _format_map_widget(config) or json.dumps(
+                config, default=str
+            )
         lines.append(
             f"  Widget {widget.position} ({widget.widget_type}): {summary}"
         )
@@ -405,14 +429,14 @@ async def inspect_view_context(
 ) -> Command:
     """Return what the user is currently looking at in the app.
 
-    Reports the current page (map vs report vs dashboard), the map viewport,
-    the layers and AOIs visible on screen, and — when the frontend reports
-    visible insights (e.g. on the report page) — the key content of each
+    Reports the current page (map vs dashboard), the map viewport, the layers
+    and AOIs visible on screen, and — when the frontend reports visible
+    insights (on the map or dashboard page) — the key content of each
     insight: its summary, chart titles and the variables behind each chart.
     When the user is viewing a dashboard, reports its name, area(s) and
     widgets, with insight widgets expanded the same way. Call this when the
-    user refers to "this", "here", the current view, the report, the
-    dashboard, or an insight on screen, and you need those details to answer.
+    user refers to "this", "here", the current view, the dashboard, or an
+    insight on screen, and you need those details to answer.
     """
     view = (state or {}).get("view_context") or {}
     logger.info(
