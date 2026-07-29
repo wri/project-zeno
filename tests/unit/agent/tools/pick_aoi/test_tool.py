@@ -152,6 +152,7 @@ async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
             "args": {
                 "question": "tree cover loss in Para, Brazil",
                 "area_of_interest": "adminstrative area (country, state/region, country/subregion)",
+                "state": {},
             },
             "id": "tc-1",
             "type": "tool_call",
@@ -177,6 +178,7 @@ async def test_pick_aoi_tool_asks_for_clarification_when_no_place(
             "args": {
                 "question": "show me tree cover loss",
                 "area_of_interest": None,
+                "state": {},
             },
             "id": "tc-2",
             "type": "tool_call",
@@ -250,6 +252,7 @@ async def test_pick_aoi_returns_no_match_when_db_search_empty(monkeypatch):
             "args": {
                 "question": "trees around Nonexistent Place",
                 "area_of_interest": None,
+                "state": {},
             },
             "id": "tc-3",
             "type": "tool_call",
@@ -314,6 +317,7 @@ async def test_pick_aoi_reports_unmatched_places_alongside_matches(
                     "tree cover loss in Para, Brazil and Nonexistent Place"
                 ),
                 "area_of_interest": None,
+                "state": {},
             },
             "id": "tc-4",
             "type": "tool_call",

@@ -1,6 +1,6 @@
 import asyncio
 from enum import StrEnum
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Dict, Literal, Optional
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -8,10 +8,13 @@ from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
+from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
+from src.agent.i18n import t
+from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_aoi.global_queries import (
     handle_global_request,
@@ -343,16 +346,15 @@ def _format_aoi_candidate(candidate: dict) -> str:
     )
 
 
-async def check_aoi_selection(aois: list[AOIIndex]) -> Optional[str]:
+async def check_aoi_selection(
+    aois: list[AOIIndex], language: str = DEFAULT_LANGUAGE
+) -> Optional[str]:
     if not aois:
-        return (
-            "No matching AOIs were found for your request. "
-            "Try a broader place name or choose a different subregion type."
-        )
+        return await t("pick_aoi.no_matching_aois", language)
 
     aoi_sources = set([aoi.source for aoi in aois])
     if len(aoi_sources) > 1:
-        return "Found multiple sources of AOIs, which is not supported. Please select only one source."
+        return await t("pick_aoi.multiple_sources", language)
 
     aoi_source = next(iter(aoi_sources))
     if aoi_source in {"kba", "wdpa", "landmark"}:
@@ -361,19 +363,21 @@ async def check_aoi_selection(aois: list[AOIIndex]) -> Optional[str]:
         subregion_limit = SUBREGION_LIMIT_ADMIN
 
     if len(aois) > subregion_limit:
-        return (
-            f"Found {len(aois)} subregions, which is too many to process efficiently. "
-            "Please narrow down your search by either:\n"
-            "1. Being more specific with the AOI selection (choose a smaller area)\n"
-            "2. Being more specific with the subregion query (e.g., 'kbas' instead of 'areas')\n"
-            f"For optimal performance, please limit results to under {SUBREGION_LIMIT} subregions for KBA, WDPA, and Indigenous Lands, or under {SUBREGION_LIMIT_ADMIN} for other area types."
+        return await t(
+            "pick_aoi.too_many_subregions",
+            language,
+            count=len(aois),
+            subregion_limit=SUBREGION_LIMIT,
+            subregion_limit_admin=SUBREGION_LIMIT_ADMIN,
         )
 
     return None
 
 
 async def check_duplicate_aois(
-    selected_aois: list[AOIIndex], all_results: list[pd.DataFrame]
+    selected_aois: list[AOIIndex],
+    all_results: list[pd.DataFrame],
+    language: str = DEFAULT_LANGUAGE,
 ) -> Optional[tuple[str, list[str]]]:
     """Returns (message, options) when the same place name matches AOIs in
     different countries — ``options`` are the exact candidate strings for the
@@ -386,11 +390,11 @@ async def check_duplicate_aois(
             )
             if candidates:
                 options = [_format_aoi_candidate(c) for c in candidates]
-                message = (
-                    f"I found multiple locations named '{short_name}' in "
-                    "different countries. Please tell me which one you "
-                    "meant:\n\n" + "\n".join(options) + "\n\nWhich location "
-                    "are you looking for?"
+                message = await t(
+                    "pick_aoi.duplicate_names",
+                    language,
+                    short_name=short_name,
+                    candidate_names="\n".join(options),
                 )
                 return message, options
 
@@ -456,6 +460,7 @@ class Geocoder:
         question: str,
         aoi_type: Optional[AreaOfInterestType],
         tool_call_id: Optional[str] = None,
+        language: str = DEFAULT_LANGUAGE,
     ) -> Command:
         """Full resolution: extract place(s) from the request, then look up."""
         query = await self.extract(question, aoi_type)
@@ -470,8 +475,7 @@ class Geocoder:
                 update={
                     "messages": [
                         ToolMessage(
-                            "I couldn't identify a place in your request. "
-                            "Which area would you like me to analyze?",
+                            await t("pick_aoi.no_place", language),
                             tool_call_id=tool_call_id,
                             status="success",
                             response_metadata={"msg_type": "human_feedback"},
@@ -485,6 +489,7 @@ class Geocoder:
             query.subregion,
             aoi_type,
             tool_call_id,
+            language,
         )
 
     async def extract(
@@ -504,6 +509,7 @@ class Geocoder:
         subregion: Optional[SubregionType] = None,
         aoi_type: Optional[AreaOfInterestType] = None,
         tool_call_id: Optional[str] = None,
+        language: str = DEFAULT_LANGUAGE,
     ) -> Command:
         """DB step: resolve known place name(s) to AOI geometry."""
         logger.info(
@@ -513,7 +519,9 @@ class Geocoder:
         if is_global_request(places):
             logger.info("GEOCODER: global request detected")
             emit_progress("pick_aoi", "global", "Global (worldwide) request")
-            return await handle_global_request(subregion, tool_call_id)
+            return await handle_global_request(
+                subregion, tool_call_id, language
+            )
 
         all_results = await asyncio.gather(
             *[
@@ -557,7 +565,7 @@ class Geocoder:
             )
 
         duplicate_check = await check_duplicate_aois(
-            selected_aois, all_results
+            selected_aois, all_results, language
         )
         if duplicate_check:
             message, options = duplicate_check
@@ -603,7 +611,7 @@ class Geocoder:
 
         logger.info(f"Found {len(final_aois)} AOIs in total")
 
-        check = await check_aoi_selection(final_aois)
+        check = await check_aoi_selection(final_aois, language)
         if check:
             return Command(
                 update={
@@ -652,6 +660,7 @@ class Geocoder:
 async def pick_aoi(
     question: str,
     area_of_interest: Optional[AreaOfInterestType],
+    state: Annotated[Dict, InjectedState],
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Resolve the place(s) in the user's request to map geometry (the AOI).
@@ -669,7 +678,10 @@ async def pick_aoi(
     Updates the AOI selection in state. If the place is ambiguous or missing,
     it returns a clarifying question for the user instead.
     """
-    return await Geocoder().resolve(question, area_of_interest, tool_call_id)
+    language = (state or {}).get("language") or DEFAULT_LANGUAGE
+    return await Geocoder().resolve(
+        question, area_of_interest, tool_call_id, language
+    )
 
 
 SPEC = ToolSpec(

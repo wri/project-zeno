@@ -78,7 +78,13 @@ def mock_insight_text():
         follow_up_suggestions = ["Follow-up one."]
 
     async def fake_generate(
-        self, charts, dataset, query="", executor_context=None, config=None
+        self,
+        charts,
+        dataset,
+        query="",
+        executor_context=None,
+        language="en",
+        config=None,
     ):
         return _Text()
 

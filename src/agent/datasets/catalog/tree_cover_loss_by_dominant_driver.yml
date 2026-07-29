@@ -128,3 +128,29 @@ citation: 'Use the following credit when these data are displayed: "Tree cover l
   "Global Drivers of Forest Loss at 1 Km Resolution." Environmental Research Letters 20 (7): 074027. [doi:10.1088/1748-9326/add606](https://doi.org/10.1088/1748-9326/add606).
 
   '
+categories:
+- slug: logging
+  label_en: Logging
+  color: "#52A44E"
+- slug: shifting_cultivation
+  label_en: Shifting cultivation
+  color: "#E9D700"
+- slug: wildfire
+  label_en: Wildfire
+  color: "#885128"
+- slug: other_natural_disturbances
+  label_en: Other natural disturbances
+  color: "#3B209A"
+- slug: settlements_infrastructure
+  label_en: Settlements & Infrastructure
+  color: "#A354A0"
+- slug: hard_commodities
+  label_en: Hard commodities
+  color: "#E58074"
+- slug: permanent_agriculture
+  label_en: Permanent agriculture
+  color: "#E39D29"
+- slug: unknown
+  label_en: Unknown
+  color: "#D3D3D3"
+series_color: "#DC6C9A"

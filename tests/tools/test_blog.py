@@ -235,6 +235,55 @@ async def test_search_blogs_returns_command_with_answer_and_cited_articles():
 
 
 @pytest.mark.asyncio
+async def test_search_blogs_passes_conversation_language_to_subagent():
+    fake_result = _make_subagent_result("Les tourbières couvrent 12%.", [])
+    mock_agent = AsyncMock()
+    mock_agent.ainvoke.return_value = fake_result
+
+    with (
+        patch(
+            "src.agent.subagents.search.blog._cached_agent",
+            return_value=mock_agent,
+        ) as mock_cached_agent,
+        patch(
+            "src.agent.subagents.search.blog._article_index",
+            return_value=FAKE_INDEX,
+        ),
+    ):
+        await search_blogs.ainvoke(
+            {
+                "type": "tool_call",
+                "name": "search_blogs",
+                "args": {"query": "peatlands", "state": {"language": "fr"}},
+                "id": "tc-lang",
+            }
+        )
+
+    mock_cached_agent.assert_called_once_with(language="fr")
+
+
+@pytest.mark.asyncio
+async def test_search_blogs_defaults_to_english_without_state():
+    mock_agent = AsyncMock()
+    mock_agent.ainvoke.return_value = {"messages": []}
+
+    with patch(
+        "src.agent.subagents.search.blog._cached_agent",
+        return_value=mock_agent,
+    ) as mock_cached_agent:
+        await search_blogs.ainvoke(
+            {
+                "type": "tool_call",
+                "name": "search_blogs",
+                "args": {"query": "peatlands"},
+                "id": "tc-lang-default",
+            }
+        )
+
+    mock_cached_agent.assert_called_once_with(language="en")
+
+
+@pytest.mark.asyncio
 async def test_search_blogs_returns_fallback_when_no_answer():
     mock_agent = AsyncMock()
     mock_agent.ainvoke.return_value = {"messages": []}

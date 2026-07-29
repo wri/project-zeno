@@ -15,7 +15,7 @@ import time
 import warnings
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Optional
 
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
@@ -23,8 +23,10 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
+from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.llms import MODEL_REGISTRY, SMALL_MODEL
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.utils.sgrep import (
@@ -89,7 +91,8 @@ citations; the markers carry the attribution. Do not add a Sources list.
 - If no articles match, say so clearly.
 - Do NOT invent or hallucinate article content.
 - Prefer recent articles (check lastmod dates) when multiple are relevant.
-- Answer in the same language as the query.
+- Answer in {language} — regardless of what language the query or the
+  article excerpts you read are written in.
 """
 
 
@@ -379,7 +382,10 @@ def grep_articles(
     return "\n".join(out)
 
 
-def create_search_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
+def create_search_agent(
+    model: str | BaseChatModel = DEFAULT_MODEL,
+    language: str = DEFAULT_LANGUAGE,
+) -> Any:
     """Create a deep agent backed by the local articles directory."""
     return create_deep_agent(
         model=model,
@@ -388,7 +394,9 @@ def create_search_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
             root_dir=str(DATA_DIR),
             virtual_mode=True,
         ),
-        system_prompt=BLOG_SEARCH_PROMPT,
+        system_prompt=BLOG_SEARCH_PROMPT.format(
+            language=language_name(language)
+        ),
         name="blog-search",
     )
 
@@ -406,9 +414,12 @@ def _extract_text(msg) -> str:
     return ""
 
 
-@lru_cache(maxsize=1)
-def _cached_agent(model: str | BaseChatModel = DEFAULT_MODEL) -> Any:
-    return create_search_agent(model=model)
+@lru_cache(maxsize=32)
+def _cached_agent(
+    model: str | BaseChatModel = DEFAULT_MODEL,
+    language: str = DEFAULT_LANGUAGE,
+) -> Any:
+    return create_search_agent(model=model, language=language)
 
 
 _CITATION_URL_RE = re.compile(r"\[\d{1,3}\]\((https?://[^)\s]+)\)")
@@ -479,7 +490,8 @@ def _cited_articles_for_search(text: str, messages: list) -> list[dict]:
 @tool("search_blogs")
 async def search_blogs(
     query: str,
-    tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict, InjectedState] | None = None,
+    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
     """Search Insights blog articles and return a synthesized, cited answer.
 
@@ -497,10 +509,11 @@ async def search_blogs(
     Args:
         query: The topic or question to research (a place or theme helps).
     """
-    logger.debug(f"search_blogs started query={query!r}")
+    language = (state or {}).get("language") or DEFAULT_LANGUAGE
+    logger.debug(f"search_blogs started query={query!r} language={language!r}")
     t0 = time.perf_counter()
     try:
-        result = await _cached_agent().ainvoke(
+        result = await _cached_agent(language=language).ainvoke(
             {"messages": [{"role": "user", "content": query}]}
         )
     except Exception:

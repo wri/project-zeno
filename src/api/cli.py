@@ -834,10 +834,18 @@ def _multipolygon_sql(geom_expr: str) -> str:
     ``MULTIPOLYGON`` type the ``aois.geometry`` column enforces. Callers filter
     out an empty result (a geometry with no areal component) with
     ``NOT ST_IsEmpty(...)`` so such rows are skipped, not stored empty.
+
+    The repair runs per part (``ST_Dump`` -> ``ST_MakeValid`` ->
+    ``ST_Collect``): on a whole MultiPolygon ``ST_MakeValid`` resolves every
+    ring against every other in one GEOS overlay, whose cost scales with part
+    count and can exhaust the backend on many-part rows. The tradeoff is that
+    overlaps *between* parts go unresolved, so the result is not guaranteed
+    OGC-valid -- fine here, as the column enforces type but not validity.
     """
     return (
         "ST_Multi(ST_CollectionExtract("
-        f"ST_MakeValid(ST_Force2D({geom_expr})), 3))"
+        "(SELECT ST_Collect(ST_MakeValid(d.geom)) "
+        f"FROM ST_Dump(ST_Force2D({geom_expr})) d), 3))"
     )
 
 
@@ -888,12 +896,12 @@ async def _build_reference_aois(
 
     The INSERT runs in ``nchunks`` passes partitioned by a hash of the source
     id -- each pass its own statement and its own transaction. This bounds the
-    peak memory of the per-row geometry repair (``ST_MakeValid`` over millions
-    of large polygons in a single statement can exhaust the backend and drop
-    the connection mid-operation) and keeps a late failure from discarding
-    chunks that already committed. Every row for a given id hashes to the same
-    chunk, so the per-chunk ``DISTINCT ON`` dedup and ``ON CONFLICT`` upsert
-    stay correct with no cross-chunk boundary effects.
+    open transaction and makes a late failure resumable (committed chunks are
+    kept). Every row for a given id hashes to the same chunk, so the per-chunk
+    ``DISTINCT ON`` dedup and ``ON CONFLICT`` upsert stay correct with no
+    cross-chunk boundary effects. Note chunking does *not* bound the cost of any
+    single geometry -- that is the job of the part-wise repair in
+    ``_multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
     """
     cfg = SOURCE_ID_MAPPING[source]
     table, id_col = cfg["table"], cfg["id_column"]
@@ -935,8 +943,12 @@ async def _build_reference_aois(
     # only a comparison, and this avoids recomputing the normalized shape.
     # ::bigint before abs(): hashtext returns int4 and abs(-2147483648)
     # overflows int4; widening first makes the modulo safe for every id.
+    # AS MATERIALIZED: geom is read ~13 times downstream (the geometry itself,
+    # ST_Area, ST_IsEmpty, and ~10 times inside the antimeridian bbox). A
+    # single-use CTE would be inlined and the geometry repair re-evaluated at
+    # each site; materializing computes each shape exactly once and stores it.
     sql = f"""
-        WITH normalized AS (
+        WITH normalized AS MATERIALIZED (
             SELECT DISTINCT ON (CAST("{id_col}" AS TEXT))
                 CAST("{id_col}" AS TEXT) AS source_id,
                 name,
@@ -1025,6 +1037,85 @@ async def _build_reference_aois(
             f"geometry not coercible to a non-empty MultiPolygon)."
         )
     return inserted
+
+
+async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
+    """Print memory-light geometry stats for one ``geometries_<source>`` table.
+
+    A diagnostic to size up before building: ``ST_NPoints`` /
+    ``ST_NumGeometries`` walk the serialized structure without touching
+    coordinates, and ``ST_GeometryType`` is cheap, so this is safe to run on
+    tables that a full transform cannot survive.
+
+    The part figures matter more than the per-row totals: the transform repairs
+    each part separately, so its peak cost tracks the largest single part, while
+    a high part count is what makes a whole-geometry repair blow up. The
+    largest-part pass needs ``ST_Dump``, so it is slower than the rest.
+    """
+    cfg = SOURCE_ID_MAPPING[source]
+    table, id_col = cfg["table"], cfg["id_column"]
+
+    (
+        rows,
+        distinct_ids,
+        null_geom,
+        max_pts,
+        avg_pts,
+        gt100k,
+        gt500k,
+        gt1m,
+        max_parts,
+        avg_parts,
+    ) = (
+        await session.execute(
+            text(
+                f'SELECT count(*), count(DISTINCT CAST("{id_col}" AS TEXT)), '
+                "count(*) FILTER (WHERE geometry IS NULL), "
+                "max(ST_NPoints(geometry)), "
+                "round(avg(ST_NPoints(geometry))), "
+                "count(*) FILTER (WHERE ST_NPoints(geometry) > 100000), "
+                "count(*) FILTER (WHERE ST_NPoints(geometry) > 500000), "
+                "count(*) FILTER (WHERE ST_NPoints(geometry) > 1000000), "
+                "max(ST_NumGeometries(geometry)), "
+                "round(avg(ST_NumGeometries(geometry))) "
+                f"FROM {table}"
+            )
+        )
+    ).one()
+
+    click.echo(f"\n🔬 {source} ({table}):")
+    click.echo(f"   rows: {rows}  distinct ids: {distinct_ids}")
+    if null_geom:
+        click.echo(f"   null geometry: {null_geom}")
+    click.echo(
+        f"   vertices/row -> max: {max_pts}  avg: "
+        f"{int(avg_pts) if avg_pts is not None else 0}"
+    )
+    click.echo(
+        f"   over threshold -> >100k: {gt100k}  >500k: {gt500k}  >1M: {gt1m}"
+    )
+    click.echo(
+        f"   parts/row -> max: {max_parts}  avg: "
+        f"{int(avg_parts) if avg_parts is not None else 0}"
+    )
+
+    max_part_pts = await session.scalar(
+        text(
+            f"SELECT max(ST_NPoints(d.geom)) FROM {table} w "
+            "CROSS JOIN LATERAL ST_Dump(w.geometry) d"
+        )
+    )
+    click.echo(f"   vertices in largest single part: {max_part_pts}")
+
+    types = await session.execute(
+        text(
+            f"SELECT ST_GeometryType(geometry), count(*) FROM {table} "
+            "WHERE geometry IS NOT NULL GROUP BY 1 ORDER BY 2 DESC"
+        )
+    )
+    click.echo("   geometry types:")
+    for gtype, cnt in types.all():
+        click.echo(f"     {gtype}: {cnt}")
 
 
 async def _build_custom_aois(session: AsyncSession) -> int:
@@ -1127,7 +1218,17 @@ async def _build_custom_aois(session: AsyncSession) -> int:
         "statement and transaction. Higher = lower peak memory, more scans."
     ),
 )
-def build_aois_command(sources: tuple, dry_run: bool, chunks: int):
+@click.option(
+    "--inspect",
+    is_flag=True,
+    help=(
+        "Don't build: print memory-light geometry stats (vertex distribution, "
+        "types) per reference source, to size up before a real run."
+    ),
+)
+def build_aois_command(
+    sources: tuple, dry_run: bool, chunks: int, inspect: bool
+):
     """Populate the unified aois/user_aois tables from already-loaded data.
 
     Idempotent, set-based, in-DB transform of the reference geometries_*
@@ -1137,6 +1238,27 @@ def build_aois_command(sources: tuple, dry_run: bool, chunks: int):
     """
     selected = list(sources) or _BUILD_SOURCES
     outcome = "would be upserted" if dry_run else "upserted"
+
+    async def _inspect():
+        db = DatabaseManager()
+        try:
+            async with db.async_session() as session:
+                for source in selected:
+                    if source == "custom":
+                        click.echo(
+                            "\n🔬 custom: skipped "
+                            "(GeoJSON-string list, not a geometry column)."
+                        )
+                        continue
+                    table = SOURCE_ID_MAPPING[source]["table"]
+                    if not await _table_exists(session, table):
+                        click.echo(
+                            f"⏭️  {source}: {table} not found, skipping."
+                        )
+                        continue
+                    await _inspect_reference_aois(session, source)
+        finally:
+            await db.close()
 
     async def _run():
         db = DatabaseManager()
@@ -1217,7 +1339,7 @@ def build_aois_command(sources: tuple, dry_run: bool, chunks: int):
         finally:
             await db.close()
 
-    asyncio.run(_run())
+    asyncio.run(_inspect() if inspect else _run())
 
 
 if __name__ == "__main__":

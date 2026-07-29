@@ -233,7 +233,7 @@ def test_get_prompt_scope_and_policy():
     assert "AOI-only" in prompt
     # always-on policy folded in
     assert "# Policy" in prompt
-    assert "same language" in prompt
+    assert "Reply in the language given in the session block" in prompt
     assert "UI / map selections" in prompt
     # only the three recipe skills are advertised
     assert "pick-aoi" not in prompt

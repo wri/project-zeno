@@ -103,11 +103,17 @@ CORE_TOOLS = (
 
 # The core skills layered on the base toolbox.
 DEFAULT_PROFILE = "default"
-DEFAULT_SKILLS = ("analyze", "pull-data", "capabilities", "wri-insights")
+DEFAULT_SKILLS = (
+    "analyze",
+    "pull-data",
+    "capabilities",
+    "show-imagery",
+    "wri-insights",
+)
 
 # Experimental, opt-in additions over the default profile.
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = ("dashboard", "show-imagery", "explore")
+EXPERIMENTAL_SKILLS = ("dashboard", "explore")
 EXPERIMENTAL_TOOLS = (
     inspect_view_context_spec,
     update_insight_display_spec,
