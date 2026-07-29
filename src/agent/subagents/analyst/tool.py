@@ -23,6 +23,11 @@ from src.agent.subagents.analyst.code_executors.base import (
     MultiChartInsight,
     PartType,
 )
+from src.agent.subagents.analyst.deterministic import (
+    DETERMINISTIC_DATASETS,
+    build_table_insights,
+    deterministic_narrative,
+)
 from src.agent.subagents.analyst.prompts import EXECUTOR_WORKFLOW
 from src.agent.subagents.analyst.text_generator import InsightTextGenerator
 from src.agent.tool_spec import ToolCategory, ToolSpec
@@ -426,6 +431,31 @@ class Analyst:
             )
         return charts, _encode_parts(result.parts), executor_context, None
 
+    @staticmethod
+    async def _fetch_raw_result(stat: dict) -> Optional[dict]:
+        source_url = stat.get("source_url")
+        if source_url:
+            return await fetch_statistics_from_url(source_url)
+        return stat.get("data") or None
+
+    async def _deterministic_insight(
+        self, statistics: list[dict], dataset: dict
+    ) -> tuple[list[InsightChart], str, list[str]]:
+        """Build one table per result section straight from the raw analytics
+        result — no CodeAct, no LLM."""
+        charts: list[InsightChart] = []
+        latest: dict = {}
+        for stat in statistics:
+            result = await self._fetch_raw_result(stat)
+            if not result:
+                continue
+            charts.extend(build_table_insights(result))
+            latest = result
+        for position, chart in enumerate(charts):
+            chart.position = position
+        primary_insight, follow_ups = deterministic_narrative(dataset, latest)
+        return charts, primary_insight, follow_ups
+
     async def analyze(
         self,
         query: str,
@@ -442,35 +472,53 @@ class Analyst:
             "cautions", "No specific dataset cautions provided."
         )
 
-        # STAGE 1: build charts from the pulled data.
-        (
-            charts,
-            codeact_parts,
-            executor_context,
-            error,
-        ) = await self._resolve_charts(
-            query,
-            statistics,
-            dataset,
-            language,
-        )
-        if error or not charts:
-            return _error_command(
-                error or "Failed to generate charts.", tool_call_id
+        if dataset.get("dataset_id") in DETERMINISTIC_DATASETS:
+            # Table-shaped datasets (e.g. Land GHG Inventory): build tables
+            # directly from the raw result — no CodeAct, no narrative LLM.
+            (
+                charts,
+                primary_insight,
+                follow_up_suggestions,
+            ) = await self._deterministic_insight(statistics, dataset)
+            codeact_parts: list = []
+            if not charts:
+                return _error_command(
+                    "No data available for this dataset.", tool_call_id
+                )
+        else:
+            # STAGE 1: build charts from the pulled data.
+            (
+                resolved,
+                codeact_parts,
+                executor_context,
+                error,
+            ) = await self._resolve_charts(
+                query,
+                statistics,
+                dataset,
+                language,
             )
+            if error or not resolved:
+                return _error_command(
+                    error or "Failed to generate charts.", tool_call_id
+                )
+            charts = resolved
 
-        # STAGE 2: generate insight text from the resolved charts.
-        text = await InsightTextGenerator().generate(
-            charts,
-            dataset,
-            query,
-            executor_context=executor_context,
-            language=language,
-        )
+            # STAGE 2: generate insight text from the resolved charts.
+            text = await InsightTextGenerator().generate(
+                charts,
+                dataset,
+                query,
+                executor_context=executor_context,
+                language=language,
+            )
+            primary_insight = text.primary_insight
+            follow_up_suggestions = text.follow_up_suggestions
+
         insight = Insight(
             charts=charts,
-            primary_insight=text.primary_insight,
-            follow_up_suggestions=text.follow_up_suggestions,
+            primary_insight=primary_insight,
+            follow_up_suggestions=follow_up_suggestions,
         ).stamp_insight()
 
         # PERSIST + STATE.

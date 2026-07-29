@@ -46,7 +46,7 @@ selection_hints: 'Best dataset for annual tree cover loss questions (2001-2025) 
   height including plantations unless primary or intact forest is applied as a context layer. Annual resolution only; cannot answer intra-year or seasonal
   questions. For driver attribution (WHY loss happened), use "Tree cover loss by dominant driver" instead. For net change,
   loss and gain datasets use different methodologies and cannot be combined. Includes GHG emissions (MgCO2e) associated with
-  loss. Methodology changed between 2010 and 2011; cross-period trend comparisons need caution.
+  loss; for carbon emissions/removals questions on a GADM admin area (2015+), prefer Land GHG Inventory, and keep Tree Cover Loss for tree-cover-loss area. Methodology changed between 2010 and 2011; cross-period trend comparisons need caution.
 
   '
 code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha) - Cumulative loss → stacked-area chart - Emissions

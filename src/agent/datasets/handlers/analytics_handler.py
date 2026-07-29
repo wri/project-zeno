@@ -143,6 +143,54 @@ TREE_COVER_LOSS_BY_FIRES_ID = [
     for ds in DATASETS
     if ds["dataset_name"] == "Tree cover loss due to fires"
 ][0]
+LAND_GHG_INVENTORY_ID = [
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"] == "Land GHG Inventory"
+][0]
+
+
+def _is_nested_result(raw_data: Any) -> bool:
+    """A per-section result: a non-empty dict whose values are all dicts."""
+    return (
+        isinstance(raw_data, dict)
+        and len(raw_data) > 0
+        and all(isinstance(value, dict) for value in raw_data.values())
+    )
+
+
+def _first_list_len(section: Any) -> int:
+    if isinstance(section, dict):
+        for value in section.values():
+            if isinstance(value, list):
+                return len(value)
+    return 0
+
+
+def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
+    """Count data points and add AOI names to a flat result.
+
+    A nested (per-section) result — e.g. Land GHG Inventory's ``vegetation`` /
+    ``agriculture`` — has no top-level ``aoi_id`` or arrays, so name enrichment
+    is skipped and the count is taken from the first inner section's first list.
+    """
+    if _is_nested_result(raw_data):
+        for section in raw_data.values():
+            count = _first_list_len(section)
+            if count:
+                return raw_data, count
+        return raw_data, 0
+
+    count = _first_list_len(raw_data) if isinstance(raw_data, dict) else 0
+    if isinstance(raw_data, dict) and "aoi_id" in raw_data:
+        aois_id_to_name = {
+            format_id(item["src_id"]): item.get("name", item["src_id"]).split(
+                ","
+            )[0]
+            for item in aois
+        }
+        raw_data["name"] = [aois_id_to_name[idx] for idx in raw_data["aoi_id"]]
+    return raw_data, count
 
 
 class AnalyticsHandler(DataSourceHandler):
@@ -182,6 +230,7 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_LOSS_BY_DRIVER_ID,
             SLUC_EMISSION_FACTORS_ID,
             TREE_COVER_LOSS_BY_FIRES_ID,
+            LAND_GHG_INVENTORY_ID,
         ]
 
     def _get_aoi_type(self, aoi: Dict) -> dict[str, str]:
@@ -348,6 +397,12 @@ class AnalyticsHandler(DataSourceHandler):
             payload = {
                 **base_payload,
             }
+        elif dataset.get("dataset_id") == LAND_GHG_INVENTORY_ID:
+            # AOI only — the endpoint returns the full series (vegetation by
+            # year + agriculture snapshot) with no date filter.
+            payload = {
+                **base_payload,
+            }
         elif dataset.get("dataset_id") == TREE_COVER_ID:
             forest_filter = None
             if dataset.get("context_layer") == "primary_forest":
@@ -472,26 +527,8 @@ class AnalyticsHandler(DataSourceHandler):
 
         raw_data = data["data"]["result"]
 
-        # Count data points based on available arrays in the result
-        data_points_count = 0
-        if isinstance(raw_data, dict):
-            # Find the first array in the result to count data points
-            for key, value in raw_data.items():
-                if isinstance(value, list):
-                    data_points_count = len(value)
-                    break
-
+        raw_data, data_points_count = _count_and_enrich(raw_data, aois)
         message_detail = f"Found {data_points_count} data points"
-
-        # Enrich raw_data with names
-        aois_id_to_name = {
-            format_id(item["src_id"]): item.get("name", item["src_id"]).split(
-                ","
-            )[0]
-            for item in aois
-        }
-        raw_data["name"] = [aois_id_to_name[idx] for idx in raw_data["aoi_id"]]
-        # Get analytics url from result
         analytics_url = result["data"]["link"]
 
         return raw_data, data_points_count, message_detail, analytics_url
@@ -518,7 +555,6 @@ class AnalyticsHandler(DataSourceHandler):
                 data_points_count=0,
                 analytics_api_url=None,
             )
-
         try:
             # Hydrate selected dataset with full metadata
             dataset_full = [

@@ -30,7 +30,7 @@ prompt_instructions: 'DO NOT show trends over time or annual values. Caution use
   '
 selection_hints: 'Shows net greenhouse gas flux from forests — balance between emissions and removals. Total over model period
   2001-2025, NOT annual values or timeseries. Negative values = net carbon sink; positive values = net GHG source. Uses 30%
-  canopy density threshold (cannot be changed). For annual tree cover loss or emissions timeseries, use Tree Cover Loss dataset.
+  canopy density threshold (cannot be changed). For annual tree cover loss or emissions timeseries, use Tree Cover Loss dataset. For carbon / GHG emissions-and-removals questions on a GADM admin area (country, state/province, district) from 2015 onward, when no time period is given, or broken down by forest-change state (tree loss/gain/stable) or agriculture, prefer Land GHG Inventory instead; use THIS dataset for 2001-2025 cumulative totals, and for any non-admin AOI (protected areas, KBAs, landmark, custom areas) or finer admin levels where Land GHG Inventory is unavailable.
 
   '
 code_instructions: 'CHART TYPES: - Net flux → split/diverging bar chart (emissions positive y-axis, removals negative) DATA
