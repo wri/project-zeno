@@ -26,6 +26,7 @@ from src.agent.subagents.pick_aoi.selection_name_util import (
 )
 from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
     BBOX_SQL,
@@ -574,7 +575,7 @@ class Geocoder:
                     "nudge": {"type": "aoi_choice", "options": options},
                     "messages": [
                         ToolMessage(
-                            message,
+                            message + NUDGE_ALREADY_SET_NOTE,
                             tool_call_id=tool_call_id,
                             status="success",
                             response_metadata={"msg_type": "human_feedback"},

@@ -21,10 +21,7 @@ from src.agent.agent_config import (
     default_registry,
 )
 from src.agent.llms import FALLBACK_MODELS, MODEL
-from src.agent.middleware import (
-    SessionContextMiddleware,
-    StopOnHumanFeedbackMiddleware,
-)
+from src.agent.middleware import SessionContextMiddleware
 from src.agent.state import AgentState
 from src.agent.tool_spec import Gate, set_bound_availability
 from src.agent.view_pages import prompt_section
@@ -139,6 +136,10 @@ UI / map selections (when the message mentions a UI action or changed map select
 - Acknowledge: "I see you've selected [item name]".
 - Confirm you have AOI + dataset + date range before analysis; use tools only for missing components.
 - If the user asks to change selections, override prior UI selections.
+
+Nudges:
+- Some tools (pick_dataset, pick_aoi, pull_data, show_imagery) return their own clickable options or clarifying question directly, already recorded as the pending nudge. When that happens, do not call send_nudge afterward — it would overwrite the correct options with your own reworded guess. Just summarize what the tool returned in your reply and stop, waiting for the user's answer.
+- Only call send_nudge to offer a new set of choices you are constructing yourself, never to restate one a tool already gave you.
 """
 
 
@@ -247,11 +248,7 @@ def _build_middleware():
     3. handle_tool_errors: Catches tool execution errors and returns ToolMessage
        - Final safety net for tool-specific failures
 
-    4. StopOnHumanFeedbackMiddleware: Strips tools from the model call after a
-       tool signals it's waiting on the user, so the loop cannot chain
-       another tool call instead of stopping.
-
-    5. SessionContextMiddleware: Prepends a live state snapshot before every
+    4. SessionContextMiddleware: Prepends a live state snapshot before every
        model call (innermost, so it runs on every retry/fallback attempt)
     """
     middleware = [
@@ -265,7 +262,6 @@ def _build_middleware():
     if FALLBACK_MODELS:
         middleware.append(ModelFallbackMiddleware(*FALLBACK_MODELS))
     middleware.append(handle_tool_errors)
-    middleware.append(StopOnHumanFeedbackMiddleware())
     middleware.append(SessionContextMiddleware())
     return middleware
 

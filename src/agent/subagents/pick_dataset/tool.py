@@ -44,6 +44,7 @@ from src.agent.subagents.pick_dataset.schema import (
 )
 from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -244,7 +245,10 @@ class DatasetSelector:
                 options_header = await t(
                     "pick_dataset.closest_options_header", language
                 )
-                tool_message = f"{intro}\n\n{options_header}\n{reasons}"
+                tool_message = (
+                    f"{intro}\n\n{options_header}\n{reasons}"
+                    f"{NUDGE_ALREADY_SET_NOTE}"
+                )
                 return Command(
                     update={
                         "nudge": {
