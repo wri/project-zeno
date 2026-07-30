@@ -17,6 +17,7 @@ from src.api.schemas import (
     CustomAreaNameResponse,
     UserModel,
 )
+from src.api.services.aoi_sync import delete_custom_aoi, upsert_custom_aoi
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 
@@ -69,6 +70,10 @@ async def create_custom_area(
         geometries=[i.model_dump_json() for i in area.geometries],
     )
     session.add(custom_area)
+    # Flush so the mirror can read the row (and its generated id) in this same
+    # transaction: custom_areas and its aois projection commit together.
+    await session.flush()
+    await upsert_custom_aoi(session, area_id=custom_area.id)
     await session.commit()
     await session.refresh(custom_area)
 
@@ -136,6 +141,8 @@ async def update_custom_area_name(
     if not area:
         raise HTTPException(status_code=404, detail="Custom area not found")
     area.name = payload["name"]
+    await session.flush()
+    await upsert_custom_aoi(session, area_id=area.id)
     await session.commit()
     await session.refresh(area)
 
@@ -161,6 +168,7 @@ async def delete_custom_area(
     area = result.scalars().first()
     if not area:
         raise HTTPException(status_code=404, detail="Custom area not found")
+    await delete_custom_aoi(session, area_id)
     await session.delete(area)
     await session.commit()
     return {"detail": f"Area {area_id} deleted successfully"}
