@@ -5,6 +5,7 @@ import uuid
 from datetime import date, datetime, timezone
 from typing import Any
 
+from geoalchemy2 import Geometry
 from sqlalchemy import (
     ARRAY,
     Boolean,
@@ -187,12 +188,17 @@ class AoiOrm(Base):
     custom drawn areas -- addressed by a stable UUID ``id`` and by the logical
     ``(source, source_id)`` key.
 
-    Deliberately PostGIS-free at the ORM layer, like the rest of this module:
-    the real ``geometry geometry(GEOMETRY, 4326)`` column plus the GiST,
-    partial trigram, and partial-unique indexes live in the Alembic migration
-    only. The test DB is built from this metadata via ``create_all`` and has no
-    PostGIS/pg_trgm; geometry is read/written through raw SQL (see
-    ``src/shared/geocoding_helpers.py``).
+    The ``geometry`` column is mapped only so ``create_all`` builds it -- the
+    test DB comes from this metadata, and the runtime custom-area mirror
+    (``src/api/services/aoi_sync.py``) has to be able to write geometry under
+    test. It is never read through the ORM: every geometry read and write goes
+    through raw SQL (``src/shared/geocoding_helpers.py``,
+    ``src/shared/aoi_geometry.py``).
+
+    Of the indexes in the migration, only the partial *unique* one is declared
+    here -- it is a correctness constraint (and the upsert target) rather than
+    an optimization. The GiST and partial trigram indexes are purely for
+    performance and stay migration-only.
     """
 
     __tablename__ = "aois"
@@ -206,15 +212,25 @@ class AoiOrm(Base):
     source_id = Column(String, nullable=False)
     name = Column(String, nullable=False)
     subtype = Column(String, nullable=False)
+    # spatial_index=False: the GiST index is created explicitly in the
+    # migration so its name is controlled, not auto-emitted by geoalchemy2.
+    geometry = Column(
+        Geometry(geometry_type="MULTIPOLYGON", srid=4326, spatial_index=False),
+        nullable=False,
+    )
     # bbox as [west, south, east, north]; precomputed, antimeridian-aware.
     bbox = Column(ARRAY(Float), nullable=True)
     area_km2 = Column(Float, nullable=True)
     iso3 = Column(ARRAY(String), nullable=True)
     admin_level = Column(SmallInteger, nullable=True)
     # Kept in the table but excluded from search via a partial index.
-    is_disputed = Column(Boolean, nullable=False, default=False)
+    is_disputed = Column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     # Inert today; reserved for future versioning (deprecate-old on update).
-    is_deprecated = Column(Boolean, nullable=False, default=False)
+    is_deprecated = Column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     # Provenance / "uploaded_by": set for custom areas, null for reference.
     created_by = Column(String, ForeignKey("users.id"), nullable=True)
     # Arbitrary/source-specific key-values: escape hatch for user-uploaded
@@ -222,12 +238,33 @@ class AoiOrm(Base):
     # columns above. Left NULL by build-aois for now; anything we
     # filter/facet/sort on gets promoted to a real column instead.
     properties = Column(JSONB, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    # server_default mirrors the migration: rows land here via raw SQL
+    # (build-aois, the custom-area mirror), which gets no ORM-side default.
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        server_default=text("now()"),
+    )
     updated_at = Column(
         DateTime,
         nullable=False,
         default=datetime.now,
         onupdate=datetime.now,
+        server_default=text("now()"),
+    )
+
+    __table_args__ = (
+        # One *live* version per logical id. Backs the INSERT ... ON CONFLICT
+        # in build-aois and the custom-area mirror, so the name and the
+        # partial predicate must match the migration exactly.
+        Index(
+            "uq_aois_source_source_id_live",
+            "source",
+            "source_id",
+            unique=True,
+            postgresql_where=text("NOT is_deprecated"),
+        ),
     )
 
     user_links = relationship(
@@ -272,12 +309,19 @@ class UserAoiOrm(Base):
     )
     # User's per-list label; null falls back to aois.name.
     name = Column(String, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    # server_default mirrors the migration: owner links are inserted by raw SQL.
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.now,
+        server_default=text("now()"),
+    )
     updated_at = Column(
         DateTime,
         nullable=False,
         default=datetime.now,
         onupdate=datetime.now,
+        server_default=text("now()"),
     )
 
     __table_args__ = (
