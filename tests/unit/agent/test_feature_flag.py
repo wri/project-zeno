@@ -1,5 +1,6 @@
 """Tests for AgentConfig, AgentConfigRegistry, and feature flags."""
 
+import pandas as pd
 import pytest
 from langchain_core.tools import tool
 
@@ -13,6 +14,7 @@ from src.agent.agent_config import (
     default_registry,
 )
 from src.agent.skills import SkillMeta
+from src.agent.subagents.pick_dataset.tool import _drop_excluded_datasets
 from src.agent.tool_spec import ToolCategory, ToolSpec, bound_availability
 
 # --- Lightweight test fixtures -----------------------------------------------
@@ -367,3 +369,33 @@ def test_experimental_config_adds_experimental_tools_and_skills():
     assert "show-imagery" in default_skills
     assert {"show-imagery", "explore", "wri-insights"} <= experimental_skills
     assert {"show-imagery", "explore", "wri-insights"} <= experimental_skills
+
+
+# --- excluded_datasets enforcement in pick_dataset ---------------------------
+
+
+def _candidate_datasets() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "dataset_id": [12, 6, 4],
+            "dataset_name": [
+                "Land GHG Inventory",
+                "Forest greenhouse gas net flux",
+                "Tree cover loss",
+            ],
+        }
+    )
+
+
+def test_drop_excluded_datasets_removes_named_datasets():
+    df = _drop_excluded_datasets(
+        _candidate_datasets(), frozenset({"Land GHG Inventory"})
+    )
+    names = set(df["dataset_name"])
+    assert "Land GHG Inventory" not in names
+    assert {"Forest greenhouse gas net flux", "Tree cover loss"} <= names
+
+
+def test_drop_excluded_datasets_no_excludes_keeps_all():
+    df = _drop_excluded_datasets(_candidate_datasets(), frozenset())
+    assert len(df) == 3

@@ -6,7 +6,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.agent.state import Statistics
-from src.agent.subagents.analyst.tool import generate_insights
+from src.agent.subagents.analyst.tool import (
+    build_table_insights,
+    default_narrative,
+    generate_insights,
+)
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
@@ -722,3 +726,113 @@ async def test_generate_insights_creates_two_bar_charts_with_code_instructions()
         assert (
             chart.get("type") == "bar"
         ), f"Chart {idx} type is '{chart.get('type')}', expected 'bar'. Chart: {chart}"
+
+
+# --- Default (table) insight path: e.g. Land GHG Inventory --------------------
+
+
+def _land_ghg_result() -> dict:
+    return {
+        "vegetation": {
+            "year": [2016, 2017],
+            "land_state_class": ["tree_loss", "tree_loss"],
+            "gross_emissions_MgCO2e": [1.0, 2.0],
+            "gross_removals_MgCO2": [-0.5, -1.0],
+            "net_flux_MgCO2e": [0.5, 1.0],
+        },
+        "agriculture": {
+            "category": ["cropland"],
+            "gross_emissions_MgCO2e": [33.0],
+        },
+    }
+
+
+async def test_build_table_insights_one_table_per_section():
+    charts = build_table_insights(_land_ghg_result())
+    assert [c.title for c in charts] == ["Vegetation", "Agriculture"]
+    assert all(c.chart_type == "table" for c in charts)
+    assert [c.position for c in charts] == [0, 1]
+
+
+async def test_build_table_insights_rows_carry_every_source_column():
+    veg = build_table_insights(_land_ghg_result())[0].chart_data
+    assert len(veg) == 2
+    assert veg[0] == {
+        "year": 2016,
+        "land_state_class": "tree_loss",
+        "gross_emissions_MgCO2e": 1.0,
+        "gross_removals_MgCO2": -0.5,
+        "net_flux_MgCO2e": 0.5,
+    }
+
+
+async def test_build_table_insights_skips_non_column_sections():
+    charts = build_table_insights(
+        {"vegetation": {"year": [2016]}, "meta": "not-a-table"}
+    )
+    assert [c.title for c in charts] == ["Vegetation"]
+
+
+async def test_default_narrative_names_sections_and_units():
+    text, follow_ups = default_narrative(
+        {"dataset_name": "Land GHG Inventory"}, _land_ghg_result()
+    )
+    assert "vegetation" in text and "agriculture" in text
+    assert "MgCO2e" in text
+    assert follow_ups == []
+
+
+async def test_default_insight_dataset_routes_to_tables_without_llm():
+    """A DEFAULT_INSIGHT dataset (Land GHG Inventory, id 12) renders one table
+    per section with no CodeAct and no narrative LLM — so the stubbed text
+    generator is never used and the templated summary is returned."""
+    state = {
+        "dataset": {
+            "dataset_id": 12,
+            "dataset_name": "Land GHG Inventory",
+            "context_layer": None,
+            "reason": "explicit request",
+            "tile_url": "",
+            "analytics_api_endpoint": (
+                "/v0/land_change/land_ghg_inventory/analytics"
+            ),
+            "description": "Land GHG Inventory",
+            "prompt_instructions": "N/A",
+            "methodology": "N/A",
+            "cautions": "N/A",
+            "function_usage_notes": "N/A",
+            "citation": "N/A",
+        },
+        "statistics": [
+            Statistics(
+                id="a1b2c3d4-0012-0012-0012-000000000012",
+                dataset_name="Land GHG Inventory",
+                source_url="http://example.com/analytics/land-ghg-sao-paulo",
+                start_date="2016-01-01",
+                end_date="2024-12-31",
+                aoi_names=["São Paulo, Brazil"],
+            )
+        ],
+    }
+    tool_call_id = str(uuid.uuid4())
+    with patch(_FETCH_PATCH, new=AsyncMock(return_value=_land_ghg_result())):
+        result = await generate_insights.ainvoke(
+            {
+                "type": "tool_call",
+                "name": "generate_insights",
+                "id": tool_call_id,
+                "args": {
+                    "query": "land GHG inventory for Sao Paulo",
+                    "state": state,
+                },
+            }
+        )
+
+    charts = result.update["charts_data"]
+    assert [c["title"] for c in charts] == ["Vegetation", "Agriculture"]
+    assert all(c["type"] == "table" for c in charts)
+    # No CodeAct ran, and the narrative is the templated summary — NOT the
+    # stubbed InsightTextGenerator output — proving the LLM stage was skipped.
+    assert result.update["codeact_parts"] == []
+    assert "shown as tables" in result.update["insight"]
+    assert "Synthetic insight text" not in result.update["insight"]

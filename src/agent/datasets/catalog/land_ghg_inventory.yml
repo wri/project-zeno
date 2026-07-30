@@ -8,8 +8,8 @@ license: CC by 4.0
 geographic_coverage: GADM administrative areas (country, state/province, district) only
 resolution: Reported per administrative area
 update_frequency: Annual
-content_date: 2015 - present
-start_date: '2015-01-01'
+content_date: 2016 - present
+start_date: '2016-01-01'
 content_date_fixed: false
 keywords:
 - carbon
@@ -33,7 +33,7 @@ prompt_instructions: >-
   areas down to admin level 2 (country, state/province, district).
 selection_hints: >-
   DEFAULT dataset for carbon / greenhouse-gas net-flux and emissions-and-removals
-  questions from 2015 onward, when no time period is given, or when broken down by
+  questions from 2016 onward, when no time period is given, or when broken down by
   forest-change state (tree loss, tree gain, stable/remaining forest, non-forest)
   or by agriculture (cropland, livestock). Reports vegetation emissions/removals/
   net flux and agriculture emissions in MgCO2e for an administrative area.
@@ -64,7 +64,7 @@ cautions: >-
 function_usage_notes: >-
   Provide a land greenhouse-gas inventory for an administrative area — vegetation
   emissions, removals and net flux by forest-change state, plus agriculture
-  emissions — for 2015 onward.
+  emissions — for 2016 onward.
 citation: >-
   "Land GHG Inventory". Global Forest Watch / Global Nature Watch, accessed on [date].
 code_instructions: N/A

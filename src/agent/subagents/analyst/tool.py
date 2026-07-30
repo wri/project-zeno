@@ -1,7 +1,7 @@
 import asyncio
 import re
 from base64 import b64encode
-from typing import Annotated, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 import pandas as pd
 import structlog
@@ -11,6 +11,9 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.datasets.handlers.analytics_handler import (
+    LAND_GHG_INVENTORY_ID,
+)
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.subagents.analyst.charts import (
@@ -22,11 +25,6 @@ from src.agent.subagents.analyst.code_executors.base import (
     ChartInsight,
     MultiChartInsight,
     PartType,
-)
-from src.agent.subagents.analyst.deterministic import (
-    DETERMINISTIC_DATASETS,
-    build_table_insights,
-    deterministic_narrative,
 )
 from src.agent.subagents.analyst.prompts import EXECUTOR_WORKFLOW
 from src.agent.subagents.analyst.text_generator import InsightTextGenerator
@@ -328,6 +326,62 @@ async def _build_tool_message(
     return tool_message
 
 
+# Datasets whose generate_insights path is the default table view: one table
+# per result section built straight from the raw analytics result, with no
+# CodeAct chart step and no narrative LLM.
+DEFAULT_INSIGHT_DATASETS: set[int] = {LAND_GHG_INVENTORY_ID}
+
+
+def _is_column_dict(value: Any) -> bool:
+    """True when ``value`` is a non-empty column-oriented dict (every value a
+    list) — the shape of one nested result section."""
+    return (
+        isinstance(value, dict)
+        and len(value) > 0
+        and all(isinstance(col, list) for col in value.values())
+    )
+
+
+def _columns_to_rows(section: dict) -> list[dict]:
+    """Transpose a column-oriented section into a list of row dicts."""
+    keys = list(section.keys())
+    return [dict(zip(keys, values)) for values in zip(*section.values())]
+
+
+def build_table_insights(result: dict) -> list[InsightChart]:
+    """One ``table`` InsightChart per top-level section of a nested result."""
+    charts: list[InsightChart] = []
+    for section, columns in (result or {}).items():
+        if not _is_column_dict(columns):
+            continue
+        charts.append(
+            InsightChart(
+                position=len(charts),
+                title=str(section).replace("_", " ").title(),
+                chart_type="table",
+                chart_data=_columns_to_rows(columns),
+            )
+        )
+    return charts
+
+
+def default_narrative(dataset: dict, result: dict) -> tuple[str, list[str]]:
+    """Templated (no-LLM) summary naming the sections, plus empty follow-ups."""
+    sections = [
+        str(s).replace("_", " ")
+        for s, v in (result or {}).items()
+        if _is_column_dict(v)
+    ]
+    name = dataset.get("dataset_name", "Land GHG Inventory")
+    if not sections:
+        return f"{name}: no tabular data was returned.", []
+    return (
+        f"{name}: {', '.join(sections)} shown as tables. Emissions are in "
+        f"MgCO2e (positive = source); removals are negative (sink).",
+        [],
+    )
+
+
 class Analyst:
     """Insight subagent: turns pulled data into a chart artifact.
 
@@ -438,7 +492,7 @@ class Analyst:
             return await fetch_statistics_from_url(source_url)
         return stat.get("data") or None
 
-    async def _deterministic_insight(
+    async def _default_insight(
         self, statistics: list[dict], dataset: dict
     ) -> tuple[list[InsightChart], str, list[str]]:
         """Build one table per result section straight from the raw analytics
@@ -453,7 +507,7 @@ class Analyst:
             latest = result
         for position, chart in enumerate(charts):
             chart.position = position
-        primary_insight, follow_ups = deterministic_narrative(dataset, latest)
+        primary_insight, follow_ups = default_narrative(dataset, latest)
         return charts, primary_insight, follow_ups
 
     async def analyze(
@@ -472,14 +526,14 @@ class Analyst:
             "cautions", "No specific dataset cautions provided."
         )
 
-        if dataset.get("dataset_id") in DETERMINISTIC_DATASETS:
+        if dataset.get("dataset_id") in DEFAULT_INSIGHT_DATASETS:
             # Table-shaped datasets (e.g. Land GHG Inventory): build tables
             # directly from the raw result — no CodeAct, no narrative LLM.
             (
                 charts,
                 primary_insight,
                 follow_up_suggestions,
-            ) = await self._deterministic_insight(statistics, dataset)
+            ) = await self._default_insight(statistics, dataset)
             codeact_parts: list = []
             if not charts:
                 return _error_command(
