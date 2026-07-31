@@ -26,6 +26,7 @@ from src.agent.subagents.pick_aoi.selection_name_util import (
 )
 from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
     BBOX_SQL,
@@ -306,7 +307,7 @@ async def select_best_aoi(
 
 async def check_multiple_matches(
     src_id: str, short_name: str, results: pd.DataFrame
-) -> Optional[str]:
+) -> Optional[list[dict]]:
     # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
     selected_country = src_id.split(".")[0] if "." in src_id else None
 
@@ -332,17 +333,20 @@ async def check_multiple_matches(
                 & (results.source == "gadm")
             ]
 
-            candidate_names = all_matches[
-                ["name", "subtype", "src_id"]
+            # Same columns as AOIIndex, so these candidates match the shape
+            # of an already-picked aoi_selection entry.
+            return all_matches[
+                ["source", "src_id", "name", "subtype", "bbox"]
             ].to_dict(orient="records")
-            return "\n".join(
-                [
-                    f"{candidate['name']} - ({candidate['subtype']}) [{candidate['src_id'].split('.')[0]}]"
-                    for candidate in candidate_names
-                ]
-            )
 
     return None
+
+
+def _format_aoi_candidate(candidate: dict) -> str:
+    return (
+        f"{candidate['name']} - ({candidate['subtype']}) "
+        f"[{candidate['src_id'].split('.')[0]}]"
+    )
 
 
 async def check_aoi_selection(
@@ -377,20 +381,27 @@ async def check_duplicate_aois(
     selected_aois: list[AOIIndex],
     all_results: list[pd.DataFrame],
     language: str = DEFAULT_LANGUAGE,
-) -> Optional[str]:
+) -> Optional[tuple[str, list[str], list[dict]]]:
+    """Returns (message, options, data) when the same place name matches
+    AOIs in different countries — ``options`` are the exact candidate
+    strings for the ``aoi_choice`` nudge (clicking one resubmits it as the
+    next question); ``data`` are the same candidates as AOIIndex-shaped
+    dicts, matching the aoi_selection.aois entries a pick would produce."""
     for selected_aoi, result in zip(selected_aois, all_results):
         if selected_aoi.source == "gadm":
             short_name = selected_aoi.name.split(",")[0]
-            candidate_names = await check_multiple_matches(
+            candidates = await check_multiple_matches(
                 selected_aoi.src_id, short_name, result
             )
-            if candidate_names:
-                return await t(
+            if candidates:
+                options = [_format_aoi_candidate(c) for c in candidates]
+                message = await t(
                     "pick_aoi.duplicate_names",
                     language,
                     short_name=short_name,
-                    candidate_names=candidate_names,
+                    candidate_names="\n".join(options),
                 )
+                return message, options, candidates
 
     return None
 
@@ -562,10 +573,21 @@ class Geocoder:
             selected_aois, all_results, language
         )
         if duplicate_check:
+            message, options, data = duplicate_check
             return Command(
                 update={
+                    "nudge": {
+                        "type": "aoi_choice",
+                        "options": options,
+                        "data": data,
+                    },
                     "messages": [
-                        ToolMessage(duplicate_check, tool_call_id=tool_call_id)
+                        ToolMessage(
+                            message + NUDGE_ALREADY_SET_NOTE,
+                            tool_call_id=tool_call_id,
+                            status="success",
+                            response_metadata={"msg_type": "human_feedback"},
+                        )
                     ],
                 },
             )

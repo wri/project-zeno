@@ -1059,10 +1059,10 @@ async def test_queries_return_no_dataset(query, start_date, end_date):
         f"Expected no dataset for query '{query}', "
         f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
     )
-    suggested = command.update.get("suggested_datasets")
+    nudge = command.update.get("nudge")
     assert (
-        suggested is None
-    ), f"Expected no suggestions for query '{query}' but got {suggested}"
+        nudge is None
+    ), f"Expected no nudge for query '{query}' but got {nudge}"
 
 
 @pytest.mark.parametrize(
@@ -1090,7 +1090,7 @@ async def test_queries_return_no_dataset(query, start_date, end_date):
         ),
     ],
 )
-async def test_queries_return_suggested_datasets(query, start_date, end_date):
+async def test_queries_return_nudge_options(query, start_date, end_date):
     tool_call_id = str(uuid.uuid4())
     tool_call = {
         "type": "tool_call",
@@ -1112,9 +1112,9 @@ async def test_queries_return_suggested_datasets(query, start_date, end_date):
         f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
     )
 
-    suggested = command.update.get("suggested_datasets")
+    nudge = command.update.get("nudge")
 
-    assert suggested and len(suggested) > 1, (
-        f"Expected multiple suggested_datasets for ambiguous query '{query}', "
-        f"but got: {suggested}"
+    assert nudge and len(nudge.get("options", [])) > 1, (
+        f"Expected multiple nudge options for ambiguous query '{query}', "
+        f"but got: {nudge}"
     )

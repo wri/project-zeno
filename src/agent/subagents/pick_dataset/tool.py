@@ -44,6 +44,7 @@ from src.agent.subagents.pick_dataset.schema import (
 )
 from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.config import SharedSettings
 from src.shared.logging_config import get_logger
 
@@ -244,16 +245,26 @@ class DatasetSelector:
                 options_header = await t(
                     "pick_dataset.closest_options_header", language
                 )
-                tool_message = f"{intro}\n\n{options_header}\n{reasons}"
+                tool_message = (
+                    f"{intro}\n\n{options_header}\n{reasons}"
+                    f"{NUDGE_ALREADY_SET_NOTE}"
+                )
                 return Command(
                     update={
-                        "suggested_datasets": [
-                            {
-                                **o.model_dump(),
-                                "dataset_name": name_by_id[o.dataset_id],
-                            }
-                            for o in selection_result.suggested_datasets
-                        ],
+                        "nudge": {
+                            "type": "dataset_choice",
+                            "options": [
+                                name_by_id[o.dataset_id]
+                                for o in selection_result.suggested_datasets
+                            ],
+                            "data": [
+                                {
+                                    **o.model_dump(),
+                                    "dataset_name": name_by_id[o.dataset_id],
+                                }
+                                for o in selection_result.suggested_datasets
+                            ],
+                        },
                         "messages": [
                             ToolMessage(
                                 tool_message,
@@ -374,7 +385,7 @@ class DatasetSelector:
         return Command(
             update={
                 "dataset": dataset_result.model_dump(),
-                "suggested_datasets": [],
+                "nudge": {"type": "", "options": []},
                 "messages": [
                     ToolMessage(tool_message, tool_call_id=tool_call_id)
                 ],

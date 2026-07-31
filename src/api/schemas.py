@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -487,6 +487,10 @@ class InsightChartResponse(BaseModel):
     group_field: str
     series_fields: List[str]
     chart_data: List[dict]
+    dataset_id: Optional[int] = None
+    color_map: Dict[str, str] = {}
+    series_color: Optional[str] = None
+    divergent_colors: Optional[Dict[str, str]] = None
 
 
 class InsightResponse(BaseModel):
