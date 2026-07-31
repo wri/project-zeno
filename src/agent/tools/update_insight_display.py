@@ -21,6 +21,9 @@ from langgraph.types import Command
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from src.agent.subagents.analyst.charts.color_resolver import (
+    resolve_chart_colors,
+)
 from src.agent.subagents.analyst.charts.model import Insight, InsightChart
 from src.agent.subagents.analyst.display_reviser import (
     InsightDisplayReviser,
@@ -105,17 +108,20 @@ def _apply_revision(
             new_charts.append(original)
             continue
         new_charts.append(
-            InsightChart(
-                position=original.position,
-                title=rc.title,
-                chart_type=rc.chart_type,
-                x_axis=rc.x_axis,
-                y_axis=rc.y_axis,
-                color_field=rc.color_field,
-                stack_field=rc.stack_field,
-                group_field=rc.group_field,
-                series_fields=rc.series_fields,
-                chart_data=original.chart_data,
+            resolve_chart_colors(
+                InsightChart(
+                    position=original.position,
+                    title=rc.title,
+                    chart_type=rc.chart_type,
+                    x_axis=rc.x_axis,
+                    y_axis=rc.y_axis,
+                    color_field=rc.color_field,
+                    stack_field=rc.stack_field,
+                    group_field=rc.group_field,
+                    series_fields=rc.series_fields,
+                    chart_data=original.chart_data,
+                ),
+                original.dataset_id,
             )
         )
 
@@ -143,6 +149,12 @@ async def update_insight_display(
 
     By default it updates the most recent insight in this conversation; pass
     `insight_id` to target a specific one (e.g. an insight visible on screen).
+
+    If it's genuinely unclear whether the user wants this restyle or a brand
+    new insight (generate_insights always creates a new one, never replaces
+    the current card in place), don't guess: call
+    send_nudge(nudge_type="insight_choice", options=["Create a new insight",
+    "Update the current insight"]) and wait for their answer first.
     """
     target_id = insight_id or (state or {}).get("insight_id")
     if not target_id:
@@ -198,6 +210,9 @@ SPEC = ToolSpec(
         "rename charts, change a chart type, or re-map a chart to columns it "
         "already has. Defaults to the most recent insight; pass insight_id to "
         "target a specific one. Use generate_insights when new data or "
-        "analysis is needed."
+        "analysis is needed. If it's unclear whether the user wants a "
+        "restyle or a new insight, ask via send_nudge(nudge_type="
+        '"insight_choice", options=["Create a new insight", "Update the '
+        'current insight"]) rather than guessing.'
     ),
 )

@@ -400,6 +400,12 @@ class InsightChartOrm(Base):
     series_fields = Column(JSONB, nullable=False, server_default="[]")
     chart_data = Column(JSONB, nullable=False)
 
+    # Color registry resolution (phase 2, see docs/insight-chart-colors-plan.md).
+    dataset_id = Column(Integer, nullable=True)
+    color_map = Column(JSONB, nullable=False, server_default="{}")
+    series_color = Column(String, nullable=True)
+    divergent_colors = Column(JSONB, nullable=True)
+
     insight = relationship("InsightOrm", back_populates="charts")
 
 

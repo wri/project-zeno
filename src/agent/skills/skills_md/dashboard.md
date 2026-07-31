@@ -2,7 +2,7 @@
 name: dashboard
 description: Create a dashboard for an area and fill it with insights (new or recalled), map widgets, and text notes.
 when_to_use: User asks to build/create a dashboard for a place, to add an insight/analysis to a dashboard, or to add a map layer / satellite imagery to a dashboard. Not for one-off analysis without a dashboard — use `analyze`.
-requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget
+requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, send_nudge
 ---
 
 # Dashboards
@@ -23,6 +23,12 @@ recomputes anything.
   first if none is selected. One area per dashboard; for "a dashboard for X
   and Y", ask the user to pick one area (multi-area portfolios are not
   supported yet).
+- If it's genuinely unclear which the user means — e.g. they say "make a
+  dashboard" while one is already active this thread, or "add this" when it
+  could plausibly read as "start a new one" — don't guess: call
+  `send_nudge(nudge_type="dashboard_choice", options=["Create a new
+  dashboard", "Update the current dashboard"])` and wait for their answer
+  before calling `create_dashboard` or `add_to_dashboard`.
 
 # Composing ("build me a dashboard for X about A, B, C")
 

@@ -40,7 +40,7 @@ def test_get_page_resolves_registered_pages():
 def test_get_page_unknown_or_malformed():
     assert get_page(None) is None
     assert get_page({}) is None
-    assert get_page({"page": "report"}) is None  # unregistered page
+    assert get_page({"page": "sandbox"}) is None  # unregistered page
     assert get_page({"page": {"nested": "junk"}}) is None  # not a string
 
 
@@ -77,12 +77,12 @@ def test_dashboard_session_line_without_name_or_id():
 def test_unregistered_page_falls_back_to_generic_breadcrumb():
     state = {
         "view_context": {
-            "page": "report",
+            "page": "sandbox",
             "visible_insights": [{}, {}],
         }
     }
     block = format_session_block(state)
-    assert "View: report page · 2 insight(s) on screen" in block
+    assert "View: sandbox page · 2 insight(s) on screen" in block
     assert "call inspect_view_context for details" in block
 
 
@@ -105,7 +105,7 @@ def test_prompt_section_for_registered_pages():
 
 def test_prompt_section_unknown_is_none():
     assert prompt_section(None, NOTHING_AVAILABLE) is None
-    assert prompt_section("report", NOTHING_AVAILABLE) is None
+    assert prompt_section("sandbox", NOTHING_AVAILABLE) is None
     assert prompt_section("", NOTHING_AVAILABLE) is None
 
 
@@ -144,7 +144,7 @@ def test_get_prompt_includes_surface_section_only_for_known_pages():
     # is unavailable — the surface section must not point at it.
     assert "skill `dashboard`" not in dashboard
 
-    assert "# Current surface" not in get_prompt(page="report")
+    assert "# Current surface" not in get_prompt(page="sandbox")
 
 
 def test_get_prompt_dashboard_surface_names_the_skill_when_available():

@@ -51,8 +51,7 @@ loads and formats dashboards and insights from the DB on demand.
 `view_context` remains frontend-owned and free-form. The parts the backend
 assigns meaning to:
 
-- `page`: `"map"` | `"dashboard"` (`"report"` is sent today but has no
-  registered semantics yet). Unknown values degrade gracefully — generic
+- `page`: `"map"` | `"dashboard"`. Unknown values degrade gracefully — generic
   breadcrumb, no prompt section.
 - On the dashboard page: `dashboard_id` (used by `add_to_dashboard` as the
   default target and by `inspect_view_context` to load the dashboard) and

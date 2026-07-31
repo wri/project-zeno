@@ -9,9 +9,11 @@ import pytest
 
 from src.agent.middleware import format_session_block
 from src.agent.tools.inspect_view_context import (
+    TEXT_WIDGET_CHAR_LIMIT,
     _chart_variables,
     _extract_insight_ids,
     _format_map_widget,
+    _format_text_widget,
     format_chart_data,
     format_dashboard,
     format_insights,
@@ -22,7 +24,7 @@ from src.agent.tools.inspect_view_context import (
 
 VIEW_STATE = {
     "view_context": {
-        "page": "report",
+        "page": "sandbox",
         "viewport": {"bbox": [-74, -34, -34, 5], "zoom": 5},
         "visible_layers": [
             {"id": "tree-cover", "name": "Tree cover"},
@@ -73,7 +75,7 @@ async def test_inspect_view_context_returns_snapshot():
         state=VIEW_STATE, tool_call_id="t1"
     )
     content = _content(command)
-    assert "Page: report" in content
+    assert "Page: sandbox" in content
     assert "Tree cover" in content
     assert "Fire alerts" in content
     assert "São Paulo" in content
@@ -93,7 +95,7 @@ def test_format_view_context_empty():
 
 def test_breadcrumb_present_with_view_context():
     block = format_session_block(VIEW_STATE)
-    assert "View: report page · 2 layer(s) · 1 AOI(s) visible" in block
+    assert "View: sandbox page · 2 layer(s) · 1 AOI(s) visible" in block
     assert "call inspect_view_context for details" in block
     # The bulky detail (exact viewport, layer ids) stays out of the prompt.
     assert "BRA.24_1" not in block
@@ -104,7 +106,7 @@ def test_breadcrumb_none_without_view_context():
 
 
 def test_breadcrumb_includes_insight_count():
-    state = {"view_context": {"page": "report", "visible_insights": [{}, {}]}}
+    state = {"view_context": {"page": "sandbox", "visible_insights": [{}, {}]}}
     assert "2 insight(s) on screen" in format_session_block(state)
 
 
@@ -185,6 +187,24 @@ def test_format_map_widget_unknown_config():
     assert _format_map_widget({"default_view": "map"}) is None
 
 
+def test_format_text_widget_renders_the_markdown_body():
+    assert _format_text_widget(
+        {"text": "  ## Findings\n\nDeforestation up.  "}
+    ) == ("## Findings\n\nDeforestation up.")
+
+
+def test_format_text_widget_empty():
+    assert _format_text_widget({}) == "(empty)"
+    assert _format_text_widget({"text": "   "}) == "(empty)"
+
+
+def test_format_text_widget_truncates_a_runaway_note():
+    body = "x" * (TEXT_WIDGET_CHAR_LIMIT + 500)
+    out = _format_text_widget({"text": body})
+    assert out.endswith("… (truncated)")
+    assert len(out) == TEXT_WIDGET_CHAR_LIMIT + len("… (truncated)")
+
+
 @pytest.mark.asyncio
 async def test_format_dashboard_summarizes_map_widgets():
     dashboard = SimpleNamespace(
@@ -222,12 +242,20 @@ async def test_format_dashboard_summarizes_map_widgets():
                     }
                 },
             ),
+            SimpleNamespace(
+                widget_type="text",
+                position=2,
+                insight_id=None,
+                config={"text": "## Summary\n\nLoss accelerated in 2024."},
+            ),
         ],
     )
     out = await format_dashboard(dashboard)
     assert "map: dataset 'Tree cover loss' (2024-01-01–2024-12-31)" in out
     assert "map: Sentinel-2 imagery around 2024-06-01 (Paraná)" in out
     assert "https://t/{z}" not in out
+    assert "## Summary\n\nLoss accelerated in 2024." in out
+    assert '{"text"' not in out
 
 
 @pytest.mark.asyncio
@@ -235,7 +263,7 @@ async def test_inspect_view_context_loads_insights():
     insight = _fake_insight()
     view = {
         "view_context": {
-            "page": "report",
+            "page": "map",
             "visible_insights": [{"id": str(insight.id)}],
         }
     }

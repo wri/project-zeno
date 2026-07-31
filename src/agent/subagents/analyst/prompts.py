@@ -57,13 +57,28 @@ Now prepare the data for visualization in Recharts.js:
          - **Pie**: [{"name": "Category A", "value": 100}], max 6–8 slices
          - **IMPORTANT**: For every non-pie/non-table chart, either y_axis OR series_fields MUST be set. Never leave both empty.
 
-   c) **SAVE THE DATA**: Save as `chart_data.csv` — pipeline only reads this file. Final step must call `to_csv('chart_data.csv', index=False)`.
+   c) **STABLE CATEGORY SLUG COLUMN** (for consistent coloring across languages):
+      - For the categorical column that drives chart coloring — `color_field`
+        for bar/line/area/scatter, or the category/name column for pie charts —
+        add a sibling column named "{column}__slug" with a stable, ENGLISH,
+        snake_case identifier per row. Never put translated text or invented
+        hex colors in this column.
+      - If canonical slugs for this dataset are listed above (under STABLE
+        CATEGORY SLUGS), use them verbatim for any row whose category matches
+        one unchanged.
+      - If you group or rename raw categories (per the dataset-specific rules
+        above), invent a new snake_case slug for each new bucket instead — keep
+        it stable if the same bucket recurs elsewhere in the output.
+      - Skip this column entirely for charts with no categorical color column
+        (e.g. a simple time series with a single numeric y_axis).
 
-   d) **SAVE THE CHART SPEC**: Save the chart spec(s) as `insight.json` — the
+   d) **SAVE THE DATA**: Save as `chart_data.csv` — pipeline only reads this file. Final step must call `to_csv('chart_data.csv', index=False)`.
+
+   e) **SAVE THE CHART SPEC**: Save the chart spec(s) as `insight.json` — the
       pipeline only reads this file. A separate stage generates the narrative,
       so do not write any insight text here.
 
-   e) **PRINT CHART TYPE**: State the recommended chart type in the output
+   f) **PRINT CHART TYPE**: State the recommended chart type in the output
 """
 
 WORDING_GUIDE = """# Wording
