@@ -21,6 +21,9 @@ from langgraph.types import Command
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from src.agent.subagents.analyst.charts.color_resolver import (
+    resolve_chart_colors,
+)
 from src.agent.subagents.analyst.charts.model import Insight, InsightChart
 from src.agent.subagents.analyst.display_reviser import (
     InsightDisplayReviser,
@@ -105,17 +108,20 @@ def _apply_revision(
             new_charts.append(original)
             continue
         new_charts.append(
-            InsightChart(
-                position=original.position,
-                title=rc.title,
-                chart_type=rc.chart_type,
-                x_axis=rc.x_axis,
-                y_axis=rc.y_axis,
-                color_field=rc.color_field,
-                stack_field=rc.stack_field,
-                group_field=rc.group_field,
-                series_fields=rc.series_fields,
-                chart_data=original.chart_data,
+            resolve_chart_colors(
+                InsightChart(
+                    position=original.position,
+                    title=rc.title,
+                    chart_type=rc.chart_type,
+                    x_axis=rc.x_axis,
+                    y_axis=rc.y_axis,
+                    color_field=rc.color_field,
+                    stack_field=rc.stack_field,
+                    group_field=rc.group_field,
+                    series_fields=rc.series_fields,
+                    chart_data=original.chart_data,
+                ),
+                original.dataset_id,
             )
         )
 
