@@ -1,0 +1,81 @@
+"""send_nudge — offer the user a set of clickable options.
+
+A generic, stateless signal: no DB access, no InjectedState read, just an
+update to `state["nudge"]` plus a ToolMessage tagged `msg_type:
+human_feedback` so the turn is understood to end waiting on the user (the
+same convention pick_dataset, pick_aoi, pull_data, show_imagery and the
+analyst already use). Resolution needs no dedicated mechanism: the frontend
+renders `options` as buttons, and a click resubmits the chosen string as the
+user's next message — exactly how follow_up_suggestions already behaves.
+"""
+
+from typing import Annotated, Optional
+
+from langchain_core.messages import ToolMessage
+from langchain_core.tools import tool
+from langchain_core.tools.base import InjectedToolCallId
+from langgraph.types import Command
+
+from src.agent.tool_spec import ToolCategory, ToolSpec
+
+# Appended (English-only — it's guidance for the model, not user-facing
+# prose) to any tool message that already sets `nudge` state itself
+# (pick_dataset's dataset_choice, pick_aoi's aoi_choice). Without this,
+# models routinely call send_nudge right after, reinventing
+# nudge_type/options and clobbering the tool's own, correctly-scoped nudge.
+NUDGE_ALREADY_SET_NOTE = (
+    "\n\n(These options are already recorded as the pending nudge — do "
+    "not call send_nudge yourself. Summarize them in your reply and stop "
+    "there, waiting for the user's answer.)"
+)
+
+
+@tool("send_nudge")
+async def send_nudge(
+    nudge_type: str,
+    options: list[str],
+    tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
+) -> Command:
+    """Offer the user a small set of clickable options instead of an
+    open-ended question.
+
+    `nudge_type` is a free-form label for the kind of choice being offered
+    (e.g. "confirm", "clarify") — it's for the frontend to key rendering on,
+    not validated against a fixed list. `options` are the exact strings
+    shown as buttons; clicking one resubmits it as the user's next message,
+    so keep them short and unambiguous on their own.
+
+    Do NOT call this to restate options a tool already gave you —
+    pick_dataset, pick_aoi and others sometimes return their own nudge with
+    options already set in state; that nudge is final. Only call send_nudge
+    to offer a genuinely new set of choices you are constructing yourself.
+    """
+    return Command(
+        update={
+            "nudge": {"type": nudge_type, "options": options},
+            "messages": [
+                ToolMessage(
+                    content="Offered the user: " + "; ".join(options),
+                    tool_call_id=tool_call_id,
+                    status="success",
+                    response_metadata={"msg_type": "human_feedback"},
+                )
+            ],
+        }
+    )
+
+
+SPEC = ToolSpec(
+    tool=send_nudge,
+    category=ToolCategory.PRIMITIVE,
+    prompt_fragment=(
+        "- send_nudge(nudge_type, options): offer the user 2-4 clickable "
+        "choices instead of asking an open-ended question. `nudge_type` is "
+        "a free-form label for the kind of choice (e.g. 'confirm', "
+        "'clarify'); `options` are the exact strings shown as buttons — "
+        "clicking one resubmits it as the user's next message. Never call "
+        "this right after pick_dataset/pick_aoi/pull_data/show_imagery "
+        "already returned their own options/question — that nudge is "
+        "already final; just summarize it in text and stop."
+    ),
+)

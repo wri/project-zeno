@@ -57,6 +57,7 @@ STATE_KEYS = (
     "charts_data",
     "start_date",
     "end_date",
+    "nudge",
 )
 
 # How many rows of pulled / chart data to print (head only).
