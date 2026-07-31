@@ -11,6 +11,10 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.datasets.handlers.analytics_handler import (
+    LAND_GHG_INVENTORY_ID,
+    merge_lgms_sections,
+)
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.subagents.analyst.charts import (
@@ -59,6 +63,10 @@ async def _load_statistics_data(data: dict) -> dict | None:
     source_url = data.get("source_url")
     if source_url:
         raw = await fetch_statistics_from_url(source_url)
+        # LGMS returns a per-section result; flatten it into one table (the
+        # analyst re-fetches raw data, so this must happen here too).
+        if raw and data.get("dataset_id") == LAND_GHG_INVENTORY_ID:
+            raw = merge_lgms_sections(raw)
         if raw and (mapping := data.get("aoi_id_to_name")):
             raw["name"] = [mapping.get(i, i) for i in raw.get("aoi_id", [])]
         return raw

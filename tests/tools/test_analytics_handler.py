@@ -4,8 +4,8 @@ from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_ID,
     AnalyticsHandler,
     _count_and_enrich,
-    _merge_lgms_sections,
     format_id,
+    merge_lgms_sections,
 )
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -141,7 +141,7 @@ async def test_merge_lgms_sections_flattens_to_category_class_table():
             "gross_emissions_MgCO2e": [33.0],
         },
     }
-    merged = _merge_lgms_sections(raw)
+    merged = merge_lgms_sections(raw)
     assert len(merged["category"]) == 5  # 2 + 1 + 1 + 1 rows
     assert merged["category"] == [
         "vegetation",

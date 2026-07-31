@@ -150,15 +150,6 @@ LAND_GHG_INVENTORY_ID = [
 ][0]
 
 
-def _is_nested_result(raw_data: Any) -> bool:
-    """A per-section result: a non-empty dict whose values are all dicts."""
-    return (
-        isinstance(raw_data, dict)
-        and len(raw_data) > 0
-        and all(isinstance(value, dict) for value in raw_data.values())
-    )
-
-
 def _first_list_len(section: Any) -> int:
     if isinstance(section, dict):
         for value in section.values():
@@ -213,10 +204,12 @@ def _lgms_row_class(section_name: str, row: dict) -> Any:
     return None
 
 
-def _merge_lgms_sections(raw_data: dict) -> dict:
-    """Flatten a nested per-section result into one column-oriented table with
-    unified `category` / `class` columns; metrics absent from a section are
-    filled with None."""
+def merge_lgms_sections(raw_data: dict) -> dict:
+    """Flatten LGMS's per-section result (vegetation, mineral_soil,
+    organic_soil, agriculture) into one column-oriented table with unified
+    `category` / `class` columns; metrics absent from a section are filled with
+    None. Applied wherever the LGMS result is read (see LAND_GHG_INVENTORY_ID
+    checks in the handler's process-response and the analyst's re-fetch)."""
     merged: dict[str, list] = {col: [] for col in LGMS_MERGED_COLUMNS}
     for section_name, columns in raw_data.items():
         keys = list(columns)
@@ -237,16 +230,6 @@ def _merge_lgms_sections(raw_data: dict) -> dict:
             for metric in LGMS_METRIC_COLUMNS:
                 merged[metric].append(row.get(metric))
     return merged
-
-
-def normalize_result(raw_data: Any) -> Any:
-    """Reshape a raw analytics result for analysis. A per-section (nested)
-    result — LGMS — is merged into one flat category/class table; a flat result
-    is returned unchanged. Applied on every read of the result (pull-time count
-    and the analyst's re-fetch) so both see the same single table."""
-    if _is_nested_result(raw_data):
-        return _merge_lgms_sections(raw_data)
-    return raw_data
 
 
 def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
@@ -568,6 +551,7 @@ class AnalyticsHandler(DataSourceHandler):
         self,
         result: Dict,
         aois: list[dict],
+        dataset: dict,
     ) -> tuple[Any, int, str, str]:
         """Process the response data based on dataset type."""
 
@@ -597,9 +581,10 @@ class AnalyticsHandler(DataSourceHandler):
 
         raw_data = data["data"]["result"]
 
-        # A per-section result (LGMS) is merged into one flat table so it flows
-        # through the normal single-table analysis path.
-        raw_data = normalize_result(raw_data)
+        # LGMS returns a per-section result; flatten it into one table so it
+        # flows through the normal single-table analysis path.
+        if dataset.get("dataset_id") == LAND_GHG_INVENTORY_ID:
+            raw_data = merge_lgms_sections(raw_data)
         raw_data, data_points_count = _count_and_enrich(raw_data, aois)
         message_detail = f"Found {data_points_count} data points"
         analytics_url = result["data"]["link"]
@@ -729,7 +714,9 @@ class AnalyticsHandler(DataSourceHandler):
                         data_points_count,
                         message_detail,
                         analytics_url,
-                    ) = await self._process_response_data(result, aois)
+                    ) = await self._process_response_data(
+                        result, aois, dataset
+                    )
                     return DataPullResult(
                         success=True,
                         data=raw_data,
@@ -743,7 +730,7 @@ class AnalyticsHandler(DataSourceHandler):
                     data_points_count,
                     message_detail,
                     analytics_url,
-                ) = await self._process_response_data(result, aois)
+                ) = await self._process_response_data(result, aois, dataset)
                 return DataPullResult(
                     success=True,
                     data=raw_data,
