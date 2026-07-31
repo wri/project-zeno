@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -342,6 +342,56 @@ class CustomAreaCreate(BaseModel):
     geometries: List[Polygon]
 
 
+class ViewportContext(BaseModel):
+    """The map's current extent, as reported by the frontend."""
+
+    model_config = ConfigDict(extra="allow")
+    bbox: Optional[List[float]] = None  # [minx, miny, maxx, maxy]
+    zoom: Optional[float] = None
+
+
+class VisibleLayerContext(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    id: Optional[str] = None
+    name: Optional[str] = None
+
+
+class VisibleAoiContext(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    source: Optional[str] = None
+    src_id: Optional[str] = None
+    name: Optional[str] = None
+
+
+class ViewContext(BaseModel):
+    """Ambient frontend view state — what the user is currently looking at.
+
+    Unlike ui_context (deliberate actions), this is reference material the
+    agent consults on demand via the inspect_view_context tool; it is NOT
+    turned into a message or eagerly merged into the agent's selections.
+
+    Typed for the keys `inspect_view_context` understands (see its
+    `_KNOWN_KEYS`), but every field is optional and `extra="allow"` lets
+    unrecognized keys — a new field the frontend has started sending ahead
+    of backend support, or one this model hasn't caught up with yet — pass
+    through untouched rather than fail validation. `inspect_view_context`
+    dumps anything it doesn't recognize verbatim under "Other", so nothing
+    is lost either way. See docs/view-context-pages.md.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    page: Optional[str] = None  # known values: "map" | "dashboard"
+    viewport: Optional[ViewportContext] = None
+    visible_layers: Optional[List[VisibleLayerContext]] = None
+    visible_aois: Optional[List[VisibleAoiContext]] = None
+    # Entries may be bare insight ids or {"id": ...} dicts.
+    visible_insights: Optional[List[Union[str, dict]]] = None
+    # Set on the dashboard page, alongside dashboard_name.
+    dashboard_id: Optional[str] = None
+    dashboard_name: Optional[str] = None
+
+
 class ChatRequest(BaseModel):
     query: str = Field(..., description="The query")
     user_persona: Optional[str] = Field(None, description="The user persona")
@@ -351,22 +401,7 @@ class ChatRequest(BaseModel):
         None  # {"aoi_selected": {...}, "dataset_selected": {...}, "daterange_selected": {...}}
     )
 
-    # Ambient frontend view state — what the user is currently looking at.
-    # Unlike ui_context (deliberate actions), this is reference material the
-    # agent consults on demand via the inspect_view_context tool; it is NOT
-    # turned into a message or eagerly merged into the agent's selections.
-    # Free-form (the frontend owns the shape), e.g.:
-    #   {"page": "map" | "report",
-    #    "viewport": {"bbox": [minx, miny, maxx, maxy], "zoom": 5},
-    #    "visible_layers": [{"id": "...", "name": "..."}],
-    #    "visible_aois": [{"source": "...", "src_id": "...", "name": "..."}],
-    #    "visible_insights": ["<uuid>", "<uuid>"]}
-    # On the dashboard page the snapshot carries the dashboard being viewed:
-    #   {"page": "dashboard", "dashboard_id": "<uuid>", "dashboard_name": "…"}
-    # Known "page" values get scope semantics on the backend (session-block
-    # line + system-prompt section) via src/agent/view_pages.py; see
-    # docs/view-context-pages.md. Unknown pages degrade gracefully.
-    view_context: Optional[dict] = Field(
+    view_context: Optional[ViewContext] = Field(
         None,
         description="Ambient frontend view state (page, viewport, visible layers/AOIs)",
     )

@@ -109,7 +109,11 @@ async def chat(
                     user_persona=chat_request.user_persona,
                     thread_id=thread_id,
                     ui_context=chat_request.ui_context,
-                    view_context=chat_request.view_context,
+                    view_context=(
+                        chat_request.view_context.model_dump(exclude_none=True)
+                        if chat_request.view_context
+                        else None
+                    ),
                     ui_action_only=chat_request.ui_action_only,
                     langfuse_metadata=langfuse_metadata,
                     user=user_dict,
