@@ -110,7 +110,7 @@ DEFAULT_SKILLS = (
 )
 # Datasets hidden from normal traffic; revealed by opting into a flag whose
 # profile omits them (see EXPERIMENTAL_PROFILE below).
-DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Inventory"})
+DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 
 # Experimental, opt-in additions over the default profile.
 EXPERIMENTAL_PROFILE = "experimental"

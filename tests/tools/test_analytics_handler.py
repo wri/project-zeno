@@ -99,7 +99,7 @@ async def test_build_payload_uses_no_canopy_cover_parameter():
     }
 
 
-# --- Nested (per-section) analytics results, e.g. Land GHG Inventory ----------
+# --- Nested (per-section) analytics results, e.g. Land GHG Monitoring System (LGMS) ----------
 # A nested result must NOT go through the flat aoi_id name-enrichment path, and
 # the data-point count comes from the first inner section's first list.
 

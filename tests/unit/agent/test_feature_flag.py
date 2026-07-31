@@ -242,12 +242,18 @@ def test_availability_carries_excluded_datasets():
 
 def test_default_profile_excludes_land_ghg():
     config = default_registry.resolve(DEFAULT_PROFILE)
-    assert "Land GHG Inventory" in config.availability().excluded_datasets
+    assert (
+        "Land GHG Monitoring System (LGMS)"
+        in config.availability().excluded_datasets
+    )
 
 
 def test_experimental_profile_reveals_land_ghg():
     config = default_registry.resolve(EXPERIMENTAL_PROFILE)
-    assert "Land GHG Inventory" not in config.availability().excluded_datasets
+    assert (
+        "Land GHG Monitoring System (LGMS)"
+        not in config.availability().excluded_datasets
+    )
 
 
 # --- Structural invariants ---------------------------------------------------
@@ -379,7 +385,7 @@ def _candidate_datasets() -> pd.DataFrame:
         {
             "dataset_id": [12, 6, 4],
             "dataset_name": [
-                "Land GHG Inventory",
+                "Land GHG Monitoring System (LGMS)",
                 "Forest greenhouse gas net flux",
                 "Tree cover loss",
             ],
@@ -389,10 +395,10 @@ def _candidate_datasets() -> pd.DataFrame:
 
 def test_drop_excluded_datasets_removes_named_datasets():
     df = _drop_excluded_datasets(
-        _candidate_datasets(), frozenset({"Land GHG Inventory"})
+        _candidate_datasets(), frozenset({"Land GHG Monitoring System (LGMS)"})
     )
     names = set(df["dataset_name"])
-    assert "Land GHG Inventory" not in names
+    assert "Land GHG Monitoring System (LGMS)" not in names
     assert {"Forest greenhouse gas net flux", "Tree cover loss"} <= names
 
 

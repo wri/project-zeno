@@ -89,15 +89,15 @@ def test_capabilities_listing_omits_excluded_dataset():
         Availability(
             skills=frozenset(),
             tools=frozenset(),
-            excluded_datasets=frozenset({"Land GHG Inventory"}),
+            excluded_datasets=frozenset({"Land GHG Monitoring System (LGMS)"}),
         )
     )
-    assert "Land GHG Inventory" not in load_datasets_info()
+    assert "Land GHG Monitoring System (LGMS)" not in load_datasets_info()
 
 
 def test_capabilities_listing_shows_dataset_when_not_excluded():
     set_bound_availability(_EMPTY)
-    assert "Land GHG Inventory" in load_datasets_info()
+    assert "Land GHG Monitoring System (LGMS)" in load_datasets_info()
 
 
 def test_get_skill_body():

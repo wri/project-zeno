@@ -146,7 +146,7 @@ TREE_COVER_LOSS_BY_FIRES_ID = [
 LAND_GHG_INVENTORY_ID = [
     ds["dataset_id"]
     for ds in DATASETS
-    if ds["dataset_name"] == "Land GHG Inventory"
+    if ds["dataset_name"] == "Land GHG Monitoring System (LGMS)"
 ][0]
 
 
@@ -170,7 +170,7 @@ def _first_list_len(section: Any) -> int:
 def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
     """Count data points and add AOI names to a flat result.
 
-    A nested (per-section) result — e.g. Land GHG Inventory's ``vegetation`` /
+    A nested (per-section) result — e.g. Land GHG Monitoring System (LGMS)'s ``vegetation`` /
     ``agriculture`` — has no top-level ``aoi_id`` or arrays, so name enrichment
     is skipped and the count is taken from the first inner section's first list.
     """

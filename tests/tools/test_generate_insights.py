@@ -728,7 +728,7 @@ async def test_generate_insights_creates_two_bar_charts_with_code_instructions()
         ), f"Chart {idx} type is '{chart.get('type')}', expected 'bar'. Chart: {chart}"
 
 
-# --- Default (table) insight path: e.g. Land GHG Inventory --------------------
+# --- Default (table) insight path: e.g. Land GHG Monitoring System (LGMS) --------------------
 
 
 def _land_ghg_result() -> dict:
@@ -775,7 +775,8 @@ async def test_build_table_insights_skips_non_column_sections():
 
 async def test_default_narrative_names_sections_and_units():
     text, follow_ups = default_narrative(
-        {"dataset_name": "Land GHG Inventory"}, _land_ghg_result()
+        {"dataset_name": "Land GHG Monitoring System (LGMS)"},
+        _land_ghg_result(),
     )
     assert "vegetation" in text and "agriculture" in text
     assert "MgCO2e" in text
@@ -783,20 +784,20 @@ async def test_default_narrative_names_sections_and_units():
 
 
 async def test_default_insight_dataset_routes_to_tables_without_llm():
-    """A DEFAULT_INSIGHT dataset (Land GHG Inventory, id 12) renders one table
+    """A DEFAULT_INSIGHT dataset (Land GHG Monitoring System (LGMS), id 12) renders one table
     per section with no CodeAct and no narrative LLM — so the stubbed text
     generator is never used and the templated summary is returned."""
     state = {
         "dataset": {
             "dataset_id": 12,
-            "dataset_name": "Land GHG Inventory",
+            "dataset_name": "Land GHG Monitoring System (LGMS)",
             "context_layer": None,
             "reason": "explicit request",
             "tile_url": "",
             "analytics_api_endpoint": (
                 "/v0/land_change/land_ghg_inventory/analytics"
             ),
-            "description": "Land GHG Inventory",
+            "description": "Land GHG Monitoring System (LGMS)",
             "prompt_instructions": "N/A",
             "methodology": "N/A",
             "cautions": "N/A",
@@ -806,7 +807,7 @@ async def test_default_insight_dataset_routes_to_tables_without_llm():
         "statistics": [
             Statistics(
                 id="a1b2c3d4-0012-0012-0012-000000000012",
-                dataset_name="Land GHG Inventory",
+                dataset_name="Land GHG Monitoring System (LGMS)",
                 source_url="http://example.com/analytics/land-ghg-sao-paulo",
                 start_date="2016-01-01",
                 end_date="2024-12-31",

@@ -11,9 +11,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from src.agent.datasets.handlers.analytics_handler import (
-    LAND_GHG_INVENTORY_ID,
-)
+from src.agent.datasets.config import DATASETS
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.subagents.analyst.charts import (
@@ -326,10 +324,13 @@ async def _build_tool_message(
     return tool_message
 
 
-# Datasets whose generate_insights path is the default table view: one table
-# per result section built straight from the raw analytics result, with no
-# CodeAct chart step and no narrative LLM.
-DEFAULT_INSIGHT_DATASETS: set[int] = {LAND_GHG_INVENTORY_ID}
+# Datasets whose generate_insights path is a table view: one table per result
+# section built straight from the raw analytics result, with no CodeAct chart
+# step and no narrative LLM. Declared per-dataset via ``insight_type: table``
+# in the catalog, so a new table dataset needs no code change here.
+TABLE_INSIGHT_DATASET_IDS: set[int] = {
+    ds["dataset_id"] for ds in DATASETS if ds.get("insight_type") == "table"
+}
 
 
 def _is_column_dict(value: Any) -> bool:
@@ -372,7 +373,7 @@ def default_narrative(dataset: dict, result: dict) -> tuple[str, list[str]]:
         for s, v in (result or {}).items()
         if _is_column_dict(v)
     ]
-    name = dataset.get("dataset_name", "Land GHG Inventory")
+    name = dataset.get("dataset_name", "Land GHG Monitoring System (LGMS)")
     if not sections:
         return f"{name}: no tabular data was returned.", []
     return (
@@ -526,8 +527,8 @@ class Analyst:
             "cautions", "No specific dataset cautions provided."
         )
 
-        if dataset.get("dataset_id") in DEFAULT_INSIGHT_DATASETS:
-            # Table-shaped datasets (e.g. Land GHG Inventory): build tables
+        if dataset.get("dataset_id") in TABLE_INSIGHT_DATASET_IDS:
+            # Table-shaped datasets (e.g. Land GHG Monitoring System (LGMS)): build tables
             # directly from the raw result — no CodeAct, no narrative LLM.
             (
                 charts,

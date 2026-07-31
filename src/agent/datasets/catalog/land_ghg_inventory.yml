@@ -1,5 +1,5 @@
 dataset_id: 12
-dataset_name: Land GHG Inventory
+dataset_name: Land GHG Monitoring System (LGMS)
 context_layers: null
 parameters: null
 variables: null
@@ -8,7 +8,7 @@ license: CC by 4.0
 geographic_coverage: GADM administrative areas (country, state/province, district) only
 resolution: Reported per administrative area
 update_frequency: Annual
-content_date: 2016 - present
+content_date: 2016-2024
 start_date: '2016-01-01'
 content_date_fixed: false
 keywords:
@@ -22,21 +22,28 @@ keywords:
 - agriculture
 - forest carbon
 analytics_api_endpoint: /v0/land_change/land_ghg_inventory/analytics
+# generate_insights renders this dataset as one table per result section
+# (no CodeAct, no narrative LLM) rather than charts.
+insight_type: table
 prompt_instructions: >-
-  Use this dataset for a land greenhouse-gas (GHG) inventory of an administrative
-  area: vegetation carbon (gross emissions, gross removals and net flux, broken
-  down by forest-change state — tree loss, tree gain, trees remaining, and
-  non-trees) and agriculture emissions (cropland and livestock). All values are
-  measured in MgCO2e (tonnes CO2 equivalent); emissions are positive (a source)
-  and removals are negative (a sink). Results are returned as tables, one per
-  section (vegetation and agriculture). Only available for GADM administrative
+  Use this dataset for a land greenhouse-gas (GHG) inventory of a GADM
+  administrative area. Results are returned as tables, one per section: vegetation
+  (gross emissions, gross removals and net flux by forest-change state — tree loss,
+  tree gain, trees remaining, non-trees — per year), mineral soil (gross emissions,
+  gross removals and net flux per year), organic soil (gross emissions per year; no
+  removals), and agriculture (cropland emissions). All values are in MgCO2e (tonnes
+  CO2 equivalent); emissions are positive (a source) and removals are negative (a
+  sink). The output is not currently broken down by individual gas (CO2/CH4/N2O),
+  by carbon pool, or by individual crop, and livestock emissions are not yet
+  included — do not report those breakdowns. Only available for GADM administrative
   areas down to admin level 2 (country, state/province, district).
 selection_hints: >-
   DEFAULT dataset for carbon / greenhouse-gas net-flux and emissions-and-removals
   questions from 2016 onward, when no time period is given, or when broken down by
-  forest-change state (tree loss, tree gain, stable/remaining forest, non-forest)
-  or by agriculture (cropland, livestock). Reports vegetation emissions/removals/
-  net flux and agriculture emissions in MgCO2e for an administrative area.
+  forest-change state (tree loss, tree gain, stable/remaining forest, non-forest),
+  by soil (organic and mineral), or by agriculture (cropland). Reports vegetation,
+  soil and agriculture emissions/removals/net flux in MgCO2e for an administrative
+  area.
   IMPORTANT: only available for GADM administrative areas to admin level 2
   (country, state/province, district) — for protected areas, KBAs, landmark or
   custom areas, or finer admin levels, use Forest greenhouse gas net flux instead.
@@ -44,28 +51,87 @@ selection_hints: >-
   for annual tree-cover-loss emissions specifically, Tree cover loss also carries
   a carbon-emissions metric.
 description: >-
-  Land GHG Inventory reports a greenhouse-gas accounting for an administrative
-  area, combining vegetation carbon flux — gross emissions, gross removals and net
-  flux by forest-change state (tree loss, tree gain, trees remaining, non-trees),
-  per year — with agriculture emissions (cropland and livestock). Values are in
-  MgCO2e; emissions are positive (source) and removals negative (sink).
+  The Land GHG Monitoring System (LGMS) maps
+  gross greenhouse-gas (GHG) emissions, gross CO2 removals (carbon
+  sequestration/accumulation), and the net GHG flux between them from land,
+  annually from 2016 to 2024, with global wall-to-wall coverage. It includes both
+  land-use and land-use-change fluxes from vegetation and soil, and agricultural
+  emissions. Vegetation covers the four major ecosystem carbon pools (aboveground
+  biomass, belowground biomass, deadwood, and litter). Organic-soil emissions
+  cover drainage and burning. Mineral-soil carbon-stock changes cover soil organic
+  carbon at 0-30 cm depth. Cropland emissions cover rice cultivation, fertilizer
+  application, manure application, and decomposition of crop residues. Livestock
+  emissions cover monogastrics and ruminants. It can be used to monitor and
+  estimate annual GHG emissions and removals for national and subnational
+  jurisdictions. Values are in MgCO2e; emissions are positive (source) and
+  removals negative (sink).
 methodology: >-
-  Vegetation carbon flux is derived from land-state transitions (tree loss, gain,
-  stable tree cover and non-tree cover) combined with per-pixel carbon densities
-  and emission/removal factors, aggregated to the administrative area and year.
-  Agriculture emissions aggregate cropland and livestock sources. See the source
-  publications for the underlying factors and definitions.
+  LGMS comprises five distinct datasets, each with its own methods: vegetation
+  (trees, grasses/shrubs, annual crops), organic soil, mineral soil, cropland
+  management, and livestock. Each was created separately but designed to combine
+  into an integrated geospatial monitoring system. Methods generally follow IPCC
+  guidelines for national greenhouse-gas inventories and are based on global
+  Earth-observation/remote-sensing products. The system prioritizes global
+  consistency: nearly all inputs are global rather than stitching together the
+  best available local/regional data into a harmonized global product.
 cautions: >-
-  Emissions and removals are gross figures; net flux is emissions plus removals
-  (removals stored as negative). Values are model estimates, not measured, and
-  should be interpreted as indicative. The inventory is only computed for GADM
-  administrative areas down to admin level 2; it is not available for protected
-  areas, KBAs, landmark areas, custom areas, or finer admin levels.
+  Values are gross emissions, gross removals, and net flux (net flux = emissions
+  plus removals, removals stored as negative); they are model estimates, not
+  direct measurements.
+
+
+  The system does not estimate carbon stocks or densities in a given year or over
+  a range of years, and does not calculate carbon-stock changes. It cannot be used
+  to estimate carbon credits or offsets at the jurisdictional or project scale.
+
+
+  Temporal granularity differs by component: vegetation emissions, removals and
+  net flux are annual (2016-2024); organic soil is in multi-year blocks (2016-2020
+  and 2021-2024); mineral soil is the change between 2010/2015 and 2015-2020
+  applied to every year 2016-2024; cropland and livestock emissions are for 2020
+  applied to all years. Native spatial resolution is ~30 m for vegetation, organic
+  soil and mineral soil, and ~10 km for cropland and livestock.
+
+
+  Uncertainty estimates exist only for global fluxes and cannot be displayed at
+  this time. Mineral-soil carbon-stock changes are for 0-30 cm depth only; organic
+  soil emissions assume no specific soil depth. Organic-soil emissions include
+  peat and non-peat organic-soil extent. Mineral soil covers all land outside
+  organic-soil extent, shifting sand and bare rock, and includes only soil organic
+  carbon (not inorganic); N2O from nitrogen mineralization of mineral-soil organic
+  carbon is not included. Cropland-management emissions cover activities on
+  cropland (fertilizer application, manure management, crop-residue decomposition)
+  for 40+ crops/crop types, though the tool output is not currently broken down by
+  individual crop, by gas (CO2/CH4/N2O), or by carbon pool, and livestock emissions
+  are not yet included in the output; vegetation
+  and soil carbon-stock changes on cropland, and land-use-change emissions related
+  to cropland (e.g. forest to crops), are in the vegetation and soil datasets, not
+  cropland management. Emissions from deforestation are not provided directly but
+  are approximated by emissions from tree loss; emissions/removals from
+  afforestation or reforestation are approximated by removals from tree gain.
 function_usage_notes: >-
   Provide a land greenhouse-gas inventory for an administrative area — vegetation
-  emissions, removals and net flux by forest-change state, plus agriculture
-  emissions — for 2016 onward.
-citation: >-
-  "Land GHG Inventory". Global Forest Watch / Global Nature Watch, accessed on [date].
+  emissions, removals and net flux by forest-change state, soil (organic and
+  mineral), and agriculture (cropland) emissions — for 2016 onward.
+citation: |-
+  Vegetation: Gibbs, D. et al. Spatial accounting of greenhouse gas emissions and removals across global land (under review).
+  Organic soil: Glen, E. et al. Global disturbance and emissions from organic soils: leveraging Earth observation-based geospatial data within an IPCC framework. Frontiers in Environmental Science (in press).
+  Mineral soil carbon change: Hengl, T. et al. 2026. OpenLandMap-soildb: global soil information at 30 m spatial resolution for 2000-2022+ based on spatiotemporal machine learning and harmonized legacy soil samples and observations. Earth System Science Data 18, 989-1036. https://doi.org/10.5194/essd-18-989-2026.
+  Cropland management: Cao, P., Bilotto, F., Gonzalez Fischer, C. et al. 2026. Spatially explicit global assessment of cropland greenhouse gas emissions circa 2020. Nature Climate Change 16, 354-363. https://doi.org/10.1038/s41558-026-02558-4.
+  Livestock: Bilotto, F. et al. (forthcoming).
+providers: >-
+  World Resources Institute (WRI) / Global Forest Watch, integrating five component
+  datasets: vegetation (Gibbs et al.), organic soil (Glen et al.), mineral soil
+  (Hengl et al. / OpenLandMap), cropland management (Cao, Bilotto, Gonzalez Fischer
+  et al.), and livestock (Bilotto et al.). See Citation for full references.
 code_instructions: N/A
-presentation_instructions: N/A
+presentation_instructions: >-
+  If a user asks about carbon stock or density, explain it is not currently in
+  scope (it may be added later). If a user asks for carbon-stock changes, explain
+  that we do not calculate stock changes and instead report gross emissions, gross
+  removals and net flux (broadly similar), then provide the LGMS results. If a user
+  asks for peat emissions, provide organic-soil emissions and note this covers the
+  broader class of organic soils, not only peat. Treat emissions from tree loss as
+  the approximation for deforestation emissions, and removals from tree gain as the
+  approximation for afforestation/reforestation. Do not present results as carbon
+  credits or offsets.
