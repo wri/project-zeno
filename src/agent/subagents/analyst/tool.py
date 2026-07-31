@@ -1,7 +1,7 @@
 import asyncio
 import re
 from base64 import b64encode
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Dict, List, Optional
 
 import pandas as pd
 import structlog
@@ -11,7 +11,6 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from src.agent.datasets.config import DATASETS
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.subagents.analyst.charts import (
@@ -324,65 +323,6 @@ async def _build_tool_message(
     return tool_message
 
 
-# Datasets whose generate_insights path is a table view: one table per result
-# section built straight from the raw analytics result, with no CodeAct chart
-# step and no narrative LLM. Declared per-dataset via ``insight_type: table``
-# in the catalog, so a new table dataset needs no code change here.
-TABLE_INSIGHT_DATASET_IDS: set[int] = {
-    ds["dataset_id"] for ds in DATASETS if ds.get("insight_type") == "table"
-}
-
-
-def _is_column_dict(value: Any) -> bool:
-    """True when ``value`` is a non-empty column-oriented dict (every value a
-    list) — the shape of one nested result section."""
-    return (
-        isinstance(value, dict)
-        and len(value) > 0
-        and all(isinstance(col, list) for col in value.values())
-    )
-
-
-def _columns_to_rows(section: dict) -> list[dict]:
-    """Transpose a column-oriented section into a list of row dicts."""
-    keys = list(section.keys())
-    return [dict(zip(keys, values)) for values in zip(*section.values())]
-
-
-def build_table_insights(result: dict) -> list[InsightChart]:
-    """One ``table`` InsightChart per top-level section of a nested result."""
-    charts: list[InsightChart] = []
-    for section, columns in (result or {}).items():
-        if not _is_column_dict(columns):
-            continue
-        charts.append(
-            InsightChart(
-                position=len(charts),
-                title=str(section).replace("_", " ").title(),
-                chart_type="table",
-                chart_data=_columns_to_rows(columns),
-            )
-        )
-    return charts
-
-
-def default_narrative(dataset: dict, result: dict) -> tuple[str, list[str]]:
-    """Templated (no-LLM) summary naming the sections, plus empty follow-ups."""
-    sections = [
-        str(s).replace("_", " ")
-        for s, v in (result or {}).items()
-        if _is_column_dict(v)
-    ]
-    name = dataset.get("dataset_name", "Land GHG Monitoring System (LGMS)")
-    if not sections:
-        return f"{name}: no tabular data was returned.", []
-    return (
-        f"{name}: {', '.join(sections)} shown as tables. Emissions are in "
-        f"MgCO2e (positive = source); removals are negative (sink).",
-        [],
-    )
-
-
 class Analyst:
     """Insight subagent: turns pulled data into a chart artifact.
 
@@ -486,31 +426,6 @@ class Analyst:
             )
         return charts, _encode_parts(result.parts), executor_context, None
 
-    @staticmethod
-    async def _fetch_raw_result(stat: dict) -> Optional[dict]:
-        source_url = stat.get("source_url")
-        if source_url:
-            return await fetch_statistics_from_url(source_url)
-        return stat.get("data") or None
-
-    async def _default_insight(
-        self, statistics: list[dict], dataset: dict
-    ) -> tuple[list[InsightChart], str, list[str]]:
-        """Build one table per result section straight from the raw analytics
-        result — no CodeAct, no LLM."""
-        charts: list[InsightChart] = []
-        latest: dict = {}
-        for stat in statistics:
-            result = await self._fetch_raw_result(stat)
-            if not result:
-                continue
-            charts.extend(build_table_insights(result))
-            latest = result
-        for position, chart in enumerate(charts):
-            chart.position = position
-        primary_insight, follow_ups = default_narrative(dataset, latest)
-        return charts, primary_insight, follow_ups
-
     async def analyze(
         self,
         query: str,
@@ -527,48 +442,33 @@ class Analyst:
             "cautions", "No specific dataset cautions provided."
         )
 
-        if dataset.get("dataset_id") in TABLE_INSIGHT_DATASET_IDS:
-            # Table-shaped datasets (e.g. Land GHG Monitoring System (LGMS)): build tables
-            # directly from the raw result — no CodeAct, no narrative LLM.
-            (
-                charts,
-                primary_insight,
-                follow_up_suggestions,
-            ) = await self._default_insight(statistics, dataset)
-            codeact_parts: list = []
-            if not charts:
-                return _error_command(
-                    "No data available for this dataset.", tool_call_id
-                )
-        else:
-            # STAGE 1: build charts from the pulled data.
-            (
-                resolved,
-                codeact_parts,
-                executor_context,
-                error,
-            ) = await self._resolve_charts(
-                query,
-                statistics,
-                dataset,
-                language,
+        # STAGE 1: build charts from the pulled data.
+        (
+            charts,
+            codeact_parts,
+            executor_context,
+            error,
+        ) = await self._resolve_charts(
+            query,
+            statistics,
+            dataset,
+            language,
+        )
+        if error or not charts:
+            return _error_command(
+                error or "Failed to generate charts.", tool_call_id
             )
-            if error or not resolved:
-                return _error_command(
-                    error or "Failed to generate charts.", tool_call_id
-                )
-            charts = resolved
 
-            # STAGE 2: generate insight text from the resolved charts.
-            text = await InsightTextGenerator().generate(
-                charts,
-                dataset,
-                query,
-                executor_context=executor_context,
-                language=language,
-            )
-            primary_insight = text.primary_insight
-            follow_up_suggestions = text.follow_up_suggestions
+        # STAGE 2: generate insight text from the resolved charts.
+        text = await InsightTextGenerator().generate(
+            charts,
+            dataset,
+            query,
+            executor_context=executor_context,
+            language=language,
+        )
+        primary_insight = text.primary_insight
+        follow_up_suggestions = text.follow_up_suggestions
 
         insight = Insight(
             charts=charts,

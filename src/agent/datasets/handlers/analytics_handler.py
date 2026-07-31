@@ -167,20 +167,90 @@ def _first_list_len(section: Any) -> int:
     return 0
 
 
-def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
-    """Count data points and add AOI names to a flat result.
+# Land GHG Monitoring System (LGMS) returns a per-section result (vegetation,
+# mineral_soil, organic_soil, agriculture). Merge it into one flat table with
+# unified `category` / `class` dimensions so it flows through the normal
+# analysis pipeline as a single table.
+LGMS_SECTION_CATEGORY = {
+    "vegetation": "vegetation",
+    "mineral_soil": "soil",
+    "organic_soil": "soil",
+    "agriculture": "agriculture",
+}
+LGMS_MERGED_COLUMNS = [
+    "aoi_id",
+    "aoi_type",
+    "category",
+    "class",
+    "year",
+    "gross_emissions_MgCO2e",
+    "gross_removals_MgCO2",
+    "net_flux_MgCO2e",
+    "area_ha",
+]
+LGMS_METRIC_COLUMNS = (
+    "gross_emissions_MgCO2e",
+    "gross_removals_MgCO2",
+    "net_flux_MgCO2e",
+    "area_ha",
+)
+# Agriculture emissions are reported for 2020 (applied to all years); label the
+# merged agriculture rows with that year so they join year-based queries.
+LGMS_AGRICULTURE_YEAR = 2020
 
-    A nested (per-section) result — e.g. Land GHG Monitoring System (LGMS)'s ``vegetation`` /
-    ``agriculture`` — has no top-level ``aoi_id`` or arrays, so name enrichment
-    is skipped and the count is taken from the first inner section's first list.
-    """
+
+def _lgms_row_class(section_name: str, row: dict) -> Any:
+    """The merged `class` value: the vegetation land-state verbatim,
+    'mineral'/'organic' for soil, the crop/livestock category for agriculture."""
+    if section_name == "vegetation":
+        return row.get("land_state_class")
+    if section_name == "mineral_soil":
+        return "mineral"
+    if section_name == "organic_soil":
+        return "organic"
+    if section_name == "agriculture":
+        return row.get("category")
+    return None
+
+
+def _merge_lgms_sections(raw_data: dict) -> dict:
+    """Flatten a nested per-section result into one column-oriented table with
+    unified `category` / `class` columns; metrics absent from a section are
+    filled with None."""
+    merged: dict[str, list] = {col: [] for col in LGMS_MERGED_COLUMNS}
+    for section_name, columns in raw_data.items():
+        keys = list(columns)
+        count = len(columns[keys[0]]) if keys else 0
+        for i in range(count):
+            row = {key: columns[key][i] for key in keys}
+            merged["aoi_id"].append(row.get("aoi_id"))
+            merged["aoi_type"].append(row.get("aoi_type"))
+            merged["category"].append(
+                LGMS_SECTION_CATEGORY.get(section_name, section_name)
+            )
+            merged["class"].append(_lgms_row_class(section_name, row))
+            merged["year"].append(
+                LGMS_AGRICULTURE_YEAR
+                if section_name == "agriculture"
+                else row.get("year")
+            )
+            for metric in LGMS_METRIC_COLUMNS:
+                merged[metric].append(row.get(metric))
+    return merged
+
+
+def normalize_result(raw_data: Any) -> Any:
+    """Reshape a raw analytics result for analysis. A per-section (nested)
+    result — LGMS — is merged into one flat category/class table; a flat result
+    is returned unchanged. Applied on every read of the result (pull-time count
+    and the analyst's re-fetch) so both see the same single table."""
     if _is_nested_result(raw_data):
-        for section in raw_data.values():
-            count = _first_list_len(section)
-            if count:
-                return raw_data, count
-        return raw_data, 0
+        return _merge_lgms_sections(raw_data)
+    return raw_data
 
+
+def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
+    """Count data points and add AOI names (by ``aoi_id``) to a flat result."""
     count = _first_list_len(raw_data) if isinstance(raw_data, dict) else 0
     if isinstance(raw_data, dict) and "aoi_id" in raw_data:
         aois_id_to_name = {
@@ -527,6 +597,9 @@ class AnalyticsHandler(DataSourceHandler):
 
         raw_data = data["data"]["result"]
 
+        # A per-section result (LGMS) is merged into one flat table so it flows
+        # through the normal single-table analysis path.
+        raw_data = normalize_result(raw_data)
         raw_data, data_points_count = _count_and_enrich(raw_data, aois)
         message_detail = f"Found {data_points_count} data points"
         analytics_url = result["data"]["link"]

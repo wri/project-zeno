@@ -22,9 +22,6 @@ keywords:
 - agriculture
 - forest carbon
 analytics_api_endpoint: /v0/land_change/land_ghg_inventory/analytics
-# generate_insights renders this dataset as one table per result section
-# (no CodeAct, no narrative LLM) rather than charts.
-insight_type: table
 prompt_instructions: >-
   Use this dataset for a land greenhouse-gas (GHG) inventory of a GADM
   administrative area. Results are returned as tables, one per section: vegetation
@@ -124,7 +121,22 @@ providers: >-
   datasets: vegetation (Gibbs et al.), organic soil (Glen et al.), mineral soil
   (Hengl et al. / OpenLandMap), cropland management (Cao, Bilotto, Gonzalez Fischer
   et al.), and livestock (Bilotto et al.). See Citation for full references.
-code_instructions: N/A
+code_instructions: >-
+  You receive one input file: a single Land GHG inventory table with columns
+  category (vegetation, soil, agriculture), class (the land-state class for
+  vegetation; mineral/organic for soil; cropland/livestock for agriculture),
+  year, gross_emissions_MgCO2e, gross_removals_MgCO2, net_flux_MgCO2e, area_ha
+  (some cells are empty where a metric does not apply to a category — e.g.
+  organic soil has no removals or net flux, and agriculture has no removals, net
+  flux or area). Emit ONE
+  chart with chart_type "table" whose rows are the input rows passed through
+  unchanged — do not drop, reorder, reshape, round, or invent rows or columns,
+  and do not produce line/bar/pie/area/scatter charts. Title it "Land GHG
+  Monitoring System (LGMS)". When the user's query asks for a specific figure —
+  a sum, average, total, net, or a value for a given year, category, or class —
+  compute it in pandas from this table and print the result clearly (labelled,
+  with units MgCO2e) so it can be cited. Values are in MgCO2e; emissions are
+  positive (source), removals negative (sink).
 presentation_instructions: >-
   If a user asks about carbon stock or density, explain it is not currently in
   scope (it may be added later). If a user asks for carbon-stock changes, explain
