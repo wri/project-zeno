@@ -560,6 +560,102 @@ async def test_generate_insights_persists_statistics_provenance(monkeypatch):
     assert _last_insight_row.statistics_ids == []
 
 
+async def test_generate_insights_threads_dataset_id_and_resolves_colors(
+    monkeypatch,
+):
+    """Phase 2: dataset_id flows into the analysis prompt (as category slug
+    hints) and into the resulting chart's colorMap, resolved from the
+    registry — see docs/insight-chart-colors-plan.md."""
+    captured_prompt: dict[str, str] = {}
+
+    _insight = MultiChartInsight(
+        charts=[
+            ChartInsight(
+                title="Land cover breakdown",
+                chart_type="pie",
+                x_axis="land_cover_type",
+            )
+        ],
+    )
+
+    class FakeExecutionResult:
+        error = None
+        chart_data = [
+            {
+                "land_cover_type": "Tree cover",
+                "land_cover_type__slug": "tree_cover",
+                "value": 10,
+            },
+            {
+                "land_cover_type": "Cropland",
+                "land_cover_type__slug": "cropland",
+                "value": 5,
+            },
+        ]
+        insight = _insight
+        parts = [
+            SimpleNamespace(
+                type=generate_insights_module.PartType.TEXT_OUTPUT,
+                content="Composition summarized.",
+            )
+        ]
+
+        def get_encoded_parts(self):
+            return [
+                {"type": "text_output", "content": "Composition summarized."}
+            ]
+
+    class FakeExecutor:
+        def build_file_references(self, dataframes):
+            return "input_file_0.csv"
+
+        async def prepare_dataframes(self, dataframes):
+            return []
+
+        async def execute(self, analysis_prompt, file_refs):
+            captured_prompt["value"] = analysis_prompt
+            return FakeExecutionResult()
+
+    monkeypatch.setattr(
+        generate_insights_module, "GeminiCodeExecutor", FakeExecutor
+    )
+
+    class _Text:
+        primary_insight = "Tree cover and cropland make up most of the area."
+        follow_up_suggestions = ["Compare by year."]
+
+    async def fake_generate(
+        self,
+        charts,
+        dataset,
+        query="",
+        executor_context=None,
+        language="en",
+        config=None,
+    ):
+        return _Text()
+
+    monkeypatch.setattr(
+        generate_insights_module.InsightTextGenerator,
+        "generate",
+        fake_generate,
+    )
+
+    update = await invoke_generate_insights(
+        "Pie chart of land cover in Brazil",
+        LAND_COVER_DATASET,
+        LAND_COVER_COMPOSITION_STATS,
+    )
+    chart = chart_from(update)
+    assert chart is not None
+    assert chart["colorMap"] == {
+        "tree_cover": "#246E24",
+        "cropland": "#fff183",
+    }
+    assert "STABLE CATEGORY SLUGS" in captured_prompt["value"]
+    assert '"Tree cover" -> tree_cover' in captured_prompt["value"]
+
+
 # ---------------------------------------------------------------------------
 # Dataset fixtures — loaded directly from the YAML catalog so they stay in sync
 # ---------------------------------------------------------------------------

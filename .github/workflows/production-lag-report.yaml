@@ -61,11 +61,10 @@ jobs:
 
           AHEAD=$(echo "$FILTERED" | jq 'length')
 
-          # Score each commit via the GitHub API
+          # Score each commit via the GitHub API; collect results for sorting
           TOTAL_RISK=0
-          BULLETS=""
-          SHOWN=0
           MAX_DISPLAY=30
+          SCORED_FILE=$(mktemp)
 
           while IFS= read -r COMMIT; do
             SHA=$(echo "$COMMIT" | jq -r '.sha')
@@ -91,18 +90,26 @@ jobs:
 
             TOTAL_RISK=$((TOTAL_RISK + SCORE))
 
-            if [ "$SHOWN" -lt "$MAX_DISPLAY" ]; then
-              case $SCORE in
-                1) BADGE=":white_circle:[1]" ;;
-                2) BADGE=":large_yellow_circle:[2]" ;;
-                3) BADGE=":large_orange_circle:[3]" ;;
-                4) BADGE=":large_orange_circle:[4]" ;;
-                5) BADGE=":red_circle:[5]" ;;
-              esac
-              BULLETS="${BULLETS}• ${BADGE} \`${SHA:0:8}\` ${MSG}"$'\n'
-              SHOWN=$((SHOWN + 1))
-            fi
+            # Store score, short SHA, and message tab-separated for later sorting
+            printf '%d\t%s\t%s\n' "$SCORE" "${SHA:0:8}" "$MSG" >> "$SCORED_FILE"
           done < <(echo "$FILTERED" | jq -c '.[]')
+
+          # Build bullet list sorted by risk score (highest first)
+          BULLETS=""
+          SHOWN=0
+          while IFS=$'\t' read -r SCORE SHA MSG; do
+            [ "$SHOWN" -ge "$MAX_DISPLAY" ] && break
+            case $SCORE in
+              1) BADGE=":white_circle:[1]" ;;
+              2) BADGE=":large_yellow_circle:[2]" ;;
+              3) BADGE=":large_orange_circle:[3]" ;;
+              4) BADGE=":large_orange_circle:[4]" ;;
+              5) BADGE=":red_circle:[5]" ;;
+            esac
+            BULLETS="${BULLETS}• ${BADGE} \`${SHA}\` ${MSG}"$'\n'
+            SHOWN=$((SHOWN + 1))
+          done < <(sort -t$'\t' -k1 -rn "$SCORED_FILE")
+          rm -f "$SCORED_FILE"
 
           # Append overflow notice (risk score still reflects ALL commits)
           if [ "$AHEAD" -gt "$MAX_DISPLAY" ]; then
@@ -169,13 +176,13 @@ jobs:
           DAYS=$(( (LATEST_TS - PROD_TS) / 86400 ))
 
           if [ "$AHEAD" -eq 0 ]; then
-            HEADER=":white_check_mark: *Zeno production is up to date* — no unreleased commits on \`main\`."
+            HEADER=":white_check_mark: *Horizon production is up to date* — no unreleased commits on \`main\`."
             COLOR="good"
           elif [ "$AHEAD" -lt 10 ]; then
-            HEADER=":large_yellow_circle: *Zeno production lag report* — *${AHEAD} commits* unreleased (~${DAYS} days)"
+            HEADER=":large_yellow_circle: *Horizon production lag report* — *${AHEAD} commits* unreleased (~${DAYS} days)"
             COLOR="warning"
           else
-            HEADER=":red_circle: *Zeno production lag report* — *${AHEAD} commits* unreleased (~${DAYS} days)"
+            HEADER=":red_circle: *Horizon production lag report* — *${AHEAD} commits* unreleased (~${DAYS} days)"
             COLOR="danger"
           fi
 
@@ -185,6 +192,13 @@ jobs:
           LEGEND="${LEGEND}"$'\n'"*Commit risk score (1–5):* :white_circle: 1 trivial (<20 lines)  :large_yellow_circle: 2 small (<100)  :large_orange_circle: 3–4 medium/large (<500)  :red_circle: 5 critical (500+ lines or touches migrations/schema/auth)"
           LEGEND="${LEGEND}"$'\n'"_Merge commits, version bumps, and lockfile syncs are excluded._"
 
+          # Slack section blocks have a hard 3000-character limit on text fields.
+          # Truncate bullets to 2950 chars (leaves room for the header prefix).
+          BULLETS_TEXT="*Unreleased commits (highest risk first)*"$'\n'"$BULLETS"
+          if [ "${#BULLETS_TEXT}" -gt 2950 ]; then
+            BULLETS_TEXT="${BULLETS_TEXT:0:2900}"$'\n_(truncated)_'
+          fi
+
           PAYLOAD=$(jq -n \
             --arg header       "$HEADER" \
             --arg prod_sha     "$PROD_SHA" \
@@ -193,7 +207,7 @@ jobs:
             --arg latest_sha   "$LATEST_SHA" \
             --arg latest_msg   "$LATEST_MSG" \
             --arg latest_date  "$LATEST_DATE_FMT" \
-            --arg bullets      "$BULLETS" \
+            --arg bullets_text "$BULLETS_TEXT" \
             --arg risk_summary "$RISK_SUMMARY" \
             --arg legend       "$LEGEND" \
             --arg compare_url  "$COMPARE_URL" \
@@ -208,6 +222,11 @@ jobs:
                   },
                   {
                     type: "section",
+                    text: { type: "mrkdwn", text: $legend }
+                  },
+                  { type: "divider" },
+                  {
+                    type: "section",
                     fields: [
                       { type: "mrkdwn", text: ("*Production commit*\n`" + $prod_sha + "` " + $prod_msg + "\n_" + $prod_date + "_") },
                       { type: "mrkdwn", text: ("*Latest on main*\n`"    + $latest_sha + "` " + $latest_msg + "\n_" + $latest_date + "_") }
@@ -219,12 +238,7 @@ jobs:
                   },
                   {
                     type: "section",
-                    text: { type: "mrkdwn", text: ("*Unreleased commits (newest first)*\n" + $bullets) }
-                  },
-                  { type: "divider" },
-                  {
-                    type: "section",
-                    text: { type: "mrkdwn", text: $legend }
+                    text: { type: "mrkdwn", text: $bullets_text }
                   },
                   {
                     type: "actions",
@@ -238,7 +252,14 @@ jobs:
               }]
             }')
 
-          curl -s -o /dev/null -w "%{http_code}" \
+          HTTP_CODE=$(curl -s -o /tmp/slack_response.txt -w "%{http_code}" \
             -X POST -H 'Content-type: application/json' \
             --data "$PAYLOAD" \
-            "$SLACK_WEBHOOK_URL" | grep -q "200" && echo "Slack message posted." || echo "::error::Slack webhook returned non-200"
+            "$SLACK_WEBHOOK_URL")
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Slack message posted."
+          else
+            echo "::error::Slack webhook returned HTTP ${HTTP_CODE}: $(cat /tmp/slack_response.txt)"
+            exit 1
+          fi
