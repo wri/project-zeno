@@ -155,7 +155,7 @@ async def search_aois(
         name: Fuzzy name to search for. When empty/None the query runs in
             *browse* mode: no name filter, ordered alphabetically.
         sources: Subset of canonical source keys (gadm/kba/wdpa/landmark/custom)
-            to search; ``None`` searches all available sources. Aliases such as
+            to search; ``None`` searches every source. Aliases such as
             ``protectedareas`` are accepted and normalized.
         user_id: Owner used to scope custom areas. Required when ``custom`` is
             among the searched sources.
@@ -169,102 +169,85 @@ async def search_aois(
     if sources:
         requested = {normalize_aoi_source(s) for s in sources}
     else:
-        requested = set(SOURCE_ID_MAPPING.keys())
+        requested = set(VALID_AOI_SOURCES)
+
+    if "custom" in requested and not user_id:
+        raise ValueError("user_id required for custom areas")
 
     has_name = bool(name and name.strip())
 
+    name_filter = "AND name % :name" if has_name else ""
+
+    # Custom areas stay owner-scoped. The semi-join is on user_aois -- the
+    # permission model -- not aois.created_by, which is immutable provenance.
+    # Skipped entirely when custom isn't requested: the source filter already
+    # excludes it, and this keeps the plan free of a pointless anti-join.
+    custom_scope = (
+        """
+        AND (source <> 'custom' OR EXISTS (
+            SELECT 1 FROM user_aois ua
+            WHERE ua.aoi_id = aois.id
+              AND ua.user_id = :user_id
+              AND ua.relationship = 'owner'
+        ))
+        """
+        if "custom" in requested
+        else ""
+    )
+
+    similarity_select = (
+        ", similarity(LOWER(name), LOWER(:name)) AS similarity_score"
+        if has_name
+        else ""
+    )
+    similarity_order = "similarity_score DESC, " if has_name else ""
+
+    # `NOT is_disputed` replaces the old per-source GADM ISO3-prefix regex --
+    # only GADM rows are ever flagged, so the row set is unchanged -- and naming
+    # both flags is what lets the planner use the partial trigram (search) and
+    # partial btree (browse) indexes, which exclude exactly those rows.
+    #
+    # bbox is precomputed at build time, so the antimeridian CASE no longer runs
+    # per row. COALESCE guards a null array (which would fail response
+    # validation) with the same world bbox both AOI schemas default to.
+    sql_query = f"""
+        SELECT
+            source_id AS src_id,
+            name,
+            subtype,
+            source,
+            COALESCE(
+                bbox, ARRAY[-180, -90, 180, 90]::double precision[]
+            ) AS bbox
+            {similarity_select}
+        FROM aois
+        WHERE NOT is_disputed
+          AND NOT is_deprecated
+          AND source = ANY(:sources)
+          {custom_scope}
+          {name_filter}
+        ORDER BY {similarity_order}name, source, source_id
+        LIMIT :limit OFFSET :offset
+    """
+
+    params: Dict[str, Any] = {
+        "sources": sorted(requested),
+        "limit": limit,
+        "offset": offset,
+    }
+    if has_name:
+        params["name"] = name
+    if "custom" in requested:
+        params["user_id"] = user_id
+
     async with get_connection_from_pool() as conn:
-        # Enable pg_trgm extension for the similarity function
+        # pg_trgm powers both `%` and similarity(). Created here rather than
+        # relied on from the migration because the test DB is built by
+        # create_all. The threshold is a session GUC, so it must be set on this
+        # pooled connection before the search runs.
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
         await conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
         await conn.commit()
-
-        # Probe which of the requested tables actually exist
-        existing_tables = []
-        for source in ("gadm", "kba", "landmark", "wdpa", "custom"):
-            if source not in requested:
-                continue
-            table = SOURCE_ID_MAPPING[source]["table"]
-            try:
-                await conn.execute(text(f"SELECT 1 FROM {table} LIMIT 1"))
-                existing_tables.append(source)
-            except Exception:
-                logger.warning(f"Table {table} does not exist")
-                await conn.rollback()
-
-        name_filter = "AND name % :name" if has_name else ""
-        union_parts = []
-
-        if "gadm" in existing_tables:
-            union_parts.append(
-                f"""
-                SELECT gadm_id AS src_id, name, subtype, 'gadm' as source, {BBOX_SQL}
-                FROM {GADM_TABLE}
-                WHERE name IS NOT NULL AND gadm_id ~ '{GADM_STANDARD_ID_RE}' {name_filter}
-            """
-            )
-
-        for source in ("kba", "landmark", "wdpa"):
-            if source in existing_tables:
-                id_column = SOURCE_ID_MAPPING[source]["id_column"]
-                table = SOURCE_ID_MAPPING[source]["table"]
-                union_parts.append(
-                    f"""
-                    SELECT CAST({id_column} AS TEXT) as src_id,
-                           name, subtype, '{source}' as source, {BBOX_SQL}
-                    FROM {table}
-                    WHERE name IS NOT NULL {name_filter}
-                """
-                )
-
-        if "custom" in existing_tables:
-            if not user_id:
-                raise ValueError("user_id required for custom areas")
-            id_column = SOURCE_ID_MAPPING["custom"]["id_column"]
-            union_parts.append(
-                f"""
-                SELECT CAST({id_column} AS TEXT) as src_id,
-                       name, 'custom-area' as subtype, 'custom' as source, {CUSTOM_BBOX_SQL}
-                FROM {CUSTOM_AREA_TABLE}
-                WHERE user_id = :user_id AND name IS NOT NULL {name_filter}
-            """
-            )
-
-        if not union_parts:
-            logger.warning("No matching geometry tables exist for the request")
-            return pd.DataFrame()
-
-        combined_query = " UNION ALL ".join(union_parts)
-
-        if has_name:
-            sql_query = f"""
-                WITH combined_search AS (
-                    {combined_query}
-                )
-                SELECT *,
-                       similarity(LOWER(name), LOWER(:name)) AS similarity_score
-                FROM combined_search
-                WHERE name IS NOT NULL AND name % :name
-                ORDER BY similarity_score DESC, name, source, src_id
-                LIMIT :limit OFFSET :offset
-            """
-        else:
-            sql_query = f"""
-                WITH combined_search AS (
-                    {combined_query}
-                )
-                SELECT *
-                FROM combined_search
-                WHERE name IS NOT NULL
-                ORDER BY name, source, src_id
-                LIMIT :limit OFFSET :offset
-            """
-
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
-        if has_name:
-            params["name"] = name
-        if "custom" in existing_tables:
-            params["user_id"] = user_id
 
         def _read(sync_conn):
             return pd.read_sql(text(sql_query), sync_conn, params=params)
