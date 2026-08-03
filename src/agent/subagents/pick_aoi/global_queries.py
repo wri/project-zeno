@@ -15,8 +15,6 @@ from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
-    GADM_STANDARD_ID_RE,
-    GADM_TABLE,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
 )
@@ -88,18 +86,26 @@ async def handle_global_request(
 
 
 async def _query_all_countries() -> pd.DataFrame:
-    """Return every country row from GADM — no spatial filter needed."""
-    src_id_field = SOURCE_ID_MAPPING["gadm"]["id_column"]
+    """Return every country row from GADM — no spatial filter needed.
+
+    ``NOT is_disputed`` replaces the old ISO3-prefix regex on ``gadm_id``: only
+    GADM rows are ever flagged, and they are flagged by exactly that regex, so
+    the row set is unchanged. The world bbox is deliberate and unchanged — a
+    global comparison never zooms to an individual country, so the per-country
+    bbox now available on ``aois`` is left unread.
+    """
     subtype = SUBREGION_TO_SUBTYPE_MAPPING["country"]
-    sql_query = f"""
+    sql_query = """
         SELECT name,
                subtype,
-               CAST({src_id_field} AS TEXT) AS src_id,
-               'gadm'                        AS source,
+               source_id AS src_id,
+               source    AS source,
                json_build_array(-180.0, -90.0, 180.0, 90.0) AS bbox
-        FROM {GADM_TABLE}
-        WHERE subtype = :subtype
-        AND {src_id_field} ~ '{GADM_STANDARD_ID_RE}'
+        FROM aois
+        WHERE source = 'gadm'
+          AND subtype = :subtype
+          AND NOT is_disputed
+          AND NOT is_deprecated
     """
     async with get_connection_from_pool() as conn:
 

@@ -1,6 +1,6 @@
 import asyncio
 from enum import StrEnum
-from typing import Annotated, Dict, Literal, Optional
+from typing import Annotated, Any, Dict, Literal, Optional
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -29,14 +29,8 @@ from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
-    BBOX_SQL,
-    GADM_STANDARD_ID_RE,
-    GADM_TABLE,
-    KBA_TABLE,
-    LANDMARK_TABLE,
     SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
-    WDPA_TABLE,
     search_aois,
 )
 from src.shared.logging_config import get_logger
@@ -110,107 +104,119 @@ async def query_aoi_database(
     )
 
 
+# Which AOI source a requested subregion scope resolves to. The six admin
+# scopes all live in GADM; the rest name their own source.
+SUBREGION_SOURCE_MAPPING = {
+    "country": "gadm",
+    "state": "gadm",
+    "district": "gadm",
+    "municipality": "gadm",
+    "locality": "gadm",
+    "neighbourhood": "gadm",
+    "kba": "kba",
+    "wdpa": "wdpa",
+    "landmark": "landmark",
+}
+
+
 async def query_subregion_database(
     subregion_name: str, source: str, src_id: str
 ):
-    """Query the right table in PostGIS database for subregions based on the selected AOI.
+    """Find the subregions of a selected AOI, both read from the unified table.
 
     Args:
-        subregion_name: Name of the subregion to search for
-        source: Source of the selected AOI
-        src_id: id of the selected AOI in source table: gadm_id, kba_id, landmark_id, wdpa_id
+        subregion_name: Scope to expand into (an admin level, or kba/wdpa/landmark)
+        source: Source of the selected (parent) AOI
+        src_id: id of the selected AOI within its source
 
     Returns:
-        DataFrame of subregions
+        DataFrame of subregions, columns ``name, subtype, <source id column>,
+        source, src_id, bbox``. The source-specific id column (``gadm_id``,
+        ``sitrecid``, ...) is redundant with ``src_id`` but reaches the frontend
+        through ``AOIIndex``'s extra fields, so it stays.
     """
-    match subregion_name:
-        case (
-            "country"
-            | "state"
-            | "district"
-            | "municipality"
-            | "locality"
-            | "neighbourhood"
-        ):
-            table_name = GADM_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING[subregion_name]
-            subregion_source = "gadm"
-            src_id_field = SOURCE_ID_MAPPING["gadm"]["id_column"]
-        case "kba":
-            table_name = KBA_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING["kba"]
-            subregion_source = "kba"
-            src_id_field = SOURCE_ID_MAPPING["kba"]["id_column"]
-        case "wdpa":
-            table_name = WDPA_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING["wdpa"]
-            subregion_source = "wdpa"
-            src_id_field = SOURCE_ID_MAPPING["wdpa"]["id_column"]
-        case "landmark":
-            table_name = LANDMARK_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING["landmark"]
-            subregion_source = "landmark"
-            src_id_field = SOURCE_ID_MAPPING["landmark"]["id_column"]
-        case _:
-            logger.error(f"Invalid subregion: {subregion_name}")
-            raise ValueError(
-                f"Subregion: {subregion_name} does not match to any table in PostGIS database."
-            )
+    if subregion_name not in SUBREGION_SOURCE_MAPPING:
+        logger.error(f"Invalid subregion: {subregion_name}")
+        raise ValueError(
+            f"Subregion: {subregion_name} does not match to any table in PostGIS database."
+        )
 
-    id_column = SOURCE_ID_MAPPING[source]["id_column"]
-    source_table = SOURCE_ID_MAPPING[source]["table"]
+    subregion_source = SUBREGION_SOURCE_MAPPING[subregion_name]
+    subtype = SUBREGION_TO_SUBTYPE_MAPPING[subregion_name]
+    src_id_field = SOURCE_ID_MAPPING[subregion_source]["id_column"]
 
     logger.info(
-        f"Querying subregion: {subregion_name} in table: {table_name} for source: {source}, src_id: {src_id}"
+        f"Querying subregion: {subregion_name} in source: {subregion_source} "
+        f"for source: {source}, src_id: {src_id}"
     )
 
-    if table_name == GADM_TABLE:
-        if source == "gadm":
-            # remove _1/_2 GADM suffix
-            if "_" in src_id:
-                subregion_filter = src_id.split("_")[0]
-            else:
-                subregion_filter = src_id
+    params: Dict[str, Any] = {
+        "src_id": src_id,
+        "source": source,
+        "subregion_source": subregion_source,
+        "subtype": subtype,
+    }
 
-            # filter for the next admin level within this admin ID
-            gadm_filter = f" AND t.gadm_id LIKE '{subregion_filter}.%'"
+    if subregion_source == "gadm":
+        # GADM encodes the hierarchy in the id, so containment is a prefix match
+        # and no spatial test is needed.
+        if source == "gadm":
+            # Children of this admin id, one level down. The `_1`/`_2` version
+            # suffix isn't part of the hierarchy, so it's dropped first -- which
+            # also means the prefix can't contain LIKE's `_` wildcard.
+            params["gadm_prefix"] = f"{src_id.split('_')[0]}.%"
+            gadm_filter = "AND t.source_id LIKE :gadm_prefix"
         else:
-            gadm_filter = f" AND t.gadm_id ~ '{GADM_STANDARD_ID_RE}'"
+            # Parity note: a non-GADM parent gets *no* containment filter here,
+            # only the disputed-territory exclusion the old ISO3-prefix regex
+            # performed -- so this returns every admin unit of the subtype
+            # worldwide, which check_aoi_selection then rejects as too many.
+            # Preserved as-is; see the PR description.
+            gadm_filter = "AND NOT t.is_disputed"
         spatial_filter = ""
     else:
         gadm_filter = ""
-        spatial_filter = " AND ST_Intersects(t.geometry, aoi.geom) AND NOT ST_Touches(t.geometry, aoi.geom)"
+        # Overlap, excluding a shared border only. The parent geometry is now the
+        # normalized MultiPolygon, so results can differ marginally from the raw
+        # source geometry at repaired boundaries.
+        spatial_filter = (
+            "AND ST_Intersects(t.geometry, parent.geom) "
+            "AND NOT ST_Touches(t.geometry, parent.geom)"
+        )
 
+    # bbox is precomputed at build time; COALESCE guards a null array with the
+    # same world bbox AOIIndex defaults to.
     sql_query = f"""
-    WITH aoi AS (
+    WITH parent AS (
         SELECT geometry AS geom
-        FROM {source_table}
-        WHERE "{id_column}" = :src_id
+        FROM aois
+        WHERE source = :source
+          AND source_id = :src_id
+          AND NOT is_deprecated
         LIMIT 1
     )
-    SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id, {BBOX_SQL}
-    FROM {table_name} AS t, aoi
-    WHERE t.subtype = :subtype
-    {gadm_filter}
-    {spatial_filter}
+    SELECT
+        t.name,
+        t.subtype,
+        t.source_id AS {src_id_field},
+        t.source AS source,
+        t.source_id AS src_id,
+        COALESCE(
+            t.bbox, ARRAY[-180, -90, 180, 90]::double precision[]
+        ) AS bbox
+    FROM aois AS t, parent
+    WHERE t.source = :subregion_source
+      AND t.subtype = :subtype
+      AND NOT t.is_deprecated
+      {gadm_filter}
+      {spatial_filter}
     """
     logger.debug(f"Executing subregion query: {sql_query}")
 
     async with get_connection_from_pool() as conn:
 
         def _read(sync_conn):
-            processed_src_id = src_id
-            if source == "kba":
-                # for these sources IDs stored as numeric values
-                try:
-                    processed_src_id = int(processed_src_id)
-                except ValueError:
-                    pass
-            return pd.read_sql(
-                text(sql_query),
-                sync_conn,
-                params={"src_id": processed_src_id, "subtype": subtype},
-            )
+            return pd.read_sql(text(sql_query), sync_conn, params=params)
 
         results = await conn.run_sync(_read)
 

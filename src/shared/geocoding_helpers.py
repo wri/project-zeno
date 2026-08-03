@@ -121,8 +121,6 @@ def _antimeridian_bbox_sql(geom_expr: str) -> str:
     """
 
 
-BBOX_SQL = f"({_antimeridian_bbox_sql('geometry')}) AS bbox"
-
 # Default when an AOI has no bbox (or no row at all), matching the AOIIndex /
 # aoi_selection default the agent already carries.
 WORLD_BBOX = [-180.0, -90.0, 180.0, 90.0]
