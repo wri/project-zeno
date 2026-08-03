@@ -1169,7 +1169,8 @@ def build_aois_command(
                         continue
 
                     if source == "custom":
-                        # Same SQL the CRUD write-through uses, unscoped.
+                        # The CRUD write-through uses this same SQL. This call
+                        # has no area filter.
                         links = await upsert_custom_aoi(session)
                         click.echo(
                             f"✅ custom: {links} owner link(s) {outcome}."

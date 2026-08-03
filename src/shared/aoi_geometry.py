@@ -1,18 +1,19 @@
 """SQL fragments that normalize source geometry for the unified ``aois`` table.
 
-Shared by the batch backfill (``build-aois`` in :mod:`src.api.cli`) and the
-runtime custom-area mirror (:mod:`src.api.services.aoi_sync`) so the two write
-paths cannot drift.
+The batch backfill (``build-aois`` in :mod:`src.api.cli`) and the runtime
+custom-area mirror (:mod:`src.api.services.aoi_sync`) share these fragments, so
+the two write paths cannot diverge.
 """
 
 
 def _antimeridian_bbox_sql(geom_expr: str) -> str:
-    """
-    Returns [west, south, east, north] JSON array.
-    For antimeridian-crossing geometries (span > 180°), clips to each
-    half-plane to get the bbox of the eastern and western parts separately —
-    no ST_Dump, no vertex iteration. Falls back to naive bbox if either
-    clip returns nothing (geometry doesn't truly cross the antimeridian).
+    """Return a JSON array of [west, south, east, north].
+
+    A geometry that spans more than 180 degrees can cross the antimeridian. The
+    SQL then clips the geometry to each half-plane, and takes the bbox of the
+    eastern part and the western part separately. This needs no ST_Dump and no
+    iteration over vertices. If either clip returns nothing, the geometry does
+    not cross the antimeridian, and the SQL uses the simple bbox.
     """
     east_half = "ST_MakeEnvelope(0, -90, 180, 90, 4326)"
     west_half = "ST_MakeEnvelope(-180, -90, 0, 90, 4326)"
@@ -44,21 +45,21 @@ def _antimeridian_bbox_sql(geom_expr: str) -> str:
 
 
 def multipolygon_sql(geom_expr: str) -> str:
-    """Normalize *geom_expr* to a valid 2D MultiPolygon (for the typed column).
+    """Normalize *geom_expr* to a valid 2D MultiPolygon for the typed column.
 
-    ``ST_MakeValid`` repairs self-intersections / ring errors;
-    ``ST_CollectionExtract(..., 3)`` keeps only polygonal parts (dropping the
-    line/point slivers ``ST_MakeValid`` can emit); ``ST_Multi`` guarantees the
-    ``MULTIPOLYGON`` type the ``aois.geometry`` column enforces. Callers filter
-    out an empty result (a geometry with no areal component) with
-    ``NOT ST_IsEmpty(...)`` so such rows are skipped, not stored empty.
+    ``ST_MakeValid`` repairs self-intersections and ring errors.
+    ``ST_CollectionExtract(..., 3)`` keeps only the polygonal parts, and removes
+    the line and point slivers that ``ST_MakeValid`` can produce. ``ST_Multi``
+    gives the ``MULTIPOLYGON`` type that the ``aois.geometry`` column requires. A
+    geometry with no areal component gives an empty result. Callers remove such
+    rows with ``NOT ST_IsEmpty(...)``, so no row is stored empty.
 
-    The repair runs per part (``ST_Dump`` -> ``ST_MakeValid`` ->
-    ``ST_Collect``): on a whole MultiPolygon ``ST_MakeValid`` resolves every
-    ring against every other in one GEOS overlay, whose cost scales with part
-    count and can exhaust the backend on many-part rows. The tradeoff is that
-    overlaps *between* parts go unresolved, so the result is not guaranteed
-    OGC-valid -- fine here, as the column enforces type but not validity.
+    The repair runs on each part: ``ST_Dump``, then ``ST_MakeValid``, then
+    ``ST_Collect``. On a whole MultiPolygon, ``ST_MakeValid`` resolves every ring
+    against every other ring in one GEOS overlay. That cost increases with the
+    number of parts and can exhaust the backend. The tradeoff is that an overlap
+    between two parts remains, so the result can be invalid for OGC. This is
+    acceptable, because the column enforces the type and not the validity.
     """
     return (
         "ST_Multi(ST_CollectionExtract("
@@ -68,11 +69,11 @@ def multipolygon_sql(geom_expr: str) -> str:
 
 
 def bbox_float_array_sql(geom_expr: str) -> str:
-    """A ``float8[]`` ``[west, south, east, north]`` for *geom_expr*.
+    """Return a ``float8[]`` of ``[west, south, east, north]`` for *geom_expr*.
 
-    Wraps the shared antimeridian-aware bbox (which yields a JSON array) and
-    turns it into a real Postgres array so it lands in ``aois.bbox`` directly.
-    ``WITH ORDINALITY`` pins the element order.
+    The antimeridian-aware bbox gives a JSON array. This fragment converts it to
+    a Postgres array, which ``aois.bbox`` accepts directly. ``WITH ORDINALITY``
+    keeps the element order.
     """
     return (
         "(SELECT array_agg(e::double precision ORDER BY ord) "
@@ -81,11 +82,11 @@ def bbox_float_array_sql(geom_expr: str) -> str:
     )
 
 
-# The dissolved union of a ``custom_areas.geometries`` JSONB list, coerced to a
-# valid MultiPolygon. ``ST_Union`` dissolves overlapping user-drawn parts (so
-# ``area_km2`` is not double-counted); ``ST_MakeValid`` per element guards
-# invalid input polygons. Expects ``ca`` to be the ``custom_areas`` alias in
-# scope.
+# The union of a ``custom_areas.geometries`` JSONB list, as a valid
+# MultiPolygon. ``ST_Union`` dissolves the overlaps between user-drawn parts, so
+# ``area_km2`` does not count an overlap twice. ``ST_MakeValid`` on each element
+# repairs an invalid input polygon. The SQL needs ``ca`` in scope as the alias of
+# ``custom_areas``.
 CUSTOM_AREA_GEOM_SQL = multipolygon_sql(
     "(SELECT ST_Union("
     "ST_MakeValid(ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON(g), 4326)))"

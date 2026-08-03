@@ -70,8 +70,9 @@ async def create_custom_area(
         geometries=[i.model_dump_json() for i in area.geometries],
     )
     session.add(custom_area)
-    # Flush so the mirror can read the row (and its generated id) in this same
-    # transaction: custom_areas and its aois projection commit together.
+    # Flush so that the mirror can read the row, and its generated id, in this
+    # same transaction. The custom_areas row and its aois projection then commit
+    # together.
     await session.flush()
     await upsert_custom_aoi(session, area_id=custom_area.id)
     await session.commit()

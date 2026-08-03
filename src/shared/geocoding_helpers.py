@@ -29,14 +29,14 @@ SUBREGION_TO_SUBTYPE_MAPPING = {
 }
 
 
-# The id column each source used before AOIs were unified. No read path resolves
-# an AOI through these any more -- `aois.source_id` is one text column for every
-# source -- but the names are still load-bearing in three places:
-#   * `GET /api/metadata` publishes them as `layer_id_mapping`, which the
-#     frontend uses to address its tile layers: a public contract.
-#   * subregion expansion and the global-country query echo the id back under
-#     its source-specific name, for that same frontend mapping.
-#   * the ingest scripts name their indexes after it.
+# The id column that each source used before the AOI tables were unified.
+# `aois.source_id` now holds every id as text, so no read path resolves an AOI
+# through these names. Three places still need them:
+#   * `GET /api/metadata` returns them as `layer_id_mapping`. The frontend uses
+#     it to address tile layers, so this is a public contract.
+#   * Subregion expansion and the global-country query return the id under its
+#     source-specific name, for the same mapping.
+#   * The ingest scripts use the name to name their indexes.
 AOI_SOURCE_ID_COLUMNS = {
     "kba": "sitrecid",
     "landmark": "landmark_id",
@@ -46,10 +46,9 @@ AOI_SOURCE_ID_COLUMNS = {
 }
 
 
-# Where each source's raw rows are loaded before `build-aois` transforms them
-# into `aois`. Read only by that ETL -- never by an API or agent path. Whether
-# these stay as permanent staging or get retired in favour of ingesting straight
-# into `aois` is still open (see docs/aoi-architecture).
+# The table that holds each source's raw rows. `build-aois` transforms them into
+# `aois`. Only that command reads these tables. No API or agent path reads them.
+# Their future is not decided (see docs/aoi-architecture).
 SOURCE_STAGING_TABLES = {
     "kba": "geometries_kba",
     "landmark": "geometries_landmark",
@@ -98,8 +97,8 @@ def normalize_aoi_source(source: str) -> str:
     return key
 
 
-# Default when an AOI has no bbox (or no row at all), matching the AOIIndex /
-# aoi_selection default the agent already carries.
+# The default bbox when an AOI has no bbox, or no row. AOIIndex and
+# aoi_selection use the same default.
 WORLD_BBOX = [-180.0, -90.0, 180.0, 90.0]
 
 
@@ -143,10 +142,10 @@ async def search_aois(
 
     name_filter = "AND name % :name" if has_name else ""
 
-    # Custom areas stay owner-scoped. The semi-join is on user_aois -- the
-    # permission model -- not aois.created_by, which is immutable provenance.
-    # Skipped entirely when custom isn't requested: the source filter already
-    # excludes it, and this keeps the plan free of a pointless anti-join.
+    # Custom areas stay owner-scoped. The semi-join uses user_aois, which is the
+    # permission model. It does not use aois.created_by, which records
+    # provenance and does not change. The clause is omitted when the caller does
+    # not ask for custom areas, because the source filter already excludes them.
     custom_scope = (
         """
         AND (source <> 'custom' OR EXISTS (
@@ -167,14 +166,14 @@ async def search_aois(
     )
     similarity_order = "similarity_score DESC, " if has_name else ""
 
-    # `NOT is_disputed` replaces the old per-source GADM ISO3-prefix regex --
-    # only GADM rows are ever flagged, so the row set is unchanged -- and naming
-    # both flags is what lets the planner use the partial trigram (search) and
-    # partial btree (browse) indexes, which exclude exactly those rows.
+    # `NOT is_disputed` replaces the per-source GADM ISO3-prefix regex. Only GADM
+    # rows carry the flag, so the row set does not change. The query names both
+    # flags so that the planner can use the partial trigram index for search and
+    # the partial btree index for browse.
     #
-    # bbox is precomputed at build time, so the antimeridian CASE no longer runs
-    # per row. COALESCE guards a null array (which would fail response
-    # validation) with the same world bbox both AOI schemas default to.
+    # `bbox` is computed at build time, so the antimeridian CASE does not run per
+    # row. COALESCE replaces a null array with the world bbox, because a null
+    # fails response validation.
     sql_query = f"""
         SELECT
             source_id AS src_id,
@@ -206,9 +205,9 @@ async def search_aois(
         params["user_id"] = user_id
 
     async with get_connection_from_pool() as conn:
-        # pg_trgm powers both `%` and similarity(). Created here rather than
-        # relied on from the migration because the test DB is built by
-        # create_all. The threshold is a session GUC, so it must be set on this
+        # pg_trgm provides both `%` and similarity(). The extension is created
+        # here, and not in the migration, because create_all builds the test
+        # database. The threshold is a session setting, so it must be set on this
         # pooled connection before the search runs.
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
         await conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
@@ -221,11 +220,10 @@ async def search_aois(
 
 
 async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
-    """Look up one AOI's bbox by ``(source, src_id)``.
+    """Return the bbox of one AOI, found by ``(source, src_id)``.
 
-    Reads the bbox precomputed at build time rather than deriving it per call,
-    so the antimeridian SQL no longer runs on this path. Falls back to the world
-    bbox when the AOI, or its bbox, is missing.
+    The bbox is computed at build time, so this function reads it and does not
+    derive it. It returns the world bbox if the AOI or its bbox is missing.
     """
     if source not in VALID_AOI_SOURCES:
         return WORLD_BBOX
@@ -255,12 +253,11 @@ def format_id(idx):
 
 
 def _response_src_id(source: str, src_id: str) -> Union[int, str]:
-    """Preserve the pre-unification ``src_id`` type in geometry responses.
+    """Keep the ``src_id`` type that geometry responses used before unification.
 
-    ``geometries_kba.sitrecid`` was numeric, so KBA lookups echoed an int back
-    (``GeometryResponse.src_id`` is ``int | str`` because of it). ``aois`` stores
-    every id as text; casting here keeps that response type rather than silently
-    changing it for KBA clients.
+    ``geometries_kba.sitrecid`` was numeric, so a KBA lookup returned an int.
+    ``GeometryResponse.src_id`` is ``int | str`` for that reason. ``aois`` stores
+    every id as text, so this cast keeps the response type for KBA clients.
     """
     if source == "kba":
         try:
@@ -348,10 +345,10 @@ async def get_geometry_data(
                 f"{', '.join(sorted(VALID_AOI_SOURCES))}"
             )
 
-        # One query for every reference source: source_id is text throughout, so
-        # the per-source table and id-column branching is gone. is_disputed is
-        # deliberately not filtered -- disputed rows are excluded from search but
-        # stay resolvable by id, which is what this lookup is for.
+        # One query serves every reference source, because source_id is text for
+        # all of them. The query does not filter is_disputed. Search excludes
+        # disputed rows, but this lookup finds an AOI by id and must still
+        # return them.
         sql_query = """
             SELECT name, subtype, ST_AsGeoJSON(geometry) AS geometry_json
             FROM aois

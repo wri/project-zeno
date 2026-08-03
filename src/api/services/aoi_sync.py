@@ -1,13 +1,12 @@
 """Mirror ``custom_areas`` rows into the unified ``aois`` / ``user_aois`` tables.
 
-``custom_areas`` stays the source of truth for the user-drawn GeoJSON list; the
-``aois`` row is the searchable/spatial projection of it. The same SQL serves the
-batch backfill (``build-aois --source custom``) and the per-area write-through
-from the CRUD endpoints, so a re-run of the backfill can never disagree with
-what the API wrote.
+``custom_areas`` remains the source of truth for the user-drawn GeoJSON list. The
+``aois`` row is the searchable and spatial projection of that list. The same SQL
+serves the batch backfill (``build-aois --source custom``) and the write-through
+from the CRUD endpoints, so the backfill cannot disagree with what the API wrote.
 
-Callers are responsible for the transaction: these functions execute but never
-commit, so the mirror lands atomically with the ``custom_areas`` write.
+The caller controls the transaction. These functions execute statements, but they
+do not commit, so the mirror and the ``custom_areas`` write are atomic together.
 """
 
 from typing import Optional
@@ -27,7 +26,7 @@ logger = get_logger(__name__)
 
 
 def _upsert_sql(scoped: bool) -> str:
-    """Build the custom-area upsert; *scoped* limits it to one ``ca.id``."""
+    """Build the custom-area upsert. *scoped* limits it to one ``ca.id``."""
     where_area = "WHERE ca.id = :area_id" if scoped else ""
     return f"""
         WITH collected AS (
@@ -74,10 +73,10 @@ def _upsert_sql(scoped: bool) -> str:
     """
 
 
-# Count custom areas whose geometry won't coerce to a non-empty MultiPolygon.
-# Only used by the unscoped backfill: it re-derives the shape (twice), which is
-# affordable once over the whole table but not per CRUD call -- the scoped path
-# uses the index probe below instead.
+# Count the custom areas whose geometry does not give a non-empty MultiPolygon.
+# Only the unscoped backfill uses this query, because it derives the shape twice.
+# That cost is acceptable once for the whole table, but not for each CRUD call.
+# The scoped path uses the index probe below.
 _SKIPPED_SQL = f"""
     SELECT count(*) FROM custom_areas ca
     WHERE ca.name IS NOT NULL
@@ -85,9 +84,10 @@ _SKIPPED_SQL = f"""
            OR ST_IsEmpty({CUSTOM_AREA_GEOM_SQL}))
 """
 
-# Did the upsert actually land a row for this area? A `rowcount` of 0 doesn't
-# mean it was skipped (the owner link is ON CONFLICT DO NOTHING, so a repeat
-# patch legitimately inserts no link), hence a direct check on the unique index.
+# Check if the upsert wrote a row for this area. A `rowcount` of 0 does not show
+# that the area was skipped, because the owner link uses ON CONFLICT DO NOTHING
+# and a repeated patch correctly inserts no link. This query reads the unique
+# index instead.
 _MIRRORED_SQL = """
     SELECT EXISTS (
         SELECT 1 FROM aois
@@ -101,16 +101,16 @@ async def upsert_custom_aoi(
     *,
     area_id: Optional[UUID] = None,
 ) -> int:
-    """Project ``custom_areas`` into ``aois`` + one ``owner`` link each.
+    """Project ``custom_areas`` into ``aois``, with one ``owner`` link for each.
 
-    Idempotent. With *area_id* only that area is projected (the CRUD
-    write-through); without it, every custom area is (the backfill). Returns the
-    owner-link upsert count.
+    This function is idempotent. With *area_id* it projects only that area, which
+    is the CRUD write-through. Without *area_id* it projects every custom area,
+    which is the backfill. It returns the number of owner links upserted.
 
-    A geometry that yields no areal component is skipped rather than stored
-    empty -- the ``custom_areas`` row still exists and the CRUD call still
-    succeeds, the area just isn't searchable. The scoped path logs that; the
-    backfill echoes a count to the CLI.
+    A geometry with no areal component is skipped, and not stored empty. The
+    ``custom_areas`` row still exists and the CRUD call still succeeds, but the
+    area is not searchable. The scoped path logs a warning. The backfill prints a
+    count to the CLI.
     """
     scoped = area_id is not None
     params = {"area_id": area_id} if scoped else {}
@@ -139,7 +139,7 @@ async def upsert_custom_aoi(
 
 
 async def delete_custom_aoi(session: AsyncSession, area_id: UUID) -> None:
-    """Drop the mirrored ``aois`` row; the ``user_aois`` FK cascades."""
+    """Delete the mirrored ``aois`` row. The ``user_aois`` foreign key cascades."""
     await session.execute(
         text(
             "DELETE FROM aois WHERE source = 'custom' AND source_id = :src_id"

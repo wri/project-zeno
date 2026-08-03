@@ -1,13 +1,13 @@
 """Tests for the by-id AOI read paths over the unified ``aois`` table.
 
-``get_geometry_data`` and ``fetch_aoi_bbox`` both resolve a single AOI by
-``(source, src_id)``. These run against the real table rather than mocking the
-helper (which is what ``test_geometry.py`` does for the endpoint's error
-handling), so the SQL itself is covered.
+``get_geometry_data`` and ``fetch_aoi_bbox`` each resolve one AOI by
+``(source, src_id)``. These tests use the real table and do not mock the helper,
+so they cover the SQL. ``test_geometry.py`` mocks the helper instead, to cover the
+error handling of the endpoint.
 
-The custom branch of ``get_geometry_data`` deliberately still reads
-``custom_areas`` -- it returns the raw drawn GeoJSON, which the dissolved
-``aois.geometry`` cannot reproduce -- so it is asserted here as unchanged.
+The custom branch of ``get_geometry_data`` still reads ``custom_areas``, because
+it returns the raw drawn GeoJSON. The dissolved ``aois.geometry`` cannot give that
+shape. These tests assert the current behaviour.
 """
 
 import pytest
@@ -34,7 +34,7 @@ _OTHER_POLYGON = {
 
 
 # ---------------------------------------------------------------------------
-# get_geometry_data -- reference sources
+# get_geometry_data: reference sources
 # ---------------------------------------------------------------------------
 
 
@@ -68,7 +68,7 @@ async def test_reference_lookup_missing_returns_none():
 
 @pytest.mark.asyncio
 async def test_disputed_rows_stay_resolvable_by_id():
-    """Search hides disputed rows; this lookup must still resolve them."""
+    """Search excludes disputed rows. This lookup must still return them."""
     await seed_reference_aoi(
         "gadm", "Z01", "Disputed Place", "country", is_disputed=True
     )
@@ -80,8 +80,8 @@ async def test_disputed_rows_stay_resolvable_by_id():
 
 
 @pytest.mark.asyncio
-async def test_kba_src_id_echoes_back_as_int():
-    """KBA ids were numeric pre-unification; the response type is preserved."""
+async def test_kba_src_id_returns_as_int():
+    """KBA ids were numeric before unification. The response keeps that type."""
     await seed_reference_aoi(
         "kba", "16595", "Some KBA", "key-biodiversity-area"
     )
@@ -100,22 +100,22 @@ async def test_invalid_source_raises():
 
 @pytest.mark.asyncio
 async def test_source_aliases_are_not_accepted():
-    """Aliases are a search-endpoint affordance; this lookup never took them."""
+    """The search endpoint accepts aliases. This lookup has never accepted them."""
     with pytest.raises(ValueError, match="Invalid source"):
         await get_geometry_data("protectedareas", "1")
 
 
 # ---------------------------------------------------------------------------
-# get_geometry_data -- custom areas (still served from custom_areas)
+# get_geometry_data: custom areas, which still come from custom_areas
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_custom_lookup_returns_raw_drawn_geometry(auth_override, client):
-    """A single-part custom area still returns the bare Polygon it was drawn as.
+    """A single-part custom area returns the Polygon that the user drew.
 
-    Reading it from ``aois`` would return a dissolved MultiPolygon instead; this
-    pins the shape the analytics / thumbnail / mosaic consumers see today.
+    A read from ``aois`` would return a dissolved MultiPolygon. This test fixes
+    the shape that the analytics, thumbnail and mosaic consumers get today.
     """
     auth_override(_USER_ID)
     res = await client.post(
@@ -176,7 +176,7 @@ async def test_custom_lookup_rejects_non_uuid():
 
 @pytest.mark.asyncio
 async def test_fetch_bbox_reads_the_stored_bbox():
-    """The stored bbox is returned as-is, not re-derived from the geometry."""
+    """The function returns the stored bbox. It does not derive it again."""
     await seed_reference_aoi(
         "wdpa",
         "555",
@@ -190,7 +190,7 @@ async def test_fetch_bbox_reads_the_stored_bbox():
 
 @pytest.mark.asyncio
 async def test_fetch_bbox_for_mirrored_custom_area(auth_override, client):
-    """Custom bboxes come from the mirror, so no bespoke JSONB bbox SQL runs."""
+    """The bbox of a custom area comes from the mirror, not from JSONB SQL."""
     auth_override(_USER_ID)
     res = await client.post(
         "/api/custom_areas",

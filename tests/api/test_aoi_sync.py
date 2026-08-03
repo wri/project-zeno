@@ -1,9 +1,10 @@
-"""Tests for the custom-area -> unified ``aois`` mirror.
+"""Tests for the mirror from a custom area into the unified ``aois`` table.
 
-``custom_areas`` stays the source of truth for the drawn GeoJSON list; every
-CRUD call projects it into ``aois`` plus one ``owner`` row in ``user_aois``, in
-the same transaction. These tests assert that projection, not the CRUD response
-bodies (``test_custom_area.py`` covers those and must stay unchanged).
+``custom_areas`` remains the source of truth for the drawn GeoJSON list. Every
+CRUD call projects that list into ``aois``, and adds one ``owner`` row in
+``user_aois``, in the same transaction. These tests assert the projection. They do
+not assert the CRUD response bodies, which ``test_custom_area.py`` covers and which
+must not change.
 """
 
 import pytest
@@ -26,8 +27,8 @@ _POLYGON = {
     ],
 }
 
-# Two overlapping squares: ST_Union must dissolve them into a single-part
-# MultiPolygon, so area_km2 is not double-counted.
+# Two squares that overlap. ST_Union must dissolve them into a MultiPolygon with
+# one part, so area_km2 does not count the overlap twice.
 _OVERLAPPING = [
     {
         "type": "Polygon",
@@ -43,8 +44,9 @@ _OVERLAPPING = [
     },
 ]
 
-# A zero-area ring (duplicate points): ST_MakeValid yields no polygonal part,
-# so the area must be skipped by the mirror without failing the CRUD call.
+# A ring with zero area, because every point repeats. ST_MakeValid gives no
+# polygonal part, so the mirror must skip the area and the CRUD call must still
+# succeed.
 _DEGENERATE = {
     "type": "Polygon",
     "coordinates": [[[10.0, 10.0], [10.0, 10.0], [10.0, 10.0], [10.0, 10.0]]],
@@ -62,7 +64,7 @@ async def _create_area(client, name, geometries=None):
 
 
 async def _fetch_aoi(area_id):
-    """Return the mirrored (aois, user_aois) state for a custom area id."""
+    """Return the mirrored ``aois`` and ``user_aois`` rows for a custom area."""
     async with async_session_maker() as session:
         row = (
             await session.execute(
@@ -107,7 +109,8 @@ async def test_create_mirrors_aoi_and_owner_link(auth_override, client):
     assert aoi["created_by"] == "test-user-wri"
     assert aoi["is_disputed"] is False
     assert aoi["is_deprecated"] is False
-    # Geometry is normalized to the typed MultiPolygon the column enforces.
+    # The mirror normalizes the geometry to the MultiPolygon type that the
+    # column requires.
     assert aoi["gtype"] == "ST_MultiPolygon"
     assert len(aoi["bbox"]) == 4
     assert aoi["area_km2"] > 0
@@ -115,7 +118,7 @@ async def test_create_mirrors_aoi_and_owner_link(auth_override, client):
     assert len(links) == 1
     assert links[0]["user_id"] == "test-user-wri"
     assert links[0]["relationship"] == "owner"
-    # No per-user label yet; display falls back to aois.name.
+    # The user has set no label, so the display reads aois.name.
     assert links[0]["name"] is None
 
 
@@ -131,7 +134,7 @@ async def test_patch_updates_mirrored_name(auth_override, client):
 
     aoi, links = await _fetch_aoi(area_id)
     assert aoi["name"] == "After"
-    # The upsert must not create a second owner link on re-run.
+    # A second run of the upsert must not create a second owner link.
     assert len(links) == 1
 
 
@@ -147,7 +150,7 @@ async def test_delete_removes_mirror_and_cascades_link(auth_override, client):
     aoi, links = await _fetch_aoi(area_id)
     assert aoi is None
     assert links == []
-    # The FK cascade must leave no orphaned relationship rows behind.
+    # The foreign key cascade must leave no relationship row without an AOI.
     async with async_session_maker() as session:
         remaining = await session.scalar(
             text("SELECT count(*) FROM user_aois")
@@ -161,8 +164,8 @@ async def test_overlapping_parts_are_dissolved(auth_override, client):
     area_id = await _create_area(client, "Overlapping", _OVERLAPPING)
 
     aoi, _ = await _fetch_aoi(area_id)
-    # ST_Union merges the two overlapping squares into one part, so the shape
-    # spans 0..1.5 in x and the overlap is counted once.
+    # ST_Union joins the two squares into one part. The shape therefore spans
+    # 0 to 1.5 in x, and the area counts the overlap once.
     assert aoi["gtype"] == "ST_MultiPolygon"
     assert aoi["bbox"][0] == pytest.approx(0.0)
     assert aoi["bbox"][2] == pytest.approx(1.5)
@@ -182,13 +185,14 @@ async def test_degenerate_geometry_skipped_but_crud_succeeds(
     auth_override, client
 ):
     auth_override("test-user-wri")
-    # The CRUD call must still succeed — custom_areas is the source of truth.
+    # The CRUD call must still succeed, because custom_areas is the source of
+    # truth.
     area_id = await _create_area(client, "Degenerate", [_DEGENERATE])
 
     res = await client.get(f"/api/custom_areas/{area_id}", headers=AUTH)
     assert res.status_code == 200, res.text
 
-    # ...but nothing searchable was projected, rather than an empty geometry.
+    # The mirror projects no searchable row. It does not store an empty geometry.
     aoi, links = await _fetch_aoi(area_id)
     assert aoi is None
     assert links == []
@@ -226,11 +230,11 @@ async def test_mirror_is_idempotent_across_repeated_patches(
 async def test_mirror_is_scoped_to_the_created_area(
     auth_override, client, user_ds
 ):
-    """A create must not re-project (or duplicate) other users' areas."""
+    """A create must not project the areas of another user a second time."""
     auth_override("test-user-wri")
     first = await _create_area(client, "First")
 
-    # user_ds is pre-created so auth resolves it by id without an email clash.
+    # user_ds already exists, so auth resolves it by id and no email collides.
     auth_override("test-user-ds")
     second = await _create_area(client, "Second")
 
