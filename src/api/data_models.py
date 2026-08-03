@@ -195,10 +195,10 @@ class AoiOrm(Base):
     through raw SQL (``src/shared/geocoding_helpers.py``,
     ``src/shared/aoi_geometry.py``).
 
-    Of the indexes in the migration, only the partial *unique* one is declared
+    Of the indexes in the migrations, only the partial *unique* one is declared
     here -- it is a correctness constraint (and the upsert target) rather than
-    an optimization. The GiST and partial trigram indexes are purely for
-    performance and stay migration-only.
+    an optimization. The rest (GiST, trigram, browse, source/subtype lookup)
+    exist purely for performance and stay migration-only.
     """
 
     __tablename__ = "aois"
