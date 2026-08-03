@@ -28,7 +28,7 @@ from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
-    SOURCE_ID_MAPPING,
+    AOI_SOURCE_ID_COLUMNS,
     SUBREGION_TO_SUBTYPE_MAPPING,
     search_aois,
 )
@@ -142,7 +142,7 @@ async def query_subregion_database(
 
     subregion_source = SUBREGION_SOURCE_MAPPING[subregion_name]
     subtype = SUBREGION_TO_SUBTYPE_MAPPING[subregion_name]
-    src_id_field = SOURCE_ID_MAPPING[subregion_source]["id_column"]
+    src_id_field = AOI_SOURCE_ID_COLUMNS[subregion_source]
 
     logger.info(
         f"Querying subregion: {subregion_name} in source: {subregion_source} "

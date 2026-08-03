@@ -15,13 +15,6 @@ from src.shared.request_context import current_user_id
 
 logger = get_logger(__name__)
 
-GADM_TABLE = "geometries_gadm"
-KBA_TABLE = "geometries_kba"
-LANDMARK_TABLE = "geometries_landmark"
-WDPA_TABLE = "geometries_wdpa"
-CUSTOM_AREA_TABLE = "custom_areas"
-
-
 SUBREGION_TO_SUBTYPE_MAPPING = {
     "country": "country",
     "state": "state-province",
@@ -36,12 +29,33 @@ SUBREGION_TO_SUBTYPE_MAPPING = {
 }
 
 
-SOURCE_ID_MAPPING = {
-    "kba": {"table": KBA_TABLE, "id_column": "sitrecid"},
-    "landmark": {"table": LANDMARK_TABLE, "id_column": "landmark_id"},
-    "wdpa": {"table": WDPA_TABLE, "id_column": "wdpa_pid"},
-    "gadm": {"table": GADM_TABLE, "id_column": "gadm_id"},
-    "custom": {"table": CUSTOM_AREA_TABLE, "id_column": "id"},
+# The id column each source used before AOIs were unified. No read path resolves
+# an AOI through these any more -- `aois.source_id` is one text column for every
+# source -- but the names are still load-bearing in three places:
+#   * `GET /api/metadata` publishes them as `layer_id_mapping`, which the
+#     frontend uses to address its tile layers: a public contract.
+#   * subregion expansion and the global-country query echo the id back under
+#     its source-specific name, for that same frontend mapping.
+#   * the ingest scripts name their indexes after it.
+AOI_SOURCE_ID_COLUMNS = {
+    "kba": "sitrecid",
+    "landmark": "landmark_id",
+    "wdpa": "wdpa_pid",
+    "gadm": "gadm_id",
+    "custom": "id",
+}
+
+
+# Where each source's raw rows are loaded before `build-aois` transforms them
+# into `aois`. Read only by that ETL -- never by an API or agent path. Whether
+# these stay as permanent staging or get retired in favour of ingesting straight
+# into `aois` is still open (see docs/aoi-architecture).
+SOURCE_STAGING_TABLES = {
+    "kba": "geometries_kba",
+    "landmark": "geometries_landmark",
+    "wdpa": "geometries_wdpa",
+    "gadm": "geometries_gadm",
+    "custom": "custom_areas",
 }
 
 
@@ -63,14 +77,14 @@ GADM_STANDARD_ID_RE = r"^[A-Z]{3}"
 
 
 # Friendly source aliases accepted from callers (e.g. the search API) and
-# mapped onto the canonical source keys used in SOURCE_ID_MAPPING.
+# mapped onto the canonical source keys.
 SOURCE_ALIASES = {
     "protectedareas": "wdpa",
     "protected_areas": "wdpa",
     "protected-areas": "wdpa",
 }
 
-VALID_AOI_SOURCES = set(SOURCE_ID_MAPPING.keys())
+VALID_AOI_SOURCES = set(AOI_SOURCE_ID_COLUMNS.keys())
 
 
 def normalize_aoi_source(source: str) -> str:
@@ -82,43 +96,6 @@ def normalize_aoi_source(source: str) -> str:
             f"{', '.join(sorted(VALID_AOI_SOURCES))}"
         )
     return key
-
-
-def _antimeridian_bbox_sql(geom_expr: str) -> str:
-    """
-    Returns [west, south, east, north] JSON array.
-    For antimeridian-crossing geometries (span > 180°), clips to each
-    half-plane to get the bbox of the eastern and western parts separately —
-    no ST_Dump, no vertex iteration. Falls back to naive bbox if either
-    clip returns nothing (geometry doesn't truly cross the antimeridian).
-    """
-    east_half = "ST_MakeEnvelope(0, -90, 180, 90, 4326)"
-    west_half = "ST_MakeEnvelope(-180, -90, 0, 90, 4326)"
-    return f"""
-    CASE
-        WHEN ST_XMax({geom_expr}) - ST_XMin({geom_expr}) > 180
-        THEN (
-            SELECT COALESCE(
-                CASE
-                    WHEN west IS NOT NULL AND east IS NOT NULL
-                    THEN json_build_array(west, ST_YMin({geom_expr}), east, ST_YMax({geom_expr}))
-                END,
-                json_build_array(ST_XMin({geom_expr}), ST_YMin({geom_expr}), ST_XMax({geom_expr}), ST_YMax({geom_expr}))
-            )
-            FROM (
-                SELECT
-                    ST_XMin(ST_Envelope(ST_ClipByBox2D({geom_expr}, {east_half}))) AS west,
-                    ST_XMax(ST_Envelope(ST_ClipByBox2D({geom_expr}, {west_half}))) AS east
-            ) AS parts
-        )
-        ELSE json_build_array(
-            ST_XMin({geom_expr}),
-            ST_YMin({geom_expr}),
-            ST_XMax({geom_expr}),
-            ST_YMax({geom_expr})
-        )
-    END
-    """
 
 
 # Default when an AOI has no bbox (or no row at all), matching the AOIIndex /

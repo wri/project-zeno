@@ -43,9 +43,10 @@ from src.shared.aoi_geometry import (
 )
 from src.shared.config import SharedSettings
 from src.shared.geocoding_helpers import (
+    AOI_SOURCE_ID_COLUMNS,
     GADM_LEVELS,
     GADM_STANDARD_ID_RE,
-    SOURCE_ID_MAPPING,
+    SOURCE_STAGING_TABLES,
 )
 
 
@@ -869,8 +870,8 @@ async def _build_reference_aois(
     single geometry -- that is the job of the part-wise repair in
     ``_multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
     """
-    cfg = SOURCE_ID_MAPPING[source]
-    table, id_col = cfg["table"], cfg["id_column"]
+    table = SOURCE_STAGING_TABLES[source]
+    id_col = AOI_SOURCE_ID_COLUMNS[source]
 
     iso3_col = await _resolve_column(
         session, table, _ISO3_SOURCE_COLUMNS[source]
@@ -1018,8 +1019,8 @@ async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
     a high part count is what makes a whole-geometry repair blow up. The
     largest-part pass needs ``ST_Dump``, so it is slower than the rest.
     """
-    cfg = SOURCE_ID_MAPPING[source]
-    table, id_col = cfg["table"], cfg["id_column"]
+    table = SOURCE_STAGING_TABLES[source]
+    id_col = AOI_SOURCE_ID_COLUMNS[source]
 
     (
         rows,
@@ -1139,7 +1140,7 @@ def build_aois_command(
                             "(GeoJSON-string list, not a geometry column)."
                         )
                         continue
-                    table = SOURCE_ID_MAPPING[source]["table"]
+                    table = SOURCE_STAGING_TABLES[source]
                     if not await _table_exists(session, table):
                         click.echo(
                             f"⏭️  {source}: {table} not found, skipping."
@@ -1160,11 +1161,7 @@ def build_aois_command(
                 # succeeded; re-run resumes. The big reference tables are far
                 # too large to hold in one open transaction.
                 async with db.async_session() as session:
-                    table = (
-                        "custom_areas"
-                        if source == "custom"
-                        else SOURCE_ID_MAPPING[source]["table"]
-                    )
+                    table = SOURCE_STAGING_TABLES[source]
                     if not await _table_exists(session, table):
                         click.echo(
                             f"⏭️  {source}: {table} not found, skipping."

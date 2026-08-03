@@ -5,7 +5,7 @@ from src.ingest.utils import (
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
 )
-from src.shared.geocoding_helpers import SOURCE_ID_MAPPING
+from src.shared.geocoding_helpers import AOI_SOURCE_ID_COLUMNS
 
 KBA_DATA_SOURCE = "s3://ndjson-layers/KBAsGlobal_2024_September_03_POL.ndjson"
 
@@ -49,7 +49,7 @@ def ingest_kba() -> None:
         index_name="idx_geometries_kba_name_gin",
         column="name",
     )
-    id_column = SOURCE_ID_MAPPING["kba"]["id_column"]
+    id_column = AOI_SOURCE_ID_COLUMNS["kba"]
     create_id_index_if_not_exists(
         table_name="geometries_kba",
         index_name=f"idx_geometries_kba_{id_column}",

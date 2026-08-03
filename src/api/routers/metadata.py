@@ -7,8 +7,8 @@ from src.agent.datasets.palette import PALETTES
 from src.agent.llms import get_model, get_small_model
 from src.api.schemas import DatasetCatalogResponse
 from src.shared.geocoding_helpers import (
+    AOI_SOURCE_ID_COLUMNS,
     GADM_SUBTYPE_MAP,
-    SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
 )
 from src.shared.version import get_version
@@ -31,9 +31,7 @@ async def api_metadata() -> dict:
 
     return {
         "version": get_version(),
-        "layer_id_mapping": {
-            key: value["id_column"] for key, value in SOURCE_ID_MAPPING.items()
-        },
+        "layer_id_mapping": AOI_SOURCE_ID_COLUMNS,
         "subregion_to_subtype_mapping": SUBREGION_TO_SUBTYPE_MAPPING,
         "gadm_subtype_mapping": GADM_SUBTYPE_MAP,
         "model": {
