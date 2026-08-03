@@ -15,7 +15,7 @@ from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
-    SOURCE_ID_MAPPING,
+    AOI_SOURCE_ID_COLUMNS,
     SUBREGION_TO_SUBTYPE_MAPPING,
 )
 
@@ -67,7 +67,7 @@ async def handle_global_request(
     df = await _query_all_countries()
     final_aois = df.to_dict(orient="records")
     for aoi in final_aois:
-        aoi[SOURCE_ID_MAPPING[aoi["source"]]["id_column"]] = aoi["src_id"]
+        aoi[AOI_SOURCE_ID_COLUMNS[aoi["source"]]] = aoi["src_id"]
 
     return Command(
         update={

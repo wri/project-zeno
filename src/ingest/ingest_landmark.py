@@ -5,7 +5,7 @@ from src.ingest.utils import (
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
 )
-from src.shared.geocoding_helpers import SOURCE_ID_MAPPING
+from src.shared.geocoding_helpers import AOI_SOURCE_ID_COLUMNS
 
 LANDMARK_DATA_SOURCE = "s3://gfw-data-lake/landmark_ip_lc_and_indicative_poly/v20250625/vector/epsg-4326/default.ndjson"
 
@@ -57,7 +57,7 @@ def ingest_landmark() -> None:
         index_name="idx_geometries_landmark_name_gin",
         column="name",
     )
-    id_column = SOURCE_ID_MAPPING["landmark"]["id_column"]
+    id_column = AOI_SOURCE_ID_COLUMNS["landmark"]
     create_id_index_if_not_exists(
         table_name="geometries_landmark",
         index_name=f"idx_geometries_landmark_{id_column}",

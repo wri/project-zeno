@@ -5,7 +5,42 @@ runtime custom-area mirror (:mod:`src.api.services.aoi_sync`) so the two write
 paths cannot drift.
 """
 
-from src.shared.geocoding_helpers import _antimeridian_bbox_sql
+
+def _antimeridian_bbox_sql(geom_expr: str) -> str:
+    """
+    Returns [west, south, east, north] JSON array.
+    For antimeridian-crossing geometries (span > 180°), clips to each
+    half-plane to get the bbox of the eastern and western parts separately —
+    no ST_Dump, no vertex iteration. Falls back to naive bbox if either
+    clip returns nothing (geometry doesn't truly cross the antimeridian).
+    """
+    east_half = "ST_MakeEnvelope(0, -90, 180, 90, 4326)"
+    west_half = "ST_MakeEnvelope(-180, -90, 0, 90, 4326)"
+    return f"""
+    CASE
+        WHEN ST_XMax({geom_expr}) - ST_XMin({geom_expr}) > 180
+        THEN (
+            SELECT COALESCE(
+                CASE
+                    WHEN west IS NOT NULL AND east IS NOT NULL
+                    THEN json_build_array(west, ST_YMin({geom_expr}), east, ST_YMax({geom_expr}))
+                END,
+                json_build_array(ST_XMin({geom_expr}), ST_YMin({geom_expr}), ST_XMax({geom_expr}), ST_YMax({geom_expr}))
+            )
+            FROM (
+                SELECT
+                    ST_XMin(ST_Envelope(ST_ClipByBox2D({geom_expr}, {east_half}))) AS west,
+                    ST_XMax(ST_Envelope(ST_ClipByBox2D({geom_expr}, {west_half}))) AS east
+            ) AS parts
+        )
+        ELSE json_build_array(
+            ST_XMin({geom_expr}),
+            ST_YMin({geom_expr}),
+            ST_XMax({geom_expr}),
+            ST_YMax({geom_expr})
+        )
+    END
+    """
 
 
 def multipolygon_sql(geom_expr: str) -> str:
