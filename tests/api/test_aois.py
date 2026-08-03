@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy import text
 
 from tests.conftest import async_session_maker
+from tests.conftest import seed_reference_aoi as _seed_reference_aoi
 
 _POLYGON = {
     "type": "Polygon",
@@ -35,32 +36,6 @@ async def _create_area(client, name):
     )
     assert res.status_code == 200, res.text
     return res.json()["id"]
-
-
-async def _seed_reference_aoi(
-    source, source_id, name, subtype, *, is_disputed=False
-):
-    """Insert a reference AOI the way build-aois does (raw SQL, real geometry)."""
-    async with async_session_maker() as session:
-        await session.execute(
-            text(
-                "INSERT INTO aois "
-                "(source, source_id, name, subtype, geometry, bbox, "
-                " is_disputed) "
-                "VALUES (:source, :source_id, :name, :subtype, "
-                " ST_Multi(ST_GeomFromText("
-                "  'POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))', 4326)), "
-                " ARRAY[0, 0, 1, 1]::double precision[], :is_disputed)"
-            ),
-            {
-                "source": source,
-                "source_id": source_id,
-                "name": name,
-                "subtype": subtype,
-                "is_disputed": is_disputed,
-            },
-        )
-        await session.commit()
 
 
 @pytest.mark.asyncio

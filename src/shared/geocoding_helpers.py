@@ -123,19 +123,9 @@ def _antimeridian_bbox_sql(geom_expr: str) -> str:
 
 BBOX_SQL = f"({_antimeridian_bbox_sql('geometry')}) AS bbox"
 
-# The custom geometries table stores geometries as an list of geojsons,
-# requiring a funky SQL to pull out the overall bounds
-CUSTOM_BBOX_SQL = f"""
-(
-    SELECT {_antimeridian_bbox_sql("bounds.geometry")}
-    FROM (
-        SELECT ST_Envelope(
-            ST_Collect(ST_SetSRID(ST_GeomFromGeoJSON(geom_json), 4326))
-        ) AS geometry
-        FROM jsonb_array_elements_text(geometries) AS geom(geom_json)
-    ) AS bounds
-) AS bbox
-"""
+# Default when an AOI has no bbox (or no row at all), matching the AOIIndex /
+# aoi_selection default the agent already carries.
+WORLD_BBOX = [-180.0, -90.0, 180.0, 90.0]
 
 
 async def search_aois(
@@ -255,6 +245,30 @@ async def search_aois(
         return await conn.run_sync(_read)
 
 
+async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
+    """Look up one AOI's bbox by ``(source, src_id)``.
+
+    Reads the bbox precomputed at build time rather than deriving it per call,
+    so the antimeridian SQL no longer runs on this path. Falls back to the world
+    bbox when the AOI, or its bbox, is missing.
+    """
+    if source not in VALID_AOI_SOURCES:
+        return WORLD_BBOX
+
+    query = text(
+        "SELECT bbox FROM aois "
+        "WHERE source = :source AND source_id = :src_id AND NOT is_deprecated"
+    )
+    async with get_connection_from_pool() as conn:
+        result = await conn.execute(
+            query, {"source": source, "src_id": src_id}
+        )
+        row = result.fetchone()
+        if row and row[0]:
+            return row[0]
+    return WORLD_BBOX
+
+
 def format_id(idx):
     """
     Convert the ID to a string and remove the last two characters if they are '_1', '_2', '_3', '_4', or '_5'.
@@ -263,6 +277,22 @@ def format_id(idx):
     if idx[-2:] in ["_1", "_2", "_3", "_4", "_5"]:
         return idx[:-2]
     return idx
+
+
+def _response_src_id(source: str, src_id: str) -> Union[int, str]:
+    """Preserve the pre-unification ``src_id`` type in geometry responses.
+
+    ``geometries_kba.sitrecid`` was numeric, so KBA lookups echoed an int back
+    (``GeometryResponse.src_id`` is ``int | str`` because of it). ``aois`` stores
+    every id as text; casting here keeps that response type rather than silently
+    changing it for KBA clients.
+    """
+    if source == "kba":
+        try:
+            return int(src_id)
+        except ValueError:
+            pass
+    return src_id
 
 
 async def get_geometry_data(
@@ -337,31 +367,27 @@ async def get_geometry_data(
             }
 
         # Handle standard geometry sources
-        if source not in SOURCE_ID_MAPPING:
-            valid_sources = list(SOURCE_ID_MAPPING.keys())
+        if source not in VALID_AOI_SOURCES:
             raise ValueError(
-                f"Invalid source: {source}. Must be one of: {', '.join(valid_sources)}"
+                f"Invalid source: {source}. Must be one of: "
+                f"{', '.join(sorted(VALID_AOI_SOURCES))}"
             )
 
-        table_name = SOURCE_ID_MAPPING[source]["table"]
-        id_column = SOURCE_ID_MAPPING[source]["id_column"]
-
-        sql_query = f"""
-            SELECT name, subtype, ST_AsGeoJSON(geometry) as geometry_json
-            FROM {table_name}
-            WHERE "{id_column}" = :src_id
+        # One query for every reference source: source_id is text throughout, so
+        # the per-source table and id-column branching is gone. is_disputed is
+        # deliberately not filtered -- disputed rows are excluded from search but
+        # stay resolvable by id, which is what this lookup is for.
+        sql_query = """
+            SELECT name, subtype, ST_AsGeoJSON(geometry) AS geometry_json
+            FROM aois
+            WHERE source = :source
+              AND source_id = :src_id
+              AND NOT is_deprecated
         """
 
-        nsrc_id: Union[int, str] = src_id
-        if source == "kba":
-            # These sources IDs stored as numeric values. Convert nsrc_id to integer
-            # if we can, else leave as string.
-            try:
-                nsrc_id = int(nsrc_id)
-            except ValueError:
-                pass
-
-        q = await session.execute(text(sql_query), {"src_id": nsrc_id})
+        q = await session.execute(
+            text(sql_query), {"source": source, "src_id": src_id}
+        )
         result = q.first()
 
         if not result:
@@ -381,6 +407,6 @@ async def get_geometry_data(
             "name": result.name,
             "subtype": result.subtype,
             "source": source,
-            "src_id": nsrc_id,
+            "src_id": _response_src_id(source, src_id),
             "geometry": geometry,
         }

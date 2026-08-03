@@ -39,6 +39,49 @@ async_session_maker = sessionmaker(
 Base.metadata.bind = engine_test
 
 
+_UNIT_SQUARE_WKT = "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"
+
+
+async def seed_reference_aoi(
+    source,
+    source_id,
+    name,
+    subtype,
+    *,
+    geometry_wkt=_UNIT_SQUARE_WKT,
+    bbox=(0, 0, 1, 1),
+    is_disputed=False,
+):
+    """Insert a reference AOI the way build-aois does: raw SQL, real geometry.
+
+    Reference sources never reach ``aois`` through the ORM (only the custom-area
+    mirror does), so seeding mirrors the real write path. ``bbox`` is passed
+    rather than derived, so a test can seed a bbox that disagrees with the
+    geometry to prove which one a read path uses; ``None`` leaves it null.
+    """
+    async with async_session_maker() as session:
+        await session.execute(
+            text(
+                "INSERT INTO aois "
+                "(source, source_id, name, subtype, geometry, bbox, "
+                " is_disputed) "
+                "VALUES (:source, :source_id, :name, :subtype, "
+                " ST_Multi(ST_GeomFromText(:geometry_wkt, 4326)), "
+                " :bbox, :is_disputed)"
+            ),
+            {
+                "source": source,
+                "source_id": source_id,
+                "name": name,
+                "subtype": subtype,
+                "geometry_wkt": geometry_wkt,
+                "bbox": list(bbox) if bbox is not None else None,
+                "is_disputed": is_disputed,
+            },
+        )
+        await session.commit()
+
+
 async def override_get_session_from_pool_dependency() -> (
     AsyncGenerator[AsyncSession, None]
 ):
@@ -80,6 +123,11 @@ async def test_db():
     """Create test database and clear it after each test."""
     # Set up test database
     async with engine_test.begin() as conn:
+        # The migrations create these, but the test schema comes from
+        # create_all, which never runs them -- so do it here. postgis has to
+        # exist before create_all, which emits aois.geometry as geometry(...).
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
     yield
     # Clean up
