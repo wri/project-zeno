@@ -1,8 +1,8 @@
-"""Unit tests for the build-path SQL fragments -- string shape only, no DB.
+"""Unit tests for the SQL fragments of the build path. They check the string
+only, and use no database.
 
-These moved here from the pick_aoi tool tests: the antimeridian bbox is computed
-once at build time now, so no read path composes it and it belongs with the other
-``aoi_geometry`` fragments.
+The build computes the antimeridian bbox once, and no read path composes it, so
+these tests belong with the other ``aoi_geometry`` fragments.
 """
 
 from src.shared.aoi_geometry import (
@@ -42,7 +42,8 @@ def test_sql_uses_west_xmin_and_east_xmax():
 
 
 def test_bbox_float_array_wraps_the_json_bbox():
-    """The float8[] wrapper must pin element order, not just aggregate."""
+    """The float8[] wrapper must keep the element order, and not only
+    aggregate."""
     sql = bbox_float_array_sql("geom")
     assert "json_array_elements_text" in sql
     assert "WITH ORDINALITY" in sql
@@ -50,16 +51,18 @@ def test_bbox_float_array_wraps_the_json_bbox():
 
 
 def test_multipolygon_sql_repairs_per_part():
-    """Per-part ST_MakeValid, not one overlay over the whole MultiPolygon."""
+    """ST_MakeValid runs on each part, and not once over the MultiPolygon."""
     sql = multipolygon_sql("geometry")
     assert "ST_Dump" in sql
     assert "ST_MakeValid(d.geom)" in sql
-    # CollectionExtract(..., 3) drops the line/point slivers MakeValid emits.
+    # CollectionExtract(..., 3) removes the line and point slivers that
+    # MakeValid produces.
     assert "ST_CollectionExtract" in sql
     assert "ST_Multi" in sql
 
 
 def test_custom_area_geom_dissolves_the_drawn_parts():
-    """ST_Union, so overlapping drawn parts don't double-count in area_km2."""
+    """ST_Union runs, so two overlapping drawn parts do not count twice in
+    area_km2."""
     assert "ST_Union" in CUSTOM_AREA_GEOM_SQL
     assert "jsonb_array_elements_text(ca.geometries)" in CUSTOM_AREA_GEOM_SQL

@@ -133,7 +133,7 @@ async def test_requires_auth(client):
 async def test_disputed_rows_excluded_but_still_resolvable(
     auth_override, client
 ):
-    """Disputed rows are absent from search yet addressable by (source, id)."""
+    """Search excludes disputed rows, but ``(source, id)`` still finds them."""
     auth_override("test-user-wri")
     await _seed_reference_aoi("gadm", "BRA", "Brazil", "country")
     await _seed_reference_aoi(
@@ -146,11 +146,11 @@ async def test_disputed_rows_excluded_but_still_resolvable(
     assert "BRA" in src_ids
     assert "Z01" not in src_ids
 
-    # Browse mode must exclude it too, not just the similarity path.
+    # Browse mode must also exclude it, not only the similarity path.
     res = await client.get("/api/aois?source=gadm", headers=AUTH)
     assert [r["src_id"] for r in res.json()] == ["BRA"]
 
-    # ...but the row is still there for geometry fetches / analytics linkage.
+    # The row remains, for a geometry fetch and for the analytics link.
     async with async_session_maker() as session:
         found = await session.scalar(
             text(
@@ -163,7 +163,7 @@ async def test_disputed_rows_excluded_but_still_resolvable(
 
 @pytest.mark.asyncio
 async def test_search_ranks_across_sources(auth_override, client):
-    """One ranked list spanning reference sources and the caller's own areas."""
+    """One ranked list holds the reference sources and the caller's own areas."""
     auth_override("test-user-wri")
     await _seed_reference_aoi(
         "wdpa", "555", "Amazonia Protected", "protected-area"
@@ -177,14 +177,14 @@ async def test_search_ranks_across_sources(auth_override, client):
     assert res.status_code == 200, res.text
     results = res.json()
     assert {r["source"] for r in results} == {"wdpa", "kba", "custom"}
-    # Exact match outranks the longer partial matches.
+    # An exact match ranks above a longer partial match.
     assert results[0]["name"] == "Amazon"
     assert results[0]["source"] == "custom"
 
 
 @pytest.mark.asyncio
 async def test_browse_orders_by_name_then_source(auth_override, client):
-    """Browse tie-break is (name, source, src_id) across all sources."""
+    """Browse mode breaks a tie by (name, source, src_id), over all sources."""
     auth_override("test-user-wri")
     await _seed_reference_aoi("wdpa", "1", "Shared Name", "protected-area")
     await _seed_reference_aoi(
@@ -206,7 +206,7 @@ async def test_browse_orders_by_name_then_source(auth_override, client):
 async def test_reference_sources_are_not_owner_scoped(
     auth_override, client, user_ds
 ):
-    """Only custom areas are owner-scoped; reference rows are shared."""
+    """Only a custom area is owner-scoped. Every reference row is shared."""
     auth_override("test-user-wri")
     await _seed_reference_aoi("gadm", "IDN", "Indonesia", "country")
     await _create_area(client, "Indonesia Custom")

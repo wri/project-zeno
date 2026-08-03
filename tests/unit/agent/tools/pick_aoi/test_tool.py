@@ -11,7 +11,7 @@ from src.shared.geocoding_helpers import fetch_aoi_bbox
 
 
 def _fake_conn_context(captured, row):
-    """A pooled-connection stand-in that records the SQL and returns *row*."""
+    """A substitute for a pooled connection. It records the SQL and returns *row*."""
 
     class _FakeConn:
         async def execute(self, query, params=None):
@@ -41,7 +41,7 @@ async def test_fetch_aoi_bbox_unknown_source_returns_default():
 async def test_fetch_aoi_bbox_reads_precomputed_bbox_for_every_source(
     monkeypatch,
 ):
-    """One query over aois, whatever the source -- no per-source bbox SQL."""
+    """One query reads aois for every source. No per-source bbox SQL remains."""
     captured = {}
 
     def fake_pool():
@@ -60,7 +60,8 @@ async def test_fetch_aoi_bbox_reads_precomputed_bbox_for_every_source(
         ]
         assert "FROM aois" in captured["sql"]
         assert captured["params"] == {"source": source, "src_id": "some-id"}
-        # The antimeridian CASE ran per row before; bbox is now precomputed.
+        # The antimeridian CASE ran for each row before. The build now computes
+        # the bbox.
         assert "ST_ClipByBox2D" not in captured["sql"]
 
 
@@ -80,7 +81,7 @@ async def test_fetch_aoi_bbox_no_row_returns_default(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_fetch_aoi_bbox_null_bbox_returns_default(monkeypatch):
-    """aois.bbox is nullable; a null must not reach the AOI's bbox field."""
+    """aois.bbox accepts a null. A null must not reach the bbox of the AOI."""
 
     def fake_pool():
         return _fake_conn_context({}, (None,))

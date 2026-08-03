@@ -86,13 +86,15 @@ async def handle_global_request(
 
 
 async def _query_all_countries() -> pd.DataFrame:
-    """Return every country row from GADM — no spatial filter needed.
+    """Return every country row from GADM. No spatial filter is necessary.
 
-    ``NOT is_disputed`` replaces the old ISO3-prefix regex on ``gadm_id``: only
-    GADM rows are ever flagged, and they are flagged by exactly that regex, so
-    the row set is unchanged. The world bbox is deliberate and unchanged — a
-    global comparison never zooms to an individual country, so the per-country
-    bbox now available on ``aois`` is left unread.
+    ``NOT is_disputed`` replaces the ISO3-prefix regex on ``gadm_id``. Only GADM
+    rows carry the flag, and the build sets it with that same regex, so the row
+    set does not change.
+
+    The query returns the world bbox for every country. This is intentional. A
+    global comparison does not zoom to one country, so the query does not read
+    the per-country bbox in ``aois``.
     """
     subtype = SUBREGION_TO_SUBTYPE_MAPPING["country"]
     sql_query = """

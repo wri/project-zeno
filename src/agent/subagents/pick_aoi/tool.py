@@ -104,8 +104,8 @@ async def query_aoi_database(
     )
 
 
-# Which AOI source a requested subregion scope resolves to. The six admin
-# scopes all live in GADM; the rest name their own source.
+# The AOI source that each subregion scope resolves to. GADM holds all six admin
+# scopes. Each other scope names its own source.
 SUBREGION_SOURCE_MAPPING = {
     "country": "gadm",
     "state": "gadm",
@@ -122,7 +122,7 @@ SUBREGION_SOURCE_MAPPING = {
 async def query_subregion_database(
     subregion_name: str, source: str, src_id: str
 ):
-    """Find the subregions of a selected AOI, both read from the unified table.
+    """Find the subregions of a selected AOI. Both come from the unified table.
 
     Args:
         subregion_name: Scope to expand into (an admin level, or kba/wdpa/landmark)
@@ -130,10 +130,10 @@ async def query_subregion_database(
         src_id: id of the selected AOI within its source
 
     Returns:
-        DataFrame of subregions, columns ``name, subtype, <source id column>,
-        source, src_id, bbox``. The source-specific id column (``gadm_id``,
-        ``sitrecid``, ...) is redundant with ``src_id`` but reaches the frontend
-        through ``AOIIndex``'s extra fields, so it stays.
+        DataFrame of subregions, with the columns ``name, subtype, <source id
+        column>, source, src_id, bbox``. The source-specific id column
+        (``gadm_id``, ``sitrecid``, ...) repeats ``src_id``. It remains because
+        the frontend reads it from the extra fields of ``AOIIndex``.
     """
     if subregion_name not in SUBREGION_SOURCE_MAPPING:
         logger.error(f"Invalid subregion: {subregion_name}")
@@ -158,34 +158,34 @@ async def query_subregion_database(
     }
 
     if subregion_source == "gadm":
-        # GADM encodes the hierarchy in the id, so containment is a prefix match
-        # and no spatial test is needed.
+        # The GADM id holds the hierarchy, so a prefix match gives containment.
+        # A spatial test is not necessary.
         if source == "gadm":
-            # Children of this admin id, one level down. The `_1`/`_2` version
-            # suffix isn't part of the hierarchy, so it's dropped first -- which
-            # also means the prefix can't contain LIKE's `_` wildcard.
+            # Match the children of this admin id, one level down. The `_1` or
+            # `_2` version suffix is not part of the hierarchy, so the code
+            # removes it first. The prefix therefore cannot hold the `_`
+            # wildcard of LIKE.
             params["gadm_prefix"] = f"{src_id.split('_')[0]}.%"
             gadm_filter = "AND t.source_id LIKE :gadm_prefix"
         else:
-            # Parity note: a non-GADM parent gets *no* containment filter here,
-            # only the disputed-territory exclusion the old ISO3-prefix regex
-            # performed -- so this returns every admin unit of the subtype
-            # worldwide, which check_aoi_selection then rejects as too many.
-            # Preserved as-is; see the PR description.
+            # A non-GADM parent gets no containment filter, only the exclusion of
+            # disputed territories. The query then returns every admin unit of
+            # the subtype worldwide, and check_aoi_selection rejects the result
+            # as too many subregions. This is a known defect.
             gadm_filter = "AND NOT t.is_disputed"
         spatial_filter = ""
     else:
         gadm_filter = ""
-        # Overlap, excluding a shared border only. The parent geometry is now the
-        # normalized MultiPolygon, so results can differ marginally from the raw
-        # source geometry at repaired boundaries.
+        # Accept an overlap, but reject a shared border alone. The parent
+        # geometry is a normalized MultiPolygon, so a repaired boundary can give
+        # a slightly different result than the raw source geometry.
         spatial_filter = (
             "AND ST_Intersects(t.geometry, parent.geom) "
             "AND NOT ST_Touches(t.geometry, parent.geom)"
         )
 
-    # bbox is precomputed at build time; COALESCE guards a null array with the
-    # same world bbox AOIIndex defaults to.
+    # `bbox` is computed at build time. COALESCE replaces a null array with the
+    # world bbox, which is the default of AOIIndex.
     sql_query = f"""
     WITH parent AS (
         SELECT geometry AS geom

@@ -52,12 +52,13 @@ async def seed_reference_aoi(
     bbox=(0, 0, 1, 1),
     is_disputed=False,
 ):
-    """Insert a reference AOI the way build-aois does: raw SQL, real geometry.
+    """Insert a reference AOI as build-aois does, with raw SQL and real geometry.
 
-    Reference sources never reach ``aois`` through the ORM (only the custom-area
-    mirror does), so seeding mirrors the real write path. ``bbox`` is passed
-    rather than derived, so a test can seed a bbox that disagrees with the
-    geometry to prove which one a read path uses; ``None`` leaves it null.
+    A reference source never reaches ``aois`` through the ORM. Only the
+    custom-area mirror does. This helper therefore uses the same write path as
+    the real code. The caller passes ``bbox`` instead of deriving it, so a test
+    can seed a bbox that disagrees with the geometry and show which one a read
+    path uses. ``None`` leaves the bbox null.
     """
     async with async_session_maker() as session:
         await session.execute(
@@ -123,9 +124,10 @@ async def test_db():
     """Create test database and clear it after each test."""
     # Set up test database
     async with engine_test.begin() as conn:
-        # The migrations create these, but the test schema comes from
-        # create_all, which never runs them -- so do it here. postgis has to
-        # exist before create_all, which emits aois.geometry as geometry(...).
+        # The migrations create these extensions, but the test schema comes from
+        # create_all, which never runs a migration. postgis must exist before
+        # create_all, because create_all emits aois.geometry as a geometry
+        # column.
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)

@@ -58,12 +58,11 @@ async def test_metadata_version_matches_pyproject(client):
 
 @pytest.mark.asyncio
 async def test_metadata_layer_id_mapping_has_known_sources(client):
-    """Layer ID mapping is a published contract -- pin it exactly.
+    """The layer id mapping is a published contract, so assert it exactly.
 
-    The frontend addresses its tile layers by these names. Unifying the AOI
-    tables removed every *query* that used them (``aois.source_id`` is one text
-    column for all sources), which makes it easy to drop them by accident; this
-    is what stops that.
+    The frontend addresses its tile layers by these names. No query uses them
+    any more, because ``aois.source_id`` is one text column for all sources. It
+    is therefore easy to remove a name by accident. This test prevents that.
     """
     response = await client.get("/api/metadata")
     layer_id_mapping = response.json()["layer_id_mapping"]

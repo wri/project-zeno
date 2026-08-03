@@ -188,17 +188,16 @@ class AoiOrm(Base):
     custom drawn areas -- addressed by a stable UUID ``id`` and by the logical
     ``(source, source_id)`` key.
 
-    The ``geometry`` column is mapped only so ``create_all`` builds it -- the
-    test DB comes from this metadata, and the runtime custom-area mirror
-    (``src/api/services/aoi_sync.py``) has to be able to write geometry under
-    test. It is never read through the ORM: every geometry read and write goes
-    through raw SQL (``src/shared/geocoding_helpers.py``,
-    ``src/shared/aoi_geometry.py``).
+    The ``geometry`` column is mapped only so that ``create_all`` builds it. The
+    test database comes from this metadata, and the custom-area mirror
+    (``src/api/services/aoi_sync.py``) must write geometry under test. No code
+    reads the column through the ORM. Every geometry read and write uses raw SQL
+    (``src/shared/geocoding_helpers.py``, ``src/shared/aoi_geometry.py``).
 
-    Of the indexes in the migrations, only the partial *unique* one is declared
-    here -- it is a correctness constraint (and the upsert target) rather than
-    an optimization. The rest (GiST, trigram, browse, source/subtype lookup)
-    exist purely for performance and stay migration-only.
+    Of the indexes in the migrations, only the partial unique index is declared
+    here. It is a correctness constraint and the target of the upsert, not an
+    optimization. The other indexes exist only for performance, so they stay in
+    the migrations.
     """
 
     __tablename__ = "aois"
@@ -212,8 +211,8 @@ class AoiOrm(Base):
     source_id = Column(String, nullable=False)
     name = Column(String, nullable=False)
     subtype = Column(String, nullable=False)
-    # spatial_index=False: the GiST index is created explicitly in the
-    # migration so its name is controlled, not auto-emitted by geoalchemy2.
+    # spatial_index=False: the migration creates the GiST index, so its name is
+    # controlled. geoalchemy2 must not emit its own index here.
     geometry = Column(
         Geometry(geometry_type="MULTIPOLYGON", srid=4326, spatial_index=False),
         nullable=False,
@@ -238,8 +237,8 @@ class AoiOrm(Base):
     # columns above. Left NULL by build-aois for now; anything we
     # filter/facet/sort on gets promoted to a real column instead.
     properties = Column(JSONB, nullable=True)
-    # server_default mirrors the migration: rows land here via raw SQL
-    # (build-aois, the custom-area mirror), which gets no ORM-side default.
+    # server_default matches the migration. Raw SQL writes these rows, in
+    # build-aois and in the custom-area mirror, and raw SQL gets no ORM default.
     created_at = Column(
         DateTime,
         nullable=False,
@@ -255,9 +254,9 @@ class AoiOrm(Base):
     )
 
     __table_args__ = (
-        # One *live* version per logical id. Backs the INSERT ... ON CONFLICT
-        # in build-aois and the custom-area mirror, so the name and the
-        # partial predicate must match the migration exactly.
+        # One live version for each logical id. The INSERT ... ON CONFLICT in
+        # build-aois and in the custom-area mirror uses this index, so the name
+        # and the partial predicate must match the migration exactly.
         Index(
             "uq_aois_source_source_id_live",
             "source",
@@ -275,11 +274,12 @@ class AoiOrm(Base):
 
 
 class UserAoiOrm(Base):
-    """User<->AOI relationships: owner / saved.
+    """The relationships between a user and an AOI: owner or saved.
 
-    A single join carrying the whole permission model. ``aoi_id`` is a clean
-    single-column FK to ``aois.id`` (the payoff of unifying storage). "In my
-    list" == any row for the user; ``relationship`` says what they may do.
+    One join table holds the whole permission model. ``aoi_id`` is a
+    single-column foreign key to ``aois.id``, which unified storage makes
+    possible. Any row for a user puts the AOI in that user's list.
+    ``relationship`` states what the user can do with it.
     """
 
     __tablename__ = "user_aois"
@@ -295,7 +295,8 @@ class UserAoiOrm(Base):
         ForeignKey("aois.id", ondelete="CASCADE"),
         nullable=False,
     )
-    # native_enum=False -> VARCHAR + CHECK, so create_all needs no PG type.
+    # native_enum=False gives VARCHAR and a CHECK, so create_all needs no
+    # Postgres type.
     relationship_type = Column(
         "relationship",
         Enum(
@@ -307,9 +308,10 @@ class UserAoiOrm(Base):
         ),
         nullable=False,
     )
-    # User's per-list label; null falls back to aois.name.
+    # The label that the user gives the AOI in their list. A null reads as
+    # aois.name.
     name = Column(String, nullable=True)
-    # server_default mirrors the migration: owner links are inserted by raw SQL.
+    # server_default matches the migration. Raw SQL inserts the owner links.
     created_at = Column(
         DateTime,
         nullable=False,

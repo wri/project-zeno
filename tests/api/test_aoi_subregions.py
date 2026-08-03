@@ -1,17 +1,17 @@
 """Tests for subregion expansion over the unified ``aois`` table.
 
-``query_subregion_database`` resolves the children of a selected AOI two
-different ways: GADM containment is a prefix match on the id, everything else is
-a spatial overlap test. Both are exercised here against the real table -- the
-existing pick_aoi tests stub this function out entirely.
+``query_subregion_database`` finds the children of a selected AOI in two ways. For
+GADM it matches a prefix of the id. For every other source it tests a spatial
+overlap. These tests cover both ways against the real table. The existing pick_aoi
+tests replace this function with a stub.
 
-Geometry layout used below (all in a 0..40 lon/lat box):
+These tests use one geometry layout, inside a 0..40 box of longitude and latitude:
 
-    parent  BRA        (0 0) .. (20 20)   -- also the spatial parent
+    parent  BRA        (0 0) .. (20 20)   also the spatial parent
     child   BRA.1_1    (0 0) .. (10 10)   inside
     child   BRA.2_1   (10 0) .. (20 10)   inside
-    other   ARG.1_1   (30 0) .. (40 10)   outside, different country
-    touching            (20 0) .. (30 10)  shares only the x=20 edge
+    other   ARG.1_1   (30 0) .. (40 10)   outside, in another country
+    touching           (20 0) .. (30 10)  shares only the edge at x=20
 """
 
 import pytest
@@ -53,7 +53,7 @@ async def _seed_gadm_family():
 
 
 # ---------------------------------------------------------------------------
-# GADM containment -- prefix match on the id
+# GADM containment: a prefix match on the id
 # ---------------------------------------------------------------------------
 
 
@@ -70,7 +70,7 @@ async def test_gadm_children_are_scoped_to_the_parent_id():
 
 @pytest.mark.asyncio
 async def test_gadm_parent_version_suffix_is_ignored():
-    """`BRA.1_1` must expand to `BRA.1.x_1`, not be matched literally."""
+    """`BRA.1_1` must expand to `BRA.1.x_1`. A literal match is wrong."""
     await seed_reference_aoi(
         "gadm",
         "BRA.1_1",
@@ -93,7 +93,7 @@ async def test_gadm_parent_version_suffix_is_ignored():
 
 @pytest.mark.asyncio
 async def test_gadm_expansion_emits_the_source_id_column():
-    """The redundant `gadm_id` column reaches the frontend via AOIIndex extras."""
+    """The frontend reads the `gadm_id` column from the extras of AOIIndex."""
     await _seed_gadm_family()
 
     df = await query_subregion_database("state", "gadm", "BRA")
@@ -142,7 +142,7 @@ async def test_gadm_expansion_falls_back_to_world_bbox():
 
 @pytest.mark.asyncio
 async def test_missing_parent_returns_no_rows():
-    """The cross join with an empty parent CTE yields nothing, as before."""
+    """An empty parent CTE gives an empty cross join, and therefore no rows."""
     await _seed_gadm_family()
 
     df = await query_subregion_database("state", "gadm", "NOPE")
@@ -152,11 +152,11 @@ async def test_missing_parent_returns_no_rows():
 
 @pytest.mark.asyncio
 async def test_non_gadm_parent_of_gadm_subregion_is_unfiltered():
-    """Pinned pre-existing behavior: no containment test, only disputed excluded.
+    """A non-GADM parent gets no containment test, only the disputed exclusion.
 
-    A non-GADM parent asking for admin subregions gets every admin unit of that
-    subtype worldwide. check_aoi_selection then rejects it as too many. This is
-    preserved from the pre-unification query, not endorsed.
+    The query returns every admin unit of the subtype worldwide, and
+    check_aoi_selection then rejects the result as too many subregions. This test
+    fixes the current behaviour. The behaviour is a known defect.
     """
     await _seed_gadm_family()
     await seed_reference_aoi(
@@ -177,12 +177,13 @@ async def test_non_gadm_parent_of_gadm_subregion_is_unfiltered():
 
     df = await query_subregion_database("state", "wdpa", "P1")
 
-    # ARG.1_1 is nowhere near the park, yet comes back; the disputed row doesn't.
+    # ARG.1_1 is far from the park, but the query returns it. It excludes only
+    # the disputed row.
     assert sorted(df["src_id"]) == ["ARG.1_1", "BRA.1_1", "BRA.2_1"]
 
 
 # ---------------------------------------------------------------------------
-# Spatial containment -- kba / wdpa / landmark subregions
+# Spatial containment: kba, wdpa and landmark subregions
 # ---------------------------------------------------------------------------
 
 
@@ -214,7 +215,8 @@ async def test_spatial_expansion_selects_overlapping_children():
 
 @pytest.mark.asyncio
 async def test_spatial_expansion_excludes_border_only_touch():
-    """ST_Touches is excluded: a neighbour sharing only an edge is not inside."""
+    """The query excludes ST_Touches. A neighbour that shares only an edge is
+    not inside the parent."""
     await seed_reference_aoi(
         "gadm", "BRA", "Brazil", "country", geometry_wkt=_box(0, 0, 20, 20)
     )
@@ -233,12 +235,13 @@ async def test_spatial_expansion_excludes_border_only_touch():
 
 @pytest.mark.asyncio
 async def test_spatial_expansion_from_a_custom_parent():
-    """Behavior change: this raised before, since custom_areas has no geometry.
+    """A custom parent now works. It raised an error before, because
+    custom_areas holds no geometry column.
 
-    Both sides of the join now live in `aois`, so a custom area can be expanded
-    into the reference AOIs it covers. The custom row is seeded straight into
-    `aois` here -- the projection the mirror would have written -- rather than
-    through the CRUD endpoint, since only the projection is under test.
+    Both sides of the join are now in `aois`, so a custom area can expand into
+    the reference AOIs that it covers. This test writes the custom row directly
+    into `aois`, which is the projection that the mirror writes. It does not use
+    the CRUD endpoint, because only the projection is under test.
     """
     await seed_reference_aoi(
         "custom",
@@ -265,9 +268,9 @@ async def test_spatial_expansion_from_a_custom_parent():
 
 @pytest.mark.asyncio
 async def test_kba_src_ids_come_back_as_text():
-    """sitrecid was numeric pre-unification; aois normalizes every id to text.
+    """sitrecid was numeric before unification. `aois` stores every id as text.
 
-    Search already returns text KBA ids, so this makes the two paths agree.
+    Search already returns a KBA id as text, so the two paths now agree.
     """
     await seed_reference_aoi(
         "gadm", "BRA", "Brazil", "country", geometry_wkt=_box(0, 0, 20, 20)
