@@ -2,6 +2,9 @@ name: Tools Tests
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'release-*'
   pull_request:
     types: [synchronize, reopened, labeled, unlabeled]
 
@@ -11,7 +14,7 @@ concurrency:
 
 jobs:
   test:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-tools-tests')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'run-tools-tests')
     runs-on: ubuntu-latest
 
     services:
