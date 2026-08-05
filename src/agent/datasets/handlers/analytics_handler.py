@@ -185,9 +185,6 @@ LGMS_METRIC_COLUMNS = (
     "net_flux_MgCO2e",
     "area_ha",
 )
-# Agriculture emissions are reported for 2020 (applied to all years); label the
-# merged agriculture rows with that year so they join year-based queries.
-LGMS_AGRICULTURE_YEAR = 2020
 
 
 def _lgms_row_class(section_name: str, row: dict) -> Any:
@@ -222,11 +219,7 @@ def merge_lgms_sections(raw_data: dict) -> dict:
                 LGMS_SECTION_CATEGORY.get(section_name, section_name)
             )
             merged["class"].append(_lgms_row_class(section_name, row))
-            merged["year"].append(
-                LGMS_AGRICULTURE_YEAR
-                if section_name == "agriculture"
-                else row.get("year")
-            )
+            merged["year"].append(row.get("year"))
             for metric in LGMS_METRIC_COLUMNS:
                 merged[metric].append(row.get(metric))
     return merged
@@ -246,6 +239,23 @@ def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
     return raw_data, count
 
 
+def analytics_api_headers() -> dict[str, str]:
+    """Headers for every request to the analytics API — Bearer auth
+    (WRI_BEARER_TOKEN, now required) plus the environment selector. Read at
+    call time so the token isn't captured at import."""
+    return {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "X-environment": (
+            "production"
+            if os.getenv("GNW_STAGE", "production").strip().lower()
+            == "production"
+            else "staging"
+        ),
+        "Authorization": f"Bearer {os.getenv('WRI_BEARER_TOKEN', '')}",
+    }
+
+
 class AnalyticsHandler(DataSourceHandler):
     """Generalized handler for GFW Analytics API endpoints"""
 
@@ -256,17 +266,6 @@ class AnalyticsHandler(DataSourceHandler):
             "ANALYTICS_API_BASE_URL",
             "https://analytics.globalnaturewatch.org",
         )
-
-    HEADERS = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "X-environment": (
-            "production"
-            if os.getenv("GNW_STAGE", "production").strip().lower()
-            == "production"
-            else "staging"
-        ),
-    }
 
     def can_handle(self, dataset: Any) -> bool:
         """Check if this handler can process the given dataset"""
@@ -510,7 +509,9 @@ class AnalyticsHandler(DataSourceHandler):
             try:
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
-                        endpoint_url, headers=self.HEADERS, json=payload
+                        endpoint_url,
+                        headers=analytics_api_headers(),
+                        json=payload,
                     )
                 if response.status_code >= 400:
                     logger.warning(
@@ -567,7 +568,9 @@ class AnalyticsHandler(DataSourceHandler):
 
         download_link = data_section["link"]
         async with httpx.AsyncClient() as client:
-            response = await client.get(download_link)
+            response = await client.get(
+                download_link, headers=analytics_api_headers()
+            )
             data = response.json()
 
         if "data" not in data:
@@ -641,17 +644,19 @@ class AnalyticsHandler(DataSourceHandler):
                 dataset, aois, start_date, end_date
             )
 
-            # Debug logging for payload
+            headers = analytics_api_headers()
+            redacted_headers = {**headers, "Authorization": "Bearer ***"}
+            # Debug logging for payload (bearer token redacted above)
             logger.info(
                 f"Analytics API Request - Dataset: {dataset.get('dataset_name')}"
             )
             logger.info(f"Analytics API Request - URL: {endpoint_url}")
-            logger.info(f"Analytics API Request - Headers: {self.HEADERS}")
+            logger.info(f"Analytics API Request - Headers: {redacted_headers}")
             logger.info(f"Analytics API Request - Payload: {payload}")
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    endpoint_url, headers=self.HEADERS, json=payload
+                    endpoint_url, headers=headers, json=payload
                 )
 
             # Debug logging for response

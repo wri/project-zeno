@@ -9,7 +9,10 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
 from src.agent.datasets.dates import revise_date_range
-from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
+from src.agent.datasets.handlers.analytics_handler import (
+    AnalyticsHandler,
+    analytics_api_headers,
+)
 from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
@@ -34,7 +37,9 @@ async def fetch_statistics_from_url(source_url: str) -> dict:
     so callers never need to deal with the response envelope.
     """
     async with httpx.AsyncClient() as client:
-        response = await client.get(source_url)
+        response = await client.get(
+            source_url, headers=analytics_api_headers()
+        )
         response.raise_for_status()
         return response.json()["data"]["result"]
 

@@ -28,17 +28,17 @@ prompt_instructions: >-
   (gross emissions, gross removals and net flux by forest-change state — tree loss,
   tree gain, trees remaining, non-trees — per year), mineral soil (gross emissions,
   gross removals and net flux per year), organic soil (gross emissions per year; no
-  removals), and agriculture (cropland emissions). All values are in MgCO2e (tonnes
-  CO2 equivalent); emissions are positive (a source) and removals are negative (a
-  sink). The output is not currently broken down by individual gas (CO2/CH4/N2O),
-  by carbon pool, or by individual crop, and livestock emissions are not yet
-  included — do not report those breakdowns. Only available for GADM administrative
-  areas down to admin level 2 (country, state/province, district).
+  removals), and agriculture (cropland and livestock emissions, per year). All
+  values are in MgCO2e (tonnes CO2 equivalent); emissions are positive (a source)
+  and removals are negative (a sink). The output is not currently broken down by
+  individual gas (CO2/CH4/N2O), by carbon pool, or by individual crop — do not
+  report those breakdowns. Only available for GADM administrative areas down to
+  admin level 2 (country, state/province, district).
 selection_hints: >-
   DEFAULT dataset for carbon / greenhouse-gas net-flux and emissions-and-removals
   questions from 2016 onward, when no time period is given, or when broken down by
   forest-change state (tree loss, tree gain, stable/remaining forest, non-forest),
-  by soil (organic and mineral), or by agriculture (cropland). Reports vegetation,
+  by soil (organic and mineral), or by agriculture (cropland, livestock). Reports vegetation,
   soil and agriculture emissions/removals/net flux in MgCO2e for an administrative
   area.
   IMPORTANT: only available for GADM administrative areas to admin level 2
@@ -85,9 +85,9 @@ cautions: >-
   Temporal granularity differs by component: vegetation emissions, removals and
   net flux are annual (2016-2024); organic soil is in multi-year blocks (2016-2020
   and 2021-2024); mineral soil is the change between 2010/2015 and 2015-2020
-  applied to every year 2016-2024; cropland and livestock emissions are for 2020
-  applied to all years. Native spatial resolution is ~30 m for vegetation, organic
-  soil and mineral soil, and ~10 km for cropland and livestock.
+  applied to every year 2016-2024; cropland and livestock emissions are annual
+  (2016-2024). Native spatial resolution is ~30 m for vegetation, organic soil and
+  mineral soil, and ~10 km for cropland and livestock.
 
 
   Uncertainty estimates exist only for global fluxes and cannot be displayed at
@@ -99,8 +99,7 @@ cautions: >-
   carbon is not included. Cropland-management emissions cover activities on
   cropland (fertilizer application, manure management, crop-residue decomposition)
   for 40+ crops/crop types, though the tool output is not currently broken down by
-  individual crop, by gas (CO2/CH4/N2O), or by carbon pool, and livestock emissions
-  are not yet included in the output; vegetation
+  individual crop, by gas (CO2/CH4/N2O), or by carbon pool; vegetation
   and soil carbon-stock changes on cropland, and land-use-change emissions related
   to cropland (e.g. forest to crops), are in the vegetation and soil datasets, not
   cropland management. Emissions from deforestation are not provided directly but

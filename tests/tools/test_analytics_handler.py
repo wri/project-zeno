@@ -134,20 +134,22 @@ async def test_merge_lgms_sections_flattens_to_category_class_table():
             "gross_emissions_MgCO2e": [3.0],
             "area_ha": [7.0],
         },
-        "agriculture": {
-            "aoi_id": ["BRA.25"],
-            "aoi_type": ["admin"],
-            "category": ["cropland"],
-            "gross_emissions_MgCO2e": [33.0],
+        "agriculture": {  # annualized, cropland + livestock
+            "aoi_id": ["BRA.25", "BRA.25"],
+            "aoi_type": ["admin", "admin"],
+            "category": ["cropland", "livestock"],
+            "year": [2020, 2020],
+            "gross_emissions_MgCO2e": [33.0, 5.0],
         },
     }
     merged = merge_lgms_sections(raw)
-    assert len(merged["category"]) == 5  # 2 + 1 + 1 + 1 rows
+    assert len(merged["category"]) == 6  # 2 + 1 + 1 + 2 rows
     assert merged["category"] == [
         "vegetation",
         "vegetation",
         "soil",
         "soil",
+        "agriculture",
         "agriculture",
     ]
     assert merged["class"] == [
@@ -156,19 +158,26 @@ async def test_merge_lgms_sections_flattens_to_category_class_table():
         "mineral",
         "organic",
         "cropland",
+        "livestock",
     ]
-    # Agriculture is labelled 2020 (its reporting year); other absent metrics
-    # are None (agriculture: removals/net flux/area; organic soil:
-    # removals/net flux).
-    assert merged["year"] == [2016, 2016, 2016, 2016, 2020]
-    assert merged["gross_removals_MgCO2"] == [-1.0, -2.0, -1.0, None, None]
-    assert merged["net_flux_MgCO2e"] == [9.0, -2.0, 4.0, None, None]
-    assert merged["area_ha"] == [100.0, 50.0, 200.0, 7.0, None]
+    # Agriculture carries its own year; absent metrics are None (agriculture:
+    # removals/net flux/area; organic soil: removals/net flux).
+    assert merged["year"] == [2016, 2016, 2016, 2016, 2020, 2020]
+    assert merged["gross_removals_MgCO2"] == [
+        -1.0,
+        -2.0,
+        -1.0,
+        None,
+        None,
+        None,
+    ]
+    assert merged["net_flux_MgCO2e"] == [9.0, -2.0, 4.0, None, None, None]
+    assert merged["area_ha"] == [100.0, 50.0, 200.0, 7.0, None, None]
     # The flat merged table then counts + name-enriches normally.
     _, count = _count_and_enrich(
         merged, [{"src_id": "BRA.25", "name": "São Paulo, Brazil"}]
     )
-    assert count == 5
+    assert count == 6
 
 
 async def test_flat_result_enriches_names_and_counts():
