@@ -9,11 +9,18 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
 from src.agent.datasets.dates import revise_date_range
-from src.agent.datasets.handlers.analytics_handler import AnalyticsHandler
+from src.agent.datasets.handlers.analytics_handler import (
+    AnalyticsHandler,
+    analytics_api_headers,
+)
 from src.agent.datasets.handlers.base import DataPullResult
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
-from src.agent.tool_spec import ToolCategory, ToolSpec
+from src.agent.tool_spec import (
+    ToolCategory,
+    ToolSpec,
+    bound_availability,
+)
 from src.api.data_models import StatisticsOrm
 from src.shared.database import get_session_from_pool
 from src.shared.logging_config import get_logger
@@ -30,7 +37,9 @@ async def fetch_statistics_from_url(source_url: str) -> dict:
     so callers never need to deal with the response envelope.
     """
     async with httpx.AsyncClient() as client:
-        response = await client.get(source_url)
+        response = await client.get(
+            source_url, headers=analytics_api_headers()
+        )
         response.raise_for_status()
         return response.json()["data"]["result"]
 
@@ -89,6 +98,28 @@ async def pull_data(
     """Pull data for the selected AOIs and dataset between start_date and end_date (YYYY-MM-DD)."""
     language = state.get("language") or DEFAULT_LANGUAGE
     dataset = state["dataset"]
+
+    # Data-layer guard: never pull a dataset the current agent profile hides,
+    # even if it reaches this tool by a path that bypassed pick_dataset's
+    # candidate filter (re-pick, /analyze, dataset persisted in state).
+    if dataset.get("dataset_name") in bound_availability().excluded_datasets:
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        await t(
+                            "pull_data.dataset_not_available",
+                            language,
+                            dataset_name=dataset["dataset_name"],
+                        ),
+                        tool_call_id=tool_call_id,
+                        status="success",
+                        response_metadata={"msg_type": "human_feedback"},
+                    )
+                ],
+            },
+        )
+
     aoi_names = [a["name"] for a in state["aoi_selection"]["aois"]]
     logger.info(
         f"PULL-DATA-TOOL: AOI: {aoi_names}, Dataset: {dataset.get('dataset_name', '')}, Start Date: {start_date}, End Date: {end_date}"

@@ -1,5 +1,6 @@
 """Tests for AgentConfig, AgentConfigRegistry, and feature flags."""
 
+import pandas as pd
 import pytest
 from langchain_core.tools import tool
 
@@ -13,6 +14,7 @@ from src.agent.agent_config import (
     default_registry,
 )
 from src.agent.skills import SkillMeta
+from src.agent.subagents.pick_dataset.tool import _drop_excluded_datasets
 from src.agent.tool_spec import ToolCategory, ToolSpec, bound_availability
 
 # --- Lightweight test fixtures -----------------------------------------------
@@ -199,6 +201,61 @@ def test_config_tool_descriptions_excludes_unbound_tool():
     assert "_fake_tool" not in c.tool_descriptions()
 
 
+# --- AgentConfig: excluded_datasets ------------------------------------------
+
+
+def test_excluded_datasets_defaults_empty():
+    """A profile that says nothing excludes no datasets."""
+    assert AgentConfig("test").excluded_datasets == frozenset()
+
+
+def test_config_rejects_unknown_dataset_name():
+    """A typo'd dataset exclusion must fail at registration, not silently
+    exclude nothing (an allow-through) the way a name that matches no catalog
+    entry would."""
+    with pytest.raises(ValueError, match="unknown dataset 'Nope Dataset'"):
+        AgentConfig("test", excluded_datasets=frozenset({"Nope Dataset"}))
+
+
+def test_excluded_datasets_not_inherited_across_extends():
+    """Unlike skills/tools, excludes do NOT accumulate: a child reveals a
+    parent-hidden dataset simply by not listing it."""
+    registry = AgentConfigRegistry()
+    registry.register(
+        AgentConfig(
+            "default", excluded_datasets=frozenset({"Tree cover loss"})
+        )
+    )
+    registry.register(AgentConfig("child", extends="default"))
+    assert registry.resolve("child").excluded_datasets == frozenset()
+
+
+def test_availability_carries_excluded_datasets():
+    """The bound ContextVar must expose the excludes so pick_dataset and
+    capabilities can read them per request."""
+    c = AgentConfig("test", excluded_datasets=frozenset({"Tree cover loss"}))
+    assert c.availability().excluded_datasets == frozenset({"Tree cover loss"})
+
+
+# --- Production wiring: Land GHG behind the flag ------------------------------
+
+
+def test_default_profile_excludes_land_ghg():
+    config = default_registry.resolve(DEFAULT_PROFILE)
+    assert (
+        "Land GHG Monitoring System (LGMS)"
+        in config.availability().excluded_datasets
+    )
+
+
+def test_experimental_profile_reveals_land_ghg():
+    config = default_registry.resolve(EXPERIMENTAL_PROFILE)
+    assert (
+        "Land GHG Monitoring System (LGMS)"
+        not in config.availability().excluded_datasets
+    )
+
+
 # --- Structural invariants ---------------------------------------------------
 
 
@@ -319,3 +376,33 @@ def test_experimental_config_adds_experimental_tools_and_skills():
     assert "show-imagery" in default_skills
     assert {"show-imagery", "explore", "wri-insights"} <= experimental_skills
     assert {"show-imagery", "explore", "wri-insights"} <= experimental_skills
+
+
+# --- excluded_datasets enforcement in pick_dataset ---------------------------
+
+
+def _candidate_datasets() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "dataset_id": [12, 6, 4],
+            "dataset_name": [
+                "Land GHG Monitoring System (LGMS)",
+                "Forest greenhouse gas net flux",
+                "Tree cover loss",
+            ],
+        }
+    )
+
+
+def test_drop_excluded_datasets_removes_named_datasets():
+    df = _drop_excluded_datasets(
+        _candidate_datasets(), frozenset({"Land GHG Monitoring System (LGMS)"})
+    )
+    names = set(df["dataset_name"])
+    assert "Land GHG Monitoring System (LGMS)" not in names
+    assert {"Forest greenhouse gas net flux", "Tree cover loss"} <= names
+
+
+def test_drop_excluded_datasets_no_excludes_keeps_all():
+    df = _drop_excluded_datasets(_candidate_datasets(), frozenset())
+    assert len(df) == 3

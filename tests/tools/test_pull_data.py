@@ -326,6 +326,69 @@ async def test_pull_data_persists_statistics(monkeypatch):
     ]
 
 
+async def test_pull_data_blocks_dataset_excluded_by_profile(monkeypatch):
+    """A dataset the current profile excludes must be refused before any
+    handler call, even if it reaches pull_data with the dataset in state."""
+    from src.agent.tool_spec import Availability, set_bound_availability
+
+    handler_called = False
+
+    class GuardOrchestrator:
+        async def pull_data(self, **kwargs):
+            nonlocal handler_called
+            handler_called = True
+            return DataPullResult(
+                success=True,
+                data={},
+                message="",
+                data_points_count=0,
+                analytics_api_url="",
+            )
+
+    monkeypatch.setattr(
+        pull_data_module, "data_pull_orchestrator", GuardOrchestrator()
+    )
+    set_bound_availability(
+        Availability(
+            frozenset(),
+            frozenset(),
+            excluded_datasets=frozenset({"Land GHG Monitoring System (LGMS)"}),
+        )
+    )
+    try:
+        command = await pull_data.ainvoke(
+            {
+                "type": "tool_call",
+                "name": "pull_data",
+                "id": "test-excluded",
+                "args": {
+                    "query": "land ghg inventory in Brazil",
+                    "tool_call_id": "test-excluded",
+                    "state": {
+                        "aoi_selection": {
+                            "name": "Brazil",
+                            "aois": [TEST_AOIS[0]],
+                        },
+                        "dataset": {
+                            "dataset_id": 12,
+                            "dataset_name": "Land GHG Monitoring System (LGMS)",
+                            "reason": "",
+                            "tile_url": "",
+                            "context_layer": None,
+                        },
+                    },
+                },
+            }
+        )
+    finally:
+        set_bound_availability(Availability(frozenset(), frozenset()))
+
+    assert handler_called is False  # blocked before the handler
+    message = command.update["messages"][0].content
+    assert "Land GHG Monitoring System (LGMS)" in message
+    assert "not available" in message.lower()
+
+
 async def test_tree_cover_loss_date_range_clamped_to_2025():
     """Regression: Tree cover loss (2001-2025) clamps input 2020-2026 to 2020-2025."""
     aoi_data = TEST_AOIS[0]  # Brazil

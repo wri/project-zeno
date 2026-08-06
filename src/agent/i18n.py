@@ -317,6 +317,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "sw": "Hakuna data iliyopatikana kwa AOI zilizochaguliwa na dataset {dataset_name}.",
         "tr": "Seçilen ilgi alanları ve {dataset_name} veri kümesi için veri bulunamadı.",
     },
+    "pull_data.dataset_not_available": {
+        "en": "{dataset_name} is not available.",
+    },
     "show_imagery.no_aoi": {
         "en": "No AOI selected. Run pick_aoi before requesting satellite imagery.",
         "es": "No se seleccionó ningún área de interés. Ejecute pick_aoi antes de solicitar imágenes satelitales.",

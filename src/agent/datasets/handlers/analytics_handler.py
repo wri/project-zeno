@@ -143,6 +143,117 @@ TREE_COVER_LOSS_BY_FIRES_ID = [
     for ds in DATASETS
     if ds["dataset_name"] == "Tree cover loss due to fires"
 ][0]
+LAND_GHG_INVENTORY_ID = [
+    ds["dataset_id"]
+    for ds in DATASETS
+    if ds["dataset_name"] == "Land GHG Monitoring System (LGMS)"
+][0]
+
+
+def _first_list_len(section: Any) -> int:
+    if isinstance(section, dict):
+        for value in section.values():
+            if isinstance(value, list):
+                return len(value)
+    return 0
+
+
+# Land GHG Monitoring System (LGMS) returns a per-section result (vegetation,
+# mineral_soil, organic_soil, agriculture). Merge it into one flat table with
+# unified `category` / `class` dimensions so it flows through the normal
+# analysis pipeline as a single table.
+LGMS_SECTION_CATEGORY = {
+    "vegetation": "vegetation",
+    "mineral_soil": "soil",
+    "organic_soil": "soil",
+    "agriculture": "agriculture",
+}
+LGMS_MERGED_COLUMNS = [
+    "aoi_id",
+    "aoi_type",
+    "category",
+    "class",
+    "year",
+    "gross_emissions_MgCO2e",
+    "gross_removals_MgCO2",
+    "net_flux_MgCO2e",
+    "area_ha",
+]
+LGMS_METRIC_COLUMNS = (
+    "gross_emissions_MgCO2e",
+    "gross_removals_MgCO2",
+    "net_flux_MgCO2e",
+    "area_ha",
+)
+
+
+def _lgms_row_class(section_name: str, row: dict) -> Any:
+    """The merged `class` value: the vegetation land-state verbatim,
+    'mineral'/'organic' for soil, the crop/livestock category for agriculture."""
+    if section_name == "vegetation":
+        return row.get("land_state_class")
+    if section_name == "mineral_soil":
+        return "mineral"
+    if section_name == "organic_soil":
+        return "organic"
+    if section_name == "agriculture":
+        return row.get("category")
+    return None
+
+
+def merge_lgms_sections(raw_data: dict) -> dict:
+    """Flatten LGMS's per-section result (vegetation, mineral_soil,
+    organic_soil, agriculture) into one column-oriented table with unified
+    `category` / `class` columns; metrics absent from a section are filled with
+    None. Applied wherever the LGMS result is read (see LAND_GHG_INVENTORY_ID
+    checks in the handler's process-response and the analyst's re-fetch)."""
+    merged: dict[str, list] = {col: [] for col in LGMS_MERGED_COLUMNS}
+    for section_name, columns in raw_data.items():
+        keys = list(columns)
+        count = len(columns[keys[0]]) if keys else 0
+        for i in range(count):
+            row = {key: columns[key][i] for key in keys}
+            merged["aoi_id"].append(row.get("aoi_id"))
+            merged["aoi_type"].append(row.get("aoi_type"))
+            merged["category"].append(
+                LGMS_SECTION_CATEGORY.get(section_name, section_name)
+            )
+            merged["class"].append(_lgms_row_class(section_name, row))
+            merged["year"].append(row.get("year"))
+            for metric in LGMS_METRIC_COLUMNS:
+                merged[metric].append(row.get(metric))
+    return merged
+
+
+def _count_and_enrich(raw_data: Any, aois: list[dict]) -> tuple[Any, int]:
+    """Count data points and add AOI names (by ``aoi_id``) to a flat result."""
+    count = _first_list_len(raw_data) if isinstance(raw_data, dict) else 0
+    if isinstance(raw_data, dict) and "aoi_id" in raw_data:
+        aois_id_to_name = {
+            format_id(item["src_id"]): item.get("name", item["src_id"]).split(
+                ","
+            )[0]
+            for item in aois
+        }
+        raw_data["name"] = [aois_id_to_name[idx] for idx in raw_data["aoi_id"]]
+    return raw_data, count
+
+
+def analytics_api_headers() -> dict[str, str]:
+    """Headers for every request to the analytics API — Bearer auth
+    (WRI_BEARER_TOKEN, now required) plus the environment selector. Read at
+    call time so the token isn't captured at import."""
+    return {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "X-environment": (
+            "production"
+            if os.getenv("GNW_STAGE", "production").strip().lower()
+            == "production"
+            else "staging"
+        ),
+        "Authorization": f"Bearer {os.getenv('WRI_BEARER_TOKEN', '')}",
+    }
 
 
 class AnalyticsHandler(DataSourceHandler):
@@ -155,17 +266,6 @@ class AnalyticsHandler(DataSourceHandler):
             "ANALYTICS_API_BASE_URL",
             "https://analytics.globalnaturewatch.org",
         )
-
-    HEADERS = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "X-environment": (
-            "production"
-            if os.getenv("GNW_STAGE", "production").strip().lower()
-            == "production"
-            else "staging"
-        ),
-    }
 
     def can_handle(self, dataset: Any) -> bool:
         """Check if this handler can process the given dataset"""
@@ -182,6 +282,7 @@ class AnalyticsHandler(DataSourceHandler):
             TREE_COVER_LOSS_BY_DRIVER_ID,
             SLUC_EMISSION_FACTORS_ID,
             TREE_COVER_LOSS_BY_FIRES_ID,
+            LAND_GHG_INVENTORY_ID,
         ]
 
     def _get_aoi_type(self, aoi: Dict) -> dict[str, str]:
@@ -348,6 +449,12 @@ class AnalyticsHandler(DataSourceHandler):
             payload = {
                 **base_payload,
             }
+        elif dataset.get("dataset_id") == LAND_GHG_INVENTORY_ID:
+            # AOI only — the endpoint returns the full series (vegetation by
+            # year + agriculture snapshot) with no date filter.
+            payload = {
+                **base_payload,
+            }
         elif dataset.get("dataset_id") == TREE_COVER_ID:
             forest_filter = None
             if dataset.get("context_layer") == "primary_forest":
@@ -402,7 +509,9 @@ class AnalyticsHandler(DataSourceHandler):
             try:
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
-                        endpoint_url, headers=self.HEADERS, json=payload
+                        endpoint_url,
+                        headers=analytics_api_headers(),
+                        json=payload,
                     )
                 if response.status_code >= 400:
                     logger.warning(
@@ -443,6 +552,7 @@ class AnalyticsHandler(DataSourceHandler):
         self,
         result: Dict,
         aois: list[dict],
+        dataset: dict,
     ) -> tuple[Any, int, str, str]:
         """Process the response data based on dataset type."""
 
@@ -458,7 +568,9 @@ class AnalyticsHandler(DataSourceHandler):
 
         download_link = data_section["link"]
         async with httpx.AsyncClient() as client:
-            response = await client.get(download_link)
+            response = await client.get(
+                download_link, headers=analytics_api_headers()
+            )
             data = response.json()
 
         if "data" not in data:
@@ -472,26 +584,12 @@ class AnalyticsHandler(DataSourceHandler):
 
         raw_data = data["data"]["result"]
 
-        # Count data points based on available arrays in the result
-        data_points_count = 0
-        if isinstance(raw_data, dict):
-            # Find the first array in the result to count data points
-            for key, value in raw_data.items():
-                if isinstance(value, list):
-                    data_points_count = len(value)
-                    break
-
+        # LGMS returns a per-section result; flatten it into one table so it
+        # flows through the normal single-table analysis path.
+        if dataset.get("dataset_id") == LAND_GHG_INVENTORY_ID:
+            raw_data = merge_lgms_sections(raw_data)
+        raw_data, data_points_count = _count_and_enrich(raw_data, aois)
         message_detail = f"Found {data_points_count} data points"
-
-        # Enrich raw_data with names
-        aois_id_to_name = {
-            format_id(item["src_id"]): item.get("name", item["src_id"]).split(
-                ","
-            )[0]
-            for item in aois
-        }
-        raw_data["name"] = [aois_id_to_name[idx] for idx in raw_data["aoi_id"]]
-        # Get analytics url from result
         analytics_url = result["data"]["link"]
 
         return raw_data, data_points_count, message_detail, analytics_url
@@ -518,7 +616,6 @@ class AnalyticsHandler(DataSourceHandler):
                 data_points_count=0,
                 analytics_api_url=None,
             )
-
         try:
             # Hydrate selected dataset with full metadata
             dataset_full = [
@@ -547,17 +644,19 @@ class AnalyticsHandler(DataSourceHandler):
                 dataset, aois, start_date, end_date
             )
 
-            # Debug logging for payload
+            headers = analytics_api_headers()
+            redacted_headers = {**headers, "Authorization": "Bearer ***"}
+            # Debug logging for payload (bearer token redacted above)
             logger.info(
                 f"Analytics API Request - Dataset: {dataset.get('dataset_name')}"
             )
             logger.info(f"Analytics API Request - URL: {endpoint_url}")
-            logger.info(f"Analytics API Request - Headers: {self.HEADERS}")
+            logger.info(f"Analytics API Request - Headers: {redacted_headers}")
             logger.info(f"Analytics API Request - Payload: {payload}")
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    endpoint_url, headers=self.HEADERS, json=payload
+                    endpoint_url, headers=headers, json=payload
                 )
 
             # Debug logging for response
@@ -620,7 +719,9 @@ class AnalyticsHandler(DataSourceHandler):
                         data_points_count,
                         message_detail,
                         analytics_url,
-                    ) = await self._process_response_data(result, aois)
+                    ) = await self._process_response_data(
+                        result, aois, dataset
+                    )
                     return DataPullResult(
                         success=True,
                         data=raw_data,
@@ -634,7 +735,7 @@ class AnalyticsHandler(DataSourceHandler):
                     data_points_count,
                     message_detail,
                     analytics_url,
-                ) = await self._process_response_data(result, aois)
+                ) = await self._process_response_data(result, aois, dataset)
                 return DataPullResult(
                     success=True,
                     data=raw_data,

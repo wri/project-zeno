@@ -110,6 +110,9 @@ DEFAULT_SKILLS = (
     "show-imagery",
     "wri-insights",
 )
+# Datasets hidden from normal traffic; revealed by opting into a flag whose
+# profile omits them (see EXPERIMENTAL_PROFILE below).
+DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 
 # Experimental, opt-in additions over the default profile.
 EXPERIMENTAL_PROFILE = "experimental"
@@ -141,6 +144,11 @@ class AgentConfig:
     skills: tuple[str, ...] = ()
     tools: tuple[ToolSpec, ...] = ()
     system_prompt: Optional[str] = field(default=None)
+    # Dataset names this profile hides from selection and the capabilities
+    # listing. Unlike skills/tools, this does NOT accumulate down the
+    # ``extends`` chain (see AgentConfigRegistry.register): a child reveals a
+    # parent-hidden dataset simply by not listing it.
+    excluded_datasets: frozenset[str] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
         for skill_name in self.skills:
@@ -156,6 +164,15 @@ class AgentConfig:
                     f"skill {skill_name!r} (declared by profile "
                     f"{self.name!r}) requires tools missing from ALL_SPECS: "
                     f"{unknown}"
+                )
+        from src.agent.datasets.config import DATASETS
+
+        catalog_names = {ds["dataset_name"] for ds in DATASETS}
+        for dataset_name in self.excluded_datasets:
+            if dataset_name not in catalog_names:
+                raise ValueError(
+                    f"profile {self.name!r} excludes unknown dataset "
+                    f"{dataset_name!r}"
                 )
 
     @property
@@ -204,6 +221,7 @@ class AgentConfig:
         return Availability(
             skills=frozenset(self.skills),
             tools=self.tool_names(),
+            excluded_datasets=self.excluded_datasets,
         )
 
     def describe(self) -> str:
@@ -337,6 +355,7 @@ default_registry.register(
         DEFAULT_PROFILE,
         extends=BASE_PROFILE,
         skills=DEFAULT_SKILLS,
+        excluded_datasets=DEFAULT_EXCLUDED_DATASETS,
     )
 )
 default_registry.register(
@@ -345,5 +364,8 @@ default_registry.register(
         extends=DEFAULT_PROFILE,
         skills=EXPERIMENTAL_SKILLS,
         tools=EXPERIMENTAL_TOOLS,
+        # Excludes are per-profile (not inherited), so an empty set here
+        # reveals the datasets that `default` hides.
+        excluded_datasets=frozenset(),
     )
 )

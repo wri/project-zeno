@@ -6,6 +6,7 @@ from src.agent.skills import (
     get_skill_body,
     load_skills,
 )
+from src.agent.skills.capabilities import load_datasets_info
 from src.agent.skills.tool import read_skill
 from src.agent.tool_spec import Availability, set_bound_availability
 
@@ -79,6 +80,24 @@ def test_capabilities_skill_includes_datasets():
     assert "{{AVAILABLE_DATASETS}}" not in body
     assert "## Available datasets" in body
     assert body.strip().startswith("# Workflow")
+
+
+def test_capabilities_listing_omits_excluded_dataset():
+    """The capabilities listing must hide datasets the current profile
+    excludes, so the agent never advertises one it can't select."""
+    set_bound_availability(
+        Availability(
+            skills=frozenset(),
+            tools=frozenset(),
+            excluded_datasets=frozenset({"Land GHG Monitoring System (LGMS)"}),
+        )
+    )
+    assert "Land GHG Monitoring System (LGMS)" not in load_datasets_info()
+
+
+def test_capabilities_listing_shows_dataset_when_not_excluded():
+    set_bound_availability(_EMPTY)
+    assert "Land GHG Monitoring System (LGMS)" in load_datasets_info()
 
 
 def test_get_skill_body():
