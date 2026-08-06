@@ -48,9 +48,6 @@ class FakeHandler(DataSourceHandler):
 
 
 class FakeChartGenerator:
-    def can_handle(self, dataset_id: int) -> bool:
-        return dataset_id == HANDLED_DATASET_ID
-
     def generate(self, rows):
         return FAKE_CHARTS
 
@@ -69,7 +66,7 @@ FAILURE_RESULT = DataPullResult(
 
 
 def make_service(handler):
-    return AnalyzeService(handler, [FakeChartGenerator()])
+    return AnalyzeService(handler, {HANDLED_DATASET_ID: FakeChartGenerator()})
 
 
 @pytest.mark.asyncio

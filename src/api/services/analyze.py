@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
+from typing import Mapping, Optional
 
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
 from src.agent.subagents.analyst.charts import InsightChart
@@ -17,7 +17,7 @@ class AnalyzeService:
     def __init__(
         self,
         handler: DataSourceHandler,
-        generators: Sequence[ChartGenerator],
+        generators: Mapping[int, ChartGenerator],
     ):
         self._handler = handler
         self._generators = generators
@@ -40,11 +40,9 @@ class AnalyzeService:
 
         charts: list[InsightChart] = []
         if result.success and result.data:
-            rows = column_to_rows(result.data)
-            for gen in self._generators:
-                if gen.can_handle(dataset_id):
-                    charts = gen.generate(rows)
-                    break
+            generator = self._generators.get(dataset_id)
+            if generator is not None:
+                charts = generator.generate(column_to_rows(result.data))
 
         source_urls = (
             [result.analytics_api_url] if result.analytics_api_url else None
