@@ -25,29 +25,87 @@ jobs:
         env:
           DEPLOY_REPO_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          # Read values.yaml from the main branch of the deploy repo using
-          # a GitHub App installation token with read-only contents access to project-zeno-deploy.
-          TAG=$(curl -s \
-            -H "Authorization: Bearer ${DEPLOY_REPO_TOKEN}" \
-            -H "Accept: application/vnd.github.v3.raw" \
-            "https://api.github.com/repos/wri/project-zeno-deploy/contents/helm/zeno/values.yaml?ref=main" \
-            | grep -E '^\s+tag:' | head -1 | awk '{print $2}')
-          echo "sha=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Production SHA: ${TAG}"
+          # Production's image tag lives in helm/zeno/values-production.yaml, which OVERRIDES
+          # the base tag in helm/zeno/values.yaml (that base tag is what staging runs). Read
+          # the override first; fall back to the base file only when production carries no
+          # override, in which case Helm's layering means production inherits the base tag.
+          #
+          # Reading the wrong file reports a wrong-but-plausible SHA and the report silently
+          # lies, so: log which file the tag came from, and fail loudly if neither yields one.
+          if ! command -v yq >/dev/null 2>&1; then
+            echo "::error::yq is required to read the Helm values (normally preinstalled on ubuntu-latest)"
+            exit 1
+          fi
+
+          # Read the exact key rather than grepping for the first `tag:` line — values.yaml
+          # also carries pgbouncer's `tag: "1.21.0"`, and relying on file ordering is fragile.
+          fetch_tag() {
+            curl -sf \
+              -H "Authorization: Bearer ${DEPLOY_REPO_TOKEN}" \
+              -H "Accept: application/vnd.github.v3.raw" \
+              "https://api.github.com/repos/wri/project-zeno-deploy/contents/$1?ref=main" \
+              | yq '.zeno.api.image.tag // ""' \
+              | tr -d '"[:space:]'
+          }
+
+          SRC="helm/zeno/values-production.yaml"
+          TAG=$(fetch_tag "$SRC")
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "No production override found in ${SRC}; falling back to the base values file."
+            SRC="helm/zeno/values.yaml"
+            TAG=$(fetch_tag "$SRC")
+          fi
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "::error::No zeno.api.image.tag found in values-production.yaml or values.yaml"
+            exit 1
+          fi
+
+          echo "sha=${TAG}"    >> "$GITHUB_OUTPUT"
+          echo "source=${SRC}" >> "$GITHUB_OUTPUT"
+          echo "Production image tag: ${TAG} (from ${SRC})" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Compare and score commits
         id: compare
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROD_SHA: ${{ steps.prod.outputs.sha }}
         run: |
-          PROD_SHA="${{ steps.prod.outputs.sha }}"
-          RESPONSE=$(gh api "repos/wri/project-zeno/compare/${PROD_SHA}...main")
+          # Production is frequently pinned to the tip of a release-* branch rather than to a
+          # commit on main (see docker-build-release-branch.yml), so never assume PROD_SHA is
+          # reachable from main. Resolve it as a commit in this repo and fail loudly if it
+          # isn't one — that means the deploy repo holds a tag we can't map to source.
+          if ! PROD_COMMIT=$(gh api "repos/wri/project-zeno/commits/${PROD_SHA}" 2>/dev/null); then
+            echo "::error::Production tag '${PROD_SHA}' does not resolve to a commit in wri/project-zeno"
+            exit 1
+          fi
+          PROD_FULL=$(jq -r '.sha'                              <<<"$PROD_COMMIT")
+          PROD_DATE=$(jq -r '.commit.author.date'               <<<"$PROD_COMMIT")
+          PROD_MSG=$(jq  -r '.commit.message | split("\n")[0]'  <<<"$PROD_COMMIT")
 
-          PROD_DATE=$(gh api "repos/wri/project-zeno/commits/${PROD_SHA}" --jq '.commit.author.date')
-          PROD_MSG=$(gh api  "repos/wri/project-zeno/commits/${PROD_SHA}" --jq '.commit.message | split("\n")[0]')
-          LATEST_SHA=$(echo "$RESPONSE"  | jq -r '.commits[-1].sha[0:8]')
-          LATEST_MSG=$(echo "$RESPONSE"  | jq -r '.commits[-1].commit.message | split("\n")[0]')
-          LATEST_DATE=$(echo "$RESPONSE" | jq -r '.commits[-1].commit.author.date')
+          # Name the branch production is pinned to, when the commit is a branch tip. Purely
+          # informational, so a miss here must not fail the report.
+          PROD_REF=$(gh api "repos/wri/project-zeno/commits/${PROD_FULL}/branches-where-head" \
+            --jq '[.[].name] | join(", ")' 2>/dev/null || echo "")
+
+          # Three-dot compare measures from the merge base, which is what we want: it answers
+          # "what does main have that production doesn't", regardless of which branch
+          # production sits on. behind_by is the mirror — release-branch commits not on main.
+          if ! RESPONSE=$(gh api "repos/wri/project-zeno/compare/${PROD_FULL}...main" 2>&1); then
+            echo "::error::compare ${PROD_FULL}...main failed — is the production commit still reachable (branch deleted or force-pushed)? ${RESPONSE}"
+            exit 1
+          fi
+          AHEAD_BY=$(jq  -r '.ahead_by'        <<<"$RESPONSE")
+          BEHIND_BY=$(jq -r '.behind_by'       <<<"$RESPONSE")
+          RETURNED=$(jq  -r '.commits | length' <<<"$RESPONSE")
+          echo "compare status=$(jq -r '.status' <<<"$RESPONSE") ahead_by=${AHEAD_BY} behind_by=${BEHIND_BY} commits_returned=${RETURNED}"
+
+          # Read "latest on main" from main itself, not from .commits[-1]: that element is null
+          # when production is level with main (an empty commits array), and it is the wrong
+          # commit entirely once the range exceeds the compare API's 250-commit cap.
+          LATEST=$(gh api "repos/wri/project-zeno/commits/main")
+          LATEST_SHA=$(jq  -r '.sha[0:8]'                        <<<"$LATEST")
+          LATEST_MSG=$(jq  -r '.commit.message | split("\n")[0]' <<<"$LATEST")
+          LATEST_DATE=$(jq -r '.commit.author.date'              <<<"$LATEST")
 
           # Filtered commits as JSON array, newest first
           FILTERED=$(echo "$RESPONSE" | jq '[
@@ -111,11 +169,35 @@ jobs:
           done < <(sort -t$'\t' -k1 -rn "$SCORED_FILE")
           rm -f "$SCORED_FILE"
 
-          # Append overflow notice (risk score still reflects ALL commits)
+          # Notices go ABOVE the bullet list, not below it: Slack caps a section at 3000 chars and
+          # a long list is exactly when these counts matter, so appending them means they get
+          # chopped off precisely in the cases they exist to report.
+          NOTICES=""
+
+          # The compare API returns at most 250 commits even when ahead_by is larger, so say so
+          # rather than quietly under-reporting the gap.
+          if [ "$RETURNED" -lt "$AHEAD_BY" ]; then
+            NOTICES="${NOTICES}:warning: *GitHub's compare API capped the response at ${RETURNED} of ${AHEAD_BY} commits* — counts and scores cover only those."$'\n'
+          fi
+
+          # Overflow notice (risk score still reflects ALL scored commits)
           if [ "$AHEAD" -gt "$MAX_DISPLAY" ]; then
             OVERFLOW=$(( AHEAD - MAX_DISPLAY ))
-            BULLETS="${BULLETS}"$'\n'":radioactive_sign: *…and ${OVERFLOW} more commits not shown.* Risk score above reflects all ${AHEAD} commits."$'\n'
+            NOTICES="${NOTICES}:radioactive_sign: *…and ${OVERFLOW} more commits not listed below.* Risk score reflects all ${AHEAD} commits."$'\n'
           fi
+
+          [ -n "$NOTICES" ] && BULLETS="${NOTICES}"$'\n'"${BULLETS}"
+
+          # Production level with main is a valid (good) outcome, not an error. Slack rejects
+          # empty section text, so give the block something to render.
+          if [ -z "$BULLETS" ]; then
+            BULLETS="_None — production is level with \`main\`._"$'\n'
+          fi
+
+          # A GITHUB_OUTPUT heredoc needs its delimiter alone on a line. BULLETS is written with
+          # `printf '%s'`, so a value not ending in a newline puts EOF on the text's last line and
+          # silently swallows every output written after it.
+          [ "${BULLETS: -1}" = $'\n' ] || BULLETS="${BULLETS}"$'\n'
 
           # Aggregate risk rating (integer math, no bc needed)
           if [ "$AHEAD" -gt 0 ]; then
@@ -137,7 +219,9 @@ jobs:
           RISK_SUMMARY="${RISK_LABEL} — total score ${TOTAL_RISK} across ${AHEAD} commits (avg ${AVG_RISK}/commit)"
 
           echo "ahead=${AHEAD}"               >> "$GITHUB_OUTPUT"
-          echo "prod_sha=${PROD_SHA:0:8}"     >> "$GITHUB_OUTPUT"
+          echo "behind=${BEHIND_BY}"          >> "$GITHUB_OUTPUT"
+          echo "prod_sha=${PROD_FULL:0:8}"    >> "$GITHUB_OUTPUT"
+          echo "prod_ref=${PROD_REF}"         >> "$GITHUB_OUTPUT"
           echo "prod_date=${PROD_DATE}"       >> "$GITHUB_OUTPUT"
           echo "prod_msg=${PROD_MSG}"         >> "$GITHUB_OUTPUT"
           echo "latest_sha=${LATEST_SHA}"     >> "$GITHUB_OUTPUT"
@@ -158,7 +242,9 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           AHEAD: ${{ steps.compare.outputs.ahead }}
+          BEHIND: ${{ steps.compare.outputs.behind }}
           PROD_SHA: ${{ steps.compare.outputs.prod_sha }}
+          PROD_REF: ${{ steps.compare.outputs.prod_ref }}
           PROD_DATE: ${{ steps.compare.outputs.prod_date }}
           PROD_MSG: ${{ steps.compare.outputs.prod_msg }}
           LATEST_SHA: ${{ steps.compare.outputs.latest_sha }}
@@ -174,6 +260,8 @@ jobs:
           PROD_TS=$(date -d "$PROD_DATE_FMT" +%s)
           LATEST_TS=$(date -d "$LATEST_DATE_FMT" +%s)
           DAYS=$(( (LATEST_TS - PROD_TS) / 86400 ))
+          # A release-branch pin can be newer than main's tip, which would print "~-3 days".
+          [ "$DAYS" -lt 0 ] && DAYS=0
 
           if [ "$AHEAD" -eq 0 ]; then
             HEADER=":white_check_mark: *Horizon production is up to date* — no unreleased commits on \`main\`."
@@ -188,6 +276,21 @@ jobs:
 
           COMPARE_URL="https://github.com/wri/project-zeno/compare/${PROD_SHA}...main"
 
+          # Production is usually pinned to a release-* branch tip, so name that branch when we
+          # know it — an unlabelled SHA that isn't on main is hard to place.
+          PROD_FIELD="*Production commit*"$'\n'"\`${PROD_SHA}\` ${PROD_MSG}"$'\n'"_${PROD_DATE_FMT}_"
+          if [ -n "$PROD_REF" ]; then
+            PROD_FIELD="${PROD_FIELD}"$'\n'"_deployed from \`${PROD_REF}\`_"
+          fi
+
+          # When production runs a release branch it can carry commits main never got (hotfixes,
+          # cherry-picks). That is not lag, but it is worth flagging: those commits are at risk
+          # of being lost if nobody back-merges them.
+          NOTE=""
+          if [ "$BEHIND" -gt 0 ]; then
+            NOTE=":information_source: Production also carries *${BEHIND} commit(s) not on \`main\`* — check they are back-merged. The lag count below only covers what \`main\` has that production doesn't."
+          fi
+
           LEGEND=":white_check_mark: 0 commits — up to date    :large_yellow_circle: 1–9 commits — mild lag    :red_circle: 10+ commits — significant lag"
           LEGEND="${LEGEND}"$'\n'"*Commit risk score (1–5):* :white_circle: 1 trivial (<20 lines)  :large_yellow_circle: 2 small (<100)  :large_orange_circle: 3–4 medium/large (<500)  :red_circle: 5 critical (500+ lines or touches migrations/schema/auth)"
           LEGEND="${LEGEND}"$'\n'"_Merge commits, version bumps, and lockfile syncs are excluded._"
@@ -196,14 +299,14 @@ jobs:
           # Truncate bullets to 2950 chars (leaves room for the header prefix).
           BULLETS_TEXT="*Unreleased commits (highest risk first)*"$'\n'"$BULLETS"
           if [ "${#BULLETS_TEXT}" -gt 2950 ]; then
-            BULLETS_TEXT="${BULLETS_TEXT:0:2900}"$'\n_(truncated)_'
+            BULLETS_TEXT="${BULLETS_TEXT:0:2900}"
+            BULLETS_TEXT="${BULLETS_TEXT%$'\n'*}"$'\n_(truncated)_'   # drop the half-cut last line
           fi
 
           PAYLOAD=$(jq -n \
             --arg header       "$HEADER" \
-            --arg prod_sha     "$PROD_SHA" \
-            --arg prod_msg     "$PROD_MSG" \
-            --arg prod_date    "$PROD_DATE_FMT" \
+            --arg prod_field   "$PROD_FIELD" \
+            --arg note         "$NOTE" \
             --arg latest_sha   "$LATEST_SHA" \
             --arg latest_msg   "$LATEST_MSG" \
             --arg latest_date  "$LATEST_DATE_FMT" \
@@ -225,11 +328,14 @@ jobs:
                     text: { type: "mrkdwn", text: $legend }
                   },
                   { type: "divider" },
+                  (if $note == "" then empty else
+                    { type: "section", text: { type: "mrkdwn", text: $note } }
+                  end),
                   {
                     type: "section",
                     fields: [
-                      { type: "mrkdwn", text: ("*Production commit*\n`" + $prod_sha + "` " + $prod_msg + "\n_" + $prod_date + "_") },
-                      { type: "mrkdwn", text: ("*Latest on main*\n`"    + $latest_sha + "` " + $latest_msg + "\n_" + $latest_date + "_") }
+                      { type: "mrkdwn", text: $prod_field },
+                      { type: "mrkdwn", text: ("*Latest on main*\n`" + $latest_sha + "` " + $latest_msg + "\n_" + $latest_date + "_") }
                     ]
                   },
                   {
