@@ -42,7 +42,12 @@ class TCLChartGenerator(ChartGenerator):
         return dataset_id == self.dataset_id
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
-        rows = [r for r in rows if r.get("area_ha") != 0]
+        # The analytics API returns rows in arbitrary order; sort by year so
+        # the chart's category x-axis reads 2001 → 2025 rather than a shuffle.
+        rows = sorted(
+            (r for r in rows if r.get("area_ha") != 0),
+            key=lambda r: r.get("tree_cover_loss_year") or 0,
+        )
         return [
             InsightChart(
                 position=0,

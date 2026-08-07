@@ -64,6 +64,25 @@ def test_drops_rows_where_area_ha_is_zero():
             assert row["area_ha"] != 0
 
 
+def test_sorts_rows_by_year():
+    # The analytics API returns rows in arbitrary order (e.g. 2004 first,
+    # 2023 last); the chart must come out year-ascending or the frontend's
+    # category x-axis renders the years shuffled.
+    scrambled = column_to_rows(
+        {
+            "tree_cover_loss_year": [2004, 2021, 2001, 2023, 2010],
+            "area_ha": [100.0, 200.0, 300.0, 400.0, 500.0],
+            "carbon_emissions_MgCO2e": [50.0, 100.0, 150.0, 200.0, 250.0],
+            "aoi_id": ["BRA"] * 5,
+            "aoi_type": ["admin"] * 5,
+        }
+    )
+    charts = TCLChartGenerator(TREE_COVER_LOSS_ID).generate(scrambled)
+    for chart in charts:
+        years = [row["tree_cover_loss_year"] for row in chart.chart_data]
+        assert years == [2001, 2004, 2010, 2021, 2023]
+
+
 # --- Integrated Alerts -------------------------------------------------------
 IA_DATA = {
     "alert_date": ["2024-03-01", "2024-03-20", "2024-04-05", "2024-04-18"],
