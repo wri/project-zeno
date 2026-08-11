@@ -1216,6 +1216,17 @@ def build_aois_command(
                     text("SELECT count(*) FROM user_aois")
                 )
                 click.echo(f"   user_aois: {links_total.scalar()}")
+
+            # Refresh the planner statistics. After a bulk insert the planner
+            # has no statistics for the new rows until autoanalyze runs, and
+            # until then it does not use the indexes on aois. Skipped under
+            # --dry-run, which rolls every source back.
+            if committed:
+                async with db.async_session() as session:
+                    await session.execute(text("ANALYZE aois"))
+                    await session.execute(text("ANALYZE user_aois"))
+                    await session.commit()
+                click.echo("\n📈 Planner statistics refreshed.")
         except Exception:
             if committed:
                 click.echo(
