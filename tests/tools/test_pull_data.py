@@ -48,26 +48,6 @@ ALL_DATASET_COMBINATIONS = [
         "context_layer": None,
     },
     {
-        "dataset_id": 0,
-        "dataset_name": "Ecosystem disturbance alerts",
-        "context_layer": "driver",
-    },
-    {
-        "dataset_id": 0,
-        "dataset_name": "Ecosystem disturbance alerts",
-        "context_layer": "natural_lands",
-    },
-    {
-        "dataset_id": 0,
-        "dataset_name": "Ecosystem disturbance alerts",
-        "context_layer": "grasslands",
-    },
-    {
-        "dataset_id": 0,
-        "dataset_name": "Ecosystem disturbance alerts",
-        "context_layer": "land_cover",
-    },
-    {
         "dataset_id": 1,
         "dataset_name": "Global land cover",
         "context_layer": None,

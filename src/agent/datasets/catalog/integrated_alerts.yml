@@ -37,11 +37,10 @@ selection_hints: >-
   measured in hectares. Integrates DIST-ALERT, GLAD-L, GLAD-S2 and RADD into one layer, detecting disturbance faster
   than any single system. Provides low, high, and highest confidence alerts (highest = confirmed by multiple systems).
   Reports TOTAL disturbed area across ALL vegetation — it is NOT filtered to forests or any ecosystem, and has NO
-  context layers / intersections. PREFER this for a plain recent-disturbance/clearing/deforestation-alert query over a
-  whole area. Use DIST-ALERT instead whenever the user wants alerts RESTRICTED TO or BROKEN DOWN BY a specific ecosystem
-  or class — forests, natural forests, natural lands / natural areas, grasslands, a land-cover class, or a driver/cause
-  (DIST-ALERT's natural_lands / grasslands / land_cover / driver context layers). For historical or long-term tree cover
-  change, prefer Tree Cover Loss; for driver attribution of tree cover loss, prefer Tree Cover Loss by Dominant Driver.
+  context layers / intersections. Prefer this for recent-disturbance/clearing/deforestation-alert queries. DIST-ALERT
+  remains available but also has no context-layer breakdowns (natural_lands / grasslands / land_cover / driver). For
+  historical or long-term tree cover change, prefer Tree Cover Loss; for driver attribution of tree cover loss, prefer
+  Tree Cover Loss by Dominant Driver.
 code_instructions: |-
   CHART TYPES — generate EXACTLY ONE chart for Integrated alerts, chosen by the query; never emit both a pie and a line:
   - Totals / breakdown by confidence → PIE chart, one slice per confidence tier (low, high, highest), value = total area_ha summed over the period

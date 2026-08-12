@@ -418,10 +418,13 @@ async def test_queries_return_expected_dataset(
 @pytest.mark.parametrize(
     "query,expected_dataset_id,expected_context_layer",
     [
-        # DIST-ALERT is selected (over Integrated Alerts) when the query needs
-        # a context-layer breakdown that Integrated Alerts cannot provide.
-        ("Vegetation disturbances by natural lands", 0, "natural_lands"),
-        ("Vegetation disturbances over grasslands", 0, "grasslands"),
+        # Former DIST context-layer phrasings ask for an intersection no dataset
+        # provides any more. The selector declines rather than substituting a
+        # dataset that cannot answer: no dataset, no context layer. (It either
+        # raises a dataset_choice nudge or reports "No dataset selected"; both
+        # leave the dataset slot empty, which is what this asserts.)
+        ("Vegetation disturbances by natural lands", None, None),
+        ("Vegetation disturbances over grasslands", None, None),
         ("Tree cover loss by driver", 8, "driver"),
         ("Tree cover loss in primary forest", 4, "primary_forest"),
         ("Tree cover loss in intact forest", 4, "intact_forest"),
@@ -744,11 +747,11 @@ async def test_hallucinated_parameter_is_discarded(
 
 
 async def test_valid_context_layer_is_preserved():
-    """Verify that a valid context_layer (e.g. 'driver' for DIST-ALERT) is kept."""
+    """Verify that a valid context_layer (e.g. 'primary_forest' for TCL) is kept."""
     import pandas as pd
 
-    fake_selection = _make_fake_selection(0, "driver")
-    candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 0])
+    fake_selection = _make_fake_selection(4, "primary_forest")
+    candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 4])
     tool_call_id = str(uuid.uuid4())
 
     with (
@@ -768,9 +771,9 @@ async def test_valid_context_layer_is_preserved():
             "name": "pick_dataset",
             "id": tool_call_id,
             "args": {
-                "query": "disturbance alerts by driver",
-                "start_date": "2024-01-01",
-                "end_date": "2024-12-31",
+                "query": "tree cover loss in primary forest",
+                "start_date": "2022-01-01",
+                "end_date": "2022-12-31",
                 "state": dict(),
                 "tool_call_id": tool_call_id,
             },
@@ -779,7 +782,7 @@ async def test_valid_context_layer_is_preserved():
         command = await pick_dataset.ainvoke(tool_call)
 
     result_layer = command.update.get("dataset", {}).get("context_layer")
-    assert result_layer == "driver"
+    assert result_layer == "primary_forest"
 
 
 async def test_tcl_by_driver_always_gets_driver_context_layer(state):
