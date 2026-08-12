@@ -389,6 +389,118 @@ async def test_pull_data_blocks_dataset_excluded_by_profile(monkeypatch):
     assert "not available" in message.lower()
 
 
+class TestMissingSelectionGuards:
+    """A *_choice nudge records options, not a selection, and the user's click
+    arrives as plain text — so pull_data can be reached with `aoi_selection` or
+    `dataset` never written. It must answer, not KeyError."""
+
+    DATASET = {
+        "dataset_id": 0,
+        "dataset_name": "Tree cover loss",
+        "reason": "",
+        "tile_url": "",
+        "context_layer": None,
+    }
+
+    @staticmethod
+    async def _invoke(state, monkeypatch):
+        called = False
+
+        class GuardOrchestrator:
+            async def pull_data(self, **kwargs):
+                nonlocal called
+                called = True
+                raise AssertionError("handler must not run")
+
+        monkeypatch.setattr(
+            pull_data_module, "data_pull_orchestrator", GuardOrchestrator()
+        )
+        command = await pull_data.ainvoke(
+            {
+                "type": "tool_call",
+                "name": "pull_data",
+                "id": "test-missing",
+                "args": {
+                    "query": "tree cover loss",
+                    "tool_call_id": "test-missing",
+                    "state": state,
+                },
+            }
+        )
+        return command, called
+
+    async def test_missing_aoi_selection_returns_feedback(self, monkeypatch):
+        """Production KeyError: 'aoi_selection' — pick_aoi returned an
+        aoi_choice nudge, the user clicked an option, and the model called
+        pull_data instead of re-resolving it."""
+        command, called = await self._invoke(
+            {"dataset": self.DATASET}, monkeypatch
+        )
+
+        assert called is False
+        message = command.update["messages"][0]
+        assert message.status == "success"
+        assert "pick_aoi" in message.content
+        # No selection was written, so the turn must not claim one.
+        assert "aoi_selection" not in command.update
+
+    async def test_missing_dataset_returns_feedback(self, monkeypatch):
+        command, called = await self._invoke(
+            {"aoi_selection": {"name": "Brazil", "aois": [TEST_AOIS[0]]}},
+            monkeypatch,
+        )
+
+        assert called is False
+        assert "pick_dataset" in command.update["messages"][0].content
+
+    async def test_empty_aois_list_is_treated_as_missing(self, monkeypatch):
+        """`aoi_selection` present but with no areas still can't be pulled."""
+        command, called = await self._invoke(
+            {
+                "dataset": self.DATASET,
+                "aoi_selection": {"name": "Paris", "aois": []},
+            },
+            monkeypatch,
+        )
+
+        assert called is False
+        assert "pick_aoi" in command.update["messages"][0].content
+
+    async def test_pending_aoi_choice_is_surfaced_to_the_model(
+        self, monkeypatch
+    ):
+        """The reply names the pending options so the model re-resolves the
+        user's click rather than guessing a different AOI."""
+        options = [
+            "Paris, Île-de-France, France - (district-county) [FRA]",
+            "Paris, Texas, United States - (district-county) [USA]",
+        ]
+        command, _ = await self._invoke(
+            {
+                "dataset": self.DATASET,
+                "nudge": {"type": "aoi_choice", "options": options},
+            },
+            monkeypatch,
+        )
+
+        content = command.update["messages"][0].content
+        assert all(option in content for option in options)
+        assert "pick_aoi" in content
+
+    async def test_unrelated_pending_nudge_is_not_surfaced(self, monkeypatch):
+        """Only a matching nudge type is echoed; a stale dataset_choice is not
+        evidence about the AOI."""
+        command, _ = await self._invoke(
+            {
+                "dataset": self.DATASET,
+                "nudge": {"type": "dataset_choice", "options": ["Tree cover"]},
+            },
+            monkeypatch,
+        )
+
+        assert "Tree cover" not in command.update["messages"][0].content
+
+
 async def test_tree_cover_loss_date_range_clamped_to_2025():
     """Regression: Tree cover loss (2001-2025) clamps input 2020-2026 to 2020-2025."""
     aoi_data = TEST_AOIS[0]  # Brazil

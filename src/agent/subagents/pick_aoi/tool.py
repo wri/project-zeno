@@ -343,6 +343,17 @@ async def check_multiple_matches(
 
 
 def _format_aoi_candidate(candidate: dict) -> str:
+    """Render one aoi_choice option.
+
+    The leading `name` is load-bearing and must stay the full comma-joined
+    hierarchy ("Paris, Île-de-France, France"), not the bare leaf. Clicking an
+    option resubmits this string, which pick_aoi re-resolves by trigram
+    similarity against the same `name` column (see search_aois): the full
+    hierarchy scores 1.0 on the intended row and drops same-name rows in other
+    countries below pg_trgm's 0.2 threshold, so check_duplicate_aois finds no
+    rivals and the nudge does not re-fire. A bare "Paris" would match every
+    Paris again and re-offer the same choice indefinitely.
+    """
     return (
         f"{candidate['name']} - ({candidate['subtype']}) "
         f"[{candidate['src_id'].split('.')[0]}]"
