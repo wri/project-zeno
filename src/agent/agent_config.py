@@ -6,8 +6,8 @@ Profiles form a chain, each one a small delta on its parent:
                    generate_insights), no skills. Ships on its own so raw
                    tool-calling can be evaluated without recipe guidance.
     default      — base + the core skills (analyze, pull-data, capabilities,
-                   wri-insights).
-    experimental — default + opt-in skills and standalone tools.
+                   show-imagery, wri-insights, dashboard, explore).
+    experimental — default + standalone tools not yet owned by any skill.
 
 An ``AgentConfig`` declares three things:
 
@@ -109,19 +109,21 @@ DEFAULT_SKILLS = (
     "capabilities",
     "show-imagery",
     "wri-insights",
+    "dashboard",
+    "explore",
 )
 # Datasets hidden from normal traffic; revealed by opting into a flag whose
 # profile omits them (see EXPERIMENTAL_PROFILE below).
 DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 
-# Experimental, opt-in additions over the default profile.
+# Experimental additions over the default profile: standalone tools not yet
+# owned by any skill's workflow. No opt-in skills remain here — the last two
+# (dashboard, explore) graduated to DEFAULT_SKILLS above.
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = ("dashboard", "explore")
+EXPERIMENTAL_SKILLS = ()
 EXPERIMENTAL_TOOLS = (
     inspect_view_context_spec,
     update_insight_display_spec,
-    search_insights_spec,
-    send_nudge_spec,
 )
 
 

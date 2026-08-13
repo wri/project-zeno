@@ -277,12 +277,12 @@ def test_get_prompt_has_no_per_skill_routing_rows():
 def test_get_prompt_routing_gates_recall_row_on_search_insights():
     """The recall row routes to the search_insights tool; a profile that
     doesn't bind it must not see the row."""
-    from src.agent.agent_config import EXPERIMENTAL_PROFILE, default_registry
+    from src.agent.agent_config import BASE_PROFILE, default_registry
     from src.agent.graph import get_prompt
 
-    default_prompt = get_prompt()
-    assert "Recall a past insight" not in default_prompt
-    assert "search_insights" not in default_prompt
+    base_prompt = get_prompt(config=default_registry.resolve(BASE_PROFILE))
+    assert "Recall a past insight" not in base_prompt
+    assert "search_insights" not in base_prompt
 
-    experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
-    assert "Recall a past insight" in get_prompt(config=experimental)
+    default_prompt = get_prompt()
+    assert "Recall a past insight" in default_prompt

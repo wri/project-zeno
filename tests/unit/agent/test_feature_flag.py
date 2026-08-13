@@ -310,6 +310,13 @@ def test_default_profile_derives_exactly_the_core_tools():
             "read_skill",
             "search_blogs",
             "show_imagery",
+            "search_insights",
+            "create_dashboard",
+            "add_to_dashboard",
+            "add_map_widget",
+            "add_text_widget",
+            "edit_text_widget",
+            "send_nudge",
         }
     )
 
@@ -360,22 +367,29 @@ async def test_fetch_zeno_binds_the_resolved_configs_availability():
     assert available.tools == frozenset({"_fake_tool", "read_skill"})
 
 
-def test_experimental_config_adds_experimental_tools_and_skills():
-    """The experimental profile layers dashboard and explore on top of the
-    default set (which already has show-imagery)."""
+def test_experimental_config_adds_only_standalone_tools():
+    """dashboard and explore graduated into the default set; experimental now
+    layers only standalone tools not yet owned by any skill."""
     default = default_registry.resolve(DEFAULT_PROFILE)
     experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
 
     default_tools = {t.name for t in default.bound_tools()}
     experimental_tools = {t.name for t in experimental.bound_tools()}
-    assert "show_imagery" in default_tools
-    assert {"show_imagery", "search_blogs"} <= experimental_tools
+    assert {
+        "show_imagery",
+        "search_blogs",
+        "add_to_dashboard",
+    } <= default_tools
+    assert {"inspect_view_context", "update_insight_display"} <= (
+        experimental_tools - default_tools
+    )
 
     default_skills = {s.name for s in default.skill_metas()}
     experimental_skills = {s.name for s in experimental.skill_metas()}
-    assert "show-imagery" in default_skills
-    assert {"show-imagery", "explore", "wri-insights"} <= experimental_skills
-    assert {"show-imagery", "explore", "wri-insights"} <= experimental_skills
+    assert {"show-imagery", "explore", "wri-insights", "dashboard"} <= (
+        default_skills
+    )
+    assert experimental_skills == default_skills
 
 
 # --- excluded_datasets enforcement in pick_dataset ---------------------------

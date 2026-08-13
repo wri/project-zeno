@@ -140,9 +140,9 @@ def test_get_prompt_includes_surface_section_only_for_known_pages():
     assert "add_to_dashboard, which defaults to the dashboard" in dashboard
     # The rest of the prompt is unchanged.
     assert "# Routing" in dashboard
-    # The default profile has no dashboard tools, so the dashboard skill
-    # is unavailable — the surface section must not point at it.
-    assert "skill `dashboard`" not in dashboard
+    # The default profile carries the dashboard skill, so the surface
+    # section points at it.
+    assert "skill `dashboard`" in dashboard
 
     assert "# Current surface" not in get_prompt(page="sandbox")
 
@@ -154,3 +154,14 @@ def test_get_prompt_dashboard_surface_names_the_skill_when_available():
     config = default_registry.resolve(EXPERIMENTAL_PROFILE)
     dashboard = get_prompt(config=config, page="dashboard")
     assert "skill `dashboard`" in dashboard
+
+
+def test_get_prompt_dashboard_surface_omits_skill_when_unavailable():
+    """A leaner profile without the dashboard skill's tools bound must not be
+    told to read it — read_skill would just refuse."""
+    from src.agent.agent_config import BASE_PROFILE, default_registry
+    from src.agent.graph import get_prompt
+
+    config = default_registry.resolve(BASE_PROFILE)
+    dashboard = get_prompt(config=config, page="dashboard")
+    assert "skill `dashboard`" not in dashboard
