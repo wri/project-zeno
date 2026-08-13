@@ -107,9 +107,8 @@ def _human_feedback(content: str, tool_call_id: Optional[str]) -> Command:
 
 
 # English-only (guidance for the model, not user-facing prose). A pending
-# *_choice nudge records the options that were offered, never a selection —
-# the user's reply is one of those option strings and still has to go through
-# pick_aoi/pick_dataset before it reaches state.
+# *_choice nudge records the offered options, never a selection — the user's
+# reply still has to go through pick_aoi/pick_dataset to reach state.
 _PENDING_CHOICE_NOTE = (
     "\n\n(A {nudge_type} nudge is still pending, offering: {options}. The "
     "user's last message is their pick among these — pass it to {resolver} "
@@ -142,12 +141,10 @@ async def pull_data(
     language = state.get("language") or DEFAULT_LANGUAGE
 
     # Selection guards. pick_aoi/pick_dataset can end a turn with a *_choice
-    # nudge instead of a selection — they write `nudge`, not `aoi_selection`/
-    # `dataset` — and the user's click comes back as plain message text, so the
-    # model can reach this tool believing a choice was made while state still
-    # holds nothing. Answer with feedback rather than KeyError: an unhandled
-    # crash reaches the model as an opaque "failed unexpectedly" and it retries
-    # blind (see TICKET_AOI_RETRY_LOOP.md).
+    # nudge instead of a selection, and the user's click comes back as plain
+    # message text — so the model can reach this tool while state holds no
+    # AOI/dataset. Answer with feedback instead of a KeyError, which the
+    # model would see as an opaque failure and retry blind.
     dataset = state.get("dataset") or {}
     if not dataset:
         return _human_feedback(
