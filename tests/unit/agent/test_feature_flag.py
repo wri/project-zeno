@@ -310,6 +310,7 @@ def test_default_profile_derives_exactly_the_core_tools():
             "read_skill",
             "search_blogs",
             "show_imagery",
+            "search_insights",
             "create_dashboard",
             "add_to_dashboard",
             "add_map_widget",

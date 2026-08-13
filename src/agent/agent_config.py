@@ -124,7 +124,6 @@ EXPERIMENTAL_SKILLS = ()
 EXPERIMENTAL_TOOLS = (
     inspect_view_context_spec,
     update_insight_display_spec,
-    search_insights_spec,
 )
 
 

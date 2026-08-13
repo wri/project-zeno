@@ -11,7 +11,7 @@ base         core toolbox (pick_aoi, pick_dataset, pull_data, generate_insights)
   └─ default       base + core skills (analyze, pull-data, capabilities, show-imagery,
                     wri-insights, dashboard, explore)
        └─ experimental  default + standalone tools not yet owned by any skill
-                        (inspect_view_context, update_insight_display, search_insights)
+                        (inspect_view_context, update_insight_display)
 ```
 
 `base` ships as its own flag so raw tool-calling can be evaluated without recipe guidance. `default` is what unknown or absent `ff` values fall back to. Each production profile's full derived surface (skills, subagents, tools) is snapshot-tested in `tests/unit/agent/test_profile_manifest.py` — run `config.describe()` to see it, and update the snapshot when you change a profile on purpose.
