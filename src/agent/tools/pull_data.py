@@ -86,6 +86,48 @@ class DataPullOrchestrator:
 data_pull_orchestrator = DataPullOrchestrator()
 
 
+def _human_feedback(content: str, tool_call_id: Optional[str]) -> Command:
+    """A tool result the user sees and the turn stops on — not an error.
+
+    status="success" keeps it out of the tool-error funnel in
+    src.agent.graph; msg_type marks it for the frontend.
+    """
+    return Command(
+        update={
+            "messages": [
+                ToolMessage(
+                    content,
+                    tool_call_id=tool_call_id,
+                    status="success",
+                    response_metadata={"msg_type": "human_feedback"},
+                )
+            ],
+        },
+    )
+
+
+# English-only (guidance for the model, not user-facing prose). A pending
+# *_choice nudge records the offered options, never a selection — the user's
+# reply still has to go through pick_aoi/pick_dataset to reach state.
+_PENDING_CHOICE_NOTE = (
+    "\n\n(A {nudge_type} nudge is still pending, offering: {options}. The "
+    "user's last message is their pick among these — pass it to {resolver} "
+    "to resolve it, then call pull_data again.)"
+)
+
+
+def _pending_choice_note(state: Dict, nudge_type: str, resolver: str) -> str:
+    nudge = state.get("nudge") or {}
+    options = nudge.get("options") or []
+    if nudge.get("type") != nudge_type or not options:
+        return ""
+    return _PENDING_CHOICE_NOTE.format(
+        nudge_type=nudge_type,
+        options="; ".join(str(o) for o in options),
+        resolver=resolver,
+    )
+
+
 @tool("pull_data")
 async def pull_data(
     query: str,
@@ -97,27 +139,38 @@ async def pull_data(
 ) -> Command:
     """Pull data for the selected AOIs and dataset between start_date and end_date (YYYY-MM-DD)."""
     language = state.get("language") or DEFAULT_LANGUAGE
-    dataset = state["dataset"]
+
+    # Selection guards. pick_aoi/pick_dataset can end a turn with a *_choice
+    # nudge instead of a selection, and the user's click comes back as plain
+    # message text — so the model can reach this tool while state holds no
+    # AOI/dataset. Answer with feedback instead of a KeyError, which the
+    # model would see as an opaque failure and retry blind.
+    dataset = state.get("dataset") or {}
+    if not dataset:
+        return _human_feedback(
+            await t("pull_data.no_dataset", language)
+            + _pending_choice_note(state, "dataset_choice", "pick_dataset"),
+            tool_call_id,
+        )
 
     # Data-layer guard: never pull a dataset the current agent profile hides,
     # even if it reaches this tool by a path that bypassed pick_dataset's
     # candidate filter (re-pick, /analyze, dataset persisted in state).
     if dataset.get("dataset_name") in bound_availability().excluded_datasets:
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(
-                        await t(
-                            "pull_data.dataset_not_available",
-                            language,
-                            dataset_name=dataset["dataset_name"],
-                        ),
-                        tool_call_id=tool_call_id,
-                        status="success",
-                        response_metadata={"msg_type": "human_feedback"},
-                    )
-                ],
-            },
+        return _human_feedback(
+            await t(
+                "pull_data.dataset_not_available",
+                language,
+                dataset_name=dataset["dataset_name"],
+            ),
+            tool_call_id,
+        )
+
+    if not (state.get("aoi_selection") or {}).get("aois"):
+        return _human_feedback(
+            await t("pull_data.no_aoi", language)
+            + _pending_choice_note(state, "aoi_choice", "pick_aoi"),
+            tool_call_id,
         )
 
     aoi_names = [a["name"] for a in state["aoi_selection"]["aois"]]
@@ -134,25 +187,17 @@ async def pull_data(
     if (end_date is not None and end_date < effective_start) or (
         start_date is not None and start_date > effective_end
     ):
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(
-                        await t(
-                            "pull_data.date_out_of_range",
-                            language,
-                            start_date=start_date,
-                            end_date=end_date,
-                            dataset_name=dataset["dataset_name"],
-                            available_start=effective_start,
-                            available_end=effective_end,
-                        ),
-                        tool_call_id=tool_call_id,
-                        status="success",
-                        response_metadata={"msg_type": "human_feedback"},
-                    )
-                ],
-            },
+        return _human_feedback(
+            await t(
+                "pull_data.date_out_of_range",
+                language,
+                start_date=start_date,
+                end_date=end_date,
+                dataset_name=dataset["dataset_name"],
+                available_start=effective_start,
+                available_end=effective_end,
+            ),
+            tool_call_id,
         )
 
     tool_messages = []
@@ -170,21 +215,13 @@ async def pull_data(
     logger.debug(f"Pull data tool message: {result.message}")
 
     if not result.success:
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(
-                        await t(
-                            "pull_data.no_data",
-                            language,
-                            dataset_name=dataset["dataset_name"],
-                        ),
-                        tool_call_id=tool_call_id,
-                        status="success",
-                        response_metadata={"msg_type": "human_feedback"},
-                    )
-                ],
-            },
+        return _human_feedback(
+            await t(
+                "pull_data.no_data",
+                language,
+                dataset_name=dataset["dataset_name"],
+            ),
+            tool_call_id,
         )
 
     if range_clamped:

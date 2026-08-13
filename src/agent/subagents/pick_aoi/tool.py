@@ -343,6 +343,15 @@ async def check_multiple_matches(
 
 
 def _format_aoi_candidate(candidate: dict) -> str:
+    """Render one aoi_choice option.
+
+    The leading `name` must stay the full comma-joined hierarchy
+    ("Paris, Île-de-France, France"), not the bare leaf: clicking an option
+    resubmits this string, and pick_aoi re-resolves it by trigram similarity
+    against the same `name` column (see search_aois). The full hierarchy
+    matches only the intended row; a bare "Paris" would re-match every Paris
+    and re-offer the same choice indefinitely.
+    """
     return (
         f"{candidate['name']} - ({candidate['subtype']}) "
         f"[{candidate['src_id'].split('.')[0]}]"

@@ -26,7 +26,10 @@ from src.agent.tool_spec import ToolCategory, ToolSpec
 NUDGE_ALREADY_SET_NOTE = (
     "\n\n(These options are already recorded as the pending nudge — do "
     "not call send_nudge yourself. Summarize them in your reply and stop "
-    "there, waiting for the user's answer.)"
+    "there, waiting for the user's answer. Nothing is selected yet: only "
+    "the options were recorded, so the user's reply is one of these option "
+    "strings, not a resolved selection. Pass it back to this same tool to "
+    "resolve it before calling any tool that needs the selection.)"
 )
 
 
