@@ -136,7 +136,7 @@ TCL_DRIVER_STATE = {
 
 
 # ---------------------------------------------------------------------------
-# Dataset 0: DIST-ALERT with driver context layer — monthly alerts by driver for DRC
+# Dataset 0: DIST-ALERT — monthly alerts by driver for DRC (fixture data shape)
 # ---------------------------------------------------------------------------
 _dist_months = [
     "2024-06",
@@ -519,7 +519,7 @@ SLUC_EF_STATE = {
 
 
 DIST_ALERT_STATE = {
-    "dataset": _dataset_fields(0, context_layer="driver"),
+    "dataset": _dataset_fields(0),
     "statistics": [
         Statistics(
             dataset_name="Global all ecosystem disturbance alerts (DIST-ALERT)",

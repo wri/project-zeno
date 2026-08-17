@@ -1,16 +1,6 @@
 dataset_id: 0
 dataset_name: Global all ecosystem disturbance alerts (DIST-ALERT)
-context_layers:
-- value: driver
-  description: 'Shows the primary driver or likely causes of disturbance to natural land due to: conversion, cropland dynamics,
-    fire-related, water-related, or unclassified.'
-- value: natural_lands
-  description: 'Shows intersection with natural lands classes (2020): '
-- value: grasslands
-  description: Shows disturbances to natural grasslands, shrublands, and savannas
-- value: land_cover
-  description: 'Shows disturbance within different land cover/land use classes: bare ground and sparse, vegetation, short
-    vegetation, tree cover, wetlands, water, snow/ice, cropland, cultivated grasslands, and built-up land.'
+context_layers: null
 parameters: null
 variables: null
 tile_url: https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color
@@ -28,64 +18,41 @@ keywords:
 - conversion
 - vegetation disturbance
 analytics_api_endpoint: /v0/land_change/dist_alerts/analytics
-prompt_instructions: 'Use this dataset to show recent vegetation changes across all ecosystems. Data is measured in hectares
-  (ha), use this as the unit of analysis in all cases. Show classified alerts by driver (LDACS) by default, which is designed
-  to reveal likely causes of disturbance, identify dominant drivers in a region, and support ecosystem or regional comparisons.
-  LDACS is updated quarterly and covers the most recent 12 months, so classification data are not available for the last 90
-  days. Clarify whether the user cares about temporary disturbance or permanent conversion; recommend annual land cover or
-  tree cover loss datasets for historical or long-term changes. For questions about disturbance within natural forests, apply
-  the natural lands context layer and select alerts in classes 2,5,8,9; and for non-natural tree cover, select 14,17,18. For
-  recent trends, show alert areas over time using line charts. Use pie charts to show the distribution of disturbed area (area_ha)
-  by specific driver. Use pie charts to show the distribution of disturbed area (area_ha) by land cover class or natural land
-  type to show which ecosystems are most affected. Use grouped bar charts with alert date (month) on the x-axis, area in hectares
-  (area_ha) on the y-axis, and class name to differentiate bars, highlighting seasonal patterns. Plot drivers separately if
-  one dominates (makes up > 80% of alerts in any given month) and decide whether to include or exclude unclassified alerts
-  based on whether the goal is to highlight only known drivers or completeness. Potential conversion requires ≥75 days of
-  sustained loss, so recent clearing may not appear; conversion may also be undercounted when fire is used for clearing or
-  when it occurs near rivers. Severe boreal fires may be misclassified as conversion. Always interpret alerts as indicators,
-  not definitive outcomes.
-
-  '
+prompt_instructions: >-
+  Use this dataset to show recent vegetation changes across all ecosystems. Prefer Integrated Alerts for near-real-time
+  disturbance queries unless the user specifically asks for DIST-ALERT. Data is measured in hectares (ha); use this
+  as the unit of analysis in all cases. There are NO context-layer intersections (no driver/LDACS, natural lands,
+  grasslands, or land cover breakdowns) — report disturbed area by date and by confidence only. Clarify whether the user
+  cares about temporary disturbance or permanent conversion; recommend annual land cover or tree cover loss datasets for
+  historical or long-term changes. For recent trends, show alert areas over time using line charts. Potential conversion
+  requires ≥75 days of sustained loss, so recent clearing may not appear; conversion may also be undercounted when fire
+  is used for clearing or when it occurs near rivers. Severe boreal fires may be misclassified as conversion. Always
+  interpret alerts as indicators, not definitive outcomes.
 selection_hints: >-
-  Use this dataset ONLY when the user needs disturbance alerts RESTRICTED TO or BROKEN DOWN BY a specific ecosystem or
-  class that Integrated Alerts cannot filter — via a context layer: natural_lands (forests, natural forests, natural
-  lands / natural areas, natural ecosystems), grasslands (natural grasslands/shrublands/savannas), land_cover (a
-  specific land-cover class such as tree cover, wetlands, or cropland), or driver (likely cause / LDACS). For any
-  near-real-time disturbance, clearing, deforestation, or conversion alert query over a whole area that does NOT require
-  such a filter or breakdown, prefer Integrated Alerts instead. DIST-ALERT is being deprecated in favor of Integrated
-  Alerts, which already includes DIST-ALERT alongside GLAD-L, GLAD-S2 and RADD. Covers all ecosystems, Dec 2023 to
-  present at 30m, measured in hectares, with low and high confidence alerts. Apply context layers when the query targets
-  a specific breakdown: natural_lands for forests / natural land classes, grasslands for natural
-  grasslands/shrublands/savannas, driver for likely causes of disturbance, land_cover for specific land cover classes. Driver (LDACS) is updated quarterly, covers
-  the most recent 12 months, and has no classification for the last 90 days. For historical or long-term tree cover
-  change prefer Tree Cover Loss; for driver attribution of tree cover loss specifically prefer Tree Cover Loss by
-  Dominant Driver.
+  DIST-ALERT covers all ecosystems, Dec 2023 to present at 30m, measured in hectares, with low and high confidence
+  alerts. It has NO context layers (no natural_lands, grasslands, land_cover, or driver/LDACS intersections). Prefer
+  Integrated Alerts for near-real-time disturbance, clearing, deforestation, or conversion alert queries — Integrated
+  Alerts already includes DIST-ALERT alongside GLAD-L, GLAD-S2 and RADD. Use DIST-ALERT only when the user specifically
+  requests it. For historical or long-term tree cover change prefer Tree Cover Loss; for driver attribution of tree
+  cover loss specifically prefer Tree Cover Loss by Dominant Driver.
 code_instructions: "CHART TYPES — generate EXACTLY ONE chart; choose the single best type for what the user\
   \ asked and never emit more than one chart (all charts share one data table, so a second chart of a different shape\
-  \ breaks the output). Pick from: - Recent trends over time → line chart (x=alert month, y=area in hectares) - Distribution\
-  \ by driver → pie chart (one slice per driver class) - Distribution by land cover class or natural land type → pie chart\
-  \ - Seasonal patterns by driver → grouped bar chart (x=month, y=area_ha, group=class name) DATA RULES: - All areas in hectares\
-  \ (ha) - Show classified alerts by driver (LDACS) by default when driver context layer is active - If one driver accounts\
-  \ for >80% of alerts in any month, call it out in the\n  insight text but keep it in the same chart — do NOT create a separate\
-  \ chart\n- Include unclassified alerts by default for completeness - Exclude unclassified alerts ONLY if user explicitly\
-  \ asks for \"known drivers only\"\n  or \"classified alerts only\"\n- For natural forests with natural_lands context layer,\
-  \ select classes 2,5,8,9 - For non-natural tree cover with natural_lands context layer, select classes 14,17,18 DO/DON'T:\
-  \ - LDACS classification NOT available for last 90 days — omit driver breakdown for that period - Potential conversion requires\
-  \ ≥75 days of sustained loss — recent clearing may not appear - Conversion may be undercounted when fire is used for clearing\
-  \ or near rivers - Severe boreal fires may be misclassified as conversion - Always interpret alerts as indicators, not definitive\
-  \ outcomes\n"
+  \ breaks the output). Pick from: - Recent trends over time → line chart (x=alert month, y=area in hectares) DATA RULES:\
+  \ - All areas in hectares (ha) - There are NO driver, land-cover, natural-lands, or grasslands intersections — do NOT\
+  \ create class/driver breakdowns DO/DON'T: - Potential conversion requires ≥75 days of sustained loss — recent clearing\
+  \ may not appear - Conversion may be undercounted when fire is used for clearing or near rivers - Severe boreal fires\
+  \ may be misclassified as conversion - Always interpret alerts as indicators, not definitive outcomes\n"
 presentation_instructions: >-
   Inform the user that the DIST-ALERT layer is being deprecated soon in favor of Integrated Alerts — which combines
-  DIST-ALERT with the GLAD-L, GLAD-S2 and RADD alert systems — and suggest Integrated Alerts for future analyses that do
-  not need a driver, land-cover, natural-lands, or grasslands breakdown. Describe results as vegetation disturbance
-  alerts, not confirmed deforestation or conversion. Clarify if the user cares about temporary disturbance vs permanent
-  conversion; recommend annual land cover or tree cover loss datasets for historical changes. Note LDACS is updated
-  quarterly, covers the most recent 12 months, with no classification for the last 90 days. This covers all vegetation,
-  not just forest — relevant for monitoring non-conversion of natural ecosystems.
+  DIST-ALERT with the GLAD-L, GLAD-S2 and RADD alert systems — and suggest Integrated Alerts for future analyses.
+  Describe results as vegetation disturbance alerts, not confirmed deforestation or conversion. Clarify if the user
+  cares about temporary disturbance vs permanent conversion; recommend annual land cover or tree cover loss datasets
+  for historical changes. This covers all vegetation, not just forest — relevant for monitoring non-conversion of
+  natural ecosystems.
 description: 'Global All Ecosystem Disturbance Alerts (DIST-ALERT) provides near-real-time alerts of vegetation disturbance
-  globally at 30-meter resolution, using harmonized Landsat-Sentinel-2 imagery. A filtered subset of these daily alerts (Land
-  Disturbance Alert Classification System or LDACS) can also be classified into potential drivers: conversion, cropland dynamics,
-  fire-related, water-related, or unclassified. Users are informed about significant changes to the vegetation, which can
+  globally at 30-meter resolution, using harmonized Landsat-Sentinel-2 imagery. The upstream product also has a driver
+  classification (Land Disturbance Alert Classification System or LDACS), but it is NOT available through this dataset:
+  alerts here cannot be broken down by driver. Users are informed about significant changes to the vegetation, which can
   indicate human induced changes such as deforestation, as well as drought and other events where actions by land managers
   may be required. Crucially, this dataset covers all vegetation, not just forest, so that new non-conversion of natural ecosystems
   commitments can be monitored.
