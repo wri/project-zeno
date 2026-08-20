@@ -176,7 +176,9 @@ class LGMSChartGenerator(ChartGenerator):
                     full_row[key] = full_row.get(key, 0) + removals
             full_rows.append(full_row)
 
-            vegetation = [r for r in year_rows if r.get("category") == "vegetation"]
+            vegetation = [
+                r for r in year_rows if r.get("category") == "vegetation"
+            ]
             soil = [r for r in year_rows if r.get("category") == "soil"]
             agriculture = [
                 r for r in year_rows if r.get("category") == "agriculture"
@@ -186,7 +188,8 @@ class LGMSChartGenerator(ChartGenerator):
                 {
                     "year": year,
                     "vegetation_emissions": sum(
-                        r.get("gross_emissions_MgCO2e") or 0 for r in vegetation
+                        r.get("gross_emissions_MgCO2e") or 0
+                        for r in vegetation
                     ),
                     "vegetation_removals": sum(
                         r.get("gross_removals_MgCO2") or 0 for r in vegetation
@@ -233,9 +236,9 @@ class LGMSChartGenerator(ChartGenerator):
             for suffix in ("emissions", "removals")
             for class_name in LGMS_FULL_SERIES_CLASS_ORDER
         ]
-        full_series_fields = [
-            s for s in spec_order if s in seen_series
-        ] + [s for s in seen_series if s not in spec_order]
+        full_series_fields = [s for s in spec_order if s in seen_series] + [
+            s for s in seen_series if s not in spec_order
+        ]
 
         return [
             InsightChart(

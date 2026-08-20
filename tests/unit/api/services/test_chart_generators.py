@@ -245,7 +245,12 @@ def test_lgms_summary_chart_folds_categories_further():
 def test_lgms_groups_rows_by_year_and_sorts_ascending():
     scrambled = column_to_rows(
         {
-            "category": ["vegetation", "vegetation", "vegetation", "vegetation"],
+            "category": [
+                "vegetation",
+                "vegetation",
+                "vegetation",
+                "vegetation",
+            ],
             "class": ["tree_loss", "tree_loss", "tree_loss", "tree_loss"],
             "year": [2018, 2016, 2017, 2016],
             "gross_emissions_MgCO2e": [30.0, 10.0, 20.0, 5.0],
@@ -287,14 +292,23 @@ STP_2020_ROWS = column_to_rows(
             "livestock",
         ],
         "year": [2020] * 6,
-        "gross_emissions_MgCO2e": [0.0, 3259.55, 389.99, 0.0, 1746.69, 12441.84],
+        "gross_emissions_MgCO2e": [
+            0.0,
+            3259.55,
+            389.99,
+            0.0,
+            1746.69,
+            12441.84,
+        ],
         "gross_removals_MgCO2": [-52.27, 0.0, -1351644.73, 0.0, None, None],
     }
 )
 
 
 def test_lgms_real_sample_full_detail_keeps_zero_valued_present_metrics():
-    chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(STP_2020_ROWS)[0]
+    chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(STP_2020_ROWS)[
+        0
+    ]
     row = chart.chart_data[0]
     # tree_loss's removals is 0.0, not None — a present value, must survive.
     assert row["tree_loss_removals"] == 0.0
@@ -310,8 +324,14 @@ def test_lgms_real_sample_categories_sum_matches_full_detail():
     full_row = charts[0].chart_data[0]
     category_row = charts[1].chart_data[0]
     vegetation_emissions_fields = [
-        k for k in full_row if k.endswith("_emissions") and k not in (
-            "mineral_soil_emissions", "cropland_emissions", "livestock_emissions"
+        k
+        for k in full_row
+        if k.endswith("_emissions")
+        and k
+        not in (
+            "mineral_soil_emissions",
+            "cropland_emissions",
+            "livestock_emissions",
         )
     ]
     assert category_row["vegetation_emissions"] == sum(
