@@ -150,7 +150,14 @@ LGMS_DATA = {
         "agriculture",
         "agriculture",
     ],
-    "class": ["tree_loss", "tree_gain", "mineral", "organic", "cropland", "livestock"],
+    "class": [
+        "tree_loss",
+        "tree_gain",
+        "mineral_soil",
+        "organic_soil",
+        "cropland",
+        "livestock",
+    ],
     "year": [2016] * 6,
     "gross_emissions_MgCO2e": [10.0, 0.0, 5.0, 3.0, 33.0, 5.0],
     "gross_removals_MgCO2": [-1.0, -2.0, -1.0, None, None, None],
@@ -200,13 +207,13 @@ def test_lgms_full_detail_keeps_both_emissions_and_removals_per_class():
 
 
 def test_lgms_full_detail_omits_series_for_classes_with_no_such_metric():
-    # organic soil has no removals at all (None) — no "organic_removals"
+    # organic soil has no removals at all (None) — no "organic_soil_removals"
     # series should be fabricated.
     chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(LGMS_ROWS)[0]
     row = chart.chart_data[0]
-    assert "organic_removals" not in row
-    assert "organic_removals" not in chart.series_fields
-    assert row["organic_emissions"] == 3.0
+    assert "organic_soil_removals" not in row
+    assert "organic_soil_removals" not in chart.series_fields
+    assert row["organic_soil_emissions"] == 3.0
 
 
 def test_lgms_categories_chart_folds_class_into_category():
@@ -216,9 +223,9 @@ def test_lgms_categories_chart_folds_class_into_category():
     assert row["vegetation_emissions"] == 10.0
     # vegetation_removals = tree_loss(-1.0) + tree_gain(-2.0)
     assert row["vegetation_removals"] == -3.0
-    # soil_emissions = mineral(5.0) + organic(3.0)
+    # soil_emissions = mineral_soil(5.0) + organic_soil(3.0)
     assert row["soil_emissions"] == 8.0
-    # soil_removals = mineral(-1.0); organic has none
+    # soil_removals = mineral_soil(-1.0); organic_soil has none
     assert row["soil_removals"] == -1.0
     assert row["cropland_emissions"] == 33.0
     assert row["livestock_emissions"] == 5.0
@@ -275,7 +282,7 @@ STP_2020_ROWS = column_to_rows(
             "tree_gain",
             "tree_loss",
             "trees_remaining_trees",
-            "mineral",
+            "mineral_soil",
             "cropland",
             "livestock",
         ],
@@ -304,7 +311,7 @@ def test_lgms_real_sample_categories_sum_matches_full_detail():
     category_row = charts[1].chart_data[0]
     vegetation_emissions_fields = [
         k for k in full_row if k.endswith("_emissions") and k not in (
-            "mineral_emissions", "cropland_emissions", "livestock_emissions"
+            "mineral_soil_emissions", "cropland_emissions", "livestock_emissions"
         )
     ]
     assert category_row["vegetation_emissions"] == sum(
