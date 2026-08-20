@@ -36,7 +36,10 @@ from src.api.data_models import (
     UserOrm,
     UserType,
 )
-from src.api.services.aoi_sync import upsert_custom_aoi
+from src.api.services.aoi_sync import (
+    prune_orphan_custom_aois,
+    upsert_custom_aoi,
+)
 from src.shared.aoi_geometry import (
     bbox_float_array_sql,
     multipolygon_sql,
@@ -814,10 +817,10 @@ def backfill_turn_fields_command(batch_size: int, dry_run: bool):
 # Reference sources first, custom last (custom depends only on custom_areas).
 _BUILD_SOURCES = ["gadm", "kba", "wdpa", "landmark", "custom"]
 
-# Note: `aois.properties` (JSONB) is intentionally left NULL by this transform.
-# It exists as an escape hatch for user-uploaded custom-AOI attributes (needs
-# the PR2 API change to accept them) and source-specific reference columns
-# (a deliberate follow-up); neither is populated in PR1.
+# This transform leaves `aois.properties` (JSONB) NULL. The column holds two
+# kinds of value that no code writes yet: the attributes of an uploaded custom
+# AOI, and the source columns that do not map to a typed column. Both are
+# follow-up work.
 
 # Which source column carries the ISO3 country code(s), per reference source.
 # Resolved case-insensitively at runtime: geometries_* are built by GeoPandas
@@ -868,7 +871,7 @@ async def _build_reference_aois(
     ``DISTINCT ON`` dedup and ``ON CONFLICT`` upsert stay correct with no
     cross-chunk boundary effects. Note chunking does *not* bound the cost of any
     single geometry -- that is the job of the part-wise repair in
-    ``_multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
+    ``multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
     """
     table = SOURCE_STAGING_TABLES[source]
     id_col = AOI_SOURCE_ID_COLUMNS[source]
@@ -1116,18 +1119,39 @@ async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
         "types) per reference source, to size up before a real run."
     ),
 )
+@click.option(
+    "--prune",
+    is_flag=True,
+    help=(
+        "custom only: also delete the mirrored aois rows that have no "
+        "custom_areas row. Off by default, because a wrong or empty "
+        "custom_areas table makes every mirrored row look like an orphan. "
+        "Combine with --dry-run to see the count first."
+    ),
+)
 def build_aois_command(
-    sources: tuple, dry_run: bool, chunks: int, inspect: bool
+    sources: tuple, dry_run: bool, chunks: int, inspect: bool, prune: bool
 ):
     """Populate the unified aois/user_aois tables from already-loaded data.
 
     Idempotent, set-based, in-DB transform of the reference geometries_*
     tables and custom_areas into the unified schema. Run post-deploy (heavy
-    work must not run in the blocking migrate Job). Purely additive: the live
-    API keeps serving from geometries_* / custom_areas until the API PR.
+    work must not run in the blocking migrate Job).
+
+    The API reads aois, so this command is a precondition, not an extra. The
+    reference sources do not change, so one build serves them. custom_areas
+    does change, so re-run --source custom after a deploy that adds the
+    write-through mirror. Add --prune on that run to remove the rows left by a
+    delete that the mirror missed.
     """
     selected = list(sources) or _BUILD_SOURCES
     outcome = "would be upserted" if dry_run else "upserted"
+
+    if prune and inspect:
+        raise click.UsageError("--prune cannot run with --inspect.")
+    if prune and "custom" not in selected:
+        raise click.UsageError("--prune needs the custom source.")
+    pruned = "would be removed" if dry_run else "removed"
 
     async def _inspect():
         db = DatabaseManager()
@@ -1175,6 +1199,13 @@ def build_aois_command(
                         click.echo(
                             f"✅ custom: {links} owner link(s) {outcome}."
                         )
+                        if prune:
+                            # The same session as the upsert, so --dry-run
+                            # rolls the delete back with it.
+                            gone = await prune_orphan_custom_aois(session)
+                            click.echo(
+                                f"🧹 custom: {gone} orphan row(s) {pruned}."
+                            )
                     else:
                         n = await _build_reference_aois(
                             session, source, nchunks=chunks, dry_run=dry_run

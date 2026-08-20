@@ -7,6 +7,10 @@ from the CRUD endpoints, so the backfill cannot disagree with what the API wrote
 
 The caller controls the transaction. These functions execute statements, but they
 do not commit, so the mirror and the ``custom_areas`` write are atomic together.
+
+The write-through keeps the mirror correct for each API call.
+``build-aois --source custom --prune`` repairs a mirror that went out of step
+before the write-through existed.
 """
 
 from typing import Optional
@@ -146,3 +150,31 @@ async def delete_custom_aoi(session: AsyncSession, area_id: UUID) -> None:
         ),
         {"src_id": str(area_id)},
     )
+
+
+# Find the mirrored rows that have no ``custom_areas`` row. ``aois.source_id`` is
+# text and ``custom_areas.id`` is a uuid, so the join casts the uuid to text. The
+# cast runs on the uuid side on purpose. The reverse cast raises an error on a
+# ``source_id`` that is not a uuid, and one such row would stop the whole delete.
+_PRUNE_SQL = """
+    DELETE FROM aois
+    WHERE source = 'custom'
+      AND NOT EXISTS (
+          SELECT 1 FROM custom_areas ca WHERE ca.id::text = aois.source_id
+      )
+"""
+
+
+async def prune_orphan_custom_aois(session: AsyncSession) -> int:
+    """Delete each mirrored ``aois`` row that has no ``custom_areas`` row.
+
+    A row becomes an orphan if a custom area is deleted while the mirror does not
+    run. It then appears in search, and the selection of it fails. This function
+    deletes the row, as ``delete_custom_aoi`` does, and the ``user_aois`` foreign
+    key cascades.
+
+    The caller controls the transaction, so ``--dry-run`` can roll the delete
+    back. It returns the number of rows deleted.
+    """
+    result = await session.execute(text(_PRUNE_SQL))
+    return result.rowcount

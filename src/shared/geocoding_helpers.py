@@ -222,23 +222,41 @@ async def search_aois(
 async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
     """Return the bbox of one AOI, found by ``(source, src_id)``.
 
-    The bbox is computed at build time, so this function reads it and does not
-    derive it. It returns the world bbox if the AOI or its bbox is missing.
+    The bbox is computed at build time, so this function reads it and does
+    not derive it. It returns the world bbox if the AOI or its bbox is
+    missing, and it logs that result. The map then shows the whole world, and
+    the user sees no sign of the cause.
     """
     if source not in VALID_AOI_SOURCES:
-        return WORLD_BBOX
-
-    query = text(
-        "SELECT bbox FROM aois "
-        "WHERE source = :source AND source_id = :src_id AND NOT is_deprecated"
-    )
-    async with get_connection_from_pool() as conn:
-        result = await conn.execute(
-            query, {"source": source, "src_id": src_id}
+        # This function does not accept the source aliases that `search_aois`
+        # accepts, so a caller that sends `protectedareas` reaches this line.
+        reason = "invalid_source"
+    else:
+        query = text(
+            "SELECT bbox FROM aois "
+            "WHERE source = :source AND source_id = :src_id "
+            "AND NOT is_deprecated"
         )
-        row = result.fetchone()
-        if row and row[0]:
-            return row[0]
+        async with get_connection_from_pool() as conn:
+            result = await conn.execute(
+                query, {"source": source, "src_id": src_id}
+            )
+            row = result.fetchone()
+            if row and row[0]:
+                return row[0]
+
+        # A missing row and a null bbox need different repairs, so the log
+        # names the cause. A missing row shows a stale id, or a build that
+        # skipped the AOI. A null bbox shows a build that wrote the row
+        # without a bbox.
+        reason = "null_bbox" if row else "no_row"
+
+    logger.warning(
+        "AOI bbox lookup fell back to the world bbox.",
+        source=source,
+        src_id=src_id,
+        reason=reason,
+    )
     return WORLD_BBOX
 
 

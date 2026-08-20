@@ -12,11 +12,13 @@ shape. These tests assert the current behaviour.
 
 import pytest
 
+from src.shared import geocoding_helpers
 from src.shared.geocoding_helpers import fetch_aoi_bbox, get_geometry_data
 from tests.conftest import seed_reference_aoi
 
 AUTH = {"Authorization": "Bearer abc123"}
 _USER_ID = "test-user-wri"
+
 
 _POLYGON = {
     "type": "Polygon",
@@ -31,6 +33,32 @@ _OTHER_POLYGON = {
         [[20.0, 20.0], [20.0, 21.0], [21.0, 21.0], [21.0, 20.0], [20.0, 20.0]]
     ],
 }
+
+
+class _RecordingLogger:
+    """Collect the fields of each warning. Every other call does nothing."""
+
+    def __init__(self):
+        self.warnings = []
+
+    def warning(self, event, **fields):
+        self.warnings.append(fields)
+
+    def __getattr__(self, name):
+        return lambda *args, **kwargs: None
+
+
+@pytest.fixture
+def bbox_warnings(monkeypatch):
+    """Return the list of warning fields that ``fetch_aoi_bbox`` emits.
+
+    The module logger is swapped, and ``structlog.testing.capture_logs`` is not
+    used, because ``cache_logger_on_first_use`` binds the logger at import. A
+    cached logger keeps its original processors, so capture misses the record.
+    """
+    recorder = _RecordingLogger()
+    monkeypatch.setattr(geocoding_helpers, "logger", recorder)
+    return recorder.warnings
 
 
 # ---------------------------------------------------------------------------
@@ -205,12 +233,15 @@ async def test_fetch_bbox_for_mirrored_custom_area(auth_override, client):
 
 
 @pytest.mark.asyncio
-async def test_fetch_bbox_missing_row_returns_world():
+async def test_fetch_bbox_missing_row_returns_world(bbox_warnings):
     assert await fetch_aoi_bbox("gadm", "NOPE") == [-180.0, -90.0, 180.0, 90.0]
+    assert bbox_warnings == [
+        {"source": "gadm", "src_id": "NOPE", "reason": "no_row"}
+    ]
 
 
 @pytest.mark.asyncio
-async def test_fetch_bbox_null_bbox_returns_world():
+async def test_fetch_bbox_null_bbox_returns_world(bbox_warnings):
     await seed_reference_aoi(
         "landmark", "L1", "No Bbox", "indigenous-and-community-land", bbox=None
     )
@@ -221,8 +252,26 @@ async def test_fetch_bbox_null_bbox_returns_world():
         180.0,
         90.0,
     ]
+    # The row exists, so the reason separates this case from a missing row.
+    assert bbox_warnings == [
+        {"source": "landmark", "src_id": "L1", "reason": "null_bbox"}
+    ]
 
 
 @pytest.mark.asyncio
-async def test_fetch_bbox_unknown_source_returns_world():
+async def test_fetch_bbox_unknown_source_returns_world(bbox_warnings):
     assert await fetch_aoi_bbox("nope", "1") == [-180.0, -90.0, 180.0, 90.0]
+    assert bbox_warnings == [
+        {"source": "nope", "src_id": "1", "reason": "invalid_source"}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_fetch_bbox_logs_nothing_when_the_bbox_is_found(bbox_warnings):
+    """The happy path stays quiet, so a warning always means a real fallback."""
+    await seed_reference_aoi(
+        "wdpa", "777", "Quiet Park", "protected-area", bbox=(1, 2, 3, 4)
+    )
+
+    assert await fetch_aoi_bbox("wdpa", "777") == [1.0, 2.0, 3.0, 4.0]
+    assert bbox_warnings == []

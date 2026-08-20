@@ -10,7 +10,8 @@ must not change.
 import pytest
 from sqlalchemy import text
 
-from tests.conftest import async_session_maker
+from src.api.services.aoi_sync import prune_orphan_custom_aois
+from tests.conftest import async_session_maker, seed_reference_aoi
 
 AUTH = {"Authorization": "Bearer abc123"}
 
@@ -244,3 +245,94 @@ async def test_mirror_is_scoped_to_the_created_area(
     assert second_links[0]["user_id"] == "test-user-ds"
     assert first_aoi["created_by"] == "test-user-wri"
     assert second_aoi["created_by"] == "test-user-ds"
+
+
+# ---------------------------------------------------------------------------
+# prune_orphan_custom_aois: repair a mirror that went out of step
+# ---------------------------------------------------------------------------
+
+
+async def _orphan_the_mirror(area_id):
+    """Delete only the ``custom_areas`` row, so the mirror goes out of step.
+
+    This is the state that a delete leaves behind when the write-through does
+    not run, which is every delete before this feature shipped.
+    """
+    async with async_session_maker() as session:
+        await session.execute(
+            text("DELETE FROM custom_areas WHERE id::text = :id"),
+            {"id": area_id},
+        )
+        await session.commit()
+
+
+async def _prune():
+    async with async_session_maker() as session:
+        removed = await prune_orphan_custom_aois(session)
+        await session.commit()
+        return removed
+
+
+async def _count(sql):
+    async with async_session_maker() as session:
+        return await session.scalar(text(sql))
+
+
+@pytest.mark.asyncio
+async def test_prune_removes_the_orphan_mirror(auth_override, client):
+    auth_override("test-user-wri")
+    kept = await _create_area(client, "Kept")
+    orphan = await _create_area(client, "Orphan")
+    await _orphan_the_mirror(orphan)
+
+    assert await _prune() == 1
+
+    assert await _fetch_aoi(orphan) == (None, [])
+    kept_aoi, kept_links = await _fetch_aoi(kept)
+    assert kept_aoi["name"] == "Kept"
+    assert len(kept_links) == 1
+    # The foreign key cascade took the orphan's owner link with the row.
+    assert await _count("SELECT count(*) FROM user_aois") == 1
+
+
+@pytest.mark.asyncio
+async def test_prune_keeps_every_live_mirror(auth_override, client):
+    """An inverted anti-join would delete every mirror. This test catches it."""
+    auth_override("test-user-wri")
+    await _create_area(client, "First")
+    await _create_area(client, "Second")
+
+    assert await _prune() == 0
+
+    assert (
+        await _count("SELECT count(*) FROM aois WHERE source = 'custom'") == 2
+    )
+    assert await _count("SELECT count(*) FROM user_aois") == 2
+
+
+@pytest.mark.asyncio
+async def test_prune_leaves_other_sources_alone(auth_override, client):
+    """A missing source filter would delete every reference AOI."""
+    auth_override("test-user-wri")
+    await seed_reference_aoi("gadm", "IND.26_1", "Odisha", "state-province")
+    orphan = await _create_area(client, "Orphan")
+    await _orphan_the_mirror(orphan)
+
+    assert await _prune() == 1
+
+    assert await _count("SELECT count(*) FROM aois WHERE source = 'gadm'") == 1
+
+
+@pytest.mark.asyncio
+async def test_prune_does_not_commit(auth_override, client):
+    """The caller owns the transaction, which is what makes --dry-run work."""
+    auth_override("test-user-wri")
+    orphan = await _create_area(client, "Orphan")
+    await _orphan_the_mirror(orphan)
+
+    async with async_session_maker() as session:
+        assert await prune_orphan_custom_aois(session) == 1
+        await session.rollback()
+
+    aoi, _ = await _fetch_aoi(orphan)
+    assert aoi is not None
