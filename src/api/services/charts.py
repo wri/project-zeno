@@ -7,6 +7,7 @@ charts.
 """
 
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from typing import List
 
 from src.agent.datasets.handlers.analytics_handler import (
@@ -152,9 +153,10 @@ class LGMSChartGenerator(ChartGenerator):
         return dataset_id == self.dataset_id
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
-        by_year: dict[int, List[dict]] = {}
+        by_year: dict[int, List[dict]] = defaultdict(list)
         for row in rows:
-            by_year.setdefault(row.get("year"), []).append(row)
+            year: int = row["year"]
+            by_year[year].append(row)
 
         full_rows = []
         category_rows = []
