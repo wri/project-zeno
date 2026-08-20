@@ -188,16 +188,15 @@ LGMS_METRIC_COLUMNS = (
 
 
 def _lgms_row_class(section_name: str, row: dict) -> Any:
-    """The merged `class` value: the vegetation land-state verbatim,
-    'mineral'/'organic' for soil, the crop/livestock category for agriculture."""
+    """The merged `class` value: the vegetation land-state verbatim, the
+    crop/livestock category for agriculture, or the section name itself for
+    soil ('mineral_soil'/'organic_soil' — already the exact class name)."""
     if section_name == "vegetation":
         return row.get("land_state_class")
-    if section_name == "mineral_soil":
-        return "mineral"
-    if section_name == "organic_soil":
-        return "organic"
     if section_name == "agriculture":
         return row.get("category")
+    if section_name in ("mineral_soil", "organic_soil"):
+        return section_name
     return None
 
 
