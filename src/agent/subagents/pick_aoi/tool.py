@@ -83,15 +83,19 @@ async def query_aoi_database(
     aoi_type: Optional[AreaOfInterestType],
     result_limit: int = 10,
 ):
-    """Query the PostGIS database for location information.
+    """Find the AOIs whose name matches *place_name*.
+
+    This delegates to ``search_aois``, which is the same search core that
+    ``GET /api/aois`` uses. Both therefore rank candidates the same way.
 
     Args:
         place_name: Name of the place to search for
-        aoi_type: Specific AOI table to search, or None to search all
+        aoi_type: One source to restrict the search to, or None for all
         result_limit: Maximum number of results to return
 
     Returns:
-        DataFrame containing location information
+        DataFrame with the columns ``src_id, name, subtype, source, bbox,
+        similarity_score``. Disputed and deprecated AOIs are excluded.
     """
     sources = [aoi_to_table[aoi_type]] if aoi_type is not None else None
     user_id = current_user_id()
@@ -134,6 +138,12 @@ async def query_subregion_database(
         column>, source, src_id, bbox``. The source-specific id column
         (``gadm_id``, ``sitrecid``, ...) repeats ``src_id``. It remains because
         the frontend reads it from the extra fields of ``AOIIndex``.
+
+    A GADM parent selects its children by an id prefix. Any other source
+    selects them by a spatial overlap. A non-GADM parent with an admin
+    subregion gets no containment filter at all, so the result holds every
+    admin unit of that subtype worldwide. ``check_aoi_selection`` then rejects
+    it as too many subregions. This is a known defect.
     """
     if subregion_name not in SUBREGION_SOURCE_MAPPING:
         logger.error(f"Invalid subregion: {subregion_name}")

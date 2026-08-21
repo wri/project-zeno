@@ -197,7 +197,9 @@ class AoiOrm(Base):
     Of the indexes in the migrations, only the partial unique index is declared
     here. It is a correctness constraint and the target of the upsert, not an
     optimization. The other indexes exist only for performance, so they stay in
-    the migrations.
+    the migrations. Two migrations hold them: ``ceea2a027738`` creates the
+    tables and the first set, and ``d4a1c7b93e02`` adds the browse and
+    subregion-lookup indexes.
     """
 
     __tablename__ = "aois"

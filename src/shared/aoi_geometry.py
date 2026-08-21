@@ -14,6 +14,12 @@ def _antimeridian_bbox_sql(geom_expr: str) -> str:
     eastern part and the western part separately. This needs no ST_Dump and no
     iteration over vertices. If either clip returns nothing, the geometry does
     not cross the antimeridian, and the SQL uses the simple bbox.
+
+    Two limits matter to a caller. The span test is a heuristic, so a wide
+    extent that does not cross the antimeridian is misclassified. Antarctica is
+    one such extent. The crossing branch also returns ``west`` greater than
+    ``east`` on purpose, which is the GeoJSON convention. A caller that builds
+    a rectangle from the four numbers in order gets an inverted rectangle.
     """
     east_half = "ST_MakeEnvelope(0, -90, 180, 90, 4326)"
     west_half = "ST_MakeEnvelope(-180, -90, 0, 90, 4326)"

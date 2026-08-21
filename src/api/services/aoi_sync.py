@@ -9,8 +9,9 @@ The caller controls the transaction. These functions execute statements, but the
 do not commit, so the mirror and the ``custom_areas`` write are atomic together.
 
 The write-through keeps the mirror correct for each API call.
-``build-aois --source custom --prune`` repairs a mirror that went out of step
-before the write-through existed.
+``build-aois --source custom --prune`` repairs a mirror that went out of step.
+The first such gap is every delete that happened before the write-through
+existed. A direct database delete, or a failed deploy, opens the same gap.
 """
 
 from typing import Optional

@@ -15,6 +15,7 @@ Usage:
     python src/api/cli.py rotate-key --key-id "key_456"
     python src/api/cli.py revoke-key --key-id "key_456"
     python src/api/cli.py make-user-admin --email "admin@example.com"
+    python src/api/cli.py build-aois --source custom --prune --dry-run
 """
 
 import asyncio

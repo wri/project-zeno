@@ -18,11 +18,13 @@ router = APIRouter()
 
 @router.get("/api/metadata")
 async def api_metadata() -> dict:
-    """
-    Returns API metadata helpful for instantiating the frontend.
+    """Return API metadata helpful for instantiating the frontend.
 
-    Includes layer ID mappings, subregion/subtype mappings, and model
-    information.
+    ``layer_id_mapping`` holds the id column name that each source used before
+    the AOI tables were unified, such as ``gadm_id`` and ``sitrecid``. The
+    unified ``aois`` table now holds every id in ``source_id``. The mapping
+    stays because the frontend addresses its tile layers by these names, so it
+    is a public contract and not a description of the schema.
     """
     current_model = get_model()
     current_model_name = AgentSettings.model.lower()

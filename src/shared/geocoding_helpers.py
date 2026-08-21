@@ -128,7 +128,12 @@ async def search_aois(
 
     Returns:
         DataFrame with columns ``src_id, name, subtype, source, bbox`` (plus
-        ``similarity_score`` when searching by name).
+        ``similarity_score`` when searching by name). Disputed and deprecated
+        AOIs are excluded, and a custom area appears only for its owner.
+
+    Raises:
+        ValueError: For an invalid source, or for a missing ``user_id`` when
+            ``custom`` is searched.
     """
     if sources:
         requested = {normalize_aoi_source(s) for s in sources}
@@ -205,10 +210,10 @@ async def search_aois(
         params["user_id"] = user_id
 
     async with get_connection_from_pool() as conn:
-        # pg_trgm provides both `%` and similarity(). The extension is created
-        # here, and not in the migration, because create_all builds the test
-        # database. The threshold is a session setting, so it must be set on this
-        # pooled connection before the search runs.
+        # pg_trgm provides both `%` and similarity(). The threshold is a
+        # session setting, so it must be set on this pooled connection before
+        # the search runs. The CREATE EXTENSION is redundant: the migration
+        # creates the extension, and so does the test fixture.
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
         await conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
         await conn.commit()
@@ -261,8 +266,11 @@ async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
 
 
 def format_id(idx):
-    """
-    Convert the ID to a string and remove the last two characters if they are '_1', '_2', '_3', '_4', or '_5'.
+    """Remove the GADM version suffix from an id, and return a string.
+
+    A GADM id carries a version suffix, such as the ``_1`` in ``BRA.16_1``.
+    The suffix is not part of the hierarchy, and the external analytics API
+    rejects it. This function removes ``_1`` through ``_5``.
     """
     idx = str(idx)
     if idx[-2:] in ["_1", "_2", "_3", "_4", "_5"]:
@@ -288,17 +296,31 @@ def _response_src_id(source: str, src_id: str) -> Union[int, str]:
 async def get_geometry_data(
     source: str, src_id: str, user_id: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
-    """
-    Get geometry data by source and source ID.
+    """Get geometry data by source and source ID.
+
+    A reference source reads the unified ``aois`` table and returns the
+    normalized MultiPolygon. ``custom`` reads ``custom_areas`` and returns the
+    drawn parts unchanged, so one part gives a ``Polygon`` and two or more
+    give a ``GeometryCollection``. The mirrored ``aois`` geometry for a custom
+    area is dissolved, so reading it here would change the shape that the
+    analytics, thumbnail and mosaic callers already get.
+
+    The reference query does not filter ``is_disputed``. This function finds
+    an AOI by id, so it must still return a disputed area. It also does not
+    normalize source aliases, so ``protectedareas`` raises.
+
+    This function opens its own session; the caller passes none.
 
     Args:
         source: Source type (gadm, kba, landmark, wdpa, custom)
         src_id: Source-specific ID
-        session: Database session
         user_id: User ID (required for custom areas; falls back to request context)
 
     Returns:
-        Dict with name, subtype, source, src_id, and geometry, or None if not found
+        Dict with name, subtype, source, src_id, and geometry, or None if not
+        found. ``geometry`` is None when a custom area holds no parsable part.
+        ``subtype`` is ``custom`` for a custom area, and not the
+        ``custom-area`` value that the mirror writes.
 
     Raises:
         ValueError: For invalid source or missing user_id for custom areas
