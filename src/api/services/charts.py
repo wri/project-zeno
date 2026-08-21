@@ -121,6 +121,16 @@ LGMS_FULL_SERIES_CLASS_ORDER = [
     "tree_gain",
 ]
 
+# Human labels for the hierarchical chart's leaf nodes, keyed by raw `class`.
+LGMS_CLASS_LABELS = {
+    "tree_loss": "Tree loss",
+    "tree_gain": "Tree gain",
+    "trees_remaining_trees": "Trees remaining trees",
+    "non_trees_remaining_non_trees": "Non-trees remaining non-trees",
+    "mineral_soil": "Mineral soil",
+    "organic_soil": "Organic soil",
+}
+
 
 class LGMSChartGenerator(ChartGenerator):
     """Land GHG Monitoring System: three stacked-bar-with-line charts at
@@ -276,7 +286,168 @@ class LGMSChartGenerator(ChartGenerator):
                 ],
                 chart_data=summary_rows,
             ),
+            InsightChart(
+                position=3,
+                title="Net GHG Flux — Annual Average",
+                chart_type="hierarchical-bar",
+                # A hierarchy has no cartesian axes; chart_data's own
+                # parent_id pointers carry the structure (see
+                # _hierarchy_rows and project-zeno-next's
+                # src/features/ghg-flux-tree, which is the sole consumer of
+                # this chart_type and owns the id/parent_id/label/
+                # avg_emissions/avg_removals field contract).
+                x_axis="",
+                y_axis="",
+                chart_data=self._hierarchy_rows(
+                    full_rows, category_rows, summary_rows
+                ),
+            ),
         ]
+
+    @staticmethod
+    def _average(rows: List[dict], field: str) -> float | None:
+        """Mean of `field` across rows where it's present (not None). None
+        (not 0) when the field is never present — a class/category that
+        never has this metric (e.g. organic soil has no removals) must not
+        fabricate a zero average."""
+        values = [r[field] for r in rows if r.get(field) is not None]
+        return sum(values) / len(values) if values else None
+
+    def _hierarchy_rows(
+        self,
+        full_rows: List[dict],
+        category_rows: List[dict],
+        summary_rows: List[dict],
+    ) -> List[dict]:
+        """The period-of-record-average tree for the annual-average chart:
+        one row per node, each carrying its own already-correct
+        avg_emissions/avg_removals (not derived by the frontend by summing
+        children — every node is independently averaged from the same
+        per-year rows the time-series charts already use).
+
+        Depth 3 (leaves) = full_rows fields, depth 2 = category_rows fields,
+        depth 1 = summary_rows fields, depth 0 ("All land") is one new root:
+        land_use + agriculture summed per year, then averaged — one level
+        above what summary_rows computes.
+        """
+
+        def node(
+            id_: str,
+            parent_id: str | None,
+            label: str,
+            emissions_field: str | None,
+            removals_field: str | None,
+            source_rows: List[dict],
+        ) -> dict:
+            return {
+                "id": id_,
+                "parent_id": parent_id,
+                "label": label,
+                "avg_emissions": (
+                    self._average(source_rows, emissions_field)
+                    if emissions_field
+                    else None
+                ),
+                "avg_removals": (
+                    self._average(source_rows, removals_field)
+                    if removals_field
+                    else None
+                ),
+            }
+
+        all_land_rows = [
+            {
+                "all_land_emissions": row["land_use_emissions"]
+                + row["agriculture_emissions"],
+                "all_land_removals": row["land_use_removals"],
+            }
+            for row in summary_rows
+        ]
+
+        nodes = [
+            node(
+                "all_land",
+                None,
+                "All land",
+                "all_land_emissions",
+                "all_land_removals",
+                all_land_rows,
+            ),
+            node(
+                "land_use",
+                "all_land",
+                "Land use",
+                "land_use_emissions",
+                "land_use_removals",
+                summary_rows,
+            ),
+            node(
+                "agriculture",
+                "all_land",
+                "Agriculture",
+                "agriculture_emissions",
+                None,
+                summary_rows,
+            ),
+            node(
+                "vegetation",
+                "land_use",
+                "Vegetation",
+                "vegetation_emissions",
+                "vegetation_removals",
+                category_rows,
+            ),
+            node(
+                "soil",
+                "land_use",
+                "Soil",
+                "soil_emissions",
+                "soil_removals",
+                category_rows,
+            ),
+            node(
+                "cropland",
+                "agriculture",
+                "Crop management",
+                "cropland_emissions",
+                None,
+                category_rows,
+            ),
+            node(
+                "livestock",
+                "agriculture",
+                "Livestock",
+                "livestock_emissions",
+                None,
+                category_rows,
+            ),
+        ]
+
+        leaf_parent = {
+            "tree_loss": "vegetation",
+            "tree_gain": "vegetation",
+            "trees_remaining_trees": "vegetation",
+            "non_trees_remaining_non_trees": "vegetation",
+            "mineral_soil": "soil",
+            "organic_soil": "soil",
+        }
+        for class_name, parent_id in leaf_parent.items():
+            emissions_field = f"{class_name}_emissions"
+            removals_field = f"{class_name}_removals"
+            has_emissions = any(emissions_field in row for row in full_rows)
+            has_removals = any(removals_field in row for row in full_rows)
+            nodes.append(
+                node(
+                    class_name,
+                    parent_id,
+                    LGMS_CLASS_LABELS.get(class_name, class_name),
+                    emissions_field if has_emissions else None,
+                    removals_field if has_removals else None,
+                    full_rows,
+                )
+            )
+
+        return nodes
 
 
 DETERMINISTIC_GENERATORS: List[ChartGenerator] = [

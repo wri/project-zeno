@@ -179,17 +179,26 @@ def test_lgms_generator_registered():
     )
 
 
-def test_lgms_generates_three_charts():
+def test_lgms_generates_four_charts():
     charts = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(LGMS_ROWS)
-    assert len(charts) == 3
+    assert len(charts) == 4
 
 
-def test_lgms_charts_are_stacked_bar_with_line_on_year():
+def test_lgms_time_series_charts_are_stacked_bar_with_line_on_year():
     charts = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(LGMS_ROWS)
-    for chart in charts:
+    for chart in charts[:3]:
         fe = chart.to_frontend_dict()
         assert fe["type"] == "stacked-bar-with-line"
         assert fe["xAxis"] == "year"
+
+
+def test_lgms_hierarchical_chart_is_axis_less():
+    chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(LGMS_ROWS)[3]
+    fe = chart.to_frontend_dict()
+    assert fe["type"] == "hierarchical-bar"
+    assert fe["xAxis"] == ""
+    assert fe["yAxis"] == ""
+    assert chart.position == 3
 
 
 def test_lgms_full_detail_keeps_both_emissions_and_removals_per_class():
@@ -262,6 +271,111 @@ def test_lgms_groups_rows_by_year_and_sorts_ascending():
     assert years == [2016, 2017, 2018]
     # Both 2016 rows summed: 10.0 + 5.0
     assert chart.chart_data[0]["tree_loss_emissions"] == 15.0
+
+
+# --- Hierarchical (annual-average) chart ---------------------------------
+# LGMS_DATA above is a single year (2016); the "average" over one year is
+# just that year's value, which keeps these assertions simple while still
+# exercising every fold (leaf -> category -> summary -> root).
+
+
+def _node_by_id(chart, node_id):
+    return next(n for n in chart.chart_data if n["id"] == node_id)
+
+
+def test_lgms_hierarchy_has_thirteen_nodes_with_correct_parents():
+    chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(LGMS_ROWS)[3]
+    by_id = {n["id"]: n for n in chart.chart_data}
+    assert set(by_id) == {
+        "all_land",
+        "land_use",
+        "agriculture",
+        "vegetation",
+        "soil",
+        "cropland",
+        "livestock",
+        "tree_loss",
+        "tree_gain",
+        "trees_remaining_trees",
+        "non_trees_remaining_non_trees",
+        "mineral_soil",
+        "organic_soil",
+    }
+    assert by_id["all_land"]["parent_id"] is None
+    assert by_id["land_use"]["parent_id"] == "all_land"
+    assert by_id["agriculture"]["parent_id"] == "all_land"
+    assert by_id["vegetation"]["parent_id"] == "land_use"
+    assert by_id["soil"]["parent_id"] == "land_use"
+    assert by_id["cropland"]["parent_id"] == "agriculture"
+    assert by_id["livestock"]["parent_id"] == "agriculture"
+    assert by_id["tree_loss"]["parent_id"] == "vegetation"
+    assert by_id["tree_gain"]["parent_id"] == "vegetation"
+    assert by_id["mineral_soil"]["parent_id"] == "soil"
+    assert by_id["organic_soil"]["parent_id"] == "soil"
+
+
+def test_lgms_hierarchy_leaf_values_match_full_detail_averages():
+    chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(LGMS_ROWS)[3]
+    # LGMS_DATA: tree_loss emissions=10.0/removals=-1.0; tree_gain
+    # emissions=0.0/removals=-2.0 — single year, so the average is the value.
+    assert _node_by_id(chart, "tree_loss")["avg_emissions"] == 10.0
+    assert _node_by_id(chart, "tree_loss")["avg_removals"] == -1.0
+    assert _node_by_id(chart, "tree_gain")["avg_emissions"] == 0.0
+    assert _node_by_id(chart, "tree_gain")["avg_removals"] == -2.0
+
+
+def test_lgms_hierarchy_omits_metric_never_present_as_none_not_zero():
+    # organic_soil has no removals at all in LGMS_DATA (None, not 0.0).
+    chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(LGMS_ROWS)[3]
+    organic = _node_by_id(chart, "organic_soil")
+    assert organic["avg_emissions"] == 3.0
+    assert organic["avg_removals"] is None
+    # agriculture classes never have removals at all.
+    assert _node_by_id(chart, "cropland")["avg_removals"] is None
+    assert _node_by_id(chart, "livestock")["avg_removals"] is None
+    assert _node_by_id(chart, "agriculture")["avg_removals"] is None
+
+
+def test_lgms_hierarchy_category_nodes_fold_their_leaves():
+    chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(LGMS_ROWS)[3]
+    # vegetation_emissions = tree_loss(10.0) + tree_gain(0.0), matching the
+    # categories chart's own fold.
+    vegetation = _node_by_id(chart, "vegetation")
+    assert vegetation["avg_emissions"] == 10.0
+    assert vegetation["avg_removals"] == -3.0
+    soil = _node_by_id(chart, "soil")
+    assert soil["avg_emissions"] == 8.0
+    assert soil["avg_removals"] == -1.0
+    assert _node_by_id(chart, "cropland")["avg_emissions"] == 33.0
+    assert _node_by_id(chart, "livestock")["avg_emissions"] == 5.0
+
+
+def test_lgms_hierarchy_root_folds_land_use_and_agriculture():
+    chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(LGMS_ROWS)[3]
+    land_use = _node_by_id(chart, "land_use")
+    agriculture = _node_by_id(chart, "agriculture")
+    all_land = _node_by_id(chart, "all_land")
+    assert all_land["avg_emissions"] == (
+        land_use["avg_emissions"] + agriculture["avg_emissions"]
+    )
+    # agriculture has no removals, so all_land's removals equal land_use's.
+    assert all_land["avg_removals"] == land_use["avg_removals"]
+
+
+def test_lgms_hierarchy_averages_across_multiple_years():
+    two_year_rows = column_to_rows(
+        {
+            "category": ["vegetation", "vegetation"],
+            "class": ["tree_loss", "tree_loss"],
+            "year": [2016, 2017],
+            "gross_emissions_MgCO2e": [10.0, 30.0],
+            "gross_removals_MgCO2": [None, None],
+        }
+    )
+    chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(two_year_rows)[
+        3
+    ]
+    assert _node_by_id(chart, "tree_loss")["avg_emissions"] == 20.0
 
 
 # --- Real-world shape regression -----------------------------------------
