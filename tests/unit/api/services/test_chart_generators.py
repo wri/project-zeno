@@ -378,6 +378,24 @@ def test_lgms_hierarchy_averages_across_multiple_years():
     assert _node_by_id(chart, "tree_loss")["avg_emissions"] == 20.0
 
 
+def test_lgms_hierarchy_category_removals_none_when_never_present():
+    # Only tree_loss (emissions-only) rows — vegetation/land_use/all_land
+    # must report avg_removals=None, not a fabricated 0.0.
+    rows = column_to_rows(
+        {
+            "category": ["vegetation", "vegetation"],
+            "class": ["tree_loss", "tree_loss"],
+            "year": [2016, 2017],
+            "gross_emissions_MgCO2e": [10.0, 30.0],
+            "gross_removals_MgCO2": [None, None],
+        }
+    )
+    chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(rows)[3]
+    assert _node_by_id(chart, "vegetation")["avg_removals"] is None
+    assert _node_by_id(chart, "land_use")["avg_removals"] is None
+    assert _node_by_id(chart, "all_land")["avg_removals"] is None
+
+
 # --- Real-world shape regression -----------------------------------------
 # Adapted from an actual recorded /v0/land_change/land_ghg_inventory/analytics
 # response (São Tomé and Príncipe, admin/STP, 2016-2024), merged through

@@ -24,6 +24,12 @@ def column_to_rows(data: dict) -> List[dict]:
     return [dict(zip(keys, values)) for values in zip(*data.values())]
 
 
+def _sum_metric(rows: List[dict], field: str) -> float:
+    """Sum of `field` across rows, treating None (absent-for-this-row) as no
+    contribution rather than 0 by coincidence of falsiness."""
+    return sum(r[field] for r in rows if r.get(field) is not None)
+
+
 class ChartGenerator(ABC):
     """A deterministic chart builder for one (or more) dataset(s)."""
 
@@ -194,31 +200,29 @@ class LGMSChartGenerator(ChartGenerator):
                 r for r in year_rows if r.get("category") == "agriculture"
             ]
 
+            cropland = [r for r in agriculture if r.get("class") == "cropland"]
+            livestock = [
+                r for r in agriculture if r.get("class") == "livestock"
+            ]
+
             category_rows.append(
                 {
                     "year": year,
-                    "vegetation_emissions": sum(
-                        r.get("gross_emissions_MgCO2e") or 0
-                        for r in vegetation
+                    "vegetation_emissions": _sum_metric(
+                        vegetation, "gross_emissions_MgCO2e"
                     ),
-                    "vegetation_removals": sum(
-                        r.get("gross_removals_MgCO2") or 0 for r in vegetation
+                    "vegetation_removals": _sum_metric(
+                        vegetation, "gross_removals_MgCO2"
                     ),
-                    "soil_emissions": sum(
-                        r.get("gross_emissions_MgCO2e") or 0 for r in soil
+                    "soil_emissions": _sum_metric(
+                        soil, "gross_emissions_MgCO2e"
                     ),
-                    "soil_removals": sum(
-                        r.get("gross_removals_MgCO2") or 0 for r in soil
+                    "soil_removals": _sum_metric(soil, "gross_removals_MgCO2"),
+                    "cropland_emissions": _sum_metric(
+                        cropland, "gross_emissions_MgCO2e"
                     ),
-                    "cropland_emissions": sum(
-                        r.get("gross_emissions_MgCO2e") or 0
-                        for r in agriculture
-                        if r.get("class") == "cropland"
-                    ),
-                    "livestock_emissions": sum(
-                        r.get("gross_emissions_MgCO2e") or 0
-                        for r in agriculture
-                        if r.get("class") == "livestock"
+                    "livestock_emissions": _sum_metric(
+                        livestock, "gross_emissions_MgCO2e"
                     ),
                 }
             )
@@ -310,8 +314,8 @@ class LGMSChartGenerator(ChartGenerator):
         (not 0) when the field is never present — a class/category that
         never has this metric (e.g. organic soil has no removals) must not
         fabricate a zero average."""
-        values = [r[field] for r in rows if r.get(field) is not None]
-        return sum(values) / len(values) if values else None
+        present = [r for r in rows if r.get(field) is not None]
+        return _sum_metric(present, field) / len(present) if present else None
 
     def _hierarchy_rows(
         self,
@@ -331,6 +335,59 @@ class LGMSChartGenerator(ChartGenerator):
         above what summary_rows computes.
         """
 
+        vegetation_classes = (
+            "tree_loss",
+            "tree_gain",
+            "trees_remaining_trees",
+            "non_trees_remaining_non_trees",
+        )
+        soil_classes = ("mineral_soil", "organic_soil")
+
+        # Every field this chart can average, mapped to the full_rows leaf
+        # keys it folds — the only place None-vs-0 presence survives, since
+        # category_rows/summary_rows/all_land_rows always carry every key
+        # (0.0 when nothing contributed). A field backed by no present leaf
+        # is never even passed to _average, rather than risking it average an
+        # always-populated 0.0 into a fabricated value.
+        backing_leaves = {
+            "vegetation_emissions": [
+                f"{c}_emissions" for c in vegetation_classes
+            ],
+            "vegetation_removals": [
+                f"{c}_removals" for c in vegetation_classes
+            ],
+            "soil_emissions": [f"{c}_emissions" for c in soil_classes],
+            "soil_removals": [f"{c}_removals" for c in soil_classes],
+            "cropland_emissions": ["cropland_emissions"],
+            "livestock_emissions": ["livestock_emissions"],
+        }
+        backing_leaves["land_use_emissions"] = (
+            backing_leaves["vegetation_emissions"]
+            + backing_leaves["soil_emissions"]
+        )
+        backing_leaves["land_use_removals"] = (
+            backing_leaves["vegetation_removals"]
+            + backing_leaves["soil_removals"]
+        )
+        backing_leaves["agriculture_emissions"] = (
+            backing_leaves["cropland_emissions"]
+            + backing_leaves["livestock_emissions"]
+        )
+        backing_leaves["all_land_emissions"] = (
+            backing_leaves["land_use_emissions"]
+            + backing_leaves["agriculture_emissions"]
+        )
+        backing_leaves["all_land_removals"] = backing_leaves[
+            "land_use_removals"
+        ]
+
+        def is_backed(field: str) -> bool:
+            return any(
+                leaf in row
+                for row in full_rows
+                for leaf in backing_leaves[field]
+            )
+
         def node(
             id_: str,
             parent_id: str | None,
@@ -345,12 +402,12 @@ class LGMSChartGenerator(ChartGenerator):
                 "label": label,
                 "avg_emissions": (
                     self._average(source_rows, emissions_field)
-                    if emissions_field
+                    if emissions_field and is_backed(emissions_field)
                     else None
                 ),
                 "avg_removals": (
                     self._average(source_rows, removals_field)
-                    if removals_field
+                    if removals_field and is_backed(removals_field)
                     else None
                 ),
             }
@@ -434,15 +491,15 @@ class LGMSChartGenerator(ChartGenerator):
         for class_name, parent_id in leaf_parent.items():
             emissions_field = f"{class_name}_emissions"
             removals_field = f"{class_name}_removals"
-            has_emissions = any(emissions_field in row for row in full_rows)
-            has_removals = any(removals_field in row for row in full_rows)
+            backing_leaves[emissions_field] = [emissions_field]
+            backing_leaves[removals_field] = [removals_field]
             nodes.append(
                 node(
                     class_name,
                     parent_id,
                     LGMS_CLASS_LABELS.get(class_name, class_name),
-                    emissions_field if has_emissions else None,
-                    removals_field if has_removals else None,
+                    emissions_field,
+                    removals_field,
                     full_rows,
                 )
             )
