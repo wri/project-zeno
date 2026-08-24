@@ -1,7 +1,7 @@
 """add aois browse and lookup indexes
 
 Revision ID: d4a1c7b93e02
-Revises: ceea2a027738
+Revises: d4f7b1e9a3c2
 Create Date: 2026-07-30 18:20:00.000000
 
 This migration adds two partial indexes to ``aois``. Neither index holds
@@ -31,7 +31,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "d4a1c7b93e02"
-down_revision: Union[str, None] = "ceea2a027738"
+down_revision: Union[str, None] = "d4f7b1e9a3c2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
