@@ -5,40 +5,30 @@ import pandas as pd
 import pytest
 
 from src.agent.subagents.pick_aoi import Geocoder, pick_aoi
-from src.agent.subagents.pick_aoi.tool import (
-    AOIIndex,
-    PlaceQuery,
-    fetch_aoi_bbox,
-)
-from src.shared.geocoding_helpers import _antimeridian_bbox_sql
+from src.agent.subagents.pick_aoi.tool import AOIIndex, PlaceQuery
+from src.shared import geocoding_helpers
+from src.shared.geocoding_helpers import fetch_aoi_bbox
 
 
-def test_sql_contains_crossing_condition():
-    sql = _antimeridian_bbox_sql("geometry")
-    assert "ST_XMax(geometry) - ST_XMin(geometry) > 180" in sql
+def _fake_conn_context(captured, row):
+    """A substitute for a pooled connection. It records the SQL and returns *row*."""
 
+    class _FakeConn:
+        async def execute(self, query, params=None):
+            captured["sql"] = str(query)
+            captured["params"] = params
+            result = MagicMock()
+            result.fetchone.return_value = row
+            return result
 
-def test_sql_clips_to_east_and_west_half_planes():
-    sql = _antimeridian_bbox_sql("geometry")
-    assert "ST_MakeEnvelope(0, -90, 180, 90, 4326)" in sql
-    assert "ST_MakeEnvelope(-180, -90, 0, 90, 4326)" in sql
+    class _FakeConnContext:
+        async def __aenter__(self):
+            return _FakeConn()
 
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
 
-def test_sql_has_fallback_branch():
-    sql = _antimeridian_bbox_sql("geometry")
-    assert "ELSE json_build_array" in sql
-
-
-def test_sql_custom_geom_expr():
-    sql = _antimeridian_bbox_sql("bounds.geometry")
-    assert "bounds.geometry" in sql
-    assert "geometry" not in sql.replace("bounds.geometry", "")
-
-
-def test_sql_uses_west_xmin_and_east_xmax():
-    sql = _antimeridian_bbox_sql("geometry")
-    assert "ST_XMin(ST_Envelope(ST_ClipByBox2D" in sql
-    assert "ST_XMax(ST_Envelope(ST_ClipByBox2D" in sql
+    return _FakeConnContext()
 
 
 @pytest.mark.asyncio
@@ -48,62 +38,59 @@ async def test_fetch_aoi_bbox_unknown_source_returns_default():
 
 
 @pytest.mark.asyncio
-async def test_fetch_aoi_bbox_uses_custom_bbox_sql_for_custom_source(
+async def test_fetch_aoi_bbox_reads_precomputed_bbox_for_every_source(
     monkeypatch,
 ):
+    """One query reads aois for every source. No per-source bbox SQL remains."""
     captured = {}
-    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
-
-    class _FakeConn:
-        async def execute(self, query, params=None):
-            captured["sql"] = str(query)
-            result = MagicMock()
-            result.fetchone.return_value = ([1.0, 2.0, 3.0, 4.0],)
-            return result
-
-    class _FakeConnContext:
-        async def __aenter__(self):
-            return _FakeConn()
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return None
 
     def fake_pool():
-        return _FakeConnContext()
+        return _fake_conn_context(captured, ([1.0, 2.0, 3.0, 4.0],))
 
-    monkeypatch.setattr(tool_module, "get_connection_from_pool", fake_pool)
+    monkeypatch.setattr(
+        geocoding_helpers, "get_connection_from_pool", fake_pool
+    )
 
-    await fetch_aoi_bbox("custom", "some-uuid")
-
-    assert "jsonb_array_elements_text" in captured["sql"]
-    assert "custom_areas" in captured["sql"]
+    for source in ("custom", "gadm", "kba"):
+        assert await fetch_aoi_bbox(source, "some-id") == [
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+        ]
+        assert "FROM aois" in captured["sql"]
+        assert captured["params"] == {"source": source, "src_id": "some-id"}
+        # The antimeridian CASE ran for each row before. The build now computes
+        # the bbox.
+        assert "ST_ClipByBox2D" not in captured["sql"]
 
 
 @pytest.mark.asyncio
 async def test_fetch_aoi_bbox_no_row_returns_default(monkeypatch):
-    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
-
-    class _FakeConn:
-        async def execute(self, query, params=None):
-            result = MagicMock()
-            result.fetchone.return_value = None
-            return result
-
-    class _FakeConnContext:
-        async def __aenter__(self):
-            return _FakeConn()
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return None
-
     def fake_pool():
-        return _FakeConnContext()
+        return _fake_conn_context({}, None)
 
-    monkeypatch.setattr(tool_module, "get_connection_from_pool", fake_pool)
+    monkeypatch.setattr(
+        geocoding_helpers, "get_connection_from_pool", fake_pool
+    )
 
     result = await fetch_aoi_bbox("gadm", "NONEXISTENT")
 
     assert result == [-180.0, -90.0, 180.0, 90.0]
+
+
+@pytest.mark.asyncio
+async def test_fetch_aoi_bbox_null_bbox_returns_default(monkeypatch):
+    """aois.bbox accepts a null. A null must not reach the bbox of the AOI."""
+
+    def fake_pool():
+        return _fake_conn_context({}, (None,))
+
+    monkeypatch.setattr(
+        geocoding_helpers, "get_connection_from_pool", fake_pool
+    )
+
+    assert await fetch_aoi_bbox("gadm", "BRA") == [-180.0, -90.0, 180.0, 90.0]
 
 
 # ---------------------------------------------------------------------------

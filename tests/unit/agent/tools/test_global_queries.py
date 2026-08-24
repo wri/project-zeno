@@ -177,3 +177,7 @@ async def test_query_all_countries_uses_global_bbox_expression(monkeypatch):
         "json_build_array(-180.0, -90.0, 180.0, 90.0) AS bbox"
         in captured["sql"]
     )
+    # The row set comes from the unified table. The flag that replaced the
+    # ISO3-prefix regex filters it.
+    assert "FROM aois" in captured["sql"]
+    assert "NOT is_disputed" in captured["sql"]

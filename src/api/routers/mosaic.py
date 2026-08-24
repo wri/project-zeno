@@ -38,12 +38,18 @@ async def create_mosaic(
     max_items: int = Query(50, ge=1, le=100),
     user: UserModel = Depends(require_auth),
 ):
-    """
-    Search Sentinel-2 L2A scenes covering an AOI around target_date
-    (within ±window_days) and persist a MosaicJSON to S3.
+    """Build a Sentinel-2 mosaic over one AOI and persist it to S3.
 
-    Returns a mosaic_id (recipe token). Tile and TileJSON URLs pointing to
-    the GFW tiles service are available on the result (tile_url / tilejson_url).
+    It searches Sentinel-2 L2A scenes that cover the AOI around
+    ``target_date``, within ±``window_days``, and writes a MosaicJSON to S3.
+
+    It returns a ``mosaic_id`` (a recipe token). Tile and TileJSON URLs that
+    point at the GFW tiles service are on the result (``tile_url`` /
+    ``tilejson_url``).
+
+    The AOI is resolved by the same helper that serves
+    ``GET /api/geometry/{source}/{src_id}``, so this endpoint reads the same
+    tables. It returns 422 if the AOI is larger than the area limit.
     """
     recipe = MosaicRecipe(
         aois=((source, src_id),),

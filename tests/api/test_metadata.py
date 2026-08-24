@@ -58,13 +58,22 @@ async def test_metadata_version_matches_pyproject(client):
 
 @pytest.mark.asyncio
 async def test_metadata_layer_id_mapping_has_known_sources(client):
-    """Layer ID mapping contains expected data sources."""
+    """The layer id mapping is a published contract, so assert it exactly.
+
+    The frontend addresses its tile layers by these names. No query uses them
+    any more, because ``aois.source_id`` is one text column for all sources. It
+    is therefore easy to remove a name by accident. This test prevents that.
+    """
     response = await client.get("/api/metadata")
     layer_id_mapping = response.json()["layer_id_mapping"]
 
-    # These sources are expected to be present based on geocoding_helpers
-    assert isinstance(layer_id_mapping, dict)
-    assert len(layer_id_mapping) > 0
+    assert layer_id_mapping == {
+        "kba": "sitrecid",
+        "landmark": "landmark_id",
+        "wdpa": "wdpa_pid",
+        "gadm": "gadm_id",
+        "custom": "id",
+    }
 
 
 @pytest.mark.asyncio

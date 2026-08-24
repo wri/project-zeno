@@ -15,13 +15,6 @@ from src.shared.request_context import current_user_id
 
 logger = get_logger(__name__)
 
-GADM_TABLE = "geometries_gadm"
-KBA_TABLE = "geometries_kba"
-LANDMARK_TABLE = "geometries_landmark"
-WDPA_TABLE = "geometries_wdpa"
-CUSTOM_AREA_TABLE = "custom_areas"
-
-
 SUBREGION_TO_SUBTYPE_MAPPING = {
     "country": "country",
     "state": "state-province",
@@ -36,12 +29,32 @@ SUBREGION_TO_SUBTYPE_MAPPING = {
 }
 
 
-SOURCE_ID_MAPPING = {
-    "kba": {"table": KBA_TABLE, "id_column": "sitrecid"},
-    "landmark": {"table": LANDMARK_TABLE, "id_column": "landmark_id"},
-    "wdpa": {"table": WDPA_TABLE, "id_column": "wdpa_pid"},
-    "gadm": {"table": GADM_TABLE, "id_column": "gadm_id"},
-    "custom": {"table": CUSTOM_AREA_TABLE, "id_column": "id"},
+# The id column that each source used before the AOI tables were unified.
+# `aois.source_id` now holds every id as text, so no read path resolves an AOI
+# through these names. Three places still need them:
+#   * `GET /api/metadata` returns them as `layer_id_mapping`. The frontend uses
+#     it to address tile layers, so this is a public contract.
+#   * Subregion expansion and the global-country query return the id under its
+#     source-specific name, for the same mapping.
+#   * The ingest scripts use the name to name their indexes.
+AOI_SOURCE_ID_COLUMNS = {
+    "kba": "sitrecid",
+    "landmark": "landmark_id",
+    "wdpa": "wdpa_pid",
+    "gadm": "gadm_id",
+    "custom": "id",
+}
+
+
+# The table that holds each source's raw rows. `build-aois` transforms them into
+# `aois`. Only that command reads these tables. No API or agent path reads them.
+# Their future is not decided (see docs/aoi-architecture).
+SOURCE_STAGING_TABLES = {
+    "kba": "geometries_kba",
+    "landmark": "geometries_landmark",
+    "wdpa": "geometries_wdpa",
+    "gadm": "geometries_gadm",
+    "custom": "custom_areas",
 }
 
 
@@ -63,14 +76,14 @@ GADM_STANDARD_ID_RE = r"^[A-Z]{3}"
 
 
 # Friendly source aliases accepted from callers (e.g. the search API) and
-# mapped onto the canonical source keys used in SOURCE_ID_MAPPING.
+# mapped onto the canonical source keys.
 SOURCE_ALIASES = {
     "protectedareas": "wdpa",
     "protected_areas": "wdpa",
     "protected-areas": "wdpa",
 }
 
-VALID_AOI_SOURCES = set(SOURCE_ID_MAPPING.keys())
+VALID_AOI_SOURCES = set(AOI_SOURCE_ID_COLUMNS.keys())
 
 
 def normalize_aoi_source(source: str) -> str:
@@ -84,58 +97,9 @@ def normalize_aoi_source(source: str) -> str:
     return key
 
 
-def _antimeridian_bbox_sql(geom_expr: str) -> str:
-    """
-    Returns [west, south, east, north] JSON array.
-    For antimeridian-crossing geometries (span > 180°), clips to each
-    half-plane to get the bbox of the eastern and western parts separately —
-    no ST_Dump, no vertex iteration. Falls back to naive bbox if either
-    clip returns nothing (geometry doesn't truly cross the antimeridian).
-    """
-    east_half = "ST_MakeEnvelope(0, -90, 180, 90, 4326)"
-    west_half = "ST_MakeEnvelope(-180, -90, 0, 90, 4326)"
-    return f"""
-    CASE
-        WHEN ST_XMax({geom_expr}) - ST_XMin({geom_expr}) > 180
-        THEN (
-            SELECT COALESCE(
-                CASE
-                    WHEN west IS NOT NULL AND east IS NOT NULL
-                    THEN json_build_array(west, ST_YMin({geom_expr}), east, ST_YMax({geom_expr}))
-                END,
-                json_build_array(ST_XMin({geom_expr}), ST_YMin({geom_expr}), ST_XMax({geom_expr}), ST_YMax({geom_expr}))
-            )
-            FROM (
-                SELECT
-                    ST_XMin(ST_Envelope(ST_ClipByBox2D({geom_expr}, {east_half}))) AS west,
-                    ST_XMax(ST_Envelope(ST_ClipByBox2D({geom_expr}, {west_half}))) AS east
-            ) AS parts
-        )
-        ELSE json_build_array(
-            ST_XMin({geom_expr}),
-            ST_YMin({geom_expr}),
-            ST_XMax({geom_expr}),
-            ST_YMax({geom_expr})
-        )
-    END
-    """
-
-
-BBOX_SQL = f"({_antimeridian_bbox_sql('geometry')}) AS bbox"
-
-# The custom geometries table stores geometries as an list of geojsons,
-# requiring a funky SQL to pull out the overall bounds
-CUSTOM_BBOX_SQL = f"""
-(
-    SELECT {_antimeridian_bbox_sql("bounds.geometry")}
-    FROM (
-        SELECT ST_Envelope(
-            ST_Collect(ST_SetSRID(ST_GeomFromGeoJSON(geom_json), 4326))
-        ) AS geometry
-        FROM jsonb_array_elements_text(geometries) AS geom(geom_json)
-    ) AS bounds
-) AS bbox
-"""
+# The default bbox when an AOI has no bbox, or no row. AOIIndex and
+# aoi_selection use the same default.
+WORLD_BBOX = [-180.0, -90.0, 180.0, 90.0]
 
 
 async def search_aois(
@@ -155,7 +119,7 @@ async def search_aois(
         name: Fuzzy name to search for. When empty/None the query runs in
             *browse* mode: no name filter, ordered alphabetically.
         sources: Subset of canonical source keys (gadm/kba/wdpa/landmark/custom)
-            to search; ``None`` searches all available sources. Aliases such as
+            to search; ``None`` searches every source. Aliases such as
             ``protectedareas`` are accepted and normalized.
         user_id: Owner used to scope custom areas. Required when ``custom`` is
             among the searched sources.
@@ -164,107 +128,95 @@ async def search_aois(
 
     Returns:
         DataFrame with columns ``src_id, name, subtype, source, bbox`` (plus
-        ``similarity_score`` when searching by name).
+        ``similarity_score`` when searching by name). Disputed and deprecated
+        AOIs are excluded, and a custom area appears only for its owner.
+
+    Raises:
+        ValueError: For an invalid source, or for a missing ``user_id`` when
+            ``custom`` is searched.
     """
     if sources:
         requested = {normalize_aoi_source(s) for s in sources}
     else:
-        requested = set(SOURCE_ID_MAPPING.keys())
+        requested = set(VALID_AOI_SOURCES)
+
+    if "custom" in requested and not user_id:
+        raise ValueError("user_id required for custom areas")
 
     has_name = bool(name and name.strip())
 
+    name_filter = "AND name % :name" if has_name else ""
+
+    # Custom areas stay owner-scoped. The semi-join uses user_aois, which is the
+    # permission model. It does not use aois.created_by, which records
+    # provenance and does not change. The clause is omitted when the caller does
+    # not ask for custom areas, because the source filter already excludes them.
+    custom_scope = (
+        """
+        AND (source <> 'custom' OR EXISTS (
+            SELECT 1 FROM user_aois ua
+            WHERE ua.aoi_id = aois.id
+              AND ua.user_id = :user_id
+              AND ua.relationship = 'owner'
+        ))
+        """
+        if "custom" in requested
+        else ""
+    )
+
+    similarity_select = (
+        ", similarity(LOWER(name), LOWER(:name)) AS similarity_score"
+        if has_name
+        else ""
+    )
+    similarity_order = "similarity_score DESC, " if has_name else ""
+
+    # `NOT is_disputed` replaces the per-source GADM ISO3-prefix regex. Only GADM
+    # rows carry the flag, so the row set does not change. The query names both
+    # flags so that the planner can use the partial trigram index for search and
+    # the partial btree index for browse.
+    #
+    # `bbox` is computed at build time, so the antimeridian CASE does not run per
+    # row. COALESCE replaces a null array with the world bbox, because a null
+    # fails response validation.
+    sql_query = f"""
+        SELECT
+            source_id AS src_id,
+            name,
+            subtype,
+            source,
+            COALESCE(
+                bbox, ARRAY[-180, -90, 180, 90]::double precision[]
+            ) AS bbox
+            {similarity_select}
+        FROM aois
+        WHERE NOT is_disputed
+          AND NOT is_deprecated
+          AND source = ANY(:sources)
+          {custom_scope}
+          {name_filter}
+        ORDER BY {similarity_order}name, source, source_id
+        LIMIT :limit OFFSET :offset
+    """
+
+    params: Dict[str, Any] = {
+        "sources": sorted(requested),
+        "limit": limit,
+        "offset": offset,
+    }
+    if has_name:
+        params["name"] = name
+    if "custom" in requested:
+        params["user_id"] = user_id
+
     async with get_connection_from_pool() as conn:
-        # Enable pg_trgm extension for the similarity function
+        # pg_trgm provides both `%` and similarity(). The threshold is a
+        # session setting, so it must be set on this pooled connection before
+        # the search runs. The CREATE EXTENSION is redundant: the migration
+        # creates the extension, and so does the test fixture.
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
         await conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
         await conn.commit()
-
-        # Probe which of the requested tables actually exist
-        existing_tables = []
-        for source in ("gadm", "kba", "landmark", "wdpa", "custom"):
-            if source not in requested:
-                continue
-            table = SOURCE_ID_MAPPING[source]["table"]
-            try:
-                await conn.execute(text(f"SELECT 1 FROM {table} LIMIT 1"))
-                existing_tables.append(source)
-            except Exception:
-                logger.warning(f"Table {table} does not exist")
-                await conn.rollback()
-
-        name_filter = "AND name % :name" if has_name else ""
-        union_parts = []
-
-        if "gadm" in existing_tables:
-            union_parts.append(
-                f"""
-                SELECT gadm_id AS src_id, name, subtype, 'gadm' as source, {BBOX_SQL}
-                FROM {GADM_TABLE}
-                WHERE name IS NOT NULL AND gadm_id ~ '{GADM_STANDARD_ID_RE}' {name_filter}
-            """
-            )
-
-        for source in ("kba", "landmark", "wdpa"):
-            if source in existing_tables:
-                id_column = SOURCE_ID_MAPPING[source]["id_column"]
-                table = SOURCE_ID_MAPPING[source]["table"]
-                union_parts.append(
-                    f"""
-                    SELECT CAST({id_column} AS TEXT) as src_id,
-                           name, subtype, '{source}' as source, {BBOX_SQL}
-                    FROM {table}
-                    WHERE name IS NOT NULL {name_filter}
-                """
-                )
-
-        if "custom" in existing_tables:
-            if not user_id:
-                raise ValueError("user_id required for custom areas")
-            id_column = SOURCE_ID_MAPPING["custom"]["id_column"]
-            union_parts.append(
-                f"""
-                SELECT CAST({id_column} AS TEXT) as src_id,
-                       name, 'custom-area' as subtype, 'custom' as source, {CUSTOM_BBOX_SQL}
-                FROM {CUSTOM_AREA_TABLE}
-                WHERE user_id = :user_id AND name IS NOT NULL {name_filter}
-            """
-            )
-
-        if not union_parts:
-            logger.warning("No matching geometry tables exist for the request")
-            return pd.DataFrame()
-
-        combined_query = " UNION ALL ".join(union_parts)
-
-        if has_name:
-            sql_query = f"""
-                WITH combined_search AS (
-                    {combined_query}
-                )
-                SELECT *,
-                       similarity(LOWER(name), LOWER(:name)) AS similarity_score
-                FROM combined_search
-                WHERE name IS NOT NULL AND name % :name
-                ORDER BY similarity_score DESC, name, source, src_id
-                LIMIT :limit OFFSET :offset
-            """
-        else:
-            sql_query = f"""
-                WITH combined_search AS (
-                    {combined_query}
-                )
-                SELECT *
-                FROM combined_search
-                WHERE name IS NOT NULL
-                ORDER BY name, source, src_id
-                LIMIT :limit OFFSET :offset
-            """
-
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
-        if has_name:
-            params["name"] = name
-        if "custom" in existing_tables:
-            params["user_id"] = user_id
 
         def _read(sync_conn):
             return pd.read_sql(text(sql_query), sync_conn, params=params)
@@ -272,9 +224,53 @@ async def search_aois(
         return await conn.run_sync(_read)
 
 
-def format_id(idx):
+async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
+    """Return the bbox of one AOI, found by ``(source, src_id)``.
+
+    The bbox is computed at build time, so this function reads it and does
+    not derive it. It returns the world bbox if the AOI or its bbox is
+    missing, and it logs that result. The map then shows the whole world, and
+    the user sees no sign of the cause.
     """
-    Convert the ID to a string and remove the last two characters if they are '_1', '_2', '_3', '_4', or '_5'.
+    if source not in VALID_AOI_SOURCES:
+        # This function does not accept the source aliases that `search_aois`
+        # accepts, so a caller that sends `protectedareas` reaches this line.
+        reason = "invalid_source"
+    else:
+        query = text(
+            "SELECT bbox FROM aois "
+            "WHERE source = :source AND source_id = :src_id "
+            "AND NOT is_deprecated"
+        )
+        async with get_connection_from_pool() as conn:
+            result = await conn.execute(
+                query, {"source": source, "src_id": src_id}
+            )
+            row = result.fetchone()
+            if row and row[0]:
+                return row[0]
+
+        # A missing row and a null bbox need different repairs, so the log
+        # names the cause. A missing row shows a stale id, or a build that
+        # skipped the AOI. A null bbox shows a build that wrote the row
+        # without a bbox.
+        reason = "null_bbox" if row else "no_row"
+
+    logger.warning(
+        "AOI bbox lookup fell back to the world bbox.",
+        source=source,
+        src_id=src_id,
+        reason=reason,
+    )
+    return WORLD_BBOX
+
+
+def format_id(idx):
+    """Remove the GADM version suffix from an id, and return a string.
+
+    A GADM id carries a version suffix, such as the ``_1`` in ``BRA.16_1``.
+    The suffix is not part of the hierarchy, and the external analytics API
+    rejects it. This function removes ``_1`` through ``_5``.
     """
     idx = str(idx)
     if idx[-2:] in ["_1", "_2", "_3", "_4", "_5"]:
@@ -282,20 +278,49 @@ def format_id(idx):
     return idx
 
 
+def _response_src_id(source: str, src_id: str) -> Union[int, str]:
+    """Keep the ``src_id`` type that geometry responses used before unification.
+
+    ``geometries_kba.sitrecid`` was numeric, so a KBA lookup returned an int.
+    ``GeometryResponse.src_id`` is ``int | str`` for that reason. ``aois`` stores
+    every id as text, so this cast keeps the response type for KBA clients.
+    """
+    if source == "kba":
+        try:
+            return int(src_id)
+        except ValueError:
+            pass
+    return src_id
+
+
 async def get_geometry_data(
     source: str, src_id: str, user_id: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
-    """
-    Get geometry data by source and source ID.
+    """Get geometry data by source and source ID.
+
+    A reference source reads the unified ``aois`` table and returns the
+    normalized MultiPolygon. ``custom`` reads ``custom_areas`` and returns the
+    drawn parts unchanged, so one part gives a ``Polygon`` and two or more
+    give a ``GeometryCollection``. The mirrored ``aois`` geometry for a custom
+    area is dissolved, so reading it here would change the shape that the
+    analytics, thumbnail and mosaic callers already get.
+
+    The reference query does not filter ``is_disputed``. This function finds
+    an AOI by id, so it must still return a disputed area. It also does not
+    normalize source aliases, so ``protectedareas`` raises.
+
+    This function opens its own session; the caller passes none.
 
     Args:
         source: Source type (gadm, kba, landmark, wdpa, custom)
         src_id: Source-specific ID
-        session: Database session
         user_id: User ID (required for custom areas; falls back to request context)
 
     Returns:
-        Dict with name, subtype, source, src_id, and geometry, or None if not found
+        Dict with name, subtype, source, src_id, and geometry, or None if not
+        found. ``geometry`` is None when a custom area holds no parsable part.
+        ``subtype`` is ``custom`` for a custom area, and not the
+        ``custom-area`` value that the mirror writes.
 
     Raises:
         ValueError: For invalid source or missing user_id for custom areas
@@ -354,31 +379,27 @@ async def get_geometry_data(
             }
 
         # Handle standard geometry sources
-        if source not in SOURCE_ID_MAPPING:
-            valid_sources = list(SOURCE_ID_MAPPING.keys())
+        if source not in VALID_AOI_SOURCES:
             raise ValueError(
-                f"Invalid source: {source}. Must be one of: {', '.join(valid_sources)}"
+                f"Invalid source: {source}. Must be one of: "
+                f"{', '.join(sorted(VALID_AOI_SOURCES))}"
             )
 
-        table_name = SOURCE_ID_MAPPING[source]["table"]
-        id_column = SOURCE_ID_MAPPING[source]["id_column"]
-
-        sql_query = f"""
-            SELECT name, subtype, ST_AsGeoJSON(geometry) as geometry_json
-            FROM {table_name}
-            WHERE "{id_column}" = :src_id
+        # One query serves every reference source, because source_id is text for
+        # all of them. The query does not filter is_disputed. Search excludes
+        # disputed rows, but this lookup finds an AOI by id and must still
+        # return them.
+        sql_query = """
+            SELECT name, subtype, ST_AsGeoJSON(geometry) AS geometry_json
+            FROM aois
+            WHERE source = :source
+              AND source_id = :src_id
+              AND NOT is_deprecated
         """
 
-        nsrc_id: Union[int, str] = src_id
-        if source == "kba":
-            # These sources IDs stored as numeric values. Convert nsrc_id to integer
-            # if we can, else leave as string.
-            try:
-                nsrc_id = int(nsrc_id)
-            except ValueError:
-                pass
-
-        q = await session.execute(text(sql_query), {"src_id": nsrc_id})
+        q = await session.execute(
+            text(sql_query), {"source": source, "src_id": src_id}
+        )
         result = q.first()
 
         if not result:
@@ -398,6 +419,6 @@ async def get_geometry_data(
             "name": result.name,
             "subtype": result.subtype,
             "source": source,
-            "src_id": nsrc_id,
+            "src_id": _response_src_id(source, src_id),
             "geometry": geometry,
         }

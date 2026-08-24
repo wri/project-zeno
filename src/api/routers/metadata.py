@@ -7,8 +7,8 @@ from src.agent.datasets.palette import PALETTES
 from src.agent.llms import get_model, get_small_model
 from src.api.schemas import DatasetCatalogResponse
 from src.shared.geocoding_helpers import (
+    AOI_SOURCE_ID_COLUMNS,
     GADM_SUBTYPE_MAP,
-    SOURCE_ID_MAPPING,
     SUBREGION_TO_SUBTYPE_MAPPING,
 )
 from src.shared.version import get_version
@@ -18,11 +18,13 @@ router = APIRouter()
 
 @router.get("/api/metadata")
 async def api_metadata() -> dict:
-    """
-    Returns API metadata helpful for instantiating the frontend.
+    """Return API metadata helpful for instantiating the frontend.
 
-    Includes layer ID mappings, subregion/subtype mappings, and model
-    information.
+    ``layer_id_mapping`` holds the id column name that each source used before
+    the AOI tables were unified, such as ``gadm_id`` and ``sitrecid``. The
+    unified ``aois`` table now holds every id in ``source_id``. The mapping
+    stays because the frontend addresses its tile layers by these names, so it
+    is a public contract and not a description of the schema.
     """
     current_model = get_model()
     current_model_name = AgentSettings.model.lower()
@@ -31,9 +33,7 @@ async def api_metadata() -> dict:
 
     return {
         "version": get_version(),
-        "layer_id_mapping": {
-            key: value["id_column"] for key, value in SOURCE_ID_MAPPING.items()
-        },
+        "layer_id_mapping": AOI_SOURCE_ID_COLUMNS,
         "subregion_to_subtype_mapping": SUBREGION_TO_SUBTYPE_MAPPING,
         "gadm_subtype_mapping": GADM_SUBTYPE_MAP,
         "model": {

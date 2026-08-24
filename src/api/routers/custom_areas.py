@@ -1,4 +1,10 @@
-"""Custom areas CRUD endpoints and area naming."""
+"""Custom areas CRUD endpoints and area naming.
+
+``custom_areas`` holds the drawn GeoJSON list and stays the source of truth.
+Every write here also projects the area into the unified ``aois`` and
+``user_aois`` tables, in the same transaction, so search cannot fall behind
+the CRUD. ``src/api/services/aoi_sync.py`` holds that mirror.
+"""
 
 import json
 from uuid import UUID
@@ -17,6 +23,7 @@ from src.api.schemas import (
     CustomAreaNameResponse,
     UserModel,
 )
+from src.api.services.aoi_sync import delete_custom_aoi, upsert_custom_aoi
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 
@@ -62,13 +69,24 @@ async def create_custom_area(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """Create a new custom area for the authenticated user."""
+    """Create a new custom area for the authenticated user.
+
+    The response holds the drawn parts as sent. The area is also mirrored into
+    ``aois`` with an ``owner`` link in ``user_aois``, which makes it findable
+    through ``GET /api/aois``. An area whose parts give no areal geometry is
+    stored, but it is not mirrored, so it does not appear in search.
+    """
     custom_area = CustomAreaOrm(
         user_id=user.id,
         name=area.name,
         geometries=[i.model_dump_json() for i in area.geometries],
     )
     session.add(custom_area)
+    # Flush so that the mirror can read the row, and its generated id, in this
+    # same transaction. The custom_areas row and its aois projection then commit
+    # together.
+    await session.flush()
+    await upsert_custom_aoi(session, area_id=custom_area.id)
     await session.commit()
     await session.refresh(custom_area)
 
@@ -87,7 +105,11 @@ async def list_custom_areas(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """List all custom areas belonging to the authenticated user."""
+    """List all custom areas belonging to the authenticated user.
+
+    This reads ``custom_areas`` and returns the drawn parts unchanged. It is
+    not the search surface; use ``GET /api/aois?source=custom`` for that.
+    """
     stmt = select(CustomAreaOrm).filter_by(user_id=user.id)
     result = await session.execute(stmt)
     areas = result.scalars().all()
@@ -104,7 +126,10 @@ async def get_custom_area(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """Get a specific custom area by ID."""
+    """Get a specific custom area by ID.
+
+    This reads ``custom_areas`` and returns the drawn parts unchanged.
+    """
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
     result = await session.execute(stmt)
     custom_area = result.scalars().first()
@@ -129,13 +154,19 @@ async def update_custom_area_name(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """Update the name of a custom area."""
+    """Update the name of a custom area.
+
+    The request body is ``{"name": "<new name>"}``. The mirrored ``aois`` row
+    is renamed in the same transaction.
+    """
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
     result = await session.execute(stmt)
     area = result.scalars().first()
     if not area:
         raise HTTPException(status_code=404, detail="Custom area not found")
     area.name = payload["name"]
+    await session.flush()
+    await upsert_custom_aoi(session, area_id=area.id)
     await session.commit()
     await session.refresh(area)
 
@@ -155,12 +186,17 @@ async def delete_custom_area(
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """Delete a custom area."""
+    """Delete a custom area.
+
+    The mirrored ``aois`` row is deleted in the same transaction, and the
+    ``user_aois`` foreign key cascades, so no owner link survives the area.
+    """
     stmt = select(CustomAreaOrm).filter_by(id=area_id, user_id=user.id)
     result = await session.execute(stmt)
     area = result.scalars().first()
     if not area:
         raise HTTPException(status_code=404, detail="Custom area not found")
+    await delete_custom_aoi(session, area_id)
     await session.delete(area)
     await session.commit()
     return {"detail": f"Area {area_id} deleted successfully"}

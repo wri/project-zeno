@@ -5,7 +5,7 @@ from src.ingest.utils import (
     gdf_from_ndjson_chunked,
     ingest_to_postgis,
 )
-from src.shared.geocoding_helpers import SOURCE_ID_MAPPING
+from src.shared.geocoding_helpers import AOI_SOURCE_ID_COLUMNS
 
 WDPA_DATA_SOURCE = "s3://gfw-data-lake/wdpa_protected_areas/v202407/vector/epsg-4326/wdpa_protected_areas_v202407.ndjson"
 
@@ -84,7 +84,7 @@ def ingest_wdpa() -> None:
         index_name="idx_geometries_wdpa_name_gin",
         column="name",
     )
-    id_column = SOURCE_ID_MAPPING["wdpa"]["id_column"]
+    id_column = AOI_SOURCE_ID_COLUMNS["wdpa"]
     create_id_index_if_not_exists(
         table_name="geometries_wdpa",
         index_name=f"idx_geometries_wdpa_{id_column}",
