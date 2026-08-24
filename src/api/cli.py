@@ -15,6 +15,7 @@ Usage:
     python src/api/cli.py rotate-key --key-id "key_456"
     python src/api/cli.py revoke-key --key-id "key_456"
     python src/api/cli.py make-user-admin --email "admin@example.com"
+    python src/api/cli.py build-aois --source custom --prune --dry-run
 """
 
 import asyncio
@@ -36,12 +37,20 @@ from src.api.data_models import (
     UserOrm,
     UserType,
 )
+from src.api.services.aoi_sync import (
+    prune_orphan_custom_aois,
+    upsert_custom_aoi,
+)
+from src.shared.aoi_geometry import (
+    bbox_float_array_sql,
+    multipolygon_sql,
+)
 from src.shared.config import SharedSettings
 from src.shared.geocoding_helpers import (
+    AOI_SOURCE_ID_COLUMNS,
     GADM_LEVELS,
     GADM_STANDARD_ID_RE,
-    SOURCE_ID_MAPPING,
-    _antimeridian_bbox_sql,
+    SOURCE_STAGING_TABLES,
 )
 
 
@@ -809,10 +818,10 @@ def backfill_turn_fields_command(batch_size: int, dry_run: bool):
 # Reference sources first, custom last (custom depends only on custom_areas).
 _BUILD_SOURCES = ["gadm", "kba", "wdpa", "landmark", "custom"]
 
-# Note: `aois.properties` (JSONB) is intentionally left NULL by this transform.
-# It exists as an escape hatch for user-uploaded custom-AOI attributes (needs
-# the PR2 API change to accept them) and source-specific reference columns
-# (a deliberate follow-up); neither is populated in PR1.
+# This transform leaves `aois.properties` (JSONB) NULL. The column holds two
+# kinds of value that no code writes yet: the attributes of an uploaded custom
+# AOI, and the source columns that do not map to a typed column. Both are
+# follow-up work.
 
 # Which source column carries the ISO3 country code(s), per reference source.
 # Resolved case-insensitively at runtime: geometries_* are built by GeoPandas
@@ -823,44 +832,6 @@ _ISO3_SOURCE_COLUMNS = {
     "wdpa": ["iso3"],
     "landmark": ["iso_code"],
 }
-
-
-def _multipolygon_sql(geom_expr: str) -> str:
-    """Normalize *geom_expr* to a valid 2D MultiPolygon (for the typed column).
-
-    ``ST_MakeValid`` repairs self-intersections / ring errors;
-    ``ST_CollectionExtract(..., 3)`` keeps only polygonal parts (dropping the
-    line/point slivers ``ST_MakeValid`` can emit); ``ST_Multi`` guarantees the
-    ``MULTIPOLYGON`` type the ``aois.geometry`` column enforces. Callers filter
-    out an empty result (a geometry with no areal component) with
-    ``NOT ST_IsEmpty(...)`` so such rows are skipped, not stored empty.
-
-    The repair runs per part (``ST_Dump`` -> ``ST_MakeValid`` ->
-    ``ST_Collect``): on a whole MultiPolygon ``ST_MakeValid`` resolves every
-    ring against every other in one GEOS overlay, whose cost scales with part
-    count and can exhaust the backend on many-part rows. The tradeoff is that
-    overlaps *between* parts go unresolved, so the result is not guaranteed
-    OGC-valid -- fine here, as the column enforces type but not validity.
-    """
-    return (
-        "ST_Multi(ST_CollectionExtract("
-        "(SELECT ST_Collect(ST_MakeValid(d.geom)) "
-        f"FROM ST_Dump(ST_Force2D({geom_expr})) d), 3))"
-    )
-
-
-def _bbox_float_array_sql(geom_expr: str) -> str:
-    """A ``float8[]`` ``[west, south, east, north]`` for *geom_expr*.
-
-    Wraps the shared antimeridian-aware bbox (which yields a JSON array) and
-    turns it into a real Postgres array so it lands in ``aois.bbox`` directly.
-    ``WITH ORDINALITY`` pins the element order.
-    """
-    return (
-        "(SELECT array_agg(e::double precision ORDER BY ord) "
-        f"FROM json_array_elements_text({_antimeridian_bbox_sql(geom_expr)}) "
-        "WITH ORDINALITY AS t(e, ord))"
-    )
 
 
 async def _table_exists(session: AsyncSession, table: str) -> bool:
@@ -901,10 +872,10 @@ async def _build_reference_aois(
     ``DISTINCT ON`` dedup and ``ON CONFLICT`` upsert stay correct with no
     cross-chunk boundary effects. Note chunking does *not* bound the cost of any
     single geometry -- that is the job of the part-wise repair in
-    ``_multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
+    ``multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
     """
-    cfg = SOURCE_ID_MAPPING[source]
-    table, id_col = cfg["table"], cfg["id_column"]
+    table = SOURCE_STAGING_TABLES[source]
+    id_col = AOI_SOURCE_ID_COLUMNS[source]
 
     iso3_col = await _resolve_column(
         session, table, _ISO3_SOURCE_COLUMNS[source]
@@ -933,7 +904,7 @@ async def _build_reference_aois(
 
     # Normalize source geometry to a valid MultiPolygon once, then derive
     # geometry / bbox / area_km2 from the same shape.
-    norm_geom = _multipolygon_sql("geometry")
+    norm_geom = multipolygon_sql("geometry")
     # The geometries_* tables are bulk-loaded by GeoPandas with no unique
     # constraint, so the same id can appear on several rows (GADM does).
     # Postgres aborts the whole INSERT ... ON CONFLICT DO UPDATE if one
@@ -976,7 +947,7 @@ async def _build_reference_aois(
             name,
             subtype,
             geom,
-            {_bbox_float_array_sql("geom")},
+            {bbox_float_array_sql("geom")},
             ST_Area(geom::geography) / 1e6,
             iso3,
             admin_level,
@@ -1052,8 +1023,8 @@ async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
     a high part count is what makes a whole-geometry repair blow up. The
     largest-part pass needs ``ST_Dump``, so it is slower than the rest.
     """
-    cfg = SOURCE_ID_MAPPING[source]
-    table, id_col = cfg["table"], cfg["id_column"]
+    table = SOURCE_STAGING_TABLES[source]
+    id_col = AOI_SOURCE_ID_COLUMNS[source]
 
     (
         rows,
@@ -1118,83 +1089,6 @@ async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
         click.echo(f"     {gtype}: {cnt}")
 
 
-async def _build_custom_aois(session: AsyncSession) -> int:
-    """Transform ``custom_areas`` into ``aois`` + one ``owner`` link each.
-
-    Geometry is the dissolved union of the stored GeoJSON-string list, coerced
-    to a valid MultiPolygon: overlapping user-drawn parts merge (so ``area_km2``
-    is not double-counted) and the result satisfies the typed column. Each area
-    gets exactly one ``owner`` row in ``user_aois`` for its ``user_id``. Returns
-    the owner-link upsert count.
-    """
-    # Union dissolves overlapping parts; _multipolygon_sql makes it a valid
-    # MultiPolygon. ST_MakeValid per element guards invalid input polygons.
-    geom_sql = _multipolygon_sql(
-        "(SELECT ST_Union("
-        "ST_MakeValid(ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON(g), 4326)))"
-        ") FROM jsonb_array_elements_text(ca.geometries) AS g)"
-    )
-    sql = f"""
-        WITH collected AS (
-            SELECT
-                ca.id,
-                ca.user_id,
-                ca.name,
-                ca.created_at,
-                ca.updated_at,
-                {geom_sql} AS geom
-            FROM custom_areas ca
-        ),
-        ins AS (
-            INSERT INTO aois (
-                source, source_id, name, subtype, geometry,
-                bbox, area_km2, created_by, created_at, updated_at
-            )
-            SELECT
-                'custom',
-                id::text,
-                name,
-                'custom-area',
-                geom,
-                {_bbox_float_array_sql("geom")},
-                ST_Area(geom::geography) / 1e6,
-                user_id,
-                created_at,
-                updated_at
-            FROM collected
-            WHERE name IS NOT NULL AND geom IS NOT NULL AND NOT ST_IsEmpty(geom)
-            ON CONFLICT (source, source_id) WHERE NOT is_deprecated
-            DO UPDATE SET
-                name = EXCLUDED.name,
-                geometry = EXCLUDED.geometry,
-                bbox = EXCLUDED.bbox,
-                area_km2 = EXCLUDED.area_km2,
-                updated_at = now()
-            RETURNING id AS aoi_id, created_by AS user_id
-        )
-        INSERT INTO user_aois (user_id, aoi_id, relationship)
-        SELECT user_id, aoi_id, 'owner' FROM ins
-        ON CONFLICT (user_id, aoi_id, relationship) DO NOTHING
-    """
-    result = await session.execute(text(sql))
-
-    # Surface (don't silently drop) custom areas whose geometries couldn't be
-    # coerced to a non-empty MultiPolygon.
-    skipped = await session.scalar(
-        text(
-            f"SELECT count(*) FROM custom_areas ca "
-            f"WHERE ca.name IS NOT NULL "
-            f"AND ({geom_sql} IS NULL OR ST_IsEmpty({geom_sql}))"
-        )
-    )
-    if skipped:
-        click.echo(
-            f"⚠️  custom: {skipped} area(s) skipped "
-            f"(geometries not coercible to a non-empty MultiPolygon)."
-        )
-    return result.rowcount
-
-
 @cli.command("build-aois")
 @click.option(
     "--source",
@@ -1226,18 +1120,39 @@ async def _build_custom_aois(session: AsyncSession) -> int:
         "types) per reference source, to size up before a real run."
     ),
 )
+@click.option(
+    "--prune",
+    is_flag=True,
+    help=(
+        "custom only: also delete the mirrored aois rows that have no "
+        "custom_areas row. Off by default, because a wrong or empty "
+        "custom_areas table makes every mirrored row look like an orphan. "
+        "Combine with --dry-run to see the count first."
+    ),
+)
 def build_aois_command(
-    sources: tuple, dry_run: bool, chunks: int, inspect: bool
+    sources: tuple, dry_run: bool, chunks: int, inspect: bool, prune: bool
 ):
     """Populate the unified aois/user_aois tables from already-loaded data.
 
     Idempotent, set-based, in-DB transform of the reference geometries_*
     tables and custom_areas into the unified schema. Run post-deploy (heavy
-    work must not run in the blocking migrate Job). Purely additive: the live
-    API keeps serving from geometries_* / custom_areas until the API PR.
+    work must not run in the blocking migrate Job).
+
+    The API reads aois, so this command is a precondition, not an extra. The
+    reference sources do not change, so one build serves them. custom_areas
+    does change, so re-run --source custom after a deploy that adds the
+    write-through mirror. Add --prune on that run to remove the rows left by a
+    delete that the mirror missed.
     """
     selected = list(sources) or _BUILD_SOURCES
     outcome = "would be upserted" if dry_run else "upserted"
+
+    if prune and inspect:
+        raise click.UsageError("--prune cannot run with --inspect.")
+    if prune and "custom" not in selected:
+        raise click.UsageError("--prune needs the custom source.")
+    pruned = "would be removed" if dry_run else "removed"
 
     async def _inspect():
         db = DatabaseManager()
@@ -1250,7 +1165,7 @@ def build_aois_command(
                             "(GeoJSON-string list, not a geometry column)."
                         )
                         continue
-                    table = SOURCE_ID_MAPPING[source]["table"]
+                    table = SOURCE_STAGING_TABLES[source]
                     if not await _table_exists(session, table):
                         click.echo(
                             f"⏭️  {source}: {table} not found, skipping."
@@ -1271,11 +1186,7 @@ def build_aois_command(
                 # succeeded; re-run resumes. The big reference tables are far
                 # too large to hold in one open transaction.
                 async with db.async_session() as session:
-                    table = (
-                        "custom_areas"
-                        if source == "custom"
-                        else SOURCE_ID_MAPPING[source]["table"]
-                    )
+                    table = SOURCE_STAGING_TABLES[source]
                     if not await _table_exists(session, table):
                         click.echo(
                             f"⏭️  {source}: {table} not found, skipping."
@@ -1283,10 +1194,19 @@ def build_aois_command(
                         continue
 
                     if source == "custom":
-                        links = await _build_custom_aois(session)
+                        # The CRUD write-through uses this same SQL. This call
+                        # has no area filter.
+                        links = await upsert_custom_aoi(session)
                         click.echo(
                             f"✅ custom: {links} owner link(s) {outcome}."
                         )
+                        if prune:
+                            # The same session as the upsert, so --dry-run
+                            # rolls the delete back with it.
+                            gone = await prune_orphan_custom_aois(session)
+                            click.echo(
+                                f"🧹 custom: {gone} orphan row(s) {pruned}."
+                            )
                     else:
                         n = await _build_reference_aois(
                             session, source, nchunks=chunks, dry_run=dry_run
@@ -1328,6 +1248,17 @@ def build_aois_command(
                     text("SELECT count(*) FROM user_aois")
                 )
                 click.echo(f"   user_aois: {links_total.scalar()}")
+
+            # Refresh the planner statistics. After a bulk insert the planner
+            # has no statistics for the new rows until autoanalyze runs, and
+            # until then it does not use the indexes on aois. Skipped under
+            # --dry-run, which rolls every source back.
+            if committed:
+                async with db.async_session() as session:
+                    await session.execute(text("ANALYZE aois"))
+                    await session.execute(text("ANALYZE user_aois"))
+                    await session.commit()
+                click.echo("\n📈 Planner statistics refreshed.")
         except Exception:
             if committed:
                 click.echo(

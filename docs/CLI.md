@@ -140,9 +140,71 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 - Until it runs, pre-existing rows report NULL turn fields — the API tolerates this
   (analytics is just incomplete for those rows), so there's no rush within a deploy.
 
+### build-aois
+
+Populates the unified `aois` / `user_aois` tables from data already loaded in the
+database: the reference tables (`geometries_gadm`, `geometries_kba`,
+`geometries_wdpa`, `geometries_landmark`) and `custom_areas`. **The API reads
+`aois`, so this is a precondition, not an optional extra.** It is an in-database,
+set-based transform — no rows travel through Python. It is idempotent and safe to
+re-run. Run it out of band, never in the blocking migrate Job: the reference build
+is heavy and would hold up the deploy.
+
+**Usage:**
+```bash
+# Size up the reference geometry before a real run (no writes)
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py build-aois --inspect
+
+# Report counts, then roll everything back
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py build-aois --dry-run
+
+# Full build
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py build-aois
+
+# Custom areas only, removing rows whose custom area is gone
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py build-aois --source custom --prune --dry-run
+```
+
+**Parameters:**
+- `--source` (repeatable, default all): limit to `gadm`, `kba`, `wdpa`, `landmark`
+  and/or `custom`. A source whose table is absent is skipped with a message, so
+  `--source custom` works on a database that has no `geometries_*` tables.
+- `--dry-run`: run the transform in a transaction, report counts, then roll back.
+- `--chunks` (default 16): hash-partitioned passes per reference source. Each is its
+  own statement and transaction, so higher means lower peak memory and more scans.
+- `--inspect`: don't build; print per-source geometry statistics (vertex
+  distribution, types). Skips `custom`, whose geometry is a GeoJSON-string list.
+- `--prune`: **custom only.** Also delete the mirrored `aois` rows that have no
+  `custom_areas` row. Off by default, because a wrong or empty `custom_areas` table
+  makes every mirrored row look like an orphan. Rejected with `--inspect`, or when
+  `--source` excludes `custom`.
+
+**Notes:**
+- Requires `DATABASE_URL` in the pod environment.
+- Each source commits independently, and reference sources commit per chunk, so a
+  late failure never discards completed work — re-run to resume. The command prints
+  which sources committed before a failure.
+- It runs `ANALYZE` on both tables at the end. A bulk insert leaves the planner
+  without statistics until autoanalyze fires, and until then it ignores the indexes
+  on `aois`. Skipped under `--dry-run`.
+- **Ordering for the deploy that first points the API at `aois`:** the reference
+  sources never change, so one build serves them. `custom_areas` does change, and
+  the write-through mirror that keeps `aois` current ships with that API change.
+  Any custom area created, renamed or deleted between the previous build and that
+  deploy has drifted. So deploy first, **then** run `build-aois --source custom
+  --prune`. Running it before the deploy leaves a fresh gap between the run and the
+  pods going live. Afterwards the write-through keeps the mirror correct and this
+  catch-up is not needed again.
+
 ## Error Handling
 
 The command includes error handling:
 
 - **make-user-admin**: Returns an error if the user with the specified email doesn't exist
 - **create-api-key / create-machine-user**: Returns an error if an unknown `--scope` is supplied
+- **build-aois**: Returns a usage error if `--prune` is combined with `--inspect`, or
+  with a `--source` set that excludes `custom`

@@ -18,17 +18,25 @@ async def get_geometry(
     src_id: str,
     user: UserModel = Depends(require_auth),
 ):
-    """
-    Get geometry data by source and source ID.
+    """Return the geometry of one AOI, found by source and source ID.
 
-    Args:
-        source: Source type (gadm, kba, landmark, wdpa, custom)
-        src_id: Source-specific ID (GID_X for GADM, sitrecid for KBA, UUID for custom areas, etc.)
+    A reference source (``gadm``, ``kba``, ``wdpa``, ``landmark``) reads the
+    unified ``aois`` table and returns a ``MultiPolygon``. A ``custom`` area
+    reads ``custom_areas`` and returns the drawn geometry unchanged: a
+    ``Polygon`` for one part, or a ``GeometryCollection`` for two or more.
 
-    Example:
-        GET /api/geometry/gadm/IND.26.2_1
-        GET /api/geometry/kba/16595
-        GET /api/geometry/custom/123e4567-e89b-12d3-a456-426614174000
+    This endpoint finds an AOI by its ID, so it includes disputed areas.
+    ``GET /api/aois`` excludes them. This endpoint also does not accept the
+    source aliases that ``GET /api/aois`` accepts. Send ``wdpa``, and not
+    ``protectedareas``.
+
+    It returns 404 if no AOI has that ID, and 400 for an unknown source.
+
+    Examples:
+
+    - ``GET /api/geometry/gadm/IND.26.2_1``
+    - ``GET /api/geometry/kba/16595``
+    - ``GET /api/geometry/custom/123e4567-e89b-12d3-a456-426614174000``
     """
     try:
         result = await get_geometry_data(source, src_id)

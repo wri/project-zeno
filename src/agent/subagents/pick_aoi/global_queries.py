@@ -15,9 +15,7 @@ from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
-    GADM_STANDARD_ID_RE,
-    GADM_TABLE,
-    SOURCE_ID_MAPPING,
+    AOI_SOURCE_ID_COLUMNS,
     SUBREGION_TO_SUBTYPE_MAPPING,
 )
 
@@ -69,7 +67,7 @@ async def handle_global_request(
     df = await _query_all_countries()
     final_aois = df.to_dict(orient="records")
     for aoi in final_aois:
-        aoi[SOURCE_ID_MAPPING[aoi["source"]]["id_column"]] = aoi["src_id"]
+        aoi[AOI_SOURCE_ID_COLUMNS[aoi["source"]]] = aoi["src_id"]
 
     return Command(
         update={
@@ -88,18 +86,28 @@ async def handle_global_request(
 
 
 async def _query_all_countries() -> pd.DataFrame:
-    """Return every country row from GADM — no spatial filter needed."""
-    src_id_field = SOURCE_ID_MAPPING["gadm"]["id_column"]
+    """Return every country row from GADM. No spatial filter is necessary.
+
+    ``NOT is_disputed`` replaces the ISO3-prefix regex on ``gadm_id``. Only GADM
+    rows carry the flag, and the build sets it with that same regex, so the row
+    set does not change.
+
+    The query returns the world bbox for every country. This is intentional. A
+    global comparison does not zoom to one country, so the query does not read
+    the per-country bbox in ``aois``.
+    """
     subtype = SUBREGION_TO_SUBTYPE_MAPPING["country"]
-    sql_query = f"""
+    sql_query = """
         SELECT name,
                subtype,
-               CAST({src_id_field} AS TEXT) AS src_id,
-               'gadm'                        AS source,
+               source_id AS src_id,
+               source    AS source,
                json_build_array(-180.0, -90.0, 180.0, 90.0) AS bbox
-        FROM {GADM_TABLE}
-        WHERE subtype = :subtype
-        AND {src_id_field} ~ '{GADM_STANDARD_ID_RE}'
+        FROM aois
+        WHERE source = 'gadm'
+          AND subtype = :subtype
+          AND NOT is_disputed
+          AND NOT is_deprecated
     """
     async with get_connection_from_pool() as conn:
 
