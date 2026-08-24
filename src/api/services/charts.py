@@ -139,10 +139,12 @@ LGMS_CLASS_LABELS = {
 
 
 class LGMSChartGenerator(ChartGenerator):
-    """Land GHG Monitoring System: three stacked-bar-with-line charts at
-    increasing levels of aggregation — full detail (per raw class and measure),
-    category (vegetation/soil/agriculture split into emissions vs. removals),
-    and summary (land use vs. agriculture).
+    """Land GHG Monitoring System: three stacked-bar-with-line time-series
+    charts at increasing levels of aggregation — full detail (per raw class
+    and measure), category (vegetation/soil/agriculture split into emissions
+    vs. removals), and summary (land use vs. agriculture) — plus one
+    hierarchical-bar chart of period-of-record averages (see
+    `_hierarchy_rows`).
 
     Input rows come from `merge_lgms_sections()`
     (src/agent/datasets/handlers/analytics_handler.py), one row per
@@ -294,12 +296,9 @@ class LGMSChartGenerator(ChartGenerator):
                 position=3,
                 title="Net GHG Flux — Annual Average",
                 chart_type="hierarchical-bar",
-                # A hierarchy has no cartesian axes; chart_data's own
-                # parent_id pointers carry the structure (see
-                # _hierarchy_rows and project-zeno-next's
-                # src/features/ghg-flux-tree, which is the sole consumer of
-                # this chart_type and owns the id/parent_id/label/
-                # avg_emissions/avg_removals field contract).
+                # A hierarchy has no cartesian axes; each chart_data row's
+                # own parent_id pointer carries the tree structure instead
+                # (see _hierarchy_rows).
                 x_axis="",
                 y_axis="",
                 chart_data=self._hierarchy_rows(
