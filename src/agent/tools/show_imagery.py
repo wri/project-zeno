@@ -1,6 +1,7 @@
 from datetime import date
-from typing import Annotated, Dict, Optional
+from typing import Annotated, Dict, Literal, Optional
 
+import httpx
 from cogeo_mosaic.errors import MosaicNotFoundError
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
@@ -25,6 +26,48 @@ from src.shared.request_context import current_user_id
 
 logger = get_logger(__name__)
 
+PLANET_BASE_URL = "https://tfo-wmts-proxy-5ufe6llh5a-uc.a.run.app"
+PLANET_COVERAGE = (-70.0, -10.0, -60.0, 0.0)
+
+
+async def _fetch_planet_mosaics() -> list[dict]:
+    async with httpx.AsyncClient(timeout=10) as client:
+        response = await client.get(f"{PLANET_BASE_URL}/wmts/v1/mosaics")
+        response.raise_for_status()
+        return response.json()
+
+
+def _planet_covers(aois: list[dict]) -> bool:
+    west, south, east, north = PLANET_COVERAGE
+    return bool(aois) and all(
+        (bbox := aoi.get("bbox"))
+        and bbox[0] <= east
+        and bbox[2] >= west
+        and bbox[1] <= north
+        and bbox[3] >= south
+        for aoi in aois
+    )
+
+
+def _planet_mosaic(
+    mosaics: list[dict], target: Optional[date]
+) -> Optional[dict]:
+    if not mosaics:
+        return None
+    if target is None:
+        return max(mosaics, key=lambda mosaic: mosaic["first_acquired"])
+    target_iso = target.isoformat()
+    return next(
+        (
+            mosaic
+            for mosaic in mosaics
+            if mosaic["first_acquired"][:10]
+            <= target_iso
+            < mosaic["last_acquired"][:10]
+        ),
+        None,
+    )
+
 
 def _feedback(message: str, tool_call_id: Optional[str]) -> Command:
     return Command(
@@ -44,15 +87,19 @@ def _feedback(message: str, tool_call_id: Optional[str]) -> Command:
 @tool("show_imagery")
 async def show_imagery(
     state: Annotated[Dict, InjectedState],
+    provider: Optional[Literal["sentinel-2", "planet"]] = None,
     target_date: Optional[str] = None,
     window_days: Optional[int] = None,
     max_cloud_cover: Optional[int] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
-    """Show a Sentinel-2 satellite imagery layer on the map for the AOI in state.
+    """Show a satellite imagery layer on the map for the AOI in state.
 
-    target_date (YYYY-MM-DD) picks the date the imagery should be closest
-    to; defaults to today. window_days (default 7, max 183) widens the
+    provider may be planet or sentinel-2. When omitted, Planet is preferred
+    where its limited coverage and requested month are available, otherwise
+    Sentinel-2 is used. target_date (YYYY-MM-DD) selects the Planet monthly
+    mosaic or the date Sentinel-2 imagery should be closest to. window_days
+    (default 7, max 183) widens the Sentinel-2
     search to ±N days around target_date; max_cloud_cover (default 20,
     percent) loosens the cloud filter. Only raise them when the defaults
     find no scenes and the user agrees. Run pick_aoi first. Regional
@@ -85,6 +132,53 @@ async def show_imagery(
     logger.info(
         f"SHOW-IMAGERY-TOOL: AOI: {aoi_names}, Target date: {target_date}"
     )
+
+    if provider != "sentinel-2" and _planet_covers(aois):
+        try:
+            mosaic = _planet_mosaic(await _fetch_planet_mosaics(), parsed_date)
+        except (httpx.HTTPError, KeyError, TypeError, ValueError):
+            logger.warning("Planet mosaic lookup failed", exc_info=True)
+            mosaic = None
+        if mosaic is not None:
+            mosaic_name = mosaic["name"]
+            imagery_state = ImageryState(
+                provider="planet",
+                tile_url=(
+                    f"{PLANET_BASE_URL}/wmts/v1/{mosaic_name}"
+                    "/{z}/{x}/{y}.png"
+                ),
+                mosaic_id=mosaic_name,
+                date_start=mosaic["first_acquired"][:10],
+                date_end=mosaic["last_acquired"][:10],
+                target_date=parsed_date.isoformat() if parsed_date else None,
+                aoi_names=aoi_names,
+            )
+            return Command(
+                update={
+                    "imagery": imagery_state.model_dump(),
+                    "messages": [
+                        ToolMessage(
+                            "Limited-coverage Planet imagery is shown on the "
+                            "map. Sentinel-2 imagery is also available if "
+                            "you'd like to compare it.",
+                            tool_call_id=tool_call_id,
+                        )
+                    ],
+                }
+            )
+        if provider == "planet":
+            return _feedback(
+                "Planet imagery is not available for this area and month. "
+                "Sentinel-2 imagery is available instead.",
+                tool_call_id,
+            )
+
+    if provider == "planet":
+        return _feedback(
+            "Planet imagery is not available for this area and month. "
+            "Sentinel-2 imagery is available instead.",
+            tool_call_id,
+        )
 
     aoi_refs = tuple((a["source"], a["src_id"]) for a in aois)
     user_id = None
@@ -146,6 +240,7 @@ async def show_imagery(
         )
 
     imagery_state = ImageryState(
+        provider="sentinel-2",
         tile_url=result.tile_url,
         tilejson_url=result.tilejson_url,
         mosaic_id=result.mosaic_id,
@@ -197,8 +292,8 @@ SPEC = ToolSpec(
     tool=show_imagery,
     category=ToolCategory.PRIMITIVE,
     prompt_fragment=(
-        "- show_imagery(target_date): show a Sentinel-2 satellite imagery "
-        "layer on the map for the AOI in state. Run pick_aoi first; regional "
-        "areas only."
+        "- show_imagery(provider, target_date): show Planet imagery when "
+        "available, otherwise Sentinel-2, for the AOI in state. provider is "
+        "optional ('planet' or 'sentinel-2'). Run pick_aoi first."
     ),
 )

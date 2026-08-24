@@ -33,6 +33,7 @@ logger = get_logger(__name__)
 
 # Render-relevant fields of the imagery state (ImageryState) — all of it.
 _IMAGERY_KEYS = (
+    "provider",
     "tile_url",
     "tilejson_url",
     "mosaic_id",
@@ -97,8 +98,9 @@ def _dataset_summary(snapshot: dict) -> str:
 
 
 def _imagery_summary(snapshot: dict) -> str:
+    provider = snapshot.get("provider") or "Sentinel-2"
     return (
-        f"Sentinel-2 imagery map widget (around "
+        f"{provider} imagery map widget (around "
         f"{snapshot['target_date']}, areas: "
         f"{', '.join(snapshot['aoi_names'] or [])})"
     )

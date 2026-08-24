@@ -1,7 +1,7 @@
 ---
 name: show-imagery
-description: Display Sentinel-2 satellite imagery on the map for a place around a date.
-when_to_use: User asks to see satellite imagery, a satellite view, or Sentinel-2 of a place — optionally around a date. Not for data analysis or charts.
+description: Display Planet or Sentinel-2 satellite imagery on the map for a place around a date.
+when_to_use: User asks to see satellite imagery, a satellite view, Planet, or Sentinel-2 imagery of a place — optionally around a date. Not for data analysis or charts.
 requires: pick_aoi, show_imagery
 ---
 
@@ -11,10 +11,13 @@ requires: pick_aoi, show_imagery
    regional areas (up to ~50,000 km²); country-scale requests will be
    rejected — ask the user for a smaller region.
 2. `show_imagery(target_date)` — pass the user's date (YYYY-MM-DD) or omit
-   for the most recent imagery. Defaults: scenes within ±7 days of the
-   target date, under 20% cloud cover.
-3. **Stop.** Confirm what is shown (scene count and date span from the tool
-   message). No dataset, pull or insights unless asked.
+   for the most recent imagery. The tool prefers limited-coverage Planet
+   imagery when the AOI and month are available, otherwise Sentinel-2.
+   Pass `provider="planet"` or `provider="sentinel-2"` only when the user
+   explicitly asks for that provider. Sentinel-2 defaults to scenes within
+   ±7 days of the target date, under 20% cloud cover.
+3. **Stop.** Confirm the provider shown using the tool message. No dataset,
+   pull or insights unless asked.
 
 # When no scenes are found
 
