@@ -58,14 +58,33 @@ SOURCE_STAGING_TABLES = {
 }
 
 
-# GADM LEVELS
+# GADM LEVELS. `col_name` is the level's id column in GADM's own files,
+# `name_col` the column holding that level's name. Level 0 is the exception
+# GADM calls COUNTRY rather than NAME_0, which is why `name_col` is declared
+# per level instead of derived from `col_name` by the callers that need it.
 GADM_LEVELS = {
-    "country": {"col_name": "GID_0", "name": "iso"},
-    "state-province": {"col_name": "GID_1", "name": "adm1"},
-    "district-county": {"col_name": "GID_2", "name": "adm2"},
-    "municipality": {"col_name": "GID_3", "name": "adm3"},
-    "locality": {"col_name": "GID_4", "name": "adm4"},
-    "neighbourhood": {"col_name": "GID_5", "name": "adm5"},
+    "country": {"col_name": "GID_0", "name_col": "COUNTRY", "name": "iso"},
+    "state-province": {
+        "col_name": "GID_1",
+        "name_col": "NAME_1",
+        "name": "adm1",
+    },
+    "district-county": {
+        "col_name": "GID_2",
+        "name_col": "NAME_2",
+        "name": "adm2",
+    },
+    "municipality": {
+        "col_name": "GID_3",
+        "name_col": "NAME_3",
+        "name": "adm3",
+    },
+    "locality": {"col_name": "GID_4", "name_col": "NAME_4", "name": "adm4"},
+    "neighbourhood": {
+        "col_name": "GID_5",
+        "name_col": "NAME_5",
+        "name": "adm5",
+    },
 }
 
 GADM_SUBTYPE_MAP = {val["col_name"]: key for key, val in GADM_LEVELS.items()}
