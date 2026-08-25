@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
+from src.agent.config import AgentSettings
 from src.agent.subagents.pick_aoi import Geocoder, pick_aoi
 from src.agent.subagents.pick_aoi.tool import (
     AOIIndex,
@@ -132,19 +133,10 @@ async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
             ]
         )
 
-    async def fake_select_best_aoi(question, candidate_aois):
-        return AOIIndex(
-            src_id="BRA.14_1",
-            name="Para, Brazil",
-            subtype="state-province",
-            source="gadm",
-        )
-
     monkeypatch.setattr(Geocoder, "extract", fake_extract)
     monkeypatch.setattr(
         tool_module, "query_aoi_database", fake_query_aoi_database
     )
-    monkeypatch.setattr(tool_module, "select_best_aoi", fake_select_best_aoi)
 
     command = await pick_aoi.ainvoke(
         {
@@ -192,7 +184,9 @@ async def test_pick_aoi_tool_asks_for_clarification_when_no_place(
 
 @pytest.mark.asyncio
 async def test_select_best_aoi_empty_candidates_returns_none():
-    """When DB search returns zero rows, select_best_aoi should return None
+    """The model-selection path, still reachable via AOI_NORMALIZER_ENABLED.
+
+    When DB search returns zero rows, select_best_aoi should return None
     instead of crashing with 'single positional indexer is out-of-bounds'."""
     from src.agent.subagents.pick_aoi.tool import select_best_aoi
 
@@ -202,7 +196,9 @@ async def test_select_best_aoi_empty_candidates_returns_none():
 
 @pytest.mark.asyncio
 async def test_select_best_aoi_bad_src_id_returns_none(monkeypatch):
-    """When the LLM picks a src_id that isn't among the candidates,
+    """The model-selection path, still reachable via AOI_NORMALIZER_ENABLED.
+
+    When the LLM picks a src_id that isn't among the candidates,
     select_best_aoi should return None instead of crashing on .iloc[0]."""
     tool_module = import_module("src.agent.subagents.pick_aoi.tool")
 
@@ -299,21 +295,10 @@ async def test_pick_aoi_reports_unmatched_places_alongside_matches(
             )
         return pd.DataFrame()
 
-    async def fake_select_best_aoi(question, candidate_aois):
-        if candidate_aois.empty:
-            return None
-        return AOIIndex(
-            src_id="BRA.14_1",
-            name="Para, Brazil",
-            subtype="state-province",
-            source="gadm",
-        )
-
     monkeypatch.setattr(Geocoder, "extract", fake_extract)
     monkeypatch.setattr(
         tool_module, "query_aoi_database", fake_query_aoi_database
     )
-    monkeypatch.setattr(tool_module, "select_best_aoi", fake_select_best_aoi)
 
     command = await pick_aoi.ainvoke(
         {
@@ -598,11 +583,13 @@ def test_selected_aoi_keeps_the_state_shape_of_an_aoi_selection_entry():
 
 
 def _row(src_id, name, source="gadm", subtype="country", score=None):
+    """One search_aois row. bbox is always present: the query COALESCEs it."""
     row = {
         "src_id": src_id,
         "name": name,
         "subtype": subtype,
         "source": source,
+        "bbox": [-180.0, -90.0, 180.0, 90.0],
     }
     if score is not None:
         row["similarity_score"] = score
@@ -722,3 +709,331 @@ async def test_searching_without_a_term_is_a_programming_error(monkeypatch):
 
     with pytest.raises(ValueError, match="needs a search term"):
         await tool_module.query_aoi_database_multiterm([], None)
+
+
+# ---------------------------------------------------------------------------
+# Geocoder.lookup wiring (PZB-1272) — normalised terms, per-place source
+# narrowing, deterministic selection, and the kill switch.
+# ---------------------------------------------------------------------------
+
+_BOTUM_SAKOR = ExtractedPlace(
+    place="Botum Sakor National Park",
+    canonical="Botum Sakor",
+    alternatives=["Parque Nacional Botum Sakor"],
+    area_type=AreaOfInterestType.WDPA,
+)
+
+_FOREIGN_PARKS = [
+    _row("555", "Boma, National Park, SSD", "wdpa", "protected-area"),
+    _row("556", "Bako, National Park, MYS", "wdpa", "protected-area"),
+]
+_BOTUM_SAKOR_ROW = [
+    _row(
+        "478405",
+        "Botum Sakor, ឧទ្យានជាតិ ដើម, KHM",
+        "wdpa",
+        "protected-area",
+    )
+]
+
+
+class _ExplodingModel:
+    """Any use of the model during selection must fail the test."""
+
+    def with_structured_output(self, schema):
+        raise AssertionError("candidate selection must not call a model")
+
+
+@pytest.mark.asyncio
+async def test_lookup_still_accepts_plain_place_strings(monkeypatch):
+    """Callers and the DB-tier suites pass place names, not objects."""
+    tool_module = _patch_search(
+        monkeypatch,
+        {
+            "Para, Brazil": [
+                _row(
+                    "BRA.14_1",
+                    "Pará, Brazil",
+                    subtype="state-province",
+                    score=0.71,
+                )
+            ]
+        },
+    )
+    monkeypatch.setattr(tool_module, "SMALL_MODEL", _ExplodingModel())
+
+    command = await Geocoder().lookup(
+        question="deforestation in Para, Brazil",
+        places=["Para, Brazil"],
+        tool_call_id="tc-str",
+    )
+
+    aois = command.update["aoi_selection"]["aois"]
+    assert [aoi["src_id"] for aoi in aois] == ["BRA.14_1"]
+
+
+@pytest.mark.asyncio
+async def test_selection_never_calls_a_model_and_is_repeatable(monkeypatch):
+    tool_module = _patch_search(
+        monkeypatch,
+        {
+            "Botum Sakor National Park": _FOREIGN_PARKS,
+            "Botum Sakor": _BOTUM_SAKOR_ROW,
+            "Parque Nacional Botum Sakor": _BOTUM_SAKOR_ROW,
+        },
+    )
+    monkeypatch.setattr(tool_module, "SMALL_MODEL", _ExplodingModel())
+
+    picks = []
+    for _ in range(2):
+        command = await Geocoder().lookup(
+            question="tree cover in Botum Sakor National Park",
+            places=[_BOTUM_SAKOR],
+            tool_call_id="tc-nollm",
+        )
+        picks.append(command.update["aoi_selection"]["aois"][0]["src_id"])
+
+    # The canonical leaf name finds the row the user's wording cannot, and
+    # the same candidates always yield the same AOI.
+    assert picks == ["478405", "478405"]
+
+
+@pytest.mark.asyncio
+async def test_normalisation_searches_the_canonical_and_alternative_names(
+    monkeypatch,
+):
+    calls: list = []
+    _patch_search(
+        monkeypatch,
+        {"Botum Sakor": _BOTUM_SAKOR_ROW},
+        calls,
+    )
+
+    await Geocoder().lookup(
+        question="tree cover in Botum Sakor National Park",
+        places=[_BOTUM_SAKOR],
+        tool_call_id="tc-terms",
+    )
+
+    assert [call[0] for call in calls] == [
+        "Botum Sakor National Park",
+        "Botum Sakor",
+        "Parque Nacional Botum Sakor",
+    ]
+    assert {call[1] for call in calls} == {AreaOfInterestType.WDPA}
+
+
+@pytest.mark.asyncio
+async def test_the_kill_switch_restores_the_single_term_model_pick(
+    monkeypatch,
+):
+    calls: list = []
+    tool_module = _patch_search(
+        monkeypatch, {"Botum Sakor National Park": _FOREIGN_PARKS}, calls
+    )
+    monkeypatch.setattr(AgentSettings, "aoi_normalizer_enabled", False)
+
+    asked = []
+
+    async def fake_select_best_aoi(question, candidate_aois):
+        asked.append(question)
+        return AOIIndex(**_FOREIGN_PARKS[0])
+
+    monkeypatch.setattr(tool_module, "select_best_aoi", fake_select_best_aoi)
+
+    command = await Geocoder().lookup(
+        question="tree cover in Botum Sakor National Park",
+        places=[_BOTUM_SAKOR],
+        tool_call_id="tc-off",
+    )
+
+    # Only the extracted place name is searched, the inferred type is
+    # ignored, and the model chooses again.
+    assert [call[0] for call in calls] == ["Botum Sakor National Park"]
+    assert [call[1] for call in calls] == [None]
+    assert asked == ["tree cover in Botum Sakor National Park"]
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "555"
+
+
+@pytest.mark.asyncio
+async def test_an_explicit_area_of_interest_beats_the_inferred_type(
+    monkeypatch,
+):
+    calls: list = []
+    _patch_search(monkeypatch, {"Botum Sakor": _BOTUM_SAKOR_ROW}, calls)
+
+    await Geocoder().lookup(
+        question="tree cover in Botum Sakor National Park",
+        places=[_BOTUM_SAKOR],
+        aoi_type=AreaOfInterestType.GADM,
+        tool_call_id="tc-precedence",
+    )
+
+    assert {call[1] for call in calls} == {AreaOfInterestType.GADM}
+
+
+@pytest.mark.asyncio
+async def test_the_inferred_type_is_used_when_the_caller_gives_none(
+    monkeypatch,
+):
+    calls: list = []
+    _patch_search(monkeypatch, {"Botum Sakor": _BOTUM_SAKOR_ROW}, calls)
+
+    await Geocoder().lookup(
+        question="tree cover in Botum Sakor National Park",
+        places=[_BOTUM_SAKOR],
+        aoi_type=None,
+        tool_call_id="tc-inferred",
+    )
+
+    assert {call[1] for call in calls} == {AreaOfInterestType.WDPA}
+
+
+@pytest.mark.asyncio
+async def test_a_narrowed_search_that_finds_nothing_retries_every_source(
+    monkeypatch,
+):
+    """A wrong inferred type must not cost recall."""
+    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
+    calls: list = []
+
+    async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
+        calls.append((place_name, aoi_type))
+        if aoi_type is not None:
+            return pd.DataFrame()
+        return pd.DataFrame(
+            [_row("KHM.4_1", "Koh Kong, Cambodia", subtype="state-province")]
+        )
+
+    monkeypatch.setattr(
+        tool_module, "query_aoi_database", fake_query_aoi_database
+    )
+
+    command = await Geocoder().lookup(
+        question="tree cover in Botum Sakor National Park",
+        places=[_BOTUM_SAKOR],
+        tool_call_id="tc-fallback",
+    )
+
+    narrowed = [call for call in calls if call[1] is not None]
+    unrestricted = [call for call in calls if call[1] is None]
+    assert len(narrowed) == 3 and len(unrestricted) == 3
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "KHM.4_1"
+
+
+@pytest.mark.asyncio
+async def test_an_ambiguity_nudge_ignores_rows_an_alternative_found(
+    monkeypatch,
+):
+    """The aoi_choice round-trip must stay finite.
+
+    Clicking an option resubmits its display string, which is re-resolved by
+    the same search. If a choice could be offered over rows that only an
+    invented alternative spelling retrieved, the same choice would come back
+    forever.
+    """
+    _patch_search(
+        monkeypatch,
+        {
+            "Puri, India": [
+                _row(
+                    "IND.26.26_1",
+                    "Puri, Odisha, India",
+                    subtype="district-county",
+                )
+            ],
+            "Puri Town": [
+                _row(
+                    "SLE.1.2_1",
+                    "Puri, Sierra Leone",
+                    subtype="district-county",
+                )
+            ],
+        },
+    )
+
+    command = await Geocoder().lookup(
+        question="deforestation in Puri, India",
+        places=[
+            ExtractedPlace(
+                place="Puri, India",
+                canonical="Puri, India",
+                alternatives=["Puri Town"],
+            )
+        ],
+        tool_call_id="tc-nudge-alt",
+    )
+
+    assert "nudge" not in command.update
+    assert (
+        command.update["aoi_selection"]["aois"][0]["src_id"] == "IND.26.26_1"
+    )
+
+
+@pytest.mark.asyncio
+async def test_an_ambiguity_nudge_still_fires_for_the_place_name_itself(
+    monkeypatch,
+):
+    _patch_search(
+        monkeypatch,
+        {
+            "Puri, India": [
+                _row(
+                    "IND.26.26_1",
+                    "Puri, Odisha, India",
+                    subtype="district-county",
+                ),
+                _row(
+                    "SLE.1.2_1",
+                    "Puri, Sierra Leone",
+                    subtype="district-county",
+                ),
+            ]
+        },
+    )
+
+    command = await Geocoder().lookup(
+        question="deforestation in Puri, India",
+        places=[ExtractedPlace(place="Puri, India")],
+        tool_call_id="tc-nudge-primary",
+    )
+
+    assert command.update["nudge"]["type"] == "aoi_choice"
+    assert len(command.update["nudge"]["options"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_each_place_is_searched_with_its_own_terms(monkeypatch):
+    calls: list = []
+    _patch_search(
+        monkeypatch,
+        {
+            "Ivory Coast": [],
+            "Côte d'Ivoire": [_row("CIV", "Côte d'Ivoire")],
+            "Ghana": [_row("GHA", "Ghana")],
+        },
+        calls,
+    )
+
+    command = await Geocoder().lookup(
+        question="compare forest loss in Ivory Coast and Ghana",
+        places=[
+            ExtractedPlace(
+                place="Ivory Coast",
+                canonical="Côte d'Ivoire",
+                alternatives=["Ivory Coast"],
+            ),
+            ExtractedPlace(place="Ghana", canonical="Ghana"),
+        ],
+        tool_call_id="tc-two",
+    )
+
+    # "Ivory Coast" is not repeated as an alternative of itself.
+    assert [call[0] for call in calls] == [
+        "Ivory Coast",
+        "Côte d'Ivoire",
+        "Ghana",
+    ]
+    assert {
+        aoi["src_id"] for aoi in command.update["aoi_selection"]["aois"]
+    } == {"CIV", "GHA"}

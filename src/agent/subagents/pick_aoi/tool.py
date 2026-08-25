@@ -23,6 +23,7 @@ from langgraph.types import Command
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
+from src.agent.config import AgentSettings
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.llms import SMALL_MODEL
@@ -703,6 +704,71 @@ class PlaceQuery(BaseModel):
     )
 
 
+def _search_terms(place: ExtractedPlace, normalized: bool) -> list[str]:
+    """The terms to search for one place, most authoritative first.
+
+    The extracted place name always leads and is always searched, so
+    normalisation can only add candidates — it can never remove the row that
+    the place name alone would have found. With the normaliser disabled the
+    term set collapses to that one name, which is the pre-PZB-1272 search.
+    """
+    terms = [place.place]
+    if not normalized:
+        return terms
+    for candidate in [place.canonical, *place.alternatives]:
+        if candidate and candidate not in terms:
+            terms.append(candidate)
+    return terms
+
+
+def _effective_aoi_type(
+    place: ExtractedPlace,
+    aoi_type: Optional[AreaOfInterestType],
+    normalized: bool,
+) -> Optional[AreaOfInterestType]:
+    """The source restriction for one place.
+
+    The orchestrator's explicit `area_of_interest` wins; the type the
+    geocoder inferred for this place only fills the gap when the
+    orchestrator gave none.
+    """
+    if aoi_type is not None:
+        return aoi_type
+    if not normalized:
+        return None
+    return place.area_type
+
+
+async def _search_candidates(
+    place: ExtractedPlace,
+    terms: list[str],
+    aoi_type: Optional[AreaOfInterestType],
+    normalized: bool,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Search one place's terms, narrowed to a source when one is known.
+
+    Narrowing carries weight now that the designation no longer travels in
+    the search term: with the whole catalogue in scope, an admin unit that
+    shares a park's leaf name outranks the park on the hierarchy term alone.
+    A wrong type must not cost recall, though, so an empty narrowed result is
+    retried across every source.
+    """
+    effective_type = _effective_aoi_type(place, aoi_type, normalized)
+    merged, primary = await query_aoi_database_multiterm(
+        terms, effective_type, RESULT_LIMIT
+    )
+    if merged.empty and normalized and effective_type is not None:
+        logger.info(
+            "GEOCODER: no %s candidates for %r; retrying every source",
+            effective_type,
+            place.place,
+        )
+        merged, primary = await query_aoi_database_multiterm(
+            terms, None, RESULT_LIMIT
+        )
+    return merged, primary
+
+
 def _as_extracted_place(place: Union[str, ExtractedPlace]) -> ExtractedPlace:
     """Accept a bare place name where an ExtractedPlace is expected.
 
@@ -810,12 +876,24 @@ class Geocoder:
                 subregion, tool_call_id, language
             )
 
-        all_results = await asyncio.gather(
+        normalized = AgentSettings.aoi_normalizer_enabled
+        term_sets = [_search_terms(place, normalized) for place in extracted]
+        for place, terms in zip(place_names, term_sets):
+            if len(terms) > 1:
+                emit_progress(
+                    "pick_aoi",
+                    "normalize",
+                    f"Searching '{place}' as: {'; '.join(terms)}",
+                )
+
+        searches = await asyncio.gather(
             *[
-                query_aoi_database(place, aoi_type, RESULT_LIMIT)
-                for place in place_names
+                _search_candidates(place, terms, aoi_type, normalized)
+                for place, terms in zip(extracted, term_sets)
             ]
         )
+        all_results = [merged for merged, _ in searches]
+        primary_results = [primary for _, primary in searches]
         for place, result in zip(place_names, all_results):
             names = list(result["name"]) if "name" in result.columns else []
             emit_progress(
@@ -825,15 +903,38 @@ class Geocoder:
                 + (f" — {'; '.join(names[:8])}" if names else ""),
             )
 
-        selected_aois_raw = await asyncio.gather(
-            *[select_best_aoi(question, result) for result in all_results]
-        )
+        selected_aois_raw: list[Optional[AOIIndex]]
+        if normalized:
+            # No model chooses among candidates: identical candidates always
+            # produce the identical AOI.
+            selected_aois_raw = [
+                score_best_aoi(result, terms)
+                for result, terms in zip(all_results, term_sets)
+            ]
+        else:
+            selected_aois_raw = list(
+                await asyncio.gather(
+                    *[
+                        select_best_aoi(question, result)
+                        for result in all_results
+                    ]
+                )
+            )
         unmatched_places = [
             place
             for place, aoi in zip(place_names, selected_aois_raw)
             if aoi is None
         ]
-        selected_aois = [aoi for aoi in selected_aois_raw if aoi is not None]
+        # Pair each selection with the candidates of ITS OWN place. Zipping
+        # the filtered selections against the unfiltered frames would pair a
+        # selection with another place's candidates as soon as one place
+        # matched nothing.
+        matched = [
+            (aoi, primary)
+            for aoi, primary in zip(selected_aois_raw, primary_results)
+            if aoi is not None
+        ]
+        selected_aois = [aoi for aoi, _ in matched]
         if not selected_aois:
             return Command(
                 update={
@@ -852,7 +953,13 @@ class Geocoder:
             )
 
         duplicate_check = await check_duplicate_aois(
-            selected_aois, all_results, language
+            selected_aois,
+            # Only the rows the place name itself retrieved. An aoi_choice
+            # option is resubmitted verbatim as the next question, so
+            # offering a choice over rows that only an invented alias found
+            # would re-offer the same choice indefinitely.
+            [primary for _, primary in matched],
+            language,
         )
         if duplicate_check:
             message, options, data = duplicate_check

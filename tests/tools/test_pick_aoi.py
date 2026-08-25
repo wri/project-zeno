@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from src.agent.subagents.pick_aoi import Geocoder
-from src.agent.subagents.pick_aoi.tool import AOIIndex, AreaOfInterestType
+from src.agent.subagents.pick_aoi.tool import AreaOfInterestType
 from src.shared.request_context import bound_user_id
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
@@ -63,9 +63,13 @@ async def test_query_aoi_multiple_sources(structlog_context):
             "PRT.6_1",
         ),
         (
+            # Deliberate change (PZB-1272): the model-based selection could
+            # recover "Anjos" from the question text, which extraction had
+            # dropped. Deterministic scoring compares names only, so a bare
+            # "Lisbon" resolves to the Lisboa district.
             "Assess natual lands in Anjos, Lisbon",
             "Lisbon",
-            "PRT.12.7.6_1",
+            "PRT.12_1",
         ),
         (
             "Assess natural lands in Resex Catua-Ipixuna",
@@ -210,14 +214,6 @@ async def test_pick_aoi_handles_empty_subregion_results(
             ]
         )
 
-    async def fake_select_best_aoi(question, candidate_aois):
-        return AOIIndex(
-            src_id="USA.6_1",
-            name="Colorado, United States",
-            subtype="state-province",
-            source="gadm",
-        )
-
     async def fake_query_subregion_database(
         subregion_name: str, source: str, src_id: int
     ):
@@ -225,9 +221,6 @@ async def test_pick_aoi_handles_empty_subregion_results(
 
     monkeypatch.setattr(
         pick_aoi_module, "query_aoi_database", fake_query_aoi_database
-    )
-    monkeypatch.setattr(
-        pick_aoi_module, "select_best_aoi", fake_select_best_aoi
     )
     monkeypatch.setattr(
         pick_aoi_module,
