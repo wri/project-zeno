@@ -833,11 +833,29 @@ _ISO3_SOURCE_COLUMNS = {
     "landmark": ["iso_code"],
 }
 
-# GADM 4.1 ships the literal string "NA" as NAME_1 for a handful of level-1
-# rows, so their composed display names lose the place name entirely (England
-# becomes "NA, United Kingdom" and is unfindable by search). The correct names
-# are taken from the NAME_1 column of their own child rows. MHL.19_1 has no
-# children and stays broken. See SPEC-PR6 / PZB-1270.
+# GADM 4.1 ships the literal string "NA" as its no-data marker, and ingest
+# composes display names from the NAME_* columns without recognising it, so
+# England's row is named "NA, United Kingdom" and is unfindable by search.
+# 2,930 rows are affected globally. See SPEC-PR7 / PZB-1271.
+_GADM_NO_DATA_NAME = "NA"
+
+# Rule A adopts a candidate name only when it holds this share of the parent's
+# *named* immediate children. GADM's own child rows disagree with each other,
+# so unanimity is not available: England's level-2 children include two that
+# say "NA", Cork's include one "Cork City", Zuid-Holland's one "Zuid Hollandse
+# Meren". A strict majority keeps all three, and refuses the all-NA ghost row
+# whose two children split 1-1 between England and Scotland. The one
+# plurality-adjacent case it admits is CHL.15.1_1 -> Tamarugal (5 of 7, GADM's
+# row spanning two Chilean provinces); raise this to 0.8 to exclude it.
+_GADM_CHILD_NAME_MIN_SHARE = 0.5
+
+# Rule B's level. GADM shifted names down a level only for district-counties
+# holding a single municipality (Bristol, Tameside, Trafford, Wiltshire ...);
+# applying it further down would rename a unit after an unrelated child.
+_GADM_SHIFTED_NAME_SUBTYPE = "district-county"
+
+# The three level-1 rows PZB-1270 patched by hand. Superseded by
+# _derive_gadm_name_repairs in the next commit.
 _GADM_NAME_PATCHES = {
     "GBR.1_1": "England, United Kingdom",
     "IRL.4_1": "Cork, Ireland",
@@ -869,6 +887,160 @@ async def _resolve_column(
         if found:
             return found
     return None
+
+
+def _gadm_name_column(id_col: str) -> str:
+    """GADM's name column for the level whose id column is *id_col*.
+
+    Level 0 is the exception: GADM names that column COUNTRY, not NAME_0.
+    """
+    return "COUNTRY" if id_col == "GID_0" else id_col.replace("GID_", "NAME_")
+
+
+def _gadm_repair_levels() -> list[tuple[str, str, str, str]]:
+    """(parent subtype, child subtype, shared id column, name column) pairs.
+
+    Derived from ``GADM_LEVELS`` so the admin hierarchy has one definition.
+    Each entry lets a broken parent look one level down: parent and child rows
+    share the parent's ``GID_n`` and both carry the parent's name in their own
+    ``NAME_n``.
+    """
+    subtypes = list(GADM_LEVELS)
+    return [
+        (
+            subtype,
+            subtypes[level + 1],
+            GADM_LEVELS[subtype]["col_name"],
+            _gadm_name_column(GADM_LEVELS[subtype]["col_name"]),
+        )
+        for level, subtype in enumerate(subtypes[:-1])
+    ]
+
+
+async def _derive_gadm_name_repairs(
+    session: AsyncSession, table: str, id_col: str
+) -> dict[str, str]:
+    """Derive ``{source_id: repaired display name}`` from GADM's hierarchy.
+
+    Read-only: staging is never written, so the map is recomputed identically on
+    every build and re-applies itself after any re-ingest, GADM v5 included.
+
+    Two rules, both taking the name from rows GADM did fill in:
+
+    * **A, parent name from children.** A row whose own ``NAME_n`` is ``'NA'``
+      adopts the name its immediate children carry in *their* ``NAME_n``, when
+      one candidate holds a strict majority of the named children. Repairs
+      England, Cork and Zuid-Holland at level 1, and at level 2 the multi-child
+      counties whose name GADM only stored one level down (Warwickshire,
+      Derbyshire, Greater London ...).
+    * **B, leaf name from an only child.** A district-county row with exactly
+      one named municipality child adopts the child's name. Repairs Bristol and
+      57 others, where GADM shifted the name down a level rather than omitting
+      it. Rule A wins where both could fire.
+
+    Only the broken leading segment of the display name is replaced; every
+    parent segment is left byte-identical, so no row's name changes except at
+    the position GADM left as ``'NA'``. Rows the rules cannot reach (no
+    children, a tie, a multi-child parent with no majority, an unnamed only
+    child) keep the name they have today.
+    """
+    levels = [
+        level
+        for level in _gadm_repair_levels()
+        if await _resolve_column(session, table, [level[2]])
+        and await _resolve_column(session, table, [level[3]])
+    ]
+    if not levels:
+        return {}
+
+    params: dict[str, object] = {
+        "na": _GADM_NO_DATA_NAME,
+        "na_prefix": f"{_GADM_NO_DATA_NAME}, %",
+        "min_share": _GADM_CHILD_NAME_MIN_SHARE,
+    }
+    votes: list[str] = []
+    for i, (subtype, child_subtype, level_id, name_col) in enumerate(levels):
+        params[f"parent_{i}"] = subtype
+        params[f"child_{i}"] = child_subtype
+        # Identifiers cannot be bound, and these come from GADM_LEVELS, not
+        # from data. Every value is a bound parameter.
+        votes.append(
+            f"""
+            SELECT CAST(p."{id_col}" AS TEXT) AS source_id,
+                   c."{name_col}" AS candidate,
+                   count(*) AS votes
+            FROM {table} p
+            JOIN {table} c
+              ON c.subtype = :child_{i}
+             AND c."{level_id}" = p."{level_id}"
+            WHERE p.subtype = :parent_{i}
+              AND p."{name_col}" = :na
+              AND c."{name_col}" IS NOT NULL
+              AND c."{name_col}" NOT IN ('', :na)
+            GROUP BY 1, 2
+            """
+        )
+
+    # Rule B is level 2 only: the shifted-name pattern is a district-county
+    # holding a single municipality. `min()` is the only child's name, because
+    # HAVING count(*) = 1 has already restricted the group to one row.
+    b_level = next(
+        (lv for lv in levels if lv[0] == _GADM_SHIFTED_NAME_SUBTYPE), None
+    )
+    rule_b = "SELECT NULL::text AS source_id, NULL::text AS leaf WHERE false"
+    if b_level is not None:
+        parent_subtype, child_subtype, level_id, name_col = b_level
+        child_name_col = _gadm_name_column(
+            GADM_LEVELS[child_subtype]["col_name"]
+        )
+        params["b_parent"] = parent_subtype
+        params["b_child"] = child_subtype
+        rule_b = f"""
+            SELECT CAST(p."{id_col}" AS TEXT) AS source_id,
+                   min(c."{child_name_col}") AS leaf
+            FROM {table} p
+            JOIN {table} c
+              ON c.subtype = :b_child AND c."{level_id}" = p."{level_id}"
+            WHERE p.subtype = :b_parent AND p."{name_col}" = :na
+            GROUP BY 1
+            HAVING count(*) = 1
+               AND min(c."{child_name_col}") IS NOT NULL
+               AND min(c."{child_name_col}") NOT IN ('', :na)
+        """
+
+    # substring(name FROM 3) drops the leading 'NA' and keeps the ', parent'
+    # tail. DISTINCT ON collapses the duplicate ids the staging tables carry
+    # (no unique constraint); duplicates of one id share their composed name.
+    sql = f"""
+        WITH votes AS ({" UNION ALL ".join(votes)}),
+        ranked AS (
+            SELECT source_id, candidate, votes,
+                   sum(votes) OVER (PARTITION BY source_id) AS total
+            FROM votes
+        ),
+        rule_a AS (
+            SELECT DISTINCT ON (source_id) source_id, candidate AS leaf
+            FROM ranked
+            WHERE votes > :min_share * total
+            ORDER BY source_id, votes DESC, candidate
+        ),
+        rule_b AS ({rule_b}),
+        repairs AS (
+            SELECT source_id, leaf FROM rule_a
+            UNION ALL
+            SELECT source_id, leaf FROM rule_b
+            WHERE source_id NOT IN (SELECT source_id FROM rule_a)
+        )
+        SELECT DISTINCT ON (r.source_id)
+               r.source_id,
+               r.leaf || substring(g.name FROM 3) AS repaired
+        FROM repairs r
+        JOIN {table} g ON CAST(g."{id_col}" AS TEXT) = r.source_id
+        WHERE g.name = :na OR g.name LIKE :na_prefix
+        ORDER BY r.source_id, repaired
+    """
+    result = await session.execute(text(sql), params)
+    return {row[0]: row[1] for row in result.all()}
 
 
 def _gadm_name_patch_sql(id_col: str) -> tuple[str, dict[str, str]]:
