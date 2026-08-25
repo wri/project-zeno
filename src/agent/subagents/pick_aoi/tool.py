@@ -110,6 +110,70 @@ async def query_aoi_database(
     )
 
 
+async def query_aoi_database_multiterm(
+    search_terms: list[str],
+    aoi_type: Optional[AreaOfInterestType],
+    result_limit: int = RESULT_LIMIT,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Find the AOIs matching any of *search_terms*, merged.
+
+    Each term gets its own query with its own ``result_limit``, so a
+    low-similarity alias ("Zaire" for "DR Congo") is not crowded out of a
+    shared limit by the main spelling. A row that several terms match is
+    deduplicated on ``(source, src_id)``, keeping its highest
+    ``similarity_score``.
+
+    ``query_aoi_database`` stays single-term deliberately: the replay
+    fixtures and the agent tests patch it once per term.
+
+    Args:
+        search_terms: Terms to search, the extracted place name first.
+        aoi_type: One source to restrict every search to, or None for all.
+        result_limit: Maximum number of results per term.
+
+    Returns:
+        ``(merged, primary)``, where ``primary`` is the first term's own
+        result frame. It is returned separately because the ambiguity check
+        may only consider rows that the place name itself retrieved: an
+        ``aoi_choice`` option is resubmitted as the next question, so
+        offering a choice over rows found by an invented alias would re-offer
+        the same choice forever (see ``check_duplicate_aois`` and
+        ``_format_aoi_candidate``).
+
+    Raises:
+        ValueError: If ``search_terms`` is empty.
+    """
+    if not search_terms:
+        raise ValueError("query_aoi_database_multiterm needs a search term")
+
+    frames = await asyncio.gather(
+        *[
+            query_aoi_database(term, aoi_type, result_limit)
+            for term in search_terms
+        ]
+    )
+    primary = frames[0]
+    populated = [frame for frame in frames if not frame.empty]
+    if not populated:
+        # An empty frame is what makes the caller report the place as
+        # unmatched, so preserve it rather than inventing columns.
+        return primary, primary
+    if len(populated) == 1:
+        return populated[0], primary
+
+    combined = pd.concat(populated, ignore_index=True)
+    if "similarity_score" in combined.columns:
+        # Stable sort, so rows tied on score keep term order: the merge is
+        # deterministic for identical inputs.
+        combined = combined.sort_values(
+            "similarity_score", ascending=False, kind="stable"
+        )
+    merged = combined.drop_duplicates(
+        subset=["source", "src_id"], keep="first"
+    ).reset_index(drop=True)
+    return merged, primary
+
+
 # The AOI source that each subregion scope resolves to. GADM holds all six admin
 # scopes. Each other scope names its own source.
 SUBREGION_SOURCE_MAPPING = {

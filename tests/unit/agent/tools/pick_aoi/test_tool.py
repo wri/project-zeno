@@ -542,3 +542,135 @@ def test_selected_aoi_keeps_the_state_shape_of_an_aoi_selection_entry():
     # bbox is absent from the recorded fixture columns, so the model default
     # (the world bbox) must fill it.
     assert selected.bbox == [-180.0, -90.0, 180.0, 90.0]
+
+
+# ---------------------------------------------------------------------------
+# Multi-term search (PZB-1272) — one query per term, merged and deduplicated.
+# ---------------------------------------------------------------------------
+
+
+def _row(src_id, name, source="gadm", subtype="country", score=None):
+    row = {
+        "src_id": src_id,
+        "name": name,
+        "subtype": subtype,
+        "source": source,
+    }
+    if score is not None:
+        row["similarity_score"] = score
+    return row
+
+
+def _patch_search(monkeypatch, per_term, calls=None):
+    """Patch the single-term search with a term -> rows lookup."""
+    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
+
+    async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
+        if calls is not None:
+            calls.append((place_name, aoi_type, result_limit))
+        return pd.DataFrame(per_term.get(place_name, []))
+
+    monkeypatch.setattr(
+        tool_module, "query_aoi_database", fake_query_aoi_database
+    )
+    return tool_module
+
+
+@pytest.mark.asyncio
+async def test_a_single_term_search_is_unchanged(monkeypatch):
+    calls: list = []
+    tool_module = _patch_search(
+        monkeypatch, {"Brazil": [_row("BRA", "Brazil")]}, calls
+    )
+
+    merged, primary = await tool_module.query_aoi_database_multiterm(
+        ["Brazil"], None
+    )
+
+    assert calls == [("Brazil", None, 10)]
+    assert list(merged["src_id"]) == ["BRA"]
+    assert primary.equals(merged)
+
+
+@pytest.mark.asyncio
+async def test_every_term_is_searched_and_the_results_merged(monkeypatch):
+    tool_module = _patch_search(
+        monkeypatch,
+        {
+            "Ivory Coast": [_row("NZL.12_1", "West Coast, New Zealand")],
+            "Cote d'Ivoire": [_row("CIV", "Côte d'Ivoire")],
+        },
+    )
+
+    merged, primary = await tool_module.query_aoi_database_multiterm(
+        ["Ivory Coast", "Cote d'Ivoire"], None
+    )
+
+    assert set(merged["src_id"]) == {"NZL.12_1", "CIV"}
+    # The ambiguity check must only ever see what the place name itself
+    # retrieved, so the primary frame stays the first term's result.
+    assert list(primary["src_id"]) == ["NZL.12_1"]
+
+
+@pytest.mark.asyncio
+async def test_a_row_matched_by_two_terms_appears_once_at_its_best_score(
+    monkeypatch,
+):
+    tool_module = _patch_search(
+        monkeypatch,
+        {
+            "Brazil": [_row("BRA", "Brazil", score=0.6)],
+            "Brasil": [_row("BRA", "Brazil", score=0.9)],
+        },
+    )
+
+    merged, _ = await tool_module.query_aoi_database_multiterm(
+        ["Brazil", "Brasil"], None
+    )
+
+    assert len(merged) == 1
+    assert merged.iloc[0]["similarity_score"] == 0.9
+
+
+@pytest.mark.asyncio
+async def test_terms_matching_different_sources_are_all_returned(monkeypatch):
+    tool_module = _patch_search(
+        monkeypatch,
+        {
+            "Leuser": [_row("IDN.1_1", "Aceh, Indonesia")],
+            "Gunung Leuser": [
+                _row(
+                    "1251",
+                    "Gunung Leuser, National Park, IDN",
+                    source="wdpa",
+                    subtype="protected-area",
+                )
+            ],
+        },
+    )
+
+    merged, _ = await tool_module.query_aoi_database_multiterm(
+        ["Leuser", "Gunung Leuser"], None
+    )
+
+    assert set(merged["source"]) == {"gadm", "wdpa"}
+
+
+@pytest.mark.asyncio
+async def test_no_term_matching_anything_yields_an_empty_frame(monkeypatch):
+    tool_module = _patch_search(monkeypatch, {})
+
+    merged, primary = await tool_module.query_aoi_database_multiterm(
+        ["Nowhere", "Nowhere at all"], None
+    )
+
+    assert merged.empty
+    assert primary.empty
+
+
+@pytest.mark.asyncio
+async def test_searching_without_a_term_is_a_programming_error(monkeypatch):
+    tool_module = _patch_search(monkeypatch, {})
+
+    with pytest.raises(ValueError, match="needs a search term"):
+        await tool_module.query_aoi_database_multiterm([], None)
