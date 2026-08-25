@@ -19,6 +19,7 @@ Usage:
 """
 
 import asyncio
+import json
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -1097,9 +1098,9 @@ async def _build_reference_aois(
     single geometry -- that is the job of the part-wise repair in
     ``multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
 
-    The gadm name repair is derived once, before the loop, and passed in as two
-    bound arrays. It has to be: it reads a row's *children*, which the hash
-    partition scatters across other chunks, so a lookup inside the chunked
+    The gadm name repair is derived once, before the loop, and passed in as one
+    bound jsonb object. It has to be: it reads a row's *children*, which the
+    hash partition scatters across other chunks, so a lookup inside the chunked
     statement would have to be careful never to be chunk-filtered. Deriving it
     once also pays for its self-join once (~20s on the full table) instead of
     once per pass.
@@ -1140,20 +1141,23 @@ async def _build_reference_aois(
                 f"🔧 {source}: {len(repairs)} name(s) repaired from GADM's "
                 "own hierarchy."
             )
-            # unnest of two bound arrays: one hash join per pass, and it scales
-            # with however many rows the rules reach. Not chunk-filtered, on
-            # purpose -- see the docstring.
+            # One bound jsonb object rather than two arrays that have to stay
+            # index-aligned: one hash join per pass, scaling with however many
+            # rows the rules reach. Not chunk-filtered, on purpose -- see the
+            # docstring.
             repair_join = (
-                " LEFT JOIN unnest("
-                "CAST(:repair_ids AS text[]), CAST(:repair_names AS text[])"
-                ") AS r(repair_id, repair_name)"
+                " LEFT JOIN jsonb_each_text(CAST(:repairs AS jsonb))"
+                " AS r(repair_id, repair_name)"
                 f' ON r.repair_id = CAST("{id_col}" AS TEXT)'
             )
             name_expr = "COALESCE(r.repair_name, name)"
-            repair_params = {
-                "repair_ids": list(repairs),
-                "repair_names": list(repairs.values()),
-            }
+            repair_params = {"repairs": json.dumps(repairs)}
+        else:
+            # Staging always carries GADM's 'NA' rows, so an empty map means
+            # the rules reached nothing: never let that pass unremarked.
+            click.echo(
+                f"⚠️  {source}: no name(s) repaired from GADM's own hierarchy."
+            )
     else:
         admin_expr = "NULL::smallint"
         disputed_expr = "false"
