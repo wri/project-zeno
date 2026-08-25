@@ -854,14 +854,6 @@ _GADM_CHILD_NAME_MIN_SHARE = 0.5
 # applying it further down would rename a unit after an unrelated child.
 _GADM_SHIFTED_NAME_SUBTYPE = "district-county"
 
-# The three level-1 rows PZB-1270 patched by hand. Superseded by
-# _derive_gadm_name_repairs in the next commit.
-_GADM_NAME_PATCHES = {
-    "GBR.1_1": "England, United Kingdom",
-    "IRL.4_1": "Cork, Ireland",
-    "NLD.14_1": "Zuid-Holland, Netherlands",
-}
-
 
 async def _table_exists(session: AsyncSession, table: str) -> bool:
     result = await session.execute(
@@ -1043,31 +1035,6 @@ async def _derive_gadm_name_repairs(
     return {row[0]: row[1] for row in result.all()}
 
 
-def _gadm_name_patch_sql(id_col: str) -> tuple[str, dict[str, str]]:
-    """Return the patched ``name`` expression and its bound parameters.
-
-    An identifier cannot be a bound parameter, so the placeholder *names* are
-    generated from ``_GADM_NAME_PATCHES``; every id and name the query compares
-    or returns is bound, so no source value is ever interpolated into SQL.
-    """
-    if not _GADM_NAME_PATCHES:
-        return "name", {}
-
-    params: dict[str, str] = {}
-    whens: list[str] = []
-    for i, (gadm_id, patched) in enumerate(sorted(_GADM_NAME_PATCHES.items())):
-        params[f"patch_id_{i}"] = gadm_id
-        params[f"patch_name_{i}"] = patched
-        whens.append(
-            f"WHEN CAST(:patch_id_{i} AS TEXT) "
-            f"THEN CAST(:patch_name_{i} AS TEXT)"
-        )
-    expr = (
-        f'CASE CAST("{id_col}" AS TEXT) ' + " ".join(whens) + " ELSE name END"
-    )
-    return expr, params
-
-
 async def _build_reference_aois(
     session: AsyncSession, source: str, *, nchunks: int, dry_run: bool
 ) -> int:
@@ -1081,6 +1048,13 @@ async def _build_reference_aois(
     cross-chunk boundary effects. Note chunking does *not* bound the cost of any
     single geometry -- that is the job of the part-wise repair in
     ``multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
+
+    The gadm name repair is derived once, before the loop, and passed in as two
+    bound arrays. It has to be: it reads a row's *children*, which the hash
+    partition scatters across other chunks, so a lookup inside the chunked
+    statement would have to be careful never to be chunk-filtered. Deriving it
+    once also pays for its self-join once (~20s on the full table) instead of
+    once per pass.
     """
     table = SOURCE_STAGING_TABLES[source]
     id_col = AOI_SOURCE_ID_COLUMNS[source]
@@ -1095,9 +1069,10 @@ async def _build_reference_aois(
     )
 
     # Only gadm carries broken source names, so every other source selects
-    # `name` unchanged and binds no patch parameters.
+    # `name` unchanged, joins nothing extra and binds no repair parameters.
     name_expr = "name"
-    patch_params: dict[str, str] = {}
+    repair_join = ""
+    repair_params: dict[str, object] = {}
     if source == "gadm":
         # subtype -> GADM admin level (0..5), in GADM_LEVELS declaration order.
         admin_expr = (
@@ -1110,7 +1085,27 @@ async def _build_reference_aois(
         # Disputed territories (e.g. "Z01") lack a 3-letter ISO prefix; keep
         # the rows but flag them so search can exclude via its partial index.
         disputed_expr = f"NOT (\"{id_col}\" ~ '{GADM_STANDARD_ID_RE}')"
-        name_expr, patch_params = _gadm_name_patch_sql(id_col)
+
+        repairs = await _derive_gadm_name_repairs(session, table, id_col)
+        if repairs:
+            click.echo(
+                f"🔧 {source}: {len(repairs)} name(s) repaired from GADM's "
+                "own hierarchy."
+            )
+            # unnest of two bound arrays: one hash join per pass, and it scales
+            # with however many rows the rules reach. Not chunk-filtered, on
+            # purpose -- see the docstring.
+            repair_join = (
+                " LEFT JOIN unnest("
+                "CAST(:repair_ids AS text[]), CAST(:repair_names AS text[])"
+                ") AS r(repair_id, repair_name)"
+                f' ON r.repair_id = CAST("{id_col}" AS TEXT)'
+            )
+            name_expr = "COALESCE(r.repair_name, name)"
+            repair_params = {
+                "repair_ids": list(repairs),
+                "repair_names": list(repairs.values()),
+            }
     else:
         admin_expr = "NULL::smallint"
         disputed_expr = "false"
@@ -1141,7 +1136,7 @@ async def _build_reference_aois(
                 {iso3_expr} AS iso3,
                 {admin_expr} AS admin_level,
                 {disputed_expr} AS is_disputed
-            FROM {table}
+            FROM {table}{repair_join}
             WHERE name IS NOT NULL AND geometry IS NOT NULL
               AND (abs(hashtext(CAST("{id_col}" AS TEXT))::bigint) % :nchunks)
                   = :chunk
@@ -1182,7 +1177,7 @@ async def _build_reference_aois(
     inserted = 0
     for chunk in range(nchunks):
         result = await session.execute(
-            text(sql), {"nchunks": nchunks, "chunk": chunk, **patch_params}
+            text(sql), {"nchunks": nchunks, "chunk": chunk, **repair_params}
         )
         inserted += result.rowcount
         # One transaction per chunk: bounds the open transaction and makes a

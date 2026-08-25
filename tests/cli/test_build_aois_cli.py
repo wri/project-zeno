@@ -332,6 +332,39 @@ async def test_rows_the_rules_cannot_reach_are_left_alone(gadm_staging):
 
 
 @pytest.mark.asyncio
+async def test_repair_survives_the_chunked_insert(gadm_staging):
+    """The repair is derived once, so chunk boundaries cannot split a family.
+
+    The INSERT is hash-partitioned by source id, so a parent and its children
+    routinely land in different passes. This test first asserts the seeded ids
+    really do straddle a boundary, then that the repaired names still arrive.
+    """
+    async with async_session_maker() as session:
+        buckets = await session.execute(
+            text(
+                "SELECT gadm_id,"
+                " abs(hashtext(gadm_id)::bigint) % :n AS chunk"
+                " FROM geometries_gadm"
+                " WHERE gadm_id IN ('GBR.1_1', 'GBR.1.1_1', 'GBR.1.2_1',"
+                " 'GBR.1.2.1_1')"
+            ),
+            {"n": _CHUNKS},
+        )
+        chunk = dict(buckets.all())
+
+    assert (
+        chunk["GBR.1_1"] != chunk["GBR.1.1_1"]
+    ), "seed ids stopped straddling"
+    assert chunk["GBR.1.2_1"] != chunk["GBR.1.2.1_1"]
+
+    await _build("gadm")
+
+    names = await _aoi_names("gadm")
+    assert names["GBR.1_1"] == "England, United Kingdom"
+    assert names["GBR.1.2_1"] == "Bristol, England, United Kingdom"
+
+
+@pytest.mark.asyncio
 async def test_gadm_build_writes_the_repaired_names(gadm_staging):
     """The rows GADM ships as "NA" reach ``aois`` under their real names."""
     await _build("gadm")
@@ -339,6 +372,7 @@ async def test_gadm_build_writes_the_repaired_names(gadm_staging):
     names = await _aoi_names("gadm")
     assert names["GBR.1_1"] == "England, United Kingdom"
     assert names["IRL.4_1"] == "Cork, Ireland"
+    assert names["GBR.1.5_1"] == "Warwickshire, England, United Kingdom"
 
 
 @pytest.mark.asyncio
