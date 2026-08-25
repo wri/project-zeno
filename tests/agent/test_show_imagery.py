@@ -5,12 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.agent.tools.show_imagery import (
-    _aoi_bounds,
-    _is_newer_than_last_full_month,
-    _planet_month,
-    show_imagery,
-)
+from src.agent.tools.show_imagery import PLANET_PROVIDER, show_imagery
 from src.api.services.mosaic import AoiTooLargeError, MosaicResult
 
 AOI_STATE = {
@@ -41,19 +36,10 @@ def _messages(command):
 
 def _patch_create(**kwargs):
     return patch(
-        "src.agent.tools.show_imagery.create_sentinel2_mosaic",
+        "src.agent.imagery.sentinel2.create_sentinel2_mosaic",
         new_callable=AsyncMock,
         **kwargs,
     )
-
-
-def test_aoi_bounds_combines_multiple_aois():
-    aois = [
-        {"bbox": [-69.5, -2.0, -68.0, -0.5]},
-        {"bbox": [-67.0, -4.0, -66.0, -1.0]},
-    ]
-
-    assert _aoi_bounds(aois) == [-69.5, -4.0, -66.0, -0.5]
 
 
 def test_target_date_is_required_but_nullable_in_tool_schema():
@@ -266,16 +252,20 @@ async def test_show_imagery_explicit_sentinel_skips_planet():
 
 
 def test_planet_month_defaults_to_previous_full_month():
-    assert _planet_month(None, today=date(2026, 8, 24)) == "2026-07"
-    assert _planet_month(None, today=date(2026, 1, 3)) == "2025-12"
+    assert PLANET_PROVIDER.month(None, today=date(2026, 8, 24)) == "2026-07"
+    assert PLANET_PROVIDER.month(None, today=date(2026, 1, 3)) == "2025-12"
 
 
 def test_recency_boundary_is_after_previous_full_month():
     today = date(2026, 8, 25)
 
-    assert not _is_newer_than_last_full_month(None, today=today)
-    assert not _is_newer_than_last_full_month(date(2026, 7, 31), today=today)
-    assert _is_newer_than_last_full_month(date(2026, 8, 1), today=today)
+    assert not PLANET_PROVIDER.is_newer_than_last_full_month(None, today=today)
+    assert not PLANET_PROVIDER.is_newer_than_last_full_month(
+        date(2026, 7, 31), today=today
+    )
+    assert PLANET_PROVIDER.is_newer_than_last_full_month(
+        date(2026, 8, 1), today=today
+    )
 
 
 @pytest.mark.asyncio
@@ -294,8 +284,9 @@ async def test_recent_date_defaults_to_sentinel_in_planet_coverage():
     result = MosaicResult(mosaic_id="abc123", item_count=1)
 
     with (
-        patch(
-            "src.agent.tools.show_imagery._is_newer_than_last_full_month",
+        patch.object(
+            PLANET_PROVIDER,
+            "is_newer_than_last_full_month",
             return_value=True,
         ),
         _patch_create(return_value=result),
@@ -312,8 +303,9 @@ async def test_recent_date_defaults_to_sentinel_in_planet_coverage():
 @pytest.mark.asyncio
 async def test_explicit_planet_overrides_recent_date_preference():
     with (
-        patch(
-            "src.agent.tools.show_imagery._is_newer_than_last_full_month",
+        patch.object(
+            PLANET_PROVIDER,
+            "is_newer_than_last_full_month",
             return_value=True,
         ),
         _patch_create() as mock_create,
