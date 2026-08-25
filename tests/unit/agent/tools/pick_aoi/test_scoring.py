@@ -13,6 +13,8 @@ from src.agent.subagents.pick_aoi.scoring import (
     _strip_accents,
 )
 from src.agent.subagents.pick_aoi.tool import score_best_aoi
+from src.shared.geocoding_helpers import WORLD_BBOX
+from tests.unit.agent.tools.pick_aoi.conftest import _row
 
 
 def test_accents_are_ignored_when_names_are_compared():
@@ -85,37 +87,39 @@ def test_hierarchy_separates_identically_named_places():
 
 # Verbatim rows from tests/fixtures/aoi_pick_aoi_v1.json for "Para, Brazil",
 # in the order the DB returned them — Paraná first, because pg_trgm ranks it
-# above Pará.
+# above Pará. The same four rows and scores are mirrored in
+# tests/agent/test_graph.py; `bbox` is left out because the recording predates
+# that column.
 _PARA_CANDIDATES = pd.DataFrame(
     [
-        {
-            "src_id": "BRA.16_1",
-            "name": "Paraná, Brazil",
-            "subtype": "state-province",
-            "source": "gadm",
-            "similarity_score": 0.7333333492279053,
-        },
-        {
-            "src_id": "BRA.14_1",
-            "name": "Pará, Brazil",
-            "subtype": "state-province",
-            "source": "gadm",
-            "similarity_score": 0.7142857313156128,
-        },
-        {
-            "src_id": "BRA.15_1",
-            "name": "Paraíba, Brazil",
-            "subtype": "state-province",
-            "source": "gadm",
-            "similarity_score": 0.6875,
-        },
-        {
-            "src_id": "BRA.15.12_2",
-            "name": "Arara, Paraíba, Brazil",
-            "subtype": "district-county",
-            "source": "gadm",
-            "similarity_score": 0.6315789222717304,
-        },
+        _row(
+            "BRA.16_1",
+            "Paraná, Brazil",
+            subtype="state-province",
+            score=0.7333333492279053,
+            bbox=None,
+        ),
+        _row(
+            "BRA.14_1",
+            "Pará, Brazil",
+            subtype="state-province",
+            score=0.7142857313156128,
+            bbox=None,
+        ),
+        _row(
+            "BRA.15_1",
+            "Paraíba, Brazil",
+            subtype="state-province",
+            score=0.6875,
+            bbox=None,
+        ),
+        _row(
+            "BRA.15.12_2",
+            "Arara, Paraíba, Brazil",
+            subtype="district-county",
+            score=0.6315789222717285,
+            bbox=None,
+        ),
     ]
 )
 
@@ -157,24 +161,14 @@ def test_each_candidate_scores_against_its_best_term():
     """
     candidates = pd.DataFrame(
         [
-            {
-                "src_id": "478405",
-                "name": "Botum Sakor, ឧទ្យានជាតិ ដើម, KHM",
-                "subtype": "protected-area",
-                "source": "wdpa",
-            },
-            {
-                "src_id": "555",
-                "name": "Boma, National Park, SSD",
-                "subtype": "protected-area",
-                "source": "wdpa",
-            },
-            {
-                "src_id": "556",
-                "name": "Bako, National Park, MYS",
-                "subtype": "protected-area",
-                "source": "wdpa",
-            },
+            _row(
+                "478405",
+                "Botum Sakor, ឧទ្យានជាតិ ដើម, KHM",
+                "wdpa",
+                "protected-area",
+            ),
+            _row("555", "Boma, National Park, SSD", "wdpa", "protected-area"),
+            _row("556", "Bako, National Park, MYS", "wdpa", "protected-area"),
         ]
     )
 
@@ -191,18 +185,8 @@ def test_each_candidate_scores_against_its_best_term():
 def test_ties_break_independently_of_candidate_order():
     tied = pd.DataFrame(
         [
-            {
-                "src_id": "B",
-                "name": "Springfield, Country B",
-                "subtype": "state-province",
-                "source": "gadm",
-            },
-            {
-                "src_id": "A",
-                "name": "Springfield, Country A",
-                "subtype": "state-province",
-                "source": "gadm",
-            },
+            _row("B", "Springfield, Country B", subtype="state-province"),
+            _row("A", "Springfield, Country A", subtype="state-province"),
         ]
     )
 
@@ -228,4 +212,4 @@ def test_selected_aoi_keeps_the_state_shape_of_an_aoi_selection_entry():
     }
     # bbox is absent from the recorded fixture columns, so the model default
     # (the world bbox) must fill it.
-    assert selected.bbox == [-180.0, -90.0, 180.0, 90.0]
+    assert selected.bbox == WORLD_BBOX
