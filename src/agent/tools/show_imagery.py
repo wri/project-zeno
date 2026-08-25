@@ -1,7 +1,6 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated, Dict, Literal, Optional
 
-import httpx
 from cogeo_mosaic.errors import MosaicNotFoundError
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
@@ -26,15 +25,8 @@ from src.shared.request_context import current_user_id
 
 logger = get_logger(__name__)
 
-PLANET_BASE_URL = "https://tfo-wmts-proxy-5ufe6llh5a-uc.a.run.app"
+PLANET_BASE_URL = "http://127.0.0.1:8899"
 PLANET_COVERAGE = (-70.0, -10.0, -60.0, 0.0)
-
-
-async def _fetch_planet_mosaics() -> list[dict]:
-    async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.get(f"{PLANET_BASE_URL}/wmts/v1/mosaics")
-        response.raise_for_status()
-        return response.json()
 
 
 def _planet_covers(aois: list[dict]) -> bool:
@@ -49,24 +41,30 @@ def _planet_covers(aois: list[dict]) -> bool:
     )
 
 
-def _planet_mosaic(
-    mosaics: list[dict], target: Optional[date]
-) -> Optional[dict]:
-    if not mosaics:
-        return None
+def _aoi_bounds(aois: list[dict]) -> list[float]:
+    bboxes = [aoi["bbox"] for aoi in aois]
+    return [
+        min(bbox[0] for bbox in bboxes),
+        min(bbox[1] for bbox in bboxes),
+        max(bbox[2] for bbox in bboxes),
+        max(bbox[3] for bbox in bboxes),
+    ]
+
+
+def _planet_month(
+    target: Optional[date], *, today: Optional[date] = None
+) -> str:
     if target is None:
-        return max(mosaics, key=lambda mosaic: mosaic["first_acquired"])
-    target_iso = target.isoformat()
-    return next(
-        (
-            mosaic
-            for mosaic in mosaics
-            if mosaic["first_acquired"][:10]
-            <= target_iso
-            < mosaic["last_acquired"][:10]
-        ),
-        None,
-    )
+        target = (today or date.today()).replace(day=1) - timedelta(days=1)
+    return target.strftime("%Y-%m")
+
+
+def _is_newer_than_last_full_month(
+    target: Optional[date], *, today: Optional[date] = None
+) -> bool:
+    if target is None:
+        return False
+    return target >= (today or date.today()).replace(day=1)
 
 
 def _feedback(message: str, tool_call_id: Optional[str]) -> Command:
@@ -96,8 +94,9 @@ async def show_imagery(
     """Show a satellite imagery layer on the map for the AOI in state.
 
     provider may be planet or sentinel-2. When omitted, Planet is preferred
-    where its limited coverage and requested month are available, otherwise
-    Sentinel-2 is used. target_date (YYYY-MM-DD) selects the Planet monthly
+    within its limited coverage unless target_date is newer than the last
+    complete month; otherwise Sentinel-2 is used. target_date (YYYY-MM-DD)
+    selects the Planet monthly
     mosaic or the date Sentinel-2 imagery should be closest to. window_days
     (default 7, max 183) widens the Sentinel-2
     search to ±N days around target_date; max_cloud_cover (default 20,
@@ -133,45 +132,52 @@ async def show_imagery(
         f"SHOW-IMAGERY-TOOL: AOI: {aoi_names}, Target date: {target_date}"
     )
 
-    if provider != "sentinel-2" and _planet_covers(aois):
-        try:
-            mosaic = _planet_mosaic(await _fetch_planet_mosaics(), parsed_date)
-        except (httpx.HTTPError, KeyError, TypeError, ValueError):
-            logger.warning("Planet mosaic lookup failed", exc_info=True)
-            mosaic = None
-        if mosaic is not None:
-            mosaic_name = mosaic["name"]
-            imagery_state = ImageryState(
-                provider="planet",
-                tile_url=(
-                    f"{PLANET_BASE_URL}/wmts/v1/{mosaic_name}"
-                    "/{z}/{x}/{y}.png"
-                ),
-                mosaic_id=mosaic_name,
-                date_start=mosaic["first_acquired"][:10],
-                date_end=mosaic["last_acquired"][:10],
-                target_date=parsed_date.isoformat() if parsed_date else None,
-                aoi_names=aoi_names,
-            )
-            return Command(
-                update={
-                    "imagery": imagery_state.model_dump(),
-                    "messages": [
-                        ToolMessage(
-                            "Limited-coverage Planet imagery is shown on the "
-                            "map. Sentinel-2 imagery is also available if "
-                            "you'd like to compare it.",
-                            tool_call_id=tool_call_id,
-                        )
-                    ],
-                }
-            )
-        if provider == "planet":
-            return _feedback(
-                "Planet imagery is not available for this area and month. "
-                "Sentinel-2 imagery is available instead.",
-                tool_call_id,
-            )
+    prefer_sentinel = provider is None and _is_newer_than_last_full_month(
+        parsed_date
+    )
+    if (
+        provider != "sentinel-2"
+        and not prefer_sentinel
+        and _planet_covers(aois)
+    ):
+        month = _planet_month(parsed_date)
+        month_start = date.fromisoformat(f"{month}-01")
+        next_month = date(
+            month_start.year + (month_start.month == 12),
+            month_start.month % 12 + 1,
+            1,
+        )
+        month_end = next_month - timedelta(days=1)
+        imagery_state = ImageryState(
+            provider="planet",
+            tile_url=(
+                f"{PLANET_BASE_URL}/integrated_alerts_planet_imagery/"
+                f"{{z}}/{{x}}/{{y}}.png?month={month}"
+            ),
+            bounds=_aoi_bounds(aois),
+            min_zoom=5,
+            max_zoom=15,
+            mosaic_id=f"planet:{month}",
+            start_date=month_start.isoformat(),
+            end_date=month_end.isoformat(),
+            target_date=parsed_date.isoformat() if parsed_date else None,
+            aoi_names=aoi_names,
+        )
+        return Command(
+            update={
+                "imagery": imagery_state.model_dump(),
+                "messages": [
+                    ToolMessage(
+                        f"Showing the limited-coverage Planet monthly mosaic "
+                        f"for {month_start.strftime('%B')} "
+                        f"{month_start.day}–{month_end.day}, "
+                        f"{month_start.year}. Sentinel-2 imagery is also "
+                        f"available if you'd like to compare it.",
+                        tool_call_id=tool_call_id,
+                    )
+                ],
+            }
+        )
 
     if provider == "planet":
         return _feedback(
@@ -245,10 +251,10 @@ async def show_imagery(
         tilejson_url=result.tilejson_url,
         mosaic_id=result.mosaic_id,
         item_count=result.item_count,
-        date_start=result.date_start.isoformat()
+        start_date=result.date_start.isoformat()
         if result.date_start
         else None,
-        date_end=result.date_end.isoformat() if result.date_end else None,
+        end_date=result.date_end.isoformat() if result.date_end else None,
         mean_cloud_cover=result.mean_cloud_cover,
         min_cloud_cover=result.min_cloud_cover,
         max_cloud_cover_observed=result.max_cloud_cover,

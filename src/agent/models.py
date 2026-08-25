@@ -13,15 +13,20 @@ class ImageryState(BaseModel):
     tilejson_url: Optional[str] = Field(
         None, description="TileJSON URL for the imagery layer"
     )
+    bounds: Optional[list[float]] = Field(
+        None, description="Layer bounds as [west, south, east, north]"
+    )
+    min_zoom: Optional[int] = Field(None, description="Minimum tile zoom")
+    max_zoom: Optional[int] = Field(None, description="Maximum tile zoom")
     mosaic_id: str = Field(..., description="ID of the mosaic")
     item_count: Optional[int] = Field(
         None, description="Number of scenes in the mosaic"
     )
-    date_start: Optional[str] = Field(
-        None, description="Start date of imagery, ISO"
+    start_date: Optional[str] = Field(
+        None, description="Inclusive start date of selected imagery, ISO"
     )
-    date_end: Optional[str] = Field(
-        None, description="End date of imagery, ISO"
+    end_date: Optional[str] = Field(
+        None, description="Inclusive end date of selected imagery, ISO"
     )
     mean_cloud_cover: Optional[float] = Field(
         None, description="Mean cloud cover across scenes (%)"

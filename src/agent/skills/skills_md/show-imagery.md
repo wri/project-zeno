@@ -10,12 +10,20 @@ requires: pick_aoi, show_imagery
 1. `pick_aoi` — only if the AOI is not already in state. Imagery works for
    regional areas (up to ~50,000 km²); country-scale requests will be
    rejected — ask the user for a smaller region.
-2. `show_imagery(target_date)` — pass the user's date (YYYY-MM-DD) or omit
-   for the most recent imagery. The tool prefers limited-coverage Planet
-   imagery when the AOI and month are available, otherwise Sentinel-2.
-   Pass `provider="planet"` or `provider="sentinel-2"` only when the user
-   explicitly asks for that provider. Sentinel-2 defaults to scenes within
-   ±7 days of the target date, under 20% cloud cover.
+2. `show_imagery(target_date)` — pass the user's date (YYYY-MM-DD). For Amazon
+   alert workflows, use Planet by default. However, if the user asks for
+   latest alerts, current-month alerts, or alerts from the past two weeks,
+   you must use Sentinel-2 imagery instead. Planet is a monthly mosaic
+   available through the last complete month; mention that limitation.
+   Outside the Amazon, do not proactively suggest Planet. If no date or
+   recency is requested, omit `target_date`; eligible Amazon AOIs default to
+   Planet's previous complete month.
+   Always tell the user the selected imagery period from the returned
+   `start_date` and `end_date`. Never describe a previous-month Planet mosaic
+   as "latest" imagery.
+   Otherwise, pass `provider="planet"` or `provider="sentinel-2"` only when
+   the user explicitly asks for that provider. Sentinel-2 defaults to scenes
+   within ±7 days of the target date, under 20% cloud cover.
 3. **Stop.** Confirm the provider shown using the tool message. No dataset,
    pull or insights unless asked.
 

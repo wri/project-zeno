@@ -5,7 +5,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.agent.tools.show_imagery import show_imagery
+from src.agent.tools.show_imagery import (
+    _aoi_bounds,
+    _is_newer_than_last_full_month,
+    _planet_month,
+    show_imagery,
+)
 from src.api.services.mosaic import AoiTooLargeError, MosaicResult
 
 AOI_STATE = {
@@ -40,6 +45,15 @@ def _patch_create(**kwargs):
         new_callable=AsyncMock,
         **kwargs,
     )
+
+
+def test_aoi_bounds_combines_multiple_aois():
+    aois = [
+        {"bbox": [-69.5, -2.0, -68.0, -0.5]},
+        {"bbox": [-67.0, -4.0, -66.0, -1.0]},
+    ]
+
+    assert _aoi_bounds(aois) == [-69.5, -4.0, -66.0, -0.5]
 
 
 @pytest.mark.asyncio
@@ -81,6 +95,8 @@ async def test_show_imagery_success():
     # The tool passes the MosaicResult's external titiler URLs through.
     assert imagery["tile_url"] == result.tile_url
     assert imagery["tilejson_url"] == result.tilejson_url
+    assert imagery["start_date"] == "2025-05-20"
+    assert imagery["end_date"] == "2025-06-10"
     assert imagery["target_date"] == "2025-06-01"
     assert imagery["window_days"] == 7
     assert imagery["max_cloud_cover"] == 20
@@ -190,22 +206,7 @@ async def test_show_imagery_carries_cloud_cover():
 
 @pytest.mark.asyncio
 async def test_show_imagery_defaults_to_planet_in_coverage():
-    mosaics = [
-        {
-            "name": "planet_medres_visual_2025-06_mosaic",
-            "first_acquired": "2025-06-01T00:00:00.000Z",
-            "last_acquired": "2025-07-01T00:00:00.000Z",
-        }
-    ]
-
-    with (
-        patch(
-            "src.agent.tools.show_imagery._fetch_planet_mosaics",
-            new_callable=AsyncMock,
-            return_value=mosaics,
-        ),
-        _patch_create() as mock_create,
-    ):
+    with _patch_create() as mock_create:
         command = await show_imagery.coroutine(
             state=PLANET_AOI_STATE,
             target_date="2025-06-15",
@@ -215,12 +216,19 @@ async def test_show_imagery_defaults_to_planet_in_coverage():
     mock_create.assert_not_awaited()
     imagery = command.update["imagery"]
     assert imagery["provider"] == "planet"
-    assert imagery["mosaic_id"] == "planet_medres_visual_2025-06_mosaic"
-    assert imagery["tile_url"].endswith(
-        "/wmts/v1/planet_medres_visual_2025-06_mosaic/{z}/{x}/{y}.png"
+    assert imagery["mosaic_id"] == "planet:2025-06"
+    assert imagery["tile_url"] == (
+        "http://127.0.0.1:8899/integrated_alerts_planet_imagery/"
+        "{z}/{x}/{y}.png?month=2025-06"
     )
     assert imagery["window_days"] is None
     assert imagery["max_cloud_cover"] is None
+    assert imagery["bounds"] == [-69.5, -1.0, -69.0, -0.5]
+    assert imagery["min_zoom"] == 5
+    assert imagery["max_zoom"] == 15
+    assert imagery["start_date"] == "2025-06-01"
+    assert imagery["end_date"] == "2025-06-30"
+    assert "June 1–30, 2025" in _messages(command)[0].content
     assert "Sentinel-2" in _messages(command)[0].content
 
 
@@ -228,13 +236,7 @@ async def test_show_imagery_defaults_to_planet_in_coverage():
 async def test_show_imagery_explicit_sentinel_skips_planet():
     result = MosaicResult(mosaic_id="abc123", item_count=1)
 
-    with (
-        patch(
-            "src.agent.tools.show_imagery._fetch_planet_mosaics",
-            new_callable=AsyncMock,
-        ) as fetch_planet,
-        _patch_create(return_value=result),
-    ):
+    with _patch_create(return_value=result):
         command = await show_imagery.coroutine(
             state=PLANET_AOI_STATE,
             provider="sentinel-2",
@@ -242,30 +244,71 @@ async def test_show_imagery_explicit_sentinel_skips_planet():
             tool_call_id="t1",
         )
 
-    fetch_planet.assert_not_awaited()
     assert command.update["imagery"]["provider"] == "sentinel-2"
 
 
+def test_planet_month_defaults_to_previous_full_month():
+    assert _planet_month(None, today=date(2026, 8, 24)) == "2026-07"
+    assert _planet_month(None, today=date(2026, 1, 3)) == "2025-12"
+
+
+def test_recency_boundary_is_after_previous_full_month():
+    today = date(2026, 8, 25)
+
+    assert not _is_newer_than_last_full_month(None, today=today)
+    assert not _is_newer_than_last_full_month(date(2026, 7, 31), today=today)
+    assert _is_newer_than_last_full_month(date(2026, 8, 1), today=today)
+
+
 @pytest.mark.asyncio
-async def test_show_imagery_falls_back_when_planet_month_unavailable():
+async def test_omitted_date_still_defaults_to_planet_in_coverage():
+    with _patch_create() as mock_create:
+        command = await show_imagery.coroutine(
+            state=PLANET_AOI_STATE, tool_call_id="t1"
+        )
+
+    mock_create.assert_not_awaited()
+    assert command.update["imagery"]["provider"] == "planet"
+
+
+@pytest.mark.asyncio
+async def test_recent_date_defaults_to_sentinel_in_planet_coverage():
     result = MosaicResult(mosaic_id="abc123", item_count=1)
 
     with (
         patch(
-            "src.agent.tools.show_imagery._fetch_planet_mosaics",
-            new_callable=AsyncMock,
-            return_value=[],
+            "src.agent.tools.show_imagery._is_newer_than_last_full_month",
+            return_value=True,
         ),
-        _patch_create(return_value=result) as mock_create,
+        _patch_create(return_value=result),
     ):
         command = await show_imagery.coroutine(
             state=PLANET_AOI_STATE,
-            target_date="2025-06-15",
+            target_date="2026-08-15",
             tool_call_id="t1",
         )
 
-    mock_create.assert_awaited_once()
     assert command.update["imagery"]["provider"] == "sentinel-2"
+
+
+@pytest.mark.asyncio
+async def test_explicit_planet_overrides_recent_date_preference():
+    with (
+        patch(
+            "src.agent.tools.show_imagery._is_newer_than_last_full_month",
+            return_value=True,
+        ),
+        _patch_create() as mock_create,
+    ):
+        command = await show_imagery.coroutine(
+            state=PLANET_AOI_STATE,
+            provider="planet",
+            target_date="2026-08-15",
+            tool_call_id="t1",
+        )
+
+    mock_create.assert_not_awaited()
+    assert command.update["imagery"]["provider"] == "planet"
 
 
 @pytest.mark.asyncio
