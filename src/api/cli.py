@@ -22,7 +22,7 @@ import asyncio
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import bcrypt
 import click
@@ -881,31 +881,25 @@ async def _resolve_column(
     return None
 
 
-def _gadm_name_column(id_col: str) -> str:
-    """GADM's name column for the level whose id column is *id_col*.
+class _GadmLevel(NamedTuple):
+    """One GADM admin level's subtype and its two columns in staging."""
 
-    Level 0 is the exception: GADM names that column COUNTRY, not NAME_0.
+    subtype: str
+    id_col: str
+    name_col: str
+
+
+def _gadm_repair_levels() -> list[_GadmLevel]:
+    """GADM's admin levels, shallowest first, from ``GADM_LEVELS``.
+
+    One definition of the hierarchy, so the repair rules can pair a level with
+    the one below it (``zip(levels, levels[1:])``). A parent and its children
+    share the parent's ``id_col``, and both carry the parent's name in their own
+    ``name_col``, which is what lets a broken parent look one level down.
     """
-    return "COUNTRY" if id_col == "GID_0" else id_col.replace("GID_", "NAME_")
-
-
-def _gadm_repair_levels() -> list[tuple[str, str, str, str]]:
-    """(parent subtype, child subtype, shared id column, name column) pairs.
-
-    Derived from ``GADM_LEVELS`` so the admin hierarchy has one definition.
-    Each entry lets a broken parent look one level down: parent and child rows
-    share the parent's ``GID_n`` and both carry the parent's name in their own
-    ``NAME_n``.
-    """
-    subtypes = list(GADM_LEVELS)
     return [
-        (
-            subtype,
-            subtypes[level + 1],
-            GADM_LEVELS[subtype]["col_name"],
-            _gadm_name_column(GADM_LEVELS[subtype]["col_name"]),
-        )
-        for level, subtype in enumerate(subtypes[:-1])
+        _GadmLevel(subtype, level["col_name"], level["name_col"])
+        for subtype, level in GADM_LEVELS.items()
     ]
 
 
@@ -925,24 +919,59 @@ async def _derive_gadm_name_repairs(
       England, Cork and Zuid-Holland at level 1, and at level 2 the multi-child
       counties whose name GADM only stored one level down (Warwickshire,
       Derbyshire, Greater London ...).
-    * **B, leaf name from an only child.** A district-county row with exactly
-      one named municipality child adopts the child's name. Repairs Bristol and
-      57 others, where GADM shifted the name down a level rather than omitting
-      it. Rule A wins where both could fire.
+    * **B, leaf name from an only child.** A district-county row holding
+      exactly one municipality child, which must itself be named, adopts that
+      child's name. A district with one named child *and* one ``'NA'`` child is
+      refused: the SQL counts every child, not just the named ones, so the pair
+      has to be unambiguous. Repairs Bristol and 57 others, where GADM shifted
+      the name down a level rather than omitting it. Rule A wins where both
+      could fire.
 
     Only the broken leading segment of the display name is replaced; every
     parent segment is left byte-identical, so no row's name changes except at
     the position GADM left as ``'NA'``. Rows the rules cannot reach (no
     children, a tie, a multi-child parent with no majority, an unnamed only
     child) keep the name they have today.
+
+    Known gap, accepted: only the *leading* segment is repaired, so a Rule B
+    family leaves the child itself reading "Bristol, NA, England, United
+    Kingdom" -- the parent's own name is fixed, the same name sitting in the
+    child's middle segment is not. Recomposing a display name from its repaired
+    ancestors is SPEC-PR8's design and the durable fix; patching middle
+    segments by string surgery here is not.
     """
-    levels = [
-        level
-        for level in _gadm_repair_levels()
-        if await _resolve_column(session, table, [level[2]])
-        and await _resolve_column(session, table, [level[3]])
-    ]
-    if not levels:
+    # One catalogue read for every level: `_resolve_column` costs a round trip
+    # per candidate and returns the real casing, which nothing here needs --
+    # the column names come from GADM_LEVELS and are quoted as declared.
+    result = await session.execute(
+        text(
+            "SELECT lower(column_name) FROM information_schema.columns "
+            "WHERE table_name = :t"
+        ),
+        {"t": table},
+    )
+    present = {row[0] for row in result.all()}
+
+    levels: list[_GadmLevel] = []
+    for level in _gadm_repair_levels():
+        missing = [
+            col
+            for col in (level.id_col, level.name_col)
+            if col.lower() not in present
+        ]
+        if missing:
+            # A level GADM_LEVELS declares but staging does not carry means a
+            # partial ingest: say so rather than quietly repairing less.
+            click.echo(
+                f"⚠️  gadm: level '{level.subtype}' skipped by the name "
+                f"repair ({', '.join(missing)} not in {table})."
+            )
+        else:
+            levels.append(level)
+
+    # Each rule pairs a level with the one directly below it.
+    pairs = list(zip(levels, levels[1:]))
+    if not pairs:
         return {}
 
     params: dict[str, object] = {
@@ -951,81 +980,100 @@ async def _derive_gadm_name_repairs(
         "min_share": _GADM_CHILD_NAME_MIN_SHARE,
     }
     votes: list[str] = []
-    for i, (subtype, child_subtype, level_id, name_col) in enumerate(levels):
-        params[f"parent_{i}"] = subtype
-        params[f"child_{i}"] = child_subtype
+    for i, (parent, child) in enumerate(pairs):
+        params[f"parent_{i}"] = parent.subtype
+        params[f"child_{i}"] = child.subtype
         # Identifiers cannot be bound, and these come from GADM_LEVELS, not
-        # from data. Every value is a bound parameter.
+        # from data. Every value is a bound parameter. A NULL candidate fails
+        # `NOT IN` on its own, so no null test is needed.
         votes.append(
             f"""
             SELECT CAST(p."{id_col}" AS TEXT) AS source_id,
-                   c."{name_col}" AS candidate,
+                   c."{parent.name_col}" AS candidate,
                    count(*) AS votes
             FROM {table} p
             JOIN {table} c
               ON c.subtype = :child_{i}
-             AND c."{level_id}" = p."{level_id}"
+             AND c."{parent.id_col}" = p."{parent.id_col}"
             WHERE p.subtype = :parent_{i}
-              AND p."{name_col}" = :na
-              AND c."{name_col}" IS NOT NULL
-              AND c."{name_col}" NOT IN ('', :na)
+              AND p."{parent.name_col}" = :na
+              AND c."{parent.name_col}" NOT IN ('', :na)
             GROUP BY 1, 2
             """
         )
 
-    # Rule B is level 2 only: the shifted-name pattern is a district-county
-    # holding a single municipality. `min()` is the only child's name, because
-    # HAVING count(*) = 1 has already restricted the group to one row.
-    b_level = next(
-        (lv for lv in levels if lv[0] == _GADM_SHIFTED_NAME_SUBTYPE), None
-    )
-    rule_b = "SELECT NULL::text AS source_id, NULL::text AS leaf WHERE false"
-    if b_level is not None:
-        parent_subtype, child_subtype, level_id, name_col = b_level
-        child_name_col = _gadm_name_column(
-            GADM_LEVELS[child_subtype]["col_name"]
-        )
-        params["b_parent"] = parent_subtype
-        params["b_child"] = child_subtype
-        rule_b = f"""
-            SELECT CAST(p."{id_col}" AS TEXT) AS source_id,
-                   min(c."{child_name_col}") AS leaf
-            FROM {table} p
-            JOIN {table} c
-              ON c.subtype = :b_child AND c."{level_id}" = p."{level_id}"
-            WHERE p.subtype = :b_parent AND p."{name_col}" = :na
-            GROUP BY 1
-            HAVING count(*) = 1
-               AND min(c."{child_name_col}") IS NOT NULL
-               AND min(c."{child_name_col}") NOT IN ('', :na)
-        """
-
-    # substring(name FROM 3) drops the leading 'NA' and keeps the ', parent'
-    # tail. DISTINCT ON collapses the duplicate ids the staging tables carry
-    # (no unique constraint); duplicates of one id share their composed name.
-    sql = f"""
-        WITH votes AS ({" UNION ALL ".join(votes)}),
-        ranked AS (
+    ctes = [
+        f"votes AS ({' UNION ALL '.join(votes)})",
+        """ranked AS (
             SELECT source_id, candidate, votes,
                    sum(votes) OVER (PARTITION BY source_id) AS total
             FROM votes
-        ),
-        rule_a AS (
-            SELECT DISTINCT ON (source_id) source_id, candidate AS leaf
+        )""",
+        """rule_a AS (
+            -- No tie-break, and none possible: a strict majority of the votes
+            -- admits at most one candidate per source_id. Drop :min_share to
+            -- 0.5 or below and this CTE can emit several rows for one id,
+            -- which `repairs` would carry through as duplicate repairs.
+            SELECT source_id, candidate AS leaf
             FROM ranked
             WHERE votes > :min_share * total
-            ORDER BY source_id, votes DESC, candidate
+        )""",
+    ]
+    repair_arms = ["SELECT source_id, leaf FROM rule_a"]
+
+    # Rule B is level 2 only: the shifted-name pattern is a district-county
+    # holding a single municipality. Emitted only when that level survived the
+    # column check, so there is no empty sentinel CTE to reason about.
+    b_pair = next(
+        (
+            (parent, child)
+            for parent, child in pairs
+            if parent.subtype == _GADM_SHIFTED_NAME_SUBTYPE
         ),
-        rule_b AS ({rule_b}),
-        repairs AS (
-            SELECT source_id, leaf FROM rule_a
-            UNION ALL
-            SELECT source_id, leaf FROM rule_b
-            WHERE source_id NOT IN (SELECT source_id FROM rule_a)
+        None,
+    )
+    if b_pair is not None:
+        parent, child = b_pair
+        params["b_parent"] = parent.subtype
+        params["b_child"] = child.subtype
+        # The inner select groups, the outer only filters, so `min()` is
+        # written once. It is the only child's name, because HAVING has already
+        # restricted the group to one row; a NULL leaf fails `NOT IN`.
+        ctes.append(
+            f"""rule_b AS (
+            SELECT source_id, leaf
+            FROM (
+                SELECT CAST(p."{id_col}" AS TEXT) AS source_id,
+                       min(c."{child.name_col}") AS leaf
+                FROM {table} p
+                JOIN {table} c
+                  ON c.subtype = :b_child
+                 AND c."{parent.id_col}" = p."{parent.id_col}"
+                WHERE p.subtype = :b_parent
+                  AND p."{parent.name_col}" = :na
+                GROUP BY 1
+                HAVING count(*) = 1
+            ) only_child
+            WHERE leaf NOT IN ('', :na)
+        )"""
         )
+        # Rule A wins where both fire.
+        repair_arms.append(
+            "SELECT source_id, leaf FROM rule_b"
+            " WHERE source_id NOT IN (SELECT source_id FROM rule_a)"
+        )
+
+    ctes.append(f"repairs AS ({' UNION ALL '.join(repair_arms)})")
+
+    # substring past the marker drops the leading 'NA' and keeps the ', parent'
+    # tail. DISTINCT ON collapses the duplicate ids the staging tables carry
+    # (no unique constraint); duplicates of one id share their composed name.
+    sql = f"""
+        WITH {", ".join(ctes)}
         SELECT DISTINCT ON (r.source_id)
                r.source_id,
-               r.leaf || substring(g.name FROM 3) AS repaired
+               r.leaf || substring(g.name FROM char_length(:na) + 1)
+                 AS repaired
         FROM repairs r
         JOIN {table} g ON CAST(g."{id_col}" AS TEXT) = r.source_id
         WHERE g.name = :na OR g.name LIKE :na_prefix
