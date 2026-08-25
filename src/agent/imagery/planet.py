@@ -10,7 +10,7 @@ from src.agent.models import ImageryState
 class PlanetImageryProvider:
     """Build imagery state for the limited-coverage Planet tile service."""
 
-    BASE_URL = "http://127.0.0.1:8899"
+    BASE_URL = "https://tiles.globalforestwatch.org"
     COVERAGE = (-70.0, -10.0, -60.0, 0.0)
 
     def covers(self, aois: list[dict]) -> bool:
