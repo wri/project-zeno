@@ -10,6 +10,7 @@ This module knows nothing about the tool it serves: it returns the winning
 DataFrame row, and the caller turns that into an `AOIIndex`.
 """
 
+import string
 import unicodedata
 from difflib import SequenceMatcher
 from typing import Optional, Sequence
@@ -31,7 +32,7 @@ _PREFIX_BONUS = 0.1
 # resubmitted verbatim as the next question ("Paris, Ile-de-France, France -
 # (district-county) [FRA]"), so a segment comparison that keeps punctuation
 # would never match the same place spelled plainly.
-_SEGMENT_PUNCTUATION = " \t.,;:!?'\"()[]-"
+_SEGMENT_PUNCTUATION = string.punctuation + string.whitespace
 
 # Preference by subtype: broader admin units beat narrower ones, and admin
 # units beat named sites (KBA/WDPA/Landmark), so a bare "Lisbon" resolves to
@@ -75,6 +76,41 @@ def _first_segment(name: str) -> str:
     return _strip_accents(leaf).strip(_SEGMENT_PUNCTUATION)
 
 
+def _hierarchy_score(subtype: str) -> float:
+    """The weighted hierarchy term for one subtype.
+
+    Raises:
+        ValueError: If ``subtype`` is not a known AOI subtype.
+    """
+    if subtype not in _HIERARCHY_SCORES:
+        raise ValueError(f"Unknown AOI subtype: {subtype!r}")
+    return _HIERARCHY_WEIGHT * _HIERARCHY_SCORES[subtype]
+
+
+def _score_prepared(
+    term: str,
+    term_leaf: str,
+    candidate: str,
+    candidate_leaf: str,
+    hierarchy: float,
+    matcher: SequenceMatcher,
+) -> float:
+    """Score one prepared term against one prepared candidate.
+
+    Every string here is already accent-stripped, and *matcher* already holds
+    the candidate as its second sequence: SequenceMatcher indexes that
+    sequence once and reuses the index for every term, which is why the caller
+    loops candidates on the outside and terms on the inside.
+    """
+    matcher.set_seq1(term)
+    score = _SIMILARITY_WEIGHT * matcher.ratio() + hierarchy
+    if term_leaf == candidate_leaf:
+        score += _EXACT_SEGMENT_BONUS
+    elif candidate.startswith(term):
+        score += _PREFIX_BONUS
+    return score
+
+
 def _score_candidate(place_name: str, name: str, subtype: str) -> float:
     """Composite score for one AOI candidate against one search term.
 
@@ -86,22 +122,17 @@ def _score_candidate(place_name: str, name: str, subtype: str) -> float:
     Raises:
         ValueError: If ``subtype`` is not a known AOI subtype.
     """
-    if subtype not in _HIERARCHY_SCORES:
-        raise ValueError(f"Unknown AOI subtype: {subtype!r}")
-
-    term = _strip_accents(place_name)
     candidate = _strip_accents(name)
-
-    similarity = SequenceMatcher(None, term, candidate).ratio()
-    score = _SIMILARITY_WEIGHT * similarity
-    score += _HIERARCHY_WEIGHT * _HIERARCHY_SCORES[subtype]
-
-    if _first_segment(place_name) == _first_segment(name):
-        score += _EXACT_SEGMENT_BONUS
-    elif candidate.startswith(term):
-        score += _PREFIX_BONUS
-
-    return score
+    matcher = SequenceMatcher(None)
+    matcher.set_seq2(candidate)
+    return _score_prepared(
+        _strip_accents(place_name),
+        _first_segment(place_name),
+        candidate,
+        _first_segment(name),
+        _hierarchy_score(subtype),
+        matcher,
+    )
 
 
 def best_candidate_row(
@@ -133,30 +164,52 @@ def best_candidate_row(
     if not terms:
         raise ValueError("score_best_aoi needs at least one search term")
 
-    scored = [
-        (
-            max(
-                _score_candidate(term, row["name"], row["subtype"])
-                for term in terms
-            ),
-            row,
-        )
-        for row in candidate_aois.to_dict(orient="records")
+    # Each term is stripped and reduced to its leaf once, not once per row.
+    term_forms = [
+        (_strip_accents(term), _first_segment(term)) for term in terms
     ]
-    # Sort with explicit secondary keys rather than taking a max, so equal
-    # scores resolve identically whatever order the rows arrived in.
-    scored.sort(
-        key=lambda pair: (
-            -pair[0],
-            pair[1]["name"],
-            pair[1]["source"],
-            str(pair[1]["src_id"]),
-        )
+    matcher = SequenceMatcher(None)
+    best_key: Optional[tuple] = None
+    best_position = 0
+    best_score = 0.0
+
+    # Only the four columns that scoring and the tie-break read, so no row
+    # this function does not select is ever built as a dict.
+    scoring_columns = zip(
+        candidate_aois["name"],
+        candidate_aois["subtype"],
+        candidate_aois["source"],
+        candidate_aois["src_id"],
     )
-    best_score, best_row = scored[0]
+    for position, (name, subtype, source, src_id) in enumerate(
+        scoring_columns
+    ):
+        hierarchy = _hierarchy_score(subtype)
+        candidate = _strip_accents(name)
+        candidate_leaf = _first_segment(name)
+        matcher.set_seq2(candidate)
+        score = max(
+            _score_prepared(
+                term, term_leaf, candidate, candidate_leaf, hierarchy, matcher
+            )
+            for term, term_leaf in term_forms
+        )
+        # Compare on explicit secondary keys rather than the score alone, so
+        # equal scores resolve identically whatever order the rows arrived in.
+        key = (-score, name, source, str(src_id))
+        if best_key is None or key < best_key:
+            best_key = key
+            best_position = position
+            best_score = score
+
+    # A one-row frame keeps every column's dtype, so this row is what
+    # to_dict("records") would have produced for the whole frame.
+    best_row: dict = candidate_aois.iloc[[best_position]].to_dict(
+        orient="records"
+    )[0]
 
     logger.debug(
         f"Selected AOI {best_row['src_id']} scoring {best_score:.3f} "
-        f"from {len(scored)} candidate(s) for terms {list(terms)}"
+        f"from {len(candidate_aois)} candidate(s) for terms {list(terms)}"
     )
     return best_row
