@@ -1,7 +1,6 @@
 import asyncio
 import unicodedata
 from difflib import SequenceMatcher
-from enum import StrEnum
 from typing import (
     Annotated,
     Any,
@@ -35,6 +34,10 @@ from src.agent.subagents.pick_aoi.prompts import GEOCODER_PROMPT
 from src.agent.subagents.pick_aoi.selection_name_util import (
     build_selection_name,
 )
+from src.agent.subagents.pick_aoi.types import (
+    AreaOfInterestType,
+    aoi_to_table,
+)
 from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
@@ -50,21 +53,6 @@ from src.shared.request_context import current_user_id
 RESULT_LIMIT = 10
 SUBREGION_LIMIT_ADMIN = 1000
 SUBREGION_LIMIT = 50
-
-
-class AreaOfInterestType(StrEnum):
-    GADM = "adminstrative area (country, state/region, country/subregion)"
-    WDPA = ("protected area, park, or reserve",)
-    LANDMARK = ("indigenous region or territory",)
-    KBA = "key biodiversity area"
-
-
-aoi_to_table = {
-    AreaOfInterestType.GADM: "gadm",
-    AreaOfInterestType.WDPA: "wdpa",
-    AreaOfInterestType.LANDMARK: "landmark",
-    AreaOfInterestType.KBA: "kba",
-}
 
 load_dotenv()
 logger = get_logger(__name__)

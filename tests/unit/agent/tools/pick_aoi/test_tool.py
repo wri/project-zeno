@@ -8,7 +8,6 @@ from src.agent.config import AgentSettings
 from src.agent.subagents.pick_aoi import Geocoder, pick_aoi
 from src.agent.subagents.pick_aoi.tool import (
     AOIIndex,
-    AreaOfInterestType,
     ExtractedPlace,
     PlaceQuery,
     _as_extracted_place,
@@ -17,6 +16,7 @@ from src.agent.subagents.pick_aoi.tool import (
     _strip_accents,
     score_best_aoi,
 )
+from src.agent.subagents.pick_aoi.types import AreaOfInterestType
 from src.shared import geocoding_helpers
 from src.shared.geocoding_helpers import fetch_aoi_bbox
 

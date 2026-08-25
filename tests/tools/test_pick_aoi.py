@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from src.agent.subagents.pick_aoi import Geocoder
-from src.agent.subagents.pick_aoi.tool import AreaOfInterestType
+from src.agent.subagents.pick_aoi.types import AreaOfInterestType
 from src.shared.request_context import bound_user_id
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
