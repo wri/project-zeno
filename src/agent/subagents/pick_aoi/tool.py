@@ -4,9 +4,9 @@ from typing import (
     Any,
     Dict,
     Literal,
+    NamedTuple,
     Optional,
     Sequence,
-    Union,
 )
 
 import pandas as pd
@@ -563,56 +563,49 @@ class PlaceQuery(BaseModel):
     )
 
 
-def _search_terms(place: ExtractedPlace, normalized: bool) -> list[str]:
-    """The terms to search for one place, most authoritative first.
+class _PlaceResolution(NamedTuple):
+    """What one place resolved to: its plan, its candidates and its pick."""
 
-    The extracted place name always leads and is always searched, so
-    normalisation can only add candidates — it can never remove the row that
-    the place name alone would have found. With the normaliser disabled the
-    term set collapses to that one name, which is the pre-PZB-1272 search.
+    place: ExtractedPlace
+    terms: list[str]
+    merged: pd.DataFrame
+    primary: pd.DataFrame
+    selection: Optional[AOIIndex]
+
+
+async def _resolve_place(
+    place: ExtractedPlace,
+    question: str,
+    aoi_type: Optional[AreaOfInterestType],
+    normalized: bool,
+) -> _PlaceResolution:
+    """Search one place and pick its AOI, planned once at the top.
+
+    The plan is the whole of what the kill switch governs, which is why it is
+    decided here rather than threaded through the steps below: with the
+    normaliser off a place is searched under its extracted name alone, its
+    inferred type is ignored, and a model picks the winner — exactly the
+    pre-PZB-1272 behaviour.
+
+    The extracted name always leads the term set and is always searched, so
+    normalisation can only ADD candidates: it can never remove the row the
+    place name alone would have found. Narrowing to a source carries weight
+    now that a designation no longer travels in the search term (with the
+    whole catalogue in scope, an admin unit sharing a park's leaf name
+    outranks the park on the hierarchy term alone), but a wrong type must not
+    cost recall — so an empty narrowed result is retried across every source.
     """
     terms = [place.place]
-    if not normalized:
-        return terms
-    for candidate in [place.canonical, *place.alternatives]:
-        if candidate and candidate not in terms:
-            terms.append(candidate)
-    return terms
+    # The caller's explicit `area_of_interest` wins; the type the geocoder
+    # inferred for this place only fills the gap when the caller gave none.
+    effective_type = aoi_type
+    if normalized:
+        for candidate in [place.canonical, *place.alternatives]:
+            if candidate and candidate not in terms:
+                terms.append(candidate)
+        if effective_type is None:
+            effective_type = place.area_type
 
-
-def _effective_aoi_type(
-    place: ExtractedPlace,
-    aoi_type: Optional[AreaOfInterestType],
-    normalized: bool,
-) -> Optional[AreaOfInterestType]:
-    """The source restriction for one place.
-
-    The orchestrator's explicit `area_of_interest` wins; the type the
-    geocoder inferred for this place only fills the gap when the
-    orchestrator gave none.
-    """
-    if aoi_type is not None:
-        return aoi_type
-    if not normalized:
-        return None
-    return place.area_type
-
-
-async def _search_candidates(
-    place: ExtractedPlace,
-    terms: list[str],
-    aoi_type: Optional[AreaOfInterestType],
-    normalized: bool,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Search one place's terms, narrowed to a source when one is known.
-
-    Narrowing carries weight now that the designation no longer travels in
-    the search term: with the whole catalogue in scope, an admin unit that
-    shares a park's leaf name outranks the park on the hierarchy term alone.
-    A wrong type must not cost recall, though, so an empty narrowed result is
-    retried across every source.
-    """
-    effective_type = _effective_aoi_type(place, aoi_type, normalized)
     merged, primary = await query_aoi_database_multiterm(terms, effective_type)
     if merged.empty and normalized and effective_type is not None:
         logger.info(
@@ -621,20 +614,14 @@ async def _search_candidates(
             place.place,
         )
         merged, primary = await query_aoi_database_multiterm(terms, None)
-    return merged, primary
 
-
-def _as_extracted_place(place: Union[str, ExtractedPlace]) -> ExtractedPlace:
-    """Accept a bare place name where an ExtractedPlace is expected.
-
-    `Geocoder.lookup` is also called directly with plain place strings — by
-    the tools and agent test suites, and by anything that already knows the
-    place name. A bare string means "no normalisation available", which is
-    exactly an ExtractedPlace carrying only `place`.
-    """
-    if isinstance(place, ExtractedPlace):
-        return place
-    return ExtractedPlace(place=place)
+    if normalized:
+        # No model chooses among candidates: identical candidates always
+        # produce the identical AOI.
+        selection = score_best_aoi(merged, terms)
+    else:
+        selection = await select_best_aoi(question, merged)
+    return _PlaceResolution(place, terms, merged, primary, selection)
 
 
 # Turns a free-text request into structured place(s) + subregion. The rules
@@ -710,15 +697,14 @@ class Geocoder:
         question: str,
         # Sequence, not list: `resolve` passes a list[ExtractedPlace] and
         # list is invariant.
-        places: Sequence[Union[str, ExtractedPlace]],
+        places: Sequence[ExtractedPlace],
         subregion: Optional[SubregionType] = None,
         aoi_type: Optional[AreaOfInterestType] = None,
         tool_call_id: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
     ) -> Command:
         """DB step: resolve known place name(s) to AOI geometry."""
-        extracted = [_as_extracted_place(place) for place in places]
-        place_names = [place.place for place in extracted]
+        place_names = [place.place for place in places]
         logger.info(
             f"GEOCODER: lookup places: '{place_names}', "
             f"subregion: '{subregion}'"
@@ -732,64 +718,48 @@ class Geocoder:
             )
 
         normalized = AgentSettings.aoi_normalizer_enabled
-        term_sets = [_search_terms(place, normalized) for place in extracted]
-        for place, terms in zip(place_names, term_sets):
-            if len(terms) > 1:
+        resolutions = await asyncio.gather(
+            *[
+                _resolve_place(place, question, aoi_type, normalized)
+                for place in places
+            ]
+        )
+
+        # Progress stays grouped by stage rather than interleaved per place,
+        # so the reader sees one block per stage however many places there are.
+        for resolution in resolutions:
+            if len(resolution.terms) > 1:
                 emit_progress(
                     "pick_aoi",
                     "normalize",
-                    f"Searching '{place}' as: {'; '.join(terms)}",
+                    f"Searching '{resolution.place.place}' as: "
+                    f"{'; '.join(resolution.terms)}",
                 )
-
-        searches = await asyncio.gather(
-            *[
-                _search_candidates(place, terms, aoi_type, normalized)
-                for place, terms in zip(extracted, term_sets)
-            ]
-        )
-        all_results = [merged for merged, _ in searches]
-        primary_results = [primary for _, primary in searches]
-        for place, result in zip(place_names, all_results):
+        for resolution in resolutions:
+            result = resolution.merged
             count = len(result) if "name" in result.columns else 0
             # Only the names the message shows: the count comes from the frame.
             names = result["name"].head(8).tolist() if count else []
             emit_progress(
                 "pick_aoi",
                 "candidates",
-                f"Fuzzy search '{place}': {count} candidate(s)"
+                f"Fuzzy search '{resolution.place.place}': "
+                f"{count} candidate(s)"
                 + (f" — {'; '.join(names)}" if names else ""),
             )
 
-        selected_aois_raw: list[Optional[AOIIndex]]
-        if normalized:
-            # No model chooses among candidates: identical candidates always
-            # produce the identical AOI.
-            selected_aois_raw = [
-                score_best_aoi(result, terms)
-                for result, terms in zip(all_results, term_sets)
-            ]
-        else:
-            selected_aois_raw = list(
-                await asyncio.gather(
-                    *[
-                        select_best_aoi(question, result)
-                        for result in all_results
-                    ]
-                )
-            )
         unmatched_places = [
-            place
-            for place, aoi in zip(place_names, selected_aois_raw)
-            if aoi is None
+            resolution.place.place
+            for resolution in resolutions
+            if resolution.selection is None
         ]
-        # Pair each selection with the candidates of ITS OWN place. Zipping
-        # the filtered selections against the unfiltered frames would pair a
-        # selection with another place's candidates as soon as one place
-        # matched nothing.
+        # Each selection stays paired with the candidates of ITS OWN place:
+        # filtering the selections alone would pair one with another place's
+        # candidates as soon as a place matched nothing.
         matched = [
-            (aoi, primary)
-            for aoi, primary in zip(selected_aois_raw, primary_results)
-            if aoi is not None
+            (resolution.selection, resolution.primary)
+            for resolution in resolutions
+            if resolution.selection is not None
         ]
         selected_aois = [aoi for aoi, _ in matched]
         if not selected_aois:

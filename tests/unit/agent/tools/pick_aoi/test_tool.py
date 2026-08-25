@@ -9,7 +9,6 @@ from src.agent.subagents.pick_aoi.tool import (
     AOIIndex,
     ExtractedPlace,
     PlaceQuery,
-    _as_extracted_place,
 )
 from src.agent.subagents.pick_aoi.types import AreaOfInterestType
 from src.shared import geocoding_helpers
@@ -195,24 +194,12 @@ async def test_select_best_aoi_bad_src_id_returns_none(monkeypatch):
     When the LLM picks a src_id that isn't among the candidates,
     select_best_aoi should return None instead of crashing on .iloc[0]."""
 
-    async def fake_structured_output(_input):
-        return tool_module.AOIId(src_id="does-not-exist")
-
-    class _FakeSmallModel:
-        def with_structured_output(self, schema):
-            return fake_structured_output
-
-    monkeypatch.setattr(tool_module, "SMALL_MODEL", _FakeSmallModel())
+    monkeypatch.setattr(
+        tool_module, "SMALL_MODEL", _SmallModelStub("does-not-exist")
+    )
 
     candidates = pd.DataFrame(
-        [
-            {
-                "src_id": "BRA.14_1",
-                "name": "Para, Brazil",
-                "subtype": "state-province",
-                "source": "gadm",
-            }
-        ]
+        [_row("BRA.14_1", "Para, Brazil", subtype="state-province")]
     )
     result = await tool_module.select_best_aoi("some question", candidates)
     assert result is None
@@ -331,13 +318,6 @@ def test_an_extracted_place_carries_normalisation_and_a_type():
 
     assert query.places[0].area_type == AreaOfInterestType.WDPA
     assert query.places[0].canonical == "Botum Sakor"
-
-
-def test_a_bare_place_name_means_no_normalisation():
-    coerced = _as_extracted_place("Para, Brazil")
-
-    assert coerced == ExtractedPlace(place="Para, Brazil")
-    assert _as_extracted_place(coerced) is coerced
 
 
 # ---------------------------------------------------------------------------
@@ -466,32 +446,6 @@ _BOTUM_SAKOR_ROW = [
         "protected-area",
     )
 ]
-
-
-@pytest.mark.asyncio
-async def test_lookup_still_accepts_plain_place_strings(monkeypatch):
-    """Callers and the DB-tier suites pass place names, not objects."""
-    _patch_search(
-        monkeypatch,
-        {
-            "Para, Brazil": [
-                _row(
-                    "BRA.14_1",
-                    "Pará, Brazil",
-                    subtype="state-province",
-                    score=0.71,
-                )
-            ]
-        },
-    )
-    monkeypatch.setattr(tool_module, "SMALL_MODEL", _SmallModelStub())
-
-    command = await _lookup(
-        ["Para, Brazil"], question="deforestation in Para, Brazil"
-    )
-
-    aois = command.update["aoi_selection"]["aois"]
-    assert [aoi["src_id"] for aoi in aois] == ["BRA.14_1"]
 
 
 @pytest.mark.asyncio

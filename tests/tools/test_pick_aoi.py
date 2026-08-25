@@ -7,12 +7,18 @@ import pandas as pd
 import pytest
 
 from src.agent.subagents.pick_aoi import Geocoder
+from src.agent.subagents.pick_aoi.tool import ExtractedPlace
 from src.agent.subagents.pick_aoi.types import AreaOfInterestType
 from src.shared.request_context import bound_user_id
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+def _place(name: str) -> ExtractedPlace:
+    """The place a geocoder extraction with nothing to normalise produces."""
+    return ExtractedPlace(place=name)
 
 
 # ---------------------------------------------------------------------------
@@ -24,7 +30,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 async def test_query_aoi_multiple_matches(structlog_context):
     command = await Geocoder().lookup(
         question="Measure deforestation in Puri",
-        places=["Puri"],
+        places=[_place("Puri")],
         tool_call_id=str(uuid.uuid4()),
     )
     assert str(command.update.get("messages")[0].content).startswith(
@@ -38,7 +44,7 @@ async def test_query_aoi_multiple_matches(structlog_context):
 async def test_query_aoi_multiple_sources(structlog_context):
     command = await Geocoder().lookup(
         question="Compare states in Ecuador and Bolivia",
-        places=["Ecuador", "Bolivia"],
+        places=[_place("Ecuador"), _place("Bolivia")],
         subregion="state",
         tool_call_id=str(uuid.uuid4()),
     )
@@ -86,7 +92,7 @@ async def test_query_aoi_multiple_sources(structlog_context):
 async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
     command = await Geocoder().lookup(
         question=question,
-        places=[place],
+        places=[_place(place)],
         tool_call_id=str(uuid.uuid4()),
     )
     assert len(command.update.get("aoi_selection", {}).get("aois")) == 1
@@ -118,7 +124,7 @@ async def test_query_aoi_subregion(
 ):
     command = await Geocoder().lookup(
         question=question,
-        places=[place],
+        places=[_place(place)],
         subregion=subregion,
         tool_call_id=str(uuid.uuid4()),
     )
@@ -186,7 +192,7 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
     with bound_user_id("test-user-123"):
         command = await Geocoder().lookup(
             question="Measure deforestation in My Custom Area",
-            places=["My Custom Area"],
+            places=[_place("My Custom Area")],
             tool_call_id=str(uuid.uuid4()),
         )
 
@@ -233,7 +239,7 @@ async def test_pick_aoi_handles_empty_subregion_results(
 
     command = await Geocoder().lookup(
         question="How much land changed to short vegetation in protected areas in Colorado in the past decade?",
-        places=["Colorado"],
+        places=[_place("Colorado")],
         subregion="wdpa",
         tool_call_id=str(uuid.uuid4()),
     )
@@ -286,7 +292,7 @@ async def test_global_query_with_country_subregion(
 
     command = await Geocoder().lookup(
         question="Which countries have the most deforestation globally?",
-        places=["Global World"],
+        places=[_place("Global World")],
         subregion="country",
         tool_call_id=str(uuid.uuid4()),
     )
@@ -309,7 +315,7 @@ async def test_global_query_without_subregion_is_rejected(structlog_context):
     ):
         command = await Geocoder().lookup(
             question="What is the deforestation rate in the world?",
-            places=["Global World"],
+            places=[_place("Global World")],
             tool_call_id=str(uuid.uuid4()),
         )
 
@@ -320,7 +326,7 @@ async def test_global_query_without_subregion_is_rejected(structlog_context):
 async def test_query_cross_antimeridian(structlog_context):
     command = await Geocoder().lookup(
         question="Pick russia",
-        places=["Russia"],
+        places=[_place("Russia")],
         subregion="state",
         tool_call_id=str(uuid.uuid4()),
     )
