@@ -6,7 +6,7 @@ database and no ``DatabaseManager``.
 
 The transform itself reads the ``geometries_*`` staging tables, which the test
 schema does not contain: they are bulk-loaded by GeoPandas, not declared in
-``Base.metadata``. The fixtures below create a minimal one and drop it again.
+``Base.metadata``. ``_staging_table`` creates a minimal one and drops it again.
 Dropping matters: ``conftest.clear_tables`` only truncates the tables in
 ``Base.metadata``, so a leaked staging table would leak into later tests.
 
@@ -15,17 +15,20 @@ rules turn on exactly that dirt: children that disagree with each other, a
 parent with no children, a tie, and names GADM stored one level down.
 """
 
+from contextlib import asynccontextmanager
+
 import pytest
 import pytest_asyncio
 from click.testing import CliRunner
 from sqlalchemy import text
 
 from src.api.cli import _build_reference_aois, _derive_gadm_name_repairs, cli
-from tests.conftest import async_session_maker
-
-# One valid square for every seeded row: the transform derives geometry, bbox
-# and area from it, and none of these tests assert on those.
-_SQUARE = "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"
+from src.shared.geocoding_helpers import (
+    AOI_SOURCE_ID_COLUMNS,
+    GADM_LEVELS,
+    SOURCE_STAGING_TABLES,
+)
+from tests.conftest import UNIT_SQUARE_WKT, async_session_maker
 
 # Chunk count for the seeded builds. The real default is 16; a smaller number
 # keeps the tests quick while still running the multi-pass, per-chunk-commit
@@ -33,7 +36,9 @@ _SQUARE = "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"
 # different chunks from their own children (see the cross-chunk test).
 _CHUNKS = 4
 
-_STAGING_COLUMNS = (
+# GADM's own column names, spelled as GADM ships them: pinning that file format
+# is the point of the fixture, so these stay literal.
+_GADM_COLUMNS = (
     "GID_0",
     "COUNTRY",
     "GID_1",
@@ -47,46 +52,131 @@ _STAGING_COLUMNS = (
     "subtype",
 )
 
+_GADM_SUBTYPES = list(GADM_LEVELS)
+_GADM_LEVEL_COLUMNS = list(GADM_LEVELS.values())
 
-def _row(gadm_id: str, name: str, subtype: str, **columns) -> dict:
-    """A staging row: ids and names as GADM ships them, others left NULL."""
-    row = {col.lower(): None for col in _STAGING_COLUMNS}
-    row.update(
-        gadm_id=gadm_id, name=name, subtype=subtype, country="United Kingdom"
-    )
-    row.update({key.lower(): value for key, value in columns.items()})
+
+@asynccontextmanager
+async def _staging_table(source: str, columns: tuple[str, ...], rows: list):
+    """Create ``geometries_<source>``, seed *rows*, and drop it again.
+
+    Only the columns the transform and the repair read are declared, all text.
+    The real tables have ~90 columns from the source file's own schema. The
+    quoted names preserve the casing GeoPandas keeps, which ``_resolve_column``
+    and the repair's column check both depend on. Every row gets the same
+    square: none of these tests assert on geometry, bbox or area.
+    """
+    table = SOURCE_STAGING_TABLES[source]
+    declared = ", ".join(f'"{col}" text' for col in columns)
+    names = ", ".join(f'"{col}"' for col in columns)
+    binds = ", ".join(f":{col}" for col in columns)
+    try:
+        async with async_session_maker() as session:
+            await session.execute(text(f"DROP TABLE IF EXISTS {table}"))
+            await session.execute(
+                text(
+                    f"CREATE TABLE {table} ({declared},"
+                    " geometry geometry(MultiPolygon, 4326))"
+                )
+            )
+            await session.execute(
+                text(
+                    f"INSERT INTO {table} ({names}, geometry)"
+                    f" VALUES ({binds},"
+                    " ST_Multi(ST_GeomFromText(:geom, 4326)))"
+                ),
+                [{"geom": UNIT_SQUARE_WKT, **row} for row in rows],
+            )
+            await session.commit()
+        yield
+    finally:
+        async with async_session_maker() as session:
+            await session.execute(text(f"DROP TABLE IF EXISTS {table}"))
+            await session.commit()
+
+
+def _gadm(gadm_id: str, *path: str, **columns) -> dict:
+    """The staging row GADM ships for the unit at *path*, country first.
+
+    ``_gadm("IRL.4.3_1", "Ireland", "Cork City", "Mahon")`` is Mahon's row.
+    Everything follows from the id and the path, as it does in GADM's own
+    files: the subtype from the path's depth, each ``NAME_n`` from the path,
+    the display name from the path reversed (how ingest composes it), and each
+    ancestor's ``GID_n`` by dropping trailing segments off the id. That last
+    rule is what reproduces GADM's malformed "NA" rows, whose ids are one
+    segment short and so leave ``GID_0`` null.
+
+    *columns* overrides a single column for a row GADM ships inconsistently.
+    """
+    level = len(path) - 1
+    parts = gadm_id.removesuffix("_1").split(".")
+
+    row: dict = {col: None for col in _GADM_COLUMNS}
+    row["gadm_id"] = gadm_id
+    row["name"] = ", ".join(reversed(path))
+    row["subtype"] = _GADM_SUBTYPES[level]
+    for depth, ancestor in enumerate(path):
+        row[_GADM_LEVEL_COLUMNS[depth]["name_col"]] = ancestor
+
+    row[_GADM_LEVEL_COLUMNS[level]["col_name"]] = gadm_id
+    for depth in range(level - 1, -1, -1):
+        head = parts[: len(parts) - (level - depth)]
+        if head:
+            suffix = "_1" if len(head) > 1 else ""
+            row[_GADM_LEVEL_COLUMNS[depth]["col_name"]] = (
+                ".".join(head) + suffix
+            )
+
+    row.update(columns)
     return row
 
 
-async def _seed_gadm_staging(rows: list[dict]) -> None:
-    """Create ``geometries_gadm`` and insert *rows*.
+_UK = "United Kingdom"
 
-    Only the columns the gadm transform and the repair read are declared. The
-    real table has ~90 columns from GADM's own schema; the quoted upper-case
-    names mirror the casing GeoPandas preserves, which ``_resolve_column``
-    depends on.
-    """
-    declared = ", ".join(f'"{col}" text' for col in _STAGING_COLUMNS)
-    columns = ", ".join(f'"{col}"' for col in _STAGING_COLUMNS)
-    values = ", ".join(f":{col.lower()}" for col in _STAGING_COLUMNS)
-    async with async_session_maker() as session:
-        await session.execute(text("DROP TABLE IF EXISTS geometries_gadm"))
-        await session.execute(
-            text(
-                f"CREATE TABLE geometries_gadm ({declared},"
-                " geometry geometry(MultiPolygon, 4326))"
-            )
-        )
-        for row in rows:
-            await session.execute(
-                text(
-                    f"INSERT INTO geometries_gadm ({columns}, geometry)"
-                    f" VALUES ({values},"
-                    " ST_Multi(ST_GeomFromText(:geom, 4326)))"
-                ),
-                {"geom": _SQUARE, **row},
-            )
-        await session.commit()
+# A miniature of the real hierarchy. Every group below is one rule or one
+# refusal; the comments name the real row each stands in for.
+_GADM_ROWS = [
+    # Level 1, Rule A. England's children disagree exactly as GADM's do: most
+    # say England, one says NA (never a vote), one says Wales (a real GADM
+    # error). England takes 2 of the 3 named votes.
+    _gadm("GBR", _UK),
+    _gadm("GBR.1_1", _UK, "NA"),
+    _gadm("GBR.1.1_1", _UK, "England", "Barnsley"),
+    _gadm("GBR.1.4_1", _UK, "Wales", "Wakefield"),
+    _gadm("GBR.1.3_1", _UK, "NA", "Sheffield"),
+    # Level 1 control: a sibling GADM named correctly.
+    _gadm("GBR.2_1", _UK, "Scotland"),
+    # Level 1 refusal: MHL.19_1 has no children at all, so nothing to borrow.
+    _gadm("MHL.19_1", "Marshall Islands", "NA"),
+    # Level 1 refusal: the all-NA ghost row, whose children split 1-1. GADM's
+    # own carries a country name that its display name does not, hence the
+    # override; the null GID_0 falls out of the short id.
+    _gadm("NA", "NA", "NA", COUNTRY=_UK),
+    _gadm("NA.1_1", _UK, "England", "NA"),
+    _gadm("NA.2_1", _UK, "Scotland", "NA"),
+    # Level 1, Rule A with a near-miss dissenter, as Ireland ships it.
+    _gadm("IRL.4_1", "Ireland", "NA"),
+    _gadm("IRL.4.1_1", "Ireland", "Cork", "Cobh"),
+    _gadm("IRL.4.2_1", "Ireland", "Cork", "Youghal"),
+    _gadm("IRL.4.3_1", "Ireland", "Cork City", "Mahon"),
+    # Level 2, Rule B: GADM stored Bristol's name on its only child.
+    _gadm("GBR.1.2_1", _UK, "England", "NA"),
+    _gadm("GBR.1.2.1_1", _UK, "England", "NA", "Bristol"),
+    # Level 2, Rule A: Warwickshire, named only in its children's NAME_2.
+    _gadm("GBR.1.5_1", _UK, "England", "NA"),
+    _gadm("GBR.1.5.1_1", _UK, "England", "Warwickshire", "Nuneaton"),
+    _gadm("GBR.1.5.2_1", _UK, "England", "Warwickshire", "Rugby"),
+    _gadm("GBR.1.5.3_1", _UK, "England", "Warwickshire", "Warwick"),
+    # Level 2 refusal: several children, none of which carries the parent name.
+    _gadm("GBR.1.6_1", _UK, "England", "NA"),
+    _gadm("GBR.1.6.1_1", _UK, "England", "NA", "Chesterfield"),
+    _gadm("GBR.1.6.2_1", _UK, "England", "NA", "Bolsover"),
+    # Level 2 refusal: an only child that GADM did not name either.
+    _gadm("GBR.1.7_1", _UK, "England", "NA"),
+    _gadm("GBR.1.7.1_1", _UK, "England", "NA", "NA"),
+    # Level 2 refusal: no children.
+    _gadm("GBR.1.8_1", _UK, "England", "NA"),
+]
 
 
 async def _aoi_names(source: str) -> dict[str, str]:
@@ -109,162 +199,22 @@ async def _build(source: str) -> int:
 async def _repairs() -> dict[str, str]:
     async with async_session_maker() as session:
         return await _derive_gadm_name_repairs(
-            session, "geometries_gadm", "gadm_id"
+            session,
+            SOURCE_STAGING_TABLES["gadm"],
+            AOI_SOURCE_ID_COLUMNS["gadm"],
         )
 
 
-def _district(gadm_id: str, name_2: str, **columns) -> dict:
-    """A GBR district row, with its display name composed as ingest does."""
-    cols = {"GID_0": "GBR", "GID_1": "GBR.1_1", "NAME_1": "England"}
-    cols.update(columns)
-    cols.update({"GID_2": gadm_id, "NAME_2": name_2})
-    name = f"{name_2}, {cols['NAME_1']}, United Kingdom"
-    return _row(gadm_id, name, "district-county", **cols)
-
-
-def _municipality(gadm_id: str, parent: str, name_2: str, name_3: str) -> dict:
-    return _row(
-        gadm_id,
-        f"{name_3}, {name_2}, England, United Kingdom",
-        "municipality",
-        GID_0="GBR",
-        GID_1="GBR.1_1",
-        NAME_1="England",
-        GID_2=parent,
-        NAME_2=name_2,
-        GID_3=gadm_id,
-        NAME_3=name_3,
-    )
-
-
-# A miniature of the real hierarchy. Every group below is one rule or one
-# refusal; the comments name the real row each stands in for.
-_GADM_ROWS = [
-    # Level 1, Rule A. England's children disagree exactly as GADM's do: most
-    # say England, one says NA (never a vote), one says Wales (a real GADM
-    # error). England takes 2 of the 3 named votes.
-    _row("GBR", "United Kingdom", "country", GID_0="GBR"),
-    _row(
-        "GBR.1_1",
-        "NA, United Kingdom",
-        "state-province",
-        GID_0="GBR",
-        GID_1="GBR.1_1",
-        NAME_1="NA",
-    ),
-    _district("GBR.1.1_1", "Barnsley"),
-    _district("GBR.1.4_1", "Wakefield", NAME_1="Wales"),
-    _district("GBR.1.3_1", "Sheffield", NAME_1="NA"),
-    # Level 1 control: a sibling GADM named correctly.
-    _row(
-        "GBR.2_1",
-        "Scotland, United Kingdom",
-        "state-province",
-        GID_0="GBR",
-        GID_1="GBR.2_1",
-        NAME_1="Scotland",
-    ),
-    # Level 1 refusal: MHL.19_1 has no children at all, so nothing to borrow.
-    _row(
-        "MHL.19_1",
-        "NA, Marshall Islands",
-        "state-province",
-        GID_0="MHL",
-        COUNTRY="Marshall Islands",
-        GID_1="MHL.19_1",
-        NAME_1="NA",
-    ),
-    # Level 1 refusal: the all-NA ghost row, whose children split 1-1.
-    _row("NA", "NA, NA", "state-province", GID_1="NA", NAME_1="NA"),
-    _row(
-        "NA.1_1",
-        "NA, England, United Kingdom",
-        "district-county",
-        GID_1="NA",
-        NAME_1="England",
-        GID_2="NA.1_1",
-        NAME_2="NA",
-    ),
-    _row(
-        "NA.2_1",
-        "NA, Scotland, United Kingdom",
-        "district-county",
-        GID_1="NA",
-        NAME_1="Scotland",
-        GID_2="NA.2_1",
-        NAME_2="NA",
-    ),
-    # Level 1, Rule A with a near-miss dissenter, as Ireland ships it.
-    _row(
-        "IRL.4_1",
-        "NA, Ireland",
-        "state-province",
-        GID_0="IRL",
-        COUNTRY="Ireland",
-        GID_1="IRL.4_1",
-        NAME_1="NA",
-    ),
-    _row(
-        "IRL.4.1_1",
-        "Cobh, Cork, Ireland",
-        "district-county",
-        GID_0="IRL",
-        COUNTRY="Ireland",
-        GID_1="IRL.4_1",
-        NAME_1="Cork",
-        GID_2="IRL.4.1_1",
-        NAME_2="Cobh",
-    ),
-    _row(
-        "IRL.4.2_1",
-        "Youghal, Cork, Ireland",
-        "district-county",
-        GID_0="IRL",
-        COUNTRY="Ireland",
-        GID_1="IRL.4_1",
-        NAME_1="Cork",
-        GID_2="IRL.4.2_1",
-        NAME_2="Youghal",
-    ),
-    _row(
-        "IRL.4.3_1",
-        "Mahon, Cork City, Ireland",
-        "district-county",
-        GID_0="IRL",
-        COUNTRY="Ireland",
-        GID_1="IRL.4_1",
-        NAME_1="Cork City",
-        GID_2="IRL.4.3_1",
-        NAME_2="Mahon",
-    ),
-    # Level 2, Rule B: GADM stored Bristol's name on its only child.
-    _district("GBR.1.2_1", "NA"),
-    _municipality("GBR.1.2.1_1", "GBR.1.2_1", "NA", "Bristol"),
-    # Level 2, Rule A: Warwickshire, named only in its children's NAME_2.
-    _district("GBR.1.5_1", "NA"),
-    _municipality("GBR.1.5.1_1", "GBR.1.5_1", "Warwickshire", "Nuneaton"),
-    _municipality("GBR.1.5.2_1", "GBR.1.5_1", "Warwickshire", "Rugby"),
-    _municipality("GBR.1.5.3_1", "GBR.1.5_1", "Warwickshire", "Warwick"),
-    # Level 2 refusal: several children, none of which carries the parent name.
-    _district("GBR.1.6_1", "NA"),
-    _municipality("GBR.1.6.1_1", "GBR.1.6_1", "NA", "Chesterfield"),
-    _municipality("GBR.1.6.2_1", "GBR.1.6_1", "NA", "Bolsover"),
-    # Level 2 refusal: an only child that GADM did not name either.
-    _district("GBR.1.7_1", "NA"),
-    _municipality("GBR.1.7.1_1", "GBR.1.7_1", "NA", "NA"),
-    # Level 2 refusal: no children.
-    _district("GBR.1.8_1", "NA"),
-]
-
-
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="module")
 async def gadm_staging():
-    """Seed ``geometries_gadm``, and drop it however the test ends."""
-    await _seed_gadm_staging(_GADM_ROWS)
-    yield
-    async with async_session_maker() as session:
-        await session.execute(text("DROP TABLE IF EXISTS geometries_gadm"))
-        await session.commit()
+    """Seed ``geometries_gadm`` once for the module.
+
+    Module-scoped because nothing under test writes to staging: the repair is
+    read-only and ``build-aois`` only writes ``aois``, which the autouse
+    ``clear_tables`` still truncates between tests.
+    """
+    async with _staging_table("gadm", _GADM_COLUMNS, _GADM_ROWS):
+        yield
 
 
 def test_prune_needs_the_custom_source():
@@ -339,13 +289,14 @@ async def test_repair_survives_the_chunked_insert(gadm_staging):
     routinely land in different passes. This test first asserts the seeded ids
     really do straddle a boundary, then that the repaired names still arrive.
     """
+    id_col = AOI_SOURCE_ID_COLUMNS["gadm"]
     async with async_session_maker() as session:
         buckets = await session.execute(
             text(
-                "SELECT gadm_id,"
-                " abs(hashtext(gadm_id)::bigint) % :n AS chunk"
-                " FROM geometries_gadm"
-                " WHERE gadm_id IN ('GBR.1_1', 'GBR.1.1_1', 'GBR.1.2_1',"
+                f"SELECT {id_col},"
+                f" abs(hashtext({id_col})::bigint) % :n AS chunk"
+                f" FROM {SOURCE_STAGING_TABLES['gadm']}"
+                f" WHERE {id_col} IN ('GBR.1_1', 'GBR.1.1_1', 'GBR.1.2_1',"
                 " 'GBR.1.2.1_1')"
             ),
             {"n": _CHUNKS},
@@ -418,30 +369,16 @@ async def test_repair_does_not_touch_other_sources():
     Seeding a kba row under a gadm id that the rules do repair is the sharpest
     form of the question: a source-blind repair would rename it.
     """
-    async with async_session_maker() as session:
-        await session.execute(text("DROP TABLE IF EXISTS geometries_kba"))
-        await session.execute(
-            text(
-                "CREATE TABLE geometries_kba ("
-                ' "ISO3" text, sitrecid text, name text, subtype text,'
-                " geometry geometry(MultiPolygon, 4326))"
-            )
-        )
-        await session.execute(
-            text(
-                "INSERT INTO geometries_kba VALUES ('GBR', 'GBR.1_1',"
-                " 'NA, United Kingdom', 'key-biodiversity-area',"
-                " ST_Multi(ST_GeomFromText(:geom, 4326)))"
-            ),
-            {"geom": _SQUARE},
-        )
-        await session.commit()
+    columns = ("ISO3", AOI_SOURCE_ID_COLUMNS["kba"], "name", "subtype")
+    row = {
+        "ISO3": "GBR",
+        AOI_SOURCE_ID_COLUMNS["kba"]: "GBR.1_1",
+        "name": "NA, United Kingdom",
+        "subtype": "key-biodiversity-area",
+    }
 
-    try:
+    async with _staging_table("kba", columns, [row]):
         await _build("kba")
+
         names = await _aoi_names("kba")
         assert names == {"GBR.1_1": "NA, United Kingdom"}
-    finally:
-        async with async_session_maker() as session:
-            await session.execute(text("DROP TABLE IF EXISTS geometries_kba"))
-            await session.commit()
