@@ -7,7 +7,10 @@ import pytest
 from src.agent.subagents.pick_aoi import Geocoder, pick_aoi
 from src.agent.subagents.pick_aoi.tool import (
     AOIIndex,
+    AreaOfInterestType,
+    ExtractedPlace,
     PlaceQuery,
+    _as_extracted_place,
     _first_segment,
     _score_candidate,
     _strip_accents,
@@ -113,7 +116,9 @@ async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
     tool_module = import_module("src.agent.subagents.pick_aoi.tool")
 
     async def fake_extract(self, question, aoi_type):
-        return PlaceQuery(places=["Para, Brazil"], subregion=None)
+        return PlaceQuery(
+            places=[ExtractedPlace(place="Para, Brazil")], subregion=None
+        )
 
     async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
         return pd.DataFrame(
@@ -231,7 +236,9 @@ async def test_pick_aoi_returns_no_match_when_db_search_empty(monkeypatch):
     tool_module = import_module("src.agent.subagents.pick_aoi.tool")
 
     async def fake_extract(self, question, aoi_type):
-        return PlaceQuery(places=["Nonexistent Place"], subregion=None)
+        return PlaceQuery(
+            places=[ExtractedPlace(place="Nonexistent Place")], subregion=None
+        )
 
     async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
         return pd.DataFrame()  # empty results
@@ -271,7 +278,11 @@ async def test_pick_aoi_reports_unmatched_places_alongside_matches(
 
     async def fake_extract(self, question, aoi_type):
         return PlaceQuery(
-            places=["Para, Brazil", "Nonexistent Place"], subregion=None
+            places=[
+                ExtractedPlace(place="Para, Brazil"),
+                ExtractedPlace(place="Nonexistent Place"),
+            ],
+            subregion=None,
         )
 
     async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
@@ -321,6 +332,43 @@ async def test_pick_aoi_reports_unmatched_places_alongside_matches(
     selection = command.update["aoi_selection"]
     assert selection["aois"][0]["src_id"] == "BRA.14_1"
     assert "Nonexistent Place" in str(command.update["messages"][0].content)
+
+
+# ---------------------------------------------------------------------------
+# Extraction shape (PZB-1272) — normalisation rides on the extract call.
+# ---------------------------------------------------------------------------
+
+
+def test_an_extracted_place_needs_only_a_place_name():
+    """Every normalisation field is additive, so an un-normalised place is
+    still a valid one — that is what makes the kill switch a no-op."""
+    place = ExtractedPlace(place="Brazil")
+
+    assert place.place == "Brazil"
+    assert place.canonical == ""
+    assert place.alternatives == []
+    assert place.area_type is None
+
+
+def test_an_extracted_place_carries_normalisation_and_a_type():
+    place = ExtractedPlace(
+        place="Botum Sakor National Park",
+        canonical="Botum Sakor",
+        alternatives=["Parque Nacional Botum Sakor"],
+        # The model emits the enum's value as a string.
+        area_type="protected area, park, or reserve",
+    )
+    query = PlaceQuery(places=[place], subregion=None)
+
+    assert query.places[0].area_type == AreaOfInterestType.WDPA
+    assert query.places[0].canonical == "Botum Sakor"
+
+
+def test_a_bare_place_name_means_no_normalisation():
+    coerced = _as_extracted_place("Para, Brazil")
+
+    assert coerced == ExtractedPlace(place="Para, Brazil")
+    assert _as_extracted_place(coerced) is coerced
 
 
 # ---------------------------------------------------------------------------

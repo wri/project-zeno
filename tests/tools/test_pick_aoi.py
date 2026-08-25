@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from src.agent.subagents.pick_aoi import Geocoder
-from src.agent.subagents.pick_aoi.tool import AOIIndex
+from src.agent.subagents.pick_aoi.tool import AOIIndex, AreaOfInterestType
 from src.shared.request_context import bound_user_id
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
@@ -344,7 +344,9 @@ async def test_extract_single_place(structlog_context):
         "Analyze deforestation rates in Para, Brazil",
         "adminstrative area (country, state/region, country/subregion)",
     )
-    assert any("para" in p.lower() for p in query.places)
+    assert any("para" in p.place.lower() for p in query.places)
+    # every place carries a canonical spelling for the DB search
+    assert all(p.canonical for p in query.places)
     assert query.subregion is None
 
 
@@ -353,7 +355,7 @@ async def test_extract_subregion_comparison(structlog_context):
         "Compare tree cover loss across all states in Brazil",
         "adminstrative area (country, state/region, country/subregion)",
     )
-    assert any("brazil" in p.lower() for p in query.places)
+    assert any("brazil" in p.place.lower() for p in query.places)
     assert query.subregion == "state"
 
 
@@ -362,8 +364,42 @@ async def test_extract_translates_place_to_english(structlog_context):
         "desmatamento em São Paulo, Brasil",
         "adminstrative area (country, state/region, country/subregion)",
     )
-    joined = " ".join(query.places).lower()
+    joined = " ".join(p.place for p in query.places).lower()
     assert "sao paulo" in joined
+    # canonical restores the official accented spelling for the
+    # accent-sensitive trigram search.
+    canonical = " ".join(p.canonical for p in query.places).lower()
+    assert "são paulo" in canonical
+
+
+async def test_extract_moves_a_designation_into_the_area_type(
+    structlog_context,
+):
+    """The designation must leave the searched name.
+
+    WDPA stores the designation inside the name it indexes ("Botum Sakor,
+    ..., KHM"), so a query carrying "National Park" scores against every
+    park in the world. The type field is where the designation belongs.
+    """
+    query = await Geocoder().extract("Botum Sakor National Park", None)
+
+    assert len(query.places) == 1
+    place = query.places[0]
+    assert place.canonical.strip().lower() == "botum sakor"
+    assert place.area_type == AreaOfInterestType.WDPA
+
+
+async def test_extract_expands_an_exonym_into_the_canonical_name(
+    structlog_context,
+):
+    query = await Geocoder().extract("Ivory Coast", None)
+
+    assert len(query.places) == 1
+    place = query.places[0]
+    # The stored GADM name is the official French form; the exonym the user
+    # typed stays searchable as `place`.
+    assert "ivoire" in place.canonical.lower()
+    assert place.place.lower() == "ivory coast"
 
 
 async def test_extract_global_query_uses_country_subregion(structlog_context):

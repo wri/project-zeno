@@ -2,7 +2,15 @@ import asyncio
 import unicodedata
 from difflib import SequenceMatcher
 from enum import StrEnum
-from typing import Annotated, Any, Dict, Literal, Optional
+from typing import (
+    Annotated,
+    Any,
+    Dict,
+    Literal,
+    Optional,
+    Sequence,
+    Union,
+)
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -638,15 +646,53 @@ SubregionType = Literal[
 ]
 
 
+class ExtractedPlace(BaseModel):
+    """One place the geocoder extracted, normalised for our tables.
+
+    `place` keeps exactly the semantics it had when `PlaceQuery.places` was a
+    list of strings: English, de-accented, parent kept in the same string. It
+    is always searched, which makes every other field additive — a poor
+    canonical name or a wrong alternative can only add candidates, never take
+    away the one the place name itself would have found.
+    """
+
+    place: str = Field(
+        description=(
+            "English place name as the user gave it. A place and its parent "
+            "stay in one string, e.g. 'Lisbon, Portugal'."
+        ),
+    )
+    canonical: str = Field(
+        default="",
+        description=(
+            "The place's own name as a geographic database stores it: "
+            "official spelling with accents, acronyms and exonyms expanded, "
+            "words describing the kind of area removed, parent kept."
+        ),
+    )
+    alternatives: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Up to 3 other spellings the database might store instead: the "
+            "short form, a native-script name, a historical name."
+        ),
+    )
+    area_type: Optional[AreaOfInterestType] = Field(
+        default=None,
+        description=(
+            "The kind of area, when the request says which — this is where "
+            "a designation such as 'National Park' belongs, rather than in "
+            "the name. Null for a plain administrative place."
+        ),
+    )
+
+
 class PlaceQuery(BaseModel):
     """A place request the geocoder extracts from the user's message."""
 
-    places: list[str] = Field(
+    places: list[ExtractedPlace] = Field(
         default_factory=list,
-        description=(
-            "English place name(s), one entry per distinct location. A place "
-            "and its parent stay in one string, e.g. 'Lisbon, Portugal'."
-        ),
+        description="One entry per distinct location.",
     )
     subregion: Optional[SubregionType] = Field(
         default=None,
@@ -655,6 +701,19 @@ class PlaceQuery(BaseModel):
             "inside the place(s); otherwise leave null."
         ),
     )
+
+
+def _as_extracted_place(place: Union[str, ExtractedPlace]) -> ExtractedPlace:
+    """Accept a bare place name where an ExtractedPlace is expected.
+
+    `Geocoder.lookup` is also called directly with plain place strings — by
+    the tools and agent test suites, and by anything that already knows the
+    place name. A bare string means "no normalisation available", which is
+    exactly an ExtractedPlace carrying only `place`.
+    """
+    if isinstance(place, ExtractedPlace):
+        return place
+    return ExtractedPlace(place=place)
 
 
 # Turns a free-text request into structured place(s) + subregion. The rules
@@ -688,10 +747,9 @@ class Geocoder:
     ) -> Command:
         """Full resolution: extract place(s) from the request, then look up."""
         query = await self.extract(question, aoi_type)
-        print(query)
         logger.info(
             "GEOCODER: extracted places=%r subregion=%r",
-            query.places,
+            [place.model_dump() for place in query.places],
             query.subregion,
         )
         if not query.places:
@@ -729,18 +787,23 @@ class Geocoder:
     async def lookup(
         self,
         question: str,
-        places: list[str],
+        # Sequence, not list: `resolve` passes a list[ExtractedPlace] and
+        # list is invariant.
+        places: Sequence[Union[str, ExtractedPlace]],
         subregion: Optional[SubregionType] = None,
         aoi_type: Optional[AreaOfInterestType] = None,
         tool_call_id: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
     ) -> Command:
         """DB step: resolve known place name(s) to AOI geometry."""
+        extracted = [_as_extracted_place(place) for place in places]
+        place_names = [place.place for place in extracted]
         logger.info(
-            f"GEOCODER: lookup places: '{places}', subregion: '{subregion}'"
+            f"GEOCODER: lookup places: '{place_names}', "
+            f"subregion: '{subregion}'"
         )
 
-        if is_global_request(places):
+        if is_global_request(place_names):
             logger.info("GEOCODER: global request detected")
             emit_progress("pick_aoi", "global", "Global (worldwide) request")
             return await handle_global_request(
@@ -750,10 +813,10 @@ class Geocoder:
         all_results = await asyncio.gather(
             *[
                 query_aoi_database(place, aoi_type, RESULT_LIMIT)
-                for place in places
+                for place in place_names
             ]
         )
-        for place, result in zip(places, all_results):
+        for place, result in zip(place_names, all_results):
             names = list(result["name"]) if "name" in result.columns else []
             emit_progress(
                 "pick_aoi",
@@ -767,7 +830,7 @@ class Geocoder:
         )
         unmatched_places = [
             place
-            for place, aoi in zip(places, selected_aois_raw)
+            for place, aoi in zip(place_names, selected_aois_raw)
             if aoi is None
         ]
         selected_aois = [aoi for aoi in selected_aois_raw if aoi is not None]
