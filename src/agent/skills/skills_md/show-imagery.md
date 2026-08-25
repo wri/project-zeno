@@ -16,8 +16,8 @@ requires: pick_aoi, show_imagery
    you must use Sentinel-2 imagery instead. Planet is a monthly mosaic
    available through the last complete month; mention that limitation.
    Outside the Amazon, do not proactively suggest Planet. If no date or
-   recency is requested, omit `target_date`; eligible Amazon AOIs default to
-   Planet's previous complete month.
+   recency is requested, pass `target_date=null`; eligible Amazon AOIs default
+   to Planet's previous complete month.
    Always tell the user the selected imagery period from the returned
    `start_date` and `end_date`. Never describe a previous-month Planet mosaic
    as "latest" imagery.

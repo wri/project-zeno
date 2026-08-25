@@ -56,9 +56,22 @@ def test_aoi_bounds_combines_multiple_aois():
     assert _aoi_bounds(aois) == [-69.5, -4.0, -66.0, -0.5]
 
 
+def test_target_date_is_required_but_nullable_in_tool_schema():
+    schema = show_imagery.args_schema.model_json_schema()
+
+    assert "target_date" in schema["required"]
+    variants = schema["properties"]["target_date"]["anyOf"]
+    assert {variant.get("type") for variant in variants} == {
+        "string",
+        "null",
+    }
+
+
 @pytest.mark.asyncio
 async def test_show_imagery_requires_aoi():
-    command = await show_imagery.coroutine(state={}, tool_call_id="t1")
+    command = await show_imagery.coroutine(
+        state={}, target_date=None, tool_call_id="t1"
+    )
     assert "No AOI selected" in _messages(command)[0].content
     assert "imagery" not in command.update
 
@@ -116,6 +129,7 @@ async def test_show_imagery_passes_and_clamps_search_parameters():
     with _patch_create(return_value=result) as mock_create:
         await show_imagery.coroutine(
             state=AOI_STATE,
+            target_date=None,
             window_days=60,
             max_cloud_cover=500,
             tool_call_id="t1",
@@ -126,7 +140,9 @@ async def test_show_imagery_passes_and_clamps_search_parameters():
     assert recipe.max_cloud_cover == 100  # clamped
 
     with _patch_create(return_value=result) as mock_create:
-        await show_imagery.coroutine(state=AOI_STATE, tool_call_id="t1")
+        await show_imagery.coroutine(
+            state=AOI_STATE, target_date=None, tool_call_id="t1"
+        )
 
     recipe = mock_create.call_args.args[0]
     assert recipe.window_days == 7
@@ -161,7 +177,9 @@ async def test_show_imagery_freezes_default_date():
     )
 
     with _patch_create(return_value=result) as mock_create:
-        await show_imagery.coroutine(state=AOI_STATE, tool_call_id="t1")
+        await show_imagery.coroutine(
+            state=AOI_STATE, target_date=None, tool_call_id="t1"
+        )
 
     assert mock_create.call_args.args[0].target_date == date.today()
 
@@ -170,7 +188,7 @@ async def test_show_imagery_freezes_default_date():
 async def test_show_imagery_relays_aoi_too_large():
     with _patch_create(side_effect=AoiTooLargeError(123456.0)):
         command = await show_imagery.coroutine(
-            state=AOI_STATE, tool_call_id="t1"
+            state=AOI_STATE, target_date=None, tool_call_id="t1"
         )
 
     message = _messages(command)[0]
@@ -264,7 +282,7 @@ def test_recency_boundary_is_after_previous_full_month():
 async def test_omitted_date_still_defaults_to_planet_in_coverage():
     with _patch_create() as mock_create:
         command = await show_imagery.coroutine(
-            state=PLANET_AOI_STATE, tool_call_id="t1"
+            state=PLANET_AOI_STATE, target_date=None, tool_call_id="t1"
         )
 
     mock_create.assert_not_awaited()

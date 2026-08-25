@@ -85,8 +85,8 @@ def _feedback(message: str, tool_call_id: Optional[str]) -> Command:
 @tool("show_imagery")
 async def show_imagery(
     state: Annotated[Dict, InjectedState],
+    target_date: Optional[str],
     provider: Optional[Literal["sentinel-2", "planet"]] = None,
-    target_date: Optional[str] = None,
     window_days: Optional[int] = None,
     max_cloud_cover: Optional[int] = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
@@ -96,9 +96,9 @@ async def show_imagery(
     provider may be planet or sentinel-2. When omitted, Planet is preferred
     within its limited coverage unless target_date is newer than the last
     complete month; otherwise Sentinel-2 is used. target_date (YYYY-MM-DD)
-    selects the Planet monthly
-    mosaic or the date Sentinel-2 imagery should be closest to. window_days
-    (default 7, max 183) widens the Sentinel-2
+    selects the Planet month or the date Sentinel-2 imagery should be closest
+    to; pass null when the user requests no date. window_days (default 7,
+    max 183) widens the Sentinel-2
     search to ±N days around target_date; max_cloud_cover (default 20,
     percent) loosens the cloud filter. Only raise them when the defaults
     find no scenes and the user agrees. Run pick_aoi first. Regional
