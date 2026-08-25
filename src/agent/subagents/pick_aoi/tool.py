@@ -154,16 +154,14 @@ async def query_aoi_database_multiterm(
         # An empty frame is what makes the caller report the place as
         # unmatched, so preserve it rather than inventing columns.
         return primary, primary
-    if len(populated) == 1:
-        return populated[0], primary
 
     combined = pd.concat(populated, ignore_index=True)
-    if "similarity_score" in combined.columns:
-        # Stable sort, so rows tied on score keep term order: the merge is
-        # deterministic for identical inputs.
-        combined = combined.sort_values(
-            "similarity_score", ascending=False, kind="stable"
-        )
+    # This sort is what decides WHICH copy of a row `drop_duplicates` keeps
+    # below: the highest-scoring one. Stable, so rows tied on score keep term
+    # order and the merge is deterministic for identical inputs.
+    combined = combined.sort_values(
+        "similarity_score", ascending=False, kind="stable"
+    )
     merged = combined.drop_duplicates(
         subset=["source", "src_id"], keep="first"
     ).reset_index(drop=True)
@@ -615,18 +613,14 @@ async def _search_candidates(
     retried across every source.
     """
     effective_type = _effective_aoi_type(place, aoi_type, normalized)
-    merged, primary = await query_aoi_database_multiterm(
-        terms, effective_type, RESULT_LIMIT
-    )
+    merged, primary = await query_aoi_database_multiterm(terms, effective_type)
     if merged.empty and normalized and effective_type is not None:
         logger.info(
             "GEOCODER: no %s candidates for %r; retrying every source",
             effective_type,
             place.place,
         )
-        merged, primary = await query_aoi_database_multiterm(
-            terms, None, RESULT_LIMIT
-        )
+        merged, primary = await query_aoi_database_multiterm(terms, None)
     return merged, primary
 
 
@@ -756,12 +750,14 @@ class Geocoder:
         all_results = [merged for merged, _ in searches]
         primary_results = [primary for _, primary in searches]
         for place, result in zip(place_names, all_results):
-            names = list(result["name"]) if "name" in result.columns else []
+            count = len(result) if "name" in result.columns else 0
+            # Only the names the message shows: the count comes from the frame.
+            names = result["name"].head(8).tolist() if count else []
             emit_progress(
                 "pick_aoi",
                 "candidates",
-                f"Fuzzy search '{place}': {len(names)} candidate(s)"
-                + (f" — {'; '.join(names[:8])}" if names else ""),
+                f"Fuzzy search '{place}': {count} candidate(s)"
+                + (f" — {'; '.join(names)}" if names else ""),
             )
 
         selected_aois_raw: list[Optional[AOIIndex]]

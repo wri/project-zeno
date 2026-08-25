@@ -210,6 +210,9 @@ async def test_pick_aoi_handles_empty_subregion_results(
                     "name": "Colorado, United States",
                     "subtype": "state-province",
                     "source": "gadm",
+                    # Present because every search by name returns it, and the
+                    # multi-term merge sorts on it.
+                    "similarity_score": 0.9,
                 }
             ]
         )

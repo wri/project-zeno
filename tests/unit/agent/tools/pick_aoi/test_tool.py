@@ -1,4 +1,3 @@
-from importlib import import_module
 from unittest.mock import MagicMock
 
 import pandas as pd
@@ -117,7 +116,6 @@ async def test_fetch_aoi_bbox_null_bbox_returns_default(monkeypatch):
 async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
     """The tool takes only `question`: the subagent extracts the place,
     then runs the DB lookup. No places/subregion args from the caller."""
-    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
 
     async def fake_extract(self, question, aoi_type):
         return PlaceQuery(
@@ -126,14 +124,7 @@ async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
 
     async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
         return pd.DataFrame(
-            [
-                {
-                    "src_id": "BRA.14_1",
-                    "name": "Para, Brazil",
-                    "subtype": "state-province",
-                    "source": "gadm",
-                }
-            ]
+            [_row("BRA.14_1", "Para, Brazil", subtype="state-province")]
         )
 
     monkeypatch.setattr(Geocoder, "extract", fake_extract)
@@ -203,7 +194,6 @@ async def test_select_best_aoi_bad_src_id_returns_none(monkeypatch):
 
     When the LLM picks a src_id that isn't among the candidates,
     select_best_aoi should return None instead of crashing on .iloc[0]."""
-    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
 
     async def fake_structured_output(_input):
         return tool_module.AOIId(src_id="does-not-exist")
@@ -232,7 +222,6 @@ async def test_select_best_aoi_bad_src_id_returns_none(monkeypatch):
 async def test_pick_aoi_returns_no_match_when_db_search_empty(monkeypatch):
     """When the DB returns no candidates, pick_aoi should return a helpful
     message instead of crashing."""
-    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
 
     async def fake_extract(self, question, aoi_type):
         return PlaceQuery(
@@ -273,7 +262,6 @@ async def test_pick_aoi_reports_unmatched_places_alongside_matches(
     """When some places match and others don't, pick_aoi should still return
     the matches but name the place(s) it couldn't find rather than silently
     dropping them."""
-    tool_module = import_module("src.agent.subagents.pick_aoi.tool")
 
     async def fake_extract(self, question, aoi_type):
         return PlaceQuery(
@@ -287,14 +275,7 @@ async def test_pick_aoi_reports_unmatched_places_alongside_matches(
     async def fake_query_aoi_database(place_name, aoi_type, result_limit=10):
         if place_name == "Para, Brazil":
             return pd.DataFrame(
-                [
-                    {
-                        "src_id": "BRA.14_1",
-                        "name": "Para, Brazil",
-                        "subtype": "state-province",
-                        "source": "gadm",
-                    }
-                ]
+                [_row("BRA.14_1", "Para, Brazil", subtype="state-province")]
             )
         return pd.DataFrame()
 
