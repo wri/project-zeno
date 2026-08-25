@@ -527,6 +527,13 @@ async def select_best_aoi(
 async def check_multiple_matches(
     src_id: str, short_name: str, results: pd.DataFrame
 ) -> Optional[list[dict]]:
+    # A place can now be resolved by a canonical name or an alternative
+    # spelling while the place name itself matched nothing, so this can be
+    # reached with an empty frame and a valid selection — a state that was
+    # impossible when an empty frame always meant no selection.
+    if results.empty:
+        return None
+
     # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
     selected_country = src_id.split(".")[0] if "." in src_id else None
 

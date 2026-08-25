@@ -1037,3 +1037,40 @@ async def test_each_place_is_searched_with_its_own_terms(monkeypatch):
     assert {
         aoi["src_id"] for aoi in command.update["aoi_selection"]["aois"]
     } == {"CIV", "GHA"}
+
+
+@pytest.mark.asyncio
+async def test_a_place_resolved_only_by_an_alternative_raises_no_nudge(
+    monkeypatch,
+):
+    """A new state: the place name matched nothing, an alternative did.
+
+    Before multi-term search an empty candidate frame always meant no
+    selection, so the ambiguity check never ran against one.
+    """
+    _patch_search(
+        monkeypatch,
+        {
+            "United States of America": [
+                _row(
+                    "USA.6_1",
+                    "Colorado, United States",
+                    subtype="state-province",
+                )
+            ]
+        },
+    )
+
+    command = await Geocoder().lookup(
+        question="forest loss in Colorado",
+        places=[
+            ExtractedPlace(
+                place="Colorado, USA",
+                canonical="United States of America",
+            )
+        ],
+        tool_call_id="tc-alt-only",
+    )
+
+    assert "nudge" not in command.update
+    assert command.update["aoi_selection"]["aois"][0]["src_id"] == "USA.6_1"
