@@ -233,52 +233,48 @@ def test_prune_rejects_inspect():
     assert "--prune cannot run with --inspect" in result.output
 
 
-@pytest.mark.asyncio
-async def test_rule_a_takes_the_majority_child_name(gadm_staging):
-    """A broken parent adopts the name most of its named children carry.
+# (source id, repaired name or None if the rules must refuse, why).
+_DERIVATION_CASES = [
+    (
+        "GBR.1_1",
+        "England, United Kingdom",
+        "Rule A: England wins 2 of 3 named votes -- the child saying 'NA'"
+        " never votes, and the one saying 'Wales' is outvoted",
+    ),
+    (
+        "IRL.4_1",
+        "Cork, Ireland",
+        "Rule A holds against a near-miss dissenter ('Cork City')",
+    ),
+    (
+        "GBR.1.5_1",
+        "Warwickshire, England, United Kingdom",
+        "Rule A is not level-1 only: GADM shifts county names down too",
+    ),
+    (
+        "GBR.1.2_1",
+        "Bristol, England, United Kingdom",
+        "Rule B: a district holding one named municipality takes that name",
+    ),
+    ("MHL.19_1", None, "refused: no children, so no name to borrow"),
+    ("NA", None, "refused: the ghost row's two children split 1-1"),
+    ("GBR.1.6_1", None, "refused: no child carries the parent's name"),
+    ("GBR.1.7_1", None, "refused: the only child is unnamed too"),
+    ("GBR.2_1", None, "not broken in the first place"),
+]
 
-    England wins 2 of 3 named votes: the child that says "NA" never votes, and
-    the one that says "Wales" is outvoted.
+
+@pytest.mark.asyncio
+async def test_derives_a_name_only_where_gadm_supplies_one(gadm_staging):
+    """Both rules and every refusal, against one seeding of the hierarchy.
+
+    A loop rather than ``parametrize``: the map is identical for every case, so
+    parametrizing at function scope would only re-derive it per assertion.
     """
     repairs = await _repairs()
 
-    assert repairs["GBR.1_1"] == "England, United Kingdom"
-    assert repairs["IRL.4_1"] == "Cork, Ireland"
-
-
-@pytest.mark.asyncio
-async def test_rule_a_repairs_a_county_named_only_in_its_children(
-    gadm_staging,
-):
-    """Rule A is not level-1 only: GADM shifts county names down too."""
-    repairs = await _repairs()
-
-    assert repairs["GBR.1.5_1"] == "Warwickshire, England, United Kingdom"
-
-
-@pytest.mark.asyncio
-async def test_rule_b_adopts_an_only_childs_name(gadm_staging):
-    """A district holding one named municipality takes that name."""
-    repairs = await _repairs()
-
-    assert repairs["GBR.1.2_1"] == "Bristol, England, United Kingdom"
-
-
-@pytest.mark.asyncio
-async def test_rows_the_rules_cannot_reach_are_left_alone(gadm_staging):
-    """Four ways a name is genuinely absent from GADM's hierarchy.
-
-    No children, a tie between children, several children that all omit the
-    parent name, and an only child that is itself unnamed. Every one keeps the
-    broken name it has today rather than inventing one.
-    """
-    repairs = await _repairs()
-
-    assert "MHL.19_1" not in repairs  # no children
-    assert "NA" not in repairs  # ghost row: children split 1-1
-    assert "GBR.1.6_1" not in repairs  # no child carries the parent name
-    assert "GBR.1.7_1" not in repairs  # only child is unnamed too
-    assert "GBR.2_1" not in repairs  # not broken in the first place
+    for source_id, expected, why in _DERIVATION_CASES:
+        assert repairs.get(source_id) == expected, why
 
 
 @pytest.mark.asyncio
@@ -313,15 +309,6 @@ async def test_repair_survives_the_chunked_insert(gadm_staging):
     names = await _aoi_names("gadm")
     assert names["GBR.1_1"] == "England, United Kingdom"
     assert names["GBR.1.2_1"] == "Bristol, England, United Kingdom"
-
-
-@pytest.mark.asyncio
-async def test_gadm_build_writes_the_repaired_names(gadm_staging):
-    """The rows GADM ships as "NA" reach ``aois`` under their real names."""
-    await _build("gadm")
-
-    names = await _aoi_names("gadm")
-    assert names["GBR.1_1"] == "England, United Kingdom"
     assert names["IRL.4_1"] == "Cork, Ireland"
     assert names["GBR.1.5_1"] == "Warwickshire, England, United Kingdom"
 
@@ -341,6 +328,25 @@ async def test_gadm_build_leaves_unrepairable_names_alone(gadm_staging):
     assert names["GBR.1.6_1"] == "NA, England, United Kingdom"
     assert names["GBR.1.7_1"] == "NA, England, United Kingdom"
     assert names["GBR.1.8_1"] == "NA, England, United Kingdom"
+
+
+@pytest.mark.asyncio
+async def test_a_repaired_parent_leaves_its_childs_middle_segment_broken(
+    gadm_staging,
+):
+    """Pinned gap, not a bug to fix here.
+
+    The repair replaces one *leading* segment, so Bristol's district row is
+    fixed while the municipality under it still reads its parent as "NA" in
+    the middle of its own name. Recomposing display names from repaired
+    ancestors is SPEC-PR8's design and the durable fix; this asserts today's
+    outcome so that change shows up as a deliberate one.
+    """
+    await _build("gadm")
+
+    names = await _aoi_names("gadm")
+    assert names["GBR.1.2_1"] == "Bristol, England, United Kingdom"
+    assert names["GBR.1.2.1_1"] == "Bristol, NA, England, United Kingdom"
 
 
 @pytest.mark.asyncio
