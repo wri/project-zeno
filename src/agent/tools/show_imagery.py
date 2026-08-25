@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 from typing import Annotated, Dict, Literal, Optional
 
@@ -59,7 +60,7 @@ def _provider_command(
 @tool("show_imagery")
 async def show_imagery(
     state: Annotated[Dict, InjectedState],
-    target_date: Optional[str],
+    target_date: Optional[str] = None,
     provider: Optional[Literal["sentinel-2", "planet"]] = None,
     window_days: Optional[int] = None,
     max_cloud_cover: Optional[int] = None,
@@ -67,9 +68,11 @@ async def show_imagery(
 ) -> Command:
     """Show a satellite imagery layer on the map for the AOI in state.
 
-    provider may be planet or sentinel-2. When omitted, Planet is preferred
-    within its limited coverage unless target_date is newer than the last
-    complete month; otherwise Sentinel-2 is used. target_date (YYYY-MM-DD)
+    provider may be planet or sentinel-2. When provider and target_date are
+    omitted, Sentinel-2 is shown for approximately the previous two weeks;
+    Planet's previous complete month is suggested when available. A dated
+    request uses Planet within coverage through the last complete month and
+    Sentinel-2 otherwise. target_date (YYYY-MM-DD)
     selects the Planet month or the date Sentinel-2 imagery should be closest
     to; pass null when the user requests no date. window_days (default 7,
     max 183) widens the Sentinel-2
@@ -113,9 +116,9 @@ async def show_imagery(
         window_days=window_days,
         max_cloud_cover=max_cloud_cover,
     )
-    prefer_sentinel = (
-        provider is None
-        and PLANET_PROVIDER.is_newer_than_last_full_month(parsed_date)
+    prefer_sentinel = provider is None and (
+        parsed_date is None
+        or PLANET_PROVIDER.is_newer_than_last_full_month(parsed_date)
     )
     if (
         provider != "sentinel-2"
@@ -133,17 +136,29 @@ async def show_imagery(
             tool_call_id,
         )
 
-    return _provider_command(
-        await SENTINEL2_PROVIDER.get_imagery(request), tool_call_id
-    )
+    result = await SENTINEL2_PROVIDER.get_imagery(request)
+    if (
+        result.status == "success"
+        and provider is None
+        and parsed_date is None
+        and PLANET_PROVIDER.covers(aois)
+    ):
+        result = replace(
+            result,
+            message=(
+                f"{result.message} Planet monthly imagery from the previous "
+                "complete month is also available for this area."
+            ),
+        )
+    return _provider_command(result, tool_call_id)
 
 
 SPEC = ToolSpec(
     tool=show_imagery,
     category=ToolCategory.PRIMITIVE,
     prompt_fragment=(
-        "- show_imagery(provider, target_date): show Planet imagery when "
-        "available, otherwise Sentinel-2, for the AOI in state. provider is "
-        "optional ('planet' or 'sentinel-2'). Run pick_aoi first."
+        "- show_imagery(provider, target_date): show Planet or Sentinel-2 "
+        "imagery for the AOI in state. With no provider or date, Sentinel-2 "
+        "covers approximately the previous two weeks. Run pick_aoi first."
     ),
 )

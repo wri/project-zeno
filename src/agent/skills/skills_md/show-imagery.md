@@ -10,14 +10,15 @@ requires: pick_aoi, show_imagery
 1. `pick_aoi` — only if the AOI is not already in state. Imagery works for
    regional areas (up to ~50,000 km²); country-scale requests will be
    rejected — ask the user for a smaller region.
-2. `show_imagery(target_date)` — pass the user's date (YYYY-MM-DD). For Amazon
-   alert workflows, use Planet by default. However, if the user asks for
-   latest alerts, current-month alerts, or alerts from the past two weeks,
-   you must use Sentinel-2 imagery instead. Planet is a monthly mosaic
-   available through the last complete month; mention that limitation.
-   Outside the Amazon, do not proactively suggest Planet. If no date or
-   recency is requested, pass `target_date=null`; eligible Amazon AOIs default
-   to Planet's previous complete month.
+2. `show_imagery(target_date)` — pass the user's date (YYYY-MM-DD). When
+   showing imagery alongside alert data, set `target_date` to the alert
+   period's `end_date` so the imagery and alerts align. Only pass
+   `target_date=null` when no alert period or imagery date was requested.
+   For Amazon alert workflows with no requested date, prefer Planet and
+   mention that it shows the previous complete monthly mosaic. For a dated
+   alert period, keep `target_date` aligned with its `end_date` and let the
+   tool select the available provider. Outside the Amazon, do not proactively
+   suggest Planet.
    Always tell the user the selected imagery period from the returned
    `start_date` and `end_date`. Never describe a previous-month Planet mosaic
    as "latest" imagery.

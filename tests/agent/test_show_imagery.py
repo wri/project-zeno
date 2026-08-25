@@ -1,6 +1,6 @@
 """Tests for the show_imagery agent tool."""
 
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -42,10 +42,10 @@ def _patch_create(**kwargs):
     )
 
 
-def test_target_date_is_required_but_nullable_in_tool_schema():
+def test_target_date_is_optional_and_nullable_in_tool_schema():
     schema = show_imagery.args_schema.model_json_schema()
 
-    assert "target_date" in schema["required"]
+    assert "target_date" not in schema["required"]
     variants = schema["properties"]["target_date"]["anyOf"]
     assert {variant.get("type") for variant in variants} == {
         "string",
@@ -167,7 +167,9 @@ async def test_show_imagery_freezes_default_date():
             state=AOI_STATE, target_date=None, tool_call_id="t1"
         )
 
-    assert mock_create.call_args.args[0].target_date == date.today()
+    assert mock_create.call_args.args[0].target_date == (
+        date.today() - timedelta(days=7)
+    )
 
 
 @pytest.mark.asyncio
@@ -222,7 +224,7 @@ async def test_show_imagery_defaults_to_planet_in_coverage():
     assert imagery["provider"] == "planet"
     assert imagery["mosaic_id"] == "planet:2025-06"
     assert imagery["tile_url"] == (
-        "http://127.0.0.1:8899/integrated_alerts_planet_imagery/"
+        f"{PLANET_PROVIDER.BASE_URL}/integrated_alerts_planet_imagery/"
         "{z}/{x}/{y}.png?month=2025-06"
     )
     assert imagery["window_days"] is None
@@ -269,10 +271,31 @@ def test_recency_boundary_is_after_previous_full_month():
 
 
 @pytest.mark.asyncio
-async def test_omitted_date_still_defaults_to_planet_in_coverage():
-    with _patch_create() as mock_create:
+async def test_omitted_date_defaults_to_sentinel_and_suggests_planet():
+    result = MosaicResult(mosaic_id="abc123", item_count=1)
+
+    with _patch_create(return_value=result) as mock_create:
         command = await show_imagery.coroutine(
             state=PLANET_AOI_STATE, target_date=None, tool_call_id="t1"
+        )
+
+    mock_create.assert_awaited_once()
+    recipe = mock_create.call_args.args[0]
+    assert recipe.target_date == date.today() - timedelta(days=7)
+    assert recipe.window_days == 7
+    assert command.update["imagery"]["provider"] == "sentinel-2"
+    assert "Planet" in _messages(command)[0].content
+    assert "previous complete month" in _messages(command)[0].content
+
+
+@pytest.mark.asyncio
+async def test_explicit_planet_without_date_overrides_sentinel_default():
+    with _patch_create() as mock_create:
+        command = await show_imagery.coroutine(
+            state=PLANET_AOI_STATE,
+            provider="planet",
+            target_date=None,
+            tool_call_id="t1",
         )
 
     mock_create.assert_not_awaited()

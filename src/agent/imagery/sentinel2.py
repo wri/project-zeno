@@ -1,6 +1,6 @@
 """Sentinel-2 mosaic imagery provider."""
 
-from datetime import date
+from datetime import date, timedelta
 
 from cogeo_mosaic.errors import MosaicNotFoundError
 
@@ -36,7 +36,8 @@ class Sentinel2ImageryProvider:
 
         recipe = MosaicRecipe(
             aois=aoi_refs,
-            target_date=request.target_date or date.today(),
+            target_date=request.target_date
+            or (date.today() - timedelta(days=7)),
             window_days=max(1, min(request.window_days, 183))
             if request.window_days is not None
             else 7,
