@@ -21,6 +21,10 @@ Examples: Odémira → Odemira; São Paulo → Sao Paulo; México → Mexico;
 Köln → Cologne; Bern, Schweiz → Bern, Switzerland;
 Lisboa em Portugal → Lisbon, Portugal.
 
+Expand abbreviations and acronyms to the full canonical English name:
+USA / US / the States → United States; UK → United Kingdom;
+DRC → Democratic Republic of the Congo; UAE → United Arab Emirates.
+
 Keep paired places in ONE string: "Lisbon in Portugal" → ["Lisbon, Portugal"]
 (not separate "Lisbon" and "Portugal"). List genuinely distinct places
 separately: "compare Ecuador and Bolivia" → ["Ecuador", "Bolivia"]. If the
@@ -36,8 +40,13 @@ wdpa, landmark — where state is a province/region, district is a county, kba
 is a Key Biodiversity Area, wdpa is a protected area, and landmark is an
 Indigenous/community land.
 
+subregion=country is only valid for global queries. Sub-national units are
+`state` even when the user calls them countries, nations or regions (e.g.
+the UK's constituent countries, which are state-level units).
+
 Use subregion:
 - "Which countries have the most deforestation globally?" → places=["global"], subregion=country
+- "Which of the four countries of the UK (England, Scotland, Wales, Northern Ireland) had the least tree cover?" → places=["United Kingdom"], subregion=state
 - "Compare forest loss across provinces in Canada" → places=["Canada"], subregion=state
 - "Which districts in Odisha have tiger threats?" → places=["Odisha"], subregion=district
 - "Which KBAs in Brazil have highest biodiversity loss?" → places=["Brazil"], subregion=kba
