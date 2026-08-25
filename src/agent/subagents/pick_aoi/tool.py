@@ -324,6 +324,66 @@ def _score_candidate(place_name: str, name: str, subtype: str) -> float:
     return score
 
 
+def score_best_aoi(
+    candidate_aois: pd.DataFrame, terms: list[str]
+) -> Optional[AOIIndex]:
+    """Pick the best candidate deterministically, with no model call.
+
+    Args:
+        candidate_aois: Candidates from ``query_aoi_database`` or
+            ``query_aoi_database_multiterm``.
+        terms: The search terms this place was looked up under. A candidate
+            keeps its BEST score across them, so a row that only a native
+            spelling or an expanded acronym could find is not then penalised
+            for mismatching the term the user typed.
+
+    Returns:
+        The highest scoring candidate, or None when there are none. None
+        rather than an exception keeps the contract of the LLM selection this
+        replaces: ``Geocoder.lookup`` reports the place as unmatched.
+
+    Raises:
+        ValueError: If ``terms`` is empty, or a candidate carries a subtype
+            that is not in the hierarchy map.
+    """
+    if candidate_aois.empty:
+        logger.debug("No candidate AOIs to select from")
+        return None
+    if not terms:
+        raise ValueError("score_best_aoi needs at least one search term")
+
+    scored = [
+        (
+            max(
+                _score_candidate(term, row["name"], row["subtype"])
+                for term in terms
+            ),
+            row,
+        )
+        for row in candidate_aois.to_dict(orient="records")
+    ]
+    # Sort with explicit secondary keys rather than taking a max, so equal
+    # scores resolve identically whatever order the rows arrived in.
+    scored.sort(
+        key=lambda pair: (
+            -pair[0],
+            pair[1]["name"],
+            pair[1]["source"],
+            str(pair[1]["src_id"]),
+        )
+    )
+    best_score, best_row = scored[0]
+    # The score stays out of the row: AOIIndex allows extra fields, so a
+    # score written back onto the DataFrame would leak into aoi_selection.
+    selected_aoi = AOIIndex(**best_row)
+
+    logger.debug(
+        f"Selected AOI {selected_aoi.src_id} scoring {best_score:.3f} "
+        f"from {len(scored)} candidate(s) for terms {terms}"
+    )
+    return selected_aoi
+
+
 async def select_best_aoi(
     question: str, candidate_aois: pd.DataFrame
 ) -> Optional[AOIIndex]:
