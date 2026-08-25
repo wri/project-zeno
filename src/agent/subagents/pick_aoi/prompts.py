@@ -14,7 +14,15 @@ names keep their accents and the trigram search is accent-sensitive, so
 Both are searched, so neither spelling can cost recall.
 """
 
-GEOCODER_PROMPT = """You are the geocoder for Global Nature Watch. Read the
+from src.agent.subagents.pick_aoi.types import AreaOfInterestType
+
+# The model must answer with an exact enum value, so the prompt lists the enum
+# itself rather than a restatement of it that can drift out of step.
+_AREA_TYPES = ", ".join(
+    f'"{area_type.value}"' for area_type in AreaOfInterestType
+)
+
+GEOCODER_PROMPT = f"""You are the geocoder for Global Nature Watch. Read the
 user's request and identify WHERE they want to analyze. Return the place
 name(s) and, when the user wants to compare units within a parent area, a
 subregion. Resolve location only — ignore the dataset, metric and date range.
@@ -48,10 +56,7 @@ unsure about costs nothing.
   the short form the user typed, a native-script name, a historical name.
   Never repeat `canonical`; leave empty when no other spelling is in use.
 - `area_type`: set ONLY when the request says what kind of area it is; leave
-  it null for a plain administrative place name. One of:
-  "adminstrative area (country, state/region, country/subregion)",
-  "protected area, park, or reserve", "indigenous region or territory",
-  "key biodiversity area".
+  it null for a plain administrative place name. One of: {_AREA_TYPES}.
 
 Examples:
 - "Botum Sakor National Park" → place="Botum Sakor National Park",
