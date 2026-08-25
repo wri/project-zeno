@@ -5,7 +5,13 @@ import pandas as pd
 import pytest
 
 from src.agent.subagents.pick_aoi import Geocoder, pick_aoi
-from src.agent.subagents.pick_aoi.tool import AOIIndex, PlaceQuery
+from src.agent.subagents.pick_aoi.tool import (
+    AOIIndex,
+    PlaceQuery,
+    _first_segment,
+    _score_candidate,
+    _strip_accents,
+)
 from src.shared import geocoding_helpers
 from src.shared.geocoding_helpers import fetch_aoi_bbox
 
@@ -314,3 +320,76 @@ async def test_pick_aoi_reports_unmatched_places_alongside_matches(
     selection = command.update["aoi_selection"]
     assert selection["aois"][0]["src_id"] == "BRA.14_1"
     assert "Nonexistent Place" in str(command.update["messages"][0].content)
+
+
+# ---------------------------------------------------------------------------
+# Deterministic candidate scoring (PZB-1272) — pure functions, no DB, no LLM.
+# ---------------------------------------------------------------------------
+
+
+def test_accents_are_ignored_when_names_are_compared():
+    assert _strip_accents("Pará") == "para"
+    assert _strip_accents("São Paulo") == "sao paulo"
+    assert _strip_accents("Côte d'Ivoire") == "cote d'ivoire"
+
+
+def test_leaf_name_is_the_first_segment_of_a_comma_joined_name():
+    assert _first_segment("Pará, Brazil") == "para"
+    assert _first_segment("Arara, Paraíba, Brazil") == "arara"
+    assert _first_segment("Botum Sakor, ឧទ្យានជាតិ ដើម, KHM") == "botum sakor"
+
+
+def test_leaf_name_ignores_surrounding_punctuation():
+    """A trailing comma or bracketed suffix must not defeat leaf matching.
+
+    GADM stores "NA, England, United Kingdom", and an aoi_choice nudge option
+    is resubmitted verbatim as the next question, so both spellings of the
+    same leaf have to compare equal.
+    """
+    assert _first_segment("England,") == _first_segment("England")
+    assert _first_segment("(Paris)") == "paris"
+    assert (
+        _first_segment("Paris, Ile-de-France, France - (district) [FRA]")
+        == "paris"
+    )
+
+
+def test_scoring_rejects_an_unknown_subtype():
+    with pytest.raises(ValueError, match="Unknown AOI subtype"):
+        _score_candidate("Brazil", "Brazil", "planet")
+
+
+def test_accent_insensitive_scoring_prefers_para_over_parana():
+    """The production bug, pinned on the recorded candidate names.
+
+    In tests/fixtures/aoi_pick_aoi_v1.json the DB ranks Paraná (0.733) above
+    Pará (0.714) for the term "Para, Brazil"; the scorer must invert that.
+    """
+    para = _score_candidate("Para, Brazil", "Pará, Brazil", "state-province")
+    parana = _score_candidate(
+        "Para, Brazil", "Paraná, Brazil", "state-province"
+    )
+    paraiba = _score_candidate(
+        "Para, Brazil", "Paraíba, Brazil", "state-province"
+    )
+
+    assert para > parana
+    assert para > paraiba
+
+
+def test_exact_leaf_match_outscores_a_prefix_match():
+    exact = _score_candidate("Ivory Coast", "Ivory Coast", "country")
+    prefix = _score_candidate("Ivory Coast", "Ivory Coast Preserve", "country")
+    unrelated = _score_candidate("Ivory Coast", "West Coast", "country")
+
+    assert exact > prefix > unrelated
+
+
+def test_hierarchy_separates_identically_named_places():
+    country = _score_candidate("Luxembourg", "Luxembourg", "country")
+    state = _score_candidate("Luxembourg", "Luxembourg", "state-province")
+    site = _score_candidate(
+        "Luxembourg", "Luxembourg", "key-biodiversity-area"
+    )
+
+    assert country > state > site

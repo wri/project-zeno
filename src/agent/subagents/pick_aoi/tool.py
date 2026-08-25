@@ -1,4 +1,6 @@
 import asyncio
+import unicodedata
+from difflib import SequenceMatcher
 from enum import StrEnum
 from typing import Annotated, Any, Dict, Literal, Optional
 
@@ -231,6 +233,95 @@ async def query_subregion_database(
         results = await conn.run_sync(_read)
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Deterministic candidate scoring (PZB-1272).
+#
+# Retrieval and selection need different comparisons. `search_aois` ranks by
+# pg_trgm similarity over the whole stored name, which is accent-sensitive:
+# for the query "Para" it puts "Paraná" ABOVE "Pará", because the accent
+# breaks Pará's trigrams. Selection therefore re-scores the retrieved rows in
+# Python, accent-insensitively, instead of asking a model to repair the
+# ranking.
+# ---------------------------------------------------------------------------
+
+_SIMILARITY_WEIGHT = 0.5
+_HIERARCHY_WEIGHT = 0.3
+_EXACT_SEGMENT_BONUS = 0.2
+_PREFIX_BONUS = 0.1
+
+# Punctuation that can wrap a name segment. Stored names carry trailing
+# commas ("NA, England, United Kingdom"), and an `aoi_choice` nudge option is
+# resubmitted verbatim as the next question ("Paris, Ile-de-France, France -
+# (district-county) [FRA]"), so a segment comparison that keeps punctuation
+# would never match the same place spelled plainly.
+_SEGMENT_PUNCTUATION = " \t.,;:!?'\"()[]-"
+
+# Preference by subtype: broader admin units beat narrower ones, and admin
+# units beat named sites (KBA/WDPA/Landmark), so a bare "Lisbon" resolves to
+# the Portuguese district rather than a small "Lisbon Forest Preserve". These
+# ten values are everything `search_aois` can emit.
+_HIERARCHY_SCORES: dict[str, float] = {
+    "country": 1.0,
+    "state-province": 0.9,
+    "district-county": 0.7,
+    "custom-area": 0.7,
+    "municipality": 0.5,
+    "locality": 0.35,
+    "neighbourhood": 0.25,
+    "key-biodiversity-area": 0.2,
+    "protected-area": 0.2,
+    "indigenous-and-community-land": 0.2,
+}
+
+
+def _strip_accents(text_value: str) -> str:
+    """Lowercase and remove diacritics: "Pará" -> "para"."""
+    decomposed = unicodedata.normalize("NFD", text_value.lower())
+    return "".join(
+        char for char in decomposed if unicodedata.category(char) != "Mn"
+    )
+
+
+def _first_segment(name: str) -> str:
+    """The leaf name: first comma-separated segment, accent-stripped.
+
+    Stored names are comma-joined most-specific-first ("Pará, Brazil";
+    "Botum Sakor, ..., KHM") and the geocoder emits "Place, Parent" strings,
+    so the first segment is the place's own name.
+    """
+    leaf = name.split(",")[0]
+    return _strip_accents(leaf).strip(_SEGMENT_PUNCTUATION)
+
+
+def _score_candidate(place_name: str, name: str, subtype: str) -> float:
+    """Composite score for one AOI candidate against one search term.
+
+    Weighted sum of accent-insensitive string similarity and an admin
+    hierarchy preference, plus an exact-leaf-name bonus that falls back to a
+    weaker prefix bonus. The leaf bonus is what separates "Pará" from
+    "Paraná" for the term "Para".
+
+    Raises:
+        ValueError: If ``subtype`` is not a known AOI subtype.
+    """
+    if subtype not in _HIERARCHY_SCORES:
+        raise ValueError(f"Unknown AOI subtype: {subtype!r}")
+
+    term = _strip_accents(place_name)
+    candidate = _strip_accents(name)
+
+    similarity = SequenceMatcher(None, term, candidate).ratio()
+    score = _SIMILARITY_WEIGHT * similarity
+    score += _HIERARCHY_WEIGHT * _HIERARCHY_SCORES[subtype]
+
+    if _first_segment(place_name) == _first_segment(name):
+        score += _EXACT_SEGMENT_BONUS
+    elif candidate.startswith(term):
+        score += _PREFIX_BONUS
+
+    return score
 
 
 async def select_best_aoi(
