@@ -833,6 +833,17 @@ _ISO3_SOURCE_COLUMNS = {
     "landmark": ["iso_code"],
 }
 
+# GADM 4.1 ships the literal string "NA" as NAME_1 for a handful of level-1
+# rows, so their composed display names lose the place name entirely (England
+# becomes "NA, United Kingdom" and is unfindable by search). The correct names
+# are taken from the NAME_1 column of their own child rows. MHL.19_1 has no
+# children and stays broken. See SPEC-PR6 / PZB-1270.
+_GADM_NAME_PATCHES = {
+    "GBR.1_1": "England, United Kingdom",
+    "IRL.4_1": "Cork, Ireland",
+    "NLD.14_1": "Zuid-Holland, Netherlands",
+}
+
 
 async def _table_exists(session: AsyncSession, table: str) -> bool:
     result = await session.execute(
@@ -858,6 +869,31 @@ async def _resolve_column(
         if found:
             return found
     return None
+
+
+def _gadm_name_patch_sql(id_col: str) -> tuple[str, dict[str, str]]:
+    """Return the patched ``name`` expression and its bound parameters.
+
+    An identifier cannot be a bound parameter, so the placeholder *names* are
+    generated from ``_GADM_NAME_PATCHES``; every id and name the query compares
+    or returns is bound, so no source value is ever interpolated into SQL.
+    """
+    if not _GADM_NAME_PATCHES:
+        return "name", {}
+
+    params: dict[str, str] = {}
+    whens: list[str] = []
+    for i, (gadm_id, patched) in enumerate(sorted(_GADM_NAME_PATCHES.items())):
+        params[f"patch_id_{i}"] = gadm_id
+        params[f"patch_name_{i}"] = patched
+        whens.append(
+            f"WHEN CAST(:patch_id_{i} AS TEXT) "
+            f"THEN CAST(:patch_name_{i} AS TEXT)"
+        )
+    expr = (
+        f'CASE CAST("{id_col}" AS TEXT) ' + " ".join(whens) + " ELSE name END"
+    )
+    return expr, params
 
 
 async def _build_reference_aois(
@@ -886,6 +922,10 @@ async def _build_reference_aois(
         else "NULL::text[]"
     )
 
+    # Only gadm carries broken source names, so every other source selects
+    # `name` unchanged and binds no patch parameters.
+    name_expr = "name"
+    patch_params: dict[str, str] = {}
     if source == "gadm":
         # subtype -> GADM admin level (0..5), in GADM_LEVELS declaration order.
         admin_expr = (
@@ -898,6 +938,7 @@ async def _build_reference_aois(
         # Disputed territories (e.g. "Z01") lack a 3-letter ISO prefix; keep
         # the rows but flag them so search can exclude via its partial index.
         disputed_expr = f"NOT (\"{id_col}\" ~ '{GADM_STANDARD_ID_RE}')"
+        name_expr, patch_params = _gadm_name_patch_sql(id_col)
     else:
         admin_expr = "NULL::smallint"
         disputed_expr = "false"
@@ -922,7 +963,7 @@ async def _build_reference_aois(
         WITH normalized AS MATERIALIZED (
             SELECT DISTINCT ON (CAST("{id_col}" AS TEXT))
                 CAST("{id_col}" AS TEXT) AS source_id,
-                name,
+                {name_expr} AS name,
                 subtype,
                 {norm_geom} AS geom,
                 {iso3_expr} AS iso3,
@@ -969,7 +1010,7 @@ async def _build_reference_aois(
     inserted = 0
     for chunk in range(nchunks):
         result = await session.execute(
-            text(sql), {"nchunks": nchunks, "chunk": chunk}
+            text(sql), {"nchunks": nchunks, "chunk": chunk, **patch_params}
         )
         inserted += result.rowcount
         # One transaction per chunk: bounds the open transaction and makes a
