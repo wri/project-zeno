@@ -120,13 +120,36 @@ async def test_omitted_date_suggests_planet_when_available():
 
 
 @pytest.mark.asyncio
-async def test_explicit_planet_outside_coverage_returns_feedback():
-    command = await show_imagery.coroutine(
-        state=OUTSIDE_COVERAGE,
-        provider="planet",
-        target_date="2025-06-15",
-        tool_call_id="t1",
+async def test_explicit_planet_outside_coverage_falls_back_to_sentinel():
+    sentinel = AsyncMock(return_value=_result("sentinel-2"))
+
+    with patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel):
+        command = await show_imagery.coroutine(
+            state=OUTSIDE_COVERAGE,
+            provider="planet",
+            target_date="2025-06-15",
+            tool_call_id="t1",
+        )
+
+    assert command.update["imagery"]["provider"] == "sentinel-2"
+    assert "not available" in _message(command)
+
+
+@pytest.mark.asyncio
+async def test_planet_fallback_is_explained_when_sentinel_also_fails():
+    sentinel = AsyncMock(
+        return_value=ImageryProviderResult(
+            status="error", message="No scenes found."
+        )
     )
 
+    with patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel):
+        command = await show_imagery.coroutine(
+            state=OUTSIDE_COVERAGE,
+            provider="planet",
+            target_date="2025-06-15",
+            tool_call_id="t1",
+        )
+
     assert "not available" in _message(command)
-    assert "imagery" not in command.update
+    assert "No scenes found." in _message(command)

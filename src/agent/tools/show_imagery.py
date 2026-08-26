@@ -68,7 +68,13 @@ async def show_imagery(
 ) -> Command:
     """Show a satellite imagery layer on the map for the AOI in state.
 
-    provider may be planet or sentinel-2. When provider and target_date are
+    provider may be planet or sentinel-2. Planet renders only inside a buffer
+    around integrated deforestation alerts within a limited Amazon footprint,
+    so it is blank away from alerts; Sentinel-2 is global and continuous.
+    When imagery accompanies integrated alerts inside that footprint and the
+    user gave no date, pass provider="planet"; for "latest" or "recent"
+    imagery, leave the default.
+    When provider and target_date are
     omitted, Sentinel-2 is shown for approximately the previous two weeks;
     Planet's previous complete month is suggested when available. A dated
     request uses Planet within coverage through the last complete month and
@@ -129,12 +135,15 @@ async def show_imagery(
             await PLANET_PROVIDER.get_imagery(request), tool_call_id
         )
 
-    if provider == "planet":
-        return _feedback(
-            "Planet imagery is not available for this area and month. "
-            "Sentinel-2 imagery is available instead.",
-            tool_call_id,
-        )
+    # An explicit Planet request we cannot serve still shows imagery: fall
+    # back to Sentinel-2 and say why, rather than dead-ending with no layer.
+    prefix = (
+        "Planet imagery is not available for this area and month, "
+        "so Sentinel-2 is shown instead. "
+        if provider == "planet"
+        else ""
+    )
+    suffix = ""
 
     result = await SENTINEL2_PROVIDER.get_imagery(request)
     if (
@@ -143,13 +152,13 @@ async def show_imagery(
         and parsed_date is None
         and PLANET_PROVIDER.covers(aois)
     ):
-        result = replace(
-            result,
-            message=(
-                f"{result.message} Planet monthly imagery from the previous "
-                "complete month is also available for this area."
-            ),
+        suffix = (
+            " Planet monthly imagery from the previous complete month is "
+            "also available for this area."
         )
+
+    if prefix or suffix:
+        result = replace(result, message=f"{prefix}{result.message}{suffix}")
     return _provider_command(result, tool_call_id)
 
 
@@ -157,7 +166,7 @@ SPEC = ToolSpec(
     tool=show_imagery,
     category=ToolCategory.PRIMITIVE,
     prompt_fragment=(
-        "- show_imagery(provider, target_date): show Planet or Sentinel-2 "
+        "- show_imagery: show Planet or Sentinel-2 "
         "imagery for the AOI in state. With no provider or date, Sentinel-2 "
         "covers approximately the previous two weeks. Run pick_aoi first."
     ),
