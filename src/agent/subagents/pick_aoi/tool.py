@@ -1,6 +1,6 @@
 import asyncio
 from enum import StrEnum
-from typing import Annotated, Dict, Literal, Optional
+from typing import Annotated, Any, Dict, Literal, Optional
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -29,15 +29,8 @@ from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.database import get_connection_from_pool
 from src.shared.geocoding_helpers import (
-    BBOX_SQL,
-    CUSTOM_BBOX_SQL,
-    GADM_STANDARD_ID_RE,
-    GADM_TABLE,
-    KBA_TABLE,
-    LANDMARK_TABLE,
-    SOURCE_ID_MAPPING,
+    AOI_SOURCE_ID_COLUMNS,
     SUBREGION_TO_SUBTYPE_MAPPING,
-    WDPA_TABLE,
     search_aois,
 )
 from src.shared.logging_config import get_logger
@@ -66,26 +59,6 @@ load_dotenv()
 logger = get_logger(__name__)
 
 
-async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
-    """Look up bbox for an AOI by source and src_id, using the same antimeridian-aware SQL as pick_aoi."""
-    if source not in SOURCE_ID_MAPPING:
-        return [-180.0, -90.0, 180.0, 90.0]
-
-    table = SOURCE_ID_MAPPING[source]["table"]
-    id_column = SOURCE_ID_MAPPING[source]["id_column"]
-    bbox_expr = CUSTOM_BBOX_SQL if source == "custom" else BBOX_SQL
-
-    query = text(
-        f"SELECT {bbox_expr} FROM {table} WHERE {id_column} = :src_id"
-    )
-    async with get_connection_from_pool() as conn:
-        result = await conn.execute(query, {"src_id": src_id})
-        row = result.fetchone()
-        if row and row[0]:
-            return row[0]
-    return [-180.0, -90.0, 180.0, 90.0]
-
-
 class AOIId(BaseModel):
     src_id: str = Field(description="`src_id` of the best matched location.")
 
@@ -110,15 +83,19 @@ async def query_aoi_database(
     aoi_type: Optional[AreaOfInterestType],
     result_limit: int = 10,
 ):
-    """Query the PostGIS database for location information.
+    """Find the AOIs whose name matches *place_name*.
+
+    This delegates to ``search_aois``, which is the same search core that
+    ``GET /api/aois`` uses. Both therefore rank candidates the same way.
 
     Args:
         place_name: Name of the place to search for
-        aoi_type: Specific AOI table to search, or None to search all
+        aoi_type: One source to restrict the search to, or None for all
         result_limit: Maximum number of results to return
 
     Returns:
-        DataFrame containing location information
+        DataFrame with the columns ``src_id, name, subtype, source, bbox,
+        similarity_score``. Disputed and deprecated AOIs are excluded.
     """
     sources = [aoi_to_table[aoi_type]] if aoi_type is not None else None
     user_id = current_user_id()
@@ -131,107 +108,125 @@ async def query_aoi_database(
     )
 
 
+# The AOI source that each subregion scope resolves to. GADM holds all six admin
+# scopes. Each other scope names its own source.
+SUBREGION_SOURCE_MAPPING = {
+    "country": "gadm",
+    "state": "gadm",
+    "district": "gadm",
+    "municipality": "gadm",
+    "locality": "gadm",
+    "neighbourhood": "gadm",
+    "kba": "kba",
+    "wdpa": "wdpa",
+    "landmark": "landmark",
+}
+
+
 async def query_subregion_database(
     subregion_name: str, source: str, src_id: str
 ):
-    """Query the right table in PostGIS database for subregions based on the selected AOI.
+    """Find the subregions of a selected AOI. Both come from the unified table.
 
     Args:
-        subregion_name: Name of the subregion to search for
-        source: Source of the selected AOI
-        src_id: id of the selected AOI in source table: gadm_id, kba_id, landmark_id, wdpa_id
+        subregion_name: Scope to expand into (an admin level, or kba/wdpa/landmark)
+        source: Source of the selected (parent) AOI
+        src_id: id of the selected AOI within its source
 
     Returns:
-        DataFrame of subregions
-    """
-    match subregion_name:
-        case (
-            "country"
-            | "state"
-            | "district"
-            | "municipality"
-            | "locality"
-            | "neighbourhood"
-        ):
-            table_name = GADM_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING[subregion_name]
-            subregion_source = "gadm"
-            src_id_field = SOURCE_ID_MAPPING["gadm"]["id_column"]
-        case "kba":
-            table_name = KBA_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING["kba"]
-            subregion_source = "kba"
-            src_id_field = SOURCE_ID_MAPPING["kba"]["id_column"]
-        case "wdpa":
-            table_name = WDPA_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING["wdpa"]
-            subregion_source = "wdpa"
-            src_id_field = SOURCE_ID_MAPPING["wdpa"]["id_column"]
-        case "landmark":
-            table_name = LANDMARK_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING["landmark"]
-            subregion_source = "landmark"
-            src_id_field = SOURCE_ID_MAPPING["landmark"]["id_column"]
-        case _:
-            logger.error(f"Invalid subregion: {subregion_name}")
-            raise ValueError(
-                f"Subregion: {subregion_name} does not match to any table in PostGIS database."
-            )
+        DataFrame of subregions, with the columns ``name, subtype, <source id
+        column>, source, src_id, bbox``. The source-specific id column
+        (``gadm_id``, ``sitrecid``, ...) repeats ``src_id``. It remains because
+        the frontend reads it from the extra fields of ``AOIIndex``.
 
-    id_column = SOURCE_ID_MAPPING[source]["id_column"]
-    source_table = SOURCE_ID_MAPPING[source]["table"]
+    A GADM parent selects its children by an id prefix. Any other source
+    selects them by a spatial overlap. A non-GADM parent with an admin
+    subregion gets no containment filter at all, so the result holds every
+    admin unit of that subtype worldwide. ``check_aoi_selection`` then rejects
+    it as too many subregions. This is a known defect.
+    """
+    if subregion_name not in SUBREGION_SOURCE_MAPPING:
+        logger.error(f"Invalid subregion: {subregion_name}")
+        raise ValueError(
+            f"Subregion: {subregion_name} does not match to any table in PostGIS database."
+        )
+
+    subregion_source = SUBREGION_SOURCE_MAPPING[subregion_name]
+    subtype = SUBREGION_TO_SUBTYPE_MAPPING[subregion_name]
+    src_id_field = AOI_SOURCE_ID_COLUMNS[subregion_source]
 
     logger.info(
-        f"Querying subregion: {subregion_name} in table: {table_name} for source: {source}, src_id: {src_id}"
+        f"Querying subregion: {subregion_name} in source: {subregion_source} "
+        f"for source: {source}, src_id: {src_id}"
     )
 
-    if table_name == GADM_TABLE:
-        if source == "gadm":
-            # remove _1/_2 GADM suffix
-            if "_" in src_id:
-                subregion_filter = src_id.split("_")[0]
-            else:
-                subregion_filter = src_id
+    params: Dict[str, Any] = {
+        "src_id": src_id,
+        "source": source,
+        "subregion_source": subregion_source,
+        "subtype": subtype,
+    }
 
-            # filter for the next admin level within this admin ID
-            gadm_filter = f" AND t.gadm_id LIKE '{subregion_filter}.%'"
+    if subregion_source == "gadm":
+        # The GADM id holds the hierarchy, so a prefix match gives containment.
+        # A spatial test is not necessary.
+        if source == "gadm":
+            # Match the children of this admin id, one level down. The `_1` or
+            # `_2` version suffix is not part of the hierarchy, so the code
+            # removes it first. The prefix therefore cannot hold the `_`
+            # wildcard of LIKE.
+            params["gadm_prefix"] = f"{src_id.split('_')[0]}.%"
+            gadm_filter = "AND t.source_id LIKE :gadm_prefix"
         else:
-            gadm_filter = f" AND t.gadm_id ~ '{GADM_STANDARD_ID_RE}'"
+            # A non-GADM parent gets no containment filter, only the exclusion of
+            # disputed territories. The query then returns every admin unit of
+            # the subtype worldwide, and check_aoi_selection rejects the result
+            # as too many subregions. This is a known defect.
+            gadm_filter = "AND NOT t.is_disputed"
         spatial_filter = ""
     else:
         gadm_filter = ""
-        spatial_filter = " AND ST_Intersects(t.geometry, aoi.geom) AND NOT ST_Touches(t.geometry, aoi.geom)"
+        # Accept an overlap, but reject a shared border alone. The parent
+        # geometry is a normalized MultiPolygon, so a repaired boundary can give
+        # a slightly different result than the raw source geometry.
+        spatial_filter = (
+            "AND ST_Intersects(t.geometry, parent.geom) "
+            "AND NOT ST_Touches(t.geometry, parent.geom)"
+        )
 
+    # `bbox` is computed at build time. COALESCE replaces a null array with the
+    # world bbox, which is the default of AOIIndex.
     sql_query = f"""
-    WITH aoi AS (
+    WITH parent AS (
         SELECT geometry AS geom
-        FROM {source_table}
-        WHERE "{id_column}" = :src_id
+        FROM aois
+        WHERE source = :source
+          AND source_id = :src_id
+          AND NOT is_deprecated
         LIMIT 1
     )
-    SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id, {BBOX_SQL}
-    FROM {table_name} AS t, aoi
-    WHERE t.subtype = :subtype
-    {gadm_filter}
-    {spatial_filter}
+    SELECT
+        t.name,
+        t.subtype,
+        t.source_id AS {src_id_field},
+        t.source AS source,
+        t.source_id AS src_id,
+        COALESCE(
+            t.bbox, ARRAY[-180, -90, 180, 90]::double precision[]
+        ) AS bbox
+    FROM aois AS t, parent
+    WHERE t.source = :subregion_source
+      AND t.subtype = :subtype
+      AND NOT t.is_deprecated
+      {gadm_filter}
+      {spatial_filter}
     """
     logger.debug(f"Executing subregion query: {sql_query}")
 
     async with get_connection_from_pool() as conn:
 
         def _read(sync_conn):
-            processed_src_id = src_id
-            if source == "kba":
-                # for these sources IDs stored as numeric values
-                try:
-                    processed_src_id = int(processed_src_id)
-                except ValueError:
-                    pass
-            return pd.read_sql(
-                text(sql_query),
-                sync_conn,
-                params={"src_id": processed_src_id, "subtype": subtype},
-            )
+            return pd.read_sql(text(sql_query), sync_conn, params=params)
 
         results = await conn.run_sync(_read)
 
