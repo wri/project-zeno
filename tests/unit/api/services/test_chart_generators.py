@@ -378,22 +378,73 @@ def test_lgms_hierarchy_averages_across_multiple_years():
     assert _node_by_id(chart, "tree_loss")["avg_emissions"] == 20.0
 
 
-def test_lgms_hierarchy_category_removals_none_when_never_present():
-    # Only tree_loss (emissions-only) rows — vegetation/land_use/all_land
-    # must report avg_removals=None, not a fabricated 0.0.
+def test_lgms_hierarchy_reports_real_zero_when_class_measured_no_removals():
+    # The analytics API reports a real 0.0 (not None) for tree_loss removals
+    # when vegetation was active but nothing regrew that year — confirmed by
+    # STP_2020_ROWS below. Zero measured activity must fold up as a real
+    # 0.0 at every ancestor (vegetation/land_use/all_land), not None: the
+    # category structurally supports removals, it just had none.
     rows = column_to_rows(
         {
             "category": ["vegetation", "vegetation"],
             "class": ["tree_loss", "tree_loss"],
             "year": [2016, 2017],
             "gross_emissions_MgCO2e": [10.0, 30.0],
+            "gross_removals_MgCO2": [0.0, 0.0],
+        }
+    )
+    chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(rows)[3]
+    assert _node_by_id(chart, "vegetation")["avg_removals"] == 0.0
+    assert _node_by_id(chart, "land_use")["avg_removals"] == 0.0
+    assert _node_by_id(chart, "all_land")["avg_removals"] == 0.0
+
+
+def test_lgms_hierarchy_agriculture_removals_none_never_reported_by_api():
+    # Unlike vegetation, agriculture's classes (cropland/livestock) never
+    # carry a removals figure at all — the API never populates that column,
+    # not even as 0.0 (confirmed by STP_2020_ROWS below). That's genuine
+    # structural absence, so agriculture/cropland/livestock must stay None,
+    # not a fabricated 0.0.
+    rows = column_to_rows(
+        {
+            "category": ["agriculture", "agriculture"],
+            "class": ["cropland", "livestock"],
+            "year": [2016, 2016],
+            "gross_emissions_MgCO2e": [10.0, 20.0],
             "gross_removals_MgCO2": [None, None],
         }
     )
     chart = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(rows)[3]
-    assert _node_by_id(chart, "vegetation")["avg_removals"] is None
-    assert _node_by_id(chart, "land_use")["avg_removals"] is None
-    assert _node_by_id(chart, "all_land")["avg_removals"] is None
+    assert _node_by_id(chart, "cropland")["avg_removals"] is None
+    assert _node_by_id(chart, "livestock")["avg_removals"] is None
+    assert _node_by_id(chart, "agriculture")["avg_removals"] is None
+
+
+def test_lgms_time_series_charts_keep_real_zero_not_none():
+    # Same real-zero scenario as the hierarchy test above, asserted directly
+    # on the category/summary time-series charts (positions 1/2).
+    rows = column_to_rows(
+        {
+            "category": ["vegetation", "vegetation"],
+            "class": ["tree_loss", "tree_loss"],
+            "year": [2016, 2017],
+            "gross_emissions_MgCO2e": [10.0, 30.0],
+            "gross_removals_MgCO2": [0.0, 0.0],
+        }
+    )
+    charts = LGMSChartGenerator(LAND_GHG_INVENTORY_ID).generate(rows)
+    category_row = charts[1].chart_data[0]
+    assert category_row["vegetation_emissions"] == 10.0
+    assert category_row["vegetation_removals"] == 0.0
+    assert category_row["soil_emissions"] is None
+    assert category_row["soil_removals"] is None
+    assert category_row["cropland_emissions"] is None
+    assert category_row["livestock_emissions"] is None
+
+    summary_row = charts[2].chart_data[0]
+    assert summary_row["land_use_emissions"] == 10.0
+    assert summary_row["agriculture_emissions"] is None
+    assert summary_row["land_use_removals"] == 0.0
 
 
 # --- Real-world shape regression -----------------------------------------
