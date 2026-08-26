@@ -52,7 +52,7 @@ def replay_aoi_queries_for_tools_tests() -> Any:
     fixtures_path = Path(
         os.getenv(
             "AOI_PICK_AOI_FIXTURES_PATH",
-            "tests/fixtures/aoi_pick_aoi_v1.json",
+            "tests/fixtures/aoi_pick_aoi_v2.json",
         )
     )
     if not fixtures_path.exists():
