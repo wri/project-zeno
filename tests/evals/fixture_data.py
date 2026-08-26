@@ -136,41 +136,6 @@ TCL_DRIVER_STATE = {
 
 
 # ---------------------------------------------------------------------------
-# Dataset 0: DIST-ALERT — monthly alerts by driver for DRC (fixture data shape)
-# ---------------------------------------------------------------------------
-_dist_months = [
-    "2024-06",
-    "2024-07",
-    "2024-08",
-    "2024-09",
-    "2024-10",
-    "2024-11",
-]
-_dist_drivers = [
-    "Conversion",
-    "Fire-related",
-    "Cropland dynamics",
-    "Water-related",
-    "Unclassified",
-]
-# Build a flat long-format table: every month × every driver
-_dist_alert_dates = []
-_dist_alert_drivers = []
-_dist_alert_areas = []
-_base_areas = {
-    "Conversion": [12345, 14567, 11234, 13456, 15678, 12890],
-    "Fire-related": [8901, 9234, 18765, 21034, 7654, 6543],
-    "Cropland dynamics": [4567, 5123, 4890, 5234, 4678, 5012],
-    "Water-related": [2345, 1987, 2456, 2123, 2678, 2234],
-    "Unclassified": [3210, 3456, 3123, 3567, 3890, 3234],
-}
-for i, month in enumerate(_dist_months):
-    for driver in _dist_drivers:
-        _dist_alert_dates.append(month)
-        _dist_alert_drivers.append(driver)
-        _dist_alert_areas.append(float(_base_areas[driver][i]))
-
-# ---------------------------------------------------------------------------
 # Dataset 1: Global Land Cover — change transitions for Brazil
 # ---------------------------------------------------------------------------
 LAND_COVER_STATE = {
@@ -512,27 +477,6 @@ SLUC_EF_STATE = {
                 "year": [2024] * 15,
                 "aoi_id": ["BRA"] * 15,
                 "aoi_type": ["admin"] * 15,
-            },
-        )
-    ],
-}
-
-
-DIST_ALERT_STATE = {
-    "dataset": _dataset_fields(0),
-    "statistics": [
-        Statistics(
-            dataset_name="Global all ecosystem disturbance alerts (DIST-ALERT)",
-            source_url="http://example.com/analytics/dist-alert-eval",
-            start_date="2024-06-01",
-            end_date="2024-11-30",
-            aoi_names=["Democratic Republic of Congo"],
-            data={
-                "alert_date": _dist_alert_dates,
-                "driver": _dist_alert_drivers,
-                "area_ha": _dist_alert_areas,
-                "aoi_id": ["COD"] * len(_dist_alert_dates),
-                "aoi_type": ["admin"] * len(_dist_alert_dates),
             },
         )
     ],

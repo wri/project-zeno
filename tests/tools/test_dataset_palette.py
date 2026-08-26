@@ -25,7 +25,7 @@ def test_db_pool():
     pass
 
 
-EXPECTED_DATASET_IDS = {0, 1, 2, 3, 4, 5, 6, 7, 8}
+EXPECTED_DATASET_IDS = {1, 2, 3, 4, 5, 6, 7, 8}
 
 
 def test_all_expected_datasets_have_palettes():
