@@ -12,6 +12,9 @@ from src.api.services.charts.base import ChartGenerator, column_to_rows
 from src.api.services.charts.integrated_alerts import (
     IntegratedAlertsChartGenerator,
 )
+from src.api.services.charts.land_cover import (
+    LandCoverChangeChartGenerator,
+)
 from src.api.services.charts.lgms import (
     LGMS_CLASS_LABELS,
     LGMS_FULL_SERIES_CLASS_ORDER,
@@ -24,6 +27,7 @@ __all__ = [
     "ChartGenerator",
     "column_to_rows",
     "IntegratedAlertsChartGenerator",
+    "LandCoverChangeChartGenerator",
     "LGMS_CLASS_LABELS",
     "LGMS_FULL_SERIES_CLASS_ORDER",
     "LGMSChartGenerator",

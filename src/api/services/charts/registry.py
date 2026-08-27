@@ -6,6 +6,9 @@ from src.api.services.charts.base import ChartGenerator
 from src.api.services.charts.integrated_alerts import (
     IntegratedAlertsChartGenerator,
 )
+from src.api.services.charts.land_cover import (
+    LandCoverChangeChartGenerator,
+)
 from src.api.services.charts.lgms import LGMSChartGenerator
 from src.api.services.charts.tcl import TCLChartGenerator
 
@@ -13,4 +16,5 @@ DETERMINISTIC_GENERATORS: List[ChartGenerator] = [
     TCLChartGenerator(),
     IntegratedAlertsChartGenerator(),
     LGMSChartGenerator(),
+    LandCoverChangeChartGenerator(),
 ]

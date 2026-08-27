@@ -1,11 +1,13 @@
 from src.agent.datasets.handlers.analytics_handler import (
     INTEGRATED_ALERTS_ID,
+    LAND_COVER_CHANGE_ID,
     LAND_GHG_INVENTORY_ID,
     TREE_COVER_LOSS_ID,
 )
 from src.api.services.charts import (
     DETERMINISTIC_GENERATORS,
     IntegratedAlertsChartGenerator,
+    LandCoverChangeChartGenerator,
     LGMSChartGenerator,
     TCLChartGenerator,
     column_to_rows,
@@ -519,4 +521,93 @@ def test_lgms_real_sample_categories_sum_matches_full_detail():
     ]
     assert category_row["vegetation_emissions"] == sum(
         full_row[k] for k in vegetation_emissions_fields
+    )
+
+
+# The analytics handler serves two shapes for this dataset: a composition
+# snapshot (change_over_time_query=False, what AnalyzeService asks for) and
+# the 2015->2024 transition matrix.
+LAND_COVER_COMPOSITION_ROWS = column_to_rows(
+    {
+        "land_cover_class": [
+            "Tree cover",
+            "Short vegetation",
+            "Water",
+            "Snow/ice",
+        ],
+        "area_ha": [306052.75, 1423.6, 5120.0, 0.0],
+        "aoi_id": ["BRA.4.56"] * 4,
+    }
+)
+LAND_COVER_CHANGE_ROWS = column_to_rows(
+    {
+        "land_cover_class_start": [
+            "Bare and sparse vegetation",
+            "Tree cover",
+            "Short vegetation",
+        ],
+        "land_cover_class_end": ["Tree cover", "Cropland", "Bare ground"],
+        "area_ha": [57.6, 1200.0, 0.0],
+        "aoi_id": ["BRA.4.56"] * 3,
+    }
+)
+
+
+def test_can_handle_land_cover_dataset():
+    generator = LandCoverChangeChartGenerator(LAND_COVER_CHANGE_ID)
+    assert generator.can_handle(LAND_COVER_CHANGE_ID)
+    assert not generator.can_handle(TREE_COVER_LOSS_ID)
+
+
+def test_land_cover_generator_registered():
+    assert any(
+        isinstance(gen, LandCoverChangeChartGenerator)
+        for gen in DETERMINISTIC_GENERATORS
+    )
+
+
+def test_composition_rows_make_one_pie_sorted_by_area():
+    charts = LandCoverChangeChartGenerator(LAND_COVER_CHANGE_ID).generate(
+        LAND_COVER_COMPOSITION_ROWS
+    )
+
+    assert [c.chart_type for c in charts] == ["pie"]
+    pie = charts[0]
+    assert pie.x_axis == "land_cover_class"
+    assert pie.y_axis == "area_ha"
+    assert [row["land_cover_class"] for row in pie.chart_data] == [
+        "Tree cover",
+        "Water",
+        "Short vegetation",
+    ]
+
+
+def test_transition_rows_make_one_table_sorted_by_area():
+    charts = LandCoverChangeChartGenerator(LAND_COVER_CHANGE_ID).generate(
+        LAND_COVER_CHANGE_ROWS
+    )
+
+    assert [c.chart_type for c in charts] == ["table"]
+    areas = [row["area_ha"] for row in charts[0].chart_data]
+    assert areas == sorted(areas, reverse=True)
+
+
+def test_zero_area_rows_are_dropped():
+    """Catalog rule: drop rows where area_ha = 0."""
+    pie = LandCoverChangeChartGenerator(LAND_COVER_CHANGE_ID).generate(
+        LAND_COVER_COMPOSITION_ROWS
+    )[0]
+    table = LandCoverChangeChartGenerator(LAND_COVER_CHANGE_ID).generate(
+        LAND_COVER_CHANGE_ROWS
+    )[0]
+
+    assert "Snow/ice" not in [r["land_cover_class"] for r in pie.chart_data]
+    assert "Bare ground" not in [
+        r["land_cover_class_end"] for r in table.chart_data
+    ]
+
+
+def test_no_charts_when_rows_are_empty():
+    assert (
+        LandCoverChangeChartGenerator(LAND_COVER_CHANGE_ID).generate([]) == []
     )
