@@ -10,7 +10,7 @@ This directory contains modular data source handlers for the `pull_data` system.
 2. **DataPullResult**: Standardized result object returned by all handlers
 3. **DataPullOrchestrator**: Manages and routes requests to appropriate handlers
 4. **Built-in Handlers**:
-   - `AnalyticsHandler`: Handles multiple analytics datasets (DIST-ALERT, natural lands, grasslands, tree cover loss) from GFW Analytics API endpoints
+   - `AnalyticsHandler`: Handles multiple analytics datasets (Integrated alerts, natural lands, grasslands, tree cover loss) from GFW Analytics API endpoints
    - `GFWSQLHandler`: Handles standard GFW data sources with SQL queries
 
 ### Key Benefits

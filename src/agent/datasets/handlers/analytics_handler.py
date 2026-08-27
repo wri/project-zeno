@@ -83,12 +83,6 @@ SLUC_CROPS = [
 SLUC_GAS_TYPES = ["CO2e", "CO2", "CH4", "N2O"]
 
 # Add dataset-specific parameters
-DIST_ALERT_ID = [
-    ds["dataset_id"]
-    for ds in DATASETS
-    if ds["dataset_name"]
-    == "Global all ecosystem disturbance alerts (DIST-ALERT)"
-][0]
 INTEGRATED_ALERTS_ID = [
     ds["dataset_id"]
     for ds in DATASETS
@@ -188,16 +182,15 @@ LGMS_METRIC_COLUMNS = (
 
 
 def _lgms_row_class(section_name: str, row: dict) -> Any:
-    """The merged `class` value: the vegetation land-state verbatim,
-    'mineral'/'organic' for soil, the crop/livestock category for agriculture."""
+    """The merged `class` value: the vegetation land-state verbatim, the
+    crop/livestock category for agriculture, or the section name itself for
+    soil ('mineral_soil'/'organic_soil' — already the exact class name)."""
     if section_name == "vegetation":
         return row.get("land_state_class")
-    if section_name == "mineral_soil":
-        return "mineral"
-    if section_name == "organic_soil":
-        return "organic"
     if section_name == "agriculture":
         return row.get("category")
+    if section_name in ("mineral_soil", "organic_soil"):
+        return section_name
     return None
 
 
@@ -270,7 +263,6 @@ class AnalyticsHandler(DataSourceHandler):
     def can_handle(self, dataset: Any) -> bool:
         """Check if this handler can process the given dataset"""
         return dataset.get("dataset_id") in [
-            DIST_ALERT_ID,
             INTEGRATED_ALERTS_ID,
             NATURAL_LANDS_ID,
             LAND_COVER_CHANGE_ID,
@@ -370,19 +362,7 @@ class AnalyticsHandler(DataSourceHandler):
         logger.debug(f"dataset: {dataset}")
 
         payload: dict[str, Any]
-        if dataset.get("dataset_id") == DIST_ALERT_ID:
-            payload = {
-                **base_payload,
-                "start_date": start_date,
-                "end_date": end_date,
-                "intersections": (
-                    [dataset["context_layer"]]
-                    if dataset.get("context_layer")
-                    else []
-                ),
-            }
-
-        elif dataset.get("dataset_id") == INTEGRATED_ALERTS_ID:
+        if dataset.get("dataset_id") == INTEGRATED_ALERTS_ID:
             # Integrated Alerts has no intersections; it takes full dates only.
             payload = {
                 **base_payload,

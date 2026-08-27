@@ -43,11 +43,6 @@ def mock_pull_data_db_session(monkeypatch):
 # as of 2025-08-06
 ALL_DATASET_COMBINATIONS = [
     {
-        "dataset_id": 0,
-        "dataset_name": "Ecosystem disturbance alerts",
-        "context_layer": None,
-    },
-    {
         "dataset_id": 1,
         "dataset_name": "Global land cover",
         "context_layer": None,
@@ -695,14 +690,14 @@ class TestReviseDateRange:
         assert range_clamped is True
 
     async def test_dataset_without_end_date_uses_today(self):
-        """Dataset 0 (DIST-ALERT) has no end_date; uses today as effective end."""
+        """Dataset 11 (Integrated alerts) has no end_date; uses today as effective end."""
         from datetime import date
 
         (
             effective_start,
             effective_end,
             range_clamped,
-        ) = await revise_date_range("2024-01-01", "2030-12-31", 0)
+        ) = await revise_date_range("2024-01-01", "2030-12-31", 11)
         assert effective_start == "2024-01-01"
         assert effective_end == str(date.today())
         assert range_clamped is True

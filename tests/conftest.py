@@ -39,7 +39,9 @@ async_session_maker = sessionmaker(
 Base.metadata.bind = engine_test
 
 
-_UNIT_SQUARE_WKT = "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"
+# One valid square, for any test that needs a geometry but asserts nothing
+# about it (the transform still derives bbox and area from it).
+UNIT_SQUARE_WKT = "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"
 
 
 async def seed_reference_aoi(
@@ -48,7 +50,7 @@ async def seed_reference_aoi(
     name,
     subtype,
     *,
-    geometry_wkt=_UNIT_SQUARE_WKT,
+    geometry_wkt=UNIT_SQUARE_WKT,
     bbox=(0, 0, 1, 1),
     is_disputed=False,
 ):
