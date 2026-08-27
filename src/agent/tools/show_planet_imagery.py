@@ -12,7 +12,7 @@ from src.agent.imagery import (
     Sentinel2ImageryProvider,
 )
 from src.agent.tool_spec import ToolCategory, ToolSpec
-from src.agent.tools.imagery_support import build_request, provider_command
+from src.agent.tools.show_imagery import build_request, provider_command
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)

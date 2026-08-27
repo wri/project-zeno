@@ -1,7 +1,7 @@
 ---
 name: show-imagery-planet
 description: Display Planet or Sentinel-2 satellite imagery on the map for a place around a date.
-when_to_use: User asks to see imagery for a place in the Amazon, asks for Planet imagery by name, or wants to inspect integrated deforestation alerts up close. Supersedes `show-imagery` where both are available. Not for independent data analysis or charts.
+when_to_use: User asks to see satellite imagery, a satellite view, Planet, or Sentinel-2 imagery of a place — optionally around a date. Can be called in conjunction with request for alerts, but not for independent data analysis or charts.
 requires: pick_aoi, show_imagery, show_planet_imagery
 ---
 

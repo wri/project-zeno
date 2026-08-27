@@ -59,7 +59,6 @@ tools:
 
 EXPERIMENTAL_MANIFEST = """\
 profile: experimental
-extends: default
 skills:
   - analyze (requires: pick_aoi, pick_dataset, pull_data, generate_insights)
   - capabilities
@@ -67,7 +66,6 @@ skills:
   - explore (requires: search_blogs)
   - pull-data (requires: pick_aoi, pick_dataset, pull_data)
   - show-imagery-planet (requires: pick_aoi, show_imagery, show_planet_imagery)
-  - show-imagery (requires: pick_aoi, show_imagery)
   - wri-insights (requires: search_blogs)
 subagents:
   - pick_aoi

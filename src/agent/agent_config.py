@@ -120,12 +120,18 @@ DEFAULT_SKILLS = (
 # profile omits them (see EXPERIMENTAL_PROFILE below).
 DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 
-# Experimental additions over the default profile: standalone tools not yet
-# owned by any skill's workflow, plus Planet imagery. Planet depends on a
-# limited-coverage tile service, so it stays opt-in: show-imagery-planet
-# supersedes the default show-imagery recipe and adds show_planet_imagery.
+# Experimental profile including tools and skills we want internal feedback on
+# before releasing to the public
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = ("show-imagery-planet",)
+EXPERIMENTAL_SKILLS = (
+    "analyze",
+    "pull-data",
+    "capabilities",
+    "show-imagery-planet",
+    "wri-insights",
+    "dashboard",
+    "explore",
+)
 EXPERIMENTAL_TOOLS = (
     inspect_view_context_spec,
     update_insight_display_spec,
@@ -368,9 +374,8 @@ default_registry.register(
 default_registry.register(
     AgentConfig(
         EXPERIMENTAL_PROFILE,
-        extends=DEFAULT_PROFILE,
         skills=EXPERIMENTAL_SKILLS,
-        tools=EXPERIMENTAL_TOOLS,
+        tools=CORE_TOOLS + EXPERIMENTAL_TOOLS,
         # Excludes are per-profile (not inherited), so an empty set here
         # reveals the datasets that `default` hides.
         excluded_datasets=frozenset(),
