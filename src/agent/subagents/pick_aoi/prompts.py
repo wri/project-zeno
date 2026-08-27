@@ -103,10 +103,6 @@ Do not use subregion:
 - "Forest data for Mumbai" → places=["Mumbai"], no subregion
 - "Tree cover in Yellowstone National Park" → single protected area, no subregion
 
-Use subregion=country ONLY for a global request. England, Scotland, Wales
-and Northern Ireland are stored as state-level units of the United Kingdom,
-so comparing across them is subregion=state.
-
 # Global queries
 
 For whole-world questions ("globally", "worldwide", "the whole world", "all
