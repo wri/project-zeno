@@ -155,8 +155,8 @@ async def test_merge_lgms_sections_flattens_to_category_class_table():
     assert merged["class"] == [
         "tree_loss",
         "tree_gain",
-        "mineral",
-        "organic",
+        "mineral_soil",
+        "organic_soil",
         "cropland",
         "livestock",
     ]

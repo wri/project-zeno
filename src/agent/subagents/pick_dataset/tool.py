@@ -19,7 +19,6 @@ from src.agent.datasets.config import (
 )
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
-    DIST_ALERT_ID,
     FOREST_CARBON_FLUX_ID,
     GRASSLANDS_ID,
     INTEGRATED_ALERTS_ID,
@@ -586,7 +585,7 @@ def get_tile_services_for_dataset(
             )
         else:
             tile_url += "&start_year=2001&end_year=2025"
-    elif selection_result.dataset_id in [DIST_ALERT_ID, INTEGRATED_ALERTS_ID]:
+    elif selection_result.dataset_id == INTEGRATED_ALERTS_ID:
         tile_url += f"&start_date={start_date}&end_date={end_date}"
     elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
         # Annual raster item in URL; start/end are already clamped to dataset YAML

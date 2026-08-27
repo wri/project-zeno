@@ -140,4 +140,4 @@ async def test_datasets_catalog_only_includes_datasets_with_colors(client):
     datasets = response.json()["datasets"]
 
     dataset_ids = {d["dataset_id"] for d in datasets}
-    assert dataset_ids == {0, 1, 2, 3, 4, 5, 6, 7, 8}
+    assert dataset_ids == {1, 2, 3, 4, 5, 6, 7, 8}

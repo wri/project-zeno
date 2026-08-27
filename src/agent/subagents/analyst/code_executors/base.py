@@ -20,7 +20,7 @@ ChartType = Literal[
     "table",
 ]
 CHART_TYPES: tuple[str, ...] = get_args(ChartType)
-CHART_TYPES_WITHOUT_AXIS = {"pie", "table"}
+CHART_TYPES_WITHOUT_AXIS = {"pie", "table", "hierarchical-bar"}
 
 
 class ChartInsight(BaseModel):

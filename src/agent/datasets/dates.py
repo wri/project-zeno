@@ -25,7 +25,7 @@ async def revise_date_range(
     if ds_end_original is None:
         ds_end_original = str(
             date.today()
-        )  # e.g. DIST-ALERT: ongoing, no fixed end
+        )  # e.g. Integrated alerts: ongoing, no fixed end
     if ds_start_original is None:
         raise ValueError(f"Dataset {dataset_id} has no start_date configured")
 
