@@ -12,6 +12,7 @@ from src.agent.datasets.config import DATASETS
 from src.agent.llms import SMALL_MODEL
 from src.agent.state import AgentState, AOISelection
 from src.agent.subagents.pick_dataset import (
+    DatasetLayer,
     DatasetParameter,
     DatasetSelectionResult,
     pick_dataset,
@@ -623,6 +624,9 @@ def _make_fake_selection(
         context_layer=context_layer,
         reason="test",
         tile_url=ds["tile_url"],
+        layers=[
+            DatasetLayer(name=ds["dataset_name"], tile_url=ds["tile_url"])
+        ],
         analytics_api_endpoint=ds.get("analytics_api_endpoint", ""),
         description=ds["description"],
         prompt_instructions=ds.get("prompt_instructions", ""),

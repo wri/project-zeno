@@ -39,6 +39,7 @@ from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
     ContextLayer,
+    DatasetLayer,
     DatasetSelectionResponse,
     DatasetSelectionResult,
 )
@@ -329,11 +330,13 @@ class DatasetSelector:
             selected_row.dataset_id,
             option.context_layer,
         )
-        dataset_tile_url, context_layers = get_tile_services_for_dataset(
-            option,
-            selected_row,
-            effective_start_date,
-            effective_end_date,
+        dataset_tile_url, context_layers, layers = (
+            get_tile_services_for_dataset(
+                option,
+                selected_row,
+                effective_start_date,
+                effective_end_date,
+            )
         )
 
         dataset_result = DatasetSelectionResult(
@@ -345,6 +348,7 @@ class DatasetSelector:
             end_date=effective_end_date,
             reason=option.reason,
             tile_url=dataset_tile_url,
+            layers=layers,
             analytics_api_endpoint=selected_row.analytics_api_endpoint,
             description=selected_row.description,
             prompt_instructions=selected_row.prompt_instructions,
@@ -592,7 +596,29 @@ def get_tile_services_for_dataset(
         # Annual raster item in URL; start/end are already clamped to dataset YAML
         tile_url = tile_url.format(year=end_date.year)
 
-    return tile_url, context_layers
+    layers = get_dataset_layers(selected_row, tile_url)
+
+    return tile_url, context_layers, layers
+
+
+def get_dataset_layers(selected_row, tile_url: str) -> list[DatasetLayer]:
+    """The dataset's primary layer(s): the yml's explicit `layers` list when
+    present (e.g. LGMS's agriculture/lulucf), otherwise a single layer
+    auto-derived from the dataset's resolved `tile_url` — so every other
+    catalog entry keeps working unchanged with no per-dataset branching
+    downstream."""
+    raw_layers = getattr(selected_row, "layers", None)
+    if isinstance(raw_layers, list) and raw_layers:
+        return [
+            DatasetLayer(
+                name=layer["name"],
+                tile_url=layer["tile_url"],
+                start_date=layer.get("start_date"),
+                end_date=layer.get("end_date"),
+            )
+            for layer in raw_layers
+        ]
+    return [DatasetLayer(name=selected_row.dataset_name, tile_url=tile_url)]
 
 
 def get_dates_for_dataset(

@@ -21,12 +21,13 @@ def test_integrated_alerts_tile_url_gets_date_params():
     )
     row = SimpleNamespace(
         dataset_id=INTEGRATED_ALERTS_ID,
+        dataset_name="Integrated alerts",
         tile_url=IA_TILE,
         context_layers=None,
         parameters=None,
     )
 
-    tile_url, context_layers = get_tile_services_for_dataset(
+    tile_url, context_layers, layers = get_tile_services_for_dataset(
         selection, row, "2024-03-01", "2024-10-31"
     )
 
@@ -34,3 +35,8 @@ def test_integrated_alerts_tile_url_gets_date_params():
     assert "end_date=2024-10-31" in tile_url
     assert tile_url.startswith(IA_TILE)  # date params appended, base preserved
     assert context_layers == []
+    # No explicit `layers` on the yml row → auto-derived as a single entry
+    # mirroring the resolved tile_url, so single-layer datasets are unaffected.
+    assert len(layers) == 1
+    assert layers[0].tile_url == tile_url
+    assert layers[0].name == "Integrated alerts"

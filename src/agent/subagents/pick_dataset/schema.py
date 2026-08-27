@@ -19,6 +19,18 @@ class ContextLayer(BaseModel):
     tile_url: Optional[str]
 
 
+class DatasetLayer(BaseModel):
+    """A dataset's primary, independently-toggleable data layer. Distinct from
+    ContextLayer, which is a mutually-exclusive masking/reference overlay —
+    sibling DatasetLayers can all be shown at once (e.g. LGMS's "agriculture"
+    and "lulucf" layers)."""
+
+    name: str
+    tile_url: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
 class DatasetOption(BaseModel):
     dataset_id: Optional[int] = Field(
         None,
@@ -129,10 +141,20 @@ class DatasetSelectionResponse(BaseModel):
 
 class DatasetSelectionResult(DatasetOption):
     tile_url: str = Field(
-        description="Tile URL of the dataset that best matches the user query.",
+        description=(
+            "Deprecated: mirrors layers[0].tile_url. Kept for callers that "
+            "haven't migrated to `layers` yet — new code should read `layers`."
+        ),
     )
     dataset_name: str = Field(
         description="Name of the dataset that best matches the user query."
+    )
+    layers: list[DatasetLayer] = Field(
+        description=(
+            "The dataset's primary data layer(s), always at least one. Most "
+            "datasets have exactly one; some (e.g. LGMS) have several that "
+            "can be shown independently or together."
+        ),
     )
     context_layers: list[ContextLayer] = Field(
         [],
