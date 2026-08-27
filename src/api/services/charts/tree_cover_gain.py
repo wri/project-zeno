@@ -1,0 +1,40 @@
+"""Tree cover gain chart generator."""
+
+from typing import List
+
+from src.agent.datasets.handlers.analytics_handler import TREE_COVER_GAIN_ID
+from src.agent.subagents.analyst.charts import InsightChart
+from src.api.services.charts.base import ChartGenerator
+
+
+class TreeCoverGainChartGenerator(ChartGenerator):
+    """Tree cover gain: one bar per cumulative period.
+
+    The periods overlap (2000-2020 contains 2015-2020), so the catalog is
+    firm that the raw period labels are kept and never decomposed into
+    5-year buckets — the bars are cumulative, not additive.
+    """
+
+    def __init__(self, dataset_id: int = TREE_COVER_GAIN_ID):
+        self.dataset_id = dataset_id
+
+    def can_handle(self, dataset_id: int) -> bool:
+        return dataset_id == self.dataset_id
+
+    def generate(self, rows: List[dict]) -> List[InsightChart]:
+        present = sorted(
+            (row for row in rows if (row.get("area_ha") or 0) > 0),
+            key=lambda row: row.get("tree_cover_gain_period") or "",
+        )
+        if not present:
+            return []
+        return [
+            InsightChart(
+                position=0,
+                title="Cumulative Tree Cover Gain by Period",
+                chart_type="bar",
+                x_axis="tree_cover_gain_period",
+                y_axis="area_ha",
+                chart_data=present,
+            )
+        ]
