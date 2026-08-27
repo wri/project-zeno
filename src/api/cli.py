@@ -19,10 +19,11 @@ Usage:
 """
 
 import asyncio
+import json
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import bcrypt
 import click
@@ -833,16 +834,26 @@ _ISO3_SOURCE_COLUMNS = {
     "landmark": ["iso_code"],
 }
 
-# GADM 4.1 ships the literal string "NA" as NAME_1 for a handful of level-1
-# rows, so their composed display names lose the place name entirely (England
-# becomes "NA, United Kingdom" and is unfindable by search). The correct names
-# are taken from the NAME_1 column of their own child rows. MHL.19_1 has no
-# children and stays broken. See SPEC-PR6 / PZB-1270.
-_GADM_NAME_PATCHES = {
-    "GBR.1_1": "England, United Kingdom",
-    "IRL.4_1": "Cork, Ireland",
-    "NLD.14_1": "Zuid-Holland, Netherlands",
-}
+# GADM 4.1 ships the literal string "NA" as its no-data marker, and ingest
+# composes display names from the NAME_* columns without recognising it, so
+# England's row is named "NA, United Kingdom" and is unfindable by search.
+# 2,930 rows are affected globally. See SPEC-PR7 / PZB-1271.
+_GADM_NO_DATA_NAME = "NA"
+
+# Rule A adopts a candidate name only when it holds this share of the parent's
+# *named* immediate children. GADM's own child rows disagree with each other,
+# so unanimity is not available: England's level-2 children include two that
+# say "NA", Cork's include one "Cork City", Zuid-Holland's one "Zuid Hollandse
+# Meren". A strict majority keeps all three, and refuses the all-NA ghost row
+# whose two children split 1-1 between England and Scotland. The one
+# plurality-adjacent case it admits is CHL.15.1_1 -> Tamarugal (5 of 7, GADM's
+# row spanning two Chilean provinces); raise this to 0.8 to exclude it.
+_GADM_CHILD_NAME_MIN_SHARE = 0.5
+
+# Rule B's level. GADM shifted names down a level only for district-counties
+# holding a single municipality (Bristol, Tameside, Trafford, Wiltshire ...);
+# applying it further down would rename a unit after an unrelated child.
+_GADM_SHIFTED_NAME_SUBTYPE = "district-county"
 
 
 async def _table_exists(session: AsyncSession, table: str) -> bool:
@@ -871,29 +882,206 @@ async def _resolve_column(
     return None
 
 
-def _gadm_name_patch_sql(id_col: str) -> tuple[str, dict[str, str]]:
-    """Return the patched ``name`` expression and its bound parameters.
+class _GadmLevel(NamedTuple):
+    """One GADM admin level's subtype and its two columns in staging."""
 
-    An identifier cannot be a bound parameter, so the placeholder *names* are
-    generated from ``_GADM_NAME_PATCHES``; every id and name the query compares
-    or returns is bound, so no source value is ever interpolated into SQL.
+    subtype: str
+    id_col: str
+    name_col: str
+
+
+def _gadm_repair_levels() -> list[_GadmLevel]:
+    """GADM's admin levels, shallowest first, from ``GADM_LEVELS``.
+
+    One definition of the hierarchy, so the repair rules can pair a level with
+    the one below it (``zip(levels, levels[1:])``). A parent and its children
+    share the parent's ``id_col``, and both carry the parent's name in their own
+    ``name_col``, which is what lets a broken parent look one level down.
     """
-    if not _GADM_NAME_PATCHES:
-        return "name", {}
+    return [
+        _GadmLevel(subtype, level["col_name"], level["name_col"])
+        for subtype, level in GADM_LEVELS.items()
+    ]
 
-    params: dict[str, str] = {}
-    whens: list[str] = []
-    for i, (gadm_id, patched) in enumerate(sorted(_GADM_NAME_PATCHES.items())):
-        params[f"patch_id_{i}"] = gadm_id
-        params[f"patch_name_{i}"] = patched
-        whens.append(
-            f"WHEN CAST(:patch_id_{i} AS TEXT) "
-            f"THEN CAST(:patch_name_{i} AS TEXT)"
-        )
-    expr = (
-        f'CASE CAST("{id_col}" AS TEXT) ' + " ".join(whens) + " ELSE name END"
+
+async def _derive_gadm_name_repairs(
+    session: AsyncSession, table: str, id_col: str
+) -> dict[str, str]:
+    """Derive ``{source_id: repaired display name}`` from GADM's hierarchy.
+
+    Read-only: staging is never written, so the map is recomputed identically on
+    every build and re-applies itself after any re-ingest, GADM v5 included.
+
+    Two rules, both taking the name from rows GADM did fill in:
+
+    * **A, parent name from children.** A row whose own ``NAME_n`` is ``'NA'``
+      adopts the name its immediate children carry in *their* ``NAME_n``, when
+      one candidate holds a strict majority of the named children. Repairs
+      England, Cork and Zuid-Holland at level 1, and at level 2 the multi-child
+      counties whose name GADM only stored one level down (Warwickshire,
+      Derbyshire, Greater London ...).
+    * **B, leaf name from an only child.** A district-county row holding
+      exactly one municipality child, which must itself be named, adopts that
+      child's name. A district with one named child *and* one ``'NA'`` child is
+      refused: the SQL counts every child, not just the named ones, so the pair
+      has to be unambiguous. Repairs Bristol and 57 others, where GADM shifted
+      the name down a level rather than omitting it. Rule A wins where both
+      could fire.
+
+    Only the broken leading segment of the display name is replaced; every
+    parent segment is left byte-identical, so no row's name changes except at
+    the position GADM left as ``'NA'``. Rows the rules cannot reach (no
+    children, a tie, a multi-child parent with no majority, an unnamed only
+    child) keep the name they have today.
+
+    Known gap, accepted: only the *leading* segment is repaired, so a Rule B
+    family leaves the child itself reading "Bristol, NA, England, United
+    Kingdom" -- the parent's own name is fixed, the same name sitting in the
+    child's middle segment is not. Recomposing a display name from its repaired
+    ancestors is SPEC-PR8's design and the durable fix; patching middle
+    segments by string surgery here is not.
+    """
+    # One catalogue read for every level: `_resolve_column` costs a round trip
+    # per candidate and returns the real casing, which nothing here needs --
+    # the column names come from GADM_LEVELS and are quoted as declared.
+    result = await session.execute(
+        text(
+            "SELECT lower(column_name) FROM information_schema.columns "
+            "WHERE table_name = :t"
+        ),
+        {"t": table},
     )
-    return expr, params
+    present = {row[0] for row in result.all()}
+
+    levels: list[_GadmLevel] = []
+    for level in _gadm_repair_levels():
+        missing = [
+            col
+            for col in (level.id_col, level.name_col)
+            if col.lower() not in present
+        ]
+        if missing:
+            # A level GADM_LEVELS declares but staging does not carry means a
+            # partial ingest: say so rather than quietly repairing less.
+            click.echo(
+                f"⚠️  gadm: level '{level.subtype}' skipped by the name "
+                f"repair ({', '.join(missing)} not in {table})."
+            )
+        else:
+            levels.append(level)
+
+    # Each rule pairs a level with the one directly below it.
+    pairs = list(zip(levels, levels[1:]))
+    if not pairs:
+        return {}
+
+    params: dict[str, object] = {
+        "na": _GADM_NO_DATA_NAME,
+        "na_prefix": f"{_GADM_NO_DATA_NAME}, %",
+        "min_share": _GADM_CHILD_NAME_MIN_SHARE,
+    }
+    votes: list[str] = []
+    for i, (parent, child) in enumerate(pairs):
+        params[f"parent_{i}"] = parent.subtype
+        params[f"child_{i}"] = child.subtype
+        # Identifiers cannot be bound, and these come from GADM_LEVELS, not
+        # from data. Every value is a bound parameter. A NULL candidate fails
+        # `NOT IN` on its own, so no null test is needed.
+        votes.append(
+            f"""
+            SELECT CAST(p."{id_col}" AS TEXT) AS source_id,
+                   c."{parent.name_col}" AS candidate,
+                   count(*) AS votes
+            FROM {table} p
+            JOIN {table} c
+              ON c.subtype = :child_{i}
+             AND c."{parent.id_col}" = p."{parent.id_col}"
+            WHERE p.subtype = :parent_{i}
+              AND p."{parent.name_col}" = :na
+              AND c."{parent.name_col}" NOT IN ('', :na)
+            GROUP BY 1, 2
+            """
+        )
+
+    ctes = [
+        f"votes AS ({' UNION ALL '.join(votes)})",
+        """ranked AS (
+            SELECT source_id, candidate, votes,
+                   sum(votes) OVER (PARTITION BY source_id) AS total
+            FROM votes
+        )""",
+        """rule_a AS (
+            -- No tie-break, and none possible: a strict majority of the votes
+            -- admits at most one candidate per source_id. Drop :min_share to
+            -- 0.5 or below and this CTE can emit several rows for one id,
+            -- which `repairs` would carry through as duplicate repairs.
+            SELECT source_id, candidate AS leaf
+            FROM ranked
+            WHERE votes > :min_share * total
+        )""",
+    ]
+    repair_arms = ["SELECT source_id, leaf FROM rule_a"]
+
+    # Rule B is level 2 only: the shifted-name pattern is a district-county
+    # holding a single municipality. Emitted only when that level survived the
+    # column check, so there is no empty sentinel CTE to reason about.
+    b_pair = next(
+        (
+            (parent, child)
+            for parent, child in pairs
+            if parent.subtype == _GADM_SHIFTED_NAME_SUBTYPE
+        ),
+        None,
+    )
+    if b_pair is not None:
+        parent, child = b_pair
+        params["b_parent"] = parent.subtype
+        params["b_child"] = child.subtype
+        # The inner select groups, the outer only filters, so `min()` is
+        # written once. It is the only child's name, because HAVING has already
+        # restricted the group to one row; a NULL leaf fails `NOT IN`.
+        ctes.append(
+            f"""rule_b AS (
+            SELECT source_id, leaf
+            FROM (
+                SELECT CAST(p."{id_col}" AS TEXT) AS source_id,
+                       min(c."{child.name_col}") AS leaf
+                FROM {table} p
+                JOIN {table} c
+                  ON c.subtype = :b_child
+                 AND c."{parent.id_col}" = p."{parent.id_col}"
+                WHERE p.subtype = :b_parent
+                  AND p."{parent.name_col}" = :na
+                GROUP BY 1
+                HAVING count(*) = 1
+            ) only_child
+            WHERE leaf NOT IN ('', :na)
+        )"""
+        )
+        # Rule A wins where both fire.
+        repair_arms.append(
+            "SELECT source_id, leaf FROM rule_b"
+            " WHERE source_id NOT IN (SELECT source_id FROM rule_a)"
+        )
+
+    ctes.append(f"repairs AS ({' UNION ALL '.join(repair_arms)})")
+
+    # substring past the marker drops the leading 'NA' and keeps the ', parent'
+    # tail. DISTINCT ON collapses the duplicate ids the staging tables carry
+    # (no unique constraint); duplicates of one id share their composed name.
+    sql = f"""
+        WITH {", ".join(ctes)}
+        SELECT DISTINCT ON (r.source_id)
+               r.source_id,
+               r.leaf || substring(g.name FROM char_length(:na) + 1)
+                 AS repaired
+        FROM repairs r
+        JOIN {table} g ON CAST(g."{id_col}" AS TEXT) = r.source_id
+        WHERE g.name = :na OR g.name LIKE :na_prefix
+        ORDER BY r.source_id, repaired
+    """
+    result = await session.execute(text(sql), params)
+    return {row[0]: row[1] for row in result.all()}
 
 
 async def _build_reference_aois(
@@ -909,6 +1097,13 @@ async def _build_reference_aois(
     cross-chunk boundary effects. Note chunking does *not* bound the cost of any
     single geometry -- that is the job of the part-wise repair in
     ``multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
+
+    The gadm name repair is derived once, before the loop, and passed in as one
+    bound jsonb object. It has to be: it reads a row's *children*, which the
+    hash partition scatters across other chunks, so a lookup inside the chunked
+    statement would have to be careful never to be chunk-filtered. Deriving it
+    once also pays for its self-join once (~20s on the full table) instead of
+    once per pass.
     """
     table = SOURCE_STAGING_TABLES[source]
     id_col = AOI_SOURCE_ID_COLUMNS[source]
@@ -923,9 +1118,10 @@ async def _build_reference_aois(
     )
 
     # Only gadm carries broken source names, so every other source selects
-    # `name` unchanged and binds no patch parameters.
+    # `name` unchanged, joins nothing extra and binds no repair parameters.
     name_expr = "name"
-    patch_params: dict[str, str] = {}
+    repair_join = ""
+    repair_params: dict[str, object] = {}
     if source == "gadm":
         # subtype -> GADM admin level (0..5), in GADM_LEVELS declaration order.
         admin_expr = (
@@ -938,7 +1134,30 @@ async def _build_reference_aois(
         # Disputed territories (e.g. "Z01") lack a 3-letter ISO prefix; keep
         # the rows but flag them so search can exclude via its partial index.
         disputed_expr = f"NOT (\"{id_col}\" ~ '{GADM_STANDARD_ID_RE}')"
-        name_expr, patch_params = _gadm_name_patch_sql(id_col)
+
+        repairs = await _derive_gadm_name_repairs(session, table, id_col)
+        if repairs:
+            click.echo(
+                f"🔧 {source}: {len(repairs)} name(s) repaired from GADM's "
+                "own hierarchy."
+            )
+            # One bound jsonb object rather than two arrays that have to stay
+            # index-aligned: one hash join per pass, scaling with however many
+            # rows the rules reach. Not chunk-filtered, on purpose -- see the
+            # docstring.
+            repair_join = (
+                " LEFT JOIN jsonb_each_text(CAST(:repairs AS jsonb))"
+                " AS r(repair_id, repair_name)"
+                f' ON r.repair_id = CAST("{id_col}" AS TEXT)'
+            )
+            name_expr = "COALESCE(r.repair_name, name)"
+            repair_params = {"repairs": json.dumps(repairs)}
+        else:
+            # Staging always carries GADM's 'NA' rows, so an empty map means
+            # the rules reached nothing: never let that pass unremarked.
+            click.echo(
+                f"⚠️  {source}: no name(s) repaired from GADM's own hierarchy."
+            )
     else:
         admin_expr = "NULL::smallint"
         disputed_expr = "false"
@@ -969,7 +1188,7 @@ async def _build_reference_aois(
                 {iso3_expr} AS iso3,
                 {admin_expr} AS admin_level,
                 {disputed_expr} AS is_disputed
-            FROM {table}
+            FROM {table}{repair_join}
             WHERE name IS NOT NULL AND geometry IS NOT NULL
               AND (abs(hashtext(CAST("{id_col}" AS TEXT))::bigint) % :nchunks)
                   = :chunk
@@ -1010,7 +1229,7 @@ async def _build_reference_aois(
     inserted = 0
     for chunk in range(nchunks):
         result = await session.execute(
-            text(sql), {"nchunks": nchunks, "chunk": chunk, **patch_params}
+            text(sql), {"nchunks": nchunks, "chunk": chunk, **repair_params}
         )
         inserted += result.rowcount
         # One transaction per chunk: bounds the open transaction and makes a

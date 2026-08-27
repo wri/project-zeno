@@ -1,0 +1,3 @@
+test_id,test_group,status,query,expected_aoi_ids,expected_aoi_source,expected_dataset_id,expected_dataset_name,expected_context_layer,expected_start_date,expected_end_date,expected_answer,expected_clarification,expected_text,expected_suggested_datasets
+pzb-1271-1,regression,ready,"Tree cover loss in Bristol, England",GBR.1.12_1,gadm,4,Tree cover loss,,,,,,"Must analyse Bristol as a named AOI in England, never an area called NA, and must not analyse a Bristol in the United States.",
+pzb-1271-2,regression,ready,"Tree cover loss in Warwickshire, England",GBR.1.108_1,gadm,4,Tree cover loss,,,,,,"Must analyse Warwickshire as a named AOI in England, never an area called NA.",
