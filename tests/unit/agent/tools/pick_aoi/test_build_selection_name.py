@@ -110,3 +110,47 @@ def test_many_parents_no_subregion():
     names = ["Brazil", "Peru", "Colombia", "Ecuador", "Bolivia"]
     result = build_selection_name(names, None, 5)
     assert result == "Brazil & Peru & Colombia & Ecuador & Bolivia"
+
+
+# ---------------------------------------------------------------------------
+# display_term - GADM admin-type override (country-resolved subregion depth)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "match_names, subregion, num_aois, display_term, expected",
+    [
+        # Spain's "provinces" resolve to the district depth, but the display
+        # should use the user's own word, not the generic "district" label.
+        (["Spain"], "district", 52, "Province", "52 Provinces in Spain"),
+        # Multi-word admin term, already correctly cased - must not be
+        # mangled by naive .capitalize() (which would lowercase "Country").
+        (
+            ["United Kingdom"],
+            "state",
+            4,
+            "Constituent Country",
+            "4 Constituent Countries in United Kingdom",
+        ),
+        (["Switzerland"], "state", 26, "Canton", "26 Cantons in Switzerland"),
+        (
+            ["United Arab Emirates"],
+            "state",
+            7,
+            "Emirate",
+            "7 Emirates in United Arab Emirates",
+        ),
+    ],
+)
+def test_display_term_overrides_subregion_label(
+    match_names, subregion, num_aois, display_term, expected
+):
+    result = build_selection_name(
+        match_names, subregion, num_aois, display_term=display_term
+    )
+    assert result == expected
+
+
+def test_no_display_term_falls_back_to_subregion():
+    result = build_selection_name(["Brazil"], "state", 26, display_term=None)
+    assert result == "26 States in Brazil"
