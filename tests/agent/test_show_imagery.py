@@ -1,25 +1,14 @@
-"""Unit tests for show_imagery routing and command construction."""
+"""Unit tests for the Sentinel-2 imagery tool."""
 
-from datetime import date
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.agent.imagery import ImageryProviderResult
 from src.agent.models import ImageryState
-from src.agent.tools.show_imagery import (
-    PLANET_PROVIDER,
-    SENTINEL2_PROVIDER,
-    show_imagery,
-)
+from src.agent.tools.show_imagery import SENTINEL2_PROVIDER, show_imagery
 
-OUTSIDE_COVERAGE = {
-    "aoi_selection": {
-        "name": "Zurich",
-        "aois": [{"name": "Zurich", "source": "gadm", "src_id": "CHE.26_1"}],
-    }
-}
-IN_COVERAGE = {
+AOI_STATE = {
     "aoi_selection": {
         "name": "Test area",
         "aois": [
@@ -34,12 +23,12 @@ IN_COVERAGE = {
 }
 
 
-def _result(provider: str) -> ImageryProviderResult:
+def _result() -> ImageryProviderResult:
     return ImageryProviderResult(
         status="success",
-        message=f"Showing {provider}",
+        message="Showing sentinel-2",
         imagery=ImageryState(
-            provider=provider,
+            provider="sentinel-2",
             tile_url="https://example.com/{z}/{x}/{y}.png",
             mosaic_id="test-mosaic",
             aoi_names=["Test area"],
@@ -49,6 +38,14 @@ def _result(provider: str) -> ImageryProviderResult:
 
 def _message(command):
     return command.update["messages"][0].content
+
+
+def test_tool_exposes_no_provider_choice():
+    """Planet is opt-in via show_planet_imagery; this tool must not offer it."""
+    schema = show_imagery.args_schema.model_json_schema()
+
+    assert "provider" not in schema["properties"]
+    assert "planet" not in (show_imagery.description or "").lower()
 
 
 def test_target_date_is_optional_and_nullable_in_tool_schema():
@@ -64,7 +61,7 @@ def test_target_date_is_optional_and_nullable_in_tool_schema():
     ("state", "target_date", "message"),
     [
         ({}, None, "No AOI selected"),
-        (OUTSIDE_COVERAGE, "June 2025", "Invalid target_date"),
+        (AOI_STATE, "June 2025", "Invalid target_date"),
     ],
 )
 async def test_show_imagery_rejects_invalid_input(state, target_date, message):
@@ -77,79 +74,30 @@ async def test_show_imagery_rejects_invalid_input(state, target_date, message):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("provider", "target_date", "expected"),
-    [
-        (None, "2025-06-15", "planet"),
-        (None, None, "sentinel-2"),
-        ("sentinel-2", "2025-06-15", "sentinel-2"),
-        ("planet", None, "planet"),
-        ("planet", date.today().isoformat(), "planet"),
-    ],
-)
-async def test_show_imagery_routes_provider(provider, target_date, expected):
-    planet = AsyncMock(return_value=_result("planet"))
-    sentinel = AsyncMock(return_value=_result("sentinel-2"))
-
-    with (
-        patch.object(PLANET_PROVIDER, "get_imagery", planet),
-        patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel),
-    ):
-        command = await show_imagery.coroutine(
-            state=IN_COVERAGE,
-            provider=provider,
-            target_date=target_date,
-            tool_call_id="t1",
-        )
-
-    assert command.update["imagery"]["provider"] == expected
-    assert planet.await_count == (expected == "planet")
-    assert sentinel.await_count == (expected == "sentinel-2")
-
-
-@pytest.mark.asyncio
-async def test_omitted_date_suggests_planet_when_available():
-    sentinel = AsyncMock(return_value=_result("sentinel-2"))
+async def test_show_imagery_returns_the_sentinel_layer():
+    sentinel = AsyncMock(return_value=_result())
 
     with patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel):
         command = await show_imagery.coroutine(
-            state=IN_COVERAGE, target_date=None, tool_call_id="t1"
-        )
-
-    assert "previous complete month" in _message(command)
-
-
-@pytest.mark.asyncio
-async def test_explicit_planet_outside_coverage_falls_back_to_sentinel():
-    sentinel = AsyncMock(return_value=_result("sentinel-2"))
-
-    with patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel):
-        command = await show_imagery.coroutine(
-            state=OUTSIDE_COVERAGE,
-            provider="planet",
-            target_date="2025-06-15",
-            tool_call_id="t1",
+            state=AOI_STATE, target_date="2025-06-15", tool_call_id="t1"
         )
 
     assert command.update["imagery"]["provider"] == "sentinel-2"
-    assert "not available" in _message(command)
+    assert sentinel.await_count == 1
 
 
 @pytest.mark.asyncio
-async def test_planet_fallback_is_explained_when_sentinel_also_fails():
-    sentinel = AsyncMock(
-        return_value=ImageryProviderResult(
-            status="error", message="No scenes found."
-        )
-    )
+async def test_tuning_parameters_reach_the_provider():
+    sentinel = AsyncMock(return_value=_result())
 
     with patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel):
-        command = await show_imagery.coroutine(
-            state=OUTSIDE_COVERAGE,
-            provider="planet",
-            target_date="2025-06-15",
+        await show_imagery.coroutine(
+            state=AOI_STATE,
+            target_date=None,
+            window_days=30,
+            max_cloud_cover=50,
             tool_call_id="t1",
         )
 
-    assert "not available" in _message(command)
-    assert "No scenes found." in _message(command)
+    request = sentinel.await_args.args[0]
+    assert (request.window_days, request.max_cloud_cover) == (30, 50)

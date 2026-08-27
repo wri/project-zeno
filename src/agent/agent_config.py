@@ -61,6 +61,9 @@ from src.agent.tools.pull_data import SPEC as pull_data_spec
 from src.agent.tools.search_insights import SPEC as search_insights_spec
 from src.agent.tools.send_nudge import SPEC as send_nudge_spec
 from src.agent.tools.show_imagery import SPEC as show_imagery_spec
+from src.agent.tools.show_planet_imagery import (
+    SPEC as show_planet_imagery_spec,
+)
 from src.agent.tools.update_insight_display import (
     SPEC as update_insight_display_spec,
 )
@@ -79,6 +82,7 @@ ALL_SPECS = (
     read_skill_spec,
     inspect_view_context_spec,
     show_imagery_spec,
+    show_planet_imagery_spec,
     search_blogs_spec,
     update_insight_display_spec,
     search_insights_spec,
@@ -117,10 +121,11 @@ DEFAULT_SKILLS = (
 DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 
 # Experimental additions over the default profile: standalone tools not yet
-# owned by any skill's workflow. No opt-in skills remain here — the last two
-# (dashboard, explore) graduated to DEFAULT_SKILLS above.
+# owned by any skill's workflow, plus Planet imagery. Planet depends on a
+# limited-coverage tile service, so it stays opt-in: show-imagery-planet
+# supersedes the default show-imagery recipe and adds show_planet_imagery.
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = ()
+EXPERIMENTAL_SKILLS = ("show-imagery-planet",)
 EXPERIMENTAL_TOOLS = (
     inspect_view_context_spec,
     update_insight_display_spec,
