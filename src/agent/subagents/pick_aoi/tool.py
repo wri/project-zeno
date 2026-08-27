@@ -1,6 +1,13 @@
 import asyncio
-from enum import StrEnum
-from typing import Annotated, Any, Dict, Literal, Optional
+from typing import (
+    Annotated,
+    Any,
+    Dict,
+    Literal,
+    NamedTuple,
+    Optional,
+    Sequence,
+)
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -13,6 +20,7 @@ from langgraph.types import Command
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
+from src.agent.config import AgentSettings
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.llms import SMALL_MODEL
@@ -21,8 +29,13 @@ from src.agent.subagents.pick_aoi.global_queries import (
     is_global_request,
 )
 from src.agent.subagents.pick_aoi.prompts import GEOCODER_PROMPT
+from src.agent.subagents.pick_aoi.scoring import best_candidate_row
 from src.agent.subagents.pick_aoi.selection_name_util import (
     build_selection_name,
+)
+from src.agent.subagents.pick_aoi.types import (
+    AreaOfInterestType,
+    aoi_to_table,
 )
 from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec
@@ -39,21 +52,6 @@ from src.shared.request_context import current_user_id
 RESULT_LIMIT = 10
 SUBREGION_LIMIT_ADMIN = 1000
 SUBREGION_LIMIT = 50
-
-
-class AreaOfInterestType(StrEnum):
-    GADM = "adminstrative area (country, state/region, country/subregion)"
-    WDPA = ("protected area, park, or reserve",)
-    LANDMARK = ("indigenous region or territory",)
-    KBA = "key biodiversity area"
-
-
-aoi_to_table = {
-    AreaOfInterestType.GADM: "gadm",
-    AreaOfInterestType.WDPA: "wdpa",
-    AreaOfInterestType.LANDMARK: "landmark",
-    AreaOfInterestType.KBA: "kba",
-}
 
 load_dotenv()
 logger = get_logger(__name__)
@@ -106,6 +104,68 @@ async def query_aoi_database(
         limit=result_limit,
         offset=0,
     )
+
+
+async def query_aoi_database_multiterm(
+    search_terms: list[str],
+    aoi_type: Optional[AreaOfInterestType],
+    result_limit: int = RESULT_LIMIT,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Find the AOIs matching any of *search_terms*, merged.
+
+    Each term gets its own query with its own ``result_limit``, so a
+    low-similarity alias ("Zaire" for "DR Congo") is not crowded out of a
+    shared limit by the main spelling. A row that several terms match is
+    deduplicated on ``(source, src_id)``, keeping its highest
+    ``similarity_score``.
+
+    ``query_aoi_database`` stays single-term deliberately: the replay
+    fixtures and the agent tests patch it once per term.
+
+    Args:
+        search_terms: Terms to search, the extracted place name first.
+        aoi_type: One source to restrict every search to, or None for all.
+        result_limit: Maximum number of results per term.
+
+    Returns:
+        ``(merged, primary)``, where ``primary`` is the first term's own
+        result frame. It is returned separately because the ambiguity check
+        may only consider rows that the place name itself retrieved: an
+        ``aoi_choice`` option is resubmitted as the next question, so
+        offering a choice over rows found by an invented alias would re-offer
+        the same choice forever (see ``check_duplicate_aois`` and
+        ``_format_aoi_candidate``).
+
+    Raises:
+        ValueError: If ``search_terms`` is empty.
+    """
+    if not search_terms:
+        raise ValueError("query_aoi_database_multiterm needs a search term")
+
+    frames = await asyncio.gather(
+        *[
+            query_aoi_database(term, aoi_type, result_limit)
+            for term in search_terms
+        ]
+    )
+    primary = frames[0]
+    populated = [frame for frame in frames if not frame.empty]
+    if not populated:
+        # An empty frame is what makes the caller report the place as
+        # unmatched, so preserve it rather than inventing columns.
+        return primary, primary
+
+    combined = pd.concat(populated, ignore_index=True)
+    # This sort is what decides WHICH copy of a row `drop_duplicates` keeps
+    # below: the highest-scoring one. Stable, so rows tied on score keep term
+    # order and the merge is deterministic for identical inputs.
+    combined = combined.sort_values(
+        "similarity_score", ascending=False, kind="stable"
+    )
+    merged = combined.drop_duplicates(
+        subset=["source", "src_id"], keep="first"
+    ).reset_index(drop=True)
+    return merged, primary
 
 
 # The AOI source that each subregion scope resolves to. GADM holds all six admin
@@ -233,6 +293,22 @@ async def query_subregion_database(
     return results
 
 
+def score_best_aoi(
+    candidate_aois: pd.DataFrame, terms: Sequence[str]
+) -> Optional[AOIIndex]:
+    """Pick the best candidate deterministically, with no model call.
+
+    The scoring itself lives in `scoring.py`; this only turns the winning row
+    into the model the rest of the tool passes around. No score comes back
+    with it: AOIIndex allows extra fields, so a score written onto the row
+    would leak into aoi_selection.
+    """
+    best_row = best_candidate_row(candidate_aois, terms)
+    if best_row is None:
+        return None
+    return AOIIndex(**best_row)
+
+
 async def select_best_aoi(
     question: str, candidate_aois: pd.DataFrame
 ) -> Optional[AOIIndex]:
@@ -303,6 +379,13 @@ async def select_best_aoi(
 async def check_multiple_matches(
     src_id: str, short_name: str, results: pd.DataFrame
 ) -> Optional[list[dict]]:
+    # A place can now be resolved by a canonical name or an alternative
+    # spelling while the place name itself matched nothing, so this can be
+    # reached with an empty frame and a valid selection — a state that was
+    # impossible when an empty frame always meant no selection.
+    if results.empty:
+        return None
+
     # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
     selected_country = src_id.split(".")[0] if "." in src_id else None
 
@@ -423,15 +506,53 @@ SubregionType = Literal[
 ]
 
 
+class ExtractedPlace(BaseModel):
+    """One place the geocoder extracted, normalised for our tables.
+
+    `place` keeps exactly the semantics it had when `PlaceQuery.places` was a
+    list of strings: English, de-accented, parent kept in the same string. It
+    is always searched, which makes every other field additive — a poor
+    canonical name or a wrong alternative can only add candidates, never take
+    away the one the place name itself would have found.
+    """
+
+    place: str = Field(
+        description=(
+            "English place name as the user gave it. A place and its parent "
+            "stay in one string, e.g. 'Lisbon, Portugal'."
+        ),
+    )
+    canonical: str = Field(
+        default="",
+        description=(
+            "The place's own name as a geographic database stores it: "
+            "official spelling with accents, acronyms and exonyms expanded, "
+            "words describing the kind of area removed, parent kept."
+        ),
+    )
+    alternatives: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Up to 3 other spellings the database might store instead: the "
+            "short form, a native-script name, a historical name."
+        ),
+    )
+    area_type: Optional[AreaOfInterestType] = Field(
+        default=None,
+        description=(
+            "The kind of area, when the request says which — this is where "
+            "a designation such as 'National Park' belongs, rather than in "
+            "the name. Null for a plain administrative place."
+        ),
+    )
+
+
 class PlaceQuery(BaseModel):
     """A place request the geocoder extracts from the user's message."""
 
-    places: list[str] = Field(
+    places: list[ExtractedPlace] = Field(
         default_factory=list,
-        description=(
-            "English place name(s), one entry per distinct location. A place "
-            "and its parent stay in one string, e.g. 'Lisbon, Portugal'."
-        ),
+        description="One entry per distinct location.",
     )
     subregion: Optional[SubregionType] = Field(
         default=None,
@@ -440,6 +561,67 @@ class PlaceQuery(BaseModel):
             "inside the place(s); otherwise leave null."
         ),
     )
+
+
+class _PlaceResolution(NamedTuple):
+    """What one place resolved to: its plan, its candidates and its pick."""
+
+    place: ExtractedPlace
+    terms: list[str]
+    merged: pd.DataFrame
+    primary: pd.DataFrame
+    selection: Optional[AOIIndex]
+
+
+async def _resolve_place(
+    place: ExtractedPlace,
+    question: str,
+    aoi_type: Optional[AreaOfInterestType],
+    normalized: bool,
+) -> _PlaceResolution:
+    """Search one place and pick its AOI, planned once at the top.
+
+    The plan is the whole of what the kill switch governs, which is why it is
+    decided here rather than threaded through the steps below: with the
+    normaliser off a place is searched under its extracted name alone, its
+    inferred type is ignored, and a model picks the winner — exactly the
+    pre-PZB-1272 behaviour.
+
+    The extracted name always leads the term set and is always searched, so
+    normalisation can only ADD candidates: it can never remove the row the
+    place name alone would have found. Narrowing to a source carries weight
+    now that a designation no longer travels in the search term (with the
+    whole catalogue in scope, an admin unit sharing a park's leaf name
+    outranks the park on the hierarchy term alone), but a wrong type must not
+    cost recall — so an empty narrowed result is retried across every source.
+    """
+    terms = [place.place]
+    # The caller's explicit `area_of_interest` wins; the type the geocoder
+    # inferred for this place only fills the gap when the caller gave none.
+    effective_type = aoi_type
+    if normalized:
+        for candidate in [place.canonical, *place.alternatives]:
+            if candidate and candidate not in terms:
+                terms.append(candidate)
+        if effective_type is None:
+            effective_type = place.area_type
+
+    merged, primary = await query_aoi_database_multiterm(terms, effective_type)
+    if merged.empty and normalized and effective_type is not None:
+        logger.info(
+            "GEOCODER: no %s candidates for %r; retrying every source",
+            effective_type,
+            place.place,
+        )
+        merged, primary = await query_aoi_database_multiterm(terms, None)
+
+    if normalized:
+        # No model chooses among candidates: identical candidates always
+        # produce the identical AOI.
+        selection = score_best_aoi(merged, terms)
+    else:
+        selection = await select_best_aoi(question, merged)
+    return _PlaceResolution(place, terms, merged, primary, selection)
 
 
 # Turns a free-text request into structured place(s) + subregion. The rules
@@ -473,10 +655,9 @@ class Geocoder:
     ) -> Command:
         """Full resolution: extract place(s) from the request, then look up."""
         query = await self.extract(question, aoi_type)
-        print(query)
         logger.info(
             "GEOCODER: extracted places=%r subregion=%r",
-            query.places,
+            [place.model_dump() for place in query.places],
             query.subregion,
         )
         if not query.places:
@@ -514,48 +695,73 @@ class Geocoder:
     async def lookup(
         self,
         question: str,
-        places: list[str],
+        # Sequence, not list: `resolve` passes a list[ExtractedPlace] and
+        # list is invariant.
+        places: Sequence[ExtractedPlace],
         subregion: Optional[SubregionType] = None,
         aoi_type: Optional[AreaOfInterestType] = None,
         tool_call_id: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
     ) -> Command:
         """DB step: resolve known place name(s) to AOI geometry."""
+        place_names = [place.place for place in places]
         logger.info(
-            f"GEOCODER: lookup places: '{places}', subregion: '{subregion}'"
+            f"GEOCODER: lookup places: '{place_names}', "
+            f"subregion: '{subregion}'"
         )
 
-        if is_global_request(places):
+        if is_global_request(place_names):
             logger.info("GEOCODER: global request detected")
             emit_progress("pick_aoi", "global", "Global (worldwide) request")
             return await handle_global_request(
                 subregion, tool_call_id, language
             )
 
-        all_results = await asyncio.gather(
+        normalized = AgentSettings.aoi_normalizer_enabled
+        resolutions = await asyncio.gather(
             *[
-                query_aoi_database(place, aoi_type, RESULT_LIMIT)
+                _resolve_place(place, question, aoi_type, normalized)
                 for place in places
             ]
         )
-        for place, result in zip(places, all_results):
-            names = list(result["name"]) if "name" in result.columns else []
+
+        # Progress stays grouped by stage rather than interleaved per place,
+        # so the reader sees one block per stage however many places there are.
+        for resolution in resolutions:
+            if len(resolution.terms) > 1:
+                emit_progress(
+                    "pick_aoi",
+                    "normalize",
+                    f"Searching '{resolution.place.place}' as: "
+                    f"{'; '.join(resolution.terms)}",
+                )
+        for resolution in resolutions:
+            result = resolution.merged
+            count = len(result) if "name" in result.columns else 0
+            # Only the names the message shows: the count comes from the frame.
+            names = result["name"].head(8).tolist() if count else []
             emit_progress(
                 "pick_aoi",
                 "candidates",
-                f"Fuzzy search '{place}': {len(names)} candidate(s)"
-                + (f" — {'; '.join(names[:8])}" if names else ""),
+                f"Fuzzy search '{resolution.place.place}': "
+                f"{count} candidate(s)"
+                + (f" — {'; '.join(names)}" if names else ""),
             )
 
-        selected_aois_raw = await asyncio.gather(
-            *[select_best_aoi(question, result) for result in all_results]
-        )
         unmatched_places = [
-            place
-            for place, aoi in zip(places, selected_aois_raw)
-            if aoi is None
+            resolution.place.place
+            for resolution in resolutions
+            if resolution.selection is None
         ]
-        selected_aois = [aoi for aoi in selected_aois_raw if aoi is not None]
+        # Each selection stays paired with the candidates of ITS OWN place:
+        # filtering the selections alone would pair one with another place's
+        # candidates as soon as a place matched nothing.
+        matched = [
+            (resolution.selection, resolution.primary)
+            for resolution in resolutions
+            if resolution.selection is not None
+        ]
+        selected_aois = [aoi for aoi, _ in matched]
         if not selected_aois:
             return Command(
                 update={
@@ -574,7 +780,13 @@ class Geocoder:
             )
 
         duplicate_check = await check_duplicate_aois(
-            selected_aois, all_results, language
+            selected_aois,
+            # Only the rows the place name itself retrieved. An aoi_choice
+            # option is resubmitted verbatim as the next question, so
+            # offering a choice over rows that only an invented alias found
+            # would re-offer the same choice indefinitely.
+            [primary for _, primary in matched],
+            language,
         )
         if duplicate_check:
             message, options, data = duplicate_check

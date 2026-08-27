@@ -1,0 +1,7 @@
+test_id,test_group,status,query,expected_aoi_ids,expected_aoi_source,expected_dataset_id,expected_dataset_name,expected_context_layer,expected_start_date,expected_end_date,expected_answer,expected_clarification,expected_text,expected_suggested_datasets
+pzb-1272-1,regression,ready,Botum Sakor National Park,478405,wdpa,,,,,,,,,
+pzb-1272-2,regression,ready,Parque Nacional Botum Sakor,478405,wdpa,,,,,,,,,
+pzb-1272-3,regression,ready,Gunung Leuser National Park,1251,wdpa,,,,,,,,,
+pzb-1272-4,regression,ready,How much natural grassland was there in the USA in 2022?,USA,gadm,2,Global natural/semi-natural grassland extent,,2022-01-01,2022-12-31,,,,
+pzb-1272-5,regression,ready,Forest loss in the US,USA,gadm,4,Tree cover loss,,,,,,"Must report tree cover loss for the United States as a whole, not for a state or a similarly named place.",
+pzb-1272-6,regression,ready,Ivory Coast,CIV,gadm,,,,,,,,,

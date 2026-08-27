@@ -7,12 +7,18 @@ import pandas as pd
 import pytest
 
 from src.agent.subagents.pick_aoi import Geocoder
-from src.agent.subagents.pick_aoi.tool import AOIIndex
+from src.agent.subagents.pick_aoi.tool import ExtractedPlace
+from src.agent.subagents.pick_aoi.types import AreaOfInterestType
 from src.shared.request_context import bound_user_id
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
 # "Event loop is closed" errors when running with other test modules
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+def _place(name: str) -> ExtractedPlace:
+    """The place a geocoder extraction with nothing to normalise produces."""
+    return ExtractedPlace(place=name)
 
 
 # ---------------------------------------------------------------------------
@@ -24,7 +30,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 async def test_query_aoi_multiple_matches(structlog_context):
     command = await Geocoder().lookup(
         question="Measure deforestation in Puri",
-        places=["Puri"],
+        places=[_place("Puri")],
         tool_call_id=str(uuid.uuid4()),
     )
     assert str(command.update.get("messages")[0].content).startswith(
@@ -38,7 +44,7 @@ async def test_query_aoi_multiple_matches(structlog_context):
 async def test_query_aoi_multiple_sources(structlog_context):
     command = await Geocoder().lookup(
         question="Compare states in Ecuador and Bolivia",
-        places=["Ecuador", "Bolivia"],
+        places=[_place("Ecuador"), _place("Bolivia")],
         subregion="state",
         tool_call_id=str(uuid.uuid4()),
     )
@@ -63,9 +69,13 @@ async def test_query_aoi_multiple_sources(structlog_context):
             "PRT.6_1",
         ),
         (
+            # Deliberate change (PZB-1272): the model-based selection could
+            # recover "Anjos" from the question text, which extraction had
+            # dropped. Deterministic scoring compares names only, so a bare
+            # "Lisbon" resolves to the Lisboa district.
             "Assess natual lands in Anjos, Lisbon",
             "Lisbon",
-            "PRT.12.7.6_1",
+            "PRT.12_1",
         ),
         (
             "Assess natural lands in Resex Catua-Ipixuna",
@@ -82,7 +92,7 @@ async def test_query_aoi_multiple_sources(structlog_context):
 async def test_query_aoi(question, place, expected_aoi_id, structlog_context):
     command = await Geocoder().lookup(
         question=question,
-        places=[place],
+        places=[_place(place)],
         tool_call_id=str(uuid.uuid4()),
     )
     assert len(command.update.get("aoi_selection", {}).get("aois")) == 1
@@ -114,7 +124,7 @@ async def test_query_aoi_subregion(
 ):
     command = await Geocoder().lookup(
         question=question,
-        places=[place],
+        places=[_place(place)],
         subregion=subregion,
         tool_call_id=str(uuid.uuid4()),
     )
@@ -182,7 +192,7 @@ async def test_custom_area_selection(auth_override, client, structlog_context):
     with bound_user_id("test-user-123"):
         command = await Geocoder().lookup(
             question="Measure deforestation in My Custom Area",
-            places=["My Custom Area"],
+            places=[_place("My Custom Area")],
             tool_call_id=str(uuid.uuid4()),
         )
 
@@ -206,16 +216,11 @@ async def test_pick_aoi_handles_empty_subregion_results(
                     "name": "Colorado, United States",
                     "subtype": "state-province",
                     "source": "gadm",
+                    # Present because every search by name returns it, and the
+                    # multi-term merge sorts on it.
+                    "similarity_score": 0.9,
                 }
             ]
-        )
-
-    async def fake_select_best_aoi(question, candidate_aois):
-        return AOIIndex(
-            src_id="USA.6_1",
-            name="Colorado, United States",
-            subtype="state-province",
-            source="gadm",
         )
 
     async def fake_query_subregion_database(
@@ -227,9 +232,6 @@ async def test_pick_aoi_handles_empty_subregion_results(
         pick_aoi_module, "query_aoi_database", fake_query_aoi_database
     )
     monkeypatch.setattr(
-        pick_aoi_module, "select_best_aoi", fake_select_best_aoi
-    )
-    monkeypatch.setattr(
         pick_aoi_module,
         "query_subregion_database",
         fake_query_subregion_database,
@@ -237,7 +239,7 @@ async def test_pick_aoi_handles_empty_subregion_results(
 
     command = await Geocoder().lookup(
         question="How much land changed to short vegetation in protected areas in Colorado in the past decade?",
-        places=["Colorado"],
+        places=[_place("Colorado")],
         subregion="wdpa",
         tool_call_id=str(uuid.uuid4()),
     )
@@ -290,7 +292,7 @@ async def test_global_query_with_country_subregion(
 
     command = await Geocoder().lookup(
         question="Which countries have the most deforestation globally?",
-        places=["Global World"],
+        places=[_place("Global World")],
         subregion="country",
         tool_call_id=str(uuid.uuid4()),
     )
@@ -313,7 +315,7 @@ async def test_global_query_without_subregion_is_rejected(structlog_context):
     ):
         command = await Geocoder().lookup(
             question="What is the deforestation rate in the world?",
-            places=["Global World"],
+            places=[_place("Global World")],
             tool_call_id=str(uuid.uuid4()),
         )
 
@@ -324,7 +326,7 @@ async def test_global_query_without_subregion_is_rejected(structlog_context):
 async def test_query_cross_antimeridian(structlog_context):
     command = await Geocoder().lookup(
         question="Pick russia",
-        places=["Russia"],
+        places=[_place("Russia")],
         subregion="state",
         tool_call_id=str(uuid.uuid4()),
     )
@@ -344,7 +346,9 @@ async def test_extract_single_place(structlog_context):
         "Analyze deforestation rates in Para, Brazil",
         "adminstrative area (country, state/region, country/subregion)",
     )
-    assert any("para" in p.lower() for p in query.places)
+    assert any("para" in p.place.lower() for p in query.places)
+    # every place carries a canonical spelling for the DB search
+    assert all(p.canonical for p in query.places)
     assert query.subregion is None
 
 
@@ -353,7 +357,7 @@ async def test_extract_subregion_comparison(structlog_context):
         "Compare tree cover loss across all states in Brazil",
         "adminstrative area (country, state/region, country/subregion)",
     )
-    assert any("brazil" in p.lower() for p in query.places)
+    assert any("brazil" in p.place.lower() for p in query.places)
     assert query.subregion == "state"
 
 
@@ -362,8 +366,42 @@ async def test_extract_translates_place_to_english(structlog_context):
         "desmatamento em São Paulo, Brasil",
         "adminstrative area (country, state/region, country/subregion)",
     )
-    joined = " ".join(query.places).lower()
+    joined = " ".join(p.place for p in query.places).lower()
     assert "sao paulo" in joined
+    # canonical restores the official accented spelling for the
+    # accent-sensitive trigram search.
+    canonical = " ".join(p.canonical for p in query.places).lower()
+    assert "são paulo" in canonical
+
+
+async def test_extract_moves_a_designation_into_the_area_type(
+    structlog_context,
+):
+    """The designation must leave the searched name.
+
+    WDPA stores the designation inside the name it indexes ("Botum Sakor,
+    ..., KHM"), so a query carrying "National Park" scores against every
+    park in the world. The type field is where the designation belongs.
+    """
+    query = await Geocoder().extract("Botum Sakor National Park", None)
+
+    assert len(query.places) == 1
+    place = query.places[0]
+    assert place.canonical.strip().lower() == "botum sakor"
+    assert place.area_type == AreaOfInterestType.WDPA
+
+
+async def test_extract_expands_an_exonym_into_the_canonical_name(
+    structlog_context,
+):
+    query = await Geocoder().extract("Ivory Coast", None)
+
+    assert len(query.places) == 1
+    place = query.places[0]
+    # The stored GADM name is the official French form; the exonym the user
+    # typed stays searchable as `place`.
+    assert "ivoire" in place.canonical.lower()
+    assert place.place.lower() == "ivory coast"
 
 
 async def test_extract_global_query_uses_country_subregion(structlog_context):
