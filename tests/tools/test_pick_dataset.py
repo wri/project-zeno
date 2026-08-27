@@ -74,7 +74,6 @@ def state():
     )
 
 
-DIST_ALERT = "ecosystem disturbance alerts"
 LAND_COVER_CHANGE = "land cover change"
 GRASSLANDS = "natural grasslands"
 NATURAL_LANDS = "natural lands"
@@ -88,7 +87,6 @@ TREE_COVER_LOSS_FROM_FIRES = "tree cover loss by fires"
 INTEGRATED_ALERTS = "integrated alerts"
 
 lookup = {
-    0: DIST_ALERT,
     1: LAND_COVER_CHANGE,
     2: GRASSLANDS,
     3: NATURAL_LANDS,

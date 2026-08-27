@@ -1,6 +1,6 @@
 """get_tile_services_for_dataset appends the requested date range to the tile
-URL for date-driven alert layers (DIST-ALERT and Integrated alerts), so the map
-shows alerts only within the queried window."""
+URL for date-driven alert layers (Integrated alerts), so the map shows alerts
+only within the queried window."""
 
 from types import SimpleNamespace
 

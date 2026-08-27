@@ -132,7 +132,7 @@ function_usage_notes: 'This Global Land Cover dataset is intended to be used for
   This dataset should be used when a user asks about area in a specific year or gain or loss of area between years for bare
   ground and sparse vegetation, short vegetation, wetlands, water, snow/ice, cropland, cultivated grasslands, and built-up
   land. Gain of tree cover can be derived from this dataset. Never use this dataset for tree cover loss, instead refer to
-  the Tree Cover Loss (Hansen/UMD/GLAD) data. This dataset may be overlaid with DIST alert data to find alerts in specific
+  the Tree Cover Loss (Hansen/UMD/GLAD) data. This dataset may be overlaid with Integrated Alerts data to find alerts in specific
   land covers. It can also be used to find where land cover has changed since 2020 and then overlaid with the Natural Lands
   map to identify land cover changes on land that was natural in 2020.
 
