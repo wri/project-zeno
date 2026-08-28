@@ -218,7 +218,7 @@ def _query_case_id(param):
             "2025-12-31",
         ),
         (
-            "Which forest regions contribute most to greenhouse gas emissions?",
+            "Which forests have been the largest net sources of greenhouse gas emissions since 2001?",
             CARBON_FLUX,
             "2000-01-01",
             "2025-12-31",
@@ -370,7 +370,7 @@ def _query_case_id(param):
         #     "2020-12-31",
         # ),
         (
-            "Plot year-by-year carbon emissions from deforestation in Indonesia",
+            "Plot year-by-year carbon emissions from deforestation in Indonesia since 2001",
             TREE_COVER_LOSS,
             "2001-01-01",
             "2024-12-31",
