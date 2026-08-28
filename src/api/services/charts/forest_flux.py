@@ -8,13 +8,8 @@ from src.api.services.charts.base import ChartGenerator
 
 
 class ForestFluxChartGenerator(ChartGenerator):
-    """Forest GHG net flux: emissions, removals and net as a diverging bar.
-
-    One row of 2001-2025 totals, not a series — the catalog forbids annual
-    values or trends. The API reports removals as a positive magnitude; they
-    are negated here so the bar diverges below the axis and the net flux
-    reads as the sum of the two bars.
-    """
+    """Gross emissions, gross removals and net flux as a diverging bar
+    chart, with removals drawn below the axis."""
 
     def __init__(self, dataset_id: int = FOREST_CARBON_FLUX_ID):
         self.dataset_id = dataset_id
@@ -46,7 +41,6 @@ class ForestFluxChartGenerator(ChartGenerator):
                     },
                     {
                         "flux": "Gross removals",
-                        # Negated: removals draw below the axis.
                         "carbon_MgCO2e": (
                             -removals if removals is not None else None
                         ),

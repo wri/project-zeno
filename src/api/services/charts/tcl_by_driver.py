@@ -12,11 +12,7 @@ UNKNOWN_DRIVER = "Unknown"
 
 
 class TCLByDriverChartGenerator(ChartGenerator):
-    """Tree cover loss by driver: area per driver as a pie.
-
-    A single 2001-2025 aggregate, so the catalog rules out a time series and
-    excludes the "Unknown" class from analysis.
-    """
+    """Tree cover loss area per driver as a pie, excluding unknown drivers."""
 
     def __init__(self, dataset_id: int = TREE_COVER_LOSS_BY_DRIVER_ID):
         self.dataset_id = dataset_id

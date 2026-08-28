@@ -8,17 +8,8 @@ from src.api.services.charts.base import ChartGenerator
 
 
 class LandCoverChangeChartGenerator(ChartGenerator):
-    """Global land cover: a composition pie or a transition table.
-
-    The analytics handler serves this dataset from two endpoints — a
-    composition snapshot (one row per class) and the 2015->2024 transition
-    matrix (one row per start/end pair) — so the rows decide the chart. The
-    catalog calls for a pie for composition and a table for transitions, and
-    is explicit that this is a two-snapshot product, so neither is a time
-    series.
-
-    Rows with no area carry no information in either shape and are dropped.
-    """
+    """Land cover composition as a pie, or class-to-class transitions as a
+    table. Classes with no area are left out."""
 
     def __init__(self, dataset_id: int = LAND_COVER_CHANGE_ID):
         self.dataset_id = dataset_id

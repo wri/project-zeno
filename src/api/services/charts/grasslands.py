@@ -8,12 +8,7 @@ from src.api.services.charts.base import ChartGenerator
 
 
 class GrasslandsChartGenerator(ChartGenerator):
-    """Grassland extent: area per year as a bar chart.
-
-    Unlike the other extent datasets this one is a real annual series, so
-    the catalog's "area over time" rule applies. Zero/missing areas are
-    excluded per the catalog.
-    """
+    """Grassland extent per year as a bar chart."""
 
     def __init__(self, dataset_id: int = GRASSLANDS_ID):
         self.dataset_id = dataset_id

@@ -15,12 +15,8 @@ FIRE_SERIES = [
 
 
 class TCLByFiresChartGenerator(ChartGenerator):
-    """Tree cover loss from fires: fire vs non-fire loss per year.
-
-    The catalog asks for a stacked bar over years when one area spans
-    several years, and a pie of the same two fields when there is only one
-    year to show.
-    """
+    """Fire versus non-fire tree cover loss per year as a stacked bar, or a
+    pie of the two when only one year is in range."""
 
     def __init__(self, dataset_id: int = TREE_COVER_LOSS_BY_FIRES_ID):
         self.dataset_id = dataset_id

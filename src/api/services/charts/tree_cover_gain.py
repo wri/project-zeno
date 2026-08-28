@@ -8,14 +8,7 @@ from src.api.services.charts.base import ChartGenerator
 
 
 class TreeCoverGainChartGenerator(ChartGenerator):
-    """Tree cover gain: one bar per reporting period.
-
-    The catalog describes cumulative periods (2000-2020, 2005-2020, ...) but
-    the API returns whatever periods it returns — discrete 5-year intervals
-    in practice. Either way the raw `tree_cover_gain_period` label is used
-    verbatim and never decomposed or re-derived, so the bars always mean
-    exactly what the API said.
-    """
+    """Tree cover gain per reporting period as a bar chart."""
 
     def __init__(self, dataset_id: int = TREE_COVER_GAIN_ID):
         self.dataset_id = dataset_id

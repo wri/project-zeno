@@ -8,13 +8,7 @@ from src.api.services.charts.base import ChartGenerator
 
 
 class TreeCoverChartGenerator(ChartGenerator):
-    """Tree cover: extent per area of interest as a bar chart.
-
-    A year-2000 snapshot, so no time series. The analytics response carries
-    one row per AOI with a single `area_ha`, so the bars compare areas
-    rather than the canopy-density bins the catalog describes — those bins
-    are a query parameter, not a column in this response.
-    """
+    """Tree cover extent per area of interest as a bar chart."""
 
     def __init__(self, dataset_id: int = TREE_COVER_ID):
         self.dataset_id = dataset_id

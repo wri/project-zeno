@@ -9,21 +9,12 @@ from src.agent.datasets.handlers.analytics_handler import (
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts.base import ChartGenerator
 
-# The API reports CO2e alongside the individual gases, but it is exactly
-# their sum, not a fourth gas. Dropping it avoids double-counting in the pie
-# and leaves the per-crop totals unchanged.
+# CO2e is the sum of the other gases, so including it would double-count.
 CO2_EQUIVALENT = "CO2e"
 
 
 class SlucEmissionFactorsChartGenerator(ChartGenerator):
-    """sLUC emission factors: emissions by gas type and by crop.
-
-    The response spans every crop, gas and year for the AOI, so the two
-    charts the catalog names are both built: a gas-type pie (the proportional
-    split across CO2, CH4 and N2O) and a per-crop table of CO2e totals.
-    Emission factors are per tonne of production and so are never summed
-    here — only emissions are.
-    """
+    """Emissions by gas type as a pie, plus emissions by crop as a table."""
 
     def __init__(self, dataset_id: int = SLUC_EMISSION_FACTORS_ID):
         self.dataset_id = dataset_id

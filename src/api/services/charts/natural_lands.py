@@ -8,13 +8,7 @@ from src.api.services.charts.base import ChartGenerator
 
 
 class NaturalLandsChartGenerator(ChartGenerator):
-    """Natural lands: area by class as a pie.
-
-    A single-year (2020) snapshot, so the catalog rules out any time series.
-    The analytics response carries one row per class with no `is_natural`
-    flag, so the natural/non-natural split the catalog describes is left to
-    the reader — the class names already carry it.
-    """
+    """Natural lands area by class as a pie, largest class first."""
 
     def __init__(self, dataset_id: int = NATURAL_LANDS_ID):
         self.dataset_id = dataset_id
