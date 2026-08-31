@@ -54,3 +54,15 @@ def test_unresolvable_returns_none():
 
 def test_lowercase_input_matches():
     assert resolve_gadm_admin_level("province", "esp") == 2
+
+
+def test_fuzzy_match_rejects_semantic_mismatches():
+    """At a low cutoff, difflib matches English words that merely share
+    letters with an unrelated GADM term (e.g. "City" -> "County",
+    "Community" -> "Commune"). That's worse than doing nothing: a wrong
+    fuzzy hit silently overrides the LLM's global default, where returning
+    None would fall back to it. These must stay unresolved."""
+    assert resolve_gadm_admin_level("City", "USA") is None
+    assert resolve_gadm_admin_level("Community", "AGO") is None
+    assert resolve_gadm_admin_level("County", "AGO") is None
+    assert resolve_gadm_admin_level("Region", "ALA") is None

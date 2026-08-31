@@ -1,16 +1,25 @@
 """Utilities for building concise display names for area-of-interest selections."""
 
+# Terms this module sees that are already plural and must pass through
+# unchanged (GADM's own ENGTYPE label, not a count of one "Island").
+_ALREADY_PLURAL = {"islands"}
+
 
 def _pluralize(word: str) -> str:
-    """Pluralize *word*, handling the consonant+"y" -> "ies" case (country ->
-    countries, municipality -> municipalities). Everything else gets a plain
-    "s", which is correct for every subregion/admin term this module sees."""
+    """Pluralize *word*: consonant+"y" -> "ies" (country -> countries,
+    municipality -> municipalities), sibilant endings -> "es" (parish ->
+    parishes, metropolis -> metropolises), already-plural terms pass through
+    unchanged, everything else gets a plain "s"."""
+    if word.lower() in _ALREADY_PLURAL:
+        return word
     if (
         len(word) > 1
         and word[-1].lower() == "y"
         and word[-2].lower() not in "aeiou"
     ):
         return word[:-1] + "ies"
+    if word.lower().endswith(("s", "x", "z", "ch", "sh")):
+        return word + "es"
     return word + "s"
 
 

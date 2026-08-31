@@ -44,7 +44,12 @@ GadmAdminTerm = StrEnum(  # type: ignore[misc]
 # below, never shown to the LLM.
 _BY_COUNTRY: dict = _FIXTURE["by_country"]
 
-_FUZZY_CUTOFF = 0.6
+# High on purpose: at 0.6 this matched unrelated words that happen to share
+# letters (e.g. "City" -> "County", "Community" -> "Commune"), which is worse
+# than doing nothing since a bad fuzzy hit silently overrides the LLM's
+# global default. 0.85 still catches genuine near-misses/typos (GADM's own
+# "Sate" for "State") while rejecting those semantic mismatches.
+_FUZZY_CUTOFF = 0.85
 
 
 def resolve_gadm_admin_level(term: str, iso3: str) -> Optional[int]:

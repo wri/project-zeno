@@ -7,6 +7,7 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
+    Tuple,
 )
 
 import pandas as pd
@@ -521,7 +522,7 @@ LEVEL_TO_SUBREGION: Dict[int, str] = {
 
 def _resolve_effective_subregion(
     subregion: str, admin_term: Optional[str], selected_aoi: AOIIndex
-) -> str:
+) -> Tuple[str, bool]:
     """Override *subregion* with the country-correct GADM depth, if resolvable.
 
     The LLM extracts one subregion depth per request, but the correct depth
@@ -531,16 +532,21 @@ def _resolve_effective_subregion(
     Canada") resolve correctly for each place independently. Falls back to
     the LLM's original guess when there's no admin_term, the parent isn't a
     GADM place, or the term doesn't resolve for that country.
+
+    Returns the effective subregion together with whether *admin_term* is
+    what actually produced it -- the caller uses this to decide whether it's
+    safe to display the user's own word instead of the generic subregion
+    label (it isn't, when the term didn't resolve for this AOI's country).
     """
     if not admin_term or selected_aoi.source != "gadm":
-        return subregion
+        return subregion, False
     if subregion not in LEVEL_TO_SUBREGION.values():
-        return subregion
+        return subregion, False
     iso3 = selected_aoi.src_id.split(".")[0]
     level = resolve_gadm_admin_level(admin_term, iso3)
     if level is None:
-        return subregion
-    return LEVEL_TO_SUBREGION[level]
+        return subregion, False
+    return LEVEL_TO_SUBREGION[level], True
 
 
 class ExtractedPlace(BaseModel):
@@ -866,13 +872,15 @@ class Geocoder:
             "pick_aoi", "matched", f"Picked: {', '.join(match_names)}"
         )
 
+        admin_term_resolved = True
         if subregion:
-            effective_subregions = [
-                _resolve_effective_subregion(
+            effective_subregions = []
+            for selected_aoi in selected_aois:
+                effective, resolved = _resolve_effective_subregion(
                     subregion, admin_term, selected_aoi
                 )
-                for selected_aoi in selected_aois
-            ]
+                effective_subregions.append(effective)
+                admin_term_resolved = admin_term_resolved and resolved
             subregion_tasks = [
                 query_subregion_database(
                     effective, selected_aoi.source, selected_aoi.src_id
@@ -924,7 +932,10 @@ class Geocoder:
         logger.debug(f"Pick AOI tool message: {tool_message}")
 
         selection_name = build_selection_name(
-            match_names, subregion, len(final_aois), display_term=admin_term
+            match_names,
+            subregion,
+            len(final_aois),
+            display_term=admin_term if admin_term_resolved else None,
         )
 
         logger.info(f"AOI selection name: {selection_name}")

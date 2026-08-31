@@ -35,17 +35,17 @@ def test_spain_provinces_override_to_district():
     """Spain's "provinces" are GADM's ADM2 (district), not ADM1 (state) - the
     LLM's naive "state" default must be corrected for this specific country."""
     result = _resolve_effective_subregion("state", "Province", _aoi("ESP"))
-    assert result == "district"
+    assert result == ("district", True)
 
 
 def test_canada_provinces_stay_state():
     result = _resolve_effective_subregion("state", "Province", _aoi("CAN"))
-    assert result == "state"
+    assert result == ("state", True)
 
 
 def test_no_admin_term_keeps_llm_guess():
     result = _resolve_effective_subregion("state", None, _aoi("ESP"))
-    assert result == "state"
+    assert result == ("state", False)
 
 
 def test_non_gadm_parent_keeps_llm_guess():
@@ -53,18 +53,21 @@ def test_non_gadm_parent_keeps_llm_guess():
     result = _resolve_effective_subregion(
         "state", "Province", _aoi("P1", source="wdpa")
     )
-    assert result == "state"
+    assert result == ("state", False)
 
 
 def test_non_admin_subregion_unaffected():
     """country/kba/wdpa/landmark subregions are never depth-ambiguous."""
     result = _resolve_effective_subregion("kba", "Province", _aoi("ESP"))
-    assert result == "kba"
+    assert result == ("kba", False)
 
 
 def test_unresolvable_term_keeps_llm_guess():
+    """When the term doesn't resolve for this country, the resolved flag
+    must be False - so the caller knows it's not safe to display the user's
+    admin_term as the label for what is actually the LLM's generic guess."""
     result = _resolve_effective_subregion("state", "Xyzzyplonk", _aoi("ESP"))
-    assert result == "state"
+    assert result == ("state", False)
 
 
 def _fake_conn_context(captured, row):

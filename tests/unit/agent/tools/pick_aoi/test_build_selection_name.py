@@ -3,8 +3,10 @@
 import pytest
 
 from src.agent.subagents.pick_aoi.selection_name_util import (
+    _pluralize,
     build_selection_name,
 )
+from src.shared.gadm_admin_types import GADM_ADMIN_TERMS
 
 # ---------------------------------------------------------------------------
 # No subregion - direct area selections
@@ -154,3 +156,38 @@ def test_display_term_overrides_subregion_label(
 def test_no_display_term_falls_back_to_subregion():
     result = build_selection_name(["Brazil"], "state", 26, display_term=None)
     assert result == "26 States in Brazil"
+
+
+# ---------------------------------------------------------------------------
+# _pluralize - every real GADM admin term, not just the +s common case
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "term, expected",
+    [
+        # Already-plural GADM term: must not double-pluralize.
+        ("Islands", "Islands"),
+        # Sibilant endings need "es", not a bare "s".
+        ("Parish", "Parishes"),
+        ("Metropolis", "Metropolises"),
+        # Consonant+"y" -> "ies".
+        ("Municipality", "Municipalities"),
+        ("Autonomous Community", "Autonomous Communities"),
+        # Plain "+s" case, including a term ending in a vowel+"y".
+        ("Province", "Provinces"),
+        ("Sub-Region", "Sub-Regions"),
+    ],
+)
+def test_pluralize_handles_irregular_terms(term, expected):
+    assert _pluralize(term) == expected
+
+
+@pytest.mark.parametrize("term", GADM_ADMIN_TERMS)
+def test_pluralize_never_mangles_a_real_admin_term(term):
+    """Regression guard for the whole curated vocabulary: every term GADM
+    actually uses must come back plausibly pluralized, never with a doubled
+    ending like "Islandss", "Parishs" or "Metropoliss"."""
+    plural = _pluralize(term)
+    assert not plural.endswith(("ss", "shs", "chs", "xs", "zs"))
+    assert plural != term or term.lower() in {"islands"}
