@@ -10,11 +10,7 @@ from src.api.services.charts.base import ChartGenerator
 class GrasslandsChartGenerator(ChartGenerator):
     """Grassland extent per year as a bar chart."""
 
-    def __init__(self, dataset_id: int = GRASSLANDS_ID):
-        self.dataset_id = dataset_id
-
-    def can_handle(self, dataset_id: int) -> bool:
-        return dataset_id == self.dataset_id
+    dataset_id = GRASSLANDS_ID
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
         present = sorted(
@@ -26,7 +22,7 @@ class GrasslandsChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Natural and Semi-Natural Grassland Extent by Year",
+                title="charts.grasslands.by_year",
                 chart_type="bar",
                 x_axis="year",
                 y_axis="area_ha",

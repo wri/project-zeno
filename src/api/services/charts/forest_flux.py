@@ -11,11 +11,8 @@ class ForestFluxChartGenerator(ChartGenerator):
     """Gross emissions, gross removals and net flux as a diverging bar
     chart, with removals drawn below the axis."""
 
-    def __init__(self, dataset_id: int = FOREST_CARBON_FLUX_ID):
-        self.dataset_id = dataset_id
-
-    def can_handle(self, dataset_id: int) -> bool:
-        return dataset_id == self.dataset_id
+    dataset_id = FOREST_CARBON_FLUX_ID
+    label_fields = ("flux",)
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
         fields = (
@@ -33,20 +30,20 @@ class ForestFluxChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Forest Greenhouse Gas Net Flux",
+                title="charts.forest_flux.net",
                 chart_type="bar",
                 x_axis="flux",
                 y_axis="carbon_MgCO2e",
                 chart_data=[
                     {
-                        "flux": "Gross emissions",
+                        "flux": "charts.label.gross_emissions",
                         "carbon_MgCO2e": emissions,
                     },
                     {
-                        "flux": "Gross removals",
+                        "flux": "charts.label.gross_removals",
                         "carbon_MgCO2e": -removals,
                     },
-                    {"flux": "Net flux", "carbon_MgCO2e": net},
+                    {"flux": "charts.label.net_flux", "carbon_MgCO2e": net},
                 ],
             )
         ]

@@ -10,11 +10,7 @@ from src.api.services.charts.base import ChartGenerator
 class TreeCoverGainChartGenerator(ChartGenerator):
     """Tree cover gain per reporting period as a bar chart."""
 
-    def __init__(self, dataset_id: int = TREE_COVER_GAIN_ID):
-        self.dataset_id = dataset_id
-
-    def can_handle(self, dataset_id: int) -> bool:
-        return dataset_id == self.dataset_id
+    dataset_id = TREE_COVER_GAIN_ID
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
         present = sorted(
@@ -26,7 +22,7 @@ class TreeCoverGainChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Tree Cover Gain by Period",
+                title="charts.tree_cover_gain.by_period",
                 chart_type="bar",
                 x_axis="tree_cover_gain_period",
                 y_axis="area_ha",

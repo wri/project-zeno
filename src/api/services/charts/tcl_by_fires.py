@@ -18,11 +18,8 @@ class TCLByFiresChartGenerator(ChartGenerator):
     """Fire versus non-fire tree cover loss per year as a stacked bar, or a
     pie of the two when only one year is in range."""
 
-    def __init__(self, dataset_id: int = TREE_COVER_LOSS_BY_FIRES_ID):
-        self.dataset_id = dataset_id
-
-    def can_handle(self, dataset_id: int) -> bool:
-        return dataset_id == self.dataset_id
+    dataset_id = TREE_COVER_LOSS_BY_FIRES_ID
+    label_fields = ("cause",)
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
         present = sorted(
@@ -41,17 +38,17 @@ class TCLByFiresChartGenerator(ChartGenerator):
             return [
                 InsightChart(
                     position=0,
-                    title="Tree Cover Loss from Fires vs Other Causes",
+                    title="charts.tcl_by_fires.split",
                     chart_type="pie",
                     x_axis="cause",
                     y_axis="area_ha",
                     chart_data=[
                         {
-                            "cause": "Fires",
+                            "cause": "charts.label.fires",
                             "area_ha": row.get(FIRE_SERIES[0]) or 0,
                         },
                         {
-                            "cause": "Other",
+                            "cause": "charts.label.other",
                             "area_ha": row.get(FIRE_SERIES[1]) or 0,
                         },
                     ],
@@ -61,7 +58,7 @@ class TCLByFiresChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Annual Tree Cover Loss from Fires vs Other Causes",
+                title="charts.tcl_by_fires.annual_split",
                 chart_type="stacked-bar",
                 x_axis="tree_cover_loss_year",
                 series_fields=FIRE_SERIES,

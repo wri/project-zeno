@@ -16,11 +16,7 @@ CO2_EQUIVALENT = "CO2e"
 class SlucEmissionFactorsChartGenerator(ChartGenerator):
     """Emissions by gas type as a pie, plus emissions by crop as a table."""
 
-    def __init__(self, dataset_id: int = SLUC_EMISSION_FACTORS_ID):
-        self.dataset_id = dataset_id
-
-    def can_handle(self, dataset_id: int) -> bool:
-        return dataset_id == self.dataset_id
+    dataset_id = SLUC_EMISSION_FACTORS_ID
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
         present = [
@@ -50,7 +46,7 @@ class SlucEmissionFactorsChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Deforestation Emissions by Gas Type (tCO2e)",
+                title="charts.sluc.by_gas",
                 chart_type="pie",
                 x_axis="gas_type",
                 y_axis="emissions_tCO2e",
@@ -58,7 +54,7 @@ class SlucEmissionFactorsChartGenerator(ChartGenerator):
             ),
             InsightChart(
                 position=1,
-                title="Deforestation Emissions by Crop (tCO2e)",
+                title="charts.sluc.by_crop",
                 chart_type="table",
                 chart_data=descending(by_crop, "crop_type"),
             ),
