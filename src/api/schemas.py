@@ -352,6 +352,8 @@ class CustomAreaModel(BaseModel):
     user_id: str
     name: str
     geometries: List
+    properties: Optional[dict] = None
+    upload_batch_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
 

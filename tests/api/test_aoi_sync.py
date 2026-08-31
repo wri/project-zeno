@@ -10,7 +10,10 @@ must not change.
 import pytest
 from sqlalchemy import text
 
-from src.api.services.aoi_sync import prune_orphan_custom_aois
+from src.api.services.aoi_sync import (
+    prune_orphan_custom_aois,
+    upsert_custom_aoi,
+)
 from tests.conftest import async_session_maker, seed_reference_aoi
 
 AUTH = {"Authorization": "Bearer abc123"}
@@ -245,6 +248,68 @@ async def test_mirror_is_scoped_to_the_created_area(
     assert second_links[0]["user_id"] == "test-user-ds"
     assert first_aoi["created_by"] == "test-user-wri"
     assert second_aoi["created_by"] == "test-user-ds"
+
+
+# ---------------------------------------------------------------------------
+# properties: projected into aois.properties
+# ---------------------------------------------------------------------------
+
+
+async def _set_properties(area_id, properties):
+    """Set ``custom_areas.properties`` directly and re-run the mirror.
+
+    The create API does not accept properties; the upload endpoint sets them.
+    This drives the same upsert SQL that endpoint runs.
+    """
+    async with async_session_maker() as session:
+        await session.execute(
+            text(
+                "UPDATE custom_areas SET properties = CAST(:props AS jsonb) "
+                "WHERE id::text = :id"
+            ),
+            {"props": properties, "id": area_id},
+        )
+        await upsert_custom_aoi(session, area_id=area_id)
+        await session.commit()
+
+
+async def _fetch_properties(area_id):
+    async with async_session_maker() as session:
+        return await session.scalar(
+            text(
+                "SELECT properties FROM aois "
+                "WHERE source = 'custom' AND source_id = :src_id"
+            ),
+            {"src_id": area_id},
+        )
+
+
+@pytest.mark.asyncio
+async def test_properties_mirrored_on_update(auth_override, client):
+    """The DO UPDATE branch projects properties over the existing row."""
+    auth_override("test-user-wri")
+    area_id = await _create_area(client, "With Properties")
+    assert await _fetch_properties(area_id) is None
+
+    await _set_properties(area_id, '{"region": "Kivu", "code": 7}')
+
+    assert await _fetch_properties(area_id) == {"region": "Kivu", "code": 7}
+
+
+@pytest.mark.asyncio
+async def test_null_properties_stays_null(auth_override, client):
+    """A drawn area has no properties, and the mirror must keep the null."""
+    auth_override("test-user-wri")
+    area_id = await _create_area(client, "Drawn")
+
+    res = await client.patch(
+        f"/api/custom_areas/{area_id}",
+        json={"name": "Still Drawn"},
+        headers=AUTH,
+    )
+    assert res.status_code == 200, res.text
+
+    assert await _fetch_properties(area_id) is None
 
 
 # ---------------------------------------------------------------------------

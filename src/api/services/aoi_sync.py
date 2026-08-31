@@ -39,6 +39,7 @@ def _upsert_sql(scoped: bool) -> str:
                 ca.id,
                 ca.user_id,
                 ca.name,
+                ca.properties,
                 ca.created_at,
                 ca.updated_at,
                 {CUSTOM_AREA_GEOM_SQL} AS geom
@@ -48,7 +49,7 @@ def _upsert_sql(scoped: bool) -> str:
         ins AS (
             INSERT INTO aois (
                 source, source_id, name, subtype, geometry,
-                bbox, area_km2, created_by, created_at, updated_at
+                bbox, area_km2, properties, created_by, created_at, updated_at
             )
             SELECT
                 'custom',
@@ -58,6 +59,7 @@ def _upsert_sql(scoped: bool) -> str:
                 geom,
                 {bbox_float_array_sql("geom")},
                 ST_Area(geom::geography) / 1e6,
+                properties,
                 user_id,
                 created_at,
                 updated_at
@@ -69,6 +71,7 @@ def _upsert_sql(scoped: bool) -> str:
                 geometry = EXCLUDED.geometry,
                 bbox = EXCLUDED.bbox,
                 area_km2 = EXCLUDED.area_km2,
+                properties = EXCLUDED.properties,
                 updated_at = now()
             RETURNING id AS aoi_id, created_by AS user_id
         )
