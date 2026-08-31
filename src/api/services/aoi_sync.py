@@ -14,7 +14,7 @@ The first such gap is every delete that happened before the write-through
 existed. A direct database delete, or a failed deploy, opens the same gap.
 """
 
-from typing import Optional
+from typing import Optional, Sequence
 from uuid import UUID
 
 import click
@@ -31,8 +31,8 @@ logger = get_logger(__name__)
 
 
 def _upsert_sql(scoped: bool) -> str:
-    """Build the custom-area upsert. *scoped* limits it to one ``ca.id``."""
-    where_area = "WHERE ca.id = :area_id" if scoped else ""
+    """Build the custom-area upsert. *scoped* limits it to given ``ca.id``s."""
+    where_area = "WHERE ca.id = ANY(:area_ids)" if scoped else ""
     return f"""
         WITH collected AS (
             SELECT
@@ -92,15 +92,14 @@ _SKIPPED_SQL = f"""
            OR ST_IsEmpty({CUSTOM_AREA_GEOM_SQL}))
 """
 
-# Check if the upsert wrote a row for this area. A `rowcount` of 0 does not show
-# that the area was skipped, because the owner link uses ON CONFLICT DO NOTHING
+# Count how many of the areas the upsert wrote. A `rowcount` does not show
+# which areas were skipped, because the owner link uses ON CONFLICT DO NOTHING
 # and a repeated patch correctly inserts no link. This query reads the unique
 # index instead.
 _MIRRORED_SQL = """
-    SELECT EXISTS (
-        SELECT 1 FROM aois
-        WHERE source = 'custom' AND source_id = :src_id AND NOT is_deprecated
-    )
+    SELECT count(*) FROM aois
+    WHERE source = 'custom' AND source_id = ANY(:src_ids)
+      AND NOT is_deprecated
 """
 
 
@@ -108,32 +107,45 @@ async def upsert_custom_aoi(
     session: AsyncSession,
     *,
     area_id: Optional[UUID] = None,
+    area_ids: Optional[Sequence[UUID]] = None,
 ) -> int:
     """Project ``custom_areas`` into ``aois``, with one ``owner`` link for each.
 
-    This function is idempotent. With *area_id* it projects only that area, which
-    is the CRUD write-through. Without *area_id* it projects every custom area,
-    which is the backfill. It returns the number of owner links upserted.
+    This function is idempotent. With *area_id* it projects only that area,
+    which is the CRUD write-through. *area_ids* projects a set of areas in one
+    statement, which is the file upload. Without either it projects every
+    custom area, which is the backfill. It returns the number of owner links
+    upserted.
 
     A geometry with no areal component is skipped, and not stored empty. The
     ``custom_areas`` row still exists and the CRUD call still succeeds, but the
     area is not searchable. The scoped path logs a warning. The backfill prints a
     count to the CLI.
     """
-    scoped = area_id is not None
-    params = {"area_id": area_id} if scoped else {}
+    if area_id is not None and area_ids is not None:
+        raise ValueError("pass area_id or area_ids, not both")
+    ids = (
+        [area_id]
+        if area_id is not None
+        else (list(area_ids) if area_ids is not None else None)
+    )
+    if ids is not None and not ids:
+        raise ValueError("area_ids must not be empty")
+    scoped = ids is not None
+    params = {"area_ids": ids} if scoped else {}
 
     result = await session.execute(text(_upsert_sql(scoped)), params)
 
-    if scoped:
+    if ids is not None:
         mirrored = await session.scalar(
-            text(_MIRRORED_SQL), {"src_id": str(area_id)}
+            text(_MIRRORED_SQL), {"src_ids": [str(i) for i in ids]}
         )
-        if not mirrored:
+        if mirrored < len(ids):
             logger.warning(
-                "Custom area not mirrored into aois: geometries not "
+                "Custom area(s) not mirrored into aois: geometries not "
                 "coercible to a non-empty MultiPolygon.",
-                custom_area_id=str(area_id),
+                skipped=len(ids) - mirrored,
+                custom_area_ids=[str(i) for i in ids],
             )
     else:
         skipped = await session.scalar(text(_SKIPPED_SQL))

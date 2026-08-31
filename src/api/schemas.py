@@ -363,6 +363,18 @@ class CustomAreaCreate(BaseModel):
     geometries: List[Polygon]
 
 
+class UploadedAreaSummary(BaseModel):
+    id: UUID
+    name: str
+
+
+class CustomAreaUploadResponse(BaseModel):
+    """The result of a file upload. Refetch the list endpoint for full rows."""
+
+    upload_batch_id: UUID
+    areas: List[UploadedAreaSummary]
+
+
 class ViewportContext(BaseModel):
     """The map's current extent, as reported by the frontend."""
 
