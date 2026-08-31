@@ -128,24 +128,29 @@ async def upload_custom_areas(
 ):
     """Create custom areas from an uploaded file, one per feature.
 
-    Accepts, as the multipart field ``file``:
+    Accepts, as the multipart field ``file``, one of (any other extension
+    is a 415):
 
-    - A ``.csv`` file with required columns (case-insensitive) ``name`` and
-      ``geom`` holding WKT ``POLYGON`` or ``MULTIPOLYGON`` in WGS84 lon/lat
-      degrees.
+    - A ``.csv`` file (UTF-8) with required columns (case-insensitive)
+      ``name`` and ``geom`` holding WKT ``POLYGON`` or ``MULTIPOLYGON`` in
+      WGS84 lon/lat degrees.
     - A zipped shapefile (``.zip``) with a required ``name`` attribute
       (case-insensitive). The ``.prj`` must be included; geometries are
       reprojected to WGS84 and must be ``Polygon`` or ``MultiPolygon``.
 
     Every other column or attribute is stored in the area's ``properties``.
-    Limits: 10 MB (413) and 500 features (422). All-or-nothing: any invalid
-    row fails the whole upload with a 422 whose ``detail.errors`` lists each
-    problem by row number.
+    Limits: 10 MB (413) and 500 features (422). Validation is all-or-nothing:
+    any invalid row fails the whole upload with a 422 whose ``detail.errors``
+    lists every problem by row number (``"row 3: geom is empty"``), and
+    nothing is created.
 
-    The created areas share one ``upload_batch_id``. Each is a regular custom
-    area: it appears in ``GET /api/custom_areas``, is mirrored into ``aois``,
-    and is searchable by its owner through ``GET /api/aois``. The response is
-    deliberately light; refetch the paginated list for the full rows.
+    The created areas share one ``upload_batch_id`` (null on drawn areas).
+    Each is a regular custom area: it appears in ``GET /api/custom_areas``,
+    is mirrored into ``aois``, and is searchable by its owner through
+    ``GET /api/aois``; rename and delete use the standard custom-area
+    endpoints. The response is deliberately light; refetch the paginated
+    list for the full rows. The full guide, including frontend integration,
+    is ``docs/area-uploads/``.
     """
     filename = (file.filename or "").lower()
     if filename.endswith(".csv"):
