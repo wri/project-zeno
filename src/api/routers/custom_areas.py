@@ -14,6 +14,7 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
+    Request,
     Response,
     UploadFile,
 )
@@ -38,6 +39,7 @@ from src.api.services.area_upload import (
     MAX_UPLOAD_BYTES,
     UploadValidationError,
     parse_csv,
+    parse_shapefile_zip,
 )
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
@@ -119,47 +121,67 @@ async def create_custom_area(
     "/api/custom_areas/upload", response_model=CustomAreaUploadResponse
 )
 async def upload_custom_areas(
+    request: Request,
     file: UploadFile,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
     """Create custom areas from an uploaded file, one per feature.
 
-    Accepts a ``.csv`` file as the multipart field ``file``:
+    Accepts, as the multipart field ``file``:
 
-    - Required columns (case-insensitive): ``name``, and ``geom`` holding WKT
-      ``POLYGON`` or ``MULTIPOLYGON`` in WGS84 lon/lat degrees.
-    - Every other column is stored in the area's ``properties``.
-    - Limits: 10 MB (413) and 500 features (422).
-    - All-or-nothing: any invalid row fails the whole upload with a 422 whose
-      ``detail.errors`` lists each problem by data-row number.
+    - A ``.csv`` file with required columns (case-insensitive) ``name`` and
+      ``geom`` holding WKT ``POLYGON`` or ``MULTIPOLYGON`` in WGS84 lon/lat
+      degrees.
+    - A zipped shapefile (``.zip``) with a required ``name`` attribute
+      (case-insensitive). The ``.prj`` must be included; geometries are
+      reprojected to WGS84 and must be ``Polygon`` or ``MultiPolygon``.
+
+    Every other column or attribute is stored in the area's ``properties``.
+    Limits: 10 MB (413) and 500 features (422). All-or-nothing: any invalid
+    row fails the whole upload with a 422 whose ``detail.errors`` lists each
+    problem by row number.
 
     The created areas share one ``upload_batch_id``. Each is a regular custom
     area: it appears in ``GET /api/custom_areas``, is mirrored into ``aois``,
     and is searchable by its owner through ``GET /api/aois``. The response is
     deliberately light; refetch the paginated list for the full rows.
     """
-    filename = file.filename or ""
-    if not filename.lower().endswith(".csv"):
+    filename = (file.filename or "").lower()
+    if filename.endswith(".csv"):
+        parser = parse_csv
+    elif filename.endswith(".zip"):
+        parser = parse_shapefile_zip
+    else:
         raise HTTPException(
             status_code=415,
-            detail="unsupported file type; upload a .csv file",
+            detail=(
+                "unsupported file type; upload a .csv file or a zipped "
+                "shapefile (.zip)"
+            ),
         )
+
+    too_large = HTTPException(
+        status_code=413,
+        detail=(
+            "file too large; the limit is "
+            f"{MAX_UPLOAD_BYTES // (1024 * 1024)} MB"
+        ),
+    )
+    # Fail fast on the declared size. The header counts multipart overhead,
+    # so allow slack; the chunked read below is the precise cap.
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_UPLOAD_BYTES + 4096:
+        raise too_large
 
     data = bytearray()
     while chunk := await file.read(1024 * 1024):
         data.extend(chunk)
         if len(data) > MAX_UPLOAD_BYTES:
-            raise HTTPException(
-                status_code=413,
-                detail=(
-                    "file too large; the limit is "
-                    f"{MAX_UPLOAD_BYTES // (1024 * 1024)} MB"
-                ),
-            )
+            raise too_large
 
     try:
-        features = await run_in_threadpool(parse_csv, bytes(data))
+        features = await run_in_threadpool(parser, bytes(data))
     except UploadValidationError as exc:
         raise HTTPException(status_code=422, detail={"errors": exc.errors})
 
