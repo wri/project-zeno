@@ -22,7 +22,6 @@ import pytest
 
 from src.api.data_models import InsightOrm
 from tests.evals.fixture_data import (
-    DIST_ALERT_STATE,
     GHG_FLUX_STATE,
     GRASSLANDS_STATE,
     LAND_COVER_STATE,
@@ -150,11 +149,6 @@ def tcl_state():
 @pytest.fixture
 def tcl_driver_state():
     return TCL_DRIVER_STATE
-
-
-@pytest.fixture
-def dist_alert_state():
-    return DIST_ALERT_STATE
 
 
 @pytest.fixture

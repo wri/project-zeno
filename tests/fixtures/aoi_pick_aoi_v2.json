@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "query_aoi_database": {
     "Puri": {
       "columns": [
@@ -7,6 +7,7 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
@@ -15,6 +16,12 @@
           "name": "Puri, Puri, Uíge, Angola",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            15.494887352000092,
+            -7.884637927999904,
+            15.824311256000158,
+            -7.430016039999941
+          ],
           "similarity_score": 0.29411765933036804
         },
         {
@@ -22,34 +29,51 @@
           "name": "Puri, Uíge, Angola",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            15.494887352000092,
+            -7.884637927999904,
+            15.824311256000158,
+            -7.430016039999941
+          ],
           "similarity_score": 0.29411765933036804
-        },
-        {
-          "src_id": "IND.26.26.2_1",
-          "name": "Puri, Puri, Odisha, India",
-          "subtype": "municipality",
-          "source": "gadm",
-          "similarity_score": 0.2777777910232544
         },
         {
           "src_id": "IND.26.26_1",
           "name": "Puri, Odisha, India",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            85.0865325920002,
+            19.461717605000104,
+            86.37265800000006,
+            20.18835748400005
+          ],
           "similarity_score": 0.2777777910232544
         },
         {
-          "src_id": "EST.10.9.19_1",
-          "name": "Puuri, Põlva, Põlva, Estonia",
+          "src_id": "IND.26.26.2_1",
+          "name": "Puri, Puri, Odisha, India",
           "subtype": "municipality",
           "source": "gadm",
-          "similarity_score": 0.20000000298023224
+          "bbox": [
+            85.43327300000004,
+            19.675819000000104,
+            86.37265800000006,
+            20.18835748400005
+          ],
+          "similarity_score": 0.2777777910232544
         },
         {
           "src_id": "45579",
           "name": "Purcari - Etulia, Purcari - Etulia, MDA",
           "subtype": "key-biodiversity-area",
           "source": "kba",
+          "bbox": [
+            28.45467804809075,
+            45.55330414892577,
+            29.94219901517377,
+            46.661568367510704
+          ],
           "similarity_score": 0.20000000298023224
         },
         {
@@ -57,6 +81,25 @@
           "name": "Purisima, Ejido, MEX",
           "subtype": "indigenous-and-community-land",
           "source": "landmark",
+          "bbox": [
+            -103.3406929,
+            25.6365729,
+            -103.2834263,
+            25.6835247
+          ],
+          "similarity_score": 0.20000000298023224
+        },
+        {
+          "src_id": "EST.10.9.19_1",
+          "name": "Puuri, Põlva, Põlva, Estonia",
+          "subtype": "municipality",
+          "source": "gadm",
+          "bbox": [
+            26.997165679999966,
+            58.03962326200008,
+            27.052211762000127,
+            58.06359100500015
+          ],
           "similarity_score": 0.20000000298023224
         }
       ]
@@ -67,6 +110,7 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
@@ -75,13 +119,25 @@
           "name": "Ecuador",
           "subtype": "country",
           "source": "gadm",
+          "bbox": [
+            -92.00854499999997,
+            -5.0158033359999195,
+            -75.18714904699988,
+            1.6818349999999782
+          ],
           "similarity_score": 1.0
         },
         {
-          "src_id": "ECU.16_1",
-          "name": "Napo, Ecuador",
+          "src_id": "ECU.12_1",
+          "name": "Loja, Ecuador",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            -80.48637390199997,
+            -4.747295378999922,
+            -79.09513091899998,
+            -3.3294184209998434
+          ],
           "similarity_score": 0.6153846383094788
         },
         {
@@ -89,13 +145,12 @@
           "name": "Loja, Loja, Ecuador",
           "subtype": "district-county",
           "source": "gadm",
-          "similarity_score": 0.6153846383094788
-        },
-        {
-          "src_id": "ECU.12_1",
-          "name": "Loja, Ecuador",
-          "subtype": "state-province",
-          "source": "gadm",
+          "bbox": [
+            -79.54654693699996,
+            -4.511028765999924,
+            -79.10056304899996,
+            -3.6702799789998153
+          ],
           "similarity_score": 0.6153846383094788
         },
         {
@@ -103,6 +158,25 @@
           "name": "Loja, Loja, Loja, Ecuador",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -79.27101135299995,
+            -4.1328930859999105,
+            -79.13639068499998,
+            -3.850923775999888
+          ],
+          "similarity_score": 0.6153846383094788
+        },
+        {
+          "src_id": "ECU.16_1",
+          "name": "Napo, Ecuador",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -78.43006896999998,
+            -1.2488126749999537,
+            -77.02280425899988,
+            0.03418531800008395
+          ],
           "similarity_score": 0.6153846383094788
         },
         {
@@ -110,27 +184,12 @@
           "name": "Azuay, Ecuador",
           "subtype": "state-province",
           "source": "gadm",
-          "similarity_score": 0.5714285969734192
-        },
-        {
-          "src_id": "ECU.3.3_1",
-          "name": "Cañar, Cañar, Ecuador",
-          "subtype": "district-county",
-          "source": "gadm",
-          "similarity_score": 0.5714285969734192
-        },
-        {
-          "src_id": "ECU.7_1",
-          "name": "El Oro, Ecuador",
-          "subtype": "state-province",
-          "source": "gadm",
-          "similarity_score": 0.5714285969734192
-        },
-        {
-          "src_id": "ECU.3_1",
-          "name": "Cañar, Ecuador",
-          "subtype": "state-province",
-          "source": "gadm",
+          "bbox": [
+            -79.76377105599994,
+            -3.627097129999811,
+            -78.42213439999983,
+            -2.516904949999912
+          ],
           "similarity_score": 0.5714285969734192
         },
         {
@@ -138,6 +197,51 @@
           "name": "Cañar, Cañar, Cañar, Ecuador",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -79.03071594299996,
+            -2.592665434999958,
+            -78.92079162499994,
+            -2.501330136999968
+          ],
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "ECU.3.3_1",
+          "name": "Cañar, Cañar, Ecuador",
+          "subtype": "district-county",
+          "source": "gadm",
+          "bbox": [
+            -79.39330291699991,
+            -2.7450323099999423,
+            -78.74456024199998,
+            -2.2118561259999296
+          ],
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "ECU.3_1",
+          "name": "Cañar, Ecuador",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -79.52430719699993,
+            -2.8412771219999513,
+            -78.56903839199998,
+            -2.2118561259999296
+          ],
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "ECU.7_1",
+          "name": "El Oro, Ecuador",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -80.44193299999995,
+            -3.89000079199991,
+            -79.36611938499988,
+            -3.0471873279998363
+          ],
           "similarity_score": 0.5714285969734192
         }
       ]
@@ -148,6 +252,7 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
@@ -156,6 +261,12 @@
           "name": "Bolivia",
           "subtype": "country",
           "source": "gadm",
+          "bbox": [
+            -69.64524603599995,
+            -22.906568378999964,
+            -57.454433527999925,
+            -9.67092291299997
+          ],
           "similarity_score": 1.0
         },
         {
@@ -163,20 +274,38 @@
           "name": "Beni, Bolivia",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            -67.56218177099993,
+            -16.49165113299989,
+            -61.52793017399989,
+            -10.381217904999971
+          ],
           "similarity_score": 0.6666666865348816
-        },
-        {
-          "src_id": "BOL.6_1",
-          "name": "Pando, Bolivia",
-          "subtype": "state-province",
-          "source": "gadm",
-          "similarity_score": 0.5714285969734192
         },
         {
           "src_id": "BOL.5_1",
           "name": "Oruro, Bolivia",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            -69.14234131099994,
+            -19.886709886999938,
+            -66.08610411799998,
+            -17.323932218999914
+          ],
+          "similarity_score": 0.5714285969734192
+        },
+        {
+          "src_id": "BOL.6_1",
+          "name": "Pando, Bolivia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -69.57474763899995,
+            -12.498439764999887,
+            -65.28753273899997,
+            -9.67092291299997
+          ],
           "similarity_score": 0.5714285969734192
         },
         {
@@ -184,13 +313,12 @@
           "name": "La Paz, Bolivia",
           "subtype": "state-province",
           "source": "gadm",
-          "similarity_score": 0.5333333611488342
-        },
-        {
-          "src_id": "BOL.9_1",
-          "name": "Tarija, Bolivia",
-          "subtype": "state-province",
-          "source": "gadm",
+          "bbox": [
+            -69.64524603599995,
+            -18.046855753999978,
+            -66.73211343199995,
+            -11.849681119999957
+          ],
           "similarity_score": 0.5333333611488342
         },
         {
@@ -198,6 +326,25 @@
           "name": "Potosí, Bolivia",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            -68.77387327799994,
+            -22.906568378999964,
+            -64.71438740699995,
+            -17.807111058999965
+          ],
+          "similarity_score": 0.5333333611488342
+        },
+        {
+          "src_id": "BOL.9_1",
+          "name": "Tarija, Bolivia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -65.4199123699999,
+            -22.882762321999962,
+            -62.26066515899993,
+            -20.8858130779999
+          ],
           "similarity_score": 0.5333333611488342
         },
         {
@@ -205,13 +352,25 @@
           "name": "Moxos, Beni, Bolivia",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -66.80885800599998,
+            -16.49165113299989,
+            -64.92687096599997,
+            -14.153973479999877
+          ],
           "similarity_score": 0.4444444477558136
         },
         {
-          "src_id": "BOL.8_1",
-          "name": "Santa Cruz, Bolivia",
+          "src_id": "BOL.1_1",
+          "name": "Chuquisaca, Bolivia",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            -65.69556371099998,
+            -21.51732302099998,
+            -62.17937129399991,
+            -18.34700878299992
+          ],
           "similarity_score": 0.42105263471603394
         },
         {
@@ -219,6 +378,12 @@
           "name": "Cochabamba, Bolivia",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            -67.00574190399993,
+            -18.681805690999965,
+            -64.23410582499997,
+            -15.779917435999948
+          ],
           "similarity_score": 0.42105263471603394
         }
       ]
@@ -229,6 +394,7 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
@@ -237,6 +403,12 @@
           "name": "Paraná, Brazil",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            -54.616024016999916,
+            -26.71712200599984,
+            -48.02353743499998,
+            -22.516295163999928
+          ],
           "similarity_score": 0.7333333492279053
         },
         {
@@ -244,6 +416,12 @@
           "name": "Pará, Brazil",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            -58.89832839999997,
+            -9.841161148999902,
+            -46.06142481799992,
+            2.632479906000185
+          ],
           "similarity_score": 0.7142857313156128
         },
         {
@@ -251,6 +429,12 @@
           "name": "Paraíba, Brazil",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            -38.76560342799996,
+            -8.30295505099997,
+            -34.793086459999984,
+            -6.025911905999976
+          ],
           "similarity_score": 0.6875
         },
         {
@@ -258,6 +442,12 @@
           "name": "Arara, Paraíba, Brazil",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -35.8155026469999,
+            -6.911213815999872,
+            -35.64584816499985,
+            -6.81324341699991
+          ],
           "similarity_score": 0.6315789222717285
         },
         {
@@ -265,6 +455,12 @@
           "name": "Brazil",
           "subtype": "country",
           "source": "gadm",
+          "bbox": [
+            -73.98970794799999,
+            -33.74631599999998,
+            -28.847639913999956,
+            5.264877796000064
+          ],
           "similarity_score": 0.5833333134651184
         },
         {
@@ -272,6 +468,12 @@
           "name": "Parari, Paraíba, Brazil",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -36.777188646999946,
+            -7.3928564819999565,
+            -36.5558210879999,
+            -7.2622533219999355
+          ],
           "similarity_score": 0.5789473652839661
         },
         {
@@ -279,20 +481,38 @@
           "name": "Piên, Paraná, Brazil",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -49.55171521499983,
+            -26.186669281999855,
+            -49.34732807599994,
+            -25.94802445499994
+          ],
           "similarity_score": 0.5789473652839661
         },
         {
-          "src_id": "BRA.14.144_2",
-          "name": "Xinguara, Pará, Brazil",
+          "src_id": "BRA.16.48_2",
+          "name": "Cafeara, Paraná, Brazil",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -51.80021364599992,
+            -22.890913146999935,
+            -51.63157223099995,
+            -22.700997049999955
+          ],
           "similarity_score": 0.5714285969734192
         },
         {
-          "src_id": "BRA.16.183_2",
-          "name": "Jussara, Paraná, Brazil",
+          "src_id": "BRA.16.130_2",
+          "name": "Guaíra, Paraná, Brazil",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -54.33061981199995,
+            -24.387183309999955,
+            -54.098458690999905,
+            -23.99899425999996
+          ],
           "similarity_score": 0.5714285969734192
         },
         {
@@ -300,6 +520,12 @@
           "name": "Ibiara, Paraíba, Brazil",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -38.491387938999935,
+            -7.594920936999927,
+            -38.30980770799994,
+            -7.4193714599999225
+          ],
           "similarity_score": 0.5714285969734192
         }
       ]
@@ -310,6 +536,7 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
@@ -318,13 +545,38 @@
           "name": "Indonesia",
           "subtype": "country",
           "source": "gadm",
+          "bbox": [
+            95.00970500000011,
+            -11.007614999999873,
+            141.01939400000003,
+            6.076941000000147
+          ],
           "similarity_score": 1.0
+        },
+        {
+          "src_id": "IDN.1_1",
+          "name": "Aceh, Indonesia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            95.00970500000011,
+            2.0081070000000523,
+            98.2860488890002,
+            6.076941000000147
+          ],
+          "similarity_score": 0.6666666865348816
         },
         {
           "src_id": "IDN.2_1",
           "name": "Bali, Indonesia",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            114.43173980700021,
+            -8.849262236999891,
+            115.71203613300008,
+            -8.061794281999937
+          ],
           "similarity_score": 0.6666666865348816
         },
         {
@@ -332,27 +584,25 @@
           "name": "Riau, Indonesia",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            100.0248489380001,
+            -1.1222728479998523,
+            103.81461334300013,
+            2.919128000000171
+          ],
           "similarity_score": 0.6666666865348816
-        },
-        {
-          "src_id": "IDN.1_1",
-          "name": "Aceh, Indonesia",
-          "subtype": "state-province",
-          "source": "gadm",
-          "similarity_score": 0.6666666865348816
-        },
-        {
-          "src_id": "IDN.23_1",
-          "name": "Papua, Indonesia",
-          "subtype": "state-province",
-          "source": "gadm",
-          "similarity_score": 0.625
         },
         {
           "src_id": "IDN.8_1",
           "name": "Jambi, Indonesia",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            101.12860107400019,
+            -2.77119874899995,
+            104.49739825800009,
+            -0.7332946649999599
+          ],
           "similarity_score": 0.625
         },
         {
@@ -360,20 +610,51 @@
           "name": "Jambi, Jambi, Indonesia",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            103.52526092500005,
+            -1.6945928339998773,
+            103.6809692380001,
+            -1.5462625009998874
+          ],
           "similarity_score": 0.625
         },
         {
-          "src_id": "IDN.19_1",
-          "name": "Maluku, Indonesia",
+          "src_id": "IDN.23_1",
+          "name": "Papua, Indonesia",
           "subtype": "state-province",
           "source": "gadm",
-          "similarity_score": 0.5882353186607361
+          "bbox": [
+            134.2956700000001,
+            -9.11892414099998,
+            141.01939400000003,
+            0.9377970000001596
+          ],
+          "similarity_score": 0.625
         },
         {
           "src_id": "IDN.4_1",
           "name": "Banten, Indonesia",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            105.09984600000013,
+            -7.016778000999977,
+            106.77993774400011,
+            -5.807418345999906
+          ],
+          "similarity_score": 0.5882353186607361
+        },
+        {
+          "src_id": "IDN.19_1",
+          "name": "Maluku, Indonesia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            125.71851300000003,
+            -8.341065405999927,
+            134.90855400000032,
+            -1.3786609999999655
+          ],
           "similarity_score": 0.5882353186607361
         },
         {
@@ -381,6 +662,12 @@
           "name": "Lampung, Indonesia",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            103.57125101100013,
+            -6.1685579989999155,
+            106.21143300100016,
+            -3.7238225929999658
+          ],
           "similarity_score": 0.5555555820465088
         }
       ]
@@ -391,6 +678,7 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
@@ -399,6 +687,12 @@
           "name": "Castelo Branco, Castelo Branco, Castelo Branco, Portugal",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -7.586486999999977,
+            39.71368400000006,
+            -7.367101315999946,
+            39.90934400000003
+          ],
           "similarity_score": 1.0
         },
         {
@@ -406,6 +700,12 @@
           "name": "Castelo Branco, Castelo Branco, Portugal",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -7.85075712299988,
+            39.64084243800011,
+            -7.179159164999874,
+            40.08364486800002
+          ],
           "similarity_score": 1.0
         },
         {
@@ -413,41 +713,64 @@
           "name": "Castelo Branco, Portugal",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            -8.293125151999902,
+            39.53736114499998,
+            -6.863789081999926,
+            40.416126250000104
+          ],
           "similarity_score": 1.0
-        },
-        {
-          "src_id": "PRT.6.2.15_1",
-          "name": "Mata, Castelo Branco, Castelo Branco, Portugal",
-          "subtype": "municipality",
-          "source": "gadm",
-          "similarity_score": 0.8275862336158752
         },
         {
           "src_id": "PRT.6.2.4_1",
           "name": "Cafede, Castelo Branco, Castelo Branco, Portugal",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -7.54806709199994,
+            39.86493700000017,
+            -7.493997097999966,
+            39.92667770500009
+          ],
           "similarity_score": 0.8275862336158752
         },
         {
-          "src_id": "PRT.6.2.13_1",
-          "name": "Lousa, Castelo Branco, Castelo Branco, Portugal",
+          "src_id": "PRT.6.2.15_1",
+          "name": "Mata, Castelo Branco, Castelo Branco, Portugal",
           "subtype": "municipality",
           "source": "gadm",
-          "similarity_score": 0.800000011920929
+          "bbox": [
+            -7.374857902999963,
+            39.857025146000126,
+            -7.31149005899988,
+            39.920642852000185
+          ],
+          "similarity_score": 0.8275862336158752
         },
         {
           "src_id": "PRT.6.9.3_1",
           "name": "Castelo, Sertã, Castelo Branco, Portugal",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -8.228469847999975,
+            39.82851028500005,
+            -8.123382567999954,
+            39.88149643000003
+          ],
           "similarity_score": 0.800000011920929
         },
         {
-          "src_id": "PRT.6.9.12_1",
-          "name": "Sertã, Sertã, Castelo Branco, Portugal",
+          "src_id": "PRT.6.2.13_1",
+          "name": "Lousa, Castelo Branco, Castelo Branco, Portugal",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -7.4012050629999635,
+            39.90176010200014,
+            -7.321333884999888,
+            39.982799530000136
+          ],
           "similarity_score": 0.800000011920929
         },
         {
@@ -455,13 +778,38 @@
           "name": "Sertã, Castelo Branco, Portugal",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -8.293125151999902,
+            39.726978302000134,
+            -7.915859221999938,
+            39.948692322
+          ],
           "similarity_score": 0.800000011920929
         },
         {
-          "src_id": "PRT.6.4_1",
-          "name": "Fundão, Castelo Branco, Portugal",
+          "src_id": "PRT.6.9.12_1",
+          "name": "Sertã, Sertã, Castelo Branco, Portugal",
+          "subtype": "municipality",
+          "source": "gadm",
+          "bbox": [
+            -8.159279822999963,
+            39.773006439000085,
+            -8.030662535999966,
+            39.875793458000146
+          ],
+          "similarity_score": 0.800000011920929
+        },
+        {
+          "src_id": "PRT.6.3_1",
+          "name": "Covilhã, Castelo Branco, Portugal",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -7.809043883999891,
+            40.13003540100016,
+            -7.343773840999859,
+            40.40182876500012
+          ],
           "similarity_score": 0.774193525314331
         }
       ]
@@ -472,6 +820,7 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
@@ -480,6 +829,12 @@
           "name": "Lisboa, Lisboa, Portugal",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -9.229840278999859,
+            38.691402435999976,
+            -9.09057521799997,
+            38.79585647600004
+          ],
           "similarity_score": 0.2777777910232544
         },
         {
@@ -487,6 +842,12 @@
           "name": "Lisboa, Portugal",
           "subtype": "state-province",
           "source": "gadm",
+          "bbox": [
+            -9.500531195999883,
+            38.659027001000084,
+            -8.781865118999974,
+            39.31772995
+          ],
           "similarity_score": 0.2777777910232544
         },
         {
@@ -494,6 +855,12 @@
           "name": "Lisbon, Forest Preserve, USA",
           "subtype": "protected-area",
           "source": "wdpa",
+          "bbox": [
+            -75.3073187,
+            44.6927025,
+            -75.2072437,
+            44.7074265
+          ],
           "similarity_score": 0.26923078298568726
         },
         {
@@ -501,6 +868,12 @@
           "name": "Sé, Lisboa, Lisboa, Portugal",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -9.134499550999976,
+            38.706935884000075,
+            -9.129039764999959,
+            38.71113586500019
+          ],
           "similarity_score": 0.2380952388048172
         },
         {
@@ -508,6 +881,12 @@
           "name": "Lapa, Lisboa, Lisboa, Portugal",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -9.167402267999876,
+            38.70744323800011,
+            -9.152886389999935,
+            38.71635437000003
+          ],
           "similarity_score": 0.22727273404598236
         },
         {
@@ -515,6 +894,12 @@
           "name": "Pena, Lisboa, Lisboa, Portugal",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -9.143591881999953,
+            38.715068816999974,
+            -9.136190414999874,
+            38.72768402100019
+          ],
           "similarity_score": 0.22727273404598236
         },
         {
@@ -522,6 +907,12 @@
           "name": "Ajuda, Lisboa, Lisboa, Portugal",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -9.210609434999924,
+            38.70044708200015,
+            -9.186618804999966,
+            38.724929810000106
+          ],
           "similarity_score": 0.2083333283662796
         },
         {
@@ -529,6 +920,12 @@
           "name": "Anjos, Lisboa, Lisboa, Portugal",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -9.138008117999902,
+            38.71873474199998,
+            -9.130245208999952,
+            38.728591919000166
+          ],
           "similarity_score": 0.2083333283662796
         },
         {
@@ -536,6 +933,12 @@
           "name": "Beato, Lisboa, Lisboa, Portugal",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -9.12589931499997,
+            38.724166871000136,
+            -9.10256290399991,
+            38.74076461900012
+          ],
           "similarity_score": 0.2083333283662796
         },
         {
@@ -543,6 +946,12 @@
           "name": "Graça, Lisboa, Lisboa, Portugal",
           "subtype": "municipality",
           "source": "gadm",
+          "bbox": [
+            -9.134291648999977,
+            38.71428680400004,
+            -9.124745368999982,
+            38.721809388000054
+          ],
           "similarity_score": 0.2083333283662796
         }
       ]
@@ -553,6 +962,7 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
@@ -561,6 +971,12 @@
           "name": "Resex Catuá-Ipixuna, Reserva Extrativista, BRA",
           "subtype": "indigenous-and-community-land",
           "source": "landmark",
+          "bbox": [
+            -64.698049,
+            -4.167886,
+            -63.755372,
+            -3.664045
+          ],
           "similarity_score": 0.41860464215278625
         },
         {
@@ -568,6 +984,12 @@
           "name": "Reserva Extrativista Catuá-Ipixuna, Reserva Extrativista, BRA",
           "subtype": "protected-area",
           "source": "wdpa",
+          "bbox": [
+            -64.697766,
+            -4.167886,
+            -63.755372,
+            -3.664045
+          ],
           "similarity_score": 0.3720930218696594
         },
         {
@@ -575,6 +997,12 @@
           "name": "Ipixuna do Pará, Pará, Brazil",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -49.03035501199997,
+            -3.575187572999937,
+            -47.310956300999976,
+            -2.2997972829999185
+          ],
           "similarity_score": 0.22857142984867096
         },
         {
@@ -582,6 +1010,12 @@
           "name": "Ipixuna, Amazonas, Brazil",
           "subtype": "district-county",
           "source": "gadm",
+          "bbox": [
+            -72.18307509199991,
+            -7.692311964999931,
+            -70.64147611099997,
+            -6.595099449999907
+          ],
           "similarity_score": 0.2222222238779068
         },
         {
@@ -589,6 +1023,12 @@
           "name": "Ipixuna, Terra Indígena, BRA",
           "subtype": "protected-area",
           "source": "wdpa",
+          "bbox": [
+            -62.4903989,
+            -7.2139847,
+            -61.9053309,
+            -6.3883179
+          ],
           "similarity_score": 0.2222222238779068
         },
         {
@@ -596,20 +1036,25 @@
           "name": "Cacouna Indian Reserve No. 22, Indian Reserve, CAN",
           "subtype": "indigenous-and-community-land",
           "source": "landmark",
+          "bbox": [
+            -69.508092,
+            47.9176949,
+            -69.5071495,
+            47.9183197
+          ],
           "similarity_score": 0.2195121943950653
         },
         {
-          "src_id": "BRA.14.78_2",
-          "name": "Nova Ipixuna, Pará, Brazil",
-          "subtype": "district-county",
-          "source": "gadm",
-          "similarity_score": 0.21621622145175934
-        },
-        {
-          "src_id": "BRA1495",
-          "name": "Ipixuna, Tierra Indígena, BRA",
-          "subtype": "indigenous-and-community-land",
-          "source": "landmark",
+          "src_id": "126121",
+          "name": "Canna, Nature Reserve, AUS",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "bbox": [
+            115.828212,
+            -28.9025023,
+            115.8536491,
+            -28.8756831
+          ],
           "similarity_score": 0.21621622145175934
         },
         {
@@ -617,13 +1062,38 @@
           "name": "Canoona 2, Indian Reserve, CAN",
           "subtype": "indigenous-and-community-land",
           "source": "landmark",
+          "bbox": [
+            -128.595384,
+            53.0665996,
+            -128.566648,
+            53.0794883
+          ],
           "similarity_score": 0.21621622145175934
         },
         {
-          "src_id": "126121",
-          "name": "Canna, Nature Reserve, AUS",
-          "subtype": "protected-area",
-          "source": "wdpa",
+          "src_id": "BRA1495",
+          "name": "Ipixuna, Tierra Indígena, BRA",
+          "subtype": "indigenous-and-community-land",
+          "source": "landmark",
+          "bbox": [
+            -62.4899518,
+            -7.2134686,
+            -61.9048897,
+            -6.3874498
+          ],
+          "similarity_score": 0.21621622145175934
+        },
+        {
+          "src_id": "BRA.14.78_2",
+          "name": "Nova Ipixuna, Pará, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "bbox": [
+            -49.426497419999976,
+            -5.338855215999956,
+            -49.00033205799991,
+            -4.6871777069999325
+          ],
           "similarity_score": 0.21621622145175934
         }
       ]
@@ -634,6 +1104,7 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
@@ -642,6 +1113,12 @@
           "name": "Osceola, Research Natural Area, USA",
           "subtype": "protected-area",
           "source": "wdpa",
+          "bbox": [
+            -82.4031843,
+            30.370235,
+            -82.3909407,
+            30.3867681
+          ],
           "similarity_score": 1.0
         },
         {
@@ -649,6 +1126,12 @@
           "name": "Research, Natural Area, USA",
           "subtype": "protected-area",
           "source": "wdpa",
+          "bbox": [
+            -75.3706477,
+            37.9060128,
+            -75.3579828,
+            37.9135668
+          ],
           "similarity_score": 0.7647058963775635
         },
         {
@@ -656,6 +1139,12 @@
           "name": "Ruth, Research Natural Area, USA",
           "subtype": "protected-area",
           "source": "wdpa",
+          "bbox": [
+            -123.3696962,
+            40.328159,
+            -123.3460097,
+            40.3446239
+          ],
           "similarity_score": 0.6842105388641357
         },
         {
@@ -663,6 +1152,12 @@
           "name": "No Name, Research Natural Area, USA",
           "subtype": "protected-area",
           "source": "wdpa",
+          "bbox": [
+            -93.6863449,
+            45.4439469,
+            -93.679834,
+            45.4463806
+          ],
           "similarity_score": 0.6666666865348816
         },
         {
@@ -670,13 +1165,64 @@
           "name": "Tiak, Research Natural Area, USA",
           "subtype": "protected-area",
           "source": "wdpa",
+          "bbox": [
+            -94.5000718,
+            33.848578,
+            -94.4870846,
+            33.8573254
+          ],
           "similarity_score": 0.6666666865348816
+        },
+        {
+          "src_id": "11115203",
+          "name": "Adorni, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "bbox": [
+            -123.6886013,
+            41.2207232,
+            -123.6601413,
+            41.2364048
+          ],
+          "similarity_score": 0.6499999761581421
         },
         {
           "src_id": "11111360",
           "name": "Bagby, Research Natural Area, USA",
           "subtype": "protected-area",
           "source": "wdpa",
+          "bbox": [
+            -122.1890547,
+            44.931647,
+            -122.155268,
+            44.9451079
+          ],
+          "similarity_score": 0.6499999761581421
+        },
+        {
+          "src_id": "366696",
+          "name": "Campo, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "bbox": [
+            -102.5788264,
+            37.0617599,
+            -102.5700856,
+            37.0688308
+          ],
+          "similarity_score": 0.6499999761581421
+        },
+        {
+          "src_id": "11111371",
+          "name": "Coram, Research Natural Area, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "bbox": [
+            -113.9822826,
+            48.3525376,
+            -113.9493698,
+            48.3761096
+          ],
           "similarity_score": 0.6499999761581421
         },
         {
@@ -684,27 +1230,12 @@
           "name": "Elgin Research Natural Area, Research Natural Area, USA",
           "subtype": "protected-area",
           "source": "wdpa",
-          "similarity_score": 0.6499999761581421
-        },
-        {
-          "src_id": "11115258",
-          "name": "Yurok, Research Natural Area, USA",
-          "subtype": "protected-area",
-          "source": "wdpa",
-          "similarity_score": 0.6499999761581421
-        },
-        {
-          "src_id": "369380",
-          "name": "Hagan, Research Natural Area, USA",
-          "subtype": "protected-area",
-          "source": "wdpa",
-          "similarity_score": 0.6499999761581421
-        },
-        {
-          "src_id": "11111384",
-          "name": "Lochsa, Research Natural Area, USA",
-          "subtype": "protected-area",
-          "source": "wdpa",
+          "bbox": [
+            -110.4911767,
+            31.571695,
+            -110.4812045,
+            31.5862187
+          ],
           "similarity_score": 0.6499999761581421
         }
       ]
@@ -715,6 +1246,7 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
@@ -723,7 +1255,130 @@
           "name": "Russia",
           "subtype": "country",
           "source": "gadm",
+          "bbox": [
+            19.642502000000036,
+            41.188865663,
+            -169.652603,
+            81.85624700000005
+          ],
           "similarity_score": 1.0
+        },
+        {
+          "src_id": "RUS.3_1",
+          "name": "Amur, Russia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            119.62329101600017,
+            48.852432252000085,
+            134.9010007510002,
+            57.05606842100019
+          ],
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "RUS.32_1",
+          "name": "Komi, Russia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            45.42439270099999,
+            59.22410202100008,
+            66.26654796200017,
+            68.41088867200017
+          ],
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "RUS.51_1",
+          "name": "Omsk, Russia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            70.42091369700012,
+            53.44480133200011,
+            76.29849243100011,
+            58.57164764400005
+          ],
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "RUS.52.17_1",
+          "name": "Orel, Orel, Russia",
+          "subtype": "district-county",
+          "source": "gadm",
+          "bbox": [
+            35.97142791700003,
+            52.92841339200015,
+            36.17211532600004,
+            53.044254303000116
+          ],
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "RUS.52_1",
+          "name": "Orel, Russia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            34.770889283000145,
+            51.95472335800014,
+            38.09112930200013,
+            53.638332368000135
+          ],
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "RUS.55_1",
+          "name": "Perm', Russia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            51.767921449000085,
+            56.114242555000146,
+            59.50327301000004,
+            61.69829559400017
+          ],
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "RUS.70_1",
+          "name": "Tula, Russia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            35.92605209300012,
+            52.952812195000035,
+            39.00705718900008,
+            54.83135986300016
+          ],
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "RUS.70.25_1",
+          "name": "Tula, Tula, Russia",
+          "subtype": "district-county",
+          "source": "gadm",
+          "bbox": [
+            37.50630188000014,
+            54.08253860600007,
+            37.76669693000008,
+            54.23797607400019
+          ],
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "RUS.71_1",
+          "name": "Tuva, Russia",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            88.78808593700006,
+            49.75671386800013,
+            99.2206192020002,
+            53.753372193000075
+          ],
+          "similarity_score": 0.5833333134651184
         }
       ]
     },
@@ -733,15 +1388,139 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
+        {
+          "src_id": "555674472",
+          "name": "Alabama Land Trust, Preserve, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "bbox": [
+            -88.1114754,
+            34.4628038,
+            -88.1039419,
+            34.4710241
+          ],
+          "similarity_score": 0.375
+        },
+        {
+          "src_id": "555662597",
+          "name": "Alma, Pond, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "bbox": [
+            -78.0070188,
+            42.0142744,
+            -77.9660729,
+            42.0224783
+          ],
+          "similarity_score": 0.3684210479259491
+        },
         {
           "src_id": "USA.1_1",
           "name": "Alabama, United States",
           "subtype": "state-province",
           "source": "gadm",
-          "similarity_score": 0.36
+          "bbox": [
+            -88.47203063899997,
+            30.217247001000032,
+            -84.89348602299987,
+            35.00888061600011
+          ],
+          "similarity_score": 0.36000001430511475
+        },
+        {
+          "src_id": "555681464",
+          "name": "Alabama River, Mitigation Bank, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "bbox": [
+            -87.4118595,
+            31.8227322,
+            -87.3819582,
+            31.8447655
+          ],
+          "similarity_score": 0.3529411852359772
+        },
+        {
+          "src_id": "USA.1.19_1",
+          "name": "Coosa, Alabama, United States",
+          "subtype": "district-county",
+          "source": "gadm",
+          "bbox": [
+            -86.5240478529999,
+            32.753730774000076,
+            -86.00699615399992,
+            33.104850769000166
+          ],
+          "similarity_score": 0.3333333432674408
+        },
+        {
+          "src_id": "55552968",
+          "name": "Alameda, Park, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "bbox": [
+            -79.9344859,
+            40.8738399,
+            -79.9320188,
+            40.8768854
+          ],
+          "similarity_score": 0.3181818127632141
+        },
+        {
+          "src_id": "555653287",
+          "name": "Alma College, College, USA",
+          "subtype": "protected-area",
+          "source": "wdpa",
+          "bbox": [
+            -84.9051052,
+            43.3865318,
+            -84.8851242,
+            43.3937108
+          ],
+          "similarity_score": 0.3181818127632141
+        },
+        {
+          "src_id": "USA.1.41_1",
+          "name": "Lee, Alabama, United States",
+          "subtype": "district-county",
+          "source": "gadm",
+          "bbox": [
+            -85.69693755999998,
+            32.40998077300014,
+            -85.00167846599999,
+            32.746379852000075
+          ],
+          "similarity_score": 0.3103448152542114
+        },
+        {
+          "src_id": "USA.1.4_1",
+          "name": "Bibb, Alabama, United States",
+          "subtype": "district-county",
+          "source": "gadm",
+          "bbox": [
+            -87.42175292899998,
+            32.83152008100001,
+            -86.87609100399993,
+            33.24726867800018
+          ],
+          "similarity_score": 0.30000001192092896
+        },
+        {
+          "src_id": "USA.1.14_1",
+          "name": "Clay, Alabama, United States",
+          "subtype": "district-county",
+          "source": "gadm",
+          "bbox": [
+            -86.17407226599983,
+            33.09046173000007,
+            -85.64092254499997,
+            33.49927139400006
+          ],
+          "similarity_score": 0.30000001192092896
         }
       ]
     },
@@ -751,6 +1530,7 @@
         "name",
         "subtype",
         "source",
+        "bbox",
         "similarity_score"
       ],
       "records": [
@@ -759,7 +1539,130 @@
           "name": "Brazil",
           "subtype": "country",
           "source": "gadm",
+          "bbox": [
+            -73.98970794799999,
+            -33.74631599999998,
+            -28.847639913999956,
+            5.264877796000064
+          ],
           "similarity_score": 1.0
+        },
+        {
+          "src_id": "BRA.1_1",
+          "name": "Acre, Brazil",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -73.98970794799999,
+            -11.145160675999875,
+            -66.58875329799997,
+            -7.114229266999871
+          ],
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "BRA.5_1",
+          "name": "Bahia, Brazil",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -46.57728460699997,
+            -18.348560259999886,
+            -37.341146653999886,
+            -8.532820570999945
+          ],
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "BRA.14_1",
+          "name": "Pará, Brazil",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -58.89832839999997,
+            -9.841161148999902,
+            -46.06142481799992,
+            2.632479906000185
+          ],
+          "similarity_score": 0.5833333134651184
+        },
+        {
+          "src_id": "BRA.3.1_2",
+          "name": "Amapá, Amapá, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "bbox": [
+            -51.66019895799991,
+            1.1669384670000795,
+            -49.87568190799982,
+            2.1853627690000508
+          ],
+          "similarity_score": 0.5384615659713745
+        },
+        {
+          "src_id": "BRA.3_1",
+          "name": "Amapá, Brazil",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -54.87625017999994,
+            -1.2361763739999674,
+            -49.87568190799982,
+            4.474894094000035
+          ],
+          "similarity_score": 0.5384615659713745
+        },
+        {
+          "src_id": "BRA.6_1",
+          "name": "Ceará, Brazil",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -41.42351800899996,
+            -7.858182470999907,
+            -37.25265864399995,
+            -2.7843234649998294
+          ],
+          "similarity_score": 0.5384615659713745
+        },
+        {
+          "src_id": "BRA.9_1",
+          "name": "Goiás, Brazil",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -53.24856240899993,
+            -19.498363708999932,
+            -45.90715532899998,
+            -12.394973308999852
+          ],
+          "similarity_score": 0.5384615659713745
+        },
+        {
+          "src_id": "BRA.9.97_2",
+          "name": "Goiás, Goiás, Brazil",
+          "subtype": "district-county",
+          "source": "gadm",
+          "bbox": [
+            -50.6479021209999,
+            -16.12060198999984,
+            -49.792415304999906,
+            -15.55755426099995
+          ],
+          "similarity_score": 0.5384615659713745
+        },
+        {
+          "src_id": "BRA.18_1",
+          "name": "Piauí, Brazil",
+          "subtype": "state-province",
+          "source": "gadm",
+          "bbox": [
+            -46.02820679099983,
+            -10.928756348999912,
+            -40.37050976199998,
+            -2.7497525549998727
+          ],
+          "similarity_score": 0.5384615659713745
         }
       ]
     }

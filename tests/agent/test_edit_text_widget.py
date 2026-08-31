@@ -73,6 +73,7 @@ async def test_edit_text_widget_single_widget_on_dashboard():
     assert message.response_metadata == {
         "msg_type": "dashboard_updated",
         "dashboard_id": str(dashboard.id),
+        "dashboard_name": dashboard.name,
     }
     assert command.update["dashboard_id"] == str(dashboard.id)
     assert str(widget.id) in message.content

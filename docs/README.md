@@ -58,9 +58,9 @@ ui_context = {
     },
     "dataset_selected": {
         "dataset": {
-            "dataset_id": 14,
+            "dataset_id": 11,
             "source": "GFW",
-            "data_layer": "DIST-ALERT",
+            "data_layer": "Integrated alerts",
             "tile_url": "https://tiles.globalforestwatch.org/...",
             "context_layer": "driver",
             "daterange": {
@@ -88,7 +88,7 @@ ui_context = {
 The frontend includes UI selection components that work in conjunction with the chat interface:
 
 1. **AOI Dropdown**: Pre-defined areas of interest (e.g., "Koraput" district)
-2. **Dataset Dropdown**: Pre-configured datasets (e.g., "Tree Cover Loss", "DIST_ALERT")
+2. **Dataset Dropdown**: Pre-configured datasets (e.g., "Tree Cover Loss", "Integrated Alerts")
 3. **Date Range Picker**: Interactive date selection with start/end date inputs
 
 When users make selections via these UI components, the selections are automatically passed to the chat API via the `ui_context` parameter. This enables a seamless hybrid experience where users can:
@@ -306,17 +306,17 @@ class AgentState(TypedDict):
 ```json
 {
     "dataset": {
-        "dataset_id": 0,
-        "dataset_name": "Ecosystem disturbance alerts",
+        "dataset_id": 11,
+        "dataset_name": "Integrated alerts",
         "context_layer": null,
-        "reason": "This dataset directly matches the query as it provides \"Global All Ecosystem Disturbance Alerts (DIST-ALERT)\" with near-real-time alerts of vegetation disturbance globally, which is exactly what the user is asking about regarding ecosystem disturbance alerts distribution.",
-        "tile_url": "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color"
+        "reason": "This dataset directly matches the query as it provides near-real-time alerts of vegetation and forest disturbance globally, integrating DIST-ALERT, GLAD-L, GLAD-S2 and RADD, which is exactly what the user is asking about regarding ecosystem disturbance alerts distribution.",
+        "tile_url": "https://tiles.globalforestwatch.org/gfw_integrated_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color"
     },
     "message": {
-        "selected_dataset": "DIST-ALERT",
-        "context_layer": "driver",
+        "selected_dataset": "Integrated alerts",
+        "context_layer": null,
         "threshold": null,
-        "reasoning": "The DIST-ALERT dataset is the best match as it specifically provides near-real-time alerts of vegetation disturbance at high resolution (30m), covers the 2024 timeframe (2023-2025), and includes a \"driver\" contextual layer which would help identify the main drivers of disturbances in Koraput for Q1 2024. This dataset covers all vegetation types and is designed for monitoring ecosystem changes in near-real-time."
+        "reasoning": "The Integrated alerts dataset is the best match as it specifically provides near-real-time alerts of vegetation and forest disturbance at high resolution (10m), covers the 2024 timeframe (2023-2025), and combines four alert systems (DIST-ALERT, GLAD-L, GLAD-S2, RADD) to detect disturbance faster than any single system. This dataset covers all vegetation types and is designed for monitoring ecosystem changes in near-real-time."
     }
 }
 ```
@@ -363,7 +363,7 @@ class AgentState(TypedDict):
     },
     "start_date": "2024-01-01",
     "end_date": "2024-03-31",
-    "message": "Successfully pulled data for Koraput from DIST-ALERT dataset for period 2024-01-01 to 2024-03-31"
+    "message": "Successfully pulled data for Koraput from Integrated alerts dataset for period 2024-01-01 to 2024-03-31"
 }
 ```
 

@@ -9,8 +9,13 @@ from src.agent.state import Statistics
 from src.agent.subagents.analyst.tool import generate_insights
 
 # Use session-scoped event loop to match conftest.py fixtures and avoid
-# "Event loop is closed" errors when running with other test modules
-pytestmark = pytest.mark.asyncio(loop_scope="session")
+# "Event loop is closed" errors when running with other test modules.
+# These hit the live Gemini API (see test_generate_insights_tiered.py), so
+# rerun on transient failures the same way that module does.
+pytestmark = [
+    pytest.mark.asyncio(loop_scope="session"),
+    pytest.mark.flaky(reruns=2, reruns_delay=1),
+]
 
 _FETCH_PATCH = "src.agent.subagents.analyst.tool.fetch_statistics_from_url"
 

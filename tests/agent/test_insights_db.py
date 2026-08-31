@@ -9,6 +9,7 @@ replacement + provenance preservation in `update_insight`.
 from datetime import datetime
 from uuid import uuid4
 
+import pytest
 from sqlalchemy import func, select
 
 from src.agent.subagents.analyst.charts.model import Insight, InsightChart
@@ -147,8 +148,10 @@ async def test_load_editable_insight_owner_only(user, user_ds):
         assert await _load_editable_insight(str(ownerless)) is None
         assert await _load_editable_insight("not-a-uuid") is None
 
-    # Without an authenticated user nothing is editable.
-    assert await _load_editable_insight(str(own)) is None
+    # Without an authenticated user, require_current_user_id raises rather
+    # than silently degrading (see its docstring in tools/common.py).
+    with pytest.raises(RuntimeError, match="not bound"):
+        await _load_editable_insight(str(own))
 
 
 async def test_update_insight_replaces_charts_preserves_provenance(user):
