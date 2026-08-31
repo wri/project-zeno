@@ -40,6 +40,10 @@ def _fake_insight(**kwargs):
                 group_field="",
                 series_fields=[],
                 chart_data=[{"year": 2020, "loss_ha": 5}],
+                dataset_id=None,
+                color_map={},
+                series_color=None,
+                divergent_colors=None,
             )
         ],
     )

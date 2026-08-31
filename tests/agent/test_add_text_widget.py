@@ -51,6 +51,7 @@ async def test_add_text_widget_happy_path():
     assert message.response_metadata == {
         "msg_type": "dashboard_updated",
         "dashboard_id": str(dashboard.id),
+        "dashboard_name": dashboard.name,
     }
     assert command.update["dashboard_id"] == str(dashboard.id)
     # The widget id is surfaced so the agent can edit the note later.
