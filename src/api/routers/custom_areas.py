@@ -7,9 +7,17 @@ the CRUD. ``src/api/services/aoi_sync.py`` holds that mirror.
 """
 
 import json
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+)
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,9 +29,16 @@ from src.api.schemas import (
     CustomAreaModel,
     CustomAreaNameRequest,
     CustomAreaNameResponse,
+    CustomAreaUploadResponse,
+    UploadedAreaSummary,
     UserModel,
 )
 from src.api.services.aoi_sync import delete_custom_aoi, upsert_custom_aoi
+from src.api.services.area_upload import (
+    MAX_UPLOAD_BYTES,
+    UploadValidationError,
+    parse_csv,
+)
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 
@@ -97,6 +112,81 @@ async def create_custom_area(
         created_at=custom_area.created_at,
         updated_at=custom_area.updated_at,
         geometries=[json.loads(i) for i in custom_area.geometries],
+    )
+
+
+@router.post(
+    "/api/custom_areas/upload", response_model=CustomAreaUploadResponse
+)
+async def upload_custom_areas(
+    file: UploadFile,
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+):
+    """Create custom areas from an uploaded file, one per feature.
+
+    Accepts a ``.csv`` file as the multipart field ``file``:
+
+    - Required columns (case-insensitive): ``name``, and ``geom`` holding WKT
+      ``POLYGON`` or ``MULTIPOLYGON`` in WGS84 lon/lat degrees.
+    - Every other column is stored in the area's ``properties``.
+    - Limits: 10 MB (413) and 500 features (422).
+    - All-or-nothing: any invalid row fails the whole upload with a 422 whose
+      ``detail.errors`` lists each problem by data-row number.
+
+    The created areas share one ``upload_batch_id``. Each is a regular custom
+    area: it appears in ``GET /api/custom_areas``, is mirrored into ``aois``,
+    and is searchable by its owner through ``GET /api/aois``. The response is
+    deliberately light; refetch the paginated list for the full rows.
+    """
+    filename = file.filename or ""
+    if not filename.lower().endswith(".csv"):
+        raise HTTPException(
+            status_code=415,
+            detail="unsupported file type; upload a .csv file",
+        )
+
+    data = bytearray()
+    while chunk := await file.read(1024 * 1024):
+        data.extend(chunk)
+        if len(data) > MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    "file too large; the limit is "
+                    f"{MAX_UPLOAD_BYTES // (1024 * 1024)} MB"
+                ),
+            )
+
+    try:
+        features = await run_in_threadpool(parse_csv, bytes(data))
+    except UploadValidationError as exc:
+        raise HTTPException(status_code=422, detail={"errors": exc.errors})
+
+    batch_id = uuid4()
+    areas = [
+        CustomAreaOrm(
+            user_id=user.id,
+            name=feature.name,
+            geometries=[feature.geometry],
+            properties=feature.properties,
+            upload_batch_id=batch_id,
+        )
+        for feature in features
+    ]
+    session.add_all(areas)
+    # Flush so that the mirror can read the rows, and their generated ids, in
+    # this same transaction. The rows and their aois projection then commit
+    # together.
+    await session.flush()
+    await upsert_custom_aoi(session, area_ids=[area.id for area in areas])
+    await session.commit()
+
+    return CustomAreaUploadResponse(
+        upload_batch_id=batch_id,
+        areas=[
+            UploadedAreaSummary(id=area.id, name=area.name) for area in areas
+        ],
     )
 
 
