@@ -1,174 +1,103 @@
-"""Tests for the show_imagery agent tool."""
+"""Unit tests for the Sentinel-2 imagery tool."""
 
-from datetime import date
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.agent.tools.show_imagery import show_imagery
-from src.api.services.mosaic import AoiTooLargeError, MosaicResult
+from src.agent.imagery import ImageryProviderResult
+from src.agent.models import ImageryState
+from src.agent.tools.show_imagery import SENTINEL2_PROVIDER, show_imagery
 
 AOI_STATE = {
     "aoi_selection": {
-        "name": "Zurich",
-        "aois": [{"name": "Zurich", "source": "gadm", "src_id": "CHE.26_1"}],
+        "name": "Test area",
+        "aois": [
+            {
+                "name": "Test area",
+                "source": "custom",
+                "src_id": "test-area",
+                "bbox": [-69.5, -1.0, -69.0, -0.5],
+            }
+        ],
     }
 }
 
 
-def _messages(command):
-    return command.update["messages"]
-
-
-def _patch_create(**kwargs):
-    return patch(
-        "src.agent.tools.show_imagery.create_sentinel2_mosaic",
-        new_callable=AsyncMock,
-        **kwargs,
+def _result() -> ImageryProviderResult:
+    return ImageryProviderResult(
+        status="success",
+        message="Showing sentinel-2",
+        imagery=ImageryState(
+            provider="sentinel-2",
+            tile_url="https://example.com/{z}/{x}/{y}.png",
+            mosaic_id="test-mosaic",
+            aoi_names=["Test area"],
+        ),
     )
 
 
+def _message(command):
+    return command.update["messages"][0].content
+
+
+def test_tool_exposes_no_provider_choice():
+    """Planet is opt-in via show_planet_imagery; this tool must not offer it."""
+    schema = show_imagery.args_schema.model_json_schema()
+
+    assert "provider" not in schema["properties"]
+    assert "planet" not in (show_imagery.description or "").lower()
+
+
+def test_target_date_is_optional_and_nullable_in_tool_schema():
+    schema = show_imagery.args_schema.model_json_schema()
+
+    assert "target_date" not in schema["required"]
+    variants = schema["properties"]["target_date"]["anyOf"]
+    assert {variant.get("type") for variant in variants} == {"string", "null"}
+
+
 @pytest.mark.asyncio
-async def test_show_imagery_requires_aoi():
-    command = await show_imagery.coroutine(state={}, tool_call_id="t1")
-    assert "No AOI selected" in _messages(command)[0].content
+@pytest.mark.parametrize(
+    ("state", "target_date", "message"),
+    [
+        ({}, None, "No AOI selected"),
+        (AOI_STATE, "June 2025", "Invalid target_date"),
+    ],
+)
+async def test_show_imagery_rejects_invalid_input(state, target_date, message):
+    command = await show_imagery.coroutine(
+        state=state, target_date=target_date, tool_call_id="t1"
+    )
+
+    assert message in _message(command)
     assert "imagery" not in command.update
 
 
 @pytest.mark.asyncio
-async def test_show_imagery_rejects_invalid_date():
-    command = await show_imagery.coroutine(
-        state=AOI_STATE, target_date="June 2025", tool_call_id="t1"
-    )
-    assert "Invalid target_date" in _messages(command)[0].content
+async def test_show_imagery_returns_the_sentinel_layer():
+    sentinel = AsyncMock(return_value=_result())
 
-
-@pytest.mark.asyncio
-async def test_show_imagery_success():
-    result = MosaicResult(
-        mosaic_id="abc123",
-        item_count=4,
-        date_start=date(2025, 5, 20),
-        date_end=date(2025, 6, 10),
-    )
-
-    with _patch_create(return_value=result) as mock_create:
+    with patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel):
         command = await show_imagery.coroutine(
-            state=AOI_STATE, target_date="2025-06-01", tool_call_id="t1"
+            state=AOI_STATE, target_date="2025-06-15", tool_call_id="t1"
         )
 
-    recipe = mock_create.call_args.args[0]
-    assert recipe.aois == (("gadm", "CHE.26_1"),)
-    assert recipe.target_date == date(2025, 6, 1)
-    assert recipe.user_id is None
-
-    imagery = command.update["imagery"]
-    assert imagery["mosaic_id"] == "abc123"
-    # The tool passes the MosaicResult's external titiler URLs through.
-    assert imagery["tile_url"] == result.tile_url
-    assert imagery["tilejson_url"] == result.tilejson_url
-    assert imagery["target_date"] == "2025-06-01"
-    assert imagery["window_days"] == 7
-    assert imagery["max_cloud_cover"] == 20
-    assert imagery["aoi_names"] == ["Zurich"]
-    assert "4 scenes" in _messages(command)[0].content
+    assert command.update["imagery"]["provider"] == "sentinel-2"
+    assert sentinel.await_count == 1
 
 
 @pytest.mark.asyncio
-async def test_show_imagery_passes_and_clamps_search_parameters():
-    result = MosaicResult(
-        mosaic_id="abc123",
-        item_count=1,
-        date_start=date(2025, 5, 20),
-        date_end=date(2025, 6, 10),
-    )
+async def test_tuning_parameters_reach_the_provider():
+    sentinel = AsyncMock(return_value=_result())
 
-    with _patch_create(return_value=result) as mock_create:
+    with patch.object(SENTINEL2_PROVIDER, "get_imagery", sentinel):
         await show_imagery.coroutine(
             state=AOI_STATE,
-            window_days=60,
-            max_cloud_cover=500,
+            target_date=None,
+            window_days=30,
+            max_cloud_cover=50,
             tool_call_id="t1",
         )
 
-    recipe = mock_create.call_args.args[0]
-    assert recipe.window_days == 60
-    assert recipe.max_cloud_cover == 100  # clamped
-
-    with _patch_create(return_value=result) as mock_create:
-        await show_imagery.coroutine(state=AOI_STATE, tool_call_id="t1")
-
-    recipe = mock_create.call_args.args[0]
-    assert recipe.window_days == 7
-    assert recipe.max_cloud_cover == 20
-
-
-@pytest.mark.asyncio
-async def test_show_imagery_no_scenes_suggests_loosening():
-    from src.api.services.mosaic import NoScenesFoundError
-
-    with _patch_create(side_effect=NoScenesFoundError()):
-        command = await show_imagery.coroutine(
-            state=AOI_STATE, target_date="2025-07-15", tool_call_id="t1"
-        )
-
-    message = _messages(command)[0]
-    assert "±7 days" in message.content
-    assert "20%" in message.content
-    assert "window_days" in message.content
-    assert "max_cloud_cover" in message.content
-    assert message.response_metadata["msg_type"] == "human_feedback"
-
-
-@pytest.mark.asyncio
-async def test_show_imagery_freezes_default_date():
-    """Without target_date the recipe must carry today's resolved date."""
-    result = MosaicResult(
-        mosaic_id="abc123",
-        item_count=1,
-        date_start=date(2025, 5, 20),
-        date_end=date(2025, 6, 10),
-    )
-
-    with _patch_create(return_value=result) as mock_create:
-        await show_imagery.coroutine(state=AOI_STATE, tool_call_id="t1")
-
-    assert mock_create.call_args.args[0].target_date == date.today()
-
-
-@pytest.mark.asyncio
-async def test_show_imagery_relays_aoi_too_large():
-    with _patch_create(side_effect=AoiTooLargeError(123456.0)):
-        command = await show_imagery.coroutine(
-            state=AOI_STATE, tool_call_id="t1"
-        )
-
-    message = _messages(command)[0]
-    assert "too large" in message.content
-    assert message.response_metadata["msg_type"] == "human_feedback"
-    assert "imagery" not in command.update
-
-
-@pytest.mark.asyncio
-async def test_show_imagery_carries_cloud_cover():
-    """Cloud cover stats from MosaicResult are threaded into ImageryState."""
-    result = MosaicResult(
-        mosaic_id="abc123",
-        item_count=4,
-        date_start=date(2025, 5, 20),
-        date_end=date(2025, 6, 10),
-        mean_cloud_cover=7.35,
-        min_cloud_cover=2.1,
-        max_cloud_cover=14.8,
-    )
-
-    with _patch_create(return_value=result):
-        command = await show_imagery.coroutine(
-            state=AOI_STATE, target_date="2025-06-01", tool_call_id="t1"
-        )
-
-    imagery = command.update["imagery"]
-    assert imagery["mean_cloud_cover"] == 7.35
-    assert imagery["min_cloud_cover"] == 2.1
-    assert imagery["max_cloud_cover_observed"] == 14.8
-    assert imagery["max_cloud_cover"] == 20  # from recipe (search threshold)
+    request = sentinel.await_args.args[0]
+    assert (request.window_days, request.max_cloud_cover) == (30, 50)

@@ -61,6 +61,9 @@ from src.agent.tools.pull_data import SPEC as pull_data_spec
 from src.agent.tools.search_insights import SPEC as search_insights_spec
 from src.agent.tools.send_nudge import SPEC as send_nudge_spec
 from src.agent.tools.show_imagery import SPEC as show_imagery_spec
+from src.agent.tools.show_planet_imagery import (
+    SPEC as show_planet_imagery_spec,
+)
 from src.agent.tools.update_insight_display import (
     SPEC as update_insight_display_spec,
 )
@@ -79,6 +82,7 @@ ALL_SPECS = (
     read_skill_spec,
     inspect_view_context_spec,
     show_imagery_spec,
+    show_planet_imagery_spec,
     search_blogs_spec,
     update_insight_display_spec,
     search_insights_spec,
@@ -116,11 +120,18 @@ DEFAULT_SKILLS = (
 # profile omits them (see EXPERIMENTAL_PROFILE below).
 DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 
-# Experimental additions over the default profile: standalone tools not yet
-# owned by any skill's workflow. No opt-in skills remain here — the last two
-# (dashboard, explore) graduated to DEFAULT_SKILLS above.
+# Experimental profile including tools and skills we want internal feedback on
+# before releasing to the public
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = ()
+EXPERIMENTAL_SKILLS = (
+    "analyze",
+    "pull-data",
+    "capabilities",
+    "show-imagery-planet",
+    "wri-insights",
+    "dashboard",
+    "explore",
+)
 EXPERIMENTAL_TOOLS = (
     inspect_view_context_spec,
     update_insight_display_spec,
@@ -363,9 +374,8 @@ default_registry.register(
 default_registry.register(
     AgentConfig(
         EXPERIMENTAL_PROFILE,
-        extends=DEFAULT_PROFILE,
         skills=EXPERIMENTAL_SKILLS,
-        tools=EXPERIMENTAL_TOOLS,
+        tools=CORE_TOOLS + EXPERIMENTAL_TOOLS,
         # Excludes are per-profile (not inherited), so an empty set here
         # reveals the datasets that `default` hides.
         excluded_datasets=frozenset(),

@@ -55,12 +55,16 @@ def _dataset_state():
 
 def _imagery_state():
     return {
+        "provider": "sentinel-2",
         "tile_url": "https://tiles.example.com/mosaic/{z}/{x}/{y}.png?url=x",
         "tilejson_url": "https://tiles.example.com/tilejson.json?url=x",
+        "bounds": [-70.0, -10.0, -60.0, 0.0],
+        "min_zoom": 5,
+        "max_zoom": 15,
         "mosaic_id": "abc123",
         "item_count": 12,
-        "date_start": "2024-05-28",
-        "date_end": "2024-06-04",
+        "start_date": "2024-05-28",
+        "end_date": "2024-06-04",
         "mean_cloud_cover": 8.5,
         "min_cloud_cover": 2.1,
         "max_cloud_cover_observed": 15.3,
@@ -297,3 +301,6 @@ def test_imagery_config_includes_cloud_cover():
     assert config["min_cloud_cover"] == 2.1
     assert config["max_cloud_cover_observed"] == 15.3
     assert config["max_cloud_cover"] == 20
+    assert config["bounds"] == [-70.0, -10.0, -60.0, 0.0]
+    assert config["min_zoom"] == 5
+    assert config["max_zoom"] == 15
