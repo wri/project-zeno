@@ -25,6 +25,7 @@ from src.agent.tools.common import (
     error_command,
     load_editable_dashboard,
     resolve_dashboard_id,
+    resolve_section,
 )
 from src.api.repositories import dashboard_writer
 from src.shared.logging_config import get_logger
@@ -146,6 +147,7 @@ async def add_map_widget(
     layer: str,
     dashboard_id: Optional[str] = None,
     title: Optional[str] = None,
+    section: Optional[str] = None,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
@@ -155,8 +157,10 @@ async def add_map_widget(
     (pick_dataset must have run); `layer="imagery"` snapshots the Sentinel-2
     mosaic from show_imagery. `dashboard_id` defaults to the dashboard in
     state or the one the user is currently viewing; `title` optionally
-    overrides the widget header. The widget renders focused on the
-    dashboard's area. Only dashboards the user owns can be edited.
+    overrides the widget header; `section` places the widget in one of the
+    dashboard's sections (by title or id), otherwise it lands ungrouped at
+    the top level. The widget renders focused on the dashboard's area. Only
+    dashboards the user owns can be edited.
     """
     state = state or {}
 
@@ -193,10 +197,15 @@ async def add_map_widget(
             tool_call_id,
         )
 
+    target_section, message = resolve_section(dashboard, section)
+    if message:
+        return error_command(message, tool_call_id)
+
     widget_id = await dashboard_writer.add_widget(
         str(target_dashboard),
         widget_type="map",
         config=_widget_config(layer, snapshot, title),
+        section_id=str(target_section.id) if target_section else None,
     )
     if widget_id is None:
         return error_command(
@@ -210,7 +219,13 @@ async def add_map_widget(
         dashboard.name,
         (
             f"Added {layer_type.summary(snapshot)} to dashboard "
-            f"'{dashboard.name}' ({dashboard.id})."
+            f"'{dashboard.name}' ({dashboard.id})"
+            + (
+                f" in section '{target_section.title}'"
+                if target_section
+                else ""
+            )
+            + "."
         ),
         tool_call_id,
     )
@@ -220,11 +235,13 @@ SPEC = ToolSpec(
     tool=add_map_widget,
     category=ToolCategory.PRIMITIVE,
     prompt_fragment=(
-        "- add_map_widget(layer, dashboard_id?, title?): add a map widget to "
+        "- add_map_widget(layer, dashboard_id?, title?, section?): add a map "
+        "widget to "
         "a dashboard. layer='dataset' snapshots the currently selected "
         "dataset layer (pick_dataset must have run); layer='imagery' "
         "snapshots the Sentinel-2 mosaic from show_imagery. Dashboard "
-        "defaults to the one in state or on screen. Use when the user asks "
+        "defaults to the one in state or on screen; `section` (a section "
+        "title or id) groups it. Use when the user asks "
         "to add a layer, map or satellite imagery to their dashboard."
     ),
 )

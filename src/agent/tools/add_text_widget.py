@@ -22,6 +22,7 @@ from src.agent.tools.common import (
     error_command,
     load_editable_dashboard,
     resolve_dashboard_id,
+    resolve_section,
 )
 from src.api.repositories import dashboard_writer
 from src.shared.logging_config import get_logger
@@ -51,6 +52,7 @@ async def add_text_widget(
     text: str,
     dashboard_id: Optional[str] = None,
     position: Optional[int] = None,
+    section: Optional[str] = None,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
@@ -59,9 +61,11 @@ async def add_text_widget(
     `text` is the widget's markdown body — compose it yourself: a concise
     note, summary or section intro; headings go in the markdown (there is
     no separate title). `dashboard_id` defaults to the dashboard in state
-    or the one the user is currently viewing; `position` optionally places
-    the widget (default: appended at the end). Only dashboards the user
-    owns can be edited.
+    or the one the user is currently viewing; `section` places the note in
+    one of the dashboard's sections (by title or id), otherwise it lands
+    ungrouped at the top level; `position` optionally places the widget
+    within that container (default: appended at the end). Only dashboards
+    the user owns can be edited.
     """
     state = state or {}
 
@@ -92,11 +96,16 @@ async def add_text_widget(
             tool_call_id,
         )
 
+    target_section, message = resolve_section(dashboard, section)
+    if message:
+        return error_command(message, tool_call_id)
+
     widget_id = await dashboard_writer.add_widget(
         str(target_dashboard),
         widget_type="text",
         config=_widget_config(body),
         position=position,
+        section_id=str(target_section.id) if target_section else None,
     )
     if widget_id is None:
         return error_command(
@@ -110,8 +119,14 @@ async def add_text_widget(
         dashboard.name,
         (
             f"Added text widget {widget_id} to dashboard "
-            f"'{dashboard.name}' ({dashboard.id}). Use this widget id with "
-            "edit_text_widget to change the note later."
+            f"'{dashboard.name}' ({dashboard.id})"
+            + (
+                f" in section '{target_section.title}'"
+                if target_section
+                else ""
+            )
+            + ". Use this widget id with edit_text_widget to change the "
+            "note later."
         ),
         tool_call_id,
     )
@@ -121,11 +136,13 @@ SPEC = ToolSpec(
     tool=add_text_widget,
     category=ToolCategory.PRIMITIVE,
     prompt_fragment=(
-        "- add_text_widget(text, dashboard_id?, position?): add a markdown "
+        "- add_text_widget(text, dashboard_id?, position?, section?): add a "
+        "markdown "
         "text widget to a dashboard. Compose the markdown yourself — a "
         "concise note, summary of findings from this conversation, or "
         "section intro; do not paste raw data. Dashboard defaults to the "
-        "one in state or on screen. Use when the user asks to add a note, "
+        "one in state or on screen; `section` (a section title or id) "
+        "groups it. Use when the user asks to add a note, "
         "description, summary or explanation to their dashboard."
     ),
 )

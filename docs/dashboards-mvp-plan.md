@@ -172,7 +172,13 @@ included (`src/api/app.py`).
 
 Schemas in `src/api/schemas.py` next to the insight response models.
 
-## 5. Agent integration (experimental profile only)
+## 5. Agent integration
+
+*(Originally experimental-profile only. The `dashboard` skill has since
+graduated to `DEFAULT_SKILLS`, and `inspect_view_context` graduated with it
+on 2026-08-31 when the skill took it into `requires:` — the sections work
+made reading a dashboard's structure part of the workflow rather than a
+standalone debugging aid.)*
 
 **Tools** — copy the structure of `src/agent/tools/search_insights.py`
 (module docstring, private DB helpers, pure helpers separated, `Command` +
@@ -266,3 +272,6 @@ Follow the two established patterns:
 - Bulk reorder. Positions are caller-assigned integers with no uniqueness
   constraint, and setting one does not shift its siblings, so a true reorder
   means the client rewrites each affected widget's position.
+- Agent tools for *deleting* dashboard content (widgets, sections,
+  dashboards) or for renaming/publishing a dashboard. Those paths are REST
+  only; the agent adds, edits and regroups.
