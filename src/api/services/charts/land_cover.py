@@ -30,7 +30,7 @@ class LandCoverChangeChartGenerator(ChartGenerator):
             return [
                 InsightChart(
                     position=0,
-                    title="Land Cover Transitions, 2015 to 2024",
+                    title="Land Cover Transitions",
                     chart_type="table",
                     chart_data=changed,
                 )
@@ -39,7 +39,7 @@ class LandCoverChangeChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Land Cover Composition in 2024",
+                title="Land Cover Composition",
                 chart_type="pie",
                 x_axis="land_cover_class",
                 y_axis="area_ha",

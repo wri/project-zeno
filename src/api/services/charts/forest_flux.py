@@ -18,19 +18,22 @@ class ForestFluxChartGenerator(ChartGenerator):
         return dataset_id == self.dataset_id
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
-        if not rows:
+        fields = (
+            "carbon_gross_emissions_Mg_CO2e",
+            "carbon_gross_removals_Mg_CO2e",
+            "carbon_net_flux_Mg_CO2e",
+        )
+        if not any(row.get(f) is not None for row in rows for f in fields):
             return []
-        row = rows[0]
-        emissions = row.get("carbon_gross_emissions_Mg_CO2e")
-        removals = row.get("carbon_gross_removals_Mg_CO2e")
-        net = row.get("carbon_net_flux_Mg_CO2e")
-        if emissions is None and removals is None and net is None:
-            return []
+
+        emissions, removals, net = (
+            sum(row.get(f) or 0 for row in rows) for f in fields
+        )
 
         return [
             InsightChart(
                 position=0,
-                title="Forest Greenhouse Gas Net Flux, 2001-2025 Total",
+                title="Forest Greenhouse Gas Net Flux",
                 chart_type="bar",
                 x_axis="flux",
                 y_axis="carbon_MgCO2e",
@@ -41,9 +44,7 @@ class ForestFluxChartGenerator(ChartGenerator):
                     },
                     {
                         "flux": "Gross removals",
-                        "carbon_MgCO2e": (
-                            -removals if removals is not None else None
-                        ),
+                        "carbon_MgCO2e": -removals,
                     },
                     {"flux": "Net flux", "carbon_MgCO2e": net},
                 ],

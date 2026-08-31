@@ -36,7 +36,7 @@ class TCLByDriverChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Tree Cover Loss by Dominant Driver, 2001-2025",
+                title="Tree Cover Loss by Dominant Driver",
                 chart_type="pie",
                 x_axis="tree_cover_loss_driver",
                 y_axis="area_ha",

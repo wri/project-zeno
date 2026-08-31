@@ -27,7 +27,7 @@ class NaturalLandsChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Natural Lands Area by Class (2020)",
+                title="Natural Lands Area by Class",
                 chart_type="pie",
                 x_axis="natural_lands_class",
                 y_axis="area_ha",

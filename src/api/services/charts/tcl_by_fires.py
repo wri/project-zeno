@@ -46,8 +46,14 @@ class TCLByFiresChartGenerator(ChartGenerator):
                     x_axis="cause",
                     y_axis="area_ha",
                     chart_data=[
-                        {"cause": "Fires", "area_ha": row[FIRE_SERIES[0]]},
-                        {"cause": "Other", "area_ha": row[FIRE_SERIES[1]]},
+                        {
+                            "cause": "Fires",
+                            "area_ha": row.get(FIRE_SERIES[0]) or 0,
+                        },
+                        {
+                            "cause": "Other",
+                            "area_ha": row.get(FIRE_SERIES[1]) or 0,
+                        },
                     ],
                 )
             ]

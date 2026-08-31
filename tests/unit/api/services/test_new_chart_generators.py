@@ -4,6 +4,8 @@ Row shapes are taken from live analytics responses, not the catalog prose —
 the two diverge (see the land cover composition vs change endpoints).
 """
 
+import re
+
 import pytest
 
 from src.agent.datasets.handlers.analytics_handler import (
@@ -208,3 +210,95 @@ def test_sluc_pie_excludes_the_co2e_total():
     assert table.chart_data == [
         {"crop_type": "Banana", "emissions_tCO2e": 115.0}
     ]
+
+
+def test_fires_pie_tolerates_a_row_missing_one_series():
+    """A row qualifies if either series is positive, so the other may be
+    absent — indexing it directly fails the whole analysis job."""
+    chart = TCLByFiresChartGenerator(TREE_COVER_LOSS_BY_FIRES_ID).generate(
+        [
+            {
+                "tree_cover_loss_year": 2020,
+                "tree_cover_loss_from_fires_area_ha": 5.0,
+            }
+        ]
+    )[0]
+
+    assert {r["cause"]: r["area_ha"] for r in chart.chart_data} == {
+        "Fires": 5.0,
+        "Other": 0,
+    }
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        {"gas_type": "CO2", "emissions_tCO2e": 5.0},  # no crop_type
+        {"crop_type": "Banana", "emissions_tCO2e": 5.0},  # no gas_type
+    ],
+)
+def test_sluc_skips_rows_missing_a_grouping_key(row):
+    assert (
+        SlucEmissionFactorsChartGenerator(SLUC_EMISSION_FACTORS_ID).generate(
+            [row]
+        )
+        == []
+    )
+
+
+def test_forest_flux_totals_every_area_of_interest():
+    """Multi-AOI requests are first class; charting only the first row
+    presents one area's numbers as the answer for all of them."""
+    charts = ForestFluxChartGenerator(FOREST_CARBON_FLUX_ID).generate(
+        [
+            {
+                "carbon_gross_emissions_Mg_CO2e": 10.0,
+                "carbon_gross_removals_Mg_CO2e": 5.0,
+                "carbon_net_flux_Mg_CO2e": 5.0,
+            },
+            {
+                "carbon_gross_emissions_Mg_CO2e": 99.0,
+                "carbon_gross_removals_Mg_CO2e": 1.0,
+                "carbon_net_flux_Mg_CO2e": 98.0,
+            },
+        ]
+    )
+
+    values = {r["flux"]: r["carbon_MgCO2e"] for r in charts[0].chart_data}
+    assert values == {
+        "Gross emissions": 109.0,
+        "Gross removals": -6.0,
+        "Net flux": 103.0,
+    }
+
+
+@pytest.mark.parametrize(
+    ("generator", "dataset_id", "rows"),
+    [
+        (
+            NaturalLandsChartGenerator,
+            NATURAL_LANDS_ID,
+            [{"natural_lands_class": "Natural forests", "area_ha": 1.0}],
+        ),
+        (
+            TreeCoverChartGenerator,
+            TREE_COVER_ID,
+            [{"name": "A", "area_ha": 1.0}],
+        ),
+        (
+            TCLByDriverChartGenerator,
+            TREE_COVER_LOSS_BY_DRIVER_ID,
+            [{"tree_cover_loss_driver": "Logging", "area_ha": 1.0}],
+        ),
+        (
+            ForestFluxChartGenerator,
+            FOREST_CARBON_FLUX_ID,
+            [{"carbon_net_flux_Mg_CO2e": 1.0}],
+        ),
+    ],
+)
+def test_titles_do_not_assert_a_period(generator, dataset_id, rows):
+    """The analysis window is caller-supplied and unclamped here, so a title
+    naming a fixed period can contradict the data it labels."""
+    for chart in generator(dataset_id).generate(rows):
+        assert not re.search(r"\d{4}", chart.title), chart.title

@@ -27,7 +27,7 @@ class TreeCoverChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Tree Cover Extent in 2000",
+                title="Tree Cover Extent",
                 chart_type="bar",
                 x_axis="name",
                 y_axis="area_ha",

@@ -27,7 +27,8 @@ class SlucEmissionFactorsChartGenerator(ChartGenerator):
             row
             for row in rows
             if (row.get("emissions_tCO2e") or 0) > 0
-            and row.get("gas_type") != CO2_EQUIVALENT
+            and row.get("gas_type") not in (None, CO2_EQUIVALENT)
+            and row.get("crop_type") is not None
         ]
         if not present:
             return []
