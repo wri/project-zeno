@@ -9,7 +9,7 @@ the CRUD. ``src/api/services/aoi_sync.py`` holds that mirror.
 import json
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -102,17 +102,33 @@ async def create_custom_area(
 
 @router.get("/api/custom_areas", response_model=list[CustomAreaModel])
 async def list_custom_areas(
+    response: Response,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """List all custom areas belonging to the authenticated user.
+    """List the custom areas belonging to the authenticated user, newest first.
+
+    When more results are available, the next page offset is returned in the
+    ``X-Next-Offset`` response header.
 
     This reads ``custom_areas`` and returns the drawn parts unchanged. It is
     not the search surface; use ``GET /api/aois?source=custom`` for that.
     """
-    stmt = select(CustomAreaOrm).filter_by(user_id=user.id)
+    stmt = (
+        select(CustomAreaOrm)
+        .filter_by(user_id=user.id)
+        .order_by(CustomAreaOrm.created_at.desc(), CustomAreaOrm.id)
+        # Fetch one extra row to determine whether more pages exist.
+        .limit(limit + 1)
+        .offset(offset)
+    )
     result = await session.execute(stmt)
-    areas = result.scalars().all()
+    areas = list(result.scalars().all())
+    if len(areas) > limit:
+        areas = areas[:limit]
+        response.headers["X-Next-Offset"] = str(offset + limit)
     results = []
     for area in areas:
         area.geometries = [json.loads(i) for i in area.geometries]
