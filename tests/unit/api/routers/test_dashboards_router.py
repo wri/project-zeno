@@ -35,13 +35,26 @@ def _aoi_row(position=0, name="Paraná"):
     )
 
 
-def _widget_row(widget_type="insight", insight_id=None, config=None):
+def _widget_row(
+    widget_type="insight", insight_id=None, config=None, section_id=None
+):
     return SimpleNamespace(
         id=uuid4(),
         position=0,
+        section_id=section_id,
         widget_type=widget_type,
         insight_id=insight_id,
         config=config,
+        created_at=NOW,
+    )
+
+
+def _section_row(title="Deforestation", description=None, position=0):
+    return SimpleNamespace(
+        id=uuid4(),
+        title=title,
+        description=description,
+        position=position,
         created_at=NOW,
     )
 
@@ -62,7 +75,7 @@ def _insight_row(insight_id):
     )
 
 
-def _dashboard_row(aois=None, widgets=None, **overrides):
+def _dashboard_row(aois=None, widgets=None, sections=None, **overrides):
     row = SimpleNamespace(
         id=uuid4(),
         user_id="user-1",
@@ -72,6 +85,7 @@ def _dashboard_row(aois=None, widgets=None, **overrides):
         created_at=NOW,
         updated_at=NOW,
         aois=aois or [],
+        sections=sections or [],
         widgets=widgets or [],
     )
     for key, value in overrides.items():

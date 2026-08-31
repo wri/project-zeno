@@ -489,6 +489,12 @@ class DashboardOrm(Base):
         cascade="all, delete-orphan",
         order_by="DashboardWidgetOrm.position",
     )
+    sections = relationship(
+        "DashboardSectionOrm",
+        back_populates="dashboard",
+        cascade="all, delete-orphan",
+        order_by="DashboardSectionOrm.position",
+    )
 
 
 class DashboardAoiOrm(Base):
@@ -522,6 +528,41 @@ class DashboardAoiOrm(Base):
     dashboard = relationship("DashboardOrm", back_populates="aois")
 
 
+class DashboardSectionOrm(Base):
+    """A titled group of widgets on a dashboard.
+
+    Sections give a dashboard one level of hierarchy: widgets either belong
+    to a section (``DashboardWidgetOrm.section_id``) or sit ungrouped at the
+    top level. Deleting a section does not delete its widgets — they fall
+    back to ungrouped (``ON DELETE SET NULL``).
+    """
+
+    __tablename__ = "dashboard_sections"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    dashboard_id = Column(
+        PostgresUUID, ForeignKey("dashboards.id"), nullable=False
+    )
+    title = Column(String, nullable=False)
+    # Free-form intent of the section ("why these widgets belong together"),
+    # written by the user or composed by the agent.
+    description = Column(String, nullable=True)
+    # Order of the section within the dashboard.
+    position = Column(Integer, nullable=False, server_default="0")
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+
+    dashboard = relationship("DashboardOrm", back_populates="sections")
+    widgets = relationship(
+        "DashboardWidgetOrm",
+        back_populates="section",
+        order_by="DashboardWidgetOrm.position",
+    )
+
+
 class DashboardWidgetOrm(Base):
     """One widget on a dashboard. Insight widgets reference an insight and
     carry presentation config only. Map widgets are self-contained: their
@@ -551,7 +592,16 @@ class DashboardWidgetOrm(Base):
     dashboard_id = Column(
         PostgresUUID, ForeignKey("dashboards.id"), nullable=False
     )
+    # Order within the widget's container: its section, or the ungrouped
+    # top-level list when section_id is NULL.
     position = Column(Integer, nullable=False, server_default="0")
+    # The section this widget belongs to; NULL means ungrouped (top level).
+    # Deleting a section leaves its widgets in place, ungrouped.
+    section_id = Column(
+        PostgresUUID,
+        ForeignKey("dashboard_sections.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     # "insight" | "map" — plain String like JobOrm.type; validated in Pydantic.
     widget_type = Column(String, nullable=False)
     # Deleting an insight silently drops widgets that reference it.
@@ -569,6 +619,7 @@ class DashboardWidgetOrm(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.now)
 
     dashboard = relationship("DashboardOrm", back_populates="widgets")
+    section = relationship("DashboardSectionOrm", back_populates="widgets")
 
 
 class JobOrm(Base):
