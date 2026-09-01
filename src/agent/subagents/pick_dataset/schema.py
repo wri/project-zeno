@@ -40,6 +40,10 @@ class DatasetOption(BaseModel):
         None,
         description="Context layer to apply. Follow the context layer descriptions — select the layer whose description matches the query, and always select one when a description says to default to it for the query type.",
     )
+    selected_layer: Optional[str] = Field(
+        None,
+        description="For a dataset with more than one independently-toggleable layer (see `layers`), the name of the layer that best matches the query's focus — e.g. LGMS's 'agriculture' for a cropland/livestock-emissions question, 'lulucf' for a land-use/vegetation question. Leave null for single-layer datasets or when the query doesn't emphasize one category over another.",
+    )
     parameters: Optional[list[DatasetParameter]] = Field(
         None, description="Dataset specific parameters."
     )
@@ -85,6 +89,25 @@ class DatasetOption(BaseModel):
         context_layer_values = [lyr["value"] for lyr in context_layers]
         if self.context_layer not in context_layer_values:
             self.context_layer = None
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_selected_layer_for_dataset(self) -> "DatasetOption":
+        """Ensure selected_layer names a real layer of a genuinely
+        multi-layer dataset — null it out for single-layer datasets (nothing
+        to select between) or a hallucinated name."""
+        if self.dataset_id is None:
+            self.selected_layer = None
+            return self
+
+        selected_dataset = [
+            ds for ds in DATASETS if ds["dataset_id"] == self.dataset_id
+        ][0]
+        layers = selected_dataset.get("layers") or []
+        layer_names = [layer["name"] for layer in layers]
+        if len(layers) <= 1 or self.selected_layer not in layer_names:
+            self.selected_layer = None
 
         return self
 
@@ -142,8 +165,11 @@ class DatasetSelectionResponse(BaseModel):
 class DatasetSelectionResult(DatasetOption):
     tile_url: str = Field(
         description=(
-            "Deprecated: mirrors layers[0].tile_url. Kept for callers that "
-            "haven't migrated to `layers` yet — new code should read `layers`."
+            "Deprecated: the dataset's own tile URL, unresolved against "
+            "`layers`/`selected_layer` — empty for a multi-layer dataset "
+            "(e.g. LGMS) with no single-layer URL of its own. Kept for "
+            "callers that haven't migrated to `layers` yet — new code "
+            "should read `layers`."
         ),
     )
     dataset_name: str = Field(

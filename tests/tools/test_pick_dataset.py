@@ -615,18 +615,24 @@ def _make_fake_selection(
     dataset_id: int,
     context_layer: str | None,
     parameters: Optional[list[DatasetParameter]] = None,
+    selected_layer: str | None = None,
 ) -> DatasetSelectionResult:
     """Build a DatasetSelectionResult for the given dataset with a fake context_layer."""
     ds = next(d for d in DATASETS if d["dataset_id"] == dataset_id)
+    ds_layers = ds.get("layers")
+    layers = (
+        [DatasetLayer(**layer) for layer in ds_layers]
+        if ds_layers
+        else [DatasetLayer(name=ds["dataset_name"], tile_url=ds["tile_url"])]
+    )
     return DatasetSelectionResult(
         dataset_id=dataset_id,
         dataset_name=ds["dataset_name"],
         context_layer=context_layer,
+        selected_layer=selected_layer,
         reason="test",
         tile_url=ds["tile_url"],
-        layers=[
-            DatasetLayer(name=ds["dataset_name"], tile_url=ds["tile_url"])
-        ],
+        layers=layers,
         analytics_api_endpoint=ds.get("analytics_api_endpoint", ""),
         description=ds["description"],
         prompt_instructions=ds.get("prompt_instructions", ""),
@@ -787,6 +793,104 @@ async def test_valid_context_layer_is_preserved():
 
     result_layer = command.update.get("dataset", {}).get("context_layer")
     assert result_layer == "primary_forest"
+
+
+async def test_hallucinated_selected_layer_is_discarded():
+    """A selected_layer name that isn't one of LGMS's real layers is nulled,
+    same as a hallucinated context_layer."""
+    import pandas as pd
+
+    fake_selection = _make_fake_selection(
+        12, context_layer=None, selected_layer="not-a-real-layer"
+    )
+    candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 12])
+    tool_call_id = str(uuid.uuid4())
+
+    with (
+        patch(
+            "src.agent.subagents.pick_dataset.rag_candidate_datasets",
+            new_callable=AsyncMock,
+            return_value=candidate_df,
+        ),
+        patch(
+            "src.agent.subagents.pick_dataset.select_best_dataset",
+            new_callable=AsyncMock,
+            return_value=fake_selection,
+        ),
+    ):
+        tool_call = {
+            "type": "tool_call",
+            "name": "pick_dataset",
+            "id": tool_call_id,
+            "args": {
+                "query": "land ghg inventory",
+                "start_date": "2022-01-01",
+                "end_date": "2022-12-31",
+                "state": dict(),
+                "tool_call_id": tool_call_id,
+            },
+        }
+
+        command = await pick_dataset.ainvoke(tool_call)
+
+    assert command.update.get("dataset", {}).get("selected_layer") is None
+
+
+async def test_valid_selected_layer_survives_end_to_end():
+    """A real LGMS layer name is preserved end to end in the agent response,
+    while `layers` still carries every sibling unchanged. The deprecated
+    tile_url mirror is untouched by selected_layer here — add_map_widget.py
+    resolves that on its own, at persistence time."""
+    import pandas as pd
+
+    fake_selection = _make_fake_selection(
+        12, context_layer=None, selected_layer="agriculture"
+    )
+    candidate_df = pd.DataFrame([d for d in DATASETS if d["dataset_id"] == 12])
+    tool_call_id = str(uuid.uuid4())
+
+    with (
+        patch(
+            "src.agent.subagents.pick_dataset.rag_candidate_datasets",
+            new_callable=AsyncMock,
+            return_value=candidate_df,
+        ),
+        patch(
+            "src.agent.subagents.pick_dataset.select_best_dataset",
+            new_callable=AsyncMock,
+            return_value=fake_selection,
+        ),
+    ):
+        tool_call = {
+            "type": "tool_call",
+            "name": "pick_dataset",
+            "id": tool_call_id,
+            "args": {
+                "query": "agriculture emissions",
+                "start_date": "2022-01-01",
+                "end_date": "2022-12-31",
+                "state": dict(),
+                "tool_call_id": tool_call_id,
+            },
+        }
+
+        command = await pick_dataset.ainvoke(tool_call)
+
+    dataset = command.update.get("dataset", {})
+    assert dataset.get("selected_layer") == "agriculture"
+    assert [layer["name"] for layer in dataset["layers"]] == [
+        "lulucf",
+        "agriculture",
+    ]
+
+
+async def test_selected_layer_none_for_single_layer_dataset():
+    """selected_layer is always nulled for a dataset with <= 1 layer, even if
+    the LLM (or, here, the test fixture) tries to set one."""
+    fake_selection = _make_fake_selection(
+        4, context_layer=None, selected_layer="Tree cover loss"
+    )
+    assert fake_selection.selected_layer is None
 
 
 async def test_tcl_by_driver_always_gets_driver_context_layer(state):

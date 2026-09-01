@@ -626,10 +626,11 @@ class DashboardWidgetCreateRequest(BaseModel):
             "Widget config. Insight widgets: presentation only — "
             "`default_view` (map|chart|table), optional `title` override. "
             "Map widgets: a self-contained layer snapshot under exactly one "
-            "of the keys `dataset` (resolved tile_url, context layers, "
-            "parameters, dates) or `imagery` (Sentinel-2 mosaic_id and tile "
-            "URLs); optional `viewport` override — by default map widgets "
-            "render fitted to the dashboard's area. "
+            "of the keys `dataset` (resolved tile_url, optional `layers` for "
+            "a multi-layer dataset's independently-toggleable siblings, "
+            "context layers, parameters, dates) or `imagery` (Sentinel-2 "
+            "mosaic_id and tile URLs); optional `viewport` override — by "
+            "default map widgets render fitted to the dashboard's area. "
             "Text widgets: `text` (markdown string)."
         ),
     )

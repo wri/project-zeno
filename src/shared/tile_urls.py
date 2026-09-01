@@ -25,11 +25,34 @@ def _base_url() -> str:
     return SharedSettings.eoapi_base_url.rstrip("/")
 
 
+def _relativize_layer(layer: dict, base: str) -> dict:
+    """A copy of one layer dict with an eoapi tile_url reduced to tile_path."""
+    tile_url = layer.get("tile_url")
+    if isinstance(tile_url, str) and tile_url.startswith(base + "/"):
+        layer = dict(layer)
+        layer["tile_path"] = tile_url[len(base) :]
+        layer.pop("tile_url")
+    return layer
+
+
+def _absolutize_layer(layer: dict, base: str) -> dict:
+    """A copy of one layer dict with tile_path expanded to an absolute
+    tile_url, unless it already carries one."""
+    tile_path = layer.get("tile_path")
+    if isinstance(tile_path, str) and not layer.get("tile_url"):
+        layer = dict(layer)
+        layer["tile_url"] = base + tile_path
+    return layer
+
+
 def relativize_widget_config(config: Optional[dict]) -> Optional[dict]:
     """A copy of a widget config with eoapi tile URLs reduced to tile_path.
 
-    Layers whose tile_url lives on another host keep it verbatim. The input
-    is never mutated (callers pass request bodies and agent state).
+    Layers whose tile_url lives on another host keep it verbatim. A
+    multi-layer dataset's sibling layers (config[key]["layers"], e.g. LGMS's
+    agriculture/lulucf) are each relativized the same way as the top-level
+    tile_url. The input is never mutated (callers pass request bodies and
+    agent state).
     """
     if not config:
         return config
@@ -39,12 +62,15 @@ def relativize_widget_config(config: Optional[dict]) -> Optional[dict]:
         layer = out.get(key)
         if not isinstance(layer, dict):
             continue
-        tile_url = layer.get("tile_url")
-        if isinstance(tile_url, str) and tile_url.startswith(base + "/"):
+        layer = _relativize_layer(layer, base)
+        sub_layers = layer.get("layers")
+        if isinstance(sub_layers, list):
             layer = dict(layer)
-            layer["tile_path"] = tile_url[len(base) :]
-            layer.pop("tile_url")
-            out[key] = layer
+            layer["layers"] = [
+                _relativize_layer(sub, base) if isinstance(sub, dict) else sub
+                for sub in sub_layers
+            ]
+        out[key] = layer
     return out
 
 
@@ -53,7 +79,9 @@ def absolutize_widget_config(config: Optional[dict]) -> Optional[dict]:
     tile_url on the currently configured eoapi host.
 
     Configs that already carry a tile_url (foreign-host layers, or rows
-    written before tile_path existed) are returned unchanged.
+    written before tile_path existed) are returned unchanged. A multi-layer
+    dataset's sibling layers (config[key]["layers"]) are each absolutized the
+    same way as the top-level tile_url.
     """
     if not config:
         return config
@@ -63,9 +91,13 @@ def absolutize_widget_config(config: Optional[dict]) -> Optional[dict]:
         layer = out.get(key)
         if not isinstance(layer, dict):
             continue
-        tile_path = layer.get("tile_path")
-        if isinstance(tile_path, str) and not layer.get("tile_url"):
+        layer = _absolutize_layer(layer, base)
+        sub_layers = layer.get("layers")
+        if isinstance(sub_layers, list):
             layer = dict(layer)
-            layer["tile_url"] = base + tile_path
-            out[key] = layer
+            layer["layers"] = [
+                _absolutize_layer(sub, base) if isinstance(sub, dict) else sub
+                for sub in sub_layers
+            ]
+        out[key] = layer
     return out
