@@ -1,15 +1,15 @@
 """Sector configuration for user profiles."""
 
 SECTORS = {
-    "government": "Government/ Public Sector",
+    "government": "Government/Public Sector",
     "donor": "Philanthropic Organization",
-    "local_ngo": "Local NGO (national or subnational)",
-    "international_ngo": "International NGO",
-    "un_international": "Intergovernmental / Multilateral Organization",
+    "local_ngo": "NGO - National or Local",
+    "international_ngo": "NGO - International",
+    "un_international": "Intergovernmental/Multilateral Organization",
     "academic": "Academic / Research Organization",
     "journalist": "Journalist / Media Organization",
     "indigenous": "Indigenous of Community-Based Organization",
-    "private_sector": "Private Sector / Business",
+    "private_sector": "Business/Private Sector",
     "individual": "Individual / No Affiliation",
     "other": "Other",
 }
