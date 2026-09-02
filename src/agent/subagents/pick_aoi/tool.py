@@ -1,6 +1,14 @@
 import asyncio
-from enum import StrEnum
-from typing import Annotated, Dict, Literal, Optional
+from typing import (
+    Annotated,
+    Any,
+    Dict,
+    Literal,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -13,6 +21,7 @@ from langgraph.types import Command
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
+from src.agent.config import AgentSettings
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.llms import SMALL_MODEL
@@ -21,23 +30,22 @@ from src.agent.subagents.pick_aoi.global_queries import (
     is_global_request,
 )
 from src.agent.subagents.pick_aoi.prompts import GEOCODER_PROMPT
+from src.agent.subagents.pick_aoi.scoring import best_candidate_row
 from src.agent.subagents.pick_aoi.selection_name_util import (
     build_selection_name,
+)
+from src.agent.subagents.pick_aoi.types import (
+    AreaOfInterestType,
+    aoi_to_table,
 )
 from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.database import get_connection_from_pool
+from src.shared.gadm_admin_types import GadmAdminTerm, resolve_gadm_admin_level
 from src.shared.geocoding_helpers import (
-    BBOX_SQL,
-    CUSTOM_BBOX_SQL,
-    GADM_STANDARD_ID_RE,
-    GADM_TABLE,
-    KBA_TABLE,
-    LANDMARK_TABLE,
-    SOURCE_ID_MAPPING,
+    AOI_SOURCE_ID_COLUMNS,
     SUBREGION_TO_SUBTYPE_MAPPING,
-    WDPA_TABLE,
     search_aois,
 )
 from src.shared.logging_config import get_logger
@@ -47,43 +55,8 @@ RESULT_LIMIT = 10
 SUBREGION_LIMIT_ADMIN = 1000
 SUBREGION_LIMIT = 50
 
-
-class AreaOfInterestType(StrEnum):
-    GADM = "adminstrative area (country, state/region, country/subregion)"
-    WDPA = ("protected area, park, or reserve",)
-    LANDMARK = ("indigenous region or territory",)
-    KBA = "key biodiversity area"
-
-
-aoi_to_table = {
-    AreaOfInterestType.GADM: "gadm",
-    AreaOfInterestType.WDPA: "wdpa",
-    AreaOfInterestType.LANDMARK: "landmark",
-    AreaOfInterestType.KBA: "kba",
-}
-
 load_dotenv()
 logger = get_logger(__name__)
-
-
-async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
-    """Look up bbox for an AOI by source and src_id, using the same antimeridian-aware SQL as pick_aoi."""
-    if source not in SOURCE_ID_MAPPING:
-        return [-180.0, -90.0, 180.0, 90.0]
-
-    table = SOURCE_ID_MAPPING[source]["table"]
-    id_column = SOURCE_ID_MAPPING[source]["id_column"]
-    bbox_expr = CUSTOM_BBOX_SQL if source == "custom" else BBOX_SQL
-
-    query = text(
-        f"SELECT {bbox_expr} FROM {table} WHERE {id_column} = :src_id"
-    )
-    async with get_connection_from_pool() as conn:
-        result = await conn.execute(query, {"src_id": src_id})
-        row = result.fetchone()
-        if row and row[0]:
-            return row[0]
-    return [-180.0, -90.0, 180.0, 90.0]
 
 
 class AOIId(BaseModel):
@@ -110,15 +83,19 @@ async def query_aoi_database(
     aoi_type: Optional[AreaOfInterestType],
     result_limit: int = 10,
 ):
-    """Query the PostGIS database for location information.
+    """Find the AOIs whose name matches *place_name*.
+
+    This delegates to ``search_aois``, which is the same search core that
+    ``GET /api/aois`` uses. Both therefore rank candidates the same way.
 
     Args:
         place_name: Name of the place to search for
-        aoi_type: Specific AOI table to search, or None to search all
+        aoi_type: One source to restrict the search to, or None for all
         result_limit: Maximum number of results to return
 
     Returns:
-        DataFrame containing location information
+        DataFrame with the columns ``src_id, name, subtype, source, bbox,
+        similarity_score``. Disputed and deprecated AOIs are excluded.
     """
     sources = [aoi_to_table[aoi_type]] if aoi_type is not None else None
     user_id = current_user_id()
@@ -131,111 +108,207 @@ async def query_aoi_database(
     )
 
 
+async def query_aoi_database_multiterm(
+    search_terms: list[str],
+    aoi_type: Optional[AreaOfInterestType],
+    result_limit: int = RESULT_LIMIT,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Find the AOIs matching any of *search_terms*, merged.
+
+    Each term gets its own query with its own ``result_limit``, so a
+    low-similarity alias ("Zaire" for "DR Congo") is not crowded out of a
+    shared limit by the main spelling. A row that several terms match is
+    deduplicated on ``(source, src_id)``, keeping its highest
+    ``similarity_score``.
+
+    ``query_aoi_database`` stays single-term deliberately: the replay
+    fixtures and the agent tests patch it once per term.
+
+    Args:
+        search_terms: Terms to search, the extracted place name first.
+        aoi_type: One source to restrict every search to, or None for all.
+        result_limit: Maximum number of results per term.
+
+    Returns:
+        ``(merged, primary)``, where ``primary`` is the first term's own
+        result frame. It is returned separately because the ambiguity check
+        may only consider rows that the place name itself retrieved: an
+        ``aoi_choice`` option is resubmitted as the next question, so
+        offering a choice over rows found by an invented alias would re-offer
+        the same choice forever (see ``check_duplicate_aois`` and
+        ``_format_aoi_candidate``).
+
+    Raises:
+        ValueError: If ``search_terms`` is empty.
+    """
+    if not search_terms:
+        raise ValueError("query_aoi_database_multiterm needs a search term")
+
+    frames = await asyncio.gather(
+        *[
+            query_aoi_database(term, aoi_type, result_limit)
+            for term in search_terms
+        ]
+    )
+    primary = frames[0]
+    populated = [frame for frame in frames if not frame.empty]
+    if not populated:
+        # An empty frame is what makes the caller report the place as
+        # unmatched, so preserve it rather than inventing columns.
+        return primary, primary
+
+    combined = pd.concat(populated, ignore_index=True)
+    # This sort is what decides WHICH copy of a row `drop_duplicates` keeps
+    # below: the highest-scoring one. Stable, so rows tied on score keep term
+    # order and the merge is deterministic for identical inputs.
+    combined = combined.sort_values(
+        "similarity_score", ascending=False, kind="stable"
+    )
+    merged = combined.drop_duplicates(
+        subset=["source", "src_id"], keep="first"
+    ).reset_index(drop=True)
+    return merged, primary
+
+
+# The AOI source that each subregion scope resolves to. GADM holds all six admin
+# scopes. Each other scope names its own source.
+SUBREGION_SOURCE_MAPPING = {
+    "country": "gadm",
+    "state": "gadm",
+    "district": "gadm",
+    "municipality": "gadm",
+    "locality": "gadm",
+    "neighbourhood": "gadm",
+    "kba": "kba",
+    "wdpa": "wdpa",
+    "landmark": "landmark",
+}
+
+
 async def query_subregion_database(
     subregion_name: str, source: str, src_id: str
 ):
-    """Query the right table in PostGIS database for subregions based on the selected AOI.
+    """Find the subregions of a selected AOI. Both come from the unified table.
 
     Args:
-        subregion_name: Name of the subregion to search for
-        source: Source of the selected AOI
-        src_id: id of the selected AOI in source table: gadm_id, kba_id, landmark_id, wdpa_id
+        subregion_name: Scope to expand into (an admin level, or kba/wdpa/landmark)
+        source: Source of the selected (parent) AOI
+        src_id: id of the selected AOI within its source
 
     Returns:
-        DataFrame of subregions
-    """
-    match subregion_name:
-        case (
-            "country"
-            | "state"
-            | "district"
-            | "municipality"
-            | "locality"
-            | "neighbourhood"
-        ):
-            table_name = GADM_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING[subregion_name]
-            subregion_source = "gadm"
-            src_id_field = SOURCE_ID_MAPPING["gadm"]["id_column"]
-        case "kba":
-            table_name = KBA_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING["kba"]
-            subregion_source = "kba"
-            src_id_field = SOURCE_ID_MAPPING["kba"]["id_column"]
-        case "wdpa":
-            table_name = WDPA_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING["wdpa"]
-            subregion_source = "wdpa"
-            src_id_field = SOURCE_ID_MAPPING["wdpa"]["id_column"]
-        case "landmark":
-            table_name = LANDMARK_TABLE
-            subtype = SUBREGION_TO_SUBTYPE_MAPPING["landmark"]
-            subregion_source = "landmark"
-            src_id_field = SOURCE_ID_MAPPING["landmark"]["id_column"]
-        case _:
-            logger.error(f"Invalid subregion: {subregion_name}")
-            raise ValueError(
-                f"Subregion: {subregion_name} does not match to any table in PostGIS database."
-            )
+        DataFrame of subregions, with the columns ``name, subtype, <source id
+        column>, source, src_id, bbox``. The source-specific id column
+        (``gadm_id``, ``sitrecid``, ...) repeats ``src_id``. It remains because
+        the frontend reads it from the extra fields of ``AOIIndex``.
 
-    id_column = SOURCE_ID_MAPPING[source]["id_column"]
-    source_table = SOURCE_ID_MAPPING[source]["table"]
+    A GADM parent selects its children by an id prefix. Any other source
+    selects them by a spatial overlap. A non-GADM parent with an admin
+    subregion gets no containment filter at all, so the result holds every
+    admin unit of that subtype worldwide. ``check_aoi_selection`` then rejects
+    it as too many subregions. This is a known defect.
+    """
+    if subregion_name not in SUBREGION_SOURCE_MAPPING:
+        logger.error(f"Invalid subregion: {subregion_name}")
+        raise ValueError(
+            f"Subregion: {subregion_name} does not match to any table in PostGIS database."
+        )
+
+    subregion_source = SUBREGION_SOURCE_MAPPING[subregion_name]
+    subtype = SUBREGION_TO_SUBTYPE_MAPPING[subregion_name]
+    src_id_field = AOI_SOURCE_ID_COLUMNS[subregion_source]
 
     logger.info(
-        f"Querying subregion: {subregion_name} in table: {table_name} for source: {source}, src_id: {src_id}"
+        f"Querying subregion: {subregion_name} in source: {subregion_source} "
+        f"for source: {source}, src_id: {src_id}"
     )
 
-    if table_name == GADM_TABLE:
-        if source == "gadm":
-            # remove _1/_2 GADM suffix
-            if "_" in src_id:
-                subregion_filter = src_id.split("_")[0]
-            else:
-                subregion_filter = src_id
+    params: Dict[str, Any] = {
+        "src_id": src_id,
+        "source": source,
+        "subregion_source": subregion_source,
+        "subtype": subtype,
+    }
 
-            # filter for the next admin level within this admin ID
-            gadm_filter = f" AND t.gadm_id LIKE '{subregion_filter}.%'"
+    if subregion_source == "gadm":
+        # The GADM id holds the hierarchy, so a prefix match gives containment.
+        # A spatial test is not necessary.
+        if source == "gadm":
+            # Match the children of this admin id, one level down. The `_1` or
+            # `_2` version suffix is not part of the hierarchy, so the code
+            # removes it first. The prefix therefore cannot hold the `_`
+            # wildcard of LIKE.
+            params["gadm_prefix"] = f"{src_id.split('_')[0]}.%"
+            gadm_filter = "AND t.source_id LIKE :gadm_prefix"
         else:
-            gadm_filter = f" AND t.gadm_id ~ '{GADM_STANDARD_ID_RE}'"
+            # A non-GADM parent gets no containment filter, only the exclusion of
+            # disputed territories. The query then returns every admin unit of
+            # the subtype worldwide, and check_aoi_selection rejects the result
+            # as too many subregions. This is a known defect.
+            gadm_filter = "AND NOT t.is_disputed"
         spatial_filter = ""
     else:
         gadm_filter = ""
-        spatial_filter = " AND ST_Intersects(t.geometry, aoi.geom) AND NOT ST_Touches(t.geometry, aoi.geom)"
+        # Accept an overlap, but reject a shared border alone. The parent
+        # geometry is a normalized MultiPolygon, so a repaired boundary can give
+        # a slightly different result than the raw source geometry.
+        spatial_filter = (
+            "AND ST_Intersects(t.geometry, parent.geom) "
+            "AND NOT ST_Touches(t.geometry, parent.geom)"
+        )
 
+    # `bbox` is computed at build time. COALESCE replaces a null array with the
+    # world bbox, which is the default of AOIIndex.
     sql_query = f"""
-    WITH aoi AS (
+    WITH parent AS (
         SELECT geometry AS geom
-        FROM {source_table}
-        WHERE "{id_column}" = :src_id
+        FROM aois
+        WHERE source = :source
+          AND source_id = :src_id
+          AND NOT is_deprecated
         LIMIT 1
     )
-    SELECT t.name, t.subtype, t.{src_id_field}, '{subregion_source}' as source, t.{src_id_field} as src_id, {BBOX_SQL}
-    FROM {table_name} AS t, aoi
-    WHERE t.subtype = :subtype
-    {gadm_filter}
-    {spatial_filter}
+    SELECT
+        t.name,
+        t.subtype,
+        t.source_id AS {src_id_field},
+        t.source AS source,
+        t.source_id AS src_id,
+        COALESCE(
+            t.bbox, ARRAY[-180, -90, 180, 90]::double precision[]
+        ) AS bbox
+    FROM aois AS t, parent
+    WHERE t.source = :subregion_source
+      AND t.subtype = :subtype
+      AND NOT t.is_deprecated
+      {gadm_filter}
+      {spatial_filter}
     """
     logger.debug(f"Executing subregion query: {sql_query}")
 
     async with get_connection_from_pool() as conn:
 
         def _read(sync_conn):
-            processed_src_id = src_id
-            if source == "kba":
-                # for these sources IDs stored as numeric values
-                try:
-                    processed_src_id = int(processed_src_id)
-                except ValueError:
-                    pass
-            return pd.read_sql(
-                text(sql_query),
-                sync_conn,
-                params={"src_id": processed_src_id, "subtype": subtype},
-            )
+            return pd.read_sql(text(sql_query), sync_conn, params=params)
 
         results = await conn.run_sync(_read)
 
     return results
+
+
+def score_best_aoi(
+    candidate_aois: pd.DataFrame, terms: Sequence[str]
+) -> Optional[AOIIndex]:
+    """Pick the best candidate deterministically, with no model call.
+
+    The scoring itself lives in `scoring.py`; this only turns the winning row
+    into the model the rest of the tool passes around. No score comes back
+    with it: AOIIndex allows extra fields, so a score written onto the row
+    would leak into aoi_selection.
+    """
+    best_row = best_candidate_row(candidate_aois, terms)
+    if best_row is None:
+        return None
+    return AOIIndex(**best_row)
 
 
 async def select_best_aoi(
@@ -308,6 +381,13 @@ async def select_best_aoi(
 async def check_multiple_matches(
     src_id: str, short_name: str, results: pd.DataFrame
 ) -> Optional[list[dict]]:
+    # A place can now be resolved by a canonical name or an alternative
+    # spelling while the place name itself matched nothing, so this can be
+    # reached with an empty frame and a valid selection — a state that was
+    # impossible when an empty frame always meant no selection.
+    if results.empty:
+        return None
+
     # Extract country code from selected AOI's src_id (e.g., "IND.12.26_1" -> "IND")
     selected_country = src_id.split(".")[0] if "." in src_id else None
 
@@ -428,15 +508,94 @@ SubregionType = Literal[
 ]
 
 
+# Admin subregion depth -> generic SubregionType label, used to translate a
+# country-resolved GADM level (from resolve_gadm_admin_level) back into the
+# vocabulary query_subregion_database expects.
+LEVEL_TO_SUBREGION: Dict[int, str] = {
+    1: "state",
+    2: "district",
+    3: "municipality",
+    4: "locality",
+    5: "neighbourhood",
+}
+
+
+def _resolve_effective_subregion(
+    subregion: str, admin_term: Optional[str], selected_aoi: AOIIndex
+) -> Tuple[str, bool]:
+    """Override *subregion* with the country-correct GADM depth, if resolvable.
+
+    The LLM extracts one subregion depth per request, but the correct depth
+    for a given admin term is country-specific (Spain's "provinces" are one
+    level deeper than Canada's). This resolves it per selected AOI instead,
+    which also makes a multi-country request (e.g. "provinces of Spain and
+    Canada") resolve correctly for each place independently. Falls back to
+    the LLM's original guess when there's no admin_term, the parent isn't a
+    GADM place, or the term doesn't resolve for that country.
+
+    Returns the effective subregion together with whether *admin_term* is
+    what actually produced it -- the caller uses this to decide whether it's
+    safe to display the user's own word instead of the generic subregion
+    label (it isn't, when the term didn't resolve for this AOI's country).
+    """
+    if not admin_term or selected_aoi.source != "gadm":
+        return subregion, False
+    if subregion not in LEVEL_TO_SUBREGION.values():
+        return subregion, False
+    iso3 = selected_aoi.src_id.split(".")[0]
+    level = resolve_gadm_admin_level(admin_term, iso3)
+    if level is None:
+        return subregion, False
+    return LEVEL_TO_SUBREGION[level], True
+
+
+class ExtractedPlace(BaseModel):
+    """One place the geocoder extracted, normalised for our tables.
+
+    `place` keeps exactly the semantics it had when `PlaceQuery.places` was a
+    list of strings: English, de-accented, parent kept in the same string. It
+    is always searched, which makes every other field additive — a poor
+    canonical name or a wrong alternative can only add candidates, never take
+    away the one the place name itself would have found.
+    """
+
+    place: str = Field(
+        description=(
+            "English place name as the user gave it. A place and its parent "
+            "stay in one string, e.g. 'Lisbon, Portugal'."
+        ),
+    )
+    canonical: str = Field(
+        default="",
+        description=(
+            "The place's own name as a geographic database stores it: "
+            "official spelling with accents, acronyms and exonyms expanded, "
+            "words describing the kind of area removed, parent kept."
+        ),
+    )
+    alternatives: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Up to 3 other spellings the database might store instead: the "
+            "short form, a native-script name, a historical name."
+        ),
+    )
+    area_type: Optional[AreaOfInterestType] = Field(
+        default=None,
+        description=(
+            "The kind of area, when the request says which — this is where "
+            "a designation such as 'National Park' belongs, rather than in "
+            "the name. Null for a plain administrative place."
+        ),
+    )
+
+
 class PlaceQuery(BaseModel):
     """A place request the geocoder extracts from the user's message."""
 
-    places: list[str] = Field(
+    places: list[ExtractedPlace] = Field(
         default_factory=list,
-        description=(
-            "English place name(s), one entry per distinct location. A place "
-            "and its parent stay in one string, e.g. 'Lisbon, Portugal'."
-        ),
+        description="One entry per distinct location.",
     )
     subregion: Optional[SubregionType] = Field(
         default=None,
@@ -445,6 +604,81 @@ class PlaceQuery(BaseModel):
             "inside the place(s); otherwise leave null."
         ),
     )
+    admin_term: Optional[GadmAdminTerm] = Field(
+        default=None,
+        description=(
+            "Set together with an administrative subregion (state/district/"
+            "municipality/locality/neighbourhood) to the exact local word the "
+            "user used for that unit (e.g. 'province', 'canton', 'department'"
+            ", 'constituent country'), normalized to this enum's closest "
+            "member. Administrative terminology means a different depth in "
+            "different countries (Spain's provinces are one level deeper "
+            "than Canada's), so this resolves the correct depth per country "
+            "instead of guessing one depth globally. Leave null for "
+            "subregion=country/kba/wdpa/landmark, which are unambiguous."
+        ),
+    )
+
+
+class _PlaceResolution(NamedTuple):
+    """What one place resolved to: its plan, its candidates and its pick."""
+
+    place: ExtractedPlace
+    terms: list[str]
+    merged: pd.DataFrame
+    primary: pd.DataFrame
+    selection: Optional[AOIIndex]
+
+
+async def _resolve_place(
+    place: ExtractedPlace,
+    question: str,
+    aoi_type: Optional[AreaOfInterestType],
+    normalized: bool,
+) -> _PlaceResolution:
+    """Search one place and pick its AOI, planned once at the top.
+
+    The plan is the whole of what the kill switch governs, which is why it is
+    decided here rather than threaded through the steps below: with the
+    normaliser off a place is searched under its extracted name alone, its
+    inferred type is ignored, and a model picks the winner — exactly the
+    pre-PZB-1272 behaviour.
+
+    The extracted name always leads the term set and is always searched, so
+    normalisation can only ADD candidates: it can never remove the row the
+    place name alone would have found. Narrowing to a source carries weight
+    now that a designation no longer travels in the search term (with the
+    whole catalogue in scope, an admin unit sharing a park's leaf name
+    outranks the park on the hierarchy term alone), but a wrong type must not
+    cost recall — so an empty narrowed result is retried across every source.
+    """
+    terms = [place.place]
+    # The caller's explicit `area_of_interest` wins; the type the geocoder
+    # inferred for this place only fills the gap when the caller gave none.
+    effective_type = aoi_type
+    if normalized:
+        for candidate in [place.canonical, *place.alternatives]:
+            if candidate and candidate not in terms:
+                terms.append(candidate)
+        if effective_type is None:
+            effective_type = place.area_type
+
+    merged, primary = await query_aoi_database_multiterm(terms, effective_type)
+    if merged.empty and normalized and effective_type is not None:
+        logger.info(
+            "GEOCODER: no %s candidates for %r; retrying every source",
+            effective_type,
+            place.place,
+        )
+        merged, primary = await query_aoi_database_multiterm(terms, None)
+
+    if normalized:
+        # No model chooses among candidates: identical candidates always
+        # produce the identical AOI.
+        selection = score_best_aoi(merged, terms)
+    else:
+        selection = await select_best_aoi(question, merged)
+    return _PlaceResolution(place, terms, merged, primary, selection)
 
 
 # Turns a free-text request into structured place(s) + subregion. The rules
@@ -478,10 +712,9 @@ class Geocoder:
     ) -> Command:
         """Full resolution: extract place(s) from the request, then look up."""
         query = await self.extract(question, aoi_type)
-        print(query)
         logger.info(
             "GEOCODER: extracted places=%r subregion=%r",
-            query.places,
+            [place.model_dump() for place in query.places],
             query.subregion,
         )
         if not query.places:
@@ -504,6 +737,7 @@ class Geocoder:
             aoi_type,
             tool_call_id,
             language,
+            query.admin_term,
         )
 
     async def extract(
@@ -519,48 +753,74 @@ class Geocoder:
     async def lookup(
         self,
         question: str,
-        places: list[str],
+        # Sequence, not list: `resolve` passes a list[ExtractedPlace] and
+        # list is invariant.
+        places: Sequence[ExtractedPlace],
         subregion: Optional[SubregionType] = None,
         aoi_type: Optional[AreaOfInterestType] = None,
         tool_call_id: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
+        admin_term: Optional[str] = None,
     ) -> Command:
         """DB step: resolve known place name(s) to AOI geometry."""
+        place_names = [place.place for place in places]
         logger.info(
-            f"GEOCODER: lookup places: '{places}', subregion: '{subregion}'"
+            f"GEOCODER: lookup places: '{place_names}', "
+            f"subregion: '{subregion}'"
         )
 
-        if is_global_request(places):
+        if is_global_request(place_names):
             logger.info("GEOCODER: global request detected")
             emit_progress("pick_aoi", "global", "Global (worldwide) request")
             return await handle_global_request(
                 subregion, tool_call_id, language
             )
 
-        all_results = await asyncio.gather(
+        normalized = AgentSettings.aoi_normalizer_enabled
+        resolutions = await asyncio.gather(
             *[
-                query_aoi_database(place, aoi_type, RESULT_LIMIT)
+                _resolve_place(place, question, aoi_type, normalized)
                 for place in places
             ]
         )
-        for place, result in zip(places, all_results):
-            names = list(result["name"]) if "name" in result.columns else []
+
+        # Progress stays grouped by stage rather than interleaved per place,
+        # so the reader sees one block per stage however many places there are.
+        for resolution in resolutions:
+            if len(resolution.terms) > 1:
+                emit_progress(
+                    "pick_aoi",
+                    "normalize",
+                    f"Searching '{resolution.place.place}' as: "
+                    f"{'; '.join(resolution.terms)}",
+                )
+        for resolution in resolutions:
+            result = resolution.merged
+            count = len(result) if "name" in result.columns else 0
+            # Only the names the message shows: the count comes from the frame.
+            names = result["name"].head(8).tolist() if count else []
             emit_progress(
                 "pick_aoi",
                 "candidates",
-                f"Fuzzy search '{place}': {len(names)} candidate(s)"
-                + (f" — {'; '.join(names[:8])}" if names else ""),
+                f"Fuzzy search '{resolution.place.place}': "
+                f"{count} candidate(s)"
+                + (f" — {'; '.join(names)}" if names else ""),
             )
 
-        selected_aois_raw = await asyncio.gather(
-            *[select_best_aoi(question, result) for result in all_results]
-        )
         unmatched_places = [
-            place
-            for place, aoi in zip(places, selected_aois_raw)
-            if aoi is None
+            resolution.place.place
+            for resolution in resolutions
+            if resolution.selection is None
         ]
-        selected_aois = [aoi for aoi in selected_aois_raw if aoi is not None]
+        # Each selection stays paired with the candidates of ITS OWN place:
+        # filtering the selections alone would pair one with another place's
+        # candidates as soon as a place matched nothing.
+        matched = [
+            (resolution.selection, resolution.primary)
+            for resolution in resolutions
+            if resolution.selection is not None
+        ]
+        selected_aois = [aoi for aoi, _ in matched]
         if not selected_aois:
             return Command(
                 update={
@@ -579,7 +839,13 @@ class Geocoder:
             )
 
         duplicate_check = await check_duplicate_aois(
-            selected_aois, all_results, language
+            selected_aois,
+            # Only the rows the place name itself retrieved. An aoi_choice
+            # option is resubmitted verbatim as the next question, so
+            # offering a choice over rows that only an invented alias found
+            # would re-offer the same choice indefinitely.
+            [primary for _, primary in matched],
+            language,
         )
         if duplicate_check:
             message, options, data = duplicate_check
@@ -606,12 +872,22 @@ class Geocoder:
             "pick_aoi", "matched", f"Picked: {', '.join(match_names)}"
         )
 
+        admin_term_resolved = True
         if subregion:
+            effective_subregions = []
+            for selected_aoi in selected_aois:
+                effective, resolved = _resolve_effective_subregion(
+                    subregion, admin_term, selected_aoi
+                )
+                effective_subregions.append(effective)
+                admin_term_resolved = admin_term_resolved and resolved
             subregion_tasks = [
                 query_subregion_database(
-                    subregion, selected_aoi.source, selected_aoi.src_id
+                    effective, selected_aoi.source, selected_aoi.src_id
                 )
-                for selected_aoi in selected_aois
+                for effective, selected_aoi in zip(
+                    effective_subregions, selected_aois
+                )
             ]
             subregion_dfs = await asyncio.gather(*subregion_tasks)
             final_aois = []
@@ -656,7 +932,10 @@ class Geocoder:
         logger.debug(f"Pick AOI tool message: {tool_message}")
 
         selection_name = build_selection_name(
-            match_names, subregion, len(final_aois)
+            match_names,
+            subregion,
+            len(final_aois),
+            display_term=admin_term if admin_term_resolved else None,
         )
 
         logger.info(f"AOI selection name: {selection_name}")

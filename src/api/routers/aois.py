@@ -38,10 +38,17 @@ async def search_aois_endpoint(
 ):
     """Search/browse AOIs by name and source type.
 
-    - Provide ``name`` for fuzzy, similarity-ranked search.
-    - Omit ``name`` to browse AOIs alphabetically within the selected source(s).
-    - ``source`` may be repeated to search several sources at once; omitting it
-      searches all available sources. Custom areas are scoped to the caller.
+    - Provide ``name`` for fuzzy, similarity-ranked search. Results are then
+      ordered by similarity, and then by name, source and source ID.
+    - Omit ``name`` to browse AOIs alphabetically within the selected
+      source(s). A browse orders by name, source and source ID.
+    - ``source`` may be repeated to search several sources at once; omitting
+      it searches all available sources. Aliases such as ``protectedareas``
+      are accepted.
+
+    A custom area appears only if the caller owns it. Disputed and deprecated
+    AOIs never appear, which hides the GADM rows for disputed territories.
+    Use ``GET /api/geometry/{source}/{src_id}`` to read one of those by ID.
 
     When more results are available, the next page offset is returned in the
     ``X-Next-Offset`` response header.

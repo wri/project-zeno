@@ -1,11 +1,16 @@
 """Tests for the unified AOI search endpoint (GET /api/aois).
 
-The test database only contains the ORM tables (custom_areas), so the reference
-sources (gadm/kba/wdpa/landmark) are skipped by search_aois and these tests
-exercise the custom-area path, source filtering, pagination and validation.
+Search reads the unified ``aois`` table, which is part of the ORM metadata, so
+reference sources can be seeded directly here -- custom areas still arrive
+through ``POST /api/custom_areas`` and its mirror, exercising the write path
+that search depends on.
 """
 
 import pytest
+from sqlalchemy import text
+
+from tests.conftest import async_session_maker
+from tests.conftest import seed_reference_aoi as _seed_reference_aoi
 
 _POLYGON = {
     "type": "Polygon",
@@ -122,3 +127,92 @@ async def test_protectedareas_alias_accepted(auth_override, client):
 async def test_requires_auth(client):
     res = await client.get("/api/aois?source=custom")
     assert res.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_disputed_rows_excluded_but_still_resolvable(
+    auth_override, client
+):
+    """Search excludes disputed rows, but ``(source, id)`` still finds them."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi("gadm", "BRA", "Brazil", "country")
+    await _seed_reference_aoi(
+        "gadm", "Z01", "Brazilia Disputed", "country", is_disputed=True
+    )
+
+    res = await client.get("/api/aois?name=brazil&source=gadm", headers=AUTH)
+    assert res.status_code == 200, res.text
+    src_ids = [r["src_id"] for r in res.json()]
+    assert "BRA" in src_ids
+    assert "Z01" not in src_ids
+
+    # Browse mode must also exclude it, not only the similarity path.
+    res = await client.get("/api/aois?source=gadm", headers=AUTH)
+    assert [r["src_id"] for r in res.json()] == ["BRA"]
+
+    # The row remains, for a geometry fetch and for the analytics link.
+    async with async_session_maker() as session:
+        found = await session.scalar(
+            text(
+                "SELECT name FROM aois "
+                "WHERE source = 'gadm' AND source_id = 'Z01'"
+            )
+        )
+    assert found == "Brazilia Disputed"
+
+
+@pytest.mark.asyncio
+async def test_search_ranks_across_sources(auth_override, client):
+    """One ranked list holds the reference sources and the caller's own areas."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "wdpa", "555", "Amazonia Protected", "protected-area"
+    )
+    await _seed_reference_aoi(
+        "kba", "42", "Amazon Key Area", "key-biodiversity-area"
+    )
+    await _create_area(client, "Amazon")
+
+    res = await client.get("/api/aois?name=amazon", headers=AUTH)
+    assert res.status_code == 200, res.text
+    results = res.json()
+    assert {r["source"] for r in results} == {"wdpa", "kba", "custom"}
+    # An exact match ranks above a longer partial match.
+    assert results[0]["name"] == "Amazon"
+    assert results[0]["source"] == "custom"
+
+
+@pytest.mark.asyncio
+async def test_browse_orders_by_name_then_source(auth_override, client):
+    """Browse mode breaks a tie by (name, source, src_id), over all sources."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi("wdpa", "1", "Shared Name", "protected-area")
+    await _seed_reference_aoi(
+        "kba", "2", "Shared Name", "key-biodiversity-area"
+    )
+    await _seed_reference_aoi("gadm", "AAA", "Aardvark Land", "country")
+
+    res = await client.get("/api/aois", headers=AUTH)
+    assert res.status_code == 200, res.text
+    rows = [(r["name"], r["source"]) for r in res.json()]
+    assert rows == [
+        ("Aardvark Land", "gadm"),
+        ("Shared Name", "kba"),
+        ("Shared Name", "wdpa"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_reference_sources_are_not_owner_scoped(
+    auth_override, client, user_ds
+):
+    """Only a custom area is owner-scoped. Every reference row is shared."""
+    auth_override("test-user-wri")
+    await _seed_reference_aoi("gadm", "IDN", "Indonesia", "country")
+    await _create_area(client, "Indonesia Custom")
+
+    auth_override("test-user-ds")
+    res = await client.get("/api/aois?name=indonesia", headers=AUTH)
+    assert res.status_code == 200, res.text
+    sources = [r["source"] for r in res.json()]
+    assert sources == ["gadm"]

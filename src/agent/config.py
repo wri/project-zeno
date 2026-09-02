@@ -25,6 +25,16 @@ class _AgentSettings(BaseSettings):
     # this is only used in unit tests
     llm_max_retries: int = Field(default=0, alias="LLM_MAX_RETRIES")
 
+    # Kill switch for the pick_aoi geocoder's table-aware normalisation
+    # (PZB-1272). Set false to search only the place name the geocoder
+    # extracted and to choose among candidates with the model again, which
+    # is the behaviour that shipped before that change. Extraction still
+    # returns the canonical name, alternatives and area type; the geocoder
+    # simply ignores them.
+    aoi_normalizer_enabled: bool = Field(
+        default=True, alias="AOI_NORMALIZER_ENABLED"
+    )
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

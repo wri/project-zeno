@@ -13,7 +13,7 @@ from src.ingest.utils import (
     create_id_index_if_not_exists,
     create_text_search_index_if_not_exists,
 )
-from src.shared.geocoding_helpers import GADM_LEVELS, SOURCE_ID_MAPPING
+from src.shared.geocoding_helpers import AOI_SOURCE_ID_COLUMNS, GADM_LEVELS
 
 load_dotenv()
 
@@ -201,7 +201,7 @@ def ingest_gadm_chunked(
     )
 
     # Create ID index on gadm_id column
-    id_column = SOURCE_ID_MAPPING["gadm"]["id_column"]
+    id_column = AOI_SOURCE_ID_COLUMNS["gadm"]
     create_id_index_if_not_exists(
         table_name=table_name,
         index_name=f"idx_{table_name}_{id_column}",

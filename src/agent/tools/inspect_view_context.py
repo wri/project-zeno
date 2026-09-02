@@ -357,8 +357,9 @@ def _format_map_widget(config: dict) -> Optional[str]:
     imagery = config.get("imagery")
     if isinstance(imagery, dict):
         areas = ", ".join(imagery.get("aoi_names") or []) or "?"
+        provider = imagery.get("provider") or "Sentinel-2"
         return (
-            f"map: Sentinel-2 imagery around "
+            f"map: {provider} imagery around "
             f"{imagery.get('target_date', '?')} ({areas})"
         )
     return None

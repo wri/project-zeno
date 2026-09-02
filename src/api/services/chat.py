@@ -14,8 +14,8 @@ from src.agent.agent_config import AgentConfigRegistry, default_registry
 from src.agent.graph import fetch_zeno
 from src.agent.language import resolve_language
 from src.agent.llms import SMALL_MODEL
-from src.agent.subagents.pick_aoi.tool import fetch_aoi_bbox
 from src.api.schemas import ThreadNameOutput
+from src.shared.geocoding_helpers import fetch_aoi_bbox
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)

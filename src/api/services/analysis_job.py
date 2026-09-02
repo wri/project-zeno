@@ -24,6 +24,7 @@ class AnalysisJobRunner:
         start_date: str,
         end_date: str,
         thread_id: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> None:
         await self._repo.update_job_status(job_id, JobStatus.RUNNING)
         logger.info(
@@ -42,6 +43,7 @@ class AnalysisJobRunner:
                 dataset_id=dataset_id,
                 start_date=start_date,
                 end_date=end_date,
+                language=language,
             )
             duration_ms = round((time.perf_counter() - started_at) * 1000)
 

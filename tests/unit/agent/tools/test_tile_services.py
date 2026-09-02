@@ -1,6 +1,6 @@
 """get_tile_services_for_dataset appends the requested date range to the tile
-URL for date-driven alert layers (DIST-ALERT and Integrated alerts), so the map
-shows alerts only within the queried window.
+URL for date-driven alert layers (Integrated alerts), so the map shows alerts
+only within the queried window.
 
 The deprecated top-level tile_url mirror is always just selected_row.tile_url
 (plus the mutations below) — selected_layer never resolves it here. That

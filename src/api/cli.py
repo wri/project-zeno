@@ -15,13 +15,15 @@ Usage:
     python src/api/cli.py rotate-key --key-id "key_456"
     python src/api/cli.py revoke-key --key-id "key_456"
     python src/api/cli.py make-user-admin --email "admin@example.com"
+    python src/api/cli.py build-aois --source custom --prune --dry-run
 """
 
 import asyncio
+import json
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import bcrypt
 import click
@@ -36,12 +38,20 @@ from src.api.data_models import (
     UserOrm,
     UserType,
 )
+from src.api.services.aoi_sync import (
+    prune_orphan_custom_aois,
+    upsert_custom_aoi,
+)
+from src.shared.aoi_geometry import (
+    bbox_float_array_sql,
+    multipolygon_sql,
+)
 from src.shared.config import SharedSettings
 from src.shared.geocoding_helpers import (
+    AOI_SOURCE_ID_COLUMNS,
     GADM_LEVELS,
     GADM_STANDARD_ID_RE,
-    SOURCE_ID_MAPPING,
-    _antimeridian_bbox_sql,
+    SOURCE_STAGING_TABLES,
 )
 
 
@@ -809,10 +819,10 @@ def backfill_turn_fields_command(batch_size: int, dry_run: bool):
 # Reference sources first, custom last (custom depends only on custom_areas).
 _BUILD_SOURCES = ["gadm", "kba", "wdpa", "landmark", "custom"]
 
-# Note: `aois.properties` (JSONB) is intentionally left NULL by this transform.
-# It exists as an escape hatch for user-uploaded custom-AOI attributes (needs
-# the PR2 API change to accept them) and source-specific reference columns
-# (a deliberate follow-up); neither is populated in PR1.
+# This transform leaves `aois.properties` (JSONB) NULL. The column holds two
+# kinds of value that no code writes yet: the attributes of an uploaded custom
+# AOI, and the source columns that do not map to a typed column. Both are
+# follow-up work.
 
 # Which source column carries the ISO3 country code(s), per reference source.
 # Resolved case-insensitively at runtime: geometries_* are built by GeoPandas
@@ -824,43 +834,26 @@ _ISO3_SOURCE_COLUMNS = {
     "landmark": ["iso_code"],
 }
 
+# GADM 4.1 ships the literal string "NA" as its no-data marker, and ingest
+# composes display names from the NAME_* columns without recognising it, so
+# England's row is named "NA, United Kingdom" and is unfindable by search.
+# 2,930 rows are affected globally. See SPEC-PR7 / PZB-1271.
+_GADM_NO_DATA_NAME = "NA"
 
-def _multipolygon_sql(geom_expr: str) -> str:
-    """Normalize *geom_expr* to a valid 2D MultiPolygon (for the typed column).
+# Rule A adopts a candidate name only when it holds this share of the parent's
+# *named* immediate children. GADM's own child rows disagree with each other,
+# so unanimity is not available: England's level-2 children include two that
+# say "NA", Cork's include one "Cork City", Zuid-Holland's one "Zuid Hollandse
+# Meren". A strict majority keeps all three, and refuses the all-NA ghost row
+# whose two children split 1-1 between England and Scotland. The one
+# plurality-adjacent case it admits is CHL.15.1_1 -> Tamarugal (5 of 7, GADM's
+# row spanning two Chilean provinces); raise this to 0.8 to exclude it.
+_GADM_CHILD_NAME_MIN_SHARE = 0.5
 
-    ``ST_MakeValid`` repairs self-intersections / ring errors;
-    ``ST_CollectionExtract(..., 3)`` keeps only polygonal parts (dropping the
-    line/point slivers ``ST_MakeValid`` can emit); ``ST_Multi`` guarantees the
-    ``MULTIPOLYGON`` type the ``aois.geometry`` column enforces. Callers filter
-    out an empty result (a geometry with no areal component) with
-    ``NOT ST_IsEmpty(...)`` so such rows are skipped, not stored empty.
-
-    The repair runs per part (``ST_Dump`` -> ``ST_MakeValid`` ->
-    ``ST_Collect``): on a whole MultiPolygon ``ST_MakeValid`` resolves every
-    ring against every other in one GEOS overlay, whose cost scales with part
-    count and can exhaust the backend on many-part rows. The tradeoff is that
-    overlaps *between* parts go unresolved, so the result is not guaranteed
-    OGC-valid -- fine here, as the column enforces type but not validity.
-    """
-    return (
-        "ST_Multi(ST_CollectionExtract("
-        "(SELECT ST_Collect(ST_MakeValid(d.geom)) "
-        f"FROM ST_Dump(ST_Force2D({geom_expr})) d), 3))"
-    )
-
-
-def _bbox_float_array_sql(geom_expr: str) -> str:
-    """A ``float8[]`` ``[west, south, east, north]`` for *geom_expr*.
-
-    Wraps the shared antimeridian-aware bbox (which yields a JSON array) and
-    turns it into a real Postgres array so it lands in ``aois.bbox`` directly.
-    ``WITH ORDINALITY`` pins the element order.
-    """
-    return (
-        "(SELECT array_agg(e::double precision ORDER BY ord) "
-        f"FROM json_array_elements_text({_antimeridian_bbox_sql(geom_expr)}) "
-        "WITH ORDINALITY AS t(e, ord))"
-    )
+# Rule B's level. GADM shifted names down a level only for district-counties
+# holding a single municipality (Bristol, Tameside, Trafford, Wiltshire ...);
+# applying it further down would rename a unit after an unrelated child.
+_GADM_SHIFTED_NAME_SUBTYPE = "district-county"
 
 
 async def _table_exists(session: AsyncSession, table: str) -> bool:
@@ -889,6 +882,208 @@ async def _resolve_column(
     return None
 
 
+class _GadmLevel(NamedTuple):
+    """One GADM admin level's subtype and its two columns in staging."""
+
+    subtype: str
+    id_col: str
+    name_col: str
+
+
+def _gadm_repair_levels() -> list[_GadmLevel]:
+    """GADM's admin levels, shallowest first, from ``GADM_LEVELS``.
+
+    One definition of the hierarchy, so the repair rules can pair a level with
+    the one below it (``zip(levels, levels[1:])``). A parent and its children
+    share the parent's ``id_col``, and both carry the parent's name in their own
+    ``name_col``, which is what lets a broken parent look one level down.
+    """
+    return [
+        _GadmLevel(subtype, level["col_name"], level["name_col"])
+        for subtype, level in GADM_LEVELS.items()
+    ]
+
+
+async def _derive_gadm_name_repairs(
+    session: AsyncSession, table: str, id_col: str
+) -> dict[str, str]:
+    """Derive ``{source_id: repaired display name}`` from GADM's hierarchy.
+
+    Read-only: staging is never written, so the map is recomputed identically on
+    every build and re-applies itself after any re-ingest, GADM v5 included.
+
+    Two rules, both taking the name from rows GADM did fill in:
+
+    * **A, parent name from children.** A row whose own ``NAME_n`` is ``'NA'``
+      adopts the name its immediate children carry in *their* ``NAME_n``, when
+      one candidate holds a strict majority of the named children. Repairs
+      England, Cork and Zuid-Holland at level 1, and at level 2 the multi-child
+      counties whose name GADM only stored one level down (Warwickshire,
+      Derbyshire, Greater London ...).
+    * **B, leaf name from an only child.** A district-county row holding
+      exactly one municipality child, which must itself be named, adopts that
+      child's name. A district with one named child *and* one ``'NA'`` child is
+      refused: the SQL counts every child, not just the named ones, so the pair
+      has to be unambiguous. Repairs Bristol and 57 others, where GADM shifted
+      the name down a level rather than omitting it. Rule A wins where both
+      could fire.
+
+    Only the broken leading segment of the display name is replaced; every
+    parent segment is left byte-identical, so no row's name changes except at
+    the position GADM left as ``'NA'``. Rows the rules cannot reach (no
+    children, a tie, a multi-child parent with no majority, an unnamed only
+    child) keep the name they have today.
+
+    Known gap, accepted: only the *leading* segment is repaired, so a Rule B
+    family leaves the child itself reading "Bristol, NA, England, United
+    Kingdom" -- the parent's own name is fixed, the same name sitting in the
+    child's middle segment is not. Recomposing a display name from its repaired
+    ancestors is SPEC-PR8's design and the durable fix; patching middle
+    segments by string surgery here is not.
+    """
+    # One catalogue read for every level: `_resolve_column` costs a round trip
+    # per candidate and returns the real casing, which nothing here needs --
+    # the column names come from GADM_LEVELS and are quoted as declared.
+    result = await session.execute(
+        text(
+            "SELECT lower(column_name) FROM information_schema.columns "
+            "WHERE table_name = :t"
+        ),
+        {"t": table},
+    )
+    present = {row[0] for row in result.all()}
+
+    levels: list[_GadmLevel] = []
+    for level in _gadm_repair_levels():
+        missing = [
+            col
+            for col in (level.id_col, level.name_col)
+            if col.lower() not in present
+        ]
+        if missing:
+            # A level GADM_LEVELS declares but staging does not carry means a
+            # partial ingest: say so rather than quietly repairing less.
+            click.echo(
+                f"⚠️  gadm: level '{level.subtype}' skipped by the name "
+                f"repair ({', '.join(missing)} not in {table})."
+            )
+        else:
+            levels.append(level)
+
+    # Each rule pairs a level with the one directly below it.
+    pairs = list(zip(levels, levels[1:]))
+    if not pairs:
+        return {}
+
+    params: dict[str, object] = {
+        "na": _GADM_NO_DATA_NAME,
+        "na_prefix": f"{_GADM_NO_DATA_NAME}, %",
+        "min_share": _GADM_CHILD_NAME_MIN_SHARE,
+    }
+    votes: list[str] = []
+    for i, (parent, child) in enumerate(pairs):
+        params[f"parent_{i}"] = parent.subtype
+        params[f"child_{i}"] = child.subtype
+        # Identifiers cannot be bound, and these come from GADM_LEVELS, not
+        # from data. Every value is a bound parameter. A NULL candidate fails
+        # `NOT IN` on its own, so no null test is needed.
+        votes.append(
+            f"""
+            SELECT CAST(p."{id_col}" AS TEXT) AS source_id,
+                   c."{parent.name_col}" AS candidate,
+                   count(*) AS votes
+            FROM {table} p
+            JOIN {table} c
+              ON c.subtype = :child_{i}
+             AND c."{parent.id_col}" = p."{parent.id_col}"
+            WHERE p.subtype = :parent_{i}
+              AND p."{parent.name_col}" = :na
+              AND c."{parent.name_col}" NOT IN ('', :na)
+            GROUP BY 1, 2
+            """
+        )
+
+    ctes = [
+        f"votes AS ({' UNION ALL '.join(votes)})",
+        """ranked AS (
+            SELECT source_id, candidate, votes,
+                   sum(votes) OVER (PARTITION BY source_id) AS total
+            FROM votes
+        )""",
+        """rule_a AS (
+            -- No tie-break, and none possible: a strict majority of the votes
+            -- admits at most one candidate per source_id. Drop :min_share to
+            -- 0.5 or below and this CTE can emit several rows for one id,
+            -- which `repairs` would carry through as duplicate repairs.
+            SELECT source_id, candidate AS leaf
+            FROM ranked
+            WHERE votes > :min_share * total
+        )""",
+    ]
+    repair_arms = ["SELECT source_id, leaf FROM rule_a"]
+
+    # Rule B is level 2 only: the shifted-name pattern is a district-county
+    # holding a single municipality. Emitted only when that level survived the
+    # column check, so there is no empty sentinel CTE to reason about.
+    b_pair = next(
+        (
+            (parent, child)
+            for parent, child in pairs
+            if parent.subtype == _GADM_SHIFTED_NAME_SUBTYPE
+        ),
+        None,
+    )
+    if b_pair is not None:
+        parent, child = b_pair
+        params["b_parent"] = parent.subtype
+        params["b_child"] = child.subtype
+        # The inner select groups, the outer only filters, so `min()` is
+        # written once. It is the only child's name, because HAVING has already
+        # restricted the group to one row; a NULL leaf fails `NOT IN`.
+        ctes.append(
+            f"""rule_b AS (
+            SELECT source_id, leaf
+            FROM (
+                SELECT CAST(p."{id_col}" AS TEXT) AS source_id,
+                       min(c."{child.name_col}") AS leaf
+                FROM {table} p
+                JOIN {table} c
+                  ON c.subtype = :b_child
+                 AND c."{parent.id_col}" = p."{parent.id_col}"
+                WHERE p.subtype = :b_parent
+                  AND p."{parent.name_col}" = :na
+                GROUP BY 1
+                HAVING count(*) = 1
+            ) only_child
+            WHERE leaf NOT IN ('', :na)
+        )"""
+        )
+        # Rule A wins where both fire.
+        repair_arms.append(
+            "SELECT source_id, leaf FROM rule_b"
+            " WHERE source_id NOT IN (SELECT source_id FROM rule_a)"
+        )
+
+    ctes.append(f"repairs AS ({' UNION ALL '.join(repair_arms)})")
+
+    # substring past the marker drops the leading 'NA' and keeps the ', parent'
+    # tail. DISTINCT ON collapses the duplicate ids the staging tables carry
+    # (no unique constraint); duplicates of one id share their composed name.
+    sql = f"""
+        WITH {", ".join(ctes)}
+        SELECT DISTINCT ON (r.source_id)
+               r.source_id,
+               r.leaf || substring(g.name FROM char_length(:na) + 1)
+                 AS repaired
+        FROM repairs r
+        JOIN {table} g ON CAST(g."{id_col}" AS TEXT) = r.source_id
+        WHERE g.name = :na OR g.name LIKE :na_prefix
+        ORDER BY r.source_id, repaired
+    """
+    result = await session.execute(text(sql), params)
+    return {row[0]: row[1] for row in result.all()}
+
+
 async def _build_reference_aois(
     session: AsyncSession, source: str, *, nchunks: int, dry_run: bool
 ) -> int:
@@ -901,10 +1096,17 @@ async def _build_reference_aois(
     ``DISTINCT ON`` dedup and ``ON CONFLICT`` upsert stay correct with no
     cross-chunk boundary effects. Note chunking does *not* bound the cost of any
     single geometry -- that is the job of the part-wise repair in
-    ``_multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
+    ``multipolygon_sql`` and the ``MATERIALIZED`` CTE (compute each shape once).
+
+    The gadm name repair is derived once, before the loop, and passed in as one
+    bound jsonb object. It has to be: it reads a row's *children*, which the
+    hash partition scatters across other chunks, so a lookup inside the chunked
+    statement would have to be careful never to be chunk-filtered. Deriving it
+    once also pays for its self-join once (~20s on the full table) instead of
+    once per pass.
     """
-    cfg = SOURCE_ID_MAPPING[source]
-    table, id_col = cfg["table"], cfg["id_column"]
+    table = SOURCE_STAGING_TABLES[source]
+    id_col = AOI_SOURCE_ID_COLUMNS[source]
 
     iso3_col = await _resolve_column(
         session, table, _ISO3_SOURCE_COLUMNS[source]
@@ -915,6 +1117,11 @@ async def _build_reference_aois(
         else "NULL::text[]"
     )
 
+    # Only gadm carries broken source names, so every other source selects
+    # `name` unchanged, joins nothing extra and binds no repair parameters.
+    name_expr = "name"
+    repair_join = ""
+    repair_params: dict[str, object] = {}
     if source == "gadm":
         # subtype -> GADM admin level (0..5), in GADM_LEVELS declaration order.
         admin_expr = (
@@ -927,13 +1134,37 @@ async def _build_reference_aois(
         # Disputed territories (e.g. "Z01") lack a 3-letter ISO prefix; keep
         # the rows but flag them so search can exclude via its partial index.
         disputed_expr = f"NOT (\"{id_col}\" ~ '{GADM_STANDARD_ID_RE}')"
+
+        repairs = await _derive_gadm_name_repairs(session, table, id_col)
+        if repairs:
+            click.echo(
+                f"🔧 {source}: {len(repairs)} name(s) repaired from GADM's "
+                "own hierarchy."
+            )
+            # One bound jsonb object rather than two arrays that have to stay
+            # index-aligned: one hash join per pass, scaling with however many
+            # rows the rules reach. Not chunk-filtered, on purpose -- see the
+            # docstring.
+            repair_join = (
+                " LEFT JOIN jsonb_each_text(CAST(:repairs AS jsonb))"
+                " AS r(repair_id, repair_name)"
+                f' ON r.repair_id = CAST("{id_col}" AS TEXT)'
+            )
+            name_expr = "COALESCE(r.repair_name, name)"
+            repair_params = {"repairs": json.dumps(repairs)}
+        else:
+            # Staging always carries GADM's 'NA' rows, so an empty map means
+            # the rules reached nothing: never let that pass unremarked.
+            click.echo(
+                f"⚠️  {source}: no name(s) repaired from GADM's own hierarchy."
+            )
     else:
         admin_expr = "NULL::smallint"
         disputed_expr = "false"
 
     # Normalize source geometry to a valid MultiPolygon once, then derive
     # geometry / bbox / area_km2 from the same shape.
-    norm_geom = _multipolygon_sql("geometry")
+    norm_geom = multipolygon_sql("geometry")
     # The geometries_* tables are bulk-loaded by GeoPandas with no unique
     # constraint, so the same id can appear on several rows (GADM does).
     # Postgres aborts the whole INSERT ... ON CONFLICT DO UPDATE if one
@@ -951,13 +1182,13 @@ async def _build_reference_aois(
         WITH normalized AS MATERIALIZED (
             SELECT DISTINCT ON (CAST("{id_col}" AS TEXT))
                 CAST("{id_col}" AS TEXT) AS source_id,
-                name,
+                {name_expr} AS name,
                 subtype,
                 {norm_geom} AS geom,
                 {iso3_expr} AS iso3,
                 {admin_expr} AS admin_level,
                 {disputed_expr} AS is_disputed
-            FROM {table}
+            FROM {table}{repair_join}
             WHERE name IS NOT NULL AND geometry IS NOT NULL
               AND (abs(hashtext(CAST("{id_col}" AS TEXT))::bigint) % :nchunks)
                   = :chunk
@@ -976,7 +1207,7 @@ async def _build_reference_aois(
             name,
             subtype,
             geom,
-            {_bbox_float_array_sql("geom")},
+            {bbox_float_array_sql("geom")},
             ST_Area(geom::geography) / 1e6,
             iso3,
             admin_level,
@@ -998,7 +1229,7 @@ async def _build_reference_aois(
     inserted = 0
     for chunk in range(nchunks):
         result = await session.execute(
-            text(sql), {"nchunks": nchunks, "chunk": chunk}
+            text(sql), {"nchunks": nchunks, "chunk": chunk, **repair_params}
         )
         inserted += result.rowcount
         # One transaction per chunk: bounds the open transaction and makes a
@@ -1052,8 +1283,8 @@ async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
     a high part count is what makes a whole-geometry repair blow up. The
     largest-part pass needs ``ST_Dump``, so it is slower than the rest.
     """
-    cfg = SOURCE_ID_MAPPING[source]
-    table, id_col = cfg["table"], cfg["id_column"]
+    table = SOURCE_STAGING_TABLES[source]
+    id_col = AOI_SOURCE_ID_COLUMNS[source]
 
     (
         rows,
@@ -1118,83 +1349,6 @@ async def _inspect_reference_aois(session: AsyncSession, source: str) -> None:
         click.echo(f"     {gtype}: {cnt}")
 
 
-async def _build_custom_aois(session: AsyncSession) -> int:
-    """Transform ``custom_areas`` into ``aois`` + one ``owner`` link each.
-
-    Geometry is the dissolved union of the stored GeoJSON-string list, coerced
-    to a valid MultiPolygon: overlapping user-drawn parts merge (so ``area_km2``
-    is not double-counted) and the result satisfies the typed column. Each area
-    gets exactly one ``owner`` row in ``user_aois`` for its ``user_id``. Returns
-    the owner-link upsert count.
-    """
-    # Union dissolves overlapping parts; _multipolygon_sql makes it a valid
-    # MultiPolygon. ST_MakeValid per element guards invalid input polygons.
-    geom_sql = _multipolygon_sql(
-        "(SELECT ST_Union("
-        "ST_MakeValid(ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON(g), 4326)))"
-        ") FROM jsonb_array_elements_text(ca.geometries) AS g)"
-    )
-    sql = f"""
-        WITH collected AS (
-            SELECT
-                ca.id,
-                ca.user_id,
-                ca.name,
-                ca.created_at,
-                ca.updated_at,
-                {geom_sql} AS geom
-            FROM custom_areas ca
-        ),
-        ins AS (
-            INSERT INTO aois (
-                source, source_id, name, subtype, geometry,
-                bbox, area_km2, created_by, created_at, updated_at
-            )
-            SELECT
-                'custom',
-                id::text,
-                name,
-                'custom-area',
-                geom,
-                {_bbox_float_array_sql("geom")},
-                ST_Area(geom::geography) / 1e6,
-                user_id,
-                created_at,
-                updated_at
-            FROM collected
-            WHERE name IS NOT NULL AND geom IS NOT NULL AND NOT ST_IsEmpty(geom)
-            ON CONFLICT (source, source_id) WHERE NOT is_deprecated
-            DO UPDATE SET
-                name = EXCLUDED.name,
-                geometry = EXCLUDED.geometry,
-                bbox = EXCLUDED.bbox,
-                area_km2 = EXCLUDED.area_km2,
-                updated_at = now()
-            RETURNING id AS aoi_id, created_by AS user_id
-        )
-        INSERT INTO user_aois (user_id, aoi_id, relationship)
-        SELECT user_id, aoi_id, 'owner' FROM ins
-        ON CONFLICT (user_id, aoi_id, relationship) DO NOTHING
-    """
-    result = await session.execute(text(sql))
-
-    # Surface (don't silently drop) custom areas whose geometries couldn't be
-    # coerced to a non-empty MultiPolygon.
-    skipped = await session.scalar(
-        text(
-            f"SELECT count(*) FROM custom_areas ca "
-            f"WHERE ca.name IS NOT NULL "
-            f"AND ({geom_sql} IS NULL OR ST_IsEmpty({geom_sql}))"
-        )
-    )
-    if skipped:
-        click.echo(
-            f"⚠️  custom: {skipped} area(s) skipped "
-            f"(geometries not coercible to a non-empty MultiPolygon)."
-        )
-    return result.rowcount
-
-
 @cli.command("build-aois")
 @click.option(
     "--source",
@@ -1226,18 +1380,39 @@ async def _build_custom_aois(session: AsyncSession) -> int:
         "types) per reference source, to size up before a real run."
     ),
 )
+@click.option(
+    "--prune",
+    is_flag=True,
+    help=(
+        "custom only: also delete the mirrored aois rows that have no "
+        "custom_areas row. Off by default, because a wrong or empty "
+        "custom_areas table makes every mirrored row look like an orphan. "
+        "Combine with --dry-run to see the count first."
+    ),
+)
 def build_aois_command(
-    sources: tuple, dry_run: bool, chunks: int, inspect: bool
+    sources: tuple, dry_run: bool, chunks: int, inspect: bool, prune: bool
 ):
     """Populate the unified aois/user_aois tables from already-loaded data.
 
     Idempotent, set-based, in-DB transform of the reference geometries_*
     tables and custom_areas into the unified schema. Run post-deploy (heavy
-    work must not run in the blocking migrate Job). Purely additive: the live
-    API keeps serving from geometries_* / custom_areas until the API PR.
+    work must not run in the blocking migrate Job).
+
+    The API reads aois, so this command is a precondition, not an extra. The
+    reference sources do not change, so one build serves them. custom_areas
+    does change, so re-run --source custom after a deploy that adds the
+    write-through mirror. Add --prune on that run to remove the rows left by a
+    delete that the mirror missed.
     """
     selected = list(sources) or _BUILD_SOURCES
     outcome = "would be upserted" if dry_run else "upserted"
+
+    if prune and inspect:
+        raise click.UsageError("--prune cannot run with --inspect.")
+    if prune and "custom" not in selected:
+        raise click.UsageError("--prune needs the custom source.")
+    pruned = "would be removed" if dry_run else "removed"
 
     async def _inspect():
         db = DatabaseManager()
@@ -1250,7 +1425,7 @@ def build_aois_command(
                             "(GeoJSON-string list, not a geometry column)."
                         )
                         continue
-                    table = SOURCE_ID_MAPPING[source]["table"]
+                    table = SOURCE_STAGING_TABLES[source]
                     if not await _table_exists(session, table):
                         click.echo(
                             f"⏭️  {source}: {table} not found, skipping."
@@ -1271,11 +1446,7 @@ def build_aois_command(
                 # succeeded; re-run resumes. The big reference tables are far
                 # too large to hold in one open transaction.
                 async with db.async_session() as session:
-                    table = (
-                        "custom_areas"
-                        if source == "custom"
-                        else SOURCE_ID_MAPPING[source]["table"]
-                    )
+                    table = SOURCE_STAGING_TABLES[source]
                     if not await _table_exists(session, table):
                         click.echo(
                             f"⏭️  {source}: {table} not found, skipping."
@@ -1283,10 +1454,19 @@ def build_aois_command(
                         continue
 
                     if source == "custom":
-                        links = await _build_custom_aois(session)
+                        # The CRUD write-through uses this same SQL. This call
+                        # has no area filter.
+                        links = await upsert_custom_aoi(session)
                         click.echo(
                             f"✅ custom: {links} owner link(s) {outcome}."
                         )
+                        if prune:
+                            # The same session as the upsert, so --dry-run
+                            # rolls the delete back with it.
+                            gone = await prune_orphan_custom_aois(session)
+                            click.echo(
+                                f"🧹 custom: {gone} orphan row(s) {pruned}."
+                            )
                     else:
                         n = await _build_reference_aois(
                             session, source, nchunks=chunks, dry_run=dry_run
@@ -1328,6 +1508,17 @@ def build_aois_command(
                     text("SELECT count(*) FROM user_aois")
                 )
                 click.echo(f"   user_aois: {links_total.scalar()}")
+
+            # Refresh the planner statistics. After a bulk insert the planner
+            # has no statistics for the new rows until autoanalyze runs, and
+            # until then it does not use the indexes on aois. Skipped under
+            # --dry-run, which rolls every source back.
+            if committed:
+                async with db.async_session() as session:
+                    await session.execute(text("ANALYZE aois"))
+                    await session.execute(text("ANALYZE user_aois"))
+                    await session.commit()
+                click.echo("\n📈 Planner statistics refreshed.")
         except Exception:
             if committed:
                 click.echo(

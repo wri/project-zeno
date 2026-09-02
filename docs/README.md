@@ -43,22 +43,24 @@ The `ui_context` parameter allows the frontend to pass pre-selected data (AOI, d
 ```python
 ui_context = {
     "aoi_selected": {
-        "aoi": {  # Full AOI geojson and metadata
-            "geometry": {...},  # GeoJSON geometry
-            "name": "Location Name",
-            "gadm_id": 12345,
-            # ... other AOI fields
+        # One AOI, in the same shape that `GET /api/aois` returns. The API
+        # copies this dict straight into `aoi_selection.aois`, so it must
+        # carry these five keys. `bbox` may be omitted, and the API then
+        # reads it from the `aois` table.
+        "aoi": {
+            "source": "gadm",              # gadm|kba|wdpa|landmark|custom
+            "src_id": "IND.26.20_1",       # id within that source
+            "name": "Koraput, Odisha, India",
+            "subtype": "district-county",
+            "bbox": [82.0, 18.2, 83.4, 19.3],   # [west, south, east, north]
         },
-        "aoi_name": "Location Name",
-        "subregion_aois": None,  # or DataFrame data
-        "subregion": None,
-        "subtype": "district-county"
+        "aoi_name": "Koraput, Odisha, India",
     },
     "dataset_selected": {
         "dataset": {
-            "dataset_id": 14,
+            "dataset_id": 11,
             "source": "GFW",
-            "data_layer": "DIST-ALERT",
+            "data_layer": "Integrated alerts",
             "tile_url": "https://tiles.globalforestwatch.org/...",
             "context_layer": "driver",
             "daterange": {
@@ -86,7 +88,7 @@ ui_context = {
 The frontend includes UI selection components that work in conjunction with the chat interface:
 
 1. **AOI Dropdown**: Pre-defined areas of interest (e.g., "Koraput" district)
-2. **Dataset Dropdown**: Pre-configured datasets (e.g., "Tree Cover Loss", "DIST_ALERT")
+2. **Dataset Dropdown**: Pre-configured datasets (e.g., "Tree Cover Loss", "Integrated Alerts")
 3. **Date Range Picker**: Interactive date selection with start/end date inputs
 
 When users make selections via these UI components, the selections are automatically passed to the chat API via the `ui_context` parameter. This enables a seamless hybrid experience where users can:
@@ -172,188 +174,120 @@ No additional state variables are updated - this tool only adds informational co
 
 ### Pick aoi
 
-The first tool is picking an AOI. It updates either the `aoi`, or the `subregion_aois` fields.
-
-
-
-The other fields are for internal use and can be ingnored on the frontend.
-
+The first tool resolves the place(s) in the request to map geometry. It writes
+one state field, `aoi_selection`:
 
 ```python
+class AOISelection(TypedDict):
+    # Display label for the whole selection, e.g. "30 Districts in Odisha".
+    name: str
+    # One entry per selected area. A single pick gives one entry; a subregion
+    # comparison gives one entry per subregion.
+    aois: list[dict]
+
+
 class AgentState(TypedDict):
     # Adds one tool message string to the message history
     messages: Annotated[Sequence[BaseMessage], add_messages]
-    # Structured aoi, contains geojson, name, and ID fields.
-    aoi: dict
-    subregion_aois: pd.DataFrame
-    subregion: str
-    aoi_name: str
-    subtype: str
+    aoi_selection: AOISelection
 ```
+
+Every entry in `aoi_selection.aois` has the same five fields, which are the
+same fields `GET /api/aois` returns:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `source` | str | `gadm`, `kba`, `wdpa`, `landmark` or `custom` |
+| `src_id` | str | The id of the area within that source |
+| `name` | str | Display name |
+| `subtype` | str | e.g. `country`, `state-province`, `custom-area` |
+| `bbox` | list[float] | `[west, south, east, north]` |
+
+Entries may carry extra keys. Subregion expansion and the global-country query
+also repeat `src_id` under the id column name that the source used before the
+AOI tables were unified (`gadm_id`, `sitrecid`, `wdpa_pid`, `landmark_id`), for
+frontends that address tile layers by those names. `GET /api/metadata` returns
+that mapping as `layer_id_mapping`. Treat the five fields above as the
+contract, and the repeats as legacy.
+
+Geometry is **not** in the state. Fetch it per area from
+`GET /api/geometry/{source}/{src_id}`, or a preview from
+`GET /api/geometry/{source}/{src_id}/thumbnail`.
 
 #### Example pick aoi output
 
-For single aoi
+A single pick:
 
 ```json
 {
-    "aoi": {
-        "GID_0": "IND",
-        "COUNTRY": "India",
-        "subtype": "district-county",
-        "GID_1": "IND.26_1",
-        "NAME_1": "Odisha",
-        "VARNAME_1": null,
-        "NL_NAME_1": "NA",
-        "TYPE_1": null,
-        "ENGTYPE_1": null,
-        "CC_1": null,
-        "HASC_1": null,
-        "ISO_1": null,
-        "GID_2": "IND.26.20_1",
-        "NAME_2": "Koraput",
-        "VARNAME_2": "NA",
-        "NL_NAME_2": "NA",
-        "TYPE_2": "District",
-        "ENGTYPE_2": "District",
-        "CC_2": "NA",
-        "HASC_2": "IN.OR.KO",
-        "GID_3": null,
-        "NAME_3": null,
-        "VARNAME_3": null,
-        "NL_NAME_3": null,
-        "TYPE_3": null,
-        "ENGTYPE_3": null,
-        "CC_3": null,
-        "HASC_3": null,
-        "GID_4": null,
-        "NAME_4": null,
-        "VARNAME_4": null,
-        "TYPE_4": null,
-        "ENGTYPE_4": null,
-        "CC_4": null,
-        "GID_5": null,
-        "NAME_5": null,
-        "TYPE_5": null,
-        "ENGTYPE_5": null,
-        "CC_5": null,
+    "aoi_selection": {
         "name": "Koraput, Odisha, India",
-        "gadm_id": 22056,
-        "geometry": {
-            "type": "MultiPolygon",
-            "coordinates": [...]
-        }
-    },
-    "subregion_aois": null,
-    "subregion": null,
-    "aoi_name": "Koraput, Odisha, India",
-    "subtype": "district-county",
-    "message": "Selected AOI: Koraput, Odisha, India, type: district-county"
-}
-```
-
-For multi aoi
-
-```json
-{
-    "aoi": {
-        "GID_0": "IND",
-        "COUNTRY": "India",
-        "subtype": "state-province",
-        "GID_1": "IND.26_1",
-        "NAME_1": "Odisha",
-        "VARNAME_1": "NA",
-        "NL_NAME_1": "NA",
-        "TYPE_1": "State",
-        "ENGTYPE_1": "State",
-        "CC_1": "NA",
-        "HASC_1": "IN.OR",
-        "ISO_1": "IN-OR",
-        "GID_2": null,
-        "NAME_2": null,
-        "VARNAME_2": null,
-        "NL_NAME_2": null,
-        "TYPE_2": null,
-        "ENGTYPE_2": null,
-        "CC_2": null,
-        "HASC_2": null,
-        "GID_3": null,
-        "NAME_3": null,
-        "VARNAME_3": null,
-        "NL_NAME_3": null,
-        "TYPE_3": null,
-        "ENGTYPE_3": null,
-        "CC_3": null,
-        "HASC_3": null,
-        "GID_4": null,
-        "NAME_4": null,
-        "VARNAME_4": null,
-        "TYPE_4": null,
-        "ENGTYPE_4": null,
-        "CC_4": null,
-        "GID_5": null,
-        "NAME_5": null,
-        "TYPE_5": null,
-        "ENGTYPE_5": null,
-        "CC_5": null,
-        "name": "Odisha, India",
-        "gadm_id": 1534,
-        "geometry": {
-            "type": "MultiPolygon",
-            "coordinates": [...]
-        }
-    },
-    "subregion_aois": {
-        "data": [
+        "aois": [
             {
-                "gfw_fid": 3261,
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": [[...]]
-                }
-            },
-            {
-                "gfw_fid": 3262,
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": [[...]]
-                }
-            },
-            {
-                "gfw_fid": 3263,
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": [[...]]
-                }
-            },
-            {
-                "gfw_fid": 14937,
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": [[...]]
-                }
-            },
-            {
-                "gfw_fid": 15089,
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": [[...]]
-                }
+                "source": "gadm",
+                "src_id": "IND.26.20_1",
+                "name": "Koraput, Odisha, India",
+                "subtype": "district-county",
+                "bbox": [82.0, 18.2, 83.4, 19.3],
+                "gadm_id": "IND.26.20_1"
             }
-        ],
-        "total_rows": 5,
-        "columns": 23
-    },
-    "subregion": "kba",
-    "aoi_name": "Odisha, India",
-    "subtype": "state-province",
-    "message": {
-        "aoi": "Selected AOI: Odisha, India, type: state-province",
-        "subregions": "Subregion AOIs: 5"
+        ]
     }
 }
 ```
 
+A comparison across subregions fills the same list, one entry per subregion:
+
+```json
+{
+    "aoi_selection": {
+        "name": "30 Districts in Odisha, India",
+        "aois": [
+            {
+                "source": "gadm",
+                "src_id": "IND.26.1_1",
+                "name": "Angul, Odisha, India",
+                "subtype": "district-county",
+                "bbox": [84.5, 20.5, 85.4, 21.3],
+                "gadm_id": "IND.26.1_1"
+            },
+            {
+                "source": "gadm",
+                "src_id": "IND.26.2_1",
+                "name": "Balangir, Odisha, India",
+                "subtype": "district-county",
+                "bbox": [82.6, 20.1, 83.7, 21.1],
+                "gadm_id": "IND.26.2_1"
+            }
+        ]
+    }
+}
+```
+
+#### Ambiguous place names
+
+When one name matches areas in several countries, the tool asks instead of
+guessing. It sets a `nudge` rather than `aoi_selection`:
+
+```json
+{
+    "nudge": {
+        "type": "aoi_choice",
+        "options": ["Cordoba, Argentina - (state-province) [ARG]",
+                    "Cordoba, Spain - (state-province) [ESP]"],
+        "data": [
+            {"source": "gadm", "src_id": "ARG.6_1", "name": "Cordoba, Argentina",
+             "subtype": "state-province", "bbox": [-65.8, -35.0, -62.0, -29.4]},
+            {"source": "gadm", "src_id": "ESP.2_1", "name": "Cordoba, Spain",
+             "subtype": "state-province", "bbox": [-5.6, 37.3, -4.2, 38.7]}
+        ]
+    }
+}
+```
+
+`options` are display strings; sending one back as the next question resolves
+the choice. `data` holds the same candidates in the `aoi_selection.aois` shape,
+so a frontend can select one directly instead of round-tripping the text.
 
 ### Pick dataset
 
@@ -372,17 +306,17 @@ class AgentState(TypedDict):
 ```json
 {
     "dataset": {
-        "dataset_id": 0,
-        "dataset_name": "Ecosystem disturbance alerts",
+        "dataset_id": 11,
+        "dataset_name": "Integrated alerts",
         "context_layer": null,
-        "reason": "This dataset directly matches the query as it provides \"Global All Ecosystem Disturbance Alerts (DIST-ALERT)\" with near-real-time alerts of vegetation disturbance globally, which is exactly what the user is asking about regarding ecosystem disturbance alerts distribution.",
-        "tile_url": "https://tiles.globalforestwatch.org/umd_glad_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color"
+        "reason": "This dataset directly matches the query as it provides near-real-time alerts of vegetation and forest disturbance globally, integrating DIST-ALERT, GLAD-L, GLAD-S2 and RADD, which is exactly what the user is asking about regarding ecosystem disturbance alerts distribution.",
+        "tile_url": "https://tiles.globalforestwatch.org/gfw_integrated_dist_alerts/latest/dynamic/{z}/{x}/{y}.png?render_type=true_color"
     },
     "message": {
-        "selected_dataset": "DIST-ALERT",
-        "context_layer": "driver",
+        "selected_dataset": "Integrated alerts",
+        "context_layer": null,
         "threshold": null,
-        "reasoning": "The DIST-ALERT dataset is the best match as it specifically provides near-real-time alerts of vegetation disturbance at high resolution (30m), covers the 2024 timeframe (2023-2025), and includes a \"driver\" contextual layer which would help identify the main drivers of disturbances in Koraput for Q1 2024. This dataset covers all vegetation types and is designed for monitoring ecosystem changes in near-real-time."
+        "reasoning": "The Integrated alerts dataset is the best match as it specifically provides near-real-time alerts of vegetation and forest disturbance at high resolution (10m), covers the 2024 timeframe (2023-2025), and combines four alert systems (DIST-ALERT, GLAD-L, GLAD-S2, RADD) to detect disturbance faster than any single system. This dataset covers all vegetation types and is designed for monitoring ecosystem changes in near-real-time."
     }
 }
 ```
@@ -429,7 +363,7 @@ class AgentState(TypedDict):
     },
     "start_date": "2024-01-01",
     "end_date": "2024-03-31",
-    "message": "Successfully pulled data for Koraput from DIST-ALERT dataset for period 2024-01-01 to 2024-03-31"
+    "message": "Successfully pulled data for Koraput from Integrated alerts dataset for period 2024-01-01 to 2024-03-31"
 }
 ```
 

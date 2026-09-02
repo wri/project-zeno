@@ -132,7 +132,7 @@ cautions: "Despite the flexibility provided by the probability maps, we note sev
   \ practice for area estimation., as it does not account for classification uncertainties or biases.\n"
 function_usage_notes: 'This global grasslands dataset is intended to be used for monitoring natural/semi-natural grasslands
   in individual years as well as change over time. This dataset should be used when a user asks about area in a specific year
-  or gain or loss of area between years for natural/semi-natural grasslands. This dataset may NOT be overlaid with DIST alert
+  or gain or loss of area between years for natural/semi-natural grasslands. This dataset may NOT be overlaid with Integrated Alerts
   data to find alerts in natural/semi-natural grasslands. It can be used to find where natural/semi-natural grasslands were
   in 2020 and then see how they have changed since then.
 

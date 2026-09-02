@@ -256,9 +256,13 @@ async def get_geometry_thumbnail(
     height: int = 300,
     user: UserModel = Depends(require_auth),
 ):
-    """
-    Proxy a PNG thumbnail for an AOI via the Mapbox Static Images API.
-    The geometry is simplified as needed to stay within URL limits.
+    """Proxy a PNG thumbnail for an AOI via the Mapbox Static Images API.
+
+    The geometry is simplified as needed to stay within URL limits. The AOI is
+    resolved by the same helper that serves
+    ``GET /api/geometry/{source}/{src_id}``, so this endpoint reads the same
+    tables and accepts the same source names. It returns 404 if the AOI has no
+    geometry, and 503 if no Mapbox token is configured.
     """
     if not APISettings.mapbox_api_token:
         raise HTTPException(

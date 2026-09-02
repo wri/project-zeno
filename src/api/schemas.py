@@ -288,11 +288,26 @@ class UserWithQuotaModel(UserModel, QuotaModel):
 
 
 class GeometryResponse(BaseModel):
+    """One AOI and its geometry, returned by ``GET /api/geometry``."""
+
     name: str = Field(..., description="Name of the geometry")
     subtype: str = Field(..., description="Subtype of the geometry")
     source: str = Field(..., description="Source of the geometry")
-    src_id: int | str = Field(..., description="Source ID of the geometry")
-    geometry: dict = Field(..., description="GeoJSON geometry")
+    src_id: int | str = Field(
+        ...,
+        description=(
+            "Source ID of the geometry. An integer only for `kba`, which "
+            "stored a numeric id before the AOI tables were unified."
+        ),
+    )
+    geometry: dict = Field(
+        ...,
+        description=(
+            "GeoJSON geometry. The `type` depends on the source: a reference "
+            "source returns `MultiPolygon`, and a custom area returns the "
+            "drawn parts as `Polygon` or `GeometryCollection`."
+        ),
+    )
 
 
 class AOISearchResult(BaseModel):
@@ -307,7 +322,11 @@ class AOISearchResult(BaseModel):
     subtype: str = Field(..., description="Subtype of the AOI")
     bbox: List[float] = Field(
         default=[-180.0, -90.0, 180.0, 90.0],
-        description="Bounding box as [minx, miny, maxx, maxy]",
+        description=(
+            "Bounding box as [west, south, east, north]. The default is the "
+            "world bbox, which the search substitutes for a null bbox. `west` "
+            "is greater than `east` for an AOI that crosses the antimeridian."
+        ),
     )
 
 

@@ -39,6 +39,52 @@ async_session_maker = sessionmaker(
 Base.metadata.bind = engine_test
 
 
+# One valid square, for any test that needs a geometry but asserts nothing
+# about it (the transform still derives bbox and area from it).
+UNIT_SQUARE_WKT = "POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))"
+
+
+async def seed_reference_aoi(
+    source,
+    source_id,
+    name,
+    subtype,
+    *,
+    geometry_wkt=UNIT_SQUARE_WKT,
+    bbox=(0, 0, 1, 1),
+    is_disputed=False,
+):
+    """Insert a reference AOI as build-aois does, with raw SQL and real geometry.
+
+    A reference source never reaches ``aois`` through the ORM. Only the
+    custom-area mirror does. This helper therefore uses the same write path as
+    the real code. The caller passes ``bbox`` instead of deriving it, so a test
+    can seed a bbox that disagrees with the geometry and show which one a read
+    path uses. ``None`` leaves the bbox null.
+    """
+    async with async_session_maker() as session:
+        await session.execute(
+            text(
+                "INSERT INTO aois "
+                "(source, source_id, name, subtype, geometry, bbox, "
+                " is_disputed) "
+                "VALUES (:source, :source_id, :name, :subtype, "
+                " ST_Multi(ST_GeomFromText(:geometry_wkt, 4326)), "
+                " :bbox, :is_disputed)"
+            ),
+            {
+                "source": source,
+                "source_id": source_id,
+                "name": name,
+                "subtype": subtype,
+                "geometry_wkt": geometry_wkt,
+                "bbox": list(bbox) if bbox is not None else None,
+                "is_disputed": is_disputed,
+            },
+        )
+        await session.commit()
+
+
 async def override_get_session_from_pool_dependency() -> (
     AsyncGenerator[AsyncSession, None]
 ):
@@ -80,6 +126,12 @@ async def test_db():
     """Create test database and clear it after each test."""
     # Set up test database
     async with engine_test.begin() as conn:
+        # The migrations create these extensions, but the test schema comes from
+        # create_all, which never runs a migration. postgis must exist before
+        # create_all, because create_all emits aois.geometry as a geometry
+        # column.
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
     yield
     # Clean up
