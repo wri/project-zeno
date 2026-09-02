@@ -718,6 +718,11 @@ class Geocoder:
             query.subregion,
         )
         if not query.places:
+            logger.warning(
+                "geocoding_miss",
+                reason="no_place_extracted",
+                question=question,
+            )
             return Command(
                 update={
                     "messages": [
@@ -822,6 +827,12 @@ class Geocoder:
         ]
         selected_aois = [aoi for aoi, _ in matched]
         if not selected_aois:
+            logger.warning(
+                "geocoding_miss",
+                reason="no_candidates",
+                question=question,
+                unmatched_places=unmatched_places,
+            )
             return Command(
                 update={
                     "messages": [
@@ -924,6 +935,12 @@ class Geocoder:
         for selected_aoi in final_aois:
             tool_message += f"\n- {selected_aoi.name}"
         if unmatched_places:
+            logger.warning(
+                "geocoding_partial_miss",
+                question=question,
+                unmatched_places=unmatched_places,
+                matched_places=match_names,
+            )
             tool_message += (
                 "\n\nNo match found for: "
                 f"{', '.join(unmatched_places)}. These were skipped."
