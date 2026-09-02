@@ -132,22 +132,16 @@ DEFAULT_SKILLS = (
 # profile omits them (see EXPERIMENTAL_PROFILE below).
 DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 
-# Experimental profile including tools and skills we want internal feedback on
-# before releasing to the public. It is a sibling of `default`, not a child:
-# it swaps `show-imagery` for `show-imagery-planet`, which inheritance could
-# not do. `inspect_view_context` is no longer bound here — the `dashboard`
-# skill took it into its `requires:` (reading a dashboard's sections and
-# widget ids is part of that workflow, not a standalone debugging aid).
+# Skills and tools we want internal feedback on before releasing to the
+# public. Both tuples hold only the experimental *additions*; the profile
+# composes them onto the core sets below (DEFAULT_SKILLS + EXPERIMENTAL_SKILLS,
+# CORE_TOOLS + EXPERIMENTAL_TOOLS), so anything added to the default surface
+# reaches this profile too. `inspect_view_context` is not listed here — the
+# `dashboard` skill took it into its `requires:` (reading a dashboard's
+# sections and widget ids is part of that workflow, not a standalone
+# debugging aid).
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = (
-    "analyze",
-    "pull-data",
-    "capabilities",
-    "show-imagery-planet",
-    "wri-insights",
-    "dashboard",
-    "explore",
-)
+EXPERIMENTAL_SKILLS = ("show-imagery-planet",)
 EXPERIMENTAL_TOOLS = (update_insight_display_spec,)
 
 
@@ -387,7 +381,7 @@ default_registry.register(
 default_registry.register(
     AgentConfig(
         EXPERIMENTAL_PROFILE,
-        skills=EXPERIMENTAL_SKILLS,
+        skills=DEFAULT_SKILLS + EXPERIMENTAL_SKILLS,
         tools=CORE_TOOLS + EXPERIMENTAL_TOOLS,
         # Excludes are per-profile (not inherited), so an empty set here
         # reveals the datasets that `default` hides.
