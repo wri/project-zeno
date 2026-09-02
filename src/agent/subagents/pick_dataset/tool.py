@@ -523,6 +523,15 @@ def get_tile_services_for_dataset(
         end_date,
         context_layer=selection_result.context_layer,
         parameters=parameters,
+        # The candidate row, not the catalog: its context layers have already
+        # been filtered to those covering the selected area.
+        record={
+            "dataset_id": selected_row.dataset_id,
+            "dataset_name": selected_row.dataset_name,
+            "tile_url": selected_row.tile_url,
+            "context_layers": selected_row.context_layers,
+            "parameters": selected_row.parameters,
+        },
     )
     context_layers = [
         ContextLayer(name=entry["name"], tile_url=entry["tile_url"])

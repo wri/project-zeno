@@ -21,6 +21,8 @@ def test_integrated_alerts_tile_url_gets_date_params():
     )
     row = SimpleNamespace(
         dataset_id=INTEGRATED_ALERTS_ID,
+        # Every candidate row carries a name (a required catalog column).
+        dataset_name="Integrated alerts",
         tile_url=IA_TILE,
         context_layers=None,
         parameters=None,
