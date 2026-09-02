@@ -628,10 +628,24 @@ class DashboardPublicToggleRequest(BaseModel):
     is_public: bool
 
 
+#: How a section was built. ``default`` is a user- or agent-composed group;
+#: every other value names a recipe that wrote the section in one piece.
+#: Recipe sections are read-only (see ``dashboard_writer.SEALED_SECTION_TYPES``).
+_SECTION_TYPES = ("default", "nrt-monitoring")
+
+
 class DashboardSectionCreateRequest(BaseModel):
     title: str = Field(
         min_length=1,
         description="Section heading, e.g. `Deforestation`.",
+    )
+    type: str = Field(
+        default="default",
+        description=(
+            "How the section was built: `default` for a group you compose "
+            "widget by widget. Recipe types such as `nrt-monitoring` are "
+            "written by their own endpoint and are read-only afterwards."
+        ),
     )
     description: Optional[str] = Field(
         default=None,
@@ -642,8 +656,19 @@ class DashboardSectionCreateRequest(BaseModel):
         description="Order among the dashboard's sections; default: appended last.",
     )
 
+    @field_validator("type")
+    def validate_type(cls, v):
+        if v not in _SECTION_TYPES:
+            raise ValueError(
+                f"type must be one of {', '.join(_SECTION_TYPES)}"
+            )
+        return v
+
 
 class DashboardSectionUpdateRequest(BaseModel):
+    # ``type`` is deliberately absent: it records how the section was built,
+    # and a sealed section that could be retyped to "default" would be one
+    # PATCH away from editable.
     title: Optional[str] = Field(default=None, min_length=1)
     # Explicit null clears the description; omitting the field leaves it.
     description: Optional[str] = None
@@ -760,6 +785,9 @@ class DashboardSectionResponse(BaseModel):
     title: str
     description: Optional[str] = None
     position: int
+    # "default", or the recipe that wrote the section. Anything other than
+    # "default" is read-only: the API rejects writes to it with 409.
+    type: str = "default"
     created_at: datetime
 
 
@@ -802,6 +830,83 @@ class DashboardPublicToggleResponse(DashboardResponse):
         default=[],
         description=(
             "Insights flipped to public because this dashboard was published."
+        ),
+    )
+
+
+class NrtSectionCreateRequest(BaseModel):
+    """Inputs for a near-real-time monitoring section.
+
+    Every field has a working default: the point of the endpoint is that a
+    caller can post an empty body.
+    """
+
+    days: int = Field(
+        default=90,
+        ge=1,
+        le=365,
+        description=(
+            "Length of the alert window, counted back from today. Clamped "
+            "to the dataset's own coverage."
+        ),
+    )
+    window_days: int = Field(
+        default=7,
+        ge=1,
+        le=183,
+        description=(
+            "Satellite imagery search window, ±N days around the end of the "
+            "alert window."
+        ),
+    )
+    max_cloud_cover: int = Field(
+        default=20,
+        ge=0,
+        le=100,
+        description="Cloud cover limit for the satellite scenes, in percent.",
+    )
+    title: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        description="Section heading; generated from the data when omitted.",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        description=(
+            "Section summary; generated from the data when omitted. The "
+            "generated text states the key figures."
+        ),
+    )
+    force: bool = Field(
+        default=False,
+        description=(
+            "Build even if the dashboard already has a monitoring section "
+            "for the same period. Off by default, so a double click does "
+            "not produce two identical sections."
+        ),
+    )
+
+
+class NrtSectionResponse(DashboardResponse):
+    """The dashboard with the new section on it, plus what the build could
+    not do."""
+
+    section_id: UUID = Field(
+        description="The section that was created, or the existing match."
+    )
+    created: bool = Field(
+        description=(
+            "False when an existing section for the same period was "
+            "returned instead of building a new one."
+        )
+    )
+    warnings: List[str] = Field(
+        default=[],
+        description=(
+            "Why a widget is missing — e.g. the area is too large for "
+            "satellite imagery, or no cloud-free scenes were found. The "
+            "section is still usable; do not assume three widgets."
         ),
     )
 

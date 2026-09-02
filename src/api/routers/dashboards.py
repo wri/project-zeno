@@ -42,7 +42,15 @@ from src.api.schemas import (
     DashboardWidgetCreateRequest,
     DashboardWidgetResponse,
     DashboardWidgetUpdateRequest,
+    NrtSectionCreateRequest,
+    NrtSectionResponse,
     UserModel,
+)
+from src.api.services.nrt_monitoring import (
+    AnalyticsFailedError,
+    build_nrt_section,
+    find_existing_section,
+    resolve_period,
 )
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
@@ -103,6 +111,46 @@ def _row_to_response(
             for widget in row.widgets or []
         ],
     )
+
+
+def _sealed_conflict(error: dashboard_writer.SealedSectionError):
+    """409 for a write to a section a recipe sealed.
+
+    A conflict, not a permission error: the owner is refused because of what
+    the section *is*, and the same call against any other section succeeds.
+    """
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f"Section is read-only (type: {error.section_type})",
+    )
+
+
+async def _visible_insights(
+    session: AsyncSession, row: DashboardOrm, user: Optional[UserModel]
+) -> dict:
+    """The insight rows behind this dashboard's widgets that the viewer may
+    see (own + public; read-through access for private insights on public
+    dashboards is deliberately not granted). Privileged users see
+    everything.
+
+    Shared by every endpoint that returns a dashboard the caller is about to
+    render, so a widget's payload does not depend on which call produced it.
+    """
+    insight_ids = [w.insight_id for w in row.widgets if w.insight_id]
+    if not insight_ids:
+        return {}
+    result = await session.execute(
+        select(InsightOrm)
+        .options(selectinload(InsightOrm.charts))
+        .where(InsightOrm.id.in_(insight_ids))
+    )
+    user_id = user.id if user else None
+    return {
+        insight.id: insight
+        for insight in result.scalars().all()
+        if insight_is_visible_to_user(insight, user_id)
+        or _is_privileged(user)
+    }
 
 
 async def _get_owned_dashboard(
@@ -189,25 +237,7 @@ async def get_dashboard(
         if row.user_id != user.id and not _is_privileged(user):
             raise HTTPException(status_code=404, detail="Dashboard not found")
 
-    # Expand widget insights the viewer may see (own + public; read-through
-    # access for private insights on public dashboards is deliberately not
-    # granted). Privileged users see everything.
-    insight_ids = [w.insight_id for w in row.widgets if w.insight_id]
-    insights_by_id = {}
-    if insight_ids:
-        result = await session.execute(
-            select(InsightOrm)
-            .options(selectinload(InsightOrm.charts))
-            .where(InsightOrm.id.in_(insight_ids))
-        )
-        user_id = user.id if user else None
-        insights_by_id = {
-            insight.id: insight
-            for insight in result.scalars().all()
-            if insight_is_visible_to_user(insight, user_id)
-            or _is_privileged(user)
-        }
-    return _row_to_response(row, insights_by_id)
+    return _row_to_response(row, await _visible_insights(session, row, user))
 
 
 @router.patch(
@@ -273,8 +303,103 @@ async def add_section(
         title=body.title,
         description=body.description,
         position=body.position,
+        type=body.type,
     )
     return _row_to_response(await _refetch_dashboard(dashboard_id))
+
+
+@router.post(
+    "/api/dashboards/{dashboard_id}/sections/nrt-monitoring",
+    response_model=NrtSectionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_nrt_monitoring_section(
+    dashboard_id: UUID,
+    body: NrtSectionCreateRequest = NrtSectionCreateRequest(),
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+):
+    """Build a near-real-time monitoring section for the dashboard's area
+    (owner only).
+
+    One call creates a whole section: a chart of disturbance alerts over the
+    period, a map of those alerts, and satellite imagery of the same area and
+    period. Everything runs before the response, so the section is complete
+    when this returns — expect it to take tens of seconds.
+
+    The section is **read-only** afterwards (``type: "nrt-monitoring"``):
+    writes to it or its widgets return 409. To change one, delete it and
+    build another.
+
+    Satellite imagery is best-effort: areas above the mosaic size limit, or
+    periods with no cloud-free scenes, yield a two-widget section and a line
+    in ``warnings``. A failure to pull the alert data returns 502 — a section
+    without its data would say nothing.
+
+    Called twice for the same period, the second call returns the existing
+    section with ``created: false``; pass ``force: true`` to build anyway.
+    """
+    dashboard = await _get_owned_dashboard(dashboard_id, user)
+    if not dashboard.aois:
+        raise HTTPException(
+            status_code=422,
+            detail="Dashboard has no area to monitor",
+        )
+
+    aoi = dashboard.aois[0]
+    start_date, end_date = resolve_period(body.days)
+
+    if not body.force:
+        existing = find_existing_section(dashboard, start_date, end_date)
+        if existing is not None:
+            base = _row_to_response(
+                dashboard, await _visible_insights(session, dashboard, user)
+            )
+            return NrtSectionResponse(
+                **base.model_dump(),
+                section_id=existing.id,
+                created=False,
+            )
+
+    try:
+        result = await build_nrt_section(
+            str(dashboard_id),
+            {
+                "source": aoi.source,
+                "src_id": aoi.src_id,
+                "subtype": aoi.subtype,
+                "name": aoi.name,
+            },
+            user_id=user.id,
+            days=body.days,
+            window_days=body.window_days,
+            max_cloud_cover=body.max_cloud_cover,
+            title=body.title,
+            description=body.description,
+            language=user.preferred_language_code,
+        )
+    except AnalyticsFailedError as error:
+        logger.error(
+            "nrt_section_analytics_failed",
+            severity="high",
+            dashboard_id=str(dashboard_id),
+            error_details=str(error),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not retrieve alert data: {error}",
+        )
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+
+    row = await _refetch_dashboard(dashboard_id)
+    base = _row_to_response(row, await _visible_insights(session, row, user))
+    return NrtSectionResponse(
+        **base.model_dump(),
+        section_id=UUID(result.section_id),
+        created=True,
+        warnings=result.warnings,
+    )
 
 
 @router.patch(
@@ -298,12 +423,15 @@ async def update_section(
     description: object = dashboard_writer.UNSET
     if "description" in body.model_fields_set:
         description = body.description
-    await dashboard_writer.update_section(
-        section_id,
-        title=body.title,
-        description=description,
-        position=body.position,
-    )
+    try:
+        await dashboard_writer.update_section(
+            section_id,
+            title=body.title,
+            description=description,
+            position=body.position,
+        )
+    except dashboard_writer.SealedSectionError as error:
+        raise _sealed_conflict(error)
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
 
@@ -330,6 +458,11 @@ async def remove_section(
     section's widgets stay on the dashboard and fall back to the ungrouped
     top level, renumbered after the widgets already there. Pass
     ``delete_widgets=true`` to remove them with the section.
+
+    A read-only section built by a recipe (``type`` other than ``default``)
+    is the exception: deleting it always removes its widgets, whatever
+    ``delete_widgets`` says, because those widgets are only editable — and
+    only meaningful — inside their own section.
     """
     row = await _get_owned_dashboard(dashboard_id, user)
     if section_id not in {s.id for s in row.sections}:
@@ -386,6 +519,8 @@ async def add_widget(
         )
     except dashboard_writer.UnknownSectionError:
         raise HTTPException(status_code=404, detail="Section not found")
+    except dashboard_writer.SealedSectionError as error:
+        raise _sealed_conflict(error)
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
 
@@ -421,6 +556,8 @@ async def update_widget(
         )
     except dashboard_writer.UnknownSectionError:
         raise HTTPException(status_code=404, detail="Section not found")
+    except dashboard_writer.SealedSectionError as error:
+        raise _sealed_conflict(error)
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
 
@@ -438,7 +575,10 @@ async def remove_widget(
     row = await _get_owned_dashboard(dashboard_id, user)
     if widget_id not in {w.id for w in row.widgets}:
         raise HTTPException(status_code=404, detail="Widget not found")
-    await dashboard_writer.remove_widget(widget_id)
+    try:
+        await dashboard_writer.remove_widget(widget_id)
+    except dashboard_writer.SealedSectionError as error:
+        raise _sealed_conflict(error)
 
 
 @router.delete(

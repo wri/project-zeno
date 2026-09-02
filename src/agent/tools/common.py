@@ -68,6 +68,25 @@ def error_command(message: str, tool_call_id: Optional[str]) -> Command:
     )
 
 
+def sealed_error_command(
+    error: dashboard_writer.SealedSectionError, tool_call_id: Optional[str]
+) -> Command:
+    """Reply for a write the repository refused as read-only.
+
+    The write paths that do not pass through ``resolve_section`` (editing a
+    section, editing or moving a widget already on a dashboard) only learn
+    the section is sealed when the repository raises. The reply names the
+    only way forward, so the model explains rather than retries.
+    """
+    return error_command(
+        f"Section {error.section_id} is read-only (built in one piece as "
+        f"'{error.section_type}'). Its title, description and widgets cannot "
+        "be changed. Tell the user it cannot be edited — it can only be "
+        "deleted and rebuilt.",
+        tool_call_id,
+    )
+
+
 def resolve_dashboard_id(
     state: dict, explicit: Optional[str]
 ) -> Optional[str]:
@@ -98,7 +117,13 @@ def format_sections(dashboard: DashboardOrm) -> str:
     if not sections:
         return "none"
     return "; ".join(
-        f"'{section.title}' ({section.id})" for section in sections
+        f"'{section.title}' ({section.id})"
+        + (
+            " [read-only]"
+            if section.type in dashboard_writer.SEALED_SECTION_TYPES
+            else ""
+        )
+        for section in sections
     )
 
 
@@ -110,12 +135,23 @@ def resolve_section(dashboard: DashboardOrm, section: Optional[str]):
     the id only from an earlier tool reply. ``None`` means "ungrouped", which
     is not an error: ``(None, None)``. An unmatched name is an error that
     lists the real sections so the model can retry or create one.
+
+    A sealed section (one a recipe built in a piece) is refused here rather
+    than at the write: the repository would raise anyway, and the model gets
+    a reply that says what to do instead.
     """
     if not section:
         return None, None
     wanted = str(section).strip()
     for row in dashboard.sections or []:
         if str(row.id) == wanted or row.title.casefold() == wanted.casefold():
+            if row.type in dashboard_writer.SEALED_SECTION_TYPES:
+                return None, (
+                    f"Section '{row.title}' ({row.id}) is read-only — it was "
+                    "built in one piece and cannot take new widgets. Put the "
+                    "widget in another section, or leave `section` out to add "
+                    "it ungrouped."
+                )
             return row, None
     return None, (
         f"Dashboard '{dashboard.name}' has no section '{section}'. "

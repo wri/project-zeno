@@ -1,8 +1,8 @@
 ---
 name: dashboard
 description: Create a dashboard for an area, group its content into sections, and fill it with insights (new or recalled), map widgets, and text notes.
-when_to_use: User asks to build/create a dashboard for a place, to add an insight/analysis to a dashboard, to add a map layer / satellite imagery to a dashboard, or to group, organize or restructure a dashboard's content. Not for one-off analysis without a dashboard — use `analyze`.
-requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, add_dashboard_section, edit_dashboard_section, move_dashboard_widget, inspect_view_context, send_nudge, search_insights
+when_to_use: User asks to build/create a dashboard for a place, to add an insight/analysis to a dashboard, to add a map layer / satellite imagery to a dashboard, to monitor an area for recent disturbance, or to group, organize or restructure a dashboard's content. Not for one-off analysis without a dashboard — use `analyze`.
+requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, add_dashboard_section, add_nrt_monitoring_section, edit_dashboard_section, move_dashboard_widget, inspect_view_context, send_nudge, search_insights
 ---
 
 # Dashboards
@@ -17,6 +17,36 @@ title and an optional description that says what it is for. Every widget
 either belongs to one section or stays ungrouped; ungrouped widgets render
 above the first section. Order matters and is kept: sections render in their
 own order, widgets in order within their section.
+
+# Read-only sections
+
+Some sections are built by a recipe in one piece rather than widget by
+widget — `inspect_view_context` marks them `read-only`. They are a record of
+one build, so **nothing about them can be changed**: not the title, not the
+description, not the widgets, not their order. The tools refuse it.
+
+If the user asks to change one, say it cannot be edited and offer to delete
+it and build a new one. Deleting it removes its widgets with it. Never put a
+new widget in one, and never move a widget out of one — put it in another
+section or leave it ungrouped.
+
+# Monitoring an area ("watch this place", "recent alerts for X")
+
+`add_nrt_monitoring_section(dashboard_id?, days?)` builds a whole
+near-real-time monitoring section: a chart of integrated disturbance alerts,
+a map of those alerts, and satellite imagery of the same area and period.
+
+- It pulls its own data. Do **not** run `pick_dataset`, `pull_data`,
+  `generate_insights` or `show_imagery` first — that would duplicate the
+  work and the widgets.
+- It needs a dashboard with an area; `create_dashboard` first if there is
+  none.
+- `days` is the alert window counted back from today (default 90).
+- It takes a while. Say what you are doing before you call it.
+- Satellite imagery is skipped for areas too large for a mosaic, or periods
+  with no clear scenes; the reply says so and the section is still built.
+  Pass that on rather than retrying.
+- The section it writes is read-only (see above).
 
 # Which dashboard to use
 

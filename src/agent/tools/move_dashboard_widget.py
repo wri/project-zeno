@@ -21,6 +21,7 @@ from src.agent.tools.common import (
     error_command,
     load_editable_dashboard,
     resolve_section,
+    sealed_error_command,
 )
 from src.api.repositories import dashboard_writer
 from src.shared.logging_config import get_logger
@@ -104,11 +105,14 @@ async def move_dashboard_widget(
         section_id=str(target_section.id) if target_section else None,
     )
 
-    moved = await dashboard_writer.update_widget(
-        widget.id,
-        position=position,
-        section_id=str(target_section.id) if target_section else None,
-    )
+    try:
+        moved = await dashboard_writer.update_widget(
+            widget.id,
+            position=position,
+            section_id=str(target_section.id) if target_section else None,
+        )
+    except dashboard_writer.SealedSectionError as error:
+        return sealed_error_command(error, tool_call_id)
     if not moved:
         return error_command(
             f"Widget {widget.id} disappeared before it could be moved.",

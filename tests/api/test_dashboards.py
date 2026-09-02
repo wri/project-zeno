@@ -5,6 +5,7 @@ import uuid
 import pytest
 
 from src.api.data_models import InsightOrm, UserOrm
+from src.api.repositories import dashboard_writer
 from src.shared.config import SharedSettings
 from tests.conftest import async_session_maker
 
@@ -1112,3 +1113,201 @@ async def test_delete_section_keeps_widgets_by_default(
     (widget,) = body["widgets"]
     assert widget["config"] == {"text": "note"}
     assert widget["section_id"] is None
+
+
+# ---------------------------------------------------------------------------
+# Section types and the seal
+# ---------------------------------------------------------------------------
+async def _create_sealed_section(dashboard_id, *, insight_id=None) -> str:
+    """Write an ``nrt-monitoring`` section the way the recipe does.
+
+    Straight through the repository, because the REST path deliberately
+    cannot create one — only the recipe endpoint can.
+    """
+    written = await dashboard_writer.add_section_with_widgets(
+        dashboard_id,
+        title="Recent disturbance",
+        description="120 ha of alerts.",
+        type="nrt-monitoring",
+        widgets=[
+            {"widget_type": "text", "config": {"text": "sealed note"}},
+            *(
+                [{"widget_type": "insight", "insight_id": str(insight_id)}]
+                if insight_id
+                else []
+            ),
+        ],
+    )
+    assert written is not None
+    return written
+
+
+@pytest.mark.asyncio
+async def test_section_type_defaults_to_default(client, auth_override):
+    user = await _create_user("section-type-default")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+
+    section = await _create_section(client, dashboard["id"])
+
+    assert section["type"] == "default"
+
+
+@pytest.mark.asyncio
+async def test_unknown_section_type_rejected(client, auth_override):
+    user = await _create_user("section-type-unknown")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/sections",
+        headers=AUTH,
+        json={"title": "Alerts", "type": "not-a-type"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_sealed_section_rejects_retitle_and_restate(
+    client, auth_override
+):
+    user = await _create_user("sealed-retitle")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section_id, _ = await _create_sealed_section(dashboard["id"])
+
+    for body in ({"title": "Renamed"}, {"description": "Rewritten"}):
+        response = await client.patch(
+            f"/api/dashboards/{dashboard['id']}/sections/{section_id}",
+            headers=AUTH,
+            json=body,
+        )
+        assert response.status_code == 409
+        assert "read-only" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_sealed_section_accepts_reordering(client, auth_override):
+    """Position orders the dashboard; it does not change the section."""
+    user = await _create_user("sealed-reorder")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section_id, _ = await _create_sealed_section(dashboard["id"])
+
+    response = await client.patch(
+        f"/api/dashboards/{dashboard['id']}/sections/{section_id}",
+        headers=AUTH,
+        json={"position": 5},
+    )
+    assert response.status_code == 200
+    (section,) = response.json()["sections"]
+    assert section["position"] == 5
+    assert section["type"] == "nrt-monitoring"
+
+
+@pytest.mark.asyncio
+async def test_sealed_section_rejects_new_widgets(client, auth_override):
+    user = await _create_user("sealed-add-widget")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section_id, _ = await _create_sealed_section(dashboard["id"])
+
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={
+            "widget_type": "text",
+            "config": {"text": "intruder"},
+            "section_id": section_id,
+        },
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_widget_cannot_leave_a_sealed_section(client, auth_override):
+    user = await _create_user("sealed-move-out")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    _, widget_ids = await _create_sealed_section(dashboard["id"])
+
+    response = await client.patch(
+        f"/api/dashboards/{dashboard['id']}/widgets/{widget_ids[0]}",
+        headers=AUTH,
+        json={"section_id": None},
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_widget_cannot_move_into_a_sealed_section(client, auth_override):
+    user = await _create_user("sealed-move-in")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section_id, _ = await _create_sealed_section(dashboard["id"])
+    loose = await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={"widget_type": "text", "config": {"text": "outsider"}},
+    )
+    widget_id = loose.json()["widgets"][-1]["id"]
+
+    response = await client.patch(
+        f"/api/dashboards/{dashboard['id']}/widgets/{widget_id}",
+        headers=AUTH,
+        json={"section_id": section_id},
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_sealed_widget_config_cannot_be_replaced(client, auth_override):
+    user = await _create_user("sealed-config")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    _, widget_ids = await _create_sealed_section(dashboard["id"])
+
+    response = await client.patch(
+        f"/api/dashboards/{dashboard['id']}/widgets/{widget_ids[0]}",
+        headers=AUTH,
+        json={"config": {"text": "rewritten"}},
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_sealed_widget_cannot_be_deleted_alone(client, auth_override):
+    user = await _create_user("sealed-delete-widget")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    _, widget_ids = await _create_sealed_section(dashboard["id"])
+
+    response = await client.delete(
+        f"/api/dashboards/{dashboard['id']}/widgets/{widget_ids[0]}",
+        headers=AUTH,
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("query", ["", "?delete_widgets=false"])
+async def test_deleting_a_sealed_section_always_takes_its_widgets(
+    client, auth_override, query
+):
+    """Ungrouping would leave loose, editable copies of sealed content."""
+    user = await _create_user(f"sealed-delete-{len(query)}")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section_id, _ = await _create_sealed_section(dashboard["id"])
+
+    response = await client.delete(
+        f"/api/dashboards/{dashboard['id']}/sections/{section_id}{query}",
+        headers=AUTH,
+    )
+    assert response.status_code == 204
+
+    body = (
+        await client.get(f"/api/dashboards/{dashboard['id']}", headers=AUTH)
+    ).json()
+    assert body["sections"] == []
+    assert body["widgets"] == []

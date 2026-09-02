@@ -76,6 +76,8 @@ async def create_mosaic(
 
     return MosaicCreateResponse(
         mosaic_id=result.mosaic_id,
+        tile_url=result.tile_url,
+        tilejson_url=result.tilejson_url,
         item_count=result.item_count,
         date_start=result.date_start,
         date_end=result.date_end,

@@ -21,6 +21,7 @@ from src.agent.tools.common import (
     load_editable_dashboard,
     resolve_dashboard_id,
     resolve_section,
+    sealed_error_command,
 )
 from src.api.repositories import dashboard_writer
 from src.shared.logging_config import get_logger
@@ -103,15 +104,18 @@ async def edit_dashboard_section(
         section_id=str(row.id),
     )
 
-    updated = await dashboard_writer.update_section(
-        row.id,
-        title=new_title,
-        description=(
-            new_description
-            if new_description is not None
-            else dashboard_writer.UNSET
-        ),
-    )
+    try:
+        updated = await dashboard_writer.update_section(
+            row.id,
+            title=new_title,
+            description=(
+                new_description
+                if new_description is not None
+                else dashboard_writer.UNSET
+            ),
+        )
+    except dashboard_writer.SealedSectionError as error:
+        return sealed_error_command(error, tool_call_id)
     if not updated:
         return error_command(
             f"Section {row.id} disappeared before it could be edited.",
