@@ -533,7 +533,7 @@ def get_tile_services_for_dataset(
     start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-    if not tile_url.startswith("http"):
+    if tile_url and not tile_url.startswith("http"):
         tile_url = SharedSettings.eoapi_base_url + tile_url
 
     if (
