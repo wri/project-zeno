@@ -88,3 +88,17 @@ def test_every_skill_is_declared_by_some_profile():
     assert (
         not undeclared
     ), f"skills not declared by any profile: {sorted(undeclared)}"
+
+
+def test_default_profile_surface_never_mentions_planet():
+    """Planet is experimental-only: the default profile's prompt surface must
+    not name it, or the model will ask for a provider it cannot serve."""
+    from src.agent.agent_config import DEFAULT_PROFILE, default_registry
+
+    config = default_registry.resolve(DEFAULT_PROFILE)
+    surface = config.tool_descriptions() + "\n".join(
+        f"{s.description} {s.when_to_use} {s.body}"
+        for s in config.skill_metas()
+    )
+
+    assert "planet" not in surface.lower()

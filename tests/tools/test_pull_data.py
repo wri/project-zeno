@@ -568,6 +568,7 @@ async def test_pull_data_custom_area(auth_override, client, structlog_context):
     aoi_data = {
         "name": response_json["name"],
         "subtype": "custom-area",
+        "source": "custom",
         "src_id": response_json["id"],
         "gadm_id": None,
         "aoi_type": "custom-area",

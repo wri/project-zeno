@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -6,19 +6,27 @@ from pydantic import BaseModel, Field
 class ImageryState(BaseModel):
     """State model for satellite imagery layers."""
 
-    tile_url: str = Field(..., description="Tile URL for the imagery layer")
-    tilejson_url: str = Field(
-        ..., description="TileJSON URL for the imagery layer"
+    provider: Literal["sentinel-2", "planet"] = Field(
+        "sentinel-2", description="Imagery provider"
     )
+    tile_url: str = Field(..., description="Tile URL for the imagery layer")
+    tilejson_url: Optional[str] = Field(
+        None, description="TileJSON URL for the imagery layer"
+    )
+    bounds: Optional[list[float]] = Field(
+        None, description="Layer bounds as [west, south, east, north]"
+    )
+    min_zoom: Optional[int] = Field(None, description="Minimum tile zoom")
+    max_zoom: Optional[int] = Field(None, description="Maximum tile zoom")
     mosaic_id: str = Field(..., description="ID of the mosaic")
     item_count: Optional[int] = Field(
         None, description="Number of scenes in the mosaic"
     )
-    date_start: Optional[str] = Field(
-        None, description="Start date of imagery, ISO"
+    start_date: Optional[str] = Field(
+        None, description="Inclusive start date of selected imagery, ISO"
     )
-    date_end: Optional[str] = Field(
-        None, description="End date of imagery, ISO"
+    end_date: Optional[str] = Field(
+        None, description="Inclusive end date of selected imagery, ISO"
     )
     mean_cloud_cover: Optional[float] = Field(
         None, description="Mean cloud cover across scenes (%)"
@@ -32,11 +40,15 @@ class ImageryState(BaseModel):
     max_cloud_cover_observed: Optional[float] = Field(
         None, description="Highest observed cloud cover across scenes (%)"
     )
-    target_date: str = Field(
-        ..., description="Target date requested (ISO format)"
+    target_date: Optional[str] = Field(
+        None, description="Target date requested (ISO format)"
     )
-    window_days: int = Field(..., description="Search window in days")
-    max_cloud_cover: int = Field(..., description="Max cloud cover percentage")
+    window_days: Optional[int] = Field(
+        None, description="Search window in days"
+    )
+    max_cloud_cover: Optional[int] = Field(
+        None, description="Max cloud cover percentage"
+    )
     aoi_names: list[str] = Field(
         ..., description="Names of selected areas of interest"
     )
