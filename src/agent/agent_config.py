@@ -145,7 +145,7 @@ DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 # sections and widget ids is part of that workflow, not a standalone
 # debugging aid).
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = ("show-imagery-planet",)
+EXPERIMENTAL_SKILLS = ("show-imagery-planet", "nrt-monitoring")
 EXPERIMENTAL_TOOLS = (update_insight_display_spec,)
 
 
