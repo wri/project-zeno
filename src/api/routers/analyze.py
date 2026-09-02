@@ -1,6 +1,7 @@
 """Analysis job endpoint."""
 
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends
@@ -61,6 +62,7 @@ async def create_analysis_job(
         user_id=user.id,
         request=request,
         runner=runner,
+        language=user.preferred_language_code,
     )
 
     return JobResponse(
@@ -78,6 +80,7 @@ async def _run_job(
     user_id: str,
     request: AnalyzeRequest,
     runner: AnalysisJobRunner,
+    language: Optional[str] = None,
 ):
     await runner.run(
         job_id=job_id,
@@ -87,4 +90,5 @@ async def _run_job(
         start_date=request.start_date.isoformat(),
         end_date=request.end_date.isoformat(),
         thread_id=request.thread_id,
+        language=language,
     )

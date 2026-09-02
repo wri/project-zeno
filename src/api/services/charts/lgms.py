@@ -51,11 +51,7 @@ class LGMSChartGenerator(ChartGenerator):
     as its own series rather than assuming one metric per class.
     """
 
-    def __init__(self, dataset_id: int = LAND_GHG_INVENTORY_ID):
-        self.dataset_id = dataset_id
-
-    def can_handle(self, dataset_id: int) -> bool:
-        return dataset_id == self.dataset_id
+    dataset_id = LAND_GHG_INVENTORY_ID
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
         by_year: dict[int, List[dict]] = defaultdict(list)
@@ -149,7 +145,7 @@ class LGMSChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Net GHG Flux — Full Detail",
+                title="charts.lgms.full_detail",
                 chart_type="stacked-bar-with-line",
                 x_axis="year",
                 series_fields=full_series_fields,
@@ -157,7 +153,7 @@ class LGMSChartGenerator(ChartGenerator):
             ),
             InsightChart(
                 position=1,
-                title="Net GHG Flux by Category",
+                title="charts.lgms.by_category",
                 chart_type="stacked-bar-with-line",
                 x_axis="year",
                 series_fields=[
@@ -172,7 +168,7 @@ class LGMSChartGenerator(ChartGenerator):
             ),
             InsightChart(
                 position=2,
-                title="Net GHG Flux Summary",
+                title="charts.lgms.summary",
                 chart_type="stacked-bar-with-line",
                 x_axis="year",
                 series_fields=[
@@ -184,7 +180,7 @@ class LGMSChartGenerator(ChartGenerator):
             ),
             InsightChart(
                 position=3,
-                title="Net GHG Flux — Annual Average",
+                title="charts.lgms.annual_average",
                 chart_type="hierarchical-bar",
                 # A hierarchy has no cartesian axes; each chart_data row's
                 # own parent_id pointer carries the tree structure instead

@@ -1,7 +1,7 @@
 """Shared base class and helpers for deterministic chart generators."""
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import ClassVar, Iterable, List
 
 import numpy as np
 
@@ -37,11 +37,30 @@ def _fold_metric(*values: float | None) -> float | None:
     return sum(present) if present else None
 
 
-class ChartGenerator(ABC):
-    """A deterministic chart builder for one (or more) dataset(s)."""
+def by_area_desc(rows: Iterable[dict]) -> List[dict]:
+    """Rows with a positive `area_ha`, largest first."""
+    return sorted(
+        (row for row in rows if (row.get("area_ha") or 0) > 0),
+        key=lambda row: row["area_ha"],
+        reverse=True,
+    )
 
-    @abstractmethod
-    def can_handle(self, dataset_id: int) -> bool: ...
+
+class ChartGenerator(ABC):
+    """A deterministic chart builder for one dataset.
+
+    Subclasses declare the dataset they serve as a class attribute; the
+    dataset is part of the generator's identity, not a runtime choice,
+    because each one reads columns only its own dataset returns.
+    """
+
+    dataset_id: ClassVar[int]
+    # chart_data columns whose values are message keys rather than literals
+    # (a chart's category axis is as user-facing as its title).
+    label_fields: ClassVar[tuple[str, ...]] = ()
+
+    def can_handle(self, dataset_id: int) -> bool:
+        return dataset_id == self.dataset_id
 
     @abstractmethod
     def generate(self, rows: List[dict]) -> List[InsightChart]: ...
