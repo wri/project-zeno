@@ -42,7 +42,7 @@ class DatasetOption(BaseModel):
     )
     selected_layer: Optional[str] = Field(
         None,
-        description="For a dataset with more than one independently-toggleable layer (see `layers`), the name of the layer that best matches the query's focus — e.g. LGMS's 'agriculture' for a cropland/livestock-emissions question, 'lulucf' for a land-use/vegetation question. Leave null for single-layer datasets or when the query doesn't emphasize one category over another.",
+        description="For a dataset with more than one independently-toggleable layer (see `layers`), the name of the layer that best matches the query's focus — e.g. LGMS's 'agriculture' for a cropland/livestock-emissions question, 'lulucf' for a land-use/vegetation question. Prefer picking the closest-matching layer over leaving this null — even a query that only leans toward one category should get that layer. Leave null only for single-layer datasets or a query that is explicitly about the combined/overall picture across categories, not merely one that doesn't name a category.",
     )
     parameters: Optional[list[DatasetParameter]] = Field(
         None, description="Dataset specific parameters."
