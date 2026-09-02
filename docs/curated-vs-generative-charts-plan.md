@@ -132,7 +132,72 @@ because that service pulls its own data and `pull_data` has already run. The
 agent path reads `source_url` from `state["statistics"]` and fetches the rows
 with `fetch_statistics_from_url`, as `Analyst` does today.
 
-## 5. What to build
+**D5 — How far escalation may go is a property of the dataset.** Rules 2 and
+3 of section 3.3 send a request to the generative path. For some datasets
+that path is the weak one (see section 5). Add a catalog field,
+`insight_escalation`, with two values: `full` (the default; rung three is
+allowed) and `restyle_only` (escalation stops at rung two,
+`update_insight_display`). A hardcoded list in the agent would put a dataset
+property in the wrong place; the catalog already holds every other
+per-dataset rule.
+
+## 5. LGMS, the worked case
+
+The Land GHG Monitoring System (LGMS) shows why the escalation rule needs
+D5, and what this plan does **not** do.
+
+### The plan does not make LGMS visible
+
+`DEFAULT_EXCLUDED_DATASETS` in `src/agent/agent_config.py` hides LGMS from
+the `default` profile. Two gates enforce it, and both run before the insight
+stage:
+
+| Gate | Where |
+|---|---|
+| The selector never sees the dataset | `_drop_excluded_datasets()`, `src/agent/subagents/pick_dataset/tool.py` |
+| The pull refuses the dataset | The data-layer guard in `src/agent/tools/pull_data.py` |
+
+`generate_insights` runs after both, so a `mode` argument on it cannot change
+what the agent may pull. LGMS reaches the agent only under the
+`experimental` profile, which sets `excluded_datasets=frozenset()`.
+
+Note that the exclusion is a property of the agent profile, not of the
+product. `POST /api/analyze` applies no availability check, so a caller who
+names dataset 12 already receives the four curated LGMS charts.
+
+### Curated mode is what could make LGMS safe to reveal
+
+LGMS is the hardest dataset for the generative path:
+
+- The analytics API returns four tables, one per section. They must be
+  flattened first. `merge_lgms_sections()` is special-cased both in
+  `analytics_handler` and in `Analyst._load_statistics_data`.
+- Metrics are sparse by design. An absent cell must stay absent and must not
+  become a zero. `_sum_metric()` in `charts/base.py` exists for this.
+- One row can carry emissions and removals together, so the class alone does
+  not define a series.
+
+The `code_instructions` for LGMS are long because the executor must be told
+all of this on every call. `LGMSChartGenerator` does the same work in code
+and returns four charts at three levels of aggregation.
+
+So if the exclusion exists because generated LGMS charts are unreliable,
+curated mode removes the cause. Lifting the exclusion stays a separate and
+explicit change: remove the name from `DEFAULT_EXCLUDED_DATASETS`.
+
+### What to settle before lifting it
+
+The gate of section 3.1 passes for LGMS. The catalog sets `context_layers:
+null` and `parameters: null`, and one pull returns the whole inventory. A
+canonical question therefore gets the curated charts, which is the wanted
+result.
+
+Rule 2 is the risk. A request that names a cut ("only the soil emissions",
+"as a share of the total") escalates to the generative path, which is the
+weak path here. Set `insight_escalation: restyle_only` for LGMS (D5), so the
+escalation stops at `update_insight_display`.
+
+## 6. What to build
 
 - **A narrative for curated charts.** Reuse `InsightTextGenerator`. It is
   already decoupled from how the charts were built. Pass
@@ -148,11 +213,15 @@ with `fetch_statistics_from_url`, as `Analyst` does today.
   the curated choice was correct, and the frontend cannot mark a chart as the
   canonical one. Empty `codeact_types` and `codeact_contents` already mean
   "deterministic charts", so persistence needs no other change.
+- **The escalation field.** Add `insight_escalation` to the catalog schema
+  (D5), default `full`, and set `restyle_only` for LGMS. The value gates
+  rung three, not rung one: a dataset marked `restyle_only` still gets a
+  curated chart and still gets a restyle.
 - **Skill updates.** Step 5 of `analyze.md` states "always run this to
-  produce one chart insight". It needs the mode rule of section 3.2 and the
-  escalation of D3.
+  produce one chart insight". It needs the mode rule of section 3.2, the
+  escalation of D3, and the stop that D5 can impose.
 
-## 6. Tests
+## 7. Tests
 
 | File | Covers |
 |---|---|
@@ -160,8 +229,9 @@ with `fetch_statistics_from_url`, as `Analyst` does today.
 | `tests/unit/agent/subagents/test_analyst_modes.py` (new) | `mode="default"` uses the generator; an ineligible request falls back; the narrative stage runs on curated charts |
 | `tests/unit/api/services/test_analyze_service.py` | The shared generator step keeps the REST behaviour |
 | `tests/agent` (targeted file) | The model picks the mode for a canonical question and for a specific cut |
+| `tests/unit/agent/test_dataset_config.py` (or the catalog schema test) | Every catalog entry carries a valid `insight_escalation`; `restyle_only` blocks rung three |
 
-## 7. Open points
+## 8. Open points
 
 - **Title form.** Curated titles are message keys that `t()` resolves.
   Generative titles are model-written text. Both reach the database today
@@ -175,6 +245,10 @@ with `fetch_statistics_from_url`, as `Analyst` does today.
   its insights carry no dataset or AOI link. The agent path does write one,
   so a curated insight from chat is findable and a curated insight from REST
   is not. The gap is described in `nrt-monitoring-section-plan.md`.
+- **Whether LGMS should stay hidden at all.** Section 5 argues that curated
+  mode removes the likely cause of the exclusion. Nobody has written down
+  the original reason, so confirm it before the name is removed from
+  `DEFAULT_EXCLUDED_DATASETS`.
 - **Measurement.** With the provenance field in place, count how often the
   agent picks curated and how often the user then asks for a change. That
   ratio says whether section 3.2 is drawn in the right place.

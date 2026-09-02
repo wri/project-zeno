@@ -188,6 +188,9 @@ layer exists so the agent explains instead of erroring:
   are deliberately allowed. Blocking `position` too is a one-line change.
 - **Area size.** Country-level dashboards get no satellite widget. If that
   case is common, a scene-free fallback widget would fill the gap.
-- **Rollout.** The agent tool sits in the `dashboard` skill, so it reaches
-  the **default** profile, not just experimental. Moving it to
-  `EXPERIMENTAL_TOOLS` is a small change if it should be gated first.
+- **Rollout.** The agent tool is gated: it lives in the `nrt-monitoring`
+  skill, which only the **experimental** profile loads. The REST endpoint is
+  not gated — the frontend button works for everyone — so sealed sections
+  appear in every profile, which is why the read-only rule stays in the
+  `dashboard` skill. Graduating the tool means adding the skill to
+  `DEFAULT_SKILLS`.
