@@ -15,11 +15,7 @@ class IntegratedAlertsChartGenerator(ChartGenerator):
     land-cover intersections to break down by.
     """
 
-    def __init__(self, dataset_id: int = INTEGRATED_ALERTS_ID):
-        self.dataset_id = dataset_id
-
-    def can_handle(self, dataset_id: int) -> bool:
-        return dataset_id == self.dataset_id
+    dataset_id = INTEGRATED_ALERTS_ID
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
         totals: dict[tuple[str, str], float] = {}
@@ -37,7 +33,7 @@ class IntegratedAlertsChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Integrated Deforestation Alerts by Confidence",
+                title="charts.integrated_alerts.by_confidence",
                 chart_type="line",
                 x_axis="month",
                 y_axis="area_ha",

@@ -7,6 +7,7 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
+    Tuple,
 )
 
 import pandas as pd
@@ -41,6 +42,7 @@ from src.agent.subagents.progress import emit_progress
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.send_nudge import NUDGE_ALREADY_SET_NOTE
 from src.shared.database import get_connection_from_pool
+from src.shared.gadm_admin_types import GadmAdminTerm, resolve_gadm_admin_level
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
     SUBREGION_TO_SUBTYPE_MAPPING,
@@ -506,6 +508,47 @@ SubregionType = Literal[
 ]
 
 
+# Admin subregion depth -> generic SubregionType label, used to translate a
+# country-resolved GADM level (from resolve_gadm_admin_level) back into the
+# vocabulary query_subregion_database expects.
+LEVEL_TO_SUBREGION: Dict[int, str] = {
+    1: "state",
+    2: "district",
+    3: "municipality",
+    4: "locality",
+    5: "neighbourhood",
+}
+
+
+def _resolve_effective_subregion(
+    subregion: str, admin_term: Optional[str], selected_aoi: AOIIndex
+) -> Tuple[str, bool]:
+    """Override *subregion* with the country-correct GADM depth, if resolvable.
+
+    The LLM extracts one subregion depth per request, but the correct depth
+    for a given admin term is country-specific (Spain's "provinces" are one
+    level deeper than Canada's). This resolves it per selected AOI instead,
+    which also makes a multi-country request (e.g. "provinces of Spain and
+    Canada") resolve correctly for each place independently. Falls back to
+    the LLM's original guess when there's no admin_term, the parent isn't a
+    GADM place, or the term doesn't resolve for that country.
+
+    Returns the effective subregion together with whether *admin_term* is
+    what actually produced it -- the caller uses this to decide whether it's
+    safe to display the user's own word instead of the generic subregion
+    label (it isn't, when the term didn't resolve for this AOI's country).
+    """
+    if not admin_term or selected_aoi.source != "gadm":
+        return subregion, False
+    if subregion not in LEVEL_TO_SUBREGION.values():
+        return subregion, False
+    iso3 = selected_aoi.src_id.split(".")[0]
+    level = resolve_gadm_admin_level(admin_term, iso3)
+    if level is None:
+        return subregion, False
+    return LEVEL_TO_SUBREGION[level], True
+
+
 class ExtractedPlace(BaseModel):
     """One place the geocoder extracted, normalised for our tables.
 
@@ -559,6 +602,20 @@ class PlaceQuery(BaseModel):
         description=(
             "Set only to compare or analyze across many administrative units "
             "inside the place(s); otherwise leave null."
+        ),
+    )
+    admin_term: Optional[GadmAdminTerm] = Field(
+        default=None,
+        description=(
+            "Set together with an administrative subregion (state/district/"
+            "municipality/locality/neighbourhood) to the exact local word the "
+            "user used for that unit (e.g. 'province', 'canton', 'department'"
+            ", 'constituent country'), normalized to this enum's closest "
+            "member. Administrative terminology means a different depth in "
+            "different countries (Spain's provinces are one level deeper "
+            "than Canada's), so this resolves the correct depth per country "
+            "instead of guessing one depth globally. Leave null for "
+            "subregion=country/kba/wdpa/landmark, which are unambiguous."
         ),
     )
 
@@ -685,6 +742,7 @@ class Geocoder:
             aoi_type,
             tool_call_id,
             language,
+            query.admin_term,
         )
 
     async def extract(
@@ -707,6 +765,7 @@ class Geocoder:
         aoi_type: Optional[AreaOfInterestType] = None,
         tool_call_id: Optional[str] = None,
         language: str = DEFAULT_LANGUAGE,
+        admin_term: Optional[str] = None,
     ) -> Command:
         """DB step: resolve known place name(s) to AOI geometry."""
         place_names = [place.place for place in places]
@@ -824,12 +883,22 @@ class Geocoder:
             "pick_aoi", "matched", f"Picked: {', '.join(match_names)}"
         )
 
+        admin_term_resolved = True
         if subregion:
+            effective_subregions = []
+            for selected_aoi in selected_aois:
+                effective, resolved = _resolve_effective_subregion(
+                    subregion, admin_term, selected_aoi
+                )
+                effective_subregions.append(effective)
+                admin_term_resolved = admin_term_resolved and resolved
             subregion_tasks = [
                 query_subregion_database(
-                    subregion, selected_aoi.source, selected_aoi.src_id
+                    effective, selected_aoi.source, selected_aoi.src_id
                 )
-                for selected_aoi in selected_aois
+                for effective, selected_aoi in zip(
+                    effective_subregions, selected_aois
+                )
             ]
             subregion_dfs = await asyncio.gather(*subregion_tasks)
             final_aois = []
@@ -880,7 +949,10 @@ class Geocoder:
         logger.debug(f"Pick AOI tool message: {tool_message}")
 
         selection_name = build_selection_name(
-            match_names, subregion, len(final_aois)
+            match_names,
+            subregion,
+            len(final_aois),
+            display_term=admin_term if admin_term_resolved else None,
         )
 
         logger.info(f"AOI selection name: {selection_name}")

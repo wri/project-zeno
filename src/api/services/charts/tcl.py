@@ -10,11 +10,7 @@ from src.api.services.charts.base import ChartGenerator
 class TCLChartGenerator(ChartGenerator):
     """Tree Cover Loss: annual loss area + annual GHG emissions, as two bars."""
 
-    def __init__(self, dataset_id: int = TREE_COVER_LOSS_ID):
-        self.dataset_id = dataset_id
-
-    def can_handle(self, dataset_id: int) -> bool:
-        return dataset_id == self.dataset_id
+    dataset_id = TREE_COVER_LOSS_ID
 
     def generate(self, rows: List[dict]) -> List[InsightChart]:
         # The analytics API returns rows in arbitrary order; sort by year so
@@ -26,7 +22,7 @@ class TCLChartGenerator(ChartGenerator):
         return [
             InsightChart(
                 position=0,
-                title="Annual Tree Cover Loss",
+                title="charts.tcl.annual_loss",
                 chart_type="bar",
                 x_axis="tree_cover_loss_year",
                 y_axis="area_ha",
@@ -34,7 +30,7 @@ class TCLChartGenerator(ChartGenerator):
             ),
             InsightChart(
                 position=1,
-                title="Annual GHG Emissions from Tree Cover Loss",
+                title="charts.tcl.annual_emissions",
                 chart_type="bar",
                 x_axis="tree_cover_loss_year",
                 y_axis="carbon_emissions_MgCO2e",

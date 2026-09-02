@@ -87,15 +87,30 @@ wdpa, landmark — where state is a province/region, district is a county, kba
 is a Key Biodiversity Area, wdpa is a protected area, and landmark is an
 Indigenous/community land.
 
+For state/district/municipality/locality/neighbourhood, also set
+`admin_term` to the exact local word the user used for that unit ("province",
+"canton", "department", "constituent country", "prefecture", ...), mapped to
+the closest value in your enum. The same word names a different depth in
+different countries — Spain's "provinces" sit one level deeper than Canada's
+"provinces" — so `admin_term` lets the system correct the depth per country;
+your `subregion` value only needs to be your best-guess default (state for a
+province/region/department-sized unit, district for a county-sized unit,
+municipality for a city/town-sized unit) and is used only when that
+correction isn't possible. Leave `admin_term` null for country/kba/wdpa/
+landmark, which are unambiguous.
+
 subregion=country is only valid for global queries. Sub-national units are
 `state` even when the user calls them countries, nations or regions (e.g.
 the UK's constituent countries, which are state-level units).
 
 Use subregion:
 - "Which countries have the most deforestation globally?" → places=["global"], subregion=country
-- "Which of the four countries of the UK (England, Scotland, Wales, Northern Ireland) had the least tree cover?" → places=["United Kingdom"], subregion=state
-- "Compare forest loss across provinces in Canada" → places=["Canada"], subregion=state
-- "Which districts in Odisha have tiger threats?" → places=["Odisha"], subregion=district
+- "Which of the four countries of the UK (England, Scotland, Wales, Northern Ireland) had the least tree cover?" → places=["United Kingdom"], subregion=state, admin_term="Constituent Country"
+  (the UK's constituent countries are sub-national units, not countries in the data)
+- "Compare forest loss across provinces in Canada" → places=["Canada"], subregion=state, admin_term=Province
+- "Which provinces in Spain lost the most forest?" → places=["Spain"], subregion=state, admin_term=Province
+  (Spain's provinces are administratively one level deeper than Canada's — the system resolves that, not you)
+- "Which districts in Odisha have tiger threats?" → places=["Odisha"], subregion=district, admin_term=District
 - "Which KBAs in Brazil have highest biodiversity loss?" → places=["Brazil"], subregion=kba
 
 Do not use subregion:
