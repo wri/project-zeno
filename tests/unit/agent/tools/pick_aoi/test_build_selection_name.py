@@ -3,8 +3,10 @@
 import pytest
 
 from src.agent.subagents.pick_aoi.selection_name_util import (
+    _pluralize,
     build_selection_name,
 )
+from src.shared.gadm_admin_types import GADM_ADMIN_TERMS
 
 # ---------------------------------------------------------------------------
 # No subregion - direct area selections
@@ -110,3 +112,82 @@ def test_many_parents_no_subregion():
     names = ["Brazil", "Peru", "Colombia", "Ecuador", "Bolivia"]
     result = build_selection_name(names, None, 5)
     assert result == "Brazil & Peru & Colombia & Ecuador & Bolivia"
+
+
+# ---------------------------------------------------------------------------
+# display_term - GADM admin-type override (country-resolved subregion depth)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "match_names, subregion, num_aois, display_term, expected",
+    [
+        # Spain's "provinces" resolve to the district depth, but the display
+        # should use the user's own word, not the generic "district" label.
+        (["Spain"], "district", 52, "Province", "52 Provinces in Spain"),
+        # Multi-word admin term, already correctly cased - must not be
+        # mangled by naive .capitalize() (which would lowercase "Country").
+        (
+            ["United Kingdom"],
+            "state",
+            4,
+            "Constituent Country",
+            "4 Constituent Countries in United Kingdom",
+        ),
+        (["Switzerland"], "state", 26, "Canton", "26 Cantons in Switzerland"),
+        (
+            ["United Arab Emirates"],
+            "state",
+            7,
+            "Emirate",
+            "7 Emirates in United Arab Emirates",
+        ),
+    ],
+)
+def test_display_term_overrides_subregion_label(
+    match_names, subregion, num_aois, display_term, expected
+):
+    result = build_selection_name(
+        match_names, subregion, num_aois, display_term=display_term
+    )
+    assert result == expected
+
+
+def test_no_display_term_falls_back_to_subregion():
+    result = build_selection_name(["Brazil"], "state", 26, display_term=None)
+    assert result == "26 States in Brazil"
+
+
+# ---------------------------------------------------------------------------
+# _pluralize - every real GADM admin term, not just the +s common case
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "term, expected",
+    [
+        # Already-plural GADM term: must not double-pluralize.
+        ("Islands", "Islands"),
+        # Sibilant endings need "es", not a bare "s".
+        ("Parish", "Parishes"),
+        ("Metropolis", "Metropolises"),
+        # Consonant+"y" -> "ies".
+        ("Municipality", "Municipalities"),
+        ("Autonomous Community", "Autonomous Communities"),
+        # Plain "+s" case, including a term ending in a vowel+"y".
+        ("Province", "Provinces"),
+        ("Sub-Region", "Sub-Regions"),
+    ],
+)
+def test_pluralize_handles_irregular_terms(term, expected):
+    assert _pluralize(term) == expected
+
+
+@pytest.mark.parametrize("term", GADM_ADMIN_TERMS)
+def test_pluralize_never_mangles_a_real_admin_term(term):
+    """Regression guard for the whole curated vocabulary: every term GADM
+    actually uses must come back plausibly pluralized, never with a doubled
+    ending like "Islandss", "Parishs" or "Metropoliss"."""
+    plural = _pluralize(term)
+    assert not plural.endswith(("ss", "shs", "chs", "xs", "zs"))
+    assert plural != term or term.lower() in {"islands"}

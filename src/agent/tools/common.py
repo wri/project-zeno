@@ -2,9 +2,10 @@
 
 Every dashboard/insight tool speaks the same three dialects:
 
-- request context: who the user is (``current_user_id``) and which dashboard
+- request context: who the user is (``current_user_id``), which dashboard
   a tool should target when none is named (``resolve_dashboard_id``,
-  ``load_editable_dashboard``);
+  ``load_editable_dashboard``) and which section of it a widget belongs to
+  (``resolve_section``);
 - error replies: a single error ToolMessage (``error_command``);
 - success replies that mutate a persisted artifact: Commands that pin the
   artifact in state and tell the frontend to re-fetch it
@@ -88,6 +89,40 @@ async def load_editable_dashboard(
     ):
         return None
     return dashboard
+
+
+def format_sections(dashboard: DashboardOrm) -> str:
+    """One-line listing of a dashboard's sections for a tool reply, so the
+    model can name one on the next call. "none" when there are no sections."""
+    sections = dashboard.sections or []
+    if not sections:
+        return "none"
+    return "; ".join(
+        f"'{section.title}' ({section.id})" for section in sections
+    )
+
+
+def resolve_section(dashboard: DashboardOrm, section: Optional[str]):
+    """The section a widget should join, as ``(section_orm, error_message)``.
+
+    ``section`` names one of the dashboard's sections either by id or by
+    title (case-insensitive) — the model normally has the title to hand and
+    the id only from an earlier tool reply. ``None`` means "ungrouped", which
+    is not an error: ``(None, None)``. An unmatched name is an error that
+    lists the real sections so the model can retry or create one.
+    """
+    if not section:
+        return None, None
+    wanted = str(section).strip()
+    for row in dashboard.sections or []:
+        if str(row.id) == wanted or row.title.casefold() == wanted.casefold():
+            return row, None
+    return None, (
+        f"Dashboard '{dashboard.name}' has no section '{section}'. "
+        f"Existing sections: {format_sections(dashboard)}. Create it with "
+        "add_dashboard_section, or leave the section out to add the widget "
+        "ungrouped."
+    )
 
 
 def dashboard_updated_command(

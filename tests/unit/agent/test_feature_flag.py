@@ -308,6 +308,7 @@ def test_default_profile_derives_exactly_the_core_tools():
             "pull_data",
             "generate_insights",
             "read_skill",
+            "inspect_view_context",
             "search_blogs",
             "show_imagery",
             "search_insights",
@@ -316,6 +317,9 @@ def test_default_profile_derives_exactly_the_core_tools():
             "add_map_widget",
             "add_text_widget",
             "edit_text_widget",
+            "add_dashboard_section",
+            "edit_dashboard_section",
+            "move_dashboard_widget",
             "send_nudge",
         }
     )
@@ -332,6 +336,7 @@ def test_experimental_profile_derives_exactly_the_experimental_tools():
             "read_skill",
             "inspect_view_context",
             "show_imagery",
+            "show_planet_imagery",
             "search_blogs",
             "update_insight_display",
             "search_insights",
@@ -340,6 +345,9 @@ def test_experimental_profile_derives_exactly_the_experimental_tools():
             "add_map_widget",
             "add_text_widget",
             "edit_text_widget",
+            "add_dashboard_section",
+            "edit_dashboard_section",
+            "move_dashboard_widget",
             "send_nudge",
         }
     )
@@ -367,9 +375,9 @@ async def test_fetch_zeno_binds_the_resolved_configs_availability():
     assert available.tools == frozenset({"_fake_tool", "read_skill"})
 
 
-def test_experimental_config_adds_only_standalone_tools():
+def test_experimental_config_adds_standalone_tools_and_planet():
     """dashboard and explore graduated into the default set; experimental now
-    layers only standalone tools not yet owned by any skill."""
+    layers standalone tools plus the opt-in Planet imagery recipe."""
     default = default_registry.resolve(DEFAULT_PROFILE)
     experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
 
@@ -379,17 +387,18 @@ def test_experimental_config_adds_only_standalone_tools():
         "show_imagery",
         "search_blogs",
         "add_to_dashboard",
+        # Owned by the dashboard skill's workflow: it reads a dashboard's
+        # sections and widget ids before grouping or moving anything.
+        "inspect_view_context",
     } <= default_tools
-    assert {"inspect_view_context", "update_insight_display"} <= (
-        experimental_tools - default_tools
-    )
+    assert {"update_insight_display"} <= (experimental_tools - default_tools)
 
     default_skills = {s.name for s in default.skill_metas()}
     experimental_skills = {s.name for s in experimental.skill_metas()}
     assert {"show-imagery", "explore", "wri-insights", "dashboard"} <= (
         default_skills
     )
-    assert experimental_skills == default_skills
+    assert experimental_skills - default_skills == {"show-imagery-planet"}
 
 
 # --- excluded_datasets enforcement in pick_dataset ---------------------------

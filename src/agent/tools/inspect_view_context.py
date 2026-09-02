@@ -357,8 +357,9 @@ def _format_map_widget(config: dict) -> Optional[str]:
     imagery = config.get("imagery")
     if isinstance(imagery, dict):
         areas = ", ".join(imagery.get("aoi_names") or []) or "?"
+        provider = imagery.get("provider") or "Sentinel-2"
         return (
-            f"map: Sentinel-2 imagery around "
+            f"map: {provider} imagery around "
             f"{imagery.get('target_date', '?')} ({areas})"
         )
     return None
@@ -379,7 +380,12 @@ def _format_text_widget(config: dict) -> str:
 
 
 async def format_dashboard(dashboard: DashboardOrm) -> str:
-    """Render the dashboard being viewed: name, area(s) and its widgets.
+    """Render the dashboard being viewed: name, area(s), sections, widgets.
+
+    Widgets are listed under the section they belong to (ungrouped ones
+    first, as they render above the first section), each with its id, so the
+    agent can see the structure, name a section when adding to it, and name
+    a widget when moving one.
 
     Insight widgets are expanded with the shared `format_insights` rendering
     (visibility-filtered), so the agent can reason about what each widget
@@ -399,27 +405,51 @@ async def format_dashboard(dashboard: DashboardOrm) -> str:
     widgets = dashboard.widgets or []
     lines.append(f"  Widgets: {len(widgets)}")
     insight_ids = [w.insight_id for w in widgets if w.insight_id]
-    for widget in widgets:
-        if widget.widget_type == "insight":
-            continue  # detail comes from the insight rendering below
-        config = widget.config or {}
-        summary: str
-        if widget.widget_type == "text":
-            summary = _format_text_widget(config)
-        else:
-            summary = _format_map_widget(config) or json.dumps(
-                config, default=str
-            )
-        lines.append(
-            f"  Widget {widget.position} ({widget.widget_type}): {summary}"
-        )
 
-    sections = ["\n".join(lines)]
+    # Grouped by section so the agent sees the dashboard's structure and can
+    # place new widgets in the right one: ungrouped widgets first (they
+    # render above the first section), then each section in order.
+    by_section: dict = {None: []}
+    for section in dashboard.sections or []:
+        by_section[section.id] = []
+    for widget in widgets:
+        by_section.setdefault(widget.section_id, []).append(widget)
+
+    def _render(widget) -> str:
+        """One line per widget, id first so the agent can move or edit it.
+
+        Insight widgets are listed but not expanded here — their content
+        comes from the insight rendering appended below.
+        """
+        head = f"Widget {widget.position} ({widget.widget_type}) {widget.id}"
+        config = widget.config or {}
+        if widget.widget_type == "insight":
+            return f"{head}: insight {widget.insight_id} (detail below)"
+        if widget.widget_type == "text":
+            return f"{head}: {_format_text_widget(config)}"
+        summary = _format_map_widget(config) or json.dumps(config, default=str)
+        return f"{head}: {summary}"
+
+    for widget in by_section.get(None) or []:
+        lines.append(f"  {_render(widget)}")
+
+    for section in dashboard.sections or []:
+        members = by_section.get(section.id) or []
+        lines.append(
+            f"  Section {section.position}: '{section.title}' "
+            f"({section.id}) — {len(members)} widget(s)"
+        )
+        if section.description:
+            lines.append(f"    Description: {section.description}")
+        for widget in members:
+            lines.append(f"    {_render(widget)}")
+
+    blocks = ["\n".join(lines)]
     if insight_ids:
         rows = await _load_insights(insight_ids)
         if rows:
-            sections.append(await format_insights(rows))
-    return "\n\n".join(sections)
+            blocks.append(await format_insights(rows))
+    return "\n\n".join(blocks)
 
 
 @tool("inspect_view_context")
@@ -433,8 +463,8 @@ async def inspect_view_context(
     and AOIs visible on screen, and — when the frontend reports visible
     insights (on the map or dashboard page) — the key content of each
     insight: its summary, chart titles and the variables behind each chart.
-    When the user is viewing a dashboard, reports its name, area(s) and
-    widgets, with insight widgets expanded the same way. Call this when the
+    When the user is viewing a dashboard, reports its name, area(s),
+    sections and widgets, with insight widgets expanded the same way. Call this when the
     user refers to "this", "here", the current view, the dashboard, or an
     insight on screen, and you need those details to answer.
     """
@@ -493,8 +523,9 @@ SPEC = ToolSpec(
         "- inspect_view_context(): returns what the user is currently looking "
         "at in the app (page, map viewport, visible layers, visible AOIs, the "
         "content of any insights on screen — summary, charts and variables — "
-        "and, on the dashboard page, the dashboard's name, areas and "
-        "widgets). Call this when the user refers to 'this', 'here', the "
+        "and, on the dashboard page, the dashboard's name, areas, "
+        "sections and widgets). Call this when the user refers to 'this', "
+        "'here', the "
         "current view, the report, the dashboard, or an insight on screen."
     ),
 )

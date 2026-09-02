@@ -70,9 +70,14 @@ def format_session_block(state: dict) -> str:
 
     imagery = state.get("imagery") or {}
     if imagery:
+        provider = imagery.get("provider") or "sentinel-2"
         lines.append(
-            f"Imagery: Sentinel-2 around {imagery.get('target_date')} "
-            f"({imagery.get('item_count')} scenes)"
+            f"Imagery: {provider} around {imagery.get('target_date')}"
+            + (
+                f" ({imagery.get('item_count')} scenes)"
+                if imagery.get("item_count") is not None
+                else ""
+            )
         )
     else:
         lines.append("Imagery: none")

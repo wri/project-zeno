@@ -1,0 +1,2479 @@
+{
+ "by_country": {
+  "AFG": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "AGO": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Municpality|City Council"
+   ],
+   "3": [
+    "Commune"
+   ]
+  },
+  "AIA": {
+   "1": [
+    "District",
+    "Island"
+   ]
+  },
+  "ALA": {
+   "1": [
+    "Sub-Region"
+   ],
+   "2": [
+    "Municipality"
+   ]
+  },
+  "ALB": {
+   "1": [
+    "County"
+   ]
+  },
+  "AND": {
+   "1": [
+    "Parish"
+   ]
+  },
+  "ARE": {
+   "1": [
+    "Emirate"
+   ],
+   "2": [
+    "District",
+    "Emirate",
+    "Municipal Region",
+    "Region",
+    "Sector",
+    "Township",
+    "Village"
+   ],
+   "3": [
+    "District",
+    "Municipality"
+   ]
+  },
+  "ARG": {
+   "1": [
+    "Federal District",
+    "Province"
+   ],
+   "2": [
+    "Department",
+    "Federal District",
+    "Part"
+   ]
+  },
+  "ARM": {
+   "1": [
+    "City",
+    "Province"
+   ]
+  },
+  "ASM": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "County",
+    "Island"
+   ],
+   "3": [
+    "Village"
+   ]
+  },
+  "ATF": {
+   "1": [
+    "District"
+   ]
+  },
+  "ATG": {
+   "1": [
+    "Dependency",
+    "Parish"
+   ]
+  },
+  "AUS": {
+   "1": [
+    "State",
+    "Territory"
+   ],
+   "2": [
+    "Aboriginal Council",
+    "Area",
+    "Borough",
+    "City",
+    "District Council",
+    "Islands",
+    "Municipality",
+    "Region",
+    "Regional Council",
+    "Rural City",
+    "Shire",
+    "State reserve",
+    "Territory",
+    "Town",
+    "Unincorporated Area"
+   ]
+  },
+  "AUT": {
+   "1": [
+    "State"
+   ],
+   "2": [
+    "District",
+    "Statutory City"
+   ],
+   "3": [
+    "Municipality"
+   ],
+   "4": [
+    "Cadastral community"
+   ]
+  },
+  "AZE": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "City",
+    "District"
+   ]
+  },
+  "BDI": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Commune",
+    "Water body"
+   ],
+   "3": [
+    "Colline",
+    "Water body"
+   ],
+   "4": [
+    "Sous Colline",
+    "Water body"
+   ]
+  },
+  "BEL": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Capital Region",
+    "Province",
+    "Provincie"
+   ],
+   "3": [
+    "Arrondissement"
+   ],
+   "4": [
+    "Commune"
+   ]
+  },
+  "BEN": {
+   "1": [
+    "Department"
+   ],
+   "2": [
+    "Commune"
+   ],
+   "3": [
+    "Borough"
+   ]
+  },
+  "BES": {
+   "1": [
+    "Municipality"
+   ]
+  },
+  "BFA": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Province"
+   ],
+   "3": [
+    "Department"
+   ]
+  },
+  "BGD": {
+   "1": [
+    "Division"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Upazilla"
+   ],
+   "4": [
+    "Municipality",
+    "Union"
+   ]
+  },
+  "BGR": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "City",
+    "Municipality"
+   ]
+  },
+  "BHR": {
+   "1": [
+    "Governorate"
+   ]
+  },
+  "BHS": {
+   "1": [
+    "District"
+   ]
+  },
+  "BIH": {
+   "1": [
+    "District",
+    "Entity"
+   ],
+   "2": [
+    "Canton"
+   ],
+   "3": [
+    "Commune"
+   ]
+  },
+  "BLM": {
+   "1": [
+    "Parish"
+   ],
+   "2": [
+    "Quarter"
+   ]
+  },
+  "BLR": {
+   "1": [
+    "City",
+    "Region"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "BLZ": {
+   "1": [
+    "District"
+   ]
+  },
+  "BMU": {
+   "1": [
+    "Municipality",
+    "Parish"
+   ]
+  },
+  "BOL": {
+   "1": [
+    "Department"
+   ],
+   "2": [
+    "Province"
+   ],
+   "3": [
+    "Distrito",
+    "Water body"
+   ]
+  },
+  "BRA": {
+   "1": [
+    "Federal District",
+    "State"
+   ],
+   "2": [
+    "Municipality"
+   ]
+  },
+  "BRB": {
+   "1": [
+    "Parish"
+   ]
+  },
+  "BRN": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "Mukim"
+   ]
+  },
+  "BTN": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "Village block"
+   ]
+  },
+  "BWA": {
+   "1": [
+    "City",
+    "District",
+    "Town"
+   ],
+   "2": [
+    "City",
+    "Sub-district",
+    "Town",
+    "Town Council",
+    "Unknown"
+   ]
+  },
+  "CAF": {
+   "1": [
+    "Autonomous Commune",
+    "Economic Prefecture",
+    "Prefecture"
+   ],
+   "2": [
+    "Sub-prefecture"
+   ]
+  },
+  "CAN": {
+   "1": [
+    "Province",
+    "Territory"
+   ],
+   "2": [
+    "Census Division",
+    "County",
+    "District",
+    "District Municipality",
+    "Region",
+    "Regional County Municipality",
+    "Regional District",
+    "Regional Municipality",
+    "Territory",
+    "United Counties",
+    "United County",
+    "Water body"
+   ],
+   "3": [
+    "Canton Municipality",
+    "Chartered Community",
+    "City",
+    "Community",
+    "County Municipality",
+    "District Municipality",
+    "Hamlet",
+    "Improvement District",
+    "Indian Government District",
+    "Indian Reserve",
+    "Indian Settlement",
+    "Inuite Land",
+    "Island Municipality",
+    "Land Reserved",
+    "Local Government District",
+    "Municipal District",
+    "Municipality",
+    "Nisga'a Land",
+    "Nisga'a Village",
+    "Northern Hamlet",
+    "Northern Village",
+    "Parish",
+    "Parish Municipality",
+    "Region",
+    "Regional District Electoral Area",
+    "Regional Municipality",
+    "Resort Village",
+    "Rural Community",
+    "Rural Municipality",
+    "Settlement",
+    "Special Area",
+    "Specialized Municipality",
+    "Subdivision of County Municipality",
+    "Subdivision of Unorganized",
+    "Summer Village",
+    "Teslin Land",
+    "Town",
+    "Township",
+    "Township and Royalty",
+    "United Cantons Municipality",
+    "Unorganized",
+    "Village",
+    "Village Cri",
+    "Village Naskapi",
+    "Village Nordique",
+    "Ville",
+    "Water body"
+   ]
+  },
+  "CHE": {
+   "1": [
+    "Canton"
+   ],
+   "2": [
+    "District",
+    "Water body"
+   ],
+   "3": [
+    "Municipality",
+    "Water body"
+   ]
+  },
+  "CHL": {
+   "1": [
+    "Metropolitan Region",
+    "Region"
+   ],
+   "2": [
+    "Province"
+   ],
+   "3": [
+    "Municipality"
+   ]
+  },
+  "CHN": {
+   "1": [
+    "Autonomous Region",
+    "Municipality",
+    "Province",
+    "Special Administrative Region"
+   ],
+   "2": [
+    "Autonomous Prefecture",
+    "District",
+    "League",
+    "Municipality",
+    "Prefecture",
+    "Prefecture City"
+   ],
+   "3": [
+    "Administrative Committee",
+    "Autonomous Banner",
+    "Autonomous County",
+    "Autonomous Prefecture",
+    "Banner",
+    "County",
+    "County City",
+    "District",
+    "Municipality",
+    "New District",
+    "Parish",
+    "Special District"
+   ]
+  },
+  "CIV": {
+   "1": [
+    "Autonomous district",
+    "District"
+   ],
+   "2": [
+    "Autonomous district",
+    "Region"
+   ],
+   "3": [
+    "Department"
+   ],
+   "4": [
+    "Sub-prefecture"
+   ]
+  },
+  "CMR": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Department"
+   ],
+   "3": [
+    "Arrondissement"
+   ]
+  },
+  "COD": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Territory",
+    "Town"
+   ]
+  },
+  "COG": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "COK": {
+   "1": [
+    "Island Council"
+   ]
+  },
+  "COL": {
+   "1": [
+    "Capital District",
+    "Commissiary",
+    "Department",
+    "Intendancy"
+   ],
+   "2": [
+    "Corregimiento Departamental",
+    "Islands",
+    "Municipality"
+   ]
+  },
+  "COM": {
+   "1": [
+    "Autonomous Island"
+   ]
+  },
+  "CPV": {
+   "1": [
+    "County"
+   ]
+  },
+  "CRI": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Canton"
+   ],
+   "3": [
+    "District"
+   ]
+  },
+  "CUB": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Municipality"
+   ]
+  },
+  "CYM": {
+   "1": [
+    "District"
+   ]
+  },
+  "CYP": {
+   "1": [
+    "District"
+   ]
+  },
+  "CZE": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "District",
+    "Statutory City"
+   ]
+  },
+  "DEU": {
+   "1": [
+    "Free State",
+    "State"
+   ],
+   "2": [
+    "District",
+    "Water body"
+   ],
+   "3": [
+    "Municipality",
+    "Water body"
+   ],
+   "4": [
+    "Town",
+    "Water body"
+   ]
+  },
+  "DJI": {
+   "1": [
+    "Region"
+   ]
+  },
+  "DMA": {
+   "1": [
+    "Parish"
+   ]
+  },
+  "DNK": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Municipality"
+   ]
+  },
+  "DOM": {
+   "1": [
+    "National District",
+    "Province"
+   ],
+   "2": [
+    "Municipal District",
+    "Municipality"
+   ]
+  },
+  "DZA": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Chef-Lieu-Wilaya",
+    "Commune",
+    "Commune-Cotiere"
+   ]
+  },
+  "ECU": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Canton",
+    "Distrito Metropolitano"
+   ],
+   "3": [
+    "Cantonal Head",
+    "Rural Parish"
+   ]
+  },
+  "EGY": {
+   "1": [
+    "Governorate"
+   ],
+   "2": [
+    "Subdivision"
+   ]
+  },
+  "ERI": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "ESH": {
+   "1": [
+    "Province"
+   ]
+  },
+  "ESP": {
+   "1": [
+    "Autonomous City",
+    "Autonomous Community"
+   ],
+   "2": [
+    "Autonomous City",
+    "Province"
+   ],
+   "3": [
+    "Comarca"
+   ],
+   "4": [
+    "Municipality",
+    "Sovereign territories",
+    "Sovereign territory"
+   ]
+  },
+  "EST": {
+   "1": [
+    "County",
+    "Water body"
+   ],
+   "2": [
+    "Parish",
+    "Town",
+    "Water body"
+   ],
+   "3": [
+    "Administrative District",
+    "City",
+    "Small town",
+    "Town",
+    "Village",
+    "Water body"
+   ]
+  },
+  "ETH": {
+   "1": [
+    "City",
+    "State"
+   ],
+   "2": [
+    "Special Woreda",
+    "Zone"
+   ],
+   "3": [
+    "District",
+    "Other"
+   ]
+  },
+  "FIN": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Region"
+   ],
+   "3": [
+    "Sub-Region"
+   ],
+   "4": [
+    "Municipality"
+   ]
+  },
+  "FJI": {
+   "1": [
+    "Division"
+   ],
+   "2": [
+    "Province"
+   ]
+  },
+  "FRA": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Department"
+   ],
+   "3": [
+    "Districts",
+    "Water body"
+   ],
+   "4": [
+    "Canton",
+    "Water body"
+   ],
+   "5": [
+    "Commune"
+   ]
+  },
+  "FRO": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Commune"
+   ]
+  },
+  "FSM": {
+   "1": [
+    "State"
+   ],
+   "2": [
+    "Atoll",
+    "Municipality",
+    "Reef"
+   ]
+  },
+  "GAB": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Department"
+   ]
+  },
+  "GBR": {
+   "1": [
+    "Constituent Country"
+   ],
+   "2": [
+    "Administrative County",
+    "District",
+    "Island area",
+    "Metropolitan Borough",
+    "Metropolitan borough (city)",
+    "Unitary Authority",
+    "Unitary Authority (City)",
+    "Unitary Authority (County)",
+    "Unitary District",
+    "Unitary District (City)"
+   ],
+   "3": [
+    "Administrative county district",
+    "District",
+    "Island area",
+    "London borough",
+    "Metropolitan Borough",
+    "Metropolitan borough (city)",
+    "Unitary Authority",
+    "Unitary Authority (City)",
+    "Unitary Authority (County)",
+    "Unitary District",
+    "Unitary District (City)",
+    "Unitary authority (Wales)"
+   ]
+  },
+  "GEO": {
+   "1": [
+    "Autonomous Republic",
+    "Independent City",
+    "Region"
+   ],
+   "2": [
+    "City",
+    "District"
+   ]
+  },
+  "GGY": {
+   "1": [
+    "Parish"
+   ]
+  },
+  "GHA": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "District",
+    "Metropolis",
+    "Municipality"
+   ]
+  },
+  "GIN": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Prefecture"
+   ],
+   "3": [
+    "Sub-prefecture"
+   ]
+  },
+  "GLP": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "Commune"
+   ]
+  },
+  "GMB": {
+   "1": [
+    "Division",
+    "Independent City"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "GNB": {
+   "1": [
+    "Autonomous Sector",
+    "Region"
+   ],
+   "2": [
+    "Sector"
+   ]
+  },
+  "GNQ": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Districts|Municipals"
+   ]
+  },
+  "GRC": {
+   "1": [
+    "Decentralized administration"
+   ],
+   "2": [
+    "Region"
+   ],
+   "3": [
+    "Municipality"
+   ]
+  },
+  "GRD": {
+   "1": [
+    "Dependency",
+    "Parish"
+   ]
+  },
+  "GRL": {
+   "1": [
+    "Commune",
+    "National Park"
+   ]
+  },
+  "GTM": {
+   "1": [
+    "Department"
+   ],
+   "2": [
+    "Municipality",
+    "Water body"
+   ]
+  },
+  "GUF": {
+   "1": [
+    "Arrondissement"
+   ],
+   "2": [
+    "Commune"
+   ]
+  },
+  "GUM": {
+   "1": [
+    "Municipality"
+   ]
+  },
+  "GUY": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Conservancy",
+    "Municipality",
+    "Neighbourhood Democratic",
+    "Not Classified"
+   ]
+  },
+  "HND": {
+   "1": [
+    "Department"
+   ],
+   "2": [
+    "Municipality"
+   ]
+  },
+  "HRV": {
+   "1": [
+    "City",
+    "County"
+   ],
+   "2": [
+    "City",
+    "Commune"
+   ]
+  },
+  "HTI": {
+   "1": [
+    "Department"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Commune"
+   ],
+   "4": [
+    "Sub-commune"
+   ]
+  },
+  "HUN": {
+   "1": [
+    "Capital City",
+    "County"
+   ],
+   "2": [
+    "Subregion"
+   ]
+  },
+  "IDN": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "City",
+    "Regency",
+    "Water body"
+   ],
+   "3": [
+    "District",
+    "Sub-district",
+    "Water body"
+   ],
+   "4": [
+    "Urban Community",
+    "Village",
+    "Water body"
+   ]
+  },
+  "IMN": {
+   "1": [
+    "District",
+    "Parish District",
+    "Town District",
+    "Village District"
+   ]
+  },
+  "IND": {
+   "1": [
+    "State",
+    "Union Territory"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Taluk"
+   ]
+  },
+  "IRL": {
+   "1": [
+    "County",
+    "Region"
+   ],
+   "2": [
+    "Borough District",
+    "City",
+    "City Council",
+    "County",
+    "Metropolitan District",
+    "Municipal District"
+   ]
+  },
+  "IRN": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "County",
+    "Island",
+    "Unknown"
+   ]
+  },
+  "IRQ": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "ISL": {
+   "1": [
+    "Independent Town",
+    "Region"
+   ],
+   "2": [
+    "Municipality"
+   ]
+  },
+  "ISR": {
+   "1": [
+    "District"
+   ]
+  },
+  "ITA": {
+   "1": [
+    "Autonomous Region",
+    "Region"
+   ],
+   "2": [
+    "Province"
+   ],
+   "3": [
+    "Commune"
+   ]
+  },
+  "JAM": {
+   "1": [
+    "Parish"
+   ]
+  },
+  "JEY": {
+   "1": [
+    "Parish"
+   ]
+  },
+  "JOR": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Sub-Province"
+   ]
+  },
+  "JPN": {
+   "1": [
+    "Circuit",
+    "Metropolis",
+    "Prefecture",
+    "Urban Prefecture"
+   ],
+   "2": [
+    "Capital",
+    "City",
+    "County",
+    "Special Ward",
+    "Subprefecture",
+    "Town",
+    "Village",
+    "Water body"
+   ]
+  },
+  "KAZ": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Assembly",
+    "District"
+   ]
+  },
+  "KEN": {
+   "1": [
+    "County"
+   ],
+   "2": [
+    "Constituency"
+   ],
+   "3": [
+    "Ward"
+   ]
+  },
+  "KGZ": {
+   "1": [
+    "City",
+    "Province"
+   ],
+   "2": [
+    "City",
+    "District",
+    "Water body"
+   ]
+  },
+  "KHM": {
+   "1": [
+    "Municipality",
+    "Province"
+   ],
+   "2": [
+    "District",
+    "Water body"
+   ],
+   "3": [
+    "Commune",
+    "Water body"
+   ]
+  },
+  "KNA": {
+   "1": [
+    "Parish"
+   ]
+  },
+  "KOR": {
+   "1": [
+    "Capital Metropolitan City",
+    "Metropolitan Autonomous City",
+    "Metropolitan City",
+    "Province"
+   ],
+   "2": [
+    "City",
+    "County",
+    "District"
+   ],
+   "3": [
+    "Neighborhood",
+    "Town",
+    "Township"
+   ]
+  },
+  "KWT": {
+   "1": [
+    "Province"
+   ]
+  },
+  "LAO": {
+   "1": [
+    "Municipality|Prefecture",
+    "Province",
+    "Special Region|Zone"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "LBN": {
+   "1": [
+    "Governorate"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Municipality"
+   ]
+  },
+  "LBR": {
+   "1": [
+    "County"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Clan"
+   ]
+  },
+  "LBY": {
+   "1": [
+    "District"
+   ]
+  },
+  "LCA": {
+   "1": [
+    "Quarter"
+   ]
+  },
+  "LIE": {
+   "1": [
+    "Commune"
+   ]
+  },
+  "LKA": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "Division"
+   ]
+  },
+  "LSO": {
+   "1": [
+    "District"
+   ]
+  },
+  "LTU": {
+   "1": [
+    "County"
+   ],
+   "2": [
+    "City Municipality",
+    "District Municipality",
+    "Municipality"
+   ]
+  },
+  "LUX": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "Canton"
+   ],
+   "3": [
+    "Commune"
+   ],
+   "4": [
+    "Commune (same as level 3)",
+    "Quarter"
+   ]
+  },
+  "LVA": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "MAR": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Prefecture",
+    "Province"
+   ],
+   "3": [
+    "District",
+    "Unknown"
+   ],
+   "4": [
+    "Rural Commune",
+    "Urban Commune"
+   ]
+  },
+  "MDA": {
+   "1": [
+    "Autonomous Territory",
+    "City",
+    "District",
+    "Territorial Unit"
+   ]
+  },
+  "MEX": {
+   "1": [
+    "Federal District",
+    "State"
+   ],
+   "2": [
+    "Municipality"
+   ]
+  },
+  "MHL": {
+   "1": [
+    "Atoll",
+    "Island"
+   ]
+  },
+  "MKD": {
+   "1": [
+    "Municipality",
+    "Water body"
+   ]
+  },
+  "MLI": {
+   "1": [
+    "District",
+    "Region"
+   ],
+   "2": [
+    "Circle"
+   ],
+   "3": [
+    "Arrondissement"
+   ],
+   "4": [
+    "Commune",
+    "Urban Commune"
+   ]
+  },
+  "MLT": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Local council"
+   ]
+  },
+  "MMR": {
+   "1": [
+    "Division",
+    "State",
+    "Union Territory"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Village|Township"
+   ]
+  },
+  "MNE": {
+   "1": [
+    "Municipality"
+   ]
+  },
+  "MNG": {
+   "1": [
+    "Municipality",
+    "Province"
+   ],
+   "2": [
+    "Sum"
+   ]
+  },
+  "MNP": {
+   "1": [
+    "Municipality"
+   ]
+  },
+  "MOZ": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Locality",
+    "Water body"
+   ]
+  },
+  "MRT": {
+   "1": [
+    "District",
+    "Region"
+   ],
+   "2": [
+    "Department"
+   ]
+  },
+  "MSR": {
+   "1": [
+    "Parish"
+   ]
+  },
+  "MTQ": {
+   "1": [
+    "Arrondissement"
+   ],
+   "2": [
+    "Commune"
+   ]
+  },
+  "MUS": {
+   "1": [
+    "Autonomous Island",
+    "District",
+    "Region"
+   ]
+  },
+  "MWI": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "City",
+    "Headquarter",
+    "National Park",
+    "Reserve",
+    "Sub-chief",
+    "Town",
+    "Traditional Authority",
+    "Urban",
+    "Water body"
+   ],
+   "3": [
+    "Unknown"
+   ]
+  },
+  "MYS": {
+   "1": [
+    "Federal Territory",
+    "State"
+   ],
+   "2": [
+    "District",
+    "Federal Territory"
+   ]
+  },
+  "MYT": {
+   "1": [
+    "Commune"
+   ]
+  },
+  "NAM": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Constituency"
+   ]
+  },
+  "NCL": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Commune",
+    "Islands"
+   ]
+  },
+  "NER": {
+   "1": [
+    "Capital District",
+    "Department"
+   ],
+   "2": [
+    "Arrondissement"
+   ],
+   "3": [
+    "Commune"
+   ]
+  },
+  "NGA": {
+   "1": [
+    "State"
+   ],
+   "2": [
+    "Local Authority",
+    "Water body"
+   ]
+  },
+  "NIC": {
+   "1": [
+    "Autonomous Region",
+    "Department",
+    "Water body"
+   ],
+   "2": [
+    "Municipality",
+    "Water body"
+   ]
+  },
+  "NLD": {
+   "1": [
+    "Province",
+    "Water body"
+   ],
+   "2": [
+    "Municipality",
+    "Water body"
+   ]
+  },
+  "NOR": {
+   "1": [
+    "County"
+   ],
+   "2": [
+    "Municipality"
+   ]
+  },
+  "NPL": {
+   "1": [
+    "Development Region"
+   ],
+   "2": [
+    "Administrative Zone"
+   ],
+   "3": [
+    "District"
+   ],
+   "4": [
+    "Village development committee"
+   ]
+  },
+  "NRU": {
+   "1": [
+    "District"
+   ]
+  },
+  "NZL": {
+   "1": [
+    "Group of islands",
+    "Region",
+    "Territory"
+   ],
+   "2": [
+    "Area Outside Territorial Authority",
+    "City",
+    "District",
+    "Territory"
+   ]
+  },
+  "OMN": {
+   "1": [
+    "Province",
+    "Region"
+   ],
+   "2": [
+    "District",
+    "Province"
+   ]
+  },
+  "PAK": {
+   "1": [
+    "Capital Territory",
+    "Province",
+    "Territory"
+   ],
+   "2": [
+    "Division"
+   ],
+   "3": [
+    "District"
+   ]
+  },
+  "PAN": {
+   "1": [
+    "Indigenous Territory",
+    "Province"
+   ],
+   "2": [
+    "District",
+    "Indigenous Territory",
+    "Water body"
+   ],
+   "3": [
+    "Indigenous Territory",
+    "Municipality",
+    "Water body"
+   ]
+  },
+  "PER": {
+   "1": [
+    "Province",
+    "Region"
+   ],
+   "2": [
+    "Province",
+    "Water body"
+   ],
+   "3": [
+    "District",
+    "Water body"
+   ]
+  },
+  "PHL": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "City",
+    "Municipality",
+    "Waterbody"
+   ],
+   "3": [
+    "Village",
+    "Waterbody"
+   ]
+  },
+  "PLW": {
+   "1": [
+    "State"
+   ]
+  },
+  "PNG": {
+   "1": [
+    "Autonomous Region",
+    "District",
+    "Province"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "POL": {
+   "1": [
+    "Voivodeship"
+   ],
+   "2": [
+    "City with powiat rights",
+    "County",
+    "Water body"
+   ],
+   "3": [
+    "City County",
+    "Municipality (rural)",
+    "Municipality (urban)",
+    "Municipality (urban-rural)",
+    "Water body"
+   ]
+  },
+  "PRI": {
+   "1": [
+    "Municipality"
+   ]
+  },
+  "PRK": {
+   "1": [
+    "Directly Governed City",
+    "Province",
+    "Special Administrative Region",
+    "Special City"
+   ],
+   "2": [
+    "City",
+    "County",
+    "Ward"
+   ]
+  },
+  "PRT": {
+   "1": [
+    "Autonomous Region",
+    "District"
+   ],
+   "2": [
+    "Municipality"
+   ],
+   "3": [
+    "Parish"
+   ]
+  },
+  "PRY": {
+   "1": [
+    "Capital District",
+    "Department"
+   ],
+   "2": [
+    "District",
+    "Water body"
+   ]
+  },
+  "PSE": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "Governorate"
+   ]
+  },
+  "PYF": {
+   "1": [
+    "Administrative subdivisions"
+   ]
+  },
+  "QAT": {
+   "1": [
+    "Municipality"
+   ]
+  },
+  "REU": {
+   "1": [
+    "Arrondissement"
+   ],
+   "2": [
+    "Commune"
+   ]
+  },
+  "ROU": {
+   "1": [
+    "County",
+    "Municipality"
+   ],
+   "2": [
+    "Commune",
+    "Municipality"
+   ]
+  },
+  "RUS": {
+   "1": [
+    "Autonomous Province",
+    "Autonomous Region",
+    "City",
+    "Region",
+    "Republic",
+    "Territory"
+   ],
+   "2": [
+    "Autonomous Okurg",
+    "City",
+    "District",
+    "Island",
+    "Islands",
+    "Town",
+    "Water body"
+   ]
+  },
+  "RWA": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Sector",
+    "Water body"
+   ],
+   "4": [
+    "Cell",
+    "Water body"
+   ]
+  },
+  "SAU": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Governorate"
+   ]
+  },
+  "SDN": {
+   "1": [
+    "State"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Unknown"
+   ]
+  },
+  "SEN": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Department"
+   ],
+   "3": [
+    "Arrondissement"
+   ],
+   "4": [
+    "Commune",
+    "National Park"
+   ]
+  },
+  "SGP": {
+   "1": [
+    "Region"
+   ]
+  },
+  "SHN": {
+   "1": [
+    "Administrative Area",
+    "Dependency"
+   ],
+   "2": [
+    "Administrative Area",
+    "Dependency",
+    "District"
+   ]
+  },
+  "SJM": {
+   "1": [
+    "Territory"
+   ]
+  },
+  "SLB": {
+   "1": [
+    "Capital Territory",
+    "Province"
+   ],
+   "2": [
+    "Ward"
+   ]
+  },
+  "SLE": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Area",
+    "District"
+   ],
+   "3": [
+    "Chiefdom"
+   ]
+  },
+  "SLV": {
+   "1": [
+    "Department"
+   ],
+   "2": [
+    "Municipality",
+    "Water body"
+   ]
+  },
+  "SMR": {
+   "1": [
+    "Municipality"
+   ]
+  },
+  "SOM": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "SPM": {
+   "1": [
+    "Commune"
+   ]
+  },
+  "SRB": {
+   "1": [
+    "City",
+    "District"
+   ],
+   "2": [
+    "Town|Municipal"
+   ]
+  },
+  "SSD": {
+   "1": [
+    "State"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Unknown"
+   ]
+  },
+  "STP": {
+   "1": [
+    "Municipality"
+   ]
+  },
+  "SUR": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "Ressort"
+   ]
+  },
+  "SVK": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "SVN": {
+   "1": [
+    "Statistical Region"
+   ],
+   "2": [
+    "Commune|Municipality"
+   ]
+  },
+  "SWE": {
+   "1": [
+    "County"
+   ],
+   "2": [
+    "Municipality"
+   ]
+  },
+  "SWZ": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "Constituency"
+   ]
+  },
+  "SYC": {
+   "1": [
+    "District",
+    "Outer Islands"
+   ]
+  },
+  "SYR": {
+   "1": [
+    "Governorate"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "TCA": {
+   "1": [
+    "District"
+   ]
+  },
+  "TCD": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Department"
+   ],
+   "3": [
+    "Sub-prefecture"
+   ]
+  },
+  "TGO": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "Commune",
+    "Prefecture",
+    "Sub-prefecture"
+   ],
+   "3": [
+    "Commune"
+   ]
+  },
+  "THA": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "District",
+    "Minor district",
+    "Water body"
+   ],
+   "3": [
+    "Lake",
+    "Sub district"
+   ]
+  },
+  "TJK": {
+   "1": [
+    "Autonomous Region",
+    "City",
+    "Districts of Republican Subordination",
+    "Region"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "TKL": {
+   "1": [
+    "Atoll"
+   ]
+  },
+  "TKM": {
+   "1": [
+    "Capital City District",
+    "Province"
+   ],
+   "2": [
+    "Borough",
+    "City",
+    "District"
+   ]
+  },
+  "TLS": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "Subdistrict"
+   ],
+   "3": [
+    "Community"
+   ]
+  },
+  "TON": {
+   "1": [
+    "Island Group"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "TTO": {
+   "1": [
+    "Borough",
+    "City",
+    "Region"
+   ]
+  },
+  "TUN": {
+   "1": [
+    "Governorate"
+   ],
+   "2": [
+    "Delegation",
+    "Water body"
+   ]
+  },
+  "TUR": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "TUV": {
+   "1": [
+    "Island Council",
+    "Town Council"
+   ]
+  },
+  "TWN": {
+   "1": [
+    "Province",
+    "Special Municipality"
+   ],
+   "2": [
+    "County",
+    "Provincial City",
+    "Special Municipality"
+   ]
+  },
+  "TZA": {
+   "1": [
+    "Region"
+   ],
+   "2": [
+    "District",
+    "Water body"
+   ],
+   "3": [
+    "Islands",
+    "Ward",
+    "Water body"
+   ]
+  },
+  "UGA": {
+   "1": [
+    "District",
+    "Water body"
+   ],
+   "2": [
+    "City Council",
+    "County",
+    "Municipality",
+    "Water body"
+   ],
+   "3": [
+    "Sub-county",
+    "Water body"
+   ],
+   "4": [
+    "Parish",
+    "Water body"
+   ]
+  },
+  "UKR": {
+   "1": [
+    "Autonomous Republic",
+    "Independent City",
+    "Region",
+    "Unknown"
+   ],
+   "2": [
+    "City",
+    "City of Regional Significance",
+    "District",
+    "Raion"
+   ]
+  },
+  "UMI": {
+   "1": [
+    "Atoll",
+    "Island",
+    "Reef"
+   ]
+  },
+  "URY": {
+   "1": [
+    "Department"
+   ],
+   "2": [
+    "Municipality"
+   ]
+  },
+  "USA": {
+   "1": [
+    "Federal District",
+    "State"
+   ],
+   "2": [
+    "Borough",
+    "Census Area",
+    "City and Borough",
+    "City and County",
+    "County",
+    "District",
+    "Independent City",
+    "Municipality",
+    "Parish",
+    "Water body"
+   ]
+  },
+  "UZB": {
+   "1": [
+    "Autonomous Region",
+    "City",
+    "Region"
+   ],
+   "2": [
+    "City",
+    "District",
+    "Waterbody"
+   ]
+  },
+  "VCT": {
+   "1": [
+    "Parish"
+   ]
+  },
+  "VEN": {
+   "1": [
+    "State"
+   ],
+   "2": [
+    "Islands",
+    "Municipality",
+    "Water body"
+   ]
+  },
+  "VGB": {
+   "1": [
+    "District"
+   ]
+  },
+  "VIR": {
+   "1": [
+    "District"
+   ]
+  },
+  "VNM": {
+   "1": [
+    "City",
+    "Province"
+   ],
+   "2": [
+    "City",
+    "District",
+    "Town",
+    "Urban District"
+   ],
+   "3": [
+    "Island",
+    "Townlet",
+    "Training Center",
+    "Ward"
+   ]
+  },
+  "VUT": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "Area council",
+    "Municipality"
+   ]
+  },
+  "WLF": {
+   "1": [
+    "Kingdom"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "WSM": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "Unknown"
+   ]
+  },
+  "XAD": {
+   "1": [
+    "Sovereign Base Area"
+   ]
+  },
+  "XKO": {
+   "1": [
+    "District"
+   ],
+   "2": [
+    "Town|Municipal"
+   ]
+  },
+  "YEM": {
+   "1": [
+    "City",
+    "Governorate"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "Z01": {
+   "1": [
+    "State"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Taluk"
+   ]
+  },
+  "Z02": {
+   "1": [
+    "Autonomous Region"
+   ],
+   "2": [
+    "Prefecture"
+   ],
+   "3": [
+    "Autonomous County"
+   ]
+  },
+  "Z03": {
+   "1": [
+    "Autonomous Region"
+   ],
+   "2": [
+    "Prefecture"
+   ],
+   "3": [
+    "County",
+    "County City"
+   ]
+  },
+  "Z04": {
+   "1": [
+    "Union Territory"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Taluk"
+   ]
+  },
+  "Z05": {
+   "1": [
+    "State"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Taluk"
+   ]
+  },
+  "Z06": {
+   "1": [
+    "Centrally Administered Area"
+   ],
+   "2": [
+    "Division"
+   ],
+   "3": [
+    "District"
+   ]
+  },
+  "Z07": {
+   "1": [
+    "State"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Taluk"
+   ]
+  },
+  "Z08": {
+   "1": [
+    "Autonomous Region"
+   ],
+   "2": [
+    "Prefecture"
+   ],
+   "3": [
+    "County"
+   ]
+  },
+  "Z09": {
+   "1": [
+    "State",
+    "Union Territory"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Taluk"
+   ]
+  },
+  "ZAF": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "District Municipality"
+   ],
+   "3": [
+    "Local Municipality",
+    "Metropolitan Municipality"
+   ],
+   "4": [
+    "Ward"
+   ]
+  },
+  "ZMB": {
+   "1": [
+    "Province"
+   ],
+   "2": [
+    "District"
+   ]
+  },
+  "ZNC": {
+   "1": [
+    "District"
+   ]
+  },
+  "ZWE": {
+   "1": [
+    "City",
+    "Province"
+   ],
+   "2": [
+    "District"
+   ],
+   "3": [
+    "Ward"
+   ]
+  }
+ },
+ "canonical_terms": [
+  "Area",
+  "Arrondissement",
+  "Atoll",
+  "Autonomous Community",
+  "Autonomous County",
+  "Autonomous Island",
+  "Autonomous Region",
+  "Autonomous Republic",
+  "Borough",
+  "Canton",
+  "Capital District",
+  "Capital Territory",
+  "City",
+  "City Council",
+  "Comarca",
+  "Commune",
+  "Community",
+  "Constituency",
+  "Constituent Country",
+  "County",
+  "County City",
+  "Department",
+  "Dependency",
+  "District",
+  "District Municipality",
+  "Division",
+  "Emirate",
+  "Federal District",
+  "Free State",
+  "Governorate",
+  "Independent City",
+  "Island",
+  "Island Council",
+  "Islands",
+  "Metropolis",
+  "Municipal District",
+  "Municipality",
+  "National Park",
+  "Parish",
+  "Prefecture",
+  "Province",
+  "Quarter",
+  "Reef",
+  "Regency",
+  "Region",
+  "Sector",
+  "Special Administrative Region",
+  "State",
+  "Statutory City",
+  "Sub-Region",
+  "Sub-district",
+  "Sub-prefecture",
+  "Taluk",
+  "Territory",
+  "Town",
+  "Town Council",
+  "Township",
+  "Union Territory",
+  "Urban Commune",
+  "Village",
+  "Voivodeship",
+  "Ward"
+ ]
+}
