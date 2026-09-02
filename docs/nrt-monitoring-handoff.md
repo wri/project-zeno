@@ -1,0 +1,170 @@
+# Near-real-time monitoring sections (frontend handoff)
+
+*Audience: the frontend build (separate repo, no access to this codebase).
+This extends `dashboards-frontend-handoff.md` and
+`dashboards-map-widgets-handoff.md`; everything there still holds.
+Machine-readable truth: the OpenAPI spec at `/openapi.json`.*
+
+## What this adds
+
+One button that adds a **near-real-time (NRT) monitoring section** to a
+dashboard. The section holds three widgets for the dashboard's area and one
+date range:
+
+| Position | `widget_type` | Content |
+|---|---|---|
+| 0 | `insight` | Line chart of alert area (ha) per month, by confidence tier |
+| 1 | `map` | Integrated alerts tile layer for the same period |
+| 2 | `map` | Sentinel-2 mosaic for the end of the same period |
+
+The section's title and description are written by the backend from the
+chart data. **The description is the summary** — it says what the section
+shows and states the key figures. Render it as the section's body text, not
+as a tooltip.
+
+No new widget shapes: the `insight` widget and both `map` widgets use the
+config contracts you already render.
+
+## Sections now carry a type
+
+Every section in `GET /api/dashboards/{id}` has a `type`:
+
+```json
+{
+  "id": "sec-…",
+  "title": "Recent disturbance in Paraná, last 90 days",
+  "description": "1,240 ha of alerts, 62% high or highest confidence…",
+  "position": 2,
+  "type": "nrt-monitoring",
+  "created_at": "2026-09-02T10:00:00"
+}
+```
+
+- `"default"` — a section composed widget by widget (all existing sections).
+- `"nrt-monitoring"` — built by the recipe below, and **read-only**.
+
+`POST …/sections` accepts an optional `type`, but only `"default"` is useful
+there; a recipe section can only come from its own endpoint.
+
+## The one call
+
+```
+POST /api/dashboards/{dashboard_id}/sections/nrt-monitoring
+```
+
+Owner only. An empty body `{}` works — every field has a default:
+
+| Field | Default | Notes |
+|---|---|---|
+| `days` | 90 | Length of the alert window, counted back from today (1–365) |
+| `window_days` | 7 | Imagery search window, ±N days around the period end (1–183) |
+| `max_cloud_cover` | 20 | Imagery cloud limit, percent (0–100) |
+| `title` | null | Overrides the generated title |
+| `description` | null | Overrides the generated description |
+| `force` | false | Build even if a section for this period exists |
+
+**This is a synchronous call and it is slow** — it pulls alert data, searches
+for satellite scenes, builds a mosaic and writes the summary before it
+answers. Budget tens of seconds, set your client timeout accordingly, and
+show a progress state. There is no job to poll.
+
+`201` returns the **whole dashboard** (same shape as
+`GET /api/dashboards/{id}`, insight payloads expanded) plus three fields:
+
+```json
+{
+  "id": "dash-…",
+  "sections": [ … ],
+  "widgets": [ … ],
+  "section_id": "sec-…",
+  "created": true,
+  "warnings": []
+}
+```
+
+- `section_id` — the section that was created; use it to scroll to it.
+- `created` — `false` when an existing section for the same period was
+  returned instead of building a new one (see *Double clicks*).
+- `warnings` — human-readable reasons a widget is missing.
+
+You do not need to refetch the dashboard: render the response.
+
+### Failure and degradation
+
+| Status | Meaning | What to show |
+|---|---|---|
+| `201`, `warnings: []` | Three widgets | The section |
+| `201`, `warnings: [...]` | **Two** widgets, no imagery | The section, plus the warning |
+| `422` | Dashboard has no area, or a field is out of range | The validation message |
+| `404` | Not your dashboard, or it does not exist | Not found |
+| `409` | — | Only from writes *to* a sealed section, never from this call |
+| `502` | Alert data could not be pulled | Retry is reasonable |
+
+**Do not assume three widgets.** Satellite imagery is best-effort: areas over
+the mosaic size limit (50,000 km², so country-level dashboards) and periods
+with no cloud-free scenes yield a two-widget section, with the reason in
+`warnings`. The section is still useful. Read the widget list, not a fixed
+layout.
+
+### Double clicks
+
+Called twice for the same period, the second call builds nothing and returns
+the existing section with `created: false`. Each build costs a data pull, a
+scene search and a model call, so leave the guard on; pass `force: true` only
+for an explicit "build another".
+
+## The section is read-only
+
+An `nrt-monitoring` section is a record of one build — one area, one period,
+the data as it was — so editing it would make its own title and description
+untrue. **Hide the editing affordances inside it**: rename, edit description,
+add widget, reorder widgets, delete a single widget, and any per-widget
+config editor.
+
+What stays available:
+
+- **Delete the whole section** — `DELETE …/sections/{section_id}`. This
+  always removes the section's widgets, whatever `delete_widgets` says (for
+  a `default` section, that flag still behaves as documented).
+- **Reorder the section** among the other sections — `PATCH
+  …/sections/{section_id}` with `position` only.
+- Publishing the dashboard, which cascades to the section's insight as usual.
+
+Every blocked write answers `409` with
+
+```json
+{ "detail": "Section is read-only (type: nrt-monitoring)" }
+```
+
+That covers `PATCH …/sections/{id}` with a title or description, `POST
+…/widgets` with the section's `section_id`, `PATCH …/widgets/{id}` on a
+widget inside it (config, position, or moving it out), moving an outside
+widget *into* it, and `DELETE …/widgets/{id}` inside it. Treat a `409` as a
+bug in your own UI state rather than something to surface raw: the controls
+should not have been offered.
+
+To change a monitoring section, delete it and build a new one.
+
+## Chat
+
+The agent can do the same thing when asked to monitor an area
+(`add_nrt_monitoring_section`). Nothing new to wire — it emits the signal you
+already handle:
+
+```json
+{ "response_metadata": { "msg_type": "dashboard_updated", "dashboard_id": "…" } }
+```
+
+→ refetch `GET /api/dashboards/{dashboard_id}` and re-render.
+
+## Also new: mosaic tile URLs
+
+`POST /mosaic/create/{source}/{src_id}` now returns `tile_url` and
+`tilejson_url` alongside `mosaic_id`, so imagery can be rendered (and an
+imagery map widget built) without deriving the URL yourself. Additive — no
+existing field changed.
+
+## Not in scope
+
+No refresh-in-place (delete and rebuild), no relative/rolling date windows,
+no subscribe-to-alerts, no viewport editing, single-area dashboards only.

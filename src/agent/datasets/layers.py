@@ -87,6 +87,7 @@ def resolve_dataset_layer(
     *,
     context_layer: Optional[str] = None,
     parameters: Optional[list[dict]] = None,
+    record: Optional[dict] = None,
 ) -> DatasetLayer:
     """Build the renderable layer for a dataset over a date range.
 
@@ -95,8 +96,14 @@ def resolve_dataset_layer(
     ``context_layer`` names one of the dataset's context layers by its
     catalog ``value``; ``parameters`` are ``{"name", "values"}`` dicts, of
     which only ``canopy_cover`` currently changes a URL.
+
+    ``record`` overrides the catalog lookup with the dataset row the caller
+    already holds. ``pick_dataset`` passes its candidate row, whose context
+    layers have been filtered to the ones that actually cover the selected
+    area — resolving from the catalog instead would quietly undo that
+    filter.
     """
-    record = get_dataset_record(dataset_id)
+    record = record if record is not None else get_dataset_record(dataset_id)
     start = date.fromisoformat(start_date)
     end = date.fromisoformat(end_date)
 

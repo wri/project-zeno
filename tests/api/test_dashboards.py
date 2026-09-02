@@ -5,7 +5,7 @@ import uuid
 import pytest
 
 from src.api.data_models import InsightOrm, UserOrm
-from src.api.repositories import dashboard_writer
+from src.api.repositories import dashboard_access, dashboard_writer
 from src.shared.config import SharedSettings
 from tests.conftest import async_session_maker
 
@@ -1311,3 +1311,31 @@ async def test_deleting_a_sealed_section_always_takes_its_widgets(
     ).json()
     assert body["sections"] == []
     assert body["widgets"] == []
+
+
+@pytest.mark.asyncio
+async def test_insight_in_a_sealed_section_reports_as_sealed(
+    client, auth_override
+):
+    """The insight behind a sealed widget is that section's content.
+
+    ``update_insight_display`` asks this before restyling, because rewriting
+    the insight would change what the section shows without touching a
+    single dashboard row.
+    """
+    user = await _create_user("sealed-insight")
+    auth_override(user.id)
+    insight = await _create_insight(user_id=user.id)
+    loose_insight = await _create_insight(user_id=user.id)
+    dashboard = await _create_dashboard(client)
+    await _create_sealed_section(dashboard["id"], insight_id=insight.id)
+    await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={"widget_type": "insight", "insight_id": str(loose_insight.id)},
+    )
+
+    assert await dashboard_access.insight_is_sealed(insight.id) is True
+    # An insight on the same dashboard but outside the section stays editable.
+    assert await dashboard_access.insight_is_sealed(loose_insight.id) is False
+    assert await dashboard_access.insight_is_sealed(uuid.uuid4()) is False
