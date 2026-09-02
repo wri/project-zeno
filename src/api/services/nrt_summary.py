@@ -53,7 +53,10 @@ Write a `title` that names the area and the period, at most \
 Write a `description` of two to four sentences: first what the section shows, \
 then the figures that matter. Take every figure from the chart data below — \
 do not compute new ones, and do not describe the chart mechanics. State the \
-unit with every area. Name the confidence tiers the data actually contains.
+unit with every area, and round every figure the way a report would: whole \
+hectares above 100, at most one decimal below that, thousands separated. \
+Never quote a raw value like 153409.28893796972. Name the confidence tiers \
+the data actually contains.
 
 Follow the dataset's presentation rules below, including any caution they \
 require about what the alerts mean.
@@ -76,6 +79,22 @@ _USER = """## Area
 _PROMPT = ChatPromptTemplate.from_messages(
     [("system", _SYSTEM), ("user", _USER)]
 )
+
+
+def _rounded(chart: InsightChart) -> InsightChart:
+    """The chart with its numbers rounded for the prompt only.
+
+    Analytics areas arrive at full float precision, and a model asked to
+    quote a figure exactly will happily write "153409.28893796972 ha". The
+    stored chart keeps its precision — only the copy the model reads is
+    rounded.
+    """
+    rounded = chart.model_copy(deep=True)
+    for row in rounded.chart_data:
+        for key, value in row.items():
+            if isinstance(value, float):
+                row[key] = round(value, 1 if abs(value) < 100 else None)
+    return rounded
 
 
 def fallback_summary(
@@ -126,7 +145,8 @@ async def generate_section_summary(
         "end_date": end_date,
         "presentation_instructions": presentation_instructions or "(none)",
         "charts": "\n".join(
-            chart.model_dump_json(exclude={"insight"}) for chart in charts
+            _rounded(chart).model_dump_json(exclude={"insight"})
+            for chart in charts
         ),
     }
     try:

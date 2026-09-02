@@ -117,6 +117,12 @@ async def build_nrt_section(
     # The user's preferred language is nullable; every collaborator below
     # renders text, so it is coerced once here rather than in each of them.
     language = language or DEFAULT_LANGUAGE
+
+    # Every consumer gets its own copy of the AOI. The analytics handler
+    # rewrites its input in place — it strips the GADM level suffix, so
+    # "BRA.16.197_2" becomes "BRA.16.197" — and the imagery lookup that
+    # follows needs the canonical id the dashboard stored, not that one.
+    aoi = dict(aoi)
     start_date, end_date = await resolve_period(days)
     warnings: list[str] = []
 
@@ -131,7 +137,7 @@ async def build_nrt_section(
     # 1. Alert data and the default chart for it.
     service = AnalyzeService(AnalyticsHandler(), DETERMINISTIC_GENERATORS)
     analysis = await service.analyze(
-        aois=[aoi],
+        aois=[dict(aoi)],
         dataset_id=INTEGRATED_ALERTS_ID,
         start_date=start_date,
         end_date=end_date,
@@ -157,7 +163,7 @@ async def build_nrt_section(
     imagery = None
     result = await _IMAGERY_PROVIDER.get_imagery(
         ImageryRequest(
-            aois=[aoi],
+            aois=[dict(aoi)],
             target_date=date.fromisoformat(end_date),
             language=language,
             window_days=window_days,

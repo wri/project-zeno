@@ -78,8 +78,15 @@ def _patches(
     *,
     pull_success: bool = True,
     imagery: ImageryProviderResult | None = None,
+    imagery_spy: dict | None = None,
 ):
-    """Stand in for the three slow collaborators of the recipe."""
+    """Stand in for the three slow collaborators of the recipe.
+
+    The pull stand-in **mutates its ``aois`` argument** exactly as the real
+    ``AnalyticsHandler`` does (it strips the GADM level suffix in place), so
+    a builder that shares one AOI dict between the data pull and the imagery
+    lookup fails here rather than only in production.
+    """
     pull = DataPullResult(
         success=pull_success,
         data=ALERT_DATA if pull_success else None,
@@ -87,17 +94,28 @@ def _patches(
         data_points_count=3,
         analytics_api_url="https://api.example/analytics/1",
     )
-    imagery = imagery or ImageryProviderResult(
-        status="success", message="built", imagery=IMAGERY
-    )
+
+    async def _pull_data(*_args, aois, **_kwargs):
+        for entry in aois:
+            if entry["src_id"][-2:] in ("_1", "_2", "_3", "_4", "_5"):
+                entry["src_id"] = entry["src_id"][:-2]
+        return pull
+
+    async def _get_imagery(request):
+        if imagery_spy is not None:
+            imagery_spy["src_id"] = request.aois[0]["src_id"]
+        return imagery or ImageryProviderResult(
+            status="success", message="built", imagery=IMAGERY
+        )
+
     return (
         patch(
             "src.agent.datasets.handlers.analytics_handler.AnalyticsHandler.pull_data",
-            AsyncMock(return_value=pull),
+            _pull_data,
         ),
         patch(
             "src.api.services.nrt_monitoring._IMAGERY_PROVIDER.get_imagery",
-            AsyncMock(return_value=imagery),
+            _get_imagery,
         ),
         patch(
             "src.api.services.nrt_monitoring.generate_section_summary",
@@ -278,3 +296,28 @@ async def test_requires_auth(client):
         ENDPOINT.format(id="00000000-0000-0000-0000-000000000000"), json={}
     )
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_imagery_gets_the_canonical_aoi_id(client, auth_override):
+    """The data pull rewrites its input in place — the analytics API wants a
+    GADM id without the level suffix. The imagery lookup that follows must
+    still see the id the dashboard stored, or it resolves no geometry and the
+    section silently loses its satellite widget."""
+    auth_override("nrt-aoi-id")
+    dashboard = await _create_dashboard(client)
+    seen: dict = {}
+
+    pull, imagery, summary = _patches(imagery_spy=seen)
+    with pull, imagery, summary:
+        response = await client.post(
+            ENDPOINT.format(id=dashboard["id"]), headers=AUTH, json={}
+        )
+
+    assert response.status_code == 201
+    assert seen["src_id"] == PARANA["src_id"] == "BRA.16_1"
+    assert [w["widget_type"] for w in response.json()["widgets"]] == [
+        "insight",
+        "map",
+        "map",
+    ]
