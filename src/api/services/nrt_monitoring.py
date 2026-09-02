@@ -15,7 +15,10 @@ What can fail, and what happens:
   section is built without the imagery widget and the reason is reported in
   ``warnings``;
 - the summary call fails → a templated title and description are used
-  (``nrt_summary.fallback_summary``).
+  (``nrt_summary.fallback_summary``);
+- the dashboard is deleted mid-build → the insight row is already written and
+  is left orphaned. Harmless dead data that no dashboard points at, the same
+  trade the deterministic analysis job makes.
 """
 
 from dataclasses import dataclass, field
@@ -34,6 +37,7 @@ from src.agent.datasets.layers import (
 from src.agent.imagery import ImageryRequest, Sentinel2ImageryProvider
 from src.agent.language import DEFAULT_LANGUAGE
 from src.agent.subagents.analyst.charts.model import Insight
+from src.api.data_models import DashboardOrm, DashboardSectionOrm
 from src.api.repositories import dashboard_writer
 from src.api.repositories.insight_writer import persist_insight
 from src.api.services.analyze import AnalyzeService
@@ -72,14 +76,23 @@ class NrtSectionResult:
     warnings: list[str] = field(default_factory=list)
 
 
-def resolve_period(days: int = DEFAULT_DAYS) -> tuple[str, str]:
+async def resolve_period(days: int = DEFAULT_DAYS) -> tuple[str, str]:
     """The alert window: ``days`` back from today, clamped to the dataset.
 
     Integrated alerts start on 2023-12-01 and have no fixed end, so the
-    clamp normally only moves the start of a very long window.
+    clamp normally only moves the start of a very long window. The clamp
+    belongs here rather than in the builder alone, because the double-click
+    guard matches on the period a previous build *stored* — comparing an
+    unclamped range against a clamped one would never match, and every click
+    would build again.
     """
     today = date.today()
-    return (today - timedelta(days=days)).isoformat(), today.isoformat()
+    start, end, _ = await revise_date_range(
+        (today - timedelta(days=days)).isoformat(),
+        today.isoformat(),
+        INTEGRATED_ALERTS_ID,
+    )
+    return start, end
 
 
 async def build_nrt_section(
@@ -101,10 +114,10 @@ async def build_nrt_section(
     generated text. Raises ``AnalyticsFailedError`` when the data pull fails,
     and ``ValueError`` when the dashboard has gone.
     """
-    requested_start, end_date = resolve_period(days)
-    start_date, end_date, _ = await revise_date_range(
-        requested_start, end_date, INTEGRATED_ALERTS_ID
-    )
+    # The user's preferred language is nullable; every collaborator below
+    # renders text, so it is coerced once here rather than in each of them.
+    language = language or DEFAULT_LANGUAGE
+    start_date, end_date = await resolve_period(days)
     warnings: list[str] = []
 
     logger.info(
@@ -230,8 +243,8 @@ async def build_nrt_section(
 
 
 def find_existing_section(
-    dashboard, start_date: str, end_date: str
-) -> Optional[object]:
+    dashboard: DashboardOrm, start_date: str, end_date: str
+) -> Optional[DashboardSectionOrm]:
     """An NRT section already on this dashboard for the same period.
 
     The guard against a double click: building twice costs a data pull, a

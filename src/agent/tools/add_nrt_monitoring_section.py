@@ -87,7 +87,7 @@ async def add_nrt_monitoring_section(
             tool_call_id,
         )
 
-    start_date, end_date = resolve_period(window_days)
+    start_date, end_date = await resolve_period(window_days)
     existing = find_existing_section(dashboard, start_date, end_date)
     if existing is not None:
         return error_command(

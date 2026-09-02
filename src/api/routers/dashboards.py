@@ -15,7 +15,7 @@ otherwise a public dashboard renders empty for viewers.
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -148,8 +148,7 @@ async def _visible_insights(
     return {
         insight.id: insight
         for insight in result.scalars().all()
-        if insight_is_visible_to_user(insight, user_id)
-        or _is_privileged(user)
+        if insight_is_visible_to_user(insight, user_id) or _is_privileged(user)
     }
 
 
@@ -315,7 +314,11 @@ async def add_section(
 )
 async def add_nrt_monitoring_section(
     dashboard_id: UUID,
-    body: NrtSectionCreateRequest = NrtSectionCreateRequest(),
+    # default_factory, not a shared instance: one request must not be able
+    # to see another's body object.
+    body: NrtSectionCreateRequest = Body(
+        default_factory=NrtSectionCreateRequest
+    ),
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
@@ -347,7 +350,7 @@ async def add_nrt_monitoring_section(
         )
 
     aoi = dashboard.aois[0]
-    start_date, end_date = resolve_period(body.days)
+    start_date, end_date = await resolve_period(body.days)
 
     if not body.force:
         existing = find_existing_section(dashboard, start_date, end_date)
