@@ -808,7 +808,7 @@ async def test_hallucinated_selected_layer_is_discarded():
 
     with (
         patch(
-            "src.agent.subagents.pick_dataset.rag_candidate_datasets",
+            "src.agent.subagents.pick_dataset.tool.rag_candidate_datasets",
             new_callable=AsyncMock,
             return_value=candidate_df,
         ),
