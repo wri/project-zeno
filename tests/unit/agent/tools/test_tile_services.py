@@ -16,6 +16,7 @@ from src.agent.datasets.handlers.analytics_handler import (
     TREE_COVER_LOSS_ID,
 )
 from src.agent.subagents.pick_dataset.tool import (
+    get_dataset_layers,
     get_tile_services_for_dataset,
 )
 
@@ -111,6 +112,46 @@ def test_no_layers_falls_back_to_raw_tile_url():
     )
 
     assert tile_url.startswith(IA_TILE)
+
+
+def test_get_dataset_layers_empty_for_analytics_only_dataset():
+    """No `layers` and no tile_url (a genuinely analytics-only dataset) must
+    not manufacture a placeholder DatasetLayer with an empty tile_url — an
+    empty list correctly signals "nothing to render", matching the
+    (also empty) legacy tile_url mirror for the same dataset."""
+    row = SimpleNamespace(dataset_name="Analytics only")
+    assert get_dataset_layers(row, "") == []
+
+
+def test_get_dataset_layers_single_entry_for_ordinary_dataset():
+    row = SimpleNamespace(dataset_name="Tree cover loss")
+    layers = get_dataset_layers(row, "https://tiles.example.com/tcl.png")
+    assert len(layers) == 1
+    assert layers[0].name == "Tree cover loss"
+    assert layers[0].tile_url == "https://tiles.example.com/tcl.png"
+
+
+def test_analytics_only_dataset_returns_no_layers_end_to_end():
+    """An analytics-only dataset (no tile_url, no `layers` in the yml) gets
+    an empty `layers` list from get_tile_services_for_dataset, not a
+    single useless entry with an empty tile_url."""
+    selection = SimpleNamespace(
+        dataset_id=99, context_layer=None, selected_layer=None, parameters=None
+    )
+    row = SimpleNamespace(
+        dataset_id=99,
+        dataset_name="Analytics only",
+        tile_url="",
+        context_layers=None,
+        parameters=None,
+    )
+
+    tile_url, _, layers = get_tile_services_for_dataset(
+        selection, row, "2024-01-01", "2024-12-31"
+    )
+
+    assert tile_url == ""
+    assert layers == []
 
 
 def test_canopy_cover_threshold_substitution():

@@ -177,9 +177,10 @@ class DatasetSelectionResult(DatasetOption):
     )
     layers: list[DatasetLayer] = Field(
         description=(
-            "The dataset's primary data layer(s), always at least one. Most "
-            "datasets have exactly one; some (e.g. LGMS) have several that "
-            "can be shown independently or together."
+            "The dataset's primary data layer(s). Most datasets have exactly "
+            "one; some (e.g. LGMS) have several that can be shown "
+            "independently or together. Empty for an analytics-only dataset "
+            "with no map layer to render."
         ),
     )
     context_layers: list[ContextLayer] = Field(

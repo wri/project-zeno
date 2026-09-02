@@ -615,7 +615,9 @@ def get_dataset_layers(selected_row, tile_url: str) -> list[DatasetLayer]:
     present (e.g. LGMS's agriculture/lulucf), otherwise a single layer
     auto-derived from the dataset's resolved `tile_url` — so every other
     catalog entry keeps working unchanged with no per-dataset branching
-    downstream."""
+    downstream. Empty for an analytics-only dataset with no tile_url and no
+    `layers` — there's nothing to render, so no placeholder entry is worth
+    manufacturing."""
     raw_layers = getattr(selected_row, "layers", None)
     if isinstance(raw_layers, list) and raw_layers:
         return [
@@ -627,6 +629,8 @@ def get_dataset_layers(selected_row, tile_url: str) -> list[DatasetLayer]:
             )
             for layer in raw_layers
         ]
+    if not tile_url:
+        return []
     return [DatasetLayer(name=selected_row.dataset_name, tile_url=tile_url)]
 
 
