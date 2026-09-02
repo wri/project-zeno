@@ -11,6 +11,7 @@ from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.nrt_summary import (
     TITLE_MAX_CHARS,
     SectionSummary,
+    _rounded,
     fallback_summary,
     generate_section_summary,
 )
@@ -128,3 +129,45 @@ def test_fallback_states_the_period_and_the_caveat():
     assert "2026-06-04" in summary.description
     assert "2026-09-02" in summary.description
     assert "potential disturbance" in summary.description
+
+
+def test_prompt_sees_rounded_figures_but_the_chart_keeps_precision():
+    """Analytics areas arrive at full float precision, and a model told to
+    quote a figure exactly will write "153409.28893796972 ha"."""
+    chart = InsightChart(
+        position=0,
+        title="Alerts",
+        chart_type="line",
+        x_axis="month",
+        y_axis="area_ha",
+        chart_data=[
+            {"month": "2026-07", "area_ha": 153409.28893796972},
+            {"month": "2026-08", "area_ha": 15.0812345},
+        ],
+    )
+
+    rounded = _rounded(chart)
+
+    assert [row["area_ha"] for row in rounded.chart_data] == [153409, 15.1]
+    # The stored chart is untouched: only the prompt copy is rounded.
+    assert chart.chart_data[0]["area_ha"] == 153409.28893796972
+
+
+def test_rounding_leaves_non_numeric_columns_alone():
+    chart = InsightChart(
+        position=0,
+        title="Alerts",
+        chart_type="line",
+        x_axis="month",
+        y_axis="area_ha",
+        color_field="alert_confidence",
+        chart_data=[
+            {"month": "2026-07", "alert_confidence": "high", "area_ha": 1.234}
+        ],
+    )
+
+    (row,) = _rounded(chart).chart_data
+
+    assert row["month"] == "2026-07"
+    assert row["alert_confidence"] == "high"
+    assert row["area_ha"] == 1.2
