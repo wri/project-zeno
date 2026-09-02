@@ -53,6 +53,9 @@ from src.agent.tools.add_dashboard_section import (
     SPEC as add_dashboard_section_spec,
 )
 from src.agent.tools.add_map_widget import SPEC as add_map_widget_spec
+from src.agent.tools.add_nrt_monitoring_section import (
+    SPEC as add_nrt_monitoring_section_spec,
+)
 from src.agent.tools.add_text_widget import SPEC as add_text_widget_spec
 from src.agent.tools.add_to_dashboard import SPEC as add_to_dashboard_spec
 from src.agent.tools.create_dashboard import SPEC as create_dashboard_spec
@@ -101,6 +104,7 @@ ALL_SPECS = (
     add_text_widget_spec,
     edit_text_widget_spec,
     add_dashboard_section_spec,
+    add_nrt_monitoring_section_spec,
     edit_dashboard_section_spec,
     move_dashboard_widget_spec,
     send_nudge_spec,

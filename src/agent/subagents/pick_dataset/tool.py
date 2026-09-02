@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Annotated, Dict, Optional, Union
 
@@ -18,16 +18,7 @@ from src.agent.datasets.config import (
     DATASETS,
 )
 from src.agent.datasets.dates import revise_date_range
-from src.agent.datasets.handlers.analytics_handler import (
-    FOREST_CARBON_FLUX_ID,
-    GRASSLANDS_ID,
-    INTEGRATED_ALERTS_ID,
-    LAND_COVER_CHANGE_ID,
-    TREE_COVER_ID,
-    TREE_COVER_LOSS_BY_DRIVER_ID,
-    TREE_COVER_LOSS_BY_FIRES_ID,
-    TREE_COVER_LOSS_ID,
-)
+from src.agent.datasets.layers import resolve_dataset_layer
 from src.agent.i18n import t
 from src.agent.language import (
     DEFAULT_LANGUAGE,
@@ -512,86 +503,32 @@ def get_filtered_contextual_layers(
 def get_tile_services_for_dataset(
     selection_result, selected_row, start_date, end_date
 ):
-    context_layers = []
-    tile_url = selected_row.tile_url
-    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-    end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+    """Adapt the LLM's selection onto ``resolve_dataset_layer``.
 
-    if not selected_row.tile_url.startswith("http"):
-        tile_url = SharedSettings.eoapi_base_url + tile_url
+    The tile-URL rules live in ``src.agent.datasets.layers`` so that the API
+    recipes produce the same layer without an LLM in the loop. This function
+    stays as the chat-side shape: selection objects in, ``(tile_url,
+    [ContextLayer])`` out.
+    """
+    parameters = None
+    if selection_result.parameters is not None:
+        parameters = [
+            {"name": parameter.name, "values": parameter.values}
+            for parameter in selection_result.parameters
+        ]
 
-    if (
-        selection_result.context_layer
-        and selected_row.context_layers is not None
-    ):
-        selected_context_layer = next(
-            (
-                x
-                for x in selected_row.context_layers
-                if x["value"] == selection_result.context_layer
-            ),
-            None,
-        )
-        context_layer = ContextLayer(
-            name=selected_context_layer.get("value"),
-            tile_url=selected_context_layer.get("tile_url"),
-        )
-        context_layers.append(context_layer)
-
-    if selected_row.dataset_id in [
-        TREE_COVER_LOSS_ID,
-        TREE_COVER_ID,
-        TREE_COVER_LOSS_BY_DRIVER_ID,
-        TREE_COVER_LOSS_BY_FIRES_ID,
-        FOREST_CARBON_FLUX_ID,
-    ]:
-        canopy_cover = 30
-        if selection_result.parameters is not None:
-            for param in selection_result.parameters:
-                if param.name == "canopy_cover":
-                    canopy_cover = max(param.values)
-
-        if selected_row.dataset_id != TREE_COVER_ID:
-            canopy_cover_tile_url = next(
-                (
-                    param["tile_url"]
-                    for param in selected_row.parameters
-                    if param["name"] == "canopy_cover"
-                ),
-                None,
-            )
-
-            thresholded_tile_url = canopy_cover_tile_url.replace(
-                "{threshold}", str(canopy_cover)
-            )
-
-            context_layer = ContextLayer(
-                name="canopy_cover",
-                tile_url=thresholded_tile_url,
-            )
-            context_layers.append(context_layer)
-
-        tile_url = selected_row.tile_url.replace(
-            "{threshold}", str(canopy_cover)
-        )
-
-    if (
-        selected_row.dataset_id == TREE_COVER_LOSS_ID
-        or selected_row.dataset_id == TREE_COVER_LOSS_BY_FIRES_ID
-    ):
-        if end_date.year in range(2001, 2026):
-            tile_url += (
-                f"&start_year={start_date.year}&end_year={end_date.year}"
-            )
-        else:
-            tile_url += "&start_year=2001&end_year=2025"
-    elif selection_result.dataset_id == INTEGRATED_ALERTS_ID:
-        tile_url += f"&start_date={start_date}&end_date={end_date}"
-    elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
-        # Annual raster item in URL; start/end are already clamped to dataset YAML
-        tile_url = tile_url.format(year=end_date.year)
-
-    return tile_url, context_layers
+    layer = resolve_dataset_layer(
+        selected_row.dataset_id,
+        start_date,
+        end_date,
+        context_layer=selection_result.context_layer,
+        parameters=parameters,
+    )
+    context_layers = [
+        ContextLayer(name=entry["name"], tile_url=entry["tile_url"])
+        for entry in layer.context_layers
+    ]
+    return layer.tile_url, context_layers
 
 
 def get_dates_for_dataset(

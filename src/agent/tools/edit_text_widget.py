@@ -27,6 +27,7 @@ from src.agent.tools.common import (
     error_command,
     load_editable_dashboard,
     resolve_dashboard_id,
+    sealed_error_command,
 )
 from src.api.repositories import dashboard_writer
 from src.shared.logging_config import get_logger
@@ -161,9 +162,12 @@ async def edit_text_widget(
         text_chars=len(body),
     )
 
-    updated = await dashboard_writer.update_widget(
-        widget.id, config=_widget_config(body)
-    )
+    try:
+        updated = await dashboard_writer.update_widget(
+            widget.id, config=_widget_config(body)
+        )
+    except dashboard_writer.SealedSectionError as error:
+        return sealed_error_command(error, tool_call_id)
     if not updated:
         return error_command(
             f"Widget {widget.id} disappeared before it could be edited.",

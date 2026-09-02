@@ -551,6 +551,11 @@ class DashboardSectionOrm(Base):
     # Free-form intent of the section ("why these widgets belong together"),
     # written by the user or composed by the agent.
     description = Column(String, nullable=True)
+    # How the section was built, and how the frontend renders it: "default"
+    # for a user- or agent-composed group, or a recipe name such as
+    # "nrt-monitoring" for a section a builder wrote in one piece. Recipe
+    # sections are sealed — see ``dashboard_writer.SEALED_SECTION_TYPES``.
+    type = Column(String, nullable=False, server_default="default")
     # Order of the section within the dashboard.
     position = Column(Integer, nullable=False, server_default="0")
     created_at = Column(DateTime, nullable=False, default=datetime.now)
