@@ -35,7 +35,10 @@ class FakeService:
         self._success = success
         self._charts = charts
 
-    async def analyze(self, aois, dataset_id, start_date, end_date):
+    async def analyze(
+        self, aois, dataset_id, start_date, end_date, language=None
+    ):
+        self.language = language
         return AnalyzeResult(
             data=_Result(self._success, "upstream error"),
             charts=self._charts if self._success else [],
@@ -151,3 +154,22 @@ async def test_run_marks_job_failed_when_persistence_raises():
 
     # ...and the job must reach a terminal FAILED state, not stay RUNNING.
     assert repo.job_statuses[-1] == (JOB_ID, JobStatus.FAILED)
+
+
+async def test_run_forwards_the_readers_language_to_the_service():
+    """Chart titles are localised in the service, so the language has to
+    survive the hop through the background job."""
+    service = FakeService(success=True, charts=[])
+    runner = AnalysisJobRunner(service=service, repo=FakeJobRepository())
+
+    await runner.run(
+        job_id=uuid4(),
+        user_id="user-1",
+        aois=[{"source": "gadm", "src_id": "BRA"}],
+        dataset_id=1,
+        start_date="2020-01-01",
+        end_date="2020-12-31",
+        language="pt",
+    )
+
+    assert service.language == "pt"

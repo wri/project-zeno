@@ -1,8 +1,10 @@
 import pytest
 
 from src.agent.datasets.handlers.base import DataPullResult, DataSourceHandler
+from src.agent.i18n import t
 from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.analyze import AnalyzeService
+from src.api.services.charts import ChartGenerator
 
 UNHANDLED_DATASET_ID = 1
 HANDLED_DATASET_ID = 99
@@ -47,9 +49,8 @@ class FakeHandler(DataSourceHandler):
         return self._result
 
 
-class FakeChartGenerator:
-    def can_handle(self, dataset_id: int) -> bool:
-        return dataset_id == HANDLED_DATASET_ID
+class FakeChartGenerator(ChartGenerator):
+    dataset_id = HANDLED_DATASET_ID
 
     def generate(self, rows):
         return FAKE_CHARTS
@@ -166,3 +167,45 @@ async def test_no_charts_when_no_deterministic_source():
     )
 
     assert result.charts == []
+
+
+@pytest.mark.asyncio
+async def test_analyze_localises_titles_and_category_labels():
+    """Generators emit message keys so they stay synchronous and pure; the
+    service resolves them, since chart text is as user-facing as any other
+    message the agent path already translates."""
+
+    class KeyedGenerator(FakeChartGenerator):
+        dataset_id = HANDLED_DATASET_ID
+        label_fields = ("flux",)
+
+        def generate(self, rows):
+            return [
+                InsightChart(
+                    position=0,
+                    title="charts.forest_flux.net",
+                    chart_type="bar",
+                    x_axis="flux",
+                    y_axis="carbon_MgCO2e",
+                    chart_data=[
+                        {"flux": "charts.label.net_flux", "carbon_MgCO2e": 1}
+                    ],
+                )
+            ]
+
+    service = AnalyzeService(FakeHandler(SUCCESS_RESULT), [KeyedGenerator()])
+
+    result = await service.analyze(
+        aois=[AOI],
+        dataset_id=HANDLED_DATASET_ID,
+        start_date="2020-01-01",
+        end_date="2020-12-31",
+        language="es",
+    )
+
+    chart = result.charts[0]
+    assert chart.title == await t("charts.forest_flux.net", "es")
+    assert chart.chart_data[0]["flux"] == await t(
+        "charts.label.net_flux", "es"
+    )
+    assert "charts." not in chart.title
