@@ -62,7 +62,11 @@ async def chat(
     result = await session.execute(stmt)
     thread = result.scalars().first()
     if not thread:
-        thread_name = await generate_thread_name(chat_request.query)
+        thread_name = await generate_thread_name(
+            chat_request.query,
+            thread_id=chat_request.thread_id,
+            user_id=user.id,
+        )
         thread = ThreadOrm(
             id=chat_request.thread_id,
             user_id=user.id,

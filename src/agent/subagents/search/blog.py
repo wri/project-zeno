@@ -514,7 +514,10 @@ async def search_blogs(
     t0 = time.perf_counter()
     try:
         result = await _cached_agent(language=language).ainvoke(
-            {"messages": [{"role": "user", "content": query}]}
+            {"messages": [{"role": "user", "content": query}]},
+            # This is a nested agent loop, so it can be several model calls per
+            # search. run_name labels them all under one component in Langfuse.
+            config={"run_name": "search_blogs_agent"},
         )
     except Exception:
         logger.exception(f"search_blogs failed query={query!r}")

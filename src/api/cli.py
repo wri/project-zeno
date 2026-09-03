@@ -812,6 +812,85 @@ def backfill_turn_fields_command(batch_size: int, dry_run: bool):
     asyncio.run(_run())
 
 
+@cli.command("langfuse-model-prices")
+@click.option("--hours", type=int, default=24, help="Look-back window.")
+@click.option("--environment", default=None, help="Filter to one environment.")
+def langfuse_model_prices_command(hours: int, environment: Optional[str]):
+    """Report which models Langfuse is failing to price.
+
+    Langfuse computes cost by matching an observation's model name against its
+    model-definition table. A model it does not recognise — a preview name, or a
+    newly configured one — is recorded with usage but **zero cost**, so
+    cost-per-query silently understates by that model's whole share, with
+    nothing in the data to say so.
+
+    For every model flagged UNPRICED here, add a model definition with its
+    prices in Langfuse (Settings → Models), then re-run
+    ``ingest-langfuse-traces --backfill --since`` over the affected window to
+    recompute the stored costs.
+    """
+    from src.api.services.langfuse.fetch import LangfuseClient
+
+    until = datetime.now(timezone.utc)
+    since = until - timedelta(hours=hours)
+    client = LangfuseClient.from_env()
+    # Every type, then filter on "has a model and reported usage": embeddings
+    # are billable too, and an unpriced embedding model is just as invisible as
+    # an unpriced chat one.
+    observations = client.fetch_observations_window(
+        since, until, environment, obs_type=None
+    )
+
+    # model -> [calls, tokens, cost, priced_calls]
+    stats: dict = {}
+    for o in observations:
+        model = o.get("model")
+        usage = o.get("usageDetails") or {}
+        if not model or not usage:
+            continue
+        cost = o.get("totalCost") or 0
+        row = stats.setdefault(model, [0, 0, 0.0, 0])
+        row[0] += 1
+        row[1] += int(usage.get("total") or 0)
+        row[2] += float(cost)
+        if cost:
+            row[3] += 1
+
+    if not stats:
+        click.echo(f"No billable LLM calls in the last {hours}h.")
+        return
+
+    click.echo(
+        f"{'model':38} {'calls':>7} {'tokens':>10} {'cost':>11}  status"
+    )
+    unpriced = []
+    for model, (calls, tokens, cost, priced) in sorted(
+        stats.items(), key=lambda kv: -kv[1][1]
+    ):
+        if priced == 0:
+            status = "UNPRICED"
+            unpriced.append(model)
+        elif priced < calls:
+            status = f"PARTIAL ({priced}/{calls} priced)"
+        else:
+            status = "ok"
+        click.echo(
+            f"{model[:38]:38} {calls:>7} {tokens:>10,} {cost:>11.6f}  {status}"
+        )
+
+    if unpriced:
+        click.echo(
+            "\n⚠️  Unpriced models contribute tokens but no cost: "
+            + ", ".join(unpriced)
+        )
+        click.echo(
+            "   Add a model definition for each in Langfuse, then re-ingest "
+            "the window."
+        )
+    else:
+        click.echo("\n✅ Every model in this window is priced.")
+
+
 # ---------------------------------------------------------------------------
 # build-aois: populate the unified `aois` / `user_aois` tables
 # ---------------------------------------------------------------------------

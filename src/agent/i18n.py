@@ -1065,7 +1065,9 @@ async def _translate_template(key: str, english: str, language: str) -> str:
         f"Template:\n{english}"
     )
     try:
-        response = await SMALL_MODEL.ainvoke(prompt)
+        response = await SMALL_MODEL.ainvoke(
+            prompt, config={"run_name": "translate_template"}
+        )
         translated = _extract_text(response.content).strip() or english
     except Exception:
         logger.exception("i18n_translation_failed", key=key, language=language)

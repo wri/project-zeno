@@ -77,11 +77,36 @@ class TraceListItem(BaseModel):
             "previous turn's), vs. datasets_analysed which is thread-cumulative."
         ),
     )
-    turn_tokens: Optional[int] = None
+    turn_tokens: Optional[int] = Field(
+        None,
+        description=(
+            "Every LLM call in the turn, the agent's own and the ones its tools "
+            "made. Equals agent_tokens + tool_tokens."
+        ),
+    )
+    agent_tokens: Optional[int] = Field(
+        None, description="The subset of turn_tokens the agent spent itself."
+    )
+    tool_tokens: Optional[int] = Field(
+        None,
+        description=(
+            "The subset spent by LLM calls inside tools. See "
+            "derived.tokens_by_component for the per-tool breakdown."
+        ),
+    )
     turn_tool_calls: Optional[int] = None
     tool_error_count: Optional[int] = None
+    generation_count: Optional[int] = None
     latency_seconds: Optional[float] = None
     total_cost: Optional[float] = None
+    agent_cost: Optional[float] = None
+    tool_cost: Optional[float] = Field(
+        None,
+        description=(
+            "Cost of the tools' own LLM calls. Runs materially higher than the "
+            "token share suggests: tool prompts get no prompt-cache hits."
+        ),
+    )
     # Sourced from the ``derived`` JSONB (long-tail fields kept out of columns).
     datasets_analysed: Optional[list[str]] = Field(
         None,
@@ -111,6 +136,28 @@ class TraceDetail(TraceListItem):
     insight_id: Optional[str] = None
     turn_input_tokens: Optional[int] = None
     turn_output_tokens: Optional[int] = None
+    usage_source: Optional[str] = Field(
+        None,
+        description=(
+            '"observations" when the token counts came from the trace\'s '
+            'generations (complete), "messages" when the observation fetch '
+            "failed and they cover the agent's own calls only."
+        ),
+    )
+    tokens_by_component: Optional[dict[str, int]] = Field(
+        None, description='Tokens per component: "agent", then each tool name.'
+    )
+    cost_by_component: Optional[dict[str, float]] = Field(
+        None, description="Cost per component, same keys as above."
+    )
+    usage_split_agrees: Optional[bool] = Field(
+        None,
+        description=(
+            "Whether the observation-derived agent_tokens matches the "
+            "independent message-derived figure. False means component "
+            "attribution has drifted and the agent/tool split is unreliable."
+        ),
+    )
     parser_version: Optional[int] = None
     parse_error: Optional[str] = None
     recognized_contract: Optional[bool] = None
@@ -139,10 +186,15 @@ _LIST_COLUMNS = (
     LangfuseTraceOrm.insight_created_this_turn,
     LangfuseTraceOrm.datasets_analysed_this_turn,
     LangfuseTraceOrm.turn_tokens,
+    LangfuseTraceOrm.agent_tokens,
+    LangfuseTraceOrm.tool_tokens,
     LangfuseTraceOrm.turn_tool_calls,
     LangfuseTraceOrm.tool_error_count,
+    LangfuseTraceOrm.generation_count,
     LangfuseTraceOrm.latency_seconds,
     LangfuseTraceOrm.total_cost,
+    LangfuseTraceOrm.agent_cost,
+    LangfuseTraceOrm.tool_cost,
     # Selected so the list response can surface the derived fields below without
     # a per-trace detail fetch (datasets_analysed/language live in JSONB).
     LangfuseTraceOrm.derived,
@@ -293,12 +345,16 @@ class TurnMetrics(BaseModel):
     cost: dict[str, Optional[float]] = Field(
         ...,
         description=(
-            "{avg, p95, total}. The sums (total) are within-bucket totals and are "
-            "NOT comparable across buckets — the terminal bucket aggregates many "
-            "turn positions. Compare averages/percentiles across buckets."
+            "{avg, p95, total, avg_agent, avg_tool, total_agent, total_tool}. "
+            "The *_agent / *_tool pair splits spend between the agent's own LLM "
+            "calls and the ones its tools made. The sums (total*) are "
+            "within-bucket totals and are NOT comparable across buckets — the "
+            "terminal bucket aggregates many turn positions. Compare "
+            "averages/percentiles across buckets."
         ),
     )
-    tokens: dict[str, Optional[float]]  # {avg_turn_tokens, total_turn_tokens}
+    # {avg,total}_turn_tokens plus the same _agent/_tool split as cost.
+    tokens: dict[str, Optional[float]]
     tool_usage: dict[str, Optional[float]]  # {avg_tool_calls, tool_error_rate}
 
 
@@ -427,8 +483,16 @@ _SCALAR_METRICS_SQL = """
   avg(total_cost) AS cost_avg,
   percentile_cont(0.95) WITHIN GROUP (ORDER BY total_cost) AS cost_p95,
   sum(total_cost) AS cost_total,
+  avg(agent_cost) AS cost_agent_avg,
+  avg(tool_cost) AS cost_tool_avg,
+  sum(agent_cost) AS cost_agent_total,
+  sum(tool_cost) AS cost_tool_total,
   avg(turn_tokens) AS tok_avg,
   sum(turn_tokens) AS tok_total,
+  avg(agent_tokens) AS tok_agent_avg,
+  avg(tool_tokens) AS tok_tool_avg,
+  sum(agent_tokens) AS tok_agent_total,
+  sum(tool_tokens) AS tok_tool_total,
   avg(turn_tool_calls) AS tool_avg,
   avg(CASE WHEN tool_error_count > 0 THEN 1.0 ELSE 0.0 END) AS tool_err_rate
 """.strip()
@@ -448,10 +512,18 @@ def _metrics_dict(r: Any) -> dict[str, Any]:
             "avg": _f(r["cost_avg"]),
             "p95": _f(r["cost_p95"]),
             "total": _f(r["cost_total"]),
+            "avg_agent": _f(r["cost_agent_avg"]),
+            "avg_tool": _f(r["cost_tool_avg"]),
+            "total_agent": _f(r["cost_agent_total"]),
+            "total_tool": _f(r["cost_tool_total"]),
         },
         "tokens": {
             "avg_turn_tokens": _f(r["tok_avg"]),
             "total_turn_tokens": _f(r["tok_total"]),
+            "avg_agent_tokens": _f(r["tok_agent_avg"]),
+            "avg_tool_tokens": _f(r["tok_tool_avg"]),
+            "total_agent_tokens": _f(r["tok_agent_total"]),
+            "total_tool_tokens": _f(r["tok_tool_total"]),
         },
         "tool_usage": {
             "avg_tool_calls": _f(r["tool_avg"]),
@@ -735,10 +807,19 @@ async def get_trace(
         turn_tokens=row.turn_tokens,
         turn_input_tokens=row.turn_input_tokens,
         turn_output_tokens=row.turn_output_tokens,
+        agent_tokens=row.agent_tokens,
+        tool_tokens=row.tool_tokens,
         turn_tool_calls=row.turn_tool_calls,
         tool_error_count=row.tool_error_count,
+        generation_count=row.generation_count,
         latency_seconds=row.latency_seconds,
         total_cost=row.total_cost,
+        agent_cost=row.agent_cost,
+        tool_cost=row.tool_cost,
+        usage_source=derived.get("usage_source"),
+        tokens_by_component=derived.get("tokens_by_component"),
+        cost_by_component=derived.get("cost_by_component"),
+        usage_split_agrees=derived.get("usage_split_agrees"),
         datasets_analysed=derived.get("datasets_analysed_cumulative"),
         language=derived.get("language"),
         language_confidence=derived.get("language_confidence"),

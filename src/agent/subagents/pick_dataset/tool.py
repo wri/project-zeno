@@ -179,7 +179,7 @@ async def select_best_dataset(
     dataset_selection_chain = (
         DATASET_SELECTION_PROMPT
         | SMALL_MODEL.with_structured_output(DatasetSelectionResponse)
-    )
+    ).with_config(run_name="select_dataset")
 
     if aoi_selection is None:
         removed_df = None
