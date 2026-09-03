@@ -11,6 +11,7 @@ from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
+from pydantic import Field
 
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.add_dashboard_section import _normalize
@@ -23,6 +24,7 @@ from src.agent.tools.common import (
     resolve_section,
 )
 from src.api.repositories import dashboard_writer
+from src.api.schemas import SECTION_TITLE_MAX_LENGTH
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -53,7 +55,9 @@ def _select_section(dashboard, section: Optional[str]):
 @tool("edit_dashboard_section")
 async def edit_dashboard_section(
     section: Optional[str] = None,
-    title: Optional[str] = None,
+    title: Annotated[
+        Optional[str], Field(max_length=SECTION_TITLE_MAX_LENGTH)
+    ] = None,
     description: Optional[str] = None,
     dashboard_id: Optional[str] = None,
     state: Annotated[Dict, InjectedState] | None = None,
@@ -63,8 +67,9 @@ async def edit_dashboard_section(
 
     `section` names the section to edit by title or id; it defaults to the
     dashboard's only section, and when several exist the error lists them so
-    you can retry. `title` is the new heading, `description` the new intent
-    text (a full replacement, not an append) — pass at least one of them.
+    you can retry. `title` is the new heading (same character cap as
+    add_dashboard_section), `description` the new intent text (a full
+    replacement, not an append) — pass at least one of them.
     `dashboard_id` defaults to the dashboard in state or the one the user is
     currently viewing. Only dashboards the user owns can be edited.
     """

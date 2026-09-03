@@ -14,6 +14,7 @@ from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
+from pydantic import Field
 
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import (
@@ -23,6 +24,7 @@ from src.agent.tools.common import (
     resolve_dashboard_id,
 )
 from src.api.repositories import dashboard_writer
+from src.api.schemas import SECTION_TITLE_MAX_LENGTH
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -37,7 +39,7 @@ def _normalize(text: Optional[str]) -> Optional[str]:
 
 @tool("add_dashboard_section")
 async def add_dashboard_section(
-    title: str,
+    title: Annotated[str, Field(max_length=SECTION_TITLE_MAX_LENGTH)],
     description: Optional[str] = None,
     dashboard_id: Optional[str] = None,
     position: Optional[int] = None,
@@ -46,10 +48,11 @@ async def add_dashboard_section(
 ) -> Command:
     """Create a section (a titled group of widgets) on a dashboard.
 
-    `title` is the section heading — short and topical, e.g. "Deforestation"
-    or "Land cover". `description` optionally captures what the section is
-    for in a line or two; compose it yourself. `dashboard_id` defaults to
-    the dashboard in state or the one the user is currently viewing;
+    `title` is the section heading — topical and no longer than the
+    schema's character cap, e.g. "Deforestation" or "Land cover".
+    `description` optionally captures what the section is for in a line or
+    two; compose it yourself. `dashboard_id` defaults to the dashboard in
+    state or the one the user is currently viewing;
     `position` optionally places the section (default: appended last). The
     section starts empty — put widgets in it by passing `section` to
     add_to_dashboard, add_text_widget or add_map_widget.

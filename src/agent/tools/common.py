@@ -110,13 +110,32 @@ def resolve_section(dashboard: DashboardOrm, section: Optional[str]):
     the id only from an earlier tool reply. ``None`` means "ungrouped", which
     is not an error: ``(None, None)``. An unmatched name is an error that
     lists the real sections so the model can retry or create one.
+
+    Ids are matched first and are unambiguous. Titles are not unique: the
+    agent refuses to create a duplicate, but the REST API does not, so two
+    sections made in the UI can share a title. Rather than silently picking
+    one, an ambiguous title is an error that lists the candidate ids for the
+    model to choose from.
     """
     if not section:
         return None, None
     wanted = str(section).strip()
-    for row in dashboard.sections or []:
-        if str(row.id) == wanted or row.title.casefold() == wanted.casefold():
+    rows = dashboard.sections or []
+    for row in rows:
+        if str(row.id) == wanted:
             return row, None
+    by_title = [
+        row for row in rows if row.title.casefold() == wanted.casefold()
+    ]
+    if len(by_title) == 1:
+        return by_title[0], None
+    if by_title:
+        ids = ", ".join(str(row.id) for row in by_title)
+        return None, (
+            f"Dashboard '{dashboard.name}' has {len(by_title)} sections "
+            f"titled '{by_title[0].title}'. Name the one you mean by id "
+            f"instead of by title: {ids}."
+        )
     return None, (
         f"Dashboard '{dashboard.name}' has no section '{section}'. "
         f"Existing sections: {format_sections(dashboard)}. Create it with "

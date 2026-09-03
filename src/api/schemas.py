@@ -628,9 +628,15 @@ class DashboardPublicToggleRequest(BaseModel):
     is_public: bool
 
 
+# A section heading is a short label, not prose — capped so the agent and
+# the UI cannot write an essay into it.
+SECTION_TITLE_MAX_LENGTH = 100
+
+
 class DashboardSectionCreateRequest(BaseModel):
     title: str = Field(
         min_length=1,
+        max_length=SECTION_TITLE_MAX_LENGTH,
         description="Section heading, e.g. `Deforestation`.",
     )
     description: Optional[str] = Field(
@@ -644,7 +650,9 @@ class DashboardSectionCreateRequest(BaseModel):
 
 
 class DashboardSectionUpdateRequest(BaseModel):
-    title: Optional[str] = Field(default=None, min_length=1)
+    title: Optional[str] = Field(
+        default=None, min_length=1, max_length=SECTION_TITLE_MAX_LENGTH
+    )
     # Explicit null clears the description; omitting the field leaves it.
     description: Optional[str] = None
     position: Optional[int] = None

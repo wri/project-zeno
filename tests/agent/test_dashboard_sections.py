@@ -6,15 +6,20 @@ section primitives (add_dashboard_section, edit_dashboard_section) and the
 named — by title or by id.
 """
 
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
+
+import pytest
+from pydantic import ValidationError
 
 from src.agent.tools.add_dashboard_section import add_dashboard_section
 from src.agent.tools.add_to_dashboard import add_to_dashboard
 from src.agent.tools.edit_dashboard_section import edit_dashboard_section
 from src.agent.tools.move_dashboard_widget import move_dashboard_widget
 from src.api.repositories import dashboard_writer
+from src.api.schemas import SECTION_TITLE_MAX_LENGTH
 from src.shared.request_context import bound_user_id
 
 
@@ -516,3 +521,138 @@ async def test_move_widget_rejects_an_unknown_section():
     assert _status(command) == "error"
     assert "no section 'Fires'" in _content(command)
     update_widget.assert_not_awaited()
+
+
+async def test_move_widget_reorders_within_its_own_section():
+    section = _section("Deforestation")
+    dashboard = _dashboard(sections=[section])
+    widget = _widget(dashboard, section_id=section.id)
+    with (
+        _get_dashboard(dashboard),
+        _get_widget(widget),
+        patch(
+            "src.api.repositories.dashboard_writer.update_widget",
+            new=AsyncMock(return_value=True),
+        ) as update_widget,
+        bound_user_id("user-1"),
+    ):
+        command = await move_dashboard_widget.coroutine(
+            widget_id=str(widget.id),
+            section="Deforestation",
+            position=1,
+            state={},
+            tool_call_id="t1",
+        )
+
+    assert _status(command) == "success"
+    update_widget.assert_awaited_once_with(
+        widget.id, position=1, section_id=str(section.id)
+    )
+    assert "position 1" in _content(command)
+
+
+async def test_move_widget_reorders_at_the_top_level():
+    dashboard = _dashboard(sections=[_section("Deforestation")])
+    widget = _widget(dashboard)
+    with (
+        _get_dashboard(dashboard),
+        _get_widget(widget),
+        patch(
+            "src.api.repositories.dashboard_writer.update_widget",
+            new=AsyncMock(return_value=True),
+        ) as update_widget,
+        bound_user_id("user-1"),
+    ):
+        command = await move_dashboard_widget.coroutine(
+            widget_id=str(widget.id),
+            ungroup=True,
+            position=0,
+            state={},
+            tool_call_id="t1",
+        )
+
+    assert _status(command) == "success"
+    update_widget.assert_awaited_once_with(
+        widget.id, position=0, section_id=None
+    )
+    assert "position 0" in _content(command)
+
+
+# ---------------------------------------------------------------------------
+# resolve_section: naming a section by title or id
+# ---------------------------------------------------------------------------
+async def test_move_widget_refuses_an_ambiguous_section_title():
+    """Two sections can share a title — the REST API does not forbid it —
+    so the title alone must not silently pick one of them."""
+    first = _section("Deforestation")
+    second = _section("deforestation")
+    dashboard = _dashboard(sections=[first, second])
+    widget = _widget(dashboard)
+    with (
+        _get_dashboard(dashboard),
+        _get_widget(widget),
+        patch(
+            "src.api.repositories.dashboard_writer.update_widget",
+            new=AsyncMock(),
+        ) as update_widget,
+        bound_user_id("user-1"),
+    ):
+        command = await move_dashboard_widget.coroutine(
+            widget_id=str(widget.id),
+            section="Deforestation",
+            state={},
+            tool_call_id="t1",
+        )
+
+    assert _status(command) == "error"
+    content = _content(command)
+    assert "2 sections titled 'Deforestation'" in content
+    assert str(first.id) in content and str(second.id) in content
+    update_widget.assert_not_awaited()
+
+
+async def test_move_widget_takes_an_id_over_a_duplicate_title():
+    first = _section("Deforestation")
+    second = _section("Deforestation")
+    dashboard = _dashboard(sections=[first, second])
+    widget = _widget(dashboard)
+    with (
+        _get_dashboard(dashboard),
+        _get_widget(widget),
+        patch(
+            "src.api.repositories.dashboard_writer.update_widget",
+            new=AsyncMock(return_value=True),
+        ) as update_widget,
+        bound_user_id("user-1"),
+    ):
+        command = await move_dashboard_widget.coroutine(
+            widget_id=str(widget.id),
+            section=str(second.id),
+            state={},
+            tool_call_id="t1",
+        )
+
+    assert _status(command) == "success"
+    update_widget.assert_awaited_once_with(
+        widget.id, position=None, section_id=str(second.id)
+    )
+
+
+# ---------------------------------------------------------------------------
+# section title length
+# ---------------------------------------------------------------------------
+def test_section_title_length_is_capped_by_the_tool_schema():
+    """The cap is a schema rule, not prose in the docstring: the model sees
+    it as `maxLength`, and an over-long title fails validation before the
+    tool body runs."""
+    for section_tool in (add_dashboard_section, edit_dashboard_section):
+        title = section_tool.args_schema.model_json_schema()["properties"][
+            "title"
+        ]
+        # Optional titles render as anyOf(string, null); the cap sits on
+        # the string branch either way.
+        assert f'"maxLength": {SECTION_TITLE_MAX_LENGTH}' in json.dumps(title)
+        with pytest.raises(ValidationError):
+            section_tool.args_schema(
+                title="x" * (SECTION_TITLE_MAX_LENGTH + 1)
+            )
