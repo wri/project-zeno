@@ -1,4 +1,5 @@
-"""Resilient client for the Langfuse ``/api/public/traces`` list endpoint.
+"""Resilient client for the Langfuse ``traces`` and ``observations`` list
+endpoints.
 
 Design notes (validated against the staging instance, which 500s / hits
 ClickHouse memory limits under load):
@@ -12,6 +13,9 @@ ClickHouse memory limits under load):
   id-dedup makes the refetch safe. If it still fails at size 1, raise loudly
   (``LangfuseFetchError``) so the caller records a failed chunk rather than
   silently dropping data.
+
+Both endpoints share that machinery via ``_fetch_windowed``; they differ only in
+the path and the names of the two timestamp bounds.
 """
 
 from __future__ import annotations
@@ -30,6 +34,7 @@ from src.shared.logging_config import get_logger
 logger = get_logger(__name__)
 
 _TRACES_PATH = "/api/public/traces"
+_OBSERVATIONS_PATH = "/api/public/observations"
 
 
 class LangfuseFetchError(RuntimeError):
@@ -79,27 +84,51 @@ class LangfuseClient:
         """Return all traces with ``from_ts <= timestamp < to_ts`` (ascending),
         de-duplicated by id. Raises ``LangfuseFetchError`` on unrecoverable
         failure."""
-        limit = page_size
-        with httpx.Client(timeout=self.timeout) as client:
-            while True:
-                try:
-                    return self._fetch_all_pages(
-                        client, from_ts, to_ts, environment, limit
-                    )
-                except _ServerError as e:
-                    if limit <= 1:
-                        raise LangfuseFetchError(
-                            f"Langfuse 5xx at page size 1 for window "
-                            f"[{_iso(from_ts)}, {_iso(to_ts)}): {e}"
-                        ) from e
-                    new_limit = max(1, limit // 2)
-                    logger.warning(
-                        "langfuse_fetch_halving_page_size",
-                        old_limit=limit,
-                        new_limit=new_limit,
-                        window_start=_iso(from_ts),
-                    )
-                    limit = new_limit
+        return self._fetch_windowed(
+            _TRACES_PATH,
+            "fromTimestamp",
+            "toTimestamp",
+            from_ts,
+            to_ts,
+            environment,
+            page_size,
+            extra={"orderBy": "timestamp.asc"},
+        )
+
+    def fetch_observations_window(
+        self,
+        from_ts: datetime,
+        to_ts: datetime,
+        environment: Optional[str] = None,
+        page_size: int = 50,
+        obs_type: Optional[str] = "GENERATION",
+    ) -> list[dict[str, Any]]:
+        """Return observations whose ``startTime`` is in ``[from_ts, to_ts)``,
+        de-duplicated by id. ``obs_type=None`` fetches every type, which is what
+        the ingest layer needs: a generation's owning component is written on
+        its ancestor spans, not on itself.
+
+        This is the *usage* source: a trace's token counts and cost live on its
+        generation observations, not on the trace itself (``trace.totalCost`` is
+        frequently null). Fetched per window rather than per trace so a window
+        of N traces costs a handful of requests instead of N.
+
+        Callers must group the result by ``traceId`` and keep only the trace ids
+        they actually fetched: a window's observations include children of
+        traces that started in an earlier window. See
+        ``OBSERVATION_WINDOW_PAD`` in the ingest layer for the converse case (a
+        trace near the window's end whose children spill past ``to_ts``).
+        """
+        return self._fetch_windowed(
+            _OBSERVATIONS_PATH,
+            "fromStartTime",
+            "toStartTime",
+            from_ts,
+            to_ts,
+            environment,
+            page_size,
+            extra={"type": obs_type} if obs_type else {},
+        )
 
     def fetch_trace(self, trace_id: str) -> Optional[dict[str, Any]]:
         """Fetch a single trace by id (the cheap/reliable path). Returns the
@@ -138,20 +167,77 @@ class LangfuseClient:
                 return resp.json()
 
     # -- internals --------------------------------------------------------- #
+    def _fetch_windowed(
+        self,
+        path: str,
+        from_param: str,
+        to_param: str,
+        from_ts: datetime,
+        to_ts: datetime,
+        environment: Optional[str],
+        page_size: int,
+        extra: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Page over one closed window, halving the page size on persistent
+        5xx and restarting the window (id-dedup makes the refetch safe)."""
+        limit = page_size
+        with httpx.Client(timeout=self.timeout) as client:
+            while True:
+                try:
+                    return self._fetch_all_pages(
+                        client,
+                        path,
+                        from_param,
+                        to_param,
+                        from_ts,
+                        to_ts,
+                        environment,
+                        limit,
+                        extra,
+                    )
+                except _ServerError as e:
+                    if limit <= 1:
+                        raise LangfuseFetchError(
+                            f"Langfuse 5xx at page size 1 for {path} window "
+                            f"[{_iso(from_ts)}, {_iso(to_ts)}): {e}"
+                        ) from e
+                    new_limit = max(1, limit // 2)
+                    logger.warning(
+                        "langfuse_fetch_halving_page_size",
+                        path=path,
+                        old_limit=limit,
+                        new_limit=new_limit,
+                        window_start=_iso(from_ts),
+                    )
+                    limit = new_limit
+
     def _fetch_all_pages(
         self,
         client: httpx.Client,
+        path: str,
+        from_param: str,
+        to_param: str,
         from_ts: datetime,
         to_ts: datetime,
         environment: Optional[str],
         limit: int,
+        extra: dict[str, Any],
     ) -> list[dict[str, Any]]:
         seen: set[str] = set()
         out: list[dict[str, Any]] = []
         page = 1
         while True:
             data = self._get_page(
-                client, page, limit, from_ts, to_ts, environment
+                client,
+                path,
+                from_param,
+                to_param,
+                page,
+                limit,
+                from_ts,
+                to_ts,
+                environment,
+                extra,
             )
             rows = data.get("data") or []
             for r in rows:
@@ -168,18 +254,22 @@ class LangfuseClient:
     def _get_page(
         self,
         client: httpx.Client,
+        path: str,
+        from_param: str,
+        to_param: str,
         page: int,
         limit: int,
         from_ts: datetime,
         to_ts: datetime,
         environment: Optional[str],
+        extra: dict[str, Any],
     ) -> dict[str, Any]:
         params: dict[str, Any] = {
             "page": page,
             "limit": limit,
-            "orderBy": "timestamp.asc",
-            "fromTimestamp": _iso(from_ts),
-            "toTimestamp": _iso(to_ts),
+            from_param: _iso(from_ts),
+            to_param: _iso(to_ts),
+            **extra,
         }
         if environment:
             params["environment"] = environment
@@ -189,7 +279,7 @@ class LangfuseClient:
         while True:
             try:
                 resp = client.get(
-                    self.host + _TRACES_PATH,
+                    self.host + path,
                     params=params,
                     auth=(self.public_key, self.secret_key),
                 )

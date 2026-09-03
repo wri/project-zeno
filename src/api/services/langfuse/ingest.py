@@ -5,6 +5,12 @@ contract, idempotently upsert rows, and record a ``langfuse_ingestion_runs`` row
 with watermark + drift-observability metrics (fill rates, soft-FK resolve rates,
 unrecognized-contract rate).
 
+Token counts and cost come from the window's **generation observations**, fetched
+once per window (not once per trace) and grouped by trace id — the message stream
+in ``trace.output`` cannot see LLM calls made inside tools. If that fetch fails
+the window still ingests, on message-derived usage; ``agent_tokens``'s fill rate
+in the run row is the signal that this happened.
+
 Watermark advances only at a fully-completed window/chunk boundary; a chunk that
 fails after retries aborts the run (no silent gaps), leaving the watermark on the
 last contiguous good chunk so the next run resumes there.
@@ -24,12 +30,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.data_models import LangfuseIngestionRunOrm, LangfuseTraceOrm
 from src.api.services.langfuse import parse as P
 from src.api.services.langfuse.fetch import LangfuseClient, LangfuseFetchError
+from src.shared.langfuse_tracing import AUXILIARY_TAG
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 # Langfuse caps list page size (a 300 request 400s); 50 is proven-safe.
 MAX_PAGE_SIZE = 50
+
+# A trace near the end of a window has children that start after the window
+# closes, so the observation fetch reaches past ``to_ts`` by this much. Observed
+# trace latency is tens of seconds; the pad is deliberately far larger, and
+# over-fetching is free because observations for traces outside this window's
+# trace set are discarded.
+OBSERVATION_WINDOW_PAD = timedelta(minutes=30)
 
 # Real columns whose population we monitor for drift (fill-rate per run).
 MONITORED_COLS = (
@@ -42,6 +56,10 @@ MONITORED_COLS = (
     "insight_id",
     "turn_tokens",
     "has_answer",
+    # Null whenever the observation fetch produced nothing, which is how a
+    # regression back to message-only usage shows up in the run row.
+    "agent_tokens",
+    "total_cost",
 )
 
 
@@ -76,10 +94,16 @@ def _strip_nul(value: Any) -> Any:
 # --------------------------------------------------------------------------- #
 # Row building
 # --------------------------------------------------------------------------- #
-def build_row(trace: dict[str, Any]) -> dict[str, Any]:
+def build_row(
+    trace: dict[str, Any],
+    observations: Optional[list[dict[str, Any]]] = None,
+) -> dict[str, Any]:
     """Map a trace to a langfuse_traces (derived analytics) row dict. Parse
     failures still yield a row (identity + parse_error) so one bad trace never
-    aborts the batch."""
+    aborts the batch.
+
+    ``observations`` is this trace's generation observations, when they could be
+    fetched; see ``parse.parse_trace``."""
     session_id = trace.get("sessionId")
     # Turn position + per-turn diffs are cross-row. Session rows carry None and are
     # filled by the post-upsert recompute; null-session rows are singleton threads
@@ -93,6 +117,8 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
         "trace_timestamp": _parse_dt(trace.get("timestamp")),
         "trace_updated_at": _parse_dt(trace.get("updatedAt")),
         "latency_seconds": trace.get("latency"),
+        # Overwritten from COLUMN_KEYS below; kept here so a parse failure
+        # still records whatever cost the trace itself reported.
         "total_cost": trace.get("totalCost"),
         "turn_index": 1 if is_singleton else None,
         "is_final_turn_in_thread": True if is_singleton else None,
@@ -102,7 +128,7 @@ def build_row(trace: dict[str, Any]) -> dict[str, Any]:
         "parse_error": None,
     }
     try:
-        parsed = P.parse_trace(trace)
+        parsed = P.parse_trace(trace, observations)
         for col in P.COLUMN_KEYS:
             row[col] = parsed.get(col)
         row["derived"] = parsed["derived"]
@@ -376,17 +402,33 @@ async def ingest_window(
     batch_size: int = 300,
     dry_run: bool = False,
 ) -> WindowStats:
-    """Fetch one closed window, parse, and upsert (chunked). The sync fetch runs
-    in a thread so it doesn't block the event loop. Fetch page size is clamped to
+    """Fetch one closed window, parse, and upsert (chunked). The sync fetches run
+    in a thread so they don't block the event loop. Fetch page size is clamped to
     the Langfuse list-page max (``MAX_PAGE_SIZE``); the upsert batch is independent."""
     page_size = min(batch_size, MAX_PAGE_SIZE)
     traces = await asyncio.to_thread(
         client.fetch_window, from_ts, to_ts, environment, page_size
     )
+    traces, auxiliary = _split_auxiliary(traces)
+    if auxiliary:
+        logger.info(
+            "langfuse_auxiliary_traces_skipped",
+            window_start=from_ts.isoformat(),
+            skipped=auxiliary,
+        )
+    obs_by_trace = await _fetch_observations(
+        client,
+        from_ts,
+        to_ts,
+        environment,
+        page_size,
+        {tid for t in traces if (tid := t.get("id"))},
+    )
     stats = WindowStats(fetched=len(traces))
     batch: list[dict[str, Any]] = []
     for t in traces:
-        row = build_row(t)
+        trace_id = t.get("id")
+        row = build_row(t, obs_by_trace.get(trace_id) if trace_id else None)
         if row["trace_timestamp"] is not None:
             if stats.max_ts is None or row["trace_timestamp"] > stats.max_ts:
                 stats.max_ts = row["trace_timestamp"]
@@ -397,6 +439,82 @@ async def ingest_window(
     if batch:
         await _flush(session, batch, metrics, stats, dry_run)
     return stats
+
+
+def _split_auxiliary(
+    traces: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
+    """Drop non-turn traces, returning (turns, dropped_count).
+
+    An auxiliary trace is one LLM call made outside an agent turn — thread
+    naming, area naming, language detection (see
+    ``src.shared.langfuse_tracing.AUXILIARY_TAG``). It carries no AgentState, so
+    ingesting it would add a zero-token EMPTY-outcome row and drag down every
+    per-turn average. Its cost stays visible in Langfuse, under the same session
+    id as the thread it belongs to.
+    """
+    turns = [t for t in traces if AUXILIARY_TAG not in (t.get("tags") or [])]
+    return turns, len(traces) - len(turns)
+
+
+async def _fetch_observations(
+    client: LangfuseClient,
+    from_ts: datetime,
+    to_ts: datetime,
+    environment: Optional[str],
+    page_size: int,
+    trace_ids: set[str],
+) -> dict[str, list[dict[str, Any]]]:
+    """This window's observations, grouped by trace id.
+
+    Every observation type is fetched, not only the generations — see the
+    comment on the fetch call. ``parse_observations`` picks the billable ones
+    back out; the rest are the tree it needs to attribute them.
+
+    Degrades rather than fails: on a fetch error the window still ingests, with
+    token counts falling back to the message stream (agent-level only). The
+    ``agent_tokens`` fill rate in the run row is what surfaces that.
+
+    Observations belonging to traces outside ``trace_ids`` are dropped — the
+    padded window necessarily catches children of traces that started earlier.
+    """
+    try:
+        observations = await asyncio.to_thread(
+            client.fetch_observations_window,
+            from_ts,
+            to_ts + OBSERVATION_WINDOW_PAD,
+            environment,
+            page_size,
+            # Every type, not just generations: which component a generation
+            # belongs to is written on its ANCESTORS (the LangGraph ``model``
+            # chain, or the TOOL span above it), never on the generation
+            # itself — both an agent call and a tool's call are named
+            # "ChatGoogleGenerativeAI". Fetch generations alone and the parent
+            # walk finds nothing, so every call lands in ``other`` and the
+            # agent/tool split reads as all-tool.
+            None,
+        )
+    except LangfuseFetchError as e:
+        logger.error(
+            "langfuse_observation_fetch_failed",
+            window_start=from_ts.isoformat(),
+            error=str(e),
+        )
+        return {}
+
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for o in observations:
+        tid = o.get("traceId")
+        if tid and tid in trace_ids:
+            grouped.setdefault(tid, []).append(o)
+    logger.info(
+        "langfuse_observations_fetched",
+        window_start=from_ts.isoformat(),
+        observations=len(observations),
+        traces_with_usage=len(grouped),
+        traces=len(trace_ids),
+    )
+    return grouped
 
 
 async def _flush(

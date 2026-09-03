@@ -109,6 +109,19 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 - Requires `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and `DATABASE_URL` in the pod environment.
 - Each run prints a summary line: `fetched=… upserted=… chunks=… failed=… status=… watermark=…`.
 - The watermark only advances on fully-completed chunks, so an interrupted run is safe to re-run.
+- Token counts come from each trace's generation observations, fetched once per window
+  alongside the traces. That is what makes `turn_tokens` cover the LLM calls made inside
+  tools, and it is what splits spend into `agent_*` and `tool_*`. If that fetch fails the
+  window still ingests, on agent-level usage only — watch the `agent_tokens` fill rate in
+  `langfuse_ingestion_runs` for that.
+- Traces tagged `auxiliary` are skipped. Those are single LLM calls made outside a turn
+  (thread naming, area naming, language detection); they carry no `AgentState`, so
+  ingesting them would add zero-token `EMPTY` rows and drag every per-turn average down.
+  Their cost stays visible in Langfuse under the thread's session id.
+- **Parser v3 changed what `turn_tokens` means**: it now covers every LLM call in the
+  turn, not just the agent's own. Re-run with `--backfill --since` over the window you
+  analyse to put existing rows on the new basis, or the series has a step in it where
+  the parser version changes.
 
 ### backfill-turn-fields
 
@@ -139,6 +152,40 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 - Requires `DATABASE_URL` in the pod environment.
 - Until it runs, pre-existing rows report NULL turn fields — the API tolerates this
   (analytics is just incomplete for those rows), so there's no rush within a deploy.
+
+### langfuse-model-prices
+
+Reports which models Langfuse fails to price. Langfuse works out cost by matching an
+observation's model name against its model-definition table. A model it does not
+recognise — a preview name, or one newly configured in `MODEL` / `SMALL_MODEL` /
+`CODING_MODEL` — is stored with usage but **zero cost**, so cost-per-query understates
+by that model's entire share with nothing in the data to show it. Run this after any
+model change.
+
+**Usage:**
+```bash
+# Which models did the last 24h use, and are they all priced?
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py langfuse-model-prices
+
+# One environment, longer look-back
+kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' | head -1) -- \
+  uv run python src/api/cli.py langfuse-model-prices --hours 168 --environment production
+```
+
+**Parameters:**
+- `--hours` (default 24): look-back window.
+- `--environment`: filter to one environment. Default: all.
+
+**Notes:**
+- Requires `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`. It reads
+  Langfuse only — no database, no writes.
+- `UNPRICED` means the model produced tokens and no cost. `PARTIAL` means only some
+  calls were priced, which usually means the definition was added part-way through the
+  window.
+- To fix an `UNPRICED` model: add a model definition with its prices in Langfuse
+  (Settings → Models), then re-run `ingest-langfuse-traces --backfill --since` over the
+  affected window so the stored costs are recomputed.
 
 ### build-aois
 

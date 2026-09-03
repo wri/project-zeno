@@ -173,7 +173,9 @@ async def update_insight_display(
         )
 
     current = Insight.from_orm_row(row)
-    revised = await InsightDisplayReviser().revise(current, instruction)
+    revised = await InsightDisplayReviser().revise(
+        current, instruction, config={"run_name": "revise_insight_display"}
+    )
 
     try:
         updated = _apply_revision(current.charts, revised)

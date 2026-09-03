@@ -694,15 +694,31 @@ class LangfuseTraceOrm(Base):
     trace_timestamp = Column(DateTime(timezone=True), nullable=True)
     trace_updated_at = Column(DateTime(timezone=True), nullable=True)
 
-    # --- Turn-level metrics (from the active-turn window) ---
+    # --- Turn-level metrics ---
+    # prompt/answer/turn_tool_calls are read from the active-turn window of the
+    # message stream (output.messages is thread-cumulative). Tokens and cost are
+    # not: see the note on the token columns below.
     prompt = Column(String, nullable=True)
     answer = Column(String, nullable=True)
+    # turn_* covers EVERY LLM call in the turn, sourced from the trace's
+    # generation observations (parser v3+). agent_* is the subset the agent made
+    # itself; tool_* is the remainder, i.e. LLM calls made inside tools, which
+    # the AIMessage stream cannot see at all. agent_tokens + tool_tokens ==
+    # turn_tokens by construction. derived.tokens_by_component /
+    # derived.cost_by_component break tool_* down per tool.
     turn_input_tokens = Column(Integer, nullable=True)
     turn_output_tokens = Column(Integer, nullable=True)
     turn_tokens = Column(Integer, nullable=True)
     turn_tool_calls = Column(Integer, nullable=True)
-    # Passthrough per-turn fields from the trace top level.
+    agent_tokens = Column(Integer, nullable=True)
+    tool_tokens = Column(Integer, nullable=True)
+    agent_cost = Column(Float, nullable=True)
+    tool_cost = Column(Float, nullable=True)
+    generation_count = Column(Integer, nullable=True)
+    # Passthrough from the trace top level.
     latency_seconds = Column(Float, nullable=True)
+    # trace.totalCost when Langfuse populates it, else the sum over the trace's
+    # priced observations (it is frequently null even when they are priced).
     total_cost = Column(Float, nullable=True)
 
     # Outcome primitives (durable, auditable signals). ``outcome`` is the label
@@ -740,7 +756,11 @@ class LangfuseTraceOrm(Base):
     # migrations rare. Includes turn_tools_used, turn_datasets, aoi_source,
     # aoi_count, aois, primary_dataset_id, analysis_start/end_date,
     # cache_read_tokens, language(+confidence), datasets_analysed_cumulative,
-    # statistics_ids, state_snapshot, and unknown_output_keys (drift detector).
+    # statistics_ids, state_snapshot, unknown_output_keys (drift detector),
+    # usage_source ("observations" | "messages"), tokens_by_component,
+    # cost_by_component, agent_tokens_from_messages (the independent
+    # message-derived measurement of agent_tokens) and usage_split_agrees
+    # (whether the two agree — False means attribution has drifted).
     derived = Column(JSONB, nullable=True)
 
     # Bookkeeping / drift detection

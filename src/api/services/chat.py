@@ -16,6 +16,7 @@ from src.agent.language import resolve_language
 from src.agent.llms import SMALL_MODEL
 from src.api.schemas import ThreadNameOutput
 from src.shared.geocoding_helpers import fetch_aoi_bbox
+from src.shared.langfuse_tracing import auxiliary_config
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -203,6 +204,16 @@ async def stream_chat(
         preferred_language_code=(user or {}).get("preferred_language_code"),
         query=query,
         already_resolved=bool(existing_state.values.get("language")),
+        # Runs before astream, so there is no ambient handler to inherit and
+        # the call would otherwise be billed untraced. It gets its own
+        # auxiliary trace, joined to this thread by session id.
+        config=auxiliary_config(
+            "detect_language",
+            session_id=thread_id,
+            # The caller's user dict carries profile fields, not the id; the
+            # id is already resolved into langfuse_metadata for the graph.
+            user_id=(langfuse_metadata or {}).get("langfuse_user_id"),
+        ),
     )
     if language:
         state_updates["language"] = language
@@ -284,9 +295,16 @@ async def stream_chat(
         )
 
 
-async def generate_thread_name(query: str) -> str:
+async def generate_thread_name(
+    query: str,
+    thread_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+) -> str:
     """
     Generate a descriptive name for a chat thread based on the user's query.
+
+    Traced as an auxiliary trace: this runs in the /chat request but outside the
+    graph invocation, so it has no ambient callback handler of its own.
     """
     try:
         prompt = f"""Generate a concise, descriptive title (max 50 chars) for a chat conversation that starts with this query:
@@ -299,7 +317,14 @@ async def generate_thread_name(query: str) -> str:
         """
         response = await SMALL_MODEL.with_structured_output(
             ThreadNameOutput
-        ).ainvoke(prompt)
+        ).ainvoke(
+            prompt,
+            config=auxiliary_config(
+                "generate_thread_name",
+                session_id=thread_id,
+                user_id=user_id,
+            ),
+        )
         name = response.name
         if len(name) > 50:
             return name[:47] + "..."
