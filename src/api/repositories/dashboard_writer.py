@@ -73,6 +73,37 @@ class UnknownSectionError(Exception):
 SEALED_SECTION_TYPES = frozenset({"nrt-monitoring"})
 
 
+#: Widget-config keys that describe how a widget is laid out rather than what
+#: it shows. The frontend already writes these (``size`` is "single"/"double",
+#: ``sizes`` the per-chart map), and they are the one part of a sealed
+#: section's widget a reader may change: rearranging what a recipe built does
+#: not change what it says. Everything else in a config — the layer, the
+#: dates, the text, the title — is content.
+LAYOUT_CONFIG_KEYS = frozenset({"size", "sizes"})
+
+
+def _config_changes_content(
+    stored: Optional[dict], incoming: Optional[dict]
+) -> bool:
+    """Whether replacing ``stored`` with ``incoming`` changes anything but
+    layout.
+
+    ``PATCH`` replaces a widget's config wholesale, so "only resize it" and
+    "resize it and swap its tile_url" arrive as the same shape of request.
+    The difference is in the diff, which is why it is taken here. Both sides
+    must already be in the stored (relativized) representation, or an
+    unchanged eoapi tile URL reads as a change.
+    """
+    stored = stored or {}
+    incoming = incoming or {}
+    changed = {
+        key
+        for key in set(stored) | set(incoming)
+        if stored.get(key) != incoming.get(key)
+    }
+    return bool(changed - LAYOUT_CONFIG_KEYS)
+
+
 class SealedSectionError(Exception):
     """The write targets a section whose type is read-only.
 
@@ -318,9 +349,13 @@ async def update_widget(
     a section id to move the widget into that section, or pass None to move
     it back to the ungrouped top level. Moving without an explicit
     ``position`` appends the widget to the end of its new container. Raises
-    ``UnknownSectionError`` when the section is not on the widget's own
-    dashboard, and ``SealedSectionError`` when the widget sits in a sealed
-    section or would be moved into one.
+    Raises ``UnknownSectionError`` when the section is not on the widget's
+    own dashboard, and ``SealedSectionError`` when a *content* change targets
+    a sealed section. Layout is exempt: a sealed section's widget takes a
+    ``position`` change, and a config replacement whose only differences are
+    ``LAYOUT_CONFIG_KEYS``. Moving in or out of a sealed section stays
+    blocked either way. Same split as ``update_section``, which allows
+    ``position`` but not a retitle.
     """
     target = _parse_uuid(widget_id)
     if target is None:
@@ -330,11 +365,20 @@ async def update_widget(
         if widget is None:
             return False
 
-        # Both ends of a move are guarded: a widget cannot leave a sealed
-        # section, and cannot join one.
-        await _guard_sealed_id(session, widget.section_id)
+        # Only a content change is guarded, and a move is always one: a
+        # widget cannot leave a sealed section, and (below) cannot join one.
+        # A layout-only call — reposition, resize — is allowed through.
+        moving = not isinstance(section_id, _Unset)
+        relativized = (
+            relativize_widget_config(config) if config is not None else None
+        )
+        if moving or (
+            config is not None
+            and _config_changes_content(widget.config, relativized)
+        ):
+            await _guard_sealed_id(session, widget.section_id)
 
-        if not isinstance(section_id, _Unset):
+        if moving:
             section_uuid = None
             if section_id is not None:
                 section_uuid = _parse_uuid(section_id)
@@ -355,7 +399,7 @@ async def update_widget(
         if position is not None:
             widget.position = position
         if config is not None:
-            widget.config = relativize_widget_config(config)
+            widget.config = relativized
         await session.commit()
 
     logger.info("dashboard_widget_updated", widget_id=str(target))

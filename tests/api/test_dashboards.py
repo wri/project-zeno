@@ -1339,3 +1339,129 @@ async def test_insight_in_a_sealed_section_reports_as_sealed(
     # An insight on the same dashboard but outside the section stays editable.
     assert await dashboard_access.insight_is_sealed(loose_insight.id) is False
     assert await dashboard_access.insight_is_sealed(uuid.uuid4()) is False
+
+
+# ---------------------------------------------------------------------------
+# Layout edits inside a sealed section
+# ---------------------------------------------------------------------------
+#
+# `config.size` ("single" | "double") is the frontend's own wide-vs-not
+# setting, and `config.sizes` its per-chart map. They are layout, so a sealed
+# section takes them; everything else in a config is content and does not.
+async def _sealed_map_widget(client, dashboard_id) -> tuple[str, str, dict]:
+    """A sealed section holding one map widget; returns ids plus its config."""
+    section_id, widget_ids = await dashboard_writer.add_section_with_widgets(
+        dashboard_id,
+        title="Recent disturbance",
+        type="nrt-monitoring",
+        widgets=[
+            {
+                "widget_type": "map",
+                "config": {
+                    "default_view": "map",
+                    "size": "single",
+                    "dataset": {
+                        "dataset_id": 11,
+                        "tile_url": "https://tiles.example/{z}/{x}/{y}.png",
+                        "start_date": "2026-06-04",
+                        "end_date": "2026-09-02",
+                    },
+                },
+            }
+        ],
+    )
+    body = (
+        await client.get(f"/api/dashboards/{dashboard_id}", headers=AUTH)
+    ).json()
+    (widget,) = body["widgets"]
+    return section_id, widget_ids[0], widget["config"]
+
+
+@pytest.mark.asyncio
+async def test_sealed_widget_can_be_resized(client, auth_override):
+    user = await _create_user("sealed-resize")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    _, widget_id, config = await _sealed_map_widget(client, dashboard["id"])
+
+    response = await client.patch(
+        f"/api/dashboards/{dashboard['id']}/widgets/{widget_id}",
+        headers=AUTH,
+        json={"config": {**config, "size": "double"}},
+    )
+
+    assert response.status_code == 200
+    (widget,) = response.json()["widgets"]
+    assert widget["config"]["size"] == "double"
+    # The layer it shows is untouched.
+    assert widget["config"]["dataset"]["dataset_id"] == 11
+
+
+@pytest.mark.asyncio
+async def test_sealed_widget_can_be_repositioned(client, auth_override):
+    user = await _create_user("sealed-reposition")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    _, widget_id, _ = await _sealed_map_widget(client, dashboard["id"])
+
+    response = await client.patch(
+        f"/api/dashboards/{dashboard['id']}/widgets/{widget_id}",
+        headers=AUTH,
+        json={"position": 3},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["widgets"][0]["position"] == 3
+
+
+@pytest.mark.asyncio
+async def test_sealed_widget_resize_cannot_carry_a_content_change(
+    client, auth_override
+):
+    """The whole reason the check is a diff: "resize" and "resize and swap
+    the tile_url" arrive as the same shape of request."""
+    user = await _create_user("sealed-resize-smuggle")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    _, widget_id, config = await _sealed_map_widget(client, dashboard["id"])
+
+    smuggled = {
+        **config,
+        "size": "double",
+        "dataset": {**config["dataset"], "tile_url": "https://evil/{z}.png"},
+    }
+    response = await client.patch(
+        f"/api/dashboards/{dashboard['id']}/widgets/{widget_id}",
+        headers=AUTH,
+        json={"config": smuggled},
+    )
+
+    assert response.status_code == 409
+    body = (
+        await client.get(f"/api/dashboards/{dashboard['id']}", headers=AUTH)
+    ).json()
+    (widget,) = body["widgets"]
+    assert (
+        widget["config"]["dataset"]["tile_url"]
+        == config["dataset"]["tile_url"]
+    )
+    assert widget["config"]["size"] == "single"
+
+
+@pytest.mark.asyncio
+async def test_sealed_widget_title_change_is_still_refused(
+    client, auth_override
+):
+    """A title is words, not layout."""
+    user = await _create_user("sealed-retitle-widget")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    _, widget_id, config = await _sealed_map_widget(client, dashboard["id"])
+
+    response = await client.patch(
+        f"/api/dashboards/{dashboard['id']}/widgets/{widget_id}",
+        headers=AUTH,
+        json={"config": {**config, "title": "My own heading"}},
+    )
+
+    assert response.status_code == 409

@@ -80,9 +80,11 @@ def sealed_error_command(
     """
     return error_command(
         f"Section {error.section_id} is read-only (built in one piece as "
-        f"'{error.section_type}'). Its title, description and widgets cannot "
-        "be changed. Tell the user it cannot be edited — it can only be "
-        "deleted and rebuilt.",
+        f"'{error.section_type}'). Its title, description and the content of "
+        "its widgets cannot be changed, and widgets cannot be added, removed "
+        "or moved in or out. Tell the user the content cannot be edited — it "
+        "can only be deleted and rebuilt — but that they can still rearrange "
+        "and resize its widgets in the app.",
         tool_call_id,
     )
 

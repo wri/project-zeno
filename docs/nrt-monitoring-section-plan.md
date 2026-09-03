@@ -107,11 +107,12 @@ the builder that writes these sections.
 | Read it | Allowed |
 | Delete the whole section | Allowed — always with its widgets |
 | Reorder it among the other sections (`position`) | Allowed — orders the dashboard, does not change the section |
+| Reorder or resize its widgets (`position`, `config.size`) | Allowed — layout, not content |
 | Publish the dashboard (cascades `is_public` to the insight) | Allowed |
 | Retitle it, rewrite its description | Blocked |
 | Add a widget to it | Blocked |
 | Move a widget into or out of it | Blocked |
-| Reorder or reconfigure its widgets | Blocked |
+| Replace a widget's config | Blocked |
 | Delete one of its widgets | Blocked |
 | Restyle the insight it shows (`update_insight_display`) | Blocked |
 | Change its `type` | Blocked — not in the update schema |
@@ -132,7 +133,16 @@ The agent tools never pass through the routers; they call `dashboard_writer`
 directly. So the check sits where both callers meet:
 `SEALED_SECTION_TYPES` and `SealedSectionError`, raised from
 `update_section` (unless the change is only `position`), `add_widget`,
-`update_widget` (both ends of a move) and `remove_widget`. The recipe's own
+`update_widget` (a `config` replacement, or either end of a move) and
+`remove_widget`. `update_widget` lets a layout-only call through: a
+`position` change, or a config replacement whose only differing keys are
+`LAYOUT_CONFIG_KEYS` (`size`, `sizes` — the frontend's own wide-vs-not
+setting, which it has always persisted inside `config`). The check has to be
+a diff rather than a field whitelist, because `PATCH` replaces config
+wholesale: "resize it" and "resize it and swap its `tile_url`" are the same
+shape of request, and only the diff separates them. Both sides are compared
+in the stored, relativized representation, or an unchanged eoapi tile URL
+would read as a change. The recipe's own
 write uses `add_section_with_widgets`, and `add_widget` takes an internal
 `allow_sealed` for a future refresh.
 
@@ -186,6 +196,16 @@ layer exists so the agent explains instead of erroring:
   `allow_sealed` door.
 - **Scope of the seal.** Reordering a sealed section and the publish cascade
   are deliberately allowed. Blocking `position` too is a one-line change.
+- **Where layout stops.** `LAYOUT_CONFIG_KEYS` is `size` and `sizes` only.
+  `default_view` (map/chart/table) and `summaryHidden` are arguably layout
+  too, and adding them is one line each — but `title` is words and belongs
+  with content. Worth a decision rather than drift.
+- **Undocumented config keys.** The frontend persists `size`, `sizes`,
+  `chartIds` and `summaryHidden` in `config`, none of which the backend
+  documented, because `PATCH` never validated it. The seal now depends on
+  two of those names, so they have become a contract in practice. Validating
+  the config shape on `PATCH` would make that explicit, at the cost of
+  breaking whatever else the frontend is quietly storing.
 - **Area size.** Country-level dashboards get no satellite widget. If that
   case is common, a scene-free fallback widget would fill the gap.
 - **Rollout.** The agent tool is gated: it lives in the `nrt-monitoring`
