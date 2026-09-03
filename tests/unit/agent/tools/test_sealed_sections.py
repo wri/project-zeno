@@ -79,3 +79,5 @@ def test_sealed_reply_names_the_only_way_forward():
     assert message.status == "error"
     assert "read-only" in message.content
     assert "deleted and rebuilt" in message.content
+    # Layout is editable, so the reply must not claim otherwise.
+    assert "resize" in message.content

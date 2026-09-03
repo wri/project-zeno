@@ -116,12 +116,28 @@ for an explicit "build another".
 ## The section is read-only
 
 An `nrt-monitoring` section is a record of one build — one area, one period,
-the data as it was — so editing it would make its own title and description
-untrue. **Hide the editing affordances inside it**: rename, edit description,
-add widget, reorder widgets, delete a single widget, and any per-widget
-config editor.
+the data as it was — so changing its **content** would make its own title and
+description untrue. **Hide these affordances inside it**: rename, edit
+description, add widget, delete a single widget, move a widget in or out, and
+any per-widget config editor.
 
-What stays available:
+**Layout is deliberately still editable.** Rearranging and resizing what a
+recipe built changes how the section looks, not what it says, so **keep your
+drag-to-reorder and single/double controls working inside these sections** —
+they need no special handling:
+
+- `PATCH …/widgets/{widget_id}` with `position` — allowed.
+- The same call replacing `config`, where the only keys whose values differ
+  are `size` and `sizes` — allowed.
+- Any other config difference, or a `section_id` move — `409`.
+
+The config rule is a **diff**, not a field whitelist, because `PATCH`
+replaces config wholesale: "resize it" and "resize it and swap its
+`tile_url`" arrive as the same shape of request, and only the diff tells them
+apart. Send the config you were given with `size` changed and nothing else,
+which is what your existing resize already does.
+
+Also still available:
 
 - **Delete the whole section** — `DELETE …/sections/{section_id}`. This
   always removes the section's widgets, whatever `delete_widgets` says (for
@@ -137,13 +153,12 @@ Every blocked write answers `409` with
 ```
 
 That covers `PATCH …/sections/{id}` with a title or description, `POST
-…/widgets` with the section's `section_id`, `PATCH …/widgets/{id}` on a
-widget inside it (config, position, or moving it out), moving an outside
-widget *into* it, and `DELETE …/widgets/{id}` inside it. Treat a `409` as a
-bug in your own UI state rather than something to surface raw: the controls
-should not have been offered.
+…/widgets` with the section's `section_id`, `PATCH …/widgets/{id}` carrying a
+content-changing `config` or a move, moving an outside widget *into* it, and `DELETE
+…/widgets/{id}` inside it. Treat a `409` as a bug in your own UI state rather
+than something to surface raw: the controls should not have been offered.
 
-To change a monitoring section, delete it and build a new one.
+To change what a monitoring section shows, delete it and build a new one.
 
 ## Chat
 
@@ -156,6 +171,18 @@ already handle:
 ```
 
 → refetch `GET /api/dashboards/{dashboard_id}` and re-render.
+
+## Widget config keys, for the record
+
+`config` was never validated on `PATCH`, so the frontend has been persisting
+keys the backend documented nowhere. Found in the wild: `size`
+(`"single"`/`"double"`), `sizes` (per-chart map), `chartIds`, `summaryHidden`,
+alongside the documented `default_view`, `title`, `dataset`, `imagery` and
+`text`. Nothing about that changes here and no migration touches them — but
+`size` and `sizes` are now **named in the backend** as the layout keys, since
+the seal has to tell layout from content. If you rename them or add another
+layout key, that list has to move with you:
+`dashboard_writer.LAYOUT_CONFIG_KEYS`.
 
 ## Also new: mosaic tile URLs
 
