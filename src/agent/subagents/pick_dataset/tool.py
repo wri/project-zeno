@@ -14,7 +14,7 @@ from langgraph.types import Command
 from shapely import box
 
 from src.agent.datasets.config import (
-    CANDIDATE_DATASET_REQUIRED_COLUMNS,
+    CANDIDATE_DATASET_LLM_COLUMNS,
     DATASETS,
 )
 from src.agent.datasets.dates import revise_date_range
@@ -38,6 +38,7 @@ from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.pick_dataset.prompts import DATASET_SELECTOR_PROMPT
 from src.agent.subagents.pick_dataset.schema import (
     ContextLayer,
+    DatasetLayer,
     DatasetSelectionResponse,
     DatasetSelectionResult,
 )
@@ -195,9 +196,13 @@ async def select_best_dataset(
 
     return await dataset_selection_chain.ainvoke(
         {
-            "candidate_datasets": candidate_datasets[
-                CANDIDATE_DATASET_REQUIRED_COLUMNS
-            ].to_csv(index=False),
+            # reindex, not a bare [...] select: `layers` is genuinely optional
+            # (only LGMS has it today), so a candidate_datasets slice where no
+            # row happens to carry it has no such column at all — a bare
+            # indexer raises KeyError in that case, reindex fills it with NaN.
+            "candidate_datasets": candidate_datasets.reindex(
+                columns=CANDIDATE_DATASET_LLM_COLUMNS
+            ).to_csv(index=False),
             "user_query": query,
             "removed_layers": removed_df,
             "selection_hints": selection_hints,
@@ -315,6 +320,7 @@ class DatasetSelector:
         logger.debug(
             f"Selected dataset ID: {option.dataset_id}. "
             f"context_layer={option.context_layer!r} (type={type(option.context_layer).__name__}). "
+            f"selected_layer={option.selected_layer!r}. "
             f"Reason: {option.reason}"
         )
 
@@ -328,22 +334,26 @@ class DatasetSelector:
             selected_row.dataset_id,
             option.context_layer,
         )
-        dataset_tile_url, context_layers = get_tile_services_for_dataset(
-            option,
-            selected_row,
-            effective_start_date,
-            effective_end_date,
+        dataset_tile_url, context_layers, layers = (
+            get_tile_services_for_dataset(
+                option,
+                selected_row,
+                effective_start_date,
+                effective_end_date,
+            )
         )
 
         dataset_result = DatasetSelectionResult(
             dataset_id=selected_row.dataset_id,
             dataset_name=selected_row.dataset_name,
             context_layer=option.context_layer,
+            selected_layer=option.selected_layer,
             parameters=option.parameters,
             start_date=effective_start_date,
             end_date=effective_end_date,
             reason=option.reason,
             tile_url=dataset_tile_url,
+            layers=layers,
             analytics_api_endpoint=selected_row.analytics_api_endpoint,
             description=selected_row.description,
             prompt_instructions=selected_row.prompt_instructions,
@@ -513,11 +523,17 @@ def get_tile_services_for_dataset(
     selection_result, selected_row, start_date, end_date
 ):
     context_layers = []
+    # Deprecated top-level tile_url mirror — left as the yml's own field,
+    # unresolved against `selected_layer`/`layers`. Readers of the live
+    # response check `layers` themselves for a multi-layer dataset (e.g.
+    # pickDataset.ts); add_map_widget.py resolves selected_layer/layers[0]
+    # on its own at persistence time, where a single tile_url is actually
+    # required — no need to duplicate that here.
     tile_url = selected_row.tile_url
     start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-    if not selected_row.tile_url.startswith("http"):
+    if tile_url and not tile_url.startswith("http"):
         tile_url = SharedSettings.eoapi_base_url + tile_url
 
     if (
@@ -571,9 +587,7 @@ def get_tile_services_for_dataset(
             )
             context_layers.append(context_layer)
 
-        tile_url = selected_row.tile_url.replace(
-            "{threshold}", str(canopy_cover)
-        )
+        tile_url = tile_url.replace("{threshold}", str(canopy_cover))
 
     if (
         selected_row.dataset_id == TREE_COVER_LOSS_ID
@@ -591,7 +605,33 @@ def get_tile_services_for_dataset(
         # Annual raster item in URL; start/end are already clamped to dataset YAML
         tile_url = tile_url.format(year=end_date.year)
 
-    return tile_url, context_layers
+    layers = get_dataset_layers(selected_row, tile_url)
+
+    return tile_url, context_layers, layers
+
+
+def get_dataset_layers(selected_row, tile_url: str) -> list[DatasetLayer]:
+    """The dataset's primary layer(s): the yml's explicit `layers` list when
+    present (e.g. LGMS's agriculture/lulucf), otherwise a single layer
+    auto-derived from the dataset's resolved `tile_url` — so every other
+    catalog entry keeps working unchanged with no per-dataset branching
+    downstream. Empty for an analytics-only dataset with no tile_url and no
+    `layers` — there's nothing to render, so no placeholder entry is worth
+    manufacturing."""
+    raw_layers = getattr(selected_row, "layers", None)
+    if isinstance(raw_layers, list) and raw_layers:
+        return [
+            DatasetLayer(
+                name=layer["name"],
+                tile_url=layer["tile_url"],
+                start_date=layer.get("start_date"),
+                end_date=layer.get("end_date"),
+            )
+            for layer in raw_layers
+        ]
+    if not tile_url:
+        return []
+    return [DatasetLayer(name=selected_row.dataset_name, tile_url=tile_url)]
 
 
 def get_dates_for_dataset(

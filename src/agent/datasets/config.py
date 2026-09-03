@@ -16,6 +16,12 @@ CANDIDATE_DATASET_REQUIRED_COLUMNS = [
     "context_layers",
     "parameters",
 ]
+# Columns shown to the dataset-selector LLM as CSV (tool.py's
+# select_best_dataset). A superset of the required columns above: `layers`
+# is genuinely optional (most datasets don't have it) so it can't be in the
+# required list, but the LLM still needs to see it to populate
+# `DatasetOption.selected_layer` for a multi-layer dataset like LGMS.
+CANDIDATE_DATASET_LLM_COLUMNS = CANDIDATE_DATASET_REQUIRED_COLUMNS + ["layers"]
 
 
 def _load_datasets() -> list[dict]:

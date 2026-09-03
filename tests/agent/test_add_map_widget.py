@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from src.agent.tools.add_map_widget import (
     _dataset_config,
+    _default_layer,
     _imagery_config,
     add_map_widget,
 )
@@ -51,6 +52,31 @@ def _dataset_state():
         "analytics_api_endpoint": "tree-cover-loss",
         "content_date": "2024",
     }
+
+
+def _multilayer_dataset_state():
+    """A multi-layer (e.g. LGMS) dataset state dump — `layers` carries the
+    independently-toggleable siblings; `tile_url` mirrors layers[0]."""
+    state = _dataset_state()
+    state["dataset_id"] = 12
+    state["dataset_name"] = "Land GHG Monitoring System (LGMS)"
+    state["tile_url"] = "https://tiles.example.com/lgms/lulucf.png"
+    state["selected_layer"] = "agriculture"
+    state["layers"] = [
+        {
+            "name": "lulucf",
+            "tile_url": "https://tiles.example.com/lgms/lulucf.png",
+            "start_date": None,
+            "end_date": None,
+        },
+        {
+            "name": "agriculture",
+            "tile_url": "https://tiles.example.com/lgms/agriculture.png",
+            "start_date": None,
+            "end_date": None,
+        },
+    ]
+    return state
 
 
 def _imagery_state():
@@ -121,8 +147,10 @@ async def test_add_map_widget_dataset_from_state():
         "dataset_name",
         "tile_url",
         "context_layer",
+        "selected_layer",
         "context_layers",
         "parameters",
+        "layers",
         "start_date",
         "end_date",
     }
@@ -130,6 +158,38 @@ async def test_add_map_widget_dataset_from_state():
     assert dataset["tile_url"].startswith("https://tiles.example.com/tcl")
     # Parameter prose is projected away.
     assert dataset["parameters"] == [{"name": "canopy_cover", "values": [30]}]
+    # Single-layer dataset state carries no `layers` — snapshot is None too.
+    assert dataset["layers"] is None
+
+
+async def test_add_map_widget_persists_multilayer_dataset_layers():
+    """A multi-layer dataset (e.g. LGMS) survives add_map_widget's snapshot
+    with its independently-toggleable siblings intact, not just tile_url."""
+    dashboard = _dashboard()
+    get_dash, add_widget = _patches(dashboard)
+    state = {
+        "dataset": _multilayer_dataset_state(),
+        "dashboard_id": str(dashboard.id),
+    }
+    with (
+        get_dash,
+        add_widget as add_widget_mock,
+        bound_user_id("user-1"),
+    ):
+        command = await add_map_widget.coroutine(
+            layer="dataset", state=state, tool_call_id="t1"
+        )
+
+    assert command.update["messages"][0].status == "success"
+    dataset = add_widget_mock.await_args.kwargs["config"]["dataset"]
+    assert dataset["dataset_id"] == 12
+    assert [layer["name"] for layer in dataset["layers"]] == [
+        "lulucf",
+        "agriculture",
+    ]
+    # selected_layer survives persistence alongside the full `layers` list —
+    # it's an initial-state hint, not a replacement for the sibling list.
+    assert dataset["selected_layer"] == "agriculture"
 
 
 async def test_add_map_widget_imagery_from_state():
@@ -285,6 +345,97 @@ def test_dataset_config_date_fallback_to_state():
 def test_dataset_config_none_without_tile_url():
     assert _dataset_config({}) is None
     assert _dataset_config({"dataset": {"tile_url": ""}}) is None
+    assert _dataset_config({"dataset": {"tile_url": "", "layers": []}}) is None
+
+
+def test_dataset_config_derives_tile_url_from_layers_when_absent():
+    """The renderability check and tile_url mirror work from `layers` alone
+    when the top-level tile_url is empty — no upstream resolution needed."""
+    state = {
+        "dataset": {
+            "dataset_id": 12,
+            "dataset_name": "LGMS",
+            "tile_url": "",
+            "layers": [
+                {
+                    "name": "lulucf",
+                    "tile_url": "https://tiles.example.com/a.png",
+                }
+            ],
+        }
+    }
+    config = _dataset_config(state)
+    assert config is not None
+    assert config["tile_url"] == "https://tiles.example.com/a.png"
+
+
+def test_dataset_config_fallback_prefers_selected_layer_over_layers_zero():
+    """When tile_url is missing and layers[]-alone must supply it, the
+    fallback matches what the agent actually selected — not just layers[0]."""
+    state = {
+        "dataset": {
+            "dataset_id": 12,
+            "dataset_name": "LGMS",
+            "tile_url": "",
+            "selected_layer": "agriculture",
+            "layers": [
+                {
+                    "name": "lulucf",
+                    "tile_url": "https://tiles.example.com/a.png",
+                },
+                {
+                    "name": "agriculture",
+                    "tile_url": "https://tiles.example.com/b.png",
+                },
+            ],
+        }
+    }
+    config = _dataset_config(state)
+    assert config["tile_url"] == "https://tiles.example.com/b.png"
+
+
+def test_default_layer_matches_selected_name():
+    layers = [
+        {"name": "lulucf", "tile_url": "https://x/a.png"},
+        {"name": "agriculture", "tile_url": "https://x/b.png"},
+    ]
+    assert _default_layer(layers, "agriculture") == layers[1]
+
+
+def test_default_layer_falls_back_to_first_when_unset_or_unmatched():
+    layers = [
+        {"name": "lulucf", "tile_url": "https://x/a.png"},
+        {"name": "agriculture", "tile_url": "https://x/b.png"},
+    ]
+    assert _default_layer(layers, None) == layers[0]
+    assert _default_layer(layers, "nonexistent") == layers[0]
+    assert _default_layer(None, "agriculture") is None
+    assert _default_layer([], "agriculture") is None
+
+
+def test_dataset_config_carries_multilayer_layers_through():
+    """A multi-layer dataset's (e.g. LGMS) independently-toggleable siblings
+    must survive the widget-config snapshot, not just the legacy tile_url."""
+    state = {"dataset": _multilayer_dataset_state()}
+    config = _dataset_config(state)
+    assert config["layers"] == [
+        {
+            "name": "lulucf",
+            "tile_url": "https://tiles.example.com/lgms/lulucf.png",
+            "start_date": None,
+            "end_date": None,
+        },
+        {
+            "name": "agriculture",
+            "tile_url": "https://tiles.example.com/lgms/agriculture.png",
+            "start_date": None,
+            "end_date": None,
+        },
+    ]
+    # A non-empty top-level tile_url passes through verbatim — selected_layer
+    # only kicks in via _default_layer when tile_url itself is empty (see
+    # test_dataset_config_fallback_prefers_selected_layer_over_layers_zero).
+    assert config["tile_url"] == "https://tiles.example.com/lgms/lulucf.png"
 
 
 def test_imagery_config_none_without_essentials():
