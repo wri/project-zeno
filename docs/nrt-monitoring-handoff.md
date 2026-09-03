@@ -13,7 +13,7 @@ date range:
 
 | Position | `widget_type` | Content |
 |---|---|---|
-| 0 | `insight` | Line chart of alert area (ha) per month, by confidence tier |
+| 0 | `insight` | Line chart of alert area (ha) **per day**, by confidence tier |
 | 1 | `map` | Integrated alerts tile layer for the same period |
 | 2 | `map` | Sentinel-2 mosaic for the end of the same period |
 
@@ -32,13 +32,23 @@ Every section in `GET /api/dashboards/{id}` has a `type`:
 ```json
 {
   "id": "sec-…",
-  "title": "Recent disturbance in Paraná, last 90 days",
+  "title": "Recent disturbance in Paraná, last 2 weeks",
   "description": "1,240 ha of alerts, 62% high or highest confidence…",
   "position": 2,
   "type": "nrt-monitoring",
-  "created_at": "2026-09-02T10:00:00"
+  "config": {
+    "recipe": "nrt-monitoring",
+    "days": 14,
+    "start_date": "2026-08-20",
+    "end_date": "2026-09-03"
+  },
+  "created_at": "2026-09-03T10:00:00"
 }
 ```
+
+`config` is how you show which period is on screen, and what to pre-select in
+a window picker. **Read the period from here** — do not derive it from a
+widget's tile layer. It is empty `{}` for a hand-composed section.
 
 - `"default"` — a section composed widget by widget (all existing sections).
 - `"nrt-monitoring"` — built by the recipe below, and **read-only**.
@@ -56,7 +66,7 @@ Owner only. An empty body `{}` works — every field has a default:
 
 | Field | Default | Notes |
 |---|---|---|
-| `days` | 90 | Length of the alert window, counted back from today (1–365) |
+| `days` | **14** | Length of the alert window, counted back from today (1–365) |
 | `window_days` | 7 | Imagery search window, ±N days around the period end (1–183) |
 | `max_cloud_cover` | 20 | Imagery cloud limit, percent (0–100) |
 | `title` | null | Overrides the generated title |
@@ -85,6 +95,7 @@ show a progress state. There is no job to poll.
 - `section_id` — the section that was created; use it to scroll to it.
 - `created` — `false` when an existing section for the same period was
   returned instead of building a new one (see *Double clicks*).
+- `days`, `start_date`, `end_date` — the window the section now covers.
 - `warnings` — human-readable reasons a widget is missing.
 
 You do not need to refetch the dashboard: render the response.
@@ -112,6 +123,39 @@ Called twice for the same period, the second call builds nothing and returns
 the existing section with `created: false`. Each build costs a data pull, a
 scene search and a model call, so leave the guard on; pass `force: true` only
 for an explicit "build another".
+
+## Changing the window
+
+```
+POST /api/dashboards/{dashboard_id}/sections/{section_id}/refresh
+```
+
+The one-click way to move a monitoring section to a different period. Body is
+the same three fields, all optional: `days` (default 14), `window_days`,
+`max_cloud_cover`.
+
+Everything the section shows moves together — the chart is recomputed, the
+alerts layer re-cut to the new dates, the imagery rebuilt for the new period
+end, and the title and description rewritten, since they state the period.
+**The section keeps its id and its place on the dashboard**, so a link to it
+still resolves and you can refresh in place rather than re-rendering the page.
+
+Returns `200` with the same body as the build (`created: false`). Same timing
+— tens of seconds, synchronous — and the same degradation rules: imagery may
+be missing with a reason in `warnings`.
+
+- `422` if the section is not `nrt-monitoring` (a hand-composed section has
+  no recipe to re-run), or `days` is out of range.
+- `404` if the section is not on that dashboard, or the dashboard is not the
+  caller's.
+- `502` if the alert data could not be pulled — the section is left as it was.
+
+**The previous chart insight is deleted** once nothing points at it. It was
+that section's own content, for a period the section no longer covers. So do
+not keep an insight id from before a refresh and expect it to resolve.
+
+Sensible windows to offer: 14 days (the default), 30, 90. Pre-select the
+current one from `section.config.days`.
 
 ## The section is read-only
 

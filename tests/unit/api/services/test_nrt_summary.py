@@ -21,12 +21,12 @@ CHARTS = [
         position=0,
         title="Disturbance alerts by confidence",
         chart_type="line",
-        x_axis="month",
+        x_axis="alert_date",
         y_axis="area_ha",
         color_field="alert_confidence",
         chart_data=[
             {
-                "month": "2026-07",
+                "alert_date": "2026-07-14",
                 "alert_confidence": "high",
                 "area_ha": 120.5,
             }
@@ -138,11 +138,11 @@ def test_prompt_sees_rounded_figures_but_the_chart_keeps_precision():
         position=0,
         title="Alerts",
         chart_type="line",
-        x_axis="month",
+        x_axis="alert_date",
         y_axis="area_ha",
         chart_data=[
-            {"month": "2026-07", "area_ha": 153409.28893796972},
-            {"month": "2026-08", "area_ha": 15.0812345},
+            {"alert_date": "2026-07-14", "area_ha": 153409.28893796972},
+            {"alert_date": "2026-08-02", "area_ha": 15.0812345},
         ],
     )
 
@@ -158,16 +158,20 @@ def test_rounding_leaves_non_numeric_columns_alone():
         position=0,
         title="Alerts",
         chart_type="line",
-        x_axis="month",
+        x_axis="alert_date",
         y_axis="area_ha",
         color_field="alert_confidence",
         chart_data=[
-            {"month": "2026-07", "alert_confidence": "high", "area_ha": 1.234}
+            {
+                "alert_date": "2026-07-14",
+                "alert_confidence": "high",
+                "area_ha": 1.234,
+            }
         ],
     )
 
     (row,) = _rounded(chart).chart_data
 
-    assert row["month"] == "2026-07"
+    assert row["alert_date"] == "2026-07-14"
     assert row["alert_confidence"] == "high"
     assert row["area_ha"] == 1.2

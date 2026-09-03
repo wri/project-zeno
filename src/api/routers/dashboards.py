@@ -43,13 +43,18 @@ from src.api.schemas import (
     DashboardWidgetResponse,
     DashboardWidgetUpdateRequest,
     NrtSectionCreateRequest,
+    NrtSectionRefreshRequest,
     NrtSectionResponse,
     UserModel,
+)
+from src.api.services.nrt_monitoring import (
+    SECTION_TYPE as NRT_SECTION_TYPE,
 )
 from src.api.services.nrt_monitoring import (
     AnalyticsFailedError,
     build_nrt_section,
     find_existing_section,
+    refresh_nrt_section,
     resolve_period,
 )
 from src.shared.database import get_session_from_pool_dependency
@@ -358,10 +363,14 @@ async def add_nrt_monitoring_section(
             base = _row_to_response(
                 dashboard, await _visible_insights(session, dashboard, user)
             )
+            window = existing.config or {}
             return NrtSectionResponse(
                 **base.model_dump(),
                 section_id=existing.id,
                 created=False,
+                days=window.get("days", body.days),
+                start_date=window.get("start_date", start_date),
+                end_date=window.get("end_date", end_date),
             )
 
     try:
@@ -401,6 +410,100 @@ async def add_nrt_monitoring_section(
         **base.model_dump(),
         section_id=UUID(result.section_id),
         created=True,
+        days=result.days,
+        start_date=result.start_date,
+        end_date=result.end_date,
+        warnings=result.warnings,
+    )
+
+
+@router.post(
+    "/api/dashboards/{dashboard_id}/sections/{section_id}/refresh",
+    response_model=NrtSectionResponse,
+)
+async def refresh_monitoring_section(
+    dashboard_id: UUID,
+    section_id: UUID,
+    body: NrtSectionRefreshRequest = Body(
+        default_factory=NrtSectionRefreshRequest
+    ),
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+):
+    """Move a monitoring section to a new time window (owner only).
+
+    The one-click way to change the period on screen. Everything the section
+    shows moves together: the alerts chart is recomputed, the alerts layer
+    re-cut to the new dates, the satellite imagery rebuilt for the new period
+    end, and the title and description rewritten — they state the period, so
+    keeping the old ones would make the section lie.
+
+    The section keeps its id and its place on the dashboard, so a link to it
+    still works. Its previous chart is deleted once nothing points at it.
+    Like the build, this runs before the response: expect tens of seconds.
+
+    Only `nrt-monitoring` sections can be refreshed — a hand-composed
+    section has no recipe to re-run, and returns 422. The read-only rule is
+    not being bent here: a refresh replaces the section's content wholesale
+    on the recipe's own terms, which is exactly what a client cannot do
+    widget by widget.
+    """
+    dashboard = await _get_owned_dashboard(dashboard_id, user)
+    section = next((s for s in dashboard.sections if s.id == section_id), None)
+    if section is None:
+        raise HTTPException(status_code=404, detail="Section not found")
+    if section.type != NRT_SECTION_TYPE:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Section type '{section.type}' has no recipe to refresh; "
+                f"only '{NRT_SECTION_TYPE}' sections can be."
+            ),
+        )
+    if not dashboard.aois:
+        raise HTTPException(
+            status_code=422, detail="Dashboard has no area to monitor"
+        )
+
+    aoi = dashboard.aois[0]
+    try:
+        result = await refresh_nrt_section(
+            str(section_id),
+            {
+                "source": aoi.source,
+                "src_id": aoi.src_id,
+                "subtype": aoi.subtype,
+                "name": aoi.name,
+            },
+            user_id=user.id,
+            days=body.days,
+            window_days=body.window_days,
+            max_cloud_cover=body.max_cloud_cover,
+            language=user.preferred_language_code,
+        )
+    except AnalyticsFailedError as error:
+        logger.error(
+            "nrt_section_refresh_analytics_failed",
+            severity="high",
+            section_id=str(section_id),
+            error_details=str(error),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not retrieve alert data: {error}",
+        )
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Section not found")
+
+    row = await _refetch_dashboard(dashboard_id)
+    base = _row_to_response(row, await _visible_insights(session, row, user))
+    return NrtSectionResponse(
+        **base.model_dump(),
+        section_id=section_id,
+        created=False,
+        days=result.days,
+        start_date=result.start_date,
+        end_date=result.end_date,
         warnings=result.warnings,
     )
 

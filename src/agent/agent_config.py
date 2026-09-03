@@ -79,6 +79,9 @@ from src.agent.tools.show_planet_imagery import (
 from src.agent.tools.update_insight_display import (
     SPEC as update_insight_display_spec,
 )
+from src.agent.tools.update_nrt_monitoring_section import (
+    SPEC as update_nrt_monitoring_section_spec,
+)
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -105,6 +108,7 @@ ALL_SPECS = (
     edit_text_widget_spec,
     add_dashboard_section_spec,
     add_nrt_monitoring_section_spec,
+    update_nrt_monitoring_section_spec,
     edit_dashboard_section_spec,
     move_dashboard_widget_spec,
     send_nudge_spec,
