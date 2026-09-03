@@ -346,6 +346,8 @@ def test_experimental_profile_derives_exactly_the_experimental_tools():
             "add_text_widget",
             "edit_text_widget",
             "add_dashboard_section",
+            "add_nrt_monitoring_section",
+            "update_nrt_monitoring_section",
             "edit_dashboard_section",
             "move_dashboard_widget",
             "send_nudge",
@@ -377,7 +379,8 @@ async def test_fetch_zeno_binds_the_resolved_configs_availability():
 
 def test_experimental_config_adds_standalone_tools_and_planet():
     """dashboard and explore graduated into the default set; experimental now
-    layers standalone tools plus the opt-in Planet imagery recipe."""
+    layers standalone tools plus the opt-in recipes (Planet imagery,
+    near-real-time monitoring)."""
     default = default_registry.resolve(DEFAULT_PROFILE)
     experimental = default_registry.resolve(EXPERIMENTAL_PROFILE)
 
@@ -391,14 +394,21 @@ def test_experimental_config_adds_standalone_tools_and_planet():
         # sections and widget ids before grouping or moving anything.
         "inspect_view_context",
     } <= default_tools
-    assert {"update_insight_display"} <= (experimental_tools - default_tools)
+    assert {
+        "update_insight_display",
+        "add_nrt_monitoring_section",
+        "update_nrt_monitoring_section",
+    } <= (experimental_tools - default_tools)
 
     default_skills = {s.name for s in default.skill_metas()}
     experimental_skills = {s.name for s in experimental.skill_metas()}
     assert {"show-imagery", "explore", "wri-insights", "dashboard"} <= (
         default_skills
     )
-    assert experimental_skills - default_skills == {"show-imagery-planet"}
+    assert experimental_skills - default_skills == {
+        "show-imagery-planet",
+        "nrt-monitoring",
+    }
 
 
 # --- excluded_datasets enforcement in pick_dataset ---------------------------

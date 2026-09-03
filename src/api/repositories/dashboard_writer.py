@@ -62,6 +62,64 @@ class UnknownSectionError(Exception):
         )
 
 
+#: Section types written by a recipe in one piece. Their content is a record
+#: of one build — an area, a date range, the data as it was — so editing it
+#: would make the section's own title and description untrue. Everything that
+#: changes a sealed section or its widgets raises ``SealedSectionError``;
+#: deleting the whole section stays allowed (it takes its widgets with it,
+#: see ``remove_section``). The rule lives here, not in a DB constraint,
+#: because it is product policy that grows types and exceptions — and because
+#: the builder that writes these sections has to get past it.
+SEALED_SECTION_TYPES = frozenset({"nrt-monitoring"})
+
+
+#: Widget-config keys that describe how a widget is laid out rather than what
+#: it shows. The frontend already writes these (``size`` is "single"/"double",
+#: ``sizes`` the per-chart map), and they are the one part of a sealed
+#: section's widget a reader may change: rearranging what a recipe built does
+#: not change what it says. Everything else in a config — the layer, the
+#: dates, the text, the title — is content.
+LAYOUT_CONFIG_KEYS = frozenset({"size", "sizes"})
+
+
+def _config_changes_content(
+    stored: Optional[dict], incoming: Optional[dict]
+) -> bool:
+    """Whether replacing ``stored`` with ``incoming`` changes anything but
+    layout.
+
+    ``PATCH`` replaces a widget's config wholesale, so "only resize it" and
+    "resize it and swap its tile_url" arrive as the same shape of request.
+    The difference is in the diff, which is why it is taken here. Both sides
+    must already be in the stored (relativized) representation, or an
+    unchanged eoapi tile URL reads as a change.
+    """
+    stored = stored or {}
+    incoming = incoming or {}
+    changed = {
+        key
+        for key in set(stored) | set(incoming)
+        if stored.get(key) != incoming.get(key)
+    }
+    return bool(changed - LAYOUT_CONFIG_KEYS)
+
+
+class SealedSectionError(Exception):
+    """The write targets a section whose type is read-only.
+
+    Raised by the section and widget writers for every caller — the API
+    router maps it to 409, the agent tools to a tool error. The builder that
+    creates such a section passes ``allow_sealed=True``.
+    """
+
+    def __init__(self, section_id: str, section_type: str):
+        self.section_id = section_id
+        self.section_type = section_type
+        super().__init__(
+            f"section {section_id} is read-only (type: {section_type})"
+        )
+
+
 class _Unset:
     """Marker for "argument not supplied" where None is a real value."""
 
@@ -69,6 +127,19 @@ class _Unset:
 #: Sentinel default for ``section_id``: passing ``None`` moves a widget to
 #: the ungrouped top level, omitting it leaves the widget where it is.
 UNSET = _Unset()
+
+
+def _guard_sealed(section: Optional[DashboardSectionOrm]) -> None:
+    """Raise if the section is one a recipe built and sealed."""
+    if section is not None and section.type in SEALED_SECTION_TYPES:
+        raise SealedSectionError(str(section.id), section.type)
+
+
+async def _guard_sealed_id(session, section_id) -> None:
+    """Raise if ``section_id`` names a sealed section (None is never one)."""
+    if section_id is None:
+        return
+    _guard_sealed(await session.get(DashboardSectionOrm, section_id))
 
 
 def _parse_uuid(value) -> Optional[UUID]:
@@ -186,6 +257,7 @@ async def add_widget(
     config: Optional[dict] = None,
     position: Optional[int] = None,
     section_id: Optional[str] = None,
+    allow_sealed: bool = False,
 ) -> Optional[str]:
     """Append a widget to a dashboard; return the new widget id (str).
 
@@ -193,7 +265,9 @@ async def add_widget(
     None (the default) leaves it ungrouped at the top level. Position
     defaults to max+1 *within that container*. Returns None if the dashboard
     does not exist or an id is malformed; raises ``UnknownSectionError`` when
-    the section is not on this dashboard.
+    the section is not on this dashboard, and ``SealedSectionError`` when it
+    is one a recipe sealed. ``allow_sealed`` is for the recipe builders that
+    fill their own section — no other caller passes it.
     """
     target = _parse_uuid(dashboard_id)
     if target is None:
@@ -220,6 +294,9 @@ async def add_widget(
             session, target, section_uuid
         ):
             raise UnknownSectionError(str(target), str(section_id))
+
+        if not allow_sealed:
+            await _guard_sealed_id(session, section_uuid)
 
         if position is None:
             position = await _next_position(session, target, section_uuid)
@@ -272,8 +349,13 @@ async def update_widget(
     a section id to move the widget into that section, or pass None to move
     it back to the ungrouped top level. Moving without an explicit
     ``position`` appends the widget to the end of its new container. Raises
-    ``UnknownSectionError`` when the section is not on the widget's own
-    dashboard.
+    Raises ``UnknownSectionError`` when the section is not on the widget's
+    own dashboard, and ``SealedSectionError`` when a *content* change targets
+    a sealed section. Layout is exempt: a sealed section's widget takes a
+    ``position`` change, and a config replacement whose only differences are
+    ``LAYOUT_CONFIG_KEYS``. Moving in or out of a sealed section stays
+    blocked either way. Same split as ``update_section``, which allows
+    ``position`` but not a retitle.
     """
     target = _parse_uuid(widget_id)
     if target is None:
@@ -283,7 +365,20 @@ async def update_widget(
         if widget is None:
             return False
 
-        if not isinstance(section_id, _Unset):
+        # Only a content change is guarded, and a move is always one: a
+        # widget cannot leave a sealed section, and (below) cannot join one.
+        # A layout-only call — reposition, resize — is allowed through.
+        moving = not isinstance(section_id, _Unset)
+        relativized = (
+            relativize_widget_config(config) if config is not None else None
+        )
+        if moving or (
+            config is not None
+            and _config_changes_content(widget.config, relativized)
+        ):
+            await _guard_sealed_id(session, widget.section_id)
+
+        if moving:
             section_uuid = None
             if section_id is not None:
                 section_uuid = _parse_uuid(section_id)
@@ -293,6 +388,7 @@ async def update_widget(
                     raise UnknownSectionError(
                         str(widget.dashboard_id), str(section_id)
                     )
+                await _guard_sealed_id(session, section_uuid)
             if section_uuid != widget.section_id:
                 widget.section_id = section_uuid
                 if position is None:
@@ -303,7 +399,7 @@ async def update_widget(
         if position is not None:
             widget.position = position
         if config is not None:
-            widget.config = relativize_widget_config(config)
+            widget.config = relativized
         await session.commit()
 
     logger.info("dashboard_widget_updated", widget_id=str(target))
@@ -311,7 +407,11 @@ async def update_widget(
 
 
 async def remove_widget(widget_id) -> bool:
-    """Delete a widget; the referenced insight is left intact."""
+    """Delete a widget; the referenced insight is left intact.
+
+    Raises ``SealedSectionError`` for a widget in a sealed section: those go
+    only with the whole section (``remove_section``).
+    """
     target = _parse_uuid(widget_id)
     if target is None:
         return False
@@ -319,6 +419,7 @@ async def remove_widget(widget_id) -> bool:
         widget = await session.get(DashboardWidgetOrm, target)
         if widget is None:
             return False
+        await _guard_sealed_id(session, widget.section_id)
         await session.delete(widget)
         await session.commit()
 
@@ -332,11 +433,14 @@ async def add_section(
     title: str,
     description: Optional[str] = None,
     position: Optional[int] = None,
+    type: str = "default",
 ) -> Optional[str]:
     """Append a section to a dashboard; return the new section id (str).
 
-    Position defaults to max+1 (last section on the dashboard). Returns None
-    if the dashboard does not exist or the id is malformed.
+    Position defaults to max+1 (last section on the dashboard). ``type``
+    records how the section was built; anything in
+    ``SEALED_SECTION_TYPES`` is read-only from then on. Returns None if the
+    dashboard does not exist or the id is malformed.
     """
     target = _parse_uuid(dashboard_id)
     if target is None:
@@ -361,6 +465,7 @@ async def add_section(
             title=title,
             description=description,
             position=position,
+            type=type,
         )
         session.add(section)
         await session.commit()
@@ -371,8 +476,210 @@ async def add_section(
         dashboard_id=str(target),
         section_id=section_id,
         title=title,
+        type=type,
     )
     return section_id
+
+
+async def add_section_with_widgets(
+    dashboard_id,
+    *,
+    title: str,
+    description: Optional[str] = None,
+    type: str = "default",
+    config: Optional[dict] = None,
+    widgets: Optional[list[dict]] = None,
+) -> Optional[tuple[str, list[str]]]:
+    """Create a section and its widgets in one transaction.
+
+    The write path for the recipe builders: a section that a reader may only
+    ever see complete must not appear widget by widget, and a failure
+    half-way must leave nothing behind. Each entry of ``widgets`` is
+    ``{"widget_type": ..., "insight_id": ..., "config": ...}``; they take
+    positions 0..n-1 in the order given. Returns ``(section_id, widget_ids)``,
+    or None if the dashboard does not exist.
+
+    Sealed types are expected here — this is the door ``allow_sealed`` opens
+    for the widget writers.
+    """
+    target = _parse_uuid(dashboard_id)
+    if target is None:
+        return None
+
+    async with get_session_from_pool() as session:
+        exists = await session.scalar(
+            select(DashboardOrm.id).where(DashboardOrm.id == target)
+        )
+        if exists is None:
+            return None
+
+        max_position = await session.scalar(
+            select(func.max(DashboardSectionOrm.position)).where(
+                DashboardSectionOrm.dashboard_id == target
+            )
+        )
+        section = DashboardSectionOrm(
+            dashboard_id=target,
+            title=title,
+            description=description,
+            position=0 if max_position is None else max_position + 1,
+            type=type,
+            config=config or {},
+        )
+        session.add(section)
+        await session.flush()
+
+        rows = []
+        for position, spec in enumerate(widgets or []):
+            insight_id = spec.get("insight_id")
+            rows.append(
+                DashboardWidgetOrm(
+                    dashboard_id=target,
+                    widget_type=spec["widget_type"],
+                    insight_id=(
+                        _parse_uuid(insight_id) if insight_id else None
+                    ),
+                    config=relativize_widget_config(spec.get("config")) or {},
+                    position=position,
+                    section_id=section.id,
+                )
+            )
+        session.add_all(rows)
+        try:
+            await session.commit()
+        except IntegrityError as exc:
+            if "uq_dashboard_widgets_dashboard_insight" not in str(exc.orig):
+                raise
+            # The insight is already on this dashboard, so the whole section
+            # is rolled back rather than built without its chart.
+            logger.warning(
+                "dashboard_section_widget_duplicate",
+                dashboard_id=str(target),
+                type=type,
+            )
+            raise DuplicateInsightWidgetError(str(target), "") from exc
+
+        section_id = str(section.id)
+        widget_ids = [str(row.id) for row in rows]
+
+    logger.info(
+        "dashboard_section_added_with_widgets",
+        dashboard_id=str(target),
+        section_id=section_id,
+        type=type,
+        widgets=len(widget_ids),
+    )
+    return section_id, widget_ids
+
+
+async def replace_section_widgets(
+    section_id,
+    *,
+    title: str,
+    description: Optional[str] = None,
+    config: Optional[dict] = None,
+    widgets: Optional[list[dict]] = None,
+) -> Optional[tuple[list[str], list[str]]]:
+    """Swap a section's whole contents in one transaction.
+
+    The write path for refreshing a recipe section: the section row survives
+    (so its id, its place on the dashboard and any link to it hold), while
+    its widgets, its words and its recorded window are all replaced
+    together. A reader either sees the old period or the new one, never a
+    chart from one and a map from the other.
+
+    Returns ``(new_widget_ids, replaced_insight_ids)`` — the second is the
+    insights the old widgets referenced, which the caller may then delete if
+    nothing else points at them. Returns None if the section is gone.
+
+    Deliberately unguarded by the seal: this *is* the mechanism a sealed
+    section is refreshed through, and only the recipes call it.
+    """
+    target = _parse_uuid(section_id)
+    if target is None:
+        return None
+
+    async with get_session_from_pool() as session:
+        section = await session.get(DashboardSectionOrm, target)
+        if section is None:
+            return None
+
+        previous = await session.execute(
+            select(DashboardWidgetOrm).where(
+                DashboardWidgetOrm.section_id == target
+            )
+        )
+        replaced_insight_ids = []
+        for widget in previous.scalars().all():
+            if widget.insight_id:
+                replaced_insight_ids.append(str(widget.insight_id))
+            await session.delete(widget)
+        # The deletes must land before the inserts: the partial unique index
+        # on (dashboard_id, insight_id) would otherwise reject a refresh that
+        # happens to reuse an insight.
+        await session.flush()
+
+        section.title = title
+        section.description = description
+        if config is not None:
+            section.config = config
+
+        rows = []
+        for position, spec in enumerate(widgets or []):
+            insight_id = spec.get("insight_id")
+            rows.append(
+                DashboardWidgetOrm(
+                    dashboard_id=section.dashboard_id,
+                    widget_type=spec["widget_type"],
+                    insight_id=(
+                        _parse_uuid(insight_id) if insight_id else None
+                    ),
+                    config=relativize_widget_config(spec.get("config")) or {},
+                    position=position,
+                    section_id=target,
+                )
+            )
+        session.add_all(rows)
+        await session.commit()
+        widget_ids = [str(row.id) for row in rows]
+
+    logger.info(
+        "dashboard_section_widgets_replaced",
+        section_id=str(target),
+        widgets=len(widget_ids),
+        replaced_insights=len(replaced_insight_ids),
+    )
+    return widget_ids, replaced_insight_ids
+
+
+async def delete_unreferenced_insights(insight_ids: list[str]) -> int:
+    """Delete insights that no dashboard widget points at any more.
+
+    A refreshed recipe section leaves its previous chart behind. It was
+    machine-made content owned by that section, so it goes — unless some
+    other widget (another dashboard, say) still shows it.
+    """
+    deleted = 0
+    async with get_session_from_pool() as session:
+        for raw in insight_ids:
+            insight_id = _parse_uuid(raw)
+            if insight_id is None:
+                continue
+            still_used = await session.scalar(
+                select(DashboardWidgetOrm.id)
+                .where(DashboardWidgetOrm.insight_id == insight_id)
+                .limit(1)
+            )
+            if still_used is not None:
+                continue
+            row = await session.get(InsightOrm, insight_id)
+            if row is not None:
+                await session.delete(row)
+                deleted += 1
+        await session.commit()
+    if deleted:
+        logger.info("orphaned_insights_deleted", count=deleted)
+    return deleted
 
 
 async def get_section(section_id) -> Optional[DashboardSectionOrm]:
@@ -396,6 +703,10 @@ async def update_section(
 
     ``description`` is three-valued like ``update_widget``'s ``section_id``:
     omit it to leave the text alone, pass None to clear it.
+
+    A sealed section takes a ``position`` change — that orders the dashboard
+    rather than editing the section — but raises ``SealedSectionError`` for
+    its title or description.
     """
     target = _parse_uuid(section_id)
     if target is None:
@@ -404,6 +715,8 @@ async def update_section(
         section = await session.get(DashboardSectionOrm, target)
         if section is None:
             return False
+        if title is not None or not isinstance(description, _Unset):
+            _guard_sealed(section)
         if title is not None:
             section.title = title
         if not isinstance(description, _Unset):
@@ -422,6 +735,10 @@ async def remove_section(section_id, *, delete_widgets: bool = False) -> bool:
     ``delete_widgets=True`` removes the section's widgets with it — the
     destructive variant, requested explicitly by the caller. Insights the
     deleted widgets referenced are left intact, as with ``remove_widget``.
+
+    Deleting a sealed section is allowed, but it always takes its widgets:
+    ungrouping them would leave loose, editable copies of content that is
+    only meaningful — and only sealed — inside its own section.
     """
     target = _parse_uuid(section_id)
     if target is None:
@@ -430,6 +747,9 @@ async def remove_section(section_id, *, delete_widgets: bool = False) -> bool:
         section = await session.get(DashboardSectionOrm, target)
         if section is None:
             return False
+
+        if section.type in SEALED_SECTION_TYPES:
+            delete_widgets = True
 
         if delete_widgets:
             result = await session.execute(

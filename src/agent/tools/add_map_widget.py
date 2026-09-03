@@ -7,9 +7,11 @@ show_imagery — into the widget's config, so the dashboard renders it without
 any chat state. The dashboard defaults to the one in state or the one the
 user is looking at (view_context). Owner-only, like the other primitives.
 
-The snapshot is an explicit key allowlist: only render-relevant fields are
-copied, so the prose fields on the dataset state (description, methodology,
-instructions, ...) can never leak into the database.
+The snapshot is an explicit key allowlist (in
+``src.api.services.widget_configs``, shared with the dashboard recipes): only
+render-relevant fields are copied, so the prose fields on the dataset state
+(description, methodology, instructions, ...) can never leak into the
+database.
 """
 
 from typing import Annotated, Callable, Dict, NamedTuple, Optional
@@ -19,6 +21,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.datasets.layers import DatasetLayer
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import (
     dashboard_updated_command,
@@ -28,30 +31,14 @@ from src.agent.tools.common import (
     resolve_section,
 )
 from src.api.repositories import dashboard_writer
+from src.api.services.widget_configs import (
+    dataset_snapshot,
+    imagery_snapshot,
+    map_widget_config,
+)
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-# Render-relevant fields of the imagery state (ImageryState) — all of it.
-_IMAGERY_KEYS = (
-    "provider",
-    "tile_url",
-    "tilejson_url",
-    "bounds",
-    "min_zoom",
-    "max_zoom",
-    "mosaic_id",
-    "item_count",
-    "start_date",
-    "end_date",
-    "mean_cloud_cover",
-    "min_cloud_cover",
-    "max_cloud_cover_observed",
-    "target_date",
-    "window_days",
-    "max_cloud_cover",
-    "aoi_names",
-)
 
 
 def _dataset_config(state: dict) -> Optional[dict]:
@@ -59,27 +46,25 @@ def _dataset_config(state: dict) -> Optional[dict]:
 
     Returns None when no dataset is selected or it carries no tile URL
     (nothing to render). Dates fall back to the top-level effective range
-    set by pull_data.
+    set by pull_data. The projection itself is shared with the dashboard
+    recipes (``src.api.services.widget_configs``), so a layer added from
+    chat and one added by a recipe render identically.
     """
     dataset = state.get("dataset") or {}
     if not dataset.get("tile_url"):
         return None
-    parameters = dataset.get("parameters")
-    return {
-        "dataset_id": dataset.get("dataset_id"),
-        "dataset_name": dataset.get("dataset_name"),
-        "tile_url": dataset["tile_url"],
-        "context_layer": dataset.get("context_layer"),
-        "context_layers": dataset.get("context_layers"),
-        "parameters": [
-            {"name": p.get("name"), "values": p.get("values")}
-            for p in parameters
-        ]
-        if parameters
-        else None,
-        "start_date": dataset.get("start_date") or state.get("start_date"),
-        "end_date": dataset.get("end_date") or state.get("end_date"),
-    }
+    return dataset_snapshot(
+        DatasetLayer(
+            dataset_id=dataset.get("dataset_id"),
+            dataset_name=dataset.get("dataset_name"),
+            tile_url=dataset["tile_url"],
+            start_date=dataset.get("start_date") or state.get("start_date"),
+            end_date=dataset.get("end_date") or state.get("end_date"),
+            context_layer=dataset.get("context_layer"),
+            context_layers=dataset.get("context_layers") or [],
+            parameters=dataset.get("parameters"),
+        )
+    )
 
 
 def _imagery_config(state: dict) -> Optional[dict]:
@@ -91,7 +76,7 @@ def _imagery_config(state: dict) -> Optional[dict]:
     imagery = state.get("imagery") or {}
     if not imagery.get("tile_url") or not imagery.get("mosaic_id"):
         return None
-    return {key: imagery.get(key) for key in _IMAGERY_KEYS}
+    return imagery_snapshot(imagery)
 
 
 def _dataset_summary(snapshot: dict) -> str:
@@ -138,13 +123,6 @@ LAYER_HANDLERS = {
         ),
     ),
 }
-
-
-def _widget_config(layer: str, snapshot: dict, title: Optional[str]) -> dict:
-    config: dict = {"default_view": "map", layer: snapshot}
-    if title:
-        config["title"] = title
-    return config
 
 
 @tool("add_map_widget")
@@ -209,7 +187,7 @@ async def add_map_widget(
     widget_id = await dashboard_writer.add_widget(
         str(target_dashboard),
         widget_type="map",
-        config=_widget_config(layer, snapshot, title),
+        config=map_widget_config(layer, snapshot, title),
         section_id=str(target_section.id) if target_section else None,
     )
     if widget_id is None:

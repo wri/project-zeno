@@ -435,9 +435,16 @@ async def format_dashboard(dashboard: DashboardOrm) -> str:
 
     for section in dashboard.sections or []:
         members = by_section.get(section.id) or []
+        # A sealed section is marked here so the model sees it before it
+        # tries to edit or fill one.
+        sealed = (
+            " [read-only: built in one piece, cannot be edited]"
+            if section.type in dashboard_writer.SEALED_SECTION_TYPES
+            else ""
+        )
         lines.append(
             f"  Section {section.position}: '{section.title}' "
-            f"({section.id}) — {len(members)} widget(s)"
+            f"({section.id}) — {len(members)} widget(s){sealed}"
         )
         if section.description:
             lines.append(f"    Description: {section.description}")
