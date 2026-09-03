@@ -788,6 +788,11 @@ class DashboardSectionResponse(BaseModel):
     # "default", or the recipe that wrote the section. Anything other than
     # "default" is read-only: the API rejects writes to it with 409.
     type: str = "default"
+    # What the recipe built this section from — for `nrt-monitoring`, the
+    # window it covers: `{"recipe", "days", "start_date", "end_date"}`.
+    # Empty for a hand-composed section. Show the period from here rather
+    # than reading a widget's tile layer.
+    config: dict = {}
     created_at: datetime
 
 
@@ -842,12 +847,13 @@ class NrtSectionCreateRequest(BaseModel):
     """
 
     days: int = Field(
-        default=90,
+        default=14,
         ge=1,
         le=365,
         description=(
-            "Length of the alert window, counted back from today. Clamped "
-            "to the dataset's own coverage."
+            "Length of the alert window, counted back from today, and the "
+            "period every widget in the section covers. Defaults to the "
+            "last two weeks; clamped to the dataset's own coverage."
         ),
     )
     window_days: int = Field(
@@ -888,6 +894,40 @@ class NrtSectionCreateRequest(BaseModel):
     )
 
 
+class NrtSectionRefreshRequest(BaseModel):
+    """A new time window for an existing monitoring section.
+
+    Everything the section shows moves to this window together — the chart,
+    the alerts layer and the satellite imagery — and its title and
+    description are rewritten, because they state the period.
+    """
+
+    days: int = Field(
+        default=14,
+        ge=1,
+        le=365,
+        description=(
+            "Length of the new alert window, counted back from today. "
+            "Defaults to the last two weeks."
+        ),
+    )
+    window_days: int = Field(
+        default=7,
+        ge=1,
+        le=183,
+        description=(
+            "Satellite imagery search window, ±N days around the end of the "
+            "new alert window."
+        ),
+    )
+    max_cloud_cover: int = Field(
+        default=20,
+        ge=0,
+        le=100,
+        description="Cloud cover limit for the satellite scenes, in percent.",
+    )
+
+
 class NrtSectionResponse(DashboardResponse):
     """The dashboard with the new section on it, plus what the build could
     not do."""
@@ -901,6 +941,11 @@ class NrtSectionResponse(DashboardResponse):
             "returned instead of building a new one."
         )
     )
+    days: int = Field(
+        description="Length of the window the section now covers, in days."
+    )
+    start_date: date = Field(description="First day of the window.")
+    end_date: date = Field(description="Last day of the window.")
     warnings: List[str] = Field(
         default=[],
         description=(

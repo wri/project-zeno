@@ -6,7 +6,7 @@ the composition: what the section contains, what happens when a part fails,
 and that a second click does not build a second section.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -30,7 +30,7 @@ ENDPOINT = "/api/dashboards/{id}/sections/nrt-monitoring"
 
 # Column-oriented, the shape the analytics API returns.
 ALERT_DATA = {
-    "alert_date": ["2026-07-01", "2026-07-02", "2026-08-01"],
+    "alert_date": ["2026-08-30", "2026-08-31", "2026-09-01"],
     "alert_confidence": ["high", "highest", "high"],
     "area_ha": [12.5, 30.0, 8.0],
     "aoi_id": ["BRA.16_1", "BRA.16_1", "BRA.16_1"],
@@ -321,3 +321,158 @@ async def test_imagery_gets_the_canonical_aoi_id(client, auth_override):
         "map",
         "map",
     ]
+
+
+# ---------------------------------------------------------------------------
+# Changing the window
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_default_window_is_two_weeks(client, auth_override):
+    """Near-real-time means the last couple of weeks, not a quarter."""
+    auth_override("nrt-default-window")
+    dashboard = await _create_dashboard(client)
+
+    pull, imagery, summary = _patches()
+    with pull, imagery, summary:
+        response = await client.post(
+            ENDPOINT.format(id=dashboard["id"]), headers=AUTH, json={}
+        )
+
+    body = response.json()
+    assert body["days"] == 14
+    assert body["end_date"] == date.today().isoformat()
+    assert (
+        body["start_date"] == (date.today() - timedelta(days=14)).isoformat()
+    )
+    # The section records its own window, so nothing has to read it back
+    # out of a tile layer's dates.
+    (section,) = body["sections"]
+    assert section["config"]["days"] == 14
+    assert section["config"]["start_date"] == body["start_date"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_moves_every_widget_to_the_new_window(
+    client, auth_override
+):
+    auth_override("nrt-refresh")
+    dashboard = await _create_dashboard(client)
+
+    pull, imagery, summary = _patches()
+    with pull, imagery, summary:
+        built = await client.post(
+            ENDPOINT.format(id=dashboard["id"]), headers=AUTH, json={}
+        )
+        section_id = built.json()["section_id"]
+        old_insight = built.json()["widgets"][0]["insight_id"]
+
+        refreshed = await client.post(
+            f"/api/dashboards/{dashboard['id']}/sections/{section_id}/refresh",
+            headers=AUTH,
+            json={"days": 90},
+        )
+
+    assert refreshed.status_code == 200
+    body = refreshed.json()
+    assert body["days"] == 90
+    assert body["created"] is False
+    # The section survives: same id, same place, so a link to it holds.
+    assert body["section_id"] == section_id
+    (section,) = body["sections"]
+    assert section["id"] == section_id
+    assert section["config"]["days"] == 90
+
+    # Every widget moved together — the alerts layer covers the new window.
+    widgets = sorted(body["widgets"], key=lambda w: w["position"])
+    assert [w["widget_type"] for w in widgets] == ["insight", "map", "map"]
+    alerts = widgets[1]["config"]["dataset"]
+    assert alerts["start_date"] == body["start_date"]
+    assert f"start_date={body['start_date']}" in alerts["tile_url"]
+
+    # The chart was recomputed, not reused, and the old one is gone.
+    assert widgets[0]["insight_id"] != old_insight
+    stale = await client.get(f"/api/insights/{old_insight}", headers=AUTH)
+    assert stale.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_refresh_of_a_hand_made_section_is_refused(
+    client, auth_override
+):
+    """A section nobody generated has no recipe to re-run."""
+    user = await _create_user("nrt-refresh-plain")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    created = await client.post(
+        f"/api/dashboards/{dashboard['id']}/sections",
+        headers=AUTH,
+        json={"title": "My notes"},
+    )
+    section_id = created.json()["sections"][-1]["id"]
+
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/sections/{section_id}/refresh",
+        headers=AUTH,
+        json={"days": 30},
+    )
+    assert response.status_code == 422
+    assert "no recipe to refresh" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_of_unknown_section_returns_404(client, auth_override):
+    auth_override("nrt-refresh-404")
+    dashboard = await _create_dashboard(client)
+
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/sections/"
+        "00000000-0000-0000-0000-000000000000/refresh",
+        headers=AUTH,
+        json={"days": 30},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_refresh_other_users_dashboard_returns_404(
+    client, auth_override
+):
+    owner = await _create_user("nrt-refresh-owner")
+    stranger = await _create_user("nrt-refresh-stranger")
+    auth_override(owner.id)
+    dashboard = await _create_dashboard(client)
+
+    pull, imagery, summary = _patches()
+    with pull, imagery, summary:
+        built = await client.post(
+            ENDPOINT.format(id=dashboard["id"]), headers=AUTH, json={}
+        )
+    section_id = built.json()["section_id"]
+
+    auth_override(stranger.id)
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/sections/{section_id}/refresh",
+        headers=AUTH,
+        json={"days": 30},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_refresh_window_out_of_range_rejected(client, auth_override):
+    auth_override("nrt-refresh-range")
+    dashboard = await _create_dashboard(client)
+
+    pull, imagery, summary = _patches()
+    with pull, imagery, summary:
+        built = await client.post(
+            ENDPOINT.format(id=dashboard["id"]), headers=AUTH, json={}
+        )
+    section_id = built.json()["section_id"]
+
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/sections/{section_id}/refresh",
+        headers=AUTH,
+        json={"days": 400},
+    )
+    assert response.status_code == 422

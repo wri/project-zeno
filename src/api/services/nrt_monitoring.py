@@ -55,8 +55,14 @@ logger = get_logger(__name__)
 #: The section type that marks — and seals — a monitoring section.
 SECTION_TYPE = "nrt-monitoring"
 
-#: Length of the alert window when the caller names none.
-DEFAULT_DAYS = 90
+#: Length of the alert window when the caller names none. Two weeks: these
+#: sections are for what is happening now, and a reader changes the window
+#: on demand when they want more history.
+DEFAULT_DAYS = 14
+
+#: The widest window the recipe will build. Alerts are near-real-time, so a
+#: year is already well past what the section is for.
+MAX_DAYS = 365
 
 _IMAGERY_PROVIDER = Sentinel2ImageryProvider()
 
@@ -72,8 +78,37 @@ class NrtSectionResult:
     widget_ids: list[str]
     start_date: str
     end_date: str
+    days: int
     #: Why a widget is missing, in words a caller can show the user.
     warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class NrtContent:
+    """Everything a section needs, gathered but not yet written.
+
+    Building and refreshing differ only in where this lands, so both go
+    through one gather step. Nothing here has touched the database except
+    the insight, which has to exist before a widget can reference it.
+    """
+
+    title: str
+    description: str
+    insight_id: str
+    widgets: list[dict]
+    start_date: str
+    end_date: str
+    days: int
+    warnings: list[str] = field(default_factory=list)
+
+    def section_config(self) -> dict:
+        """What gets recorded on the section row: the window it covers."""
+        return {
+            "recipe": SECTION_TYPE,
+            "days": self.days,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+        }
 
 
 async def resolve_period(days: int = DEFAULT_DAYS) -> tuple[str, str]:
@@ -95,8 +130,7 @@ async def resolve_period(days: int = DEFAULT_DAYS) -> tuple[str, str]:
     return start, end
 
 
-async def build_nrt_section(
-    dashboard_id: str,
+async def gather_nrt_content(
     aoi: dict,
     *,
     user_id: str,
@@ -106,16 +140,13 @@ async def build_nrt_section(
     title: Optional[str] = None,
     description: Optional[str] = None,
     language: str = DEFAULT_LANGUAGE,
-) -> NrtSectionResult:
-    """Build the section and return what was written.
+) -> NrtContent:
+    """Pull the data, build the widgets, write the words — no section yet.
 
-    ``aoi`` is one of the dashboard's AOI references — ``source``, ``src_id``,
-    ``subtype`` and ``name``. ``title`` / ``description`` override the
-    generated text. Raises ``AnalyticsFailedError`` when the data pull fails,
-    and ``ValueError`` when the dashboard has gone.
+    Shared by the first build and every refresh, so a refreshed section is
+    assembled exactly like a new one. Raises ``AnalyticsFailedError`` when
+    the data pull fails: a section without its data says nothing.
     """
-    # The user's preferred language is nullable; every collaborator below
-    # renders text, so it is coerced once here rather than in each of them.
     language = language or DEFAULT_LANGUAGE
 
     # Every consumer gets its own copy of the AOI. The analytics handler
@@ -125,14 +156,6 @@ async def build_nrt_section(
     aoi = dict(aoi)
     start_date, end_date = await resolve_period(days)
     warnings: list[str] = []
-
-    logger.info(
-        "nrt_section_build_started",
-        dashboard_id=dashboard_id,
-        aoi=f"{aoi['source']}/{aoi['src_id']}",
-        start_date=start_date,
-        end_date=end_date,
-    )
 
     # 1. Alert data and the default chart for it.
     service = AnalyzeService(AnalyticsHandler(), DETERMINISTIC_GENERATORS)
@@ -174,13 +197,11 @@ async def build_nrt_section(
         imagery = result.imagery.model_dump()
     else:
         warnings.append(result.message)
-        logger.info(
-            "nrt_section_imagery_unavailable",
-            dashboard_id=dashboard_id,
-            reason=result.message,
-        )
+        logger.info("nrt_section_imagery_unavailable", reason=result.message)
 
-    # 4. The words. Generated unless the caller supplied them.
+    # 4. The words. Generated unless the caller supplied them. They state
+    #    the period, so a refresh regenerates them rather than keeping the
+    #    previous ones.
     if title and description:
         section_title, section_description = title, description
     else:
@@ -197,7 +218,6 @@ async def build_nrt_section(
         section_title = title or summary.title
         section_description = description or summary.description
 
-    # 5. One transaction, so the section is never seen half-built.
     widgets: list[dict] = [
         {"widget_type": "insight", "insight_id": insight_id},
         {
@@ -219,12 +239,62 @@ async def build_nrt_section(
             }
         )
 
-    written = await dashboard_writer.add_section_with_widgets(
-        dashboard_id,
+    return NrtContent(
         title=section_title,
         description=section_description,
-        type=SECTION_TYPE,
+        insight_id=insight_id,
         widgets=widgets,
+        start_date=start_date,
+        end_date=end_date,
+        days=days,
+        warnings=warnings,
+    )
+
+
+async def build_nrt_section(
+    dashboard_id: str,
+    aoi: dict,
+    *,
+    user_id: str,
+    days: int = DEFAULT_DAYS,
+    window_days: int = 7,
+    max_cloud_cover: int = 20,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    language: str = DEFAULT_LANGUAGE,
+) -> NrtSectionResult:
+    """Build a new monitoring section and return what was written.
+
+    ``aoi`` is one of the dashboard's AOI references — ``source``, ``src_id``,
+    ``subtype`` and ``name``. ``title`` / ``description`` override the
+    generated text. Raises ``AnalyticsFailedError`` when the data pull fails,
+    and ``ValueError`` when the dashboard has gone.
+    """
+    logger.info(
+        "nrt_section_build_started",
+        dashboard_id=dashboard_id,
+        aoi=f"{aoi['source']}/{aoi['src_id']}",
+        days=days,
+    )
+    content = await gather_nrt_content(
+        aoi,
+        user_id=user_id,
+        days=days,
+        window_days=window_days,
+        max_cloud_cover=max_cloud_cover,
+        title=title,
+        description=description,
+        language=language,
+    )
+
+    # One transaction, so the section is never seen half-built.
+    written = await dashboard_writer.add_section_with_widgets(
+        dashboard_id,
+        title=content.title,
+        description=content.description,
+        type=SECTION_TYPE,
+        config=content.section_config(),
+        widgets=content.widgets,
     )
     if written is None:
         raise ValueError(f"Dashboard {dashboard_id} not found")
@@ -234,43 +304,110 @@ async def build_nrt_section(
         "nrt_section_build_completed",
         dashboard_id=dashboard_id,
         section_id=section_id,
-        insight_id=insight_id,
+        insight_id=content.insight_id,
         widgets=len(widget_ids),
-        warnings=len(warnings),
+        warnings=len(content.warnings),
     )
     return NrtSectionResult(
         section_id=section_id,
-        insight_id=insight_id,
+        insight_id=content.insight_id,
         widget_ids=widget_ids,
-        start_date=start_date,
-        end_date=end_date,
-        warnings=warnings,
+        start_date=content.start_date,
+        end_date=content.end_date,
+        days=content.days,
+        warnings=content.warnings,
     )
+
+
+async def refresh_nrt_section(
+    section_id: str,
+    aoi: dict,
+    *,
+    user_id: str,
+    days: int = DEFAULT_DAYS,
+    window_days: int = 7,
+    max_cloud_cover: int = 20,
+    language: str = DEFAULT_LANGUAGE,
+) -> NrtSectionResult:
+    """Rebuild an existing section for a new window, in place.
+
+    Everything the section shows moves to the new period together — the
+    chart, the alerts layer and the imagery — and its title and description
+    are rewritten, because they state the period. The section row itself
+    survives, so its id and its place on the dashboard hold.
+
+    The previous chart insight is deleted once nothing points at it: it was
+    this section's own content, for a period the section no longer covers.
+    """
+    logger.info(
+        "nrt_section_refresh_started",
+        section_id=section_id,
+        aoi=f"{aoi['source']}/{aoi['src_id']}",
+        days=days,
+    )
+    content = await gather_nrt_content(
+        aoi,
+        user_id=user_id,
+        days=days,
+        window_days=window_days,
+        max_cloud_cover=max_cloud_cover,
+        language=language,
+    )
+
+    written = await dashboard_writer.replace_section_widgets(
+        section_id,
+        title=content.title,
+        description=content.description,
+        config=content.section_config(),
+        widgets=content.widgets,
+    )
+    if written is None:
+        raise ValueError(f"Section {section_id} not found")
+    widget_ids, replaced_insight_ids = written
+    await dashboard_writer.delete_unreferenced_insights(replaced_insight_ids)
+
+    logger.info(
+        "nrt_section_refresh_completed",
+        section_id=section_id,
+        insight_id=content.insight_id,
+        widgets=len(widget_ids),
+        warnings=len(content.warnings),
+    )
+    return NrtSectionResult(
+        section_id=section_id,
+        insight_id=content.insight_id,
+        widget_ids=widget_ids,
+        start_date=content.start_date,
+        end_date=content.end_date,
+        days=content.days,
+        warnings=content.warnings,
+    )
+
+
+def nrt_sections(dashboard: DashboardOrm) -> list[DashboardSectionOrm]:
+    """The monitoring sections on a dashboard, in render order."""
+    return [
+        section
+        for section in dashboard.sections or []
+        if section.type == SECTION_TYPE
+    ]
 
 
 def find_existing_section(
     dashboard: DashboardOrm, start_date: str, end_date: str
 ) -> Optional[DashboardSectionOrm]:
-    """An NRT section already on this dashboard for the same period.
+    """A monitoring section already on this dashboard for the same period.
 
     The guard against a double click: building twice costs a data pull, a
     STAC search and a model call, and leaves the reader two identical
-    sections. Matched on the period in the alerts widget's own config, which
-    is where the build recorded it.
+    sections. Matched on the window the section itself records, so a second
+    recipe over the same dataset cannot collide with this one.
     """
-    sections = {
-        section.id: section
-        for section in dashboard.sections or []
-        if section.type == SECTION_TYPE
-    }
-    for widget in dashboard.widgets or []:
-        if widget.section_id not in sections:
-            continue
-        dataset = (widget.config or {}).get("dataset") or {}
+    for section in nrt_sections(dashboard):
+        window = section.config or {}
         if (
-            dataset.get("dataset_id") == INTEGRATED_ALERTS_ID
-            and dataset.get("start_date") == start_date
-            and dataset.get("end_date") == end_date
+            window.get("start_date") == start_date
+            and window.get("end_date") == end_date
         ):
-            return sections[widget.section_id]
+            return section
     return None

@@ -191,15 +191,25 @@ layer exists so the agent explains instead of erroring:
 - **Cost and rate limits.** One call costs an analytics pull, a STAC search
   or S3 read, and a model call. Like `/api/analyze`, it has no quota check.
   Add `enforce_quota` if traffic warrants it.
-- **Refresh.** The section is a snapshot, and sealed, so a refresh today is a
-  delete and a rebuild. An in-place refresh would go through the
-  `allow_sealed` door.
+- **Refresh cadence.** A refresh is on demand only; nothing reruns on a
+  schedule. A section left alone keeps showing the window it was built for,
+  and its title says which — so it ages honestly rather than silently. A
+  scheduled refresh would need a job runner and a decision about who pays
+  for it.
 - **Scope of the seal.** Reordering a sealed section and the publish cascade
   are deliberately allowed. Blocking `position` too is a one-line change.
 - **Where layout stops.** `LAYOUT_CONFIG_KEYS` is `size` and `sizes` only.
   `default_view` (map/chart/table) and `summaryHidden` are arguably layout
   too, and adding them is one line each — but `title` is words and belongs
   with content. Worth a decision rather than drift.
+- **Confirming a window change.** The agent tool refuses to act without
+  `confirmed=True`, which is only legitimate after a `send_nudge` the user
+  answered — a rule rather than a prompt, since a model retries. The REST
+  endpoint has no such gate: the frontend button *is* the confirmation.
+- **The analyst still says "month".** The dataset YAML tells the LLM analyst
+  to plot alerts by month (`code_instructions`), which is now inconsistent
+  with the deterministic chart and wrong for a short window. Left alone
+  because it changes every agent alerts answer, not just this recipe.
 - **Undocumented config keys.** The frontend persists `size`, `sizes`,
   `chartIds` and `summaryHidden` in `config`, none of which the backend
   documented, because `PATCH` never validated it. The seal now depends on
