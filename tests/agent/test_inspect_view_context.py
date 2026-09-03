@@ -216,10 +216,13 @@ async def test_format_dashboard_summarizes_map_widgets():
                 name="Paraná", source="gadm", subtype="state-province"
             )
         ],
+        sections=[],
         widgets=[
             SimpleNamespace(
+                id=uuid4(),
                 widget_type="map",
                 position=0,
+                section_id=None,
                 insight_id=None,
                 config={
                     "dataset": {
@@ -231,8 +234,10 @@ async def test_format_dashboard_summarizes_map_widgets():
                 },
             ),
             SimpleNamespace(
+                id=uuid4(),
                 widget_type="map",
                 position=1,
+                section_id=None,
                 insight_id=None,
                 config={
                     "imagery": {
@@ -243,8 +248,10 @@ async def test_format_dashboard_summarizes_map_widgets():
                 },
             ),
             SimpleNamespace(
+                id=uuid4(),
                 widget_type="text",
                 position=2,
+                section_id=None,
                 insight_id=None,
                 config={"text": "## Summary\n\nLoss accelerated in 2024."},
             ),
@@ -256,6 +263,58 @@ async def test_format_dashboard_summarizes_map_widgets():
     assert "https://t/{z}" not in out
     assert "## Summary\n\nLoss accelerated in 2024." in out
     assert '{"text"' not in out
+
+
+@pytest.mark.asyncio
+async def test_format_dashboard_groups_widgets_under_sections():
+    """Ungrouped widgets list first; each section then lists its own."""
+    deforestation = SimpleNamespace(
+        id=uuid4(),
+        title="Deforestation",
+        description="Where forest is being lost.",
+        position=0,
+    )
+    fires = SimpleNamespace(
+        id=uuid4(), title="Fires", description=None, position=1
+    )
+
+    def _note(text, position, section_id):
+        return SimpleNamespace(
+            id=uuid4(),
+            widget_type="text",
+            position=position,
+            section_id=section_id,
+            insight_id=None,
+            config={"text": text},
+        )
+
+    dashboard = SimpleNamespace(
+        id=uuid4(),
+        name="Paraná",
+        description=None,
+        aois=[
+            SimpleNamespace(
+                name="Paraná", source="gadm", subtype="state-province"
+            )
+        ],
+        sections=[deforestation, fires],
+        widgets=[
+            _note("Dashboard intro", 0, None),
+            _note("Loss accelerated", 0, deforestation.id),
+            _note("Burned area fell", 0, fires.id),
+        ],
+    )
+    out = await format_dashboard(dashboard)
+
+    assert (
+        f"Section 0: 'Deforestation' ({deforestation.id}) — 1 widget(s)" in out
+    )
+    assert "Description: Where forest is being lost." in out
+    assert f"Section 1: 'Fires' ({fires.id}) — 1 widget(s)" in out
+    # The ungrouped note is listed before the first section heading.
+    assert out.index("Dashboard intro") < out.index("Section 0")
+    assert out.index("Loss accelerated") < out.index("Section 1")
+    assert out.index("Section 1") < out.index("Burned area fell")
 
 
 @pytest.mark.asyncio

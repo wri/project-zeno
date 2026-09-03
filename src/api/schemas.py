@@ -628,6 +628,36 @@ class DashboardPublicToggleRequest(BaseModel):
     is_public: bool
 
 
+# A section heading is a short label, not prose — capped so the agent and
+# the UI cannot write an essay into it.
+SECTION_TITLE_MAX_LENGTH = 100
+
+
+class DashboardSectionCreateRequest(BaseModel):
+    title: str = Field(
+        min_length=1,
+        max_length=SECTION_TITLE_MAX_LENGTH,
+        description="Section heading, e.g. `Deforestation`.",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="What the section is for — its intent, in one or two lines.",
+    )
+    position: Optional[int] = Field(
+        default=None,
+        description="Order among the dashboard's sections; default: appended last.",
+    )
+
+
+class DashboardSectionUpdateRequest(BaseModel):
+    title: Optional[str] = Field(
+        default=None, min_length=1, max_length=SECTION_TITLE_MAX_LENGTH
+    )
+    # Explicit null clears the description; omitting the field leaves it.
+    description: Optional[str] = None
+    position: Optional[int] = None
+
+
 _WIDGET_TYPES = ("insight", "map", "text")
 
 
@@ -652,7 +682,20 @@ class DashboardWidgetCreateRequest(BaseModel):
             "Text widgets: `text` (markdown string)."
         ),
     )
-    position: Optional[int] = None
+    position: Optional[int] = Field(
+        default=None,
+        description=(
+            "Order within the widget's container — its section, or the "
+            "ungrouped top-level list. Default: appended last."
+        ),
+    )
+    section_id: Optional[UUID] = Field(
+        default=None,
+        description=(
+            "Section to group the widget under; omit for an ungrouped "
+            "top-level widget."
+        ),
+    )
 
     @field_validator("widget_type")
     def validate_widget_type(cls, v):
@@ -701,6 +744,10 @@ class DashboardWidgetCreateRequest(BaseModel):
 class DashboardWidgetUpdateRequest(BaseModel):
     position: Optional[int] = None
     config: Optional[dict] = None
+    # Three-valued: omit to leave the grouping alone, pass a section id to
+    # move the widget into it, pass null to move it back to the top level.
+    # The router reads `model_fields_set` to tell the last two apart.
+    section_id: Optional[UUID] = None
 
 
 class DashboardAoiResponse(BaseModel):
@@ -714,11 +761,23 @@ class DashboardAoiResponse(BaseModel):
     position: int
 
 
+class DashboardSectionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    title: str
+    description: Optional[str] = None
+    position: int
+    created_at: datetime
+
+
 class DashboardWidgetResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     position: int
+    # None for an ungrouped widget rendered at the dashboard's top level.
+    section_id: Optional[UUID] = None
     widget_type: str
     insight_id: Optional[UUID] = None
     config: dict
@@ -740,6 +799,9 @@ class DashboardResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     aois: List[DashboardAoiResponse] = []
+    # Sections in render order. Widgets carry the back-reference
+    # (`section_id`); ungrouped widgets render above the first section.
+    sections: List[DashboardSectionResponse] = []
     widgets: List[DashboardWidgetResponse] = []
 
 

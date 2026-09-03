@@ -1,7 +1,8 @@
 """Centralized dashboard persistence shared by the API router and agent tools.
 
 Both paths write the same ``DashboardOrm`` / ``DashboardAoiOrm`` /
-``DashboardWidgetOrm`` rows; this is the single place that mapping lives.
+``DashboardSectionOrm`` / ``DashboardWidgetOrm`` rows; this is the single
+place that mapping lives.
 Ownership checks live in the callers (router/tools) via ``dashboard_access``
 — the same split as insights. Malformed UUIDs are treated as not-found
 (None/False) rather than raising.
@@ -10,13 +11,14 @@ Ownership checks live in the callers (router/tools) via ``dashboard_access``
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from src.api.data_models import (
     DashboardAoiOrm,
     DashboardOrm,
+    DashboardSectionOrm,
     DashboardWidgetOrm,
     InsightOrm,
 )
@@ -41,6 +43,32 @@ class DuplicateInsightWidgetError(Exception):
         super().__init__(
             f"insight {insight_id} is already on dashboard {dashboard_id}"
         )
+
+
+class UnknownSectionError(Exception):
+    """The section does not exist on the target dashboard.
+
+    Raised by ``add_widget`` / ``update_widget`` / ``move_widget`` when a
+    caller passes a ``section_id`` belonging to another dashboard (or to
+    nothing at all) — a widget must never be grouped under a section of a
+    different dashboard.
+    """
+
+    def __init__(self, dashboard_id: str, section_id: str):
+        self.dashboard_id = dashboard_id
+        self.section_id = section_id
+        super().__init__(
+            f"section {section_id} is not on dashboard {dashboard_id}"
+        )
+
+
+class _Unset:
+    """Marker for "argument not supplied" where None is a real value."""
+
+
+#: Sentinel default for ``section_id``: passing ``None`` moves a widget to
+#: the ungrouped top level, omitting it leaves the widget where it is.
+UNSET = _Unset()
 
 
 def _parse_uuid(value) -> Optional[UUID]:
@@ -97,7 +125,8 @@ async def create_dashboard(
 
 
 async def get_dashboard(dashboard_id) -> Optional[DashboardOrm]:
-    """Load a dashboard with its AOIs and widgets; caller applies access check."""
+    """Load a dashboard with its AOIs, sections and widgets; caller applies
+    the access check."""
     target = _parse_uuid(dashboard_id)
     if target is None:
         return None
@@ -106,6 +135,7 @@ async def get_dashboard(dashboard_id) -> Optional[DashboardOrm]:
             select(DashboardOrm)
             .options(
                 selectinload(DashboardOrm.aois),
+                selectinload(DashboardOrm.sections),
                 selectinload(DashboardOrm.widgets),
             )
             .where(DashboardOrm.id == target)
@@ -123,6 +153,31 @@ async def get_widget(widget_id) -> Optional[DashboardWidgetOrm]:
         return await session.get(DashboardWidgetOrm, target)
 
 
+async def _section_belongs_to(session, dashboard_id: UUID, section_id: UUID):
+    """True when the section exists on this dashboard."""
+    found = await session.scalar(
+        select(DashboardSectionOrm.id).where(
+            DashboardSectionOrm.id == section_id,
+            DashboardSectionOrm.dashboard_id == dashboard_id,
+        )
+    )
+    return found is not None
+
+
+async def _next_position(session, dashboard_id: UUID, section_id) -> int:
+    """End of the container the widget lands in: its section, or the
+    ungrouped top-level list when ``section_id`` is None."""
+    max_position = await session.scalar(
+        select(func.max(DashboardWidgetOrm.position)).where(
+            DashboardWidgetOrm.dashboard_id == dashboard_id,
+            DashboardWidgetOrm.section_id == section_id
+            if section_id is not None
+            else DashboardWidgetOrm.section_id.is_(None),
+        )
+    )
+    return 0 if max_position is None else max_position + 1
+
+
 async def add_widget(
     dashboard_id,
     *,
@@ -130,11 +185,15 @@ async def add_widget(
     insight_id: Optional[str] = None,
     config: Optional[dict] = None,
     position: Optional[int] = None,
+    section_id: Optional[str] = None,
 ) -> Optional[str]:
     """Append a widget to a dashboard; return the new widget id (str).
 
-    Position defaults to max+1 (end of the dashboard). Returns None if the
-    dashboard does not exist or an id is malformed.
+    ``section_id`` groups the widget under one of the dashboard's sections;
+    None (the default) leaves it ungrouped at the top level. Position
+    defaults to max+1 *within that container*. Returns None if the dashboard
+    does not exist or an id is malformed; raises ``UnknownSectionError`` when
+    the section is not on this dashboard.
     """
     target = _parse_uuid(dashboard_id)
     if target is None:
@@ -144,6 +203,11 @@ async def add_widget(
         insight_uuid = _parse_uuid(insight_id)
         if insight_uuid is None:
             return None
+    section_uuid = None
+    if section_id is not None:
+        section_uuid = _parse_uuid(section_id)
+        if section_uuid is None:
+            raise UnknownSectionError(str(dashboard_id), str(section_id))
 
     async with get_session_from_pool() as session:
         exists = await session.scalar(
@@ -152,13 +216,13 @@ async def add_widget(
         if exists is None:
             return None
 
+        if section_uuid is not None and not await _section_belongs_to(
+            session, target, section_uuid
+        ):
+            raise UnknownSectionError(str(target), str(section_id))
+
         if position is None:
-            max_position = await session.scalar(
-                select(func.max(DashboardWidgetOrm.position)).where(
-                    DashboardWidgetOrm.dashboard_id == target
-                )
-            )
-            position = 0 if max_position is None else max_position + 1
+            position = await _next_position(session, target, section_uuid)
 
         widget = DashboardWidgetOrm(
             dashboard_id=target,
@@ -166,6 +230,7 @@ async def add_widget(
             insight_id=insight_uuid,
             config=relativize_widget_config(config) or {},
             position=position,
+            section_id=section_uuid,
         )
         session.add(widget)
         try:
@@ -189,6 +254,7 @@ async def add_widget(
         widget_id=widget_id,
         widget_type=widget_type,
         insight_id=insight_id,
+        section_id=section_id,
     )
     return widget_id
 
@@ -198,8 +264,17 @@ async def update_widget(
     *,
     position: Optional[int] = None,
     config: Optional[dict] = None,
+    section_id=UNSET,
 ) -> bool:
-    """Reorder a widget and/or replace its presentation config."""
+    """Reorder a widget, move it between sections, and/or replace its config.
+
+    ``section_id`` is three-valued: omit it to leave the grouping alone, pass
+    a section id to move the widget into that section, or pass None to move
+    it back to the ungrouped top level. Moving without an explicit
+    ``position`` appends the widget to the end of its new container. Raises
+    ``UnknownSectionError`` when the section is not on the widget's own
+    dashboard.
+    """
     target = _parse_uuid(widget_id)
     if target is None:
         return False
@@ -207,6 +282,24 @@ async def update_widget(
         widget = await session.get(DashboardWidgetOrm, target)
         if widget is None:
             return False
+
+        if not isinstance(section_id, _Unset):
+            section_uuid = None
+            if section_id is not None:
+                section_uuid = _parse_uuid(section_id)
+                if section_uuid is None or not await _section_belongs_to(
+                    session, widget.dashboard_id, section_uuid
+                ):
+                    raise UnknownSectionError(
+                        str(widget.dashboard_id), str(section_id)
+                    )
+            if section_uuid != widget.section_id:
+                widget.section_id = section_uuid
+                if position is None:
+                    position = await _next_position(
+                        session, widget.dashboard_id, section_uuid
+                    )
+
         if position is not None:
             widget.position = position
         if config is not None:
@@ -231,6 +324,163 @@ async def remove_widget(widget_id) -> bool:
 
     logger.info("dashboard_widget_removed", widget_id=str(target))
     return True
+
+
+async def add_section(
+    dashboard_id,
+    *,
+    title: str,
+    description: Optional[str] = None,
+    position: Optional[int] = None,
+) -> Optional[str]:
+    """Append a section to a dashboard; return the new section id (str).
+
+    Position defaults to max+1 (last section on the dashboard). Returns None
+    if the dashboard does not exist or the id is malformed.
+    """
+    target = _parse_uuid(dashboard_id)
+    if target is None:
+        return None
+    async with get_session_from_pool() as session:
+        exists = await session.scalar(
+            select(DashboardOrm.id).where(DashboardOrm.id == target)
+        )
+        if exists is None:
+            return None
+
+        if position is None:
+            max_position = await session.scalar(
+                select(func.max(DashboardSectionOrm.position)).where(
+                    DashboardSectionOrm.dashboard_id == target
+                )
+            )
+            position = 0 if max_position is None else max_position + 1
+
+        section = DashboardSectionOrm(
+            dashboard_id=target,
+            title=title,
+            description=description,
+            position=position,
+        )
+        session.add(section)
+        await session.commit()
+        section_id = str(section.id)
+
+    logger.info(
+        "dashboard_section_added",
+        dashboard_id=str(target),
+        section_id=section_id,
+        title=title,
+    )
+    return section_id
+
+
+async def get_section(section_id) -> Optional[DashboardSectionOrm]:
+    """Load a single section by id; the caller applies access checks via the
+    owning dashboard. Malformed ids are not-found (None), never an error."""
+    target = _parse_uuid(section_id)
+    if target is None:
+        return None
+    async with get_session_from_pool() as session:
+        return await session.get(DashboardSectionOrm, target)
+
+
+async def update_section(
+    section_id,
+    *,
+    title: Optional[str] = None,
+    description=UNSET,
+    position: Optional[int] = None,
+) -> bool:
+    """Retitle a section, restate its intent and/or reorder it.
+
+    ``description`` is three-valued like ``update_widget``'s ``section_id``:
+    omit it to leave the text alone, pass None to clear it.
+    """
+    target = _parse_uuid(section_id)
+    if target is None:
+        return False
+    async with get_session_from_pool() as session:
+        section = await session.get(DashboardSectionOrm, target)
+        if section is None:
+            return False
+        if title is not None:
+            section.title = title
+        if not isinstance(description, _Unset):
+            section.description = description
+        if position is not None:
+            section.position = position
+        await session.commit()
+
+    logger.info("dashboard_section_updated", section_id=str(target))
+    return True
+
+
+async def remove_section(section_id, *, delete_widgets: bool = False) -> bool:
+    """Delete a section. By default its widgets survive, ungrouped.
+
+    ``delete_widgets=True`` removes the section's widgets with it — the
+    destructive variant, requested explicitly by the caller. Insights the
+    deleted widgets referenced are left intact, as with ``remove_widget``.
+    """
+    target = _parse_uuid(section_id)
+    if target is None:
+        return False
+    async with get_session_from_pool() as session:
+        section = await session.get(DashboardSectionOrm, target)
+        if section is None:
+            return False
+
+        if delete_widgets:
+            result = await session.execute(
+                delete(DashboardWidgetOrm).where(
+                    DashboardWidgetOrm.section_id == target
+                )
+            )
+            affected = result.rowcount or 0
+        else:
+            affected = await _ungroup_widgets(
+                session, section.dashboard_id, target
+            )
+
+        await session.delete(section)
+        await session.commit()
+
+    logger.info(
+        "dashboard_section_removed",
+        section_id=str(target),
+        delete_widgets=delete_widgets,
+        widgets_affected=affected,
+    )
+    return True
+
+
+async def _ungroup_widgets(session, dashboard_id, section_id) -> int:
+    """Move a section's widgets to the ungrouped top level; return the count.
+
+    Positions are container-scoped, so the orphans cannot keep the numbers
+    they had inside the section — those collide with the top level's. They
+    are renumbered as a block after the current last top-level widget, which
+    preserves their order relative to each other and to what is already
+    there. Done explicitly rather than by the ON DELETE SET NULL, so widgets
+    already loaded in this session see the same state as the DB.
+    """
+    result = await session.execute(
+        select(DashboardWidgetOrm)
+        .where(DashboardWidgetOrm.section_id == section_id)
+        .order_by(DashboardWidgetOrm.position)
+    )
+    orphans = list(result.scalars())
+    if not orphans:
+        return 0
+
+    position = await _next_position(session, dashboard_id, None)
+    for widget in orphans:
+        widget.section_id = None
+        widget.position = position
+        position += 1
+    await session.flush()
+    return len(orphans)
 
 
 async def update_dashboard(
@@ -267,6 +517,7 @@ async def delete_dashboard(dashboard_id) -> bool:
             select(DashboardOrm)
             .options(
                 selectinload(DashboardOrm.aois),
+                selectinload(DashboardOrm.sections),
                 selectinload(DashboardOrm.widgets),
             )
             .where(DashboardOrm.id == target)
@@ -274,6 +525,8 @@ async def delete_dashboard(dashboard_id) -> bool:
         dashboard = result.scalar_one_or_none()
         if dashboard is None:
             return False
+        # The cascade deletes widgets before sections (SQLAlchemy follows the
+        # section_id FK), so the ON DELETE SET NULL never fires here.
         await session.delete(dashboard)
         await session.commit()
 

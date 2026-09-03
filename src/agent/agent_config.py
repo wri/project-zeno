@@ -49,13 +49,22 @@ from src.agent.subagents.pick_aoi.tool import SPEC as pick_aoi_spec
 from src.agent.subagents.pick_dataset.tool import SPEC as pick_dataset_spec
 from src.agent.subagents.search.blog import SPEC as search_blogs_spec
 from src.agent.tool_spec import Availability, ToolCategory, ToolSpec
+from src.agent.tools.add_dashboard_section import (
+    SPEC as add_dashboard_section_spec,
+)
 from src.agent.tools.add_map_widget import SPEC as add_map_widget_spec
 from src.agent.tools.add_text_widget import SPEC as add_text_widget_spec
 from src.agent.tools.add_to_dashboard import SPEC as add_to_dashboard_spec
 from src.agent.tools.create_dashboard import SPEC as create_dashboard_spec
+from src.agent.tools.edit_dashboard_section import (
+    SPEC as edit_dashboard_section_spec,
+)
 from src.agent.tools.edit_text_widget import SPEC as edit_text_widget_spec
 from src.agent.tools.inspect_view_context import (
     SPEC as inspect_view_context_spec,
+)
+from src.agent.tools.move_dashboard_widget import (
+    SPEC as move_dashboard_widget_spec,
 )
 from src.agent.tools.pull_data import SPEC as pull_data_spec
 from src.agent.tools.search_insights import SPEC as search_insights_spec
@@ -91,6 +100,9 @@ ALL_SPECS = (
     add_map_widget_spec,
     add_text_widget_spec,
     edit_text_widget_spec,
+    add_dashboard_section_spec,
+    edit_dashboard_section_spec,
+    move_dashboard_widget_spec,
     send_nudge_spec,
 )
 _SPEC_BY_NAME = {s.tool.name: s for s in ALL_SPECS}
@@ -120,22 +132,17 @@ DEFAULT_SKILLS = (
 # profile omits them (see EXPERIMENTAL_PROFILE below).
 DEFAULT_EXCLUDED_DATASETS = frozenset({"Land GHG Monitoring System (LGMS)"})
 
-# Experimental profile including tools and skills we want internal feedback on
-# before releasing to the public
+# Skills and tools we want internal feedback on before releasing to the
+# public. Both tuples hold only the experimental *additions*; the profile
+# composes them onto the core sets below (DEFAULT_SKILLS + EXPERIMENTAL_SKILLS,
+# CORE_TOOLS + EXPERIMENTAL_TOOLS), so anything added to the default surface
+# reaches this profile too. `inspect_view_context` is not listed here — the
+# `dashboard` skill took it into its `requires:` (reading a dashboard's
+# sections and widget ids is part of that workflow, not a standalone
+# debugging aid).
 EXPERIMENTAL_PROFILE = "experimental"
-EXPERIMENTAL_SKILLS = (
-    "analyze",
-    "pull-data",
-    "capabilities",
-    "show-imagery-planet",
-    "wri-insights",
-    "dashboard",
-    "explore",
-)
-EXPERIMENTAL_TOOLS = (
-    inspect_view_context_spec,
-    update_insight_display_spec,
-)
+EXPERIMENTAL_SKILLS = ("show-imagery-planet",)
+EXPERIMENTAL_TOOLS = (update_insight_display_spec,)
 
 
 @dataclass(frozen=True)
@@ -374,7 +381,7 @@ default_registry.register(
 default_registry.register(
     AgentConfig(
         EXPERIMENTAL_PROFILE,
-        skills=EXPERIMENTAL_SKILLS,
+        skills=DEFAULT_SKILLS + EXPERIMENTAL_SKILLS,
         tools=CORE_TOOLS + EXPERIMENTAL_TOOLS,
         # Excludes are per-profile (not inherited), so an empty set here
         # reveals the datasets that `default` hides.

@@ -4,7 +4,9 @@ A dashboard is a persistent, curated collection of insights, layers and AOIs.
 Widgets reference insights (payloads are expanded on the single-dashboard
 endpoint so the frontend renders them like insights); AOIs are stored as
 canonical (source, src_id, subtype) references plus a display name, never
-geometry. Same access rules as insights (own + public read, owner-only edit,
+geometry. Widgets optionally belong to a section — one level of grouping,
+with the ungrouped widgets rendering above the first section.
+Same access rules as insights (own + public read, owner-only edit,
 admin/superuser override, 404 for not-found *and* not-owned), with one twist:
 publishing a dashboard cascades ``is_public=True`` to its referenced insights,
 otherwise a public dashboard renders empty for viewers.
@@ -13,7 +15,7 @@ otherwise a public dashboard renders empty for viewers.
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -33,6 +35,9 @@ from src.api.schemas import (
     DashboardPublicToggleRequest,
     DashboardPublicToggleResponse,
     DashboardResponse,
+    DashboardSectionCreateRequest,
+    DashboardSectionResponse,
+    DashboardSectionUpdateRequest,
     DashboardUpdateRequest,
     DashboardWidgetCreateRequest,
     DashboardWidgetResponse,
@@ -59,7 +64,7 @@ def _row_to_response(
     row: DashboardOrm,
     insights_by_id: Optional[dict] = None,
 ) -> DashboardResponse:
-    """Map a dashboard row (with aois + widgets loaded) to the response.
+    """Map a dashboard row (aois + sections + widgets loaded) to the response.
 
     ``insights_by_id`` carries the pre-loaded insight rows the viewer may see;
     widgets referencing anything else keep ``insight=None``.
@@ -76,10 +81,15 @@ def _row_to_response(
         aois=[
             DashboardAoiResponse.model_validate(aoi) for aoi in row.aois or []
         ],
+        sections=[
+            DashboardSectionResponse.model_validate(section)
+            for section in row.sections or []
+        ],
         widgets=[
             DashboardWidgetResponse(
                 id=widget.id,
                 position=widget.position,
+                section_id=widget.section_id,
                 widget_type=widget.widget_type,
                 insight_id=widget.insight_id,
                 config=absolutize_widget_config(widget.config) or {},
@@ -143,6 +153,7 @@ async def list_dashboards(
         select(DashboardOrm)
         .options(
             selectinload(DashboardOrm.aois),
+            selectinload(DashboardOrm.sections),
             selectinload(DashboardOrm.widgets),
         )
         .where(DashboardOrm.user_id == user.id)
@@ -242,6 +253,93 @@ async def toggle_dashboard_public(
 
 
 @router.post(
+    "/api/dashboards/{dashboard_id}/sections",
+    response_model=DashboardResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_section(
+    dashboard_id: UUID,
+    body: DashboardSectionCreateRequest,
+    user: UserModel = Depends(require_auth),
+):
+    """Add a section to a dashboard (owner only).
+
+    Sections group widgets under a heading; a widget joins one by carrying
+    its ``section_id``. The section starts empty.
+    """
+    await _get_owned_dashboard(dashboard_id, user)
+    await dashboard_writer.add_section(
+        dashboard_id,
+        title=body.title,
+        description=body.description,
+        position=body.position,
+    )
+    return _row_to_response(await _refetch_dashboard(dashboard_id))
+
+
+@router.patch(
+    "/api/dashboards/{dashboard_id}/sections/{section_id}",
+    response_model=DashboardResponse,
+)
+async def update_section(
+    dashboard_id: UUID,
+    section_id: UUID,
+    body: DashboardSectionUpdateRequest,
+    user: UserModel = Depends(require_auth),
+):
+    """Retitle, restate or reorder a section (owner only).
+
+    An explicit null ``description`` clears it; omitting the field leaves
+    the existing text alone.
+    """
+    row = await _get_owned_dashboard(dashboard_id, user)
+    if section_id not in {s.id for s in row.sections}:
+        raise HTTPException(status_code=404, detail="Section not found")
+    description: object = dashboard_writer.UNSET
+    if "description" in body.model_fields_set:
+        description = body.description
+    await dashboard_writer.update_section(
+        section_id,
+        title=body.title,
+        description=description,
+        position=body.position,
+    )
+    return _row_to_response(await _refetch_dashboard(dashboard_id))
+
+
+@router.delete(
+    "/api/dashboards/{dashboard_id}/sections/{section_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_section(
+    dashboard_id: UUID,
+    section_id: UUID,
+    delete_widgets: bool = Query(
+        False,
+        description=(
+            "Also delete the widgets in the section. Off by default: the "
+            "widgets survive and fall back to the ungrouped top level. "
+            "Insights the deleted widgets referenced are left intact."
+        ),
+    ),
+    user: UserModel = Depends(require_auth),
+):
+    """Delete a section (owner only).
+
+    By default this is a grouping change, not a content deletion: the
+    section's widgets stay on the dashboard and fall back to the ungrouped
+    top level, renumbered after the widgets already there. Pass
+    ``delete_widgets=true`` to remove them with the section.
+    """
+    row = await _get_owned_dashboard(dashboard_id, user)
+    if section_id not in {s.id for s in row.sections}:
+        raise HTTPException(status_code=404, detail="Section not found")
+    await dashboard_writer.remove_section(
+        section_id, delete_widgets=delete_widgets
+    )
+
+
+@router.post(
     "/api/dashboards/{dashboard_id}/widgets",
     response_model=DashboardResponse,
     status_code=status.HTTP_201_CREATED,
@@ -279,12 +377,15 @@ async def add_widget(
             insight_id=str(body.insight_id) if body.insight_id else None,
             config=body.config,
             position=body.position,
+            section_id=str(body.section_id) if body.section_id else None,
         )
     except dashboard_writer.DuplicateInsightWidgetError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="insight is already on this dashboard",
         )
+    except dashboard_writer.UnknownSectionError:
+        raise HTTPException(status_code=404, detail="Section not found")
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
 
@@ -298,13 +399,28 @@ async def update_widget(
     body: DashboardWidgetUpdateRequest,
     user: UserModel = Depends(require_auth),
 ):
-    """Reorder a widget or update its presentation config (owner only)."""
+    """Reorder a widget, move it between sections, or update its
+    presentation config (owner only).
+
+    ``section_id`` is three-valued: omitted leaves the grouping alone, a
+    section id moves the widget into that section, an explicit null moves it
+    back to the ungrouped top level.
+    """
     row = await _get_owned_dashboard(dashboard_id, user)
     if widget_id not in {w.id for w in row.widgets}:
         raise HTTPException(status_code=404, detail="Widget not found")
-    await dashboard_writer.update_widget(
-        widget_id, position=body.position, config=body.config
-    )
+    section_id: object = dashboard_writer.UNSET
+    if "section_id" in body.model_fields_set:
+        section_id = str(body.section_id) if body.section_id else None
+    try:
+        await dashboard_writer.update_widget(
+            widget_id,
+            position=body.position,
+            config=body.config,
+            section_id=section_id,
+        )
+    except dashboard_writer.UnknownSectionError:
+        raise HTTPException(status_code=404, detail="Section not found")
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
 

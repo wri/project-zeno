@@ -17,6 +17,7 @@ from src.agent.tools.add_to_dashboard import add_to_dashboard
 from src.api.data_models import (
     DashboardAoiOrm,
     DashboardOrm,
+    DashboardSectionOrm,
     DashboardWidgetOrm,
     InsightOrm,
 )
@@ -432,3 +433,228 @@ async def test_deleting_insight_cascades_widget_removal(user):
     # CASCADE); the dashboard and its other widgets survive.
     assert await _widget_ids(dashboard_id) == [UUID(keeper)]
     assert await dashboard_writer.get_dashboard(dashboard_id) is not None
+
+
+async def test_section_lifecycle(user):
+    """Create, reorder, retitle and delete a section; widgets survive."""
+    dashboard_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Paraná", aois=[PARANA]
+    )
+
+    trees = await dashboard_writer.add_section(dashboard_id, title="Trees")
+    fires = await dashboard_writer.add_section(
+        dashboard_id, title="Fires", description="Burned area over time."
+    )
+
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    assert [(s.title, s.position) for s in row.sections] == [
+        ("Trees", 0),
+        ("Fires", 1),
+    ]
+    assert row.sections[1].description == "Burned area over time."
+
+    # Retitle; an omitted description leaves the text alone.
+    assert (
+        await dashboard_writer.update_section(trees, title="Deforestation")
+        is True
+    )
+    # Reorder: positions are caller-assigned, so swap both to avoid a tie.
+    assert await dashboard_writer.update_section(fires, position=0) is True
+    assert await dashboard_writer.update_section(trees, position=1) is True
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    assert [s.title for s in row.sections] == ["Fires", "Deforestation"]
+    assert row.sections[0].description == "Burned area over time."
+
+    # An explicit None clears the description.
+    await dashboard_writer.update_section(fires, description=None)
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    assert row.sections[0].description is None
+
+    # Missing / malformed ids are not-found, not errors.
+    assert await dashboard_writer.update_section("not-a-uuid") is False
+    assert await dashboard_writer.remove_section(str(uuid4())) is False
+    assert await dashboard_writer.add_section(str(uuid4()), title="X") is None
+
+
+async def test_widget_section_placement_and_moves(user):
+    dashboard_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Paraná", aois=[PARANA]
+    )
+    section = await dashboard_writer.add_section(
+        dashboard_id, title="Deforestation"
+    )
+
+    # Positions count from zero within each container.
+    top = await dashboard_writer.add_widget(
+        dashboard_id, widget_type="text", config={"text": "intro"}
+    )
+    grouped = await dashboard_writer.add_widget(
+        dashboard_id,
+        widget_type="text",
+        config={"text": "note"},
+        section_id=section,
+    )
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    by_id = {str(w.id): w for w in row.widgets}
+    assert (by_id[top].section_id, by_id[top].position) == (None, 0)
+    assert (
+        str(by_id[grouped].section_id),
+        by_id[grouped].position,
+    ) == (section, 0)
+
+    # Moving without a position appends to the end of the new container.
+    assert (
+        await dashboard_writer.update_widget(top, section_id=section) is True
+    )
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    by_id = {str(w.id): w for w in row.widgets}
+    assert str(by_id[top].section_id) == section
+    assert by_id[top].position == 1
+
+    # An omitted section_id leaves the grouping alone.
+    await dashboard_writer.update_widget(top, config={"text": "changed"})
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    assert str({str(w.id): w for w in row.widgets}[top].section_id) == section
+
+    # An explicit None moves it back to the top level.
+    await dashboard_writer.update_widget(top, section_id=None)
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    assert {str(w.id): w for w in row.widgets}[top].section_id is None
+
+
+async def test_widget_rejects_a_section_from_another_dashboard(user):
+    dashboard_a = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="A", aois=[PARANA]
+    )
+    dashboard_b = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="B", aois=[BRAZIL]
+    )
+    section_b = await dashboard_writer.add_section(dashboard_b, title="Fires")
+
+    with pytest.raises(dashboard_writer.UnknownSectionError):
+        await dashboard_writer.add_widget(
+            dashboard_a,
+            widget_type="text",
+            config={"text": "note"},
+            section_id=section_b,
+        )
+    with pytest.raises(dashboard_writer.UnknownSectionError):
+        await dashboard_writer.add_widget(
+            dashboard_a,
+            widget_type="text",
+            config={"text": "note"},
+            section_id="not-a-uuid",
+        )
+
+    widget = await dashboard_writer.add_widget(
+        dashboard_a, widget_type="text", config={"text": "note"}
+    )
+    with pytest.raises(dashboard_writer.UnknownSectionError):
+        await dashboard_writer.update_widget(widget, section_id=section_b)
+
+
+async def test_remove_section_renumbers_the_widgets_it_ungroups(user):
+    """Container-scoped positions cannot collide after a section is removed."""
+    dashboard_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Paraná", aois=[PARANA]
+    )
+    section = await dashboard_writer.add_section(
+        dashboard_id, title="Deforestation"
+    )
+    note = {"widget_type": "text"}
+    top_a = await dashboard_writer.add_widget(
+        dashboard_id, config={"text": "top a"}, **note
+    )
+    top_b = await dashboard_writer.add_widget(
+        dashboard_id, config={"text": "top b"}, **note
+    )
+    # Both start at 0 and 1 inside the section — the same numbers as above.
+    inner_a = await dashboard_writer.add_widget(
+        dashboard_id, config={"text": "inner a"}, section_id=section, **note
+    )
+    inner_b = await dashboard_writer.add_widget(
+        dashboard_id, config={"text": "inner b"}, section_id=section, **note
+    )
+
+    assert await dashboard_writer.remove_section(section) is True
+
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    assert all(w.section_id is None for w in row.widgets)
+    # The orphans land as a block after the existing top-level widgets,
+    # keeping their order; no position is used twice.
+    positions = {str(w.id): w.position for w in row.widgets}
+    assert positions == {top_a: 0, top_b: 1, inner_a: 2, inner_b: 3}
+
+
+async def test_remove_section_can_delete_its_widgets(user):
+    dashboard_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Paraná", aois=[PARANA]
+    )
+    section = await dashboard_writer.add_section(
+        dashboard_id, title="Deforestation"
+    )
+    insight_id = await _insert_insight(user_id=user.id)
+    kept = await dashboard_writer.add_widget(
+        dashboard_id, widget_type="text", config={"text": "top"}
+    )
+    await dashboard_writer.add_widget(
+        dashboard_id,
+        widget_type="insight",
+        insight_id=str(insight_id),
+        section_id=section,
+    )
+
+    assert (
+        await dashboard_writer.remove_section(section, delete_widgets=True)
+        is True
+    )
+
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    assert row.sections == []
+    assert [str(w.id) for w in row.widgets] == [kept]
+    # The insight the deleted widget referenced survives.
+    async with async_session_maker() as session:
+        assert await session.get(InsightOrm, insight_id) is not None
+
+
+async def test_remove_section_ungroups_its_widgets(user):
+    dashboard_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Paraná", aois=[PARANA]
+    )
+    section = await dashboard_writer.add_section(
+        dashboard_id, title="Deforestation"
+    )
+    widget = await dashboard_writer.add_widget(
+        dashboard_id,
+        widget_type="text",
+        config={"text": "note"},
+        section_id=section,
+    )
+
+    assert await dashboard_writer.remove_section(section) is True
+
+    row = await dashboard_writer.get_dashboard(dashboard_id)
+    assert row.sections == []
+    (kept,) = row.widgets
+    assert str(kept.id) == widget
+    assert kept.section_id is None
+    assert kept.config == {"text": "note"}
+
+
+async def test_delete_dashboard_removes_sections(user):
+    dashboard_id = await dashboard_writer.create_dashboard(
+        user_id=user.id, name="Paraná", aois=[PARANA]
+    )
+    section = await dashboard_writer.add_section(
+        dashboard_id, title="Deforestation"
+    )
+    await dashboard_writer.add_widget(
+        dashboard_id,
+        widget_type="text",
+        config={"text": "note"},
+        section_id=section,
+    )
+
+    assert await dashboard_writer.delete_dashboard(dashboard_id) is True
+    async with async_session_maker() as session:
+        assert await session.get(DashboardSectionOrm, UUID(section)) is None
