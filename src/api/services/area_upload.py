@@ -24,6 +24,10 @@ from shapely.geometry import mapping
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_FEATURES = 500
 
+# csv defaults to a 131072-char field, which one WKT polygon of a few thousand
+# vertices exceeds. Raise it to the upload cap, so file size is the only limit.
+csv.field_size_limit(MAX_UPLOAD_BYTES)
+
 _AREAL_TYPES = ("Polygon", "MultiPolygon")
 
 
@@ -100,37 +104,42 @@ def parse_csv(data: bytes) -> list[ParsedFeature]:
 
     features: list[ParsedFeature] = []
     errors: list[str] = []
-    for index, row in enumerate(reader, start=1):
-        if index > MAX_FEATURES:
-            raise UploadValidationError(
-                [f"too many rows; the limit is {MAX_FEATURES}"]
+    index = 0
+    try:
+        for index, row in enumerate(reader, start=1):
+            if index > MAX_FEATURES:
+                errors.append(f"too many rows; the limit is {MAX_FEATURES}")
+                break
+            name = (row.get(name_col) or "").strip()
+            if not name:
+                errors.append(f"row {index}: name is empty")
+            geom = None
+            wkt_value = (row.get(geom_col) or "").strip()
+            if not wkt_value:
+                errors.append(f"row {index}: geom is empty")
+            else:
+                try:
+                    geom = _validate_geometry(wkt_value)
+                except ValueError as exc:
+                    errors.append(f"row {index}: {exc}")
+            if errors or geom is None:
+                continue
+            properties = {
+                k: v
+                for k, v in row.items()
+                if k is not None and k not in (name_col, geom_col)
+            }
+            features.append(
+                ParsedFeature(
+                    name=name,
+                    geometry=json.dumps(mapping(geom)),
+                    properties=properties or None,
+                )
             )
-        name = (row.get(name_col) or "").strip()
-        if not name:
-            errors.append(f"row {index}: name is empty")
-        geom = None
-        wkt_value = (row.get(geom_col) or "").strip()
-        if not wkt_value:
-            errors.append(f"row {index}: geom is empty")
-        else:
-            try:
-                geom = _validate_geometry(wkt_value)
-            except ValueError as exc:
-                errors.append(f"row {index}: {exc}")
-        if errors or geom is None:
-            continue
-        properties = {
-            k: v
-            for k, v in row.items()
-            if k is not None and k not in (name_col, geom_col)
-        }
-        features.append(
-            ParsedFeature(
-                name=name,
-                geometry=json.dumps(mapping(geom)),
-                properties=properties or None,
-            )
-        )
+    except csv.Error as exc:
+        # csv.Error is not a ValueError, so an unhandled one would escape the
+        # router's UploadValidationError handler as a 500.
+        errors.append(f"row {index + 1}: could not read the row ({exc})")
 
     if errors:
         raise UploadValidationError(errors)

@@ -7,6 +7,7 @@ mirror into ``aois``, search through ``GET /api/aois``, and owner scoping.
 
 import csv
 import io
+import math
 
 import pytest
 from sqlalchemy import text
@@ -18,6 +19,22 @@ AUTH = {"Authorization": "Bearer abc123"}
 
 _SQUARE = "POLYGON ((30 10, 30 11, 31 11, 31 10, 30 10))"
 _MULTI = "MULTIPOLYGON (((5 5, 5 6, 6 6, 6 5, 5 5)))"
+
+
+def _dense_ring_wkt(vertices=8000):
+    """A circle whose WKT is longer than csv's default field limit.
+
+    An administrative boundary of a few thousand vertices is ordinary, and its
+    WKT runs past the 131072-char default that ``parse_csv`` has to raise.
+    """
+    step = 2 * math.pi / vertices
+    points = [
+        f"{30 + 0.5 * math.cos(i * step):.10f} "
+        f"{10 + 0.5 * math.sin(i * step):.10f}"
+        for i in range(vertices)
+    ]
+    points.append(points[0])
+    return f"POLYGON (({', '.join(points)}))"
 
 
 def _csv(rows, header=("name", "geom")):
@@ -217,6 +234,50 @@ async def test_upload_too_many_rows(auth_override, client):
     res = await _upload(client, _csv(rows))
     assert res.status_code == 422
     assert "limit is" in res.json()["detail"]["errors"][0]
+    assert await _counts() == (0, 0)
+
+
+@pytest.mark.asyncio
+async def test_upload_too_many_rows_keeps_the_row_errors(
+    auth_override, client
+):
+    """The row cap does not swallow the errors already collected."""
+    auth_override("test-user-wri")
+    rows = [("Bad WKT", "POLYGON((oops")] + [
+        (f"Area {i}", _SQUARE) for i in range(MAX_FEATURES)
+    ]
+    res = await _upload(client, _csv(rows))
+    assert res.status_code == 422
+    errors = res.json()["detail"]["errors"]
+    assert errors[0].startswith("row 1: invalid WKT")
+    assert errors[-1] == f"too many rows; the limit is {MAX_FEATURES}"
+    assert await _counts() == (0, 0)
+
+
+@pytest.mark.asyncio
+async def test_upload_accepts_wkt_past_the_csv_field_default(
+    auth_override, client
+):
+    """A dense boundary is accepted; only the file size caps a field."""
+    auth_override("test-user-wri")
+    wkt = _dense_ring_wkt()
+    assert len(wkt) > 131072
+    res = await _upload(client, _csv([("Dense Ring", wkt)]))
+    assert res.status_code == 200, res.text
+    assert await _counts() == (1, 1)
+
+
+@pytest.mark.asyncio
+async def test_upload_csv_read_failure_is_a_422(auth_override, client):
+    """A csv-level read failure is reported, not raised as a 500."""
+    auth_override("test-user-wri")
+    previous = csv.field_size_limit(10)
+    try:
+        res = await _upload(client, _csv([("Area", _SQUARE)]))
+    finally:
+        csv.field_size_limit(previous)
+    assert res.status_code == 422
+    assert "could not read the row" in res.json()["detail"]["errors"][0]
     assert await _counts() == (0, 0)
 
 
