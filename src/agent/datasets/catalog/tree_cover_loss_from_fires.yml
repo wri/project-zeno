@@ -63,8 +63,12 @@ code_instructions: 'CHART TYPE: If the data covers a single area of interest and
 presentation_instructions: 'Use "tree cover loss" rather than "deforestation" only when neither primary nor intact forest
   is applied as a context layer. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
   used (30%). Do not mention or report carbon emissions for this dataset. If trend spans 2001-2025, note the methodology
-  change after 2010. If a context layer is applied, prefer referencing the data concisely like "primary forest loss" or
-  "intact forest loss". CHART TITLE: should reflect that the chart shows total tree cover loss split by fires vs. other causes.
+  change after 2010. If the primary_forest context layer is applied, prefer the concise "primary forest loss". If the
+  intact_forest context layer is applied, do NOT use "intact forest loss" or any wording that reads as intact forest being
+  lost: this dataset measures tree cover loss occurring *inside* intact forest landscapes, which is a different quantity from
+  the reduction in IFL extent that the IFL dataset itself publishes. Say "tree cover loss in intact forest" or "tree cover
+  loss within intact forest landscapes". This applies to chart titles, axis labels and prose alike, and holds just as much when the
+  phrase qualifies a different metric. The words "intact forest loss" must not appear anywhere in the output. CHART TITLE: should reflect that the chart shows total tree cover loss split by fires vs. other causes.
 
   '
 description: 'Tree Cover Loss From Fires (Hansen/UMD/GLAD) measures areas of tree cover loss due to fire compared to all other drivers across all global land (except Antarctica and other Arctic islands) at approximately 30 × 30-meter resolution.
