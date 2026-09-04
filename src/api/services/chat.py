@@ -296,6 +296,9 @@ async def generate_thread_name(query: str) -> str:
 
         RULES:
         - Never include any dates in the name, the user might ask for a date range that is not available.
+        - Never write "intact forest loss". Tree cover loss inside intact forest landscapes is a different
+          measurement from the reduction in intact forest extent, and that wording conflates the two. Use
+          "tree cover loss in intact forest" instead.
         """
         response = await SMALL_MODEL.with_structured_output(
             ThreadNameOutput
