@@ -301,8 +301,12 @@ async def test_upload_rejects_oversize_file(auth_override, client):
 # ---------------------------------------------------------------------------
 
 
-def _shapefile_zip(gdf, drop_prj=False):
-    """Write *gdf* to a shapefile in a temp dir and zip every sidecar file."""
+def _shapefile_zip(gdf, drop_prj=False, prj_text=None):
+    """Write *gdf* to a shapefile in a temp dir and zip every sidecar file.
+
+    *prj_text* replaces the generated ``.prj``, which is how a file with a CRS
+    that cannot be reprojected is built.
+    """
     import os
     import tempfile
     import zipfile
@@ -312,10 +316,20 @@ def _shapefile_zip(gdf, drop_prj=False):
         gdf.to_file(os.path.join(tmpdir, "areas.shp"))
         if drop_prj:
             os.remove(os.path.join(tmpdir, "areas.prj"))
+        elif prj_text is not None:
+            with open(os.path.join(tmpdir, "areas.prj"), "w") as handle:
+                handle.write(prj_text)
         with zipfile.ZipFile(buf, "w") as archive:
             for entry in sorted(os.listdir(tmpdir)):
                 archive.write(os.path.join(tmpdir, entry), entry)
     return buf.getvalue()
+
+
+# An engineering CRS: pyproj reads it, but it has no path to WGS84.
+_LOCAL_CRS_PRJ = (
+    'LOCAL_CS["Engineering CRS",LOCAL_DATUM["Local Datum",0],'
+    'UNIT["metre",1.0],AXIS["X",EAST],AXIS["Y",NORTH]]'
+)
 
 
 def _square(minx, miny):
@@ -425,6 +439,55 @@ async def test_shapefile_projected_crs_is_reprojected(auth_override, client):
         )
     assert bbox[0] == pytest.approx(30, abs=1e-6)
     assert bbox[1] == pytest.approx(10, abs=1e-6)
+
+
+@pytest.mark.asyncio
+async def test_shapefile_unprojectable_crs_is_a_422(auth_override, client):
+    """A CRS with no path to WGS84 is reported, not raised as a 500."""
+    import geopandas as gpd
+
+    auth_override("test-user-wri")
+    gdf = gpd.GeoDataFrame(
+        {"name": ["Local"], "geometry": [_square(30, 10)]},
+        crs="EPSG:4326",
+    )
+
+    res = await _upload_zip(
+        client, _shapefile_zip(gdf, prj_text=_LOCAL_CRS_PRJ)
+    )
+    assert res.status_code == 422
+    assert "could not reproject" in res.json()["detail"]["errors"][0]
+    assert await _counts() == (0, 0)
+
+
+@pytest.mark.asyncio
+async def test_shapefile_zip_expansion_capped(
+    auth_override, client, monkeypatch
+):
+    """A zip is rejected on its uncompressed size, before GDAL reads it."""
+    import geopandas as gpd
+
+    from src.api.services import area_upload
+
+    auth_override("test-user-wri")
+    monkeypatch.setattr(area_upload, "MAX_UNCOMPRESSED_BYTES", 64)
+    gdf = gpd.GeoDataFrame(
+        {"name": ["Shape"], "geometry": [_square(30, 10)]},
+        crs="EPSG:4326",
+    )
+
+    res = await _upload_zip(client, _shapefile_zip(gdf))
+    assert res.status_code == 422
+    assert "expand to" in res.json()["detail"]["errors"][0]
+    assert await _counts() == (0, 0)
+
+
+@pytest.mark.asyncio
+async def test_upload_zip_that_is_not_a_zip(auth_override, client):
+    auth_override("test-user-wri")
+    res = await _upload_zip(client, b"not a zip file at all")
+    assert res.status_code == 422
+    assert "could not read the zip file" in res.json()["detail"]["errors"][0]
 
 
 @pytest.mark.asyncio
