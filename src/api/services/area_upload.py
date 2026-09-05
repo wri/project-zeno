@@ -14,6 +14,7 @@ import io
 import json
 import os
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
@@ -23,6 +24,10 @@ from shapely.geometry import mapping
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_FEATURES = 500
+# A zip is read in full before the feature cap applies, so the compressed size
+# alone does not bound the work. 20x the upload cap leaves room for the sidecar
+# files, which compress well, without admitting a gigabyte expansion.
+MAX_UNCOMPRESSED_BYTES = 20 * MAX_UPLOAD_BYTES
 
 # csv defaults to a 131072-char field, which one WKT polygon of a few thousand
 # vertices exceeds. Raise it to the upload cap, so file size is the only limit.
@@ -164,6 +169,27 @@ def _to_jsonable(value):
     return str(value)
 
 
+def _check_uncompressed_size(data: bytes) -> None:
+    """Reject a zip whose members expand past ``MAX_UNCOMPRESSED_BYTES``.
+
+    This trusts the sizes in the zip's own headers, which a crafted archive can
+    understate. GDAL does the real decompression, so bounding it exactly would
+    mean decompressing twice; the header check stops an honest oversized file.
+    """
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            total = sum(info.file_size for info in archive.infolist())
+    except zipfile.BadZipFile as exc:
+        raise UploadValidationError([f"could not read the zip file: {exc}"])
+    if total > MAX_UNCOMPRESSED_BYTES:
+        raise UploadValidationError(
+            [
+                f"zip contents expand to {total // (1024 * 1024)} MB; "
+                f"the limit is {MAX_UNCOMPRESSED_BYTES // (1024 * 1024)} MB"
+            ]
+        )
+
+
 def parse_shapefile_zip(data: bytes) -> list[ParsedFeature]:
     """Parse a zipped-shapefile upload.
 
@@ -173,6 +199,8 @@ def parse_shapefile_zip(data: bytes) -> list[ParsedFeature]:
     properties, coerced to JSON. Row numbers in errors count features from 1.
     """
     import geopandas  # Deferred: keeps the API import path light.
+
+    _check_uncompressed_size(data)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         path = os.path.join(tmpdir, "upload.zip")
@@ -197,7 +225,14 @@ def parse_shapefile_zip(data: bytes) -> list[ParsedFeature]:
         raise UploadValidationError(
             [f"too many features; the limit is {MAX_FEATURES}"]
         )
-    gdf = gdf.to_crs(4326)
+    try:
+        gdf = gdf.to_crs(4326)
+    except Exception as exc:
+        # A local or engineering CRS, or a transform needing a PROJ grid that
+        # is not installed, raises out of pyproj rather than as a ValueError.
+        raise UploadValidationError(
+            [f"could not reproject the shapefile to WGS84: {exc}"]
+        )
     name_col = _require_column(
         [c for c in gdf.columns if c != "geometry"], "name"
     )
