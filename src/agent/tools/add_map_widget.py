@@ -44,22 +44,38 @@ logger = get_logger(__name__)
 def _dataset_config(state: dict) -> Optional[dict]:
     """Project the dataset in state onto the widget-config snapshot.
 
-    Returns None when no dataset is selected or it carries no tile URL
-    (nothing to render). Dates fall back to the top-level effective range
-    set by pull_data. The projection itself is shared with the dashboard
-    recipes (``src.api.services.widget_configs``), so a layer added from
-    chat and one added by a recipe render identically.
+    Returns None when there is nothing renderable to snapshot: no dataset
+    selected, or one missing any of the fields a ``DatasetLayer`` is made of
+    — the id, the name, the tile URL and the two dates. The dataset state
+    declares all but the name and the URL optional, and a widget written
+    with a null date renders a header reading "None–None". Dates fall back
+    to the top-level effective range set by pull_data.
+
+    The projection itself is shared with the dashboard recipes
+    (``src.api.services.widget_configs``), so a layer added from chat and
+    one added by a recipe render identically.
     """
     dataset = state.get("dataset") or {}
-    if not dataset.get("tile_url"):
+    dataset_id = dataset.get("dataset_id")
+    dataset_name = dataset.get("dataset_name")
+    tile_url = dataset.get("tile_url")
+    start_date = dataset.get("start_date") or state.get("start_date")
+    end_date = dataset.get("end_date") or state.get("end_date")
+    if (
+        dataset_id is None
+        or not dataset_name
+        or not tile_url
+        or not start_date
+        or not end_date
+    ):
         return None
     return dataset_snapshot(
         DatasetLayer(
-            dataset_id=dataset.get("dataset_id"),
-            dataset_name=dataset.get("dataset_name"),
-            tile_url=dataset["tile_url"],
-            start_date=dataset.get("start_date") or state.get("start_date"),
-            end_date=dataset.get("end_date") or state.get("end_date"),
+            dataset_id=dataset_id,
+            dataset_name=dataset_name,
+            tile_url=tile_url,
+            start_date=start_date,
+            end_date=end_date,
             context_layer=dataset.get("context_layer"),
             context_layers=dataset.get("context_layers") or [],
             parameters=dataset.get("parameters"),

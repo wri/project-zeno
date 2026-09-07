@@ -20,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.agent.language import DEFAULT_LANGUAGE
 from src.api.auth.dependencies import optional_auth, require_auth
 from src.api.data_models import DashboardOrm, InsightOrm, UserType
 from src.api.repositories import dashboard_writer
@@ -388,7 +389,7 @@ async def add_nrt_monitoring_section(
             max_cloud_cover=body.max_cloud_cover,
             title=body.title,
             description=body.description,
-            language=user.preferred_language_code,
+            language=user.preferred_language_code or DEFAULT_LANGUAGE,
         )
     except AnalyticsFailedError as error:
         logger.error(
@@ -479,7 +480,7 @@ async def refresh_monitoring_section(
             days=body.days,
             window_days=body.window_days,
             max_cloud_cover=body.max_cloud_cover,
-            language=user.preferred_language_code,
+            language=user.preferred_language_code or DEFAULT_LANGUAGE,
         )
     except AnalyticsFailedError as error:
         logger.error(

@@ -287,6 +287,16 @@ def test_dataset_config_none_without_tile_url():
     assert _dataset_config({"dataset": {"tile_url": ""}}) is None
 
 
+def test_dataset_config_none_when_a_layer_field_is_missing():
+    """The dataset state declares the id and the dates optional, and a
+    widget written without them renders a header reading "None–None". No
+    complete layer, no snapshot."""
+    for key in ("dataset_id", "dataset_name", "start_date", "end_date"):
+        dataset = _dataset_state()
+        dataset[key] = None
+        assert _dataset_config({"dataset": dataset}) is None, key
+
+
 def test_imagery_config_none_without_essentials():
     assert _imagery_config({}) is None
     assert _imagery_config({"imagery": {"tile_url": "x"}}) is None
