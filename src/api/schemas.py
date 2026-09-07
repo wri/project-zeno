@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -13,6 +13,7 @@ from pydantic import (
 )
 
 from src.api.data_models import UserType
+from src.api.services.nrt_window import DEFAULT_DAYS, MAX_DAYS
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.api.user_profile_configs.languages import LANGUAGES
@@ -632,11 +633,6 @@ class DashboardPublicToggleRequest(BaseModel):
 # the UI cannot write an essay into it.
 SECTION_TITLE_MAX_LENGTH = 100
 
-#: How a section was built. ``default`` is a user- or agent-composed group;
-#: every other value names a recipe that wrote the section in one piece.
-#: Recipe sections are read-only (see ``dashboard_writer.SEALED_SECTION_TYPES``).
-_SECTION_TYPES = ("default", "nrt-monitoring")
-
 
 class DashboardSectionCreateRequest(BaseModel):
     title: str = Field(
@@ -644,12 +640,19 @@ class DashboardSectionCreateRequest(BaseModel):
         max_length=SECTION_TITLE_MAX_LENGTH,
         description="Section heading, e.g. `Deforestation`.",
     )
-    type: str = Field(
+    # Only "default" is creatable here. A recipe type such as
+    # "nrt-monitoring" is sealed the moment it exists
+    # (``dashboard_writer.SEALED_SECTION_TYPES``), so accepting one on this
+    # path would hand a caller a section that can never be titled, filled or
+    # edited — only deleted. Recipe sections come from their own endpoint,
+    # which writes the content in the same transaction.
+    type: Literal["default"] = Field(
         default="default",
         description=(
-            "How the section was built: `default` for a group you compose "
-            "widget by widget. Recipe types such as `nrt-monitoring` are "
-            "written by their own endpoint and are read-only afterwards."
+            "How the section was built. Only `default` — a group you compose "
+            "widget by widget — can be created here. Recipe types such as "
+            "`nrt-monitoring` are written by their own endpoint and are "
+            "read-only afterwards."
         ),
     )
     description: Optional[str] = Field(
@@ -660,14 +663,6 @@ class DashboardSectionCreateRequest(BaseModel):
         default=None,
         description="Order among the dashboard's sections; default: appended last.",
     )
-
-    @field_validator("type")
-    def validate_type(cls, v):
-        if v not in _SECTION_TYPES:
-            raise ValueError(
-                f"type must be one of {', '.join(_SECTION_TYPES)}"
-            )
-        return v
 
 
 class DashboardSectionUpdateRequest(BaseModel):
@@ -846,17 +841,22 @@ class DashboardPublicToggleResponse(DashboardResponse):
     )
 
 
-class NrtSectionCreateRequest(BaseModel):
-    """Inputs for a near-real-time monitoring section.
+class NrtSectionRefreshRequest(BaseModel):
+    """The window a monitoring section covers, and how its imagery is found.
 
-    Every field has a working default: the point of the endpoint is that a
+    Both the build and the refresh take these; a refresh takes nothing else,
+    because everything the section shows moves to the new window together —
+    the chart, the alerts layer and the satellite imagery — and its title and
+    description are rewritten, since they state the period.
+
+    Every field has a working default: the point of both endpoints is that a
     caller can post an empty body.
     """
 
     days: int = Field(
-        default=14,
+        default=DEFAULT_DAYS,
         ge=1,
-        le=365,
+        le=MAX_DAYS,
         description=(
             "Length of the alert window, counted back from today, and the "
             "period every widget in the section covers. Defaults to the "
@@ -878,6 +878,16 @@ class NrtSectionCreateRequest(BaseModel):
         le=100,
         description="Cloud cover limit for the satellite scenes, in percent.",
     )
+
+
+class NrtSectionCreateRequest(NrtSectionRefreshRequest):
+    """Inputs for a new near-real-time monitoring section.
+
+    The window fields above, plus what only a first build can say: text that
+    overrides the generated title and description, and whether to build a
+    second section for a period the dashboard already covers.
+    """
+
     title: Optional[str] = Field(
         default=None,
         min_length=1,
@@ -898,40 +908,6 @@ class NrtSectionCreateRequest(BaseModel):
             "for the same period. Off by default, so a double click does "
             "not produce two identical sections."
         ),
-    )
-
-
-class NrtSectionRefreshRequest(BaseModel):
-    """A new time window for an existing monitoring section.
-
-    Everything the section shows moves to this window together — the chart,
-    the alerts layer and the satellite imagery — and its title and
-    description are rewritten, because they state the period.
-    """
-
-    days: int = Field(
-        default=14,
-        ge=1,
-        le=365,
-        description=(
-            "Length of the new alert window, counted back from today. "
-            "Defaults to the last two weeks."
-        ),
-    )
-    window_days: int = Field(
-        default=7,
-        ge=1,
-        le=183,
-        description=(
-            "Satellite imagery search window, ±N days around the end of the "
-            "new alert window."
-        ),
-    )
-    max_cloud_cover: int = Field(
-        default=20,
-        ge=0,
-        le=100,
-        description="Cloud cover limit for the satellite scenes, in percent.",
     )
 
 

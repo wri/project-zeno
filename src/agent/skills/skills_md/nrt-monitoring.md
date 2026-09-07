@@ -49,12 +49,12 @@ user is looking at, and the old numbers are gone afterwards. So:
 2. Then call `update_nrt_monitoring_section(days=<their choice>,
    confirmed=True)`.
 
-The tool refuses to run with `confirmed=False`, so there is no way to skip
-this. Do not pass `confirmed=True` on the strength of the user's first
-message alone — only after they have answered the nudge. The one exception
-is when they name the exact window in the same breath as the request ("change
-it to the last 30 days"): that *is* their answer, so nudge only if there is
-genuine ambiguity about which section or which period.
+`confirmed=True` means "the user has told me which window they want". Set it
+only when they have: either they answered your nudge, or they named the exact
+window in the same breath as the request ("change it to the last 30 days"),
+which *is* their answer — nudge then only if it is unclear which section or
+which period they mean. Never set it on a request that names no window ("can
+I see more history?"); ask first.
 
 Never reach for `add_nrt_monitoring_section` to change a period — that builds
 a second section next to the first.
@@ -68,8 +68,9 @@ a second section next to the first.
   than about 50,000 km², so most countries) and periods with no clear scenes
   yield a two-widget section. The tool message says so; pass that on rather
   than retrying or apologising for it.
-- **The section is read-only** once built — see the `dashboard` skill. To
-  change one, delete it and build another. The tool refuses to build a second
-  section for a period the dashboard already covers.
+- **The section's content is read-only** once built — see the `dashboard`
+  skill. Its period is the exception: `update_nrt_monitoring_section` moves
+  it. Anything else means deleting it and building another. The tool refuses
+  to build a second section for a period the dashboard already covers.
 - Alerts are **potential** disturbance, not confirmed deforestation. The
   section's own description says this; do not contradict it.

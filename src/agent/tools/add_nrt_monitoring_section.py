@@ -7,8 +7,10 @@ mosaic, write the section's title and description) and writes the result as
 one sealed section. So it needs neither pick_dataset nor show_imagery to have
 run — only a dashboard with an area.
 
-The section it writes is read-only afterwards. Editing tools refuse it; to
-change one, delete it and build another.
+The section it writes is sealed afterwards: the editing tools refuse its
+content. Its window can still be moved by ``update_nrt_monitoring_section``,
+and its layout rearranged in the app; anything else means deleting it and
+building another.
 """
 
 from typing import Annotated, Dict, Optional
@@ -28,12 +30,14 @@ from src.agent.tools.common import (
     resolve_dashboard_id,
 )
 from src.api.services.nrt_monitoring import (
-    DEFAULT_DAYS,
     AnalyticsFailedError,
+    TargetGoneError,
+    aoi_ref,
     build_nrt_section,
     find_existing_section,
     resolve_period,
 )
+from src.api.services.nrt_window import DEFAULT_DAYS, MAX_DAYS
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -53,17 +57,21 @@ async def add_nrt_monitoring_section(
     and satellite imagery of the same area and period. It pulls the data
     itself — do NOT run pick_dataset, pull_data, generate_insights or
     show_imagery first. `days` is the length of the alert window counted
-    back from today (default 90, max 365). `dashboard_id` defaults to the
-    dashboard in state or the one the user is viewing.
+    back from today (default 14 — the last two weeks — max 365).
+    `dashboard_id` defaults to the dashboard in state or the one the user is
+    viewing.
 
-    The section is read-only once built; to change it, delete it and build a
-    new one. Satellite imagery is skipped for areas that are too large or
-    periods with no clear scenes — the section is still built.
+    The section's content is read-only once built. To put it on a different
+    period use update_nrt_monitoring_section; to change anything else, delete
+    it and build a new one. Satellite imagery is skipped for areas that are
+    too large or periods with no clear scenes — the section is still built.
     """
     state = state or {}
-    window_days = days if days is not None else DEFAULT_DAYS
-    if window_days < 1 or window_days > 365:
-        return error_command("days must be between 1 and 365.", tool_call_id)
+    alert_days = days if days is not None else DEFAULT_DAYS
+    if alert_days < 1 or alert_days > MAX_DAYS:
+        return error_command(
+            f"days must be between 1 and {MAX_DAYS}.", tool_call_id
+        )
 
     target_dashboard = resolve_dashboard_id(state, dashboard_id)
     if not target_dashboard:
@@ -87,7 +95,7 @@ async def add_nrt_monitoring_section(
             tool_call_id,
         )
 
-    start_date, end_date = await resolve_period(window_days)
+    start_date, end_date = await resolve_period(alert_days)
     existing = find_existing_section(dashboard, start_date, end_date)
     if existing is not None:
         return error_command(
@@ -102,20 +110,15 @@ async def add_nrt_monitoring_section(
     logger.info(
         "add_nrt_monitoring_section tool called",
         dashboard_id=str(target_dashboard),
-        days=window_days,
+        days=alert_days,
     )
 
     try:
         result = await build_nrt_section(
             str(target_dashboard),
-            {
-                "source": aoi.source,
-                "src_id": aoi.src_id,
-                "subtype": aoi.subtype,
-                "name": aoi.name,
-            },
+            aoi_ref(aoi),
             user_id=require_current_user_id("add_nrt_monitoring_section"),
-            days=window_days,
+            days=alert_days,
             language=state.get("language") or DEFAULT_LANGUAGE,
         )
     except AnalyticsFailedError as error:
@@ -123,7 +126,7 @@ async def add_nrt_monitoring_section(
             f"Could not retrieve alert data for '{aoi.name}': {error}",
             tool_call_id,
         )
-    except ValueError:
+    except TargetGoneError:
         return error_command(
             f"Dashboard {target_dashboard} disappeared before the section "
             "could be added.",
@@ -143,8 +146,9 @@ async def add_nrt_monitoring_section(
             f"for '{aoi.name}' covering {result.start_date} to "
             f"{result.end_date} to dashboard '{dashboard.name}' "
             f"({dashboard.id}), with {len(result.widget_ids)} widgets. The "
-            "section is read-only — it cannot be edited, only deleted and "
-            f"rebuilt.{caveat}"
+            "section's content is read-only: use "
+            "update_nrt_monitoring_section to move it to another period, or "
+            f"delete it to change anything else.{caveat}"
         ),
         tool_call_id,
     )

@@ -22,7 +22,7 @@ own order, widgets in order within their section.
 
 Some sections are built by a recipe in one piece rather than widget by
 widget — `inspect_view_context` marks them `read-only`. They are a record of
-one build, so **their content cannot be changed**: not the title, not the
+one build, so **you cannot edit their content**: not the title, not the
 description, not what any widget shows. Widgets cannot be added, removed, or
 moved in or out. The tools refuse all of it.
 
@@ -30,6 +30,11 @@ If the user asks to change the content of one, say it cannot be edited and
 offer to delete it and build a new one — deleting it removes its widgets
 with it. Never put a new widget in one, and never move a widget out of one:
 put it in another section or leave it ungrouped.
+
+The one thing a recipe can change is the period its own section covers, by
+rebuilding the whole section for it. That is the recipe's own tool, not an
+edit — see the `nrt-monitoring` skill if you have it. Without that tool, a
+period change is a delete and a rebuild like any other change.
 
 Layout is the exception. A reader may rearrange and resize the widgets
 inside such a section in the app, because that changes how the section looks

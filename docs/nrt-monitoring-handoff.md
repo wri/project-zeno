@@ -53,8 +53,9 @@ widget's tile layer. It is empty `{}` for a hand-composed section.
 - `"default"` — a section composed widget by widget (all existing sections).
 - `"nrt-monitoring"` — built by the recipe below, and **read-only**.
 
-`POST …/sections` accepts an optional `type`, but only `"default"` is useful
-there; a recipe section can only come from its own endpoint.
+`POST …/sections` accepts an optional `type`, but `"default"` is the only
+value it takes — anything else is a 422. A recipe section can only come from
+its own endpoint, which writes its content in the same transaction.
 
 ## The one call
 
@@ -78,8 +79,10 @@ for satellite scenes, builds a mosaic and writes the summary before it
 answers. Budget tens of seconds, set your client timeout accordingly, and
 show a progress state. There is no job to poll.
 
-`201` returns the **whole dashboard** (same shape as
-`GET /api/dashboards/{id}`, insight payloads expanded) plus three fields:
+A success returns the **whole dashboard** (same shape as
+`GET /api/dashboards/{id}`, insight payloads expanded) plus three fields.
+`201` when a section was built, `200` when an existing one was returned
+instead — see *Double clicks*.
 
 ```json
 {
@@ -104,8 +107,9 @@ You do not need to refetch the dashboard: render the response.
 
 | Status | Meaning | What to show |
 |---|---|---|
-| `201`, `warnings: []` | Three widgets | The section |
+| `201`, `warnings: []` | Three widgets, newly built | The section |
 | `201`, `warnings: [...]` | **Two** widgets, no imagery | The section, plus the warning |
+| `200`, `created: false` | A section for this period already existed | That section; nothing was built |
 | `422` | Dashboard has no area, or a field is out of range | The validation message |
 | `404` | Not your dashboard, or it does not exist | Not found |
 | `409` | — | Only from writes *to* a sealed section, never from this call |
@@ -119,10 +123,14 @@ layout.
 
 ### Double clicks
 
-Called twice for the same period, the second call builds nothing and returns
-the existing section with `created: false`. Each build costs a data pull, a
-scene search and a model call, so leave the guard on; pass `force: true` only
-for an explicit "build another".
+Called twice for the same period, the second call builds nothing and answers
+`200` with the existing section and `created: false`. Each build costs a data
+pull, a scene search and a model call, so leave the guard on; pass
+`force: true` only for an explicit "build another".
+
+The guard is checked when the call arrives, and the build takes tens of
+seconds — so two clicks *while the first is still running* both build. Disable
+the button until the first response lands rather than relying on this.
 
 ## Changing the window
 

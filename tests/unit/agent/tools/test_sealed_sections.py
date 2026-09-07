@@ -70,7 +70,7 @@ def test_listing_marks_sealed_sections():
     assert "'Recent disturbance'" in listing.split("[read-only]")[0]
 
 
-def test_sealed_reply_names_the_only_way_forward():
+def test_sealed_reply_names_the_ways_forward():
     command = sealed_error_command(
         SealedSectionError("sec-1", "nrt-monitoring"), "call-1"
     )
@@ -78,6 +78,8 @@ def test_sealed_reply_names_the_only_way_forward():
     (message,) = command.update["messages"]
     assert message.status == "error"
     assert "read-only" in message.content
-    assert "deleted and rebuilt" in message.content
+    # All three ways forward, so the model explains rather than retries.
+    assert "deleting it and building a new one" in message.content
+    assert "update_nrt_monitoring_section" in message.content
     # Layout is editable, so the reply must not claim otherwise.
     assert "resize" in message.content

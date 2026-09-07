@@ -15,7 +15,15 @@ otherwise a public dashboard renders empty for viewers.
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    HTTPException,
+    Query,
+    Response,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -53,6 +61,9 @@ from src.api.services.nrt_monitoring import (
 )
 from src.api.services.nrt_monitoring import (
     AnalyticsFailedError,
+    NrtSectionResult,
+    TargetGoneError,
+    aoi_ref,
     build_nrt_section,
     find_existing_section,
     refresh_nrt_section,
@@ -156,6 +167,63 @@ async def _visible_insights(
         for insight in result.scalars().all()
         if insight_is_visible_to_user(insight, user_id) or _is_privileged(user)
     }
+
+
+async def _nrt_response(
+    session: AsyncSession,
+    row: DashboardOrm,
+    user: UserModel,
+    *,
+    section_id: UUID,
+    created: bool,
+    days: int,
+    start_date: str,
+    end_date: str,
+    warnings: Optional[list[str]] = None,
+) -> NrtSectionResponse:
+    """The whole dashboard plus what this build did to it.
+
+    The section endpoints answer with the dashboard the caller is about to
+    render, so the client needs no follow-up GET.
+    """
+    base = _row_to_response(row, await _visible_insights(session, row, user))
+    return NrtSectionResponse(
+        **base.model_dump(),
+        section_id=section_id,
+        created=created,
+        days=days,
+        start_date=start_date,
+        end_date=end_date,
+        warnings=warnings or [],
+    )
+
+
+async def _nrt_result_response(
+    session: AsyncSession,
+    dashboard_id: UUID,
+    user: UserModel,
+    result: NrtSectionResult,
+    *,
+    created: bool,
+) -> NrtSectionResponse:
+    """The answer to a build or a refresh, from the row as it now stands.
+
+    Refetched rather than reused: the recipe wrote its section and widgets
+    through its own session, so the dashboard loaded before the build no
+    longer has them.
+    """
+    row = await _refetch_dashboard(dashboard_id)
+    return await _nrt_response(
+        session,
+        row,
+        user,
+        section_id=UUID(result.section_id),
+        created=created,
+        days=result.days,
+        start_date=result.start_date,
+        end_date=result.end_date,
+        warnings=result.warnings,
+    )
 
 
 async def _get_owned_dashboard(
@@ -317,9 +385,19 @@ async def add_section(
     "/api/dashboards/{dashboard_id}/sections/nrt-monitoring",
     response_model=NrtSectionResponse,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        200: {
+            "model": NrtSectionResponse,
+            "description": (
+                "A monitoring section for this period already existed and is "
+                "returned unchanged (``created: false``). Nothing was built."
+            ),
+        }
+    },
 )
 async def add_nrt_monitoring_section(
     dashboard_id: UUID,
+    response: Response,
     # default_factory, not a shared instance: one request must not be able
     # to see another's body object.
     body: NrtSectionCreateRequest = Body(
@@ -337,16 +415,18 @@ async def add_nrt_monitoring_section(
     when this returns — expect it to take tens of seconds.
 
     The section is **read-only** afterwards (``type: "nrt-monitoring"``):
-    writes to it or its widgets return 409. To change one, delete it and
-    build another.
+    writes to its content or its widgets' content return 409. Layout is
+    exempt (reorder, resize). To move it to another period use the refresh
+    endpoint below; to change anything else, delete it and build another.
 
     Satellite imagery is best-effort: areas above the mosaic size limit, or
     periods with no cloud-free scenes, yield a two-widget section and a line
     in ``warnings``. A failure to pull the alert data returns 502 — a section
     without its data would say nothing.
 
-    Called twice for the same period, the second call returns the existing
-    section with ``created: false``; pass ``force: true`` to build anyway.
+    Called twice for the same period, the second call answers **200** with
+    the existing section and ``created: false`` — a build returns 201. Pass
+    ``force: true`` to build anyway.
     """
     dashboard = await _get_owned_dashboard(dashboard_id, user)
     if not dashboard.aois:
@@ -361,13 +441,14 @@ async def add_nrt_monitoring_section(
     if not body.force:
         existing = find_existing_section(dashboard, start_date, end_date)
         if existing is not None:
-            base = _row_to_response(
-                dashboard, await _visible_insights(session, dashboard, user)
-            )
-            window = existing.config or {}
-            return NrtSectionResponse(
-                **base.model_dump(),
-                section_id=existing.id,
+            # Nothing was created, so this is not a 201.
+            response.status_code = status.HTTP_200_OK
+            window = dict(existing.config or {})
+            return await _nrt_response(
+                session,
+                dashboard,
+                user,
+                section_id=UUID(str(existing.id)),
                 created=False,
                 days=window.get("days", body.days),
                 start_date=window.get("start_date", start_date),
@@ -377,12 +458,7 @@ async def add_nrt_monitoring_section(
     try:
         result = await build_nrt_section(
             str(dashboard_id),
-            {
-                "source": aoi.source,
-                "src_id": aoi.src_id,
-                "subtype": aoi.subtype,
-                "name": aoi.name,
-            },
+            aoi_ref(aoi),
             user_id=user.id,
             days=body.days,
             window_days=body.window_days,
@@ -402,19 +478,11 @@ async def add_nrt_monitoring_section(
             status_code=502,
             detail=f"Could not retrieve alert data: {error}",
         )
-    except ValueError:
+    except TargetGoneError:
         raise HTTPException(status_code=404, detail="Dashboard not found")
 
-    row = await _refetch_dashboard(dashboard_id)
-    base = _row_to_response(row, await _visible_insights(session, row, user))
-    return NrtSectionResponse(
-        **base.model_dump(),
-        section_id=UUID(result.section_id),
-        created=True,
-        days=result.days,
-        start_date=result.start_date,
-        end_date=result.end_date,
-        warnings=result.warnings,
+    return await _nrt_result_response(
+        session, dashboard_id, user, result, created=True
     )
 
 
@@ -470,12 +538,7 @@ async def refresh_monitoring_section(
     try:
         result = await refresh_nrt_section(
             str(section_id),
-            {
-                "source": aoi.source,
-                "src_id": aoi.src_id,
-                "subtype": aoi.subtype,
-                "name": aoi.name,
-            },
+            aoi_ref(aoi),
             user_id=user.id,
             days=body.days,
             window_days=body.window_days,
@@ -493,19 +556,11 @@ async def refresh_monitoring_section(
             status_code=502,
             detail=f"Could not retrieve alert data: {error}",
         )
-    except ValueError:
+    except TargetGoneError:
         raise HTTPException(status_code=404, detail="Section not found")
 
-    row = await _refetch_dashboard(dashboard_id)
-    base = _row_to_response(row, await _visible_insights(session, row, user))
-    return NrtSectionResponse(
-        **base.model_dump(),
-        section_id=section_id,
-        created=False,
-        days=result.days,
-        start_date=result.start_date,
-        end_date=result.end_date,
-        warnings=result.warnings,
+    return await _nrt_result_response(
+        session, dashboard_id, user, result, created=False
     )
 
 

@@ -29,11 +29,13 @@ from src.agent.tools.common import (
     resolve_dashboard_id,
 )
 from src.api.services.nrt_monitoring import (
-    MAX_DAYS,
     AnalyticsFailedError,
+    TargetGoneError,
+    aoi_ref,
     nrt_sections,
     refresh_nrt_section,
 )
+from src.api.services.nrt_window import MAX_DAYS
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -168,12 +170,7 @@ async def update_nrt_monitoring_section(
     try:
         result = await refresh_nrt_section(
             str(target.id),
-            {
-                "source": aoi.source,
-                "src_id": aoi.src_id,
-                "subtype": aoi.subtype,
-                "name": aoi.name,
-            },
+            aoi_ref(aoi),
             user_id=require_current_user_id("update_nrt_monitoring_section"),
             days=days,
             language=state.get("language") or DEFAULT_LANGUAGE,
@@ -183,7 +180,7 @@ async def update_nrt_monitoring_section(
             f"Could not retrieve alert data for '{aoi.name}': {error}",
             tool_call_id,
         )
-    except ValueError:
+    except TargetGoneError:
         return error_command(
             f"Section {target.id} disappeared before it could be updated.",
             tool_call_id,

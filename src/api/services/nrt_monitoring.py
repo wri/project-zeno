@@ -43,6 +43,7 @@ from src.api.repositories.insight_writer import persist_insight
 from src.api.services.analyze import AnalyzeService
 from src.api.services.charts import DETERMINISTIC_GENERATORS
 from src.api.services.nrt_summary import generate_section_summary
+from src.api.services.nrt_window import DEFAULT_DAYS
 from src.api.services.widget_configs import (
     dataset_snapshot,
     imagery_snapshot,
@@ -55,20 +56,21 @@ logger = get_logger(__name__)
 #: The section type that marks — and seals — a monitoring section.
 SECTION_TYPE = "nrt-monitoring"
 
-#: Length of the alert window when the caller names none. Two weeks: these
-#: sections are for what is happening now, and a reader changes the window
-#: on demand when they want more history.
-DEFAULT_DAYS = 14
-
-#: The widest window the recipe will build. Alerts are near-real-time, so a
-#: year is already well past what the section is for.
-MAX_DAYS = 365
-
 _IMAGERY_PROVIDER = Sentinel2ImageryProvider()
 
 
 class AnalyticsFailedError(Exception):
     """The alert data could not be pulled, so there is no section to build."""
+
+
+class TargetGoneError(Exception):
+    """The dashboard or section being written to no longer exists.
+
+    Its own type, not a bare ``ValueError``: the build calls into the
+    analytics handler, the catalog, the imagery provider and a model, any of
+    which can raise ``ValueError`` for its own reasons. Catching that at the
+    router would report a live dashboard as missing.
+    """
 
 
 @dataclass
@@ -149,11 +151,11 @@ async def gather_nrt_content(
     """
     language = language or DEFAULT_LANGUAGE
 
-    # Every consumer gets its own copy of the AOI. The analytics handler
-    # rewrites its input in place — it strips the GADM level suffix, so
-    # "BRA.16.197_2" becomes "BRA.16.197" — and the imagery lookup that
-    # follows needs the canonical id the dashboard stored, not that one.
-    aoi = dict(aoi)
+    # Each consumer below gets its own copy of the AOI (``dict(aoi)`` at
+    # every call site). The analytics handler rewrites its input in place —
+    # it strips the GADM level suffix, so "BRA.16.197_2" becomes
+    # "BRA.16.197" — and the imagery lookup that follows needs the canonical
+    # id the dashboard stored, not that one.
     start_date, end_date = await resolve_period(days)
     warnings: list[str] = []
 
@@ -251,6 +253,38 @@ async def gather_nrt_content(
     )
 
 
+def _completed(
+    event: str,
+    content: NrtContent,
+    section_id: str,
+    widget_ids: list[str],
+    **fields,
+) -> NrtSectionResult:
+    """Log the finished build and shape its result.
+
+    The tail of ``build_nrt_section`` and ``refresh_nrt_section``, which
+    differ only in where the content lands, what the event is called and
+    which ids it carries.
+    """
+    logger.info(
+        event,
+        section_id=section_id,
+        insight_id=content.insight_id,
+        widgets=len(widget_ids),
+        warnings=len(content.warnings),
+        **fields,
+    )
+    return NrtSectionResult(
+        section_id=section_id,
+        insight_id=content.insight_id,
+        widget_ids=widget_ids,
+        start_date=content.start_date,
+        end_date=content.end_date,
+        days=content.days,
+        warnings=content.warnings,
+    )
+
+
 async def build_nrt_section(
     dashboard_id: str,
     aoi: dict,
@@ -268,7 +302,7 @@ async def build_nrt_section(
     ``aoi`` is one of the dashboard's AOI references — ``source``, ``src_id``,
     ``subtype`` and ``name``. ``title`` / ``description`` override the
     generated text. Raises ``AnalyticsFailedError`` when the data pull fails,
-    and ``ValueError`` when the dashboard has gone.
+    and ``TargetGoneError`` when the dashboard has gone.
     """
     logger.info(
         "nrt_section_build_started",
@@ -297,25 +331,15 @@ async def build_nrt_section(
         widgets=content.widgets,
     )
     if written is None:
-        raise ValueError(f"Dashboard {dashboard_id} not found")
+        raise TargetGoneError(f"Dashboard {dashboard_id} not found")
     section_id, widget_ids = written
 
-    logger.info(
+    return _completed(
         "nrt_section_build_completed",
+        content,
+        section_id,
+        widget_ids,
         dashboard_id=dashboard_id,
-        section_id=section_id,
-        insight_id=content.insight_id,
-        widgets=len(widget_ids),
-        warnings=len(content.warnings),
-    )
-    return NrtSectionResult(
-        section_id=section_id,
-        insight_id=content.insight_id,
-        widget_ids=widget_ids,
-        start_date=content.start_date,
-        end_date=content.end_date,
-        days=content.days,
-        warnings=content.warnings,
     )
 
 
@@ -362,26 +386,27 @@ async def refresh_nrt_section(
         widgets=content.widgets,
     )
     if written is None:
-        raise ValueError(f"Section {section_id} not found")
+        raise TargetGoneError(f"Section {section_id} not found")
     widget_ids, replaced_insight_ids = written
     await dashboard_writer.delete_unreferenced_insights(replaced_insight_ids)
 
-    logger.info(
-        "nrt_section_refresh_completed",
-        section_id=section_id,
-        insight_id=content.insight_id,
-        widgets=len(widget_ids),
-        warnings=len(content.warnings),
+    return _completed(
+        "nrt_section_refresh_completed", content, section_id, widget_ids
     )
-    return NrtSectionResult(
-        section_id=section_id,
-        insight_id=content.insight_id,
-        widget_ids=widget_ids,
-        start_date=content.start_date,
-        end_date=content.end_date,
-        days=content.days,
-        warnings=content.warnings,
-    )
+
+
+def aoi_ref(aoi) -> dict:
+    """A dashboard AOI row as the reference ``build``/``refresh`` take.
+
+    One projection, because both routes and both agent tools hand the same
+    four fields to the same recipe.
+    """
+    return {
+        "source": aoi.source,
+        "src_id": aoi.src_id,
+        "subtype": aoi.subtype,
+        "name": aoi.name,
+    }
 
 
 def nrt_sections(dashboard: DashboardOrm) -> list[DashboardSectionOrm]:

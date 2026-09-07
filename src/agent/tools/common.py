@@ -82,9 +82,11 @@ def sealed_error_command(
         f"Section {error.section_id} is read-only (built in one piece as "
         f"'{error.section_type}'). Its title, description and the content of "
         "its widgets cannot be changed, and widgets cannot be added, removed "
-        "or moved in or out. Tell the user the content cannot be edited — it "
-        "can only be deleted and rebuilt — but that they can still rearrange "
-        "and resize its widgets in the app.",
+        "or moved in or out. Tell the user the content cannot be edited. A "
+        "monitoring section can still be moved to another period with "
+        "update_nrt_monitoring_section, and its widgets rearranged and "
+        "resized in the app; anything else means deleting it and building a "
+        "new one.",
         tool_call_id,
     )
 

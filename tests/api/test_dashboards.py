@@ -1154,6 +1154,29 @@ async def test_section_type_defaults_to_default(client, auth_override):
 
 
 @pytest.mark.asyncio
+async def test_sealed_section_type_cannot_be_created_directly(
+    client, auth_override
+):
+    """The create path must not hand out a section it can never fill.
+
+    A recipe type is sealed the moment the row exists, so a section created
+    this way could never be titled, filled or edited — only deleted. Recipe
+    sections come from their own endpoint, which writes the content in the
+    same transaction.
+    """
+    user = await _create_user("section-type-sealed")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/sections",
+        headers=AUTH,
+        json={"title": "Alerts", "type": "nrt-monitoring"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_unknown_section_type_rejected(client, auth_override):
     user = await _create_user("section-type-unknown")
     auth_override(user.id)

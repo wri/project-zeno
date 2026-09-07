@@ -221,7 +221,8 @@ async def test_second_call_returns_the_existing_section(client, auth_override):
             ENDPOINT.format(id=dashboard["id"]), headers=AUTH, json={}
         )
 
-    assert second.status_code == 201
+    # 200, not 201: nothing was created.
+    assert second.status_code == 200
     assert second.json()["created"] is False
     assert second.json()["section_id"] == first.json()["section_id"]
     assert len(second.json()["sections"]) == 1

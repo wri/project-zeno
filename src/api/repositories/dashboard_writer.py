@@ -349,7 +349,7 @@ async def update_widget(
     a section id to move the widget into that section, or pass None to move
     it back to the ungrouped top level. Moving without an explicit
     ``position`` appends the widget to the end of its new container. Raises
-    Raises ``UnknownSectionError`` when the section is not on the widget's
+    ``UnknownSectionError`` when the section is not on the widget's
     own dashboard, and ``SealedSectionError`` when a *content* change targets
     a sealed section. Layout is exempt: a sealed section's widget takes a
     ``position`` change, and a config replacement whose only differences are
@@ -530,8 +530,11 @@ async def add_section_with_widgets(
         await session.flush()
 
         rows = []
+        insight_ids = []
         for position, spec in enumerate(widgets or []):
             insight_id = spec.get("insight_id")
+            if insight_id:
+                insight_ids.append(str(insight_id))
             rows.append(
                 DashboardWidgetOrm(
                     dashboard_id=target,
@@ -550,14 +553,18 @@ async def add_section_with_widgets(
         except IntegrityError as exc:
             if "uq_dashboard_widgets_dashboard_insight" not in str(exc.orig):
                 raise
-            # The insight is already on this dashboard, so the whole section
-            # is rolled back rather than built without its chart.
+            # One of the insights is already on this dashboard, so the whole
+            # section is rolled back rather than built without its chart.
+            # The index does not say which, so the error names the batch.
             logger.warning(
                 "dashboard_section_widget_duplicate",
                 dashboard_id=str(target),
                 type=type,
+                insight_ids=insight_ids,
             )
-            raise DuplicateInsightWidgetError(str(target), "") from exc
+            raise DuplicateInsightWidgetError(
+                str(target), ", ".join(insight_ids)
+            ) from exc
 
         section_id = str(section.id)
         widget_ids = [str(row.id) for row in rows]
