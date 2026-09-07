@@ -29,6 +29,7 @@ from sqlalchemy.orm import selectinload
 
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
+from src.agent.text_highlights import strip_highlights
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import require_current_user_id
 from src.api.data_models import DashboardOrm, InsightOrm
@@ -307,7 +308,7 @@ async def format_insights(
         )
         lines.append(f"\nInsight {row.id} (created {created}):")
         if row.insight_text:
-            lines.append(f"  Summary: {row.insight_text}")
+            lines.append(f"  Summary: {strip_highlights(row.insight_text)}")
         for chart in row.charts or []:
             title = chart.title or "(untitled)"
             rows_n = len(chart.chart_data or [])

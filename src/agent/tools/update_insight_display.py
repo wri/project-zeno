@@ -34,6 +34,7 @@ from src.agent.subagents.analyst.display_reviser import (
     RevisedChart,
     RevisedInsight,
 )
+from src.agent.text_highlights import strip_highlights
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import (
     error_command,
@@ -212,7 +213,7 @@ async def update_insight_display(
         updated,
         (
             f"Updated insight {target_id}. Charts: {chart_titles}.\n\n"
-            f"Summary: {updated.primary_insight}"
+            f"Summary: {strip_highlights(updated.primary_insight)}"
         ),
         tool_call_id,
     )

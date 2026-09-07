@@ -31,6 +31,7 @@ from src.agent.subagents.analyst.code_executors.base import (
 )
 from src.agent.subagents.analyst.prompts import EXECUTOR_WORKFLOW
 from src.agent.subagents.analyst.text_generator import InsightTextGenerator
+from src.agent.text_highlights import strip_highlights
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.inspect_view_context import format_chart_data
 from src.agent.tools.pull_data import fetch_statistics_from_url
@@ -322,7 +323,13 @@ async def _build_tool_message(
         + "\n"
     )
     tool_message += (
-        await t("analyst.key_finding", language, text=insight.primary_insight)
+        await t(
+            "analyst.key_finding",
+            language,
+            # The chat shows this message as plain markdown; only a
+            # dashboard renders the highlight spans.
+            text=strip_highlights(insight.primary_insight),
+        )
         + "\n\n"
     )
     for idx, chart in enumerate(insight.charts, 1):

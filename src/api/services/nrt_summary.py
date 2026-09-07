@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.analyst.charts.model import InsightChart
+from src.agent.text_highlights import HIGHLIGHT_GUIDE, strip_highlights
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -38,7 +39,7 @@ class SectionSummary(BaseModel):
     description: str = Field(
         description=(
             "Two to four sentences: what the section shows, then the key "
-            "figures from the chart data."
+            "figures from the chart data, each figure in a highlight span."
         )
     )
 
@@ -62,7 +63,11 @@ Follow the dataset's presentation rules below, including any caution they \
 require about what the alerts mean.
 
 Write both in {language}, regardless of the language of the data or the \
-instructions below."""
+instructions below.
+
+{highlight_guide}
+
+The `title` is a heading: keep it plain, with no markup at all."""
 
 _USER = """## Area
 {aoi_name}
@@ -139,6 +144,7 @@ async def generate_section_summary(
     chain = _PROMPT | model.with_structured_output(SectionSummary)
     inputs = {
         "title_max_chars": TITLE_MAX_CHARS,
+        "highlight_guide": HIGHLIGHT_GUIDE,
         "language": language_name(language or DEFAULT_LANGUAGE),
         "aoi_name": aoi_name,
         "start_date": start_date,
@@ -159,7 +165,9 @@ async def generate_section_summary(
         )
         return fallback_summary(aoi_name, start_date, end_date)
 
-    title = (result.title or "").strip()
+    # The title is a heading and is cut to length below — markup in it
+    # would render as a broken tag, so it is removed rather than trusted.
+    title = strip_highlights(result.title or "").strip()
     description = (result.description or "").strip()
     if not title or not description:
         logger.warning("nrt_section_summary_empty", aoi_name=aoi_name)

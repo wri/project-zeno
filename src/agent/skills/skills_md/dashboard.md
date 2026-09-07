@@ -116,7 +116,13 @@ the user wants to add a summary, section intro, caveat or explanation. The
 text is markdown; compose it yourself (concise, no raw data). To rewrite a
 note, use `edit_text_widget(text)` — it defaults to the dashboard's only text
 widget; if several exist the tool lists their ids so you can retry with
-`widget_id`.
+`widget_id`. When you rewrite a note, keep the highlight spans it already
+has.
+
+{{HIGHLIGHT_GUIDE}}
+This applies to the `text` of a text widget and to the `description` of a
+section — the two blocks the dashboard renders as prose. A section `title`
+stays plain, and so does the reply you write in the chat.
 
 # Stop conditions
 

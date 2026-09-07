@@ -18,6 +18,7 @@ from sqlalchemy import Text, cast, or_, select
 from sqlalchemy.orm import selectinload
 
 from src.agent.subagents.analyst.charts.model import Insight
+from src.agent.text_highlights import strip_highlights
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import (
     error_command,
@@ -134,7 +135,7 @@ def _recalled_message(insight_id, insight: Insight, query: str) -> str:
     return (
         f"Found a past insight ({insight_id}) matching '{query}'.\n"
         f"Charts: {chart_titles}.\n\n"
-        f"Summary: {insight.primary_insight}\n\n"
+        f"Summary: {strip_highlights(insight.primary_insight)}\n\n"
         "STOP HERE. This insight already exists and is now on screen. Do "
         "NOT call pull_data, generate_insights or any other tool. Reply to "
         "the user with a one-line summary of this recalled insight and "

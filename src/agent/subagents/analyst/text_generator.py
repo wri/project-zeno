@@ -29,10 +29,17 @@ class InsightText(BaseModel):
     """Structured output of the text stage."""
 
     primary_insight: str = Field(
-        description="Overall insight that ties the chart(s) together (2-3 sentences)"
+        description=(
+            "Overall insight that ties the chart(s) together (2-3 "
+            "sentences), with every figure in a highlight span as the "
+            "wording guide requires"
+        )
     )
     follow_up_suggestions: List[str] = Field(
-        description="1-2 follow-up suggestions based on the available data"
+        description=(
+            "1-2 follow-up suggestions based on the available data, in "
+            "plain text with no highlight spans"
+        )
     )
 
 
