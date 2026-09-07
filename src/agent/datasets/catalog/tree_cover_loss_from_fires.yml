@@ -58,6 +58,11 @@ code_instructions: 'CHART TYPE: If the data covers a single area of interest and
   variable is active, filter accordingly DO/DON''T: - If neither primary_forest nor intact_forest is active,
   DO NOT use the term "deforestation"; use "tree cover loss" - If user asks for intra-year or seasonal breakdown, REFUSE
   — data is annual only - Warn about 2001-2010 vs 2011-2025 methodology difference when showing trends across both periods
+  CHART TITLES when intact_forest is active: the metric is tree cover loss occurring INSIDE intact forest landscapes, a
+  different measurement from the reduction of intact forest extent. Never title a chart in a way that reads as intact forest
+  being lost — not "Intact Forest Loss", not "Intact Forests Loss", and not as a qualifier of another metric. Name the metric
+  "Tree Cover Loss in Intact Forests". That is the metric phrase to embed, not the whole title: still include the cadence, the
+  area of interest and the period as you normally would
 
   '
 presentation_instructions: 'Use "tree cover loss" rather than "deforestation" only when neither primary nor intact forest

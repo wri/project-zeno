@@ -173,6 +173,13 @@ async def test_generate_thread_name():
     assert "concise, descriptive title" in call_args
     assert "max 50 chars" in call_args
 
+    # Tree cover loss inside intact forest is not the same measurement as the
+    # reduction of intact forest extent, and thread names conflated the two
+    # (PZB-1231). This generator builds its own prompt and never sees the
+    # dataset catalogue, so the rule has to live here.
+    assert "tree cover loss in intact forest" in call_args
+    assert '"intact forest loss"' in call_args
+
 
 @pytest.mark.asyncio
 async def test_custom_area_name_truncation():
