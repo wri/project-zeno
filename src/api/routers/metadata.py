@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from src.agent.config import AgentSettings
+from src.agent.datasets.layers import LAYERS
 from src.agent.datasets.palette import PALETTES
 from src.agent.llms import get_model, get_small_model
 from src.api.schemas import DatasetCatalogResponse
@@ -50,13 +51,23 @@ async def api_metadata() -> dict:
 @router.get("/api/datasets/catalog")
 async def datasets_catalog() -> DatasetCatalogResponse:
     """
-    Returns the canonical color registry for each dataset: category colors
-    (keyed by a stable English slug, not a translated label), single-series
-    colors, and divergent (positive/negative) colors.
+    Returns the canonical registries a client needs to render a dataset the
+    way the agent would.
 
-    This is the single source of truth for chart and map-legend colors —
-    see docs/insight-chart-colors-plan.md. Only datasets with color data
-    defined in their catalog YAML are included.
+    `datasets` carries the color registry: category colors (keyed by a stable
+    English slug, not a translated label), single-series colors, and
+    divergent (positive/negative) colors. This is the single source of truth
+    for chart and map-legend colors — see docs/insight-chart-colors-plan.md.
+    Only datasets with color data defined in their catalog YAML are included.
+
+    `layers` carries the map-layer registry: the absolute tile URL and the
+    convention it takes a date filter by, so a client adding a layer outside
+    a conversation (a catalog browse, a suggested-dataset pick) scopes it the
+    same way pick_dataset does, instead of keeping its own copy of the URLs.
+    Only datasets with a tile URL are included.
     """
     ordered = sorted(PALETTES.values(), key=lambda p: p["dataset_id"])
-    return DatasetCatalogResponse.model_validate({"datasets": ordered})
+    layers = sorted(LAYERS.values(), key=lambda layer: layer["dataset_id"])
+    return DatasetCatalogResponse.model_validate(
+        {"datasets": ordered, "layers": layers}
+    )

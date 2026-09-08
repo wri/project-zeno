@@ -141,3 +141,71 @@ async def test_datasets_catalog_only_includes_datasets_with_colors(client):
 
     dataset_ids = {d["dataset_id"] for d in datasets}
     assert dataset_ids == {1, 2, 3, 4, 5, 6, 7, 8}
+
+
+@pytest.mark.asyncio
+async def test_datasets_catalog_serves_tile_urls(client):
+    """`layers` carries the tile URL for every dataset that has one, absolute
+    and with its placeholders left for the client."""
+    response = await client.get("/api/datasets/catalog")
+    layers = response.json()["layers"]
+
+    assert {layer["dataset_id"] for layer in layers} == {
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+    }
+    for layer in layers:
+        assert layer["tile_url"].startswith("http")
+        assert "{z}/{x}/{y}" in layer["tile_url"]
+
+
+@pytest.mark.asyncio
+async def test_datasets_catalog_declares_the_date_filter_convention(client):
+    """The convention differs per dataset, which is why it is served rather
+    than left for each client to hardcode."""
+    response = await client.get("/api/datasets/catalog")
+    by_id = {layer["dataset_id"]: layer for layer in response.json()["layers"]}
+
+    # Integrated alerts: daily, so day-granular query params.
+    alerts = by_id[11]
+    assert alerts["date_filter"] == "date_params"
+    assert alerts["start_date"] == "2023-12-01"
+    assert alerts["end_date"] is None  # ongoing
+    assert alerts["content_date_fixed"] is False
+
+    # Annual tree cover loss: year-granular query params, plus a threshold.
+    assert by_id[4]["date_filter"] == "year_params"
+    assert by_id[4]["default_threshold"] == 30
+    assert 30 in by_id[4]["threshold_values"]
+    assert "{threshold}" in by_id[4]["tile_url"]
+
+    # Annual land cover: the year picks the raster item.
+    assert by_id[1]["date_filter"] == "year_in_path"
+    assert "{year}" in by_id[1]["tile_url"]
+
+    # Tree cover gain has no time dimension to filter on.
+    assert by_id[5]["date_filter"] == "none"
+    assert by_id[5]["threshold_values"] is None
+
+
+@pytest.mark.asyncio
+async def test_datasets_catalog_keeps_colors_and_layers_independent(client):
+    """A dataset can have tiles without colors, or colors without tiles, so
+    the two lists are not expected to match."""
+    response = await client.get("/api/datasets/catalog")
+    body = response.json()
+
+    with_colors = {d["dataset_id"] for d in body["datasets"]}
+    with_tiles = {layer["dataset_id"] for layer in body["layers"]}
+
+    # Integrated alerts and tree cover loss due to fires render on the map
+    # but define no palette of their own.
+    assert with_tiles - with_colors == {10, 11}
