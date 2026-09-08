@@ -7,9 +7,18 @@ the CRUD. ``src/api/services/aoi_sync.py`` holds that mirror.
 """
 
 import json
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,9 +30,17 @@ from src.api.schemas import (
     CustomAreaModel,
     CustomAreaNameRequest,
     CustomAreaNameResponse,
+    CustomAreaUploadResponse,
+    UploadedAreaSummary,
     UserModel,
 )
 from src.api.services.aoi_sync import delete_custom_aoi, upsert_custom_aoi
+from src.api.services.area_upload import (
+    MAX_UPLOAD_BYTES,
+    UploadValidationError,
+    parse_csv,
+    parse_shapefile_zip,
+)
 from src.shared.database import get_session_from_pool_dependency
 from src.shared.logging_config import get_logger
 
@@ -100,19 +117,137 @@ async def create_custom_area(
     )
 
 
-@router.get("/api/custom_areas", response_model=list[CustomAreaModel])
-async def list_custom_areas(
+@router.post(
+    "/api/custom_areas/upload", response_model=CustomAreaUploadResponse
+)
+async def upload_custom_areas(
+    request: Request,
+    file: UploadFile,
     user: UserModel = Depends(require_auth),
     session: AsyncSession = Depends(get_session_from_pool_dependency),
 ):
-    """List all custom areas belonging to the authenticated user.
+    """Create custom areas from an uploaded file, one per feature.
+
+    Accepts, as the multipart field ``file``, one of (any other extension
+    is a 415):
+
+    - A ``.csv`` file (UTF-8) with required columns (case-insensitive)
+      ``name`` and ``geom`` holding WKT ``POLYGON`` or ``MULTIPOLYGON`` in
+      WGS84 lon/lat degrees.
+    - A zipped shapefile (``.zip``) with a required ``name`` attribute
+      (case-insensitive). The ``.prj`` must be included; geometries are
+      reprojected to WGS84 and must be ``Polygon`` or ``MultiPolygon``.
+
+    Every other column or attribute is stored in the area's ``properties``.
+    Limits: 10 MB (413) and 500 features (422). Validation is all-or-nothing:
+    any invalid row fails the whole upload with a 422 whose ``detail.errors``
+    lists every problem, indexed by row where the problem belongs to one
+    (``"row 3: geom is empty"``), and nothing is created.
+
+    The created areas share one ``upload_batch_id`` (null on drawn areas).
+    Each is a regular custom area: it appears in ``GET /api/custom_areas``,
+    is mirrored into ``aois``, and is searchable by its owner through
+    ``GET /api/aois``; rename and delete use the standard custom-area
+    endpoints. The response is deliberately light; refetch the paginated
+    list for the full rows. The full guide, including frontend integration,
+    is ``docs/area-uploads.md``.
+    """
+    filename = (file.filename or "").lower()
+    if filename.endswith(".csv"):
+        parser = parse_csv
+    elif filename.endswith(".zip"):
+        parser = parse_shapefile_zip
+    else:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                "unsupported file type; upload a .csv file or a zipped "
+                "shapefile (.zip)"
+            ),
+        )
+
+    too_large = HTTPException(
+        status_code=413,
+        detail=(
+            "file too large; the limit is "
+            f"{MAX_UPLOAD_BYTES // (1024 * 1024)} MB"
+        ),
+    )
+    # FastAPI spools the whole body to a temp file before this runs, so neither
+    # check bounds the work; they only turn an oversize upload into a clean 413.
+    # The real ingress cap belongs in the reverse proxy. The header counts
+    # multipart overhead, so allow slack; the chunked read below is the exact cap.
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_UPLOAD_BYTES + 4096:
+        raise too_large
+
+    data = bytearray()
+    while chunk := await file.read(1024 * 1024):
+        data.extend(chunk)
+        if len(data) > MAX_UPLOAD_BYTES:
+            raise too_large
+
+    try:
+        features = await run_in_threadpool(parser, bytes(data))
+    except UploadValidationError as exc:
+        raise HTTPException(status_code=422, detail={"errors": exc.errors})
+
+    batch_id = uuid4()
+    areas = [
+        CustomAreaOrm(
+            user_id=user.id,
+            name=feature.name,
+            geometries=[feature.geometry],
+            properties=feature.properties,
+            upload_batch_id=batch_id,
+        )
+        for feature in features
+    ]
+    session.add_all(areas)
+    # Flush so that the mirror can read the rows, and their generated ids, in
+    # this same transaction. The rows and their aois projection then commit
+    # together.
+    await session.flush()
+    await upsert_custom_aoi(session, area_ids=[area.id for area in areas])
+    await session.commit()
+
+    return CustomAreaUploadResponse(
+        upload_batch_id=batch_id,
+        areas=[
+            UploadedAreaSummary(id=area.id, name=area.name) for area in areas
+        ],
+    )
+
+
+@router.get("/api/custom_areas", response_model=list[CustomAreaModel])
+async def list_custom_areas(
+    response: Response,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: UserModel = Depends(require_auth),
+    session: AsyncSession = Depends(get_session_from_pool_dependency),
+):
+    """List the custom areas belonging to the authenticated user, newest first.
+
+    When more results are available, the next page offset is returned in the
+    ``X-Next-Offset`` response header.
 
     This reads ``custom_areas`` and returns the drawn parts unchanged. It is
     not the search surface; use ``GET /api/aois?source=custom`` for that.
     """
-    stmt = select(CustomAreaOrm).filter_by(user_id=user.id)
+    stmt = (
+        select(CustomAreaOrm)
+        .filter_by(user_id=user.id)
+        .order_by(CustomAreaOrm.created_at.desc(), CustomAreaOrm.id)
+        # Fetch one extra row to determine whether more pages exist.
+        .limit(limit + 1)
+        .offset(offset)
+    )
     result = await session.execute(stmt)
-    areas = result.scalars().all()
+    areas = list(result.scalars().all())
+    if len(areas) > limit:
+        areas = areas[:limit]
+        response.headers["X-Next-Offset"] = str(offset + limit)
     results = []
     for area in areas:
         area.geometries = [json.loads(i) for i in area.geometries]
@@ -144,6 +279,8 @@ async def get_custom_area(
         created_at=custom_area.created_at,
         updated_at=custom_area.updated_at,
         geometries=[json.loads(i) for i in custom_area.geometries],
+        properties=custom_area.properties,
+        upload_batch_id=custom_area.upload_batch_id,
     )
 
 
@@ -177,6 +314,8 @@ async def update_custom_area_name(
         created_at=area.created_at,
         updated_at=area.updated_at,
         geometries=[json.loads(i) for i in area.geometries],
+        properties=area.properties,
+        upload_batch_id=area.upload_batch_id,
     )
 
 

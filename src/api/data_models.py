@@ -158,6 +158,8 @@ class CustomAreaOrm(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
     geometries = Column(JSONB, nullable=False)
+    properties = Column(JSONB, nullable=True)
+    upload_batch_id = Column(PostgresUUID, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(
         DateTime,
