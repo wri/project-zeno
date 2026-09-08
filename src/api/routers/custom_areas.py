@@ -150,7 +150,7 @@ async def upload_custom_areas(
     ``GET /api/aois``; rename and delete use the standard custom-area
     endpoints. The response is deliberately light; refetch the paginated
     list for the full rows. The full guide, including frontend integration,
-    is ``docs/area-uploads/``.
+    is ``docs/area-uploads.md``.
     """
     filename = (file.filename or "").lower()
     if filename.endswith(".csv"):
@@ -173,8 +173,10 @@ async def upload_custom_areas(
             f"{MAX_UPLOAD_BYTES // (1024 * 1024)} MB"
         ),
     )
-    # Fail fast on the declared size. The header counts multipart overhead,
-    # so allow slack; the chunked read below is the precise cap.
+    # FastAPI spools the whole body to a temp file before this runs, so neither
+    # check bounds the work; they only turn an oversize upload into a clean 413.
+    # The real ingress cap belongs in the reverse proxy. The header counts
+    # multipart overhead, so allow slack; the chunked read below is the exact cap.
     declared = request.headers.get("content-length", "")
     if declared.isdigit() and int(declared) > MAX_UPLOAD_BYTES + 4096:
         raise too_large

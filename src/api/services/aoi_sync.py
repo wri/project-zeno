@@ -92,12 +92,12 @@ _SKIPPED_SQL = f"""
            OR ST_IsEmpty({CUSTOM_AREA_GEOM_SQL}))
 """
 
-# Count how many of the areas the upsert wrote. A `rowcount` does not show
-# which areas were skipped, because the owner link uses ON CONFLICT DO NOTHING
-# and a repeated patch correctly inserts no link. This query reads the unique
-# index instead.
-_MIRRORED_SQL = """
-    SELECT count(*) FROM aois
+# Which of the areas the upsert wrote. A `rowcount` does not show what was
+# skipped, because the owner link uses ON CONFLICT DO NOTHING and a repeated
+# patch correctly inserts no link. This query reads the unique index instead,
+# and returns ids rather than a count so the warning can name the ones it lost.
+_MIRRORED_IDS_SQL = """
+    SELECT source_id FROM aois
     WHERE source = 'custom' AND source_id = ANY(:src_ids)
       AND NOT is_deprecated
 """
@@ -119,8 +119,9 @@ async def upsert_custom_aoi(
 
     A geometry with no areal component is skipped, and not stored empty. The
     ``custom_areas`` row still exists and the CRUD call still succeeds, but the
-    area is not searchable. The scoped path logs a warning. The backfill prints a
-    count to the CLI.
+    area is not searchable; the upload endpoint returns 200 and lists such an
+    area in its response like any other. The scoped path logs a warning naming
+    the skipped ids. The backfill prints a count to the CLI.
     """
     if area_id is not None and area_ids is not None:
         raise ValueError("pass area_id or area_ids, not both")
@@ -137,15 +138,17 @@ async def upsert_custom_aoi(
     result = await session.execute(text(_upsert_sql(scoped)), params)
 
     if ids is not None:
-        mirrored = await session.scalar(
-            text(_MIRRORED_SQL), {"src_ids": [str(i) for i in ids]}
+        rows = await session.execute(
+            text(_MIRRORED_IDS_SQL), {"src_ids": [str(i) for i in ids]}
         )
-        if mirrored < len(ids):
+        mirrored = {str(row[0]) for row in rows}
+        skipped = [str(i) for i in ids if str(i) not in mirrored]
+        if skipped:
             logger.warning(
                 "Custom area(s) not mirrored into aois: geometries not "
                 "coercible to a non-empty MultiPolygon.",
-                skipped=len(ids) - mirrored,
-                custom_area_ids=[str(i) for i in ids],
+                skipped=len(skipped),
+                skipped_area_ids=skipped,
             )
     else:
         skipped = await session.scalar(text(_SKIPPED_SQL))

@@ -7,9 +7,12 @@ not assert the CRUD response bodies, which ``test_custom_area.py`` covers and wh
 must not change.
 """
 
+from uuid import UUID
+
 import pytest
 from sqlalchemy import text
 
+from src.api.services import aoi_sync
 from src.api.services.aoi_sync import (
     prune_orphan_custom_aois,
     upsert_custom_aoi,
@@ -200,6 +203,33 @@ async def test_degenerate_geometry_skipped_but_crud_succeeds(
     aoi, links = await _fetch_aoi(area_id)
     assert aoi is None
     assert links == []
+
+
+@pytest.mark.asyncio
+async def test_batch_warning_names_only_the_skipped_areas(
+    auth_override, client, monkeypatch
+):
+    """A batch of 500 must not log 500 ids to report the one it dropped."""
+    auth_override("test-user-wri")
+    good_id = await _create_area(client, "Good")
+    bad_id = await _create_area(client, "Degenerate", [_DEGENERATE])
+
+    warnings = []
+    monkeypatch.setattr(
+        aoi_sync.logger,
+        "warning",
+        lambda *args, **kwargs: warnings.append(kwargs),
+    )
+
+    async with async_session_maker() as session:
+        await upsert_custom_aoi(
+            session, area_ids=[UUID(good_id), UUID(bad_id)]
+        )
+        await session.commit()
+
+    assert len(warnings) == 1
+    assert warnings[0]["skipped"] == 1
+    assert warnings[0]["skipped_area_ids"] == [bad_id]
 
 
 @pytest.mark.asyncio
