@@ -141,8 +141,8 @@ async def upload_custom_areas(
     Every other column or attribute is stored in the area's ``properties``.
     Limits: 10 MB (413) and 500 features (422). Validation is all-or-nothing:
     any invalid row fails the whole upload with a 422 whose ``detail.errors``
-    lists every problem by row number (``"row 3: geom is empty"``), and
-    nothing is created.
+    lists every problem, indexed by row where the problem belongs to one
+    (``"row 3: geom is empty"``), and nothing is created.
 
     The created areas share one ``upload_batch_id`` (null on drawn areas).
     Each is a regular custom area: it appears in ``GET /api/custom_areas``,

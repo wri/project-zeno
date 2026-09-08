@@ -35,6 +35,12 @@ csv.field_size_limit(MAX_UPLOAD_BYTES)
 
 _AREAL_TYPES = ("Polygon", "MultiPolygon")
 
+# Reprojecting to WGS84 can land a coordinate a hair outside the valid range —
+# 180.0000001 for a file that was correct. This slack covers our own float drift
+# and stays far below the thousands a genuinely projected coordinate is off by.
+# The CSV path takes the user's numbers as given and gets no slack.
+_REPROJECTION_TOLERANCE = 1e-6
+
 
 @dataclass(frozen=True)
 class ParsedFeature:
@@ -73,8 +79,12 @@ def _validate_geometry(wkt_value: str):
     return geom
 
 
-def _check_geometry(geom) -> None:
-    """Require a non-empty areal WGS84 geometry, or raise ValueError."""
+def _check_geometry(geom, tolerance: float = 0.0) -> None:
+    """Require a non-empty areal WGS84 geometry, or raise ValueError.
+
+    *tolerance* widens the coordinate bounds, for geometries this module
+    reprojected itself.
+    """
     if geom.geom_type not in _AREAL_TYPES:
         raise ValueError(
             f"geometry must be a Polygon or MultiPolygon, got {geom.geom_type}"
@@ -82,7 +92,12 @@ def _check_geometry(geom) -> None:
     if geom.is_empty:
         raise ValueError("geometry is empty")
     minx, miny, maxx, maxy = geom.bounds
-    if minx < -180 or maxx > 180 or miny < -90 or maxy > 90:
+    if (
+        minx < -180 - tolerance
+        or maxx > 180 + tolerance
+        or miny < -90 - tolerance
+        or maxy > 90 + tolerance
+    ):
         raise ValueError(
             "coordinates out of range; geom must be WGS84 lon/lat degrees"
         )
@@ -179,7 +194,9 @@ def _check_uncompressed_size(data: bytes) -> None:
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             total = sum(info.file_size for info in archive.infolist())
-    except zipfile.BadZipFile as exc:
+    except Exception as exc:
+        # A truncated or crafted archive raises OSError/ValueError as readily as
+        # BadZipFile, and any of them would escape the router's handler as a 500.
         raise UploadValidationError([f"could not read the zip file: {exc}"])
     if total > MAX_UNCOMPRESSED_BYTES:
         raise UploadValidationError(
@@ -248,7 +265,7 @@ def parse_shapefile_zip(data: bytes) -> list[ParsedFeature]:
         try:
             if geom is None:
                 raise ValueError("geometry is missing")
-            _check_geometry(geom)
+            _check_geometry(geom, tolerance=_REPROJECTION_TOLERANCE)
         except ValueError as exc:
             errors.append(f"feature {index}: {exc}")
             continue

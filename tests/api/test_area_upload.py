@@ -561,6 +561,81 @@ async def test_upload_zip_that_is_not_a_zip(auth_override, client):
 
 
 @pytest.mark.asyncio
+async def test_shapefile_zip_open_failure_is_a_422(
+    auth_override, client, monkeypatch
+):
+    """A zip that fails to open for any reason is a 422, not a 500.
+
+    ``zipfile`` raises OSError or ValueError on some malformed archives, not
+    only BadZipFile, and the router only converts UploadValidationError.
+    """
+    import geopandas as gpd
+
+    from src.api.services import area_upload
+
+    auth_override("test-user-wri")
+    gdf = gpd.GeoDataFrame(
+        {"name": ["Shape"], "geometry": [_square(30, 10)]},
+        crs="EPSG:4326",
+    )
+    content = _shapefile_zip(gdf)
+
+    def boom(*args, **kwargs):
+        raise OSError("Bad magic number for central directory")
+
+    monkeypatch.setattr(area_upload.zipfile, "ZipFile", boom)
+    res = await _upload_zip(client, content)
+    assert res.status_code == 422, res.text
+    assert "could not read the zip file" in res.json()["detail"]["errors"][0]
+    assert await _counts() == (0, 0)
+
+
+def test_reprojection_drift_past_the_antimeridian_is_accepted():
+    """Our own float drift must not read as a projected coordinate.
+
+    A polygon touching 180 can reproject to 180.0000001, which the bounds
+    check would otherwise reject with "geom must be WGS84 lon/lat degrees".
+    """
+    from shapely.geometry import Polygon
+
+    from src.api.services.area_upload import (
+        _REPROJECTION_TOLERANCE,
+        _check_geometry,
+    )
+
+    drift = _REPROJECTION_TOLERANCE / 2
+    nudged = Polygon(
+        [
+            (179.9, 10.0),
+            (179.9, 11.0),
+            (180.0 + drift, 11.0),
+            (180.0 + drift, 10.0),
+        ]
+    )
+    # Tolerated for a geometry we reprojected...
+    _check_geometry(nudged, tolerance=_REPROJECTION_TOLERANCE)
+    # ...but the CSV path, which takes the user's own numbers, still rejects it.
+    with pytest.raises(ValueError, match="coordinates out of range"):
+        _check_geometry(nudged)
+
+
+def test_projected_shapefile_coordinates_still_rejected():
+    """The tolerance must not admit genuinely projected coordinates."""
+    from shapely.geometry import Polygon
+
+    from src.api.services.area_upload import (
+        _REPROJECTION_TOLERANCE,
+        _check_geometry,
+    )
+
+    utm_like = Polygon(
+        [(500000, 4649776), (500000, 4649777), (500001, 4649777)]
+    )
+    with pytest.raises(ValueError, match="coordinates out of range"):
+        _check_geometry(utm_like, tolerance=_REPROJECTION_TOLERANCE)
+
+
+@pytest.mark.asyncio
 async def test_shapefile_point_geometry_rejected(auth_override, client):
     import geopandas as gpd
     from shapely.geometry import Point

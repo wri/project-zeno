@@ -61,6 +61,8 @@ case-insensitively:
 - `name` — non-empty after trimming.
 - `geom` — WKT `POLYGON` or `MULTIPOLYGON` in WGS84 lon/lat degrees.
   Coordinates outside ±180/±90 are rejected (catches projected coordinates).
+  A single WKT value is bounded only by the file size cap, so a dense boundary
+  of many thousands of vertices is fine.
 
 All other columns are stored per row in `properties`, as strings.
 
@@ -72,7 +74,11 @@ Upland North,"POLYGON ((30 10, 30 11, 31 11, 31 10, 30 10))",Kivu
 **Zipped shapefile** — one zip containing the sidecar set (`.shp`, `.shx`,
 `.dbf`, `.prj`). The `.prj` is required; without it the upload is rejected.
 Any declared CRS is accepted and reprojected to WGS84 with a real coordinate
-transform (not a SRID relabel). A `name` attribute is required, matched
+transform (not a SRID relabel). A CRS with no path to WGS84 — an engineering or
+local CRS, or one needing a PROJ grid that is not installed — is rejected with a
+422 rather than a 500. Reprojected coordinates are allowed 1e-6 degrees of slack
+past ±180/±90, which covers the transform's own float drift; the CSV path takes
+the user's numbers as given and gets none. A `name` attribute is required, matched
 case-insensitively (`NAME` works). Geometries must be `Polygon` or
 `MultiPolygon`. All other attributes are stored in `properties`, coerced to
 JSON: `NaN`/`NaT`/null → `null`, dates and timestamps → ISO-8601 strings,
@@ -86,13 +92,16 @@ Constants in `src/api/services/area_upload.py`:
 | --- | --- | --- |
 | File over 10 MB (`MAX_UPLOAD_BYTES`) | 413 | `{"detail": "file too large; the limit is 10 MB"}` |
 | Over 500 features (`MAX_FEATURES`) | 422 | `{"detail": {"errors": ["too many rows; the limit is 500"]}}` |
+| Zip expanding past 200 MB (`MAX_UNCOMPRESSED_BYTES`) | 422 | `{"detail": {"errors": ["zip contents expand to 240 MB; the limit is 200 MB"]}}` |
+| Unreadable zip, or a CRS with no path to WGS84 | 422 | `{"detail": {"errors": ["could not reproject the shapefile to WGS84: …"]}}` |
 | Invalid content | 422 | `{"detail": {"errors": ["row 3: geom is empty", …]}}` |
 | Extension not `.csv`/`.zip` | 415 | `{"detail": "unsupported file type; …"}` |
 | Missing/invalid bearer token | 401 | standard auth error |
 
 Validation is all-or-nothing: every problem in the file is collected and
-returned as row-indexed errors (`row N` for CSV data rows, `feature N` for
-shapefile features, counting from 1) and nothing is created.
+returned together, and nothing is created. Problems belonging to one row are
+indexed (`row N` for CSV data rows, `feature N` for shapefile features, counting
+from 1); file-level problems, such as the row cap, carry no index.
 
 ## Frontend integration
 
