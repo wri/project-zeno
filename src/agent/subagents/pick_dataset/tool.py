@@ -20,13 +20,16 @@ from src.agent.datasets.config import (
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
     FOREST_CARBON_FLUX_ID,
-    GRASSLANDS_ID,
-    INTEGRATED_ALERTS_ID,
-    LAND_COVER_CHANGE_ID,
     TREE_COVER_ID,
     TREE_COVER_LOSS_BY_DRIVER_ID,
     TREE_COVER_LOSS_BY_FIRES_ID,
     TREE_COVER_LOSS_ID,
+)
+from src.agent.datasets.layers import (
+    DATE_PARAMS,
+    DEFAULT_CANOPY_COVER,
+    YEAR_IN_PATH,
+    YEAR_PARAMS,
 )
 from src.agent.i18n import t
 from src.agent.language import (
@@ -545,7 +548,7 @@ def get_tile_services_for_dataset(
         TREE_COVER_LOSS_BY_FIRES_ID,
         FOREST_CARBON_FLUX_ID,
     ]:
-        canopy_cover = 30
+        canopy_cover = DEFAULT_CANOPY_COVER
         if selection_result.parameters is not None:
             for param in selection_result.parameters:
                 if param.name == "canopy_cover":
@@ -575,19 +578,20 @@ def get_tile_services_for_dataset(
             "{threshold}", str(canopy_cover)
         )
 
-    if (
-        selected_row.dataset_id == TREE_COVER_LOSS_ID
-        or selected_row.dataset_id == TREE_COVER_LOSS_BY_FIRES_ID
-    ):
+    # How this layer takes a date filter is declared per dataset in the
+    # catalog YAML — see src.agent.datasets.layers, which serves the same
+    # convention to API clients that build tile URLs outside a conversation.
+    date_filter = getattr(selected_row, "tile_date_filter", None)
+    if date_filter == YEAR_PARAMS:
         if end_date.year in range(2001, 2026):
             tile_url += (
                 f"&start_year={start_date.year}&end_year={end_date.year}"
             )
         else:
             tile_url += "&start_year=2001&end_year=2025"
-    elif selection_result.dataset_id == INTEGRATED_ALERTS_ID:
+    elif date_filter == DATE_PARAMS:
         tile_url += f"&start_date={start_date}&end_date={end_date}"
-    elif selection_result.dataset_id in [LAND_COVER_CHANGE_ID, GRASSLANDS_ID]:
+    elif date_filter == YEAR_IN_PATH:
         # Annual raster item in URL; start/end are already clamped to dataset YAML
         tile_url = tile_url.format(year=end_date.year)
 

@@ -834,5 +834,30 @@ class DatasetPaletteResponse(BaseModel):
     legend_categories: bool = True
 
 
+class DatasetLayerResponse(BaseModel):
+    dataset_id: int
+    dataset_name: str
+    # Absolute. Carries `{z}`/`{x}`/`{y}`, plus `{threshold}` when
+    # `threshold_values` is set and `{year}` when date_filter is
+    # "year_in_path", for the client to substitute.
+    tile_url: str
+    # How to scope tile_url to a date range: "date_params" appends
+    # &start_date=&end_date=, "year_params" appends &start_year=&end_year=,
+    # "year_in_path" fills the {year} placeholder, "none" takes no filter.
+    date_filter: str
+    start_date: str
+    # None when the dataset is ongoing — treat today as the end.
+    end_date: Optional[str] = None
+    # True when the coverage is one fixed period a request cannot narrow.
+    content_date_fixed: bool
+    threshold_values: Optional[List[int]] = None
+    default_threshold: Optional[int] = None
+
+
 class DatasetCatalogResponse(BaseModel):
     datasets: List[DatasetPaletteResponse]
+    # Tile URLs and date conventions, so a client adding a layer outside a
+    # conversation builds the same URL the agent would. Keyed by dataset_id
+    # like `datasets`, but listed separately: a dataset can have tiles
+    # without colors and colors without tiles.
+    layers: List[DatasetLayerResponse] = []
