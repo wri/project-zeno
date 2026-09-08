@@ -206,6 +206,42 @@ async def select_best_dataset(
     )
 
 
+def _applied_date_range_note(
+    requested_start: Optional[str],
+    requested_end: Optional[str],
+    effective_start: str,
+    effective_end: str,
+    range_clamped: bool,
+) -> str:
+    """Explain how the applied date range relates to the requested one.
+
+    The tile URL is scoped to the applied range (see
+    get_tile_services_for_dataset), so a range the model did not intend
+    silently changes what the map shows. Returns "" when the applied range
+    is exactly what was asked for and needs no explanation.
+    """
+    if requested_start is None and requested_end is None:
+        return (
+            "No date range was requested, so this is the dataset's full "
+            "coverage. The map layer is scoped to this range. If the user "
+            "asked for a shorter period, call pick_dataset again with "
+            "start_date and end_date."
+        )
+    if requested_start is None or requested_end is None:
+        bound = "start" if requested_start is None else "end"
+        return (
+            f"No {bound} date was requested, so the dataset's own {bound} of "
+            "coverage was used. The map layer is scoped to the range above."
+        )
+    if range_clamped:
+        return (
+            f"The requested range ({requested_start} to {requested_end}) "
+            "falls outside the dataset's coverage, so it was adjusted to the "
+            "range above. Tell the user about this adjustment."
+        )
+    return ""
+
+
 class DatasetSelector:
     """Dataset-selection subagent: resolves a request to the best dataset.
 
@@ -322,7 +358,11 @@ class DatasetSelector:
             candidate_datasets.dataset_id == option.dataset_id
         ].iloc[0]
 
-        effective_start_date, effective_end_date, _ = await revise_date_range(
+        (
+            effective_start_date,
+            effective_end_date,
+            range_clamped,
+        ) = await revise_date_range(
             start_date,
             end_date,
             selected_row.dataset_id,
@@ -388,6 +428,22 @@ class DatasetSelector:
     ## Content date
 
     {dataset_result.content_date}
+
+    ## Applied date range
+
+    {dataset_result.start_date} to {dataset_result.end_date}
+    """
+
+        date_range_note = _applied_date_range_note(
+            start_date,
+            end_date,
+            effective_start_date,
+            effective_end_date,
+            range_clamped,
+        )
+        if date_range_note:
+            tool_message += f"""
+    {date_range_note}
     """
 
         if dataset_result.presentation_instructions:
