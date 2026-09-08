@@ -40,7 +40,6 @@ services:
   migrate:
     build:
       context: .
-    platform: linux/amd64
     command: ["/app/db/migrate.sh"]
     depends_on:
       db:
