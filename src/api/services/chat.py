@@ -20,7 +20,12 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-os.environ["LANGFUSE_TRACING_ENVIRONMENT"] = os.getenv("STAGE", "production")
+# Deployments set GNW_STAGE (see the Helm values in project-zeno-deploy);
+# STAGE stays supported for local use. Without both, traces from every
+# environment carry the same "production" label.
+os.environ["LANGFUSE_TRACING_ENVIRONMENT"] = (
+    os.getenv("STAGE") or os.getenv("GNW_STAGE") or "production"
+)
 
 langfuse_client = Langfuse()
 
