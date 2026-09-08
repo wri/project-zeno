@@ -1,7 +1,7 @@
 """add custom_areas properties and upload_batch_id
 
 Revision ID: e7c1f4a92b58
-Revises: d4a1c7b93e02
+Revises: c9f1a2b3d4e5
 Create Date: 2026-08-29 12:00:00.000000
 
 ``properties`` carries the non-geometry attributes of an uploaded feature and is
@@ -19,7 +19,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 # revision identifiers, used by Alembic.
 revision: str = "e7c1f4a92b58"
-down_revision: Union[str, None] = "d4a1c7b93e02"
+down_revision: Union[str, None] = "c9f1a2b3d4e5"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
