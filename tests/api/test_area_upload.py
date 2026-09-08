@@ -159,6 +159,76 @@ async def test_drawn_area_has_no_batch_id(auth_override, client):
 
 
 @pytest.mark.asyncio
+async def test_item_endpoints_return_properties_and_batch_id(
+    auth_override, client
+):
+    """GET-by-id and PATCH must carry the upload fields, as the list does.
+
+    Both build their response by hand rather than serializing the row, so they
+    are the two places a new column silently reads back as null. A client that
+    stores the PATCH response would otherwise lose both fields on a rename.
+    """
+    auth_override("test-user-wri")
+    content = _csv(
+        [("Upland North", _SQUARE, "Kivu")],
+        header=("name", "geom", "region"),
+    )
+    res = await _upload(client, content)
+    assert res.status_code == 200, res.text
+    batch_id = res.json()["upload_batch_id"]
+    area_id = res.json()["areas"][0]["id"]
+
+    res = await client.get(f"/api/custom_areas/{area_id}", headers=AUTH)
+    assert res.status_code == 200, res.text
+    assert res.json()["upload_batch_id"] == batch_id
+    assert res.json()["properties"] == {"region": "Kivu"}
+
+    res = await client.patch(
+        f"/api/custom_areas/{area_id}",
+        json={"name": "Renamed"},
+        headers=AUTH,
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["name"] == "Renamed"
+    assert res.json()["upload_batch_id"] == batch_id
+    assert res.json()["properties"] == {"region": "Kivu"}
+
+
+@pytest.mark.asyncio
+async def test_item_endpoints_null_upload_fields_for_drawn_areas(
+    auth_override, client
+):
+    """The same two endpoints report a drawn area's fields as null, not absent."""
+    auth_override("test-user-wri")
+    res = await client.post(
+        "/api/custom_areas",
+        json={
+            "name": "Drawn",
+            "geometries": [
+                {
+                    "type": "Polygon",
+                    "coordinates": [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]],
+                }
+            ],
+        },
+        headers=AUTH,
+    )
+    area_id = res.json()["id"]
+
+    res = await client.get(f"/api/custom_areas/{area_id}", headers=AUTH)
+    assert res.json()["upload_batch_id"] is None
+    assert res.json()["properties"] is None
+
+    res = await client.patch(
+        f"/api/custom_areas/{area_id}",
+        json={"name": "Renamed"},
+        headers=AUTH,
+    )
+    assert res.json()["upload_batch_id"] is None
+    assert res.json()["properties"] is None
+
+
+@pytest.mark.asyncio
 async def test_upload_missing_geom_column(auth_override, client):
     auth_override("test-user-wri")
     res = await _upload(client, _csv([("Area", "x")], header=("name", "wkt")))

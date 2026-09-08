@@ -277,6 +277,8 @@ async def get_custom_area(
         created_at=custom_area.created_at,
         updated_at=custom_area.updated_at,
         geometries=[json.loads(i) for i in custom_area.geometries],
+        properties=custom_area.properties,
+        upload_batch_id=custom_area.upload_batch_id,
     )
 
 
@@ -310,6 +312,8 @@ async def update_custom_area_name(
         created_at=area.created_at,
         updated_at=area.updated_at,
         geometries=[json.loads(i) for i in area.geometries],
+        properties=area.properties,
+        upload_batch_id=area.upload_batch_id,
     )
 
 
