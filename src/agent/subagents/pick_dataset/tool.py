@@ -16,6 +16,7 @@ from shapely import box
 from src.agent.datasets.config import (
     CANDIDATE_DATASET_REQUIRED_COLUMNS,
     DATASETS,
+    RETIRED_DATASET_IDS,
 )
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
@@ -101,15 +102,22 @@ def _log_index_catalog_skew(index: InMemoryVectorStore) -> None:
 
     removed = doc_ids - catalog_ids
     missing = catalog_ids - doc_ids
+    # A retired id explains itself: the index predates the removal of that
+    # dataset. An indexed id the catalog has never held does not, so name the
+    # two apart.
+    retired = removed & RETIRED_DATASET_IDS
+    unknown = removed - RETIRED_DATASET_IDS
     if removed or missing:
         logger.error(
             "Dataset embeddings index %s is out of step with the catalog. "
-            "Indexed but not in the catalog: %s. In the catalog but not "
-            "indexed: %s. Rebuild the index from the catalog "
-            "(src/ingest/embed_datasets.py), publish it under a NEW version "
-            "name, and point DATASET_EMBEDDINGS_DB at that name.",
+            "Indexed but retired from the catalog: %s. Indexed and unknown "
+            "to the catalog: %s. In the catalog but not indexed: %s. Rebuild "
+            "the index from the catalog (src/ingest/embed_datasets.py), "
+            "publish it under a NEW version name, and point "
+            "DATASET_EMBEDDINGS_DB at that name.",
             SharedSettings.dataset_embeddings_db,
-            sorted(removed, key=str) or "none",
+            sorted(retired, key=str) or "none",
+            sorted(unknown, key=str) or "none",
             sorted(missing, key=str) or "none",
         )
     else:
