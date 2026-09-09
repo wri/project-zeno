@@ -332,11 +332,15 @@ async def add_section(
     title: str,
     description: Optional[str] = None,
     position: Optional[int] = None,
+    type: str = "default",
 ) -> Optional[str]:
     """Append a section to a dashboard; return the new section id (str).
 
-    Position defaults to max+1 (last section on the dashboard). Returns None
-    if the dashboard does not exist or the id is malformed.
+    Position defaults to max+1 (last section on the dashboard). ``type``
+    records how the section was built and defaults to a hand-composed
+    group; a templated section is written by
+    ``add_section_with_widgets`` instead, in one piece. Returns None if the
+    dashboard does not exist or the id is malformed.
     """
     target = _parse_uuid(dashboard_id)
     if target is None:
@@ -361,6 +365,7 @@ async def add_section(
             title=title,
             description=description,
             position=position,
+            type=type,
         )
         session.add(section)
         await session.commit()
@@ -371,8 +376,214 @@ async def add_section(
         dashboard_id=str(target),
         section_id=section_id,
         title=title,
+        type=type,
     )
     return section_id
+
+
+async def add_section_with_widgets(
+    dashboard_id,
+    *,
+    title: str,
+    description: Optional[str] = None,
+    type: str = "default",
+    config: Optional[dict] = None,
+    widgets: Optional[list[dict]] = None,
+) -> Optional[tuple[str, list[str]]]:
+    """Create a section and its widgets in one transaction.
+
+    The write path for the analysis templates: a section a reader may only
+    ever see complete must not appear widget by widget, and a failure
+    half-way must leave nothing behind. Each entry of ``widgets`` is
+    ``{"widget_type": ..., "insight_id": ..., "config": ...}``; they take
+    positions 0..n-1 in the order given. Returns ``(section_id, widget_ids)``,
+    or None if the dashboard does not exist.
+    """
+    target = _parse_uuid(dashboard_id)
+    if target is None:
+        return None
+
+    async with get_session_from_pool() as session:
+        exists = await session.scalar(
+            select(DashboardOrm.id).where(DashboardOrm.id == target)
+        )
+        if exists is None:
+            return None
+
+        max_position = await session.scalar(
+            select(func.max(DashboardSectionOrm.position)).where(
+                DashboardSectionOrm.dashboard_id == target
+            )
+        )
+        section = DashboardSectionOrm(
+            dashboard_id=target,
+            title=title,
+            description=description,
+            position=0 if max_position is None else max_position + 1,
+            type=type,
+            config=config or {},
+        )
+        session.add(section)
+        await session.flush()
+
+        rows = []
+        insight_ids = []
+        for position, spec in enumerate(widgets or []):
+            insight_id = spec.get("insight_id")
+            if insight_id:
+                insight_ids.append(str(insight_id))
+            rows.append(
+                DashboardWidgetOrm(
+                    dashboard_id=target,
+                    widget_type=spec["widget_type"],
+                    insight_id=(
+                        _parse_uuid(insight_id) if insight_id else None
+                    ),
+                    config=relativize_widget_config(spec.get("config")) or {},
+                    position=position,
+                    section_id=section.id,
+                )
+            )
+        session.add_all(rows)
+        try:
+            await session.commit()
+        except IntegrityError as exc:
+            if "uq_dashboard_widgets_dashboard_insight" not in str(exc.orig):
+                raise
+            # One of the insights is already on this dashboard, so the whole
+            # section is rolled back rather than built without its chart.
+            # The index does not say which, so the error names the batch.
+            logger.warning(
+                "dashboard_section_widget_duplicate",
+                dashboard_id=str(target),
+                type=type,
+                insight_ids=insight_ids,
+            )
+            raise DuplicateInsightWidgetError(
+                str(target), ", ".join(insight_ids)
+            ) from exc
+
+        section_id = str(section.id)
+        widget_ids = [str(row.id) for row in rows]
+
+    logger.info(
+        "dashboard_section_added_with_widgets",
+        dashboard_id=str(target),
+        section_id=section_id,
+        type=type,
+        widgets=len(widget_ids),
+    )
+    return section_id, widget_ids
+
+
+async def replace_section_widgets(
+    section_id,
+    *,
+    title: str,
+    description: Optional[str] = None,
+    config: Optional[dict] = None,
+    widgets: Optional[list[dict]] = None,
+) -> Optional[tuple[list[str], list[str]]]:
+    """Swap a section's whole contents in one transaction.
+
+    The write path for refreshing a templated section: the section row survives
+    (so its id, its place on the dashboard and any link to it hold), while
+    its widgets, its words and its recorded window are all replaced
+    together. A reader either sees the old period or the new one, never a
+    chart from one and a map from the other.
+
+    Returns ``(new_widget_ids, replaced_insight_ids)`` — the second is the
+    insights the old widgets referenced, which the caller may then delete if
+    nothing else points at them. Returns None if the section is gone.
+
+    Deliberately unguarded by the seal: this *is* the mechanism a sealed
+    section is refreshed through, and only the templates call it.
+    """
+    target = _parse_uuid(section_id)
+    if target is None:
+        return None
+
+    async with get_session_from_pool() as session:
+        section = await session.get(DashboardSectionOrm, target)
+        if section is None:
+            return None
+
+        previous = await session.execute(
+            select(DashboardWidgetOrm).where(
+                DashboardWidgetOrm.section_id == target
+            )
+        )
+        replaced_insight_ids = []
+        for widget in previous.scalars().all():
+            if widget.insight_id:
+                replaced_insight_ids.append(str(widget.insight_id))
+            await session.delete(widget)
+        # The deletes must land before the inserts: the partial unique index
+        # on (dashboard_id, insight_id) would otherwise reject a refresh that
+        # happens to reuse an insight.
+        await session.flush()
+
+        section.title = title
+        section.description = description
+        if config is not None:
+            section.config = config
+
+        rows = []
+        for position, spec in enumerate(widgets or []):
+            insight_id = spec.get("insight_id")
+            rows.append(
+                DashboardWidgetOrm(
+                    dashboard_id=section.dashboard_id,
+                    widget_type=spec["widget_type"],
+                    insight_id=(
+                        _parse_uuid(insight_id) if insight_id else None
+                    ),
+                    config=relativize_widget_config(spec.get("config")) or {},
+                    position=position,
+                    section_id=target,
+                )
+            )
+        session.add_all(rows)
+        await session.commit()
+        widget_ids = [str(row.id) for row in rows]
+
+    logger.info(
+        "dashboard_section_widgets_replaced",
+        section_id=str(target),
+        widgets=len(widget_ids),
+        replaced_insights=len(replaced_insight_ids),
+    )
+    return widget_ids, replaced_insight_ids
+
+
+async def delete_unreferenced_insights(insight_ids: list[str]) -> int:
+    """Delete insights that no dashboard widget points at any more.
+
+    A refreshed templated section leaves its previous chart behind. It was
+    machine-made content owned by that section, so it goes — unless some
+    other widget (another dashboard, say) still shows it.
+    """
+    deleted = 0
+    async with get_session_from_pool() as session:
+        for raw in insight_ids:
+            insight_id = _parse_uuid(raw)
+            if insight_id is None:
+                continue
+            still_used = await session.scalar(
+                select(DashboardWidgetOrm.id)
+                .where(DashboardWidgetOrm.insight_id == insight_id)
+                .limit(1)
+            )
+            if still_used is not None:
+                continue
+            row = await session.get(InsightOrm, insight_id)
+            if row is not None:
+                await session.delete(row)
+                deleted += 1
+        await session.commit()
+    if deleted:
+        logger.info("orphaned_insights_deleted", count=deleted)
+    return deleted
 
 
 async def get_section(section_id) -> Optional[DashboardSectionOrm]:
