@@ -650,6 +650,11 @@ class DashboardSectionCreateRequest(BaseModel):
 
 
 class DashboardSectionUpdateRequest(BaseModel):
+    # ``type`` is deliberately absent, here and on the create request: it
+    # records how the section was built. A section that could be typed — or
+    # retyped — from outside would be one PATCH away from unsealed, and a
+    # templated section created by hand would be one nothing can ever fill.
+    # Templates write their own sections, type included.
     title: Optional[str] = Field(
         default=None, min_length=1, max_length=SECTION_TITLE_MAX_LENGTH
     )
@@ -768,6 +773,15 @@ class DashboardSectionResponse(BaseModel):
     title: str
     description: Optional[str] = None
     position: int
+    # "default", or the analysis template that wrote the section. Anything
+    # other than "default" is read-only: the API rejects writes to it with
+    # 409.
+    type: str = "default"
+    # What the template built this section from — its own name, the window
+    # it covers and the parameters it was given. Empty for a hand-composed
+    # section. Show the period from here rather than reading a widget's
+    # tile layer.
+    config: dict = {}
     created_at: datetime
 
 
