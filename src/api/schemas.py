@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -638,6 +638,21 @@ class DashboardSectionCreateRequest(BaseModel):
         min_length=1,
         max_length=SECTION_TITLE_MAX_LENGTH,
         description="Section heading, e.g. `Deforestation`.",
+    )
+    # Only "default" is creatable here. A templated type such as
+    # "nrt-monitoring" is sealed the moment it exists
+    # (``analysis_templates.registry.SEALED_SECTION_TYPES``), so accepting
+    # one on this path would hand a caller a section that can never be
+    # titled, filled or edited — only deleted. Refused rather than ignored,
+    # so a caller that tries is told.
+    type: Literal["default"] = Field(
+        default="default",
+        description=(
+            "How the section was built. Only `default` — a group you compose "
+            "widget by widget — can be created here. Templated types such "
+            "as `nrt-monitoring` are written by their analysis template and "
+            "are read-only afterwards."
+        ),
     )
     description: Optional[str] = Field(
         default=None,

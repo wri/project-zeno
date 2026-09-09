@@ -18,6 +18,31 @@ either belongs to one section or stays ungrouped; ungrouped widgets render
 above the first section. Order matters and is kept: sections render in their
 own order, widgets in order within their section.
 
+# Read-only sections
+
+Some sections are built by an analysis template in one piece rather than
+widget by widget — `inspect_view_context` marks them `read-only`. They are a
+record of one build, so **you cannot edit their content**: not the title, not
+the description, not what any widget shows. Widgets cannot be added,
+removed, or moved in or out. The tools refuse all of it.
+
+If the user asks to change the content of one, say it cannot be edited and
+offer to delete it and build a new one — deleting it removes its widgets
+with it. Never put a new widget in one, and never move a widget out of one:
+put it in another section or leave it ungrouped.
+
+The one thing that can change is the period the section covers, by
+rebuilding the whole section for it. That is `update_analysis_section`, the
+template's own tool, not an edit — see the `analysis-templates` skill if you
+have it. Without that tool, a period change is a delete and a rebuild like
+any other change.
+
+Layout is the exception. A reader may rearrange and resize the widgets
+inside such a section in the app, because that changes how the section looks
+and not what it says. You have no tool for that — if the user asks to make a
+widget wider or reorder one, tell them they can drag and resize it on the
+dashboard itself.
+
 # Which dashboard to use
 
 - If the user is viewing a dashboard (view_context has a `dashboard_id`, page

@@ -105,6 +105,18 @@ def _row_to_response(
     )
 
 
+def _sealed_conflict(error: dashboard_writer.SealedSectionError):
+    """409 for a write to a section an analysis template sealed.
+
+    A conflict, not a permission error: the owner is refused because of what
+    the section *is*, and the same call against any other section succeeds.
+    """
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f"Section is read-only (type: {error.section_type})",
+    )
+
+
 async def _get_owned_dashboard(
     dashboard_id: UUID, user: UserModel
 ) -> DashboardOrm:
@@ -273,6 +285,7 @@ async def add_section(
         title=body.title,
         description=body.description,
         position=body.position,
+        type=body.type,
     )
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
@@ -298,12 +311,15 @@ async def update_section(
     description: object = dashboard_writer.UNSET
     if "description" in body.model_fields_set:
         description = body.description
-    await dashboard_writer.update_section(
-        section_id,
-        title=body.title,
-        description=description,
-        position=body.position,
-    )
+    try:
+        await dashboard_writer.update_section(
+            section_id,
+            title=body.title,
+            description=description,
+            position=body.position,
+        )
+    except dashboard_writer.SealedSectionError as error:
+        raise _sealed_conflict(error)
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
 
@@ -330,6 +346,11 @@ async def remove_section(
     section's widgets stay on the dashboard and fall back to the ungrouped
     top level, renumbered after the widgets already there. Pass
     ``delete_widgets=true`` to remove them with the section.
+
+    A read-only section built by an analysis template (``type`` other than
+    ``default``) is the exception: deleting it always removes its widgets,
+    whatever ``delete_widgets`` says, because those widgets are only
+    editable — and only meaningful — inside their own section.
     """
     row = await _get_owned_dashboard(dashboard_id, user)
     if section_id not in {s.id for s in row.sections}:
@@ -386,6 +407,8 @@ async def add_widget(
         )
     except dashboard_writer.UnknownSectionError:
         raise HTTPException(status_code=404, detail="Section not found")
+    except dashboard_writer.SealedSectionError as error:
+        raise _sealed_conflict(error)
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
 
@@ -421,6 +444,8 @@ async def update_widget(
         )
     except dashboard_writer.UnknownSectionError:
         raise HTTPException(status_code=404, detail="Section not found")
+    except dashboard_writer.SealedSectionError as error:
+        raise _sealed_conflict(error)
     return _row_to_response(await _refetch_dashboard(dashboard_id))
 
 
@@ -438,7 +463,10 @@ async def remove_widget(
     row = await _get_owned_dashboard(dashboard_id, user)
     if widget_id not in {w.id for w in row.widgets}:
         raise HTTPException(status_code=404, detail="Widget not found")
-    await dashboard_writer.remove_widget(widget_id)
+    try:
+        await dashboard_writer.remove_widget(widget_id)
+    except dashboard_writer.SealedSectionError as error:
+        raise _sealed_conflict(error)
 
 
 @router.delete(
