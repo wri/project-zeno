@@ -68,6 +68,29 @@ def error_command(message: str, tool_call_id: Optional[str]) -> Command:
     )
 
 
+def sealed_error_command(
+    error: dashboard_writer.SealedSectionError, tool_call_id: Optional[str]
+) -> Command:
+    """Reply for a write the repository refused as read-only.
+
+    The write paths that do not pass through ``resolve_section`` (editing a
+    section, editing or moving a widget already on a dashboard) only learn
+    the section is sealed when the repository raises. The reply names the
+    only way forward, so the model explains rather than retries.
+    """
+    return error_command(
+        f"Section {error.section_id} is read-only (built in one piece as "
+        f"'{error.section_type}'). Its title, description and the content of "
+        "its widgets cannot be changed, and widgets cannot be added, removed "
+        "or moved in or out. Tell the user the content cannot be edited. A "
+        "monitoring section can still be moved to another period with "
+        "update_nrt_monitoring_section, and its widgets rearranged and "
+        "resized in the app; anything else means deleting it and building a "
+        "new one.",
+        tool_call_id,
+    )
+
+
 def resolve_dashboard_id(
     state: dict, explicit: Optional[str]
 ) -> Optional[str]:
@@ -98,8 +121,26 @@ def format_sections(dashboard: DashboardOrm) -> str:
     if not sections:
         return "none"
     return "; ".join(
-        f"'{section.title}' ({section.id})" for section in sections
+        f"'{section.title}' ({section.id})"
+        + (
+            " [read-only]"
+            if section.type in dashboard_writer.SEALED_SECTION_TYPES
+            else ""
+        )
+        for section in sections
     )
+
+
+def _section_or_sealed(row):
+    """The matched section, or an error when a recipe sealed it: a sealed
+    section is built in one piece and cannot take a widget the model adds."""
+    if row.type in dashboard_writer.SEALED_SECTION_TYPES:
+        return None, (
+            f"Section '{row.title}' ({row.id}) is read-only — it was built "
+            "in one piece and cannot take new widgets. Put the widget in "
+            "another section, or leave `section` out to add it ungrouped."
+        )
+    return row, None
 
 
 def resolve_section(dashboard: DashboardOrm, section: Optional[str]):
@@ -116,6 +157,10 @@ def resolve_section(dashboard: DashboardOrm, section: Optional[str]):
     sections made in the UI can share a title. Rather than silently picking
     one, an ambiguous title is an error that lists the candidate ids for the
     model to choose from.
+
+    A sealed section (one a recipe built in a piece) is refused here rather
+    than at the write: the repository would raise anyway, and the model gets
+    a reply that says what to do instead.
     """
     if not section:
         return None, None
@@ -123,12 +168,12 @@ def resolve_section(dashboard: DashboardOrm, section: Optional[str]):
     rows = dashboard.sections or []
     for row in rows:
         if str(row.id) == wanted:
-            return row, None
+            return _section_or_sealed(row)
     by_title = [
         row for row in rows if row.title.casefold() == wanted.casefold()
     ]
     if len(by_title) == 1:
-        return by_title[0], None
+        return _section_or_sealed(by_title[0])
     if by_title:
         ids = ", ".join(str(row.id) for row in by_title)
         return None, (

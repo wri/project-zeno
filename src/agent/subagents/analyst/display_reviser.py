@@ -66,10 +66,16 @@ class RevisedInsight(BaseModel):
     """Structured output: the restyled narrative + chart specs."""
 
     primary_insight: str = Field(
-        description="Revised overall insight (2-3 sentences)"
+        description=(
+            "Revised overall insight (2-3 sentences), with every figure in "
+            "a highlight span as the wording guide requires"
+        )
     )
     follow_up_suggestions: List[str] = Field(
-        description="Revised 1-2 follow-up suggestions"
+        description=(
+            "Revised 1-2 follow-up suggestions, in plain text with no "
+            "highlight spans"
+        )
     )
     charts: List[RevisedChart] = Field(
         description="One entry per existing chart, keyed by position"
@@ -93,6 +99,8 @@ Do not add or remove charts.
 - For chart types other than 'pie' and 'table', set either `y_axis` (single \
 series) or `series_fields` (multi series).
 - Apply only what the instruction asks for; leave everything else as it was.
+- Chart titles stay plain text: highlight spans belong in \
+`primary_insight` only.
 
 {wording_guide}"""
 

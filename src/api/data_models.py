@@ -551,6 +551,17 @@ class DashboardSectionOrm(Base):
     # Free-form intent of the section ("why these widgets belong together"),
     # written by the user or composed by the agent.
     description = Column(String, nullable=True)
+    # How the section was built, and how the frontend renders it: "default"
+    # for a user- or agent-composed group, or a recipe name such as
+    # "nrt-monitoring" for a section a builder wrote in one piece. Recipe
+    # sections are sealed — see ``dashboard_writer.SEALED_SECTION_TYPES``.
+    type = Column(String, nullable=False, server_default="default")
+    # What a recipe built this section from: the window it covers
+    # ("days", "start_date", "end_date") and any parameters it was given.
+    # Empty for a hand-composed section. This is how a refresh knows what to
+    # replace, and how a reader is told what period is on screen — the
+    # period must not be re-derived by reading the widgets' own configs.
+    config = Column(JSONB, nullable=False, server_default="{}")
     # Order of the section within the dashboard.
     position = Column(Integer, nullable=False, server_default="0")
     created_at = Column(DateTime, nullable=False, default=datetime.now)

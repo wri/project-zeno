@@ -2,8 +2,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from src.agent.skills.capabilities import render_capabilities_body
+from src.agent.text_highlights import HIGHLIGHT_GUIDE
 
 _SKILLS_DIR = Path(__file__).resolve().parent / "skills_md"
+
+# Blocks a skill body can pull in by placeholder, so a rule that also lives
+# in a prompt is written once and cannot drift between the two.
+_SHARED_BLOCKS = {"{{HIGHLIGHT_GUIDE}}": HIGHLIGHT_GUIDE}
 
 
 @dataclass
@@ -64,10 +69,16 @@ def get_skill(name: str) -> SkillMeta | None:
 
 
 def render_body(skill: SkillMeta) -> str:
-    """A skill's body as handed to the model (capabilities is templated)."""
+    """A skill's body as handed to the model, with its templating resolved:
+    the shared blocks any skill may reference, and the live dataset list that
+    only `capabilities` uses."""
+    body = skill.body
+    for placeholder, block in _SHARED_BLOCKS.items():
+        if placeholder in body:
+            body = body.replace(placeholder, block)
     if skill.name == "capabilities":
-        return render_capabilities_body(skill.body)
-    return skill.body
+        return render_capabilities_body(body)
+    return body
 
 
 def get_skill_body(name: str) -> str | None:

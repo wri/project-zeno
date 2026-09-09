@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -13,6 +13,7 @@ from pydantic import (
 )
 
 from src.api.data_models import UserType
+from src.api.services.nrt_window import DEFAULT_DAYS, MAX_DAYS
 from src.api.user_profile_configs.countries import COUNTRIES
 from src.api.user_profile_configs.gis_expertise import GIS_EXPERTISE_LEVELS
 from src.api.user_profile_configs.languages import LANGUAGES
@@ -639,6 +640,21 @@ class DashboardSectionCreateRequest(BaseModel):
         max_length=SECTION_TITLE_MAX_LENGTH,
         description="Section heading, e.g. `Deforestation`.",
     )
+    # Only "default" is creatable here. A recipe type such as
+    # "nrt-monitoring" is sealed the moment it exists
+    # (``dashboard_writer.SEALED_SECTION_TYPES``), so accepting one on this
+    # path would hand a caller a section that can never be titled, filled or
+    # edited — only deleted. Recipe sections come from their own endpoint,
+    # which writes the content in the same transaction.
+    type: Literal["default"] = Field(
+        default="default",
+        description=(
+            "How the section was built. Only `default` — a group you compose "
+            "widget by widget — can be created here. Recipe types such as "
+            "`nrt-monitoring` are written by their own endpoint and are "
+            "read-only afterwards."
+        ),
+    )
     description: Optional[str] = Field(
         default=None,
         description="What the section is for — its intent, in one or two lines.",
@@ -650,6 +666,9 @@ class DashboardSectionCreateRequest(BaseModel):
 
 
 class DashboardSectionUpdateRequest(BaseModel):
+    # ``type`` is deliberately absent: it records how the section was built,
+    # and a sealed section that could be retyped to "default" would be one
+    # PATCH away from editable.
     title: Optional[str] = Field(
         default=None, min_length=1, max_length=SECTION_TITLE_MAX_LENGTH
     )
@@ -768,6 +787,14 @@ class DashboardSectionResponse(BaseModel):
     title: str
     description: Optional[str] = None
     position: int
+    # "default", or the recipe that wrote the section. Anything other than
+    # "default" is read-only: the API rejects writes to it with 409.
+    type: str = "default"
+    # What the recipe built this section from — for `nrt-monitoring`, the
+    # window it covers: `{"recipe", "days", "start_date", "end_date"}`.
+    # Empty for a hand-composed section. Show the period from here rather
+    # than reading a widget's tile layer.
+    config: dict = {}
     created_at: datetime
 
 
@@ -810,6 +837,104 @@ class DashboardPublicToggleResponse(DashboardResponse):
         default=[],
         description=(
             "Insights flipped to public because this dashboard was published."
+        ),
+    )
+
+
+class NrtSectionRefreshRequest(BaseModel):
+    """The window a monitoring section covers, and how its imagery is found.
+
+    Both the build and the refresh take these; a refresh takes nothing else,
+    because everything the section shows moves to the new window together —
+    the chart, the alerts layer and the satellite imagery — and its title and
+    description are rewritten, since they state the period.
+
+    Every field has a working default: the point of both endpoints is that a
+    caller can post an empty body.
+    """
+
+    days: int = Field(
+        default=DEFAULT_DAYS,
+        ge=1,
+        le=MAX_DAYS,
+        description=(
+            "Length of the alert window, counted back from today, and the "
+            "period every widget in the section covers. Defaults to the "
+            "last two weeks; clamped to the dataset's own coverage."
+        ),
+    )
+    window_days: int = Field(
+        default=7,
+        ge=1,
+        le=183,
+        description=(
+            "Satellite imagery search window, ±N days around the end of the "
+            "alert window."
+        ),
+    )
+    max_cloud_cover: int = Field(
+        default=20,
+        ge=0,
+        le=100,
+        description="Cloud cover limit for the satellite scenes, in percent.",
+    )
+
+
+class NrtSectionCreateRequest(NrtSectionRefreshRequest):
+    """Inputs for a new near-real-time monitoring section.
+
+    The window fields above, plus what only a first build can say: text that
+    overrides the generated title and description, and whether to build a
+    second section for a period the dashboard already covers.
+    """
+
+    title: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        description="Section heading; generated from the data when omitted.",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        description=(
+            "Section summary; generated from the data when omitted. The "
+            "generated text states the key figures."
+        ),
+    )
+    force: bool = Field(
+        default=False,
+        description=(
+            "Build even if the dashboard already has a monitoring section "
+            "for the same period. Off by default, so a double click does "
+            "not produce two identical sections."
+        ),
+    )
+
+
+class NrtSectionResponse(DashboardResponse):
+    """The dashboard with the new section on it, plus what the build could
+    not do."""
+
+    section_id: UUID = Field(
+        description="The section that was created, or the existing match."
+    )
+    created: bool = Field(
+        description=(
+            "False when an existing section for the same period was "
+            "returned instead of building a new one."
+        )
+    )
+    days: int = Field(
+        description="Length of the window the section now covers, in days."
+    )
+    start_date: date = Field(description="First day of the window.")
+    end_date: date = Field(description="Last day of the window.")
+    warnings: List[str] = Field(
+        default=[],
+        description=(
+            "Why a widget is missing — e.g. the area is too large for "
+            "satellite imagery, or no cloud-free scenes were found. The "
+            "section is still usable; do not assume three widgets."
         ),
     )
 

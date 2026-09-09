@@ -16,6 +16,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.text_highlights import HIGHLIGHT_RULE, strip_highlights
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.add_text_widget import (
     EMPTY_TEXT_MESSAGE,
@@ -27,6 +28,7 @@ from src.agent.tools.common import (
     error_command,
     load_editable_dashboard,
     resolve_dashboard_id,
+    sealed_error_command,
 )
 from src.api.repositories import dashboard_writer
 from src.shared.logging_config import get_logger
@@ -37,8 +39,12 @@ _EXCERPT_CHARS = 60
 
 
 def _excerpt(text: str, max_chars: int = _EXCERPT_CHARS) -> str:
-    """A short single-purpose preview of a widget's markdown body."""
-    text = (text or "").strip()
+    """A short single-purpose preview of a widget's markdown body.
+
+    Highlight spans come out: the preview only has to identify the widget,
+    and a cut of 60 characters would otherwise land inside a tag.
+    """
+    text = strip_highlights(text or "").strip()
     if len(text) > max_chars:
         return text[:max_chars] + "…"
     return text
@@ -134,6 +140,10 @@ async def edit_text_widget(
     """Replace the markdown body of an existing text widget.
 
     `text` is the full new markdown body (a replacement, not an append).
+    Wrap every figure in it in a highlight span (`<span
+    data-highlight="value">27%</span>`, or `"increase"` / `"decrease"` for
+    a figure that states a change) so the app can colour it, and keep the
+    spans that are already there.
     `widget_id` defaults to the dashboard's only text widget — when the
     dashboard has several, the error lists their ids so you can retry with
     one. `dashboard_id` defaults to the dashboard in state or the one the
@@ -161,9 +171,12 @@ async def edit_text_widget(
         text_chars=len(body),
     )
 
-    updated = await dashboard_writer.update_widget(
-        widget.id, config=_widget_config(body)
-    )
+    try:
+        updated = await dashboard_writer.update_widget(
+            widget.id, config=_widget_config(body)
+        )
+    except dashboard_writer.SealedSectionError as error:
+        return sealed_error_command(error, tool_call_id)
     if not updated:
         return error_command(
             f"Widget {widget.id} disappeared before it could be edited.",
@@ -190,6 +203,6 @@ SPEC = ToolSpec(
         "replacement). Defaults to the dashboard's only text widget; when "
         "several exist the error lists their ids — retry with widget_id. "
         "Use when the user asks to change, rewrite or update a note on "
-        "their dashboard."
+        "their dashboard. " + HIGHLIGHT_RULE
     ),
 )

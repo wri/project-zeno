@@ -16,6 +16,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.text_highlights import HIGHLIGHT_RULE
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import (
     dashboard_updated_command,
@@ -60,12 +61,15 @@ async def add_text_widget(
 
     `text` is the widget's markdown body — compose it yourself: a concise
     note, summary or section intro; headings go in the markdown (there is
-    no separate title). `dashboard_id` defaults to the dashboard in state
-    or the one the user is currently viewing; `section` places the note in
-    one of the dashboard's sections (by title or id), otherwise it lands
-    ungrouped at the top level; `position` optionally places the widget
-    within that container (default: appended at the end). Only dashboards
-    the user owns can be edited.
+    no separate title). Wrap every figure in the note in a highlight span
+    (`<span data-highlight="value">27%</span>`, or `"increase"` /
+    `"decrease"` for a figure that states a change) so the app can colour
+    it. `dashboard_id` defaults to the dashboard in state or the one the
+    user is currently viewing; `section` places the note in one of the
+    dashboard's sections (by title or id), otherwise it lands ungrouped at
+    the top level; `position` optionally places the widget within that
+    container (default: appended at the end). Only dashboards the user
+    owns can be edited.
     """
     state = state or {}
 
@@ -143,6 +147,7 @@ SPEC = ToolSpec(
         "section intro; do not paste raw data. Dashboard defaults to the "
         "one in state or on screen; `section` (a section title or id) "
         "groups it. Use when the user asks to add a note, "
-        "description, summary or explanation to their dashboard."
+        "description, summary or explanation to their dashboard. "
+        + HIGHLIGHT_RULE
     ),
 )

@@ -9,6 +9,10 @@ underlying chart rows are preserved untouched.
 The target is the current insight in state (the last one generated this thread)
 unless an explicit ``insight_id`` is given. The revised insight is persisted in
 place and pushed back onto state so the frontend re-renders it.
+
+An insight that a sealed dashboard section shows is refused: that section's
+content is a record of one build, and this is the only path that could
+rewrite it without touching a dashboard row.
 """
 
 from typing import Annotated, Dict, Optional
@@ -30,6 +34,7 @@ from src.agent.subagents.analyst.display_reviser import (
     RevisedChart,
     RevisedInsight,
 )
+from src.agent.text_highlights import strip_highlights
 from src.agent.tool_spec import ToolCategory, ToolSpec
 from src.agent.tools.common import (
     error_command,
@@ -37,6 +42,7 @@ from src.agent.tools.common import (
     require_current_user_id,
 )
 from src.api.data_models import InsightOrm
+from src.api.repositories.dashboard_access import insight_is_sealed
 from src.api.repositories.insight_access import is_editable_by_user
 from src.api.repositories.insight_writer import update_insight
 from src.shared.database import get_session_from_pool
@@ -172,6 +178,18 @@ async def update_insight_display(
             f"Insight {target_id} not found or not editable.", tool_call_id
         )
 
+    # An insight shown by a sealed dashboard section is that section's
+    # content: restyling it here would change what the section shows without
+    # touching a dashboard row, which is the one way around the seal.
+    if await insight_is_sealed(row.id):
+        return error_command(
+            f"Insight {target_id} is the content of a read-only dashboard "
+            "section, built in one piece, so its display cannot be changed. "
+            "Tell the user that section cannot be edited — it can only be "
+            "deleted and rebuilt.",
+            tool_call_id,
+        )
+
     current = Insight.from_orm_row(row)
     revised = await InsightDisplayReviser().revise(current, instruction)
 
@@ -195,7 +213,7 @@ async def update_insight_display(
         updated,
         (
             f"Updated insight {target_id}. Charts: {chart_titles}.\n\n"
-            f"Summary: {updated.primary_insight}"
+            f"Summary: {strip_highlights(updated.primary_insight)}"
         ),
         tool_call_id,
     )

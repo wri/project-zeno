@@ -15,6 +15,10 @@ class MosaicCreateResponse(BaseModel):
     """
 
     mosaic_id: str
+    # Ready to render: the GFW tiles service reads the MosaicJSON from S3, so
+    # these are derived from mosaic_id and stable for the life of the object.
+    tile_url: str
+    tilejson_url: str
     item_count: Optional[int] = None
     date_start: Optional[date] = None
     date_end: Optional[date] = None

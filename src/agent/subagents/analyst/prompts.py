@@ -3,8 +3,12 @@
 EXECUTOR_WORKFLOW is the step-by-step workflow the code executor follows to
 turn pulled data into chart JSON. WORDING_GUIDE is the neutral,
 measurement-first language guide for user-facing text, used by the separate
-text stage (`InsightTextGenerator`).
+text stage (`InsightTextGenerator`). It ends with the shared highlight-markup
+contract, so insight text marks up its figures the same way a dashboard text
+widget does.
 """
+
+from src.agent.text_highlights import HIGHLIGHT_GUIDE
 
 EXECUTOR_WORKFLOW = """### STEP-BY-STEP WORKFLOW (follow in order)
 
@@ -81,7 +85,8 @@ Now prepare the data for visualization in Recharts.js:
    f) **PRINT CHART TYPE**: State the recommended chart type in the output
 """
 
-WORDING_GUIDE = """# Wording
+WORDING_GUIDE = (
+    """# Wording
 
 - Use dataset cautions/limitations proactively but briefly (e.g. clarify tree cover loss vs deforestation when relevant).
 - Avoid strong or vague claims without evidence.
@@ -93,4 +98,7 @@ WORDING_GUIDE = """# Wording
 **Use carefully (need justification):** trend (if not calculated), significant (if not statistical), validated, accurate (without comparison).
 
 - Use markdown with blank lines between sections.
+
 """
+    + HIGHLIGHT_GUIDE
+)
