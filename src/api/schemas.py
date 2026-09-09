@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 from uuid import UUID
 
 from geojson_pydantic import Polygon
@@ -639,6 +639,21 @@ class DashboardSectionCreateRequest(BaseModel):
         max_length=SECTION_TITLE_MAX_LENGTH,
         description="Section heading, e.g. `Deforestation`.",
     )
+    # Only "default" is creatable here. A templated type such as
+    # "nrt-monitoring" is sealed the moment it exists
+    # (``analysis_templates.registry.SEALED_SECTION_TYPES``), so accepting
+    # one on this path would hand a caller a section that can never be
+    # titled, filled or edited — only deleted. Refused rather than ignored,
+    # so a caller that tries is told.
+    type: Literal["default"] = Field(
+        default="default",
+        description=(
+            "How the section was built. Only `default` — a group you compose "
+            "widget by widget — can be created here. Templated types such "
+            "as `nrt-monitoring` are written by their analysis template and "
+            "are read-only afterwards."
+        ),
+    )
     description: Optional[str] = Field(
         default=None,
         description="What the section is for — its intent, in one or two lines.",
@@ -650,6 +665,11 @@ class DashboardSectionCreateRequest(BaseModel):
 
 
 class DashboardSectionUpdateRequest(BaseModel):
+    # ``type`` is deliberately absent, here and on the create request: it
+    # records how the section was built. A section that could be typed — or
+    # retyped — from outside would be one PATCH away from unsealed, and a
+    # templated section created by hand would be one nothing can ever fill.
+    # Templates write their own sections, type included.
     title: Optional[str] = Field(
         default=None, min_length=1, max_length=SECTION_TITLE_MAX_LENGTH
     )
@@ -768,6 +788,15 @@ class DashboardSectionResponse(BaseModel):
     title: str
     description: Optional[str] = None
     position: int
+    # "default", or the analysis template that wrote the section. Anything
+    # other than "default" is read-only: the API rejects writes to it with
+    # 409.
+    type: str = "default"
+    # What the template built this section from — its own name, the window
+    # it covers and the parameters it was given. Empty for a hand-composed
+    # section. Show the period from here rather than reading a widget's
+    # tile layer.
+    config: dict = {}
     created_at: datetime
 
 

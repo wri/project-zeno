@@ -64,6 +64,7 @@ tools:
 EXPERIMENTAL_MANIFEST = """\
 profile: experimental
 skills:
+  - analysis-templates (requires: add_analysis_section, refresh_analysis_section, reconfigure_analysis_section, send_nudge, create_dashboard, pick_aoi, inspect_view_context)
   - analyze (requires: pick_aoi, pick_dataset, pull_data, generate_insights)
   - capabilities
   - dashboard (requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, add_dashboard_section, edit_dashboard_section, move_dashboard_widget, inspect_view_context, send_nudge, search_insights)
@@ -91,6 +92,9 @@ tools:
   - add_text_widget
   - edit_text_widget
   - add_dashboard_section
+  - add_analysis_section
+  - refresh_analysis_section
+  - reconfigure_analysis_section
   - edit_dashboard_section
   - move_dashboard_widget
   - send_nudge"""

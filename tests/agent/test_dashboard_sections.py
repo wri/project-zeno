@@ -31,9 +31,15 @@ def _status(command):
     return command.update["messages"][0].status
 
 
-def _section(title="Deforestation", description=None, position=0):
+def _section(
+    title="Deforestation", description=None, position=0, type="default"
+):
     return SimpleNamespace(
-        id=uuid4(), title=title, description=description, position=position
+        id=uuid4(),
+        title=title,
+        description=description,
+        position=position,
+        type=type,
     )
 
 
