@@ -80,6 +80,9 @@ class SectionContent:
     #: ``{"widget_type": ..., "insight_id": ..., "config": ...}`` each, in
     #: render order.
     widgets: list[dict]
+    #: Anything else the template wants on the section row, beside its name
+    #: and the parameters ``writer`` records for it. Free-form: nothing in
+    #: the generic layer reads it, only the template that wrote it.
     config: dict[str, Any] = field(default_factory=dict)
     #: One line for a tool message: what was built, in the template's own
     #: words. No ids — the caller adds those.
@@ -141,7 +144,21 @@ class AnalysisTemplate(Protocol[ParamsT]):
         params: ParamsT,
         language: str,
     ) -> TemplateResult:
-        """Rebuild one of this template's own sections, in place."""
+        """Rebuild one of this template's own sections, in place.
+
+        Called both to re-run a section unchanged, with today's data, and to
+        rebuild it for different parameters. The template cannot tell the
+        two apart, and does not need to.
+        """
+        ...
+
+    def describe(self, section: DashboardSectionOrm) -> str:
+        """What this section currently covers, in one phrase for a message.
+
+        The template's own words, because only it knows what its parameters
+        mean: a period for one, a threshold or a comparison for the next.
+        Read from the section's stored ``config``, never from a widget.
+        """
         ...
 
 
@@ -184,15 +201,15 @@ def templated_sections(
     ]
 
 
-def describe_window(section: DashboardSectionOrm) -> str:
-    """The period a templated section records, for a message to the user.
+def stored_params(
+    template: "AnalysisTemplate[Any]", section: DashboardSectionOrm
+) -> BaseModel:
+    """The parameters a section was last built with.
 
-    ``writer`` stores ``start_date`` and ``end_date`` on the section
-    ``config`` whenever a template covers a period, so this reads the same
-    way for every template — never by sniffing a widget's tile layer.
+    ``writer`` records them on the section row under ``params``, so
+    re-running a section unchanged needs nothing from the caller and nothing
+    template-specific here. A section written before a parameter existed
+    falls back to that parameter's default.
     """
     config = dict(section.config or {})
-    start, end = config.get("start_date"), config.get("end_date")
-    if start and end:
-        return f"{start} to {end}"
-    return "an unrecorded period"
+    return template.params_model(**(config.get("params") or {}))

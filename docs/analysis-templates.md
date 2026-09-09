@@ -24,7 +24,7 @@ template.
 | `analysis_templates/base.py` | the interface, the result and error types, the shared helpers |
 | `analysis_templates/writer.py` | the two transactional writes, and the `config` shape |
 | `analysis_templates/<name>/` | one template |
-| `agent/tools/analysis_sections.py` | the two generic agent tools |
+| `agent/tools/analysis_sections.py` | the three generic agent tools |
 | `skills_md/analysis-templates.md` | the workflow the model follows |
 
 The registry imports nothing else, and must stay that way. Two callers need
@@ -35,6 +35,29 @@ and the agent's tool prompt lists the templates at import time.
 
 A template's `name` is also the value stored in `dashboard_sections.type`,
 so there is one list of template names rather than two.
+
+## The three verbs
+
+| The user says | Tool | What runs |
+|---|---|---|
+| "monitor this area" | `add_analysis_section(template, params?)` | `template.build()` |
+| "refresh it", "anything new?" | `refresh_analysis_section(section?)` | `template.refresh()` with the parameters the section recorded |
+| "show me 3 months instead" | `reconfigure_analysis_section(params, confirmed, section?)` | `template.refresh()` with new parameters |
+
+A template implements `build` and `refresh` and cannot tell the last two
+apart, which is the point: re-running a section and moving it are the same
+operation with different parameters.
+
+**Nothing in the generic layer names a parameter.** `params` is a dict the
+template's own model validates, and the section records what it was built
+with (`base.stored_params`), so a template driven by a threshold or a
+comparison area rather than a date range uses the same three tools
+unchanged. `template.describe(section)` renders the current parameters for a
+message, because only the template knows what they mean.
+
+Only `reconfigure` is confirmed, and only because it answers a different
+question than the one on screen. `refresh` asks the same question again, so
+there is nothing to agree to.
 
 ## Sealed sections
 
@@ -71,8 +94,11 @@ A template never meets the seal: it writes its section in one transaction
 
    - `build(dashboard, *, user_id, params, language)` and
      `refresh(section, dashboard, ...)` both gather content and hand it to
-     `writer`. Sharing one gather step means a refreshed section is
-     assembled exactly like a new one.
+     `writer`, along with the `params` they ran with. Sharing one gather
+     step means a rebuilt section is assembled exactly like a new one.
+   - `describe(section) -> str` says what the section currently covers, in
+     the template's own words. It is read back from the section's stored
+     `config`, never from a widget.
    - The template takes the loaded `DashboardOrm`, so it picks its own area
      (`base.first_aoi`) and runs its own "already built" check.
    - Its parameter model states its defaults and its bounds, and sets
@@ -82,13 +108,15 @@ A template never meets the seal: it writes its section in one transaction
      the user as written.
    - It writes its own one-line `summary`, so no caller has to know what
      the section contains.
-   - Record `start_date` and `end_date` in `SectionContent.config` if the
-     section covers a period; `base.describe_window` reads them back.
+   - `SectionContent.config` is free-form: nothing generic reads it, only
+     the template that wrote it. `writer` adds the template's name and its
+     parameters alongside.
 
 2. **Register it.** One `TemplateEntry` in `registry.py`. `label`,
-   `when_to_use` and `params_help` are read by a model, so keep them to one
-   line each. `sealed=True` unless the section is genuinely editable
-   afterwards.
+   `when_to_use`, `params_help` and `change_warning` are read by a model, so
+   keep them to one line each — `params_help` must name every field, its
+   default and its bounds, because it is all the model is told.
+   `sealed=True` unless the section is genuinely editable afterwards.
 
 3. **Document it for the model.** One `##` section in
    `skills_md/analysis-templates.md`: what it builds, what its parameters
@@ -109,10 +137,11 @@ chart widget's insight.
 - **One area.** A template covers the dashboard's first AOI
   (`base.first_aoi`). Portfolios of areas are a dashboard-level question,
   and that is the one place it will change.
-- **One shared parameter in the agent's tools.** Both tools pass `days`. A
-  template needing another input adds a field to its parameter model and a
-  line to `params_help`, and the tools gain that argument once — not once
-  per template.
+- **Parameters reach the model as a dict.** A template's fields are
+  described in `params_help` rather than in a tool signature, so the model
+  is told the shape rather than shown it. If that proves unreliable as
+  templates grow, the answer is per-template tools generated from the
+  registry, not a parameter in the generic layer.
 - **Synchronous.** A build runs to completion before it answers, which
   takes tens of seconds. When a route is added, that decision gets made
   again.

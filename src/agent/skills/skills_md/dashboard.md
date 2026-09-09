@@ -31,11 +31,12 @@ offer to delete it and build a new one — deleting it removes its widgets
 with it. Never put a new widget in one, and never move a widget out of one:
 put it in another section or leave it ungrouped.
 
-The one thing that can change is the period the section covers, by
-rebuilding the whole section for it. That is `update_analysis_section`, the
-template's own tool, not an edit — see the `analysis-templates` skill if you
-have it. Without that tool, a period change is a delete and a rebuild like
-any other change.
+The one thing that can change is the whole section at once, rebuilt by the
+template that wrote it: `refresh_analysis_section` to bring it up to date,
+`reconfigure_analysis_section` to rebuild it for different parameters.
+Those are the template's own tools, not edits — see the
+`analysis-templates` skill if you have it. Without them, any change is a
+delete and a rebuild.
 
 Layout is the exception. A reader may rearrange and resize the widgets
 inside such a section in the app, because that changes how the section looks

@@ -84,9 +84,11 @@ def sealed_error_command(
         "Its title, description and the content of its widgets cannot be "
         "changed, and widgets cannot be added, removed or moved in or out. "
         "Tell the user the content cannot be edited. Such a section can "
-        "still be rebuilt for a different period with "
-        "update_analysis_section, and its widgets rearranged and resized in "
-        "the app; anything else means deleting it and building a new one.",
+        "still be brought up to date with refresh_analysis_section or "
+        "rebuilt for different parameters with "
+        "reconfigure_analysis_section, and its widgets rearranged and "
+        "resized in the app; anything else means deleting it and building a "
+        "new one.",
         tool_call_id,
     )
 

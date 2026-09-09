@@ -7,6 +7,8 @@ contract for every registered template, so a new one is covered by them the
 day it is added.
 """
 
+from types import SimpleNamespace
+
 import pytest
 from pydantic import BaseModel
 
@@ -58,8 +60,21 @@ def test_entry_metadata_is_prompt_ready():
         assert entry.name == entry.name.lower()
         assert " " not in entry.name
         assert entry.label and entry.when_to_use and entry.params_help
+        # Shown when the agent asks the user to confirm a reconfigure.
+        assert entry.change_warning
     for name in registry.TEMPLATE_NAMES:
         assert name in registry.describe_templates()
+
+
+def test_every_template_describes_its_own_sections():
+    """Nothing generic may read a template's config: only the template knows
+    whether its parameters mean a period, a threshold or an area."""
+    for name in registry.TEMPLATE_NAMES:
+        template = registry.get_template(name)
+        described = template.describe(
+            SimpleNamespace(config={"template": name, "params": {}})
+        )
+        assert isinstance(described, str) and described
 
 
 def test_the_registry_stays_import_light():

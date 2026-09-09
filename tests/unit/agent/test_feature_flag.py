@@ -347,7 +347,8 @@ def test_experimental_profile_derives_exactly_the_experimental_tools():
             "edit_text_widget",
             "add_dashboard_section",
             "add_analysis_section",
-            "update_analysis_section",
+            "refresh_analysis_section",
+            "reconfigure_analysis_section",
             "edit_dashboard_section",
             "move_dashboard_widget",
             "send_nudge",
@@ -397,7 +398,8 @@ def test_experimental_config_adds_standalone_tools_and_planet():
     assert {
         "update_insight_display",
         "add_analysis_section",
-        "update_analysis_section",
+        "refresh_analysis_section",
+        "reconfigure_analysis_section",
     } <= (experimental_tools - default_tools)
 
     default_skills = {s.name for s in default.skill_metas()}

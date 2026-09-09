@@ -58,10 +58,14 @@ class TemplateEntry:
     label: str
     #: When to reach for this template, in one sentence.
     when_to_use: str
-    #: The template's own parameters, in one sentence.
+    #: The template's own parameters, in one sentence. Read by a model, so
+    #: it must name each field, its default and its bounds.
     params_help: str
     #: Module under this package that exports ``TEMPLATE``.
     module: str
+    #: What changing those parameters costs the reader, in one phrase. It
+    #: goes into the confirmation the agent must get first.
+    change_warning: str = "replaces what the section shows"
     #: Whether the section it writes is read-only afterwards. Templates that
     #: gather data for one period are; a template that only laid out
     #: existing widgets would not be.
@@ -79,6 +83,10 @@ ENTRIES: tuple[TemplateEntry, ...] = (
         params_help=(
             "days: length of the alert window counted back from today "
             "(default 14, max 365)"
+        ),
+        change_warning=(
+            "changes every figure in the section, and the previous ones "
+            "are deleted"
         ),
         module="nrt_monitoring",
     ),

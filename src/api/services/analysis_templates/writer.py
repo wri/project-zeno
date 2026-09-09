@@ -6,15 +6,18 @@ a reader may only ever see complete must not appear widget by widget.
 This module decides one thing of its own — what lands in
 ``dashboard_sections.config``:
 
-    {"template": <name>, **the template's own record}
+    {"template": <name>, "params": {...}, **the template's own record}
 
-The template's name is always there, so a refresh knows which template owns
-the section, and a reader is told which period is on screen without reading
-a widget's tile layer. By convention a template that covers a period records
-``start_date`` and ``end_date`` (see ``base.describe_window``).
+Two of those three keys are read by the generic layer and nothing else. The
+name says which template owns the section, so a refresh knows what to
+re-run. The parameters say what it was built with, so re-running it
+unchanged needs nothing from the caller (``base.stored_params``). The rest
+is the template's own record, read only by the template that wrote it.
 """
 
 from typing import Any
+
+from pydantic import BaseModel
 
 from src.api.repositories import dashboard_writer
 from src.api.services.analysis_templates.base import (
@@ -29,27 +32,35 @@ logger = get_logger(__name__)
 
 
 def _config(
-    template: "AnalysisTemplate[Any]", content: SectionContent
+    template: "AnalysisTemplate[Any]",
+    content: SectionContent,
+    params: BaseModel,
 ) -> dict:
-    return {"template": template.entry.name, **content.config}
+    return {
+        "template": template.entry.name,
+        "params": params.model_dump(mode="json"),
+        **content.config,
+    }
 
 
 async def write_section(
     dashboard_id: str,
     template: "AnalysisTemplate[Any]",
     content: SectionContent,
+    params: BaseModel,
 ) -> TemplateResult:
     """Write a gathered section onto a dashboard.
 
-    Raises ``TargetGoneError`` when the dashboard was deleted while the
-    content was being gathered.
+    ``params`` are recorded on the section row, so the section can later be
+    re-run exactly as it was built. Raises ``TargetGoneError`` when the
+    dashboard was deleted while the content was being gathered.
     """
     written = await dashboard_writer.add_section_with_widgets(
         dashboard_id,
         title=content.title,
         description=content.description,
         type=template.entry.name,
-        config=_config(template, content),
+        config=_config(template, content, params),
         widgets=content.widgets,
     )
     if written is None:
@@ -79,6 +90,7 @@ async def replace_section(
     section_id: str,
     template: "AnalysisTemplate[Any]",
     content: SectionContent,
+    params: BaseModel,
 ) -> TemplateResult:
     """Swap a section's whole contents for freshly gathered ones.
 
@@ -91,7 +103,7 @@ async def replace_section(
         section_id,
         title=content.title,
         description=content.description,
-        config=_config(template, content),
+        config=_config(template, content, params),
         widgets=content.widgets,
     )
     if written is None:

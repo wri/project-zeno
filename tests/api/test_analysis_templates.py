@@ -26,6 +26,7 @@ from src.api.services.analysis_templates import registry
 from src.api.services.analysis_templates.base import (
     AlreadyBuiltError,
     DataUnavailableError,
+    stored_params,
 )
 from src.api.services.analysis_templates.nrt_monitoring import (
     NAME,
@@ -178,8 +179,10 @@ async def test_builds_a_sealed_section_with_three_widgets():
     assert section.type in dashboard_writer.SEALED_SECTION_TYPES
     assert section.title == SUMMARY.title
     assert section.description == SUMMARY.description
-    # The section records which template owns it, so a refresh knows.
+    # The section records which template owns it, so a rebuild knows what
+    # to re-run, and the parameters it ran with, so a refresh needs none.
     assert section.config["template"] == NAME
+    assert section.config["params"] == {"days": 14}
 
     widgets = sorted(stored.widgets, key=lambda w: w.position)
     assert [w.widget_type for w in widgets] == ["insight", "map", "map"]
@@ -360,6 +363,51 @@ async def test_refresh_moves_every_widget_to_the_new_window():
         from src.api.data_models import InsightOrm
 
         assert await session.get(InsightOrm, old_insight) is None
+
+
+@pytest.mark.asyncio
+async def test_a_section_can_be_re_run_from_what_it_recorded():
+    """The round trip a refresh depends on: the parameters a section stored
+    rebuild it without the caller naming any."""
+    dashboard = await _dashboard("tpl-round-trip")
+
+    pull, imagery, summary = _patches()
+    with pull, imagery, summary:
+        await _build(dashboard, user_id="tpl-round-trip", days=30)
+        stored = await _reload(dashboard)
+        (section,) = stored.sections
+
+        await TEMPLATE.refresh(
+            section,
+            stored,
+            user_id="tpl-round-trip",
+            params=stored_params(TEMPLATE, section),
+            language="en",
+        )
+
+    (section,) = (await _reload(dashboard)).sections
+    assert section.config["params"] == {"days": 30}
+    assert (
+        section.config["start_date"]
+        == (date.today() - timedelta(days=30)).isoformat()
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_template_describes_its_own_section():
+    """A caller is told what the section covers without reading its config
+    or a widget's tile layer."""
+    dashboard = await _dashboard("tpl-describe")
+
+    pull, imagery, summary = _patches()
+    with pull, imagery, summary:
+        await _build(dashboard, user_id="tpl-describe", days=30)
+
+    (section,) = (await _reload(dashboard)).sections
+    assert TEMPLATE.describe(section) == (
+        f"{(date.today() - timedelta(days=30)).isoformat()} to "
+        f"{date.today().isoformat()}"
+    )
 
 
 @pytest.mark.asyncio

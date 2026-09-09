@@ -80,6 +80,7 @@ def test_sealed_reply_names_the_ways_forward():
     assert "read-only" in message.content
     # All three ways forward, so the model explains rather than retries.
     assert "deleting it and building a new one" in message.content
-    assert "update_analysis_section" in message.content
+    assert "refresh_analysis_section" in message.content
+    assert "reconfigure_analysis_section" in message.content
     # Layout is editable, so the reply must not claim otherwise.
     assert "resize" in message.content

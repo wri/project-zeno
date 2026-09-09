@@ -283,7 +283,9 @@ class NrtMonitoringTemplate:
             days=params.days,
             language=language,
         )
-        return await writer.write_section(str(dashboard.id), self, content)
+        return await writer.write_section(
+            str(dashboard.id), self, content, params
+        )
 
     async def refresh(
         self,
@@ -294,11 +296,13 @@ class NrtMonitoringTemplate:
         params: NrtParams,
         language: str = DEFAULT_LANGUAGE,
     ) -> TemplateResult:
-        """Rebuild the section for a new window, in place.
+        """Rebuild the section, in place, for ``params``.
 
-        Everything the section shows moves to the new period together — the
-        chart, the alerts layer and the imagery — and its title and
-        description are rewritten, because they state the period.
+        Everything it shows is gathered again together — the chart, the
+        alerts layer and the imagery — and its title and description are
+        rewritten, because they state the period. Passing the parameters it
+        already has re-runs it against today's data; passing different ones
+        moves it to another window. This does not tell the two apart.
         """
         aoi = first_aoi(dashboard)
         if aoi is None:
@@ -323,7 +327,17 @@ class NrtMonitoringTemplate:
             f" to {content.config['end_date']} ({params.days} days); every "
             f"widget in it now covers that period"
         )
-        return await writer.replace_section(str(section.id), self, content)
+        return await writer.replace_section(
+            str(section.id), self, content, params
+        )
+
+    def describe(self, section: DashboardSectionOrm) -> str:
+        """The period the section covers, from what it recorded."""
+        config = dict(section.config or {})
+        start, end = config.get("start_date"), config.get("end_date")
+        if start and end:
+            return f"{start} to {end}"
+        return "an unrecorded period"
 
 
 TEMPLATE = NrtMonitoringTemplate()
