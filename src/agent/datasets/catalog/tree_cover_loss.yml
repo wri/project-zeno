@@ -66,16 +66,19 @@ code_instructions: 'CHART TYPES: - Yearly loss → bar chart (x=year, y=area_ha)
 
   '
 presentation_instructions: 'Use "tree cover loss" rather than "deforestation" only when neither primary nor intact forest
-  is applied as a context layer. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
+  is applied as a context layer. When intact_forest is applied, "deforestation" may describe the process but never takes
+  intact forest as its object. This measures canopy loss only; it doesn''t track regrowth or permanence. Always state the canopy density threshold
   used (30%). If showing emissions, clarify units are MgCO2e (tonnes of CO2 equivalent). If trend spans 2001-2025, note the
   methodology change after 2010. If the primary_forest context layer is applied, prefer the concise "primary forest loss" over "primary
   forest tree cover loss". If the intact_forest context layer is applied, do NOT use "intact forest loss" or any wording that
   reads as intact forest being lost: this dataset measures tree cover loss occurring *inside* intact forest landscapes, which
   is a different quantity from the reduction in IFL extent that the IFL dataset itself publishes. Say "tree cover loss in
-  intact forest" or "tree cover loss within intact forest landscapes". This applies to chart titles, axis labels and prose
-  alike — e.g. "Annual Tree Cover Loss in Intact Forest in DRC (2001-2025)", never "Annual Intact Forest Loss". It holds
-  just as much when the phrase qualifies a different metric: carbon emissions are "emissions from tree cover loss in intact
-  forest", never "emissions from intact forest loss". The words "intact forest loss" must not appear anywhere in the output. CHART TITLES: each chart title must reflect only the metric(s) actually plotted in
+  intact forests" or "tree cover loss within intact forest landscapes". This applies to chart titles, axis labels and prose
+  alike, and titles must use the same wording as the charts themselves — e.g. "Annual Tree Cover Loss in Intact Forests in
+  DRC (2001-2025)", never "Annual Intact Forest Loss". It holds just as much when the phrase qualifies a different metric:
+  carbon emissions are "emissions from tree cover loss in intact forests", never "emissions from intact forest loss". Never
+  name intact forest as the thing being lost, whatever the verb: not "intact forest loss", not "intact forests loss", and
+  not "deforestation of intact forest". CHART TITLES: each chart title must reflect only the metric(s) actually plotted in
   that chart — do not mention emissions in a title if the chart only shows area, and do not mention area if the chart
   only shows emissions.
 
