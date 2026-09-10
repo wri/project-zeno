@@ -16,6 +16,7 @@ from shapely import box
 from src.agent.datasets.config import (
     CANDIDATE_DATASET_REQUIRED_COLUMNS,
     DATASETS,
+    RETIRED_DATASET_IDS,
 )
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
@@ -67,6 +68,66 @@ data_dir = Path("data")
 retriever_cache = None
 
 
+def _catalog_by_id() -> dict[int, dict]:
+    """Catalog datasets keyed by dataset_id, for doc-id lookups."""
+    return {ds["dataset_id"]: ds for ds in DATASETS}
+
+
+def _document_dataset_id(doc) -> Optional[int]:
+    """The dataset_id a retrieved document points at, or None if its id is
+    not an integer (a malformed or foreign document in the index)."""
+    try:
+        return int(doc.id)
+    except (TypeError, ValueError):
+        return None
+
+
+def _log_index_catalog_skew(index: InMemoryVectorStore) -> None:
+    """Compare the loaded index against the catalog and report any skew.
+
+    The index is a build artifact of the catalog (see
+    src/ingest/embed_datasets.py), but it is published separately, as an S3
+    object the pods sync into `data/`. A catalog change that ships without a
+    rebuilt index leaves the two out of step: documents for removed datasets
+    keep coming back from retrieval, and datasets added since the last build
+    can never be retrieved. Both are silent faults, so name them once at load.
+    """
+    catalog_ids = set(_catalog_by_id())
+    doc_ids = set()
+    for doc_id in getattr(index, "store", {}):
+        try:
+            doc_ids.add(int(doc_id))
+        except (TypeError, ValueError):
+            doc_ids.add(doc_id)
+
+    removed = doc_ids - catalog_ids
+    missing = catalog_ids - doc_ids
+    # A retired id explains itself: the index predates the removal of that
+    # dataset. An indexed id the catalog has never held does not, so name the
+    # two apart.
+    retired = removed & RETIRED_DATASET_IDS
+    unknown = removed - RETIRED_DATASET_IDS
+    if removed or missing:
+        logger.error(
+            "Dataset embeddings index %s is out of step with the catalog. "
+            "Indexed but retired from the catalog: %s. Indexed and unknown "
+            "to the catalog: %s. In the catalog but not indexed: %s. Rebuild "
+            "the index from the catalog (src/ingest/embed_datasets.py), "
+            "publish it under a NEW version name, and point "
+            "DATASET_EMBEDDINGS_DB at that name.",
+            SharedSettings.dataset_embeddings_db,
+            sorted(retired, key=str) or "none",
+            sorted(unknown, key=str) or "none",
+            sorted(missing, key=str) or "none",
+        )
+    else:
+        logger.info(
+            "Dataset embeddings index %s matches the catalog (%s datasets).",
+            SharedSettings.dataset_embeddings_db,
+            len(catalog_ids),
+        )
+
+
 async def _get_retriever():
     global retriever_cache
     if retriever_cache is None:
@@ -79,6 +140,7 @@ async def _get_retriever():
             data_dir / SharedSettings.dataset_embeddings_db,
             embedding=embeddings,
         )
+        _log_index_catalog_skew(index)
         retriever_cache = index.as_retriever(
             search_type="similarity", search_kwargs={"k": 5}
         )
@@ -88,13 +150,32 @@ async def _get_retriever():
 async def rag_candidate_datasets(query: str, k=3):
     logger.debug(f"Retrieving candidate datasets for query: '{query}'")
     candidate_datasets = []
+    stale_doc_ids = []
     retriever = await _get_retriever()
     match_documents = await retriever.ainvoke(query)
+    catalog = _catalog_by_id()
     for doc in match_documents:
-        data = [ds for ds in DATASETS if ds["dataset_id"] == int(doc.id)]
-        if not data:
-            raise ValueError(f"No data found for dataset ID: {doc.id}")
-        candidate_datasets.append(data[0])
+        dataset_id = _document_dataset_id(doc)
+        dataset = None if dataset_id is None else catalog.get(dataset_id)
+        if dataset is None:
+            # The index still holds a dataset the catalog has dropped. Skip
+            # it and keep the valid candidates: a stale index must degrade
+            # the shortlist, not fail the turn.
+            stale_doc_ids.append(doc.id)
+            continue
+        candidate_datasets.append(dataset)
+
+    if stale_doc_ids:
+        logger.warning(
+            "Skipped %s retrieved document(s) with no matching catalog "
+            "dataset: %s. Index %s holds datasets the catalog no longer "
+            "has; rebuild and republish it "
+            "(src/ingest/embed_datasets.py). Catalog ids: %s.",
+            len(stale_doc_ids),
+            stale_doc_ids,
+            SharedSettings.dataset_embeddings_db,
+            sorted(catalog),
+        )
 
     logger.debug(f"Found {len(candidate_datasets)} candidate datasets.")
     names = [ds["dataset_name"] for ds in candidate_datasets]
@@ -232,9 +313,31 @@ class DatasetSelector:
         candidate_datasets = await rag_candidate_datasets(query, k=5)
         # Drop datasets the current agent profile (feature flag) excludes, so
         # they can never be selected under a flag that hides them.
-        candidate_datasets = _drop_excluded_datasets(
-            candidate_datasets, bound_availability().excluded_datasets
-        )
+        if not candidate_datasets.empty:
+            candidate_datasets = _drop_excluded_datasets(
+                candidate_datasets, bound_availability().excluded_datasets
+            )
+        if candidate_datasets.empty:
+            # Nothing retrieved survived the catalog lookup or the profile
+            # exclusions. Tell the user plainly; the cause is in the logs.
+            logger.error(
+                "No candidate datasets for query %r (index %s). Every "
+                "retrieved document was skipped.",
+                query,
+                SharedSettings.dataset_embeddings_db,
+            )
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            await t(
+                                "pick_dataset.retrieval_unavailable", language
+                            ),
+                            tool_call_id=tool_call_id,
+                        )
+                    ]
+                }
+            )
         # Step 2: LLM picks the best dataset and context layer
         selection_result = await select_best_dataset(
             query,
