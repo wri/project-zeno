@@ -14,7 +14,7 @@ def _content(command):
 
 def _dashboard(user_id="user-1", name="Paraná"):
     return SimpleNamespace(
-        id=uuid4(), user_id=user_id, name=name, is_public=False
+        id=uuid4(), user_id=user_id, name=name, is_public=False, sections=[]
     )
 
 
@@ -74,6 +74,7 @@ async def test_add_to_dashboard_defaults_from_state():
         str(dashboard.id),
         widget_type="insight",
         insight_id=str(insight.id),
+        section_id=None,
     )
 
 

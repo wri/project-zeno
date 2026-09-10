@@ -59,6 +59,18 @@ migration. Scope here is backend only: models, repositories, API, agent tools.
    plus presentation config. *Superseded for map widgets (2026-07-03):
    their config snapshots the resolved layer including tile URLs, mirroring
    the `dataset`/`imagery` state updates the explorer already renders.*
+5. **Sections: exactly one level of grouping** (added 2026-08-31,
+   `dashboard_sections` table). A widget belongs to at most one section or
+   stays ungrouped (`section_id` NULL), so no existing widget needed a
+   backfill. Ungrouped widgets render above the first section; `position` is
+   an order *within a container* (a section, or the ungrouped top level),
+   and sections carry their own `position`. Deleting a section never deletes
+   content — its widgets fall back to ungrouped (`ON DELETE SET NULL`).
+   Nested sections and cross-section widget reuse are deliberately not
+   supported. Ungrouping renumbers the orphans as a block after the last
+   top-level widget, because their old positions were section-scoped and
+   would otherwise collide. `DELETE .../sections/{id}?delete_widgets=true`
+   is the opt-in destructive variant.
 
 ## 1. Data model + migration
 
@@ -160,7 +172,13 @@ included (`src/api/app.py`).
 
 Schemas in `src/api/schemas.py` next to the insight response models.
 
-## 5. Agent integration (experimental profile only)
+## 5. Agent integration
+
+*(Originally experimental-profile only. The `dashboard` skill has since
+graduated to `DEFAULT_SKILLS`, and `inspect_view_context` graduated with it
+on 2026-08-31 when the skill took it into `requires:` — the sections work
+made reading a dashboard's structure part of the workflow rather than a
+standalone debugging aid.)*
 
 **Tools** — copy the structure of `src/agent/tools/search_insights.py`
 (module docstring, private DB helpers, pure helpers separated, `Command` +
@@ -249,3 +267,11 @@ Follow the two established patterns:
 - Portfolio UX (schema already supports multiple `dashboard_aois` rows).
 - Read-through access for private insights on public dashboards.
 - A dashboard-composer subagent.
+- Nested sections (sections inside sections) and widgets in more than one
+  section — one flat level of grouping only.
+- Bulk reorder. Positions are caller-assigned integers with no uniqueness
+  constraint, and setting one does not shift its siblings, so a true reorder
+  means the client rewrites each affected widget's position.
+- Agent tools for *deleting* dashboard content (widgets, sections,
+  dashboards) or for renaming/publishing a dashboard. Those paths are REST
+  only; the agent adds, edits and regroups.

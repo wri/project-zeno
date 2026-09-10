@@ -1,8 +1,8 @@
 ---
 name: dashboard
-description: Create a dashboard for an area and fill it with insights (new or recalled), map widgets, and text notes.
-when_to_use: User asks to build/create a dashboard for a place, to add an insight/analysis to a dashboard, or to add a map layer / satellite imagery to a dashboard. Not for one-off analysis without a dashboard — use `analyze`.
-requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, send_nudge, search_insights
+description: Create a dashboard for an area, group its content into sections, and fill it with insights (new or recalled), map widgets, and text notes.
+when_to_use: User asks to build/create a dashboard for a place, to add an insight/analysis to a dashboard, to add a map layer / satellite imagery to a dashboard, or to group, organize or restructure a dashboard's content. Not for one-off analysis without a dashboard — use `analyze`.
+requires: create_dashboard, add_to_dashboard, add_map_widget, add_text_widget, edit_text_widget, add_dashboard_section, edit_dashboard_section, move_dashboard_widget, inspect_view_context, send_nudge, search_insights
 ---
 
 # Dashboards
@@ -11,6 +11,12 @@ A dashboard is a persistent collection of widgets for ONE area (a country, a
 state, a protected area). Widgets are insights, map layers, or free-form text notes. Widgets
 reference or snapshot work that already exists — adding to a dashboard never
 recomputes anything.
+
+A dashboard has one optional level of grouping: **sections**. A section has a
+title and an optional description that says what it is for. Every widget
+either belongs to one section or stays ungrouped; ungrouped widgets render
+above the first section. Order matters and is kept: sections render in their
+own order, widgets in order within their section.
 
 # Which dashboard to use
 
@@ -33,19 +39,48 @@ recomputes anything.
 # Composing ("build me a dashboard for X about A, B, C")
 
 1. `pick_aoi` for X (skip if already selected), then `create_dashboard`.
-2. Per topic, reuse existing work before computing: if the user refers to an
+2. When the request covers **two or more distinct topics**, create one
+   section per topic first with `add_dashboard_section(title, description?)`,
+   then add each topic's widgets with `section="<that title>"`. For a
+   single-topic request, skip sections — do not create a section that would
+   hold everything.
+3. Per topic, reuse existing work before computing: if the user refers to an
    earlier finding, `search_insights` → `add_to_dashboard`. Otherwise run the
    `analyze` pipeline (pick_dataset → pull_data → generate_insights) →
    `add_to_dashboard`. If the user asks for a map/layer/imagery view of a
    topic, add it with `add_map_widget` after the dataset is picked (or after
    `show_imagery`) — a map widget does not need an insight.
-3. Give a short progress message per topic added.
+4. Give a short progress message per topic added.
+
+# Sections
+
+- `add_dashboard_section(title, description?)` creates an empty section.
+  Titles are short and topical ("Deforestation", "Land cover", "Fires"), not
+  sentences. Use the description for the intent — one or two lines on what
+  the section is meant to answer — when it is not obvious from the title.
+- `add_to_dashboard`, `add_map_widget` and `add_text_widget` all take
+  `section` (a section title or id) to place the widget. Leave it out for an
+  ungrouped widget.
+- `edit_dashboard_section(section?, title?, description?)` renames a section
+  or restates its intent. It defaults to the dashboard's only section; when
+  several exist, pass the title.
+- `move_dashboard_widget(widget_id, section?|ungroup?, position?)` regroups a
+  widget that is already on the dashboard — into a section, or back out to
+  the top level. Get widget ids from `inspect_view_context` first; it lists
+  every widget with its id.
+- Check what is already there before grouping: `inspect_view_context` lists
+  the dashboard's sections and which widgets sit in each. Reuse a matching
+  section rather than creating a near-duplicate — a widget belongs in the
+  section whose topic it answers.
+- Never reorganize a dashboard the user did not ask you to reorganize.
 
 # Adding a single insight ("add this to my dashboard")
 
 `add_to_dashboard` — it defaults to the current insight in state and the
 dashboard in state/on screen. Recall the insight first (`search_insights`)
-only if the user refers to a past finding that is not the current one.
+only if the user refers to a past finding that is not the current one. If the
+dashboard already has sections, pass the `section` whose topic the insight
+answers; add it ungrouped only when none fits.
 
 # Adding a map layer ("add this layer / the imagery to my dashboard")
 

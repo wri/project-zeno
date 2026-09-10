@@ -24,6 +24,7 @@ from src.agent.tools.common import (
     load_editable_dashboard,
     require_current_user_id,
     resolve_dashboard_id,
+    resolve_section,
 )
 from src.api.data_models import InsightOrm
 from src.api.repositories import dashboard_writer
@@ -66,6 +67,7 @@ def _insight_summary(insight: InsightOrm, max_chars: int = 200) -> str:
 async def add_to_dashboard(
     insight_id: Optional[str] = None,
     dashboard_id: Optional[str] = None,
+    section: Optional[str] = None,
     state: Annotated[Dict, InjectedState] | None = None,
     tool_call_id: Annotated[Optional[str], InjectedToolCallId] = None,
 ) -> Command:
@@ -74,8 +76,10 @@ async def add_to_dashboard(
     Defaults: `insight_id` to the current insight in state (the last one
     generated or recalled this conversation); `dashboard_id` to the dashboard
     in state or the one the user is currently viewing. Pass explicit ids to
-    target others. Only dashboards the user owns can be edited; the insight
-    must be one they can see.
+    target others. `section` places the widget in one of the dashboard's
+    sections (by title or id) — leave it out for an ungrouped widget at the
+    top level. Only dashboards the user owns can be edited; the insight must
+    be one they can see.
     """
     state = state or {}
 
@@ -117,11 +121,16 @@ async def add_to_dashboard(
             tool_call_id,
         )
 
+    target_section, message = resolve_section(dashboard, section)
+    if message:
+        return error_command(message, tool_call_id)
+
     try:
         widget_id = await dashboard_writer.add_widget(
             str(target_dashboard),
             widget_type="insight",
             insight_id=str(target_insight),
+            section_id=str(target_section.id) if target_section else None,
         )
     except dashboard_writer.DuplicateInsightWidgetError:
         return error_command(
@@ -137,12 +146,15 @@ async def add_to_dashboard(
             tool_call_id,
         )
 
+    placement = (
+        f" in section '{target_section.title}'" if target_section else ""
+    )
     return dashboard_updated_command(
         dashboard.id,
         dashboard.name,
         (
             f"Added insight {target_insight} to dashboard "
-            f"'{dashboard.name}' ({dashboard.id}).\n"
+            f"'{dashboard.name}' ({dashboard.id}){placement}.\n"
             f"Insight: {_insight_summary(insight)}"
         ),
         tool_call_id,
@@ -153,9 +165,10 @@ SPEC = ToolSpec(
     tool=add_to_dashboard,
     category=ToolCategory.PRIMITIVE,
     prompt_fragment=(
-        "- add_to_dashboard(insight_id?, dashboard_id?): add an insight to a "
-        "dashboard as a widget. Defaults to the current insight in state and "
-        "the dashboard in state or on screen. Use when the user asks to add "
-        "an analysis/insight to their dashboard."
+        "- add_to_dashboard(insight_id?, dashboard_id?, section?): add an "
+        "insight to a dashboard as a widget. Defaults to the current insight "
+        "in state and the dashboard in state or on screen; `section` (a "
+        "section title or id) groups it, otherwise it lands ungrouped. Use "
+        "when the user asks to add an analysis/insight to their dashboard."
     ),
 )

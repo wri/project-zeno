@@ -728,3 +728,387 @@ async def test_delete_dashboard_other_user_returns_404(client, auth_override):
         f"/api/dashboards/{dashboard['id']}", headers=AUTH
     )
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Sections
+# ---------------------------------------------------------------------------
+async def _create_section(client, dashboard_id, **body) -> dict:
+    body.setdefault("title", "Deforestation")
+    response = await client.post(
+        f"/api/dashboards/{dashboard_id}/sections", headers=AUTH, json=body
+    )
+    assert response.status_code == 201
+    return response.json()["sections"][-1]
+
+
+@pytest.mark.asyncio
+async def test_create_sections_appends_in_order(client, auth_override):
+    user = await _create_user("section-owner")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+
+    await _create_section(client, dashboard["id"], title="Deforestation")
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/sections",
+        headers=AUTH,
+        json={"title": "Fires", "description": "Burned area over time"},
+    )
+    assert response.status_code == 201
+    sections = response.json()["sections"]
+    assert [s["title"] for s in sections] == ["Deforestation", "Fires"]
+    assert [s["position"] for s in sections] == [0, 1]
+    assert sections[1]["description"] == "Burned area over time"
+    assert sections[0]["description"] is None
+
+
+@pytest.mark.asyncio
+async def test_create_section_requires_a_title(client, auth_override):
+    user = await _create_user("section-title")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/sections",
+        headers=AUTH,
+        json={"title": ""},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_section_other_user_returns_404(client, auth_override):
+    owner = await _create_user("section-victim")
+    other = await _create_user("section-attacker")
+    auth_override(owner.id)
+    dashboard = await _create_dashboard(client)
+
+    auth_override(other.id)
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/sections",
+        headers=AUTH,
+        json={"title": "Deforestation"},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_section_title_description_and_position(
+    client, auth_override
+):
+    user = await _create_user("section-update")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section = await _create_section(
+        client, dashboard["id"], title="Trees", description="Cover loss"
+    )
+
+    response = await client.patch(
+        f"/api/dashboards/{dashboard['id']}/sections/{section['id']}",
+        headers=AUTH,
+        json={"title": "Deforestation", "position": 4},
+    )
+    assert response.status_code == 200
+    (updated,) = response.json()["sections"]
+    assert updated["title"] == "Deforestation"
+    assert updated["position"] == 4
+    # An omitted description is left alone.
+    assert updated["description"] == "Cover loss"
+
+    cleared = await client.patch(
+        f"/api/dashboards/{dashboard['id']}/sections/{section['id']}",
+        headers=AUTH,
+        json={"description": None},
+    )
+    assert cleared.json()["sections"][0]["description"] is None
+
+
+@pytest.mark.asyncio
+async def test_update_section_of_other_dashboard_returns_404(
+    client, auth_override
+):
+    user = await _create_user("section-cross")
+    auth_override(user.id)
+    dashboard_a = await _create_dashboard(client, name="A")
+    dashboard_b = await _create_dashboard(client, name="B")
+    section = await _create_section(client, dashboard_a["id"])
+
+    response = await client.patch(
+        f"/api/dashboards/{dashboard_b['id']}/sections/{section['id']}",
+        headers=AUTH,
+        json={"title": "Hijacked"},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_widget_created_in_a_section(client, auth_override):
+    user = await _create_user("section-widget")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section = await _create_section(client, dashboard["id"])
+    insight = await _create_insight(user_id=user.id)
+
+    response = await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={
+            "widget_type": "insight",
+            "insight_id": str(insight.id),
+            "section_id": section["id"],
+        },
+    )
+    assert response.status_code == 201
+    (widget,) = response.json()["widgets"]
+    assert widget["section_id"] == section["id"]
+
+
+@pytest.mark.asyncio
+async def test_widget_positions_are_per_container(client, auth_override):
+    """Ungrouped widgets and a section's widgets each count from zero."""
+    user = await _create_user("section-positions")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section = await _create_section(client, dashboard["id"])
+    url = f"/api/dashboards/{dashboard['id']}/widgets"
+    note = {"widget_type": "text", "config": {"text": "note"}}
+
+    await client.post(url, headers=AUTH, json=note)
+    await client.post(url, headers=AUTH, json=note)
+    response = await client.post(
+        url, headers=AUTH, json={**note, "section_id": section["id"]}
+    )
+    assert response.status_code == 201
+
+    widgets = response.json()["widgets"]
+    ungrouped = [w for w in widgets if w["section_id"] is None]
+    grouped = [w for w in widgets if w["section_id"] == section["id"]]
+    assert [w["position"] for w in ungrouped] == [0, 1]
+    assert [w["position"] for w in grouped] == [0]
+
+
+@pytest.mark.asyncio
+async def test_widget_with_unknown_section_returns_404(client, auth_override):
+    user = await _create_user("section-unknown")
+    auth_override(user.id)
+    dashboard_a = await _create_dashboard(client, name="A")
+    dashboard_b = await _create_dashboard(client, name="B")
+    # A real section, but on the other dashboard.
+    section = await _create_section(client, dashboard_b["id"])
+
+    response = await client.post(
+        f"/api/dashboards/{dashboard_a['id']}/widgets",
+        headers=AUTH,
+        json={
+            "widget_type": "text",
+            "config": {"text": "note"},
+            "section_id": section["id"],
+        },
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_move_widget_between_sections_and_back(client, auth_override):
+    user = await _create_user("section-move")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section = await _create_section(client, dashboard["id"])
+    created = await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={"widget_type": "text", "config": {"text": "note"}},
+    )
+    widget_id = created.json()["widgets"][0]["id"]
+    url = f"/api/dashboards/{dashboard['id']}/widgets/{widget_id}"
+
+    moved = await client.patch(
+        url, headers=AUTH, json={"section_id": section["id"]}
+    )
+    assert moved.status_code == 200
+    assert moved.json()["widgets"][0]["section_id"] == section["id"]
+
+    # An omitted section_id leaves the grouping alone.
+    renamed = await client.patch(
+        url, headers=AUTH, json={"config": {"text": "changed"}}
+    )
+    assert renamed.json()["widgets"][0]["section_id"] == section["id"]
+
+    # An explicit null moves it back to the top level.
+    ungrouped = await client.patch(
+        url, headers=AUTH, json={"section_id": None}
+    )
+    assert ungrouped.json()["widgets"][0]["section_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_delete_section_ungroups_its_widgets(client, auth_override):
+    user = await _create_user("section-delete")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section = await _create_section(client, dashboard["id"])
+    await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={
+            "widget_type": "text",
+            "config": {"text": "note"},
+            "section_id": section["id"],
+        },
+    )
+
+    response = await client.delete(
+        f"/api/dashboards/{dashboard['id']}/sections/{section['id']}",
+        headers=AUTH,
+    )
+    assert response.status_code == 204
+
+    rendered = await client.get(
+        f"/api/dashboards/{dashboard['id']}", headers=AUTH
+    )
+    body = rendered.json()
+    assert body["sections"] == []
+    (widget,) = body["widgets"]
+    assert widget["section_id"] is None
+    assert widget["config"] == {"text": "note"}
+
+
+@pytest.mark.asyncio
+async def test_delete_dashboard_with_sections(client, auth_override):
+    user = await _create_user("section-cascade")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section = await _create_section(client, dashboard["id"])
+    await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={
+            "widget_type": "text",
+            "config": {"text": "note"},
+            "section_id": section["id"],
+        },
+    )
+
+    response = await client.delete(
+        f"/api/dashboards/{dashboard['id']}", headers=AUTH
+    )
+    assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_delete_section_renumbers_the_widgets_it_ungroups(
+    client, auth_override
+):
+    user = await _create_user("section-renumber")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section = await _create_section(client, dashboard["id"])
+    url = f"/api/dashboards/{dashboard['id']}/widgets"
+
+    async def _note(text, **extra):
+        response = await client.post(
+            url,
+            headers=AUTH,
+            json={"widget_type": "text", "config": {"text": text}, **extra},
+        )
+        assert response.status_code == 201
+
+    await _note("top a")
+    await _note("top b")
+    await _note("inner a", section_id=section["id"])
+    await _note("inner b", section_id=section["id"])
+
+    response = await client.delete(
+        f"/api/dashboards/{dashboard['id']}/sections/{section['id']}",
+        headers=AUTH,
+    )
+    assert response.status_code == 204
+
+    rendered = await client.get(
+        f"/api/dashboards/{dashboard['id']}", headers=AUTH
+    )
+    widgets = rendered.json()["widgets"]
+    assert all(w["section_id"] is None for w in widgets)
+    by_text = {w["config"]["text"]: w["position"] for w in widgets}
+    assert by_text == {"top a": 0, "top b": 1, "inner a": 2, "inner b": 3}
+
+
+@pytest.mark.asyncio
+async def test_delete_section_with_delete_widgets_removes_them(
+    client, auth_override
+):
+    user = await _create_user("section-purge")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section = await _create_section(client, dashboard["id"])
+    insight = await _create_insight(user_id=user.id)
+    url = f"/api/dashboards/{dashboard['id']}/widgets"
+
+    await client.post(
+        url,
+        headers=AUTH,
+        json={"widget_type": "text", "config": {"text": "kept"}},
+    )
+    await client.post(
+        url,
+        headers=AUTH,
+        json={
+            "widget_type": "insight",
+            "insight_id": str(insight.id),
+            "section_id": section["id"],
+        },
+    )
+
+    response = await client.delete(
+        f"/api/dashboards/{dashboard['id']}/sections/{section['id']}"
+        "?delete_widgets=true",
+        headers=AUTH,
+    )
+    assert response.status_code == 204
+
+    rendered = await client.get(
+        f"/api/dashboards/{dashboard['id']}", headers=AUTH
+    )
+    body = rendered.json()
+    assert body["sections"] == []
+    assert [w["config"]["text"] for w in body["widgets"]] == ["kept"]
+    # The insight the deleted widget referenced survives.
+    assert (
+        await client.get(f"/api/insights/{insight.id}", headers=AUTH)
+    ).status_code == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("query", ["", "?delete_widgets=false"])
+async def test_delete_section_keeps_widgets_by_default(
+    client, auth_override, query
+):
+    """The destructive variant is opt-in, never the default."""
+    user = await _create_user(f"section-default-{len(query)}")
+    auth_override(user.id)
+    dashboard = await _create_dashboard(client)
+    section = await _create_section(client, dashboard["id"])
+    await client.post(
+        f"/api/dashboards/{dashboard['id']}/widgets",
+        headers=AUTH,
+        json={
+            "widget_type": "text",
+            "config": {"text": "note"},
+            "section_id": section["id"],
+        },
+    )
+
+    response = await client.delete(
+        f"/api/dashboards/{dashboard['id']}/sections/{section['id']}{query}",
+        headers=AUTH,
+    )
+    assert response.status_code == 204
+
+    rendered = await client.get(
+        f"/api/dashboards/{dashboard['id']}", headers=AUTH
+    )
+    body = rendered.json()
+    assert body["sections"] == []
+    (widget,) = body["widgets"]
+    assert widget["config"] == {"text": "note"}
+    assert widget["section_id"] is None
