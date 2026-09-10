@@ -19,6 +19,18 @@ class ContextLayer(BaseModel):
     tile_url: Optional[str]
 
 
+class DatasetLayer(BaseModel):
+    """A dataset's primary, independently-toggleable data layer. Distinct from
+    ContextLayer, which is a mutually-exclusive masking/reference overlay —
+    sibling DatasetLayers can all be shown at once (e.g. LGMS's "agriculture"
+    and "lulucf" layers)."""
+
+    name: str
+    tile_url: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
 class DatasetOption(BaseModel):
     dataset_id: Optional[int] = Field(
         None,
@@ -27,6 +39,10 @@ class DatasetOption(BaseModel):
     context_layer: Optional[str] = Field(
         None,
         description="Context layer to apply. Follow the context layer descriptions — select the layer whose description matches the query, and always select one when a description says to default to it for the query type.",
+    )
+    selected_layer: Optional[str] = Field(
+        None,
+        description="For a dataset with more than one independently-toggleable layer (see `layers`), the name of the layer that best matches the query's focus — e.g. LGMS's 'agriculture' for a cropland/livestock-emissions question, 'lulucf' for a land-use/vegetation question. Prefer picking the closest-matching layer over leaving this null — even a query that only leans toward one category should get that layer. Leave null only for single-layer datasets or a query that is explicitly about the combined/overall picture across categories, not merely one that doesn't name a category.",
     )
     parameters: Optional[list[DatasetParameter]] = Field(
         None, description="Dataset specific parameters."
@@ -73,6 +89,25 @@ class DatasetOption(BaseModel):
         context_layer_values = [lyr["value"] for lyr in context_layers]
         if self.context_layer not in context_layer_values:
             self.context_layer = None
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_selected_layer_for_dataset(self) -> "DatasetOption":
+        """Ensure selected_layer names a real layer of a genuinely
+        multi-layer dataset — null it out for single-layer datasets (nothing
+        to select between) or a hallucinated name."""
+        if self.dataset_id is None:
+            self.selected_layer = None
+            return self
+
+        selected_dataset = [
+            ds for ds in DATASETS if ds["dataset_id"] == self.dataset_id
+        ][0]
+        layers = selected_dataset.get("layers") or []
+        layer_names = [layer["name"] for layer in layers]
+        if len(layers) <= 1 or self.selected_layer not in layer_names:
+            self.selected_layer = None
 
         return self
 
@@ -129,10 +164,24 @@ class DatasetSelectionResponse(BaseModel):
 
 class DatasetSelectionResult(DatasetOption):
     tile_url: str = Field(
-        description="Tile URL of the dataset that best matches the user query.",
+        description=(
+            "Deprecated: the dataset's own tile URL, unresolved against "
+            "`layers`/`selected_layer` — empty for a multi-layer dataset "
+            "(e.g. LGMS) with no single-layer URL of its own. Kept for "
+            "callers that haven't migrated to `layers` yet — new code "
+            "should read `layers`."
+        ),
     )
     dataset_name: str = Field(
         description="Name of the dataset that best matches the user query."
+    )
+    layers: list[DatasetLayer] = Field(
+        description=(
+            "The dataset's primary data layer(s). Most datasets have exactly "
+            "one; some (e.g. LGMS) have several that can be shown "
+            "independently or together. Empty for an analytics-only dataset "
+            "with no map layer to render."
+        ),
     )
     context_layers: list[ContextLayer] = Field(
         [],
