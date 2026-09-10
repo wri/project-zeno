@@ -7,10 +7,11 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from src.agent.subagents.analyst.charts.model import InsightChart
+from src.agent.subagents.analyst.charts.model import Insight, InsightChart
 from src.agent.subagents.analyst.display_reviser import (
     RevisedChart,
     RevisedInsight,
+    _dataset_wording,
 )
 from src.agent.tools.update_insight_display import (
     _apply_revision,
@@ -267,3 +268,42 @@ async def test_update_insight_display_happy_path():
     assert message.status == "success"
     assert message.response_metadata["msg_type"] == "insight_updated"
     assert message.response_metadata["insight_id"] == str(row.id)
+
+
+def _insight_with_dataset(dataset_id):
+    """An insight whose chart carries (or omits) a catalog dataset id."""
+    return Insight(
+        charts=[
+            InsightChart(
+                position=0,
+                title="Annual Tree Cover Loss in Intact Forests",
+                chart_type="bar",
+                x_axis="year",
+                y_axis="area_ha",
+                chart_data=[{"year": 2020, "area_ha": 5}],
+                dataset_id=dataset_id,
+            )
+        ],
+        primary_insight="Old summary.",
+    )
+
+
+def test_dataset_wording_carries_naming_rules_into_the_prompt():
+    """A revision rewrites titles from scratch, so it needs the dataset's rules.
+
+    Without them the reviser is the one generator that never learns how its
+    dataset wants its metric named, and "shorten these titles" can put
+    "Intact Forest Loss" back into a title the original generator got right
+    (PZB-1231).
+    """
+    # 4 = Tree cover loss, the dataset whose IFL wording rules this guards.
+    wording = _dataset_wording(_insight_with_dataset(4))
+
+    assert "intact forest loss" in wording
+    assert "tree cover loss in intact forests" in wording
+
+
+def test_dataset_wording_is_empty_without_a_resolvable_dataset():
+    """Insights predating `dataset_id`, or ids not in the catalog, add nothing."""
+    assert _dataset_wording(_insight_with_dataset(None)) == ""
+    assert _dataset_wording(_insight_with_dataset(999_999)) == ""
