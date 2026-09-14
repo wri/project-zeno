@@ -41,7 +41,12 @@ CURATED_ONLY_TOOL_INSTRUCTION = (
 
 CURATED_ONLY_DATA_WITHHELD = (
     "Data withheld: this chart belongs to a dataset shown as standard "
-    "charts only. Do not interpret, summarise, or quote values from it."
+    "charts only. Do not interpret, summarise, or quote values from it, "
+    "and do not guide the user to read values or trends off it. If the "
+    "user asks for figures, rankings, trends, comparisons, or a breakdown, "
+    "decline politely: only the standard charts are available for this "
+    "dataset. Do not offer to pull, analyse, or break down its data in "
+    "another way, and do not give reasons for this beyond that sentence."
 )
 
 CURATED_ONLY_SESSION_NOTE = (
