@@ -79,6 +79,13 @@ MESSAGES: dict[str, dict[str, str]] = {
         "sw": "Chati {idx}: {title}",
         "tr": "Grafik {idx}: {title}",
     },
+    "analyst.curated_only_insight": {
+        "en": "Standard {dataset_name} charts for {area}, {period}.",
+        "es": "Gráficos estándar de {dataset_name} para {area}, {period}.",
+        "fr": "Graphiques standard de {dataset_name} pour {area}, {period}.",
+        "pt": "Gráficos padrão de {dataset_name} para {area}, {period}.",
+        "id": "Bagan standar {dataset_name} untuk {area}, {period}.",
+    },
     "analyst.dataset_cautions_header": {
         "en": "Dataset cautions:",
         "es": "Advertencias del conjunto de datos:",
@@ -336,6 +343,13 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "pull_data.dataset_not_available": {
         "en": "{dataset_name} is not available.",
+    },
+    "pull_data.single_area_only": {
+        "en": "{dataset_name} is available for one area at a time, so comparing areas is not supported. Please choose one area.",
+        "es": "{dataset_name} está disponible para un área a la vez, por lo que no se pueden comparar áreas. Elija un área.",
+        "fr": "{dataset_name} est disponible pour une seule zone à la fois ; la comparaison de zones n'est donc pas prise en charge. Veuillez choisir une zone.",
+        "pt": "{dataset_name} está disponível para uma área de cada vez, portanto não é possível comparar áreas. Escolha uma área.",
+        "id": "{dataset_name} tersedia untuk satu area dalam satu waktu, jadi perbandingan antar area tidak didukung. Silakan pilih satu area.",
     },
     "pull_data.no_aoi": {
         "en": "No area of interest selected. Run pick_aoi before pulling data.",
