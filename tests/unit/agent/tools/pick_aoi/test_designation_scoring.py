@@ -48,8 +48,8 @@ _KNOWN_BAD = {
     "ch-aoi-134": (
         "retrieval, not scoring: 37043 is in neither recorded frame, so no "
         "scorer can reach it. See "
-        "test_the_okapi_case_is_retrieval_bound_not_scoring_bound and "
-        "tests/api/test_aois_search_fallback.py, which is what fixes it"
+        "test_the_okapi_case_is_retrieval_bound_not_scoring_bound. Fixing it "
+        "is PZB-1411, on its own branch: no change to this scorer can"
     ),
     "ch-aoi-154": (
         "leaf-vs-leaf collision: the stored leaf 'Parque Nacional Montanhas Do "
@@ -117,8 +117,9 @@ def test_the_okapi_case_is_retrieval_bound_not_scoring_bound():
     ``Okapi`` scores 0.1724 against ``Okapis, Réserve de Faune, COD`` under
     pg_trgm, below the 0.2 ``similarity_threshold``, so it retrieves nothing at
     all; and the ten rows ``Okapi Wildlife Reserve`` does retrieve are other
-    ``Wildlife Reserve`` areas that crowd 37043 out of the limit. The fix is the
-    word-similarity fallback, covered in tests/api/test_aois_search_fallback.py.
+    ``Wildlife Reserve`` areas that crowd 37043 out of the limit. Widening
+    retrieval is PZB-1411 and lives on its own branch; this case is here to
+    record that the scorer is not what is wrong with it.
 
     ch-aoi-149 is the control: the same place asked for natively yields the
     canonical ``Okapis``, which does retrieve 37043 -- so that case is scoring
