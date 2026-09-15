@@ -39,29 +39,25 @@ _DATA = json.loads(_FIXTURE.read_text(encoding="utf-8"))
 _FRAMES = _DATA["frames"]
 _CASES = {case["case_id"]: case for case in _DATA["cases"]}
 
-# Cases the shipped scorer gets wrong, with why. Every one is xfail(strict) so
-# that a case flipping to correct fails the suite until it is moved out of here.
+# The two cases this branch does NOT fix, with why. xfail(strict) so that a
+# case flipping to correct fails the suite until it is moved out of here.
+#
+# Everything else in the cohort -- ch-aoi-132, 133, 142, 143, 146 and 149, all
+# failing before the leaf-name scoring landed -- now passes.
 _KNOWN_BAD = {
-    "ch-aoi-132": "PZB-1392: 'National Reserve' outweighs the leaf; picks Samburu KEN",
-    "ch-aoi-133": "PZB-1392: 'National Park' outweighs the leaf; picks Yanga AUS",
     "ch-aoi-134": (
-        "retrieval, not scoring: 37043 is in neither recorded frame. "
-        "See test_the_okapi_case_is_retrieval_bound_not_scoring_bound and "
-        "tests/api/test_aois_search_fallback.py"
+        "retrieval, not scoring: 37043 is in neither recorded frame, so no "
+        "scorer can reach it. See "
+        "test_the_okapi_case_is_retrieval_bound_not_scoring_bound and "
+        "tests/api/test_aois_search_fallback.py, which is what fixes it"
     ),
-    "ch-aoi-142": (
-        "PZB-1392: loses to 'Maria, National Park, AUS' by 0.0013. Passes 3/3 "
-        "on prod, where the geocoder's `alternatives` carry the native "
-        "spelling this fixture does not record"
-    ),
-    "ch-aoi-143": "PZB-1392: 'National Park' outweighs the leaf; picks Yanga AUS",
-    "ch-aoi-146": "PZB-1392: stored leaf is 'La Serranía de Chiribiquete'",
-    "ch-aoi-149": "PZB-1392: native phrasing translates to the same English place",
     "ch-aoi-154": (
         "leaf-vs-leaf collision: the stored leaf 'Parque Nacional Montanhas Do "
         "Tumucumaque' competes with leaves that are themselves "
-        "'<X> Mountains National Park'. Needs SPEC-PR8 alias data, not weights. "
-        "Passes 3/3 on prod, where `alternatives` carry the native spelling"
+        "'<X> Mountains National Park', so the leaf comparison cannot separate "
+        "them. Needs SPEC-PR8 alias data, not different weights. Passes 3/3 on "
+        "prod, where the geocoder's `alternatives` carry the native spelling "
+        "these frames do not record"
     ),
 }
 

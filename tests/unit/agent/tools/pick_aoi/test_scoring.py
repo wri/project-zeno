@@ -4,8 +4,6 @@
 AOIIndex; everything it scores with lives in `pick_aoi/scoring.py`.
 """
 
-from difflib import SequenceMatcher
-
 import pandas as pd
 import pytest
 
@@ -13,6 +11,7 @@ from src.agent.subagents.pick_aoi.scoring import (
     _first_segment,
     _leaf_prefixes,
     _leaf_similarity,
+    _prefix_matchers,
     _score_candidate,
     _strip_accents,
 )
@@ -156,12 +155,16 @@ def test_selection_overrides_the_accent_sensitive_db_ranking():
     assert selected.name == "Pará, Brazil"
 
 
-def test_each_candidate_scores_against_its_best_term():
+def test_the_designation_no_longer_decides_which_park_is_chosen():
     """The Botum Sakor case, on the candidate names production returns.
 
-    Scored against the user's wording alone, the designation ("National
-    Park") dominates and a foreign park wins. The canonical leaf name in the
-    term set is what makes the intended row win.
+    This test used to pin the opposite: that the user's wording ALONE picked a
+    foreign park, and only the canonical leaf in the term set rescued the
+    intended row. That contrast was the PZB-1392 defect stated as an
+    expectation -- the designation, shared by every candidate, outscored the
+    leaf that identifies the place. Scoring the leaf removes it, so BOTH term
+    sets now select Botum Sakor, and the canonical spelling is what it was
+    always meant to be: extra recall, not a rescue.
     """
     candidates = pd.DataFrame(
         [
@@ -181,9 +184,76 @@ def test_each_candidate_scores_against_its_best_term():
         candidates, ["Botum Sakor National Park", "Botum Sakor"]
     )
 
-    assert raw_only is not None and raw_only.src_id != "478405"
+    assert raw_only is not None and raw_only.src_id == "478405"
     assert with_canonical is not None
     assert with_canonical.src_id == "478405"
+
+
+@pytest.mark.parametrize(
+    "terms,right,wrong",
+    [
+        (
+            ["Sankuru National Reserve", "Sankuru"],
+            ("354001", "Sankuru, Réserve Naturelle, COD"),
+            ("2298", "Samburu, National Reserve, KEN"),
+        ),
+        (
+            ["Yaguas National Park", "Yaguas"],
+            ("555629239", "Yaguas, Parque Nacional, PER"),
+            ("555625705", "Yanga, National Park, AUS"),
+        ),
+        (
+            ["Okapi Wildlife Reserve", "Okapis"],
+            ("37043", "Okapis, Réserve de Faune, COD"),
+            ("1445", "Ajai, Wildlife Reserve, UGA"),
+        ),
+        (
+            ["Ivindo National Park", "Ivindo"],
+            ("303873", "Ivindo, Parc National, GAB"),
+            ("X", "Ivanhoe, National Park, AUS"),
+        ),
+    ],
+    ids=["sankuru", "yaguas", "okapi", "ivindo"],
+)
+def test_a_shared_designation_cannot_outrank_the_leaf_name(
+    terms, right, wrong
+):
+    """PZB-1392, on the four pairs production actually confused.
+
+    Every one of these lost on the shipped scorer, or (Ivindo) won by 0.005:
+    the stored designation differs by language, so the English designation the
+    user typed matched the WRONG country's row almost exactly.
+    """
+    candidates = pd.DataFrame(
+        [
+            _row(wrong[0], wrong[1], "wdpa", "protected-area"),
+            _row(right[0], right[1], "wdpa", "protected-area"),
+        ]
+    )
+
+    selected = score_best_aoi(candidates, terms)
+
+    assert selected is not None
+    assert selected.src_id == right[0]
+
+
+def test_an_admin_unit_beats_a_same_named_site_by_more_than_a_rounding_error():
+    """The Lisbon case, which the shipped scorer won by 0.000802.
+
+    "Lisbon, Forest Preserve, USA" has "Lisbon" as its exact leaf while the
+    Portuguese district is stored as "Lisboa", so the site wins the leaf
+    comparison outright and only the hierarchy separates them. That margin is
+    what the weights have to keep, and a hundredth of a point is the least
+    that can be called a decision.
+    """
+    district = _score_candidate(
+        "Lisbon", "Lisboa, Portugal", "district-county"
+    )
+    site = _score_candidate(
+        "Lisbon", "Lisbon, Forest Preserve, USA", "protected-area"
+    )
+
+    assert district - site > 0.01
 
 
 def test_ties_break_independently_of_candidate_order():
@@ -238,12 +308,9 @@ def test_leaf_prefixes_are_longest_first_and_never_interior_spans():
 
 def _leaf_sim(term, candidate_name):
     """`_leaf_similarity` with the plumbing a caller does."""
-    matcher = SequenceMatcher(None)
-    matcher.set_seq2(_first_segment(candidate_name))
     return _leaf_similarity(
-        _leaf_prefixes(_first_segment(term)),
         _first_segment(candidate_name),
-        matcher,
+        _prefix_matchers(_leaf_prefixes(_first_segment(term))),
     )
 
 
