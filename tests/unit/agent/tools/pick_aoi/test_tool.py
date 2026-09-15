@@ -183,7 +183,7 @@ async def test_pick_aoi_tool_resolves_via_geocoder(monkeypatch):
         {
             "args": {
                 "question": "tree cover loss in Para, Brazil",
-                "area_of_interest": "adminstrative area (country, state/region, country/subregion)",
+                "area_of_interest": "administrative area (country, state/region, country/subregion)",
                 "state": {},
             },
             "id": "tc-1",
