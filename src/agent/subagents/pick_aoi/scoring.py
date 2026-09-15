@@ -186,14 +186,14 @@ def _prefix_matchers(
     return matchers
 
 
-def _leaf_similarity(
+def _prefix_similarity(
     candidate_leaf: str, prefix_matchers: Sequence[SequenceMatcher]
 ) -> float:
-    """How well the candidate's own name matches the name inside the term.
+    """Best match between the candidate's leaf and a leading run of the term.
 
-    Returns the best score over the term leaf's prefixes, which is what lets
-    one term set serve both "Sankuru National Reserve" and the bare "Sankuru"
-    without either spelling costing the other.
+    Suits English phrasing, where the designation follows the name, so the
+    stored leaf is a leading run of the term leaf: "Sankuru National Reserve"
+    -> "Sankuru". It is word-order dependent by construction.
     """
     best = 0.0
     for matcher in prefix_matchers:
@@ -202,6 +202,79 @@ def _leaf_similarity(
         if ratio > best:
             best = ratio
     return best
+
+
+def _one_way_coverage(
+    source: Sequence[str], target: Sequence[str], matcher: SequenceMatcher
+) -> float:
+    """Mean over *source* words of the best match each finds in *target*."""
+    if not source:
+        return 0.0
+    total = 0.0
+    for word in source:
+        matcher.set_seq1(word)
+        best = 0.0
+        for other in target:
+            matcher.set_seq2(other)
+            ratio = matcher.ratio()
+            if ratio > best:
+                best = ratio
+        total += best
+    return total / len(source)
+
+
+def _token_coverage(
+    term_words: Sequence[str],
+    candidate_words: Sequence[str],
+    matcher: SequenceMatcher,
+) -> float:
+    """How far two names cover each other word for word, ignoring order.
+
+    Symmetric, so a name is not rewarded merely for being short (covering all
+    of the term) or for being long (containing all of the candidate); it has to
+    do both. Order-free, which is the point: "Parque Nacional Yasuní" and
+    "Yasuní, Parque Nacional" put the designation on opposite sides of the
+    name, and every language that is not English puts it first.
+    """
+    if not term_words or not candidate_words:
+        return 0.0
+    forwards = _one_way_coverage(term_words, candidate_words, matcher)
+    backwards = _one_way_coverage(candidate_words, term_words, matcher)
+    if forwards + backwards == 0.0:
+        return 0.0
+    return 2 * forwards * backwards / (forwards + backwards)
+
+
+def _leaf_similarity(
+    candidate_leaf: str,
+    candidate_words: Sequence[str],
+    prefix_matchers: Sequence[SequenceMatcher],
+    term_words: Sequence[str],
+    word_matcher: SequenceMatcher,
+) -> float:
+    """How well the candidate's own name matches the name inside the term.
+
+    THE PROPERTY: a stored name counts as matched if it matches under EITHER
+    word-order convention -- as a leading run of the term (English, where the
+    designation follows the name) or as a word-for-word covering of it (every
+    other convention, where it leads). Neither convention is privileged,
+    because the geocoder translates into English but `alternatives` carries
+    native spellings, and a term that scores the right row near zero can only
+    ever raise a decoy.
+
+    What this deliberately does NOT do is penalise a short name. A candidate
+    whose whole leaf is "Rio" scores a perfect 1.0 against the term leaf "rio
+    pure national park", because "rio" IS a leading run of it, and taking the
+    better of the two measures cannot take that back. Word coverage alone would
+    score it 0.65 against 0.83 for "rio pure", but the better-of-two erases the
+    difference. Separating that pair is left to the whole-name and exact-name
+    terms, which do it. If a one-word decoy ever wins a frame, this is the
+    place that let it, and the fix is a coverage floor here, not a weight.
+    """
+    return max(
+        _prefix_similarity(candidate_leaf, prefix_matchers),
+        _token_coverage(term_words, candidate_words, word_matcher),
+    )
 
 
 def _hierarchy_score(subtype: str) -> float:
@@ -218,12 +291,15 @@ def _hierarchy_score(subtype: str) -> float:
 def _score_prepared(
     term: str,
     term_exact_key: str,
+    term_words: Sequence[str],
     candidate: str,
     candidate_leaf: str,
+    candidate_words: Sequence[str],
     candidate_exact_key: str,
     hierarchy: float,
     prefix_matchers: Sequence[SequenceMatcher],
     whole_matcher: SequenceMatcher,
+    word_matcher: SequenceMatcher,
 ) -> float:
     """Score one prepared term against one prepared candidate.
 
@@ -239,7 +315,14 @@ def _score_prepared(
     """
     whole_matcher.set_seq1(term)
     score = (
-        _LEAF_WEIGHT * _leaf_similarity(candidate_leaf, prefix_matchers)
+        _LEAF_WEIGHT
+        * _leaf_similarity(
+            candidate_leaf,
+            candidate_words,
+            prefix_matchers,
+            term_words,
+            word_matcher,
+        )
         + _WHOLE_NAME_WEIGHT * whole_matcher.ratio()
         + hierarchy
     )
@@ -267,12 +350,15 @@ def _score_candidate(place_name: str, name: str, subtype: str) -> float:
     return _score_prepared(
         _strip_accents(place_name),
         _normalise_for_exact_match(place_name),
+        term_leaf.split(),
         candidate,
         candidate_leaf,
+        candidate_leaf.split(),
         _normalise_for_exact_match(name),
         _hierarchy_score(subtype),
         _prefix_matchers(_leaf_prefixes(term_leaf)),
         whole_matcher,
+        SequenceMatcher(None),
     )
 
 
@@ -311,11 +397,13 @@ def best_candidate_row(
         (
             _strip_accents(term),
             _normalise_for_exact_match(term),
+            _first_segment(term).split(),
             _prefix_matchers(_leaf_prefixes(_first_segment(term))),
         )
         for term in terms
     ]
     whole_matcher = SequenceMatcher(None)
+    word_matcher = SequenceMatcher(None)
     best_key: Optional[tuple] = None
     best_position = 0
     best_score = 0.0
@@ -335,19 +423,23 @@ def best_candidate_row(
         candidate = _strip_accents(name)
         candidate_leaf = _first_segment(name)
         candidate_exact_key = _normalise_for_exact_match(name)
+        candidate_words = candidate_leaf.split()
         whole_matcher.set_seq2(candidate)
         score = max(
             _score_prepared(
                 term,
                 term_exact_key,
+                term_words,
                 candidate,
                 candidate_leaf,
+                candidate_words,
                 candidate_exact_key,
                 hierarchy,
                 prefix_matchers,
                 whole_matcher,
+                word_matcher,
             )
-            for term, term_exact_key, prefix_matchers in term_forms
+            for term, term_exact_key, term_words, prefix_matchers in term_forms
         )
         # Compare on explicit secondary keys rather than the score alone, so
         # equal scores resolve identically whatever order the rows arrived in.

@@ -39,25 +39,17 @@ _DATA = json.loads(_FIXTURE.read_text(encoding="utf-8"))
 _FRAMES = _DATA["frames"]
 _CASES = {case["case_id"]: case for case in _DATA["cases"]}
 
-# The two cases this branch does NOT fix, with why. xfail(strict) so that a
-# case flipping to correct fails the suite until it is moved out of here.
+# The one case this branch does NOT fix, with why. xfail(strict) so that it
+# failing the suite is what tells us it has been fixed elsewhere.
 #
-# Everything else in the cohort -- ch-aoi-132, 133, 142, 143, 146 and 149, all
-# failing before the leaf-name scoring landed -- now passes.
+# Everything else in the cohort -- ch-aoi-132, 133, 142, 143, 146, 149 and 154,
+# all failing before the leaf-name scoring landed -- now passes.
 _KNOWN_BAD = {
     "ch-aoi-134": (
         "retrieval, not scoring: 37043 is in neither recorded frame, so no "
         "scorer can reach it. See "
         "test_the_okapi_case_is_retrieval_bound_not_scoring_bound. Fixing it "
         "is PZB-1411, on its own branch: no change to this scorer can"
-    ),
-    "ch-aoi-154": (
-        "leaf-vs-leaf collision: the stored leaf 'Parque Nacional Montanhas Do "
-        "Tumucumaque' competes with leaves that are themselves "
-        "'<X> Mountains National Park', so the leaf comparison cannot separate "
-        "them. Needs SPEC-PR8 alias data, not different weights. Passes 3/3 on "
-        "prod, where the geocoder's `alternatives` carry the native spelling "
-        "these frames do not record"
     ),
 }
 

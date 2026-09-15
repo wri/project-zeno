@@ -308,9 +308,16 @@ def test_leaf_prefixes_are_longest_first_and_never_interior_spans():
 
 def _leaf_sim(term, candidate_name):
     """`_leaf_similarity` with the plumbing a caller does."""
+    from difflib import SequenceMatcher
+
+    term_leaf = _first_segment(term)
+    candidate_leaf = _first_segment(candidate_name)
     return _leaf_similarity(
-        _first_segment(candidate_name),
-        _prefix_matchers(_leaf_prefixes(_first_segment(term))),
+        candidate_leaf,
+        candidate_leaf.split(),
+        _prefix_matchers(_leaf_prefixes(term_leaf)),
+        term_leaf.split(),
+        SequenceMatcher(None),
     )
 
 

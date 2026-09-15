@@ -26,6 +26,24 @@ right and this branch does not, and it must go green before the branch is
 mergeable; a pre-existing failure is one `main` gets wrong too, kept as a
 target rather than a gate.
 
+Two probes still fail, under every shape tried and under `main` too. They are
+targets, not noise, and neither belongs to another ticket:
+
+* **"Salonga" un-narrowed** selects the country Tonga (0.7667) over the park
+  (0.7012). The name evidence is right -- "salonga" matches the park's leaf
+  exactly and Tonga's only 0.77 -- but a country outranks a named site by 0.24
+  of hierarchy, which is more than the name can recover. The hierarchy term
+  exists for genuinely identical names ("Lisbon"); it should probably taper
+  once the names differ, which is a change to `_HIERARCHY_SCORES`, not to the
+  leaf comparison, and wants its own before/after.
+* **"Parc National de l'Ivindo"** selects "Parc National de Toubkal" (0.6217)
+  over "Ivindo, Parc National, GAB" (0.4120). Toubkal's stored LEAF is itself
+  mostly designation words, so it covers three of the term's four words while
+  the correct row's leaf is the single word "Ivindo". Separating these needs to
+  know that "parc national de" is a designation, which no comparison of two
+  strings can: it needs the designation held in its own column, which is
+  SPEC-PR8's `designation_local` / `designation_en`.
+
 Baseline, measured 2026-09-15 against `main` @ 65f0d8a4:
 
 ===========================  ============  ==============
@@ -34,7 +52,7 @@ probe                        main          this branch
 exact full-name round trip   0/150 wrong   0/150 wrong
 single term, user wording    7/22          13/22
 un-narrowed frames           3/4           3/4
-native-order terms           0/3           1/3
+native-order terms           0/3           2/3
 Niger > Nigeria              yes           yes
 bare "Para" > Parana         yes           yes
 ===========================  ============  ==============
@@ -192,15 +210,7 @@ def test_an_exactly_named_site_beats_a_differently_named_admin_unit(
 @pytest.mark.parametrize(
     "term,expected_src_id",
     [
-        pytest.param(
-            "Parque Nacional Yasuni",
-            "186",
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason=_PREEXISTING
-                + ': main selects "Coiba, Parque Nacional"',
-            ),
-        ),
+        ("Parque Nacional Yasuni", "186"),
         # This one the leaf comparison already fixed: main selects "Bomu,
         # Réserve de Faune, COD" and this branch selects the right row.
         ("Reserve de faune a Okapis", "37043"),
