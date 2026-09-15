@@ -214,13 +214,20 @@ async def select_best_dataset(
     end_date: Optional[str] = None,
     aoi_selection=None,
     language: str = DEFAULT_LANGUAGE,
+    today: Optional[date] = None,
 ) -> DatasetSelectionResponse:
+    # The candidate CSV describes coverage as free text ("1 December 2023 -
+    # present"), so the selector needs a real date to read "present" against.
+    # Without one the model anchored on its training-time present and refused
+    # alerts for the current year as "in the future".
+    today = today or date.today()
     DATASET_SELECTION_PROMPT = ChatPromptTemplate.from_messages(
         [
             (
                 "system",
                 DATASET_SELECTOR_PROMPT.format(
-                    language=language_name(language)
+                    language=language_name(language),
+                    today=today.isoformat(),
                 ),
             ),
             (
