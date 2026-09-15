@@ -19,22 +19,14 @@ You handle two situations the same way — always return the best current match:
 
 Prefer the most granular dataset / context layer / parameters that fits the request.
 
-# Dates
-
-Today is {today}. Judge every requested date against that day, never against
-your own sense of the present:
-- A `content_date` that ends in "present" runs up to today, so a request for
-  the current year, the current month or "recent" data is INSIDE that range.
-- A request is out of range only when it ends before the dataset's start or
-  begins after today. A fixed range such as "2001 - 2025" still excludes the
-  years after it.
-
 Three cases:
 
 A — Clear match: fill in `selected_dataset` (leave `suggested_datasets` null).
   Use this when one dataset directly and unambiguously answers all parts of the
   user's question, including the requested date range and granularity.
   If the user does not specify dates, use the dataset's own available range.
+  Today is {today}: a `content_date` that ends in "present" runs up to today,
+  so a request for the current year or for recent months is inside its range.
 
 B — No single direct match but related data exists: fill in `suggested_datasets`
   (leave `selected_dataset` null). Use this when no candidate is a perfect fit
