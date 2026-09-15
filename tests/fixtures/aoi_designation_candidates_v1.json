@@ -1,0 +1,4350 @@
+{
+  "metadata": {
+    "recorded_at": "2026-09-15",
+    "api_base": "https://api.globalnaturewatch.org",
+    "endpoint": "/api/aois",
+    "default_source_filter": "wdpa",
+    "limit": 10,
+    "note": "Source-narrowed frames, matching what the geocoder searches for a place carrying an area_type (see each case's `source`). NOT the unfiltered GET /api/aois view a frontend caller sees.",
+    "cohort": "gnw-gold-evals cases/challenge/aoi/designations"
+  },
+  "cases": [
+    {
+      "case_id": "ch-aoi-132",
+      "query": "Show me Sankuru National Reserve",
+      "terms": [
+        "Sankuru National Reserve",
+        "Sankuru"
+      ],
+      "expected_src_id": "354001"
+    },
+    {
+      "case_id": "ch-aoi-133",
+      "query": "Go to Yaguas National Park",
+      "terms": [
+        "Yaguas National Park",
+        "Yaguas"
+      ],
+      "expected_src_id": "555629239"
+    },
+    {
+      "case_id": "ch-aoi-134",
+      "query": "Show me the Okapi Wildlife Reserve",
+      "terms": [
+        "Okapi Wildlife Reserve",
+        "Okapi"
+      ],
+      "expected_src_id": "37043"
+    },
+    {
+      "case_id": "ch-aoi-135",
+      "query": "Zoom to Ivindo National Park",
+      "terms": [
+        "Ivindo National Park",
+        "Ivindo"
+      ],
+      "expected_src_id": "303873"
+    },
+    {
+      "case_id": "ch-aoi-136",
+      "query": "Show me Rio Pure National Park",
+      "terms": [
+        "Rio Pure National Park",
+        "Río Puré"
+      ],
+      "expected_src_id": "303547"
+    },
+    {
+      "case_id": "ch-aoi-137",
+      "query": "Go to Virunga National Park",
+      "terms": [
+        "Virunga National Park",
+        "Virunga"
+      ],
+      "expected_src_id": "166889"
+    },
+    {
+      "case_id": "ch-aoi-138",
+      "query": "Show me Salonga National Park",
+      "terms": [
+        "Salonga National Park",
+        "Salonga"
+      ],
+      "expected_src_id": "555697863"
+    },
+    {
+      "case_id": "ch-aoi-139",
+      "query": "Zoom to Kahuzi-Biega National Park",
+      "terms": [
+        "Kahuzi-Biega National Park",
+        "Kahuzi-Biega"
+      ],
+      "expected_src_id": "1082"
+    },
+    {
+      "case_id": "ch-aoi-140",
+      "query": "Show me Lope National Park in Gabon",
+      "terms": [
+        "Lope National Park, Gabon",
+        "Lopé, Gabon"
+      ],
+      "expected_src_id": "303875"
+    },
+    {
+      "case_id": "ch-aoi-141",
+      "query": "Go to Odzala-Kokoua National Park",
+      "terms": [
+        "Odzala-Kokoua National Park",
+        "Odzala-Kokoua"
+      ],
+      "expected_src_id": "643"
+    },
+    {
+      "case_id": "ch-aoi-142",
+      "query": "Show me Madidi National Park",
+      "terms": [
+        "Madidi National Park",
+        "Madidi"
+      ],
+      "expected_src_id": "98183"
+    },
+    {
+      "case_id": "ch-aoi-143",
+      "query": "Zoom to Yasuni National Park",
+      "terms": [
+        "Yasuni National Park",
+        "Yasuní"
+      ],
+      "expected_src_id": "186"
+    },
+    {
+      "case_id": "ch-aoi-144",
+      "query": "Show me Cordillera Azul National Park",
+      "terms": [
+        "Cordillera Azul National Park",
+        "Cordillera Azul"
+      ],
+      "expected_src_id": "303320"
+    },
+    {
+      "case_id": "ch-aoi-145",
+      "query": "Go to Corcovado National Park in Costa Rica",
+      "terms": [
+        "Corcovado National Park, Costa Rica",
+        "Corcovado, Costa Rica"
+      ],
+      "expected_src_id": "164"
+    },
+    {
+      "case_id": "ch-aoi-146",
+      "query": "Show me Chiribiquete National Park",
+      "terms": [
+        "Chiribiquete National Park",
+        "Chiribiquete"
+      ],
+      "expected_src_id": "19984"
+    },
+    {
+      "case_id": "ch-aoi-147",
+      "query": "Show me Hin Nam No National Park",
+      "terms": [
+        "Hin Nam No National Park",
+        "Hin Nam No"
+      ],
+      "expected_src_id": "555703744"
+    },
+    {
+      "case_id": "ch-aoi-149",
+      "query": "Show me the Réserve de faune à Okapis",
+      "terms": [
+        "Okapi Wildlife Reserve",
+        "Okapis"
+      ],
+      "expected_src_id": "37043"
+    },
+    {
+      "case_id": "ch-aoi-150",
+      "query": "Zoom to Parc National de l'Ivindo",
+      "terms": [
+        "Ivindo National Park",
+        "Ivindo"
+      ],
+      "expected_src_id": "303873"
+    },
+    {
+      "case_id": "ch-aoi-151",
+      "query": "Show me the Matsés Native Community in Peru",
+      "terms": [
+        "Matses Native Community, Peru",
+        "Matsés, Peru"
+      ],
+      "source": "landmark",
+      "expected_src_id": "PER1700"
+    },
+    {
+      "case_id": "ch-aoi-152",
+      "query": "Go to the Kayapó Indigenous Territory",
+      "terms": [
+        "Kayapo Indigenous Territory",
+        "Kayapó"
+      ],
+      "source": "landmark",
+      "expected_src_id": "BRA1507"
+    },
+    {
+      "case_id": "ch-aoi-153",
+      "query": "Show me Sapo National Park",
+      "terms": [
+        "Sapo National Park",
+        "Sapo"
+      ],
+      "expected_src_id": "7409"
+    },
+    {
+      "case_id": "ch-aoi-154",
+      "query": "Zoom to Tumucumaque Mountains National Park",
+      "terms": [
+        "Tumucumaque Mountains National Park",
+        "Montanhas do Tumucumaque"
+      ],
+      "expected_src_id": "351784"
+    }
+  ],
+  "frames": {
+    "landmark": {
+      "Kayapo Indigenous Territory": [
+        {
+          "source": "landmark",
+          "src_id": "RUS53",
+          "name": "Koryak, Traditional Indigenous territories, RUS",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            156.5840728,
+            55.8840708,
+            170.1038226,
+            64.1966865
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "RUS34",
+          "name": "Ket, Traditional Indigenous territories, RUS",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            84.5284169,
+            59.4979226,
+            93.8134446,
+            67.5141102
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "RUS35",
+          "name": "Ket, Traditional Indigenous territories, RUS",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            81.9998726,
+            65.4717648,
+            86.6921112,
+            68.4246688
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "RUS47",
+          "name": "Kamchadal, Traditional Indigenous territories, RUS",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            156.3127912,
+            52.884422,
+            162.515549,
+            56.5681321
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "RUS51",
+          "name": "Kerek, Traditional Indigenous territories, RUS",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            174.0917138,
+            62.0240202,
+            179.629166,
+            63.599998
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "RUS76",
+          "name": "Taz, Traditional Indigenous territories, RUS",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            134.6276014,
+            44.0470564,
+            135.0660282,
+            44.3072172
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "RUS30",
+          "name": "Khanty, Traditional Indigenous territories, RUS",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            61.1020649,
+            57.925853,
+            86.1785517,
+            64.4897622
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "RUS18",
+          "name": "Inuit, Traditional Indigenous territories, RUS",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -174.3367241,
+            64.241669,
+            -172.0695317,
+            64.902084
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "RUS19",
+          "name": "Inuit, Traditional Indigenous territories, RUS",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -179.8453827,
+            65.4107376,
+            -179.270828,
+            65.7443446
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "RUS64",
+          "name": "Kumandin, Traditional Indigenous territories, RUS",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            85.9257705,
+            51.9630685,
+            87.2571885,
+            52.9884097
+          ]
+        }
+      ],
+      "Kayapó": [
+        {
+          "source": "landmark",
+          "src_id": "BRA1507",
+          "name": "Kayapó, Tierra Indígena, BRA",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -53.1304243,
+            -8.6928907,
+            -50.8333931,
+            -6.8792383
+          ]
+        }
+      ],
+      "Matses Native Community, Peru": [
+        {
+          "source": "landmark",
+          "src_id": "PER1700",
+          "name": "Matses, Comunidad Nativa, PER",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -73.5858797,
+            -5.9374393,
+            -72.8606841,
+            -5.1707939
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "PER1699",
+          "name": "Matses - Ampliación I, Comunidad Nativa, PER",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -73.5841267,
+            -6.1988736,
+            -73.1824757,
+            -5.8690045
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "PER791",
+          "name": "Matoriato, Comunidad Nativa, PER",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -72.8611983,
+            -12.4781502,
+            -72.6620541,
+            -12.3186965
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "PER753",
+          "name": "Mamus, Comunidad Nativa, PER",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -76.8814508,
+            -3.7882659,
+            -76.6821759,
+            -3.5856428
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "PER1571",
+          "name": "Mayme, Comunidad Nativa, PER",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -75.2429552,
+            -10.7562842,
+            -75.2308715,
+            -10.7415072
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "PER786",
+          "name": "Mayni, Comunidad Nativa, PER",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -74.523569,
+            -11.9369341,
+            -74.2906522,
+            -11.7591052
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "PER628",
+          "name": "Materiato, Comunidad Nativa, PER",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -74.2264539,
+            -10.8774849,
+            -74.1516172,
+            -10.8053935
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "PER1698",
+          "name": "San Mateo, Comunidad Nativa, PER",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -73.7430819,
+            -8.2275427,
+            -73.5837026,
+            -8.0056463
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "PER1201",
+          "name": "Maketi, Comunidad Nativa, PER",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -73.605462,
+            -12.7178437,
+            -73.5696947,
+            -12.6969974
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "PER2304",
+          "name": "Mapuya, Comunidad Nativa, PER",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -73.1514132,
+            -10.5701069,
+            -73.0639047,
+            -10.4801916
+          ]
+        }
+      ],
+      "Matsés, Peru": [
+        {
+          "source": "landmark",
+          "src_id": "MEX5042",
+          "name": "El Peru, Ejido, MEX",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -103.3511595,
+            25.5935901,
+            -103.3113005,
+            25.6216685
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "PER1700",
+          "name": "Matses, Comunidad Nativa, PER",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            -73.5858797,
+            -5.9374393,
+            -72.8606841,
+            -5.1707939
+          ]
+        }
+      ]
+    },
+    "wdpa": {
+      "Chiribiquete": [
+        {
+          "source": "wdpa",
+          "src_id": "19984",
+          "name": "La Serranía de Chiribiquete, Parque Nacional Natural, COL",
+          "subtype": "protected-area",
+          "bbox": [
+            -74.3241051,
+            -0.2766667,
+            -71.5263525,
+            2.2469719
+          ]
+        }
+      ],
+      "Chiribiquete National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "14235",
+          "name": "Chinji, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            72.46492,
+            32.96442,
+            72.52028,
+            33.05583
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "20230",
+          "name": "Chiquibul, National Park, BLZ",
+          "subtype": "protected-area",
+          "bbox": [
+            -89.1893927,
+            16.4711289,
+            -88.6646956,
+            16.9818351
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2532",
+          "name": "Chimanimani, National Park, ZWE",
+          "subtype": "protected-area",
+          "bbox": [
+            32.93067,
+            -20.023,
+            33.05304,
+            -19.65385
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "10270",
+          "name": "Chitral Gol, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            71.60156,
+            35.8534,
+            71.75047,
+            36.01016
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "600",
+          "name": "Chobe, National Park, BWA",
+          "subtype": "protected-area",
+          "bbox": [
+            23.8821761,
+            -19.3338803,
+            25.184835,
+            -17.7882956
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "1105",
+          "name": "Chizarira, National Park, ZWE",
+          "subtype": "protected-area",
+          "bbox": [
+            27.60795,
+            -18.01167,
+            28.22667,
+            -17.53263
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "24617",
+          "name": "Churchill, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            145.2441351,
+            -37.9583265,
+            145.2760384,
+            -37.9432875
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "4486",
+          "name": "Chambi, National Park, TUN",
+          "subtype": "protected-area",
+          "bbox": [
+            8.6372518,
+            35.1575799,
+            8.7743899,
+            35.2535323
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303306",
+          "name": "K2, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            75.72266,
+            35.60103,
+            76.7597,
+            36.02066
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "317035",
+          "name": "Shete Boka Park, National Park, CUW",
+          "subtype": "protected-area",
+          "bbox": [
+            -69.1543,
+            12.35755,
+            -69.096,
+            12.39596
+          ]
+        }
+      ],
+      "Corcovado National Park, Costa Rica": [
+        {
+          "source": "wdpa",
+          "src_id": "555543713",
+          "name": "Corcovado, Parque Nacional, CHL",
+          "subtype": "protected-area",
+          "bbox": [
+            -73.0905267,
+            -44.0046482,
+            -72.3448322,
+            -43.0144316
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "164",
+          "name": "Corcovado, Parque Nacional, CRI",
+          "subtype": "protected-area",
+          "bbox": [
+            -83.7345818,
+            8.4419015,
+            -83.4122556,
+            8.6506559
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555624320",
+          "name": "Coastal National Park, National Park, JEY",
+          "subtype": "protected-area",
+          "bbox": [
+            -2.2765816,
+            48.9469674,
+            -1.8954063,
+            49.3126873
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555548749",
+          "name": "Cordalba, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            152.0518265,
+            -25.1440882,
+            152.1176295,
+            -25.0831943
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555697596",
+          "name": "Cornwall, National Park, WSM",
+          "subtype": "protected-area",
+          "bbox": [
+            -172.7214617,
+            -13.6153862,
+            -172.6412331,
+            -13.5176603
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "10628",
+          "name": "Lane Cove, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            151.077744,
+            -33.8179879,
+            151.1667877,
+            -33.7322871
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7523",
+          "name": "Comoe National Park, Parc National, CIV",
+          "subtype": "protected-area",
+          "bbox": [
+            -4.4210356,
+            8.5048564,
+            -3.1159235,
+            9.6157295
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2630",
+          "name": "Conway, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            148.5603574,
+            -20.5454092,
+            148.931448,
+            -20.2356008
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "20299",
+          "name": "Cross River, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            8.31014,
+            5.09592,
+            9.35387,
+            6.46688
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "126133",
+          "name": "Capricorn Coast, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            150.7435722,
+            -23.2888422,
+            150.8187625,
+            -23.1178793
+          ]
+        }
+      ],
+      "Corcovado, Costa Rica": [
+        {
+          "source": "wdpa",
+          "src_id": "555543713",
+          "name": "Corcovado, Parque Nacional, CHL",
+          "subtype": "protected-area",
+          "bbox": [
+            -73.0905267,
+            -44.0046482,
+            -72.3448322,
+            -43.0144316
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "164",
+          "name": "Corcovado, Parque Nacional, CRI",
+          "subtype": "protected-area",
+          "bbox": [
+            -83.7345818,
+            8.4419015,
+            -83.4122556,
+            8.6506559
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555529998",
+          "name": "Costa Rei, B, ITA",
+          "subtype": "protected-area",
+          "bbox": [
+            9.5710351,
+            39.2459896,
+            9.5718482,
+            39.2463244
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555529536",
+          "name": "Costa Ionica Foce Agri, B, ITA",
+          "subtype": "protected-area",
+          "bbox": [
+            16.7057952,
+            40.1729961,
+            16.7795192,
+            40.2461049
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555528518",
+          "name": "Lago Costa, B, ITA",
+          "subtype": "protected-area",
+          "bbox": [
+            11.2353944,
+            46.0729804,
+            11.2379849,
+            46.0764026
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555529539",
+          "name": "Costa Ionica Foce Cavone, B, ITA",
+          "subtype": "protected-area",
+          "bbox": [
+            16.751498,
+            40.249226,
+            16.8139488,
+            40.3108872
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555745182",
+          "name": "TicToc-Golfo Corcovado, Parque Marino, CHL",
+          "subtype": "protected-area",
+          "bbox": [
+            -73.5136628,
+            -43.7347862,
+            -73.0426348,
+            -43.4353381
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555529537",
+          "name": "Costa Ionica Foce Basento, B, ITA",
+          "subtype": "protected-area",
+          "bbox": [
+            16.7881451,
+            40.3039561,
+            16.845268,
+            40.3561435
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555529538",
+          "name": "Costa Ionica Foce Bradano, B, ITA",
+          "subtype": "protected-area",
+          "bbox": [
+            16.8235968,
+            40.3528211,
+            16.8810862,
+            40.4042273
+          ]
+        }
+      ],
+      "Cordillera Azul": [
+        {
+          "source": "wdpa",
+          "src_id": "303320",
+          "name": "Cordillera Azul, Parque Nacional, PER",
+          "subtype": "protected-area",
+          "bbox": [
+            -76.6335183,
+            -8.9020696,
+            -75.347853,
+            -6.4870384
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555783008",
+          "name": "Cordillera Beata, Reserva Natural, COL",
+          "subtype": "protected-area",
+          "bbox": [
+            -74.3695806,
+            13.7363646,
+            -71.4118131,
+            15.0379703
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303705",
+          "name": "Cordillera Huayhuash, Zona Reservada, PER",
+          "subtype": "protected-area",
+          "bbox": [
+            -77.009008,
+            -10.5472433,
+            -76.7539709,
+            -10.119719
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "32866",
+          "name": "Cordillera de Sama, Reserva Biológica, BOL",
+          "subtype": "protected-area",
+          "bbox": [
+            -65.1277604,
+            -21.8554627,
+            -64.8084117,
+            -21.2890617
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "20179",
+          "name": "Cordillera de Colán, Santuario Nacional, PER",
+          "subtype": "protected-area",
+          "bbox": [
+            -78.3280703,
+            -5.6339414,
+            -77.9928328,
+            -5.4091404
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555705293",
+          "name": "Cordillera de Coiba, Área de Recursos Manejados, PAN",
+          "subtype": "protected-area",
+          "bbox": [
+            -84.3166356,
+            5.0014692,
+            -80.27,
+            6.5016667
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "3320",
+          "name": "Cordillera Volcanica Central, Reserva Forestal, CRI",
+          "subtype": "protected-area",
+          "bbox": [
+            -84.1802006,
+            9.9606258,
+            -83.6134413,
+            10.3125563
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "134",
+          "name": "Cordillera de los Picachos, Parque Nacional Natural, COL",
+          "subtype": "protected-area",
+          "bbox": [
+            -74.9642078,
+            2.5430086,
+            -74.2493611,
+            3.130194
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555555619",
+          "name": "Cordillera Escalera, Área de Conservación Regional, PER",
+          "subtype": "protected-area",
+          "bbox": [
+            -76.7769154,
+            -6.6213587,
+            -75.9097097,
+            -5.9533745
+          ]
+        }
+      ],
+      "Cordillera Azul National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "303320",
+          "name": "Cordillera Azul, Parque Nacional, PER",
+          "subtype": "protected-area",
+          "bbox": [
+            -76.6335183,
+            -8.9020696,
+            -75.347853,
+            -6.4870384
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555548749",
+          "name": "Cordalba, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            152.0518265,
+            -25.1440882,
+            152.1176295,
+            -25.0831943
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "373",
+          "name": "Cocoparra, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            146.1846467,
+            -34.2139183,
+            146.3030475,
+            -34.0515227
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2630",
+          "name": "Conway, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            148.5603574,
+            -20.5454092,
+            148.931448,
+            -20.2356008
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "354257",
+          "name": "Bingera, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            152.2090101,
+            -25.0862454,
+            152.372847,
+            -24.9841679
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "102541",
+          "name": "Conjola, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            150.4300076,
+            -35.2671504,
+            150.590934,
+            -35.0975182
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "26012",
+          "name": "Coorong, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            138.8080805,
+            -36.5362945,
+            139.8372949,
+            -35.5207728
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "357233",
+          "name": "Kara Kara, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            143.2023316,
+            -36.9626978,
+            143.3401923,
+            -36.7073985
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7522",
+          "name": "Azagny National Park, Parc National, CIV",
+          "subtype": "protected-area",
+          "bbox": [
+            -4.9648576,
+            5.1548214,
+            -4.7901802,
+            5.2987163
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555543341",
+          "name": "Columbey, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            151.6683612,
+            -32.6068851,
+            151.7566831,
+            -32.5720853
+          ]
+        }
+      ],
+      "Hin Nam No": [
+        {
+          "source": "wdpa",
+          "src_id": "555703744",
+          "name": "Hin Nam No, National Park, LAO",
+          "subtype": "protected-area",
+          "bbox": [
+            105.7007778,
+            17.2172084,
+            106.1885659,
+            17.676281
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "11111635",
+          "name": "Names Hill, Names Hill, USA",
+          "subtype": "protected-area",
+          "bbox": [
+            -110.1898047,
+            42.1766911,
+            -110.186404,
+            42.1776958
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555522991",
+          "name": "Hino, B, EST",
+          "subtype": "protected-area",
+          "bbox": [
+            27.1640891,
+            57.5733235,
+            27.242109,
+            57.5920697
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "313014",
+          "name": "Pa Hin Ngam, National Park, THA",
+          "subtype": "protected-area",
+          "bbox": [
+            101.37641,
+            15.34062,
+            101.51868,
+            15.75674
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "155608",
+          "name": "Hindrum, Naturreservat, NOR",
+          "subtype": "protected-area",
+          "bbox": [
+            10.4169244,
+            63.5844891,
+            10.4199419,
+            63.5854934
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555580154",
+          "name": "Hinjrvi, C, FIN",
+          "subtype": "protected-area",
+          "bbox": [
+            21.2967685,
+            62.6686673,
+            21.3663737,
+            62.7028937
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555723574",
+          "name": "Hinjrvi, C, FIN",
+          "subtype": "protected-area",
+          "bbox": [
+            21.2967685,
+            62.6686673,
+            21.3663737,
+            62.7028937
+          ]
+        }
+      ],
+      "Hin Nam No National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "555703744",
+          "name": "Hin Nam No, National Park, LAO",
+          "subtype": "protected-area",
+          "bbox": [
+            105.7007778,
+            17.2172084,
+            106.1885659,
+            17.676281
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "313014",
+          "name": "Pa Hin Ngam, National Park, THA",
+          "subtype": "protected-area",
+          "bbox": [
+            101.37641,
+            15.34062,
+            101.51868,
+            15.75674
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "17756",
+          "name": "Hingol, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            64.86566,
+            25.31796,
+            65.30624,
+            25.73444
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555543018",
+          "name": "Dorob, National Park, NAM",
+          "subtype": "protected-area",
+          "bbox": [
+            13.6344014,
+            -23.2394302,
+            14.9647619,
+            -21.0019299
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "930",
+          "name": "Nam Nao, National Park, THA",
+          "subtype": "protected-area",
+          "bbox": [
+            101.37852,
+            16.50688,
+            101.7381,
+            16.95992
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "884",
+          "name": "Etosha, National Park, NAM",
+          "subtype": "protected-area",
+          "bbox": [
+            14.3561535,
+            -19.4860248,
+            17.1522671,
+            -18.4982176
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "30051",
+          "name": "Mudumu, National Park, NAM",
+          "subtype": "protected-area",
+          "bbox": [
+            23.3459591,
+            -18.2455652,
+            23.7178421,
+            -17.9420624
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303692",
+          "name": "Bwabwata, National Park, NAM",
+          "subtype": "protected-area",
+          "bbox": [
+            21.4246044,
+            -18.2989354,
+            23.4153659,
+            -17.6442372
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "17999",
+          "name": "Khaudum, National Park, NAM",
+          "subtype": "protected-area",
+          "bbox": [
+            20.5125408,
+            -19.1665096,
+            21.0,
+            -18.3837433
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303306",
+          "name": "K2, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            75.72266,
+            35.60103,
+            76.7597,
+            36.02066
+          ]
+        }
+      ],
+      "Ivindo": [
+        {
+          "source": "wdpa",
+          "src_id": "303873",
+          "name": "Ivindo, Parc National, GAB",
+          "subtype": "protected-area",
+          "bbox": [
+            12.338703,
+            -0.289824,
+            12.989752,
+            0.537545
+          ]
+        }
+      ],
+      "Ivindo National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "303873",
+          "name": "Ivindo, Parc National, GAB",
+          "subtype": "protected-area",
+          "bbox": [
+            12.338703,
+            -0.289824,
+            12.989752,
+            0.537545
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "347",
+          "name": "Iona National Park, National Park, AGO",
+          "subtype": "protected-area",
+          "bbox": [
+            11.6694249,
+            -17.2727588,
+            13.244603,
+            -15.7316994
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303306",
+          "name": "K2, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            75.72266,
+            35.60103,
+            76.7597,
+            36.02066
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "313252",
+          "name": "Lar, National Park, IRN",
+          "subtype": "protected-area",
+          "bbox": [
+            51.55199,
+            35.88528,
+            52.00312,
+            36.08528
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "552",
+          "name": "Lind, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            148.9389092,
+            -37.5930573,
+            148.9920292,
+            -37.5504761
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "68486",
+          "name": "Ayub, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            73.48236,
+            33.55076,
+            73.51764,
+            33.58264
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "712",
+          "name": "Bamou, National Park, IRN",
+          "subtype": "protected-area",
+          "bbox": [
+            52.47552,
+            29.60287,
+            52.90355,
+            29.88327
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "310083",
+          "name": "Indwarra, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            151.2352713,
+            -30.1067408,
+            151.2702366,
+            -30.0660621
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "491",
+          "name": "Innes, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            136.8218492,
+            -35.301,
+            136.9697337,
+            -35.153088
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2312",
+          "name": "Isalo, National Park, MDG",
+          "subtype": "protected-area",
+          "bbox": [
+            45.1233495,
+            -22.7090274,
+            45.4017662,
+            -22.1490797
+          ]
+        }
+      ],
+      "Kahuzi-Biega": [
+        {
+          "source": "wdpa",
+          "src_id": "1082",
+          "name": "Kahuzi-Biega, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            27.4879959,
+            -2.6521982,
+            28.837793,
+            -1.6295444
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555635685",
+          "name": "Biely kamen, B, SVK",
+          "subtype": "protected-area",
+          "bbox": [
+            18.6861462,
+            48.6793919,
+            18.6944693,
+            48.6955219
+          ]
+        }
+      ],
+      "Kahuzi-Biega National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "1082",
+          "name": "Kahuzi-Biega, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            27.4879959,
+            -2.6521982,
+            28.837793,
+            -1.6295444
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "143105",
+          "name": "Kahurangi National Park, National Park, NZL",
+          "subtype": "protected-area",
+          "bbox": [
+            172.0941542,
+            -41.7884696,
+            172.9211865,
+            -40.5076876
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7874",
+          "name": "Kamuku, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            6.19377,
+            10.71108,
+            6.42627,
+            10.87651
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "4474",
+          "name": "Kaptai, National Park, BGD",
+          "subtype": "protected-area",
+          "bbox": [
+            92.1507096,
+            22.4513342,
+            92.2657225,
+            22.5343477
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "672",
+          "name": "Bia National Park, National Park, GHA",
+          "subtype": "protected-area",
+          "bbox": [
+            -3.1999156,
+            6.3445428,
+            -2.9829299,
+            6.6241436
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "62087",
+          "name": "Kogo, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            6.85167,
+            11.33506,
+            7.06698,
+            11.80087
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303306",
+          "name": "K2, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            75.72266,
+            35.60103,
+            76.7597,
+            36.02066
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555720317",
+          "name": "Baga, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            150.6217259,
+            -23.2213973,
+            150.6418966,
+            -23.2084147
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "357233",
+          "name": "Kara Kara, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            143.2023316,
+            -36.9626978,
+            143.3401923,
+            -36.7073985
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "126017",
+          "name": "Biamanga, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            149.838175,
+            -36.5887443,
+            150.0651764,
+            -36.4126606
+          ]
+        }
+      ],
+      "Lope National Park, Gabon": [
+        {
+          "source": "wdpa",
+          "src_id": "303875",
+          "name": "Lopé, Parc National, GAB",
+          "subtype": "protected-area",
+          "bbox": [
+            11.266089,
+            -1.0841438,
+            11.856819,
+            -0.057239
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555512168",
+          "name": "Gbi, National Park, LBR",
+          "subtype": "protected-area",
+          "bbox": [
+            -8.6984835,
+            5.7838228,
+            -8.2395334,
+            6.1275086
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "900",
+          "name": "Gal Oya, National Park, LKA",
+          "subtype": "protected-area",
+          "bbox": [
+            81.3533857,
+            7.0750612,
+            81.5412393,
+            7.3451608
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "354757",
+          "name": "Gatton, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            152.2912157,
+            -27.6202156,
+            152.3123254,
+            -27.5944639
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303874",
+          "name": "Loango, Parc National, GAB",
+          "subtype": "protected-area",
+          "bbox": [
+            9.2709668,
+            -2.4917963,
+            9.791014,
+            -1.849344
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "63026",
+          "name": "Garigal, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            151.16854,
+            -33.7862394,
+            151.2705791,
+            -33.683195
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555583107",
+          "name": "Loelle, National Park, SSD",
+          "subtype": "protected-area",
+          "bbox": [
+            34.1754511,
+            4.6214352,
+            35.9415882,
+            5.6203661
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2311",
+          "name": "Lokobe, National Park, MDG",
+          "subtype": "protected-area",
+          "bbox": [
+            48.3018319,
+            -13.4304615,
+            48.3392811,
+            -13.3825877
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "18001",
+          "name": "Popa Game Park, National Park, NAM",
+          "subtype": "protected-area",
+          "bbox": [
+            21.5785101,
+            -18.1241798,
+            21.5866609,
+            -18.1156596
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "672",
+          "name": "Bia National Park, National Park, GHA",
+          "subtype": "protected-area",
+          "bbox": [
+            -3.1999156,
+            6.3445428,
+            -2.9829299,
+            6.6241436
+          ]
+        }
+      ],
+      "Lopé, Gabon": [
+        {
+          "source": "wdpa",
+          "src_id": "303875",
+          "name": "Lopé, Parc National, GAB",
+          "subtype": "protected-area",
+          "bbox": [
+            11.266089,
+            -1.0841438,
+            11.856819,
+            -0.057239
+          ]
+        }
+      ],
+      "Madidi": [
+        {
+          "source": "wdpa",
+          "src_id": "98183",
+          "name": "Madidi, Parque Nacional, BOL",
+          "subtype": "protected-area",
+          "bbox": [
+            -69.256323,
+            -15.2335254,
+            -67.6795534,
+            -12.7054915
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555668885",
+          "name": "Madison, Pond, USA",
+          "subtype": "protected-area",
+          "bbox": [
+            -93.3704218,
+            45.0036606,
+            -93.3698796,
+            45.0044036
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555522672",
+          "name": "Madissaare, B, EST",
+          "subtype": "protected-area",
+          "bbox": [
+            24.0153216,
+            58.5977182,
+            24.0399552,
+            58.6101348
+          ]
+        }
+      ],
+      "Madidi National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "2277",
+          "name": "Mago, National Park, ETH",
+          "subtype": "protected-area",
+          "bbox": [
+            35.9165495,
+            5.3416071,
+            36.4421701,
+            5.8889609
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555705206",
+          "name": "Maze, National Park, ETH",
+          "subtype": "protected-area",
+          "bbox": [
+            37.28945,
+            6.46557,
+            37.44674,
+            6.73869
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "26070",
+          "name": "Mantadia, National Park, MDG",
+          "subtype": "protected-area",
+          "bbox": [
+            48.3813491,
+            -18.9088347,
+            48.556412,
+            -18.6948345
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555705594",
+          "name": "Sampadi National Park, National Park, MYS",
+          "subtype": "protected-area",
+          "bbox": [
+            110.0577618,
+            1.5401705,
+            110.0934489,
+            1.5982248
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555512228",
+          "name": "Mae Tho, National Park, THA",
+          "subtype": "protected-area",
+          "bbox": [
+            98.0739136,
+            18.1149242,
+            98.4496982,
+            18.546433
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "36676",
+          "name": "Marhai, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            8.64638,
+            9.13513,
+            8.77695,
+            9.20294
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "311947",
+          "name": "Maria, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            152.841627,
+            -31.1962822,
+            152.9113402,
+            -31.1338341
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "4481",
+          "name": "Madhupur, National Park, BGD",
+          "subtype": "protected-area",
+          "bbox": [
+            90.0340119,
+            24.6417867,
+            90.1499406,
+            24.7376596
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303306",
+          "name": "K2, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            75.72266,
+            35.60103,
+            76.7597,
+            36.02066
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "791",
+          "name": "Niah National Park, National Park, MYS",
+          "subtype": "protected-area",
+          "bbox": [
+            113.7466509,
+            3.7687375,
+            113.8108875,
+            3.8526067
+          ]
+        }
+      ],
+      "Montanhas do Tumucumaque": [
+        {
+          "source": "wdpa",
+          "src_id": "351784",
+          "name": "Parque Nacional Montanhas Do Tumucumaque, Parque, BRA",
+          "subtype": "protected-area",
+          "bbox": [
+            -54.792711,
+            0.68409,
+            -51.572154,
+            3.508977
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "10801",
+          "name": "Parque do Tumucumaque, Terra Indígena, BRA",
+          "subtype": "protected-area",
+          "bbox": [
+            -56.4355414,
+            0.5367954,
+            -54.4883764,
+            2.6277728
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555576365",
+          "name": "Parque Natural Municipal Montanhas De Teresópolis, Parque, BRA",
+          "subtype": "protected-area",
+          "bbox": [
+            -43.046765,
+            -22.401224,
+            -42.910777,
+            -22.223218
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "4791",
+          "name": "Montanha do Pico, Reserva Natural, PRT",
+          "subtype": "protected-area",
+          "bbox": [
+            -28.4267101,
+            38.4495119,
+            -28.3735336,
+            38.4836306
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555531152",
+          "name": "Montanha do Pico, Prainha e Caveiro - Ilha do Pico, B, PRT",
+          "subtype": "protected-area",
+          "bbox": [
+            -28.4287943,
+            38.4214379,
+            -28.1896831,
+            38.5164394
+          ]
+        }
+      ],
+      "Odzala-Kokoua": [
+        {
+          "source": "wdpa",
+          "src_id": "643",
+          "name": "Odzala Kokoua, Parc National, COG",
+          "subtype": "protected-area",
+          "bbox": [
+            14.2547856,
+            0.1526912,
+            15.4647232,
+            1.6335175
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555555585",
+          "name": "Odzala Kokoua, Site Ramsar, Zone Humide d’Importance Internationale, COG",
+          "subtype": "protected-area",
+          "bbox": [
+            14.2547856,
+            0.1522676,
+            15.4630781,
+            1.6335175
+          ]
+        }
+      ],
+      "Odzala-Kokoua National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "643",
+          "name": "Odzala Kokoua, Parc National, COG",
+          "subtype": "protected-area",
+          "bbox": [
+            14.2547856,
+            0.1526912,
+            15.4647232,
+            1.6335175
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "62087",
+          "name": "Kogo, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            6.85167,
+            11.33506,
+            7.06698,
+            11.80087
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2416",
+          "name": "Kora, National Park, KEN",
+          "subtype": "protected-area",
+          "bbox": [
+            38.417639,
+            -0.4797726,
+            39.1037165,
+            -0.0091478
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303306",
+          "name": "K2, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            75.72266,
+            35.60103,
+            76.7597,
+            36.02066
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555512227",
+          "name": "Lam Nam Kok, National Park, THA",
+          "subtype": "protected-area",
+          "bbox": [
+            99.5189493,
+            19.6939428,
+            99.860233,
+            20.1273611
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555548782",
+          "name": "Korung, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            116.021569,
+            -32.100752,
+            116.1676812,
+            -32.0015418
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303695",
+          "name": "Masoala, National Park, MDG",
+          "subtype": "protected-area",
+          "bbox": [
+            49.8303198,
+            -16.0232958,
+            50.4849117,
+            -15.1784654
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555563463",
+          "name": "Mokala National Park, National Park, ZAF",
+          "subtype": "protected-area",
+          "bbox": [
+            24.2230922,
+            -29.2276342,
+            24.512972,
+            -28.9981331
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "28376",
+          "name": "'Eua National Park, National Park, TON",
+          "subtype": "protected-area",
+          "bbox": [
+            -174.91745,
+            -21.4337532,
+            -174.9011785,
+            -21.3698664
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2280",
+          "name": "Omo, National Park, ETH",
+          "subtype": "protected-area",
+          "bbox": [
+            35.423555,
+            5.4010608,
+            36.1420127,
+            6.5685136
+          ]
+        }
+      ],
+      "Okapi": [],
+      "Okapi Wildlife Reserve": [
+        {
+          "source": "wdpa",
+          "src_id": "555661832",
+          "name": "Wildlife, Reserve, USA",
+          "subtype": "protected-area",
+          "bbox": [
+            -84.3178861,
+            43.8279839,
+            -84.3079682,
+            43.8352009
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "1445",
+          "name": "Ajai, Wildlife Reserve, UGA",
+          "subtype": "protected-area",
+          "bbox": [
+            31.1496,
+            2.79947,
+            31.36827,
+            2.93804
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "3149",
+          "name": "Krau, Wildlife Reserve, MYS",
+          "subtype": "protected-area",
+          "bbox": [
+            102.0335369,
+            3.5863588,
+            102.3209691,
+            3.8676125
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2320",
+          "name": "Mwabvi Wildlife Reserve, Wildlife Reserve, MWI",
+          "subtype": "protected-area",
+          "bbox": [
+            34.9061737,
+            -16.8301663,
+            35.1179869,
+            -16.5982921
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7403",
+          "name": "Tama, Wildlife Reserve, ETH",
+          "subtype": "protected-area",
+          "bbox": [
+            35.89402,
+            5.37748,
+            36.2683,
+            6.60858
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "19635",
+          "name": "Chior, Wildlife Reserve, MYS",
+          "subtype": "protected-area",
+          "bbox": [
+            101.1320608,
+            4.9728324,
+            101.1915807,
+            5.0102893
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2319",
+          "name": "Majete Wildlife Reserve, Wildlife Reserve, MWI",
+          "subtype": "protected-area",
+          "bbox": [
+            34.4446869,
+            -16.0975486,
+            34.7509306,
+            -15.7717748
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "62632",
+          "name": "Nantu, Wildlife Reserve, IDN",
+          "subtype": "protected-area",
+          "bbox": [
+            122.1461566,
+            0.7793782,
+            122.622261,
+            0.9386449
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7400",
+          "name": "Chelbi, Wildlife Reserve, ETH",
+          "subtype": "protected-area",
+          "bbox": [
+            36.61245,
+            4.37522,
+            37.10835,
+            5.48655
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7396",
+          "name": "Gewane, Wildlife Reserve, ETH",
+          "subtype": "protected-area",
+          "bbox": [
+            40.43916,
+            10.06545,
+            40.92839,
+            10.72036
+          ]
+        }
+      ],
+      "Okapis": [
+        {
+          "source": "wdpa",
+          "src_id": "37043",
+          "name": "Okapis, Réserve de Faune, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            27.9852763,
+            0.9648024,
+            29.0837035,
+            2.4765268
+          ]
+        }
+      ],
+      "Rio Pure National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "61959",
+          "name": "Rio Blanco, National Park, BLZ",
+          "subtype": "protected-area",
+          "bbox": [
+            -89.0968654,
+            16.2234715,
+            -89.091419,
+            16.2298643
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303306",
+          "name": "K2, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            75.72266,
+            35.60103,
+            76.7597,
+            36.02066
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "126839",
+          "name": "Purnululu, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            128.2216339,
+            -17.7483292,
+            128.9109452,
+            -17.1754622
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555584941",
+          "name": "Rio, Nature Park, USA",
+          "subtype": "protected-area",
+          "bbox": [
+            -80.2555012,
+            27.2154861,
+            -80.2544603,
+            27.2171359
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "368",
+          "name": "Royal, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            150.9916171,
+            -34.2264541,
+            151.1705974,
+            -34.0400452
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2296",
+          "name": "Ruma, National Park, KEN",
+          "subtype": "protected-area",
+          "bbox": [
+            34.191437,
+            -0.724896,
+            34.3452489,
+            -0.5797673
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "64119",
+          "name": "Moore River, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            115.5973126,
+            -31.1613559,
+            115.7723167,
+            -31.0226527
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555756499",
+          "name": "Nyerere National Park, National Park, TZA",
+          "subtype": "protected-area",
+          "bbox": [
+            36.0984136,
+            -10.4322601,
+            38.5262312,
+            -7.2896962
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "917",
+          "name": "Ruaha National Park, National Park, TZA",
+          "subtype": "protected-area",
+          "bbox": [
+            33.5948493,
+            -8.7033245,
+            35.4517567,
+            -6.8942555
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "68486",
+          "name": "Ayub, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            73.48236,
+            33.55076,
+            73.51764,
+            33.58264
+          ]
+        }
+      ],
+      "Río Puré": [
+        {
+          "source": "wdpa",
+          "src_id": "555523102",
+          "name": "Río Purón, B, ESP",
+          "subtype": "protected-area",
+          "bbox": [
+            -4.7349364,
+            43.3827733,
+            -4.6915008,
+            43.4029553
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555523132",
+          "name": "Río Pas, B, ESP",
+          "subtype": "protected-area",
+          "bbox": [
+            -3.9829413,
+            43.0482601,
+            -3.7137219,
+            43.4283381
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303547",
+          "name": "Río Puré, Parque Nacional Natural, COL",
+          "subtype": "protected-area",
+          "bbox": [
+            -70.7611825,
+            -2.4341457,
+            -69.4602157,
+            -1.5074744
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555523092",
+          "name": "Río Porcía, B, ESP",
+          "subtype": "protected-area",
+          "bbox": [
+            -6.9017914,
+            43.4946258,
+            -6.8706951,
+            43.5561407
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555523045",
+          "name": "Río Eo, B, ESP",
+          "subtype": "protected-area",
+          "bbox": [
+            -7.2104887,
+            43.1388201,
+            -7.0301889,
+            43.5571686
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555523099",
+          "name": "Río Pigüeña, B, ESP",
+          "subtype": "protected-area",
+          "bbox": [
+            -6.23702,
+            43.2925287,
+            -6.2001019,
+            43.3517892
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555523095",
+          "name": "Río Esva, B, ESP",
+          "subtype": "protected-area",
+          "bbox": [
+            -6.502748,
+            43.4030465,
+            -6.4244413,
+            43.5427042
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555523258",
+          "name": "Río Ara, B, ESP",
+          "subtype": "protected-area",
+          "bbox": [
+            -0.1869594,
+            42.4150114,
+            0.1357714,
+            42.6446144
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555523220",
+          "name": "Río Ebro, B, ESP",
+          "subtype": "protected-area",
+          "bbox": [
+            -1.67876,
+            41.9406615,
+            -1.3783415,
+            42.1828287
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555523272",
+          "name": "Río Gas, B, ESP",
+          "subtype": "protected-area",
+          "bbox": [
+            -0.5425517,
+            42.5623791,
+            -0.511336,
+            42.5682041
+          ]
+        }
+      ],
+      "Salonga": [
+        {
+          "source": "wdpa",
+          "src_id": "555697863",
+          "name": "Salonga, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            20.1122341,
+            -3.3109635,
+            22.6587148,
+            -1.0239091
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555579024",
+          "name": "Salonta, B, ROU",
+          "subtype": "protected-area",
+          "bbox": [
+            21.4930134,
+            46.7323712,
+            21.6261776,
+            46.8706931
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555674023",
+          "name": "Salona, Park, USA",
+          "subtype": "protected-area",
+          "bbox": [
+            -77.1727648,
+            38.9345542,
+            -77.166628,
+            38.9416482
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555522702",
+          "name": "Sanga, B, EST",
+          "subtype": "protected-area",
+          "bbox": [
+            25.0773601,
+            58.1167926,
+            25.0996597,
+            58.1285726
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "62199",
+          "name": "Musalonga, Forest Reserve, ZMB",
+          "subtype": "protected-area",
+          "bbox": [
+            23.37218,
+            -15.57832,
+            23.43579,
+            -15.49689
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555531922",
+          "name": "nga, B, SWE",
+          "subtype": "protected-area",
+          "bbox": [
+            17.1877605,
+            58.7343924,
+            17.1903908,
+            58.7354908
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555523601",
+          "name": "Río Salor, B, ESP",
+          "subtype": "protected-area",
+          "bbox": [
+            -6.7432388,
+            39.4015938,
+            -6.6246799,
+            39.463427
+          ]
+        }
+      ],
+      "Salonga National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "555697863",
+          "name": "Salonga, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            20.1122341,
+            -3.3109635,
+            22.6587148,
+            -1.0239091
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "313256",
+          "name": "Salook, National Park, IRN",
+          "subtype": "protected-area",
+          "bbox": [
+            57.17299,
+            37.11722,
+            57.28189,
+            37.23809
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "36455",
+          "name": "Sambisa, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            13.37568,
+            11.22255,
+            13.52536,
+            11.32852
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "313678",
+          "name": "Monga, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            149.8105255,
+            -35.7854484,
+            150.0521602,
+            -35.486342
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "62087",
+          "name": "Kogo, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            6.85167,
+            11.33506,
+            7.06698,
+            11.80087
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7864",
+          "name": "Alawa, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            6.47615,
+            10.10598,
+            6.65879,
+            10.58895
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "62088",
+          "name": "Gujba, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            11.82746,
+            11.14931,
+            11.9984,
+            11.48697
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "317034",
+          "name": "Saba, National Park, BES",
+          "subtype": "protected-area",
+          "bbox": [
+            -63.2369374,
+            17.6371599,
+            -63.2230245,
+            17.6474078
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7409",
+          "name": "Sapo National Park, National Park, LBR",
+          "subtype": "protected-area",
+          "bbox": [
+            -8.8284901,
+            5.2424273,
+            -8.1589826,
+            5.5809951
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "61942",
+          "name": "Sai Thong, National Park, THA",
+          "subtype": "protected-area",
+          "bbox": [
+            101.39092,
+            15.73698,
+            101.68875,
+            15.99185
+          ]
+        }
+      ],
+      "Sankuru": [
+        {
+          "source": "wdpa",
+          "src_id": "354001",
+          "name": "Sankuru, Réserve Naturelle, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            23.1971922,
+            -3.4627217,
+            25.1143993,
+            -1.7327797
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555532715",
+          "name": "r Sankor, B, SWE",
+          "subtype": "protected-area",
+          "bbox": [
+            16.7888029,
+            57.5762769,
+            16.8466563,
+            57.6112834
+          ]
+        }
+      ],
+      "Sankuru National Reserve": [
+        {
+          "source": "wdpa",
+          "src_id": "2298",
+          "name": "Samburu, National Reserve, KEN",
+          "subtype": "protected-area",
+          "bbox": [
+            37.4317251,
+            0.5641324,
+            37.6472158,
+            0.6647881
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2427",
+          "name": "Shaba, National Reserve, KEN",
+          "subtype": "protected-area",
+          "bbox": [
+            37.7055542,
+            0.5853324,
+            37.9300026,
+            0.7419151
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2422",
+          "name": "Bisandi, National Reserve, KEN",
+          "subtype": "protected-area",
+          "bbox": [
+            38.1971355,
+            -0.0878088,
+            38.5693354,
+            0.2745267
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2417",
+          "name": "Boni, National Reserve, KEN",
+          "subtype": "protected-area",
+          "bbox": [
+            41.0423933,
+            -1.6990148,
+            41.5642036,
+            -1.3420846
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2433",
+          "name": "Mwea, National Reserve, KEN",
+          "subtype": "protected-area",
+          "bbox": [
+            37.5780021,
+            -0.8651278,
+            37.6718827,
+            -0.7494376
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2415",
+          "name": "Losai, National Reserve, KEN",
+          "subtype": "protected-area",
+          "bbox": [
+            37.2703416,
+            1.3627447,
+            37.9511568,
+            1.8658507
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555622007",
+          "name": "Mt. Kenya, National Reserve, KEN",
+          "subtype": "protected-area",
+          "bbox": [
+            37.0178924,
+            -0.4281199,
+            37.7641303,
+            0.1484531
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2596",
+          "name": "Nasolot, National Reserve, KEN",
+          "subtype": "protected-area",
+          "bbox": [
+            35.3378704,
+            1.7918212,
+            35.4703491,
+            1.9272431
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2418",
+          "name": "Rahole, National Reserve, KEN",
+          "subtype": "protected-area",
+          "bbox": [
+            38.7278994,
+            -0.0534373,
+            39.1666719,
+            0.304333
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "142802",
+          "name": "Spurn, National Nature Reserve, GBR",
+          "subtype": "protected-area",
+          "bbox": [
+            0.1056089,
+            53.5707439,
+            0.1498357,
+            53.6134867
+          ]
+        }
+      ],
+      "Sapo": [
+        {
+          "source": "wdpa",
+          "src_id": "7409",
+          "name": "Sapo National Park, National Park, LBR",
+          "subtype": "protected-area",
+          "bbox": [
+            -8.8284901,
+            5.2424273,
+            -8.1589826,
+            5.5809951
+          ]
+        }
+      ],
+      "Sapo National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "7409",
+          "name": "Sapo National Park, National Park, LBR",
+          "subtype": "protected-area",
+          "bbox": [
+            -8.8284901,
+            5.2424273,
+            -8.1589826,
+            5.5809951
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "317034",
+          "name": "Saba, National Park, BES",
+          "subtype": "protected-area",
+          "bbox": [
+            -63.2369374,
+            17.6371599,
+            -63.2230245,
+            17.6474078
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303306",
+          "name": "K2, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            75.72266,
+            35.60103,
+            76.7597,
+            36.02066
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "313256",
+          "name": "Salook, National Park, IRN",
+          "subtype": "protected-area",
+          "bbox": [
+            57.17299,
+            37.11722,
+            57.28189,
+            37.23809
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "36455",
+          "name": "Sambisa, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            13.37568,
+            11.22255,
+            13.52536,
+            11.32852
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "1371",
+          "name": "Boma, National Park, SSD",
+          "subtype": "protected-area",
+          "bbox": [
+            33.1952048,
+            5.4053934,
+            34.7790417,
+            7.437343
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "312995",
+          "name": "Si Nan, National Park, THA",
+          "subtype": "protected-area",
+          "bbox": [
+            100.62939,
+            18.02207,
+            101.08819,
+            18.4955
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2278",
+          "name": "Nech-sar, National Park, ETH",
+          "subtype": "protected-area",
+          "bbox": [
+            37.5326043,
+            5.8631665,
+            37.7855194,
+            6.0897958
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7434",
+          "name": "Saadani National Park, National Park, TZA",
+          "subtype": "protected-area",
+          "bbox": [
+            38.5695737,
+            -6.2568985,
+            38.9105637,
+            -5.6450704
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "374162",
+          "name": "Saguaro, National Park, USA",
+          "subtype": "protected-area",
+          "bbox": [
+            -111.2438306,
+            32.1040701,
+            -110.4984987,
+            32.3520618
+          ]
+        }
+      ],
+      "Tumucumaque Mountains National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "356",
+          "name": "Blue Mountains, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            149.8438803,
+            -34.3066525,
+            150.6620618,
+            -33.3420219
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7521",
+          "name": "Mahale Mountains National Park, National Park, TZA",
+          "subtype": "protected-area",
+          "bbox": [
+            29.7081957,
+            -6.4564803,
+            30.1164579,
+            -6.0023126
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555512166",
+          "name": "Kpo Mountains, National Park, LBR",
+          "subtype": "protected-area",
+          "bbox": [
+            -10.3792454,
+            7.1923776,
+            -9.8055135,
+            7.5373836
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555705204",
+          "name": "Arsi Mountains, National Park, ETH",
+          "subtype": "protected-area",
+          "bbox": [
+            38.79024,
+            6.88878,
+            40.28054,
+            8.68114
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2281",
+          "name": "Bale Mountains, National Park, ETH",
+          "subtype": "protected-area",
+          "bbox": [
+            39.4662946,
+            6.4647235,
+            39.9567303,
+            7.152385
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "29968",
+          "name": "Loma Mountains, National Park, SLE",
+          "subtype": "protected-area",
+          "bbox": [
+            -11.2122149,
+            9.0353076,
+            -11.0140809,
+            9.2894575
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "309893",
+          "name": "Bunya Mountains, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            151.4801322,
+            -26.9582961,
+            151.7107491,
+            -26.767936
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "309453",
+          "name": "Hartz Mountains, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            146.6953645,
+            -43.293423,
+            146.8479478,
+            -43.1237753
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "311895",
+          "name": "White Mountains, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            144.6775469,
+            -20.7601347,
+            145.3471049,
+            -20.2982844
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "19297",
+          "name": "Udzungwa Mountains National Park, National Park, TZA",
+          "subtype": "protected-area",
+          "bbox": [
+            36.3376905,
+            -8.0629385,
+            36.9737776,
+            -7.498121
+          ]
+        }
+      ],
+      "Virunga": [
+        {
+          "source": "wdpa",
+          "src_id": "166889",
+          "name": "Virunga, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            29.0268262,
+            -1.6483265,
+            30.0040491,
+            0.9333651
+          ]
+        }
+      ],
+      "Virunga National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "166889",
+          "name": "Virunga, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            29.0268262,
+            -1.6483265,
+            30.0040491,
+            0.9333651
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "62087",
+          "name": "Kogo, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            6.85167,
+            11.33506,
+            7.06698,
+            11.80087
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7864",
+          "name": "Alawa, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            6.47615,
+            10.10598,
+            6.65879,
+            10.58895
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "62088",
+          "name": "Gujba, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            11.82746,
+            11.14931,
+            11.9984,
+            11.48697
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7874",
+          "name": "Kamuku, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            6.19377,
+            10.71108,
+            6.42627,
+            10.87651
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "36676",
+          "name": "Marhai, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            8.64638,
+            9.13513,
+            8.77695,
+            9.20294
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "313678",
+          "name": "Monga, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            149.8105255,
+            -35.7854484,
+            150.0521602,
+            -35.486342
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "1111",
+          "name": "Nyanga, National Park, ZWE",
+          "subtype": "protected-area",
+          "bbox": [
+            32.67959,
+            -18.43128,
+            32.88953,
+            -18.18394
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "26625",
+          "name": "Old Oyo, National Park, NGA",
+          "subtype": "protected-area",
+          "bbox": [
+            3.5809,
+            8.20619,
+            4.34303,
+            9.0217
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555625705",
+          "name": "Yanga, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            143.503654,
+            -34.7666755,
+            143.917566,
+            -34.3312361
+          ]
+        }
+      ],
+      "Yaguas": [
+        {
+          "source": "wdpa",
+          "src_id": "555629239",
+          "name": "Yaguas, Parque Nacional, PER",
+          "subtype": "protected-area",
+          "bbox": [
+            -72.0671846,
+            -3.3386717,
+            -70.5230204,
+            -2.4929268
+          ]
+        }
+      ],
+      "Yaguas National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "555625705",
+          "name": "Yanga, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            143.503654,
+            -34.7666755,
+            143.917566,
+            -34.3312361
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303306",
+          "name": "K2, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            75.72266,
+            35.60103,
+            76.7597,
+            36.02066
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "24",
+          "name": "Inagua National Park, National Park, BHS",
+          "subtype": "protected-area",
+          "bbox": [
+            -73.6047531,
+            20.9691894,
+            -73.1646083,
+            21.2365999
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "310125",
+          "name": "Yabbra, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            152.4456538,
+            -28.7369307,
+            152.5713173,
+            -28.5299812
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "61957",
+          "name": "Aguas Turbias, National Park, BLZ",
+          "subtype": "protected-area",
+          "bbox": [
+            -89.1521699,
+            17.7722929,
+            -89.1253137,
+            17.900527
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "301881",
+          "name": "Agulhas National Park, National Park, ZAF",
+          "subtype": "protected-area",
+          "bbox": [
+            19.5770581,
+            -34.8331483,
+            20.0232353,
+            -34.6183633
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "374162",
+          "name": "Saguaro, National Park, USA",
+          "subtype": "protected-area",
+          "bbox": [
+            -111.2438306,
+            32.1040701,
+            -110.4984987,
+            32.3520618
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555629239",
+          "name": "Yaguas, Parque Nacional, PER",
+          "subtype": "protected-area",
+          "bbox": [
+            -72.0671846,
+            -3.3386717,
+            -70.5230204,
+            -2.4929268
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "579",
+          "name": "Yanchep, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            115.6446094,
+            -31.5909511,
+            115.7091967,
+            -31.5061758
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "68486",
+          "name": "Ayub, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            73.48236,
+            33.55076,
+            73.51764,
+            33.58264
+          ]
+        }
+      ],
+      "Yasuni National Park": [
+        {
+          "source": "wdpa",
+          "src_id": "555625705",
+          "name": "Yanga, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            143.503654,
+            -34.7666755,
+            143.917566,
+            -34.3312361
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303306",
+          "name": "K2, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            75.72266,
+            35.60103,
+            76.7597,
+            36.02066
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "310125",
+          "name": "Yabbra, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            152.4456538,
+            -28.7369307,
+            152.5713173,
+            -28.5299812
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "780",
+          "name": "Kasungu National Park, National Park, MWI",
+          "subtype": "protected-area",
+          "bbox": [
+            32.9195154,
+            -13.3533305,
+            33.3512552,
+            -12.5321767
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "579",
+          "name": "Yanchep, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            115.6446094,
+            -31.5909511,
+            115.7091967,
+            -31.5061758
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "357702",
+          "name": "Yarriabini, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            152.9052558,
+            -30.8187492,
+            152.9975656,
+            -30.7635188
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "68486",
+          "name": "Ayub, National Park, PAK",
+          "subtype": "protected-area",
+          "bbox": [
+            73.48236,
+            33.55076,
+            73.51764,
+            33.58264
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "347",
+          "name": "Iona National Park, National Park, AGO",
+          "subtype": "protected-area",
+          "bbox": [
+            11.6694249,
+            -17.2727588,
+            13.244603,
+            -15.7316994
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "570_A",
+          "name": "Yalgorup, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            115.6093015,
+            -33.1029479,
+            115.7247778,
+            -32.6489777
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "570_B",
+          "name": "Yalgorup, National Park, AUS",
+          "subtype": "protected-area",
+          "bbox": [
+            115.6425941,
+            -32.8647114,
+            115.6490486,
+            -32.8496812
+          ]
+        }
+      ],
+      "Yasuní": [
+        {
+          "source": "wdpa",
+          "src_id": "186",
+          "name": "Yasuní, Parque Nacional, ECU",
+          "subtype": "protected-area",
+          "bbox": [
+            -76.7756408,
+            -1.7033203,
+            -75.4175881,
+            -0.4434421
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555710140",
+          "name": "YAsen`, YAsen, RUS",
+          "subtype": "protected-area",
+          "bbox": [
+            40.7568181,
+            45.3916997,
+            40.7569988,
+            45.3917916
+          ]
+        }
+      ],
+      "Parque Nacional Yasuni": [
+        {
+          "source": "wdpa",
+          "src_id": "186",
+          "name": "Yasuní, Parque Nacional, ECU",
+          "subtype": "protected-area",
+          "bbox": [
+            -76.7756408,
+            -1.7033203,
+            -75.4175881,
+            -0.4434421
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555629239",
+          "name": "Yaguas, Parque Nacional, PER",
+          "subtype": "protected-area",
+          "bbox": [
+            -72.0671846,
+            -3.3386717,
+            -70.5230204,
+            -2.4929268
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555592950",
+          "name": "Yacuri, Parque Nacional, ECU",
+          "subtype": "protected-area",
+          "bbox": [
+            -79.4467235,
+            -4.7964256,
+            -79.1642747,
+            -4.4753337
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "342491",
+          "name": "Yura, Parque Nacional, BOL",
+          "subtype": "protected-area",
+          "bbox": [
+            -66.5053055,
+            -19.8970695,
+            -66.2455255,
+            -19.5641992
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "17831",
+          "name": "Coiba, Parque Nacional, PAN",
+          "subtype": "protected-area",
+          "bbox": [
+            -81.937398,
+            7.1691418,
+            -81.5429375,
+            7.894939
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "335",
+          "name": "Yacambú, Parque Nacional (PN), VEN",
+          "subtype": "protected-area",
+          "bbox": [
+            -69.8512074,
+            9.5413591,
+            -69.475594,
+            9.7988557
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "36059",
+          "name": "Arenal, Parque Nacional, CRI",
+          "subtype": "protected-area",
+          "bbox": [
+            -84.8359731,
+            10.3612586,
+            -84.6672817,
+            10.496909
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "157",
+          "name": "Carara, Parque Nacional, CRI",
+          "subtype": "protected-area",
+          "bbox": [
+            -84.6137484,
+            9.7418376,
+            -84.5227086,
+            9.8385803
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7910",
+          "name": "Chiloe, Parque Nacional, CHL",
+          "subtype": "protected-area",
+          "bbox": [
+            -74.1911035,
+            -42.6403137,
+            -73.929949,
+            -42.1308689
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "16846",
+          "name": "Copo, Parque Nacional, ARG",
+          "subtype": "protected-area",
+          "bbox": [
+            -62.0759096,
+            -25.9744753,
+            -61.7122746,
+            -25.6550961
+          ]
+        }
+      ],
+      "Reserve de faune a Okapis": [
+        {
+          "source": "wdpa",
+          "src_id": "37043",
+          "name": "Okapis, Réserve de Faune, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            27.9852763,
+            0.9648024,
+            29.0837035,
+            2.4765268
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "1240",
+          "name": "Dja, Réserve de Faune, CMR",
+          "subtype": "protected-area",
+          "bbox": [
+            12.4344884,
+            2.8413979,
+            13.5657001,
+            3.4274826
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555512073",
+          "name": "Bomu, Réserve de Faune, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            22.8749104,
+            4.3990998,
+            25.2374096,
+            5.112711
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "20976",
+          "name": "Djamde, Faunal Reserve, TGO",
+          "subtype": "protected-area",
+          "bbox": [
+            0.9988459,
+            9.4882228,
+            1.1269704,
+            9.5869982
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2555",
+          "name": "Aouk-Aoukale, Réserve de Faune, CAF",
+          "subtype": "protected-area",
+          "bbox": [
+            20.83964,
+            9.39055,
+            21.89391,
+            10.22926
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "1628",
+          "name": "Lac Ossa, Réserve de Faune, CMR",
+          "subtype": "protected-area",
+          "bbox": [
+            9.9782332,
+            3.7260493,
+            10.066124,
+            3.8701413
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2331",
+          "name": "Tamou, Réserve de Faune, NER",
+          "subtype": "protected-area",
+          "bbox": [
+            2.10755,
+            12.42234,
+            2.52094,
+            12.81354
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "9033",
+          "name": "Fada Archei, Réserve de Faune, TCD",
+          "subtype": "protected-area",
+          "bbox": [
+            21.20783,
+            16.68762,
+            21.59536,
+            17.22454
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2266",
+          "name": "Léfini, Réserve de Faune, COG",
+          "subtype": "protected-area",
+          "bbox": [
+            15.101119,
+            -3.0742406,
+            15.7718726,
+            -2.3529912
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555622119",
+          "name": "Ngoyla, Réserve de Faune, CMR",
+          "subtype": "protected-area",
+          "bbox": [
+            13.6433037,
+            2.215648,
+            13.9992789,
+            2.7194194
+          ]
+        }
+      ],
+      "Parc National de l'Ivindo": [
+        {
+          "source": "wdpa",
+          "src_id": "303873",
+          "name": "Ivindo, Parc National, GAB",
+          "subtype": "protected-area",
+          "bbox": [
+            12.338703,
+            -0.289824,
+            12.989752,
+            0.537545
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555547995",
+          "name": "Deng Deng, Parc National, CMR",
+          "subtype": "protected-area",
+          "bbox": [
+            13.3512082,
+            5.0853895,
+            13.5768339,
+            5.5279365
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "313046",
+          "name": "Parc National de Mohéli, Parc National, COM",
+          "subtype": "protected-area",
+          "bbox": [
+            43.5216487,
+            -12.4795675,
+            43.9328979,
+            -12.2618813
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "4114",
+          "name": "Parc National de Toubkal, Parc National, MAR",
+          "subtype": "protected-area",
+          "bbox": [
+            -8.038091,
+            30.9821393,
+            -7.6923179,
+            31.1952064
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "9743",
+          "name": "Taza, Parc National, DZA",
+          "subtype": "protected-area",
+          "bbox": [
+            5.5157069,
+            36.6608658,
+            5.6612638,
+            36.7273482
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "4115",
+          "name": "Parc National de Tazekka, Parc National, MAR",
+          "subtype": "protected-area",
+          "bbox": [
+            -4.2382553,
+            34.0296781,
+            -4.006888,
+            34.1509213
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303875",
+          "name": "Lopé, Parc National, GAB",
+          "subtype": "protected-area",
+          "bbox": [
+            11.266089,
+            -1.0841438,
+            11.856819,
+            -0.057239
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555542498",
+          "name": "Parc National de Khénifra, Parc National, MAR",
+          "subtype": "protected-area",
+          "bbox": [
+            -5.4983835,
+            32.7405057,
+            -4.7974801,
+            33.2056566
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555542497",
+          "name": "Parc National de Khnifiss, Parc National, MAR",
+          "subtype": "protected-area",
+          "bbox": [
+            -12.4977616,
+            27.6633468,
+            -11.9431907,
+            28.1128411
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "11697",
+          "name": "Parc National de Sous-Massa, Parc National, MAR",
+          "subtype": "protected-area",
+          "bbox": [
+            -9.8520684,
+            29.7981436,
+            -9.5080868,
+            30.3790705
+          ]
+        }
+      ],
+      "Parque Nacional Montanhas do Tumucumaque": [
+        {
+          "source": "wdpa",
+          "src_id": "351784",
+          "name": "Parque Nacional Montanhas Do Tumucumaque, Parque, BRA",
+          "subtype": "protected-area",
+          "bbox": [
+            -54.792711,
+            0.68409,
+            -51.572154,
+            3.508977
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "68",
+          "name": "Parque Nacional Do Monte Pascoal, Parque, BRA",
+          "subtype": "protected-area",
+          "bbox": [
+            -39.426803,
+            -16.928676,
+            -39.115146,
+            -16.800115
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "19762",
+          "name": "Parque Nacional Do Monte Roraima, Parque, BRA",
+          "subtype": "protected-area",
+          "bbox": [
+            -60.736345,
+            4.802916,
+            -60.091234,
+            5.27191
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "306851",
+          "name": "Tula, Parque Nacional, MEX",
+          "subtype": "protected-area",
+          "bbox": [
+            -99.3445937,
+            20.0612627,
+            -99.3321766,
+            20.0754627
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "478090",
+          "name": "El Morro, Parque Nacional, DOM",
+          "subtype": "protected-area",
+          "bbox": [
+            -71.6611766,
+            19.865604,
+            -71.539768,
+            19.9121325
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "18811",
+          "name": "Montaña de Yoro, Parque Nacional, HND",
+          "subtype": "protected-area",
+          "bbox": [
+            -87.1380785,
+            14.9297096,
+            -87.0064486,
+            15.1055605
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "5407",
+          "name": "Tulum, Parque Nacional, MEX",
+          "subtype": "protected-area",
+          "bbox": [
+            -87.4494465,
+            20.1851173,
+            -87.3963352,
+            20.2631363
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "53",
+          "name": "Parque Nacional Do Jaú, Parque, BRA",
+          "subtype": "protected-area",
+          "bbox": [
+            -63.983837,
+            -2.973131,
+            -61.352722,
+            -1.548832
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "478128",
+          "name": "Montaña La Humeadora, Parque Nacional, DOM",
+          "subtype": "protected-area",
+          "bbox": [
+            -70.4486543,
+            18.5322083,
+            -70.203098,
+            18.8338912
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555558355",
+          "name": "Monte León, Parque Nacional, ARG",
+          "subtype": "protected-area",
+          "bbox": [
+            -69.1991863,
+            -50.472916,
+            -68.6354979,
+            -50.2015237
+          ]
+        }
+      ]
+    },
+    "(all sources)": {
+      "Kahuzi-Biega": [
+        {
+          "source": "wdpa",
+          "src_id": "1082",
+          "name": "Kahuzi-Biega, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            27.4879959,
+            -2.6521982,
+            28.837793,
+            -1.6295444
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "6069",
+          "name": "Parc National des Kahuzi-Biega, Kahuzi-Biega national Park, COD",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            27.48799584057114,
+            -2.6521982105756092,
+            28.837793160243006,
+            -1.6281843300603143
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2.1_1",
+          "name": "Buhiga, Buhiga, Karuzi, Burundi",
+          "subtype": "municipality",
+          "bbox": [
+            30.149482727000077,
+            -3.0589539999999715,
+            30.18527984700006,
+            -3.0100269319999597
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2_1",
+          "name": "Buhiga, Karuzi, Burundi",
+          "subtype": "district-county",
+          "bbox": [
+            30.081020355000078,
+            -3.201842069999941,
+            30.277843474999997,
+            -2.9759709839999005
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8_1",
+          "name": "Karuzi, Burundi",
+          "subtype": "state-province",
+          "bbox": [
+            29.896781921000127,
+            -3.3938710689999425,
+            30.349889885000096,
+            -2.904144047999978
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555635685",
+          "name": "Biely kamen, B, SVK",
+          "subtype": "protected-area",
+          "bbox": [
+            18.6861462,
+            48.6793919,
+            18.6944693,
+            48.6955219
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2.14_1",
+          "name": "Karuri, Buhiga, Karuzi, Burundi",
+          "subtype": "municipality",
+          "bbox": [
+            30.10187149100011,
+            -3.1308920379998426,
+            30.15648841799998,
+            -3.0957770349999123
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2.14.1_1",
+          "name": "Karuri, Karuri, Buhiga, Karuzi, Burundi",
+          "subtype": "locality",
+          "bbox": [
+            30.114456175999976,
+            -3.1296529779999105,
+            30.15648841799998,
+            -3.0957770349999123
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2.20_1",
+          "name": "Nyamabega, Buhiga, Karuzi, Burundi",
+          "subtype": "municipality",
+          "bbox": [
+            30.09188461300016,
+            -3.1532089709999127,
+            30.137035369000102,
+            -3.1271829599999705
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2.20.1_1",
+          "name": "Nyamabega, Nyamabega, Buhiga, Karuzi, Burundi",
+          "subtype": "locality",
+          "bbox": [
+            30.100280762000068,
+            -3.145164966999971,
+            30.137035369000102,
+            -3.1271829599999705
+          ]
+        }
+      ],
+      "Odzala-Kokoua": [
+        {
+          "source": "wdpa",
+          "src_id": "643",
+          "name": "Odzala Kokoua, Parc National, COG",
+          "subtype": "protected-area",
+          "bbox": [
+            14.2547856,
+            0.1526912,
+            15.4647232,
+            1.6335175
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "6085",
+          "name": "Parc National d'Odzala-Kokoua, Odzala- Kokoua National Park, COG",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            14.25365119884177,
+            0.1526845628019808,
+            15.464723242374207,
+            1.633517471799348
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555555585",
+          "name": "Odzala Kokoua, Site Ramsar, Zone Humide d’Importance Internationale, COG",
+          "subtype": "protected-area",
+          "bbox": [
+            14.2547856,
+            0.1522676,
+            15.4630781,
+            1.6335175
+          ]
+        }
+      ],
+      "Virunga": [
+        {
+          "source": "wdpa",
+          "src_id": "166889",
+          "name": "Virunga, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            29.0268262,
+            -1.6483265,
+            30.0040491,
+            0.9333651
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "6066",
+          "name": "Parc National de Virunga, Virunga national Park, COD",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            29.02635000011377,
+            -1.6492060795791723,
+            30.004049159752526,
+            0.9343130396346082
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "EST.6.7.5_1",
+          "name": "Karunga, Rakvere, Lääne-Viru, Estonia",
+          "subtype": "municipality",
+          "bbox": [
+            26.221939088000113,
+            59.25212860099998,
+            26.262556076000067,
+            59.27941894500009
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.4.2.4_1",
+          "name": "Burunga, Bururi, Bururi, Burundi",
+          "subtype": "municipality",
+          "bbox": [
+            29.51405715900006,
+            -3.9698569769998926,
+            29.601339340000152,
+            -3.911900042999889
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "TZA5516",
+          "name": "Mahurunga / Mahurunga, Village lands, TZA",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            40.251249,
+            -10.58163,
+            40.336168,
+            -10.511025
+          ]
+        }
+      ],
+      "Salonga": [
+        {
+          "source": "wdpa",
+          "src_id": "555697863",
+          "name": "Salonga, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            20.1122341,
+            -3.3109635,
+            22.6587148,
+            -1.0239091
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555579024",
+          "name": "Salonta, B, ROU",
+          "subtype": "protected-area",
+          "bbox": [
+            21.4930134,
+            46.7323712,
+            21.6261776,
+            46.8706931
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "TON",
+          "name": "Tonga",
+          "subtype": "country",
+          "bbox": [
+            -176.21383699999993,
+            -22.34972400099997,
+            -173.73500099999998,
+            -15.565795999999978
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555674023",
+          "name": "Salona, Park, USA",
+          "subtype": "protected-area",
+          "bbox": [
+            -77.1727648,
+            38.9345542,
+            -77.166628,
+            38.9416482
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "ITA.5.5.25_1",
+          "name": "Cannalonga, Salerno, Campania, Italy",
+          "subtype": "municipality",
+          "bbox": [
+            15.287670136000088,
+            40.22477722100007,
+            15.35263824600014,
+            40.270992279000154
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555522702",
+          "name": "Sanga, B, EST",
+          "subtype": "protected-area",
+          "bbox": [
+            25.0773601,
+            58.1167926,
+            25.0996597,
+            58.1285726
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "31154",
+          "name": "Savoonga Colonies, Savoonga Colonies, USA",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            -170.65263774138538,
+            63.52080599347597,
+            -169.89702559385765,
+            63.77641426618321
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "6060",
+          "name": "Parc National de la Salonga, Salonga National Park, COD",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            20.11223412041768,
+            -3.316442579335948,
+            22.66107909786115,
+            -1.0208484297392535
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "21966",
+          "name": "Long Salt Pond, Long Salt Pond, AIA",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            -63.02570937041995,
+            18.209734736592182,
+            -63.01457001835174,
+            18.2156326945439
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "MWI.26.6_1",
+          "name": "TA Karonga, Salima, Malawi",
+          "subtype": "district-county",
+          "bbox": [
+            34.18579101600005,
+            -13.88865470899998,
+            34.5066680920001,
+            -13.63576602899991
+          ]
+        }
+      ]
+    }
+  }
+}

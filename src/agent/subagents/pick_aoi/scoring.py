@@ -6,6 +6,17 @@ the query "Para" it puts "Paraná" ABOVE "Pará", because the accent breaks
 Pará's trigrams. Selection therefore re-scores the retrieved rows here,
 accent-insensitively, instead of asking a model to repair the ranking.
 
+Selection scores the LEAF, not the whole name (PZB-1392). Ingest composes
+`aois.name` as "leaf, designation, ISO3" -- "Okapis, Réserve de Faune, COD" --
+and a source-narrowed search returns rows that all share the designation and
+country segments. Comparing whole names therefore ranks on the segments every
+candidate has in common: "Sankuru National Reserve" scored 0.4674 against
+"Samburu, National Reserve, KEN" and only 0.4442 against the Sankuru row,
+because ", National Reserve, " is most of the string. The leaf is the only
+segment that identifies the place, so it carries most of the weight, with a
+smaller whole-name term left in to keep the parent hierarchy meaningful
+("Lisboa, Portugal" over "Lisbon, Forest Preserve, USA").
+
 This module knows nothing about the tool it serves: it returns the winning
 DataFrame row, and the caller turns that into an `AOIIndex`.
 """
@@ -22,10 +33,34 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-_SIMILARITY_WEIGHT = 0.5
+# Weights, hand-tuned. Evidence they were set on, and what to rerun after
+# changing them: the 22 recorded production frames
+# (tests/unit/agent/tools/pick_aoi/test_designation_scoring.py), the 12
+# recorded replay frames (tests/tools/test_pick_aoi.py under
+# AOI_PICK_AOI_FIXTURES_MODE=replay) and the ladders pinned in test_scoring.py.
+# The cohort result is flat at 20/22 across leaf 0.35-0.55 and whole
+# 0.05-0.20, so these sit mid-plateau rather than on a tuned point. A zero
+# whole-name weight is the one setting that breaks: it drops the parent
+# hierarchy and loses the cases whose term carries a parent (ch-aoi-136,
+# ch-aoi-145), and it moves a recorded replay frame.
+_LEAF_WEIGHT = 0.60
+_WHOLE_NAME_WEIGHT = 0.10
 _HIERARCHY_WEIGHT = 0.3
-_EXACT_SEGMENT_BONUS = 0.2
-_PREFIX_BONUS = 0.1
+
+# An exact name match wins outright. `_format_aoi_candidate` builds an
+# `aoi_choice` option from a row's full stored name and documents that
+# resubmitting it re-resolves to the row it names, and that guarantee cannot be
+# left to a weighted sum: a child whose leaf repeats its parent's
+# ("Senga, Senga, Butezi, Ruyigi, Burundi") ties its parent on every name term,
+# and the hierarchy preference then hands the user the parent. The assertion
+# below is what makes "wins outright" true rather than hoped for.
+_EXACT_NAME_BONUS = 0.25
+
+# There is no prefix bonus. Any bonus on top of the leaf comparison double
+# counts, because an exact leaf already scores 1.0 there -- and a bonus gated on
+# "not an exact leaf" is worse than none, because it then rewards every
+# candidate EXCEPT the exact match: "Niger" scored 0.8500 against itself and
+# 0.8583 against "Nigeria".
 
 # Punctuation that can wrap a name segment. Stored names carry trailing
 # commas ("NA, England, United Kingdom"), and an `aoi_choice` nudge option is
@@ -56,6 +91,20 @@ _HIERARCHY_SCORES: dict[str, float] = {
 # the coverage at import time: CI sees it, a user does not.
 assert set(_HIERARCHY_SCORES) == set(SUBREGION_TO_SUBTYPE_MAPPING.values())
 
+# The exact-name bonus only guarantees the round trip while it outweighs the
+# widest hierarchy gap -- country over a named site, the two extremes of the
+# map above. Pinned at import time rather than described in a comment, so that
+# lowering the bonus or widening the hierarchy spread fails loudly here instead
+# of silently returning a user's clicked option's parent.
+_WIDEST_HIERARCHY_GAP = _HIERARCHY_WEIGHT * (
+    max(_HIERARCHY_SCORES.values()) - min(_HIERARCHY_SCORES.values())
+)
+assert _EXACT_NAME_BONUS > _WIDEST_HIERARCHY_GAP, (
+    f"_EXACT_NAME_BONUS ({_EXACT_NAME_BONUS}) must exceed the widest "
+    f"hierarchy gap ({_WIDEST_HIERARCHY_GAP}), or an exact name match can "
+    f"lose to a differently-named candidate of a broader subtype"
+)
+
 
 def _strip_accents(text_value: str) -> str:
     """Lowercase and remove diacritics: "Pará" -> "para"."""
@@ -63,6 +112,26 @@ def _strip_accents(text_value: str) -> str:
     return "".join(
         char for char in decomposed if unicodedata.category(char) != "Mn"
     )
+
+
+def _normalise_for_exact_match(text_value: str) -> str:
+    """Accent-, case-, punctuation- and whitespace-insensitive name key.
+
+    Both sides of the exact-name test go through this, so "Pará, Brazil"
+    matches "Para,Brazil" and "Para, Brazil". Punctuation becomes a space
+    rather than nothing, so "Kahuzi-Biega" cannot collapse into a different
+    word.
+
+    A decorated `aoi_choice` option ("... - (district-county) [FRA]") does NOT
+    key equal to the stored name, and is not meant to: the geocoder extracts a
+    place from that string before it reaches scoring, and what it extracts is
+    the name.
+    """
+    stripped = _strip_accents(text_value)
+    spaced = "".join(
+        " " if char in _SEGMENT_PUNCTUATION else char for char in stripped
+    )
+    return " ".join(spaced.split())
 
 
 def _first_segment(name: str) -> str:
@@ -74,6 +143,138 @@ def _first_segment(name: str) -> str:
     """
     leaf = name.split(",")[0]
     return _strip_accents(leaf).strip(_SEGMENT_PUNCTUATION)
+
+
+def _leaf_prefixes(term_leaf: str) -> list[str]:
+    """The term leaf's word prefixes, longest first: what a stored leaf can be.
+
+    A stored leaf is the place's own name; the extracted `place` term is that
+    name followed by the designation the user used ("Sankuru National
+    Reserve"), because English puts the designation last and GEOCODER_PROMPT
+    translates into English. So the stored leaf, if this term names it at all,
+    is a PREFIX of the term leaf.
+
+    Prefixes rather than arbitrary interior spans, because the catalogue
+    contains rows whose own leaf IS a designation word -- "Wildlife, Reserve,
+    USA" and "Research, Natural Area, USA" are both real. An interior span
+    would match those exactly and hand them the frame ("Okapi Wildlife
+    Reserve" contains "Wildlife"), which is the defect this scoring replaces,
+    only one level down.
+    """
+    words = term_leaf.split()
+    return [" ".join(words[:end]) for end in range(len(words), 0, -1)] or [""]
+
+
+def _prefix_matchers(
+    term_leaf_prefixes: Sequence[str],
+) -> list[SequenceMatcher]:
+    """One matcher per prefix, each indexing its prefix as the SECOND sequence.
+
+    `SequenceMatcher` is not symmetric -- its match recursion is greedy over
+    the first sequence -- so which side goes where changes the score, and by
+    enough to change a winner: "chiquibul" against "chiribiquete" scores
+    0.4762 one way and 0.5714 the other. The prefix is seq2 because that is
+    the side `SequenceMatcher` indexes, and the prefixes of a term set are
+    fixed while the candidates vary, so they are indexed once for the whole
+    frame rather than once per row.
+    """
+    matchers = []
+    for prefix in term_leaf_prefixes:
+        matcher = SequenceMatcher(None)
+        matcher.set_seq2(prefix)
+        matchers.append(matcher)
+    return matchers
+
+
+def _prefix_similarity(
+    candidate_leaf: str, prefix_matchers: Sequence[SequenceMatcher]
+) -> float:
+    """Best match between the candidate's leaf and a leading run of the term.
+
+    Suits English phrasing, where the designation follows the name, so the
+    stored leaf is a leading run of the term leaf: "Sankuru National Reserve"
+    -> "Sankuru". It is word-order dependent by construction.
+    """
+    best = 0.0
+    for matcher in prefix_matchers:
+        matcher.set_seq1(candidate_leaf)
+        ratio = matcher.ratio()
+        if ratio > best:
+            best = ratio
+    return best
+
+
+def _one_way_coverage(
+    source: Sequence[str], target: Sequence[str], matcher: SequenceMatcher
+) -> float:
+    """Mean over *source* words of the best match each finds in *target*."""
+    if not source:
+        return 0.0
+    total = 0.0
+    for word in source:
+        matcher.set_seq1(word)
+        best = 0.0
+        for other in target:
+            matcher.set_seq2(other)
+            ratio = matcher.ratio()
+            if ratio > best:
+                best = ratio
+        total += best
+    return total / len(source)
+
+
+def _token_coverage(
+    term_words: Sequence[str],
+    candidate_words: Sequence[str],
+    matcher: SequenceMatcher,
+) -> float:
+    """How far two names cover each other word for word, ignoring order.
+
+    Symmetric, so a name is not rewarded merely for being short (covering all
+    of the term) or for being long (containing all of the candidate); it has to
+    do both. Order-free, which is the point: "Parque Nacional Yasuní" and
+    "Yasuní, Parque Nacional" put the designation on opposite sides of the
+    name, and every language that is not English puts it first.
+    """
+    if not term_words or not candidate_words:
+        return 0.0
+    forwards = _one_way_coverage(term_words, candidate_words, matcher)
+    backwards = _one_way_coverage(candidate_words, term_words, matcher)
+    if forwards + backwards == 0.0:
+        return 0.0
+    return 2 * forwards * backwards / (forwards + backwards)
+
+
+def _leaf_similarity(
+    candidate_leaf: str,
+    candidate_words: Sequence[str],
+    prefix_matchers: Sequence[SequenceMatcher],
+    term_words: Sequence[str],
+    word_matcher: SequenceMatcher,
+) -> float:
+    """How well the candidate's own name matches the name inside the term.
+
+    THE PROPERTY: a stored name counts as matched if it matches under EITHER
+    word-order convention -- as a leading run of the term (English, where the
+    designation follows the name) or as a word-for-word covering of it (every
+    other convention, where it leads). Neither convention is privileged,
+    because the geocoder translates into English but `alternatives` carries
+    native spellings, and a term that scores the right row near zero can only
+    ever raise a decoy.
+
+    What this deliberately does NOT do is penalise a short name. A candidate
+    whose whole leaf is "Rio" scores a perfect 1.0 against the term leaf "rio
+    pure national park", because "rio" IS a leading run of it, and taking the
+    better of the two measures cannot take that back. Word coverage alone would
+    score it 0.65 against 0.83 for "rio pure", but the better-of-two erases the
+    difference. Separating that pair is left to the whole-name and exact-name
+    terms, which do it. If a one-word decoy ever wins a frame, this is the
+    place that let it, and the fix is a coverage floor here, not a weight.
+    """
+    return max(
+        _prefix_similarity(candidate_leaf, prefix_matchers),
+        _token_coverage(term_words, candidate_words, word_matcher),
+    )
 
 
 def _hierarchy_score(subtype: str) -> float:
@@ -89,49 +290,75 @@ def _hierarchy_score(subtype: str) -> float:
 
 def _score_prepared(
     term: str,
-    term_leaf: str,
+    term_exact_key: str,
+    term_words: Sequence[str],
     candidate: str,
     candidate_leaf: str,
+    candidate_words: Sequence[str],
+    candidate_exact_key: str,
     hierarchy: float,
-    matcher: SequenceMatcher,
+    prefix_matchers: Sequence[SequenceMatcher],
+    whole_matcher: SequenceMatcher,
+    word_matcher: SequenceMatcher,
 ) -> float:
     """Score one prepared term against one prepared candidate.
 
-    Every string here is already accent-stripped, and *matcher* already holds
-    the candidate as its second sequence: SequenceMatcher indexes that
-    sequence once and reuses the index for every term, which is why the caller
-    loops candidates on the outside and terms on the inside.
+    Every string here is already accent-stripped. *prefix_matchers* index the
+    term's leaf prefixes and *whole_matcher* indexes the candidate's whole
+    name, so between them every SequenceMatcher index is built once per frame
+    or once per row, never once per comparison.
+
+    There is no exact-leaf bonus: an exact leaf already scores 1.0 on the leaf
+    term, so a bonus on top would double-count it. That double count is what
+    let "Lisbon, Forest Preserve, USA" -- a site whose leaf is exactly
+    "Lisbon" -- come within 0.0008 of outranking the Lisboa district.
     """
-    matcher.set_seq1(term)
-    score = _SIMILARITY_WEIGHT * matcher.ratio() + hierarchy
-    if term_leaf == candidate_leaf:
-        score += _EXACT_SEGMENT_BONUS
-    elif candidate.startswith(term):
-        score += _PREFIX_BONUS
+    whole_matcher.set_seq1(term)
+    score = (
+        _LEAF_WEIGHT
+        * _leaf_similarity(
+            candidate_leaf,
+            candidate_words,
+            prefix_matchers,
+            term_words,
+            word_matcher,
+        )
+        + _WHOLE_NAME_WEIGHT * whole_matcher.ratio()
+        + hierarchy
+    )
+    if term_exact_key == candidate_exact_key:
+        score += _EXACT_NAME_BONUS
     return score
 
 
 def _score_candidate(place_name: str, name: str, subtype: str) -> float:
     """Composite score for one AOI candidate against one search term.
 
-    Weighted sum of accent-insensitive string similarity and an admin
-    hierarchy preference, plus an exact-leaf-name bonus that falls back to a
-    weaker prefix bonus. The leaf bonus is what separates "Pará" from
-    "Paraná" for the term "Para".
+    Weighted sum of an accent-insensitive LEAF comparison, a weaker
+    whole-name comparison and an admin hierarchy preference, plus a prefix
+    bonus. The leaf term is what separates "Pará" from "Paraná" for the term
+    "Para", and what stops a shared designation deciding between two parks.
 
     Raises:
         ValueError: If ``subtype`` is not a known AOI subtype.
     """
     candidate = _strip_accents(name)
-    matcher = SequenceMatcher(None)
-    matcher.set_seq2(candidate)
+    candidate_leaf = _first_segment(name)
+    term_leaf = _first_segment(place_name)
+    whole_matcher = SequenceMatcher(None)
+    whole_matcher.set_seq2(candidate)
     return _score_prepared(
         _strip_accents(place_name),
-        _first_segment(place_name),
+        _normalise_for_exact_match(place_name),
+        term_leaf.split(),
         candidate,
-        _first_segment(name),
+        candidate_leaf,
+        candidate_leaf.split(),
+        _normalise_for_exact_match(name),
         _hierarchy_score(subtype),
-        matcher,
+        _prefix_matchers(_leaf_prefixes(term_leaf)),
+        whole_matcher,
+        SequenceMatcher(None),
     )
 
 
@@ -164,11 +391,19 @@ def best_candidate_row(
     if not terms:
         raise ValueError("score_best_aoi needs at least one search term")
 
-    # Each term is stripped and reduced to its leaf once, not once per row.
+    # Each term is stripped, reduced to its leaf and indexed once, not once
+    # per row.
     term_forms = [
-        (_strip_accents(term), _first_segment(term)) for term in terms
+        (
+            _strip_accents(term),
+            _normalise_for_exact_match(term),
+            _first_segment(term).split(),
+            _prefix_matchers(_leaf_prefixes(_first_segment(term))),
+        )
+        for term in terms
     ]
-    matcher = SequenceMatcher(None)
+    whole_matcher = SequenceMatcher(None)
+    word_matcher = SequenceMatcher(None)
     best_key: Optional[tuple] = None
     best_position = 0
     best_score = 0.0
@@ -187,12 +422,24 @@ def best_candidate_row(
         hierarchy = _hierarchy_score(subtype)
         candidate = _strip_accents(name)
         candidate_leaf = _first_segment(name)
-        matcher.set_seq2(candidate)
+        candidate_exact_key = _normalise_for_exact_match(name)
+        candidate_words = candidate_leaf.split()
+        whole_matcher.set_seq2(candidate)
         score = max(
             _score_prepared(
-                term, term_leaf, candidate, candidate_leaf, hierarchy, matcher
+                term,
+                term_exact_key,
+                term_words,
+                candidate,
+                candidate_leaf,
+                candidate_words,
+                candidate_exact_key,
+                hierarchy,
+                prefix_matchers,
+                whole_matcher,
+                word_matcher,
             )
-            for term, term_leaf in term_forms
+            for term, term_exact_key, term_words, prefix_matchers in term_forms
         )
         # Compare on explicit secondary keys rather than the score alone, so
         # equal scores resolve identically whatever order the rows arrived in.

@@ -9,6 +9,9 @@ import pytest
 
 from src.agent.subagents.pick_aoi.scoring import (
     _first_segment,
+    _leaf_prefixes,
+    _leaf_similarity,
+    _prefix_matchers,
     _score_candidate,
     _strip_accents,
 )
@@ -152,12 +155,16 @@ def test_selection_overrides_the_accent_sensitive_db_ranking():
     assert selected.name == "Pará, Brazil"
 
 
-def test_each_candidate_scores_against_its_best_term():
+def test_the_designation_no_longer_decides_which_park_is_chosen():
     """The Botum Sakor case, on the candidate names production returns.
 
-    Scored against the user's wording alone, the designation ("National
-    Park") dominates and a foreign park wins. The canonical leaf name in the
-    term set is what makes the intended row win.
+    This test used to pin the opposite: that the user's wording ALONE picked a
+    foreign park, and only the canonical leaf in the term set rescued the
+    intended row. That contrast was the PZB-1392 defect stated as an
+    expectation -- the designation, shared by every candidate, outscored the
+    leaf that identifies the place. Scoring the leaf removes it, so BOTH term
+    sets now select Botum Sakor, and the canonical spelling is what it was
+    always meant to be: extra recall, not a rescue.
     """
     candidates = pd.DataFrame(
         [
@@ -177,9 +184,76 @@ def test_each_candidate_scores_against_its_best_term():
         candidates, ["Botum Sakor National Park", "Botum Sakor"]
     )
 
-    assert raw_only is not None and raw_only.src_id != "478405"
+    assert raw_only is not None and raw_only.src_id == "478405"
     assert with_canonical is not None
     assert with_canonical.src_id == "478405"
+
+
+@pytest.mark.parametrize(
+    "terms,right,wrong",
+    [
+        (
+            ["Sankuru National Reserve", "Sankuru"],
+            ("354001", "Sankuru, Réserve Naturelle, COD"),
+            ("2298", "Samburu, National Reserve, KEN"),
+        ),
+        (
+            ["Yaguas National Park", "Yaguas"],
+            ("555629239", "Yaguas, Parque Nacional, PER"),
+            ("555625705", "Yanga, National Park, AUS"),
+        ),
+        (
+            ["Okapi Wildlife Reserve", "Okapis"],
+            ("37043", "Okapis, Réserve de Faune, COD"),
+            ("1445", "Ajai, Wildlife Reserve, UGA"),
+        ),
+        (
+            ["Ivindo National Park", "Ivindo"],
+            ("303873", "Ivindo, Parc National, GAB"),
+            ("X", "Ivanhoe, National Park, AUS"),
+        ),
+    ],
+    ids=["sankuru", "yaguas", "okapi", "ivindo"],
+)
+def test_a_shared_designation_cannot_outrank_the_leaf_name(
+    terms, right, wrong
+):
+    """PZB-1392, on the four pairs production actually confused.
+
+    Every one of these lost on the shipped scorer, or (Ivindo) won by 0.005:
+    the stored designation differs by language, so the English designation the
+    user typed matched the WRONG country's row almost exactly.
+    """
+    candidates = pd.DataFrame(
+        [
+            _row(wrong[0], wrong[1], "wdpa", "protected-area"),
+            _row(right[0], right[1], "wdpa", "protected-area"),
+        ]
+    )
+
+    selected = score_best_aoi(candidates, terms)
+
+    assert selected is not None
+    assert selected.src_id == right[0]
+
+
+def test_an_admin_unit_beats_a_same_named_site_by_more_than_a_rounding_error():
+    """The Lisbon case, which the shipped scorer won by 0.000802.
+
+    "Lisbon, Forest Preserve, USA" has "Lisbon" as its exact leaf while the
+    Portuguese district is stored as "Lisboa", so the site wins the leaf
+    comparison outright and only the hierarchy separates them. That margin is
+    what the weights have to keep, and a hundredth of a point is the least
+    that can be called a decision.
+    """
+    district = _score_candidate(
+        "Lisbon", "Lisboa, Portugal", "district-county"
+    )
+    site = _score_candidate(
+        "Lisbon", "Lisbon, Forest Preserve, USA", "protected-area"
+    )
+
+    assert district - site > 0.01
 
 
 def test_ties_break_independently_of_candidate_order():
@@ -213,3 +287,148 @@ def test_selected_aoi_keeps_the_state_shape_of_an_aoi_selection_entry():
     # bbox is absent from the recorded fixture columns, so the model default
     # (the world bbox) must fill it.
     assert selected.bbox == WORLD_BBOX
+
+
+# ---------------------------------------------------------------------------
+# Leaf-name comparison (PZB-1392). The stored `name` carries the designation
+# and the country as its 2nd and 3rd segments, so the leaf is the only segment
+# that identifies the place.
+# ---------------------------------------------------------------------------
+
+
+def test_leaf_prefixes_are_longest_first_and_never_interior_spans():
+    assert _leaf_prefixes("okapi wildlife reserve") == [
+        "okapi wildlife reserve",
+        "okapi wildlife",
+        "okapi",
+    ]
+    assert _leaf_prefixes("sankuru") == ["sankuru"]
+    assert _leaf_prefixes("") == [""]
+
+
+def _leaf_sim(term, candidate_name):
+    """`_leaf_similarity` with the plumbing a caller does."""
+    from difflib import SequenceMatcher
+
+    term_leaf = _first_segment(term)
+    candidate_leaf = _first_segment(candidate_name)
+    return _leaf_similarity(
+        candidate_leaf,
+        candidate_leaf.split(),
+        _prefix_matchers(_leaf_prefixes(term_leaf)),
+        term_leaf.split(),
+        SequenceMatcher(None),
+    )
+
+
+def test_leaf_similarity_finds_the_place_name_inside_a_designation_phrase():
+    """The PZB-1392 core: the leaf, not the designation, does the matching."""
+    right = _leaf_sim(
+        "Sankuru National Reserve", "Sankuru, Réserve Naturelle, COD"
+    )
+    wrong = _leaf_sim(
+        "Sankuru National Reserve", "Samburu, National Reserve, KEN"
+    )
+
+    assert right == 1.0
+    assert right > wrong
+
+
+def test_leaf_similarity_ignores_a_designation_word_that_is_itself_a_leaf():
+    """ "Wildlife, Reserve, USA" and "Research, Natural Area, USA" are real rows.
+
+    An interior-span comparison would score them 1.0 against any term
+    containing that word, which is how a designation would keep deciding.
+    """
+    designation_leaf = _leaf_sim(
+        "Okapi Wildlife Reserve", "Wildlife, Reserve, USA"
+    )
+    real_leaf = _leaf_sim(
+        "Okapi Wildlife Reserve", "Okapis, Réserve de Faune, COD"
+    )
+
+    assert real_leaf > designation_leaf
+
+
+def test_leaf_similarity_ignores_the_terms_parent_segment():
+    """ "Para, Brazil" must not match the country row on its parent segment."""
+    state = _leaf_sim("Para, Brazil", "Pará, Brazil")
+    country = _leaf_sim("Para, Brazil", "Brazil")
+
+    assert state == 1.0
+    assert state > country
+
+
+# ---------------------------------------------------------------------------
+# The exact-name term and the round-trip contract it exists to serve
+# ---------------------------------------------------------------------------
+
+
+def test_an_exact_name_beats_a_broader_subtype_that_shares_its_leaf():
+    """The `_format_aoi_candidate` contract, stated as a score.
+
+    An `aoi_choice` option carries a row's full stored name and is resubmitted
+    verbatim as the next question, so it has to come back to the row it names.
+    Weights alone cannot promise that: GADM children often repeat their
+    parent's name ("Senga, Senga, Butezi, Ruyigi, Burundi"), so the two tie on
+    every name term and the hierarchy preference hands the user the parent --
+    a coarser area than the one they clicked. The exact-name bonus is what
+    makes the promise keepable, and the import-time assertion beside
+    `_HIERARCHY_SCORES` is what keeps it keepable.
+    """
+    child = _score_candidate(
+        "Senga, Senga, Butezi, Ruyigi, Burundi",
+        "Senga, Senga, Butezi, Ruyigi, Burundi",
+        "municipality",
+    )
+    parent = _score_candidate(
+        "Senga, Senga, Butezi, Ruyigi, Burundi",
+        "Senga, Butezi, Ruyigi, Burundi",
+        "district-county",
+    )
+
+    assert child > parent, f"child {child:.4f} vs parent {parent:.4f}"
+
+
+def test_the_exact_name_match_ignores_accents_and_punctuation():
+    """Both sides are normalised, so a spelling difference cannot void it.
+
+    The stored name keeps its accents and the geocoder is told to return
+    de-accented English, so the two spellings of one name must key equal or
+    the guarantee above only holds for unaccented places.
+    """
+    from src.agent.subagents.pick_aoi.scoring import (
+        _EXACT_NAME_BONUS,
+        _normalise_for_exact_match,
+    )
+
+    keys = {
+        _normalise_for_exact_match(spelling)
+        for spelling in ("Para, Brazil", "Para,Brazil", "Pará, Brazil")
+    }
+    assert keys == {"para brazil"}
+
+    # And the bonus really does fire for each: every spelling clears the
+    # near-miss by more than the bonus is worth. (The scores are not identical
+    # -- the whole-name term still sees the literal string -- so this asserts
+    # the thing that matters rather than byte equality.)
+    near_miss = _score_candidate(
+        "Para, Brazil", "Paraná, Brazil", "state-province"
+    )
+    for spelling in ("Para, Brazil", "Para,Brazil", "Pará, Brazil"):
+        scored = _score_candidate(spelling, "Pará, Brazil", "state-province")
+        assert scored - near_miss > _EXACT_NAME_BONUS, spelling
+
+
+def test_the_exact_name_bonus_outweighs_the_widest_hierarchy_gap():
+    """Pinned in code at import time; asserted here so the reason is readable.
+
+    "Wins outright" has to mean outright: the widest gap the hierarchy term can
+    open is a country against a named site, and an exact name has to survive it.
+    """
+    from src.agent.subagents.pick_aoi.scoring import (
+        _EXACT_NAME_BONUS,
+        _WIDEST_HIERARCHY_GAP,
+    )
+
+    assert _EXACT_NAME_BONUS > _WIDEST_HIERARCHY_GAP
