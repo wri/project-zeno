@@ -3510,6 +3510,840 @@
             45.3917916
           ]
         }
+      ],
+      "Parque Nacional Yasuni": [
+        {
+          "source": "wdpa",
+          "src_id": "186",
+          "name": "Yasuní, Parque Nacional, ECU",
+          "subtype": "protected-area",
+          "bbox": [
+            -76.7756408,
+            -1.7033203,
+            -75.4175881,
+            -0.4434421
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555629239",
+          "name": "Yaguas, Parque Nacional, PER",
+          "subtype": "protected-area",
+          "bbox": [
+            -72.0671846,
+            -3.3386717,
+            -70.5230204,
+            -2.4929268
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555592950",
+          "name": "Yacuri, Parque Nacional, ECU",
+          "subtype": "protected-area",
+          "bbox": [
+            -79.4467235,
+            -4.7964256,
+            -79.1642747,
+            -4.4753337
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "342491",
+          "name": "Yura, Parque Nacional, BOL",
+          "subtype": "protected-area",
+          "bbox": [
+            -66.5053055,
+            -19.8970695,
+            -66.2455255,
+            -19.5641992
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "17831",
+          "name": "Coiba, Parque Nacional, PAN",
+          "subtype": "protected-area",
+          "bbox": [
+            -81.937398,
+            7.1691418,
+            -81.5429375,
+            7.894939
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "335",
+          "name": "Yacambú, Parque Nacional (PN), VEN",
+          "subtype": "protected-area",
+          "bbox": [
+            -69.8512074,
+            9.5413591,
+            -69.475594,
+            9.7988557
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "36059",
+          "name": "Arenal, Parque Nacional, CRI",
+          "subtype": "protected-area",
+          "bbox": [
+            -84.8359731,
+            10.3612586,
+            -84.6672817,
+            10.496909
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "157",
+          "name": "Carara, Parque Nacional, CRI",
+          "subtype": "protected-area",
+          "bbox": [
+            -84.6137484,
+            9.7418376,
+            -84.5227086,
+            9.8385803
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "7910",
+          "name": "Chiloe, Parque Nacional, CHL",
+          "subtype": "protected-area",
+          "bbox": [
+            -74.1911035,
+            -42.6403137,
+            -73.929949,
+            -42.1308689
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "16846",
+          "name": "Copo, Parque Nacional, ARG",
+          "subtype": "protected-area",
+          "bbox": [
+            -62.0759096,
+            -25.9744753,
+            -61.7122746,
+            -25.6550961
+          ]
+        }
+      ],
+      "Reserve de faune a Okapis": [
+        {
+          "source": "wdpa",
+          "src_id": "37043",
+          "name": "Okapis, Réserve de Faune, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            27.9852763,
+            0.9648024,
+            29.0837035,
+            2.4765268
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "1240",
+          "name": "Dja, Réserve de Faune, CMR",
+          "subtype": "protected-area",
+          "bbox": [
+            12.4344884,
+            2.8413979,
+            13.5657001,
+            3.4274826
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555512073",
+          "name": "Bomu, Réserve de Faune, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            22.8749104,
+            4.3990998,
+            25.2374096,
+            5.112711
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "20976",
+          "name": "Djamde, Faunal Reserve, TGO",
+          "subtype": "protected-area",
+          "bbox": [
+            0.9988459,
+            9.4882228,
+            1.1269704,
+            9.5869982
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2555",
+          "name": "Aouk-Aoukale, Réserve de Faune, CAF",
+          "subtype": "protected-area",
+          "bbox": [
+            20.83964,
+            9.39055,
+            21.89391,
+            10.22926
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "1628",
+          "name": "Lac Ossa, Réserve de Faune, CMR",
+          "subtype": "protected-area",
+          "bbox": [
+            9.9782332,
+            3.7260493,
+            10.066124,
+            3.8701413
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2331",
+          "name": "Tamou, Réserve de Faune, NER",
+          "subtype": "protected-area",
+          "bbox": [
+            2.10755,
+            12.42234,
+            2.52094,
+            12.81354
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "9033",
+          "name": "Fada Archei, Réserve de Faune, TCD",
+          "subtype": "protected-area",
+          "bbox": [
+            21.20783,
+            16.68762,
+            21.59536,
+            17.22454
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "2266",
+          "name": "Léfini, Réserve de Faune, COG",
+          "subtype": "protected-area",
+          "bbox": [
+            15.101119,
+            -3.0742406,
+            15.7718726,
+            -2.3529912
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555622119",
+          "name": "Ngoyla, Réserve de Faune, CMR",
+          "subtype": "protected-area",
+          "bbox": [
+            13.6433037,
+            2.215648,
+            13.9992789,
+            2.7194194
+          ]
+        }
+      ],
+      "Parc National de l'Ivindo": [
+        {
+          "source": "wdpa",
+          "src_id": "303873",
+          "name": "Ivindo, Parc National, GAB",
+          "subtype": "protected-area",
+          "bbox": [
+            12.338703,
+            -0.289824,
+            12.989752,
+            0.537545
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555547995",
+          "name": "Deng Deng, Parc National, CMR",
+          "subtype": "protected-area",
+          "bbox": [
+            13.3512082,
+            5.0853895,
+            13.5768339,
+            5.5279365
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "313046",
+          "name": "Parc National de Mohéli, Parc National, COM",
+          "subtype": "protected-area",
+          "bbox": [
+            43.5216487,
+            -12.4795675,
+            43.9328979,
+            -12.2618813
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "4114",
+          "name": "Parc National de Toubkal, Parc National, MAR",
+          "subtype": "protected-area",
+          "bbox": [
+            -8.038091,
+            30.9821393,
+            -7.6923179,
+            31.1952064
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "9743",
+          "name": "Taza, Parc National, DZA",
+          "subtype": "protected-area",
+          "bbox": [
+            5.5157069,
+            36.6608658,
+            5.6612638,
+            36.7273482
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "4115",
+          "name": "Parc National de Tazekka, Parc National, MAR",
+          "subtype": "protected-area",
+          "bbox": [
+            -4.2382553,
+            34.0296781,
+            -4.006888,
+            34.1509213
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "303875",
+          "name": "Lopé, Parc National, GAB",
+          "subtype": "protected-area",
+          "bbox": [
+            11.266089,
+            -1.0841438,
+            11.856819,
+            -0.057239
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555542498",
+          "name": "Parc National de Khénifra, Parc National, MAR",
+          "subtype": "protected-area",
+          "bbox": [
+            -5.4983835,
+            32.7405057,
+            -4.7974801,
+            33.2056566
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555542497",
+          "name": "Parc National de Khnifiss, Parc National, MAR",
+          "subtype": "protected-area",
+          "bbox": [
+            -12.4977616,
+            27.6633468,
+            -11.9431907,
+            28.1128411
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "11697",
+          "name": "Parc National de Sous-Massa, Parc National, MAR",
+          "subtype": "protected-area",
+          "bbox": [
+            -9.8520684,
+            29.7981436,
+            -9.5080868,
+            30.3790705
+          ]
+        }
+      ],
+      "Parque Nacional Montanhas do Tumucumaque": [
+        {
+          "source": "wdpa",
+          "src_id": "351784",
+          "name": "Parque Nacional Montanhas Do Tumucumaque, Parque, BRA",
+          "subtype": "protected-area",
+          "bbox": [
+            -54.792711,
+            0.68409,
+            -51.572154,
+            3.508977
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "68",
+          "name": "Parque Nacional Do Monte Pascoal, Parque, BRA",
+          "subtype": "protected-area",
+          "bbox": [
+            -39.426803,
+            -16.928676,
+            -39.115146,
+            -16.800115
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "19762",
+          "name": "Parque Nacional Do Monte Roraima, Parque, BRA",
+          "subtype": "protected-area",
+          "bbox": [
+            -60.736345,
+            4.802916,
+            -60.091234,
+            5.27191
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "306851",
+          "name": "Tula, Parque Nacional, MEX",
+          "subtype": "protected-area",
+          "bbox": [
+            -99.3445937,
+            20.0612627,
+            -99.3321766,
+            20.0754627
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "478090",
+          "name": "El Morro, Parque Nacional, DOM",
+          "subtype": "protected-area",
+          "bbox": [
+            -71.6611766,
+            19.865604,
+            -71.539768,
+            19.9121325
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "18811",
+          "name": "Montaña de Yoro, Parque Nacional, HND",
+          "subtype": "protected-area",
+          "bbox": [
+            -87.1380785,
+            14.9297096,
+            -87.0064486,
+            15.1055605
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "5407",
+          "name": "Tulum, Parque Nacional, MEX",
+          "subtype": "protected-area",
+          "bbox": [
+            -87.4494465,
+            20.1851173,
+            -87.3963352,
+            20.2631363
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "53",
+          "name": "Parque Nacional Do Jaú, Parque, BRA",
+          "subtype": "protected-area",
+          "bbox": [
+            -63.983837,
+            -2.973131,
+            -61.352722,
+            -1.548832
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "478128",
+          "name": "Montaña La Humeadora, Parque Nacional, DOM",
+          "subtype": "protected-area",
+          "bbox": [
+            -70.4486543,
+            18.5322083,
+            -70.203098,
+            18.8338912
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555558355",
+          "name": "Monte León, Parque Nacional, ARG",
+          "subtype": "protected-area",
+          "bbox": [
+            -69.1991863,
+            -50.472916,
+            -68.6354979,
+            -50.2015237
+          ]
+        }
+      ]
+    },
+    "(all sources)": {
+      "Kahuzi-Biega": [
+        {
+          "source": "wdpa",
+          "src_id": "1082",
+          "name": "Kahuzi-Biega, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            27.4879959,
+            -2.6521982,
+            28.837793,
+            -1.6295444
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "6069",
+          "name": "Parc National des Kahuzi-Biega, Kahuzi-Biega national Park, COD",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            27.48799584057114,
+            -2.6521982105756092,
+            28.837793160243006,
+            -1.6281843300603143
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2.1_1",
+          "name": "Buhiga, Buhiga, Karuzi, Burundi",
+          "subtype": "municipality",
+          "bbox": [
+            30.149482727000077,
+            -3.0589539999999715,
+            30.18527984700006,
+            -3.0100269319999597
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2_1",
+          "name": "Buhiga, Karuzi, Burundi",
+          "subtype": "district-county",
+          "bbox": [
+            30.081020355000078,
+            -3.201842069999941,
+            30.277843474999997,
+            -2.9759709839999005
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8_1",
+          "name": "Karuzi, Burundi",
+          "subtype": "state-province",
+          "bbox": [
+            29.896781921000127,
+            -3.3938710689999425,
+            30.349889885000096,
+            -2.904144047999978
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555635685",
+          "name": "Biely kamen, B, SVK",
+          "subtype": "protected-area",
+          "bbox": [
+            18.6861462,
+            48.6793919,
+            18.6944693,
+            48.6955219
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2.14_1",
+          "name": "Karuri, Buhiga, Karuzi, Burundi",
+          "subtype": "municipality",
+          "bbox": [
+            30.10187149100011,
+            -3.1308920379998426,
+            30.15648841799998,
+            -3.0957770349999123
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2.14.1_1",
+          "name": "Karuri, Karuri, Buhiga, Karuzi, Burundi",
+          "subtype": "locality",
+          "bbox": [
+            30.114456175999976,
+            -3.1296529779999105,
+            30.15648841799998,
+            -3.0957770349999123
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2.20_1",
+          "name": "Nyamabega, Buhiga, Karuzi, Burundi",
+          "subtype": "municipality",
+          "bbox": [
+            30.09188461300016,
+            -3.1532089709999127,
+            30.137035369000102,
+            -3.1271829599999705
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.8.2.20.1_1",
+          "name": "Nyamabega, Nyamabega, Buhiga, Karuzi, Burundi",
+          "subtype": "locality",
+          "bbox": [
+            30.100280762000068,
+            -3.145164966999971,
+            30.137035369000102,
+            -3.1271829599999705
+          ]
+        }
+      ],
+      "Odzala-Kokoua": [
+        {
+          "source": "wdpa",
+          "src_id": "643",
+          "name": "Odzala Kokoua, Parc National, COG",
+          "subtype": "protected-area",
+          "bbox": [
+            14.2547856,
+            0.1526912,
+            15.4647232,
+            1.6335175
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "6085",
+          "name": "Parc National d'Odzala-Kokoua, Odzala- Kokoua National Park, COG",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            14.25365119884177,
+            0.1526845628019808,
+            15.464723242374207,
+            1.633517471799348
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555555585",
+          "name": "Odzala Kokoua, Site Ramsar, Zone Humide d’Importance Internationale, COG",
+          "subtype": "protected-area",
+          "bbox": [
+            14.2547856,
+            0.1522676,
+            15.4630781,
+            1.6335175
+          ]
+        }
+      ],
+      "Virunga": [
+        {
+          "source": "wdpa",
+          "src_id": "166889",
+          "name": "Virunga, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            29.0268262,
+            -1.6483265,
+            30.0040491,
+            0.9333651
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "6066",
+          "name": "Parc National de Virunga, Virunga national Park, COD",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            29.02635000011377,
+            -1.6492060795791723,
+            30.004049159752526,
+            0.9343130396346082
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "EST.6.7.5_1",
+          "name": "Karunga, Rakvere, Lääne-Viru, Estonia",
+          "subtype": "municipality",
+          "bbox": [
+            26.221939088000113,
+            59.25212860099998,
+            26.262556076000067,
+            59.27941894500009
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "BDI.4.2.4_1",
+          "name": "Burunga, Bururi, Bururi, Burundi",
+          "subtype": "municipality",
+          "bbox": [
+            29.51405715900006,
+            -3.9698569769998926,
+            29.601339340000152,
+            -3.911900042999889
+          ]
+        },
+        {
+          "source": "landmark",
+          "src_id": "TZA5516",
+          "name": "Mahurunga / Mahurunga, Village lands, TZA",
+          "subtype": "indigenous-and-community-land",
+          "bbox": [
+            40.251249,
+            -10.58163,
+            40.336168,
+            -10.511025
+          ]
+        }
+      ],
+      "Salonga": [
+        {
+          "source": "wdpa",
+          "src_id": "555697863",
+          "name": "Salonga, Parc National, COD",
+          "subtype": "protected-area",
+          "bbox": [
+            20.1122341,
+            -3.3109635,
+            22.6587148,
+            -1.0239091
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555579024",
+          "name": "Salonta, B, ROU",
+          "subtype": "protected-area",
+          "bbox": [
+            21.4930134,
+            46.7323712,
+            21.6261776,
+            46.8706931
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "TON",
+          "name": "Tonga",
+          "subtype": "country",
+          "bbox": [
+            -176.21383699999993,
+            -22.34972400099997,
+            -173.73500099999998,
+            -15.565795999999978
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555674023",
+          "name": "Salona, Park, USA",
+          "subtype": "protected-area",
+          "bbox": [
+            -77.1727648,
+            38.9345542,
+            -77.166628,
+            38.9416482
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "ITA.5.5.25_1",
+          "name": "Cannalonga, Salerno, Campania, Italy",
+          "subtype": "municipality",
+          "bbox": [
+            15.287670136000088,
+            40.22477722100007,
+            15.35263824600014,
+            40.270992279000154
+          ]
+        },
+        {
+          "source": "wdpa",
+          "src_id": "555522702",
+          "name": "Sanga, B, EST",
+          "subtype": "protected-area",
+          "bbox": [
+            25.0773601,
+            58.1167926,
+            25.0996597,
+            58.1285726
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "31154",
+          "name": "Savoonga Colonies, Savoonga Colonies, USA",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            -170.65263774138538,
+            63.52080599347597,
+            -169.89702559385765,
+            63.77641426618321
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "6060",
+          "name": "Parc National de la Salonga, Salonga National Park, COD",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            20.11223412041768,
+            -3.316442579335948,
+            22.66107909786115,
+            -1.0208484297392535
+          ]
+        },
+        {
+          "source": "kba",
+          "src_id": "21966",
+          "name": "Long Salt Pond, Long Salt Pond, AIA",
+          "subtype": "key-biodiversity-area",
+          "bbox": [
+            -63.02570937041995,
+            18.209734736592182,
+            -63.01457001835174,
+            18.2156326945439
+          ]
+        },
+        {
+          "source": "gadm",
+          "src_id": "MWI.26.6_1",
+          "name": "TA Karonga, Salima, Malawi",
+          "subtype": "district-county",
+          "bbox": [
+            34.18579101600005,
+            -13.88865470899998,
+            34.5066680920001,
+            -13.63576602899991
+          ]
+        }
       ]
     }
   }

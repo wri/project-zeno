@@ -36,6 +36,7 @@ import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Optional
 
 API_BASE = "https://api.globalnaturewatch.org"
 ENDPOINT = "/api/aois"
@@ -205,11 +206,38 @@ CASES = [
 ]
 
 
-def fetch_frame(term: str, source: str, token: str) -> list[dict]:
+# Extra frames the cohort cases do not produce, recorded so the scorer can be
+# tested on the shapes the cohort is blind to.
+#
+# * `None` as the source records an UN-NARROWED frame -- what the geocoder
+#   actually searches when a narrowed search comes back empty and it retries
+#   every source. Those frames mix admin units with sites, which is the only
+#   way the hierarchy term is exercised against a site's own name.
+# * The native-order terms record what a user writing in the area's own
+#   language produces once GEOCODER_PROMPT has NOT reordered it, so a scorer
+#   that assumes the designation comes last is caught.
+EXTRA_FRAMES: list[tuple[str, Optional[str]]] = [
+    ("Kahuzi-Biega", None),
+    ("Odzala-Kokoua", None),
+    ("Virunga", None),
+    ("Salonga", None),
+    ("Parque Nacional Yasuni", "wdpa"),
+    ("Reserve de faune a Okapis", "wdpa"),
+    ("Parc National de l'Ivindo", "wdpa"),
+    ("Parque Nacional Montanhas do Tumucumaque", "wdpa"),
+]
+
+# The key an un-narrowed frame is stored under. Not a real source name, so it
+# can never collide with one.
+UNNARROWED_KEY = "(all sources)"
+
+
+def fetch_frame(term: str, source: Optional[str], token: str) -> list[dict]:
     """The rows production returns for one search term, in rank order."""
-    query = urllib.parse.urlencode(
-        {"name": term, "source": source, "limit": LIMIT}
-    )
+    fields: dict[str, object] = {"name": term, "limit": LIMIT}
+    if source is not None:
+        fields["source"] = source
+    query = urllib.parse.urlencode(fields)
     request = urllib.request.Request(
         f"{API_BASE}{ENDPOINT}?{query}",
         headers={"Authorization": f"Bearer {token}"},
@@ -240,6 +268,12 @@ def main() -> int:
         rows = fetch_frame(term, source, token)
         frames.setdefault(source, {})[term] = rows
         print(f"{source} {term!r}: {len(rows)} row(s)", file=sys.stderr)
+
+    for term, source in EXTRA_FRAMES:
+        rows = fetch_frame(term, source, token)
+        key = source if source is not None else UNNARROWED_KEY
+        frames.setdefault(key, {})[term] = rows
+        print(f"{key} {term!r}: {len(rows)} row(s)", file=sys.stderr)
 
     OUTPUT.write_text(
         json.dumps(
