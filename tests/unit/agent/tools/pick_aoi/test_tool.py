@@ -754,3 +754,27 @@ async def test_a_place_resolved_only_by_an_alternative_raises_no_nudge(
 
     assert "nudge" not in command.update
     assert command.update["aoi_selection"]["aois"][0]["src_id"] == "USA.6_1"
+
+
+@pytest.mark.asyncio
+async def test_the_geocoder_search_opts_into_the_word_similarity_fallback(
+    monkeypatch,
+):
+    """PZB-1392's retrieval half: the geocoder asks for the fallback.
+
+    `GET /api/aois` must not, so this pins which side of that boundary
+    `query_aoi_database` sits on.
+    """
+    captured = {}
+
+    async def fake_search_aois(**kwargs):
+        captured.update(kwargs)
+        return pd.DataFrame()
+
+    monkeypatch.setattr(tool_module, "search_aois", fake_search_aois)
+
+    await tool_module.query_aoi_database("Okapi", AreaOfInterestType.WDPA)
+
+    assert captured["word_similarity_fallback"] is True
+    assert captured["name"] == "Okapi"
+    assert captured["sources"] == ["wdpa"]

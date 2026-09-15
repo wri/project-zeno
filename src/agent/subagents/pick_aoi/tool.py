@@ -105,6 +105,14 @@ async def query_aoi_database(
         user_id=user_id,
         limit=result_limit,
         offset=0,
+        # The geocoder searches a name a model wrote down, so an inflected or
+        # slightly-off leaf ("Okapi" for the stored "Okapis") is the normal
+        # case rather than a typo, and a term that finds nothing at all costs
+        # the user the whole answer. `GET /api/aois` serves a person typing
+        # into a search box who can see the results and retype, so it keeps
+        # today's behaviour until that is reviewed on its own terms
+        # (SPEC-PR8 §4).
+        word_similarity_fallback=True,
     )
 
 
