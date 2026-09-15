@@ -31,12 +31,12 @@ Baseline, measured 2026-09-15 against `main` @ 65f0d8a4:
 ===========================  ============  ==============
 probe                        main          this branch
 ===========================  ============  ==============
-exact full-name round trip   0/150 wrong   8/150 wrong
+exact full-name round trip   0/150 wrong   0/150 wrong
 single term, user wording    7/22          13/22
-un-narrowed frames           3/4           2/4
+un-narrowed frames           3/4           3/4
 native-order terms           0/3           1/3
-Niger > Nigeria              yes           no
-bare "Para" > Parana         yes           no
+Niger > Nigeria              yes           yes
+bare "Para" > Parana         yes           yes
 ===========================  ============  ==============
 """
 
@@ -80,15 +80,6 @@ def _frame(rows):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "REGRESSION vs main, which gets all 150. Leaf-name scoring devalued "
-        "name evidence from 0.70 to 0.55 against an unchanged 0.30 hierarchy, "
-        "so a child whose leaf repeats its parent's loses to the parent. "
-        "Fixed by the weighting change, not by the leaf measure"
-    ),
-)
 def test_a_rows_own_name_resolves_back_to_that_row():
     """150 real GADM rows, each searched under its own stored name.
 
@@ -156,18 +147,13 @@ def test_the_users_own_wording_alone_beats_the_main_baseline():
 # ---------------------------------------------------------------------------
 
 
-_REGRESSION = "REGRESSION vs main, which selects the park"
 _PREEXISTING = "main fails this too; not a regression, a Part B target"
 
 
 @pytest.mark.parametrize(
     "term,expected_src_id",
     [
-        pytest.param(
-            "Kahuzi-Biega",
-            "1082",
-            marks=pytest.mark.xfail(strict=True, reason=_REGRESSION),
-        ),
+        ("Kahuzi-Biega", "1082"),
         ("Odzala-Kokoua", "643"),
         ("Virunga", "166889"),
         pytest.param(
@@ -252,14 +238,6 @@ def test_a_native_order_term_resolves_as_well_as_an_english_one(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "REGRESSION vs main (1.0000 vs 0.8167). Retiring the exact-leaf bonus "
-        "while keeping the prefix bonus behind term_leaf != candidate_leaf "
-        "left the exact match as the only candidate earning no bonus"
-    ),
-)
 def test_an_exact_name_outscores_a_longer_name_that_contains_it():
     """ "Niger" is not "Nigeria", and a bare term is the case that proves it.
 
@@ -272,10 +250,6 @@ def test_an_exact_name_outscores_a_longer_name_that_contains_it():
     assert exact > longer, f"exact {exact:.4f} vs longer {longer:.4f}"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REGRESSION vs main (0.7200 vs 0.5922). Same cause as Niger",
-)
 def test_a_bare_accented_leaf_still_prefers_its_own_row():
     """The PZB-1272 case with no parent to lean on."""
     para = _score_candidate("Para", "Pará, Brazil", "state-province")

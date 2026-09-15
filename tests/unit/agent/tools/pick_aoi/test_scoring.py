@@ -350,3 +350,78 @@ def test_leaf_similarity_ignores_the_terms_parent_segment():
 
     assert state == 1.0
     assert state > country
+
+
+# ---------------------------------------------------------------------------
+# The exact-name term and the round-trip contract it exists to serve
+# ---------------------------------------------------------------------------
+
+
+def test_an_exact_name_beats_a_broader_subtype_that_shares_its_leaf():
+    """The `_format_aoi_candidate` contract, stated as a score.
+
+    An `aoi_choice` option carries a row's full stored name and is resubmitted
+    verbatim as the next question, so it has to come back to the row it names.
+    Weights alone cannot promise that: GADM children often repeat their
+    parent's name ("Senga, Senga, Butezi, Ruyigi, Burundi"), so the two tie on
+    every name term and the hierarchy preference hands the user the parent --
+    a coarser area than the one they clicked. The exact-name bonus is what
+    makes the promise keepable, and the import-time assertion beside
+    `_HIERARCHY_SCORES` is what keeps it keepable.
+    """
+    child = _score_candidate(
+        "Senga, Senga, Butezi, Ruyigi, Burundi",
+        "Senga, Senga, Butezi, Ruyigi, Burundi",
+        "municipality",
+    )
+    parent = _score_candidate(
+        "Senga, Senga, Butezi, Ruyigi, Burundi",
+        "Senga, Butezi, Ruyigi, Burundi",
+        "district-county",
+    )
+
+    assert child > parent, f"child {child:.4f} vs parent {parent:.4f}"
+
+
+def test_the_exact_name_match_ignores_accents_and_punctuation():
+    """Both sides are normalised, so a spelling difference cannot void it.
+
+    The stored name keeps its accents and the geocoder is told to return
+    de-accented English, so the two spellings of one name must key equal or
+    the guarantee above only holds for unaccented places.
+    """
+    from src.agent.subagents.pick_aoi.scoring import (
+        _EXACT_NAME_BONUS,
+        _normalise_for_exact_match,
+    )
+
+    keys = {
+        _normalise_for_exact_match(spelling)
+        for spelling in ("Para, Brazil", "Para,Brazil", "Pará, Brazil")
+    }
+    assert keys == {"para brazil"}
+
+    # And the bonus really does fire for each: every spelling clears the
+    # near-miss by more than the bonus is worth. (The scores are not identical
+    # -- the whole-name term still sees the literal string -- so this asserts
+    # the thing that matters rather than byte equality.)
+    near_miss = _score_candidate(
+        "Para, Brazil", "Paraná, Brazil", "state-province"
+    )
+    for spelling in ("Para, Brazil", "Para,Brazil", "Pará, Brazil"):
+        scored = _score_candidate(spelling, "Pará, Brazil", "state-province")
+        assert scored - near_miss > _EXACT_NAME_BONUS, spelling
+
+
+def test_the_exact_name_bonus_outweighs_the_widest_hierarchy_gap():
+    """Pinned in code at import time; asserted here so the reason is readable.
+
+    "Wins outright" has to mean outright: the widest gap the hierarchy term can
+    open is a country against a named site, and an exact name has to survive it.
+    """
+    from src.agent.subagents.pick_aoi.scoring import (
+        _EXACT_NAME_BONUS,
+        _WIDEST_HIERARCHY_GAP,
+    )
+
+    assert _EXACT_NAME_BONUS > _WIDEST_HIERARCHY_GAP

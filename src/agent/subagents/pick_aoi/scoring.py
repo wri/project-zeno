@@ -43,10 +43,24 @@ logger = get_logger(__name__)
 # whole-name weight is the one setting that breaks: it drops the parent
 # hierarchy and loses the cases whose term carries a parent (ch-aoi-136,
 # ch-aoi-145), and it moves a recorded replay frame.
-_LEAF_WEIGHT = 0.40
-_WHOLE_NAME_WEIGHT = 0.15
+_LEAF_WEIGHT = 0.60
+_WHOLE_NAME_WEIGHT = 0.10
 _HIERARCHY_WEIGHT = 0.3
-_PREFIX_BONUS = 0.1
+
+# An exact name match wins outright. `_format_aoi_candidate` builds an
+# `aoi_choice` option from a row's full stored name and documents that
+# resubmitting it re-resolves to the row it names, and that guarantee cannot be
+# left to a weighted sum: a child whose leaf repeats its parent's
+# ("Senga, Senga, Butezi, Ruyigi, Burundi") ties its parent on every name term,
+# and the hierarchy preference then hands the user the parent. The assertion
+# below is what makes "wins outright" true rather than hoped for.
+_EXACT_NAME_BONUS = 0.25
+
+# There is no prefix bonus. Any bonus on top of the leaf comparison double
+# counts, because an exact leaf already scores 1.0 there -- and a bonus gated on
+# "not an exact leaf" is worse than none, because it then rewards every
+# candidate EXCEPT the exact match: "Niger" scored 0.8500 against itself and
+# 0.8583 against "Nigeria".
 
 # Punctuation that can wrap a name segment. Stored names carry trailing
 # commas ("NA, England, United Kingdom"), and an `aoi_choice` nudge option is
@@ -77,6 +91,20 @@ _HIERARCHY_SCORES: dict[str, float] = {
 # the coverage at import time: CI sees it, a user does not.
 assert set(_HIERARCHY_SCORES) == set(SUBREGION_TO_SUBTYPE_MAPPING.values())
 
+# The exact-name bonus only guarantees the round trip while it outweighs the
+# widest hierarchy gap -- country over a named site, the two extremes of the
+# map above. Pinned at import time rather than described in a comment, so that
+# lowering the bonus or widening the hierarchy spread fails loudly here instead
+# of silently returning a user's clicked option's parent.
+_WIDEST_HIERARCHY_GAP = _HIERARCHY_WEIGHT * (
+    max(_HIERARCHY_SCORES.values()) - min(_HIERARCHY_SCORES.values())
+)
+assert _EXACT_NAME_BONUS > _WIDEST_HIERARCHY_GAP, (
+    f"_EXACT_NAME_BONUS ({_EXACT_NAME_BONUS}) must exceed the widest "
+    f"hierarchy gap ({_WIDEST_HIERARCHY_GAP}), or an exact name match can "
+    f"lose to a differently-named candidate of a broader subtype"
+)
+
 
 def _strip_accents(text_value: str) -> str:
     """Lowercase and remove diacritics: "Pará" -> "para"."""
@@ -84,6 +112,26 @@ def _strip_accents(text_value: str) -> str:
     return "".join(
         char for char in decomposed if unicodedata.category(char) != "Mn"
     )
+
+
+def _normalise_for_exact_match(text_value: str) -> str:
+    """Accent-, case-, punctuation- and whitespace-insensitive name key.
+
+    Both sides of the exact-name test go through this, so "Pará, Brazil"
+    matches "Para,Brazil" and "Para, Brazil". Punctuation becomes a space
+    rather than nothing, so "Kahuzi-Biega" cannot collapse into a different
+    word.
+
+    A decorated `aoi_choice` option ("... - (district-county) [FRA]") does NOT
+    key equal to the stored name, and is not meant to: the geocoder extracts a
+    place from that string before it reaches scoring, and what it extracts is
+    the name.
+    """
+    stripped = _strip_accents(text_value)
+    spaced = "".join(
+        " " if char in _SEGMENT_PUNCTUATION else char for char in stripped
+    )
+    return " ".join(spaced.split())
 
 
 def _first_segment(name: str) -> str:
@@ -169,9 +217,10 @@ def _hierarchy_score(subtype: str) -> float:
 
 def _score_prepared(
     term: str,
-    term_leaf: str,
+    term_exact_key: str,
     candidate: str,
     candidate_leaf: str,
+    candidate_exact_key: str,
     hierarchy: float,
     prefix_matchers: Sequence[SequenceMatcher],
     whole_matcher: SequenceMatcher,
@@ -194,8 +243,8 @@ def _score_prepared(
         + _WHOLE_NAME_WEIGHT * whole_matcher.ratio()
         + hierarchy
     )
-    if term_leaf != candidate_leaf and candidate.startswith(term):
-        score += _PREFIX_BONUS
+    if term_exact_key == candidate_exact_key:
+        score += _EXACT_NAME_BONUS
     return score
 
 
@@ -217,9 +266,10 @@ def _score_candidate(place_name: str, name: str, subtype: str) -> float:
     whole_matcher.set_seq2(candidate)
     return _score_prepared(
         _strip_accents(place_name),
-        term_leaf,
+        _normalise_for_exact_match(place_name),
         candidate,
         candidate_leaf,
+        _normalise_for_exact_match(name),
         _hierarchy_score(subtype),
         _prefix_matchers(_leaf_prefixes(term_leaf)),
         whole_matcher,
@@ -260,7 +310,7 @@ def best_candidate_row(
     term_forms = [
         (
             _strip_accents(term),
-            _first_segment(term),
+            _normalise_for_exact_match(term),
             _prefix_matchers(_leaf_prefixes(_first_segment(term))),
         )
         for term in terms
@@ -284,18 +334,20 @@ def best_candidate_row(
         hierarchy = _hierarchy_score(subtype)
         candidate = _strip_accents(name)
         candidate_leaf = _first_segment(name)
+        candidate_exact_key = _normalise_for_exact_match(name)
         whole_matcher.set_seq2(candidate)
         score = max(
             _score_prepared(
                 term,
-                term_leaf,
+                term_exact_key,
                 candidate,
                 candidate_leaf,
+                candidate_exact_key,
                 hierarchy,
                 prefix_matchers,
                 whole_matcher,
             )
-            for term, term_leaf, prefix_matchers in term_forms
+            for term, term_exact_key, prefix_matchers in term_forms
         )
         # Compare on explicit secondary keys rather than the score alone, so
         # equal scores resolve identically whatever order the rows arrived in.
