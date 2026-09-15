@@ -4,11 +4,15 @@
 AOIIndex; everything it scores with lives in `pick_aoi/scoring.py`.
 """
 
+from difflib import SequenceMatcher
+
 import pandas as pd
 import pytest
 
 from src.agent.subagents.pick_aoi.scoring import (
     _first_segment,
+    _leaf_prefixes,
+    _leaf_similarity,
     _score_candidate,
     _strip_accents,
 )
@@ -213,3 +217,69 @@ def test_selected_aoi_keeps_the_state_shape_of_an_aoi_selection_entry():
     # bbox is absent from the recorded fixture columns, so the model default
     # (the world bbox) must fill it.
     assert selected.bbox == WORLD_BBOX
+
+
+# ---------------------------------------------------------------------------
+# Leaf-name comparison (PZB-1392). The stored `name` carries the designation
+# and the country as its 2nd and 3rd segments, so the leaf is the only segment
+# that identifies the place.
+# ---------------------------------------------------------------------------
+
+
+def test_leaf_prefixes_are_longest_first_and_never_interior_spans():
+    assert _leaf_prefixes("okapi wildlife reserve") == [
+        "okapi wildlife reserve",
+        "okapi wildlife",
+        "okapi",
+    ]
+    assert _leaf_prefixes("sankuru") == ["sankuru"]
+    assert _leaf_prefixes("") == [""]
+
+
+def _leaf_sim(term, candidate_name):
+    """`_leaf_similarity` with the plumbing a caller does."""
+    matcher = SequenceMatcher(None)
+    matcher.set_seq2(_first_segment(candidate_name))
+    return _leaf_similarity(
+        _leaf_prefixes(_first_segment(term)),
+        _first_segment(candidate_name),
+        matcher,
+    )
+
+
+def test_leaf_similarity_finds_the_place_name_inside_a_designation_phrase():
+    """The PZB-1392 core: the leaf, not the designation, does the matching."""
+    right = _leaf_sim(
+        "Sankuru National Reserve", "Sankuru, Réserve Naturelle, COD"
+    )
+    wrong = _leaf_sim(
+        "Sankuru National Reserve", "Samburu, National Reserve, KEN"
+    )
+
+    assert right == 1.0
+    assert right > wrong
+
+
+def test_leaf_similarity_ignores_a_designation_word_that_is_itself_a_leaf():
+    """ "Wildlife, Reserve, USA" and "Research, Natural Area, USA" are real rows.
+
+    An interior-span comparison would score them 1.0 against any term
+    containing that word, which is how a designation would keep deciding.
+    """
+    designation_leaf = _leaf_sim(
+        "Okapi Wildlife Reserve", "Wildlife, Reserve, USA"
+    )
+    real_leaf = _leaf_sim(
+        "Okapi Wildlife Reserve", "Okapis, Réserve de Faune, COD"
+    )
+
+    assert real_leaf > designation_leaf
+
+
+def test_leaf_similarity_ignores_the_terms_parent_segment():
+    """ "Para, Brazil" must not match the country row on its parent segment."""
+    state = _leaf_sim("Para, Brazil", "Pará, Brazil")
+    country = _leaf_sim("Para, Brazil", "Brazil")
+
+    assert state == 1.0
+    assert state > country

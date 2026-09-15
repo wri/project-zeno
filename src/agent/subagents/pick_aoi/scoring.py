@@ -76,6 +76,47 @@ def _first_segment(name: str) -> str:
     return _strip_accents(leaf).strip(_SEGMENT_PUNCTUATION)
 
 
+def _leaf_prefixes(term_leaf: str) -> list[str]:
+    """The term leaf's word prefixes, longest first: what a stored leaf can be.
+
+    A stored leaf is the place's own name; the extracted `place` term is that
+    name followed by the designation the user used ("Sankuru National
+    Reserve"), because English puts the designation last and GEOCODER_PROMPT
+    translates into English. So the stored leaf, if this term names it at all,
+    is a PREFIX of the term leaf.
+
+    Prefixes rather than arbitrary interior spans, because the catalogue
+    contains rows whose own leaf IS a designation word -- "Wildlife, Reserve,
+    USA" and "Research, Natural Area, USA" are both real. An interior span
+    would match those exactly and hand them the frame ("Okapi Wildlife
+    Reserve" contains "Wildlife"), which is the defect this scoring replaces,
+    only one level down.
+    """
+    words = term_leaf.split()
+    return [" ".join(words[:end]) for end in range(len(words), 0, -1)] or [""]
+
+
+def _leaf_similarity(
+    term_leaf_prefixes: Sequence[str],
+    candidate_leaf: str,
+    matcher: SequenceMatcher,
+) -> float:
+    """How well the candidate's own name matches the name inside the term.
+
+    *matcher* already holds ``candidate_leaf`` as its second sequence, so this
+    only sets the first. Returns the best score over the prefixes, which is
+    what lets one term set serve both "Sankuru National Reserve" and the bare
+    "Sankuru" without either spelling costing the other.
+    """
+    best = 0.0
+    for prefix in term_leaf_prefixes:
+        matcher.set_seq1(prefix)
+        ratio = matcher.ratio()
+        if ratio > best:
+            best = ratio
+    return best
+
+
 def _hierarchy_score(subtype: str) -> float:
     """The weighted hierarchy term for one subtype.
 
