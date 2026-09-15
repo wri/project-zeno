@@ -127,6 +127,7 @@ async def search_aois(
     user_id: Optional[str],
     limit: int = 50,
     offset: int = 0,
+    word_similarity_fallback: bool = False,
 ) -> pd.DataFrame:
     """Search AOIs across sources by name and/or source type.
 
@@ -144,6 +145,10 @@ async def search_aois(
             among the searched sources.
         limit: Maximum number of rows to return.
         offset: Number of rows to skip (offset pagination).
+        word_similarity_fallback: When the name search returns fewer than
+            ``limit`` rows, search again with pg_trgm word similarity and
+            append what that finds. Opt-in, and off for ``GET /api/aois``:
+            see the note below.
 
     Returns:
         DataFrame with columns ``src_id, name, subtype, source, bbox`` (plus
@@ -165,6 +170,16 @@ async def search_aois(
     has_name = bool(name and name.strip())
 
     name_filter = "AND name % :name" if has_name else ""
+
+    # The fallback's filter. `name %> :name` is `word_similarity(:name, name)`
+    # above `pg_trgm.word_similarity_threshold`: a CONTAINMENT test, so it
+    # finds a stored name that holds the query as one of its words. That is
+    # what the plain `%` similarity cannot do for a short leaf inside a long
+    # stored name -- "Okapi" scores 0.1724 against "Okapis, Reserve de Faune,
+    # COD" and misses the 0.2 threshold outright, while word similarity scores
+    # it 0.8333. It uses the same `idx_aois_name_trgm` GIN index, so this
+    # needs no migration.
+    word_similarity_filter = "AND name %> :name" if has_name else ""
 
     # Custom areas stay owner-scoped. The semi-join uses user_aois, which is the
     # permission model. It does not use aois.created_by, which records
@@ -198,7 +213,8 @@ async def search_aois(
     # `bbox` is computed at build time, so the antimeridian CASE does not run per
     # row. COALESCE replaces a null array with the world bbox, because a null
     # fails response validation.
-    sql_query = f"""
+    def _sql(chosen_name_filter: str) -> str:
+        return f"""
         SELECT
             source_id AS src_id,
             name,
@@ -213,10 +229,12 @@ async def search_aois(
           AND NOT is_deprecated
           AND source = ANY(:sources)
           {custom_scope}
-          {name_filter}
+          {chosen_name_filter}
         ORDER BY {similarity_order}name, source, source_id
         LIMIT :limit OFFSET :offset
     """
+
+    sql_query = _sql(name_filter)
 
     params: Dict[str, Any] = {
         "sources": sorted(requested),
@@ -228,19 +246,57 @@ async def search_aois(
     if "custom" in requested:
         params["user_id"] = user_id
 
+    # Only from the first page: "fewer rows than asked for" means "nothing
+    # more to find" only when nothing was skipped.
+    wants_fallback = word_similarity_fallback and has_name and offset == 0
+
     async with get_connection_from_pool() as conn:
-        # pg_trgm provides both `%` and similarity(). The threshold is a
-        # session setting, so it must be set on this pooled connection before
-        # the search runs. The CREATE EXTENSION is redundant: the migration
-        # creates the extension, and so does the test fixture.
+        # pg_trgm provides `%`, `%>` and similarity(). Both thresholds are
+        # session settings, so they must be set on this pooled connection
+        # before the search runs, and both are set explicitly so that a server
+        # or role default cannot move them. The CREATE EXTENSION is redundant:
+        # the migration creates the extension, and so does the test fixture.
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
         await conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
+        await conn.execute(
+            text("SET pg_trgm.word_similarity_threshold = 0.6;")
+        )
         await conn.commit()
 
         def _read(sync_conn):
             return pd.read_sql(text(sql_query), sync_conn, params=params)
 
-        return await conn.run_sync(_read)
+        results = await conn.run_sync(_read)
+
+        if not wants_fallback or len(results) >= limit:
+            return results
+
+        def _read_fallback(sync_conn):
+            return pd.read_sql(
+                text(_sql(word_similarity_filter)), sync_conn, params=params
+            )
+
+        extra = await conn.run_sync(_read_fallback)
+
+    if extra.empty:
+        return results
+    if results.empty:
+        # `pd.concat` with an empty frame is deprecated, and there is nothing
+        # to merge with anyway: the fallback found everything.
+        return extra.head(limit).reset_index(drop=True)
+
+    # Appended, never reordered. Every row the fallback adds and the first
+    # pass missed scores below `pg_trgm.similarity_threshold` by definition,
+    # while every row of the first pass scores at or above it, so under the
+    # unchanged `ORDER BY similarity_score DESC` a fallback row can only ever
+    # sit below the rows already found. Keeping the first copy of a duplicate
+    # keeps the first pass's row.
+    return (
+        pd.concat([results, extra], ignore_index=True)
+        .drop_duplicates(subset=["source", "src_id"], keep="first")
+        .head(limit)
+        .reset_index(drop=True)
+    )
 
 
 async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:
