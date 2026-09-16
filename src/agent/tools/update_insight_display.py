@@ -21,6 +21,10 @@ from langgraph.types import Command
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from src.agent.datasets.curated_only import (
+    CURATED_ONLY_RESTYLE_REFUSED,
+    is_curated_only,
+)
 from src.agent.subagents.analyst.charts.color_resolver import (
     resolve_chart_colors,
 )
@@ -171,6 +175,9 @@ async def update_insight_display(
         return error_command(
             f"Insight {target_id} not found or not editable.", tool_call_id
         )
+
+    if any(is_curated_only(chart.dataset_id) for chart in row.charts or []):
+        return error_command(CURATED_ONLY_RESTYLE_REFUSED, tool_call_id)
 
     current = Insight.from_orm_row(row)
     revised = await InsightDisplayReviser().revise(current, instruction)

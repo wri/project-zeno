@@ -8,6 +8,7 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.datasets.curated_only import is_curated_only
 from src.agent.datasets.dates import revise_date_range
 from src.agent.datasets.handlers.analytics_handler import (
     AnalyticsHandler,
@@ -170,6 +171,21 @@ async def pull_data(
         return _human_feedback(
             await t("pull_data.no_aoi", language)
             + _pending_choice_note(state, "aoi_choice", "pick_aoi"),
+            tool_call_id,
+        )
+
+    # A curated-only dataset has no comparison view: its charts add up every
+    # row of a year, so two areas would show as one silent sum.
+    if (
+        is_curated_only(dataset.get("dataset_id"))
+        and len(state["aoi_selection"]["aois"]) > 1
+    ):
+        return _human_feedback(
+            await t(
+                "pull_data.single_area_only",
+                language,
+                dataset_name=dataset.get("dataset_name", ""),
+            ),
             tool_call_id,
         )
 

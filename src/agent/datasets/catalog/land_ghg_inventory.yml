@@ -1,6 +1,9 @@
 dataset_id: 12
 dataset_name: Land GHG Monitoring System (LGMS)
 context_layers: null
+# The agent shows only the curated charts for this dataset and never
+# interprets its data (see src/agent/datasets/curated_only.py).
+curated_only: true
 parameters: null
 variables: null
 # TODO(PZB-1247): both layers point at the same combined net-flux mosaic as a
