@@ -229,6 +229,18 @@ def test_lgms_full_detail_omits_series_for_classes_with_no_such_metric():
     assert row["organic_soil_emissions"] == 3.0
 
 
+def test_lgms_full_detail_excludes_aggregated_agriculture_classes():
+    # cropland/livestock are fixed-year aggregates (e.g. "2020, static"),
+    # not annual granular data — Full Detail must only carry the classes
+    # tracked every year (PZB-1391).
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[1]
+    row = chart.chart_data[0]
+    assert "cropland_emissions" not in row
+    assert "livestock_emissions" not in row
+    assert "cropland_emissions" not in chart.series_fields
+    assert "livestock_emissions" not in chart.series_fields
+
+
 def test_lgms_categories_chart_folds_class_into_category():
     chart = LGMSChartGenerator().generate(LGMS_ROWS)[2]
     row = chart.chart_data[0]
@@ -409,11 +421,11 @@ def test_lgms_hierarchy_agriculture_removals_none_never_reported_by_api():
     # not a fabricated 0.0.
     rows = column_to_rows(
         {
-            "category": ["agriculture", "agriculture"],
-            "class": ["cropland", "livestock"],
-            "year": [2016, 2016],
-            "gross_emissions_MgCO2e": [10.0, 20.0],
-            "gross_removals_MgCO2": [None, None],
+            "category": ["vegetation", "agriculture", "agriculture"],
+            "class": ["tree_loss", "cropland", "livestock"],
+            "year": [2016, 2016, 2016],
+            "gross_emissions_MgCO2e": [1.0, 10.0, 20.0],
+            "gross_removals_MgCO2": [0.0, None, None],
         }
     )
     chart = LGMSChartGenerator().generate(rows)[0]

@@ -20,8 +20,6 @@ LGMS_FULL_SERIES_CLASS_ORDER = [
     "non_trees_remaining_non_trees",
     "mineral_soil",
     "organic_soil",
-    "cropland",
-    "livestock",
     "tree_gain",
 ]
 
@@ -69,6 +67,11 @@ class LGMSChartGenerator(ChartGenerator):
 
             full_row: dict = {"year": year}
             for row in year_rows:
+                # Agriculture classes (cropland, livestock) are fixed-year
+                # aggregates, not annual granular data — Full Detail only
+                # shows classes tracked every year.
+                if row.get("category") == "agriculture":
+                    continue
                 class_name = row.get("class")
                 emissions = row.get("gross_emissions_MgCO2e")
                 if emissions is not None:
