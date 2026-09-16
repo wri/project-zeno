@@ -1,18 +1,21 @@
 """Turn pulled rows into finished curated charts.
 
-The one place a generator is matched, its message keys are localised and
-its charts get registry colors. `AnalyzeService` (REST) and the agent's
-`generate_insights` both call it, so the two paths cannot fork.
+The one place a generator is matched and its message keys are localised.
+`AnalyzeService` (REST) and the agent's `generate_insights` both call it,
+so the two paths cannot fork.
+
+Chart colors are not resolved here: `resolve_chart_colors` keys `color_map`
+off a `{column}__slug` sibling column that only the code-executor path
+emits, so calling it here after localisation would key the map off
+already-translated display labels instead of stable slugs. Colors for
+curated charts are follow-up work.
 """
 
 from typing import Optional, Sequence
 
 from src.agent.i18n import t
 from src.agent.language import DEFAULT_LANGUAGE
-from src.agent.subagents.analyst.charts import (
-    InsightChart,
-    resolve_chart_colors,
-)
+from src.agent.subagents.analyst.charts import InsightChart
 from src.api.services.charts.base import ChartGenerator
 from src.api.services.charts.registry import DETERMINISTIC_GENERATORS
 
@@ -44,10 +47,12 @@ async def build_curated_charts(
     generators: Sequence[ChartGenerator] = DETERMINISTIC_GENERATORS,
 ) -> list[InsightChart]:
     """Curated charts for `dataset_id` from `rows`; [] when no generator
-    handles the dataset. Charts carry `dataset_id` and registry colors."""
+    handles the dataset. Charts carry `dataset_id`."""
     for generator in generators:
         if generator.can_handle(dataset_id):
             charts = generator.generate(rows)
             await _localise(charts, generator, language)
-            return [resolve_chart_colors(c, dataset_id) for c in charts]
+            for chart in charts:
+                chart.dataset_id = dataset_id
+            return charts
     return []
