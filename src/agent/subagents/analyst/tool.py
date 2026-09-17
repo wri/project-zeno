@@ -625,7 +625,9 @@ class Analyst:
                 f"Horizon shows {dataset_name} for one area at a time; it "
                 "does not yet support comparing or ranking areas. Tell the "
                 "user politely that this is a Horizon limitation, not a "
-                "limitation of the data, and ask them to choose one area.",
+                "limitation of the data, and ask them to choose one area. "
+                "No chart was produced for this request — do not describe "
+                "any chart, graph, or comparison as having been shown.",
                 tool_call_id,
             )
 
