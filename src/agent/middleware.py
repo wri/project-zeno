@@ -51,6 +51,14 @@ def format_session_block(state: dict) -> str:
     if ds_name:
         ctx = dataset.get("context_layer")
         line = f"Dataset: {ds_name}" + (f" (context: {ctx})" if ctx else "")
+        # Which of a multi-layer dataset's layers is on the map. Carried on
+        # every turn, not just the one it was picked, so the agent keeps
+        # narrating the layer the user is actually looking at.
+        layers = dataset.get("layers") or []
+        if len(layers) > 1:
+            displayed = dataset.get("selected_layer") or layers[0].get("name")
+            if displayed:
+                line += f" (map layer: {displayed})"
         if is_curated_only(dataset.get("dataset_id")):
             line += f" — {CURATED_ONLY_SESSION_NOTE}"
         lines.append(line)

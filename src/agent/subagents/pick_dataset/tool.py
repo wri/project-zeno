@@ -479,9 +479,22 @@ class DatasetSelector:
             + (f" (context layer: {layer})" if layer else ""),
         )
 
+        # The map layer(s) this dataset renders, and which one is on the map.
+        # Without this the agent only ever sees the dataset name and its
+        # (inventory-flavoured) prose, and narrates that there is no map layer
+        # even as the frontend paints the one that was selected.
+        layer_names = [layer.name for layer in dataset_result.layers]
+        if layer_names:
+            available_layers = ", ".join(layer_names)
+            displayed_layer = dataset_result.selected_layer or layer_names[0]
+        else:
+            available_layers = displayed_layer = "none"
+
         tool_message = f"""# About the selection
     Selected dataset name: {dataset_result.dataset_name}
     Selected context layer: {dataset_result.context_layer}
+    Map layers available: {available_layers}
+    Map layer displayed: {displayed_layer}
     Reasoning for selection: {dataset_result.reason}
 
     # Additional dataset information

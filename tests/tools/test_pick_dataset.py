@@ -891,9 +891,13 @@ async def test_valid_selected_layer_survives_end_to_end():
 
     dataset = command.update.get("dataset", {})
     assert dataset.get("selected_layer") == "agriculture"
+    # Every sibling survives unchanged, in catalog order.
     assert [layer["name"] for layer in dataset["layers"]] == [
+        "lgms",
         "lulucf",
         "agriculture",
+        "cropland",
+        "livestock",
     ]
 
 
@@ -1184,9 +1188,9 @@ async def test_queries_return_no_dataset(query, start_date, end_date):
         f"but got dataset_id={command.update.get('dataset', {}).get('dataset_id')}"
     )
     nudge = command.update.get("nudge")
-    assert (
-        nudge is None
-    ), f"Expected no nudge for query '{query}' but got {nudge}"
+    assert nudge is None, (
+        f"Expected no nudge for query '{query}' but got {nudge}"
+    )
 
 
 @pytest.mark.parametrize(
