@@ -622,9 +622,10 @@ class Analyst:
 
         if len(aoi_names) != 1:
             return _error_command(
-                f"{dataset_name} supports one area at a time; comparisons "
-                "between areas are not available. Tell the user politely and "
-                "ask them to choose one area.",
+                f"Horizon shows {dataset_name} for one area at a time; it "
+                "does not yet support comparing or ranking areas. Tell the "
+                "user politely that this is a Horizon limitation, not a "
+                "limitation of the data, and ask them to choose one area.",
                 tool_call_id,
             )
 

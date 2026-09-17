@@ -345,11 +345,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "{dataset_name} is not available.",
     },
     "pull_data.single_area_only": {
-        "en": "{dataset_name} is available for one area at a time, so comparing areas is not supported. Please choose one area.",
-        "es": "{dataset_name} está disponible para un área a la vez, por lo que no se pueden comparar áreas. Elija un área.",
-        "fr": "{dataset_name} est disponible pour une seule zone à la fois ; la comparaison de zones n'est donc pas prise en charge. Veuillez choisir une zone.",
-        "pt": "{dataset_name} está disponível para uma área de cada vez, portanto não é possível comparar áreas. Escolha uma área.",
-        "id": "{dataset_name} tersedia untuk satu area dalam satu waktu, jadi perbandingan antar area tidak didukung. Silakan pilih satu area.",
+        "en": "Horizon shows {dataset_name} for one area at a time. It does not yet support comparing or ranking areas. Please choose one area.",
+        "es": "Horizon muestra {dataset_name} de una área a la vez. Aún no admite comparar ni clasificar áreas. Elija un área.",
+        "fr": "Horizon affiche {dataset_name} pour une seule zone à la fois. La comparaison ou le classement des zones n'est pas encore pris en charge. Veuillez choisir une zone.",
+        "pt": "O Horizon mostra {dataset_name} para uma área de cada vez. Ainda não é possível comparar ou classificar áreas. Escolha uma área.",
+        "id": "Horizon menampilkan {dataset_name} untuk satu area dalam satu waktu. Perbandingan atau peringkat antar area belum didukung. Silakan pilih satu area.",
     },
     "pull_data.no_aoi": {
         "en": "No area of interest selected. Run pick_aoi before pulling data.",
