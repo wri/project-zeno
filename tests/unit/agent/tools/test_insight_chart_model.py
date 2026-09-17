@@ -2,6 +2,7 @@
 
 import json
 import math
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -49,6 +50,62 @@ def test_to_frontend_dict_has_exact_legacy_keys():
     assert fe["type"] == "bar"
     assert fe["xAxis"] == "year"
     assert fe["data"] == [{"year": 2020, "area_ha": 5.0}]
+
+
+# The frontend groups an analysis's charts by this shape — kept verbatim from
+# `chartBatchKey` in project-zeno-next (`src/entities/insight/lib/
+# chart-batch-key.ts`), whose capture group is the group key. A chart id that
+# stops matching it silently un-groups the LGMS roll-ups, so the contract is
+# asserted here rather than left to the frontend to discover.
+CHART_BATCH_KEY_RE = re.compile(r"^(.+)-chart-\d+$")
+
+INSIGHT_ID = "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+
+
+def test_to_frontend_dict_prefixes_the_insight_id():
+    fe = _sample_chart().to_frontend_dict(INSIGHT_ID)
+
+    assert fe["id"] == f"{INSIGHT_ID}-chart-1"
+    # Keys are unchanged by the prefix: the id is the only thing that moved.
+    assert set(fe.keys()) == FRONTEND_KEYS
+
+
+def test_prefixed_id_groups_under_the_insight_id():
+    fe = _sample_chart().to_frontend_dict(INSIGHT_ID)
+
+    match = CHART_BATCH_KEY_RE.match(fe["id"])
+    assert match is not None
+    assert match.group(1) == INSIGHT_ID
+
+
+def test_bare_id_does_not_group():
+    """No insight id means no siblings, which is what the bare form tells the
+    frontend: `chartBatchKey` returns null and the chart stands alone."""
+    assert (
+        CHART_BATCH_KEY_RE.match(_sample_chart().to_frontend_dict()["id"])
+        is None
+    )
+
+
+def test_charts_of_one_insight_share_a_key_and_keep_distinct_ids():
+    """The LGMS shape: four charts, one group, four addressable ids."""
+    charts = [
+        InsightChart(
+            position=position,
+            title=f"Chart {position}",
+            chart_type="stacked-bar-with-line",
+            x_axis="year",
+            series_fields=["emissions"],
+            chart_data=[{"year": 2020, "emissions": 1.0}],
+        )
+        for position in range(4)
+    ]
+
+    ids = [c.to_frontend_dict(INSIGHT_ID)["id"] for c in charts]
+    keys = {CHART_BATCH_KEY_RE.match(i).group(1) for i in ids}
+
+    assert keys == {INSIGHT_ID}
+    assert len(set(ids)) == 4
 
 
 def test_to_orm_kwargs_is_snake_case_and_complete():

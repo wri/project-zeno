@@ -64,3 +64,17 @@ def test_every_curated_only_dataset_has_a_generator():
     }
 
     assert not unhandled
+
+
+async def test_lgms_charts_group_under_one_insight_id():
+    """The four LGMS charts of one analysis must share a `chartBatchKey`
+    group so the frontend can fold the three roll-ups behind one DETAIL
+    pill; without the shared prefix each chart stands alone and the pill
+    has a single option."""
+    insight_id = "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    charts = await build_curated_charts(LAND_GHG_INVENTORY_ID, LGMS_ROWS, "en")
+
+    ids = [c.to_frontend_dict(insight_id)["id"] for c in charts]
+
+    assert all(i.startswith(f"{insight_id}-chart-") for i in ids)
+    assert len(set(ids)) == len(charts)
