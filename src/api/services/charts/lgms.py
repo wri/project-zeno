@@ -106,7 +106,7 @@ class LGMSChartGenerator(ChartGenerator):
                         soil, "gross_emissions_MgCO2e"
                     ),
                     "soil_removals": _sum_metric(soil, "gross_removals_MgCO2"),
-                    "cropland_emissions": _sum_metric(
+                    "cropland_management_emissions": _sum_metric(
                         cropland, "gross_emissions_MgCO2e"
                     ),
                     "livestock_emissions": _sum_metric(
@@ -122,7 +122,8 @@ class LGMSChartGenerator(ChartGenerator):
                     row["vegetation_emissions"], row["soil_emissions"]
                 ),
                 "agriculture_emissions": _fold_metric(
-                    row["cropland_emissions"], row["livestock_emissions"]
+                    row["cropland_management_emissions"],
+                    row["livestock_emissions"],
                 ),
                 "land_use_removals": _fold_metric(
                     row["vegetation_removals"], row["soil_removals"]
@@ -175,7 +176,7 @@ class LGMSChartGenerator(ChartGenerator):
                 series_fields=[
                     "vegetation_emissions",
                     "soil_emissions",
-                    "cropland_emissions",
+                    "cropland_management_emissions",
                     "livestock_emissions",
                     "vegetation_removals",
                     "soil_removals",
@@ -305,7 +306,7 @@ class LGMSChartGenerator(ChartGenerator):
                 "cropland",
                 "agriculture",
                 "Crop management",
-                "cropland_emissions",
+                "cropland_management_emissions",
                 None,
                 category_rows,
             ),
