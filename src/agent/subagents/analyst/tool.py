@@ -585,7 +585,9 @@ class Analyst:
             "insight": insight.primary_insight,
             "follow_up_suggestions": insight.follow_up_suggestions,
             "codeact_parts": codeact_parts,
-            "charts_data": [c.to_frontend_dict() for c in insight.charts],
+            "charts_data": [
+                c.to_frontend_dict(insight_id) for c in insight.charts
+            ],
             "messages": [
                 ToolMessage(
                     content=await _build_tool_message(
@@ -670,7 +672,9 @@ class Analyst:
                 "insight": insight.primary_insight,
                 "follow_up_suggestions": [],
                 "codeact_parts": [],
-                "charts_data": [c.to_frontend_dict() for c in insight.charts],
+                "charts_data": [
+                    c.to_frontend_dict(insight_id) for c in insight.charts
+                ],
                 "messages": [
                     ToolMessage(
                         content=await _build_curated_only_tool_message(
