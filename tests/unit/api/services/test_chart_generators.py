@@ -240,7 +240,7 @@ def test_lgms_categories_chart_folds_class_into_category():
     assert row["soil_emissions"] == 8.0
     # soil_removals = mineral_soil(-1.0); organic_soil has none
     assert row["soil_removals"] == -1.0
-    assert row["cropland_emissions"] == 33.0
+    assert row["cropland_management_emissions"] == 33.0
     assert row["livestock_emissions"] == 5.0
 
 
@@ -440,7 +440,7 @@ def test_lgms_time_series_charts_keep_real_zero_not_none():
     assert category_row["vegetation_removals"] == 0.0
     assert category_row["soil_emissions"] is None
     assert category_row["soil_removals"] is None
-    assert category_row["cropland_emissions"] is None
+    assert category_row["cropland_management_emissions"] is None
     assert category_row["livestock_emissions"] is None
 
     summary_row = charts[3].chart_data[0]
