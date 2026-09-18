@@ -22,7 +22,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -196,12 +196,19 @@ class AoiOrm(Base):
     reads the column through the ORM. Every geometry read and write uses raw SQL
     (``src/shared/geocoding_helpers.py``, ``src/shared/aoi_geometry.py``).
 
-    Of the indexes in the migrations, only the partial unique index is declared
-    here. It is a correctness constraint and the target of the upsert, not an
-    optimization. The other indexes exist only for performance, so they stay in
-    the migrations. Two migrations hold them: ``ceea2a027738`` creates the
-    tables and the first set, and ``d4a1c7b93e02`` adds the browse and
-    subregion-lookup indexes.
+    Of the indexes in the migrations, this model declares the partial unique
+    index (a correctness constraint and the upsert target) and the two search
+    indexes. The search indexes are declared so that the ``create_all`` test
+    schema runs the search query on the same plans as production. The other
+    indexes exist only for performance and stay in the migrations:
+    ``ceea2a027738`` creates the tables and the first set, ``d4a1c7b93e02``
+    adds the browse and subregion-lookup indexes, and ``5b7e2c9a1f40`` adds
+    the search columns and indexes.
+
+    ``leaf``, ``leaf_norm``, ``context`` and ``search_tsv`` are the search
+    columns. ``build-aois`` and the custom-area mirror fill them with the
+    fragments in :mod:`src.shared.aoi_search_sql`; ``docs/aoi-full-text-search.md``
+    describes how search reads them.
     """
 
     __tablename__ = "aois"
@@ -215,6 +222,14 @@ class AoiOrm(Base):
     source_id = Column(String, nullable=False)
     name = Column(String, nullable=False)
     subtype = Column(String, nullable=False)
+    # Search columns. `leaf` is the place's own name, `leaf_norm` its
+    # lowercase unaccented form, `context` the parents / designation / country
+    # that follow it, and `search_tsv` the weighted tsvector over all of them.
+    # Nullable: a row is written before its search columns are derived.
+    leaf = Column(String, nullable=True)
+    leaf_norm = Column(String, nullable=True)
+    context = Column(String, nullable=True)
+    search_tsv = Column(TSVECTOR, nullable=True)
     # spatial_index=False: the migration creates the GiST index, so its name is
     # controlled. geoalchemy2 must not emit its own index here.
     geometry = Column(
@@ -268,12 +283,95 @@ class AoiOrm(Base):
             unique=True,
             postgresql_where=text("NOT is_deprecated"),
         ),
+        # text_pattern_ops serves `=` and a LIKE 'prefix%' range under any
+        # collation: one btree for the exact tier and for autocomplete.
+        Index(
+            "idx_aois_leaf_norm",
+            "leaf_norm",
+            postgresql_ops={"leaf_norm": "text_pattern_ops"},
+            postgresql_where=text("NOT is_disputed AND NOT is_deprecated"),
+        ),
+        Index(
+            "idx_aois_search_tsv",
+            "search_tsv",
+            postgresql_using="gin",
+            postgresql_where=text("NOT is_disputed AND NOT is_deprecated"),
+        ),
     )
 
     user_links = relationship(
         "UserAoiOrm",
         back_populates="aoi",
         cascade="all, delete-orphan",
+    )
+    names = relationship(
+        "AoiNameOrm",
+        back_populates="aoi",
+        cascade="all, delete-orphan",
+    )
+
+
+class AoiNameOrm(Base):
+    """One name a searchable AOI is known by.
+
+    ``kind`` is ``primary`` (the leaf), ``variant`` (GADM VARNAME), ``native``
+    (GADM NL_NAME, WDPA orig_name) or ``international`` (KBA IntName).
+    ``name_norm`` is the lowercase unaccented form that the exact and prefix
+    tiers compare against; non-Latin names are stored as they come.
+    Written by raw SQL in ``build-aois`` and the custom-area mirror; nothing
+    reads the table through the ORM.
+    """
+
+    __tablename__ = "aoi_names"
+
+    id = Column(
+        PostgresUUID,
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    aoi_id = Column(
+        PostgresUUID,
+        ForeignKey("aois.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name = Column(String, nullable=False)
+    name_norm = Column(String, nullable=False)
+    kind = Column(String, nullable=False)
+
+    __table_args__ = (
+        # The rebuild's ON CONFLICT target; also serves the aoi_id lookup.
+        UniqueConstraint(
+            "aoi_id", "kind", "name_norm", name="uq_aoi_names_aoi_kind_norm"
+        ),
+        Index(
+            "idx_aoi_names_name_norm",
+            "name_norm",
+            postgresql_ops={"name_norm": "text_pattern_ops"},
+        ),
+    )
+
+    aoi = relationship("AoiOrm", back_populates="names")
+
+
+class AoiSearchTokenOrm(Base):
+    """A distinct lexeme of ``aois.search_tsv`` with its document count.
+
+    Used only to correct a misspelled query token before the token search
+    reruns. Rebuilt at the end of ``build-aois`` with ``ts_stat``.
+    """
+
+    __tablename__ = "aoi_search_tokens"
+
+    token = Column(String, primary_key=True)
+    ndoc = Column(Integer, nullable=False)
+
+    __table_args__ = (
+        Index(
+            "idx_aoi_search_tokens_trgm",
+            "token",
+            postgresql_using="gin",
+            postgresql_ops={"token": "gin_trgm_ops"},
+        ),
     )
 
 

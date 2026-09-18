@@ -16,6 +16,7 @@ from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.data_models import Base, ThreadOrm, UserOrm, UserType
 from src.api.schemas import UserModel
+from src.shared.aoi_search_sql import SEARCH_DDL
 from src.shared.database import (
     close_global_pool,
     get_session_from_pool_dependency,
@@ -132,6 +133,10 @@ async def test_db():
         # column.
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+        # The search migration runs the same statements: unaccent and the
+        # aoi_search text search configuration that every tsvector uses.
+        for statement in SEARCH_DDL:
+            await conn.execute(text(statement))
         await conn.run_sync(Base.metadata.create_all)
     yield
     # Clean up
