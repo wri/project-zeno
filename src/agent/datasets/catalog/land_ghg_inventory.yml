@@ -1,10 +1,12 @@
 dataset_id: 12
 dataset_name: Land GHG Monitoring System (LGMS)
 context_layers: null
+# The agent shows only the curated charts for this dataset and never
+# interprets its data (see src/agent/datasets/curated_only.py).
+curated_only: true
 parameters: null
 variables: null
-tile_url: ""
-license: CC by 4.0
+tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=lgms&flux_type=net"
 geographic_coverage: GADM administrative areas (country, state/province, district) only
 resolution: Reported per administrative area
 update_frequency: Annual

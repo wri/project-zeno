@@ -106,10 +106,27 @@ class InsightChart(BaseModel):
         """
         return self.model_dump(exclude={"insight"})
 
-    def to_frontend_dict(self) -> dict:
-        """The camelCase shape consumed by the frontend `charts_data`."""
+    def to_frontend_dict(self, insight_id: Optional[str] = None) -> dict:
+        """The camelCase shape consumed by the frontend `charts_data`.
+
+        `insight_id` is the persisted insight the chart belongs to. It is
+        prefixed onto the chart id because the frontend groups the charts of
+        one analysis by the `{insightId}-chart-{n}` shape (`chartBatchKey` in
+        project-zeno-next) — that grouping is what folds the three LGMS
+        roll-ups behind one DETAIL pill, keeps an analysis's charts in
+        backend order in the pager, and stops `chart_0` colliding across
+        analyses in a session.
+
+        Omitting it falls back to the bare `chart_{position}`, which the
+        frontend reads as "this chart has no siblings": the right answer for
+        a chart that belongs to no persisted insight.
+        """
         return {
-            "id": f"chart_{self.position}",
+            "id": (
+                f"{insight_id}-chart-{self.position}"
+                if insight_id
+                else f"chart_{self.position}"
+            ),
             "title": self.title,
             "type": self.chart_type,
             "insight": self.insight,

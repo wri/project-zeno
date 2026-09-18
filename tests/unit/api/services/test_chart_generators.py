@@ -188,26 +188,28 @@ def test_lgms_generates_four_charts():
 
 def test_lgms_time_series_charts_are_stacked_bar_with_line_on_year():
     charts = LGMSChartGenerator().generate(LGMS_ROWS)
-    for chart in charts[:3]:
+    for chart in charts[1:]:
         fe = chart.to_frontend_dict()
         assert fe["type"] == "stacked-bar-with-line"
         assert fe["xAxis"] == "year"
 
 
 def test_lgms_hierarchical_chart_is_axis_less():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     fe = chart.to_frontend_dict()
     assert fe["type"] == "hierarchical-bar"
     assert fe["xAxis"] == ""
     assert fe["yAxis"] == ""
-    assert chart.position == 3
+    # Position 0: the annual-average chart leads the analysis (the science
+    # team wants categories understood before the time dimension).
+    assert chart.position == 0
 
 
 def test_lgms_full_detail_keeps_both_emissions_and_removals_per_class():
     # tree_gain has emissions=0.0 (still a real, present value) AND
     # removals=-2.0 on the same row — both must survive as distinct series,
     # not collapse into a single "whichever metric is populated" value.
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[1]
     row = chart.chart_data[0]
     assert row["tree_loss_emissions"] == 10.0
     assert row["tree_loss_removals"] == -1.0
@@ -220,7 +222,7 @@ def test_lgms_full_detail_keeps_both_emissions_and_removals_per_class():
 def test_lgms_full_detail_omits_series_for_classes_with_no_such_metric():
     # organic soil has no removals at all (None) — no "organic_soil_removals"
     # series should be fabricated.
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[1]
     row = chart.chart_data[0]
     assert "organic_soil_removals" not in row
     assert "organic_soil_removals" not in chart.series_fields
@@ -228,7 +230,7 @@ def test_lgms_full_detail_omits_series_for_classes_with_no_such_metric():
 
 
 def test_lgms_categories_chart_folds_class_into_category():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[1]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[2]
     row = chart.chart_data[0]
     # vegetation_emissions = tree_loss(10.0) + tree_gain(0.0)
     assert row["vegetation_emissions"] == 10.0
@@ -238,12 +240,12 @@ def test_lgms_categories_chart_folds_class_into_category():
     assert row["soil_emissions"] == 8.0
     # soil_removals = mineral_soil(-1.0); organic_soil has none
     assert row["soil_removals"] == -1.0
-    assert row["cropland_emissions"] == 33.0
+    assert row["cropland_management_emissions"] == 33.0
     assert row["livestock_emissions"] == 5.0
 
 
 def test_lgms_summary_chart_folds_categories_further():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[2]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
     row = chart.chart_data[0]
     # land_use_emissions = vegetation_emissions(10.0) + soil_emissions(8.0)
     assert row["land_use_emissions"] == 18.0
@@ -268,7 +270,7 @@ def test_lgms_groups_rows_by_year_and_sorts_ascending():
             "gross_removals_MgCO2": [None, None, None, None],
         }
     )
-    chart = LGMSChartGenerator().generate(scrambled)[0]
+    chart = LGMSChartGenerator().generate(scrambled)[1]
     years = [row["year"] for row in chart.chart_data]
     assert years == [2016, 2017, 2018]
     # Both 2016 rows summed: 10.0 + 5.0
@@ -286,7 +288,7 @@ def _node_by_id(chart, node_id):
 
 
 def test_lgms_hierarchy_has_thirteen_nodes_with_correct_parents():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     by_id = {n["id"]: n for n in chart.chart_data}
     assert set(by_id) == {
         "all_land",
@@ -317,7 +319,7 @@ def test_lgms_hierarchy_has_thirteen_nodes_with_correct_parents():
 
 
 def test_lgms_hierarchy_leaf_values_match_full_detail_averages():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     # LGMS_DATA: tree_loss emissions=10.0/removals=-1.0; tree_gain
     # emissions=0.0/removals=-2.0 — single year, so the average is the value.
     assert _node_by_id(chart, "tree_loss")["avg_emissions"] == 10.0
@@ -328,7 +330,7 @@ def test_lgms_hierarchy_leaf_values_match_full_detail_averages():
 
 def test_lgms_hierarchy_omits_metric_never_present_as_none_not_zero():
     # organic_soil has no removals at all in LGMS_DATA (None, not 0.0).
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     organic = _node_by_id(chart, "organic_soil")
     assert organic["avg_emissions"] == 3.0
     assert organic["avg_removals"] is None
@@ -339,7 +341,7 @@ def test_lgms_hierarchy_omits_metric_never_present_as_none_not_zero():
 
 
 def test_lgms_hierarchy_category_nodes_fold_their_leaves():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     # vegetation_emissions = tree_loss(10.0) + tree_gain(0.0), matching the
     # categories chart's own fold.
     vegetation = _node_by_id(chart, "vegetation")
@@ -353,7 +355,7 @@ def test_lgms_hierarchy_category_nodes_fold_their_leaves():
 
 
 def test_lgms_hierarchy_root_folds_land_use_and_agriculture():
-    chart = LGMSChartGenerator().generate(LGMS_ROWS)[3]
+    chart = LGMSChartGenerator().generate(LGMS_ROWS)[0]
     land_use = _node_by_id(chart, "land_use")
     agriculture = _node_by_id(chart, "agriculture")
     all_land = _node_by_id(chart, "all_land")
@@ -374,7 +376,7 @@ def test_lgms_hierarchy_averages_across_multiple_years():
             "gross_removals_MgCO2": [None, None],
         }
     )
-    chart = LGMSChartGenerator().generate(two_year_rows)[3]
+    chart = LGMSChartGenerator().generate(two_year_rows)[0]
     assert _node_by_id(chart, "tree_loss")["avg_emissions"] == 20.0
 
 
@@ -393,7 +395,7 @@ def test_lgms_hierarchy_reports_real_zero_when_class_measured_no_removals():
             "gross_removals_MgCO2": [0.0, 0.0],
         }
     )
-    chart = LGMSChartGenerator().generate(rows)[3]
+    chart = LGMSChartGenerator().generate(rows)[0]
     assert _node_by_id(chart, "vegetation")["avg_removals"] == 0.0
     assert _node_by_id(chart, "land_use")["avg_removals"] == 0.0
     assert _node_by_id(chart, "all_land")["avg_removals"] == 0.0
@@ -414,7 +416,7 @@ def test_lgms_hierarchy_agriculture_removals_none_never_reported_by_api():
             "gross_removals_MgCO2": [None, None],
         }
     )
-    chart = LGMSChartGenerator().generate(rows)[3]
+    chart = LGMSChartGenerator().generate(rows)[0]
     assert _node_by_id(chart, "cropland")["avg_removals"] is None
     assert _node_by_id(chart, "livestock")["avg_removals"] is None
     assert _node_by_id(chart, "agriculture")["avg_removals"] is None
@@ -422,7 +424,7 @@ def test_lgms_hierarchy_agriculture_removals_none_never_reported_by_api():
 
 def test_lgms_time_series_charts_keep_real_zero_not_none():
     # Same real-zero scenario as the hierarchy test above, asserted directly
-    # on the category/summary time-series charts (positions 1/2).
+    # on the category/summary time-series charts (positions 2/3).
     rows = column_to_rows(
         {
             "category": ["vegetation", "vegetation"],
@@ -433,15 +435,15 @@ def test_lgms_time_series_charts_keep_real_zero_not_none():
         }
     )
     charts = LGMSChartGenerator().generate(rows)
-    category_row = charts[1].chart_data[0]
+    category_row = charts[2].chart_data[0]
     assert category_row["vegetation_emissions"] == 10.0
     assert category_row["vegetation_removals"] == 0.0
     assert category_row["soil_emissions"] is None
     assert category_row["soil_removals"] is None
-    assert category_row["cropland_emissions"] is None
+    assert category_row["cropland_management_emissions"] is None
     assert category_row["livestock_emissions"] is None
 
-    summary_row = charts[2].chart_data[0]
+    summary_row = charts[3].chart_data[0]
     assert summary_row["land_use_emissions"] == 10.0
     assert summary_row["agriculture_emissions"] is None
     assert summary_row["land_use_removals"] == 0.0
@@ -489,7 +491,7 @@ STP_2020_ROWS = column_to_rows(
 
 
 def test_lgms_real_sample_full_detail_keeps_zero_valued_present_metrics():
-    chart = LGMSChartGenerator().generate(STP_2020_ROWS)[0]
+    chart = LGMSChartGenerator().generate(STP_2020_ROWS)[1]
     row = chart.chart_data[0]
     # tree_loss's removals is 0.0, not None — a present value, must survive.
     assert row["tree_loss_removals"] == 0.0
@@ -502,8 +504,8 @@ def test_lgms_real_sample_full_detail_keeps_zero_valued_present_metrics():
 
 def test_lgms_real_sample_categories_sum_matches_full_detail():
     charts = LGMSChartGenerator().generate(STP_2020_ROWS)
-    full_row = charts[0].chart_data[0]
-    category_row = charts[1].chart_data[0]
+    full_row = charts[1].chart_data[0]
+    category_row = charts[2].chart_data[0]
     vegetation_emissions_fields = [
         k
         for k in full_row

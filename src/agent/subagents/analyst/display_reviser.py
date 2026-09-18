@@ -17,6 +17,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
+from src.agent.datasets.config import DATASETS
 from src.agent.llms import SMALL_MODEL
 from src.agent.subagents.analyst.charts.model import Insight
 from src.agent.subagents.analyst.code_executors.base import (
@@ -27,6 +28,40 @@ from src.agent.subagents.analyst.prompts import WORDING_GUIDE
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+_DATASETS_BY_ID = {ds["dataset_id"]: ds for ds in DATASETS}
+
+
+def _dataset_wording(insight: Insight) -> str:
+    """The dataset's own naming rules, resolved from the charts' `dataset_id`.
+
+    A revision rewrites titles and narrative from scratch, so without this the
+    reviser is the one generator that never learns how its dataset wants its
+    metric named, and it can undo a correct title. Charts already persist the
+    id for colour resolution; the same id resolves the wording.
+
+    Returns "" when the insight predates `dataset_id` or the entry carries no
+    instructions, which leaves the prompt exactly as it was.
+    """
+    dataset_id = next(
+        (c.dataset_id for c in insight.charts if c.dataset_id is not None),
+        None,
+    )
+    if dataset_id is None:
+        return ""
+    dataset = _DATASETS_BY_ID.get(dataset_id) or {}
+    # A revision writes both titles and prose, so it needs both sets of rules:
+    # titles are governed by `code_instructions` and prose by
+    # `presentation_instructions`. Handing over only one leaves the other half
+    # of the output unguided.
+    sections = [
+        dataset.get("code_instructions"),
+        dataset.get("presentation_instructions"),
+    ]
+    body = "\n\n".join(section for section in sections if section)
+    if not body:
+        return ""
+    return f"\n\n# Dataset naming rules\n{body}"
 
 
 class RevisedChart(BaseModel):
@@ -94,7 +129,7 @@ Do not add or remove charts.
 series) or `series_fields` (multi series).
 - Apply only what the instruction asks for; leave everything else as it was.
 
-{wording_guide}"""
+{wording_guide}{dataset_wording}"""
 
 _USER = """## Instruction (what to change)
 {instruction}
@@ -142,6 +177,7 @@ class InsightDisplayReviser:
         inputs = {
             "chart_types": ", ".join(CHART_TYPES),
             "wording_guide": WORDING_GUIDE,
+            "dataset_wording": _dataset_wording(insight),
             "instruction": instruction or "(none provided)",
             "current": current,
             "columns": columns,

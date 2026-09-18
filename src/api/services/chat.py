@@ -20,7 +20,12 @@ from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-os.environ["LANGFUSE_TRACING_ENVIRONMENT"] = os.getenv("STAGE", "production")
+# Deployments set GNW_STAGE (see the Helm values in project-zeno-deploy);
+# STAGE stays supported for local use. Without both, traces from every
+# environment carry the same "production" label.
+os.environ["LANGFUSE_TRACING_ENVIRONMENT"] = (
+    os.getenv("STAGE") or os.getenv("GNW_STAGE") or "production"
+)
 
 langfuse_client = Langfuse()
 
@@ -296,6 +301,9 @@ async def generate_thread_name(query: str) -> str:
 
         RULES:
         - Never include any dates in the name, the user might ask for a date range that is not available.
+        - Never write "intact forest loss". Tree cover loss inside intact forest landscapes is a different
+          measurement from the reduction in intact forest extent, and that wording conflates the two. Use
+          "tree cover loss in intact forest" instead.
         """
         response = await SMALL_MODEL.with_structured_output(
             ThreadNameOutput
