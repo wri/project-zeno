@@ -78,7 +78,8 @@ async def _fetch_aoi(area_id):
                 text(
                     "SELECT id, name, subtype, source, created_by, bbox, "
                     "area_km2, is_disputed, is_deprecated, "
-                    "ST_GeometryType(geometry) AS gtype "
+                    "ST_GeometryType(geometry) AS gtype, "
+                    "leaf, leaf_norm, context, search_tsv::text AS tsv "
                     "FROM aois "
                     "WHERE source = 'custom' AND source_id = :src_id"
                 ),
@@ -102,6 +103,64 @@ async def _fetch_aoi(area_id):
             .all()
         )
         return aoi, links
+
+
+async def _fetch_names(aoi_id):
+    """Return ``{(kind, name_norm)}`` of the ``aoi_names`` rows for an AOI."""
+    async with async_session_maker() as session:
+        rows = await session.execute(
+            text(
+                "SELECT kind, name_norm FROM aoi_names WHERE aoi_id = :aoi_id"
+            ),
+            {"aoi_id": aoi_id},
+        )
+        return {(row[0], row[1]) for row in rows}
+
+
+@pytest.mark.asyncio
+async def test_create_fills_search_columns_and_primary_name(
+    auth_override, client
+):
+    auth_override("test-user-wri")
+    area_id = await _create_area(client, "  Área do Rio  ")
+
+    aoi, _ = await _fetch_aoi(area_id)
+    # The leaf is the trimmed name; its normalized form is lowercase with the
+    # accents removed, which is what the exact and prefix tiers compare.
+    assert aoi["leaf"] == "Área do Rio"
+    assert aoi["leaf_norm"] == "area do rio"
+    assert aoi["context"] is None
+    assert "'area':1A" in aoi["tsv"] and "'rio':3A" in aoi["tsv"]
+    assert await _fetch_names(aoi["id"]) == {("primary", "area do rio")}
+
+
+@pytest.mark.asyncio
+async def test_patch_replaces_the_primary_name(auth_override, client):
+    auth_override("test-user-wri")
+    area_id = await _create_area(client, "Before")
+
+    res = await client.patch(
+        f"/api/custom_areas/{area_id}", json={"name": "After"}, headers=AUTH
+    )
+    assert res.status_code == 200, res.text
+
+    aoi, _ = await _fetch_aoi(area_id)
+    assert aoi["leaf_norm"] == "after"
+    # The stale "before" row is gone, so search cannot find the old name.
+    assert await _fetch_names(aoi["id"]) == {("primary", "after")}
+
+
+@pytest.mark.asyncio
+async def test_delete_cascades_to_names(auth_override, client):
+    auth_override("test-user-wri")
+    area_id = await _create_area(client, "Doomed")
+    aoi, _ = await _fetch_aoi(area_id)
+    assert await _fetch_names(aoi["id"])
+
+    res = await client.delete(f"/api/custom_areas/{area_id}", headers=AUTH)
+    assert res.status_code == 204
+
+    assert await _fetch_names(aoi["id"]) == set()
 
 
 @pytest.mark.asyncio

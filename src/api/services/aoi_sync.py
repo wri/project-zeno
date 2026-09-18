@@ -25,6 +25,7 @@ from src.shared.aoi_geometry import (
     CUSTOM_AREA_GEOM_SQL,
     bbox_float_array_sql,
 )
+from src.shared.aoi_search_sql import clean_name_sql, norm_sql, tsv_sql
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -42,14 +43,16 @@ def _upsert_sql(scoped: bool) -> str:
                 ca.properties,
                 ca.created_at,
                 ca.updated_at,
-                {CUSTOM_AREA_GEOM_SQL} AS geom
+                {CUSTOM_AREA_GEOM_SQL} AS geom,
+                {clean_name_sql("ca.name")} AS leaf
             FROM custom_areas ca
             {where_area}
         ),
         ins AS (
             INSERT INTO aois (
                 source, source_id, name, subtype, geometry,
-                bbox, area_km2, properties, created_by, created_at, updated_at
+                bbox, area_km2, properties, created_by, created_at, updated_at,
+                leaf, leaf_norm, context, search_tsv
             )
             SELECT
                 'custom',
@@ -62,7 +65,11 @@ def _upsert_sql(scoped: bool) -> str:
                 properties,
                 user_id,
                 created_at,
-                updated_at
+                updated_at,
+                leaf,
+                {norm_sql("leaf")},
+                NULL,
+                {tsv_sql("leaf", "NULL", "NULL")}
             FROM collected
             WHERE name IS NOT NULL AND geom IS NOT NULL AND NOT ST_IsEmpty(geom)
             ON CONFLICT (source, source_id) WHERE NOT is_deprecated
@@ -72,6 +79,9 @@ def _upsert_sql(scoped: bool) -> str:
                 bbox = EXCLUDED.bbox,
                 area_km2 = EXCLUDED.area_km2,
                 properties = EXCLUDED.properties,
+                leaf = EXCLUDED.leaf,
+                leaf_norm = EXCLUDED.leaf_norm,
+                search_tsv = EXCLUDED.search_tsv,
                 updated_at = now()
             RETURNING id AS aoi_id, created_by AS user_id
         )
@@ -79,6 +89,32 @@ def _upsert_sql(scoped: bool) -> str:
         SELECT user_id, aoi_id, 'owner' FROM ins
         ON CONFLICT (user_id, aoi_id, relationship) DO NOTHING
     """
+
+
+def _names_sync_sql(scoped: bool) -> list[str]:
+    """The ``aoi_names`` rows of the mirrored custom areas: one ``primary``.
+
+    A custom area has no variants, so its names row is its leaf. A rename
+    leaves a stale row behind, so the first statement deletes every row that
+    no longer matches the leaf and the second inserts the current one. Both
+    read ``aois``, which the upsert has already written in this transaction.
+    """
+    where_area = "AND a.source_id = ANY(:src_ids)" if scoped else ""
+    return [
+        f"""
+        DELETE FROM aoi_names n USING aois a
+        WHERE n.aoi_id = a.id AND a.source = 'custom' {where_area}
+          AND NOT (n.kind = 'primary' AND n.name_norm = a.leaf_norm)
+        """,
+        f"""
+        INSERT INTO aoi_names (aoi_id, name, name_norm, kind)
+        SELECT a.id, a.leaf, a.leaf_norm, 'primary'
+        FROM aois a
+        WHERE a.source = 'custom' AND NOT a.is_deprecated
+          AND a.leaf IS NOT NULL {where_area}
+        ON CONFLICT (aoi_id, kind, name_norm) DO NOTHING
+        """,
+    ]
 
 
 # Count the custom areas whose geometry does not give a non-empty MultiPolygon.
@@ -136,6 +172,11 @@ async def upsert_custom_aoi(
     params = {"area_ids": ids} if scoped else {}
 
     result = await session.execute(text(_upsert_sql(scoped)), params)
+    names_params = (
+        {"src_ids": [str(i) for i in ids]} if ids is not None else {}
+    )
+    for statement in _names_sync_sql(scoped):
+        await session.execute(text(statement), names_params)
 
     if ids is not None:
         rows = await session.execute(
