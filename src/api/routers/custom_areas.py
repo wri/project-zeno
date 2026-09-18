@@ -39,6 +39,7 @@ from src.api.services.area_upload import (
     MAX_UPLOAD_BYTES,
     UploadValidationError,
     parse_csv,
+    parse_geojson,
     parse_shapefile_zip,
 )
 from src.shared.database import get_session_from_pool_dependency
@@ -137,8 +138,12 @@ async def upload_custom_areas(
     - A zipped shapefile (``.zip``) with a required ``name`` attribute
       (case-insensitive). The ``.prj`` must be included; geometries are
       reprojected to WGS84 and must be ``Polygon`` or ``MultiPolygon``.
+    - A GeoJSON file (``.geojson`` or ``.json``): a ``FeatureCollection`` or
+      one ``Feature`` in WGS84 lon/lat, each feature with a ``name`` property
+      (case-insensitive) and a ``Polygon`` or ``MultiPolygon`` geometry.
 
-    Every other column or attribute is stored in the area's ``properties``.
+    Every other column, attribute or property is stored in the area's
+    ``properties``.
     Limits: 10 MB (413) and 500 features (422). Validation is all-or-nothing:
     any invalid row fails the whole upload with a 422 whose ``detail.errors``
     lists every problem, indexed by row where the problem belongs to one
@@ -157,12 +162,14 @@ async def upload_custom_areas(
         parser = parse_csv
     elif filename.endswith(".zip"):
         parser = parse_shapefile_zip
+    elif filename.endswith((".geojson", ".json")):
+        parser = parse_geojson
     else:
         raise HTTPException(
             status_code=415,
             detail=(
-                "unsupported file type; upload a .csv file or a zipped "
-                "shapefile (.zip)"
+                "unsupported file type; upload a .csv file, a zipped "
+                "shapefile (.zip) or a GeoJSON file (.geojson)"
             ),
         )
 

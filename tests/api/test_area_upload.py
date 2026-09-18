@@ -7,6 +7,7 @@ mirror into ``aois``, search through ``GET /api/aois``, and owner scoping.
 
 import csv
 import io
+import json
 import math
 
 import pytest
@@ -731,3 +732,195 @@ def test_shapefile_feature_cap():
     with pytest.raises(UploadValidationError) as excinfo:
         parse_shapefile_zip(_shapefile_zip(gdf))
     assert "limit is" in excinfo.value.errors[0]
+
+
+# ---------------------------------------------------------------------------
+# GeoJSON uploads
+# ---------------------------------------------------------------------------
+
+
+def _polygon(minx, miny):
+    return {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [minx, miny],
+                [minx, miny + 1],
+                [minx + 1, miny + 1],
+                [minx + 1, miny],
+                [minx, miny],
+            ]
+        ],
+    }
+
+
+def _feature(properties, geometry):
+    return {"type": "Feature", "properties": properties, "geometry": geometry}
+
+
+def _geojson(*features, **extra):
+    return json.dumps(
+        {"type": "FeatureCollection", "features": list(features), **extra}
+    ).encode()
+
+
+async def _upload_geojson(client, content, filename="areas.geojson"):
+    return await client.post(
+        "/api/custom_areas/upload",
+        files={"file": (filename, content, "application/geo+json")},
+        headers=AUTH,
+    )
+
+
+@pytest.mark.asyncio
+async def test_geojson_upload_creates_areas_and_mirrors(auth_override, client):
+    auth_override("test-user-wri")
+    multi = {
+        "type": "MultiPolygon",
+        "coordinates": [
+            _polygon(5, 5)["coordinates"],
+            _polygon(7, 5)["coordinates"],
+        ],
+    }
+    content = _geojson(
+        _feature(
+            {"Name": "Upland North", "region": "Kivu", "code": 7},
+            _polygon(30, 10),
+        ),
+        _feature({"name": "Upland South", "tags": ["a", "b"]}, multi),
+    )
+
+    res = await _upload_geojson(client, content)
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert [a["name"] for a in body["areas"]] == [
+        "Upland North",
+        "Upland South",
+    ]
+
+    res = await client.get("/api/custom_areas", headers=AUTH)
+    by_name = {a["name"]: a for a in res.json()}
+    # Properties keep their JSON types; the name property is not repeated.
+    assert by_name["Upland North"]["properties"] == {
+        "region": "Kivu",
+        "code": 7,
+    }
+    assert by_name["Upland South"]["properties"] == {"tags": ["a", "b"]}
+    assert by_name["Upland South"]["geometries"][0]["type"] == "MultiPolygon"
+    assert {a["upload_batch_id"] for a in by_name.values()} == {
+        body["upload_batch_id"]
+    }
+    assert await _counts() == (2, 2)
+
+
+@pytest.mark.asyncio
+async def test_geojson_bad_features_report_each_and_create_nothing(
+    auth_override, client
+):
+    auth_override("test-user-wri")
+    content = _geojson(
+        _feature({"name": "Ok"}, _polygon(0, 0)),
+        _feature({}, _polygon(0, 0)),
+        _feature({"name": "Point"}, {"type": "Point", "coordinates": [1, 2]}),
+        _feature({"name": "No geometry"}, None),
+        _feature({"name": "Projected"}, _polygon(500000, 9000000)),
+    )
+
+    res = await _upload_geojson(client, content, filename="areas.json")
+    assert res.status_code == 422
+    assert res.json()["detail"]["errors"] == [
+        "feature 2: name is empty",
+        "feature 3: geometry must be a Polygon or MultiPolygon, got Point",
+        "feature 4: geometry is missing",
+        "feature 5: coordinates out of range; geom must be WGS84 lon/lat "
+        "degrees",
+    ]
+    assert await _counts() == (0, 0)
+
+
+def test_geojson_single_feature_accepted():
+    from src.api.services.area_upload import parse_geojson
+
+    content = json.dumps(_feature({"name": "Solo"}, _polygon(0, 0))).encode()
+    [feature] = parse_geojson(content)
+    assert feature.name == "Solo"
+    assert feature.properties is None
+
+
+@pytest.mark.parametrize(
+    "content, error",
+    [
+        (b"\xff\xfe", "file is not valid UTF-8"),
+        (b"{not json", "file is not valid JSON"),
+        (b"[]", "file must be a GeoJSON FeatureCollection or Feature"),
+        (
+            json.dumps(_polygon(0, 0)).encode(),
+            "file must be a GeoJSON FeatureCollection or Feature",
+        ),
+        (_geojson(), "file has no features"),
+        (
+            json.dumps({"type": "FeatureCollection", "features": {}}).encode(),
+            "features must be a list",
+        ),
+        (
+            _geojson(
+                _feature({"name": "A"}, _polygon(0, 0)),
+                crs={
+                    "type": "name",
+                    "properties": {"name": "urn:ogc:def:crs:EPSG::3857"},
+                },
+            ),
+            "unsupported crs urn:ogc:def:crs:EPSG::3857",
+        ),
+        (
+            _geojson(_feature({"name": "A", "NAME": "B"}, _polygon(0, 0))),
+            "feature 1: duplicate property: name",
+        ),
+        (
+            _geojson(_feature({"name": "A"}, {"type": "Polygon"})),
+            "feature 1: invalid geometry",
+        ),
+        (_geojson({"type": "Point"}), "feature 1: not a GeoJSON Feature"),
+    ],
+)
+def test_geojson_invalid_files(content, error):
+    from src.api.services.area_upload import (
+        UploadValidationError,
+        parse_geojson,
+    )
+
+    with pytest.raises(UploadValidationError) as excinfo:
+        parse_geojson(content)
+    assert excinfo.value.errors[0].startswith(error)
+
+
+def test_geojson_wgs84_crs_member_accepted():
+    from src.api.services.area_upload import parse_geojson
+
+    content = _geojson(
+        _feature({"name": "A"}, _polygon(0, 0)),
+        crs={
+            "type": "name",
+            "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"},
+        },
+    )
+    assert [f.name for f in parse_geojson(content)] == ["A"]
+
+
+def test_geojson_feature_cap():
+    from src.api.services.area_upload import (
+        UploadValidationError,
+        parse_geojson,
+    )
+
+    content = _geojson(
+        *[
+            _feature({"name": f"Area {i}"}, _polygon(0, 0))
+            for i in range(MAX_FEATURES + 1)
+        ]
+    )
+    with pytest.raises(UploadValidationError) as excinfo:
+        parse_geojson(content)
+    assert excinfo.value.errors == [
+        f"too many features; the limit is {MAX_FEATURES}"
+    ]

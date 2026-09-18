@@ -1,7 +1,7 @@
-# Area uploads: CSV & zipped shapefile
+# Area uploads: CSV, zipped shapefile & GeoJSON
 
-`POST /api/custom_areas/upload` creates custom areas from an uploaded CSV or
-zipped shapefile, one area per feature. Uploaded areas are ordinary
+`POST /api/custom_areas/upload` creates custom areas from an uploaded CSV,
+zipped shapefile or GeoJSON file, one area per feature. Uploaded areas are ordinary
 `custom_areas` rows (`source='custom'`): they are owner-scoped in search,
 work with the existing rename/delete endpoints, and are mirrored into `aois`
 like drawn areas. Rows from one upload share a generated `upload_batch_id`
@@ -33,12 +33,13 @@ projects `custom_areas.properties` into `aois.properties`.
 ## Endpoint
 
 Multipart form, single field `file`, authentication required. The filename
-extension selects the parser: `.csv` or `.zip`; anything else returns 415.
+extension selects the parser: `.csv`, `.zip`, or `.geojson`/`.json`; anything
+else returns 415.
 
 ```sh
 curl -X POST https://…/api/custom_areas/upload \
   -H "Authorization: Bearer $TOKEN" \
-  -F "file=@my_areas.csv"     # or my_areas.zip
+  -F "file=@my_areas.csv"     # or my_areas.zip, my_areas.geojson
 ```
 
 Response — no geometries; refetch the paginated list for full rows:
@@ -84,6 +85,29 @@ case-insensitively (`NAME` works). Geometries must be `Polygon` or
 JSON: `NaN`/`NaT`/null → `null`, dates and timestamps → ISO-8601 strings,
 numbers → numbers, everything else → its string form.
 
+**GeoJSON** — a `FeatureCollection`, or one `Feature`, in UTF-8. A bare
+geometry is rejected, because it has no properties for the name. The
+coordinates must be WGS84 lon/lat, as RFC 7946 requires. The CSV bounds check
+applies, with no slack. A legacy `crs` member is accepted only if it names
+WGS84 (`urn:ogc:def:crs:OGC:1.3:CRS84`, `urn:ogc:def:crs:EPSG::4326`, and
+similar); any other `crs` is rejected with a 422. Each feature needs:
+
+- a `name` property, matched case-insensitively. Two keys that both match
+  (`name` and `NAME`) are an error.
+- a `Polygon` or `MultiPolygon` geometry.
+
+All other properties are stored in `properties` without change, so numbers,
+booleans, lists and objects keep their JSON types.
+
+```json
+{"type": "FeatureCollection", "features": [
+  {"type": "Feature",
+   "properties": {"name": "Upland North", "region": "Kivu"},
+   "geometry": {"type": "Polygon",
+                "coordinates": [[[30, 10], [30, 11], [31, 11], [31, 10], [30, 10]]]}}
+]}
+```
+
 ## Limits and errors
 
 Constants in `src/api/services/area_upload.py`:
@@ -95,13 +119,13 @@ Constants in `src/api/services/area_upload.py`:
 | Zip expanding past 200 MB (`MAX_UNCOMPRESSED_BYTES`) | 422 | `{"detail": {"errors": ["zip contents expand to 240 MB; the limit is 200 MB"]}}` |
 | Unreadable zip, or a CRS with no path to WGS84 | 422 | `{"detail": {"errors": ["could not reproject the shapefile to WGS84: …"]}}` |
 | Invalid content | 422 | `{"detail": {"errors": ["row 3: geom is empty", …]}}` |
-| Extension not `.csv`/`.zip` | 415 | `{"detail": "unsupported file type; …"}` |
+| Extension not `.csv`/`.zip`/`.geojson`/`.json` | 415 | `{"detail": "unsupported file type; …"}` |
 | Missing/invalid bearer token | 401 | standard auth error |
 
 Validation is all-or-nothing: every problem in the file is collected and
 returned together, and nothing is created. Problems belonging to one row are
-indexed (`row N` for CSV data rows, `feature N` for shapefile features, counting
-from 1); file-level problems, such as the row cap, carry no index.
+indexed (`row N` for CSV data rows, `feature N` for shapefile and GeoJSON
+features, counting from 1); file-level problems, such as the row cap, carry no index.
 
 ## Frontend integration
 
@@ -112,7 +136,7 @@ Use axios or XHR — `fetch` cannot report upload progress. Do not set
 
 ```js
 const fd = new FormData();
-fd.append("file", fileInput.files[0]); // keep the .csv/.zip filename
+fd.append("file", fileInput.files[0]); // keep the .csv/.zip/.geojson filename
 
 await axios.post("/api/custom_areas/upload", fd, {
   headers: { Authorization: `Bearer ${token}` },
@@ -170,8 +194,12 @@ const byBatch = Map.groupBy(uploaded, (a) => a.upload_batch_id);
 
 - **Delete a whole upload** — straightforward now that the batch id exists;
   add an index on `upload_batch_id` in the same change.
-- **GeoJSON / KML** — one more parser in `area_upload.py` returning the same
+- **KML** — one more parser in `area_upload.py` returning the same
   `ParsedFeature` list; the write path is format-agnostic.
+- **Area-size limits** — the upload does not check the area of a feature.
+  The frontend's GeoJSON path for single areas rejects areas smaller than
+  0.1 km² or larger than 10,000 km²; uploads can create areas outside that
+  range.
 - **Larger files** — past these caps, switch to presigned-URL upload to
   S3/minio with an async processing job and a status endpoint, rather than
   raising the constants.
