@@ -352,6 +352,8 @@ class CustomAreaModel(BaseModel):
     user_id: str
     name: str
     geometries: List
+    properties: Optional[dict] = None
+    upload_batch_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
 
@@ -359,6 +361,18 @@ class CustomAreaModel(BaseModel):
 class CustomAreaCreate(BaseModel):
     name: str
     geometries: List[Polygon]
+
+
+class UploadedAreaSummary(BaseModel):
+    id: UUID
+    name: str
+
+
+class CustomAreaUploadResponse(BaseModel):
+    """The result of a file upload. Refetch the list endpoint for full rows."""
+
+    upload_batch_id: UUID
+    areas: List[UploadedAreaSummary]
 
 
 class ViewportContext(BaseModel):
