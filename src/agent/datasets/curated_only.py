@@ -50,9 +50,12 @@ CURATED_ONLY_DATA_WITHHELD = (
 )
 
 CURATED_ONLY_SESSION_NOTE = (
-    "standard charts only — do not interpret its data or state its values; "
-    "politely decline figures, trends, comparisons, custom charts, and "
-    "restyles"
+    "standard charts only, one area at a time — do not interpret its data "
+    "or state its values; politely decline figures, trends, comparisons, "
+    "custom charts, and restyles. This is Horizon's curated-chart "
+    "rendering limit, not a limitation of the data or its size — never "
+    "invent a different reason for it (e.g. dataset size, processing "
+    "time)."
 )
 
 CURATED_ONLY_RESTYLE_REFUSED = (
