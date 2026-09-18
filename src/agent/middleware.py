@@ -13,6 +13,10 @@ from datetime import date
 from langchain.agents.middleware.types import AgentMiddleware, ModelRequest
 from langchain_core.messages import SystemMessage
 
+from src.agent.datasets.curated_only import (
+    CURATED_ONLY_SESSION_NOTE,
+    is_curated_only,
+)
 from src.agent.language import DEFAULT_LANGUAGE, language_name
 from src.agent.view_pages import get_page, on_screen_counts
 
@@ -46,9 +50,10 @@ def format_session_block(state: dict) -> str:
     ds_name = dataset.get("dataset_name")
     if ds_name:
         ctx = dataset.get("context_layer")
-        lines.append(
-            f"Dataset: {ds_name}" + (f" (context: {ctx})" if ctx else "")
-        )
+        line = f"Dataset: {ds_name}" + (f" (context: {ctx})" if ctx else "")
+        if is_curated_only(dataset.get("dataset_id")):
+            line += f" — {CURATED_ONLY_SESSION_NOTE}"
+        lines.append(line)
     else:
         lines.append("Dataset: none")
 

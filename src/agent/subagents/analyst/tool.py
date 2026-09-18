@@ -11,6 +11,10 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
+from src.agent.datasets.curated_only import (
+    CURATED_ONLY_TOOL_INSTRUCTION,
+    is_curated_only,
+)
 from src.agent.datasets.handlers.analytics_handler import (
     LAND_GHG_INVENTORY_ID,
     merge_lgms_sections,
@@ -346,6 +350,35 @@ async def _build_tool_message(
     return tool_message
 
 
+def _period(rows: list[dict], statistics: dict) -> str:
+    """The years the rows cover, or the pulled date range without them."""
+    years = sorted({r["year"] for r in rows if r.get("year") is not None})
+    if years:
+        first, last = years[0], years[-1]
+        return str(first) if first == last else f"{first}–{last}"
+    return f"{statistics.get('start_date')} – {statistics.get('end_date')}"
+
+
+async def _build_curated_only_tool_message(
+    insight: Insight, language: str = DEFAULT_LANGUAGE
+) -> str:
+    """Tool message for a curated-only insight: chart titles and the
+    no-interpretation instruction. It carries no chart rows, so the
+    orchestrator has no values to interpret."""
+    lines = [
+        await t(
+            "analyst.generated_charts", language, count=len(insight.charts)
+        )
+    ]
+    for idx, chart in enumerate(insight.charts, 1):
+        lines.append(
+            await t(
+                "analyst.chart_label", language, idx=idx, title=chart.title
+            )
+        )
+    return "\n".join(lines) + "\n\n" + CURATED_ONLY_TOOL_INSTRUCTION
+
+
 class Analyst:
     """Insight subagent: turns pulled data into a chart artifact.
 
@@ -478,6 +511,26 @@ class Analyst:
         logger.info("ANALYST: generating insight")
         logger.debug(f"Generating insights for query: {query}")
         dataset = dataset or {}
+
+        # A curated-only dataset gets its standard charts whatever the query
+        # asks for. Only the latest pull counts: `statistics` holds every
+        # pull of the thread.
+        latest = statistics[-1] if statistics else {}
+        if is_curated_only(latest.get("dataset_id")):
+            return await self._analyze_curated_only(
+                latest, tool_call_id, language
+            )
+        # Never hand a curated-only pull to the code executor, also not as
+        # context for another dataset's insight.
+        statistics = [
+            s for s in statistics if not is_curated_only(s.get("dataset_id"))
+        ]
+        if not statistics:
+            return _error_command(
+                "No pulled data available for a custom insight. Pull data "
+                "for the dataset first.",
+                tool_call_id,
+            )
         dataset_cautions = dataset.get(
             "cautions", "No specific dataset cautions provided."
         )
@@ -532,7 +585,9 @@ class Analyst:
             "insight": insight.primary_insight,
             "follow_up_suggestions": insight.follow_up_suggestions,
             "codeact_parts": codeact_parts,
-            "charts_data": [c.to_frontend_dict() for c in insight.charts],
+            "charts_data": [
+                c.to_frontend_dict(insight_id) for c in insight.charts
+            ],
             "messages": [
                 ToolMessage(
                     content=await _build_tool_message(
@@ -545,6 +600,96 @@ class Analyst:
             ],
         }
         return Command(update=updated_state)
+
+    async def _analyze_curated_only(
+        self,
+        statistics: dict,
+        tool_call_id: Optional[str] = None,
+        language: str = DEFAULT_LANGUAGE,
+    ) -> Command:
+        """Standard charts for one curated-only pull, with no model in the loop.
+
+        No code executor and no text generator: the narrative is a fixed
+        sentence, so no model writes anything about the data.
+        """
+        # Deferred: the chart generators import `analyst.charts`, whose
+        # package init imports this module.
+        from src.api.services.charts import column_to_rows
+        from src.api.services.charts.curated import build_curated_charts
+
+        dataset_id = statistics["dataset_id"]
+        dataset_name = statistics.get("dataset_name", "")
+        aoi_names = statistics.get("aoi_names") or []
+        logger.info("ANALYST: curated-only insight", dataset_id=dataset_id)
+
+        if len(aoi_names) != 1:
+            return _error_command(
+                f"Horizon shows {dataset_name} for one area at a time; it "
+                "does not yet support comparing or ranking areas. Tell the "
+                "user politely that this is a Horizon limitation, not a "
+                "limitation of the data, and ask them to choose one area. "
+                "No chart was produced for this request — do not describe "
+                "any chart, graph, or comparison as having been shown.",
+                tool_call_id,
+            )
+
+        raw = await _load_statistics_data(statistics)
+        rows = column_to_rows(raw) if raw else []
+        charts = (
+            await build_curated_charts(dataset_id, rows, language)
+            if rows
+            else []
+        )
+        if not any(chart.chart_data for chart in charts):
+            return _error_command(
+                f"No {dataset_name} data is available for {aoi_names[0]}. "
+                "Tell the user politely; do not try another analysis.",
+                tool_call_id,
+            )
+
+        insight = Insight(
+            charts=charts,
+            primary_insight=await t(
+                "analyst.curated_only_insight",
+                language,
+                dataset_name=dataset_name,
+                area=aoi_names[0],
+                period=_period(rows, statistics),
+            ),
+            follow_up_suggestions=[],
+        ).stamp_insight()
+
+        ctx = structlog.contextvars.get_contextvars()
+        insight_id = await persist_insight(
+            insight,
+            user_id=current_user_id(),
+            thread_id=ctx.get("thread_id", ""),
+            statistics_ids=_extract_statistics_ids([statistics]),
+            codeact_parts=[],
+        )
+        logger.info(f"Persisted curated-only insight to DB: {insight_id}")
+
+        return Command(
+            update={
+                "insight_id": insight_id,
+                "insight": insight.primary_insight,
+                "follow_up_suggestions": [],
+                "codeact_parts": [],
+                "charts_data": [
+                    c.to_frontend_dict(insight_id) for c in insight.charts
+                ],
+                "messages": [
+                    ToolMessage(
+                        content=await _build_curated_only_tool_message(
+                            insight, language
+                        ),
+                        tool_call_id=tool_call_id,
+                        status="success",
+                        response_metadata={"msg_type": "human_feedback"},
+                    )
+                ],
+            }
+        )
 
 
 @tool("generate_insights")

@@ -79,6 +79,13 @@ MESSAGES: dict[str, dict[str, str]] = {
         "sw": "Chati {idx}: {title}",
         "tr": "Grafik {idx}: {title}",
     },
+    "analyst.curated_only_insight": {
+        "en": "Standard {dataset_name} charts for {area}, {period}.",
+        "es": "Gráficos estándar de {dataset_name} para {area}, {period}.",
+        "fr": "Graphiques standard de {dataset_name} pour {area}, {period}.",
+        "pt": "Gráficos padrão de {dataset_name} para {area}, {period}.",
+        "id": "Bagan standar {dataset_name} untuk {area}, {period}.",
+    },
     "analyst.dataset_cautions_header": {
         "en": "Dataset cautions:",
         "es": "Advertencias del conjunto de datos:",
@@ -283,6 +290,23 @@ MESSAGES: dict[str, dict[str, str]] = {
         "sw": "Hakuna dataset iliyochaguliwa: {reason}",
         "tr": "Veri kümesi seçilmedi: {reason}",
     },
+    "pick_dataset.retrieval_unavailable": {
+        "en": "No dataset could be matched to this request. Please rephrase it, or ask about a different topic.",
+        "es": "No se pudo asociar ningún conjunto de datos a esta solicitud. Reformúlela o consulte sobre otro tema.",
+        "fr": "Aucun jeu de données ne correspond à cette demande. Veuillez la reformuler ou poser une question sur un autre sujet.",
+        "pt": "Nenhum conjunto de dados corresponde a esta solicitação. Reformule-a ou pergunte sobre outro tema.",
+        "id": "Tidak ada dataset yang cocok dengan permintaan ini. Ubah kalimatnya, atau tanyakan topik lain.",
+        "de": "Zu dieser Anfrage passt kein Datensatz. Formulieren Sie sie neu, oder fragen Sie zu einem anderen Thema.",
+        "it": "Nessun set di dati corrisponde a questa richiesta. Riformularla oppure chiedere di un altro argomento.",
+        "nl": "Geen dataset past bij deze vraag. Formuleer de vraag anders, of vraag naar een ander onderwerp.",
+        "ru": "Для этого запроса не найден подходящий набор данных. Переформулируйте запрос или спросите о другой теме.",
+        "zh": "没有数据集与此请求匹配。请重新表述，或询问其他主题。",
+        "ar": "لا توجد مجموعة بيانات تطابق هذا الطلب. أعد صياغته، أو اسأل عن موضوع آخر.",
+        "hi": "इस अनुरोध से कोई डेटासेट मेल नहीं खाता। कृपया इसे दूसरे शब्दों में लिखें, या किसी अन्य विषय के बारे में पूछें।",
+        "vi": "Không có bộ dữ liệu nào khớp với yêu cầu này. Vui lòng diễn đạt lại, hoặc hỏi về một chủ đề khác.",
+        "sw": "Hakuna dataset inayolingana na ombi hili. Tafadhali liandike kwa maneno mengine, au uliza kuhusu mada nyingine.",
+        "tr": "Bu isteğe uyan bir veri kümesi yok. Lütfen isteği yeniden yazın veya başka bir konu sorun.",
+    },
     "pull_data.date_out_of_range": {
         "en": "The requested date range ({start_date} to {end_date}) is outside the available range for {dataset_name} (available: {available_start} to {available_end}). Please choose dates within this range.",
         "es": "El rango de fechas solicitado ({start_date} a {end_date}) está fuera del rango disponible para {dataset_name} (disponible: {available_start} a {available_end}). Por favor, elija fechas dentro de este rango.",
@@ -319,6 +343,13 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "pull_data.dataset_not_available": {
         "en": "{dataset_name} is not available.",
+    },
+    "pull_data.single_area_only": {
+        "en": "Horizon shows {dataset_name} for one area at a time. It does not yet support comparing or ranking areas. Please choose one area.",
+        "es": "Horizon muestra {dataset_name} de una área a la vez. Aún no admite comparar ni clasificar áreas. Elija un área.",
+        "fr": "Horizon affiche {dataset_name} pour une seule zone à la fois. La comparaison ou le classement des zones n'est pas encore pris en charge. Veuillez choisir une zone.",
+        "pt": "O Horizon mostra {dataset_name} para uma área de cada vez. Ainda não é possível comparar ou classificar áreas. Escolha uma área.",
+        "id": "Horizon menampilkan {dataset_name} untuk satu area dalam satu waktu. Perbandingan atau peringkat antar area belum didukung. Silakan pilih satu area.",
     },
     "pull_data.no_aoi": {
         "en": "No area of interest selected. Run pick_aoi before pulling data.",
