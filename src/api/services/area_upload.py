@@ -20,7 +20,7 @@ from typing import Optional, Sequence
 
 import shapely.wkt
 from shapely.errors import ShapelyError
-from shapely.geometry import mapping
+from shapely.geometry import mapping, shape
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_FEATURES = 500
@@ -34,6 +34,17 @@ MAX_UNCOMPRESSED_BYTES = 20 * MAX_UPLOAD_BYTES
 csv.field_size_limit(MAX_UPLOAD_BYTES)
 
 _AREAL_TYPES = ("Polygon", "MultiPolygon")
+
+# RFC 7946 GeoJSON is always WGS84 lon/lat and has no ``crs`` member. The
+# obsolete 2008 spec allowed one; accept it only when it names WGS84, so a
+# projected file is refused instead of stored at the wrong place.
+_WGS84_CRS_NAMES = {
+    "urn:ogc:def:crs:OGC:1.3:CRS84",
+    "urn:ogc:def:crs:OGC::CRS84",
+    "urn:ogc:def:crs:EPSG::4326",
+    "EPSG:4326",
+    "OGC:CRS84",
+}
 
 # Reprojecting to WGS84 can land a coordinate a hair outside the valid range —
 # 180.0000001 for a file that was correct. This slack covers our own float drift
@@ -281,6 +292,122 @@ def parse_shapefile_zip(data: bytes) -> list[ParsedFeature]:
                 name=name,
                 geometry=json.dumps(mapping(geom)),
                 properties=properties or None,
+            )
+        )
+
+    if errors:
+        raise UploadValidationError(errors)
+    return features
+
+
+def _feature_name_key(properties: dict) -> Optional[str]:
+    """Return the one property key matching ``name`` case-insensitively."""
+    matches = [k for k in properties if k.strip().lower() == "name"]
+    if len(matches) > 1:
+        raise ValueError("duplicate property: name")
+    return matches[0] if matches else None
+
+
+def parse_geojson(data: bytes) -> list[ParsedFeature]:
+    """Parse a GeoJSON upload.
+
+    The file is a ``FeatureCollection`` or a single ``Feature`` in WGS84
+    lon/lat. Each feature needs a ``name`` property (case-insensitive) and a
+    ``Polygon`` or ``MultiPolygon`` geometry. Every other property goes into
+    the feature's properties unchanged. Row numbers in errors count features
+    from 1.
+    """
+    try:
+        document = json.loads(data.decode("utf-8-sig"))
+    except UnicodeDecodeError:
+        raise UploadValidationError(["file is not valid UTF-8"])
+    except json.JSONDecodeError as exc:
+        raise UploadValidationError([f"file is not valid JSON ({exc})"])
+
+    if not isinstance(document, dict):
+        raise UploadValidationError(
+            ["file must be a GeoJSON FeatureCollection or Feature"]
+        )
+
+    crs = document.get("crs")
+    if crs is not None:
+        crs_props = crs.get("properties") if isinstance(crs, dict) else None
+        crs_name = (
+            crs_props.get("name") if isinstance(crs_props, dict) else None
+        )
+        if crs_name not in _WGS84_CRS_NAMES:
+            raise UploadValidationError(
+                [
+                    f"unsupported crs {crs_name or json.dumps(crs)}; "
+                    "GeoJSON must be WGS84 lon/lat"
+                ]
+            )
+
+    if document.get("type") == "FeatureCollection":
+        raw_features = document.get("features")
+        if not isinstance(raw_features, list):
+            raise UploadValidationError(["features must be a list"])
+    elif document.get("type") == "Feature":
+        raw_features = [document]
+    else:
+        raise UploadValidationError(
+            ["file must be a GeoJSON FeatureCollection or Feature"]
+        )
+
+    if not raw_features:
+        raise UploadValidationError(["file has no features"])
+    if len(raw_features) > MAX_FEATURES:
+        raise UploadValidationError(
+            [f"too many features; the limit is {MAX_FEATURES}"]
+        )
+
+    features: list[ParsedFeature] = []
+    errors: list[str] = []
+    for index, raw in enumerate(raw_features, start=1):
+        if not isinstance(raw, dict) or raw.get("type") != "Feature":
+            errors.append(f"feature {index}: not a GeoJSON Feature")
+            continue
+        properties = raw.get("properties") or {}
+        if not isinstance(properties, dict):
+            errors.append(f"feature {index}: properties must be an object")
+            continue
+
+        try:
+            name_key = _feature_name_key(properties)
+        except ValueError as exc:
+            errors.append(f"feature {index}: {exc}")
+            continue
+        name_value = properties.get(name_key) if name_key else None
+        name = str(name_value).strip() if name_value is not None else ""
+        if not name:
+            errors.append(f"feature {index}: name is empty")
+
+        geom = None
+        raw_geometry = raw.get("geometry")
+        if raw_geometry is None:
+            errors.append(f"feature {index}: geometry is missing")
+        else:
+            try:
+                geom = shape(raw_geometry)
+            except Exception as exc:
+                # shapely raises a spread of types for malformed input
+                # (KeyError, IndexError, TypeError, GEOSException, ...).
+                errors.append(f"feature {index}: invalid geometry ({exc})")
+            else:
+                try:
+                    _check_geometry(geom)
+                except ValueError as exc:
+                    errors.append(f"feature {index}: {exc}")
+                    geom = None
+
+        if errors or geom is None:
+            continue
+        rest = {k: v for k, v in properties.items() if k != name_key}
+        features.append(
+            ParsedFeature(
+                name=name,
+                geometry=json.dumps(mapping(geom)),
+                properties=rest or None,
             )
         )
 
