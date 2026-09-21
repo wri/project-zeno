@@ -72,8 +72,9 @@ searchable field. `name` itself, the display string, is unchanged.
 | `idx_aoi_search_tokens_trgm` GIN trigram | typo correction |
 | `idx_aois_iso3`, `idx_aois_source` (existing) | facets |
 
-The composite-name trigram index is dropped once nothing reads it. No trigram
-index remains on `aois`.
+The composite-name trigram index and the ingest scripts' trigram indexes on
+the `geometries_*` staging tables are dropped by migration `9c4e1d7f2a60`. No
+trigram index remains on `aois`.
 
 ### The query, in tiers
 
@@ -194,6 +195,13 @@ planned for a later phase.
   corpus Postgres handles in milliseconds once modelled correctly.
 
 ## Operating notes
+
+- **Deploy order.** The migration adds the search columns empty, and the new
+  search reads only them. Run a full `build-aois` right after the migrate Job
+  of the deploy that ships this; until it finishes, name search returns
+  nothing while browse and id lookups keep working. The old trigram index is
+  dropped by a second migration in the same deploy, because nothing reads it
+  once the new code is live.
 
 - `build-aois` populates all search columns and tables and ends with the
   token rebuild and `ANALYZE`. The custom-area write-through keeps `aois` and

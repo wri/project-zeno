@@ -185,6 +185,13 @@ kubectl exec $(kubectl get pods --no-headers | grep zeno-api | awk '{print $1}' 
 
 **Notes:**
 - Requires `DATABASE_URL` in the pod environment.
+- Besides the rows themselves, the build fills the search columns of `aois`
+  (`leaf`, `leaf_norm`, `context`, `search_tsv`), rebuilds the name variants in
+  `aoi_names` per source, and rebuilds the typo-correction token table
+  `aoi_search_tokens` at the end. Search reads only those, so **after the deploy
+  that ships the search rewrite, run a full build right after the migrate Job**:
+  until it finishes, name search finds nothing (browse and id lookups still work).
+  See `docs/aoi-full-text-search.md`.
 - Each source commits independently, and reference sources commit per chunk, so a
   late failure never discards completed work — re-run to resume. The command prints
   which sources committed before a failure.
