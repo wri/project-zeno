@@ -47,8 +47,8 @@ async def test_planet_provider_builds_monthly_imagery():
             "integrated_alerts_planet_imagery/{z}/{x}/{y}.png?month=2025-06"
         ),
         "bounds": [-69.5, -1.0, -69.0, -0.5],
-        "min_zoom": 5,
-        "max_zoom": 15,
+        "min_zoom": 10,
+        "max_zoom": 18,
         "mosaic_id": "planet:2025-06",
         "start_date": "2025-06-01",
         "end_date": "2025-06-30",
