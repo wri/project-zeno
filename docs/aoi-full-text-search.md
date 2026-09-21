@@ -66,7 +66,7 @@ searchable field. `name` itself, the display string, is unchanged.
 
 | index | serves |
 |---|---|
-| `idx_aois_leaf_norm` btree, `text_pattern_ops`, partial on live rows | exact leaf match and `LIKE 'prefix%'` |
+| `idx_aois_leaf_norm` btree, `text_pattern_ops`, partial on live rows, INCLUDE (id, subtype, area_km2, name, source, source_id) | exact leaf match and `LIKE 'prefix%'`; the included columns are the ranking keys, so a prefix arm is an index-only scan |
 | `idx_aois_search_tsv` GIN, partial on live rows | token queries |
 | `idx_aoi_names_name_norm` btree, `text_pattern_ops` | exact and prefix over variants |
 | `idx_aoi_search_tokens_trgm` GIN trigram | typo correction |
@@ -121,13 +121,27 @@ and the previous search took 4.7 s and 2.2 s on the same queries.
 
 ### Autocomplete
 
-`GET /api/aois?name=<text>&mode=autocomplete` needs at least two characters,
-takes no offset and never falls back to fuzzy. A single token matches
-`leaf_norm LIKE 'prefix%'` and the same over `aoi_names`. Several tokens go to
-the tsvector with `:*` on the last one, so "bangalore ur" matches "Bangalore
-Urban". Results are ordered by exact-prefix on the leaf, hierarchy prior and
-area. Prefix lookups run in under 1 ms on rare prefixes and ~20 ms on a
-three-letter prefix that matches thousands of rows.
+`GET /api/aois?name=<text>&mode=autocomplete` completes a keystroke. It
+needs at least two characters, takes no offset (the next keystroke replaces
+the list) and never corrects a typo. Three arms, each ranked by the hierarchy
+prior first so the list leads with prominent places, then a primary-name
+prefix over a variant's, then area:
+
+- the normalized leaf starts with the typed text (index-only on the covering
+  index);
+- a stored name variant starts with it ("lisb" reaches Lisboa through
+  "Lisbon"); only variants, since primary names are the arm above;
+- the typed words as tokens with the last one as a prefix ("new y" reaches
+  New York), used only for several words or a single word of four or more
+  letters, because a two-letter prefix expands to thousands of lexemes.
+
+A typed parent ("paris, fr") filters every arm by its own prefix query.
+
+Measured on the corpus: three letters and up run in 15 to 130 ms ("ban" 33,
+"mumb" 30, "kaji" 13, "sao p" 105, "高知" 9, "محمية" 34). A two-letter prefix
+that matches twenty thousand names costs 90 to 570 ms on the Docker database
+("ko" 85, "un" 91, "ba" 567), almost all of it the sort over the index
+entries.
 
 ### What did not change
 

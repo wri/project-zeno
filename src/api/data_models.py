@@ -284,11 +284,20 @@ class AoiOrm(Base):
             postgresql_where=text("NOT is_deprecated"),
         ),
         # text_pattern_ops serves `=` and a LIKE 'prefix%' range under any
-        # collation: one btree for the exact tier and for autocomplete.
+        # collation: one btree for the exact tier and for autocomplete. The
+        # INCLUDE columns let a prefix arm rank from the index alone.
         Index(
             "idx_aois_leaf_norm",
             "leaf_norm",
             postgresql_ops={"leaf_norm": "text_pattern_ops"},
+            postgresql_include=[
+                "id",
+                "subtype",
+                "area_km2",
+                "name",
+                "source",
+                "source_id",
+            ],
             postgresql_where=text("NOT is_disputed AND NOT is_deprecated"),
         ),
         Index(

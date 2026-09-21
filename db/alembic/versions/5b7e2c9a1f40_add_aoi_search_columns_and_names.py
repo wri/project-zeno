@@ -32,6 +32,7 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 _LIVE = sa.text("NOT is_disputed AND NOT is_deprecated")
+_LEAF_INCLUDE = ["id", "subtype", "area_km2", "name", "source", "source_id"]
 
 
 def upgrade() -> None:
@@ -47,12 +48,16 @@ def upgrade() -> None:
         "aois", sa.Column("search_tsv", postgresql.TSVECTOR(), nullable=True)
     )
     # text_pattern_ops serves both `=` and a LIKE 'prefix%' range under any
-    # collation, so one btree covers the exact tier and autocomplete.
+    # collation, so one btree covers the exact tier and autocomplete. The
+    # INCLUDE columns are what the search orders and filters by, so a short
+    # prefix that matches tens of thousands of rows is ranked from the index
+    # alone (an index-only scan) instead of one heap fetch per row.
     op.create_index(
         "idx_aois_leaf_norm",
         "aois",
         ["leaf_norm"],
         postgresql_ops={"leaf_norm": "text_pattern_ops"},
+        postgresql_include=_LEAF_INCLUDE,
         postgresql_where=_LIVE,
     )
     op.create_index(

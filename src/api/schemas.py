@@ -328,6 +328,14 @@ class AOISearchResult(BaseModel):
             "is greater than `east` for an AOI that crosses the antimeridian."
         ),
     )
+    score: Optional[float] = Field(
+        default=None,
+        description=(
+            "Rank of the match in [0, 1] when searching by name: the match "
+            "tier, whether a typed parent matched, and how prominent the "
+            "place is. Absent in browse mode."
+        ),
+    )
 
 
 class DailyUsageModel(BaseModel):

@@ -1,7 +1,7 @@
 import json
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Literal, Optional, Union
 from uuid import UUID
 
 import pandas as pd
@@ -205,7 +205,7 @@ def parse_search_text(name: str) -> SearchText:
 _CONTEXT_HIT = "(q.cq IS NOT NULL AND a.search_tsv @@ q.cq) IS TRUE"
 _EXACT_LEAF = "(a.leaf_norm = :leaf_norm) IS TRUE"
 _ORDER_WITHIN_TIER = (
-    f"{_CONTEXT_HIT} DESC, {{prior}} DESC, {_EXACT_LEAF} DESC, "
+    f"{{context_hit}} DESC, {{prior}} DESC, {_EXACT_LEAF} DESC, "
     "a.area_km2 DESC NULLS LAST, a.name, a.source, a.source_id"
 )
 
@@ -216,9 +216,20 @@ _ORDER_WITHIN_TIER = (
 _NORMALIZE_LEAF_SQL = f"""
     SELECT n,
            replace(replace(replace(n, '\\', '\\\\'), '%', '\\%'), '_', '\\_')
-             || '%'
+             || '%',
+           (SELECT array_agg(lexeme ORDER BY positions[1])
+            FROM unnest(to_tsvector('{TS_CONFIG}', :leaf))),
+           (SELECT array_agg(lexeme ORDER BY positions[1])
+            FROM unnest(to_tsvector('{TS_CONFIG}', :context)))
     FROM (SELECT {norm_sql(":leaf")} AS n) s
 """
+
+SearchMode = Literal["search", "autocomplete"]
+
+# Autocomplete answers a keystroke, so it needs a couple of characters to
+# have anything to complete, and it pages nothing: the next keystroke
+# replaces the list.
+AUTOCOMPLETE_MIN_CHARS = 2
 
 
 def _custom_scope_sql(requested: set[str]) -> str:
@@ -240,7 +251,9 @@ def _custom_scope_sql(requested: set[str]) -> str:
     """
 
 
-def _search_sql(requested: set[str], *, corrected: bool) -> str:
+def _search_sql(
+    requested: set[str], *, corrected: bool, with_context: bool
+) -> str:
     """The tiered search statement. See docs/aoi-full-text-search.md.
 
     Tier 2 is an exact match on any stored name variant; tier 1 is a partial
@@ -251,7 +264,12 @@ def _search_sql(requested: set[str], *, corrected: bool) -> str:
     token arm runs: an exact or prefix match would already have been found.
     """
     prior = hierarchy_prior_sql("a.subtype")
-    order = _ORDER_WITHIN_TIER.format(prior=prior)
+    # Without a typed context the context-hit key is a constant, which keeps
+    # the exact and prefix arms free of any column outside the covering
+    # index (see idx_aois_leaf_norm).
+    # An expression, not a literal: Postgres rejects a constant in ORDER BY.
+    context_hit = _CONTEXT_HIT if with_context else "(1 = 0)"
+    order = _ORDER_WITHIN_TIER.format(prior=prior, context_hit=context_hit)
     filters = (
         "NOT a.is_disputed AND NOT a.is_deprecated "
         "AND a.source = ANY(:sources)" + _custom_scope_sql(requested)
@@ -301,14 +319,123 @@ def _search_sql(requested: set[str], *, corrected: bool) -> str:
             ) AS bbox,
             round(
                 ((b.tier / 2.0) * 0.55
-                 + ({_CONTEXT_HIT})::int * 0.2
+                 + ({context_hit})::int * 0.2
                  + {prior} * 0.25) * :scale, 4
             )::double precision AS similarity_score,
-            {_CONTEXT_HIT} AS context_hit
+            {context_hit} AS context_hit
         FROM best b
         JOIN aois a ON a.id = b.id, q
         ORDER BY b.tier DESC, {order}
         LIMIT :limit OFFSET :offset
+    """
+
+
+_LEAF_PREFIX_HIT = "(a.leaf_norm LIKE :leaf_prefix) IS TRUE"
+_ORDER_AUTOCOMPLETE = (
+    "{prior} DESC, " + _LEAF_PREFIX_HIT + " DESC, "
+    "a.area_km2 DESC NULLS LAST, a.name, a.source, a.source_id"
+)
+
+
+def _prefix_tsquery(lexemes: Optional[list[str]]) -> Optional[str]:
+    """A tsquery string that ANDs *lexemes*, the last one as a prefix.
+
+    "bangalore ur" becomes ``'bangalore' & 'ur':*``, which is how a partly
+    typed last word completes. None when there are no lexemes.
+    """
+    if not lexemes:
+        return None
+    quoted = [_tsquery_lexeme(lexeme) for lexeme in lexemes]
+    quoted[-1] += ":*"
+    return " & ".join(quoted)
+
+
+# The token arm expands the last typed word to every stored lexeme with that
+# prefix. Two or three letters expand to thousands of lexemes and take
+# seconds, and add nothing the leaf-prefix arms do not already find for a
+# single word. So a lone word gets the token arm only once it is this long
+# ("york" reaches New York); several words always get it ("new y").
+_AUTOCOMPLETE_TOKEN_MIN_CHARS = 4
+
+
+def _autocomplete_token_query(lexemes: Optional[list[str]]) -> str:
+    if not lexemes:
+        return ""
+    if len(lexemes) == 1 and len(lexemes[0]) < _AUTOCOMPLETE_TOKEN_MIN_CHARS:
+        return ""
+    return _prefix_tsquery(lexemes) or ""
+
+
+def _autocomplete_sql(
+    requested: set[str], *, with_tokens: bool, with_context: bool
+) -> str:
+    """The typeahead statement: what the typed text is the start of.
+
+    Tier 2 is a prefix of the leaf or of any stored name variant; tier 1,
+    when *with_tokens*, is the typed words as tokens with the last one as a
+    prefix, so "bangalore ur" completes to Bangalore Urban. A typed parent
+    ("Paris, Fr") filters every arm by its own prefix query. Ordered by the
+    hierarchy prior first, since a keystroke list should lead with the
+    prominent places, then a primary-name prefix over a variant's. No typo
+    correction: the next keystroke is the correction.
+    """
+    prior = hierarchy_prior_sql("a.subtype")
+    order = _ORDER_AUTOCOMPLETE.format(prior=prior)
+    # The context filter is emitted only when a parent was typed: the prefix
+    # arms otherwise touch no column outside the covering index, so a short
+    # prefix that matches tens of thousands of rows is sorted from the index
+    # alone, without a heap fetch per row.
+    context_filter = "a.search_tsv @@ q.cq AND " if with_context else ""
+    filters = (
+        f"{context_filter}"
+        "NOT a.is_disputed AND NOT a.is_deprecated "
+        "AND a.source = ANY(:sources)" + _custom_scope_sql(requested)
+    )
+
+    def arm(tier: int, match: str, join: str = "") -> str:
+        return (
+            f"(SELECT a.id, {tier} AS tier FROM aois a {join}, q "
+            f"WHERE {match} AND {filters} ORDER BY {order} LIMIT :k)"
+        )
+
+    arms = [
+        arm(2, "a.leaf_norm LIKE :leaf_prefix"),
+        # Primary names are the leaf arm above; only the variants are new.
+        arm(
+            2,
+            "n.kind <> 'primary' AND n.name_norm LIKE :leaf_prefix",
+            "JOIN aoi_names n ON n.aoi_id = a.id",
+        ),
+    ]
+    if with_tokens:
+        arms.append(arm(1, "a.search_tsv @@ q.lq"))
+    return f"""
+        WITH q AS (
+            SELECT
+                CASE WHEN :leaf_query <> ''
+                     THEN to_tsquery('{TS_CONFIG}', :leaf_query)
+                END AS lq,
+                CASE WHEN :context_query <> ''
+                     THEN to_tsquery('{TS_CONFIG}', :context_query)
+                END AS cq
+        ),
+        cand AS ({" UNION ALL ".join(arms)}),
+        best AS (SELECT id, max(tier) AS tier FROM cand GROUP BY id)
+        SELECT
+            a.source_id AS src_id,
+            a.name,
+            a.subtype,
+            a.source,
+            COALESCE(
+                a.bbox, ARRAY[-180, -90, 180, 90]::double precision[]
+            ) AS bbox,
+            round(
+                (b.tier / 2.0) * 0.5 + {prior} * 0.5, 4
+            )::double precision AS similarity_score
+        FROM best b
+        JOIN aois a ON a.id = b.id, q
+        ORDER BY b.tier DESC, {order}
+        LIMIT :limit
     """
 
 
@@ -394,6 +521,7 @@ async def search_aois(
     user_id: Optional[str],
     limit: int = 50,
     offset: int = 0,
+    mode: SearchMode = "search",
 ) -> pd.DataFrame:
     """Search AOIs across sources by name and/or source type.
 
@@ -412,6 +540,11 @@ async def search_aois(
             among the searched sources.
         limit: Maximum number of rows to return.
         offset: Number of rows to skip (offset pagination).
+        mode: ``search`` resolves a name; ``autocomplete`` completes what
+            has been typed so far (a prefix of a name, or the typed words
+            with the last one as a prefix), needs at least
+            ``AUTOCOMPLETE_MIN_CHARS`` characters, takes no offset and never
+            corrects a typo.
 
     Returns:
         DataFrame with columns ``src_id, name, subtype, source, bbox`` (plus
@@ -421,8 +554,9 @@ async def search_aois(
         AOIs are excluded, and a custom area appears only for its owner.
 
     Raises:
-        ValueError: For an invalid source, or for a missing ``user_id`` when
-            ``custom`` is searched.
+        ValueError: For an invalid source, for a missing ``user_id`` when
+            ``custom`` is searched, or for an autocomplete with too short a
+            name or a non-zero offset.
     """
     if sources:
         requested = {normalize_aoi_source(s) for s in sources}
@@ -441,6 +575,14 @@ async def search_aois(
         params["user_id"] = user_id
 
     parsed = parse_search_text(name or "")
+    if mode == "autocomplete":
+        if len(parsed.leaf) < AUTOCOMPLETE_MIN_CHARS:
+            raise ValueError(
+                f"autocomplete needs at least {AUTOCOMPLETE_MIN_CHARS} "
+                "characters"
+            )
+        if offset:
+            raise ValueError("autocomplete does not page")
     if not parsed.leaf:
         sql_query = _BROWSE_SQL.format(
             custom_scope=_custom_scope_sql(requested)
@@ -464,17 +606,43 @@ async def search_aois(
     async with get_connection_from_pool() as conn:
         normalized = (
             await conn.execute(
-                text(_NORMALIZE_LEAF_SQL), {"leaf": parsed.leaf}
+                text(_NORMALIZE_LEAF_SQL),
+                {"leaf": parsed.leaf, "context": parsed.context},
             )
         ).one()
-        params["leaf_norm"], params["leaf_prefix"] = normalized
+        (
+            params["leaf_norm"],
+            params["leaf_prefix"],
+            leaf_lexemes,
+            context_lexemes,
+        ) = normalized
 
         def _read(sync_conn, sql_query):
             return pd.read_sql(text(sql_query), sync_conn, params=params)
 
+        if mode == "autocomplete":
+            params["leaf_query"] = _autocomplete_token_query(leaf_lexemes)
+            params["context_query"] = _prefix_tsquery(context_lexemes) or ""
+            try:
+                return await conn.run_sync(
+                    _read,
+                    _autocomplete_sql(
+                        requested,
+                        with_tokens=bool(params["leaf_query"]),
+                        with_context=bool(params["context_query"]),
+                    ),
+                )
+            finally:
+                await conn.rollback()
+
         try:
             result = await conn.run_sync(
-                _read, _search_sql(requested, corrected=False)
+                _read,
+                _search_sql(
+                    requested,
+                    corrected=False,
+                    with_context=bool(parsed.context),
+                ),
             )
             if _satisfies(result, parsed):
                 return result.drop(columns=["context_hit"])
@@ -487,7 +655,12 @@ async def search_aois(
             params["leaf_query"] = leaf_query
             params["scale"] = _CORRECTED_SCORE_SCALE
             corrected = await conn.run_sync(
-                _read, _search_sql(requested, corrected=True)
+                _read,
+                _search_sql(
+                    requested,
+                    corrected=True,
+                    with_context=bool(parsed.context),
+                ),
             )
             chosen = corrected if _satisfies(corrected, parsed) else result
             return chosen.drop(columns=["context_hit"])

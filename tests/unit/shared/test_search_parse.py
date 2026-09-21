@@ -32,3 +32,12 @@ def test_a_hyphen_inside_a_name_is_kept():
     assert parse_search_text("Resex Catua-Ipixuna") == SearchText(
         "Resex Catua-Ipixuna", ""
     )
+
+
+def test_prefix_tsquery_marks_the_last_lexeme_as_a_prefix():
+    from src.shared.geocoding_helpers import _prefix_tsquery
+
+    assert _prefix_tsquery(["bangalore", "ur"]) == "'bangalore' & 'ur':*"
+    assert _prefix_tsquery(["d'ivoire"]) == "'d''ivoire':*"
+    assert _prefix_tsquery([]) is None
+    assert _prefix_tsquery(None) is None

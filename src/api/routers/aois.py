@@ -5,13 +5,17 @@ custom) by name and/or source type, reusing the same pg_trgm search core as the
 agent's ``pick_aoi`` geocoder.
 """
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from src.api.auth.dependencies import require_auth
 from src.api.schemas import AOISearchResult, UserModel
-from src.shared.geocoding_helpers import normalize_aoi_source, search_aois
+from src.shared.geocoding_helpers import (
+    AUTOCOMPLETE_MIN_CHARS,
+    normalize_aoi_source,
+    search_aois,
+)
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -34,12 +38,24 @@ async def search_aois_endpoint(
     ),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    mode: Literal["search", "autocomplete"] = Query(
+        default="search",
+        description=(
+            "search resolves a place name; autocomplete completes what has "
+            "been typed so far (at least 2 characters, no offset)."
+        ),
+    ),
     user: UserModel = Depends(require_auth),
 ):
     """Search/browse AOIs by name and source type.
 
-    - Provide ``name`` for fuzzy, similarity-ranked search. Results are then
-      ordered by similarity, and then by name, source and source ID.
+    - Provide ``name`` to search. ``mode=search`` (the default) resolves a
+      place name, "Place" or "Place, Parent": exact names and name variants
+      first, then partial matches, with a typo correction when nothing
+      matches as typed. ``mode=autocomplete`` completes a keystroke: names
+      that start with the typed text, or the typed words with the last one
+      as a prefix. Both rank prominent places (countries, then states, then
+      districts) first and return the rank as ``score``.
     - Omit ``name`` to browse AOIs alphabetically within the selected
       source(s). A browse orders by name, source and source ID.
     - ``source`` may be repeated to search several sources at once; omitting
@@ -58,6 +74,20 @@ async def search_aois_endpoint(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
+    if mode == "autocomplete":
+        if len((name or "").strip()) < AUTOCOMPLETE_MIN_CHARS:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "autocomplete needs a name of at least "
+                    f"{AUTOCOMPLETE_MIN_CHARS} characters"
+                ),
+            )
+        if offset:
+            raise HTTPException(
+                status_code=422, detail="autocomplete does not accept offset"
+            )
+
     try:
         # Fetch one extra row to determine whether more pages exist.
         df = await search_aois(
@@ -66,6 +96,7 @@ async def search_aois_endpoint(
             user_id=user.id,
             limit=limit + 1,
             offset=offset,
+            mode=mode,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -76,4 +107,7 @@ async def search_aois_endpoint(
         rows = rows[:limit]
         response.headers["X-Next-Offset"] = str(offset + limit)
 
-    return [AOISearchResult(**row) for row in rows]
+    return [
+        AOISearchResult(**row, score=row.get("similarity_score"))
+        for row in rows
+    ]

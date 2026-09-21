@@ -334,3 +334,106 @@ async def test_a_native_script_name_is_searchable(auth_override, client):
     res = await client.get("/api/aois?name=高知県", headers=AUTH)
     assert res.status_code == 200, res.text
     assert [r["src_id"] for r in res.json()] == ["JPN.20_1"]
+
+
+async def _autocomplete(client, text_, **params):
+    query = "&".join(
+        [f"name={text_}", "mode=autocomplete"]
+        + [f"{k}={v}" for k, v in params.items()]
+    )
+    return await client.get(f"/api/aois?{query}", headers=AUTH)
+
+
+@pytest.mark.asyncio
+async def test_autocomplete_completes_a_leaf_prefix_prominent_first(
+    auth_override, client
+):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi("gadm", "BGD", "Bangladesh", "country")
+    await _seed_reference_aoi(
+        "gadm", "IND.16.3_1", "Bangalore, Karnataka, India", "district-county"
+    )
+    await _seed_reference_aoi(
+        "gadm", "THA.1_1", "Bangkok, Thailand", "state-province"
+    )
+    await _seed_reference_aoi("gadm", "ESP", "Spain", "country")
+
+    res = await _autocomplete(client, "ban")
+    assert res.status_code == 200, res.text
+    rows = res.json()
+    # Country, then state, then district: prominence orders the list.
+    assert [r["src_id"] for r in rows] == ["BGD", "THA.1_1", "IND.16.3_1"]
+    assert all(0 < r["score"] <= 1 for r in rows)
+
+
+@pytest.mark.asyncio
+async def test_autocomplete_completes_a_variant_and_the_last_word(
+    auth_override, client
+):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm",
+        "PRT.12_1",
+        "Lisboa, Portugal",
+        "state-province",
+        variants=["Lisbon"],
+    )
+    await _seed_reference_aoi(
+        "gadm",
+        "IND.16.2_1",
+        "Bangalore Urban, Karnataka, India",
+        "district-county",
+    )
+    await _seed_reference_aoi(
+        "gadm",
+        "IND.16.3_1",
+        "Bangalore Rural, Karnataka, India",
+        "district-county",
+    )
+
+    res = await _autocomplete(client, "lisb")
+    assert [r["src_id"] for r in res.json()] == ["PRT.12_1"]
+
+    res = await _autocomplete(client, "bangalore ur")
+    assert [r["src_id"] for r in res.json()] == ["IND.16.2_1"]
+
+
+@pytest.mark.asyncio
+async def test_autocomplete_filters_by_a_typed_parent(auth_override, client):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm", "FRA.8.3_1", "Paris, Île-de-France, France", "district-county"
+    )
+    await _seed_reference_aoi(
+        "gadm",
+        "USA.44.2_1",
+        "Paris, Lamar, Texas, United States",
+        "municipality",
+    )
+
+    res = await _autocomplete(client, "par, fr")
+    assert [r["src_id"] for r in res.json()] == ["FRA.8.3_1"]
+
+
+@pytest.mark.asyncio
+async def test_autocomplete_rejects_short_input_and_offset(
+    auth_override, client
+):
+    auth_override("test-user-wri")
+    assert (await _autocomplete(client, "b")).status_code == 422
+    assert (await _autocomplete(client, "ban", offset=2)).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_autocomplete_keeps_custom_areas_owner_scoped(
+    auth_override, client, user_ds
+):
+    auth_override("test-user-wri")
+    await _create_area(client, "Banana Farm")
+
+    res = await _autocomplete(client, "ban")
+    assert [r["name"] for r in res.json()] == ["Banana Farm"]
+
+    auth_override("test-user-ds")
+    res = await _autocomplete(client, "ban")
+    assert res.json() == []
