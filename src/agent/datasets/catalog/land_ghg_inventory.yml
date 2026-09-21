@@ -6,7 +6,19 @@ context_layers: null
 curated_only: true
 parameters: null
 variables: null
-tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=lgms&flux_type=net"
+layers:
+  - name: lgms
+    tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=lgms&flux_type=net"
+  - name: lulucf
+    tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=lulucf&flux_type=net"
+  - name: agriculture
+    tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=agriculture&flux_type=gross_emissions"
+  - name: cropland
+    tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=cropland&flux_type=gross_emissions"
+  - name: livestock
+    tile_url: "https://tiles.globalforestwatch.org/wri_land_ghg_monitoring_system/v1.0.3/dynamic/{z}/{x}/{y}.png?layer=livestock&flux_type=gross_emissions"
+tile_url: ""
+license: CC by 4.0
 geographic_coverage: GADM administrative areas (country, state/province, district) only
 resolution: Reported per administrative area
 update_frequency: Annual

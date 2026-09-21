@@ -74,6 +74,36 @@ def test_dashboard_session_line_without_name_or_id():
     assert "(id not reported)" in format_session_block(bare)
 
 
+MULTI_LAYER_DATASET = {
+    "dataset_name": "Land cover",
+    "dataset_id": "land-cover",
+    "layers": [
+        {"name": "Tree cover"},
+        {"name": "Cropland"},
+    ],
+}
+
+
+def test_multi_layer_dataset_narrates_explicit_selected_layer():
+    state = {
+        "dataset": {
+            **MULTI_LAYER_DATASET,
+            "selected_layer": "Cropland",
+        }
+    }
+    block = format_session_block(state)
+    assert "Dataset: Land cover" in block
+    assert "(map layer: Cropland)" in block
+    assert "(map layer: Tree cover)" not in block
+
+
+def test_multi_layer_dataset_falls_back_to_first_layer():
+    state = {"dataset": MULTI_LAYER_DATASET}
+    block = format_session_block(state)
+    assert "Dataset: Land cover" in block
+    assert "(map layer: Tree cover)" in block
+
+
 def test_unregistered_page_falls_back_to_generic_breadcrumb():
     state = {
         "view_context": {

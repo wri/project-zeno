@@ -891,10 +891,21 @@ async def test_valid_selected_layer_survives_end_to_end():
 
     dataset = command.update.get("dataset", {})
     assert dataset.get("selected_layer") == "agriculture"
+    # Every sibling survives unchanged, in catalog order.
     assert [layer["name"] for layer in dataset["layers"]] == [
+        "lgms",
         "lulucf",
         "agriculture",
+        "cropland",
+        "livestock",
     ]
+
+    tool_message = command.update["messages"][0]
+    assert (
+        "Map layers available: lgms, lulucf, agriculture, cropland, "
+        "livestock" in tool_message.content
+    )
+    assert "Map layer displayed: agriculture" in tool_message.content
 
 
 async def test_selected_layer_none_for_single_layer_dataset():
