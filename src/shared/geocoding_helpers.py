@@ -1,4 +1,6 @@
 import json
+import re
+from dataclasses import dataclass
 from typing import Any, Dict, Optional, Union
 from uuid import UUID
 
@@ -6,6 +8,7 @@ import pandas as pd
 from sqlalchemy import select, text
 
 from src.api.data_models import CustomAreaOrm
+from src.shared.aoi_search_sql import TS_CONFIG, norm_sql
 from src.shared.database import (
     get_connection_from_pool,
     get_session_from_pool,
@@ -121,6 +124,270 @@ def normalize_aoi_source(source: str) -> str:
 WORLD_BBOX = [-180.0, -90.0, 180.0, 90.0]
 
 
+# Preference by subtype: broader admin units beat narrower ones, and admin
+# units beat named sites (KBA/WDPA/Landmark), so a bare "Lisbon" resolves to
+# the Portuguese district rather than a small "Lisbon Forest Preserve". Search
+# ranks with it in SQL and the geocoder's scorer re-uses it in Python. The
+# weights are tuning constants, hand-authored.
+HIERARCHY_SCORES: dict[str, float] = {
+    "country": 1.0,
+    "state-province": 0.9,
+    "district-county": 0.7,
+    "custom-area": 0.7,
+    "municipality": 0.5,
+    "locality": 0.35,
+    "neighbourhood": 0.25,
+    "key-biodiversity-area": 0.2,
+    "protected-area": 0.2,
+    "indigenous-and-community-land": 0.2,
+}
+
+# A subtype missing from the map would rank as 0 in SQL and raise in the
+# scorer, so pin the coverage at import time.
+assert set(HIERARCHY_SCORES) == set(SUBREGION_TO_SUBTYPE_MAPPING.values())
+
+
+def hierarchy_prior_sql(subtype_expr: str) -> str:
+    """``HIERARCHY_SCORES`` as a SQL CASE over *subtype_expr*, in [0, 1]."""
+    arms = " ".join(
+        f"WHEN '{subtype}' THEN {score}"
+        for subtype, score in HIERARCHY_SCORES.items()
+    )
+    return f"(CASE {subtype_expr} {arms} ELSE 0.0 END)"
+
+
+# An `aoi_choice` nudge option is resubmitted verbatim as the next question:
+# "Paris, Île-de-France, France - (district-county) [FRA]". The trailing
+# decoration is not part of any name.
+_NUDGE_DECORATION_RE = re.compile(r"\s+-\s+\([^)]*\)\s*\[[A-Za-z]{3}\]\s*$")
+
+
+@dataclass(frozen=True)
+class SearchText:
+    """A search string split the way the stored names are: leaf, then context.
+
+    ``leaf`` is the place's own name and ``context`` the parents that follow
+    it, joined by spaces; ``context`` is empty when the string has one
+    segment. Both are raw text: the SQL normalizes them with the same
+    functions that normalized the stored names.
+    """
+
+    leaf: str
+    context: str
+
+
+def parse_search_text(name: str) -> SearchText:
+    """Split *name* on commas into a leaf and its context.
+
+    The geocoder and the nudge both send "Place, Parent" strings, and the
+    stored names are comma-joined most-specific-first, so the first segment
+    is the place and the rest is where it is. A segment of only whitespace
+    is dropped.
+    """
+    stripped = _NUDGE_DECORATION_RE.sub("", name.strip())
+    segments = [s.strip() for s in stripped.split(",")]
+    segments = [s for s in segments if s]
+    if not segments:
+        return SearchText("", "")
+    return SearchText(segments[0], " ".join(segments[1:]))
+
+
+# The order within a tier: a context hit first (the query named the parent
+# and this row has it), then the hierarchy prior, then a match on the
+# primary name over one on a variant ("Lisbon" is Lisboa before a US
+# preserve called Lisbon, because the prior outranks the primary-name key),
+# the larger area, and a stable name/id tie-break. Booleans are compared IS
+# TRUE so a NULL leaf or context sorts as false rather than first. Every
+# candidate arm sorts by the same keys, which is what makes a per-arm LIMIT
+# exact: a row in the final top-N with best tier t sits within the top-N of
+# arm t, because every row above it in that arm also ranks above it in the
+# result.
+_CONTEXT_HIT = "(q.cq IS NOT NULL AND a.search_tsv @@ q.cq) IS TRUE"
+_EXACT_LEAF = "(a.leaf_norm = :leaf_norm) IS TRUE"
+_ORDER_WITHIN_TIER = (
+    f"{_CONTEXT_HIT} DESC, {{prior}} DESC, {_EXACT_LEAF} DESC, "
+    "a.area_km2 DESC NULLS LAST, a.name, a.source, a.source_id"
+)
+
+# The normalized leaf and its LIKE prefix are bound as constants, computed by
+# this statement first: a LIKE whose pattern is a column cannot become an
+# index range, and the same normalization must apply to the query as to the
+# stored names. The prefix escapes LIKE's wildcards.
+_NORMALIZE_LEAF_SQL = f"""
+    SELECT n,
+           replace(replace(replace(n, '\\', '\\\\'), '%', '\\%'), '_', '\\_')
+             || '%'
+    FROM (SELECT {norm_sql(":leaf")} AS n) s
+"""
+
+
+def _custom_scope_sql(requested: set[str]) -> str:
+    """Owner-scope custom areas through ``user_aois``, the permission model.
+
+    ``aois.created_by`` records provenance and is not consulted. The clause
+    is omitted when the caller does not ask for custom areas, because the
+    source filter already excludes them.
+    """
+    if "custom" not in requested:
+        return ""
+    return """
+        AND (a.source <> 'custom' OR EXISTS (
+            SELECT 1 FROM user_aois ua
+            WHERE ua.aoi_id = a.id
+              AND ua.user_id = :user_id
+              AND ua.relationship = 'owner'
+        ))
+    """
+
+
+def _search_sql(requested: set[str], *, corrected: bool) -> str:
+    """The tiered search statement. See docs/aoi-full-text-search.md.
+
+    Tier 2 is an exact match on any stored name variant; tier 1 is a partial
+    match, the leaf tokens anywhere in the name or the leaf as a prefix. A
+    row keeps its best tier, and within a tier a row whose context also
+    matches the query's context comes first. With *corrected* the leaf
+    tokens come from the typo correction as a prepared tsquery and only the
+    token arm runs: an exact or prefix match would already have been found.
+    """
+    prior = hierarchy_prior_sql("a.subtype")
+    order = _ORDER_WITHIN_TIER.format(prior=prior)
+    filters = (
+        "NOT a.is_disputed AND NOT a.is_deprecated "
+        "AND a.source = ANY(:sources)" + _custom_scope_sql(requested)
+    )
+    leaf_query = (
+        f"to_tsquery('{TS_CONFIG}', :leaf_query)"
+        if corrected
+        else f"plainto_tsquery('{TS_CONFIG}', :leaf)"
+    )
+
+    def arm(tier: int, match: str, join: str = "") -> str:
+        return (
+            f"(SELECT a.id, {tier} AS tier FROM aois a {join}, q "
+            f"WHERE {match} AND {filters} ORDER BY {order} LIMIT :k)"
+        )
+
+    arms = []
+    if not corrected:
+        arms.append(
+            arm(
+                2,
+                "n.name_norm = :leaf_norm",
+                "JOIN aoi_names n ON n.aoi_id = a.id",
+            )
+        )
+    arms.append(arm(1, "a.search_tsv @@ q.lq"))
+    if not corrected:
+        arms.append(arm(1, "a.leaf_norm LIKE :leaf_prefix"))
+
+    return f"""
+        WITH q AS (
+            SELECT
+                {leaf_query} AS lq,
+                CASE WHEN :context <> ''
+                     THEN plainto_tsquery('{TS_CONFIG}', :context)
+                END AS cq
+        ),
+        cand AS ({" UNION ALL ".join(arms)}),
+        best AS (SELECT id, max(tier) AS tier FROM cand GROUP BY id)
+        SELECT
+            a.source_id AS src_id,
+            a.name,
+            a.subtype,
+            a.source,
+            COALESCE(
+                a.bbox, ARRAY[-180, -90, 180, 90]::double precision[]
+            ) AS bbox,
+            round(
+                ((b.tier / 2.0) * 0.55
+                 + ({_CONTEXT_HIT})::int * 0.2
+                 + {prior} * 0.25) * :scale, 4
+            )::double precision AS similarity_score,
+            {_CONTEXT_HIT} AS context_hit
+        FROM best b
+        JOIN aois a ON a.id = b.id, q
+        ORDER BY b.tier DESC, {order}
+        LIMIT :limit OFFSET :offset
+    """
+
+
+_BROWSE_SQL = """
+    SELECT
+        a.source_id AS src_id,
+        a.name,
+        a.subtype,
+        a.source,
+        COALESCE(
+            a.bbox, ARRAY[-180, -90, 180, 90]::double precision[]
+        ) AS bbox
+    FROM aois a
+    WHERE NOT a.is_disputed
+      AND NOT a.is_deprecated
+      AND a.source = ANY(:sources)
+      {custom_scope}
+    ORDER BY a.name, a.source, a.source_id
+    LIMIT :limit OFFSET :offset
+"""
+
+# Typo correction. A query token that no stored name contains is replaced by
+# the stored tokens nearest to it by trigram similarity, most frequent first
+# among equals. The GIN trigram index on the token table serves `%`; the
+# threshold is set for the transaction only.
+_LEAF_TOKENS_SQL = f"""
+    SELECT DISTINCT lexeme FROM unnest(to_tsvector('{TS_CONFIG}', :leaf))
+"""
+_TOKEN_CORRECTIONS_SQL = """
+    SELECT token FROM aoi_search_tokens
+    WHERE token % :tok
+    ORDER BY similarity(token, :tok) DESC, ndoc DESC, token
+    LIMIT 3
+"""
+_CORRECTION_THRESHOLD_SQL = "SET LOCAL pg_trgm.similarity_threshold = 0.3"
+# A corrected result ranks below what an uncorrected query would have found.
+_CORRECTED_SCORE_SCALE = 0.6
+
+
+def _tsquery_lexeme(token: str) -> str:
+    return "'" + token.replace("\\", "\\\\").replace("'", "''") + "'"
+
+
+async def _corrected_leaf_query(conn, leaf: str) -> Optional[str]:
+    """A tsquery over the nearest stored tokens for each token of *leaf*.
+
+    Returns None when *leaf* has no tokens or when some token has no stored
+    token near it: the query ANDs the groups, so one empty group can match
+    nothing.
+    """
+    rows = await conn.execute(text(_LEAF_TOKENS_SQL), {"leaf": leaf})
+    tokens = [row[0] for row in rows]
+    if not tokens:
+        return None
+    await conn.execute(text(_CORRECTION_THRESHOLD_SQL))
+    groups = []
+    for token in tokens:
+        rows = await conn.execute(text(_TOKEN_CORRECTIONS_SQL), {"tok": token})
+        nearest = [row[0] for row in rows]
+        if not nearest:
+            return None
+        groups.append("(" + " | ".join(map(_tsquery_lexeme, nearest)) + ")")
+    return " & ".join(groups)
+
+
+def _satisfies(result: pd.DataFrame, parsed: SearchText) -> bool:
+    """Whether *result* answers the query as typed.
+
+    An empty frame does not. Neither does one where the query named a parent
+    and no row has it: "Lisbon, Portugal" must not stop at the US preserves
+    called Lisbon when a correction would reach Lisboa.
+    """
+    if result.empty:
+        return False
+    if parsed.context and not result["context_hit"].any():
+        return False
+    return True
+
+
 async def search_aois(
     name: Optional[str],
     sources: Optional[list[str]],
@@ -132,11 +399,12 @@ async def search_aois(
 
     This is the shared search core reused by both the agent's ``pick_aoi``
     geocoder (via :func:`query_aoi_database`) and the ``GET /api/aois``
-    endpoint.
+    endpoint. docs/aoi-full-text-search.md describes the tiers.
 
     Args:
-        name: Fuzzy name to search for. When empty/None the query runs in
-            *browse* mode: no name filter, ordered alphabetically.
+        name: Text to search for, "Place" or "Place, Parent". When
+            empty/None the query runs in *browse* mode: no name filter,
+            ordered alphabetically.
         sources: Subset of canonical source keys (gadm/kba/wdpa/landmark/custom)
             to search; ``None`` searches every source. Aliases such as
             ``protectedareas`` are accepted and normalized.
@@ -147,7 +415,9 @@ async def search_aois(
 
     Returns:
         DataFrame with columns ``src_id, name, subtype, source, bbox`` (plus
-        ``similarity_score`` when searching by name). Disputed and deprecated
+        ``similarity_score`` in [0, 1] when searching by name: the match
+        tier, whether the query's parent matched, and the hierarchy prior,
+        scaled down for a typo-corrected match). Disputed and deprecated
         AOIs are excluded, and a custom area appears only for its owner.
 
     Raises:
@@ -162,85 +432,69 @@ async def search_aois(
     if "custom" in requested and not user_id:
         raise ValueError("user_id required for custom areas")
 
-    has_name = bool(name and name.strip())
-
-    name_filter = "AND name % :name" if has_name else ""
-
-    # Custom areas stay owner-scoped. The semi-join uses user_aois, which is the
-    # permission model. It does not use aois.created_by, which records
-    # provenance and does not change. The clause is omitted when the caller does
-    # not ask for custom areas, because the source filter already excludes them.
-    custom_scope = (
-        """
-        AND (source <> 'custom' OR EXISTS (
-            SELECT 1 FROM user_aois ua
-            WHERE ua.aoi_id = aois.id
-              AND ua.user_id = :user_id
-              AND ua.relationship = 'owner'
-        ))
-        """
-        if "custom" in requested
-        else ""
-    )
-
-    similarity_select = (
-        ", similarity(LOWER(name), LOWER(:name)) AS similarity_score"
-        if has_name
-        else ""
-    )
-    similarity_order = "similarity_score DESC, " if has_name else ""
-
-    # `NOT is_disputed` replaces the per-source GADM ISO3-prefix regex. Only GADM
-    # rows carry the flag, so the row set does not change. The query names both
-    # flags so that the planner can use the partial trigram index for search and
-    # the partial btree index for browse.
-    #
-    # `bbox` is computed at build time, so the antimeridian CASE does not run per
-    # row. COALESCE replaces a null array with the world bbox, because a null
-    # fails response validation.
-    sql_query = f"""
-        SELECT
-            source_id AS src_id,
-            name,
-            subtype,
-            source,
-            COALESCE(
-                bbox, ARRAY[-180, -90, 180, 90]::double precision[]
-            ) AS bbox
-            {similarity_select}
-        FROM aois
-        WHERE NOT is_disputed
-          AND NOT is_deprecated
-          AND source = ANY(:sources)
-          {custom_scope}
-          {name_filter}
-        ORDER BY {similarity_order}name, source, source_id
-        LIMIT :limit OFFSET :offset
-    """
-
     params: Dict[str, Any] = {
         "sources": sorted(requested),
         "limit": limit,
         "offset": offset,
     }
-    if has_name:
-        params["name"] = name
     if "custom" in requested:
         params["user_id"] = user_id
 
-    async with get_connection_from_pool() as conn:
-        # pg_trgm provides both `%` and similarity(). The threshold is a
-        # session setting, so it must be set on this pooled connection before
-        # the search runs. The CREATE EXTENSION is redundant: the migration
-        # creates the extension, and so does the test fixture.
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
-        await conn.execute(text("SET pg_trgm.similarity_threshold = 0.2;"))
-        await conn.commit()
+    parsed = parse_search_text(name or "")
+    if not parsed.leaf:
+        sql_query = _BROWSE_SQL.format(
+            custom_scope=_custom_scope_sql(requested)
+        )
+        async with get_connection_from_pool() as conn:
+            return await conn.run_sync(
+                lambda sync_conn: pd.read_sql(
+                    text(sql_query), sync_conn, params=params
+                )
+            )
 
-        def _read(sync_conn):
+    params.update(
+        {
+            "leaf": parsed.leaf,
+            "context": parsed.context,
+            "k": limit + offset,
+            "scale": 1.0,
+        }
+    )
+
+    async with get_connection_from_pool() as conn:
+        normalized = (
+            await conn.execute(
+                text(_NORMALIZE_LEAF_SQL), {"leaf": parsed.leaf}
+            )
+        ).one()
+        params["leaf_norm"], params["leaf_prefix"] = normalized
+
+        def _read(sync_conn, sql_query):
             return pd.read_sql(text(sql_query), sync_conn, params=params)
 
-        return await conn.run_sync(_read)
+        try:
+            result = await conn.run_sync(
+                _read, _search_sql(requested, corrected=False)
+            )
+            if _satisfies(result, parsed):
+                return result.drop(columns=["context_hit"])
+
+            # Nothing usable as typed: correct the leaf tokens against the
+            # stored ones and search again. Two round trips only on a miss.
+            leaf_query = await _corrected_leaf_query(conn, parsed.leaf)
+            if leaf_query is None:
+                return result.drop(columns=["context_hit"])
+            params["leaf_query"] = leaf_query
+            params["scale"] = _CORRECTED_SCORE_SCALE
+            corrected = await conn.run_sync(
+                _read, _search_sql(requested, corrected=True)
+            )
+            chosen = corrected if _satisfies(corrected, parsed) else result
+            return chosen.drop(columns=["context_hit"])
+        finally:
+            # Read-only, and the correction's threshold was SET LOCAL: end
+            # the transaction so the pooled connection carries nothing over.
+            await conn.rollback()
 
 
 async def fetch_aoi_bbox(source: str, src_id: str) -> list[float]:

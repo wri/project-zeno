@@ -42,12 +42,13 @@ custom-area mirror through shared SQL in `src/shared/aoi_search_sql.py`:
 | `leaf` | the place's own name: GADM `NAME_n`, WDPA `wdpa_name`, KBA `NatName`, LandMark `landmark_name`, the custom area's name |
 | `leaf_norm` | `unaccent(lower(btrim(leaf)))` — the key for exact and prefix matching |
 | `context` | what follows the leaf: GADM parents and country (consecutive duplicate segments collapsed), WDPA `desig_eng` + country, KBA `Country`, LandMark `category` + `country` |
-| `search_tsv` | weighted tsvector: leaf and every name variant at weight A, context at weight B |
+| `search_tsv` | weighted tsvector: leaf and every name variant at weight A, context at weight B, and the display name (minus no-data segments) at weight D, so a display name pasted back as a query still matches its row |
 
 `aoi_names` holds one row per name a place is known by: `kind` is `primary`,
 `variant` (GADM VARNAME, `|`-separated), `native` (GADM NL_NAME, WDPA
-`orig_name` when it differs) or `international` (KBA `IntName`). Non-Latin
-scripts are stored as they come; `unaccent` passes them through.
+`orig_name` when it differs), `international` (KBA `IntName`) or `code` (a
+country's ISO3, so "USA" is the United States). Non-Latin scripts are stored
+as they come; `unaccent` passes them through.
 
 `aoi_search_tokens` is the distinct-lexeme table of `search_tsv` (`ts_stat`,
 ~515k tokens), rebuilt at the end of `build-aois`. It exists only for typo
@@ -76,35 +77,47 @@ index remains on `aois`.
 
 ### The query, in tiers
 
-`search_aois(name, sources, user_id, limit, offset, mode)` keeps its signature
-and its result columns. The input string is split on commas: the first segment
-is the leaf, the rest are context terms. Both are turned into tsqueries with
-the `aoi_search` configuration inside SQL, so Python never tokenizes.
+`search_aois(name, sources, user_id, limit, offset)` keeps its signature and
+its result columns. The input string is split on commas: the first segment
+is the leaf, the rest are context terms. The leaf is normalized once in SQL
+and bound back as a constant, so the exact and prefix lookups are index
+ranges; the tsqueries are built inside the statement with the `aoi_search`
+configuration, so Python never tokenizes.
 
 One statement finds candidates in three arms and keeps each row's best tier:
 
 | tier | arm | example |
 |---|---|---|
-| 3 | `aoi_names.name_norm = leaf_norm` | "Lisboa" finds the row whose primary name is Lisboa; "Bombay" finds Mumbai through its variant |
-| 2 | `search_tsv @@ (leaf tokens AND context tokens)` | "Paris, France" requires both "paris" and "france" |
+| 2 | `aoi_names.name_norm = leaf_norm` | "Lisbon" finds Lisboa through its variant; "USA" finds the United States through its code |
 | 1 | `search_tsv @@ leaf tokens` | "Congo" finds every row with the token, both Congos included |
+| 1 | `leaf_norm LIKE 'leaf%'` | "Amazon" finds Amazonas |
 
-Ranking is `tier`, then exact-leaf, then a hierarchy prior (country above
-state above district, admin units above named sites; the same table the
-geocoder's Python scorer uses), then area, then name. The rank is returned as
-`similarity_score` in [0, 1] so the geocoder's merge and the replay fixtures
-keep working.
+Within a tier the order is: rows whose context also matches the query's
+context (the parent the user typed) first, then the hierarchy prior (country
+above state above district, admin units above named sites; the same table
+the geocoder's Python scorer uses), then a match on the primary name over
+one on a variant, then area, then name. Each arm is sorted the same way and
+limited to `limit + offset` rows, which is exact: a row in the final top-N
+sits within the top-N of the arm that gave it its tier. The rank is returned
+as `similarity_score` in [0, 1] so the geocoder's merge and the replay
+fixtures keep working.
 
-Only when that statement returns nothing does the fuzzy fallback run: each leaf
-token is corrected against `aoi_search_tokens` (`token % :tok`, threshold 0.3,
-best three by similarity then document frequency), and the token query is
-rerun with the corrections. "Bangalor" becomes "bangalore"; "Lisbon, Portugal"
-becomes "lisboa AND portugal". This is the only place trigram matching is used,
-against short single tokens, and it costs 30 to 70 ms when it runs.
+The typo correction runs only when the result does not answer the query as
+typed: no rows, or a parent was named and no row has it ("Lisbon, Portugal"
+must not stop at the US preserves called Lisbon). Each leaf token is
+corrected against `aoi_search_tokens` (`token % :tok` at threshold 0.3, set
+with `SET LOCAL` for that transaction; best three by similarity then document
+frequency) and the token arm is rerun with the corrections. "Bangalor"
+becomes "bangalore"; "Lisbon, Portugal" becomes "lisboa AND portugal". This
+is the only place trigram matching is used, against short single tokens.
 
-Measured on the same corpus: "Paris, France" 44 ms, "Congo" 3 ms, "Mumbai"
-3 ms, "Bangalor" 60 ms including the correction, "Botum Sakor" narrowed to
-WDPA under 1 ms.
+Measured on the corpus after the rewrite: "Paris" 21 ms, "Paris, France"
+5 ms, "Congo" 18 ms, "Mumbai" 11 ms, "Bangalor" 11 ms including the
+correction, "Botum Sakor" narrowed to WDPA 44 ms, "Puri" 194 ms. The costly
+shape is a country name that is also the context of a hundred thousand
+rows: "Indonesia" 470 ms and "United States" 510 ms, because the token arm
+has to sort every row that carries the token. The country still comes first,
+and the previous search took 4.7 s and 2.2 s on the same queries.
 
 ### Autocomplete
 
@@ -121,8 +134,14 @@ three-letter prefix that matches thousands of rows.
 Browse mode (no name) still orders by `name, source, source_id` on
 `idx_aois_name_live`. Custom areas stay owner-scoped by the `user_aois`
 semi-join. The geocoder's contract (`pick_aoi` → `search_aois(name: str)`)
-is unchanged in this phase; the multi-term fan-out and the Python scorer stay,
-now fed by a better-ranked candidate list of 25 instead of 10.
+is unchanged in this phase; the multi-term fan-out and the Python scorer
+stay, now fed by a better-ranked candidate list.
+
+One geocoder behaviour did change on purpose: a place given with its parent
+("Para, Brazil") no longer triggers the "which one?" nudge. The search now
+returns the other countries' same-named places below the parent's match,
+where the old search missed them, and a user who named the country has
+already answered the question.
 
 ## Rejected alternatives
 
@@ -153,9 +172,9 @@ now fed by a better-ranked candidate list of 25 instead of 10.
   in CI, so a retrieval change is only visible when that suite runs live
   against a populated database. Any change in its live results is documented
   in the PR with the query and the before/after candidates.
-- The pg_trgm threshold is set once on the engine (`server_settings`), not per
-  request. The per-request `CREATE EXTENSION` / `SET` / `COMMIT` preamble is
-  gone.
+- The pg_trgm threshold is set with `SET LOCAL` inside the correction's
+  transaction only. The per-request `CREATE EXTENSION` / `SET` / `COMMIT`
+  preamble is gone.
 
 ## Later
 

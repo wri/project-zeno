@@ -17,7 +17,7 @@ from typing import Optional, Sequence
 
 import pandas as pd
 
-from src.shared.geocoding_helpers import SUBREGION_TO_SUBTYPE_MAPPING
+from src.shared.geocoding_helpers import HIERARCHY_SCORES
 from src.shared.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -34,27 +34,9 @@ _PREFIX_BONUS = 0.1
 # would never match the same place spelled plainly.
 _SEGMENT_PUNCTUATION = string.punctuation + string.whitespace
 
-# Preference by subtype: broader admin units beat narrower ones, and admin
-# units beat named sites (KBA/WDPA/Landmark), so a bare "Lisbon" resolves to
-# the Portuguese district rather than a small "Lisbon Forest Preserve". These
-# ten values are everything `search_aois` can emit. The weights are tuning
-# constants, hand-authored: they are not derived from any other ordering.
-_HIERARCHY_SCORES: dict[str, float] = {
-    "country": 1.0,
-    "state-province": 0.9,
-    "district-county": 0.7,
-    "custom-area": 0.7,
-    "municipality": 0.5,
-    "locality": 0.35,
-    "neighbourhood": 0.25,
-    "key-biodiversity-area": 0.2,
-    "protected-area": 0.2,
-    "indigenous-and-community-land": 0.2,
-}
-
-# A subtype missing from the map raises on the query that returns it, so pin
-# the coverage at import time: CI sees it, a user does not.
-assert set(_HIERARCHY_SCORES) == set(SUBREGION_TO_SUBTYPE_MAPPING.values())
+# The subtype preference lives with the search, which ranks by it in SQL;
+# the scorer applies the same table so the two orderings agree.
+_HIERARCHY_SCORES = HIERARCHY_SCORES
 
 
 def _strip_accents(text_value: str) -> str:

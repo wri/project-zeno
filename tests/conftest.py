@@ -16,7 +16,12 @@ from src.api.app import app
 from src.api.auth.dependencies import fetch_user_from_rw_api
 from src.api.data_models import Base, ThreadOrm, UserOrm, UserType
 from src.api.schemas import UserModel
-from src.shared.aoi_search_sql import SEARCH_DDL
+from src.shared.aoi_search_sql import (
+    SEARCH_DDL,
+    clean_name_sql,
+    norm_sql,
+    tsv_sql,
+)
 from src.shared.database import (
     close_global_pool,
     get_session_from_pool_dependency,
@@ -54,6 +59,7 @@ async def seed_reference_aoi(
     geometry_wkt=UNIT_SQUARE_WKT,
     bbox=(0, 0, 1, 1),
     is_disputed=False,
+    variants=(),
 ):
     """Insert a reference AOI as build-aois does, with raw SQL and real geometry.
 
@@ -63,15 +69,24 @@ async def seed_reference_aoi(
     can seed a bbox that disagrees with the geometry and show which one a read
     path uses. ``None`` leaves the bbox null.
     """
+    # The search columns follow the corpus convention: the leaf is the first
+    # comma segment of the name, the context the rest. *variants* seed extra
+    # ``aoi_names`` rows, as GADM's VARNAME or WDPA's orig_name would.
+    leaf = clean_name_sql("split_part(:name, ',', 1)")
+    context = "NULLIF(btrim(substr(:name, length(split_part(:name, ',', 1)) + 2)), '')"
     async with async_session_maker() as session:
-        await session.execute(
+        aoi_id = await session.scalar(
             text(
                 "INSERT INTO aois "
                 "(source, source_id, name, subtype, geometry, bbox, "
-                " is_disputed) "
-                "VALUES (:source, :source_id, :name, :subtype, "
+                " is_disputed, leaf, leaf_norm, context, search_tsv) "
+                "SELECT :source, :source_id, :name, :subtype, "
                 " ST_Multi(ST_GeomFromText(:geometry_wkt, 4326)), "
-                " :bbox, :is_disputed)"
+                " :bbox, :is_disputed, s.leaf, "
+                f" {norm_sql('s.leaf')}, s.context, "
+                f" {tsv_sql('s.leaf', ':variants', 's.context', ':name')} "
+                f"FROM (SELECT {leaf} AS leaf, {context} AS context) s "
+                "RETURNING id"
             ),
             {
                 "source": source,
@@ -81,7 +96,22 @@ async def seed_reference_aoi(
                 "geometry_wkt": geometry_wkt,
                 "bbox": list(bbox) if bbox is not None else None,
                 "is_disputed": is_disputed,
+                "variants": " ".join(variants) or None,
             },
+        )
+        await session.execute(
+            text(
+                "INSERT INTO aoi_names (aoi_id, name, name_norm, kind) "
+                "SELECT :aoi_id, v.name, "
+                f"{norm_sql('v.name')}, v.kind "
+                "FROM (SELECT split_part(:name, ',', 1) AS name, "
+                "'primary' AS kind "
+                "UNION ALL SELECT unnest(CAST(:variants AS text[])), "
+                "'variant') v "
+                "WHERE btrim(v.name) <> '' "
+                "ON CONFLICT DO NOTHING"
+            ),
+            {"aoi_id": aoi_id, "name": name, "variants": list(variants)},
         )
         await session.commit()
 

@@ -46,6 +46,7 @@ from src.shared.gadm_admin_types import GadmAdminTerm, resolve_gadm_admin_level
 from src.shared.geocoding_helpers import (
     AOI_SOURCE_ID_COLUMNS,
     SUBREGION_TO_SUBTYPE_MAPPING,
+    parse_search_text,
     search_aois,
 )
 from src.shared.logging_config import get_logger
@@ -816,11 +817,15 @@ class Geocoder:
         # filtering the selections alone would pair one with another place's
         # candidates as soon as a place matched nothing.
         matched = [
-            (resolution.selection, resolution.primary)
+            resolution
             for resolution in resolutions
             if resolution.selection is not None
         ]
-        selected_aois = [aoi for aoi, _ in matched]
+        selected_aois: list[AOIIndex] = [
+            resolution.selection
+            for resolution in matched
+            if resolution.selection is not None
+        ]
         if not selected_aois:
             return Command(
                 update={
@@ -838,13 +843,26 @@ class Geocoder:
                 },
             )
 
+        # A place given with its parent ("Para, Brazil") is already
+        # disambiguated: the search ranks the parent's match first, and the
+        # other countries' same-named places it also returns are not a
+        # question to put back to the user.
+        undisambiguated = [
+            resolution
+            for resolution in matched
+            if not parse_search_text(resolution.place.place).context
+        ]
         duplicate_check = await check_duplicate_aois(
-            selected_aois,
+            [
+                resolution.selection
+                for resolution in undisambiguated
+                if resolution.selection is not None
+            ],
             # Only the rows the place name itself retrieved. An aoi_choice
             # option is resubmitted verbatim as the next question, so
             # offering a choice over rows that only an invented alias found
             # would re-offer the same choice indefinitely.
-            [primary for _, primary in matched],
+            [resolution.primary for resolution in undisambiguated],
             language,
         )
         if duplicate_check:

@@ -69,7 +69,7 @@ def _upsert_sql(scoped: bool) -> str:
                 leaf,
                 {norm_sql("leaf")},
                 NULL,
-                {tsv_sql("leaf", "NULL", "NULL")}
+                {tsv_sql("leaf", "NULL", "NULL", "name")}
             FROM collected
             WHERE name IS NOT NULL AND geom IS NOT NULL AND NOT ST_IsEmpty(geom)
             ON CONFLICT (source, source_id) WHERE NOT is_deprecated

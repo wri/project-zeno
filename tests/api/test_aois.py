@@ -9,6 +9,7 @@ that search depends on.
 import pytest
 from sqlalchemy import text
 
+from src.shared.aoi_search_sql import TOKENS_REBUILD_SQL
 from tests.conftest import async_session_maker
 from tests.conftest import seed_reference_aoi as _seed_reference_aoi
 
@@ -216,3 +217,120 @@ async def test_reference_sources_are_not_owner_scoped(
     assert res.status_code == 200, res.text
     sources = [r["source"] for r in res.json()]
     assert sources == ["gadm"]
+
+
+@pytest.mark.asyncio
+async def test_search_is_accent_and_case_insensitive(auth_override, client):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm", "BRA.14_1", "Pará, Brazil", "state-province"
+    )
+    await _seed_reference_aoi(
+        "gadm", "BRA.16_1", "Paraná, Brazil", "state-province"
+    )
+
+    res = await client.get("/api/aois?name=PARA", headers=AUTH)
+    assert res.status_code == 200, res.text
+    # The exact leaf ranks first; Paraná follows only as a prefix match.
+    assert [r["src_id"] for r in res.json()] == ["BRA.14_1", "BRA.16_1"]
+
+
+@pytest.mark.asyncio
+async def test_parent_in_the_query_disambiguates(auth_override, client):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm",
+        "GBR.1.12_1",
+        "Bristol, England, United Kingdom",
+        "district-county",
+    )
+    await _seed_reference_aoi(
+        "gadm",
+        "USA.22.5_1",
+        "Bristol, Massachusetts, United States",
+        "district-county",
+    )
+
+    res = await client.get("/api/aois?name=Bristol, England", headers=AUTH)
+    assert res.status_code == 200, res.text
+    src_ids = [r["src_id"] for r in res.json()]
+    # Both are exact leaf matches, but only the English one also matches the
+    # parent, so it ranks first.
+    assert src_ids[0] == "GBR.1.12_1"
+    assert "USA.22.5_1" in src_ids
+
+
+@pytest.mark.asyncio
+async def test_a_stored_variant_is_an_exact_match(auth_override, client):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm",
+        "PRT.12_1",
+        "Lisboa, Portugal",
+        "state-province",
+        variants=["Lisbon", "Lissabon"],
+    )
+    await _seed_reference_aoi(
+        "wdpa", "9", "Lisbon, Forest Preserve, USA", "protected-area"
+    )
+
+    res = await client.get("/api/aois?name=Lisbon", headers=AUTH)
+    assert res.status_code == 200, res.text
+    rows = res.json()
+    # Both match exactly (one by variant); the admin unit outranks the site.
+    assert [r["src_id"] for r in rows] == ["PRT.12_1", "9"]
+
+
+@pytest.mark.asyncio
+async def test_a_token_anywhere_in_the_name_matches(auth_override, client):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm", "COD", "Democratic Republic of the Congo", "country"
+    )
+    await _seed_reference_aoi(
+        "gadm", "COG", "Republic of the Congo", "country"
+    )
+    await _seed_reference_aoi(
+        "gadm", "BRA.15.61_2", "Congo, Paraíba, Brazil", "district-county"
+    )
+
+    res = await client.get("/api/aois?name=Congo", headers=AUTH)
+    assert res.status_code == 200, res.text
+    src_ids = [r["src_id"] for r in res.json()]
+    # The exact leaf ranks first, then the countries that carry the token.
+    assert src_ids[0] == "BRA.15.61_2"
+    assert set(src_ids) == {"COD", "COG", "BRA.15.61_2"}
+
+
+@pytest.mark.asyncio
+async def test_a_misspelling_falls_back_to_the_nearest_token(
+    auth_override, client
+):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm", "IND.16.3_1", "Bangalore, Karnataka, India", "district-county"
+    )
+    async with async_session_maker() as session:
+        for statement in TOKENS_REBUILD_SQL:
+            await session.execute(text(statement))
+        await session.commit()
+
+    res = await client.get("/api/aois?name=Bangalor", headers=AUTH)
+    assert res.status_code == 200, res.text
+    assert [r["src_id"] for r in res.json()] == ["IND.16.3_1"]
+
+
+@pytest.mark.asyncio
+async def test_a_native_script_name_is_searchable(auth_override, client):
+    auth_override("test-user-wri")
+    await _seed_reference_aoi(
+        "gadm",
+        "JPN.20_1",
+        "Kochi, Japan",
+        "state-province",
+        variants=["高知県"],
+    )
+
+    res = await client.get("/api/aois?name=高知県", headers=AUTH)
+    assert res.status_code == 200, res.text
+    assert [r["src_id"] for r in res.json()] == ["JPN.20_1"]

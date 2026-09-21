@@ -315,7 +315,8 @@ class AoiNameOrm(Base):
     """One name a searchable AOI is known by.
 
     ``kind`` is ``primary`` (the leaf), ``variant`` (GADM VARNAME), ``native``
-    (GADM NL_NAME, WDPA orig_name) or ``international`` (KBA IntName).
+    (GADM NL_NAME, WDPA orig_name), ``international`` (KBA IntName) or
+    ``code`` (a country's ISO3).
     ``name_norm`` is the lowercase unaccented form that the exact and prefix
     tiers compare against; non-Latin names are stored as they come.
     Written by raw SQL in ``build-aois`` and the custom-area mirror; nothing

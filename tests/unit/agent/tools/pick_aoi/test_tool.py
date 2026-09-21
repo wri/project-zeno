@@ -662,6 +662,40 @@ async def test_an_ambiguity_nudge_still_fires_for_the_place_name_itself(
     _patch_search(
         monkeypatch,
         {
+            "Puri": [
+                _row(
+                    "IND.26.26_1",
+                    "Puri, Odisha, India",
+                    subtype="district-county",
+                ),
+                _row(
+                    "SLE.1.2_1",
+                    "Puri, Sierra Leone",
+                    subtype="district-county",
+                ),
+            ]
+        },
+    )
+
+    command = await _lookup(
+        [ExtractedPlace(place="Puri")],
+        question="deforestation in Puri",
+    )
+
+    assert command.update["nudge"]["type"] == "aoi_choice"
+    assert len(command.update["nudge"]["options"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_place_given_with_its_parent_raises_no_nudge(monkeypatch):
+    """ "Puri, India" is already disambiguated by the user.
+
+    The search ranks the parent's match first and still returns the other
+    countries' Puris below it, which is not a question to put back.
+    """
+    _patch_search(
+        monkeypatch,
+        {
             "Puri, India": [
                 _row(
                     "IND.26.26_1",
@@ -682,8 +716,10 @@ async def test_an_ambiguity_nudge_still_fires_for_the_place_name_itself(
         question="deforestation in Puri, India",
     )
 
-    assert command.update["nudge"]["type"] == "aoi_choice"
-    assert len(command.update["nudge"]["options"]) == 2
+    assert "nudge" not in command.update
+    assert (
+        command.update["aoi_selection"]["aois"][0]["src_id"] == "IND.26.26_1"
+    )
 
 
 @pytest.mark.asyncio

@@ -75,7 +75,7 @@ def upgrade() -> None:
         sa.Column("aoi_id", sa.UUID(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("name_norm", sa.String(), nullable=False),
-        # primary | variant | native | international
+        # primary | variant | native | international | code
         sa.Column("kind", sa.String(), nullable=False),
         sa.ForeignKeyConstraint(["aoi_id"], ["aois.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),

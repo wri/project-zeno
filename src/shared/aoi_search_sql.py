@@ -71,19 +71,40 @@ def clean_name_sql(expr: str) -> str:
     )
 
 
-def tsv_sql(leaf_expr: str, variants_expr: str, context_expr: str) -> str:
-    """Weighted tsvector: the place's own names at A, its context at B.
+def strip_sentinel_segments_sql(expr: str) -> str:
+    """Return the display name *expr* without its no-data segments.
+
+    "Bristol, NA, England, United Kingdom" becomes "Bristol, England, United
+    Kingdom", so the marker is not a token of the display name either.
+    """
+    return (
+        f"regexp_replace(COALESCE({expr}, ''), "
+        "'(^|, )(NA|\\?|Unknown|unknown|n\\.a\\.( \\([^)]*\\))?)(?=,|$)', "
+        "'', 'g')"
+    )
+
+
+def tsv_sql(
+    leaf_expr: str, variants_expr: str, context_expr: str, name_expr: str
+) -> str:
+    """Weighted tsvector: the place's own names at A, its context at B, its
+    display name at D.
 
     *leaf_expr* and *variants_expr* are the names the place is known by, and
     both carry weight A so a token search finds a place under any of them.
-    *context_expr* holds the parents, designation or country, at weight B, so
-    a query like "paris france" requires the parent but ranks the leaf match
-    higher. Each expression may be NULL.
+    *context_expr* holds the parents, designation or country, at weight B.
+    *name_expr* is the display name at weight D: it repeats the tokens above
+    and adds the source's own extras (an ISO3 code, an original-language
+    designation), so a display name pasted back as a query, which is what an
+    ``aoi_choice`` nudge does, matches the row it came from. Each expression
+    may be NULL.
     """
     return (
         f"setweight(to_tsvector('{TS_CONFIG}', COALESCE({leaf_expr}, '')), 'A') "
         f"|| setweight(to_tsvector('{TS_CONFIG}', COALESCE({variants_expr}, '')), 'A') "
-        f"|| setweight(to_tsvector('{TS_CONFIG}', COALESCE({context_expr}, '')), 'B')"
+        f"|| setweight(to_tsvector('{TS_CONFIG}', COALESCE({context_expr}, '')), 'B') "
+        f"|| setweight(to_tsvector('{TS_CONFIG}', "
+        f"{strip_sentinel_segments_sql(name_expr)}), 'D')"
     )
 
 

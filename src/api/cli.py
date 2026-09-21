@@ -972,6 +972,13 @@ class _SearchExprs:
     def variant_arms(self, q: str) -> list[tuple[str, str]]:
         """``(kind, text[] expression)`` pairs of the source's name variants."""
         if self.source == "gadm":
+            # A country is also known by its ISO3 code, which is its GADM id
+            # ("USA", "BRA"); people type those.
+            id_col = AOI_SOURCE_ID_COLUMNS["gadm"]
+            code = (
+                f"CASE WHEN {q}subtype = 'country' "
+                f'THEN CAST({q}"{id_col}" AS TEXT) END'
+            )
             return [
                 (
                     "variant",
@@ -981,6 +988,7 @@ class _SearchExprs:
                     "native",
                     f"string_to_array({self._gadm_optional(q, 'NL_NAME', 3)}, '|')",
                 ),
+                ("code", f"ARRAY[{code}]"),
             ]
         if self.source == "wdpa":
             return [
@@ -1411,7 +1419,7 @@ async def _build_reference_aois(
             leaf,
             {norm_sql("leaf")},
             context,
-            {tsv_sql("leaf", "variants", "context")}
+            {tsv_sql("leaf", "variants", "context", "name")}
         FROM normalized
         WHERE geom IS NOT NULL AND NOT ST_IsEmpty(geom)
         ON CONFLICT (source, source_id) WHERE NOT is_deprecated
